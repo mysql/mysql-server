@@ -12,9 +12,8 @@ extern "C" {
 #define DB_VERSION_PATCH 24
 #ifndef _TOKUDB_WRAP_H
 #define DB_VERSION_STRING "Tokutek: TokuDB 4.1.24"
-#else
-#define DB_VERSION_STRING "Tokutek: TokuDB (wrapped bdb)"
 #endif
+#ifndef _TOKUDB_WRAP_H
 typedef struct __toku_db_btree_stat DB_BTREE_STAT;
 typedef struct __toku_db_env DB_ENV;
 typedef struct __toku_db_key_range DB_KEY_RANGE;
@@ -67,6 +66,7 @@ typedef enum {
 #define DB_SET 30
 #define DB_SET_RANGE 32
 #define DB_RMW 1073741824
+#endif
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
 #ifdef _TOKUDB_WRAP_H
 #undef txn_begin

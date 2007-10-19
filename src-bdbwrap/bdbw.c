@@ -1,12 +1,9 @@
 /* Wrapper for bdb.c. */
 
 #include <sys/types.h>
-/* This includes the ydb db.h, but with unique names for everything. */
-#include "ydb-uniq.h"
 /* This include is to the berkeley-db compiled with --with-uniquename */
 #include <db.h>
-/* This include is to the interface between ydb and bdb.  */
-#include "bdbw.h"
+
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +12,8 @@
 #include <assert.h>
 #include <sys/time.h>
 #include <time.h>
+
+#undef db_env_create
 
 #define barf() ({ fprintf(stderr, "YDB: BARF %s:%d in %s\n", __FILE__, __LINE__, __func__); })
 #define barff(fmt,...) ({ fprintf(stderr, "YDB: BARF %s:%d in %s, ", __FILE__, __LINE__, __func__); fprintf(stderr, fmt, __VA_ARGS__); })
@@ -45,19 +44,70 @@ void tracef (const char *fmt, ...) {
     va_end(ap);
 }
 
-struct db_env_ydb_internal {
+struct wrap_db_env_internal {
     unsigned long long objnum;
     DB_ENV *env;
-    void (*noticecall)(DB_ENV_ydb*, db_notices_ydb);
+    //void (*noticecall)(DB_ENV_ydb*, db_notices_ydb);
     char *home;
 };
 
-struct yobi_db_txn_internal {
+static void wrap_env_err (const DB_ENV *, int error, const char *fmt, ...);
+static int  wrap_env_open (DB_ENV *, const char *home, u_int32_t flags, int mode);
+static int  wrap_env_close (DB_ENV *, u_int32_t flags);
+static int  wrap_env_txn_checkpoint (DB_ENV *, u_int32_t kbyte, u_int32_t min, u_int32_t flags);
+static int  wrap_db_env_log_flush (DB_ENV*, const DB_LSN*lsn);
+
+
+int db_env_create (DB_ENV **envp, u_int32_t flags) {
+    DB_ENV *result = malloc(sizeof(*result));
+    struct wrap_db_env_internal *i = malloc(sizeof(*i));
+    int r;
+    //note();
+    // use a private field for this
+    result->reginfo = i;
+
+    i->objnum = objnum++;
+    //i->noticecall = 0;
+    i->home = 0;
+
+    result->err            = wrap_env_err;
+    result->open           = wrap_env_open;
+    result->close          = wrap_env_close;
+    result->txn_checkpoint = wrap_env_txn_checkpoint;
+    result->log_flush      = wrap_env_log_flush;
+    result->set_errcall = ydb_env_set_errcall;
+    result->set_errpfx = ydb_env_set_errpfx;
+    result->set_noticecall = ydb_env_set_noticecall;
+    result->set_flags = ydb_env_set_flags;
+    result->set_data_dir = ydb_env_set_data_dir;
+    result->set_tmp_dir = ydb_env_set_tmp_dir;
+    result->set_verbose = ydb_env_set_verbose;
+    result->set_lg_bsize = ydb_env_set_lg_bsize;
+    result->set_lg_dir = ydb_env_set_lg_dir;
+    result->set_lg_max = ydb_env_set_lg_max;
+    result->set_cachesize = ydb_env_set_cachesize;
+    result->set_lk_detect = ydb_env_set_lk_detect;
+    result->set_lk_max = ydb_env_set_lk_max;
+    result->log_archive = ydb_env_log_archive;
+    result->txn_stat = ydb_env_txn_stat;
+    result->txn_begin = txn_begin_bdbw;
+
+    r = db_env_create_4001(&result->i->env, flags);
+    result->i->env->app_private = result;
+    *envp = result;
+
+    tracef("r=db_env_create(new_envobj(%lld), %u); assert(r==%d);\n",
+	   result->i->objnum, flags, r);
+
+    return r;
+}
+
+struct __toku_db_txn_internal {
     long long objnum;
     DB_TXN *txn;
 };
 
-static void ydb_env_err (const DB_ENV_ydb *env, int error, const char *fmt, ...) {
+static void wrap_env_err (const DB_ENV *env, int error, const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   fprintf(stderr, "YDB Error %d:", error);
@@ -79,7 +129,9 @@ void doits_internal (u_int32_t flag_ydb, u_int32_t flag_bdb, char *flagname, u_i
     }
 }
 
-#define doits(flag) doits_internal(flag ## _ydb, flag, #flag, &flags, &gotit, &flagstring, &flagstringlen)
+//#define doits(flag) doits_internal(flag ## _ydb, flag, #flag, &flags, &gotit, &flagstring, &flagstringlen)
+#define doits(flag) doits_internal(flag, flag, #flag, &flags, &gotit, &flagstring, &flagstringlen)
+
 
 static u_int32_t convert_envopen_flags(u_int32_t flags, char *flagstring, int flagstringlen) {
   u_int32_t gotit=0;
@@ -121,7 +173,8 @@ u_int32_t convert_db_set_flags (u_int32_t flags, char *flagstring, int flagstrin
     return gotit;
 }
 
-#define retit(flag) ({ if (flag ## _ydb == flags) { strncpy(flagstring, #flag ,flagstringlen); return flag; } })
+//#define retit(flag) ({ if (flag ## _ydb == flags) { strncpy(flagstring, #flag ,flagstringlen); return flag; } })
+#define retit(flag) ({ if (flag == flags) { strncpy(flagstring, #flag ,flagstringlen); return flag; } })
 
 u_int32_t convert_c_get_flags(u_int32_t flags, char *flagstring, int flagstringlen) {
     retit(DB_FIRST);
@@ -130,7 +183,8 @@ u_int32_t convert_c_get_flags(u_int32_t flags, char *flagstring, int flagstringl
     abort();
 }
 
-int  ydb_env_open (DB_ENV_ydb *env, const char *home, u_int32_t flags, int mode) {
+int  wrap_env_open (DB_ENV *env_w, const char *home, u_int32_t flags, int mode) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     int r;
     char flagstring[1000];
     u_int32_t bdb_flags = convert_envopen_flags(flags, flagstring, sizeof(flagstring));
@@ -142,7 +196,8 @@ int  ydb_env_open (DB_ENV_ydb *env, const char *home, u_int32_t flags, int mode)
     return r;
 }
 
-int  bdbw_env_close (DB_ENV_ydb * env, u_int32_t flags) {
+int  bdbw_env_close (DB_ENV * env_w, u_int32_t flags) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     int r;
     notef("flags=%d\n", flags);
     assert(flags==0);
@@ -158,7 +213,8 @@ u_int32_t convert_log_archive_flags (u_int32_t flags, char *flagstring, int flag
     abort();
 }
 
-int  ydb_env_log_archive (DB_ENV_ydb *env, char **list[], u_int32_t flags) {
+int  ydb_env_log_archive (DB_ENV *env_w, char **list[], u_int32_t flags) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     int r;
     char flagstring[1000];
     int bdbflags = convert_log_archive_flags(flags, flagstring, sizeof(flagstring));
@@ -168,42 +224,53 @@ int  ydb_env_log_archive (DB_ENV_ydb *env, char **list[], u_int32_t flags) {
 	   env->i->objnum, env->i->objnum, flagstring, r);
     return r;
 }
-int  ydb_env_log_flush (DB_ENV_ydb * env, const DB_LSN_ydb * lsn) {
+int  ydb_env_log_flush (DB_ENV *env, const DB_LSN *lsn) {
   barf();
   return 1;
 }
-int  ydb_env_set_cachesize (DB_ENV_ydb * env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
+int  ydb_env_set_cachesize (DB_ENV * env_w, u_int32_t gbytes, u_int32_t bytes, int ncache) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     return env->i->env->set_cachesize(env->i->env, gbytes, bytes, ncache);
 }
-int  ydb_env_set_data_dir (DB_ENV_ydb * env, const char *dir) {
+int  ydb_env_set_data_dir (DB_ENV* env_w, const char *dir) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     return env->i->env->set_data_dir(env->i->env, dir);
 }
-void ydb_env_set_errcall (DB_ENV_ydb *env, void (*errcall)(const char *, char *)) {
+void ydb_env_set_errcall (DB_ENV *env_w, void (*errcall)(const char *, char *)) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     env->i->env->set_errcall(env->i->env, errcall);
 }
-void ydb_env_set_errpfx (DB_ENV_ydb * env, const char *errpfx) {
+void ydb_env_set_errpfx (DB_ENV * env_w, const char *errpfx) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     env->i->env->set_errpfx(env->i->env, errpfx);
 }
-int  ydb_env_set_flags (DB_ENV_ydb *env, u_int32_t flags, int onoff) {
+int  ydb_env_set_flags (DB_ENV *env_w, u_int32_t flags, int onoff) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     assert(flags==0);
     return env->i->env->set_flags(env->i->env, flags, onoff);
 }
-int  ydb_env_set_lg_bsize (DB_ENV_ydb * env, u_int32_t bsize) {
+int  ydb_env_set_lg_bsize (DB_ENV * env_w, u_int32_t bsize) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     return env->i->env->set_lg_bsize(env->i->env, bsize);
 }
-int  ydb_env_set_lg_dir (DB_ENV_ydb *env, const char * dir) {
-  barf();
-  return 1;
+int  ydb_env_set_lg_dir (DB_ENV *env_w, const char * dir) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
+    barf();
+    return 1;
 }
-int  ydb_env_set_lg_max (DB_ENV_ydb *env, u_int32_t lg_max) {
+int  ydb_env_set_lg_max (DB_ENV *env_w, u_int32_t lg_max) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     return env->i->env->set_lg_max(env->i->env, lg_max);
 }
-int  ydb_env_set_lk_detect (DB_ENV_ydb *env, u_int32_t detect) {
+int  ydb_env_set_lk_detect (DB_ENV *env_w, u_int32_t detect) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     return env->i->env->set_lk_detect(env->i->env, detect);
 }
-int  ydb_env_set_lk_max (DB_ENV_ydb *env, u_int32_t lk_max) {
+int  ydb_env_set_lk_max (DB_ENV *env_w, u_int32_t lk_max) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     return env->i->env->set_lk_max(env->i->env, lk_max);
 }
+#if 0
 void ydbenv_bdb_noticecall (DB_ENV *bdb_env, db_notices notices) {
     DB_ENV_ydb *ydb_env = bdb_env->app_private;
     tracef("/* Doing noticecall */\n");
@@ -227,17 +294,21 @@ void ydb_env_set_noticecall (DB_ENV_ydb *env, void (*noticecall)(DB_ENV_ydb *, d
 	       env->i->objnum, env->i->objnum, fun_name);
     }
 }
-int  ydb_env_set_tmp_dir (DB_ENV_ydb * env, const char *tmp_dir) {
+#endif
+int  ydb_env_set_tmp_dir (DB_ENV * env_w, const char *tmp_dir) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     int r = env->i->env->set_tmp_dir(env->i->env, tmp_dir);
     tracef("r = envobj(%lld)->set_tmp_dir(envobj(%lld), \"%s\"); assert(r==%d);\n",
 	   env->i->objnum, env->i->objnum, tmp_dir, r);
     return r;
 }
-int  ydb_env_set_verbose (DB_ENV_ydb *env, u_int32_t which, int onoff) {
-  barf();
-  return 1;
+int  ydb_env_set_verbose (DB_ENV *env_w, u_int32_t which, int onoff) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
+    barf();
+    return 1;
 }
-int  ydb_env_txn_checkpoint (DB_ENV_ydb *env, u_int32_t kbyte, u_int32_t min, u_int32_t flags) {
+int  ydb_env_txn_checkpoint (DB_ENV *env_w, u_int32_t kbyte, u_int32_t min, u_int32_t flags) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
     int r;
     assert(flags==0);
     r=env->i->env->txn_checkpoint(env->i->env, kbyte, min, 0);
@@ -247,51 +318,12 @@ int  ydb_env_txn_checkpoint (DB_ENV_ydb *env, u_int32_t kbyte, u_int32_t min, u_
     return r;
 }
 
-int  ydb_env_txn_stat (DB_ENV_ydb *env, DB_TXN_STAT_ydb **statp, u_int32_t flags) {
-  barf();
-  return 1;
+int  ydb_env_txn_stat (DB_ENV *env_w, DB_TXN_STAT **statp, u_int32_t flags) {
+    struct __toku_db_env *env = bdb2toku_env(env_w);
+    barf();
+    return 1;
 }
 
-int db_env_create_bdbw (struct yobi_db_env **envp, u_int32_t flags) {
-    struct yobi_db_env *result = malloc(sizeof(*result));
-    int r;
-    //note();
-    result->i = malloc(sizeof(*result->i));
-    result->i->objnum = objnum++;
-    result->i->noticecall = 0;
-    result->i->home = 0;
-
-    result->err = ydb_env_err;
-    result->open = ydb_env_open;
-    result->close = bdbw_env_close;
-    result->txn_checkpoint = ydb_env_txn_checkpoint;
-    result->log_flush = ydb_env_log_flush;
-    result->set_errcall = ydb_env_set_errcall;
-    result->set_errpfx = ydb_env_set_errpfx;
-    result->set_noticecall = ydb_env_set_noticecall;
-    result->set_flags = ydb_env_set_flags;
-    result->set_data_dir = ydb_env_set_data_dir;
-    result->set_tmp_dir = ydb_env_set_tmp_dir;
-    result->set_verbose = ydb_env_set_verbose;
-    result->set_lg_bsize = ydb_env_set_lg_bsize;
-    result->set_lg_dir = ydb_env_set_lg_dir;
-    result->set_lg_max = ydb_env_set_lg_max;
-    result->set_cachesize = ydb_env_set_cachesize;
-    result->set_lk_detect = ydb_env_set_lk_detect;
-    result->set_lk_max = ydb_env_set_lk_max;
-    result->log_archive = ydb_env_log_archive;
-    result->txn_stat = ydb_env_txn_stat;
-    result->txn_begin = txn_begin_bdbw;
-
-    r = db_env_create_4001(&result->i->env, flags);
-    result->i->env->app_private = result;
-    *envp = result;
-
-    tracef("r=db_env_create(new_envobj(%lld), %u); assert(r==%d);\n",
-	   result->i->objnum, flags, r);
-
-    return r;
-}
 
 int yobi_db_txn_commit (DB_TXN_ydb *txn, u_int32_t flags) {
     int r;

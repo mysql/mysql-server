@@ -45,3 +45,6 @@ ydb.lo: bdbw.h
 bdbw.lo: CPPFLAGS=-I/home/bradley/mysql/build-bdb-with-uniquename/bdb/build_unix
 %.lo: %.c
 	cc $(CPPFLAGS) $< -c -fPIC -o $@ $(CFLAGS)
+
+bdbw.lo: bdbw.h ydb-uniq.h
+

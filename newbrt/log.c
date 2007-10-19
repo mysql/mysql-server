@@ -50,12 +50,12 @@ int tokulogger_create_and_open_logger (const char *directory, TOKULOGGER *result
 
 int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
     int r;
-    //printf("%s:%d logging %d bytes\n", __FILE__, __LINE__, nbytes);
+    //fprintf(stderr, "%s:%d logging %d bytes\n", __FILE__, __LINE__, nbytes);
     if (logger->fd==-1) {
 	int  fnamelen = strlen(logger->directory)+50;
 	char fname[fnamelen];
 	snprintf(fname, fnamelen, "%s/log%012llu.tokulog", logger->directory, logger->next_log_file_number);
-	printf("%s:%d creat(%s, ...)\n", __FILE__, __LINE__, fname);
+	fprintf(stderr, "%s:%d creat(%s, ...)\n", __FILE__, __LINE__, fname);
 	logger->fd = creat(fname, O_EXCL | 0700);
 	if (logger->fd==-1) return errno;
 	logger->next_log_file_number++;
@@ -66,11 +66,13 @@ int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
 	v[0].iov_len  = logger->n_in_buf;
 	v[1].iov_base = bytes;
 	v[1].iov_len  = nbytes;
+	//fprintf(stderr, "%s:%d flushing log due to buffer overflow\n", __FILE__, __LINE__);
 	r=writev(logger->fd, v, 2);
 	if (r!=logger->n_in_buf + nbytes) return errno;
 	logger->n_in_file += logger->n_in_buf+nbytes;
 	logger->n_in_buf=0;
 	if (logger->n_in_file > 100<<20) {
+	    fprintf(stderr, "%s:%d closing logfile\n", __FILE__, __LINE__);
 	    r = close(logger->fd);
 	    if (r!=0) return errno;
 	    logger->fd=-1;
@@ -107,7 +109,7 @@ int tokulogger_log_close(TOKULOGGER *loggerp) {
     TOKULOGGER logger = *loggerp;
     int r = 0;
     if (logger->fd!=-1) {
-	printf("%s:%d n_in_buf=%d\n", __FILE__, __LINE__, logger->n_in_buf);
+	printf("%s:%d closing log: n_in_buf=%d\n", __FILE__, __LINE__, logger->n_in_buf);
 	if (logger->n_in_buf>0) {
 	    r = write(logger->fd, logger->buf, logger->n_in_buf);
 	    if (r==-1) return errno;
@@ -156,6 +158,7 @@ int tokulogger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, diskoff disk
 
 int tokulogger_fsync (TOKULOGGER logger) {
     //return 0;/// NO TXN
+    //fprintf(stderr, "%s:%d syncing log\n", __FILE__, __LINE__);
     if (logger->n_in_buf>0) {
 	int r = write(logger->fd, logger->buf, logger->n_in_buf);
 	if (r==-1) return errno;
@@ -177,14 +180,16 @@ int tokulogger_log_commit (TOKUTXN txn) {
     wbuf_txnid(&wbuf, txn->txnid64);
     int r = tokulogger_log_bytes(txn->logger, wbuf.ndone, wbuf.buf);
     if (r!=0) return r;
-    return tokulogger_fsync(txn->logger);
+    if (txn->parent) return 0;
+    else return tokulogger_fsync(txn->logger);
 }
 
-int tokutxn_begin (TOKUTXN *tokutxn, TXNID txnid64, TOKULOGGER logger) {
+int tokutxn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TXNID txnid64, TOKULOGGER logger) {
     TAGMALLOC(TOKUTXN, result);
     if (result==0) return errno;
     result->txnid64 = txnid64;
     result->logger = logger;
+    result->parent = parent_tokutxn;
     *tokutxn = result;
     return 0;
 }

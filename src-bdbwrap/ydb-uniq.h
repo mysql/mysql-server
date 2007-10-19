@@ -1,6 +1,5 @@
-#ifndef _YDB_WRAP_H
-#define _YDB_WRAP_H
-
+#ifndef _TOKUDB_WRAP_H
+#define _TOKUDB_WRAP_H
 #define DB_BTREE DB_BTREE_ydb
 #define DB_NOTICE_LOGFILE_CHANGED DB_NOTICE_LOGFILE_CHANGED_ydb
 #define DBTYPE DBTYPE_ydb
@@ -9,8 +8,8 @@
 #define txn_begin txn_begin_ydb
 #define txn_commit txn_commit_ydb
 #define DB_VERB_CHKPOINT DB_VERB_CHKPOINT_ydb
-#define DB_VERB_DEADLOCK DB_VERB_DEADLOCK_ydb
-#define DB_VERB_RECOVERY DB_VERB_RECOVERY_ydb
+//#define DB_VERB_DEADLOCK DB_VERB_DEADLOCK_ydb
+//#define DB_VERB_RECOVERY DB_VERB_RECOVERY_ydb
 #define DB DB_ydb
 #define DB_BTREE_STAT DB_BTREE_STAT_ydb
 #define DB_ENV DB_ENV_ydb
@@ -25,7 +24,6 @@
 #define DB_DBT_REALLOC DB_DBT_REALLOC_ydb
 #define DB_DBT_USERMEM DB_DBT_USERMEM_ydb
 #define DB_DBT_DUPOK DB_DBT_DUPOK_ydb
-#define DB_VERSION_STRING DB_VERSION_STRING_ydb
 #define DB_ARCH_ABS DB_ARCH_ABS_ydb
 #define DB_ARCH_LOG DB_ARCH_LOG_ydb
 #define DB_FIRST DB_FIRST_ydb
@@ -88,7 +86,6 @@
 #undef DB_DBT_REALLOC
 #undef DB_DBT_USERMEM
 #undef DB_DBT_DUPOK
-#undef DB_VERSION_STRING
 #undef DB_ARCH_ABS
 #undef DB_ARCH_LOG
 #undef DB_FIRST

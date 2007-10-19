@@ -13,6 +13,6 @@ int tokulogger_log_phys_add_or_delete_in_leaf    (DB *db, TOKUTXN txn, diskoff d
 
 int tokulogger_log_commit (TOKUTXN txn);
 
-int tokutxn_begin (TOKUTXN *, TXNID txnid64, TOKULOGGER logger);
+int tokutxn_begin (TOKUTXN /*parent*/,TOKUTXN *, TXNID txnid64, TOKULOGGER logger);
 
 #endif

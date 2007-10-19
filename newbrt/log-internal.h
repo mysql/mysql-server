@@ -4,7 +4,7 @@
 #include <sys/types.h>
 
 
-#define LOGGER_BUF_SIZE (1<<20)
+#define LOGGER_BUF_SIZE (1<<24)
 struct tokulogger {
     enum typ_tag tag;
     char *directory;
@@ -22,4 +22,5 @@ enum { LT_INSERT_WITH_NO_OVERWRITE = 'I', LT_DELETE = 'D', LT_COMMIT = 'C' };
 struct tokutxn {
     u_int64_t txnid64;
     TOKULOGGER logger;
+    TOKUTXN    parent;
 };
