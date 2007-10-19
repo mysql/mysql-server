@@ -59,7 +59,7 @@ struct cachefile {
     struct fileid fileid;
 };
 
-int create_cachetable_size(CACHETABLE *result, int table_size __attribute__((unused)), long size_limit) {
+int create_cachetable(CACHETABLE *result, int table_size __attribute__((unused)), long size_limit) {
     TAGMALLOC(CACHETABLE, t);
     int i;
     t->n_in_table = 0;
@@ -334,8 +334,8 @@ static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *
     return 0;
 }
 
-int cachetable_put_size(CACHEFILE cachefile, CACHEKEY key, void*value, long size,
-                    cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
+int cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size,
+                   cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     {
 	PAIR p;
@@ -356,15 +356,15 @@ int cachetable_put_size(CACHEFILE cachefile, CACHEKEY key, void*value, long size
     return r;
 }
 
-int cachetable_get_and_pin_size (CACHEFILE cachefile, CACHEKEY key, void**value, long *sizep,
-                            cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
+int cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, long *sizep,
+                           cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     CACHETABLE t = cachefile->cachetable;
     int tsize __attribute__((__unused__)) = t->table_size;
     PAIR p;
     for (p=t->table[hashit(t,key)]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    *value = p->value;
-            *sizep = p->size;
+            if (sizep) *sizep = p->size;
 	    p->pinned++;
 	    lru_touch(t,p);
 	    WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
@@ -406,7 +406,7 @@ int cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value
 }
 
 
-int cachetable_unpin_size (CACHEFILE cachefile, CACHEKEY key, int dirty, long size) {
+int cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, int dirty, long size) {
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
     WHEN_TRACE_CT(printf("%s:%d unpin(%lld)", __FILE__, __LINE__, key));

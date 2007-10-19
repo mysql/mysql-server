@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+const int test_object_size = 1;
+
 CACHETABLE ct;
 
 enum { N_PRESENT_LIMIT = 4, TRIALS=200, N_FILES=2 };
@@ -79,7 +81,7 @@ void verify_cachetable_against_present (void) {
 	assert(cachetable_maybe_get_and_pin(present_items[i].cf,
 					    present_items[i].key,
 					    &v)==0);
-	r = cachetable_unpin(present_items[i].cf, present_items[i].key, 0);
+	r = cachetable_unpin(present_items[i].cf, present_items[i].key, CACHETABLE_CLEAN, test_object_size);
     }
 }
 
@@ -91,7 +93,7 @@ void test_chaining (void) {
     char fname[N_FILES][FILENAME_LEN];
     int r;
     long i, trial;
-    r = create_cachetable(&ct, N_PRESENT_LIMIT);                               assert(r==0);
+    r = create_cachetable(&ct, N_PRESENT_LIMIT, N_PRESENT_LIMIT);                               assert(r==0);
     for (i=0; i<N_FILES; i++) {
 	int r = snprintf(fname[i], FILENAME_LEN, "cachetabletest2.%ld.dat", i);
 	assert(r>0 && r<FILENAME_LEN);
@@ -101,9 +103,9 @@ void test_chaining (void) {
     for (i=0; i<N_PRESENT_LIMIT; i++) {
 	int fnum = i%N_FILES;
 	//printf("%s:%d Add %d\n", __FILE__, __LINE__, i);
-	r = cachetable_put(f[fnum], i, (void*)i, flush_forchain, fetch_forchain, (void*)i); assert(r==0);
+	r = cachetable_put(f[fnum], i, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i); assert(r==0);
 	item_becomes_present(f[fnum], i);
-	r = cachetable_unpin(f[fnum], i, 0);                                                assert(r==0);
+	r = cachetable_unpin(f[fnum], i, CACHETABLE_CLEAN, test_object_size);                                                assert(r==0);
 	//print_ints();
     }
     for (trial=0; trial<TRIALS; trial++) {
@@ -115,6 +117,7 @@ void test_chaining (void) {
 	    r = cachetable_get_and_pin(present_items[whichone].cf,
 				       present_items[whichone].key,
 				       &value,
+                                       NULL,
 				       flush_forchain,
 				       fetch_forchain,
 				       (void*)(long)present_items[whichone].key
@@ -122,7 +125,7 @@ void test_chaining (void) {
 	    assert(r==0);
 	    r = cachetable_unpin(present_items[whichone].cf,
 				 present_items[whichone].key,
-				 0);
+				 CACHETABLE_CLEAN, test_object_size);
 	    assert(r==0);
 	}
 
@@ -130,11 +133,11 @@ void test_chaining (void) {
 	int fnum = i%N_FILES;
 	// i is always incrementing, so we need not worry about inserting a duplicate
 	//printf("%s:%d Add {%d,%p}\n", __FILE__, __LINE__, i, f[fnum]);
-	r = cachetable_put(f[fnum], i, (void*)i, flush_forchain, fetch_forchain, (void*)i); assert(r==0);
+	r = cachetable_put(f[fnum], i, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i); assert(r==0);
 	item_becomes_present(f[fnum], i);
 	//print_ints();
 	//cachetable_print_state(ct);
-	r = cachetable_unpin(f[fnum], i, 0);                                                assert(r==0);
+	r = cachetable_unpin(f[fnum], i, CACHETABLE_CLEAN, test_object_size);                                                assert(r==0);
 	verify_cachetable_against_present();
 
 	if (random()%10==0) {

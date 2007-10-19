@@ -22,7 +22,7 @@ typedef struct cachefile *CACHEFILE;
  * table_size is the initial size of the cache table hash table (in number of entries)
  * size limit is the upper bound of the sum of size of the entries in the cache table (total number of bytes)
  */
-int create_cachetable_size(CACHETABLE */*result*/, int table_size, long size_limit);
+int create_cachetable(CACHETABLE */*result*/, int table_size, long size_limit);
 
 int cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, int flags, mode_t mode);
 
@@ -32,16 +32,21 @@ typedef void (*cachetable_flush_func_t)(CACHEFILE, CACHEKEY key, void*value, lon
 typedef int (*cachetable_fetch_func_t)(CACHEFILE, CACHEKEY key, void **value, long *sizep, void *extraargs); 
 
 /* Error if already present.  On success, pin the value. */
-int cachetable_put_size(CACHEFILE cf, CACHEKEY key, void* value, long size,
+int cachetable_put(CACHEFILE cf, CACHEKEY key, void* value, long size,
 			cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs);
 
-int cachetable_get_and_pin_size(CACHEFILE, CACHEKEY, void**/*value*/, long *sizep,
+int cachetable_get_and_pin(CACHEFILE, CACHEKEY, void**/*value*/, long *sizep,
 				cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs);
 
 /* If the the item is already in memory, then return 0 and store it in the void**.
  * If the item is not in memory, then return nonzero. */
 int cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, void**);
-int cachetable_unpin_size (CACHEFILE, CACHEKEY, int dirty, long size); /* Note whether it is dirty when we unpin it. */
+
+/* cachetable object state wrt external memory */
+#define CACHETABLE_CLEAN 0
+#define CACHETABLE_DIRTY 1
+
+int cachetable_unpin(CACHEFILE, CACHEKEY, int dirty, long size); /* Note whether it is dirty when we unpin it. */
 int cachetable_remove (CACHEFILE, CACHEKEY, int /*write_me*/); /* Removing something already present is OK. */
 int cachetable_assert_all_unpinned (CACHETABLE);
 int cachefile_count_pinned (CACHEFILE, int /*printthem*/ );
@@ -63,27 +68,6 @@ void cachetable_print_state (CACHETABLE ct);
 void cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr);
 int cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
 			     int *dirty_ptr, long long *pin_ptr, long *size_ptr);
-
-// Compat, will be removed
-static inline int create_cachetable (CACHETABLE *result, int table_size) {
-    return create_cachetable_size(result, table_size, table_size);
-}
-
-static inline int cachetable_put(CACHEFILE cf, CACHEKEY key, void* value,
-                                 cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
-    return cachetable_put_size(cf, key, value, 1, flush_callback, fetch_callback, extraargs);
-}
-
-static inline int cachetable_get_and_pin (CACHEFILE cf, CACHEKEY key, void **valuep, 
-                                          cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, 
-                                          void *extraargs) {
-    long size;
-    return cachetable_get_and_pin_size(cf, key, valuep, &size, flush_callback, fetch_callback, extraargs);
-}
-
-static inline int cachetable_unpin(CACHEFILE cf, CACHEKEY key, int dirty) {
-    return cachetable_unpin_size(cf, key, dirty, 1);
-}
 
 void cachefile_verify (CACHEFILE cf);  // Verify the whole cachetable that the CF is in.  Slow.
 void cachetable_verify (CACHETABLE t); // Slow...
