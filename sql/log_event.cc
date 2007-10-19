@@ -570,7 +570,8 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       (ulong) server_id, (ulong) ::server_id,
                       rli->replicate_same_server_id,
                       rli->slave_skip_counter));
-  if (server_id == ::server_id && !rli->replicate_same_server_id)
+  if (server_id == ::server_id && !rli->replicate_same_server_id ||
+      rli->slave_skip_counter == 1 && rli->is_in_group())
     return EVENT_SKIP_IGNORE;
   else if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
@@ -1226,6 +1227,16 @@ void Log_event::print_timestamp(IO_CACHE* file, time_t* ts)
 
 #endif /* MYSQL_CLIENT */
 
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+inline Log_event::enum_skip_reason
+Log_event::continue_group(Relay_log_info *rli)
+{
+  if (rli->slave_skip_counter == 1)
+    return Log_event::EVENT_SKIP_IGNORE;
+  return Log_event::do_shall_skip(rli);
+}
+#endif
 
 /**************************************************************************
 	Query_log_event methods
@@ -2234,6 +2245,30 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
     return Log_event::do_update_pos(rli);
 }
 
+
+Log_event::enum_skip_reason
+Query_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  DBUG_ENTER("Query_log_event::do_shall_skip");
+  DBUG_PRINT("debug", ("query: %s; q_len: %d", query, q_len));
+  DBUG_ASSERT(query && q_len > 0);
+
+  if (rli->slave_skip_counter > 0)
+  {
+    if (strcmp("BEGIN", query) == 0)
+    {
+      thd->options|= OPTION_BEGIN;
+      DBUG_RETURN(Log_event::continue_group(rli));
+    }
+
+    if (strcmp("COMMIT", query) == 0 || strcmp("ROLLBACK", query) == 0)
+    {
+      thd->options&= ~OPTION_BEGIN;
+      DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
+    }
+  }
+  DBUG_RETURN(Log_event::do_shall_skip(rli));
+}
 
 #endif
 
@@ -3871,10 +3906,7 @@ Intvar_log_event::do_shall_skip(Relay_log_info *rli)
     that we do not change the value of the slave skip counter since it
     will be decreased by the following insert event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 
 #endif
@@ -3970,10 +4002,7 @@ Rand_log_event::do_shall_skip(Relay_log_info *rli)
     that we do not change the value of the slave skip counter since it
     will be decreased by the following insert event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 
 #endif /* !MYSQL_CLIENT */
@@ -4048,6 +4077,17 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
   return end_trans(thd, COMMIT);
+}
+
+Log_event::enum_skip_reason
+Xid_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  DBUG_ENTER("Xid_log_event::do_shall_skip");
+  if (rli->slave_skip_counter > 0) {
+    thd->options&= ~OPTION_BEGIN;
+    DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
+  }
+  DBUG_RETURN(Log_event::do_shall_skip(rli));
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -4427,10 +4467,7 @@ User_var_log_event::do_shall_skip(Relay_log_info *rli)
     that we do not change the value of the slave skip counter since it
     will be decreased by the following insert event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -5364,6 +5401,19 @@ int Begin_load_query_log_event::get_create_or_append() const
   return 1; /* create the file */
 }
 #endif /* defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
+
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+Log_event::enum_skip_reason
+Begin_load_query_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  /*
+    If the slave skip counter is 1, then we should not start executing
+    on the next event.
+  */
+  return continue_group(rli);
+}
+#endif
 
 
 /**************************************************************************
@@ -6870,10 +6920,7 @@ Table_map_log_event::do_shall_skip(Relay_log_info *rli)
     If the slave skip counter is 1, then we should not start executing
     on the next event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 
 int Table_map_log_event::do_update_pos(Relay_log_info *rli)
