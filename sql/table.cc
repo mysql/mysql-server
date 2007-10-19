@@ -969,6 +969,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
         parser_name.str= (char*) next_chunk;
         parser_name.length= strlen((char*) next_chunk);
+        next_chunk+= parser_name.length + 1;
         keyinfo->parser= my_plugin_lock_by_name(NULL, &parser_name,
                                                 MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
