@@ -1714,7 +1714,14 @@ static int has_temporary_error(THD *thd)
   DBUG_ENTER("has_temporary_error");
 
   if (thd->is_fatal_error)
+  {
+    DBUG_PRINT("info", ("thd->net.last_errno: %s", ER(thd->net.last_errno)));
     DBUG_RETURN(0);
+  }
+
+  DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
+                  if (thd->net.last_errno)
+                    thd->net.last_errno= ER_LOCK_DEADLOCK;);
 
   /*
     Temporary error codes:
@@ -1723,7 +1730,10 @@ static int has_temporary_error(THD *thd)
   */
   if (thd->net.last_errno == ER_LOCK_DEADLOCK ||
       thd->net.last_errno == ER_LOCK_WAIT_TIMEOUT)
+  {
+    DBUG_PRINT("info", ("thd->net.last_errno: %s", ER(thd->net.last_errno)));
     DBUG_RETURN(1);
+  }
 
 #ifdef HAVE_NDB_BINLOG
   /*
@@ -1905,7 +1915,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     }
     if (slave_trans_retries)
     {
-      if (exec_res && has_temporary_error(thd))
+      int temp_err;
+      if (exec_res && (temp_err= has_temporary_error(thd)))
       {
         const char *errmsg;
         /*
@@ -1953,15 +1964,19 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                           "the slave_transaction_retries variable.",
                           slave_trans_retries);
       }
-      else if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
+      else if (exec_res && !temp_err ||
+               (opt_using_transactions &&
+                rli->group_relay_log_pos == rli->event_relay_log_pos))
       {
         /*
-          Only reset the retry counter if the event succeeded or
-          failed with a non-transient error.  On a successful event,
-          the execution will proceed as usual; in the case of a
+          Only reset the retry counter if the entire group succeeded
+          or failed with a non-transient error.  On a successful
+          event, the execution will proceed as usual; in the case of a
           non-transient error, the slave will stop with an error.
          */
         rli->trans_retries= 0; // restart from fresh
+        DBUG_PRINT("info", ("Resetting retry counter, rli->trans_retries: %d",
+                            rli->trans_retries));
       }
     }
     DBUG_RETURN(exec_res);
@@ -2450,6 +2465,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   rli->ignore_log_space_limit= 0;
   pthread_mutex_unlock(&rli->log_space_lock);
   rli->trans_retries= 0; // start from "no error"
+  DBUG_PRINT("info", ("rli->trans_retries: %d", rli->trans_retries));
 
   if (init_relay_log_pos(rli,
                          rli->group_relay_log_name,
