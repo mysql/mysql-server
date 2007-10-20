@@ -3624,9 +3624,16 @@ longlong Item_func_last_insert_id::val_int()
     thd->first_successful_insert_id_in_prev_stmt= value;
     return value;
   }
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return thd->read_first_successful_insert_id_in_prev_stmt();
 }
+
+
+bool Item_func_last_insert_id::fix_fields(THD *thd, Item **ref)
+{
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return Item_int_func::fix_fields(thd, ref);
+}
+
 
 /* This function is just used to test speed of different functions */
 
