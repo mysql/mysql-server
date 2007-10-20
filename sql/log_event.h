@@ -37,6 +37,23 @@
 #include "rpl_reporting.h"
 #endif
 
+/**
+   Either assert or return an error.
+
+   In debug build, the condition will be checked, but in non-debug
+   builds, the error code given will be returned instead.
+
+   @param COND   Condition to check
+   @param ERRNO  Error number to return in non-debug builds
+*/
+#ifdef DBUG_OFF
+#define ASSERT_OR_RETURN_ERROR(COND, ERRNO) \
+  do { if (!(COND)) return ERRNO; } while (0)
+#else
+#define ASSERT_OR_RETURN_ERROR(COND, ERRNO) \
+  DBUG_ASSERT(COND)
+#endif
+
 #define LOG_READ_EOF    -1
 #define LOG_READ_BOGUS  -2
 #define LOG_READ_IO     -3
@@ -2316,8 +2333,11 @@ protected:
   int unpack_current_row(const Relay_log_info *const rli)
   { 
     DBUG_ASSERT(m_table);
-    return ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols, 
-                        &m_curr_row_end, &m_master_reclength);
+    ASSERT_OR_RETURN_ERROR(m_curr_row < m_rows_end, HA_ERR_CORRUPT_EVENT);
+    int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
+                                   &m_curr_row_end, &m_master_reclength);
+    ASSERT_OR_RETURN_ERROR(m_curr_row_end <= m_rows_end, HA_ERR_CORRUPT_EVENT);
+    return result;
   }
 #endif
 
