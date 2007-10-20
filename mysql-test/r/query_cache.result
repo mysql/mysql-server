@@ -1732,4 +1732,18 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 drop database db2;
 drop database db3;
+CREATE TABLE t1 (a ENUM('rainbow'));
+INSERT INTO t1 VALUES (),(),(),(),();
+SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
+1
+1
+DROP TABLE t1;
+CREATE TABLE t1 (a LONGBLOB);
+INSERT INTO t1 SET a = 'aaaa';
+INSERT INTO t1 SET a = 'aaaa';
+SELECT 1 FROM t1 GROUP BY 
+(SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
+1
+1
+DROP TABLE t1;
 End of 5.1 tests
