@@ -1651,8 +1651,7 @@ bool Item_func_now::get_date(MYSQL_TIME *res,
 int Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
   to->set_notnull();
-  to->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
-  return 0;
+  return to->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
 }
 
 
