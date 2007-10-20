@@ -6173,14 +6173,19 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       table->in_use = old_thd;
       switch (error)
       {
-        /* Some recoverable errors */
-      case HA_ERR_RECORD_CHANGED:
-      case HA_ERR_KEY_NOT_FOUND:	/* Idempotency support: OK if
-                                           tuple does not exist */
-	error= 0;
       case 0:
 	break;
 
+      /* Some recoverable errors */
+      case HA_ERR_RECORD_CHANGED:
+      case HA_ERR_KEY_NOT_FOUND:	/* Idempotency support: OK if
+                                           tuple does not exist */
+        if (get_type_code() != UPDATE_ROWS_EVENT)
+        {
+          error= 0;
+          break;
+        }
+        /* Fall through in the event that we have an update event */
       default:
 	rli->report(ERROR_LEVEL, thd->net.last_errno,
                     "Error in %s event: row application failed. %s",
@@ -6197,6 +6202,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
        m_curr_row_end.
       */ 
    
+      DBUG_PRINT("info", ("error: %d", error));
+      DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
+                          (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
+
       if (!m_curr_row_end && !error)
         unpack_current_row(rli);
   
@@ -7931,7 +7940,15 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   int error= find_row(rli); 
   if (error)
+  {
+    /*
+      We need to read the second image in the event of error to be
+      able to skip to the next pair of updates
+    */
+    m_curr_row= m_curr_row_end;
+    unpack_current_row(rli);
     return error;
+  }
 
   /*
     This is the situation after locating BI:
