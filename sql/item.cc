@@ -4903,6 +4903,19 @@ warn:
 }
 
 
+void Item_hex_string::print(String *str)
+{
+  char *end= (char*) str_value.ptr() + str_value.length(),
+       *ptr= end - min(str_value.length(), sizeof(longlong));
+  str->append("0x");
+  for (; ptr != end ; ptr++)
+  {
+    str->append(_dig_vec_lower[((uchar) *ptr) >> 4]);
+    str->append(_dig_vec_lower[((uchar) *ptr) & 0x0F]);
+  }
+}
+
+
 bool Item_hex_string::eq(const Item *arg, bool binary_cmp) const
 {
   if (arg->basic_const_item() && arg->type() == type())
