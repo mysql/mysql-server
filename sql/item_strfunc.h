@@ -534,7 +534,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   {
-    max_length= arg_count * collation.collation->mbmaxlen;
+    max_length= arg_count * 4;
   }
   const char *func_name() const { return "char"; }
 };
