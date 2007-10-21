@@ -1858,6 +1858,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
+  void print(String *str);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
