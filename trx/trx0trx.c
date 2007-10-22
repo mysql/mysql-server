@@ -97,7 +97,7 @@ trx_create(
 	trx->flush_log_later = FALSE;
 	trx->must_flush_log_later = FALSE;
 
-	trx_set_dict_operation(trx, TRX_DICT_OP_NONE);
+	trx->dict_operation = TRX_DICT_OP_NONE;
 	trx->table_id = ut_dulint_zero;
 
 	trx->mysql_thd = NULL;
