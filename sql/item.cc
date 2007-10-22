@@ -4459,12 +4459,14 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     else
       field= new Field_blob(max_length, maybe_null, name, collation.collation);
     break;					// Blob handled outside of case
+#ifdef HAVE_SPATIAL
   case MYSQL_TYPE_GEOMETRY:
     field= new Field_geom(max_length, maybe_null, name, table->s,
                           (Field::geometry_type)
                           ((type() == Item::TYPE_HOLDER) ?
                            ((Item_type_holder *)this)->get_geometry_type() :
                            ((Item_geometry_func *)this)->get_geometry_type()));
+#endif /* HAVE_SPATIAL */
   }
   if (field)
     field->init(table);
@@ -6588,10 +6590,12 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   if (Field::result_merge_type(fld_type) == INT_RESULT)
     decimals= 0;
   prev_decimal_int_part= item->decimal_int_part();
+#ifdef HAVE_SPATIAL
   if (item->field_type() == MYSQL_TYPE_GEOMETRY)
     geometry_type= (item->type() == Item::FIELD_ITEM) ?
       ((Item_field *)item)->get_geometry_type() :
       (Field::geometry_type)((Item_geometry_func *)item)->get_geometry_type();
+#endif /* HAVE_SPATIAL */
 }
 
 

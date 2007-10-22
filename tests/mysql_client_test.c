@@ -119,6 +119,8 @@ static void client_disconnect(void);
 
 #define DIE_UNLESS(expr) \
         ((void) ((expr) ? 0 : (die(__FILE__, __LINE__, #expr), 0)))
+#define DIE_IF(expr) \
+        ((void) ((expr) ? (die(__FILE__, __LINE__, #expr), 0) : 0))
 #define DIE(expr) \
         die(__FILE__, __LINE__, #expr)
 
@@ -177,8 +179,8 @@ if (stmt == 0) \
 DIE_UNLESS(stmt == 0);\
 }
 
-#define mytest(x) if (!x) {myerror(NULL);DIE_UNLESS(FALSE);}
-#define mytest_r(x) if (x) {myerror(NULL);DIE_UNLESS(FALSE);}
+#define mytest(x) if (!(x)) {myerror(NULL);DIE_UNLESS(FALSE);}
+#define mytest_r(x) if ((x)) {myerror(NULL);DIE_UNLESS(FALSE);}
 
 
 /* A workaround for Sun Forte 5.6 on Solaris x86 */
@@ -13534,7 +13536,7 @@ static void test_bug9478()
 
     {
       char buff[8];
-      /* Fill in the fethc packet */
+      /* Fill in the fetch packet */
       int4store(buff, stmt->stmt_id);
       buff[4]= 1;                               /* prefetch rows */
       rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH,
@@ -16214,6 +16216,204 @@ static void test_bug28934()
   myquery(mysql_query(mysql, "drop table t1"));
 }
 
+/*
+  Test mysql_change_user() C API and COM_CHANGE_USER
+*/
+
+static void test_change_user()
+{
+  char buff[256];
+  const char *user_pw= "mysqltest_pw";
+  const char *user_no_pw= "mysqltest_no_pw";
+  const char *pw= "password";
+  const char *db= "mysqltest_user_test_database";
+  int rc;
+
+  DBUG_ENTER("test_change_user");
+  myheader("test_change_user");
+
+  /* Prepare environment */
+  sprintf(buff, "drop database if exists %s", db);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "create database %s", db);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff,
+          "grant select on %s.* to %s@'%%' identified by '%s'",
+          db,
+          user_pw,
+          pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff,
+          "grant select on %s.* to %s@'%%'",
+          db,
+          user_no_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+
+  /* Try some combinations */
+  rc= mysql_change_user(mysql, NULL, NULL, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+
+  rc= mysql_change_user(mysql, "", NULL, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", "", NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", "", "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, NULL, "", "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+
+  rc= mysql_change_user(mysql, NULL, NULL, "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", NULL, "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, NULL, "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, "", "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, "", NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, NULL, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, "", db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, NULL, db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, pw, db);
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_pw, pw, NULL);
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_pw, pw, "");
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_no_pw, pw, db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_no_pw, pw, "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_no_pw, pw, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_no_pw, "", NULL);
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_no_pw, "", "");
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_no_pw, "", db);
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_no_pw, NULL, db);
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, "", pw, db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", pw, "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", pw, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, NULL, pw, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, NULL, NULL, db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, NULL, "", db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", "", db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  /* Cleanup the environment */
+
+  mysql_change_user(mysql, opt_user, opt_password, current_db);
+
+  sprintf(buff, "drop database %s", db);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "drop user %s@'%%'", user_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "drop user %s@'%%'", user_no_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
 
 /*
   Bug#27592 (stack overrun when storing datetime value using prepared statements)
@@ -16451,6 +16651,446 @@ static void test_bug29306()
 
   DBUG_VOID_RETURN;
 }
+/*
+  Bug#30472: libmysql doesn't reset charset, insert_id after succ.
+  mysql_change_user() call row insertions.
+*/
+
+static void bug30472_retrieve_charset_info(MYSQL *con,
+                                           char *character_set_name,
+                                           char *character_set_client,
+                                           char *character_set_results,
+                                           char *collation_connection)
+{
+  MYSQL_RES *rs;
+  MYSQL_ROW row;
+
+  /* Get the cached client character set name. */
+
+  strcpy(character_set_name, mysql_character_set_name(con));
+
+  /* Retrieve server character set information. */
+
+  DIE_IF(mysql_query(con, "SHOW VARIABLES LIKE 'character_set_client'"));
+  DIE_UNLESS(rs= mysql_store_result(con));
+  DIE_UNLESS(row= mysql_fetch_row(rs));
+  strcpy(character_set_client, row[1]);
+  mysql_free_result(rs);
+
+  DIE_IF(mysql_query(con, "SHOW VARIABLES LIKE 'character_set_results'"));
+  DIE_UNLESS(rs= mysql_store_result(con));
+  DIE_UNLESS(row= mysql_fetch_row(rs));
+  strcpy(character_set_results, row[1]);
+  mysql_free_result(rs);
+
+  DIE_IF(mysql_query(con, "SHOW VARIABLES LIKE 'collation_connection'"));
+  DIE_UNLESS(rs= mysql_store_result(con));
+  DIE_UNLESS(row= mysql_fetch_row(rs));
+  strcpy(collation_connection, row[1]);
+  mysql_free_result(rs);
+}
+
+static void test_bug30472()
+{
+  MYSQL con;
+
+  char character_set_name_1[MY_CS_NAME_SIZE];
+  char character_set_client_1[MY_CS_NAME_SIZE];
+  char character_set_results_1[MY_CS_NAME_SIZE];
+  char collation_connnection_1[MY_CS_NAME_SIZE];
+
+  char character_set_name_2[MY_CS_NAME_SIZE];
+  char character_set_client_2[MY_CS_NAME_SIZE];
+  char character_set_results_2[MY_CS_NAME_SIZE];
+  char collation_connnection_2[MY_CS_NAME_SIZE];
+
+  char character_set_name_3[MY_CS_NAME_SIZE];
+  char character_set_client_3[MY_CS_NAME_SIZE];
+  char character_set_results_3[MY_CS_NAME_SIZE];
+  char collation_connnection_3[MY_CS_NAME_SIZE];
+
+  char character_set_name_4[MY_CS_NAME_SIZE];
+  char character_set_client_4[MY_CS_NAME_SIZE];
+  char character_set_results_4[MY_CS_NAME_SIZE];
+  char collation_connnection_4[MY_CS_NAME_SIZE];
+
+  /* Create a new connection. */
+
+  DIE_UNLESS(mysql_init(&con));
+
+  DIE_UNLESS(mysql_real_connect(&con,
+                                opt_host,
+                                opt_user,
+                                opt_password,
+                                opt_db ? opt_db : "test",
+                                opt_port,
+                                opt_unix_socket,
+                                CLIENT_FOUND_ROWS));
+
+  /* Retrieve character set information. */
+
+  bug30472_retrieve_charset_info(&con,
+                                 character_set_name_1,
+                                 character_set_client_1,
+                                 character_set_results_1,
+                                 collation_connnection_1);
+
+  /* Switch client character set. */
+
+  DIE_IF(mysql_set_character_set(&con, "utf8"));
+
+  /* Retrieve character set information. */
+
+  bug30472_retrieve_charset_info(&con,
+                                 character_set_name_2,
+                                 character_set_client_2,
+                                 character_set_results_2,
+                                 collation_connnection_2);
+
+  /*
+    Check that
+      1) character set has been switched and
+      2) new character set is different from the original one.
+  */
+
+  DIE_UNLESS(strcmp(character_set_name_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_client_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_results_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(collation_connnection_2, "utf8_general_ci") == 0);
+
+  DIE_UNLESS(strcmp(character_set_name_1, character_set_name_2) != 0);
+  DIE_UNLESS(strcmp(character_set_client_1, character_set_client_2) != 0);
+  DIE_UNLESS(strcmp(character_set_results_1, character_set_results_2) != 0);
+  DIE_UNLESS(strcmp(collation_connnection_1, collation_connnection_2) != 0);
+
+  /* Call mysql_change_user() with the same username, password, database. */
+
+  DIE_IF(mysql_change_user(&con,
+                           opt_user,
+                           opt_password,
+                           opt_db ? opt_db : "test"));
+
+  /* Retrieve character set information. */
+
+  bug30472_retrieve_charset_info(&con,
+                                 character_set_name_3,
+                                 character_set_client_3,
+                                 character_set_results_3,
+                                 collation_connnection_3);
+
+  /* Check that character set information has been reset. */
+
+  DIE_UNLESS(strcmp(character_set_name_1, character_set_name_3) == 0);
+  DIE_UNLESS(strcmp(character_set_client_1, character_set_client_3) == 0);
+  DIE_UNLESS(strcmp(character_set_results_1, character_set_results_3) == 0);
+  DIE_UNLESS(strcmp(collation_connnection_1, collation_connnection_3) == 0);
+
+  /* Change connection-default character set in the client. */
+
+  con.options.charset_name= my_strdup("utf8", MYF(MY_FAE));
+
+  /*
+    Call mysql_change_user() in order to check that new connection will
+    have UTF8 character set on the client and on the server.
+  */
+
+  DIE_IF(mysql_change_user(&con,
+                           opt_user,
+                           opt_password,
+                           opt_db ? opt_db : "test"));
+
+  /* Retrieve character set information. */
+
+  bug30472_retrieve_charset_info(&con,
+                                 character_set_name_4,
+                                 character_set_client_4,
+                                 character_set_results_4,
+                                 collation_connnection_4);
+
+  /* Check that we have UTF8 on the server and on the client. */
+
+  DIE_UNLESS(strcmp(character_set_name_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_client_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_results_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(collation_connnection_4, "utf8_general_ci") == 0);
+
+  /* That's it. Cleanup. */
+
+  mysql_close(&con);
+}
+
+static void bug20023_change_user(MYSQL *con)
+{
+  DIE_IF(mysql_change_user(con,
+                           opt_user,
+                           opt_password,
+                           opt_db ? opt_db : "test"));
+}
+
+static bool query_int_variable(MYSQL *con,
+                               const char *var_name,
+                               int *var_value)
+{
+  MYSQL_RES *rs;
+  MYSQL_ROW row;
+
+  char query_buffer[MAX_TEST_QUERY_LENGTH];
+
+  bool is_null;
+
+  my_snprintf(query_buffer,
+          sizeof (query_buffer),
+          "SELECT %s",
+          (const char *) var_name);
+
+  DIE_IF(mysql_query(con, query_buffer));
+  DIE_UNLESS(rs= mysql_store_result(con));
+  DIE_UNLESS(row= mysql_fetch_row(rs));
+
+  is_null= row[0] == NULL;
+
+  if (!is_null)
+    *var_value= atoi(row[0]);
+
+  mysql_free_result(rs);
+
+  return is_null;
+}
+
+static void test_bug20023()
+{
+  MYSQL con;
+
+  int sql_big_selects_orig;
+  int max_join_size_orig;
+
+  int sql_big_selects_2;
+  int sql_big_selects_3;
+  int sql_big_selects_4;
+  int sql_big_selects_5;
+
+  char query_buffer[MAX_TEST_QUERY_LENGTH];
+
+  /* Create a new connection. */
+
+  DIE_UNLESS(mysql_init(&con));
+
+  DIE_UNLESS(mysql_real_connect(&con,
+                                opt_host,
+                                opt_user,
+                                opt_password,
+                                opt_db ? opt_db : "test",
+                                opt_port,
+                                opt_unix_socket,
+                                CLIENT_FOUND_ROWS));
+
+  /***********************************************************************
+    Remember original SQL_BIG_SELECTS, MAX_JOIN_SIZE values.
+  ***********************************************************************/
+
+  query_int_variable(&con,
+                     "@@session.sql_big_selects",
+                     &sql_big_selects_orig);
+
+  query_int_variable(&con,
+                     "@@global.max_join_size",
+                     &max_join_size_orig);
+
+  /***********************************************************************
+    Test that COM_CHANGE_USER resets the SQL_BIG_SELECTS to the initial value.
+  ***********************************************************************/
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  query_int_variable(&con,
+                     "@@session.sql_big_selects",
+                     &sql_big_selects_2);
+
+  /* Check that SQL_BIG_SELECTS is reset properly. */
+
+  DIE_UNLESS(sql_big_selects_orig == sql_big_selects_2);
+
+  /***********************************************************************
+    Test that if MAX_JOIN_SIZE set to non-default value,
+    SQL_BIG_SELECTS will be 0.
+  ***********************************************************************/
+
+  /* Set MAX_JOIN_SIZE to some non-default value. */
+
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = 10000"));
+  DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  query_int_variable(&con,
+                     "@@session.sql_big_selects",
+                     &sql_big_selects_3);
+
+  /* Check that SQL_BIG_SELECTS is 0. */
+
+  DIE_UNLESS(sql_big_selects_3 == 0);
+
+  /***********************************************************************
+    Test that if MAX_JOIN_SIZE set to default value,
+    SQL_BIG_SELECTS will be 1.
+  ***********************************************************************/
+
+  /* Set MAX_JOIN_SIZE to the default value (-1). */
+
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  query_int_variable(&con,
+                     "@@session.sql_big_selects",
+                     &sql_big_selects_4);
+
+  /* Check that SQL_BIG_SELECTS is 1. */
+
+  DIE_UNLESS(sql_big_selects_4 == 1);
+
+  /***********************************************************************
+    Restore MAX_JOIN_SIZE.
+    Check that SQL_BIG_SELECTS will be the original one.
+  ***********************************************************************/
+
+  /* Restore MAX_JOIN_SIZE. */
+
+  my_snprintf(query_buffer,
+           sizeof (query_buffer),
+           "SET @@global.max_join_size = %d",
+           (int) max_join_size_orig);
+
+  DIE_IF(mysql_query(&con, query_buffer));
+  DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  query_int_variable(&con,
+                     "@@session.sql_big_selects",
+                     &sql_big_selects_5);
+
+  /* Check that SQL_BIG_SELECTS is 1. */
+
+  DIE_UNLESS(sql_big_selects_5 == sql_big_selects_orig);
+
+  /***********************************************************************
+    That's it. Cleanup.
+  ***********************************************************************/
+
+  mysql_close(&con);
+}
+
+static void bug31418_impl()
+{
+  MYSQL con;
+
+  bool is_null;
+  int rc;
+
+  /* Create a new connection. */
+
+  DIE_UNLESS(mysql_init(&con));
+
+  DIE_UNLESS(mysql_real_connect(&con,
+                                opt_host,
+                                opt_user,
+                                opt_password,
+                                opt_db ? opt_db : "test",
+                                opt_port,
+                                opt_unix_socket,
+                                CLIENT_FOUND_ROWS));
+
+  /***********************************************************************
+    Check that lock is free:
+      - IS_FREE_LOCK() should return 1;
+      - IS_USED_LOCK() should return NULL;
+  ***********************************************************************/
+
+  is_null= query_int_variable(&con,
+                              "IS_FREE_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(!is_null && rc);
+
+  is_null= query_int_variable(&con,
+                              "IS_USED_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(is_null);
+
+  /***********************************************************************
+    Acquire lock and check the lock status (the lock must be in use):
+      - IS_FREE_LOCK() should return 0;
+      - IS_USED_LOCK() should return non-zero thread id;
+  ***********************************************************************/
+
+  query_int_variable(&con, "GET_LOCK('bug31418', 1)", &rc);
+  DIE_UNLESS(rc);
+
+  is_null= query_int_variable(&con,
+                              "IS_FREE_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(!is_null && !rc);
+
+  is_null= query_int_variable(&con,
+                              "IS_USED_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(!is_null && rc);
+
+  /***********************************************************************
+    Issue COM_CHANGE_USER command and check the lock status
+    (the lock must be free):
+      - IS_FREE_LOCK() should return 1;
+      - IS_USED_LOCK() should return NULL;
+  **********************************************************************/
+
+  bug20023_change_user(&con);
+
+  is_null= query_int_variable(&con,
+                              "IS_FREE_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(!is_null && rc);
+
+  is_null= query_int_variable(&con,
+                              "IS_USED_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(is_null);
+
+  /***********************************************************************
+   That's it. Cleanup.
+  ***********************************************************************/
+
+  mysql_close(&con);
+}
+
+static void test_bug31418()
+{
+  /* Run test case for BUG#31418 for three different connections. */
+
+  bug31418_impl();
+
+  bug31418_impl();
+
+  bug31418_impl();
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -16750,6 +17390,10 @@ static struct my_tests_st my_tests[]= {
   { "test_bug29687", test_bug29687 },
   { "test_bug29692", test_bug29692 },
   { "test_bug29306", test_bug29306 },
+  { "test_change_user", test_change_user },
+  { "test_bug30472", test_bug30472 },
+  { "test_bug20023", test_bug20023 },
+  { "test_bug31418", test_bug31418 },
   { 0, 0 }
 };
 
