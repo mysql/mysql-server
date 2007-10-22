@@ -27,14 +27,19 @@ Created 10/16/1994 Heikki Tuuri
 #define BTR_CUR_ADAPT
 #define BTR_CUR_HASH_ADAPT
 
+#ifdef UNIV_DEBUG
 /*************************************************************
 Returns the page cursor component of a tree cursor. */
 UNIV_INLINE
 page_cur_t*
 btr_cur_get_page_cur(
 /*=================*/
-				/* out: pointer to page cursor component */
-	btr_cur_t*	cursor);/* in: tree cursor */
+					/* out: pointer to page cursor
+					component */
+	const btr_cur_t*	cursor);/* in: tree cursor */
+#else /* UNIV_DEBUG */
+# define btr_cur_get_page_cur(cursor) (&(cursor)->page_cur)
+#endif /* UNIV_DEBUG */
 /*************************************************************
 Returns the buffer block on which the tree cursor is positioned. */
 UNIV_INLINE
