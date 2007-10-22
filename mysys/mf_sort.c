@@ -34,8 +34,8 @@ void my_string_ptr_sort(uchar *base, uint items, size_t size)
   {
     if (size && items)
     {
-      qsort2(base,items, sizeof(uchar*), get_ptr_compare(size),
-             (void*) &size);
+      my_qsort2(base,items, sizeof(uchar*), get_ptr_compare(size),
+                (void*) &size);
     }
   }
 }
