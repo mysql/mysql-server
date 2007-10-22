@@ -29,6 +29,7 @@
 #define SP_NO_DB_ERROR       -8
 #define SP_BAD_IDENTIFIER    -9
 #define SP_BODY_TOO_LONG    -10
+#define SP_FLD_STORE_FAILED -11
 
 /* Drop all routines in database 'db' */
 int

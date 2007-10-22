@@ -538,7 +538,7 @@ struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned
     unsigned char reading_or_writing;
     char save_char;
     my_bool no_send_ok;
-    my_bool no_send_eof;
+    my_bool unused;
     my_bool compress;
     my_bool no_send_error;
     unsigned char * query_cache_query;

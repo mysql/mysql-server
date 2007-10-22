@@ -745,6 +745,9 @@ bool slow_log_print(THD *thd, const char *query, uint query_length,
 bool general_log_print(THD *thd, enum enum_server_command command,
                        const char *format,...);
 
+bool general_log_write(THD *thd, enum enum_server_command command,
+                       const char *query, uint query_length);
+
 #include "sql_class.h"
 #include "sql_acl.h"
 #include "tztime.h"
@@ -922,13 +925,12 @@ void decrease_user_connections(USER_CONN *uc);
 void thd_init_client_charset(THD *thd, uint cs_number);
 bool setup_connection_thread_globals(THD *thd);
 bool login_connection(THD *thd);
-void prepare_new_connection_state(THD* thd);
 void end_connection(THD *thd);
 
 bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
-bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db);
+bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db);
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos, ushort flags);
 void mysql_client_binlog_statement(THD *thd);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,

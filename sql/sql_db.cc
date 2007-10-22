@@ -1727,41 +1727,21 @@ lock_databases(THD *thd, const char *db1, uint length1,
 }
 
 
-/*
-  Rename database.
+/**
+  Upgrade a 5.0 database.
+  This function is invoked whenever an ALTER DATABASE UPGRADE query is executed:
+    ALTER DATABASE 'olddb' UPGRADE DATA DIRECTORY NAME.
 
-  SYNOPSIS
-    mysql_rename_db()
-    thd                 Thread handler
-    olddb               Old database name
-    newdb               New database name
+  If we have managed to rename (move) tables to the new database
+  but something failed on a later step, then we store the
+  RENAME DATABASE event in the log. mysql_rename_db() is atomic in
+  the sense that it will rename all or none of the tables.
 
-  DESCRIPTION
-   This function is invoked whenever a RENAME DATABASE query is executed:
-
-     RENAME DATABASE 'olddb' TO 'newdb'.
-
-  NOTES
-
-    If we have managed to rename (move) tables to the new database
-    but something failed on a later step, then we store the
-    RENAME DATABASE event in the log. mysql_rename_db() is atomic in
-    the sense that it will rename all or none of the tables.
-
-  TODO:
-    - Better trigger, stored procedure, event, grant handling,
-      see the comments below.
-      NOTE: It's probably a good idea to call wait_if_global_read_lock()
-      once in mysql_rename_db(), instead of locking inside all
-      the required functions for renaming triggerts, SP, events, grants, etc.
-
-  RETURN VALUES
-    0	ok
-    1	error
+  @param thd Current thread
+  @param old_db 5.0 database name, in #mysql50#name format
+  @return 0 on success, 1 on error
 */
-
-
-bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
+bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
 {
   int error= 0, change_to_newdb= 0;
   char path[FN_REFLEN+16];
@@ -1770,11 +1750,27 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
   MY_DIR *dirp;
   TABLE_LIST *table_list;
   SELECT_LEX *sl= thd->lex->current_select;
-  DBUG_ENTER("mysql_rename_db");
+  LEX_STRING new_db;
+  DBUG_ENTER("mysql_upgrade_db");
+
+  if ((old_db->length <= MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
+      (strncmp(old_db->str,
+              MYSQL50_TABLE_NAME_PREFIX,
+              MYSQL50_TABLE_NAME_PREFIX_LENGTH) != 0))
+  {
+    my_error(ER_WRONG_USAGE, MYF(0),
+             "ALTER DATABASE UPGRADE DATA DIRECTORY NAME",
+             "name");
+    DBUG_RETURN(1);
+  }
+
+  /* `#mysql50#<name>` converted to encoded `<name>` */
+  new_db.str= old_db->str + MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+  new_db.length= old_db->length - MYSQL50_TABLE_NAME_PREFIX_LENGTH;
 
   if (lock_databases(thd, old_db->str, old_db->length,
-                          new_db->str, new_db->length))
-    return 1;
+                          new_db.str, new_db.length))
+    DBUG_RETURN(1);
 
   /*
     Let's remember if we should do "USE newdb" afterwards.
@@ -1798,7 +1794,7 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
   }
 
   /* Step1: Create the new database */
-  if ((error= mysql_create_db(thd, new_db->str, &create_info, 1)))
+  if ((error= mysql_create_db(thd, new_db.str, &create_info, 1)))
     goto exit;
 
   /* Step2: Move tables to the new database */
@@ -1819,12 +1815,12 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
 
       /* A frm file found, add the table info rename list */
       *extension= '\0';
-      
+
       table_str.length= filename_to_tablename(file->name,
                                               tname, sizeof(tname)-1);
       table_str.str= (char*) sql_memdup(tname, table_str.length + 1);
       Table_ident *old_ident= new Table_ident(thd, *old_db, table_str, 0);
-      Table_ident *new_ident= new Table_ident(thd, *new_db, table_str, 0);
+      Table_ident *new_ident= new Table_ident(thd, new_db, table_str, 0);
       if (!old_ident || !new_ident ||
           !sl->add_table_to_list(thd, old_ident, NULL,
                                  TL_OPTION_UPDATING, TL_IGNORE) ||
@@ -1854,9 +1850,9 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
       It garantees we never loose any tables.
     */
     build_table_filename(path, sizeof(path)-1,
-                         new_db->str,"",MY_DB_OPT_FILE, 0);
+                         new_db.str,"",MY_DB_OPT_FILE, 0);
     my_delete(path, MYF(MY_WME));
-    length= build_table_filename(path, sizeof(path)-1, new_db->str, "", "", 0);
+    length= build_table_filename(path, sizeof(path)-1, new_db.str, "", "", 0);
     if (length && path[length-1] == FN_LIBCHAR)
       path[length-1]=0;                            // remove ending '\'
     rmdir(path);
@@ -1910,45 +1906,11 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
       build_table_filename(oldname, sizeof(oldname)-1,
                            old_db->str, "", file->name, 0);
       build_table_filename(newname, sizeof(newname)-1,
-                           new_db->str, "", file->name, 0);
+                           new_db.str, "", file->name, 0);
       my_rename(oldname, newname, MYF(MY_WME));
     }
-    my_dirend(dirp);  
+    my_dirend(dirp);
   }
-
-  /*
-    Step4: TODO: moving stored procedures in the 'proc' system table
-    We need a new function: sp_move_db_routines(thd, olddb, newdb)
-    Which will basically have the same effect with:
-    UPDATE proc SET db='newdb' WHERE db='olddb'
-    Note, for 5.0 to 5.1 upgrade purposes we don't really need it.
-
-    The biggest problem here is that we can't have a lock on LOCK_open() while
-    calling open_table() for 'proc'.
-
-    Two solutions:
-    - Start by opening the 'event' and 'proc' (and other) tables for write
-      even before creating the 'to' database.  (This will have the nice
-      effect of blocking another 'rename database' while the lock is active).
-    - Use the solution "Disable create of new tables during lock table"
-
-    For an example of how to read through all rows, see:
-    sql_help.cc::search_topics()
-  */
-
-  /*
-    Step5: TODO: moving events in the 'event' system table
-    We need a new function evex_move_db_events(thd, olddb, newdb)
-    Which will have the same effect with:
-    UPDATE event SET db='newdb' WHERE db='olddb'
-    Note, for 5.0 to 5.1 upgrade purposes we don't really need it.
-  */
-
-  /*
-    Step6: TODO: moving grants in the 'db', 'tables_priv', 'columns_priv'.
-    Update each grant table, doing the same with:
-    UPDATE system_table SET db='newdb' WHERE db='olddb'
-  */
 
   /*
     Step7: drop the old database.
@@ -1968,13 +1930,13 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
 
   /* Step9: Let's do "use newdb" if we renamed the current database */
   if (change_to_newdb)
-    error|= mysql_change_db(thd, new_db, FALSE);
+    error|= mysql_change_db(thd, & new_db, FALSE);
 
 exit:
   pthread_mutex_lock(&LOCK_lock_db);
   /* Remove the databases from db lock cache */
   lock_db_delete(old_db->str, old_db->length);
-  lock_db_delete(new_db->str, new_db->length);
+  lock_db_delete(new_db.str, new_db.length);
   creating_database--;
   /* Signal waiting CREATE TABLE's to continue */
   pthread_cond_signal(&COND_refresh);
