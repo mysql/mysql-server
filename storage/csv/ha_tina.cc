@@ -1203,8 +1203,8 @@ int ha_tina::rnd_end()
       The sort is needed when there were updates/deletes with random orders.
       It sorts so that we move the firts blocks to the beginning.
     */
-    qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set),
-          (qsort_cmp)sort_set);
+    my_qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set),
+             (qsort_cmp)sort_set);
 
     off_t write_begin= 0, write_end;
 
