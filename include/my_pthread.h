@@ -101,6 +101,7 @@ struct timespec {
 
 void win_pthread_init(void);
 int win_pthread_setspecific(void *A,void *B,uint length);
+int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *,pthread_attr_t *,pthread_handler,void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
@@ -156,7 +157,7 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define pthread_equal(A,B) ((A) == (B))
 #define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
-#define pthread_mutex_trylock(A) (WaitForSingleObject((A), 0) == WAIT_TIMEOUT)
+#define pthread_mutex_trylock(A) win_pthread_mutex_trylock((A))
 #define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
 #define pthread_mutex_destroy(A) DeleteCriticalSection(A)
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
@@ -472,7 +473,7 @@ typedef struct st_safe_mutex_info_t
 
 int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr,
                     const char *file, uint line);
-int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line);
+int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint line);
 int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line);
 int safe_mutex_destroy(safe_mutex_t *mp,const char *file, uint line);
 int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp,const char *file,
@@ -495,12 +496,12 @@ void safe_mutex_end(FILE *file);
 #undef pthread_cond_timedwait
 #undef pthread_mutex_trylock
 #define pthread_mutex_init(A,B) safe_mutex_init((A),(B),__FILE__,__LINE__)
-#define pthread_mutex_lock(A) safe_mutex_lock((A),__FILE__,__LINE__)
+#define pthread_mutex_lock(A) safe_mutex_lock((A), FALSE, __FILE__, __LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
 #define pthread_mutex_destroy(A) safe_mutex_destroy((A),__FILE__,__LINE__)
 #define pthread_cond_wait(A,B) safe_cond_wait((A),(B),__FILE__,__LINE__)
 #define pthread_cond_timedwait(A,B,C) safe_cond_timedwait((A),(B),(C),__FILE__,__LINE__)
-#define pthread_mutex_trylock(A) pthread_mutex_lock(A)
+#define pthread_mutex_trylock(A) safe_mutex_lock((A), TRUE, __FILE__, __LINE__)
 #define pthread_mutex_t safe_mutex_t
 #define safe_mutex_assert_owner(mp) \
           DBUG_ASSERT((mp)->count > 0 && \

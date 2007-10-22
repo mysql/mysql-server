@@ -2326,6 +2326,25 @@ Item*
 Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   LEX_STRING db;
+
+  if (! thd->db && ! thd->lex->sphead)
+  {
+    /*
+      The proper error message should be in the lines of:
+        Can't resolve <name>() to a function call,
+        because this function:
+        - is not a native function,
+        - is not a user defined function,
+        - can not match a qualified (read: stored) function
+          since no database is selected.
+      Reusing ER_SP_DOES_NOT_EXIST have a message consistent with
+      the case when a default database exist, see Create_sp_func::create().
+    */
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+             "FUNCTION", name.str);
+    return NULL;
+  }
+
   if (thd->lex->copy_db_to(&db.str, &db.length))
     return NULL;
 

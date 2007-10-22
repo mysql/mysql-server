@@ -346,7 +346,7 @@ send_eof(THD *thd)
 {
   NET *net= &thd->net;
   DBUG_ENTER("send_eof");
-  if (net->vio != 0 && !net->no_send_eof)
+  if (net->vio != 0)
   {
     write_eof_packet(thd, net);
     VOID(net_flush(net));

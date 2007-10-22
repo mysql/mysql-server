@@ -578,7 +578,7 @@ proc	sql_data_access	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL
 proc	is_deterministic	enum('YES','NO')
 proc	security_type	enum('INVOKER','DEFINER')
 proc	param_list	blob
-proc	returns	char(64)
+proc	returns	longblob
 proc	body	longblob
 proc	definer	char(77)
 proc	created	timestamp

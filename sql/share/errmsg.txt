@@ -6109,3 +6109,6 @@ ER_EVENT_INVALID_CREATION_CTX
 
 ER_TRG_CANT_OPEN_TABLE
   eng "Cannot open table for trigger `%-.64s`.`%-.64s`"
+
+ER_CANT_CREATE_SROUTINE
+  eng "Cannot create stored routine `%-.64s`. Check warnings"

@@ -2113,7 +2113,7 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
 
     /* If the query was not ignored, it is printed to the general log */
     if (thd->net.last_errno != ER_SLAVE_IGNORED_TABLE)
-      general_log_print(thd, COM_QUERY, "%s", thd->query);
+      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
 
 compare_errors:
 

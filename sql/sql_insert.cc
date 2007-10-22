@@ -1639,6 +1639,8 @@ public:
   char *record;
   enum_duplicates dup;
   time_t start_time;
+  ulong sql_mode;
+  bool auto_increment_field_not_null;
   bool query_start_used, ignore, log_query;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
   ulonglong first_successful_insert_id_in_prev_stmt;
@@ -2141,6 +2143,9 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   /* Copy session variables. */
   row->auto_increment_increment= thd->variables.auto_increment_increment;
   row->auto_increment_offset=    thd->variables.auto_increment_offset;
+  row->sql_mode=                 thd->variables.sql_mode;
+  row->auto_increment_field_not_null= table->auto_increment_field_not_null;
+
   /* Copy the next forced auto increment value, if any. */
   if ((forced_auto_inc= thd->auto_inc_intervals_forced.get_next()))
   {
@@ -2555,10 +2560,13 @@ bool Delayed_insert::handle_inserts(void)
     thd.stmt_depends_on_first_successful_insert_id_in_prev_stmt= 
       row->stmt_depends_on_first_successful_insert_id_in_prev_stmt;
     table->timestamp_field_type= row->timestamp_field_type;
+    table->auto_increment_field_not_null= row->auto_increment_field_not_null;
 
     /* Copy the session variables. */
     thd.variables.auto_increment_increment= row->auto_increment_increment;
     thd.variables.auto_increment_offset=    row->auto_increment_offset;
+    thd.variables.sql_mode=                 row->sql_mode;
+
     /* Copy a forced insert_id, if any. */
     if (row->forced_insert_id)
     {
@@ -3419,6 +3427,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 int
 select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
+  MYSQL_LOCK *extra_lock= NULL;
   DBUG_ENTER("select_create::prepare");
 
   TABLEOP_HOOKS *hook_ptr= NULL;
@@ -3488,8 +3497,20 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,
-                                       &thd->extra_lock, hook_ptr)))
+                                       &extra_lock, hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
+
+  if (extra_lock)
+  {
+    DBUG_ASSERT(m_plock == NULL);
+
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+      m_plock= &m_lock;
+    else
+      m_plock= &thd->extra_lock;
+
+    *m_plock= extra_lock;
+  }
 
   if (table->s->fields < values.elements)
   {
@@ -3629,10 +3650,11 @@ bool select_create::send_eof()
 
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-    if (thd->extra_lock)
+    if (m_plock)
     {
-      mysql_unlock_tables(thd, thd->extra_lock);
-      thd->extra_lock=0;
+      mysql_unlock_tables(thd, *m_plock);
+      *m_plock= NULL;
+      m_plock= NULL;
     }
   }
   return tmp;
@@ -3667,10 +3689,11 @@ void select_create::abort()
   if (thd->current_stmt_binlog_row_based)
     ha_rollback_stmt(thd);
 
-  if (thd->extra_lock)
+  if (m_plock)
   {
-    mysql_unlock_tables(thd, thd->extra_lock);
-    thd->extra_lock=0;
+    mysql_unlock_tables(thd, *m_plock);
+    *m_plock= NULL;
+    m_plock= NULL;
   }
 
   if (table)

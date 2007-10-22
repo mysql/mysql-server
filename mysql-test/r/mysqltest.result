@@ -722,4 +722,7 @@ a	int(11)	YES		NULL
 b	varchar(255)	YES		NULL	
 c	datetime	YES		NULL	
 drop table t1;
+mysqltest: At line 1: change user failed: Unknown database 'inexistent'
+mysqltest: At line 1: change user failed: Access denied for user 'inexistent'@'localhost' (using password: NO)
+mysqltest: At line 1: change user failed: Access denied for user 'root'@'localhost' (using password: YES)
 End of tests
