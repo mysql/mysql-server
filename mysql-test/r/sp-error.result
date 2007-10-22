@@ -142,7 +142,10 @@ declare c cursor for insert into test.t1 values ("foo", 42);
 open c;
 close c;
 end|
-ERROR 42000: Cursor statement must be a SELECT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insert into test.t1 values ("foo", 42);
+open c;
+close c;
+end' at line 3
 create procedure p()
 begin
 declare x int;
@@ -1223,7 +1226,7 @@ ERROR 42S02: Unknown table 'c' in field list
 drop procedure bug15091;
 drop function if exists bug16896;
 create aggregate function bug16896() returns int return 1;
-ERROR 42000: AGGREGATE is not supported for stored functions
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '() returns int return 1' at line 1
 DROP PROCEDURE IF EXISTS bug14702;
 CREATE IF NOT EXISTS PROCEDURE bug14702()
 BEGIN
@@ -1478,3 +1481,45 @@ end
 until true end repeat retry;
 end//
 ERROR 42000: LEAVE with no matching label: retry
+drop procedure if exists proc_28360;
+drop function if exists func_28360;
+CREATE PROCEDURE proc_28360()
+BEGIN
+ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
+END//
+ERROR HY000: Can't drop or alter a DATABASE from within another stored routine
+CREATE FUNCTION func_28360() RETURNS int
+BEGIN
+ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
+RETURN 0;
+END//
+ERROR HY000: Can't drop or alter a DATABASE from within another stored routine
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE c char(100);
+DECLARE cur1 CURSOR FOR SHOW TABLES;
+OPEN cur1;
+FETCH cur1 INTO c;
+select c;
+CLOSE cur1;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SHOW TABLES;
+OPEN cur1;
+FETCH cur1 INTO c;
+select c;
+CLOSE cur1;
+END' at line 4
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+SELECT inexistent(), 1 + ,;
+ERROR 42000: FUNCTION inexistent does not exist
+SELECT inexistent();
+ERROR 42000: FUNCTION inexistent does not exist
+SELECT .inexistent();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '()' at line 1
+SELECT ..inexistent();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.inexistent()' at line 1
+USE test;
