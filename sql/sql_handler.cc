@@ -65,11 +65,6 @@
 static enum enum_ha_read_modes rkey_to_rnext[]=
 { RNEXT_SAME, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV, RPREV };
 
-#define HANDLER_TABLES_HACK(thd) {      \
-  TABLE *tmp=thd->open_tables;          \
-  thd->open_tables=thd->handler_tables; \
-  thd->handler_tables=tmp; }
-
 static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags);
 
 
@@ -187,6 +182,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   char          *db, *name, *alias;
   uint          dblen, namelen, aliaslen, counter;
   int           error;
+  TABLE         *backup_open_tables;
   DBUG_ENTER("mysql_ha_open");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'  reopen: %d",
                       tables->db, tables->table_name, tables->alias,
@@ -216,17 +212,39 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   }
 
   /*
+    Save and reset the open_tables list so that open_tables() won't
+    be able to access (or know about) the previous list. And on return
+    from open_tables(), thd->open_tables will contain only the opened
+    table.
+
+    The thd->handler_tables list is kept as-is to avoid deadlocks if
+    open_table(), called by open_tables(), needs to back-off because
+    of a pending name-lock on the table being opened.
+
+    See open_table() back-off comments for more details.
+  */
+  backup_open_tables= thd->open_tables;
+  thd->open_tables= NULL;
+
+  /*
     open_tables() will set 'tables->table' if successful.
     It must be NULL for a real open when calling open_tables().
   */
   DBUG_ASSERT(! tables->table);
-  HANDLER_TABLES_HACK(thd);
 
   /* for now HANDLER can be used only for real TABLES */
   tables->required_type= FRMTYPE_TABLE;
   error= open_tables(thd, &tables, &counter, 0);
 
-  HANDLER_TABLES_HACK(thd);
+  /* restore the state and merge the opened table into handler_tables list */
+  if (thd->open_tables)
+  {
+    thd->open_tables->next= thd->handler_tables;
+    thd->handler_tables= thd->open_tables;
+  }
+
+  thd->open_tables= backup_open_tables;
+
   if (error)
     goto err;
 
@@ -351,7 +369,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
                    ha_rows select_limit_cnt, ha_rows offset_limit_cnt)
 {
   TABLE_LIST    *hash_tables;
-  TABLE         *table;
+  TABLE         *table, *backup_open_tables;
   MYSQL_LOCK    *lock;
   List<Item>	list;
   Protocol	*protocol= thd->protocol;
@@ -361,7 +379,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   uint          num_rows;
   byte		*key;
   uint		key_len;
-  bool          not_used;
+  bool          need_reopen;
   DBUG_ENTER("mysql_ha_read");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
@@ -375,6 +393,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   List_iterator<Item> it(list);
   it++;
 
+retry:
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
                                               (byte*) tables->alias,
                                               strlen(tables->alias) + 1)))
@@ -427,9 +446,34 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
   tables->table=table;
 
-  HANDLER_TABLES_HACK(thd);
-  lock= mysql_lock_tables(thd, &tables->table, 1, 0, &not_used);
-  HANDLER_TABLES_HACK(thd);
+  /* save open_tables state */
+  backup_open_tables= thd->open_tables;
+  /*
+    mysql_lock_tables() needs thd->open_tables to be set correctly to
+    be able to handle aborts properly. When the abort happens, it's
+    safe to not protect thd->handler_tables because it won't close any
+    tables.
+  */
+  thd->open_tables= thd->handler_tables;
+
+  lock= mysql_lock_tables(thd, &tables->table, 1,
+                          MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN, &need_reopen);
+
+  /* restore previous context */
+  thd->open_tables= backup_open_tables;
+
+  if (need_reopen)
+  {
+    mysql_ha_close_table(thd, tables);
+    hash_tables->table= NULL;
+    /*
+      The lock might have been aborted, we need to manually reset
+      thd->some_tables_deleted because handler's tables are closed
+      in a non-standard way. Otherwise we might loop indefinitely.
+    */
+    thd->some_tables_deleted= 0;
+    goto retry;
+  }
 
   if (!lock)
     goto err0; // mysql_lock_tables() printed error message already

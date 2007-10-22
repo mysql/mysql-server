@@ -95,10 +95,10 @@ FR
 DROP TABLE bug19904;
 CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
-ERROR HY000: Incorrect usage of SONAME and DEFINER
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNS STRING SONAME "should_not_parse.so"' at line 2
 CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
-ERROR HY000: Incorrect usage of SONAME and DEFINER
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNS STRING SONAME "should_not_parse.so"' at line 2
 create table t1(f1 int);
 insert into t1 values(1),(2);
 explain select myfunc_int(f1) from t1 order by 1;
@@ -296,6 +296,13 @@ Qcache_queries_in_cache	0
 drop table t1;
 drop function metaphon;
 set GLOBAL query_cache_size=default;
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+DROP FUNCTION metaphon;
+USE test;
 CREATE TABLE const_len_bug (
 str_const varchar(4000),
 result1 varchar(4000),

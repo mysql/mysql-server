@@ -93,6 +93,10 @@ const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
 };
 
+#ifndef EMBEDDED_LIBRARY
+static bool do_command(THD *thd);
+#endif // EMBEDDED_LIBRARY
+
 #ifdef __WIN__
 static void  test_signal(int sig_ptr)
 {
@@ -1199,23 +1203,28 @@ pthread_handler_t handle_one_connection(void *arg)
     }
     if (thd->user_connect)
       decrease_user_connections(thd->user_connect);
+
+    if (thd->killed ||
+        net->vio && net->error && net->report_error)
+    {
+      statistic_increment(aborted_threads, &LOCK_status);
+    }
+
     if (net->error && net->vio != 0 && net->report_error)
     {
       if (!thd->killed && thd->variables.log_warnings > 1)
-	sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+      {
+        sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
                           thd->thread_id,(thd->db ? thd->db : "unconnected"),
                           sctx->user ? sctx->user : "unauthenticated",
                           sctx->host_or_ip,
                           (net->last_errno ? ER(net->last_errno) :
                            ER(ER_UNKNOWN_ERROR)));
+      }
+
       net_send_error(thd, net->last_errno, NullS);
-      statistic_increment(aborted_threads,&LOCK_status);
     }
-    else if (thd->killed)
-    {
-      statistic_increment(aborted_threads,&LOCK_status);
-    }
-    
+
 end_thread:
     close_connection(thd, 0, 1);
     end_thread(thd,1);
@@ -1520,7 +1529,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     1  request of thread shutdown (see dispatch_command() description)
 */
 
-bool do_command(THD *thd)
+static bool do_command(THD *thd)
 {
   char *packet= 0;
   ulong packet_length;
@@ -1550,12 +1559,12 @@ bool do_command(THD *thd)
     DBUG_PRINT("info",("Got error %d reading command from socket %s",
 		       net->error,
 		       vio_description(net->vio)));
+
     /* Check if we can continue without closing the connection */
+
     if (net->error != 3)
-    {
-      statistic_increment(aborted_threads,&LOCK_status);
       DBUG_RETURN(TRUE);			// We have to close it.
-    }
+
     net_send_error(thd, net->last_errno, NullS);
     net->error= 0;
     DBUG_RETURN(FALSE);
@@ -4007,12 +4016,6 @@ end_with_restore_list:
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
       break;
 #ifdef HAVE_DLOPEN
-    if (sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
-                        &thd->sp_func_cache, FALSE))
-    {
-      my_error(ER_UDF_EXISTS, MYF(0), lex->spname->m_name.str);
-      goto error;
-    }
     if (!(res = mysql_create_function(thd, &lex->udf)))
       send_ok(thd);
 #else
