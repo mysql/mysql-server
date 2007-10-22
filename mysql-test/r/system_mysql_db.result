@@ -196,7 +196,7 @@ proc	CREATE TABLE `proc` (
   `is_deterministic` enum('YES','NO') NOT NULL DEFAULT 'NO',
   `security_type` enum('INVOKER','DEFINER') NOT NULL DEFAULT 'DEFINER',
   `param_list` blob NOT NULL,
-  `returns` char(64) NOT NULL DEFAULT '',
+  `returns` longblob NOT NULL,
   `body` longblob NOT NULL,
   `definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
   `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

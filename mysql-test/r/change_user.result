@@ -1,0 +1,46 @@
+Bug#20023
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+1
+SELECT @@global.max_join_size;
+@@global.max_join_size
+-1
+change_user
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+1
+SELECT @@global.max_join_size;
+@@global.max_join_size
+-1
+SET @@global.max_join_size = 10000;
+SET @@session.max_join_size = default;
+change_user
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+0
+SET @@global.max_join_size = -1;
+SET @@session.max_join_size = default;
+change_user
+SELECT @@session.sql_big_selects;
+@@session.sql_big_selects
+1
+Bug#31418
+SELECT IS_FREE_LOCK('bug31418');
+IS_FREE_LOCK('bug31418')
+1
+SELECT IS_USED_LOCK('bug31418');
+IS_USED_LOCK('bug31418')
+NULL
+SELECT GET_LOCK('bug31418', 1);
+GET_LOCK('bug31418', 1)
+1
+SELECT IS_USED_LOCK('bug31418') = CONNECTION_ID();
+IS_USED_LOCK('bug31418') = CONNECTION_ID()
+1
+change_user
+SELECT IS_FREE_LOCK('bug31418');
+IS_FREE_LOCK('bug31418')
+1
+SELECT IS_USED_LOCK('bug31418');
+IS_USED_LOCK('bug31418')
+NULL
