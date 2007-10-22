@@ -280,7 +280,9 @@ row_rec_to_index_entry_low(
 	ulint		rec_len;
 
 	ut_ad(rec && heap && index);
-	ut_ad(rec_offs_validate(rec, index, offsets));
+	/* Because this function may be invoked by row0merge.c
+	on a record whose header is in different format, the check
+	rec_offs_validate(rec, index, offsets) must be avoided here. */
 	ut_ad(n_ext);
 	*n_ext = 0;
 
