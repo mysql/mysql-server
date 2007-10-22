@@ -303,7 +303,7 @@ btr_pcur_restore_position(
 	cursor->search_mode = old_mode;
 
 	if (cursor->rel_pos == BTR_PCUR_ON
-	    && btr_pcur_is_on_user_rec(cursor, mtr)
+	    && btr_pcur_is_on_user_rec(cursor)
 	    && 0 == cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor),
 				   rec_get_offsets(
 					   btr_pcur_get_rec(cursor), index,
@@ -383,7 +383,7 @@ btr_pcur_move_to_next_page(
 
 	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
-	ut_ad(btr_pcur_is_after_last_on_page(cursor, mtr));
+	ut_ad(btr_pcur_is_after_last_on_page(cursor));
 
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
 
@@ -438,7 +438,7 @@ btr_pcur_move_backward_from_page(
 
 	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
-	ut_ad(btr_pcur_is_before_first_on_page(cursor, mtr));
+	ut_ad(btr_pcur_is_before_first_on_page(cursor));
 	ut_ad(!btr_pcur_is_before_first_in_tree(cursor, mtr));
 
 	latch_mode = cursor->latch_mode;
@@ -469,7 +469,7 @@ btr_pcur_move_backward_from_page(
 	space = buf_block_get_space(btr_pcur_get_block(cursor));
 
 	if (prev_page_no == FIL_NULL) {
-	} else if (btr_pcur_is_before_first_on_page(cursor, mtr)) {
+	} else if (btr_pcur_is_before_first_on_page(cursor)) {
 
 		prev_block = btr_pcur_get_btr_cur(cursor)->left_block;
 
@@ -512,7 +512,7 @@ btr_pcur_move_to_prev(
 
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
 
-	if (btr_pcur_is_before_first_on_page(cursor, mtr)) {
+	if (btr_pcur_is_before_first_on_page(cursor)) {
 
 		if (btr_pcur_is_before_first_in_tree(cursor, mtr)) {
 
@@ -524,7 +524,7 @@ btr_pcur_move_to_prev(
 		return(TRUE);
 	}
 
-	btr_pcur_move_to_prev_on_page(cursor, mtr);
+	btr_pcur_move_to_prev_on_page(cursor);
 
 	return(TRUE);
 }
@@ -553,7 +553,7 @@ btr_pcur_open_on_user_rec(
 
 	if ((mode == PAGE_CUR_GE) || (mode == PAGE_CUR_G)) {
 
-		if (btr_pcur_is_after_last_on_page(cursor, mtr)) {
+		if (btr_pcur_is_after_last_on_page(cursor)) {
 
 			btr_pcur_move_to_next_user_rec(cursor, mtr);
 		}

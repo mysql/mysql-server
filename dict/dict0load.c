@@ -88,7 +88,7 @@ dict_get_first_table_name_in_db(
 loop:
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
+	if (!btr_pcur_is_on_user_rec(&pcur)) {
 		/* Not found */
 
 		btr_pcur_close(&pcur);
@@ -167,7 +167,7 @@ loop:
 
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
+	if (!btr_pcur_is_on_user_rec(&pcur)) {
 		/* end of index */
 
 		btr_pcur_close(&pcur);
@@ -297,7 +297,7 @@ loop:
 
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
+	if (!btr_pcur_is_on_user_rec(&pcur)) {
 		/* end of index */
 
 		btr_pcur_close(&pcur);
@@ -418,7 +418,7 @@ dict_load_columns(
 
 		rec = btr_pcur_get_rec(&pcur);
 
-		ut_a(btr_pcur_is_on_user_rec(&pcur, &mtr));
+		ut_a(btr_pcur_is_on_user_rec(&pcur));
 
 		ut_a(!rec_get_deleted_flag(rec, 0));
 
@@ -522,7 +522,7 @@ dict_load_fields(
 
 		rec = btr_pcur_get_rec(&pcur);
 
-		ut_a(btr_pcur_is_on_user_rec(&pcur, &mtr));
+		ut_a(btr_pcur_is_on_user_rec(&pcur));
 
 		/* There could be delete marked records in SYS_FIELDS
 		because SYS_FIELDS.INDEX_ID can be updated
@@ -636,7 +636,7 @@ dict_load_indexes(
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (;;) {
-		if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
+		if (!btr_pcur_is_on_user_rec(&pcur)) {
 
 			break;
 		}
@@ -791,7 +791,7 @@ dict_load_table(
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)
+	if (!btr_pcur_is_on_user_rec(&pcur)
 	    || rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 err_exit:
@@ -973,7 +973,7 @@ dict_load_table_on_id(
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)
+	if (!btr_pcur_is_on_user_rec(&pcur)
 	    || rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 
@@ -1082,7 +1082,7 @@ dict_load_foreign_cols(
 
 		rec = btr_pcur_get_rec(&pcur);
 
-		ut_a(btr_pcur_is_on_user_rec(&pcur, &mtr));
+		ut_a(btr_pcur_is_on_user_rec(&pcur));
 		ut_a(!rec_get_deleted_flag(rec, 0));
 
 		field = rec_get_nth_field_old(rec, 0, &len);
@@ -1153,7 +1153,7 @@ dict_load_foreign(
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)
+	if (!btr_pcur_is_on_user_rec(&pcur)
 	    || rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 
@@ -1297,7 +1297,7 @@ start_load:
 loop:
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
+	if (!btr_pcur_is_on_user_rec(&pcur)) {
 		/* End of index */
 
 		goto load_next_index;

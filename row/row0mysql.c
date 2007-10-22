@@ -2928,7 +2928,7 @@ row_truncate_table_for_mysql(
 		ulint		len;
 		ulint		root_page_no;
 
-		if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
+		if (!btr_pcur_is_on_user_rec(&pcur)) {
 			/* The end of SYS_INDEXES has been reached. */
 			break;
 		}
