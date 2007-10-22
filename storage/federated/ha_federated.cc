@@ -2769,7 +2769,12 @@ int ha_federated::info(uint flag)
     status_query_string.length(0);
 
     result= mysql_store_result(mysql);
-    if (!result)
+
+    /*
+      We're going to use fields num. 4, 12 and 13 of the resultset,
+      so make sure we have these fields.
+    */
+    if (!result || (mysql_num_fields(result) < 14))
       goto error;
 
     if (!mysql_num_rows(result))
