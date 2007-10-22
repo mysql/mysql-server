@@ -463,7 +463,7 @@ row_upd_rec_in_place(
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
 		ut_ad(!dfield_is_ext(new_val) ==
-		      !rec_offs_nth_extern(offsets, i));
+		      !rec_offs_nth_extern(offsets, upd_field->field_no));
 
 		rec_set_nth_field(rec, offsets, upd_field->field_no,
 				  dfield_get_data(new_val),
@@ -625,7 +625,6 @@ row_upd_index_parse(
 	dfield_t*	new_val;
 	ulint		len;
 	ulint		n_fields;
-	byte*		buf;
 	ulint		info_bits;
 	ulint		i;
 
@@ -664,21 +663,18 @@ row_upd_index_parse(
 			return(NULL);
 		}
 
-		new_val->len = len;
-
 		if (len != UNIV_SQL_NULL) {
 
 			if (end_ptr < ptr + len) {
 
 				return(NULL);
-			} else {
-				buf = mem_heap_alloc(heap, len);
-				ut_memcpy(buf, ptr, len);
-
-				ptr += len;
-
-				new_val->data = buf;
 			}
+
+			dfield_set_data(new_val,
+					mem_heap_dup(heap, ptr, len), len);
+			ptr += len;
+		} else {
+			dfield_set_null(new_val);
 		}
 	}
 
