@@ -277,3 +277,18 @@ SELECT * FROM t1;
 DROP TABLE t1, t2;
 DROP DATABASE db1;
 DROP DATABASE db2;
+
+#
+# Bug 31742: delete from ... order by function call that causes an error, 
+#            asserts server
+#
+
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0);
+--error 1318
+DELETE FROM t1 ORDER BY (f1(10)) LIMIT 1;
+DROP TABLE t1;
+DROP FUNCTION f1;
+
+--echo End of 5.0 tests
