@@ -228,8 +228,8 @@ UNIV_INLINE
 ulint
 btr_pcur_get_rel_pos(
 /*=================*/
-				/* out: BTR_PCUR_ON, ... */
-	btr_pcur_t*	cursor);/* in: persistent cursor */
+					/* out: BTR_PCUR_ON, ... */
+	const btr_pcur_t*	cursor);/* in: persistent cursor */
 /*************************************************************
 Sets the mtr field for a pcur. */
 UNIV_INLINE
@@ -346,22 +346,29 @@ btr_pcur_move_backward_from_page(
 	btr_pcur_t*	cursor,	/* in: persistent cursor, must be on the
 				first record of the current page */
 	mtr_t*		mtr);	/* in: mtr */
+#ifdef UNIV_DEBUG
 /*************************************************************
 Returns the btr cursor component of a persistent cursor. */
 UNIV_INLINE
 btr_cur_t*
 btr_pcur_get_btr_cur(
 /*=================*/
-				/* out: pointer to btr cursor component */
-	btr_pcur_t*	cursor);	/* in: persistent cursor */
+						/* out: pointer to
+						btr cursor component */
+	const btr_pcur_t*	cursor);	/* in: persistent cursor */
 /*************************************************************
 Returns the page cursor component of a persistent cursor. */
 UNIV_INLINE
 page_cur_t*
 btr_pcur_get_page_cur(
 /*==================*/
-				/* out: pointer to page cursor component */
-	btr_pcur_t*	cursor);	/* in: persistent cursor */
+						/* out: pointer to
+						page cursor component */
+	const btr_pcur_t*	cursor);	/* in: persistent cursor */
+#else /* UNIV_DEBUG */
+# define btr_pcur_get_btr_cur(cursor) (&(cursor)->btr_cur)
+# define btr_pcur_get_page_cur(cursor) (&(cursor)->btr_cur.page_cur)
+#endif /* UNIV_DEBUG */
 /*************************************************************
 Returns the page of a persistent cursor. */
 UNIV_INLINE
@@ -392,8 +399,7 @@ UNIV_INLINE
 ibool
 btr_pcur_is_on_user_rec(
 /*====================*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor */
-	mtr_t*		mtr);	/* in: mtr */
+	const btr_pcur_t*	cursor);/* in: persistent cursor */
 /*************************************************************
 Checks if the persistent cursor is after the last user record on
 a page. */
@@ -401,8 +407,7 @@ UNIV_INLINE
 ibool
 btr_pcur_is_after_last_on_page(
 /*===========================*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor */
-	mtr_t*		mtr);	/* in: mtr */
+	const btr_pcur_t*	cursor);/* in: persistent cursor */
 /*************************************************************
 Checks if the persistent cursor is before the first user record on
 a page. */
@@ -410,8 +415,7 @@ UNIV_INLINE
 ibool
 btr_pcur_is_before_first_on_page(
 /*=============================*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor */
-	mtr_t*		mtr);	/* in: mtr */
+	const btr_pcur_t*	cursor);/* in: persistent cursor */
 /*************************************************************
 Checks if the persistent cursor is before the first user record in
 the index tree. */
@@ -436,16 +440,14 @@ UNIV_INLINE
 void
 btr_pcur_move_to_next_on_page(
 /*==========================*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor */
-	mtr_t*		mtr);	/* in: mtr */
+	btr_pcur_t*	cursor);/* in/out: persistent cursor */
 /*************************************************************
 Moves the persistent cursor to the previous record on the same page. */
 UNIV_INLINE
 void
 btr_pcur_move_to_prev_on_page(
 /*==========================*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor */
-	mtr_t*		mtr);	/* in: mtr */
+	btr_pcur_t*	cursor);/* in/out: persistent cursor */
 
 
 /* The persistent B-tree cursor structure. This is used mainly for SQL

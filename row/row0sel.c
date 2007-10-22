@@ -1752,7 +1752,7 @@ next_rec:
 	}
 
 	if (leaf_contains_updates
-	    && btr_pcur_is_after_last_on_page(&(plan->pcur), &mtr)) {
+	    && btr_pcur_is_after_last_on_page(&plan->pcur)) {
 
 		/* We must commit &mtr if we are moving to a different page,
 		because we have done updates to the x-latched leaf page, and
@@ -1785,7 +1785,7 @@ next_table:
 	/* We found a record which satisfies the conditions: we can move to
 	the next table or return a row in the result set */
 
-	ut_ad(btr_pcur_is_on_user_rec(&(plan->pcur), &mtr));
+	ut_ad(btr_pcur_is_on_user_rec(&plan->pcur));
 
 	if (plan->unique_search && !node->can_get_updated) {
 
@@ -1922,8 +1922,7 @@ commit_mtr_for_a_while:
 lock_wait_or_error:
 	/* See the note at stop_for_a_while: the same holds for this case */
 
-	ut_ad(!btr_pcur_is_before_first_on_page(&(plan->pcur), &mtr)
-	      || !node->asc);
+	ut_ad(!btr_pcur_is_before_first_on_page(&plan->pcur) || !node->asc);
 	ut_ad(!search_latch_locked);
 
 	plan->stored_cursor_rec_processed = FALSE;
@@ -3065,7 +3064,7 @@ sel_restore_position_for_mysql(
 			return(TRUE);
 		}
 
-		if (btr_pcur_is_on_user_rec(pcur, mtr)) {
+		if (btr_pcur_is_on_user_rec(pcur)) {
 			btr_pcur_move_to_prev(pcur, mtr);
 		}
 
@@ -3075,7 +3074,7 @@ sel_restore_position_for_mysql(
 	ut_ad(relative_position == BTR_PCUR_BEFORE
 	      || relative_position == BTR_PCUR_BEFORE_FIRST_IN_TREE);
 
-	if (moves_up && btr_pcur_is_on_user_rec(pcur, mtr)) {
+	if (moves_up && btr_pcur_is_on_user_rec(pcur)) {
 		btr_pcur_move_to_next(pcur, mtr);
 	}
 

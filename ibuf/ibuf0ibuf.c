@@ -2558,7 +2558,7 @@ ibuf_update_max_tablespace_id(void)
 				    &pcur, TRUE, &mtr);
 	btr_pcur_move_to_prev(&pcur, &mtr);
 
-	if (btr_pcur_is_before_first_on_page(&pcur, &mtr)) {
+	if (btr_pcur_is_before_first_on_page(&pcur)) {
 		/* The tree is empty */
 
 		max_space_id = 0;
@@ -3333,14 +3333,14 @@ loop:
 	index page */
 	btr_pcur_open_on_user_rec(ibuf_data->index, search_tuple, PAGE_CUR_GE,
 				  BTR_MODIFY_LEAF, &pcur, &mtr);
-	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
+	if (!btr_pcur_is_on_user_rec(&pcur)) {
 		ut_ad(btr_pcur_is_after_last_in_tree(&pcur, &mtr));
 
 		goto reset_bit;
 	}
 
 	for (;;) {
-		ut_ad(btr_pcur_is_on_user_rec(&pcur, &mtr));
+		ut_ad(btr_pcur_is_on_user_rec(&pcur));
 
 		ibuf_rec = btr_pcur_get_rec(&pcur);
 
@@ -3393,7 +3393,7 @@ loop:
 			goto loop;
 		}
 
-		if (btr_pcur_is_after_last_on_page(&pcur, &mtr)) {
+		if (btr_pcur_is_after_last_on_page(&pcur)) {
 			mtr_commit(&mtr);
 			btr_pcur_close(&pcur);
 
@@ -3505,14 +3505,14 @@ loop:
 	space */
 	btr_pcur_open_on_user_rec(ibuf_data->index, search_tuple, PAGE_CUR_GE,
 				  BTR_MODIFY_LEAF, &pcur, &mtr);
-	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
+	if (!btr_pcur_is_on_user_rec(&pcur)) {
 		ut_ad(btr_pcur_is_after_last_in_tree(&pcur, &mtr));
 
 		goto leave_loop;
 	}
 
 	for (;;) {
-		ut_ad(btr_pcur_is_on_user_rec(&pcur, &mtr));
+		ut_ad(btr_pcur_is_on_user_rec(&pcur));
 
 		ibuf_rec = btr_pcur_get_rec(&pcur);
 
@@ -3538,7 +3538,7 @@ loop:
 			goto loop;
 		}
 
-		if (btr_pcur_is_after_last_on_page(&pcur, &mtr)) {
+		if (btr_pcur_is_after_last_on_page(&pcur)) {
 			mtr_commit(&mtr);
 			btr_pcur_close(&pcur);
 

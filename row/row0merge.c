@@ -1127,12 +1127,12 @@ row_merge_read_clustered_index(
 		row_ext_t*	ext;
 		ibool		has_next	= TRUE;
 
-		btr_pcur_move_to_next_on_page(&pcur, &mtr);
+		btr_pcur_move_to_next_on_page(&pcur);
 
 		/* When switching pages, commit the mini-transaction
 		in order to release the latch on the old page. */
 
-		if (btr_pcur_is_after_last_on_page(&pcur, &mtr)) {
+		if (btr_pcur_is_after_last_on_page(&pcur)) {
 			btr_pcur_store_position(&pcur, &mtr);
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
