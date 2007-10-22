@@ -3,6 +3,14 @@
 #########################################
 # Note that errors are ignored by opt file.
 source include/master-slave.inc;
+source include/have_binlog_format_mixed_or_statement.inc;
+
+#
+# Bug #30594
+# Skipping error due to applying Row-based repliation events
+# should be checked with another test file
+# consider names like rpl_row_skip_error
+#
 
 create table t1 (n int not null primary key);
 save_master_pos;
