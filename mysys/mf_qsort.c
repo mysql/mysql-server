@@ -91,10 +91,10 @@ typedef struct st_stack
 *****************************************************************************/
 
 #ifdef QSORT_EXTRA_CMP_ARGUMENT
-qsort_t qsort2(void *base_ptr, size_t count, size_t size, qsort2_cmp cmp,
+qsort_t my_qsort2(void *base_ptr, size_t count, size_t size, qsort2_cmp cmp,
 	       void *cmp_argument)
 #else
-qsort_t qsort(void *base_ptr, size_t count, size_t size, qsort_cmp cmp)
+qsort_t my_qsort(void *base_ptr, size_t count, size_t size, qsort_cmp cmp)
 #endif
 {
   char *low, *high, *pivot;
