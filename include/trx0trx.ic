@@ -187,8 +187,15 @@ trx_set_dict_operation(
 		ut_error;
 		break;
 	case TRX_DICT_OP_TABLE:
-		ut_ad(old_op == TRX_DICT_OP_NONE
-		      || old_op == TRX_DICT_OP_INDEX);
+		switch (old_op) {
+		case TRX_DICT_OP_NONE:
+		case TRX_DICT_OP_INDEX:
+		case TRX_DICT_OP_TABLE:
+			goto ok;
+		case TRX_DICT_OP_INDEX_MAY_WAIT:
+			break;
+		}
+		ut_error;
 		break;
 	case TRX_DICT_OP_INDEX:
 		ut_ad(old_op == TRX_DICT_OP_NONE
@@ -199,6 +206,7 @@ trx_set_dict_operation(
 		      || old_op == TRX_DICT_OP_INDEX);
 		break;
 	}
+ok:
 #endif /* UNIV_DEBUG */
 
 	trx->dict_operation = op;
