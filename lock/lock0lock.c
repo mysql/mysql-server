@@ -5169,7 +5169,7 @@ lock_sec_rec_read_check_and_lock(
 	ulint			flags,	/* in: if BTR_NO_LOCKING_FLAG
 					bit is set, does nothing */
 	const buf_block_t*	block,	/* in: buffer block of rec */
-	const rec_t*		rec,	/* in: user recpord or page
+	const rec_t*		rec,	/* in: user record or page
 					supremum record which should
 					be read or passed over by a
 					read cursor */
