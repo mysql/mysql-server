@@ -1211,8 +1211,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <cast_type> cast_type
 
-%type <udf_type> udf_func_type
-
 %type <symbol> keyword keyword_sp
 
 %type <lex_user> user grant_user
@@ -1254,14 +1252,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         ref_list opt_on_delete opt_on_delete_list opt_on_delete_item use
         opt_delete_options opt_delete_option varchar nchar nvarchar
         opt_outer table_list table_name table_alias_ref_list table_alias_ref
-	opt_option opt_place
+        opt_option opt_place
         opt_attribute opt_attribute_list attribute column_list column_list_id
         opt_column_list grant_privileges grant_ident grant_list grant_option
         object_privilege object_privilege_list user_list rename_list
         clear_privileges flush_options flush_option
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
-        db_to_db table_to_table_list table_to_table opt_table_list opt_as
+        table_to_table_list table_to_table opt_table_list opt_as
         handler_rkey_function handler_read_or_scan
         single_multi table_wild_list table_wild_one opt_wild
         union_clause union_list
@@ -1272,14 +1270,15 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         statement sp_suid
         sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
-        definer view_replace_or_algorithm view_replace
+        view_replace_or_algorithm view_replace
         view_algorithm view_or_trigger_or_sp_or_event
-        view_or_trigger_or_sp_or_event_tail
+        definer_tail no_definer_tail
         view_suid view_tail view_list_opt view_list view_select
-        view_check_option trigger_tail sp_tail
+        view_check_option trigger_tail sp_tail sf_tail udf_tail event_tail
         install uninstall partition_entry binlog_base64_event
         init_key_options key_options key_opts key_opt key_using_alg
         server_def server_options_list server_option
+        definer_opt no_definer definer
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -2002,181 +2001,6 @@ sp_name:
           }
         ;
 
-create_function_tail:
-          RETURNS_SYM udf_type SONAME_SYM TEXT_STRING_sys
-          {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            if (lex->definer != NULL)
-            {
-              /*
-                DEFINER is a concept meaningful when interpreting SQL code.
-                UDF functions are compiled.
-                Using DEFINER with UDF has therefore no semantic,
-                and is considered a parsing error.
-              */
-              my_error(ER_WRONG_USAGE, MYF(0), "SONAME", "DEFINER");
-              MYSQL_YYABORT;
-            }
-            if (is_native_function(thd, & lex->spname->m_name))
-            {
-              my_error(ER_NATIVE_FCT_NAME_COLLISION, MYF(0),
-                       lex->spname->m_name.str);
-              MYSQL_YYABORT;
-            }
-            lex->sql_command = SQLCOM_CREATE_FUNCTION;
-            lex->udf.name = lex->spname->m_name;
-            lex->udf.returns=(Item_result) $2;
-            lex->udf.dl=$4.str;
-          }
-        | '('
-          {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
-            sp_head *sp;
-            const char* tmp_param_begin;
-
-            /* 
-              First check if AGGREGATE was used, in that case it's a
-              syntax error.
-            */
-            if (lex->udf.type == UDFTYPE_AGGREGATE)
-            {
-              my_error(ER_SP_NO_AGGREGATE, MYF(0));
-              MYSQL_YYABORT;
-            }
-
-            if (lex->sphead)
-            {
-              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "FUNCTION");
-              MYSQL_YYABORT;
-            }
-            /* Order is important here: new - reset - init */
-            sp= new sp_head();
-            sp->reset_thd_mem_root(thd);
-            sp->init(lex);
-            sp->init_sp_name(thd, lex->spname);
-
-            sp->m_type= TYPE_ENUM_FUNCTION;
-            lex->sphead= sp;
-            /*
-              We have to turn off CLIENT_MULTI_QUERIES while parsing a
-              stored procedure, otherwise yylex will chop it into pieces
-              at each ';'.
-            */
-            $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
-            thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-
-            tmp_param_begin= lip->get_cpp_tok_start();
-            tmp_param_begin++;
-            lex->sphead->m_param_begin= tmp_param_begin;
-          }
-          sp_fdparam_list ')'
-          {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
-
-            lex->sphead->m_param_end= lip->get_cpp_tok_start();
-          }
-          RETURNS_SYM
-          {
-            LEX *lex= Lex;
-            lex->charset= NULL;
-            lex->length= lex->dec= NULL;
-            lex->interval_list.empty();
-            lex->type= 0;
-          }
-          type
-          {
-            LEX *lex= Lex;
-            sp_head *sp= lex->sphead;
-            /*
-              This was disabled in 5.1.12. See bug #20701
-              When collation support in SP is implemented, then this test
-              should be removed.
-            */
-            if (($8 == MYSQL_TYPE_STRING || $8 == MYSQL_TYPE_VARCHAR)
-                && (lex->type & BINCMP_FLAG))
-            {
-              my_error(ER_NOT_SUPPORTED_YET, MYF(0), "return value collation");
-              MYSQL_YYABORT;
-            }
-
-            if (sp->fill_field_definition(YYTHD, lex,
-                                          (enum enum_field_types) $8,
-                                          &sp->m_return_field_def))
-              MYSQL_YYABORT;
-
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-          }
-          sp_c_chistics
-          {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
-
-            lex->sphead->m_chistics= &lex->sp_chistics;
-            lex->sphead->set_body_start(thd, lip->get_cpp_tok_start());
-          }
-          sp_proc_stmt
-          {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            sp_head *sp= lex->sphead;
-
-            if (sp->is_not_allowed_in_function("function"))
-              MYSQL_YYABORT;
-
-            lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
-            sp->set_stmt_end(thd);
-            if (!(sp->m_flags & sp_head::HAS_RETURN))
-            {
-              my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
-              MYSQL_YYABORT;
-            }
-            if (is_native_function(thd, & sp->m_name))
-            {
-              /*
-                This warning will be printed when
-                [1] A client query is parsed,
-                [2] A stored function is loaded by db_load_routine.
-                Printing the warning for [2] is intentional, to cover the
-                following scenario:
-                - A user define a SF 'foo' using MySQL 5.N
-                - An application uses select foo(), and works.
-                - MySQL 5.{N+1} defines a new native function 'foo', as
-                part of a new feature.
-                - MySQL 5.{N+1} documentation is updated, and should mention
-                that there is a potential incompatible change in case of
-                existing stored function named 'foo'.
-                - The user deploys 5.{N+1}. At this point, 'select foo()'
-                means something different, and the user code is most likely
-                broken (it's only safe if the code is 'select db.foo()').
-                With a warning printed when the SF is loaded (which has to occur
-                before the call), the warning will provide a hint explaining
-                the root cause of a later failure of 'select foo()'.
-                With no warning printed, the user code will fail with no
-                apparent reason.
-                Printing a warning each time db_load_routine is executed for
-                an ambiguous function is annoying, since that can happen a lot,
-                but in practice should not happen unless there *are* name
-                collisions.
-                If a collision exists, it should not be silenced but fixed.
-              */
-              push_warning_printf(thd,
-                                  MYSQL_ERROR::WARN_LEVEL_NOTE,
-                                  ER_NATIVE_FCT_NAME_COLLISION,
-                                  ER(ER_NATIVE_FCT_NAME_COLLISION),
-                                  sp->m_name.str);
-            }
-            /* Restore flag if it was cleared above */
-            thd->client_capabilities |= $<ulong_num>2;
-            sp->restore_thd_mem_root(thd);
-          }
-        ;
-
 sp_a_chistics:
           /* Empty */ {}
         | sp_a_chistics sp_chistic {}
@@ -2540,25 +2364,13 @@ sp_decl:
 sp_cursor_stmt:
           {
             Lex->sphead->reset_lex(YYTHD);
-
-            /*
-             We use statement here just be able to get a better
-              error message. Using 'select' works too, but will then
-             result in a generic "syntax error" if a non-select
-             statement is given.
-            */
           }
-          statement
+          select
           {
             LEX *lex= Lex;
 
-            if (lex->sql_command != SQLCOM_SELECT &&
-               !(sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND))
-            {
-              my_message(ER_SP_BAD_CURSOR_QUERY, ER(ER_SP_BAD_CURSOR_QUERY),
-                         MYF(0));
-              MYSQL_YYABORT;
-            }
+            DBUG_ASSERT(lex->sql_command == SQLCOM_SELECT);
+
             if (lex->result)
             {
               my_message(ER_SP_BAD_CURSOR_SELECT, ER(ER_SP_BAD_CURSOR_SELECT),
@@ -3362,7 +3174,6 @@ change_ts_option:
         ;
 
 tablespace_option_list:
-          /* empty */ {}
         tablespace_options
         ;
 
@@ -3384,7 +3195,6 @@ tablespace_option:
         ;
 
 alter_tablespace_option_list:
-          /* empty */ {}
         alter_tablespace_options
         ;
 
@@ -3403,7 +3213,6 @@ alter_tablespace_option:
         ;
 
 logfile_group_option_list:
-          /* empty */ {}
         logfile_group_options
         ;
 
@@ -3424,7 +3233,6 @@ logfile_group_option:
         ;
 
 alter_logfile_group_option_list:
-          /* empty */ {}
           alter_logfile_group_options
         ;
 
@@ -3669,7 +3477,7 @@ size_number:
 create2:
           '(' create2a {}
         | opt_create_table_options
-          opt_partitioning {}
+          opt_partitioning
           create3 {}
         | LIKE table_ident
           {
@@ -3693,19 +3501,22 @@ create2:
 
 create2a:
           field_list ')' opt_create_table_options
-          opt_partitioning {}
+          opt_partitioning
           create3 {}
-        |  opt_partitioning {}
+        |  opt_partitioning
            create_select ')'
-           { Select->set_braces(1);} union_opt {}
+           { Select->set_braces(1);}
+           union_opt {}
         ;
 
 create3:
           /* empty */ {}
         | opt_duplicate opt_as create_select
-          { Select->set_braces(0);} union_clause {}
+          { Select->set_braces(0);}
+          union_clause {}
         | opt_duplicate opt_as '(' create_select ')'
-          { Select->set_braces(1);} union_opt {}
+          { Select->set_braces(1);}
+          union_opt {}
         ;
 
 /*
@@ -3787,7 +3598,7 @@ partition_entry:
         ;
 
 partition:
-          BY part_type_def opt_no_parts {} opt_sub_part {} part_defs
+          BY part_type_def opt_no_parts opt_sub_part part_defs
         ;
 
 part_type_def:
@@ -3988,10 +3799,11 @@ part_definition:
             part_info->use_default_partitions= FALSE;
             part_info->use_default_no_partitions= FALSE;
           }
-          part_name {}
-          opt_part_values {}
-          opt_part_options {}
-          opt_sub_partition {}
+          part_name
+          opt_part_values
+          opt_part_options
+          opt_sub_partition
+          {}
         ;
 
 part_name:
@@ -4501,11 +4313,10 @@ create_table_option:
           }
         | TRANSACTIONAL_SYM opt_equal ulong_num
           {
-	    Lex->create_info.used_fields|= HA_CREATE_USED_TRANSACTIONAL;
+            Lex->create_info.used_fields|= HA_CREATE_USED_TRANSACTIONAL;
             Lex->create_info.transactional= ($3 != 0 ? HA_CHOICE_YES :
-        				     HA_CHOICE_NO);
+              HA_CHOICE_NO);
           }
-
         ;
 
 default_charset:
@@ -4587,7 +4398,7 @@ row_types:
         | COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
         | REDUNDANT_SYM  { $$= ROW_TYPE_REDUNDANT; }
         | COMPACT_SYM    { $$= ROW_TYPE_COMPACT; }
- 	| PAGE_SYM       { $$= ROW_TYPE_PAGE; }
+        | PAGE_SYM       { $$= ROW_TYPE_PAGE; }
         ;
 
 merge_insert_types:
@@ -4600,10 +4411,6 @@ opt_select_from:
           opt_limit_clause {}
         | select_from select_lock_type
         ;
-
-udf_func_type:
-          /* empty */ { $$ = UDFTYPE_FUNCTION; }
-        | AGGREGATE_SYM { $$ = UDFTYPE_AGGREGATE; };
 
 udf_type:
           STRING_SYM {$$ = (int) STRING_RESULT; }
@@ -4657,8 +4464,9 @@ key_def:
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
             LEX *lex=Lex;
-            const char *key_name= $4 ? $4 : $1;
-            Key *key= new Foreign_key(key_name, lex->col_list,
+            const char *key_name= $1 ? $1 : $4;
+            const char *fkey_name = $4 ? $4 : key_name;
+            Key *key= new Foreign_key(fkey_name, lex->col_list,
                                       $8,
                                       lex->ref_list,
                                       lex->fk_delete_opt,
@@ -5401,6 +5209,17 @@ alter:
                 lex->copy_db_to(&lex->name.str, &lex->name.length))
               MYSQL_YYABORT;
           }
+        | ALTER DATABASE ident UPGRADE_SYM DATA_SYM DIRECTORY_SYM NAME_SYM
+          {
+            LEX *lex= Lex;
+            if (lex->sphead)
+            {
+              my_error(ER_SP_NO_DROP_SP, MYF(0), "DATABASE");
+              MYSQL_YYABORT;
+            }
+            lex->sql_command= SQLCOM_ALTER_DB_UPGRADE;
+            lex->name= $3;
+          }
         | ALTER PROCEDURE sp_name
           {
             LEX *lex= Lex;
@@ -5437,7 +5256,7 @@ alter:
             lex->sql_command= SQLCOM_ALTER_FUNCTION;
             lex->spname= $3;
           }
-        | ALTER view_algorithm definer
+        | ALTER view_algorithm definer_opt
           {
             LEX *lex= Lex;
 
@@ -5450,7 +5269,7 @@ alter:
           }
           view_tail
           {}
-        | ALTER definer
+        | ALTER definer_opt
           /*
             We have two separate rules for ALTER VIEW rather that
             optional view_algorithm above, to resolve the ambiguity
@@ -5469,7 +5288,7 @@ alter:
           }
           view_tail
           {}
-        | ALTER definer EVENT_SYM sp_name
+        | ALTER definer_opt EVENT_SYM sp_name
           /*
             BE CAREFUL when you add a new rule to update the block where
             YYTHD->client_capabilities is set back to original value
@@ -5505,7 +5324,7 @@ alter:
           {
             /*
               $1 - ALTER
-              $2 - definer
+              $2 - definer_opt
               $3 - EVENT_SYM
               $4 - sp_name
               $5 - the block above
@@ -6185,13 +6004,6 @@ rename:
           }
           table_to_table_list
           {}
-        | RENAME DATABASE
-          {
-            Lex->db_list.empty();
-            Lex->sql_command= SQLCOM_RENAME_DB;
-          }
-          db_to_db
-          {}
         | RENAME USER clear_privileges rename_list
           {
             Lex->sql_command = SQLCOM_RENAME_USER;
@@ -6225,18 +6037,6 @@ table_to_table:
                                        TL_IGNORE) ||
                 !sl->add_table_to_list(lex->thd, $3,NULL,TL_OPTION_UPDATING,
                                        TL_IGNORE))
-              MYSQL_YYABORT;
-          }
-        ;
-
-db_to_db:
-          ident TO_SYM ident
-          {
-            LEX *lex=Lex;
-            if (lex->db_list.push_back((LEX_STRING*)
-                                       sql_memdup(&$1, sizeof(LEX_STRING))) ||
-                lex->db_list.push_back((LEX_STRING*)
-                                       sql_memdup(&$3, sizeof(LEX_STRING))))
               MYSQL_YYABORT;
           }
         ;
@@ -8578,9 +8378,11 @@ drop:
             lex->drop_if_exists=$3;
             lex->name= $4;
           }
-        | DROP FUNCTION_SYM if_exists sp_name
+        | DROP FUNCTION_SYM if_exists ident '.' ident
           {
-            LEX *lex=Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            sp_name *spname;
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
@@ -8588,7 +8390,28 @@ drop:
             }
             lex->sql_command = SQLCOM_DROP_FUNCTION;
             lex->drop_if_exists= $3;
-            lex->spname= $4;
+            spname= new sp_name($4, $6, true);
+            spname->init_qname(thd);
+            lex->spname= spname;
+          }
+        | DROP FUNCTION_SYM if_exists ident
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            LEX_STRING db= {0, 0};
+            sp_name *spname;
+            if (lex->sphead)
+            {
+              my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
+              MYSQL_YYABORT;
+            }
+            if (thd->db && lex->copy_db_to(&db.str, &db.length))
+              MYSQL_YYABORT;
+            lex->sql_command = SQLCOM_DROP_FUNCTION;
+            lex->drop_if_exists= $3;
+            spname= new sp_name(db, $4, false);
+            spname->init_qname(thd);
+            lex->spname= spname;
           }
         | DROP PROCEDURE if_exists sp_name
           {
@@ -8658,18 +8481,19 @@ table_name:
         ;
 
 table_alias_ref_list:
-        table_alias_ref
-        | table_alias_ref_list ',' table_alias_ref;
+          table_alias_ref
+        | table_alias_ref_list ',' table_alias_ref
+        ;
 
 table_alias_ref:
-	table_ident
-	{
-	  if (!Select->add_table_to_list(YYTHD, $1, NULL,
-                                         TL_OPTION_UPDATING | TL_OPTION_ALIAS,
-                                         Lex->lock_option ))
-	    MYSQL_YYABORT;
-	}
-	;
+          table_ident
+          {
+            if (!Select->add_table_to_list(YYTHD, $1, NULL,
+                                           TL_OPTION_UPDATING | TL_OPTION_ALIAS,
+                                           Lex->lock_option ))
+              MYSQL_YYABORT;
+          }
+        ;
 
 if_exists:
           /* empty */ { $$= 0; }
@@ -10644,7 +10468,7 @@ keyword_sp:
         | TEXT_SYM                 {}
         | THAN_SYM                 {}
         | TRANSACTION_SYM          {}
- 	| TRANSACTIONAL_SYM        {}
+        | TRANSACTIONAL_SYM        {}
         | TRIGGERS_SYM             {}
         | TIMESTAMP                {}
         | TIMESTAMP_ADD            {}
@@ -11874,21 +11698,29 @@ subselect_end:
 **************************************************************************/
 
 view_or_trigger_or_sp_or_event:
-          definer view_or_trigger_or_sp_or_event_tail
+          definer definer_tail
           {}
-        | view_replace_or_algorithm definer view_tail
+        | no_definer no_definer_tail
+          {}
+        | view_replace_or_algorithm definer_opt view_tail
           {}
         ;
 
-view_or_trigger_or_sp_or_event_tail:
+definer_tail:
           view_tail
-          {}
         | trigger_tail
-          {}
         | sp_tail
-          {}
+        | sf_tail
         | event_tail
-          {}
+        ;
+
+no_definer_tail:
+          view_tail
+        | trigger_tail
+        | sp_tail
+        | sf_tail
+        | udf_tail
+        | event_tail
         ;
 
 /**************************************************************************
@@ -11897,7 +11729,12 @@ view_or_trigger_or_sp_or_event_tail:
 
 **************************************************************************/
 
-definer:
+definer_opt:
+          no_definer
+        | definer
+        ;
+
+no_definer:
           /* empty */
           {
             /*
@@ -11909,7 +11746,10 @@ definer:
             */
             YYTHD->lex->definer= 0;
           }
-        | DEFINER_SYM EQ user
+        ;
+
+definer:
+          DEFINER_SYM EQ user
           {
             YYTHD->lex->definer= get_current_user(YYTHD, $3);
           }
@@ -12146,17 +11986,193 @@ trigger_tail:
 
 **************************************************************************/
 
-sp_tail:
-          udf_func_type remember_name FUNCTION_SYM sp_name
+udf_tail:
+          AGGREGATE_SYM remember_name FUNCTION_SYM ident
+          RETURNS_SYM udf_type SONAME_SYM TEXT_STRING_sys
           {
-            LEX *lex=Lex;
-            lex->udf.type= $1;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            if (is_native_function(thd, & $4))
+            {
+              my_error(ER_NATIVE_FCT_NAME_COLLISION, MYF(0),
+                       $4.str);
+              MYSQL_YYABORT;
+            }
+            lex->sql_command = SQLCOM_CREATE_FUNCTION;
+            lex->udf.type= UDFTYPE_AGGREGATE;
             lex->stmt_definition_begin= $2;
-            lex->spname= $4;
+            lex->udf.name = $4;
+            lex->udf.returns=(Item_result) $6;
+            lex->udf.dl=$8.str;
           }
-          create_function_tail
-          {}
-        | PROCEDURE remember_name sp_name
+        | remember_name FUNCTION_SYM ident
+          RETURNS_SYM udf_type SONAME_SYM TEXT_STRING_sys
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            if (is_native_function(thd, & $3))
+            {
+              my_error(ER_NATIVE_FCT_NAME_COLLISION, MYF(0),
+                       $3.str);
+              MYSQL_YYABORT;
+            }
+            lex->sql_command = SQLCOM_CREATE_FUNCTION;
+            lex->udf.type= UDFTYPE_FUNCTION;
+            lex->stmt_definition_begin= $1;
+            lex->udf.name = $3;
+            lex->udf.returns=(Item_result) $5;
+            lex->udf.dl=$7.str;
+          }
+        ;
+
+sf_tail:
+          remember_name /* $1 */
+          FUNCTION_SYM /* $2 */
+          sp_name /* $3 */
+          '(' /* $4 */
+          { /* $5 */
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
+            sp_head *sp;
+            const char* tmp_param_begin;
+
+            lex->stmt_definition_begin= $1;
+            lex->spname= $3;
+
+            if (lex->sphead)
+            {
+              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "FUNCTION");
+              MYSQL_YYABORT;
+            }
+            /* Order is important here: new - reset - init */
+            sp= new sp_head();
+            sp->reset_thd_mem_root(thd);
+            sp->init(lex);
+            sp->init_sp_name(thd, lex->spname);
+
+            sp->m_type= TYPE_ENUM_FUNCTION;
+            lex->sphead= sp;
+            /*
+              We have to turn off CLIENT_MULTI_QUERIES while parsing a
+              stored procedure, otherwise yylex will chop it into pieces
+              at each ';'.
+            */
+            $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
+            thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+
+            tmp_param_begin= lip->get_cpp_tok_start();
+            tmp_param_begin++;
+            lex->sphead->m_param_begin= tmp_param_begin;
+          }
+          sp_fdparam_list /* $6 */
+          ')' /* $7 */
+          { /* $8 */
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
+
+            lex->sphead->m_param_end= lip->get_cpp_tok_start();
+          }
+          RETURNS_SYM /* $9 */
+          { /* $10 */
+            LEX *lex= Lex;
+            lex->charset= NULL;
+            lex->length= lex->dec= NULL;
+            lex->interval_list.empty();
+            lex->type= 0;
+          }
+          type /* $11 */
+          { /* $12 */
+            LEX *lex= Lex;
+            sp_head *sp= lex->sphead;
+            /*
+              This was disabled in 5.1.12. See bug #20701
+              When collation support in SP is implemented, then this test
+              should be removed.
+            */
+            if (($11 == MYSQL_TYPE_STRING || $11 == MYSQL_TYPE_VARCHAR)
+                && (lex->type & BINCMP_FLAG))
+            {
+              my_error(ER_NOT_SUPPORTED_YET, MYF(0), "return value collation");
+              MYSQL_YYABORT;
+            }
+
+            if (sp->fill_field_definition(YYTHD, lex,
+                                          (enum enum_field_types) $11,
+                                          &sp->m_return_field_def))
+              MYSQL_YYABORT;
+
+            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+          }
+          sp_c_chistics /* $13 */
+          { /* $14 */
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
+
+            lex->sphead->m_chistics= &lex->sp_chistics;
+            lex->sphead->set_body_start(thd, lip->get_cpp_tok_start());
+          }
+          sp_proc_stmt /* $15 */
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            sp_head *sp= lex->sphead;
+
+            if (sp->is_not_allowed_in_function("function"))
+              MYSQL_YYABORT;
+
+            lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
+            sp->set_stmt_end(thd);
+            if (!(sp->m_flags & sp_head::HAS_RETURN))
+            {
+              my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
+              MYSQL_YYABORT;
+            }
+            if (is_native_function(thd, & sp->m_name))
+            {
+              /*
+                This warning will be printed when
+                [1] A client query is parsed,
+                [2] A stored function is loaded by db_load_routine.
+                Printing the warning for [2] is intentional, to cover the
+                following scenario:
+                - A user define a SF 'foo' using MySQL 5.N
+                - An application uses select foo(), and works.
+                - MySQL 5.{N+1} defines a new native function 'foo', as
+                part of a new feature.
+                - MySQL 5.{N+1} documentation is updated, and should mention
+                that there is a potential incompatible change in case of
+                existing stored function named 'foo'.
+                - The user deploys 5.{N+1}. At this point, 'select foo()'
+                means something different, and the user code is most likely
+                broken (it's only safe if the code is 'select db.foo()').
+                With a warning printed when the SF is loaded (which has to occur
+                before the call), the warning will provide a hint explaining
+                the root cause of a later failure of 'select foo()'.
+                With no warning printed, the user code will fail with no
+                apparent reason.
+                Printing a warning each time db_load_routine is executed for
+                an ambiguous function is annoying, since that can happen a lot,
+                but in practice should not happen unless there *are* name
+                collisions.
+                If a collision exists, it should not be silenced but fixed.
+              */
+              push_warning_printf(thd,
+                                  MYSQL_ERROR::WARN_LEVEL_NOTE,
+                                  ER_NATIVE_FCT_NAME_COLLISION,
+                                  ER(ER_NATIVE_FCT_NAME_COLLISION),
+                                  sp->m_name.str);
+            }
+            /* Restore flag if it was cleared above */
+            thd->client_capabilities |= $<ulong_num>5;
+            sp->restore_thd_mem_root(thd);
+          }
+        ;
+
+sp_tail:
+          PROCEDURE remember_name sp_name
           {
             LEX *lex= Lex;
             sp_head *sp;
