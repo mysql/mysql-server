@@ -1419,6 +1419,11 @@ run_again:
 
 						break;
 					}
+
+					/* row_ins_foreign_check_on_constraint
+					may have repositioned pcur on a
+					different block */
+					block = btr_pcur_get_block(&pcur);
 				} else {
 					row_ins_foreign_report_err(
 						"Trying to delete or update",
@@ -1653,11 +1658,8 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint		i;
 	int		cmp;
 	ulint		n_fields_cmp;
-	buf_block_t*	block;
-	const rec_t*	rec;
 	btr_pcur_t	pcur;
 	ulint		err		= DB_SUCCESS;
-	ibool		moved;
 	unsigned	allow_duplicates;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
@@ -1689,18 +1691,17 @@ row_ins_scan_sec_index_for_duplicate(
 
 	btr_pcur_open(index, entry, PAGE_CUR_GE, BTR_SEARCH_LEAF, &pcur, &mtr);
 
-	block = btr_pcur_get_block(&pcur);
-
 	allow_duplicates = thr_get_trx(thr)->duplicates & TRX_DUP_IGNORE;
 
 	/* Scan index records and check if there is a duplicate */
 
-	for (;;) {
-		rec = btr_pcur_get_rec(&pcur);
+	do {
+		const rec_t*		rec	= btr_pcur_get_rec(&pcur);
+		const buf_block_t*	block	= btr_pcur_get_block(&pcur);
 
 		if (page_rec_is_infimum(rec)) {
 
-			goto next_rec;
+			continue;
 		}
 
 		offsets = rec_get_offsets(rec, index, offsets,
@@ -1730,7 +1731,7 @@ row_ins_scan_sec_index_for_duplicate(
 
 		if (page_rec_is_supremum(rec)) {
 
-			goto next_rec;
+			continue;
 		}
 
 		cmp = cmp_dtuple_rec(entry, rec, offsets);
@@ -1751,13 +1752,7 @@ row_ins_scan_sec_index_for_duplicate(
 		}
 
 		ut_a(cmp == 0);
-next_rec:
-		moved = btr_pcur_move_to_next(&pcur, &mtr);
-
-		if (!moved) {
-			break;
-		}
-	}
+	} while (btr_pcur_move_to_next(&pcur, &mtr));
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
