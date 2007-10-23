@@ -811,6 +811,7 @@ insert into t1 values (-0.123456,0.123456);
 select group_concat(f1),group_concat(f2) from t1;
 group_concat(f1)	group_concat(f2)
 -0.123456	0.123456
+drop table t1;
 create table t1 (
 ua_id decimal(22,0) not null,
 ua_invited_by_id decimal(22,0) default NULL,
