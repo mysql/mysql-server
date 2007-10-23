@@ -35,7 +35,6 @@ functions */
 #include <io.h>
 #include <malloc.h>
 
-#define BIG_TABLES 1
 #define HAVE_SMEM 1
 
 #if defined(_WIN64) || defined(WIN64) 
