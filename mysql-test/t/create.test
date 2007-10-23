@@ -658,6 +658,82 @@ drop table t1, t2;
 --error 1367
 create table t1(a set("a,b","c,d") not null);
 
+#
+# Bug #20901 - CREATE privilege is enough to insert into a table
+#
+
+create database mysqltest;
+use mysqltest;
+
+grant create on mysqltest.* to mysqltest@localhost;
+create table t1 (i INT);
+
+connect (user1,localhost,mysqltest,,mysqltest);
+connection user1;
+# show we don't have INSERT
+--error 1142
+insert into t1 values (1);
+# show we have CREATE
+create table t2 (i INT);
+create table t4 (i INT);
+
+connection default;
+grant select, insert on mysqltest.t2 to mysqltest@localhost;
+grant         insert on mysqltest.t4 to mysqltest@localhost;
+# to specify ACLs for non-existent objects, must explictly |CREATE
+grant create, insert on mysqltest.t5 to mysqltest@localhost;
+grant create, insert on mysqltest.t6 to mysqltest@localhost;
+flush privileges;
+
+connection user1;
+insert into t2 values (1);
+
+
+# CREATE IF NOT EXISTS...SELECT, t1 exists, no INSERT, must fail
+--error 1142
+create table if not exists t1 select * from t2;
+
+# CREATE IF NOT EXISTS...SELECT, no t3 yet, no INSERT, must fail
+--error 1142
+create table if not exists t3 select * from t2;
+
+# CREATE IF NOT EXISTS...SELECT, t4 exists, have INSERT, must succeed
+create table if not exists t4 select * from t2;
+
+# CREATE IF NOT EXISTS...SELECT, no t5 yet, have INSERT, must succeed
+create table if not exists t5 select * from t2;
+
+
+# CREATE...SELECT, no t6 yet, have INSERT, must succeed
+create table t6 select * from t2;
+
+# CREATE...SELECT, no t7 yet, no INSERT, must fail
+--error 1142
+create table t7 select * from t2;
+
+# CREATE...SELECT, t4 exists, have INSERT, must still fail (exists)
+--error 1050
+create table t4 select * from t2;
+
+# CREATE...SELECT, t1 exists, no INSERT, must fail
+--error 1142
+create table t1 select * from t2;
+
+
+connection default;
+drop table t1,t2,t4,t5,t6;
+
+revoke create         on mysqltest.*  from mysqltest@localhost;
+revoke select, insert on mysqltest.t2 from mysqltest@localhost;
+revoke insert         on mysqltest.t4 from mysqltest@localhost;
+revoke create, insert on mysqltest.t5 from mysqltest@localhost;
+revoke create, insert on mysqltest.t6 from mysqltest@localhost;
+flush privileges;
+
+disconnect user1;
+drop database mysqltest;
+use test;
+
 # End of 4.1 tests
 
 
