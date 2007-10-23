@@ -2678,7 +2678,8 @@ int ha_partition::write_row(uchar * buf)
   uint32 part_id;
   int error;
   longlong func_value;
-  bool autoincrement_lock= false;
+  bool autoincrement_lock= FALSE;
+  my_bitmap_map *old_map;
 #ifdef NOT_NEEDED
   uchar *rec0= m_rec0;
 #endif
@@ -2705,8 +2706,17 @@ int ha_partition::write_row(uchar * buf)
       use autoincrement_lock variable to avoid unnecessary locks.
       Probably not an ideal solution.
     */
-    autoincrement_lock= true;
-    pthread_mutex_lock(&table_share->mutex);
+    if (table_share->tmp_table == NO_TMP_TABLE)
+    {
+      /*
+        Bug#30878 crash when alter table from non partitioned table
+        to partitioned.
+        Checking if tmp table then there is no need to lock,
+        and the table_share->mutex may not be initialised.
+      */
+      autoincrement_lock= TRUE;
+      pthread_mutex_lock(&table_share->mutex);
+    }
     error= update_auto_increment();
 
     /*
@@ -2715,10 +2725,10 @@ int ha_partition::write_row(uchar * buf)
       the correct partition. We must check and fail if neccessary.
     */
     if (error)
-      DBUG_RETURN(error);
+      goto exit;
   }
 
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+  old_map= dbug_tmp_use_all_columns(table, table->read_set);
 #ifdef NOT_NEEDED
   if (likely(buf == rec0))
 #endif
