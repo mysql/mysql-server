@@ -300,6 +300,7 @@ class Thd_ndb
 
   uint m_max_violation_count;
   uint m_old_violation_count;
+  uint m_conflict_fn_usage_count;
 };
 
 class ha_ndbcluster: public handler
