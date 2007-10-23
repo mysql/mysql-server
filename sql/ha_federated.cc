@@ -2562,9 +2562,9 @@ int ha_federated::info(uint flag)
       data_file_length= records * mean_rec_length;
 
       if (row[12] != NULL)
-        update_time= (ha_rows) my_strtoll10(row[12], (char**) 0, &error);
+        update_time= (time_t) my_strtoll10(row[12], (char**) 0, &error);
       if (row[13] != NULL)
-        check_time= (ha_rows) my_strtoll10(row[13], (char**) 0, &error);
+        check_time= (time_t) my_strtoll10(row[13], (char**) 0, &error);
     }
 
     /*
