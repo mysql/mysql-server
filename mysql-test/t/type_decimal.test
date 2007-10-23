@@ -416,3 +416,22 @@ DROP TABLE t1;
 
 SELECT 1 % .123456789123456789123456789123456789123456789123456789123456789123456789123456789 AS '%';
 SELECT MOD(1, .123456789123456789123456789123456789123456789123456789123456789123456789123456789) AS 'MOD()';
+
+
+#
+# BUG#31450 "Query causes error 1048"
+#
+create table t1 (
+  ua_id decimal(22,0) not null,
+  ua_invited_by_id decimal(22,0) default NULL,
+  primary key(ua_id)
+);
+insert into t1 values (123, NULL), (456, NULL);
+
+--echo this must not produce error 1048: 
+select * from t1 where ua_invited_by_id not in (select ua_id from t1);
+
+drop table t1;
+
+--echo End of 5.0 tests
+
