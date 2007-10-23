@@ -726,7 +726,7 @@ t1	CREATE TABLE `t1` (
   `oct(130)` varchar(64) NOT NULL DEFAULT '',
   `conv(130,16,10)` varchar(64) NOT NULL DEFAULT '',
   `hex(130)` varchar(6) NOT NULL DEFAULT '',
-  `char(130)` varbinary(1) NOT NULL DEFAULT '',
+  `char(130)` varbinary(4) NOT NULL DEFAULT '',
   `format(130,10)` varchar(4) NOT NULL DEFAULT '',
   `left(_latin2'a',1)` varchar(1) CHARACTER SET latin2 NOT NULL DEFAULT '',
   `right(_latin2'a',1)` varchar(1) CHARACTER SET latin2 NOT NULL DEFAULT '',
@@ -2486,4 +2486,14 @@ SUBSTR(a,1,len)
 ba
 
 DROP TABLE t1;
+CREATE TABLE t1 AS SELECT CHAR(0x414243) as c1;
+SELECT HEX(c1) from t1;
+HEX(c1)
+414243
+DROP TABLE t1;
+CREATE VIEW v1 AS SELECT CHAR(0x414243) as c1;
+SELECT HEX(c1) from v1;
+HEX(c1)
+414243
+DROP VIEW v1;
 End of 5.0 tests

@@ -548,6 +548,16 @@ DROP TABLE testBug8868;
 SET NAMES DEFAULT;
 
 #
+# Bug #31160: MAKETIME() crashes server when returning NULL in ORDER BY using 
+# filesort
+#
+CREATE TABLE t1 (
+  a TIMESTAMP
+);
+INSERT INTO t1 VALUES (now()), (now());
+SELECT 1 FROM t1 ORDER BY MAKETIME(1, 1, a);
+DROP TABLE t1;
+#
 # Bug #19844 time_format in Union truncates values
 #
 
