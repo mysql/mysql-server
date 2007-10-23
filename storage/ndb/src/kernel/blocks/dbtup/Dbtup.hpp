@@ -518,6 +518,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
       Uint32 m_savePointId;
       Uint32 m_scanGCI;
     };
+    Uint32 m_endPage;
     // lock waited for or obtained and not yet passed to LQH
     Uint32 m_accLockOp;
 
@@ -1576,6 +1577,8 @@ public:
 
   void nr_delete_page_callback(Signal*, Uint32 op, Uint32 page);
   void nr_delete_log_buffer_callback(Signal*, Uint32 op, Uint32 page);
+
+  bool get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage);
 private:
   BLOCK_DEFINES(Dbtup);
 
