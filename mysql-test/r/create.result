@@ -763,6 +763,44 @@ t2	CREATE TABLE `t2` (
 drop table t1, t2;
 create table t1(a set("a,b","c,d") not null);
 ERROR 22007: Illegal set 'a,b' value found during parsing
+create database mysqltest;
+use mysqltest;
+grant create on mysqltest.* to mysqltest@localhost;
+create table t1 (i INT);
+insert into t1 values (1);
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't1'
+create table t2 (i INT);
+create table t4 (i INT);
+grant select, insert on mysqltest.t2 to mysqltest@localhost;
+grant         insert on mysqltest.t4 to mysqltest@localhost;
+grant create, insert on mysqltest.t5 to mysqltest@localhost;
+grant create, insert on mysqltest.t6 to mysqltest@localhost;
+flush privileges;
+insert into t2 values (1);
+create table if not exists t1 select * from t2;
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't1'
+create table if not exists t3 select * from t2;
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't3'
+create table if not exists t4 select * from t2;
+Warnings:
+Note	1050	Table 't4' already exists
+create table if not exists t5 select * from t2;
+create table t6 select * from t2;
+create table t7 select * from t2;
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't7'
+create table t4 select * from t2;
+ERROR 42S01: Table 't4' already exists
+create table t1 select * from t2;
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't1'
+drop table t1,t2,t4,t5,t6;
+revoke create         on mysqltest.*  from mysqltest@localhost;
+revoke select, insert on mysqltest.t2 from mysqltest@localhost;
+revoke insert         on mysqltest.t4 from mysqltest@localhost;
+revoke create, insert on mysqltest.t5 from mysqltest@localhost;
+revoke create, insert on mysqltest.t6 from mysqltest@localhost;
+flush privileges;
+drop database mysqltest;
+use test;
 create table t1 (i int) engine=myisam max_rows=100000000000;
 show create table t1;
 Table	Create Table
