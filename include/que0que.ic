@@ -126,7 +126,7 @@ que_node_get_data_type(
 {
 	ut_ad(node);
 
-	return(&(((que_common_t*)node)->val.type));
+	return(dfield_get_type(&((que_common_t*) node)->val));
 }
 
 /*************************************************************************

@@ -757,7 +757,7 @@ rec_get_converted_size_comp(
 	case REC_STATUS_NODE_PTR:
 		n_fields--;
 		ut_ad(n_fields == dict_index_get_n_unique_in_tree(index));
-		ut_ad(fields[n_fields].len == 4);
+		ut_ad(dfield_get_len(&fields[n_fields]) == 4);
 		data_size = 4; /* child page number */
 		break;
 	case REC_STATUS_INFIMUM:

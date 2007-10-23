@@ -1525,12 +1525,13 @@ ibuf_entry_build(
 #ifdef UNIV_DEBUG
 		if (fixed_len) {
 			/* dict_index_add_col() should guarantee these */
-			ut_ad(fixed_len <= (ulint) entry_field->type.len);
+			ut_ad(fixed_len <= (ulint)
+			      dfield_get_type(entry_field)->len);
 			if (ifield->prefix_len) {
 				ut_ad(ifield->prefix_len == fixed_len);
 			} else {
-				ut_ad(fixed_len
-				      == (ulint) entry_field->type.len);
+				ut_ad(fixed_len == (ulint)
+				      dfield_get_type(entry_field)->len);
 			}
 		}
 #endif /* UNIV_DEBUG */

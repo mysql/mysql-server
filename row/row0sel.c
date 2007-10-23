@@ -2432,7 +2432,9 @@ row_sel_convert_mysql_key_to_innobase(
 			fprintf(stderr, "\n");
 
 			if (!is_null) {
-				dfield->len -= (ulint)(key_ptr - key_end);
+				ulint	len = dfield_get_len(dfield);
+				dfield_set_len(dfield, len
+					       - (ulint) (key_ptr - key_end));
 			}
 		}
 
