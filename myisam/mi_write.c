@@ -975,7 +975,7 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows)
     DBUG_RETURN(0);
 
   if (rows && rows*total_keylength < cache_size)
-    cache_size=rows;
+    cache_size= (ulong)rows;
   else
     cache_size/=total_keylength*16;
 
