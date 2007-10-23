@@ -8,6 +8,8 @@ VARIABLE_NAME	VARIABLE_VALUE
 TABLE_LOCKS_IMMEDIATE	2
 TABLE_LOCKS_WAITED	0
 SET SQL_LOG_BIN=0;
+set @old_general_log = @@global.general_log;
+set global general_log = 'OFF';
 drop table if exists t1;
 create table t1(n int) engine=myisam;
 insert into t1 values(1);
@@ -20,6 +22,7 @@ show status like 'Table_locks_waited';
 Variable_name	Value
 Table_locks_waited	1
 drop table t1;
+set global general_log = @old_general_log;
 select 1;
 1
 1

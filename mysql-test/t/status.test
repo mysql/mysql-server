@@ -21,6 +21,8 @@ select * from information_schema.session_status where variable_name like 'Table_
 connection con1;
 # ++Immediate = 3
 SET SQL_LOG_BIN=0;
+set @old_general_log = @@global.general_log;                                      
+set global general_log = 'OFF';
 --disable_warnings
 # ++Immediate = 4
 drop table if exists t1;
@@ -60,6 +62,7 @@ reap;
 # ++Immediate = 16 + $wait_condition_reps
 show status like 'Table_locks_waited';
 drop table t1;
+set global general_log = @old_general_log;
 
 disconnect con2;
 disconnect con1;
