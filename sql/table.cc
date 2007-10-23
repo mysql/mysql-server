@@ -1782,7 +1782,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                                 outparam, is_create_table,
                                 share->default_part_db_type,
                                 &work_part_info_used);
-    outparam->part_info->is_auto_partitioned= share->auto_partitioned;
+    if (!tmp)
+      outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
     /* we should perform the fix_partition_func in either local or
        caller's arena depending on work_part_info_used value
