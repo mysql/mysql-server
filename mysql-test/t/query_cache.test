@@ -1250,8 +1250,6 @@ disconnect user1;
 disconnect user2;
 disconnect user3;
 
---echo End of 5.0 tests
-
 #
 # Bug #28211 RENAME DATABASE and query cache don't play nicely together
 #
@@ -1299,6 +1297,8 @@ set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
+
+--echo End of 5.0 tests
 
 #
 # Bug #31157: Crash when select+order by the avg of some field within the
