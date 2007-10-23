@@ -223,9 +223,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 {
   LEX *lex= thd->lex;
   bool link_to_local;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  bool definer_check_is_needed= mode != VIEW_ALTER || lex->definer;
-#endif
   /* first table in list is target VIEW name => cut off it */
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
@@ -280,7 +277,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       - same as current user
       - current user has SUPER_ACL
   */
-  if (definer_check_is_needed &&
+  if (lex->definer &&
       (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) != 0 ||
        my_strcasecmp(system_charset_info,
                      lex->definer->host.str,
@@ -672,7 +669,7 @@ static File_option view_parameters[]=
   FILE_OPTIONS_STRING},
  {{(char*) STRING_WITH_LEN("view_body_utf8")},
   my_offsetof(TABLE_LIST, view_body_utf8),
-  FILE_OPTIONS_STRING},
+  FILE_OPTIONS_ESTRING},
  {{NullS, 0},			0,
   FILE_OPTIONS_STRING}
 };
@@ -951,6 +948,12 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
                ("VIEW %s.%s is already processed on previous PS/SP execution",
                 table->view_db.str, table->view_name.str));
     DBUG_RETURN(0);
+  }
+
+  if (table->index_hints && table->index_hints->elements)
+  {
+      my_error(ER_WRONG_USAGE, MYF(0), "index hints", "VIEW");
+      DBUG_RETURN(TRUE);
   }
 
   /* check loop via view definition */

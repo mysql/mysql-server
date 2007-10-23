@@ -438,7 +438,7 @@ explain t2;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 b	bigint(11)	NO		0	
-c	bigint(11)	NO		0	
+c	bigint(11) unsigned	NO		0	
 d	date	YES		NULL	
 e	varchar(1)	NO			
 f	datetime	YES		NULL	
