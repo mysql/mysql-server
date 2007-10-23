@@ -1208,4 +1208,28 @@ WHERE SCHEMA_NAME ='information_schema';
 SELECT TABLE_COLLATION FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
 
+#
+# Bug#31633 Information schema = NULL queries crash the server
+#
+select * from information_schema.columns where table_schema = NULL;
+select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`PARTITIONS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`PARTITIONS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`REFERENTIAL_CONSTRAINTS` where `CONSTRAINT_SCHEMA` = NULL;
+select * from `information_schema`.`REFERENTIAL_CONSTRAINTS` where `TABLE_NAME` = NULL;
+select * from information_schema.schemata where schema_name = NULL;
+select * from `information_schema`.`STATISTICS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`STATISTICS` where `TABLE_NAME` = NULL;
+select * from information_schema.tables where table_schema = NULL;
+select * from information_schema.tables where table_catalog = NULL;
+select * from information_schema.tables where table_name = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_SCHEMA` = NULL;
+select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_TABLE` = NULL;
+select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
+
 --echo End of 5.1 tests.
