@@ -3670,6 +3670,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     {
       ndbout_c("fragptr.p->fragStatus: %d",
 	       fragptr.p->fragStatus);
+      CRASH_INSERTION(5046);
     }
     ndbassert(fragptr.p->fragStatus == Fragrecord::ACTIVE_CREATION);
     fragptr.p->m_copy_started_state = Fragrecord::AC_NR_COPY;
@@ -10083,6 +10084,86 @@ Dblqh::calculateHash(Uint32 tableId, const Uint32* src)
   return md5_hash(Tmp, keyLen);
 }//Dblqh::calculateHash()
 
+/**
+ * PREPARE COPY FRAG REQ
+ */
+void
+Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
+{
+  jamEntry();
+  PrepareCopyFragReq req = *(PrepareCopyFragReq*)signal->getDataPtr();
+
+  CRASH_INSERTION(5045);
+
+  tabptr.i = req.tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+
+  Uint32 max_page = RNIL;
+  
+  if (getOwnNodeId() != req.startingNodeId)
+  {
+    jam();
+    /**
+     * This is currently dead code...
+     *   but is provided so we can impl. a better scan+delete on
+     *   starting node wo/ having to change running node
+     */
+    ndbrequire(getOwnNodeId() == req.copyNodeId);
+    c_tup->get_frag_info(req.tableId, req.fragId, &max_page);    
+
+    PrepareCopyFragConf* conf = (PrepareCopyFragConf*)signal->getDataPtrSend();
+    conf->senderData = req.senderData;
+    conf->senderRef = reference();
+    conf->tableId = req.tableId;
+    conf->fragId = req.fragId;
+    conf->copyNodeId = req.copyNodeId;
+    conf->startingNodeId = req.startingNodeId;
+    conf->maxPageNo = max_page;
+    sendSignal(req.senderRef, GSN_PREPARE_COPY_FRAG_CONF,
+               signal, PrepareCopyFragConf::SignalLength, JBB);  
+    
+    return;
+  }
+  
+  if (! DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+  {
+    jam();
+    ndbrequire(getFragmentrec(signal, req.fragId));
+    
+    /**
+     *
+     */
+    if (cstartType == NodeState::ST_SYSTEM_RESTART)
+    {
+      jam();
+      signal->theData[0] = fragptr.p->tabRef;
+      signal->theData[1] = fragptr.p->fragId;
+      sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+    }
+    
+    
+    /**
+     *
+     */
+    fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
+    fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
+    fragptr.p->logFlag = Fragrecord::STATE_FALSE;
+
+    c_tup->get_frag_info(req.tableId, req.fragId, &max_page);
+  }    
+    
+  PrepareCopyFragConf* conf = (PrepareCopyFragConf*)signal->getDataPtrSend();
+  conf->senderData = req.senderData;
+  conf->senderRef = reference();
+  conf->tableId = req.tableId;
+  conf->fragId = req.fragId;
+  conf->copyNodeId = req.copyNodeId;
+  conf->startingNodeId = req.startingNodeId;
+  conf->maxPageNo = max_page;
+  sendSignal(req.senderRef, GSN_PREPARE_COPY_FRAG_CONF,
+             signal, PrepareCopyFragConf::SignalLength, JBB);  
+}
+
 /* *************************************** */
 /*  COPY_FRAGREQ: Start copying a fragment */
 /* *************************************** */
@@ -10117,6 +10198,13 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     ndbrequire(nodeCount <= MAX_REPLICAS);
     for (i = 0; i<nodeCount; i++)
       nodemask.set(copyFragReq->nodeList[i]);
+  }
+  Uint32 maxPage = copyFragReq->nodeList[nodeCount];
+  Uint32 version = getNodeInfo(refToNode(userRef)).m_version;
+  if (ndb_check_prep_copy_frag_version(version) < 2)
+  {
+    jam();
+    maxPage = RNIL;
   }
     
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
@@ -10193,14 +10281,15 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   req->requestInfo = 0;
   AccScanReq::setLockMode(req->requestInfo, 0);
   AccScanReq::setReadCommittedFlag(req->requestInfo, 0);
-  AccScanReq::setNRScanFlag(req->requestInfo, gci ? 1 : 0);
+  AccScanReq::setNRScanFlag(req->requestInfo, 1);
   AccScanReq::setNoDiskScanFlag(req->requestInfo, 1);
 
   req->transId1 = tcConnectptr.p->transid[0];
   req->transId2 = tcConnectptr.p->transid[1];
   req->savePointId = tcConnectptr.p->savePointId;
+  req->maxPage = maxPage;
   sendSignal(scanptr.p->scanBlockref, GSN_ACC_SCANREQ, signal, 
-	     AccScanReq::SignalLength, JBB);
+	     AccScanReq::SignalLength + 1, JBB);
   
   if (! nodemask.isclear())
   {
