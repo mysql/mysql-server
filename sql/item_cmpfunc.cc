@@ -147,6 +147,36 @@ static int agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
 }
 
 
+/**
+  @brief Aggregates field types from the array of items.
+
+  @param[in] items  array of items to aggregate the type from
+  @paran[in] nitems number of items in the array
+
+  @details This function aggregates field types from the array of items.
+    Found type is supposed to be used later as the result field type
+    of a multi-argument function.
+    Aggregation itself is performed by the Field::field_type_merge()
+    function.
+
+  @note The term "aggregation" is used here in the sense of inferring the
+    result type of a function from its argument types.
+
+  @return aggregated field type.
+*/
+
+enum_field_types agg_field_type(Item **items, uint nitems)
+{
+  uint i;
+  if (!nitems || items[0]->result_type() == ROW_RESULT )
+    return (enum_field_types)-1;
+  enum_field_types res= items[0]->field_type();
+  for (i= 1 ; i < nitems ; i++)
+    res= Field::field_type_merge(res, items[i]->field_type());
+  return res;
+}
+
+
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname)
 {
@@ -1990,10 +2020,20 @@ Item_func_ifnull::fix_length_and_dec()
   agg_result_type(&hybrid_type, args, 2);
   maybe_null=args[1]->maybe_null;
   decimals= max(args[0]->decimals, args[1]->decimals);
-  max_length= (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) ?
-    (max(args[0]->max_length - args[0]->decimals,
-         args[1]->max_length - args[1]->decimals) + decimals) :
-    max(args[0]->max_length, args[1]->max_length);
+  unsigned_flag= args[0]->unsigned_flag && args[1]->unsigned_flag;
+
+  if (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) 
+  {
+    int len0= args[0]->max_length - args[0]->decimals
+      - (args[0]->unsigned_flag ? 0 : 1);
+
+    int len1= args[1]->max_length - args[1]->decimals
+      - (args[1]->unsigned_flag ? 0 : 1);
+
+    max_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1);
+  }
+  else
+    max_length= max(args[0]->max_length, args[1]->max_length);
 
   switch (hybrid_type) {
   case STRING_RESULT:
@@ -2009,9 +2049,7 @@ Item_func_ifnull::fix_length_and_dec()
   default:
     DBUG_ASSERT(0);
   }
-  cached_field_type= args[0]->field_type();
-  if (cached_field_type != args[1]->field_type())
-    cached_field_type= Item_func::field_type();
+  cached_field_type= agg_field_type(args, 2);
 }
 
 
@@ -2159,11 +2197,13 @@ Item_func_if::fix_length_and_dec()
   {
     cached_result_type= arg2_type;
     collation.set(args[2]->collation.collation);
+    cached_field_type= args[2]->field_type();
   }
   else if (null2)
   {
     cached_result_type= arg1_type;
     collation.set(args[1]->collation.collation);
+    cached_field_type= args[1]->field_type();
   }
   else
   {
@@ -2177,6 +2217,7 @@ Item_func_if::fix_length_and_dec()
     {
       collation.set(&my_charset_bin);	// Number
     }
+    cached_field_type= agg_field_type(args + 1, 2);
   }
 
   if ((cached_result_type == DECIMAL_RESULT )
@@ -2556,7 +2597,7 @@ void Item_func_case::fix_length_and_dec()
       agg_arg_charsets(collation, agg, nagg, MY_COLL_ALLOW_CONV, 1))
     return;
   
-  
+  cached_field_type= agg_field_type(agg, nagg);
   /*
     Aggregate first expression and all THEN expression types
     and collations when string comparison
@@ -2695,6 +2736,7 @@ my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value)
 
 void Item_func_coalesce::fix_length_and_dec()
 {
+  cached_field_type= agg_field_type(args, arg_count);
   agg_result_type(&hybrid_type, args, arg_count);
   switch (hybrid_type) {
   case STRING_RESULT:
@@ -4253,6 +4295,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
     if (args[1]->null_value)
     {						// Will always return NULL
       maybe_null=1;
+      fixed= 1;
       return FALSE;
     }
     int error;

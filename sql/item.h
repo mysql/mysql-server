@@ -870,6 +870,9 @@ public:
   */
   virtual bool result_as_longlong() { return FALSE; }
   bool is_datetime();
+  virtual Field::geometry_type get_geometry_type() const
+    { return Field::GEOM_GEOMETRY; };
+  String *check_well_formed_result(String *str, bool send_error= 0);
 };
 
 
@@ -1112,6 +1115,8 @@ public:
   Item_name_const(Item *name_arg, Item *val):
     value_item(val), name_item(name_arg)
   {
+    if(!value_item->basic_const_item())
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
     Item::maybe_null= TRUE;
   }
 
@@ -1335,7 +1340,7 @@ public:
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(byte *select_arg);
   void print(String *str);
-  Field::geometry_type get_geometry_type()
+  Field::geometry_type get_geometry_type() const
   {
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
     return field->get_geometry_type();
@@ -1853,6 +1858,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
+  void print(String *str);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
@@ -2637,7 +2643,7 @@ public:
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
-  Field::geometry_type get_geometry_type() { return geometry_type; };
+  Field::geometry_type get_geometry_type() const { return geometry_type; };
 };
 
 

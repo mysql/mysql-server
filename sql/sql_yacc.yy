@@ -3094,7 +3094,7 @@ type:
 spatial_type:
 	GEOMETRY_SYM	      { $$= Field::GEOM_GEOMETRY; }
 	| GEOMETRYCOLLECTION  { $$= Field::GEOM_GEOMETRYCOLLECTION; }
-	| POINT_SYM           { Lex->length= (char*)"21";
+	| POINT_SYM           { Lex->length= (char*)"25";
                                 $$= Field::GEOM_POINT;
                               }
 	| MULTIPOINT          { $$= Field::GEOM_MULTIPOINT; }
@@ -7639,11 +7639,15 @@ literal:
             String *str= tmp ?
               tmp->quick_fix_field(), tmp->val_str((String*) 0) :
               (String*) 0;
-            $$= new Item_string(str ? str->ptr() : "",
+            $$= new Item_string(NULL, /* name will be set in select_item */
+                                str ? str->ptr() : "",
                                 str ? str->length() : 0,
                                 Lex->underscore_charset);
-            if ($$)
-              ((Item_string *) $$)->set_repertoire_from_value();
+            if (!$$ || !$$->check_well_formed_result(&$$->str_value, TRUE))
+            {
+              MYSQL_YYABORT;
+            }
+            ((Item_string *) $$)->set_repertoire_from_value();
           }
 	| UNDERSCORE_CHARSET BIN_NUM
           {
@@ -7655,9 +7659,14 @@ literal:
 	    String *str= tmp ?
 	      tmp->quick_fix_field(), tmp->val_str((String*) 0) :
 	      (String*) 0;
-	    $$= new Item_string(str ? str->ptr() : "",
-				str ? str->length() : 0,
-				Lex->charset);
+            $$= new Item_string(NULL, /* name will be set in select_item */
+                                str ? str->ptr() : "",
+                                str ? str->length() : 0,
+                                Lex->underscore_charset);
+            if (!$$ || !$$->check_well_formed_result(&$$->str_value, TRUE))
+            {
+              MYSQL_YYABORT;
+            }
           }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
