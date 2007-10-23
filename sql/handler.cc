@@ -1947,7 +1947,7 @@ int handler::update_auto_increment()
     rnd_init() call is made as after this, MySQL will not use the bitmap
     for any program logic checking.
 */
-void handler::column_bitmaps_signal()
+void handler::column_bitmaps_signal(uint sig_type)
 {
   DBUG_ENTER("column_bitmaps_signal");
   DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", (long) table->read_set,
@@ -1984,7 +1984,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   (void) extra(HA_EXTRA_KEYREAD);
   table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
                                         table->read_set);
-  column_bitmaps_signal();
+  column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
   index_init(table->s->next_number_index, 1);
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start

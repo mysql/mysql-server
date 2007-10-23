@@ -971,6 +971,7 @@ public:
   ulonglong max_index_file_length;
   ulonglong delete_length;		/* Free bytes */
   ulonglong auto_increment_value;
+  ha_rows rows_updated, rows_deleted;
   /*
     The number of records in the table. 
       0    - means the table has exactly 0 rows
@@ -1229,7 +1230,15 @@ public:
     a ha_rnd_init() or ha_index_init(), write_row(), update_row or delete_row()
     as there may be several calls to this routine.
   */
-  virtual void column_bitmaps_signal();
+
+#define HA_CHANGE_TABLE_READ_BITMAP 1
+#define HA_CHANGE_TABLE_WRITE_BITMAP 2
+#define HA_CHANGE_TABLE_BOTH_BITMAPS 2+1
+
+#define HA_COMPLETE_TABLE_READ_BITMAP 4
+#define HA_COMPLETE_TABLE_WRITE_BITMAP 8
+#define HA_COMPLETE_TABLE_BOTH_BITMAPS 4+8
+  virtual void column_bitmaps_signal(uint sig_type);
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual int close(void)=0;
@@ -1412,6 +1421,14 @@ public:
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
+  /*
+    Informs handler that it is possible to optimise away the real read
+    operation from the handler and instead use a generated read to
+    optimise simple UPDATE's and DELETE's.
+  */
+  virtual bool read_before_write_removal_possible(List<Item> *fields,
+                                                  List<Item> *values)
+  { return FALSE; }
 
   /*
     Reset state of file to after 'open'

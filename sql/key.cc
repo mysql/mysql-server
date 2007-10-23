@@ -181,7 +181,7 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
     None
 */
 
-void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
+void key_restore(uchar *to_record, uchar *from_key, const KEY *key_info,
                  uint key_length)
 {
   uint length;
