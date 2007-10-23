@@ -10,6 +10,32 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# Bug #30695: An apostrophe ' in the comment of the ADD PARTITION causes the Server to crash.
+#
+# To verify the fix for crashing (on unix-type OS)
+# uncomment the exec and error rows!
+
+CREATE TABLE t1 (
+    d DATE NOT NULL
+)
+PARTITION BY RANGE( YEAR(d) ) (
+    PARTITION p0 VALUES LESS THAN (1960),
+    PARTITION p1 VALUES LESS THAN (1970),
+    PARTITION p2 VALUES LESS THAN (1980),
+    PARTITION p3 VALUES LESS THAN (1990)
+);
+
+ALTER TABLE t1 ADD PARTITION (
+PARTITION `p5` VALUES LESS THAN (2010)
+COMMENT 'APSTART \' APEND'
+);
+#--exec sed 's/APSTART \\/APSTART  /' var/master-data/test/t1.frm > tmpt1.frm && mv tmpt1.frm var/master-data/test/t1.frm
+#--error 1064
+SELECT * FROM t1 LIMIT 1;
+
+DROP TABLE t1;
+
+#
 # Bug 15890: Strange number of partitions accepted
 #
 -- error 1064
