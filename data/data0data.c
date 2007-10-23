@@ -40,7 +40,7 @@ dfield_data_is_binary_equal(
 	ulint		len,	/* in: data length or UNIV_SQL_NULL */
 	const byte*	data)	/* in: data */
 {
-	if (len != field->len) {
+	if (len != dfield_get_len(field)) {
 
 		return(FALSE);
 	}
@@ -50,7 +50,7 @@ dfield_data_is_binary_equal(
 		return(TRUE);
 	}
 
-	if (0 != ut_memcmp(field->data, data, len)) {
+	if (0 != memcmp(dfield_get_data(field), data, len)) {
 
 		return(FALSE);
 	}
@@ -251,7 +251,7 @@ dtuple_validate(
 
 		if (!dfield_is_null(field)) {
 
-			data = field->data;
+			data = dfield_get_data(field);
 			UNIV_MEM_ASSERT_RW(data, len);
 
 			for (j = 0; j < len; j++) {
@@ -493,10 +493,10 @@ dfield_print_raw(
 	FILE*		f,		/* in: output stream */
 	const dfield_t*	dfield)		/* in: dfield */
 {
-	ulint	len	= dfield->len;
+	ulint	len	= dfield_get_len(dfield);
 	if (!dfield_is_null(dfield)) {
 		ulint	print_len = ut_min(len, 1000);
-		ut_print_buf(f, dfield->data, print_len);
+		ut_print_buf(f, dfield_get_data(dfield), print_len);
 		if (len != print_len) {
 			fprintf(f, "(total %lu bytes%s)",
 				(ulong) len,
@@ -614,11 +614,13 @@ dtuple_convert_big_rec(
 			if (ifield->fixed_len
 			    || dfield_is_null(dfield)
 			    || dfield_is_ext(dfield)
-			    || dfield->len <= BTR_EXTERN_FIELD_REF_SIZE * 2) {
+			    || dfield_get_len(dfield)
+			    <= BTR_EXTERN_FIELD_REF_SIZE * 2) {
 				goto skip_field;
 			}
 
-			savings = dfield->len - BTR_EXTERN_FIELD_REF_SIZE;
+			savings = dfield_get_len(dfield)
+				- BTR_EXTERN_FIELD_REF_SIZE;
 
 			/* Check that there would be savings */
 			if (longest >= savings) {
@@ -650,9 +652,9 @@ skip_field:
 		ifield = dict_index_get_nth_field(index, longest_i);
 		vector->fields[n_fields].field_no = longest_i;
 
-		vector->fields[n_fields].len = dfield->len;
+		vector->fields[n_fields].len = dfield_get_len(dfield);
 
-		vector->fields[n_fields].data = dfield->data;
+		vector->fields[n_fields].data = dfield_get_data(dfield);
 
 		/* Set the extern field reference in dfield to zero */
 		dfield_set_data(dfield,

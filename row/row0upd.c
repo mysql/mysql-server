@@ -583,20 +583,22 @@ row_upd_index_write_log(
 
 		new_val = &(upd_field->new_val);
 
-		len = new_val->len;
+		len = dfield_get_len(new_val);
 
 		log_ptr += mach_write_compressed(log_ptr, upd_field->field_no);
 		log_ptr += mach_write_compressed(log_ptr, len);
 
 		if (len != UNIV_SQL_NULL) {
 			if (log_ptr + len < buf_end) {
-				ut_memcpy(log_ptr, new_val->data, len);
+				memcpy(log_ptr, dfield_get_data(new_val), len);
 
 				log_ptr += len;
 			} else {
 				mlog_close(mtr, log_ptr);
 
-				mlog_catenate_string(mtr, new_val->data, len);
+				mlog_catenate_string(mtr,
+						     dfield_get_data(new_val),
+						     len);
 
 				log_ptr = mlog_open(mtr, MLOG_BUF_MARGIN);
 				buf_end = log_ptr + MLOG_BUF_MARGIN;
@@ -887,24 +889,25 @@ row_upd_index_replace_new_col_vals_index_pos(
 				}
 
 				if (heap) {
-					dfield->data = mem_heap_dup(
-						heap,
-						dfield->data, dfield->len);
+					dfield_dup(dfield, heap);
 				}
 
 				if (field->prefix_len > 0) {
 
 					const dict_col_t*	col
 						= dict_field_get_col(field);
+					ulint			len
+						= dfield_get_len(dfield);
 
-					dfield->len
-						= dtype_get_at_most_n_mbchars(
-							col->prtype,
-							col->mbminlen,
-							col->mbmaxlen,
-							field->prefix_len,
-							dfield->len,
-							dfield->data);
+					len = dtype_get_at_most_n_mbchars(
+						col->prtype,
+						col->mbminlen,
+						col->mbmaxlen,
+						field->prefix_len,
+						len,
+						dfield_get_data(dfield));
+
+					dfield_set_len(dfield, len);
 				}
 			}
 		}
@@ -962,24 +965,25 @@ row_upd_index_replace_new_col_vals(
 				}
 
 				if (heap) {
-					dfield->data = mem_heap_dup(
-						heap,
-						dfield->data, dfield->len);
+					dfield_dup(dfield, heap);
 				}
 
 				if (field->prefix_len > 0) {
 
 					const dict_col_t*	col
 						= dict_field_get_col(field);
+					ulint			len
+						= dfield_get_len(dfield);
 
-					dfield->len
-						= dtype_get_at_most_n_mbchars(
-							col->prtype,
-							col->mbminlen,
-							col->mbmaxlen,
-							field->prefix_len,
-							dfield->len,
-							dfield->data);
+					len = dtype_get_at_most_n_mbchars(
+						col->prtype,
+						col->mbminlen,
+						col->mbmaxlen,
+						field->prefix_len,
+						len,
+						dfield_get_data(dfield));
+
+					dfield_set_len(dfield, len);
 				}
 			}
 		}

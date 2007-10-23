@@ -113,16 +113,16 @@ row_merge_tuple_print(
 		if (dfield_is_null(field)) {
 			fputs("\n NULL;", f);
 		} else {
-			ulint	len = ut_min(field->len, 20);
+			ulint	field_len	= dfield_get_len(field);
+			ulint	len		= ut_min(field_len, 20);
 			if (dfield_is_ext(field)) {
 				fputs("\nE", f);
 			} else {
 				fputs("\n ", f);
 			}
-			ut_print_buf(f, field->data, len);
-			if (len != field->len) {
-				fprintf(f, " (total %lu bytes)",
-					(ulong) field->len);
+			ut_print_buf(f, dfield_get_data(field), len);
+			if (len != field_len) {
+				fprintf(f, " (total %lu bytes)", field_len);
 			}
 		}
 	}
@@ -261,34 +261,36 @@ row_merge_buf_add(
 		ulint			col_no;
 		const dfield_t*		row_field;
 		ulint			len;
+		const void*		field_data;
 
 		ifield = dict_index_get_nth_field(index, i);
 		col = ifield->col;
 		col_no = dict_col_get_no(col);
 		row_field = dtuple_get_nth_field(row, col_no);
 		dfield_copy(field, row_field);
-		len = field->len;
+		len = dfield_get_len(field);
+		field_data = dfield_get_data(field);
 
 		if (dfield_is_null(field)) {
 			ut_ad(!(col->prtype & DATA_NOT_NULL));
-			field->data = NULL;
+			ut_ad(field_data == NULL);
 			continue;
 		} else if (UNIV_LIKELY(!ext)) {
 		} else if (dict_index_is_clust(index)) {
 			/* Flag externally stored fields. */
 			byte*	buf = row_ext_lookup(ext, col_no,
-						     field->data, len, &len);
+						     field_data, len, &len);
 			if (UNIV_LIKELY_NULL(buf)) {
 				if (i < dict_index_get_n_unique(index)) {
 					dfield_set_data(field, buf, len);
 				} else {
 					dfield_set_ext(field);
-					len = field->len;
+					len = dfield_get_len(field);
 				}
 			}
 		} else {
 			byte*	buf = row_ext_lookup(ext, col_no,
-						     field->data, len, &len);
+						     field_data, len, &len);
 			if (UNIV_LIKELY_NULL(buf)) {
 				dfield_set_data(field, buf, len);
 			}
@@ -297,11 +299,12 @@ row_merge_buf_add(
 		/* If a column prefix index, take only the prefix */
 
 		if (ifield->prefix_len) {
-			field->len = len = dtype_get_at_most_n_mbchars(
+			len = dtype_get_at_most_n_mbchars(
 				col->prtype,
 				col->mbminlen, col->mbmaxlen,
 				ifield->prefix_len,
-				len, field->data);
+				len, dfield_get_data(field));
+			dfield_set_len(field, len);
 		}
 
 		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
@@ -365,12 +368,7 @@ row_merge_buf_add(
 	/* Copy the data fields. */
 
 	do {
-		if (!dfield_is_null(field)) {
-			field->data = mem_heap_dup(buf->heap,
-						   field->data, field->len);
-		}
-
-		field++;
+		dfield_dup(field++, buf->heap);
 	} while (--n_fields);
 
 	return(TRUE);
@@ -1163,8 +1161,10 @@ row_merge_read_clustered_index(
 				for (i = 0; i < n_nonnull; i++) {
 					dfield_t*	field
 						= &row->fields[nonnull[i]];
+					dtype_t*	field_type
+						= dfield_get_type(field);
 
-					ut_a(!(field->type.prtype
+					ut_a(!(field_type->prtype
 					       & DATA_NOT_NULL));
 
 					if (dfield_is_null(field)) {
@@ -1173,7 +1173,7 @@ row_merge_read_clustered_index(
 						goto err_exit;
 					}
 
-					field->type.prtype |= DATA_NOT_NULL;
+					field_type->prtype |= DATA_NOT_NULL;
 				}
 			}
 		}

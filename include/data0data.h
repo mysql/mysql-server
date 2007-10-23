@@ -128,6 +128,14 @@ dfield_copy(
 	dfield_t*	field1,	/* out: field to copy to */
 	const dfield_t*	field2);/* in: field to copy from */
 /*************************************************************************
+Copies the data pointed to by a data field. */
+UNIV_INLINE
+void
+dfield_dup(
+/*=======*/
+	dfield_t*	field,	/* in/out: data field */
+	mem_heap_t*	heap);	/* in: memory heap where allocated */
+/*************************************************************************
 Tests if data length and content is equal for two dfields. */
 UNIV_INLINE
 ibool
