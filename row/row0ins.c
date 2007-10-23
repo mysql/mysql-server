@@ -475,6 +475,7 @@ row_ins_cascade_calc_update_vec(
 
 				ulint			min_size;
 				const dict_col_t*	col;
+				ulint			ufield_len;
 
 				col = dict_index_get_nth_col(index, i);
 
@@ -490,7 +491,10 @@ row_ins_cascade_calc_update_vec(
 				ufield->exp = NULL;
 
 				ufield->new_val = parent_ufield->new_val;
-				ufield->new_val.ext = 0;
+				ufield_len = dfield_get_len(&ufield->new_val);
+
+				/* Clear the "external storage" flag */
+				dfield_set_len(&ufield->new_val, ufield_len);
 
 				/* Do not allow a NOT NULL column to be
 				updated as NULL */
@@ -509,9 +513,9 @@ row_ins_cascade_calc_update_vec(
 					col->prtype,
 					col->mbminlen, col->mbmaxlen,
 					col->len,
-					ufield->new_val.len,
-					ufield->new_val.data)
-				    < ufield->new_val.len) {
+					ufield_len,
+					dfield_get_data(&ufield->new_val))
+				    < ufield_len) {
 
 					return(ULINT_UNDEFINED);
 				}
@@ -523,28 +527,31 @@ row_ins_cascade_calc_update_vec(
 
 				min_size = dict_col_get_min_size(col);
 
-				if (min_size
-				    && !dfield_is_null(&ufield->new_val)
-				    && ufield->new_val.len < min_size) {
+				/* Because UNIV_SQL_NULL (the marker
+				of SQL NULL values) exceeds all possible
+				values of min_size, the test below will
+				not hold for SQL NULL columns. */
+
+				if (min_size > ufield_len) {
 
 					char*		pad_start;
 					const char*	pad_end;
-					ufield->new_val.data = mem_heap_alloc(
-						heap, min_size);
-					pad_start = ((char*) ufield
-						     ->new_val.data)
-						+ ufield->new_val.len;
-					pad_end = ((char*) ufield
-						   ->new_val.data)
-						+ min_size;
-					ufield->new_val.len = min_size;
-					ut_memcpy(ufield->new_val.data,
-						  parent_ufield->new_val.data,
-						  parent_ufield->new_val.len);
+					char*		padded_data
+						= mem_heap_alloc(
+							heap, min_size);
+					pad_start = padded_data + ufield_len;
+					pad_end = padded_data + min_size;
+
+					memcpy(padded_data,
+					       dfield_get_data(&ufield
+							       ->new_val),
+					       dfield_get_len(&ufield
+							      ->new_val));
 
 					switch (UNIV_EXPECT(col->mbminlen,1)) {
 					default:
 						ut_error;
+						return(ULINT_UNDEFINED);
 					case 1:
 						if (UNIV_UNLIKELY
 						    (dtype_get_charset_coll(
@@ -561,8 +568,7 @@ row_ins_cascade_calc_update_vec(
 						break;
 					case 2:
 						/* space=0x0020 */
-						ut_a(!(ufield->new_val.len
-						       % 2));
+						ut_a(!(ufield_len % 2));
 						ut_a(!(min_size % 2));
 						do {
 							*pad_start++ = 0x00;
@@ -570,6 +576,9 @@ row_ins_cascade_calc_update_vec(
 						} while (pad_start < pad_end);
 						break;
 					}
+
+					dfield_set_data(&ufield->new_val,
+							padded_data, min_size);
 				}
 
 				n_fields_updated++;
@@ -2234,10 +2243,12 @@ row_ins_index_entry_set_vals(
 			len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminlen, col->mbmaxlen,
 				ind_field->prefix_len,
-				len, row_field->data);
+				len, dfield_get_data(row_field));
+
+			ut_ad(!dfield_is_ext(row_field));
 		}
 
-		dfield_set_data(field, row_field->data, len);
+		dfield_set_data(field, dfield_get_data(row_field), len);
 		if (dfield_is_ext(row_field)) {
 			ut_ad(dict_index_is_clust(index));
 			dfield_set_ext(field);

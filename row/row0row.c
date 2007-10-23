@@ -75,9 +75,6 @@ row_build_index_entry(
 {
 	dtuple_t*	entry;
 	ulint		entry_len;
-	dict_field_t*	ind_field;
-	dfield_t*	dfield;
-	const dfield_t*	dfield2;
 	ulint		i;
 
 	ut_ad(row && index && heap);
@@ -101,24 +98,26 @@ row_build_index_entry(
 	}
 
 	for (i = 0; i < entry_len; i++) {
-		const dict_col_t*	col;
-		ulint			col_no;
-		ind_field = dict_index_get_nth_field(index, i);
-		col = ind_field->col;
-		col_no = dict_col_get_no(col);
-
-		dfield = dtuple_get_nth_field(entry, i);
-
-		dfield2 = dtuple_get_nth_field(row, col_no);
+		const dict_field_t*	ind_field
+			= dict_index_get_nth_field(index, i);
+		const dict_col_t*	col
+			= ind_field->col;
+		ulint			col_no
+			= dict_col_get_no(col);
+		dfield_t*		dfield
+			= dtuple_get_nth_field(entry, i);
+		const dfield_t*		dfield2
+			= dtuple_get_nth_field(row, col_no);
+		ulint			len
+			= dfield_get_len(dfield);
 
 		dfield_copy(dfield, dfield2);
 
 		if (UNIV_LIKELY_NULL(ext) && !dfield_is_null(dfield)) {
 			/* See if the column is stored externally. */
-			ulint	len = dfield_get_len(dfield);
 			byte*	buf = row_ext_lookup(ext, col_no,
-						     dfield->data,
-						     dfield->len, &len);
+						     dfield_get_data(dfield),
+						     len, &len);
 			if (UNIV_LIKELY_NULL(buf)) {
 				dfield_set_data(dfield, buf, len);
 			}
@@ -126,10 +125,11 @@ row_build_index_entry(
 
 		/* If a column prefix index, take only the prefix */
 		if (ind_field->prefix_len > 0 && !dfield_is_null(dfield)) {
-			dfield->len = dtype_get_at_most_n_mbchars(
+			len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminlen, col->mbmaxlen,
 				ind_field->prefix_len,
-				dfield->len, dfield->data);
+				len, dfield_get_data(dfield));
+			dfield_set_len(dfield, len);
 		}
 	}
 
@@ -639,9 +639,14 @@ row_build_row_ref_from_row(
 
 		if (field->prefix_len > 0 && !dfield_is_null(dfield)) {
 
-			dfield->len = dtype_get_at_most_n_mbchars(
+			ulint	len = dfield_get_len(dfield);
+
+			len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminlen, col->mbmaxlen,
-				field->prefix_len, dfield->len, dfield->data);
+				field->prefix_len,
+				len, dfield_get_data(dfield));
+
+			dfield_set_len(dfield, len);
 		}
 	}
 

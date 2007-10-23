@@ -86,6 +86,9 @@ dfield_set_len(
 	ulint		len)	/* in: length or UNIV_SQL_NULL */
 {
 	ut_ad(field);
+#ifdef UNIV_VALGRIND_DEBUG
+	if (len != UNIV_SQL_NULL) UNIV_MEM_ASSERT_RW(field->data, len);
+#endif /* UNIV_VALGRIND_DEBUG */
 
 	field->ext = 0;
 	field->len = len;
@@ -144,6 +147,9 @@ dfield_set_data(
 {
 	ut_ad(field);
 
+#ifdef UNIV_VALGRIND_DEBUG
+	if (len != UNIV_SQL_NULL) UNIV_MEM_ASSERT_RW(data, len);
+#endif /* UNIV_VALGRIND_DEBUG */
 	field->data = (void*) data;
 	field->ext = 0;
 	field->len = len;
@@ -189,6 +195,21 @@ dfield_copy(
 }
 
 /*************************************************************************
+Copies the data pointed to by a data field. */
+UNIV_INLINE
+void
+dfield_dup(
+/*=======*/
+	dfield_t*	field,	/* in/out: data field */
+	mem_heap_t*	heap)	/* in: memory heap where allocated */
+{
+	if (!dfield_is_null(field)) {
+		UNIV_MEM_ASSERT_RW(field->data, field->len);
+		field->data = mem_heap_dup(heap, field->data, field->len);
+	}
+}
+
+/*************************************************************************
 Tests if data length and content is equal for two dfields. */
 UNIV_INLINE
 ibool
@@ -202,15 +223,9 @@ dfield_datas_are_binary_equal(
 
 	len = field1->len;
 
-	if ((len != field2->len)
-	    || ((len != UNIV_SQL_NULL)
-		&& (0 != ut_memcmp(field1->data, field2->data,
-				   len)))) {
-
-		return(FALSE);
-	}
-
-	return(TRUE);
+	return(len == field2->len
+	       && (len == UNIV_SQL_NULL
+		   || !memcmp(field1->data, field2->data, len)));
 }
 
 /*************************************************************************

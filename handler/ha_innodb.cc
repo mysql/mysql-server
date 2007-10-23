@@ -3729,7 +3729,7 @@ calc_row_difference(
 			from the MySQL column format to the InnoDB format */
 
 			dict_col_copy_type(prebuilt->table->cols + i,
-					   &dfield.type);
+					   dfield_get_type(&dfield));
 
 			if (n_len != UNIV_SQL_NULL) {
 				buf = row_mysql_store_col_in_innobase_format(

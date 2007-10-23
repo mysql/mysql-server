@@ -414,7 +414,9 @@ skip_secondaries:
 			can calculate from node->roll_ptr the file
 			address of the new_val data */
 
-			internal_offset = ((const byte*)ufield->new_val.data)
+			internal_offset
+				= ((const byte*)
+				   dfield_get_data(&ufield->new_val))
 				- node->undo_rec;
 
 			ut_a(internal_offset < UNIV_PAGE_SIZE);
@@ -452,9 +454,11 @@ skip_secondaries:
 			data_field = buf_block_get_frame(block)
 				+ offset + internal_offset;
 
-			ut_a(ufield->new_val.len >= BTR_EXTERN_FIELD_REF_SIZE);
+			ut_a(dfield_get_len(&ufield->new_val)
+			     >= BTR_EXTERN_FIELD_REF_SIZE);
 			btr_free_externally_stored_field(
-				index, data_field + ufield->new_val.len
+				index,
+				data_field + dfield_get_len(&ufield->new_val)
 				- BTR_EXTERN_FIELD_REF_SIZE,
 				NULL, NULL, NULL, 0, FALSE, &mtr);
 			mtr_commit(&mtr);
