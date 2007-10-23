@@ -98,3 +98,8 @@ R2
 R3
 deallocate prepare stmt1;
 drop table t1;
+End of 4.1 tests
+SELECT 1 REGEXP NULL;
+1 REGEXP NULL
+NULL
+End of 5.0 tests
