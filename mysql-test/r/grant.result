@@ -349,12 +349,12 @@ show grants for grant_user@localhost;
 Grants for grant_user@localhost
 GRANT USAGE ON *.* TO 'grant_user'@'localhost'
 GRANT INSERT (a, d, c, b) ON `test`.`t1` TO 'grant_user'@'localhost'
-select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv;
+select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv order by Column_name;
 Host	Db	User	Table_name	Column_name	Column_priv
-localhost	test	grant_user	t1	b	Insert
-localhost	test	grant_user	t1	d	Insert
 localhost	test	grant_user	t1	a	Insert
+localhost	test	grant_user	t1	b	Insert
 localhost	test	grant_user	t1	c	Insert
+localhost	test	grant_user	t1	d	Insert
 revoke ALL PRIVILEGES on t1 from grant_user@localhost;
 show grants for grant_user@localhost;
 Grants for grant_user@localhost
