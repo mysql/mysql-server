@@ -7518,7 +7518,7 @@ ha_ndbcluster::~ha_ndbcluster()
 
 
 void
-ha_ndbcluster::column_bitmaps_signal()
+ha_ndbcluster::column_bitmaps_signal(uint sig_type)
 {
   DBUG_ENTER("ha_ndbcluster::column_bitmaps_signal");
   /*

@@ -310,7 +310,7 @@ class ha_ndbcluster: public handler
   ~ha_ndbcluster();
 
   int ha_initialise();
-  void column_bitmaps_signal();
+  void column_bitmaps_signal(uint sig_type);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
 

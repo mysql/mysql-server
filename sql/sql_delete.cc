@@ -35,6 +35,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   READ_RECORD	info;
   bool          using_limit=limit != HA_POS_ERROR;
   bool		transactional_table, safe_update, const_cond;
+  bool          direct_delete_loop;
+  bool          might_use_read_removal= FALSE;
   ha_rows	deleted= 0;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
@@ -189,7 +191,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     uint         length= 0;
     SORT_FIELD  *sortorder;
     ha_rows examined_rows;
-    
+    table->file->column_bitmaps_signal(HA_COMPLETE_TABLE_BOTH_BITMAPS);    
     if ((!select || table->quick_keys.is_clear_all()) && limit != HA_POS_ERROR)
       usable_index= get_index_for_order(table, (ORDER*)(order->first), limit);
 
@@ -217,6 +219,12 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       free_underlaid_joins(thd, select_lex);
       select= 0;
     }
+    direct_delete_loop= FALSE;
+  }
+  else
+  {
+    direct_delete_loop= TRUE;
+    table->file->column_bitmaps_signal(HA_COMPLETE_TABLE_BOTH_BITMAPS);
   }
 
   /* If quick select is used, initialize it before retrieving rows. */
@@ -231,6 +239,15 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   else
     init_read_record_idx(&info, thd, table, 1, usable_index);
 
+  if (!table->triggers &&
+      info.using_quick &&
+      !using_limit &&
+      direct_delete_loop)
+  {
+    /* See comment in sql_update.cc for similar code */
+    might_use_read_removal= 
+      table->file->read_before_write_removal_possible(NULL, NULL);
+  }
   init_ftfuncs(thd, select_lex, 1);
   thd->proc_info="updating";
   if (table->triggers && 
@@ -326,6 +343,12 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       table->file->print_error(error2, MYF(0));
       error= 1;
     }
+  }
+
+  if (might_use_read_removal)
+  {
+    table->file->info(HA_STATUS_WRITTEN_ROWS);
+    deleted= table->file->stats.rows_deleted;
   }
 
 cleanup:
