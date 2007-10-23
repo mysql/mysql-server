@@ -545,6 +545,7 @@ SELECT Overlaps(@horiz1, @point2) FROM DUAL;
 Overlaps(@horiz1, @point2)
 0
 DROP TABLE t1;
+End of 5.0 tests
 CREATE TABLE t1 (p POINT);
 CREATE TABLE t2 (p POINT, INDEX(p));
 INSERT INTO t1 VALUES (POINTFROMTEXT('POINT(1 2)'));
