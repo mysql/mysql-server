@@ -5791,7 +5791,12 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
         (schema_table->hidden && 
-         (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
+         ((sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0 || 
+          /*
+            this check is used for show columns|keys from I_S hidden table
+          */
+          lex->sql_command == SQLCOM_SHOW_FIELDS ||
+          lex->sql_command == SQLCOM_SHOW_KEYS)))
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
                ptr->table_name, INFORMATION_SCHEMA_NAME.str);

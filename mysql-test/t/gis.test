@@ -432,6 +432,14 @@ INSERT INTO t1 VALUES (NULL);
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Bug #30955 geomfromtext() crasher
+#
+CREATE TABLE `t1` ( `col9` set('a'), `col89` date);
+INSERT INTO `t1` VALUES ('','0000-00-00');
+select geomfromtext(col9,col89) as a from t1;
+DROP TABLE t1;
+
 --echo End of 4.1 tests
 
 #
@@ -590,6 +598,8 @@ SELECT AsText(GeometryFromText(CONCAT(
 --enable_result_log
 --enable_query_log
 SELECT 1;
+
+-- source include/gis_keys.inc
 
 --echo End of 5.0 tests
 

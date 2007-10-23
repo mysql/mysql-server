@@ -3145,6 +3145,8 @@ int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
     }
     else
     {
+      if (was_semi_consistent_read())
+        goto scan_it_again;
       /*
         We need to set this for the last range only, but checking this
         condition is more expensive than just setting the result code.
@@ -3152,10 +3154,10 @@ int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
       result= HA_ERR_END_OF_FILE;
     }
 
+    multi_range_curr++;
+scan_it_again:
     /* Try the next range(s) until one matches a record. */
-    for (multi_range_curr++;
-         multi_range_curr < multi_range_end;
-         multi_range_curr++)
+    for (; multi_range_curr < multi_range_end; multi_range_curr++)
     {
       result= read_range_first(multi_range_curr->start_key.keypart_map ?
                                &multi_range_curr->start_key : 0,
