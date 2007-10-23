@@ -667,7 +667,7 @@ create table t1 (i INT);
 connect (user1,localhost,mysqltest,,mysqltest);
 connection user1;
 # show we don't have INSERT
---error 1044
+--error 1142
 insert into t1 values (1);
 # show we have CREATE
 create table t2 (i INT);
