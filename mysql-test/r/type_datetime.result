@@ -59,6 +59,8 @@ t
 drop table t1;
 CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
 insert into t1 (b,c,d) values(now(),curtime(),now());
+Warnings:
+Note	1265	Data truncated for column 'b' at row 1
 select date_format(a,"%Y-%m-%d")=b,right(a+0,6)=c+0,a=d+0 from t1;
 date_format(a,"%Y-%m-%d")=b	right(a+0,6)=c+0	a=d+0
 1	1	1
@@ -427,6 +429,67 @@ f1
 Warnings:
 Warning	1292	Incorrect datetime value: '2007010100000' for column 'f1' at row 1
 drop table t1;
+#
+# Bug#27216: functions with parameters of different date types may
+#            return wrong type of the result.
+#
+create table t1 (f1 date, f2 datetime, f3 varchar(20));
+create table t2 as select coalesce(f1,f1) as f4 from t1;
+desc t2;
+Field	Type	Null	Key	Default	Extra
+f4	date	YES		NULL	
+create table t3 as select coalesce(f1,f2) as f4 from t1;
+desc t3;
+Field	Type	Null	Key	Default	Extra
+f4	datetime	YES		NULL	
+create table t4 as select coalesce(f2,f2) as f4 from t1;
+desc t4;
+Field	Type	Null	Key	Default	Extra
+f4	datetime	YES		NULL	
+create table t5 as select coalesce(f1,f3) as f4 from t1;
+desc t5;
+Field	Type	Null	Key	Default	Extra
+f4	varbinary(20)	YES		NULL	
+create table t6 as select coalesce(f2,f3) as f4 from t1;
+desc t6;
+Field	Type	Null	Key	Default	Extra
+f4	varbinary(20)	YES		NULL	
+create table t7 as select coalesce(makedate(1997,1),f2) as f4 from t1;
+desc t7;
+Field	Type	Null	Key	Default	Extra
+f4	datetime	YES		NULL	
+create table t8 as select coalesce(cast('01-01-01' as datetime),f2) as f4
+from t1;
+desc t8;
+Field	Type	Null	Key	Default	Extra
+f4	datetime	YES		NULL	
+create table t9 as select case when 1 then cast('01-01-01' as date)
+when 0 then cast('01-01-01' as date) end as f4 from t1;
+desc t9;
+Field	Type	Null	Key	Default	Extra
+f4	date	YES		NULL	
+create table t10 as select case when 1 then cast('01-01-01' as datetime)
+when 0 then cast('01-01-01' as datetime) end as f4 from t1;
+desc t10;
+Field	Type	Null	Key	Default	Extra
+f4	datetime	YES		NULL	
+create table t11 as select if(1, cast('01-01-01' as datetime),
+cast('01-01-01' as date)) as f4 from t1;
+desc t11;
+Field	Type	Null	Key	Default	Extra
+f4	datetime	YES		NULL	
+create table t12 as select least(cast('01-01-01' as datetime),
+cast('01-01-01' as date)) as f4 from t1;
+desc t12;
+Field	Type	Null	Key	Default	Extra
+f4	datetime	YES		NULL	
+create table t13 as select ifnull(cast('01-01-01' as datetime),
+cast('01-01-01' as date)) as f4 from t1;
+desc t13;
+Field	Type	Null	Key	Default	Extra
+f4	datetime	YES		NULL	
+drop tables t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13;
+###################################################################
 create table t1 (f1 time);
 insert into t1 set f1 = '45:44:44';
 insert into t1 set f1 = '15:44:44';

@@ -410,6 +410,13 @@ SELECT ROUND(qty,3), dps, ROUND(qty,dps) FROM t1;
 DROP TABLE t1;
 
 #
+# Bug#31019: MOD() function and operator crashes MySQL when
+#            divisor is very long and < 1
+#
+
+SELECT 1 % .123456789123456789123456789123456789123456789123456789123456789123456789123456789 AS '%';
+SELECT MOD(1, .123456789123456789123456789123456789123456789123456789123456789123456789123456789) AS 'MOD()';
+
 # Bug #31227: memory overrun with decimal (6,6) and zerofill and group_concat
 # valgrind will complain about this (the group_concat(f2)) on unpatched mysqld.
 #
@@ -419,3 +426,4 @@ select group_concat(f1),group_concat(f2) from t1;
 drop table t1;
 
 --echo End of 5.0 tests
+

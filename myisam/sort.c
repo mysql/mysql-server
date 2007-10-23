@@ -141,7 +141,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
     if ((records < UINT_MAX32) && 
        ((my_off_t) (records + 1) * 
         (sort_length + sizeof(char*)) <= (my_off_t) memavl))
-      keys= records+1;
+      keys= (uint)records+1;
     else
       do
       {
@@ -349,7 +349,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
     sort_keys= (uchar **) NULL;
 
     memavl=       max(sort_param->sortbuff_size, MIN_SORT_MEMORY);
-    idx=          sort_param->sort_info->max_records;
+    idx=          (uint)sort_param->sort_info->max_records;
     sort_length=  sort_param->key_length;
     maxbuffer=    1;
 

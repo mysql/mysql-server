@@ -5915,7 +5915,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
-	      join->best_positions[i].records_read= sel->quick->records;
+	      join->best_positions[i].records_read= (double)sel->quick->records;
 	  }
 	  else
 	  {
@@ -14349,6 +14349,9 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  item_field= (Item*) new Item_field(field);
 	if (!item_field)
 	  DBUG_RETURN(TRUE);                    // Fatal error
+
+        if (item->real_item()->type() != Item::FIELD_ITEM)
+          field->orig_table= 0;
 	item_field->name= item->name;
         if (item->type() == Item::REF_ITEM)
         {
@@ -15488,6 +15491,55 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
 }
 
 
+/**
+  @brief Print an index hint for a table
+
+  @details Prints out the USE|FORCE|IGNORE index hints for a table.
+
+  @param      thd         the current thread
+  @param[out] str         appends the index hint here
+  @param      hint        what the hint is (as string : "USE INDEX"|
+                          "FORCE INDEX"|"IGNORE INDEX")
+  @param      hint_length the length of the string in 'hint'
+  @param      indexes     a list of index names for the hint
+*/
+
+void 
+TABLE_LIST::print_index_hint(THD *thd, String *str, 
+                                const char *hint, uint32 hint_length,
+                                List<String> indexes)
+{
+  List_iterator_fast<String> li(indexes);
+  String *idx;
+  bool first= 1;
+  size_t find_length= strlen(primary_key_name);
+
+  str->append (' ');
+  str->append (hint, hint_length);
+  str->append (STRING_WITH_LEN(" ("));
+  while ((idx = li++))
+  {
+    if (first)
+      first= 0;
+    else
+      str->append(',');
+    /* 
+      It's safe to use ptr() here because we compare the length first
+      and we rely that my_strcasecmp will not access more than length()
+      chars from the string. See test_if_string_in_list() for similar
+      implementation.
+    */   
+    if (find_length == idx->length() &&
+        !my_strcasecmp (system_charset_info, primary_key_name, 
+                        idx->ptr()))
+      str->append(primary_key_name);
+    else
+      append_identifier (thd, str, idx->ptr(), idx->length());
+  }
+  str->append(')');
+}
+
+
 /*
   Print table as it should be in join list
 
@@ -15555,6 +15607,17 @@ void TABLE_LIST::print(THD *thd, String *str)
       str->append(' ');
       append_identifier(thd, str, alias, strlen(alias));
     }
+
+    if (use_index)
+    {
+      if (force_index)
+        print_index_hint(thd, str, STRING_WITH_LEN("FORCE INDEX"), *use_index);
+      else
+        print_index_hint(thd, str, STRING_WITH_LEN("USE INDEX"), *use_index);
+    }
+    if (ignore_index)
+      print_index_hint (thd, str, STRING_WITH_LEN("IGNORE INDEX"), *ignore_index);
+
   }
 }
 

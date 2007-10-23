@@ -189,11 +189,9 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (grant_option)
     {
-      Field_iterator_table field_it;
-      field_it.set_table(table);
-      if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
-                                  table->s->db, table->s->table_name,
-                                  &field_it))
+      Field_iterator_table_ref field_it;
+      field_it.set(table_list);
+      if (check_grant_all_columns(thd, INSERT_ACL, &field_it))
         return -1;
     }
 #endif
@@ -2647,7 +2645,8 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
                              bool ignore_check_option_errors)
   :table_list(table_list_par), table(table_par), fields(fields_par),
    last_insert_id(0),
-   insert_into_view(table_list_par && table_list_par->view != 0)
+   insert_into_view(table_list_par && table_list_par->view != 0),
+   is_bulk_insert_mode(FALSE)
 {
   bzero((char*) &info,sizeof(info));
   info.handle_duplicates= duplic;
@@ -2832,8 +2831,11 @@ int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
   if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      !thd->prelocked_mode)
+      !thd->prelocked_mode && !is_bulk_insert_mode)
+  {
     table->file->start_bulk_insert((ha_rows) 0);
+    is_bulk_insert_mode= TRUE;
+  }
   DBUG_RETURN(0);
 }
 
@@ -2939,6 +2941,7 @@ bool select_insert::send_eof()
   DBUG_ENTER("select_insert::send_eof");
 
   error= (!thd->prelocked_mode) ? table->file->end_bulk_insert():0;
+  is_bulk_insert_mode= FALSE;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -3129,7 +3132,10 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     create_field *cr_field;
     Field *field, *def_field;
     if (item->type() == Item::FUNC_ITEM)
-      field= item->tmp_table_field(&tmp_table);
+      if (item->result_type() != STRING_RESULT)
+        field= item->tmp_table_field(&tmp_table);
+      else
+        field= item->tmp_table_field_from_field_type(&tmp_table);
     else
       field= create_tmp_field(thd, &tmp_table, item, item->type(),
                               (Item ***) 0, &tmp_field, &def_field, 0, 0, 0, 0,
@@ -3271,7 +3277,10 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (!thd->prelocked_mode)
+  {
     table->file->start_bulk_insert((ha_rows) 0);
+    is_bulk_insert_mode= TRUE;
+  }
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |

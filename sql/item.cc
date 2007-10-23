@@ -939,9 +939,12 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   int res;
   THD *thd= field->table->in_use;
   enum_check_fields tmp= thd->count_cuted_fields;
+  ulong sql_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   res= save_in_field(field, no_conversions);
   thd->count_cuted_fields= tmp;
+  thd->variables.sql_mode= sql_mode;
   return res;
 }
 
@@ -4248,6 +4251,47 @@ bool Item::is_datetime()
 }
 
 
+String *Item::check_well_formed_result(String *str, bool send_error)
+{
+  /* Check whether we got a well-formed string */
+  CHARSET_INFO *cs= str->charset();
+  int well_formed_error;
+  uint wlen= cs->cset->well_formed_len(cs,
+                                       str->ptr(), str->ptr() + str->length(),
+                                       str->length(), &well_formed_error);
+  if (wlen < str->length())
+  {
+    THD *thd= current_thd;
+    char hexbuf[7];
+    enum MYSQL_ERROR::enum_warning_level level;
+    uint diff= str->length() - wlen;
+    set_if_smaller(diff, 3);
+    octet2hex(hexbuf, str->ptr() + wlen, diff);
+    if (send_error)
+    {
+      my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
+               cs->csname,  hexbuf);
+      return 0;
+    }
+    if ((thd->variables.sql_mode &
+         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+    {
+      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+      null_value= 1;
+      str= 0;
+    }
+    else
+    {
+      level= MYSQL_ERROR::WARN_LEVEL_WARN;
+      str->length(wlen);
+    }
+    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
+                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
+  }
+  return str;
+}
+
+
 /*
   Create a field to hold a string value from an item
 
@@ -4366,11 +4410,8 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
     break;					// Blob handled outside of case
 #ifdef HAVE_SPATIAL
   case MYSQL_TYPE_GEOMETRY:
-    return new Field_geom(max_length, maybe_null, name, table,
-                          (Field::geometry_type)
-                          ((type() == Item::TYPE_HOLDER) ?
-                           ((Item_type_holder *)this)->get_geometry_type() :
-                           ((Item_geometry_func *)this)->get_geometry_type()));
+    return new Field_geom(max_length, maybe_null,
+                          name, table, get_geometry_type());
 #endif /* HAVE_SPATIAL */
   }
 }
@@ -4769,6 +4810,19 @@ warn:
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE,
                        1);
   return 1;
+}
+
+
+void Item_hex_string::print(String *str)
+{
+  char *end= (char*) str_value.ptr() + str_value.length(),
+       *ptr= end - min(str_value.length(), sizeof(longlong));
+  str->append("0x");
+  for (; ptr != end ; ptr++)
+  {
+    str->append(_dig_vec_lower[((uchar) *ptr) >> 4]);
+    str->append(_dig_vec_lower[((uchar) *ptr) & 0x0F]);
+  }
 }
 
 
@@ -6493,9 +6547,7 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   prev_decimal_int_part= item->decimal_int_part();
 #ifdef HAVE_SPATIAL
   if (item->field_type() == MYSQL_TYPE_GEOMETRY)
-    geometry_type= (item->type() == Item::FIELD_ITEM) ?
-      ((Item_field *)item)->get_geometry_type() :
-      (Field::geometry_type)((Item_geometry_func *)item)->get_geometry_type();
+    geometry_type= item->get_geometry_type();
 #endif /* HAVE_SPATIAL */
 }
 
