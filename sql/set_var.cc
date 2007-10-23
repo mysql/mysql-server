@@ -2102,18 +2102,24 @@ void sys_var_log_state::set_default(THD *thd, enum_var_type type)
 
 static int  sys_check_log_path(THD *thd,  set_var *var)
 {
-  char path[FN_REFLEN];
+  char path[FN_REFLEN], buff[FN_REFLEN];
   MY_STAT f_stat;
-  const char *var_path= var->value->str_value.ptr();
+  String str(buff, sizeof(buff), system_charset_info), *res;
+  const char *log_file_str;
+      
+  if (!(res= var->value->val_str(&str)))
+    goto err;
+
+  log_file_str= res->c_ptr();
   bzero(&f_stat, sizeof(MY_STAT));
 
-  (void) unpack_filename(path, var_path);
+  (void) unpack_filename(path, log_file_str);
   if (my_stat(path, &f_stat, MYF(0)))
   {
     /* Check if argument is a file and we have 'write' permission */
     if (!MY_S_ISREG(f_stat.st_mode) ||
         !(f_stat.st_mode & MY_S_IWRITE))
-      return -1;
+      goto err;
   }
   else
   {
@@ -2122,11 +2128,16 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
       Check if directory exists and 
       we have permission to create file & write to file
     */
-    (void) dirname_part(path, var_path, &path_length);
+    (void) dirname_part(path, log_file_str, &path_length);
     if (my_access(path, (F_OK|W_OK)))
-      return -1;
+      goto err;
   }
   return 0;
+
+err:
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, 
+           res ? log_file_str : "NULL");
+  return 1;
 }
 
 
