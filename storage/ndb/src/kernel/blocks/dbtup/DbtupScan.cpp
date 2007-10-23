@@ -687,7 +687,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             if (bits & ScanOp::SCAN_NR)
             {
               jam();
-              pagePtr.p = 0;
               goto nopage;
             }
             pos.m_get = ScanPos::Get_next_page_mm;
