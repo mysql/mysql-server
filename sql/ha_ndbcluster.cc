@@ -535,6 +535,7 @@ int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   {
     thd_ndb->m_max_violation_count= 0;
     thd_ndb->m_old_violation_count= 0;
+    thd_ndb->m_conflict_fn_usage_count= 0;
     thd_ndb->m_unsent_bytes= 0;
     DBUG_RETURN(-1);
   }
@@ -542,6 +543,7 @@ int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   g_ndb_status_conflict_fn_old+= thd_ndb->m_old_violation_count;
   thd_ndb->m_max_violation_count= 0;
   thd_ndb->m_old_violation_count= 0;
+  thd_ndb->m_conflict_fn_usage_count= 0;
   thd_ndb->m_unsent_bytes= 0;
   if (!ignore_error || trans->getNdbError().code == 0)
     DBUG_RETURN(trans->getNdbError().code);
@@ -596,6 +598,7 @@ Thd_ndb::Thd_ndb()
   m_unsent_bytes= 0;
   m_max_violation_count= 0;
   m_old_violation_count= 0;
+  m_conflict_fn_usage_count= 0;
   init_alloc_root(&m_batch_mem_root, BATCH_FLUSH_SIZE/4, 0);
 }
 
@@ -3954,15 +3957,15 @@ ha_ndbcluster::update_row_conflict_fn(enum_conflict_fn_type cft,
 int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
 {
   THD *thd= table->in_use;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  NdbTransaction *trans= m_thd_ndb->trans;
+  Thd_ndb *thd_ndb= m_thd_ndb;
+  NdbTransaction *trans= thd_ndb->trans;
   NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
   uint32 old_part_id= 0, new_part_id= 0;
   int error;
   longlong func_value;
-  bool pk_update= (table_share->primary_key != MAX_KEY &&
-		   primary_key_cmp(old_data, new_data));
+  bool have_pk= (table_share->primary_key != MAX_KEY);
+  bool pk_update= (have_pk && primary_key_cmp(old_data, new_data));
   DBUG_ENTER("update_row");
   DBUG_ASSERT(trans); 
   /*
@@ -4033,6 +4036,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
       {
         thd_ndb->m_max_violation_count= 0;
         thd_ndb->m_old_violation_count= 0;
+        thd_ndb->m_conflict_fn_usage_count= 0;
         thd_ndb->m_unsent_bytes= 0;
         trans->execute(NdbTransaction::Rollback);
 #ifdef FIXED_OLD_DATA_TO_ACTUALLY_CONTAIN_GOOD_DATA
@@ -4061,7 +4065,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   bitmap_subtract(&m_bitmap, &m_pk_bitmap);
   uchar *mask= (uchar *)(m_bitmap.bitmap);
   /* Need to initialize bits for any extra hidden columns. */
-  if (table_share->primary_key == MAX_KEY || m_user_defined_partitioning)
+  if (!have_pk || m_user_defined_partitioning)
     clear_extended_column_set(mask);
 
   /* Need to set the value of any user-defined partitioning function. */
@@ -4071,7 +4075,8 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
     Batch update operation if we are doing a scan for update, unless
     there exist UPDATE AFTER triggers
   */
-  if (cursor && !m_update_cannot_batch)
+  if (!m_update_cannot_batch &&
+      (cursor || ((thd->options & OPTION_ALLOW_BATCH) && have_pk && !pk_update)))
   {
     /* For a scan, we only need to execute() if the batch buffer is full. */
     row= batch_copy_row_to_buffer(thd_ndb, new_data, need_execute);
@@ -4121,10 +4126,18 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   {  
     const NdbRecord *key_rec;
     const uchar *key_row;
-    if (table_share->primary_key != MAX_KEY)
+    if (have_pk)
     {
       key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
-      key_row= old_data;
+      if (!pk_update)
+      {
+        key_row= row;
+      }
+      else
+      {
+        DBUG_ASSERT(need_execute);
+        key_row= old_data;
+      }
     }
     else
     {
@@ -4152,6 +4165,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
         /* ToDo error handling */
         abort();
       }
+      thd_ndb->m_conflict_fn_usage_count++;
     }
 #endif /* HAVE_NDB_BINLOG */
     if (!(op= trans->updateTuple(key_rec, (const char *)key_row,
@@ -5754,7 +5768,9 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 
   if (thd->slave_thread)
   {
-    res= execute_commit(thd_ndb, trans, 1, TRUE);
+    if (!thd_ndb->m_conflict_fn_usage_count || !thd_ndb->m_unsent_bytes ||
+        !(res= execute_no_commit(thd_ndb, trans, FALSE, TRUE)))
+      res= execute_commit(thd_ndb, trans, 1, TRUE);
   }
   else
   {
@@ -5814,6 +5830,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
 
   thd_ndb->m_max_violation_count= 0;
   thd_ndb->m_old_violation_count= 0;
+  thd_ndb->m_conflict_fn_usage_count= 0;
   thd_ndb->m_unsent_bytes= 0;
   if (trans->execute(NdbTransaction::Rollback) != 0)
   {
