@@ -4075,8 +4075,9 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
     Batch update operation if we are doing a scan for update, unless
     there exist UPDATE AFTER triggers
   */
+  DBUG_ASSERT(!pk_update);
   if (!m_update_cannot_batch &&
-      (cursor || ((thd->options & OPTION_ALLOW_BATCH) && have_pk && !pk_update)))
+      (cursor || ((thd->options & OPTION_ALLOW_BATCH) && have_pk)))
   {
     /* For a scan, we only need to execute() if the batch buffer is full. */
     row= batch_copy_row_to_buffer(thd_ndb, new_data, need_execute);
@@ -4129,15 +4130,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
     if (have_pk)
     {
       key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
-      if (!pk_update)
-      {
-        key_row= row;
-      }
-      else
-      {
-        DBUG_ASSERT(need_execute);
-        key_row= old_data;
-      }
+      key_row= row;
     }
     else
     {
