@@ -2269,10 +2269,12 @@ int make_table_list(THD *thd, SELECT_LEX *sel,
   @param[in]      table                 I_S table
   @param[in, out] lookup_field_vals     Struct which holds lookup values 
 
-  @return         void
+  @return
+    0             success
+    1             error, there can be no matching records for the condition
 */
 
-void get_lookup_value(THD *thd, Item_func *item_func,
+bool get_lookup_value(THD *thd, Item_func *item_func,
                       TABLE_LIST *table, 
                       LOOKUP_FIELD_VALUES *lookup_field_vals)
 {
@@ -2305,12 +2307,16 @@ void get_lookup_value(THD *thd, Item_func *item_func,
       idx_val= 0;
     }
     else
-      return;
+      return 0;
 
     item_field= (Item_field*) item_func->arguments()[idx_field];
     if (table->table != item_field->field->table)
-      return;
+      return 0;
     tmp_str= item_func->arguments()[idx_val]->val_str(&str_buff);
+
+    /* impossible value */
+    if (!tmp_str)
+      return 1;
 
     /* Lookup value is database name */
     if (!cs->coll->strnncollsp(cs, (uchar *) field_name1, strlen(field_name1),
@@ -2330,7 +2336,7 @@ void get_lookup_value(THD *thd, Item_func *item_func,
                            tmp_str->length(), FALSE);
     }
   }
-  return;
+  return 0;
 }
 
 
@@ -2346,14 +2352,16 @@ void get_lookup_value(THD *thd, Item_func *item_func,
   @param[in]      table                 I_S table
   @param[in, out] lookup_field_vals     Struct which holds lookup values 
 
-  @return         void
+  @return
+    0             success
+    1             error, there can be no matching records for the condition
 */
 
-void calc_lookup_values_from_cond(THD *thd, COND *cond, TABLE_LIST *table,
+bool calc_lookup_values_from_cond(THD *thd, COND *cond, TABLE_LIST *table,
                                   LOOKUP_FIELD_VALUES *lookup_field_vals)
 {
   if (!cond)
-    return;
+    return 0;
 
   if (cond->type() == Item::COND_ITEM)
   {
@@ -2364,16 +2372,23 @@ void calc_lookup_values_from_cond(THD *thd, COND *cond, TABLE_LIST *table,
       while ((item= li++))
       {
         if (item->type() == Item::FUNC_ITEM)
-          get_lookup_value(thd, (Item_func*)item, table, lookup_field_vals);
+        {
+          if (get_lookup_value(thd, (Item_func*)item, table, lookup_field_vals))
+            return 1;
+        }
         else
-          calc_lookup_values_from_cond(thd, item, table, lookup_field_vals);
+        {
+          if (calc_lookup_values_from_cond(thd, item, table, lookup_field_vals))
+            return 1;
+        }
       }
     }
-    return;
+    return 0;
   }
-  else if (cond->type() == Item::FUNC_ITEM)
-    get_lookup_value(thd, (Item_func*) cond, table, lookup_field_vals);
-  return;
+  else if (cond->type() == Item::FUNC_ITEM &&
+           get_lookup_value(thd, (Item_func*) cond, table, lookup_field_vals))
+    return 1;
+  return 0;
 }
 
 
@@ -2486,10 +2501,12 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
   @param[in]      tables                I_S table
   @param[in, out] lookup_field_values   Struct which holds lookup values 
 
-  @return         void
+  @return
+    0             success
+    1             error, there can be no matching records for the condition
 */
 
-void get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
+bool get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
                              LOOKUP_FIELD_VALUES *lookup_field_values)
 {
   LEX *lex= thd->lex;
@@ -2503,7 +2520,7 @@ void get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
       lookup_field_values->db_value.length= strlen(wild);
       lookup_field_values->wild_db_value= 1;
     }
-    break;
+    return 0;
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_TRIGGERS:
@@ -2516,14 +2533,13 @@ void get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
       lookup_field_values->table_value.length= strlen(wild);
       lookup_field_values->wild_table_value= 1;
     }
-    break;
+    return 0;
   default:
     /*
       The "default" is for queries over I_S.
       All previous cases handle SHOW commands.
     */
-    calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
-    break;
+    return calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
   }
 }
 
@@ -3113,7 +3129,11 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   }
 
   schema_table_idx= get_schema_table_idx(schema_table);
-  get_lookup_field_values(thd, cond, tables, &lookup_field_vals);
+  if (get_lookup_field_values(thd, cond, tables, &lookup_field_vals))
+  {
+    error= 0;
+    goto err;
+  }
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              lookup_field_vals.db_value.str,
                              lookup_field_vals.table_value.str));
@@ -3328,7 +3348,8 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
 #endif
   DBUG_ENTER("fill_schema_shemata");
 
-  get_lookup_field_values(thd, cond, tables, &lookup_field_vals);
+  if (get_lookup_field_values(thd, cond, tables, &lookup_field_vals))
+    DBUG_RETURN(0);
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              lookup_field_vals.db_value.str,
                              lookup_field_vals.table_value.str));
