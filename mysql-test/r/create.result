@@ -755,7 +755,7 @@ use mysqltest;
 grant create on mysqltest.* to mysqltest@localhost;
 create table t1 (i INT);
 insert into t1 values (1);
-ERROR 42000: Access denied for user 'mysqltest'@'localhost' to database 'mysqltest'
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't1'
 create table t2 (i INT);
 create table t4 (i INT);
 grant select, insert on mysqltest.t2 to mysqltest@localhost;
