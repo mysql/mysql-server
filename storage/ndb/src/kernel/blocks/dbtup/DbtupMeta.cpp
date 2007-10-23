@@ -2124,3 +2124,22 @@ Dbtup::complete_restore_lcp(Uint32 tableId, Uint32 fragId)
     tabDesc += 2;
   }
 }
+
+bool
+Dbtup::get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage)
+{
+  jamEntry();
+  TablerecPtr tabPtr;
+  tabPtr.i= tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+
+  FragrecordPtr fragPtr;
+  getFragmentrec(fragPtr, fragId, tabPtr.p);
+  
+  if (maxPage)
+  {
+    * maxPage = fragPtr.p->noOfPages;
+  }
+
+  return true;
+}

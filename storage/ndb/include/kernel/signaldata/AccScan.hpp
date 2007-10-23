@@ -49,6 +49,7 @@ private:
     Uint32 savePointId;
     Uint32 gci;
   };
+  Uint32 maxPage;
 
   /**
    * Previously there where also a scan type

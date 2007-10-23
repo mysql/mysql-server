@@ -29,7 +29,7 @@ class CopyFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 10 );
 
 private:
   Uint32 userPtr;
@@ -42,6 +42,7 @@ private:
   Uint32 gci;
   Uint32 nodeCount;
   Uint32 nodeList[1];
+  //Uint32 maxPage; is stored in nodeList[nodeCount]
 };
 
 class CopyFragConf {
@@ -93,6 +94,44 @@ struct UpdateFragDistKeyOrd
   Uint32 fragDistributionKey;
 
   STATIC_CONST( SignalLength = 3 );
+};
+
+struct PrepareCopyFragReq
+{
+  STATIC_CONST( SignalLength = 6 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 copyNodeId;
+  Uint32 startingNodeId;
+};
+
+struct PrepareCopyFragRef
+{
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 copyNodeId;
+  Uint32 startingNodeId;
+  Uint32 errorCode;
+
+  STATIC_CONST( SignalLength = 7 );
+};
+
+struct PrepareCopyFragConf
+{
+  STATIC_CONST( SignalLength = 7 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 copyNodeId;
+  Uint32 startingNodeId;
+  Uint32 maxPageNo;
 };
 
 struct PrepareCopyFragReq
