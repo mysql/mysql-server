@@ -724,4 +724,10 @@ SELECT * FROM t1;
 a
 NULL
 DROP TABLE t1;
+CREATE TABLE `t1` ( `col9` set('a'), `col89` date);
+INSERT INTO `t1` VALUES ('','0000-00-00');
+select geomfromtext(col9,col89) as a from t1;
+a
+NULL
+DROP TABLE t1;
 End of 4.1 tests
