@@ -8427,9 +8427,9 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   *records= num_groups;
 
   DBUG_PRINT("info",
-             ("table rows: %u  keys/block: %u  keys/group: %u  result rows: %lu  blocks: %u",
-              table_records, keys_per_block, keys_per_group, (ulong) *records,
-              num_blocks));
+             ("table rows: %lu  keys/block: %u  keys/group: %u  result rows: %lu  blocks: %u",
+              (ulong)table_records, keys_per_block, keys_per_group,
+              (ulong) *records, num_blocks));
   DBUG_VOID_RETURN;
 }
 
