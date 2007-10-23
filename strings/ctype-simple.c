@@ -1561,14 +1561,18 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
       }
       else
         addon= (*str >= '5');
-      for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; str++)
+      if (!dot)
       {
-        if (!dot)
-          shift++;
+        for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; shift++, str++);
+        if (str < end && *str == '.')
+        {
+          str++;
+          for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; str++);
+        }
       }
-      if (str < end && *str == '.' && !dot)
+      else
       {
-        str++;
+        shift= dot - str;
         for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; str++);
       }
       goto exp;
