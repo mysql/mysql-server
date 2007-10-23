@@ -1089,3 +1089,12 @@ show columns from t1;
 drop table t1;
 
 --echo End of 5.0 tests.
+
+#
+# Bug#30079 A check for "hidden" I_S tables is flawed
+#
+--error 1109
+show fields from information_schema.table_names;
+--error 1109
+show keys from information_schema.table_names;
+
