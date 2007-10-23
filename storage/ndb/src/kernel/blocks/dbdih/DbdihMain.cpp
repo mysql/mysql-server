@@ -3275,7 +3275,8 @@ void Dbdih::toCopyFragLab(Signal* signal,
    */
   Uint32 nodeId = takeOverPtr.p->toStartingNode;
 
-  if (getNodeInfo(nodeId).m_version >= NDBD_PREPARE_COPY_FRAG_VERSION)
+  Uint32 version = getNodeInfo(nodeId).m_version;
+  if (ndb_check_prep_copy_frag_version(version))
   {
     jam();
     TabRecordPtr tabPtr;
@@ -3302,7 +3303,8 @@ void Dbdih::toCopyFragLab(Signal* signal,
     takeOverPtr.p->toMasterStatus = TakeOverRecord::PREPARE_COPY;
     return;
   }
-  
+
+  takeOverPtr.p->maxPage = RNIL;
   toStartCopyFrag(signal, takeOverPtr);
 }
 
@@ -3338,7 +3340,18 @@ Dbdih::execPREPARE_COPY_FRAG_CONF(Signal* signal)
 
   TakeOverRecordPtr takeOverPtr;
   RETURN_IF_TAKE_OVER_INTERRUPTED(conf.senderData, takeOverPtr);
-  
+
+  Uint32 version = getNodeInfo(refToNode(conf.senderRef)).m_version;
+  if (ndb_check_prep_copy_frag_version(version) >= 2)
+  {
+    jam();
+    takeOverPtr.p->maxPage = conf.maxPageNo;
+  }
+  else
+  {
+    jam();
+    takeOverPtr.p->maxPage = RNIL;
+  }
   toStartCopyFrag(signal, takeOverPtr);
 }
 
@@ -3602,10 +3615,12 @@ void Dbdih::execCREATE_FRAGCONF(Signal* signal)
     copyFragReq->schemaVersion = tabPtr.p->schemaVersion;
     copyFragReq->distributionKey = fragPtr.p->distributionKey;
     copyFragReq->gci = gci;
-    copyFragReq->nodeCount = extractNodeInfo(fragPtr.p, 
-					     copyFragReq->nodeList);
+    Uint32 len = copyFragReq->nodeCount = 
+      extractNodeInfo(fragPtr.p, 
+                      copyFragReq->nodeList);
+    copyFragReq->nodeList[len] = takeOverPtr.p->maxPage;
     sendSignal(ref, GSN_COPY_FRAGREQ, signal, 
-	       CopyFragReq::SignalLength +  copyFragReq->nodeCount, JBB);
+               CopyFragReq::SignalLength + len, JBB);
   } else {
     ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::COMMIT_CREATE);
     jam();

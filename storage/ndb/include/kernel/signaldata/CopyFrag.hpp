@@ -29,7 +29,7 @@ class CopyFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 10 );
 
 private:
   Uint32 userPtr;
@@ -42,6 +42,7 @@ private:
   Uint32 gci;
   Uint32 nodeCount;
   Uint32 nodeList[1];
+  //Uint32 maxPage; is stored in nodeList[nodeCount]
 };
 
 class CopyFragConf {

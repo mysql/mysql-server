@@ -548,6 +548,7 @@ public:
       TO_SLAVE_COPY_COMPLETED = 5
     };
     Uint32 startGci;
+    Uint32 maxPage;
     Uint32 toCopyNode;
     Uint32 toCurrentFragid;
     Uint32 toCurrentReplica;
