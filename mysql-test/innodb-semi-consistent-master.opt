@@ -1,0 +1,1 @@
+--innodb_locks_unsafe_for_binlog=true --innodb_lock_wait_timeout=2
