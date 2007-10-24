@@ -812,4 +812,14 @@ select group_concat(f1),group_concat(f2) from t1;
 group_concat(f1)	group_concat(f2)
 -0.123456	0.123456
 drop table t1;
+create table t1 (
+ua_id decimal(22,0) not null,
+ua_invited_by_id decimal(22,0) default NULL,
+primary key(ua_id)
+);
+insert into t1 values (123, NULL), (456, NULL);
+this must not produce error 1048: 
+select * from t1 where ua_invited_by_id not in (select ua_id from t1);
+ua_id	ua_invited_by_id
+drop table t1;
 End of 5.0 tests
