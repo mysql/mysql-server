@@ -6180,12 +6180,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       case HA_ERR_RECORD_CHANGED:
       case HA_ERR_KEY_NOT_FOUND:	/* Idempotency support: OK if
                                            tuple does not exist */
-        if (get_type_code() != UPDATE_ROWS_EVENT)
-        {
-          error= 0;
-          break;
-        }
-        /* Fall through in the event that we have an update event */
+        error= 0;
+        break;
+
       default:
 	rli->report(ERROR_LEVEL, thd->net.last_errno,
                     "Error in %s event: row application failed. %s",
