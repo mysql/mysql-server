@@ -109,7 +109,7 @@ row_build_index_entry(
 		const dfield_t*		dfield2
 			= dtuple_get_nth_field(row, col_no);
 		ulint			len
-			= dfield_get_len(dfield);
+			= dfield_get_len(dfield2);
 
 		dfield_copy(dfield, dfield2);
 
