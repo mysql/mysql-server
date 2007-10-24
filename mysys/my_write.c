@@ -29,6 +29,10 @@ uint my_write(int Filedes, const byte *Buffer, uint Count, myf MyFlags)
 		   Filedes, (long) Buffer, Count, MyFlags));
   errors=0; written=0L;
 
+  /* The behavior of write(fd, buf, 0) is not portable */
+  if (unlikely(!Count))
+    return 0;
+  
   for (;;)
   {
     if ((writenbytes = (uint) write(Filedes, Buffer, Count)) == Count)
