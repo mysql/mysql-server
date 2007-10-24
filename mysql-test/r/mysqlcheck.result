@@ -58,3 +58,21 @@ test.t1                                            OK
 drop view v1;
 drop table t1;
 End of 5.0 tests
+create table t1(a int);
+create view v1 as select * from t1;
+show tables;
+Tables_in_test
+t1
+v1
+show tables;
+Tables_in_test
+t1
+#mysql50#v-1
+v1
+show tables;
+Tables_in_test
+t1
+v1
+v-1
+drop view v1, `v-1`;
+drop table t1;
