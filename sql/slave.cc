@@ -1863,10 +1863,13 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       // EVENT_SKIP_NOT,
       "not skipped",
       // EVENT_SKIP_IGNORE,
-      "skipped because event originated from this server",
+      "skipped because event should be ignored",
       // EVENT_SKIP_COUNT
       "skipped because event skip counter was non-zero"
     };
+    DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
+                        thd->options & OPTION_BEGIN ? 1 : 0,
+                        rli->get_flag(Relay_log_info::IN_STMT)));
     DBUG_PRINT("skip_event", ("%s event was %s",
                               ev->get_type_str(), explain[reason]));
 #endif
