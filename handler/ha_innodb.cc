@@ -3431,7 +3431,7 @@ no_commit:
 			/*
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB error: ALTER TABLE is holding lock"
+				"  InnoDB: ALTER TABLE is holding lock"
 				" on %lu tables!\n",
 				prebuilt->trx->mysql_n_tables_locked);
 			*/
@@ -6589,14 +6589,17 @@ ha_innobase::transactional_table_lock(
 
 	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB error:\n"
-"MySQL is trying to use a table handle but the .ibd file for\n"
-"table %s does not exist.\n"
-"Have you deleted the .ibd file from the database directory under\n"
-"the MySQL datadir?"
-"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
-"how you can resolve the problem.\n",
-				prebuilt->table->name);
+		fprintf(stderr,
+			"  InnoDB: MySQL is trying to use a table handle"
+			" but the .ibd file for\n"
+			"InnoDB: table %s does not exist.\n"
+			"InnoDB: Have you deleted the .ibd file"
+			" from the database directory under\n"
+			"InnoDB: the MySQL datadir?"
+			"InnoDB: See"
+			" http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
+			"InnoDB: how you can resolve the problem.\n",
+			prebuilt->table->name);
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
