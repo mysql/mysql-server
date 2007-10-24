@@ -242,7 +242,7 @@ drop function bug27563;
 drop function bug27565;
 }
 
-system rm $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog ;
+remove_file $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog ;
 
 drop table t1,t2,t3;
 
