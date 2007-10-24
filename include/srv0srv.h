@@ -162,11 +162,19 @@ extern ibool	srv_priority_boost;
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 
+#ifdef UNIV_DEBUG
 extern	ibool	srv_print_thread_releases;
 extern	ibool	srv_print_lock_waits;
 extern	ibool	srv_print_buf_io;
 extern	ibool	srv_print_log_io;
 extern	ibool	srv_print_latch_waits;
+#else /* UNIV_DEBUG */
+# define srv_print_thread_releases	FALSE
+# define srv_print_lock_waits		FALSE
+# define srv_print_buf_io		FALSE
+# define srv_print_log_io		FALSE
+# define srv_print_latch_waits		FALSE
+#endif /* UNIV_DEBUG */
 
 extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
@@ -286,6 +294,22 @@ of lower numbers are included. */
 #define SRV_FORCE_NO_LOG_REDO	6	/* do not do the log roll-forward
 					in connection with recovery */
 
+/** Types of threads existing in the system. */
+enum srv_thread_type {
+	SRV_COM = 1,	/**< threads serving communication and queries */
+	SRV_CONSOLE,	/**< thread serving console */
+	SRV_WORKER,	/**< threads serving parallelized queries and
+			queries released from lock wait */
+#if 0
+	/* Utility threads */
+	SRV_BUFFER,	/**< thread flushing dirty buffer blocks */
+	SRV_RECOVERY,	/**< threads finishing a recovery */
+	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
+#endif
+	SRV_MASTER	/**< the master thread, (whose type number must
+			be biggest) */
+};
+
 /*************************************************************************
 Boots Innobase server. */
 
@@ -321,7 +345,7 @@ srv_get_n_threads(void);
 /*************************************************************************
 Returns the calling thread type. */
 
-ulint
+enum srv_thread_type
 srv_get_thread_type(void);
 /*=====================*/
 			/* out: SRV_COM, ... */
@@ -341,11 +365,12 @@ NOTE! The server mutex has to be reserved by the caller! */
 ulint
 srv_release_threads(
 /*================*/
-			/* out: number of threads released: this may be
-			< n if not enough threads were suspended at the
-			moment */
-	ulint	type,	/* in: thread type */
-	ulint	n);	/* in: number of threads to release */
+					/* out: number of threads
+					released: this may be < n if
+					not enough threads were
+					suspended at the moment */
+	enum srv_thread_type	type,	/* in: thread type */
+	ulint			n);	/* in: number of threads to release */
 /*************************************************************************
 The master thread controlling the server. */
 
@@ -465,24 +490,6 @@ Function to pass InnoDB status variables to MySQL */
 void
 srv_export_innodb_status(void);
 /*=====================*/
-
-/* Types for the threads existing in the system. Threads of types 4 - 9
-are called utility threads. Note that utility threads are mainly disk
-bound, except that version threads 6 - 7 may also be CPU bound, if
-cleaning versions from the buffer pool. */
-
-#define	SRV_COM		1	/* threads serving communication and queries */
-#define	SRV_CONSOLE	2	/* thread serving console */
-#define	SRV_WORKER	3	/* threads serving parallelized queries and
-				queries released from lock wait */
-#define SRV_BUFFER	4	/* thread flushing dirty buffer blocks,
-				not currently in use */
-#define SRV_RECOVERY	5	/* threads finishing a recovery,
-				not currently in use */
-#define SRV_INSERT	6	/* thread flushing the insert buffer to disk,
-				not currently in use */
-#define SRV_MASTER	7	/* the master thread, (whose type number must
-				be biggest) */
 
 /* Thread slot in the thread table */
 typedef struct srv_slot_struct	srv_slot_t;

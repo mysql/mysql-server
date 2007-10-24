@@ -344,11 +344,13 @@ ulong	srv_thread_sleep_delay = 10000;
 ulint	srv_spin_wait_delay	= 5;
 ibool	srv_priority_boost	= TRUE;
 
+#ifdef UNIV_DEBUG
 ibool	srv_print_thread_releases	= FALSE;
 ibool	srv_print_lock_waits		= FALSE;
 ibool	srv_print_buf_io		= FALSE;
 ibool	srv_print_log_io		= FALSE;
 ibool	srv_print_latch_waits		= FALSE;
+#endif /* UNIV_DEBUG */
 
 ulint		srv_n_rows_inserted		= 0;
 ulint		srv_n_rows_updated		= 0;
@@ -579,9 +581,9 @@ Unix.*/
 struct srv_slot_struct{
 	os_thread_id_t	id;		/* thread id */
 	os_thread_t	handle;		/* thread handle */
-	ulint		type;		/* thread type: user, utility etc. */
-	ibool		in_use;		/* TRUE if this slot is in use */
-	ibool		suspended;	/* TRUE if the thread is waiting
+	unsigned	type:3;		/* thread type: user, utility etc. */
+	unsigned	in_use:1;	/* TRUE if this slot is in use */
+	unsigned	suspended:1;	/* TRUE if the thread is waiting
 					for the event of this slot */
 	ib_time_t	suspend_time;	/* time when the thread was
 					suspended */
@@ -607,6 +609,7 @@ byte		srv_pad2[64];	/* padding to prevent other memory update
 				hotspots from residing on the same memory
 				cache line */
 
+#if 0
 /* The following three values measure the urgency of the jobs of
 buffer, version, and insert threads. They may vary from 0 - 1000.
 The server mutex protects all these variables. The low-water values
@@ -618,6 +621,7 @@ ulint	srv_meter_low_water[SRV_MASTER + 1];
 ulint	srv_meter_high_water[SRV_MASTER + 1];
 ulint	srv_meter_high_water2[SRV_MASTER + 1];
 ulint	srv_meter_foreground[SRV_MASTER + 1];
+#endif
 
 /* The following values give info about the activity going on in
 the database. They are protected by the server mutex. The arrays
@@ -687,8 +691,8 @@ static
 ulint
 srv_table_reserve_slot(
 /*===================*/
-			/* out: reserved slot index */
-	ulint	type)	/* in: type of the thread: one of SRV_COM, ... */
+					/* out: reserved slot index */
+	enum srv_thread_type	type)	/* in: type of the thread */
 {
 	srv_slot_t*	slot;
 	ulint		i;
@@ -708,9 +712,9 @@ srv_table_reserve_slot(
 
 	slot->in_use = TRUE;
 	slot->suspended = FALSE;
+	slot->type = type;
 	slot->id = os_thread_get_curr_id();
 	slot->handle = os_thread_get_curr();
-	slot->type = type;
 
 	thr_local_create();
 
@@ -728,10 +732,10 @@ srv_suspend_thread(void)
 /*====================*/
 			/* out: event for the calling thread to wait */
 {
-	srv_slot_t*	slot;
-	os_event_t	event;
-	ulint		slot_no;
-	ulint		type;
+	srv_slot_t*		slot;
+	os_event_t		event;
+	ulint			slot_no;
+	enum srv_thread_type	type;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -739,9 +743,8 @@ srv_suspend_thread(void)
 
 	if (srv_print_thread_releases) {
 		fprintf(stderr,
-			"Suspending thread %lu to slot %lu meter %lu\n",
-			(ulong) os_thread_get_curr_id(), (ulong) slot_no,
-			(ulong) srv_meter[SRV_RECOVERY]);
+			"Suspending thread %lu to slot %lu\n",
+			(ulong) os_thread_get_curr_id(), (ulong) slot_no);
 	}
 
 	slot = srv_table_get_nth_slot(slot_no);
@@ -772,11 +775,12 @@ NOTE! The server mutex has to be reserved by the caller! */
 ulint
 srv_release_threads(
 /*================*/
-			/* out: number of threads released: this may be
-			< n if not enough threads were suspended at the
-			moment */
-	ulint	type,	/* in: thread type */
-	ulint	n)	/* in: number of threads to release */
+					/* out: number of threads
+					released: this may be < n if
+					not enough threads were
+					suspended at the moment */
+	enum srv_thread_type	type,	/* in: thread type */
+	ulint			n)	/* in: number of threads to release */
 {
 	srv_slot_t*	slot;
 	ulint		i;
@@ -802,10 +806,9 @@ srv_release_threads(
 			if (srv_print_thread_releases) {
 				fprintf(stderr,
 					"Releasing thread %lu type %lu"
-					" from slot %lu meter %lu\n",
+					" from slot %lu\n",
 					(ulong) slot->id, (ulong) type,
-					(ulong) i,
-					(ulong) srv_meter[SRV_RECOVERY]);
+					(ulong) i);
 			}
 
 			count++;
@@ -822,14 +825,14 @@ srv_release_threads(
 /*************************************************************************
 Returns the calling thread type. */
 
-ulint
+enum srv_thread_type
 srv_get_thread_type(void)
 /*=====================*/
 			/* out: SRV_COM, ... */
 {
-	ulint		slot_no;
-	srv_slot_t*	slot;
-	ulint		type;
+	ulint			slot_no;
+	srv_slot_t*		slot;
+	enum srv_thread_type	type;
 
 	mutex_enter(&kernel_mutex);
 
@@ -891,11 +894,13 @@ srv_init(void)
 	for (i = 0; i < SRV_MASTER + 1; i++) {
 		srv_n_threads_active[i] = 0;
 		srv_n_threads[i] = 0;
+#if 0
 		srv_meter[i] = 30;
 		srv_meter_low_water[i] = 50;
 		srv_meter_high_water[i] = 100;
 		srv_meter_high_water2[i] = 200;
 		srv_meter_foreground[i] = 250;
+#endif
 	}
 
 	UT_LIST_INIT(srv_sys->tasks);
