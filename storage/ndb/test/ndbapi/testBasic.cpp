@@ -136,31 +136,13 @@ int runPkRead(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
+  int lm = ctx->getProperty("LockMode", NdbOperation::LM_Read);
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (i<loops) {
     g_info << i << ": ";
-    if (hugoTrans.pkReadRecords(GETNDB(step), records, batchSize) != NDBT_OK){
-      g_info << endl;
-      return NDBT_FAILED;
-    }
-    i++;
-  }
-  g_info << endl;
-  return NDBT_OK;
-}
-
-int runPkDirtyRead(NDBT_Context* ctx, NDBT_Step* step){
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  int batchSize = ctx->getProperty("BatchSize", 1);
-  int i = 0;
-  bool dirty = true;
-  HugoTransactions hugoTrans(*ctx->getTab());
-  while (i<loops) {
-    g_info << i << ": ";
-    if (hugoTrans.pkReadRecords(GETNDB(step), records, batchSize, 
-				NdbOperation::LM_CommittedRead) != NDBT_OK){
+    if (hugoTrans.pkReadRecords(GETNDB(step), records, batchSize,
+                                (NdbOperation::LockMode)lm) != NDBT_OK){
       g_info << endl;
       return NDBT_FAILED;
     }
@@ -1552,14 +1534,23 @@ TESTCASE("PkInsert",
 }
 TESTCASE("PkRead", 
 	   "Verify that we can insert, read and delete from this table using PK"){
+  TC_PROPERTY("LockMode", NdbOperation::LM_Read);
   INITIALIZER(runLoadTable);
   STEP(runPkRead);
   FINALIZER(runClearTable);
 }
 TESTCASE("PkDirtyRead", 
 	 "Verify that we can insert, dirty read and delete from this table using PK"){
+  TC_PROPERTY("LockMode", NdbOperation::LM_Dirty);
   INITIALIZER(runLoadTable);
-  STEP(runPkDirtyRead);
+  STEP(runPkRead);
+  FINALIZER(runClearTable);
+}
+TESTCASE("PkSimpleRead", 
+	 "Verify that we can insert, simple read and delete from this table using PK"){
+  TC_PROPERTY("LockMode", NdbOperation::LM_SimpleRead);
+  INITIALIZER(runLoadTable);
+  STEP(runPkRead);
   FINALIZER(runClearTable);
 }
 TESTCASE("PkUpdate", 
