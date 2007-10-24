@@ -319,7 +319,7 @@ cleanup:
     thd->transaction.stmt.modified_non_trans_table= TRUE;
   
   /* See similar binlogging code in sql_update.cc, for comments */
-  if ((error < 0) || (deleted && !transactional_table))
+  if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
     {
@@ -504,7 +504,7 @@ bool mysql_multi_delete_prepare(THD *thd)
 multi_delete::multi_delete(TABLE_LIST *dt, uint num_of_tables_arg)
   : delete_tables(dt), deleted(0), found(0),
     num_of_tables(num_of_tables_arg), error(0),
-    do_delete(0), transactional_tables(0), normal_tables(0)
+    do_delete(0), transactional_tables(0), normal_tables(0), error_handled(0)
 {
   tempfiles= (Unique **) sql_calloc(sizeof(Unique *) * num_of_tables);
 }
@@ -685,12 +685,14 @@ void multi_delete::send_error(uint errcode,const char *err)
   /* First send error what ever it is ... */
   my_message(errcode, err, MYF(0));
 
-  /* If nothing deleted return */
-  if (!deleted)
+  /* the error was handled or nothing deleted and no side effects return */
+  if (error_handled ||
+      !thd->transaction.stmt.modified_non_trans_table && !deleted)
     DBUG_VOID_RETURN;
 
   /* Something already deleted so we have to invalidate cache */
-  query_cache_invalidate3(thd, delete_tables, 1);
+  if (deleted)
+    query_cache_invalidate3(thd, delete_tables, 1);
 
   /*
     If rows from the first table only has been deleted and it is
@@ -710,10 +712,27 @@ void multi_delete::send_error(uint errcode,const char *err)
     */
     error= 1;
     send_eof();
+    DBUG_ASSERT(error_handled);
+    DBUG_VOID_RETURN;
+  }
+  
+  if (thd->transaction.stmt.modified_non_trans_table)
+  {
+    /* 
+       there is only side effects; to binlog with the error
+    */
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            transactional_tables, FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+    thd->transaction.all.modified_non_trans_table= true;
   }
   DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
   DBUG_VOID_RETURN;
 }
+
 
 
 /*
@@ -817,7 +836,8 @@ bool multi_delete::send_eof()
   {
     query_cache_invalidate3(thd, delete_tables, 1);
   }
-  if ((local_error == 0) || (deleted && normal_tables))
+  DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
+  if ((local_error == 0) || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
     {
@@ -831,7 +851,8 @@ bool multi_delete::send_eof()
     if (thd->transaction.stmt.modified_non_trans_table)
       thd->transaction.all.modified_non_trans_table= TRUE;
   }
-  DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
+  if (local_error != 0)
+    error_handled= TRUE; // to force early leave from ::send_error()
 
   /* Commit or rollback the current SQL statement */
   if (transactional_tables)
