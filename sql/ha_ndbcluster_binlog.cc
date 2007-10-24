@@ -3156,7 +3156,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
     if (trans->execute(NdbTransaction::Commit,
                        NdbOperation::AO_IgnoreError))
     {
-      if (ndb->getNdbError().status == NdbError::TemporaryError);
+      if (ndb->getNdbError().status == NdbError::TemporaryError)
       {
         if (retries--)
         {
