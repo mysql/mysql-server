@@ -245,11 +245,9 @@ SELECT * FROM t1 ORDER BY a;
 --echo **** On Master ****
 connection master;
 UPDATE t1 SET a = 5, b = 'master' WHERE a = 1;
-save_master_pos;
 SELECT * FROM t1 ORDER BY a;
 --echo **** On Slave ****
-connection slave;
-source include/wait_for_slave_sql_error.inc;
+sync_slave_with_master;
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;

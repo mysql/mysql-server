@@ -265,7 +265,7 @@ a	b
 5	master
 **** On Slave ****
 Last_SQL_Error
-Error in Update_rows event: error during transaction execution on table test.t1. Can't find record in 't1'
+
 SELECT * FROM t1 ORDER BY a;
 a	b
 2	master,slave
