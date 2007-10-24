@@ -31,3 +31,26 @@ SELECT hex(a) FROM t1 ORDER BY a;
 DROP TABLE t1;
 
 # End of 4.1 tests
+
+#
+#Bug #30315 Character sets: insertion of euckr code value 0xa141 fails
+#
+create table t1 (s1 varchar(5) character set euckr);
+# Insert some valid characters
+insert into t1 values (0xA141);
+insert into t1 values (0xA15A);
+insert into t1 values (0xA161);
+insert into t1 values (0xA17A);
+insert into t1 values (0xA181);
+insert into t1 values (0xA1FE);
+# Insert some invalid characters
+insert into t1 values (0xA140);
+insert into t1 values (0xA15B);
+insert into t1 values (0xA160);
+insert into t1 values (0xA17B);
+insert into t1 values (0xA180);
+insert into t1 values (0xA1FF);
+select hex(s1), hex(convert(s1 using utf8)) from t1 order by binary s1;
+drop table t1;
+
+--echo End of 5.0 tests

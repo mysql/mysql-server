@@ -27,6 +27,10 @@
 
 #define log_cs	&my_charset_latin1
 
+#ifndef DBUG_OFF
+uint debug_not_change_ts_if_art_event= 1; // bug#29309 simulation
+#endif
+
 /*
   pretty_print_str()
 */
@@ -481,6 +485,18 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
       rli->inc_event_relay_log_pos();
     else
     {
+      /*
+        bug#29309 simulation: resetting the flag to force
+        wrong behaviour of artificial event to update
+        rli->last_master_timestamp for only one time -
+        the first FLUSH LOGS in the test.
+      */
+      DBUG_EXECUTE_IF("let_first_flush_log_change_timestamp",
+                      if (debug_not_change_ts_if_art_event == 1
+                          && is_artificial_event())
+                      {
+                        debug_not_change_ts_if_art_event= 0;
+                      });
       rli->inc_group_relay_log_pos(log_pos);
       flush_relay_log_info(rli);
       /* 
@@ -491,7 +507,21 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
          rare cases, only consequence is that value may take some time to
          display in Seconds_Behind_Master - not critical).
       */
-      rli->last_master_timestamp= when;
+#ifndef DBUG_OFF
+      if (!(is_artificial_event() && debug_not_change_ts_if_art_event > 0))
+#else
+      if (!is_artificial_event())
+#endif
+        rli->last_master_timestamp= when;
+      /*
+        The flag is set back to be positive so that 
+        any further FLUSH LOGS will be handled as prescribed.
+      */
+      DBUG_EXECUTE_IF("let_first_flush_log_change_timestamp",
+                      if (debug_not_change_ts_if_art_event == 0)
+                      {
+                        debug_not_change_ts_if_art_event= 2;
+                      });
     }
   }
   DBUG_RETURN(0);
