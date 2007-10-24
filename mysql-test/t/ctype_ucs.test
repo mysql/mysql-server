@@ -547,6 +547,14 @@ select quote(name) from bug20536;
 
 drop table bug20536;
 
+#
+# BUG#31159 - fulltext search on ucs2 column crashes server
+#
+CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci);
+INSERT INTO t1 VALUES('abcd');
+SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
+DROP TABLE t1;
+
 --echo End of 4.1 tests
 
 #

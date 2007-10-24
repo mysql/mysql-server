@@ -4939,13 +4939,44 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return TRUE;
   }
-  table=((Item_field *)item)->field->table;
+  /*
+    With prepared statements Item_func_match::fix_fields is called twice.
+    When it is called first time we have original item tree here and add
+    conversion layer for character sets that do not have ctype array a few
+    lines below. When it is called second time, we already have conversion
+    layer in item tree.
+  */
+  table= (item->type() == Item::FIELD_ITEM) ?
+         ((Item_field *)item)->field->table :
+         ((Item_field *)((Item_func_conv *)item)->key_item())->field->table;
   if (!(table->file->table_flags() & HA_CAN_FULLTEXT))
   {
     my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
     return 1;
   }
   table->fulltext_searched=1;
+  /* A workaround for ucs2 character set */
+  if (!args[1]->collation.collation->ctype)
+  {
+    CHARSET_INFO *compatible_cs=
+      get_compatible_charset_with_ctype(args[1]->collation.collation);
+    bool rc= 1;
+    if (compatible_cs)
+    {
+      Item_string *conv_item= new Item_string("", 0, compatible_cs,
+                                              DERIVATION_EXPLICIT);
+      item= args[0];
+      args[0]= conv_item;
+      rc= agg_item_charsets(cmp_collation, func_name(), args, arg_count,
+                            MY_COLL_ALLOW_SUPERSET_CONV |
+                            MY_COLL_ALLOW_COERCIBLE_CONV |
+                            MY_COLL_DISALLOW_NONE, 1);
+      args[0]= item;
+    }
+    else
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "MATCH");
+    return rc;
+  }
   return agg_arg_collations_for_comparison(cmp_collation,
                                            args+1, arg_count-1, 0);
 }
