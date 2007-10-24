@@ -110,6 +110,7 @@ ndb_check_micro_gcp(Uint32 version)
       return version >= NDBD_MICRO_GCP_63;
     }
   }
+  return 0;
 }
 
 #define NDBD_PREPARE_COPY_FRAG_VERSION NDB_MAKE_VERSION(6,2,1)
