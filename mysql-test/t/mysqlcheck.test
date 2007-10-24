@@ -38,3 +38,16 @@ drop view v1;
 drop table t1;
 
 --echo End of 5.0 tests
+
+#
+# Bug #30679: 5.1 name encoding not performed for views during upgrade
+#
+create table t1(a int);
+create view v1 as select * from t1;
+show tables;
+--copy_file $MYSQLTEST_VARDIR/master-data/test/v1.frm $MYSQLTEST_VARDIR/master-data/test/v-1.frm
+show tables;
+--exec $MYSQL_CHECK --check-upgrade --fix-table-names --databases test
+show tables;
+drop view v1, `v-1`;
+drop table t1;
