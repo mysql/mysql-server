@@ -6855,7 +6855,7 @@ bool check_constant_expressions(List<Item> *values)
   Item *value;
   DBUG_ENTER("check_constant_expressions");
 
-  while (value= v++)
+  while ((value= v++))
   {
     if (!value->const_item())
     {
