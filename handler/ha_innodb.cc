@@ -2384,13 +2384,18 @@ ha_innobase::open(
 
 	if (NULL == ib_table) {
 		ut_print_timestamp(stderr);
-		sql_print_error("Cannot find table %s from the internal data "
-				"dictionary\nof InnoDB though the .frm file "
-				"for the table exists. Maybe you\nhave "
-				"deleted and recreated InnoDB data files but "
-				"have forgotten\nto delete the corresponding "
-				".frm files of InnoDB tables, or you\n"
-				"have moved .frm files to another database?\n"
+		sql_print_error("Cannot find or open table %s from\n"
+				"the internal data dictionary of InnoDB "
+				"though the .frm file for the\n"
+				"table exists. Maybe you have deleted and "
+				"recreated InnoDB data\n"
+				"files but have forgotten to delete the "
+				"corresponding .frm files\n"
+				"of InnoDB tables, or you have moved .frm "
+				"files to another database?\n"
+				"or, the table contains indexes that this "
+				"version of the engine\n"
+				"doesn't support.\n"
 				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
@@ -3544,6 +3549,7 @@ no_commit:
 
 	/* Handle duplicate key errors */
 	if (auto_inc_used) {
+		ulint		err;
 		ulonglong	auto_inc;
 
 		/* Note the number of rows processed for this statement, used
@@ -3596,7 +3602,11 @@ set_max_autoinc:
 				ut_a(prebuilt->table->autoinc_increment > 0);
 				auto_inc += prebuilt->table->autoinc_increment;
 
-				innobase_set_max_autoinc(auto_inc);
+				err = innobase_set_max_autoinc(auto_inc);
+
+				if (err != DB_SUCCESS) {
+					error = err;
+				}
 			}
 			break;
 		}
@@ -3829,7 +3839,7 @@ ha_innobase::update_row(
 		if (auto_inc != 0) {
 			auto_inc += prebuilt->table->autoinc_increment;
 
-			innobase_set_max_autoinc(auto_inc);
+			error = innobase_set_max_autoinc(auto_inc);
 		}
 	}
 
@@ -7288,8 +7298,8 @@ the value of the auto-inc counter. */
 int
 ha_innobase::innobase_read_and_init_auto_inc(
 /*=========================================*/
-						/* out: 0 or error code:
-						deadlock or lock wait timeout */
+						/* out: 0 or generic MySQL
+						error code */
         longlong*	value)			/* out: the autoinc value */
 {
 	longlong	auto_inc;
@@ -7346,9 +7356,9 @@ ha_innobase::innobase_read_and_init_auto_inc(
 			++auto_inc;
 			dict_table_autoinc_initialize(innodb_table, auto_inc);
 		} else {
-			fprintf(stderr, "  InnoDB error: Couldn't read the "
-				"max AUTOINC value from index (%s).\n",
-				index->name);
+			fprintf(stderr, " InnoDB error (%lu): Couldn't read "
+				"the max AUTOINC value from the index (%s).\n",
+				error, index->name);
 
 			mysql_error = 1;
 		}
@@ -7432,7 +7442,16 @@ ha_innobase::innobase_get_auto_increment(
 			} else {
 				*value = (ulonglong) autoinc;
 			}
+		/* A deadlock error during normal processing is OK
+		and can be ignored. */
+		} else if (error != DB_DEADLOCK) {
+
+			ut_print_timestamp(stderr);
+			sql_print_error(" InnoDB Error %lu in "
+					"::innobase_get_auto_increment()",
+					error);
 		}
+
 	} while (*value == 0 && error == DB_SUCCESS);
 
 	return(error);
@@ -7465,13 +7484,6 @@ ha_innobase::get_auto_increment(
 	error = innobase_get_auto_increment(&autoinc);
 
 	if (error != DB_SUCCESS) {
-		/* This should never happen in the code > ver 5.0.6,
-		since we call this function only after the counter
-		has been initialized. */
-
-		ut_print_timestamp(stderr);
-		sql_print_error("Error %lu in ::get_auto_increment()", error);
-
 		*first_value = (~(ulonglong) 0);
 		return;
 	}

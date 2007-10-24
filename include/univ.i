@@ -329,20 +329,22 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_DESC(addr, size, b) VALGRIND_CREATE_BLOCK(addr, size, b)
 # define UNIV_MEM_UNDESC(b) VALGRIND_DISCARD(b)
 # define UNIV_MEM_ASSERT_RW(addr, size) do {				\
-	const void* _p = (const void*)					\
+	const void* _p = (const void*) (ulint)				\
 		VALGRIND_CHECK_MEM_IS_DEFINED(addr, size);		\
 	if (UNIV_LIKELY_NULL(_p))					\
-		fprintf(stderr, "%p[%u] undefined at %d\n",		\
-			(const void*) (addr), (unsigned) (size),	\
-			((const char*) _p) - ((const char*) (addr)));	\
+		fprintf(stderr, "%s:%d: %p[%u] undefined at %ld\n",	\
+			__FILE__, __LINE__,				\
+			(const void*) (addr), (unsigned) (size), (long)	\
+			(((const char*) _p) - ((const char*) (addr))));	\
 	} while (0)
 # define UNIV_MEM_ASSERT_W(addr, size) do {				\
-	const void* _p = (const void*)					\
+	const void* _p = (const void*) (ulint)				\
 		VALGRIND_CHECK_MEM_IS_ADDRESSABLE(addr, size);		\
 	if (UNIV_LIKELY_NULL(_p))					\
-		fprintf(stderr, "%p[%u] unwritable at %d\n",		\
-			(const void*) (addr), (unsigned) (size),	\
-			((const char*) _p) - ((const char*) (addr)));	\
+		fprintf(stderr, "%s:%d: %p[%u] unwritable at %ld\n",	\
+			__FILE__, __LINE__,				\
+			(const void*) (addr), (unsigned) (size), (long)	\
+			(((const char*) _p) - ((const char*) (addr))));	\
 	} while (0)
 #else
 # define UNIV_MEM_VALID(addr, size) do {} while(0)

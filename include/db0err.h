@@ -69,6 +69,11 @@ Created 5/24/1996 Heikki Tuuri
 #define DB_PRIMARY_KEY_IS_NULL	48	/* a column in the PRIMARY KEY
 					was found to be NULL */
 
+#define DB_UNSUPPORTED		49	/* when InnoDB sees any artefact or
+					a feature that it can't recoginize or
+					work with e.g., FT indexes created by
+					a later version of the engine. */
+
 /* The following are partial failure codes */
 #define DB_FAIL			1000
 #define DB_OVERFLOW		1001

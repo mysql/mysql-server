@@ -581,11 +581,13 @@ next_rec:
 Loads definitions for table indexes. Adds them to the data dictionary
 cache. */
 static
-ibool
+ulint
 dict_load_indexes(
 /*==============*/
-				/* out: TRUE if ok, FALSE if corruption
-				of dictionary table */
+				/* out: DB_SUCCESS if ok, DB_CORRUPTION
+				if corruption of dictionary table or
+				DB_UNSUPPORTED if table has unknown index
+				type */
 	dict_table_t*	table,	/* in: table */
 	mem_heap_t*	heap)	/* in: memory heap for temporary storage */
 {
@@ -608,6 +610,7 @@ dict_load_indexes(
 	ibool		is_sys_table;
 	dulint		id;
 	mtr_t		mtr;
+	ulint		error = DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -676,7 +679,18 @@ dict_load_indexes(
 		field = rec_get_nth_field_old(rec, 8, &len);
 		page_no = mach_read_from_4(field);
 
-		if (page_no == FIL_NULL) {
+		/* We check for unsupported types first, so that the
+		subsequent checks are relevant for the supported types. */
+		if (type & ~(DICT_CLUSTERED | DICT_UNIQUE)) {
+
+			fprintf(stderr,
+				"InnoDB: Error: unknown type %lu"
+				" of index %s of table %s\n",
+				(ulong) type, name_buf, table->name);
+
+			error = DB_UNSUPPORTED;
+			goto func_exit;
+		} else if (page_no == FIL_NULL) {
 
 			fprintf(stderr,
 				"InnoDB: Error: trying to load index %s"
@@ -684,14 +698,10 @@ dict_load_indexes(
 				"InnoDB: but the index tree has been freed!\n",
 				name_buf, table->name);
 
-			btr_pcur_close(&pcur);
-			mtr_commit(&mtr);
-
-			return(FALSE);
-		}
-
-		if ((type & DICT_CLUSTERED) == 0
-		    && NULL == dict_table_get_first_index(table)) {
+			error = DB_CORRUPTION;
+			goto func_exit;
+		} else if ((type & DICT_CLUSTERED) == 0
+			    && NULL == dict_table_get_first_index(table)) {
 
 			fputs("InnoDB: Error: trying to load index ",
 			      stderr);
@@ -701,18 +711,14 @@ dict_load_indexes(
 			fputs("\nInnoDB: but the first index"
 			      " is not clustered!\n", stderr);
 
-			btr_pcur_close(&pcur);
-			mtr_commit(&mtr);
-
-			return(FALSE);
-		}
-
-		if (is_sys_table
-		    && ((type & DICT_CLUSTERED)
-			|| ((table == dict_sys->sys_tables)
-			    && (name_len == (sizeof "ID_IND") - 1)
-			    && (0 == ut_memcmp(name_buf, "ID_IND",
-					       name_len))))) {
+			error = DB_CORRUPTION;
+			goto func_exit;
+		} else if (is_sys_table
+			   && ((type & DICT_CLUSTERED)
+			       || ((table == dict_sys->sys_tables)
+				   && (name_len == (sizeof "ID_IND") - 1)
+				   && (0 == ut_memcmp(name_buf,
+						      "ID_IND", name_len))))) {
 
 			/* The index was created in memory already at booting
 			of the database server */
@@ -729,10 +735,11 @@ next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
+func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	return(TRUE);
+	return(error);
 }
 
 /************************************************************************
@@ -890,11 +897,20 @@ err_exit:
 
 	mem_heap_empty(heap);
 
-	dict_load_indexes(table, heap);
+	err = dict_load_indexes(table, heap);
 #ifndef UNIV_HOTBACKUP
-	err = dict_load_foreigns(table->name, TRUE);
+	/* If the force recovery flag is set, we open the table irrespective
+	of the error condition, since the user may want to dump data from the
+	clustered index. However we load the foreign key information only if
+	all indexes were loaded. */
+	if (err != DB_SUCCESS && !srv_force_recovery) {
+		dict_mem_table_free(table);
+		table = NULL;
+	} else if (err == DB_SUCCESS) {
+		err = dict_load_foreigns(table->name, TRUE);
+	}
 # if 0
-	if (err != DB_SUCCESS) {
+	if (err != DB_SUCCESS && table != NULL) {
 
 		mutex_enter(&dict_foreign_err_mutex);
 
