@@ -888,6 +888,25 @@ public:
 protected:
 
   /**
+     Helper function to ignore an event w.r.t. the slave skip counter.
+
+     This function can be used inside do_shall_skip() for functions
+     that cannot end a group. If the slave skip counter is 1 when
+     seeing such an event, the event shall be ignored, the counter
+     left intact, and processing continue with the next event.
+
+     A typical usage is:
+     @code
+     enum_skip_reason do_shall_skip(Relay_log_info *rli) {
+       return continue_group(rli);
+     }
+     @endcode
+
+     @return Skip reason
+   */
+  enum_skip_reason continue_group(Relay_log_info *rli);
+
+  /**
     Primitive to apply an event to the database.
 
     This is where the change to the database is made.
@@ -1103,6 +1122,7 @@ public:
 
 public:        /* !!! Public in this patch to allow old usage */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_update_pos(Relay_log_info *rli);
 
@@ -1576,6 +1596,7 @@ class Xid_log_event: public Log_event
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
+  enum_skip_reason do_shall_skip(Relay_log_info *rli);
 #endif
 };
 
@@ -1954,6 +1975,10 @@ public:
                              *description_event);
   ~Begin_load_query_log_event() {}
   Log_event_type get_type_code() { return BEGIN_LOAD_QUERY_EVENT; }
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
+#endif
 };
 
 
