@@ -237,6 +237,7 @@ NdbScanOperation::setReadLockMode(LockMode lockMode)
       lockHoldMode= false;
       readCommitted= true;
       break;
+    case LM_SimpleRead:
     case LM_Read:
       lockExcl= false;
       lockHoldMode= true;
