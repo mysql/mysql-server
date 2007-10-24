@@ -866,8 +866,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
     transactional_table= table->file->has_transactions();
 
-    if ((changed= (info.copied || info.deleted || info.updated)) ||
-        was_insert_delayed)
+    if ((changed= (info.copied || info.deleted || info.updated)))
     {
       /*
         Invalidate the table in the query cache if something changed.
@@ -876,46 +875,47 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       */
       if (changed)
         query_cache_invalidate3(thd, table_list, 1);
-      if (error <= 0 || !transactional_table)
+    }
+    if (changed && error <= 0 || thd->transaction.stmt.modified_non_trans_table
+        || was_insert_delayed)
+    {
+      if (mysql_bin_log.is_open())
       {
-        if (mysql_bin_log.is_open())
+        if (error <= 0)
         {
-          if (error <= 0)
-          {
-            /*
-              [Guilhem wrote] Temporary errors may have filled
-              thd->net.last_error/errno.  For example if there has
-              been a disk full error when writing the row, and it was
-              MyISAM, then thd->net.last_error/errno will be set to
-              "disk full"... and the my_pwrite() will wait until free
-              space appears, and so when it finishes then the
-              write_row() was entirely successful
-            */
-            /* todo: consider removing */
-            thd->clear_error();
-          }
-          /* bug#22725: 
-               
-          A query which per-row-loop can not be interrupted with
-          KILLED, like INSERT, and that does not invoke stored
-          routines can be binlogged with neglecting the KILLED error.
-          
-          If there was no error (error == zero) until after the end of
-          inserting loop the KILLED flag that appeared later can be
-          disregarded since previously possible invocation of stored
-          routines did not result in any error due to the KILLED.  In
-          such case the flag is ignored for constructing binlog event.
+          /*
+            [Guilhem wrote] Temporary errors may have filled
+            thd->net.last_error/errno.  For example if there has
+            been a disk full error when writing the row, and it was
+            MyISAM, then thd->net.last_error/errno will be set to
+            "disk full"... and the my_pwrite() will wait until free
+            space appears, and so when it finishes then the
+            write_row() was entirely successful
           */
-          Query_log_event qinfo(thd, thd->query, thd->query_length,
-                                transactional_table, FALSE,
-                                (error>0) ? thd->killed : THD::NOT_KILLED);
-          DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
-          if (mysql_bin_log.write(&qinfo) && transactional_table)
-            error=1;
+          /* todo: consider removing */
+          thd->clear_error();
         }
-        if (thd->transaction.stmt.modified_non_trans_table)
-          thd->transaction.all.modified_non_trans_table= TRUE;
+        /* bug#22725: 
+           
+           A query which per-row-loop can not be interrupted with
+           KILLED, like INSERT, and that does not invoke stored
+           routines can be binlogged with neglecting the KILLED error.
+           
+           If there was no error (error == zero) until after the end of
+           inserting loop the KILLED flag that appeared later can be
+           disregarded since previously possible invocation of stored
+           routines did not result in any error due to the KILLED.  In
+           such case the flag is ignored for constructing binlog event.
+        */
+        Query_log_event qinfo(thd, thd->query, thd->query_length,
+                              transactional_table, FALSE,
+                              (error>0) ? thd->killed : THD::NOT_KILLED);
+        DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
+        if (mysql_bin_log.write(&qinfo) && transactional_table)
+          error=1;
       }
+      if (thd->transaction.stmt.modified_non_trans_table)
+        thd->transaction.all.modified_non_trans_table= TRUE;
     }
     DBUG_ASSERT(transactional_table || !changed || 
                 thd->transaction.stmt.modified_non_trans_table);
@@ -3001,6 +3001,7 @@ void select_insert::abort()
     */
     DBUG_VOID_RETURN;
   }
+  changed= (info.copied || info.deleted || info.updated);
   transactional_table= table->file->has_transactions();
   if (!thd->prelocked_mode)
     table->file->end_bulk_insert();
@@ -3010,8 +3011,7 @@ void select_insert::abort()
     error while inserting into a MyISAM table) we must write to the binlog (and
     the error code will make the slave stop).
   */
-  if ((changed= info.copied || info.deleted || info.updated) &&
-      !transactional_table)
+  if (thd->transaction.stmt.modified_non_trans_table)
   {
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For binary log
