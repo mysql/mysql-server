@@ -802,9 +802,7 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
                                Tablerec* const regTabPtr)
 {
   Uint32 keyReadBuffer[MAX_KEY_SIZE_IN_WORDS];
-  Uint32 attributeHeader;
   TableDescriptor* attr_descr = req_struct->attr_descr;
-  AttributeHeader* ahOut = (AttributeHeader*)&attributeHeader;
   AttributeHeader ahIn(*updateBuffer);
   Uint32 attributeId = ahIn.getAttributeId();
   Uint32 attrDescriptorIndex = attributeId << ZAD_LOG_SIZE;
@@ -827,7 +825,7 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
 
   ReadFunction f = regTabPtr->readFunctionArray[attributeId];
 
-  AttributeHeader::init(&attributeHeader, attributeId, 0);
+  AttributeHeader attributeHeader(attributeId, 0);
   req_struct->out_buf_index = 0;
   req_struct->max_read = MAX_KEY_SIZE_IN_WORDS;
   req_struct->attr_descriptor = attrDescriptor;
@@ -836,12 +834,12 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
   req_struct->xfrm_flag = true;
   ndbrequire((this->*f)(&keyReadBuffer[0],
                         req_struct,
-                        ahOut,
+                        &attributeHeader,
                         attributeOffset));
   req_struct->xfrm_flag = tmp;
   
-  ndbrequire(req_struct->out_buf_index == ahOut->getDataSize());
-  if (ahIn.getDataSize() != ahOut->getDataSize()) {
+  ndbrequire(req_struct->out_buf_index == attributeHeader.getDataSize());
+  if (ahIn.getDataSize() != attributeHeader.getDataSize()) {
     ljam();
     return true;
   }
