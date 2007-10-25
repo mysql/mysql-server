@@ -197,13 +197,16 @@ struct st_ndb_status {
   long number_of_data_nodes;
   long number_of_ready_data_nodes;
   long connect_count;
+  long execute_count;
 };
 
 static struct st_ndb_status g_ndb_status;
 static long g_ndb_status_conflict_fn_max= 0;
 static long g_ndb_status_conflict_fn_old= 0;
 
-static int update_status_variables(st_ndb_status *ns, Ndb_cluster_connection *c)
+static int update_status_variables(Thd_ndb *thd_ndb,
+                                   st_ndb_status *ns,
+                                   Ndb_cluster_connection *c)
 {
   ns->connected_port= c->get_connected_port();
   ns->connected_host= c->get_connected_host();
@@ -219,6 +222,10 @@ static int update_status_variables(st_ndb_status *ns, Ndb_cluster_connection *c)
   ns->number_of_ready_data_nodes= c->get_no_ready();
   ns->number_of_data_nodes= c->no_db_nodes();
   ns->connect_count= c->get_connect_count();
+  if (thd_ndb)
+  {
+    ns->execute_count= thd_ndb->m_execute_count;
+  }
   return 0;
 }
 
@@ -228,6 +235,10 @@ SHOW_VAR ndb_status_variables[]= {
   {"config_from_port",    (char*) &g_ndb_status.connected_port,       SHOW_LONG},
 //{"number_of_replicas",  (char*) &g_ndb_status.number_of_replicas,   SHOW_LONG},
   {"number_of_data_nodes",(char*) &g_ndb_status.number_of_data_nodes, SHOW_LONG},
+  {"number_of_ready_data_nodes",
+   (char*) &g_ndb_status.number_of_ready_data_nodes,                  SHOW_LONG},
+  {"connect_count",      (char*) &g_ndb_status.connect_count,         SHOW_LONG},
+  {"execute_count",      (char*) &g_ndb_status.execute_count,         SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -509,6 +520,7 @@ int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   DBUG_ENTER("execute_no_commit");
   ha_ndbcluster::release_completed_operations(thd_ndb, trans, force_release);
   const NdbOperation *first= trans->getFirstDefinedOperation();
+  thd_ndb->m_execute_count++;
   if (trans->execute(NdbTransaction::NoCommit,
                      NdbOperation::AO_IgnoreError,
                      thd_ndb->m_force_send))
@@ -529,6 +541,7 @@ int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
 {
   DBUG_ENTER("execute_commit");
   const NdbOperation *first= trans->getFirstDefinedOperation();
+  thd_ndb->m_execute_count++;
   if (trans->execute(NdbTransaction::Commit,
                      NdbOperation::AO_IgnoreError,
                      force_send))
@@ -560,6 +573,7 @@ int execute_no_commit_ie(Thd_ndb *thd_ndb, NdbTransaction *trans,
                           NdbOperation::AO_IgnoreError,
                           thd_ndb->m_force_send);
   thd_ndb->m_unsent_bytes= 0;
+  thd_ndb->m_execute_count++;
   DBUG_RETURN(res);
 }
 
@@ -596,6 +610,7 @@ Thd_ndb::Thd_ndb()
   (void) hash_init(&open_tables, &my_charset_bin, 5, 0, 0,
                    (hash_get_key)thd_ndb_share_get_key, 0, 0);
   m_unsent_bytes= 0;
+  m_execute_count= 0;
   m_max_violation_count= 0;
   m_old_violation_count= 0;
   m_conflict_fn_usage_count= 0;
@@ -4044,6 +4059,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
         thd_ndb->m_old_violation_count= 0;
         thd_ndb->m_conflict_fn_usage_count= 0;
         thd_ndb->m_unsent_bytes= 0;
+        thd_ndb->m_execute_count++;
         trans->execute(NdbTransaction::Rollback);
 #ifdef FIXED_OLD_DATA_TO_ACTUALLY_CONTAIN_GOOD_DATA
         int undo_res;
@@ -4133,16 +4149,31 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   {  
     const NdbRecord *key_rec;
     const uchar *key_row;
+    uint key_len;
     if (have_pk)
     {
       key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
       key_row= row;
+      key_len= table->s->reclength;
     }
     else
     {
       /* Use hidden primary key previously read into m_ref. */
       key_rec= m_ndb_hidden_key_record;
       key_row= (const uchar *)(&m_ref);
+      key_len= sizeof(m_ref);
+    }
+
+    if (!need_execute)
+    {
+      /*
+        Poor approx. let delete ~ tabsize / 4
+      */
+      uint delete_size= 12 + m_bytes_per_write >> 2;
+      key_row= batch_copy_key_to_buffer(thd_ndb, key_row, key_len,
+                                        delete_size, need_execute);
+      if (unlikely(!key_row))
+        DBUG_RETURN(ER_OUTOFMEMORY);
     }
 
     NdbInterpretedCode *code= NULL;
@@ -5831,6 +5862,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   thd_ndb->m_old_violation_count= 0;
   thd_ndb->m_conflict_fn_usage_count= 0;
   thd_ndb->m_unsent_bytes= 0;
+  thd_ndb->m_execute_count++;
   if (trans->execute(NdbTransaction::Rollback) != 0)
   {
     const NdbError err= trans->getNdbError();
@@ -8433,7 +8465,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
 static int connect_callback()
 {
   pthread_mutex_lock(&LOCK_ndb_util_thread);
-  update_status_variables(&g_ndb_status,
+  update_status_variables(NULL, &g_ndb_status,
                           g_ndb_cluster_connection);
 
   uint node_id, i= 0;
@@ -9848,6 +9880,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
                          const NdbRecord *record,
                          struct Ndb_statistics * ndbstat)
 {
+  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   NdbTransaction* pTrans;
   NdbError error;
   int retries= 10;
@@ -9891,6 +9924,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
       goto retry;
     }
     
+    thd_ndb->m_execute_count++;
     if (pTrans->execute(NdbTransaction::NoCommit,
                         NdbOperation::AbortOnError,
                         TRUE) == -1)
@@ -9980,6 +10014,7 @@ int
 ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb, const NDBTAB *ndbtab,
                          struct Ndb_statistics * ndbstat)
 {
+  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   NdbTransaction* pTrans;
   NdbError error;
   int retries= 10;
@@ -10041,6 +10076,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb, const
     pOp->getValue(NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY, 
 		  (char*)&var_mem);
     
+    thd_ndb->m_execute_count++;
     if (pTrans->execute(NdbTransaction::NoCommit,
                         NdbOperation::AbortOnError,
                         TRUE) == -1)
@@ -11015,11 +11051,12 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
   }
 
   Ndb* ndb= check_ndb_in_thd(thd);
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   struct st_ndb_status ns;
   if (ndb)
-    update_status_variables(&ns, get_thd_ndb(thd)->connection);
+    update_status_variables(thd_ndb, &ns, thd_ndb->connection);
   else
-    update_status_variables(&ns, g_ndb_cluster_connection);
+    update_status_variables(NULL, &ns, g_ndb_cluster_connection);
 
   buflen=
     my_snprintf(buf, sizeof(buf),
@@ -12415,9 +12452,36 @@ static int ndbcluster_fill_files_table(handlerton *hton,
   DBUG_RETURN(0);
 }
 
+static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
+{
+  if (!check_ndb_in_thd(thd))
+    return -1;
+  struct st_ndb_status *st;
+  SHOW_VAR *st_var;
+  {
+    char *mem= (char*)sql_alloc(sizeof(struct st_ndb_status) +
+                                sizeof(ndb_status_variables));
+    st= new (mem) struct st_ndb_status;
+    st_var= (SHOW_VAR*)(mem + sizeof(struct st_ndb_status));
+    memcpy(st_var, &ndb_status_variables, sizeof(ndb_status_variables));
+    int i= 0;
+    SHOW_VAR *tmp= &(ndb_status_variables[0]);
+    for (; tmp->value; tmp++, i++)
+      st_var[i].value= mem + (tmp->value - (char*)&g_ndb_status);
+  }
+  {
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    Ndb_cluster_connection *c= thd_ndb->connection;
+    update_status_variables(thd_ndb, st, c);
+  }
+  var->type= SHOW_ARRAY;
+  var->value= (char *) st_var;
+  return 0;
+}
+
 SHOW_VAR ndb_status_variables_export[]= {
-  {"Ndb",                      (char*) &ndb_status_variables,   SHOW_ARRAY},
-  {"Ndb",                      (char*) &ndb_status_conflict_variables,   SHOW_ARRAY},
+  {"Ndb", (char*) &show_ndb_vars,                 SHOW_FUNC},
+  {"Ndb", (char*) &ndb_status_conflict_variables, SHOW_ARRAY},
   {NullS, NullS, SHOW_LONG}
 };
 
