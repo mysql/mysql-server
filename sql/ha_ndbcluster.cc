@@ -3757,6 +3757,10 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
         return 1;
     }
   }
+  /*
+    potentially not needed call to this function
+  */
+  DBUG_ASSERT(!table->in_use->slave_thread || (m_ignore_no_key == FALSE));
   return 0;
 }
 
@@ -3965,7 +3969,9 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   int error;
   longlong func_value;
   bool have_pk= (table_share->primary_key != MAX_KEY);
-  bool pk_update= (have_pk && primary_key_cmp(old_data, new_data));
+  bool pk_update= (have_pk &&
+                   bitmap_is_overlapping(table->write_set, &m_pk_bitmap) &&
+                   primary_key_cmp(old_data, new_data));
   DBUG_ENTER("update_row");
   DBUG_ASSERT(trans); 
   /*
