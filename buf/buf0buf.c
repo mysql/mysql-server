@@ -1781,6 +1781,7 @@ wait_until_unfixed:
 			mutex_exit(&buf_pool->mutex);
 			os_thread_sleep(WAIT_FOR_READ);
 
+			guess = block;
 			goto loop;
 		}
 
