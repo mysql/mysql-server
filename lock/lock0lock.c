@@ -5382,15 +5382,36 @@ lock_get_mode_str(
 				/* out: lock mode */
 	const lock_t*	lock)	/* in: lock */
 {
+	ibool	is_gap_lock;
+
+	is_gap_lock = lock_get_type_low(lock) == LOCK_REC
+		&& lock_rec_get_gap(lock);
+
 	switch (lock_get_mode(lock)) {
 	case LOCK_S:
-		return("S");
+		if (is_gap_lock) {
+			return("S,GAP");
+		} else {
+			return("S");
+		}
 	case LOCK_X:
-		return("X");
+		if (is_gap_lock) {
+			return("X,GAP");
+		} else {
+			return("X");
+		}
 	case LOCK_IS:
-		return("IS");
+		if (is_gap_lock) {
+			return("IS,GAP");
+		} else {
+			return("IS");
+		}
 	case LOCK_IX:
-		return("IX");
+		if (is_gap_lock) {
+			return("IX,GAP");
+		} else {
+			return("IX");
+		}
 	case LOCK_AUTO_INC:
 		return("AUTO_INC");
 	default:
