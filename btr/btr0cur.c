@@ -3915,6 +3915,7 @@ next_zip_page:
 
 				mlog_write_string(page + FIL_PAGE_DATA
 						  + BTR_BLOB_HDR_SIZE,
+						  (const byte*)
 						  big_rec_vec->fields[i].data
 						  + big_rec_vec->fields[i].len
 						  - extern_len,

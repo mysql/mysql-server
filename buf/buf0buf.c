@@ -2366,7 +2366,7 @@ buf_page_init(
 			" in the hash table: %p, %p\n",
 			(ulong) space,
 			(ulong) offset,
-			hash_page, block);
+			(const void*) hash_page, (const void*) block);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		mutex_exit(&block->mutex);
 		mutex_exit(&buf_pool->mutex);
