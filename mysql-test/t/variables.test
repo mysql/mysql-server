@@ -674,6 +674,20 @@ set @@hostname= "anothername";
 --replace_column 2 #
 show variables like 'hostname';
 
+#
+# Bug #29131: SHOW VARIABLES reports variable 'log' but SET doesn't recognize it
+#
+
+SHOW VARIABLES LIKE 'log';
+SELECT @@log;
+--error 1238
+SET GLOBAL log=0;
+
+SHOW VARIABLES LIKE 'log_slow_queries';
+SELECT @@log_slow_queries;
+--error 1238
+SET GLOBAL log_slow_queries=0;
+
 --echo End of 5.0 tests
 
 # This is at the very after the versioned tests, since it involves doing
