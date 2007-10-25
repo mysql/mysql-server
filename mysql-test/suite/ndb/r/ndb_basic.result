@@ -13,6 +13,9 @@ Ndb_cluster_node_id	#
 Ndb_config_from_host	#
 Ndb_config_from_port	#
 Ndb_number_of_data_nodes	#
+Ndb_number_of_ready_data_nodes	#
+Ndb_connect_count	#
+Ndb_execute_count	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_old	#
 SHOW GLOBAL VARIABLES LIKE 'ndb%';
