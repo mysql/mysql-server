@@ -1600,7 +1600,7 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
                         attributeOffset));
   req_struct->xfrm_flag = tmp;
   
-  ndbrequire(req_struct->out_buf_index == attributeHeader.getDataSize());
+  ndbrequire(req_struct->out_buf_index == attributeHeader.getByteSize());
   if (ahIn.getDataSize() != attributeHeader.getDataSize()) {
     jam();
     return true;
