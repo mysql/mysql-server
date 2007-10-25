@@ -188,8 +188,8 @@ UNIV_INLINE
 ulint
 log_block_calc_checksum(
 /*====================*/
-			/* out: checksum */
-	byte*	block)	/* in: log block */
+				/* out: checksum */
+	const byte*	block)	/* in: log block */
 {
 	ulint	sum;
 	ulint	sh;
@@ -199,8 +199,10 @@ log_block_calc_checksum(
 	sh = 0;
 
 	for (i = 0; i < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE; i++) {
-		sum = sum & 0x7FFFFFFFUL;
-		sum += (((ulint)(*(block + i))) << sh) + (ulint)(*(block + i));
+		ulint	b = (ulint) block[i];
+		sum &= 0x7FFFFFFFUL;
+		sum += b;
+		sum += b << sh;
 		sh++;
 		if (sh > 24) {
 			sh = 0;
@@ -216,8 +218,8 @@ UNIV_INLINE
 ulint
 log_block_get_checksum(
 /*===================*/
-				/* out: checksum */
-	byte*	log_block)	/* in: log block */
+					/* out: checksum */
+	const byte*	log_block)	/* in: log block */
 {
 	return(mach_read_from_4(log_block + OS_FILE_LOG_BLOCK_SIZE
 				- LOG_BLOCK_CHECKSUM));
