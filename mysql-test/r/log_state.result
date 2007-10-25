@@ -175,3 +175,66 @@ SET GLOBAL slow_query_log = ON;
 SET GLOBAL READ_ONLY = OFF;
 SET GLOBAL general_log = @old_general_log_state;
 SET GLOBAL slow_query_log = @old_slow_log_state;
+SET @old_general_log_state = @@global.general_log;
+SET @old_slow_log_state = @@global.slow_query_log;
+SHOW VARIABLES LIKE 'general_log';
+Variable_name	Value
+general_log	ON
+SHOW VARIABLES LIKE 'log';
+Variable_name	Value
+log	ON
+SELECT @@general_log, @@log;
+@@general_log	@@log
+1	1
+SET GLOBAL log = 0;
+SHOW VARIABLES LIKE 'general_log';
+Variable_name	Value
+general_log	OFF
+SHOW VARIABLES LIKE 'log';
+Variable_name	Value
+log	OFF
+SELECT @@general_log, @@log;
+@@general_log	@@log
+0	0
+SET GLOBAL general_log = 1;
+SHOW VARIABLES LIKE 'general_log';
+Variable_name	Value
+general_log	ON
+SHOW VARIABLES LIKE 'log';
+Variable_name	Value
+log	ON
+SELECT @@general_log, @@log;
+@@general_log	@@log
+1	1
+SHOW VARIABLES LIKE 'slow_query_log';
+Variable_name	Value
+slow_query_log	OFF
+SHOW VARIABLES LIKE 'log_slow_queries';
+Variable_name	Value
+log_slow_queries	OFF
+SELECT @@slow_query_log, @@log_slow_queries;
+@@slow_query_log	@@log_slow_queries
+0	0
+SET GLOBAL log_slow_queries = 0;
+SHOW VARIABLES LIKE 'slow_query_log';
+Variable_name	Value
+slow_query_log	OFF
+SHOW VARIABLES LIKE 'log_slow_queries';
+Variable_name	Value
+log_slow_queries	OFF
+SELECT @@slow_query_log, @@log_slow_queries;
+@@slow_query_log	@@log_slow_queries
+0	0
+SET GLOBAL slow_query_log = 1;
+SHOW VARIABLES LIKE 'slow_query_log';
+Variable_name	Value
+slow_query_log	ON
+SHOW VARIABLES LIKE 'log_slow_queries';
+Variable_name	Value
+log_slow_queries	ON
+SELECT @@slow_query_log, @@log_slow_queries;
+@@slow_query_log	@@log_slow_queries
+1	1
+SET GLOBAL general_log = @old_general_log_state;
+SET GLOBAL slow_query_log = @old_slow_log_state;
+End of 5.1 tests
