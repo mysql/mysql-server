@@ -368,7 +368,8 @@ int Dbtup::readAttributes(KeyReqStruct *req_struct,
     jam();
 
     tmpAttrBufIndex = pad32(tmpAttrBufIndex, tmpAttrBufBits);
-    AttributeHeader::init(&outBuffer[tmpAttrBufIndex], attributeId, 0);
+    AttributeHeader::init((Uint32 *)&outBuffer[tmpAttrBufIndex],
+			  attributeId, 0);
     ahOut= (AttributeHeader*)&outBuffer[tmpAttrBufIndex];
     req_struct->out_buf_index= tmpAttrBufIndex + 4;
     req_struct->out_buf_bits = 0;
