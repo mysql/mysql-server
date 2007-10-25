@@ -3466,22 +3466,29 @@ DROP TABLE t1;
 #
 
 --disable_ps_protocol
-
 SELECT 1 AS ` `;
 SELECT 1 AS `  `;
 SELECT 1 AS ` x`;
-
-CREATE VIEW v1 AS SELECT 1 AS ` `;
-SELECT `` FROM v1;
-
-CREATE VIEW v2 AS SELECT 1 AS `  `;
-SELECT `` FROM v2;
-
-CREATE VIEW v3 AS SELECT 1 AS ` x`;
-SELECT `x` FROM v3;
-
-DROP VIEW v1, v2, v3;
-
 --enable_ps_protocol
+
+--error 1166
+CREATE VIEW v1 AS SELECT 1 AS ``;
+
+--error 1166
+CREATE VIEW v1 AS SELECT 1 AS ` `;
+
+--error 1166
+CREATE VIEW v1 AS SELECT 1 AS `  `;
+
+--error 1166
+CREATE VIEW v1 AS SELECT (SELECT 1 AS `  `);
+
+CREATE VIEW v1 AS SELECT 1 AS ` x`;
+SELECT `x` FROM v1;
+
+--error 1166
+ALTER VIEW v1 AS SELECT 1 AS ` `;
+
+DROP VIEW v1;
 
 --echo End of 5.0 tests

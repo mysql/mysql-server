@@ -4077,23 +4077,21 @@ x
 1
 Warnings:
 Warning	1466	Leading spaces are removed from name ' x'
+CREATE VIEW v1 AS SELECT 1 AS ``;
+ERROR 42000: Incorrect column name ''
 CREATE VIEW v1 AS SELECT 1 AS ` `;
-Warnings:
-Warning	1474	Name ' ' has become ''
-SELECT `` FROM v1;
-
-1
-CREATE VIEW v2 AS SELECT 1 AS `  `;
-Warnings:
-Warning	1474	Name '  ' has become ''
-SELECT `` FROM v2;
-
-1
-CREATE VIEW v3 AS SELECT 1 AS ` x`;
+ERROR 42000: Incorrect column name ' '
+CREATE VIEW v1 AS SELECT 1 AS `  `;
+ERROR 42000: Incorrect column name '  '
+CREATE VIEW v1 AS SELECT (SELECT 1 AS `  `);
+ERROR 42000: Incorrect column name '  '
+CREATE VIEW v1 AS SELECT 1 AS ` x`;
 Warnings:
 Warning	1466	Leading spaces are removed from name ' x'
-SELECT `x` FROM v3;
+SELECT `x` FROM v1;
 x
 1
-DROP VIEW v1, v2, v3;
+ALTER VIEW v1 AS SELECT 1 AS ` `;
+ERROR 42000: Incorrect column name ' '
+DROP VIEW v1;
 End of 5.0 tests
