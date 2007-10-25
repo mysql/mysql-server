@@ -416,7 +416,8 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 
 #define IDX_LOCK_MODE		2
 	{STRUCT_FLD(field_name,		"lock_mode"),
-	 STRUCT_FLD(field_length,	32 /* S|X|IS|IX|AUTO_INC|UNKNOWN */),
+	 /* S[,GAP] X[,GAP] IS[,GAP] IX[,GAP] AUTO_INC UNKNOWN */
+	 STRUCT_FLD(field_length,	32),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
