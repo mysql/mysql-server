@@ -549,9 +549,9 @@ buf_buddy_relocate(
 		mach_read_from_4() calls here will only trigger bogus
 		Valgrind memcheck warnings in UNIV_DEBUG_VALGRIND builds. */
 		bpage = buf_page_hash_get(
-			mach_read_from_4(src
+			mach_read_from_4((const byte*) src
 					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
-			mach_read_from_4(src
+			mach_read_from_4((const byte*) src
 					 + FIL_PAGE_OFFSET));
 
 		if (!bpage || bpage->zip.data != src) {
