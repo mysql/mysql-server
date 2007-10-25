@@ -1577,8 +1577,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TdataForUpdate[3];
 	  Uint32 Tlen;
 
-	  AttributeHeader& ah = AttributeHeader::init(&TdataForUpdate[0], 
-						      TattrId, TattrNoOfWords);
+	  AttributeHeader ah(TattrId, TattrNoOfWords);
+          TdataForUpdate[0] = ah.m_value;
 	  TdataForUpdate[1] = TregMemBuffer[theRegister + 2];
 	  TdataForUpdate[2] = TregMemBuffer[theRegister + 3];
 	  Tlen = TattrNoOfWords + 1;
@@ -1594,6 +1594,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 		// Write a NULL value into the attribute
 		/* --------------------------------------------------------- */
 		ah.setNULL();
+                TdataForUpdate[0] = ah.m_value;
 		Tlen = 1;
 	      }//if
 	      int TnoDataRW= updateAttributes(pagePtr,
