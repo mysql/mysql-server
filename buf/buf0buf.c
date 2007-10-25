@@ -880,7 +880,7 @@ buf_pool_init(void)
 	buf_chunk_t*	chunk;
 	ulint		i;
 
-	buf_pool = mem_alloc(sizeof(buf_pool_t));
+	buf_pool = mem_zalloc(sizeof(buf_pool_t));
 
 	/* 1. Initialize general fields
 	------------------------------- */
@@ -909,40 +909,20 @@ buf_pool_init(void)
 	buf_pool->page_hash = hash_create(2 * buf_pool->curr_size);
 	buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
-	buf_pool->n_pend_reads = 0;
-
 	buf_pool->last_printout_time = time(NULL);
-
-	buf_pool->n_pages_read = 0;
-	buf_pool->n_pages_written = 0;
-	buf_pool->n_pages_created = 0;
-
-	buf_pool->n_page_gets = 0;
-	buf_pool->n_page_gets_old = 0;
-	buf_pool->n_pages_read_old = 0;
-	buf_pool->n_pages_written_old = 0;
-	buf_pool->n_pages_created_old = 0;
 
 	/* 2. Initialize flushing fields
 	-------------------------------- */
-	UT_LIST_INIT(buf_pool->flush_list);
 
 	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-		buf_pool->n_flush[i] = 0;
-		buf_pool->init_flush[i] = FALSE;
 		buf_pool->no_flush[i] = os_event_create(NULL);
 	}
 
-	buf_pool->LRU_flush_ended = 0;
-
 	buf_pool->ulint_clock = 1;
-	buf_pool->freed_page_clock = 0;
 
 	/* 3. Initialize LRU fields
 	--------------------------- */
-	UT_LIST_INIT(buf_pool->LRU);
-
-	buf_pool->LRU_old = NULL;
+	/* All fields are initialized by mem_zalloc(). */
 
 	mutex_exit(&(buf_pool->mutex));
 
@@ -950,12 +930,7 @@ buf_pool_init(void)
 			      * UNIV_PAGE_SIZE / sizeof(void*) / 64);
 
 	/* 4. Initialize the buddy allocator fields */
-
-	UT_LIST_INIT(buf_pool->zip_clean);
-
-	for (i = 0; i < BUF_BUDDY_SIZES; i++) {
-		UT_LIST_INIT(buf_pool->zip_free[i]);
-	}
+	/* All fields are initialized by mem_zalloc(). */
 
 	return(buf_pool);
 }
