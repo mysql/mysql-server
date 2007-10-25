@@ -298,6 +298,7 @@ class Thd_ndb
   */
   uint m_unsent_bytes;
 
+  uint m_execute_count;
   uint m_max_violation_count;
   uint m_old_violation_count;
   uint m_conflict_fn_usage_count;
