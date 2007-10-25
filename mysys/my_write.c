@@ -31,7 +31,7 @@ uint my_write(int Filedes, const byte *Buffer, uint Count, myf MyFlags)
 
   /* The behavior of write(fd, buf, 0) is not portable */
   if (unlikely(!Count))
-    return 0;
+    DBUG_RETURN(0);
   
   for (;;)
   {
