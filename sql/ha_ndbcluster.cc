@@ -3293,7 +3293,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       if (ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1) == -1)
       {
 	if (--retries &&
-	    ndb->getNdbError().status == NdbError::TemporaryError);
+	    ndb->getNdbError().status == NdbError::TemporaryError)
 	{
 	  my_sleep(retry_sleep);
 	  continue;
@@ -6712,7 +6712,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
         ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
     {
       if (--retries &&
-          ndb->getNdbError().status == NdbError::TemporaryError);
+          ndb->getNdbError().status == NdbError::TemporaryError)
       {
         my_sleep(retry_sleep);
         continue;
