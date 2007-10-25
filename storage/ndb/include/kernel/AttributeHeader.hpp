@@ -53,8 +53,7 @@ public:
   // NOTE: in 5.1 ctors and init take size in bytes
 
   /** Initialize AttributeHeader at location aHeaderPtr */
-  static AttributeHeader& init(void* aHeaderPtr, Uint32 anAttributeId, 
-			       Uint32 aByteSize);
+  static void init(Uint32* aHeaderPtr, Uint32 anAttributeId, Uint32 aByteSize);
 
   /** Returns size of AttributeHeader (usually one or two words) */
   Uint32 getHeaderSize() const; // In 32-bit words
@@ -114,10 +113,11 @@ public:
  */
 
 inline
-AttributeHeader& AttributeHeader::init(void* aHeaderPtr, Uint32 anAttributeId, 
-				       Uint32 aByteSize)
+void AttributeHeader::init(Uint32* aHeaderPtr, Uint32 anAttributeId, 
+                           Uint32 aByteSize)
 {
-  return * new (aHeaderPtr) AttributeHeader(anAttributeId, aByteSize);
+  AttributeHeader ah(anAttributeId, aByteSize);
+  *aHeaderPtr = ah.m_value;
 }
 
 inline
