@@ -2333,7 +2333,7 @@ int ha_ndbcluster::write_row(byte *record)
                                      auto_value, 1) == -1)
       {
         if (--retries &&
-            ndb->getNdbError().status == NdbError::TemporaryError);
+            ndb->getNdbError().status == NdbError::TemporaryError)
         {
           my_sleep(retry_sleep);
           continue;
@@ -4894,7 +4894,7 @@ ulonglong ha_ndbcluster::get_auto_increment()
                                    auto_value, cache_size, step, start))
     {
       if (--retries &&
-          ndb->getNdbError().status == NdbError::TemporaryError);
+          ndb->getNdbError().status == NdbError::TemporaryError)
       {
         my_sleep(retry_sleep);
         continue;
