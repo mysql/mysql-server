@@ -417,16 +417,16 @@ UNIV_INLINE
 ulint
 log_block_calc_checksum(
 /*====================*/
-			/* out: checksum */
-	byte*	block);	/* in: log block */
+				/* out: checksum */
+	const byte*	block);	/* in: log block */
 /****************************************************************
 Gets a log block checksum field value. */
 UNIV_INLINE
 ulint
 log_block_get_checksum(
 /*===================*/
-				/* out: checksum */
-	byte*	log_block);	/* in: log block */
+					/* out: checksum */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Sets a log block checksum field value. */
 UNIV_INLINE
