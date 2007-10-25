@@ -1328,6 +1328,11 @@ static void write_str_with_code_and_len(char **dst, const char *src,
 
 bool Query_log_event::write(IO_CACHE* file)
 {
+  /**
+    @todo if catalog can be of length FN_REFLEN==512, then we are not
+    replicating it correctly, since the length is stored in a byte
+    /sven
+  */
   uchar buf[QUERY_HEADER_LEN+
             1+4+           // code of flags2 and flags2
             1+8+           // code of sql_mode and sql_mode
@@ -1554,6 +1559,10 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   
   time(&end_time);
   exec_time = (ulong) (end_time  - thd_arg->start_time);
+  /**
+    @todo this means that if we have no catalog, then it is replicated
+    as an existing catalog of length zero. is that safe? /sven
+  */
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
   /* status_vars_len is set just before writing the event */
   db_len = (db) ? (uint32) strlen(db) : 0;
@@ -1563,7 +1572,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   /*
     If we don't use flags2 for anything else than options contained in
     thd_arg->options, it would be more efficient to flags2=thd_arg->options
-    (OPTIONS_WRITTEN_TO_BINLOG would be used only at reading time).
+    (OPTIONS_WRITTEN_TO_BIN_LOG would be used only at reading time).
     But it's likely that we don't want to use 32 bits for 3 bits; in the future
     we will probably want to reclaim the 29 bits. So we need the &.
   */
@@ -1764,6 +1773,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
+    /**
+      @todo we should clean up and do only copy_str_and_move; it
+      works for both cases.  Then we can remove the catalog_nz
+      flag. /sven
+    */
     if (likely(catalog_nz)) // true except if event comes from 5.0.0|1|2|3.
       copy_str_and_move(&catalog, &start, catalog_len);
     else
@@ -1775,6 +1789,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   }
   if (time_zone_len)
     copy_str_and_move(&time_zone_str, &start, time_zone_len);
+
+  /**
+    if time_zone_len or catalog_len are 0, then time_zone and catalog
+    are uninitialized at this point.  shouldn't they point to the
+    zero-length null-terminated strings we allocated space for in the
+    my_alloc call above? /sven
+  */
 
   /* A 2nd variable part; this is common to all versions */ 
   memcpy((char*) start, end, data_len);          // Copy db and query
@@ -2836,7 +2857,7 @@ uint Load_log_event::get_query_buffer_length()
     21 + sql_ex.field_term_len*4 + 2 +      // " FIELDS TERMINATED BY 'str'"
     23 + sql_ex.enclosed_len*4 + 2 +        // " OPTIONALLY ENCLOSED BY 'str'"
     12 + sql_ex.escaped_len*4 + 2 +         // " ESCAPED BY 'str'"
-    21 + sql_ex.line_term_len*4 + 2 +       // " FIELDS TERMINATED BY 'str'"
+    21 + sql_ex.line_term_len*4 + 2 +       // " LINES TERMINATED BY 'str'"
     19 + sql_ex.line_start_len*4 + 2 +      // " LINES STARTING BY 'str'"
     15 + 22 +                               // " IGNORE xxx  LINES"
     3 + (num_fields-1)*2 + field_block_len; // " (field1, field2, ...)"
@@ -5654,6 +5675,10 @@ bool sql_ex_info::write_data(IO_CACHE* file)
   }
   else
   {
+    /**
+      @todo This is sensitive to field padding. We should write a
+      char[7], not an old_sql_ex. /sven
+    */
     old_sql_ex old_ex;
     old_ex.field_term= *field_term;
     old_ex.enclosed=   *enclosed;
