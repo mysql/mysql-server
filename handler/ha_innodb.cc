@@ -1150,7 +1150,6 @@ innobase_query_caching_of_table_permitted(
 	}
 
 	if (trx->has_search_latch) {
-		ut_print_timestamp(stderr);
 		sql_print_error("The calling thread is holding the adaptive "
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
@@ -2333,7 +2332,6 @@ ha_innobase::open(
 	ib_table = dict_table_get(norm_name, TRUE);
 
 	if (NULL == ib_table) {
-		ut_print_timestamp(stderr);
 		sql_print_error("Cannot find or open table %s from\n"
 				"the internal data dictionary of InnoDB "
 				"though the .frm file for the\n"
@@ -2357,7 +2355,6 @@ ha_innobase::open(
 	}
 
 	if (ib_table->ibd_file_missing && !thd_tablespace_op(thd)) {
-		ut_print_timestamp(stderr);
 		sql_print_error("MySQL is trying to open a table handle but "
 				"the .ibd file for\ntable %s does not exist.\n"
 				"Have you deleted the .ibd file from the "
@@ -5734,7 +5731,6 @@ ha_innobase::info(
 
 		for (i = 0; i < table->s->keys; i++) {
 			if (index == NULL) {
-				ut_print_timestamp(stderr);
 				sql_print_error("Table %s contains fewer "
 						"indexes inside InnoDB than "
 						"are defined in the MySQL "
@@ -5750,7 +5746,6 @@ ha_innobase::info(
 			for (j = 0; j < table->key_info[i].key_parts; j++) {
 
 				if (j + 1 > index->n_uniq) {
-					ut_print_timestamp(stderr);
 					sql_print_error(
 "Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking "
 "statistics for %lu columns. Have you mixed up .frm files from different "
@@ -5815,7 +5810,6 @@ ha_innobase::info(
 			ret = innobase_read_and_init_auto_inc(&auto_inc);
 
 			if (ret != 0) {
-				ut_print_timestamp(stderr);
 				sql_print_error("Cannot get table %s auto-inc"
 						"counter value in ::info\n",
 						ib_table->name);
@@ -7208,7 +7202,8 @@ ha_innobase::innobase_read_and_init_auto_inc(
 			++auto_inc;
 			dict_table_autoinc_initialize(innodb_table, auto_inc);
 		} else {
-			fprintf(stderr, " InnoDB error (%lu): Couldn't read "
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Error: (%lu) Couldn't read "
 				"the max AUTOINC value from the index (%s).\n",
 				error, index->name);
 
@@ -7298,8 +7293,7 @@ ha_innobase::innobase_get_auto_increment(
 		and can be ignored. */
 		} else if (error != DB_DEADLOCK) {
 
-			ut_print_timestamp(stderr);
-			sql_print_error(" InnoDB Error %lu in "
+			sql_print_error("InnoDB: Error: %lu in "
 					"::innobase_get_auto_increment()",
 					error);
 		}
