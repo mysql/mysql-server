@@ -275,6 +275,16 @@ dtype_form_prtype(
 				DATA_BINARY_TYPE etc. */
 	ulint	charset_coll);	/* in: MySQL charset-collation code */
 /*************************************************************************
+Determines if a MySQL string type is a subset of UTF-8.  This function
+may return false negatives, in case further character-set collation
+codes are introduced in MySQL later. */
+UNIV_INLINE
+ibool
+dtype_is_utf8(
+/*==========*/
+			/* out: TRUE if a subset of UTF-8 */
+	ulint	prtype);/* in: precise data type */
+/*************************************************************************
 Gets the type length. */
 UNIV_INLINE
 ulint
