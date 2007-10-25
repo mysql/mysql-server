@@ -7988,6 +7988,18 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 {
   if (m_table->s->keys > 0)
   {
+    /*
+      primary key columns should not be set in write_set
+    */
+    if (m_table->s->primary_key != MAX_KEY)
+    {
+      KEY *key= m_table->key_info + m_table->s->primary_key;
+      KEY_PART_INFO *key_part= key->key_part;
+      KEY_PART_INFO *end= key_part + key->key_parts;
+      for (; key_part != end; key_part++)
+        bitmap_clear_bit(m_table->write_set, key_part->fieldnr - 1);
+    }
+
     // Allocate buffer for key searches
     m_key= (uchar*)my_malloc(m_table->key_info->key_length, MYF(MY_WME));
     if (!m_key)
