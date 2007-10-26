@@ -4526,7 +4526,8 @@ row_search_check_if_query_cache_permitted(
 }
 
 /***********************************************************************
-Read the AUTOINC column from the current row. */
+Read the AUTOINC column from the current row. If the value is less than
+0 and the type is not unsigned then we reset the value to 0. */
 static
 ib_longlong
 row_search_autoinc_read_column(
@@ -4594,7 +4595,9 @@ row_search_autoinc_read_column(
 		mem_heap_free(heap);
 	}
 
-	ut_a(value >= 0);
+	if (!unsigned_type && value < 0) {
+		value = 0;
+	}
 
 	return(value);
 }
