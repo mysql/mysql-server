@@ -1559,3 +1559,25 @@ insert into t1 set a='';
 insert into t1 set a='a';
 check table t1 extended;
 drop table t1;
+
+#
+# BUG#31036 - Using order by with archive table crashes server
+#
+
+CREATE TABLE t1(a VARCHAR(510)) ENGINE = ARCHIVE;
+
+let $bug31036=41;
+--disable_query_log
+while($bug31036)
+{
+  INSERT INTO t1(a) VALUES (REPEAT('a', 510));
+  dec $bug31036;
+}
+--enable_query_log
+INSERT INTO t1(a) VALUES ('');
+
+--disable_result_log
+SELECT * FROM t1 ORDER BY a;
+--enable_result_log
+
+DROP TABLE t1;
