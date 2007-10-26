@@ -410,6 +410,14 @@ class ha_ndbcluster: public handler
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
 
+  bool start_bulk_update();
+  int bulk_update_row(const uchar *old_data, uchar *new_data,
+                      uint *dup_key_found);
+  int exec_bulk_update(uint *dup_key_found);
+  void end_bulk_update();
+  int ndb_update_row(const uchar *old_data, uchar *new_data,
+                     int is_bulk_update);
+
   static Thd_ndb* seize_thd_ndb();
   static void release_thd_ndb(Thd_ndb* thd_ndb);
  
