@@ -506,6 +506,7 @@ private:
                                       const NdbOperation *last,
                                       uint errcode);
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
+  int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
   int next_result(uchar *buf); 
   int close_scan();
