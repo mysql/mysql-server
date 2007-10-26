@@ -2070,12 +2070,19 @@ public:
 class select_export :public select_to_file {
   uint field_term_length;
   int field_sep_char,escape_char,line_sep_char;
+  int field_term_char; // first char of FIELDS TERMINATED BY or MAX_INT
   /*
     The is_ambiguous_field_sep field is true if a value of the field_sep_char
     field is one of the 'n', 't', 'r' etc characters
     (see the READ_INFO::unescape method and the ESCAPE_CHARS constant value).
   */
   bool is_ambiguous_field_sep;
+  /*
+     The is_ambiguous_field_term is true if field_sep_char contains the first
+     char of the FIELDS TERMINATED BY (ENCLOSED BY is empty), and items can
+     contain this character.
+  */
+  bool is_ambiguous_field_term;
   /*
     The is_unsafe_field_sep field is true if a value of the field_sep_char
     field is one of the '0'..'9', '+', '-', '.' and 'e' characters
