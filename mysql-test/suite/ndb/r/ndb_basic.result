@@ -882,16 +882,16 @@ replace into t1 values ('aaa', '-aaa');
 replace into t1 values ('bbb', '-bbb');
 replace into t1 values ('ccc', '-ccc');
 select * from t1 order by 1,2;
-a       b
-a       -a
-aa      -aa
-aaa     -aaa
-b       -b
-bb      -bb
-bbb     -bbb
-c       -c
-cc      -cc
-ccc     -ccc
+a	b
+a	-a
+aa	-aa
+aaa	-aaa
+b	-b
+bb	-bb
+bbb	-bbb
+c	-c
+cc	-cc
+ccc	-ccc
 drop table t1;
 End of 5.0 tests
 CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
