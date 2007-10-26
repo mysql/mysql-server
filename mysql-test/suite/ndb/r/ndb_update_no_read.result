@@ -1,0 +1,75 @@
+DROP TABLE IF EXISTS t1;
+create table t1 (a int not null primary key, b int not null, c int,
+unique index_b (b) using hash)
+engine ndb;
+insert into t1 values (1,10,1),(2,9,1),(3,8,1),(4,7,1),(5,6,1),(6,5,2),(7,4,2),(8,3,2),
+(9,2,2),(10,1,2);
+update t1 set c = 111, b = 20 where a = 1;
+select * from t1 where a = 1 order by a;
+a	b	c
+1	20	111
+delete from t1 where a = 1;
+select * from t1 where a = 1 order by a;
+a	b	c
+update t1 set c = 12, b = 19 where b = 2;
+select * from t1 where b = 2 order by a;
+a	b	c
+delete from t1 where b = 19;
+select * from t1 where b = 19 order by a;
+a	b	c
+update t1 set c = 22 where a = 10 or a >= 10;
+select * from t1 order by a;
+a	b	c
+2	9	1
+3	8	1
+4	7	1
+5	6	1
+6	5	2
+7	4	2
+8	3	2
+10	1	22
+update t1 set c = 23 where a in (8,10);
+select * from t1 order by a;
+a	b	c
+2	9	1
+3	8	1
+4	7	1
+5	6	1
+6	5	2
+7	4	2
+8	3	23
+10	1	23
+update t1 set c = 23 where a in (7,8) or a >= 10;
+select * from t1 order by a;
+a	b	c
+2	9	1
+3	8	1
+4	7	1
+5	6	1
+6	5	2
+7	4	23
+8	3	23
+10	1	23
+update t1 set c = 11 where a = 3 or b = 7;
+select * from t1 where a = 3 or b = 7 order by a;
+a	b	c
+3	8	11
+4	7	11
+update t1 set a = 13, b = 20 where a = 3;
+select * from t1 where a = 13 order by a;
+a	b	c
+13	20	11
+update t1 set a = 12, b = 19 where b = 7;
+select * from t1 where b = 19 order by a;
+a	b	c
+12	19	11
+select * from t1 where b = 7 order by a;
+a	b	c
+update t1 set c = 12, b = 29 where a = 5 and b = 6;
+select * from t1 where b = 19 order by a;
+a	b	c
+12	19	11
+delete from t1 where b = 6 and c = 12;
+select * from t1 where b = 6 order by a;
+a	b	c
+drop table t1;
