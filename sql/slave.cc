@@ -3279,7 +3279,43 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       now the relay log starts with its Format_desc, has a Rotate etc).
     */
 
-    DBUG_PRINT("info",("type_code=%d, server_id=%d",type_code,ev->server_id));
+    DBUG_PRINT("info",("type_code: %d; server_id: %d; slave_skip_counter: %d",
+                       type_code, ev->server_id, rli->slave_skip_counter));
+
+    /*
+      If the slave skip counter is positive, we still need to set the
+      OPTION_BEGIN flag correctly and not skip the log events that
+      start or end a transaction. If we do this, the slave will not
+      notice that it is inside a transaction, and happily start
+      executing from inside the transaction.
+
+      Note that the code block below is strictly 5.0.
+     */
+#if MYSQL_VERSION_ID < 50100
+    if (unlikely(rli->slave_skip_counter > 0))
+    {
+      switch (type_code)
+      {
+      case QUERY_EVENT:
+      {
+        Query_log_event* const qev= (Query_log_event*) ev;
+        DBUG_PRINT("info", ("QUERY_EVENT { query: '%s', q_len: %u }",
+                            qev->query, qev->q_len));
+        if (memcmp("BEGIN", qev->query, qev->q_len+1) == 0)
+          thd->options|= OPTION_BEGIN;
+        else if (memcmp("COMMIT", qev->query, qev->q_len+1) == 0 ||
+                 memcmp("ROLLBACK", qev->query, qev->q_len+1) == 0)
+          thd->options&= ~OPTION_BEGIN;
+      }
+      break;
+
+      case XID_EVENT:
+        DBUG_PRINT("info", ("XID_EVENT"));
+        thd->options&= ~OPTION_BEGIN;
+        break;
+      }
+    }
+#endif
 
     if ((ev->server_id == (uint32) ::server_id &&
          !replicate_same_server_id &&
@@ -3301,6 +3337,9 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
         flush_relay_log_info(rli);
       }
 
+      DBUG_PRINT("info", ("thd->options: %s",
+                          (thd->options & OPTION_BEGIN) ? "OPTION_BEGIN" : ""))
+
       /*
         Protect against common user error of setting the counter to 1
         instead of 2 while recovering from an insert which used auto_increment,
@@ -3311,6 +3350,15 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
              type_code == RAND_EVENT ||
              type_code == USER_VAR_EVENT) &&
             rli->slave_skip_counter == 1) &&
+#if MYSQL_VERSION_ID < 50100
+          /*
+            Decrease the slave skip counter only if we are not inside
+            a transaction or the slave skip counter is more than
+            1. The slave skip counter will be decreased from 1 to 0
+            when reaching the final ROLLBACK, COMMIT, or XID_EVENT.
+           */
+          (!(thd->options & OPTION_BEGIN) || rli->slave_skip_counter > 1) &&
+#endif
           /*
             The events from ourselves which have something to do with the relay
             log itself must be skipped, true, but they mustn't decrement
@@ -3321,8 +3369,10 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
             would not be skipped.
           */
           !(ev->server_id == (uint32) ::server_id &&
-            (type_code == ROTATE_EVENT || type_code == STOP_EVENT ||
-             type_code == START_EVENT_V3 || type_code == FORMAT_DESCRIPTION_EVENT)))
+            (type_code == ROTATE_EVENT ||
+             type_code == STOP_EVENT ||
+             type_code == START_EVENT_V3 ||
+             type_code == FORMAT_DESCRIPTION_EVENT)))
         --rli->slave_skip_counter;
       pthread_mutex_unlock(&rli->data_lock);
       delete ev;
