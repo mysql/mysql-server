@@ -3973,7 +3973,47 @@ ha_ndbcluster::update_row_conflict_fn(enum_conflict_fn_type cft,
   Update one record in NDB using primary key
 */
 
+bool ha_ndbcluster::start_bulk_update()
+{
+  DBUG_ENTER("ha_ndbcluster::start_bulk_update");
+  DBUG_RETURN(FALSE);
+}
+
+int ha_ndbcluster::bulk_update_row(const uchar *old_data, uchar *new_data,
+                                   uint *dup_key_found)
+{
+  DBUG_ENTER("ha_ndbcluster::bulk_update_row");
+  *dup_key_found= 0;
+  DBUG_RETURN(ndb_update_row(old_data, new_data, 1));
+}
+
+int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
+{
+  DBUG_ENTER("ha_ndbcluster::exec_bulk_update");
+  *dup_key_found= 0;
+  if (m_thd_ndb->m_unsent_bytes &&
+      execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
+                        FALSE, m_ignore_no_key) != 0)
+  {
+    no_uncommitted_rows_execute_failure();
+    DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+  }
+  DBUG_RETURN(0);
+}
+
+void ha_ndbcluster::end_bulk_update()
+{
+  DBUG_ENTER("ha_ndbcluster::end_bulk_update");
+  DBUG_VOID_RETURN;
+}
+
 int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
+{
+  return ndb_update_row(old_data, new_data, 0);
+}
+
+int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
+                                  int is_bulk_update)
 {
   THD *thd= table->in_use;
   Thd_ndb *thd_ndb= m_thd_ndb;
@@ -3987,7 +4027,8 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   bool pk_update= (have_pk &&
                    bitmap_is_overlapping(table->write_set, &m_pk_bitmap) &&
                    primary_key_cmp(old_data, new_data));
-  DBUG_ENTER("update_row");
+  bool batch_allowed= is_bulk_update || (thd->options & OPTION_ALLOW_BATCH);
+  DBUG_ENTER("ndb_update_row");
   DBUG_ASSERT(trans); 
   /*
    * If IGNORE the ignore constraint violations on primary and unique keys,
@@ -4099,7 +4140,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   */
   DBUG_ASSERT(!pk_update);
   if (!m_update_cannot_batch &&
-      (cursor || ((thd->options & OPTION_ALLOW_BATCH) && have_pk)))
+      (cursor || (batch_allowed && have_pk)))
   {
     /* For a scan, we only need to execute() if the batch buffer is full. */
     row= batch_copy_row_to_buffer(thd_ndb, new_data, need_execute);

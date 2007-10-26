@@ -700,7 +700,7 @@ int mysql_update(THD *thd,
         */
         if (will_batch &&
             ((error= table->file->exec_bulk_update(&dup_key_found)) ||
-            !dup_key_found))
+             dup_key_found))
         {
  	  if (error)
           {
