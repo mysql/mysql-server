@@ -1750,6 +1750,9 @@ loop2:
 
 		if (bpage->buf_fix_count
 		    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+			/* This condition often occurs when the buffer
+			is not buffer-fixed, but I/O-fixed by
+			buf_page_init_for_read(). */
 wait_until_unfixed:
 			/* The block is buffer-fixed or I/O-fixed.
 			Try again later. */
@@ -1791,8 +1794,9 @@ wait_until_unfixed:
 		     || buf_page_get_io_fix(bpage) != BUF_IO_NONE)) {
 
 			/* The block was buffer-fixed or I/O-fixed
-			while buf_pool->mutex was released.  Free the
-			block that was allocated and try again. */
+			while buf_pool->mutex was not held by this thread.
+			Free the block that was allocated and try again.
+			This should be extremely unlikely. */
 
 			buf_LRU_block_free_non_file_page(block);
 			mutex_exit(&block->mutex);
