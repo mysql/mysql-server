@@ -3689,10 +3689,15 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   return 0;
 }
 
-int handler::ha_delete_row(const uchar *buf)
+int handler::ha_delete_row(const uchar *buf, bool will_batch)
 {
   int error;
-  if (unlikely(error= delete_row(buf)))
+  if (will_batch)
+  {
+    if (unlikely(error= bulk_delete_row(buf)))
+      return error;
+  }
+  else if (unlikely(error= delete_row(buf)))
     return error;
   if (unlikely(error= binlog_log_row<Delete_rows_log_event>(table, buf, 0)))
     return error;

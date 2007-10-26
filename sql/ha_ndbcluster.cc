@@ -4287,16 +4287,48 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
 }
 
 
+/*
+  handler delete interface
+*/
+
 int ha_ndbcluster::delete_row(const uchar *record)
 {
   return ndb_delete_row(record, FALSE);
 }
 
+bool ha_ndbcluster::start_bulk_delete()
+{
+  DBUG_ENTER("start_bulk_delete");
+  DBUG_RETURN(FALSE);
+}
+
+int ha_ndbcluster::bulk_delete_row(const uchar *record)
+{
+  DBUG_ENTER("bulk_delete_row");
+  DBUG_RETURN(ndb_delete_row(record, FALSE, TRUE));
+}
+
+int ha_ndbcluster::end_bulk_delete()
+{
+  DBUG_ENTER("end_bulk_delete");
+  if (m_thd_ndb->m_unsent_bytes &&
+      execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
+                        FALSE, m_ignore_no_key) != 0)
+  {
+    no_uncommitted_rows_execute_failure();
+    DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+  }
+  DBUG_RETURN(0);
+}
+
+
 /*
   Delete one record from NDB, using primary key 
 */
 
-int ha_ndbcluster::ndb_delete_row(const uchar *record, bool primary_key_update)
+int ha_ndbcluster::ndb_delete_row(const uchar *record,
+                                  bool primary_key_update,
+                                  bool is_bulk_delete)
 {
   THD *thd= table->in_use;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -4305,6 +4337,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record, bool primary_key_update)
   NdbOperation *op;
   uint32 part_id;
   int error;
+  bool allow_batch= is_bulk_delete || (thd->options & OPTION_ALLOW_BATCH);
   DBUG_ENTER("ndb_delete_row");
   DBUG_ASSERT(trans);
 
@@ -4381,7 +4414,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record, bool primary_key_update)
           been aborted.
     */
     bool need_execute;
-    if ((thd->options & OPTION_ALLOW_BATCH) &&
+    if (allow_batch &&
         table_share->primary_key != MAX_KEY)
     {
       /*

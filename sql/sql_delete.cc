@@ -283,7 +283,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
         break;
       }
 
-      if (!(error= table->file->ha_delete_row(table->record[0])))
+      if (!(error= table->file->ha_delete_row(table->record[0], will_batch)))
       {
 	deleted++;
         if (table->triggers &&
