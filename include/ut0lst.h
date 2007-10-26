@@ -73,12 +73,12 @@ the pointer to the node to be added to the list. NAME is the list name. */
 	((BASE).count)++;\
 	((N)->NAME).next = (BASE).start;\
 	((N)->NAME).prev = NULL;\
-	if ((BASE).start != NULL) {\
+	if (UNIV_LIKELY((BASE).start != NULL)) {\
 		ut_ad((BASE).start != (N));\
 		(((BASE).start)->NAME).prev = (N);\
 	}\
 	(BASE).start = (N);\
-	if ((BASE).end == NULL) {\
+	if (UNIV_UNLIKELY((BASE).end == NULL)) {\
 		(BASE).end = (N);\
 	}\
 }\
