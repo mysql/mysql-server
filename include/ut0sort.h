@@ -80,9 +80,8 @@ two elements from the array and returns 1, if the first is bigger,
 		}\
 	}\
 \
-	for (ut_sort_i77 = (LOW); ut_sort_i77 < (HIGH); ut_sort_i77++) {\
-		(ARR)[ut_sort_i77] = (AUX_ARR)[ut_sort_i77];\
-	}\
+	memcpy((ARR) + (LOW), (AUX_ARR) + (LOW),\
+	       ((HIGH) - (LOW)) * sizeof *(ARR));\
 }\
 
 
