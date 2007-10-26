@@ -1846,6 +1846,7 @@ wait_until_unfixed:
 		block->page.state = BUF_BLOCK_FILE_PAGE;
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
+		buf_pool->n_pend_unzip++;
 		rw_lock_x_lock(&block->lock);
 		mutex_exit(&block->mutex);
 		mutex_exit(&buf_pool->zip_mutex);
@@ -1863,6 +1864,7 @@ wait_until_unfixed:
 		/* Unfix and unlatch the block. */
 		mutex_enter(&buf_pool->mutex);
 		mutex_enter(&block->mutex);
+		buf_pool->n_pend_unzip--;
 		block->page.buf_fix_count--;
 		buf_block_set_io_fix(block, BUF_IO_NONE);
 		mutex_exit(&block->mutex);
@@ -2731,12 +2733,15 @@ buf_page_io_complete(
 
 		if (buf_page_get_zip_size(bpage)) {
 			frame = bpage->zip.data;
+			buf_pool->n_pend_unzip++;
 			if (uncompressed
 			    && !buf_zip_decompress((buf_block_t*) bpage,
 						   FALSE)) {
 
+				buf_pool->n_pend_unzip--;
 				goto corrupt;
 			}
+			buf_pool->n_pend_unzip--;
 		} else {
 			ut_a(uncompressed);
 			frame = ((buf_block_t*) bpage)->frame;
@@ -3191,6 +3196,7 @@ buf_print(void)
 		"database pages %lu\n"
 		"free pages %lu\n"
 		"modified database pages %lu\n"
+		"n pending decompressions %lu\n"
 		"n pending reads %lu\n"
 		"n pending flush LRU %lu list %lu single page %lu\n"
 		"pages read %lu, created %lu, written %lu\n",
@@ -3198,6 +3204,7 @@ buf_print(void)
 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
 		(ulong) UT_LIST_GET_LEN(buf_pool->flush_list),
+		(ulong) buf_pool->n_pend_unzip,
 		(ulong) buf_pool->n_pend_reads,
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST],

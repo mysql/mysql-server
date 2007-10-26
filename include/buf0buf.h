@@ -1205,6 +1205,7 @@ struct buf_pool_struct{
 					zip buddy system,
 					indexed by block->frame */
 	ulint		n_pend_reads;	/* number of pending read operations */
+	ulint		n_pend_unzip;	/* number of pending decompressions */
 
 	time_t		last_printout_time; /* when buf_print was last time
 					called */
