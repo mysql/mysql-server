@@ -1252,7 +1252,7 @@ public:
   int ha_external_lock(THD *thd, int lock_type);
   int ha_write_row(uchar * buf);
   int ha_update_row(const uchar * old_data, uchar * new_data);
-  int ha_delete_row(const uchar * buf);
+  int ha_delete_row(const uchar * buf, bool will_batch= FALSE);
 
   /*
     SYNOPSIS
@@ -1287,6 +1287,24 @@ public:
   */
   virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
                               uint *dup_key_found)
+  {
+    DBUG_ASSERT(FALSE);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  /*
+    SYNOPSIS
+    This method is similar to delete_row, however the handler doesn't need
+    to execute the delete at this point in time. The handler can be certain
+    that another call to bulk_delete_row will occur OR a call to
+    end_bulk_delete before the set of deletes in this query is concluded.
+    
+      bulk_delete_row()
+        record       Record to delete
+    RETURN
+      0   Success
+     !=0  Error code
+  */
+  virtual int bulk_delete_row(const uchar *record)
   {
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
