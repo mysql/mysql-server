@@ -203,7 +203,7 @@ the read requests for the whole area.
 */
 
 /* Value in microseconds */
-static const int WAIT_FOR_READ	= 20000;
+static const int WAIT_FOR_READ	= 5000;
 
 buf_pool_t*	buf_pool = NULL; /* The buffer buf_pool of the database */
 
