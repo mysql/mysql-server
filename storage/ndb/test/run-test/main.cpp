@@ -69,6 +69,7 @@ char *save_extra_file = 0;
 const char *save_group_suffix = 0;
 const char * g_dummy;
 char * g_env_path = 0;
+const char* g_mysqld_host = 0;
 
 /** Dummy, extern declared in ndb_opts.h */
 int g_print_full_config = 0, opt_ndb_shm;
@@ -83,6 +84,9 @@ static struct my_option g_options[] =
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "clusters", 256, "Cluster",
     (uchar **) &g_clusters, (uchar **) &g_clusters,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "mysqld", 256, "atrt mysqld",
+    (uchar **) &g_mysqld_host, (uchar **) &g_mysqld_host,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "replicate", 1024, "replicate",
     (uchar **) &g_dummy, (uchar **) &g_dummy,
@@ -159,7 +163,7 @@ main(int argc, char ** argv)
   g_logger.info("Starting...");
   g_config.m_generated = false;
   g_config.m_replication = g_replicate;
-  if (!setup_config(g_config))
+  if (!setup_config(g_config, g_mysqld_host))
     goto end;
 
   if (!configure(g_config, g_do_setup))
@@ -216,6 +220,9 @@ main(int argc, char ** argv)
     if (!start(g_config, g_do_start))
       goto end;
     
+    if (!setup_db(g_config))
+      goto end;
+
     g_logger.info("Done...sleeping");
     while(true)
     {
@@ -250,6 +257,10 @@ main(int argc, char ** argv)
       
       if (!start(g_config, p_ndb | p_servers))
 	goto end;
+
+      if (!setup_db(g_config))
+	goto end;
+      
       g_logger.info("All servers start completed");
     }
     
@@ -673,6 +684,16 @@ wait_ndb(atrt_config& config, int goal){
   for (size_t i = 0; i<config.m_clusters.size(); i++)
   {
     atrt_cluster* cluster = config.m_clusters[i];
+
+    if (strcmp(cluster->m_name.c_str(), ".atrt") == 0)
+    {
+      /**
+       * skip atrt mysql
+       */
+      cnt++;
+      continue;
+    }
+    
     /**
      * Get mgm handle for cluster
      */
@@ -790,7 +811,8 @@ start_process(atrt_process & proc){
   
   g_logger.debug("system(%s)", tmp.c_str());
   const int r1 = system(tmp.c_str());
-  if(r1 != 0){
+  if(r1 != 0)
+  {
     g_logger.critical("Failed to setup process");
     return false;
   }
@@ -1042,7 +1064,9 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
   for(; i<config.m_processes.size(); i++)
   {
     atrt_process & proc = *config.m_processes[i]; 
-    if(proc.m_type == atrt_process::AP_NDB_API || proc.m_type == atrt_process::AP_CLIENT){
+    if(proc.m_type == atrt_process::AP_NDB_API || 
+       proc.m_type == atrt_process::AP_CLIENT)
+    {
       proc.m_proc.m_path = "";
       if (tc.m_command.c_str()[0] != '/')
       {
@@ -1056,7 +1080,9 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
   }
   for(i++; i<config.m_processes.size(); i++){
     atrt_process & proc = *config.m_processes[i]; 
-    if(proc.m_type == atrt_process::AP_NDB_API || proc.m_type == atrt_process::AP_CLIENT){
+    if(proc.m_type == atrt_process::AP_NDB_API || 
+       proc.m_type == atrt_process::AP_CLIENT)
+    {
       proc.m_proc.m_path.assign("");
       proc.m_proc.m_args.assign("");
     }

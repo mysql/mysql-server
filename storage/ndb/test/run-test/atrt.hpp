@@ -23,6 +23,7 @@
 #include <mgmapi.h>
 #include <CpcClient.hpp>
 #include <Properties.hpp>
+#include <mysql.h>
 
 enum ErrorCodes 
 {
@@ -76,7 +77,7 @@ struct atrt_process
   atrt_process * m_mysqld;         // if type == client
   atrt_process * m_rep_src;        // if type == mysqld
   Vector<atrt_process*> m_rep_dst; // if type == mysqld
-  
+  MYSQL m_mysql;                   // if type == mysqld
   atrt_options m_options;
 };
 
@@ -112,7 +113,7 @@ extern Logger g_logger;
 
 void require(bool x);
 bool parse_args(int argc, char** argv);
-bool setup_config(atrt_config&);
+bool setup_config(atrt_config&, const char * mysqld);
 bool configure(atrt_config&, int setup);
 bool setup_directories(atrt_config&, int setup);
 bool setup_files(atrt_config&, int setup, int sshx);
@@ -135,6 +136,12 @@ bool read_test_case(FILE *, atrt_testcase&, int& line);
 bool setup_test_case(atrt_config&, const atrt_testcase&);
 
 bool setup_hosts(atrt_config&);
+
+/**
+ * SQL
+ */
+bool setup_db(atrt_config&);
+const char* find(const atrt_process* proc, const char * name);
 
 /**
  * Global variables...
