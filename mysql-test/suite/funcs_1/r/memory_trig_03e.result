@@ -571,10 +571,8 @@ test_yesprivs@localhost
 use priv_db;
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1_1	INSERT	t1	set new.f1 = 'trig 1_1-yes'	BEFORE	NULL		test_yesprivs@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 select * from information_schema.triggers;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-NULL	priv_db	trg1_1	INSERT	NULL	priv_db	t1	0	NULL	set new.f1 = 'trig 1_1-yes'	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		test_yesprivs@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop trigger trg1_1;
 ERROR 42000: TRIGGER command denied to user 'test_yesprivs'@'localhost' for table 't1'
 select current_user;
