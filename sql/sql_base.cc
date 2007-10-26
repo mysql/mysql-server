@@ -3968,7 +3968,9 @@ find_field_in_tables(THD *thd, Item_ident *item,
   {
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, length,
                                               item->name, db, table_name, ref,
-                                              check_privileges,
+                                              (thd->lex->sql_command ==
+                                               SQLCOM_SHOW_FIELDS)
+                                              ? false : check_privileges,
                                               allow_rowid,
                                               &(item->cached_field_index),
                                               register_tree_change,
