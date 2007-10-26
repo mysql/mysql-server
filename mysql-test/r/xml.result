@@ -647,32 +647,32 @@ select extractValue('<a>a','/a');
 extractValue('<a>a','/a')
 NULL
 Warnings:
-Warning	1524	Incorrect XML value: 'parse error at line 1 pos 5: unexpected END-OF-INPUT'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 5: unexpected END-OF-INPUT'
 select extractValue('<a>a<','/a');
 extractValue('<a>a<','/a')
 NULL
 Warnings:
-Warning	1524	Incorrect XML value: 'parse error at line 1 pos 6: END-OF-INPUT unexpected (ident or '/' wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 6: END-OF-INPUT unexpected (ident or '/' wanted)'
 select extractValue('<a>a</','/a');
 extractValue('<a>a</','/a')
 NULL
 Warnings:
-Warning	1524	Incorrect XML value: 'parse error at line 1 pos 7: END-OF-INPUT unexpected (ident wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 7: END-OF-INPUT unexpected (ident wanted)'
 select extractValue('<a>a</a','/a');
 extractValue('<a>a</a','/a')
 NULL
 Warnings:
-Warning	1524	Incorrect XML value: 'parse error at line 1 pos 8: END-OF-INPUT unexpected ('>' wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 8: END-OF-INPUT unexpected ('>' wanted)'
 select extractValue('<a>a</a></b>','/a');
 extractValue('<a>a</a></b>','/a')
 NULL
 Warnings:
-Warning	1524	Incorrect XML value: 'parse error at line 1 pos 12: '</b>' unexpected (END-OF-INPUT wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 12: '</b>' unexpected (END-OF-INPUT wanted)'
 select extractValue('<a b=>a</a>','/a');
 extractValue('<a b=>a</a>','/a')
 NULL
 Warnings:
-Warning	1524	Incorrect XML value: 'parse error at line 1 pos 7: '>' unexpected (ident or string wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 7: '>' unexpected (ident or string wanted)'
 select extractValue('<e>1</e>','position()');
 ERROR HY000: XPATH syntax error: ''
 select extractValue('<e>1</e>','last()');
@@ -723,17 +723,17 @@ select extractValue('<zot><tim0><01>10:39:15</01><02>140</02></tim0></zot>','//*
 extractValue('<zot><tim0><01>10:39:15</01><02>140</02></tim0></zot>','//*')
 NULL
 Warnings:
-Warning	1524	Incorrect XML value: 'parse error at line 1 pos 13: unknown token unexpected (ident or '/' wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 13: unknown token unexpected (ident or '/' wanted)'
 select extractValue('<.>test</.>','//*');
 extractValue('<.>test</.>','//*')
 NULL
 Warnings:
-Warning	1524	Incorrect XML value: 'parse error at line 1 pos 2: unknown token unexpected (ident or '/' wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 2: unknown token unexpected (ident or '/' wanted)'
 select extractValue('<->test</->','//*');
 extractValue('<->test</->','//*')
 NULL
 Warnings:
-Warning	1524	Incorrect XML value: 'parse error at line 1 pos 2: unknown token unexpected (ident or '/' wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 2: unknown token unexpected (ident or '/' wanted)'
 select extractValue('<:>test</:>','//*');
 extractValue('<:>test</:>','//*')
 test
