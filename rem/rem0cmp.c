@@ -459,10 +459,10 @@ cmp_dtuple_rec_with_match(
 						     rec_offs_comp(offsets));
 		ulint	tup_info = dtuple_get_info_bits(dtuple);
 
-		if (rec_info & REC_INFO_MIN_REC_FLAG) {
+		if (UNIV_UNLIKELY(rec_info & REC_INFO_MIN_REC_FLAG)) {
 			ret = !(tup_info & REC_INFO_MIN_REC_FLAG);
 			goto order_resolved;
-		} else if (tup_info & REC_INFO_MIN_REC_FLAG) {
+		} else if (UNIV_UNLIKELY(tup_info & REC_INFO_MIN_REC_FLAG)) {
 			ret = -1;
 			goto order_resolved;
 		}
@@ -598,7 +598,7 @@ cmp_dtuple_rec_with_match(
 			}
 
 			ret = (int) (dtuple_byte - rec_byte);
-			if (UNIV_UNLIKELY(ret)) {
+			if (UNIV_LIKELY(ret)) {
 				if (ret < 0) {
 					ret = -1;
 					goto order_resolved;
@@ -940,8 +940,8 @@ cmp_rec_rec_with_match(
 			if (cur_field == 0) {
 				/* Test if rec is the predefined minimum
 				record */
-				if (rec_get_info_bits(rec1, comp)
-				    & REC_INFO_MIN_REC_FLAG) {
+				if (UNIV_UNLIKELY(rec_get_info_bits(rec1, comp)
+						  & REC_INFO_MIN_REC_FLAG)) {
 
 					if (!(rec_get_info_bits(rec2, comp)
 					      & REC_INFO_MIN_REC_FLAG)) {
@@ -950,8 +950,9 @@ cmp_rec_rec_with_match(
 
 					goto order_resolved;
 
-				} else if (rec_get_info_bits(rec2, comp)
-					   & REC_INFO_MIN_REC_FLAG) {
+				} else if (UNIV_UNLIKELY
+					   (rec_get_info_bits(rec2, comp)
+					    & REC_INFO_MIN_REC_FLAG)) {
 
 					ret = 1;
 
@@ -1148,8 +1149,9 @@ cmp_debug_dtuple_rec_with_match(
 	cur_field = *matched_fields;
 
 	if (cur_field == 0) {
-		if (rec_get_info_bits(rec, rec_offs_comp(offsets))
-		    & REC_INFO_MIN_REC_FLAG) {
+		if (UNIV_UNLIKELY
+		    (rec_get_info_bits(rec, rec_offs_comp(offsets))
+		     & REC_INFO_MIN_REC_FLAG)) {
 
 			ret = !(dtuple_get_info_bits(dtuple)
 				& REC_INFO_MIN_REC_FLAG);
@@ -1157,7 +1159,8 @@ cmp_debug_dtuple_rec_with_match(
 			goto order_resolved;
 		}
 
-		if (dtuple_get_info_bits(dtuple) & REC_INFO_MIN_REC_FLAG) {
+		if (UNIV_UNLIKELY
+		    (dtuple_get_info_bits(dtuple) & REC_INFO_MIN_REC_FLAG)) {
 			ret = -1;
 
 			goto order_resolved;
