@@ -1211,4 +1211,19 @@ a	b
 3	2
 1	1
 DROP TABLE t1;
+create table t1(a char(10) not null, unique key aa(a(1)),
+b char(4) not null, unique key bb(b(4))) engine=innodb;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	char(10)	NO	UNI	NULL	
+b	char(4)	NO	PRI	NULL	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) NOT NULL,
+  `b` char(4) NOT NULL,
+  UNIQUE KEY `bb` (`b`),
+  UNIQUE KEY `aa` (`a`(1))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
 End of 5.0 tests

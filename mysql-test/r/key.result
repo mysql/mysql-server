@@ -462,4 +462,48 @@ EXPLAIN SELECT MAX(a) FROM t1 FORCE INDEX(a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
 DROP TABLE t1;
+create table t1(a int not null, key aa(a), 
+b char(10) not null, unique key bb(b(1)), 
+c char(4) not null, unique key cc(c));
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	MUL	NULL	
+b	char(10)	NO	UNI	NULL	
+c	char(4)	NO	PRI	NULL	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` char(10) NOT NULL,
+  `c` char(4) NOT NULL,
+  UNIQUE KEY `cc` (`c`),
+  UNIQUE KEY `bb` (`b`(1)),
+  KEY `aa` (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(a int not null, key aa(a), 
+b char(10) not null, unique key bb(b(1)),
+c char(4) not null);
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	MUL	NULL	
+b	char(10)	NO	UNI	NULL	
+c	char(4)	NO		NULL	
+alter table t1 add unique key cc(c);
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	MUL	NULL	
+b	char(10)	NO	UNI	NULL	
+c	char(4)	NO	PRI	NULL	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` char(10) NOT NULL,
+  `c` char(4) NOT NULL,
+  UNIQUE KEY `cc` (`c`),
+  UNIQUE KEY `bb` (`b`(1)),
+  KEY `aa` (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 End of 5.0 tests.

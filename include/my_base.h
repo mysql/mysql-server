@@ -224,7 +224,7 @@ enum ha_base_keytype {
 #define HA_SPATIAL		1024    /* For spatial search */
 #define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
 #define HA_GENERATED_KEY	8192	/* Automaticly generated key */
-
+#define HA_KEY_HAS_PART_KEY_SEG 65536   /* Key contains partial segments */
 	/* Automatic bits in key-flag */
 
 #define HA_SPACE_PACK_USED	 4	/* Test for if SPACE_PACK used */
