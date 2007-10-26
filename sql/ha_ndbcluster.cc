@@ -4744,7 +4744,11 @@ int ha_ndbcluster::close_scan()
   NdbScanOperation *cursor= m_active_cursor;
   
   if (!cursor)
-    DBUG_RETURN(0);
+  {
+    cursor = m_multi_cursor;
+    if (!cursor)
+      DBUG_RETURN(0);
+  }
 
   if ((error= scan_handle_lock_tuple(cursor, trans)) != 0)
     DBUG_RETURN(error);
@@ -4765,6 +4769,7 @@ int ha_ndbcluster::close_scan()
   
   cursor->close(m_thd_ndb->m_force_send, TRUE);
   m_active_cursor= NULL;
+  m_multi_cursor= NULL;
   DBUG_RETURN(0);
 }
 
@@ -5594,6 +5599,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     if (m_active_cursor)
       DBUG_PRINT("warning", ("m_active_cursor != NULL"));
     m_active_cursor= NULL;
+
+    if (m_multi_cursor)
+      DBUG_PRINT("warning", ("m_multi_cursor != NULL"));
+    m_multi_cursor= NULL;
 
     if (m_blobs_pending)
       DBUG_PRINT("warning", ("blobs_pending != 0"));
@@ -7445,7 +7454,8 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_dupkey((uint) -1),
   m_ha_not_exact_count(FALSE),
   m_autoincrement_prefetch((ha_rows) 32),
-  m_cond(NULL)
+  m_cond(NULL),
+  m_multi_cursor(NULL)
 {
   int i;
  
@@ -10414,7 +10424,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
        mask, flags, parallelism, 0);
     if (!scanOp)
       ERR_RETURN(trans->getNdbError());
-    m_active_cursor= scanOp;
+    m_multi_cursor= scanOp;
 
     /*
       We do not get_blob_values() here, as when using blobs we always
@@ -10430,7 +10440,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   }
   else
   {
-    m_active_cursor= 0;
+    m_multi_cursor= 0;
   }
 
   buffer->end_of_used_area= row_buf;
@@ -10471,6 +10481,12 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
       */
       KEY_MULTI_RANGE *old_multi_range_curr= multi_range_curr;
       multi_range_curr= old_multi_range_curr + 1;
+      /*
+        Clear m_active_cursor; it is used as a flag in update_row() /
+        delete_row() to know whether the current tuple is from a scan
+        or pk operation.
+      */
+      m_active_cursor= NULL;
       const NdbOperation *op= m_current_multi_operation;
       m_current_multi_operation= m_thd_ndb->trans->getNextCompletedOperation(op);
       const uchar *src_row= m_multi_range_result_ptr;
@@ -10544,6 +10560,13 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
             one on the next call.
           */
           m_next_row= 0;
+          /*
+            Set m_active_cursor; it is used as a flag in update_row() /
+            delete_row() to know whether the current tuple is from a scan or
+            pk operation.
+          */
+          m_active_cursor= m_multi_cursor;
+
           DBUG_RETURN(0);
         }
         else if (current_range_no > expected_range_no)
@@ -10591,7 +10614,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
 int
 ha_ndbcluster::read_multi_range_fetch_next()
 {
-  NdbIndexScanOperation *cursor= (NdbIndexScanOperation *)m_active_cursor;
+  NdbIndexScanOperation *cursor= (NdbIndexScanOperation *)m_multi_cursor;
 
   if (!cursor)
     return 0;                                   // Scan already done.
@@ -10608,6 +10631,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
       /* We have fetched the last row from the scan. */
       cursor->close(FALSE, TRUE);
       m_active_cursor= 0;
+      m_multi_cursor= 0;
       m_next_row= 0;
       return 0;
     }
