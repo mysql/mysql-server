@@ -7,11 +7,11 @@ return 1;
 create function x() returns int
 return 2;
 Warnings:
-Note	1584	This function 'x' has the same name as a native function
+Note	1585	This function 'x' has the same name as a native function
 create function y() returns int
 return 3;
 Warnings:
-Note	1584	This function 'y' has the same name as a native function
+Note	1585	This function 'y' has the same name as a native function
 select a();
 a()
 1
