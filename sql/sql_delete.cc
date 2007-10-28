@@ -345,12 +345,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     }
   }
 
-  if (might_use_read_removal)
-  {
-    table->file->info(HA_STATUS_WRITTEN_ROWS);
-    deleted= table->file->stats.rows_deleted;
-  }
-
 cleanup:
   /*
     Invalidate the table in the query cache if something changed. This must
@@ -399,6 +393,12 @@ cleanup:
   {
     if (ha_autocommit_or_rollback(thd,error >= 0))
       error=1;
+  }
+
+  if (might_use_read_removal)
+  {
+    table->file->info(HA_STATUS_WRITTEN_ROWS);
+    deleted= table->file->stats.rows_deleted;
   }
 
   if (thd->lock)
