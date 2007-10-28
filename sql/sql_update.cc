@@ -800,21 +800,6 @@ int mysql_update(THD *thd,
   thd->proc_info= "end";
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
 
-  if (might_use_read_removal)
-  {
-    /*
-      updated counter is not valid when using read before write removal
-      optimisatisation so we read it from handler in info call.
-      More sophisticated handling of this would be required if it is
-      necessary to also support this optimisation in conjunction with
-      using LIMIT. Now the optimisation is disabled for IGNORE, LIMIT and
-      also when using BEFORE UPDATE triggers on table and also quite
-      hard checks on UPDATE statement. Still it is used very often with
-      all those limitations.
-    */
-    table->file->info(HA_STATUS_WRITTEN_ROWS);
-    updated= table->file->stats.rows_updated;
-  }
   /*
     Invalidate the table in the query cache if something changed.
     This must be before binlog writing and ha_autocommit_...
@@ -856,6 +841,22 @@ int mysql_update(THD *thd,
   {
     if (ha_autocommit_or_rollback(thd, error >= 0))
       error=1;
+  }
+
+  if (might_use_read_removal)
+  {
+    /*
+      updated counter is not valid when using read before write removal
+      optimisatisation so we read it from handler in info call.
+      More sophisticated handling of this would be required if it is
+      necessary to also support this optimisation in conjunction with
+      using LIMIT. Now the optimisation is disabled for IGNORE, LIMIT and
+      also when using BEFORE UPDATE triggers on table and also quite
+      hard checks on UPDATE statement. Still it is used very often with
+      all those limitations.
+    */
+    table->file->info(HA_STATUS_WRITTEN_ROWS);
+    updated= table->file->stats.rows_updated;
   }
 
   if (thd->lock)
