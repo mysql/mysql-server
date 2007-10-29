@@ -854,9 +854,13 @@ int mysql_update(THD *thd,
       also when using BEFORE UPDATE triggers on table and also quite
       hard checks on UPDATE statement. Still it is used very often with
       all those limitations.
+
+      Moreover, since there is no read before update, found == updated,
+      as there is no optimization to remove the update if the new data
+      should equal the old.
     */
     table->file->info(HA_STATUS_WRITTEN_ROWS);
-    updated= table->file->stats.rows_updated;
+    found= updated= table->file->stats.rows_updated;
   }
 
   if (thd->lock)
