@@ -31,14 +31,14 @@ Created 3/26/1996 Heikki Tuuri
 #define TRX_ROLL_TRUNC_THRESHOLD	1
 
 /* In crash recovery, the current trx to be rolled back */
-trx_t*		trx_roll_crash_recv_trx	= NULL;
+static trx_t*		trx_roll_crash_recv_trx	= NULL;
 
 /* In crash recovery we set this to the undo n:o of the current trx to be
 rolled back. Then we can print how many % the rollback has progressed. */
-ib_longlong	trx_roll_max_undo_no;
+static ib_longlong	trx_roll_max_undo_no;
 
 /* Auxiliary variable which tells the previous progress % we printed */
-ulint		trx_roll_progress_printed_pct;
+static ulint		trx_roll_progress_printed_pct;
 
 /***********************************************************************
 Rollback a transaction used in MySQL. */
@@ -525,6 +525,8 @@ trx_rollback_or_clean_all_without_sess(
 {
 	trx_t*	trx;
 
+	mutex_enter(&kernel_mutex);
+
 	if (UT_LIST_GET_FIRST(trx_sys->trx_list)) {
 
 		fprintf(stderr,
@@ -534,10 +536,12 @@ trx_rollback_or_clean_all_without_sess(
 		goto leave_function;
 	}
 loop:
-	mutex_enter(&kernel_mutex);
-
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list); trx;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+		if (!trx->is_recovered) {
+			continue;
+		}
+
 		switch (trx->conc_state) {
 		case TRX_NOT_STARTED:
 		case TRX_PREPARED:
@@ -559,13 +563,13 @@ loop:
 		}
 	}
 
-	mutex_exit(&kernel_mutex);
-
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		"  InnoDB: Rollback of non-prepared transactions completed\n");
 
 leave_function:
+	mutex_exit(&kernel_mutex);
+
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 

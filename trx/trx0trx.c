@@ -81,6 +81,7 @@ trx_create(
 	trx->op_info = "";
 
 	trx->is_purge = 0;
+	trx->is_recovered = 0;
 	trx->conc_state = TRX_NOT_STARTED;
 	trx->start_time = time(NULL);
 
@@ -413,6 +414,7 @@ trx_lists_init_at_db_start(void)
 
 			trx = trx_create(trx_dummy_sess);
 
+			trx->is_recovered = TRUE;
 			trx->id = undo->trx_id;
 			trx->xid = undo->xid;
 			trx->insert_undo = undo;
@@ -492,6 +494,7 @@ trx_lists_init_at_db_start(void)
 			if (NULL == trx) {
 				trx = trx_create(trx_dummy_sess);
 
+				trx->is_recovered = TRUE;
 				trx->id = undo->trx_id;
 				trx->xid = undo->xid;
 
@@ -1633,6 +1636,10 @@ trx_print(
 	if (*trx->op_info) {
 		putc(' ', f);
 		fputs(trx->op_info, f);
+	}
+
+	if (trx->is_recovered) {
+		fputs(" recovered trx", f);
 	}
 
 	if (trx->is_purge) {
