@@ -1377,7 +1377,11 @@ longlong Item_func_int_div::val_int()
 
 void Item_func_int_div::fix_length_and_dec()
 {
-  max_length=args[0]->max_length - args[0]->decimals;
+  Item_result argtype= args[0]->result_type();
+  /* use precision ony for the data type it is applicable for and valid */
+  max_length=args[0]->max_length -
+    (argtype == DECIMAL_RESULT || argtype == INT_RESULT ?
+     args[0]->decimals : 0);
   maybe_null=1;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
 }
@@ -2238,6 +2242,7 @@ void Item_func_min_max::fix_length_and_dec()
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length(max_int_part+decimals, decimals,
                                             unsigned_flag);
+  cached_field_type= agg_field_type(args, arg_count);
 }
 
 
@@ -3619,9 +3624,16 @@ longlong Item_func_last_insert_id::val_int()
     thd->first_successful_insert_id_in_prev_stmt= value;
     return value;
   }
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return thd->read_first_successful_insert_id_in_prev_stmt();
 }
+
+
+bool Item_func_last_insert_id::fix_fields(THD *thd, Item **ref)
+{
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return Item_int_func::fix_fields(thd, ref);
+}
+
 
 /* This function is just used to test speed of different functions */
 
