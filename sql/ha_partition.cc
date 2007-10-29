@@ -2924,12 +2924,7 @@ void ha_partition::start_bulk_insert(ha_rows rows)
   handler **file;
   DBUG_ENTER("ha_partition::start_bulk_insert");
 
-  if (!rows)
-  {
-    /* Avoid allocation big caches in all underlaying handlers */
-    DBUG_VOID_RETURN;
-  }
-  rows= rows/m_tot_parts + 1;
+  rows= rows ? rows/m_tot_parts + 1 : 0;
   file= m_file;
   do
   {
@@ -3391,6 +3386,22 @@ int ha_partition::index_init(uint inx, bool sorted)
   */
   if (m_lock_type == F_WRLCK)
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
+  else if (sorted && m_table_flags & HA_PARTIAL_COLUMN_READ)
+  {
+    /*
+      An ordered scan is requested and necessary fields aren't in read_set.
+      This may happen e.g. with SELECT COUNT(*) FROM t1. We must ensure
+      that all fields of current key are included into read_set, as
+      partitioning requires them for sorting
+      (see ha_partition::handle_ordered_index_scan).
+
+      TODO: handle COUNT(*) queries via unordered scan.
+    */
+    uint i;
+    for (i= 0; i < m_curr_key_info->key_parts; i++)
+      bitmap_set_bit(table->read_set,
+                     m_curr_key_info->key_part[i].field->field_index);
+  }
   file= m_file;
   do
   {
@@ -4540,6 +4551,8 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   4) Parameters only used by temporary tables for query processing
   5) Parameters only used by MyISAM internally
   6) Parameters not used at all
+  7) Parameters only used by federated tables for query processing
+  8) Parameters only used by NDB
 
   The partition handler need to handle category 1), 2) and 3).
 
@@ -4806,6 +4819,15 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   HA_EXTRA_INSERT_WITH_UPDATE:
     Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
+
+  8) Parameters only used by NDB
+  ------------------------------
+  HA_EXTRA_DELETE_CANNOT_BATCH:
+  HA_EXTRA_UPDATE_CANNOT_BATCH:
+    Inform handler that delete_row()/update_row() cannot batch deletes/updates
+    and should perform them immediately. This may be needed when table has 
+    AFTER DELETE/UPDATE triggers which access to subject table.
+    These flags are reset by the handler::extra(HA_EXTRA_RESET) call.
 */
 
 int ha_partition::extra(enum ha_extra_function operation)
@@ -4890,6 +4912,13 @@ int ha_partition::extra(enum ha_extra_function operation)
     /* Category 7), used by federated handlers */
   case HA_EXTRA_INSERT_WITH_UPDATE:
     DBUG_RETURN(loop_extra(operation));
+    /* Category 8) Parameters only used by NDB */
+  case HA_EXTRA_DELETE_CANNOT_BATCH:
+  case HA_EXTRA_UPDATE_CANNOT_BATCH:
+  {
+    /* Currently only NDB use the *_CANNOT_BATCH */
+    break;
+  }
   default:
   {
     /* Temporary crash to discover what is wrong */
