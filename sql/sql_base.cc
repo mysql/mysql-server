@@ -7393,7 +7393,7 @@ open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
     else
     {
       /* only VIEWs are supported now */
-      my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), share->path,  parser->type()->str);
+      my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), share->path.str,  parser->type()->str);
       goto err;
     }
     DBUG_RETURN(0);

@@ -395,7 +395,7 @@ THD::THD()
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
-  query_error= thread_specific_used= FALSE;
+  is_slave_error= thread_specific_used= FALSE;
   hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
@@ -2404,6 +2404,7 @@ void Security_context::init()
   host= user= priv_user= ip= 0;
   host_or_ip= "connecting host";
   priv_host[0]= '\0';
+  master_access= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
 #endif

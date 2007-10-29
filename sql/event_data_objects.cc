@@ -2017,6 +2017,7 @@ end_no_lex_start:
       ret= 1;
     else
     {
+      ulong saved_master_access;
       /*
         Peculiar initialization order is a crutch to avoid races in SHOW
         PROCESSLIST which reads thd->{query/query_length} without a mutex.
@@ -2024,8 +2025,19 @@ end_no_lex_start:
       thd->query_length= 0;
       thd->query= sp_sql.c_ptr_safe();
       thd->query_length= sp_sql.length();
-      if (Events::drop_event(thd, dbname, name, FALSE))
-        ret= 1;
+
+      /*
+        NOTE: even if we run in read-only mode, we should be able to lock
+        the mysql.event table for writing. In order to achieve this, we
+        should call mysql_lock_tables() under the super-user.
+      */
+
+      saved_master_access= thd->security_ctx->master_access;
+      thd->security_ctx->master_access |= SUPER_ACL;
+
+      ret= Events::drop_event(thd, dbname, name, FALSE);
+
+      thd->security_ctx->master_access= saved_master_access;
     }
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

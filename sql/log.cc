@@ -2891,8 +2891,8 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
       *decrease_log_space-= file_size;
 
     ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
-    if (current_thd->query_error) {
-      DBUG_PRINT("info",("query error: %d", current_thd->query_error));
+    if (current_thd->is_slave_error) {
+      DBUG_PRINT("info",("slave error: %d", current_thd->is_slave_error));
       if (my_errno == EMFILE) {
         DBUG_PRINT("info",("my_errno: %d, set ret = LOG_INFO_EMFILE", my_errno));
         ret = LOG_INFO_EMFILE;

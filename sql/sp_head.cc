@@ -1108,7 +1108,7 @@ sp_head::execute(THD *thd)
 
   if ((ctx= thd->spcont))
     ctx->clear_handler();
-  thd->query_error= 0;
+  thd->is_slave_error= 0;
   old_arena= thd->stmt_arena;
 
   /*
@@ -1275,8 +1275,8 @@ sp_head::execute(THD *thd)
   state= EXECUTED;
 
  done:
-  DBUG_PRINT("info", ("err_status: %d  killed: %d  query_error: %d  report_error: %d",
-		      err_status, thd->killed, thd->query_error,
+  DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
+		      err_status, thd->killed, thd->is_slave_error,
                       thd->net.report_error));
 
   if (thd->killed)

@@ -501,3 +501,26 @@ ORDER BY c.b, c.d
 ;
 
 DROP TABLE t1, t2;
+
+#
+# Bug #31148: bool close_thread_table(THD*, TABLE**): Assertion
+# `table->key_read == 0' failed.
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT);
+
+INSERT INTO t1 VALUES (), (), ();
+
+SELECT 1 AS c1
+FROM t1
+ORDER BY (
+  SELECT 1 AS c2
+  FROM t1
+  GROUP BY GREATEST(LAST_INSERT_ID(), t1.a) ASC
+  LIMIT 1);
+
+DROP TABLE t1;
