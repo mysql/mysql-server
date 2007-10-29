@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1, t2;
 select CASE "b" when "a" then 1 when "b" then 2 END;
 CASE "b" when "a" then 1 when "b" then 2 END
 2
@@ -200,3 +200,21 @@ CEMPNUM	EMPMUM1	EMPNUM2
 0.00	0	0.00
 2.00	2	NULL
 DROP TABLE t1,t2;
+End of 4.1 tests
+create table t1 (a int, b bigint unsigned);
+create table t2 (c int);
+insert into t1 (a, b) values (1,4572794622775114594), (2,18196094287899841997),
+(3,11120436154190595086);
+insert into t2 (c) values (1), (2), (3);
+select t1.a, (case t1.a when 0 then 0 else t1.b end) d from t1 
+join t2 on t1.a=t2.c order by d;
+a	d
+1	4572794622775114594
+3	11120436154190595086
+2	18196094287899841997
+select t1.a, (case t1.a when 0 then 0 else t1.b end) d from t1 
+join t2 on t1.a=t2.c where b=11120436154190595086 order by d;
+a	d
+3	11120436154190595086
+drop table t1, t2;
+End of 5.0 tests

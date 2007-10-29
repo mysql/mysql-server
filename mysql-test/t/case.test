@@ -1,9 +1,9 @@
-#
+
 # Testing of CASE
 #
 
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1, t2;
 --enable_warnings
 
 select CASE "b" when "a" then 1 when "b" then 2 END;
@@ -152,4 +152,21 @@ SELECT IFNULL(t2.EMPNUM,t1.EMPNUM) AS CEMPNUM,
   FROM t1 LEFT JOIN t2 ON t1.EMPNUM=t2.EMPNUM;
 
 DROP TABLE t1,t2;
-# End of 4.1 tests
+
+--echo End of 4.1 tests
+
+#
+# #30782: Truncated UNSIGNED BIGINT columns 
+#
+create table t1 (a int, b bigint unsigned);
+create table t2 (c int);
+insert into t1 (a, b) values (1,4572794622775114594), (2,18196094287899841997),
+  (3,11120436154190595086);
+insert into t2 (c) values (1), (2), (3);
+select t1.a, (case t1.a when 0 then 0 else t1.b end) d from t1 
+  join t2 on t1.a=t2.c order by d;
+select t1.a, (case t1.a when 0 then 0 else t1.b end) d from t1 
+  join t2 on t1.a=t2.c where b=11120436154190595086 order by d;
+drop table t1, t2;
+
+--echo End of 5.0 tests
