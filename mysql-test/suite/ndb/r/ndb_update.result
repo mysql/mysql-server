@@ -41,6 +41,14 @@ pk1	b	c
 10	0	0
 12	2	2
 14	1	1
+create unique index ib on t1(b);
+update t1 set c = 4 where pk1 = 12;
+update ignore t1 set b = 55 where pk1 = 14;
+select * from t1 order by pk1;
+pk1	b	c
+10	0	0
+12	2	4
+14	55	1
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a int, b int, KEY (a, b)) ENGINE=ndbcluster;
 CREATE TABLE t2 (a int, b int, UNIQUE KEY (a, b)) ENGINE=ndbcluster;
