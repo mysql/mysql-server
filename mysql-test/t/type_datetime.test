@@ -283,6 +283,43 @@ select * from t1 where f1 between 2002010 and 20070101000000;
 select * from t1 where f1 between 20020101 and 2007010100000;
 drop table t1;
 
+--echo #
+--echo # Bug#27216: functions with parameters of different date types may
+--echo #            return wrong type of the result.
+--echo #
+create table t1 (f1 date, f2 datetime, f3 varchar(20));
+create table t2 as select coalesce(f1,f1) as f4 from t1;
+desc t2;
+create table t3 as select coalesce(f1,f2) as f4 from t1;
+desc t3;
+create table t4 as select coalesce(f2,f2) as f4 from t1;
+desc t4;
+create table t5 as select coalesce(f1,f3) as f4 from t1;
+desc t5;
+create table t6 as select coalesce(f2,f3) as f4 from t1;
+desc t6;
+create table t7 as select coalesce(makedate(1997,1),f2) as f4 from t1;
+desc t7;
+create table t8 as select coalesce(cast('01-01-01' as datetime),f2) as f4
+  from t1;
+desc t8;
+create table t9 as select case when 1 then cast('01-01-01' as date)
+  when 0 then cast('01-01-01' as date) end as f4 from t1;
+desc t9;
+create table t10 as select case when 1 then cast('01-01-01' as datetime)
+  when 0 then cast('01-01-01' as datetime) end as f4 from t1;
+desc t10;
+create table t11 as select if(1, cast('01-01-01' as datetime),
+  cast('01-01-01' as date)) as f4 from t1;
+desc t11;
+create table t12 as select least(cast('01-01-01' as datetime),
+  cast('01-01-01' as date)) as f4 from t1;
+desc t12;
+create table t13 as select ifnull(cast('01-01-01' as datetime),
+  cast('01-01-01' as date)) as f4 from t1;
+desc t13;
+drop tables t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13;
+--echo ###################################################################
 #
 # Bug #31253: crash comparing datetime to double
 # Should return 1st row only. Crashes if NULL propagation fails.
@@ -302,7 +339,6 @@ select sum(a) from t1 group by convert(a, datetime);
 drop table t1;
 
 --echo End of 5.0 tests
-
 #
 # Test of storing datetime into date fields
 #
