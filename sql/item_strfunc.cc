@@ -36,36 +36,6 @@ C_MODE_END
 String my_empty_string("",default_charset_info);
 
 
-String *Item_str_func::check_well_formed_result(String *str)
-{
-  /* Check whether we got a well-formed string */
-  CHARSET_INFO *cs= str->charset();
-  int well_formed_error;
-  uint wlen= cs->cset->well_formed_len(cs,
-                                       str->ptr(), str->ptr() + str->length(),
-                                       str->length(), &well_formed_error);
-  if (wlen < str->length())
-  {
-    THD *thd= current_thd;
-    char hexbuf[7];
-    enum MYSQL_ERROR::enum_warning_level level;
-    uint diff= str->length() - wlen;
-    set_if_smaller(diff, 3);
-    octet2hex(hexbuf, str->ptr() + wlen, diff);
-    if (thd->variables.sql_mode &
-        (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
-    {
-      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
-      null_value= 1;
-      str= 0;
-    }
-    else
-      level= MYSQL_ERROR::WARN_LEVEL_WARN;
-    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
-                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
-  }
-  return str;
-}
 
 
 bool Item_str_func::fix_fields(THD *thd, Item **ref)
@@ -2276,11 +2246,13 @@ String *Item_func_char::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   str->length(0);
+  str->set_charset(collation.collation);
   for (uint i=0 ; i < arg_count ; i++)
   {
     int32 num=(int32) args[i]->val_int();
     if (!args[i]->null_value)
     {
+      char char_num= (char) num;
       if (num&0xFF000000L) {
         str->append((char)(num>>24));
         goto b2;
@@ -2290,10 +2262,9 @@ String *Item_func_char::val_str(String *str)
       } else if (num&0xFF00L) {
     b1:        str->append((char)(num>>8));
       }
-      str->append((char) num);
+      str->append(&char_num, 1);
     }
   }
-  str->set_charset(collation.collation);
   str->realloc(str->length());			// Add end 0 (for Purify)
   return check_well_formed_result(str);
 }

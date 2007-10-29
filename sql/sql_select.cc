@@ -1695,7 +1695,7 @@ JOIN::exec()
 	  test_if_skip_sort_order(&join_tab[const_tables], order,
 				  select_limit, 0, 
                                   &join_tab[const_tables].table->
-                                    keys_in_use_for_order_by))))
+                                    keys_in_use_for_query))))
       order=0;
     having= tmp_having;
     select_describe(this, need_tmp,
@@ -12644,6 +12644,8 @@ find_field_in_item_list (Field *field, void *data)
   If we can use an index, the JOIN_TAB / tab->select struct
   is changed to use the index.
 
+  The index must cover all fields in <order>, or it will not be considered.
+
   Return:
      0 We have to use filesort to do the sorting
      1 We can use an index.
@@ -12803,12 +12805,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     LINT_INIT(best_key_direction);
     LINT_INIT(best_records); 
 
-    /* 
-      filesort() and join cache are usually faster than reading in 
-      index order and not using join cache
-    */
-    if (tab->type == JT_ALL && tab->join->tables > tab->join->const_tables + 1)
-      DBUG_RETURN(0);
     /*
       If not used with LIMIT, only use keys if the whole query can be
       resolved with a key;  This is because filesort() is usually faster than
@@ -12816,6 +12812,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     */
     if (select_limit >= table_records)
     {
+      /* 
+        filesort() and join cache are usually faster than reading in 
+        index order and not using join cache
+        */
+      if (tab->type == JT_ALL && tab->join->tables > tab->join->const_tables + 1)
+        DBUG_RETURN(0);
       keys= *table->file->keys_to_use_for_scanning();
       keys.merge(table->covering_keys);
 
@@ -14846,6 +14848,9 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  item_field= (Item*) new Item_field(field);
 	if (!item_field)
 	  DBUG_RETURN(TRUE);                    // Fatal error
+
+        if (item->real_item()->type() != Item::FIELD_ITEM)
+          field->orig_table= 0;
 	item_field->name= item->name;
         if (item->type() == Item::REF_ITEM)
         {
@@ -16091,6 +16096,43 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
 }
 
 
+/**
+  @brief Print an index hint
+
+  @details Prints out the USE|FORCE|IGNORE index hint.
+
+  @param      thd         the current thread
+  @param[out] str         appends the index hint here
+  @param      hint        what the hint is (as string : "USE INDEX"|
+                          "FORCE INDEX"|"IGNORE INDEX")
+  @param      hint_length the length of the string in 'hint'
+  @param      indexes     a list of index names for the hint
+*/
+
+void 
+Index_hint::print(THD *thd, String *str)
+{
+  switch (type)
+  {
+    case INDEX_HINT_IGNORE: str->append(STRING_WITH_LEN("IGNORE INDEX")); break;
+    case INDEX_HINT_USE:    str->append(STRING_WITH_LEN("USE INDEX")); break;
+    case INDEX_HINT_FORCE:  str->append(STRING_WITH_LEN("FORCE INDEX")); break;
+  }
+  str->append (STRING_WITH_LEN(" ("));
+  if (key_name.length)
+  {
+    if (thd && !my_strnncoll(system_charset_info,
+                             (const uchar *)key_name.str, key_name.length, 
+                             (const uchar *)primary_key_name, 
+                             strlen(primary_key_name)))
+      str->append(primary_key_name);
+    else
+      append_identifier(thd, str, key_name.str, key_name.length);
+  }
+  str->append(')');
+}
+
+
 /*
   Print table as it should be in join list
 
@@ -16157,6 +16199,18 @@ void TABLE_LIST::print(THD *thd, String *str)
     {
       str->append(' ');
       append_identifier(thd, str, alias, strlen(alias));
+    }
+
+    if (index_hints)
+    {
+      List_iterator<Index_hint> it(*index_hints);
+      Index_hint *hint;
+
+      while ((hint= it++))
+      {
+        str->append (STRING_WITH_LEN(" "));
+        hint->print (thd, str);
+      }
     }
   }
 }

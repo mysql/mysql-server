@@ -575,7 +575,14 @@ set @test = @@query_prealloc_size;
 set @@query_prealloc_size = @test;
 select @@query_prealloc_size = @test;
 
-# End of 4.1 tests
+#
+# Bug#31588 buffer overrun when setting variables
+#
+# Buffer-size Off By One. Should throw valgrind-warning without fix #31588.
+--error 1231
+set global sql_mode=repeat('a',80);
+
+--echo End of 4.1 tests
 
 #
 # Bug#6282 Packet error with SELECT INTO

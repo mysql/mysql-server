@@ -253,11 +253,11 @@ use mysql;
 CREATE TABLE `general_log` (
   `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
                          ON UPDATE CURRENT_TIMESTAMP,
-  `user_host` mediumtext,
-  `thread_id` int(11) DEFAULT NULL,
-  `server_id` int(11) DEFAULT NULL,
-  `command_type` varchar(64) DEFAULT NULL,
-  `argument` mediumtext
+  `user_host` mediumtext NOT NULL,
+  `thread_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
+  `command_type` varchar(64) NOT NULL,
+  `argument` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log';
 
 CREATE TABLE `slow_log` (
@@ -268,10 +268,10 @@ CREATE TABLE `slow_log` (
   `lock_time` time NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
-  `db` varchar(512) DEFAULT NULL,
-  `last_insert_id` int(11) DEFAULT NULL,
-  `insert_id` int(11) DEFAULT NULL,
-  `server_id` int(11) DEFAULT NULL,
+  `db` varchar(512) NOT NULL,
+  `last_insert_id` int(11) NOT NULL,
+  `insert_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
   `sql_text` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log';
 

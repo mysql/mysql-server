@@ -139,3 +139,58 @@ insert into t1 values (9912101,9912101,9912101);
 insert into t1 values (11111,11111,11111);
 select * from t1;
 drop table t1;
+
+#
+# Bug #30942: select str_to_date from derived table returns varying results
+#
+CREATE TABLE t1 (
+  a INT
+);
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (NULL);
+
+SELECT str_to_date( '', a ) FROM t1;
+DROP TABLE t1;
+
+
+#
+# Bug #31221: Optimizer incorrectly identifies impossible WHERE clause
+#
+
+CREATE TABLE t1 (a DATE, b int, PRIMARY KEY (a,b));
+INSERT INTO t1 VALUES (DATE(NOW()), 1);
+SELECT COUNT(*) FROM t1 WHERE a = NOW();
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+INSERT INTO t1 VALUES (DATE(NOW()), 2);
+SELECT COUNT(*) FROM t1 WHERE a = NOW();
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+SELECT COUNT(*) FROM t1 WHERE a = NOW() AND b = 1;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW() AND b = 1;
+ALTER TABLE t1 DROP PRIMARY KEY;
+SELECT COUNT(*) FROM t1 WHERE a = NOW();
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+
+DROP TABLE t1;
+
+#
+# Bug #28687: Search fails on '0000-00-00' date after sql_mode change
+#
+
+CREATE TABLE t1 (a DATE);
+CREATE TABLE t2 (a DATE);
+CREATE INDEX i ON t1 (a);
+INSERT INTO t1 VALUES ('0000-00-00'),('0000-00-00');
+INSERT INTO t2 VALUES ('0000-00-00'),('0000-00-00');
+SELECT * FROM t1 WHERE a = '0000-00-00';
+SELECT * FROM t2 WHERE a = '0000-00-00';
+SET SQL_MODE=TRADITIONAL;
+EXPLAIN SELECT * FROM t1 WHERE a = '0000-00-00';
+SELECT * FROM t1 WHERE a = '0000-00-00';
+SELECT * FROM t2 WHERE a = '0000-00-00';
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES ('0000-00-00');
+SET SQL_MODE=DEFAULT;
+DROP TABLE t1,t2;
+
+--echo End of 5.0 tests

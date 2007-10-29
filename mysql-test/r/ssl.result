@@ -608,11 +608,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	period	NULL	NULL	NULL	41810	Using filesort
+1	SIMPLE	t3	index	period	period	4	NULL	1	
 1	SIMPLE	t1	ref	period	period	4	test.t3.period	4181	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	period	NULL	NULL	NULL	41810	Using filesort
+1	SIMPLE	t1	index	period	period	4	NULL	1	
 1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
 select period from t1;
 period
