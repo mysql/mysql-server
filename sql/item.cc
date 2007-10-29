@@ -272,6 +272,7 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
   if (get_date(&ltime, TIME_FUZZY_DATE))
   {
     my_decimal_set_zero(decimal_value);
+    null_value= 1;                               // set NULL, stop processing
     return 0;
   }
   return date2my_decimal(&ltime, decimal_value);
@@ -966,10 +967,13 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   THD *thd= table->in_use;
   enum_check_fields tmp= thd->count_cuted_fields;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
+  ulong sql_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   res= save_in_field(field, no_conversions);
   thd->count_cuted_fields= tmp;
   dbug_tmp_restore_column_map(table->write_set, old_map);
+  thd->variables.sql_mode= sql_mode;
   return res;
 }
 
@@ -3859,7 +3863,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                           context->first_name_resolution_table,
                                           context->last_name_resolution_table,
                                           reference,
-                                          IGNORE_EXCEPT_NON_UNIQUE,
+                                          thd->lex->use_only_table_context ?
+                                            REPORT_ALL_ERRORS : 
+                                            IGNORE_EXCEPT_NON_UNIQUE,
                                           !any_privileges,
                                           TRUE)) ==
 	not_found_field)
@@ -4313,6 +4319,47 @@ bool Item::is_datetime()
 }
 
 
+String *Item::check_well_formed_result(String *str, bool send_error)
+{
+  /* Check whether we got a well-formed string */
+  CHARSET_INFO *cs= str->charset();
+  int well_formed_error;
+  uint wlen= cs->cset->well_formed_len(cs,
+                                       str->ptr(), str->ptr() + str->length(),
+                                       str->length(), &well_formed_error);
+  if (wlen < str->length())
+  {
+    THD *thd= current_thd;
+    char hexbuf[7];
+    enum MYSQL_ERROR::enum_warning_level level;
+    uint diff= str->length() - wlen;
+    set_if_smaller(diff, 3);
+    octet2hex(hexbuf, str->ptr() + wlen, diff);
+    if (send_error)
+    {
+      my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
+               cs->csname,  hexbuf);
+      return 0;
+    }
+    if ((thd->variables.sql_mode &
+         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+    {
+      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+      null_value= 1;
+      str= 0;
+    }
+    else
+    {
+      level= MYSQL_ERROR::WARN_LEVEL_WARN;
+      str->length(wlen);
+    }
+    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
+                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
+  }
+  return str;
+}
+
+
 /*
   Create a field to hold a string value from an item
 
@@ -4456,12 +4503,11 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     else
       field= new Field_blob(max_length, maybe_null, name, collation.collation);
     break;					// Blob handled outside of case
+#ifdef HAVE_SPATIAL
   case MYSQL_TYPE_GEOMETRY:
-    field= new Field_geom(max_length, maybe_null, name, table->s,
-                          (Field::geometry_type)
-                          ((type() == Item::TYPE_HOLDER) ?
-                           ((Item_type_holder *)this)->get_geometry_type() :
-                           ((Item_geometry_func *)this)->get_geometry_type()));
+    field= new Field_geom(max_length, maybe_null,
+                          name, table->s, get_geometry_type());
+#endif /* HAVE_SPATIAL */
   }
   if (field)
     field->init(table);
@@ -4862,6 +4908,19 @@ warn:
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE,
                        1);
   return 1;
+}
+
+
+void Item_hex_string::print(String *str)
+{
+  char *end= (char*) str_value.ptr() + str_value.length(),
+       *ptr= end - min(str_value.length(), sizeof(longlong));
+  str->append("0x");
+  for (; ptr != end ; ptr++)
+  {
+    str->append(_dig_vec_lower[((uchar) *ptr) >> 4]);
+    str->append(_dig_vec_lower[((uchar) *ptr) & 0x0F]);
+  }
 }
 
 
@@ -6585,10 +6644,10 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   if (Field::result_merge_type(fld_type) == INT_RESULT)
     decimals= 0;
   prev_decimal_int_part= item->decimal_int_part();
+#ifdef HAVE_SPATIAL
   if (item->field_type() == MYSQL_TYPE_GEOMETRY)
-    geometry_type= (item->type() == Item::FIELD_ITEM) ?
-      ((Item_field *)item)->get_geometry_type() :
-      (Field::geometry_type)((Item_geometry_func *)item)->get_geometry_type();
+    geometry_type= item->get_geometry_type();
+#endif /* HAVE_SPATIAL */
 }
 
 

@@ -953,7 +953,7 @@ BEGIN
   DECLARE col1, col2, col3, col4, col6 CHAR(255);
   DECLARE default_val VARCHAR(65532);
   DECLARE done INT DEFAULT 0;
-  DECLARE cur1 CURSOR FOR SHOW COLUMNS FROM bug23037;
+  DECLARE cur1 CURSOR FOR SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, EXTRA FROM INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='bug23037';
   DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
   OPEN cur1;
   FETCH cur1 INTO col1, col2, col3, col4, default_val, col6;
@@ -1090,6 +1090,14 @@ show columns from t1;
 drop table t1;
 
 --echo End of 5.0 tests.
+
+#
+# Bug#30079 A check for "hidden" I_S tables is flawed
+#
+--error 1109
+show fields from information_schema.table_names;
+--error 1109
+show keys from information_schema.table_names;
 #
 # Show engines
 #
@@ -1178,4 +1186,50 @@ select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TA
 select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TABLE_NAME='';
 select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='';
 select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='nonexisting';
+
+#
+# Bug#30689 Wrong content in I_S.VIEWS.VIEW_DEFINITION if VIEW is based on I_S
+#
+CREATE VIEW v1
+AS SELECT *
+FROM INFORMATION_SCHEMA.TABLES;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME = 'v1';
+DROP VIEW v1;
+
+#
+# Bug#30795 Query on INFORMATION_SCHEMA.SCHEMATA, wrong result
+#
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME ='information_schema';
+                                                                                                 
+#
+# Bug#31381 Error in retrieving Data from INFORMATION_SCHEMA
+#
+SELECT TABLE_COLLATION FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
+
+#
+# Bug#31633 Information schema = NULL queries crash the server
+#
+select * from information_schema.columns where table_schema = NULL;
+select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`PARTITIONS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`PARTITIONS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`REFERENTIAL_CONSTRAINTS` where `CONSTRAINT_SCHEMA` = NULL;
+select * from `information_schema`.`REFERENTIAL_CONSTRAINTS` where `TABLE_NAME` = NULL;
+select * from information_schema.schemata where schema_name = NULL;
+select * from `information_schema`.`STATISTICS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`STATISTICS` where `TABLE_NAME` = NULL;
+select * from information_schema.tables where table_schema = NULL;
+select * from information_schema.tables where table_catalog = NULL;
+select * from information_schema.tables where table_name = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_SCHEMA` = NULL;
+select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_TABLE` = NULL;
+select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
+
 --echo End of 5.1 tests.

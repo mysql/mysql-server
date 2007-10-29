@@ -1362,8 +1362,21 @@ static void set_ports()
   {					// Get port if not from commandline
     struct  servent *serv_ptr;
     mysqld_port= MYSQL_PORT;
+
+    /*
+      if builder specifically requested a default port, use that
+      (even if it coincides with our factory default).
+      only if they didn't do we check /etc/services (and, failing
+      on that, fall back to the factory default of 3306).
+      either default can be overridden by the environment variable
+      MYSQL_TCP_PORT, which in turn can be overridden with command
+      line options.
+    */
+
+#if MYSQL_PORT_DEFAULT == 0
     if ((serv_ptr= getservbyname("mysql", "tcp")))
       mysqld_port= ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+#endif
     if ((env = getenv("MYSQL_TCP_PORT")))
       mysqld_port= (uint) atoi(env);		/* purecov: inspected */
   }
@@ -2217,7 +2230,7 @@ bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
 You seem to be running 32-bit Linux and have %d concurrent connections.\n\
 If you have not changed STACK_SIZE in LinuxThreads and built the binary \n\
 yourself, LinuxThreads is quite likely to steal a part of the global heap for\n\
-the thread stack. Please read http://www.mysql.com/doc/en/Linux.html\n\n",
+the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 	    thread_count);
   }
 #endif /* HAVE_LINUXTHREADS */
@@ -2237,7 +2250,7 @@ Some pointers may be invalid and cause the dump to abort...\n");
     fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
   }
   fprintf(stderr, "\
-The manual page at http://www.mysql.com/doc/en/Crashing.html contains\n\
+The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
 information that should help you find out what is causing the crash.\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
@@ -5627,7 +5640,13 @@ master-ssl",
   {"pid-file", OPT_PID_FILE, "Pid file used by safe_mysqld.",
    (uchar**) &pidfile_name_ptr, (uchar**) &pidfile_name_ptr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (uchar**) &mysqld_port,
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   (uchar**) &mysqld_port,
    (uchar**) &mysqld_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port-open-timeout", OPT_PORT_OPEN_TIMEOUT,
    "Maximum time in seconds to wait for the port to become free. "
@@ -5977,7 +5996,7 @@ log and this option does nothing anymore.",
    (uchar**) &dflt_key_cache_var.param_buff_size,
    (uchar**) 0,
    0, (GET_ULL | GET_ASK_ADDR),
-   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD,
+   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, SIZE_T_MAX, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
@@ -6252,7 +6271,7 @@ The minimum value for this variable is 4096.",
    "Each thread that does a sequential scan allocates a buffer of this size for each table it scans. If you do many sequential scans, you may want to increase this value.",
    (uchar**) &global_system_variables.read_buff_size,
    (uchar**) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE,
+   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, INT_MAX32, MALLOC_OVERHEAD, IO_SIZE,
    0},
   {"read_only", OPT_READONLY,
    "Make all non-temporary tables read-only, with the exception for replication (slave) threads and users with the SUPER privilege",
@@ -6264,12 +6283,12 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.read_rnd_buff_size,
    (uchar**) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
-   SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
+   INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"record_buffer", OPT_RECORD_BUFFER,
    "Alias for read_buffer_size",
    (uchar**) &global_system_variables.read_buff_size,
    (uchar**) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
+   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
 #ifdef HAVE_REPLICATION
   {"relay_log_purge", OPT_RELAY_LOG_PURGE,
    "0 = do not purge relay logs. 1 = purge them as soon as they are no more needed.",
