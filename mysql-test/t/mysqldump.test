@@ -1577,6 +1577,23 @@ SELECT * FROM t2;
 DROP TABLE t1,t2;
 
 --echo #
+--echo # Bug#29815: new option for suppressing last line of mysqldump:
+--echo #            "Dump completed on"
+--echo #
+
+--echo # --skip-dump-date:
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*//
+--exec $MYSQL_DUMP --skip-dump-date test
+
+--echo # --dump-date:
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// / on [0-9 :-]+/ on DATE/
+--exec $MYSQL_DUMP --dump-date test
+
+--echo # --dump-date (default):
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// / on [0-9 :-]+/ on DATE/
+--exec $MYSQL_DUMP test
+
+--echo #
 --echo # End of 5.0 tests
 --echo #
 

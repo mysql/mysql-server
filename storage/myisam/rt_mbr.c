@@ -523,7 +523,10 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 }
 
 /*
-Calculates MBR_AREA(a+b) - MBR_AREA(a)
+  Calculates MBR_AREA(a+b) - MBR_AREA(a)
+  Note: when 'a' and 'b' objects are far from each other,
+  the area increase can be really big, so this function
+  can return 'inf' as a result.
 */
 double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b, 
                           uint key_length, double *ab_area)
