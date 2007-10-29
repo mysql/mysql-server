@@ -236,9 +236,40 @@ public:
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*str);
 
+  /**
+     @brief Performs the operation that this functions implements when the
+     result type is INT.
+
+     @return The result of the operation.
+  */
   virtual longlong int_op()= 0;
+
+  /**
+     @brief Performs the operation that this functions implements when the
+     result type is REAL.
+
+     @return The result of the operation.
+  */
   virtual double real_op()= 0;
+
+  /**
+     @brief Performs the operation that this functions implements when the
+     result type is DECIMAL.
+
+     @param A pointer where the DECIMAL value will be allocated.
+     @return 
+       - 0 If the result is NULL
+       - The same pointer it was given, with the area initialized to the
+         result of the operation.
+  */
   virtual my_decimal *decimal_op(my_decimal *)= 0;
+
+  /**
+     @brief Performs the operation that this functions implements when the
+     result type is a string type.
+
+     @return The result of the operation.
+  */
   virtual String *str_op(String *)= 0;
   bool is_null() { update_null_value(); return null_value; }
 };
