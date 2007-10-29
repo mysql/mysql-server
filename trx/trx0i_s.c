@@ -14,11 +14,16 @@ Created July 17, 2007 Vasil Dimov
 #include <mysql/plugin.h>
 
 #include "univ.i"
+#include "buf0buf.h"
+#include "dict0dict.h"
 #include "ha0storage.h"
 #include "hash0hash.h"
 #include "lock0iter.h"
 #include "lock0lock.h"
 #include "mem0mem.h"
+#include "page0page.h"
+#include "rem0rec.h"
+#include "row0row.h"
 #include "srv0srv.h"
 #include "sync0rw.h"
 #include "sync0sync.h"
@@ -361,6 +366,163 @@ fill_trx_row(
 }
 
 /***********************************************************************
+Format the nth field of "rec" and put it in "buf". The result is always
+'\0'-terminated. Returns the number of bytes that were written to "buf"
+(including the terminating '\0'). */
+static
+ulint
+put_nth_field(
+/*==========*/
+					/* out: end of the result */
+	char*			buf,	/* out: buffer */
+	ulint			buf_size,/* in: buffer size in bytes */
+	ulint			n,	/* in: number of field */
+	const dict_index_t*	index,	/* in: index */
+	const rec_t*		rec,	/* in: record */
+	const ulint*		offsets)/* in: record offsets, returned
+					by rec_get_offsets() */
+{
+	const byte*	data;
+	ulint		data_len;
+	dict_field_t*	dict_field;
+	ulint		ret;
+
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
+
+	if (buf_size == 0) {
+
+		return(0);
+	}
+
+	ret = 0;
+
+	if (n > 0) {
+		/* we must append ", " before the actual data */
+
+		if (buf_size < 3) {
+
+			buf[0] = '\0';
+			return(1);
+		}
+
+		memcpy(buf, ", ", 3);
+
+		buf += 2;
+		buf_size -= 2;
+		ret += 2;
+	}
+
+	/* now buf_size >= 1 */
+
+	data = rec_get_nth_field(rec, offsets, n, &data_len);
+
+	dict_field = dict_index_get_nth_field(index, n);
+
+	ret += row_raw_format((const char*) data, data_len,
+			      dict_field, buf, buf_size);
+
+	return(ret);
+}
+
+/***********************************************************************
+Fills the "lock_data" member of i_s_locks_row_t object. */
+static
+void
+fill_lock_data(
+/*===========*/
+	const char**		lock_data,/* out: "lock_data" to fill */
+	const lock_t*		lock,	/* in: lock used to find the data */
+	ulint			heap_no,/* in: rec num used to find the data */
+	trx_i_s_cache_t*	cache)	/* in/out: cache where to store
+					volatile data */
+{
+	mtr_t			mtr;
+
+	const buf_block_t*	block;
+	const page_t*		page;
+	const rec_t*		rec;
+
+	ut_a(lock_get_type(lock) == LOCK_REC);
+
+	mtr_start(&mtr);
+
+	block = buf_page_try_get(lock_rec_get_space_id(lock),
+				 lock_rec_get_page_no(lock),
+				 &mtr);
+
+	if (block == NULL) {
+
+		*lock_data = NULL;
+
+		mtr_commit(&mtr);
+
+		return;
+	}
+
+	page = (const page_t*) buf_block_get_frame(block);
+
+	rec = page_find_rec_with_heap_no(page, heap_no);
+
+	if (page_rec_is_infimum(rec)) {
+
+		*lock_data = ha_storage_put_str(cache->storage,
+						"infimum pseudo-record");
+	} else if (page_rec_is_supremum(rec)) {
+
+		*lock_data = ha_storage_put_str(cache->storage,
+						"supremum pseudo-record");
+	} else {
+
+		const dict_index_t*	index;
+		ulint			n_fields;
+		mem_heap_t*		heap;
+		ulint			offsets_onstack[REC_OFFS_NORMAL_SIZE];
+		ulint*			offsets;
+		char			buf[TRX_I_S_LOCK_DATA_MAX_LEN];
+		ulint			buf_used;
+		ulint			i;
+
+		rec_offs_init(offsets_onstack);
+		offsets = offsets_onstack;
+
+		index = lock_rec_get_index(lock);
+
+		n_fields = dict_index_get_n_unique(index);
+
+		ut_a(n_fields > 0);
+
+		heap = NULL;
+		offsets = rec_get_offsets(rec, index, offsets, n_fields,
+					  &heap);
+
+		/* format and store the data */
+
+		buf_used = 0;
+		for (i = 0; i < n_fields; i++) {
+
+			buf_used += put_nth_field(
+				buf + buf_used, sizeof(buf) - buf_used,
+				i, index, rec, offsets) - 1;
+		}
+
+		*lock_data = (const char*) ha_storage_put(cache->storage,
+							  buf,
+							  buf_used + 1);
+
+		if (UNIV_UNLIKELY(heap != NULL)) {
+
+			/* this means that rec_get_offsets() has created a new
+			heap and has stored offsets in it; check that this is
+			really the case and free the heap */
+			ut_a(offsets != offsets_onstack);
+			mem_heap_free(heap);
+		}
+	}
+
+	mtr_commit(&mtr);
+}
+
+/***********************************************************************
 Fills i_s_locks_row_t object. Returns its first argument. */
 static
 i_s_locks_row_t*
@@ -391,6 +553,8 @@ fill_locks_row(
 		row->lock_page = lock_rec_get_page_no(lock);
 		row->lock_rec = heap_no;
 
+		fill_lock_data(&row->lock_data, lock, heap_no, cache);
+
 		break;
 	case LOCK_TABLE:
 		row->lock_index = NULL;
@@ -398,6 +562,8 @@ fill_locks_row(
 		row->lock_space = ULINT_UNDEFINED;
 		row->lock_page = ULINT_UNDEFINED;
 		row->lock_rec = ULINT_UNDEFINED;
+
+		row->lock_data = NULL;
 
 		break;
 	default:

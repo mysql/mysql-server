@@ -478,6 +478,15 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define IDX_LOCK_DATA		9
+	{STRUCT_FLD(field_name,		"lock_data"),
+	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_DATA_MAX_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -549,6 +558,10 @@ fill_innodb_locks_from_cache(
 		/* lock_rec */
 		OK(field_store_ulint(fields[IDX_LOCK_REC],
 				     row->lock_rec));
+
+		/* lock_data */
+		OK(field_store_string(fields[IDX_LOCK_DATA],
+				      row->lock_data));
 
 		OK(schema_table_store_record(thd, table));
 	}

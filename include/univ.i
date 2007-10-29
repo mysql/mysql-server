@@ -83,6 +83,16 @@ memory is read outside the allocated blocks. */
 #define UNIV_INIT_MEM_TO_ZERO
 */
 
+/* When this macro is defined then additional test functions will be
+compiled. These functions live at the end of each relevant source file
+and have "test_" prefix. These functions are not called from anywhere in
+the code, they can be called from gdb after
+innobase_start_or_create_for_mysql() has executed using the call
+command. Not tested on Windows. */
+/*
+#define UNIV_COMPILE_TEST_FUNCS
+*/
+
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
