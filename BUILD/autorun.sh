@@ -3,17 +3,17 @@
 
 die() { echo "$@"; exit 1; }
 
-# Added glibtoolize reference to make native OSX autotools work,
-# we pick the first of glibtoolize/libtoolize we find in PATH
+# Handle "glibtoolize" (e.g., for native OS X autotools) as another
+# name for "libtoolize". Use the first one, either name, found in PATH.
 LIBTOOLIZE=libtoolize  # Default
 IFS="${IFS=   }"; save_ifs="$IFS"; IFS=':'
 for dir in $PATH
 do
-  if test -f $dir/glibtoolize
+  if test -x $dir/glibtoolize
   then
     LIBTOOLIZE=glibtoolize
     break
-  elif test -f $dir/libtoolize
+  elif test -x $dir/libtoolize
   then
     break
   fi
