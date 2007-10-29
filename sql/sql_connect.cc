@@ -1030,7 +1030,7 @@ static void prepare_new_connection_state(THD* thd)
   if (sys_init_connect.value_length && !(sctx->master_access & SUPER_ACL))
   {
     execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
-    if (thd->query_error)
+    if (thd->net.report_error)
     {
       thd->killed= THD::KILL_CONNECTION;
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),

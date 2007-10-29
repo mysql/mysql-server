@@ -4081,6 +4081,41 @@ SELECT `x` FROM v3;
 x
 1
 DROP VIEW v1, v2, v3;
+
+#
+# Bug#30736: Row Size Too Large Error Creating a Table and
+# Inserting Data.
+#
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+
+CREATE TABLE t1(
+c1 DECIMAL(10, 2),
+c2 FLOAT);
+
+INSERT INTO t1 VALUES (0, 1), (2, 3), (4, 5);
+
+CREATE TABLE t2(
+c3 DECIMAL(10, 2))
+SELECT
+c1 * c2 AS c3
+FROM t1;
+
+SELECT * FROM t1;
+c1	c2
+0.00	1
+2.00	3
+4.00	5
+
+SELECT * FROM t2;
+c3
+0.00
+6.00
+20.00
+
+DROP TABLE t1;
+DROP TABLE t2;
+
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
