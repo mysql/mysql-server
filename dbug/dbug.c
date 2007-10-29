@@ -1826,7 +1826,13 @@ static void DBUGOpenFile(CODE_STATE *cs,
       else
       {
         newfile= !EXISTS(name);
-        if (!(fp= fopen(name, append ? "a+" : "w")))
+        if (!(fp= fopen(name,
+#if defined(MSDOS) || defined(__WIN__)
+		append ? "a+c" : "wc"
+#else
+                append ? "a+" : "w"
+#endif
+		)))
         {
           (void) fprintf(stderr, ERR_OPEN, cs->process, name);
           perror("");
@@ -2231,23 +2237,9 @@ static void dbug_flush(CODE_STATE *cs)
   if (cs->stack->flags & FLUSH_ON_WRITE)
 #endif
   {
-#if defined(MSDOS) || defined(__WIN__)
-    if (cs->stack->out_file != stdout && cs->stack->out_file != stderr)
-    {
-      if (!(freopen(cs->stack->name,"a",cs->stack->out_file)))
-      {
-        (void) fprintf(stderr, ERR_OPEN, cs->process, cs->stack->name);
-        fflush(stderr);
-        cs->stack->out_file= stderr;
-      }
-    }
-    else
-#endif
-    {
-      (void) fflush(cs->stack->out_file);
-      if (cs->stack->delay)
-        (void) Delay(cs->stack->delay);
-    }
+    (void) fflush(cs->stack->out_file);
+    if (cs->stack->delay)
+      (void) Delay(cs->stack->delay);
   }
   if (!cs->locked)
     pthread_mutex_unlock(&THR_LOCK_dbug);

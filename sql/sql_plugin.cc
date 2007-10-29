@@ -3053,7 +3053,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   MEM_ROOT *mem_root= alloc_root_inited(&tmp->mem_root) ?
                       &tmp->mem_root : &plugin_mem_root;
   st_mysql_sys_var **opt;
-  my_option *opts;
+  my_option *opts= NULL;
   char *p, *varname;
   int error;
   st_mysql_sys_var *o;
@@ -3092,7 +3092,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     {
        sql_print_error("Parsing options for plugin '%s' failed.",
                        tmp->name.str);
-       DBUG_RETURN(error);
+       goto err;
     }
   }
 
@@ -3101,6 +3101,8 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     sql_print_warning("Plugin '%s' cannot be disabled", tmp->name.str);
     *enabled= TRUE;
   }
+
+  error= 1;
 
   if (*enabled)
   {
@@ -3140,7 +3142,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
       {
         sql_print_error("Plugin '%s' has conflicting system variables",
                         tmp->name.str);
-        DBUG_RETURN(1);
+        goto err;
       }
       tmp->system_vars= chain.first;
     }
@@ -3150,7 +3152,10 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   if (enabled_saved && global_system_variables.log_warnings)
     sql_print_information("Plugin '%s' disabled by command line option",
                           tmp->name.str);
-  DBUG_RETURN(1);
+err:
+  if (opts)
+    my_cleanup_options(opts);
+  DBUG_RETURN(error);
 }
 
 
