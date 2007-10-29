@@ -590,4 +590,13 @@ select group_concat(distinct a, c order by a desc, c desc) from t1;
 drop table t1;
 
 
+#
+# Bug#30897 GROUP_CONCAT returns extra comma on empty fields
+#
+create table t1 (f1 char(20));
+insert into t1 values (''),('');
+select group_concat(distinct f1) from t1;
+select group_concat(f1) from t1;
+drop table t1;
+
 --echo End of 5.0 tests
