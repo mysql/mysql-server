@@ -6544,7 +6544,8 @@ static void mysql_init_variables(void)
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
-  opt_log= opt_update_log= opt_slow_log= 0;
+  opt_log= opt_slow_log= 0;
+  opt_update_log= 0;
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
