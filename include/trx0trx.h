@@ -476,6 +476,8 @@ struct trx_struct{
 					current operation, or an empty
 					string */
 	unsigned	is_purge:1;	/* 0=user transaction, 1=purge */
+	unsigned	is_recovered:1;	/* 0=normal transaction,
+					1=recovered, must be rolled back */
 	unsigned	conc_state:2;	/* state of the trx from the point
 					of view of concurrency control:
 					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
