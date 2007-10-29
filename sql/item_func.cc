@@ -2003,6 +2003,7 @@ void Item_func_round::fix_length_and_dec()
   case DECIMAL_RESULT:
   {
     hybrid_type= DECIMAL_RESULT;
+    decimals_to_set= min(DECIMAL_MAX_SCALE, decimals_to_set);
     int decimals_delta= args[0]->decimals - decimals_to_set;
     int precision= args[0]->decimal_precision();
     int length_increase= ((decimals_delta <= 0) || truncate) ? 0:1;
@@ -2109,7 +2110,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   longlong dec= args[1]->val_int();
   if (dec > 0 || (dec < 0 && args[1]->unsigned_flag))
   {
-    dec= min((ulonglong) dec, DECIMAL_MAX_SCALE);
+    dec= min((ulonglong) dec, decimals);
     decimals= (uint8) dec; // to get correct output
   }
   else if (dec < INT_MIN)
