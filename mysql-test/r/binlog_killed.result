@@ -9,4 +9,110 @@ insert into t2 values (null, null), (null, get_lock("a", 10));
 select @result /* must be zero either way */;
 @result
 0
+delete from t1;
+delete from t2;
+insert into t1 values (1,1),(2,2);
+begin;
+update t1 set b=11 where a=2;
+update t1 set b=b+10;
+kill query ID;
+rollback;
+ERROR 70100: Query execution was interrupted
+select * from t1 /* must be the same as before (1,1),(2,2) */;
+a	b
+1	1
+2	2
+begin;
+delete from t1 where a=2;
+delete from t1 where a=2;
+kill query ID;
+rollback;
+ERROR 70100: Query execution was interrupted
+select * from t1 /* must be the same as before (1,1),(2,2) */;
+a	b
+1	1
+2	2
+drop table if exists t4;
+create table t4 (a int, b int) engine=innodb;
+insert into t4 values (3, 3);
+begin;
+insert into t1 values (3, 3);
+begin;
+insert into t1 select * from t4 for update;
+kill query ID;
+rollback;
+ERROR 70100: Query execution was interrupted
+rollback;
+select * from t1 /* must be the same as before (1,1),(2,2) */;
+a	b
+1	1
+2	2
+drop table t4;
+create function bug27563(n int) 
+RETURNS int(11)
+DETERMINISTIC
+begin
+if n > 1 then
+select get_lock("a", 10)  into @a;
+end if;
+return n;
+end|
+delete from t2;
+insert into t2 values (1,1), (2,2);
+reset master;
+select get_lock("a", 20);
+get_lock("a", 20)
+1
+update t2 set b=b + bug27563(b) order by a;
+kill query ID;
+ERROR 70100: Query execution was interrupted
+select * from t2 /* must be (1,2), (2,2) */;
+a	b
+1	2
+2	2
+show master status  /* must have the update event more to FD */;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	211		
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null
+1
+select 0 /* must return 0 to mean the killed query is in */;
+0
+0
+select RELEASE_LOCK("a");
+RELEASE_LOCK("a")
+1
+delete from t2;
+insert into t2 values (1,1), (2,2);
+reset master;
+select get_lock("a", 20);
+get_lock("a", 20)
+1
+delete from t2 where a=1 or a=bug27563(2) order by a;
+kill query ID;
+ERROR 70100: Query execution was interrupted
+select * from t2 /* must be (1,2), (2,2) */;
+a	b
+1	1
+2	2
+show master status  /* must have the update event more to FD */;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	98		
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null
+1
+select 0 /* must return 0 to mean the killed query is in */;
+0
+0
+select RELEASE_LOCK("a");
+RELEASE_LOCK("a")
+1
+drop function bug27563;
 drop table t1,t2,t3;
+end of the tests
