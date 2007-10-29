@@ -595,6 +595,12 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
   options= thd_startup_options;
+
+  if (variables.max_join_size == HA_POS_ERROR)
+    options |= OPTION_BIG_SELECTS;
+  else
+    options &= ~OPTION_BIG_SELECTS;
+
   transaction.all.modified_non_trans_table= transaction.stmt.modified_non_trans_table= FALSE;
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
@@ -702,6 +708,7 @@ void THD::cleanup(void)
     pthread_mutex_lock(&LOCK_user_locks);
     item_user_lock_release(ull);
     pthread_mutex_unlock(&LOCK_user_locks);
+    ull= NULL;
   }
 
   cleanup_done=1;
@@ -1426,7 +1433,14 @@ bool select_to_file::send_eof()
   if (my_close(file,MYF(MY_WME)))
     error= 1;
   if (!error)
+  {
+    /*
+      In order to remember the value of affected rows for ROW_COUNT()
+      function, SELECT INTO has to have an own SQLCOM.
+      TODO: split from SQLCOM_SELECT
+    */
     ::send_ok(thd,row_count);
+  }
   file= -1;
   return error;
 }
@@ -2341,6 +2355,11 @@ bool select_dumpvar::send_eof()
   if (! row_count)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
+  /*
+    In order to remember the value of affected rows for ROW_COUNT()
+    function, SELECT INTO has to have an own SQLCOM.
+    TODO: split from SQLCOM_SELECT
+  */
   ::send_ok(thd,row_count);
   return 0;
 }
@@ -2735,8 +2754,11 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
 
 void mark_transaction_to_rollback(THD *thd, bool all)
 {
-  thd->is_fatal_sub_stmt_error= TRUE;
-  thd->transaction_rollback_request= all;
+  if (thd)
+  {
+    thd->is_fatal_sub_stmt_error= TRUE;
+    thd->transaction_rollback_request= all;
+  }
 }
 /***************************************************************************
   Handling of XA id cacheing

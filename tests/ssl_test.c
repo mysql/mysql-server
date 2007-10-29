@@ -44,7 +44,7 @@ int main(int argc, char **argv)
     "../SSL/MySQL-client-cert.pem",
     "../SSL/MySQL-ca-cert.pem", 0, 0);
 #endif
-  if (!(sock = mysql_real_connect(&mysql,"127.0.0.1",0,0,argv[1],3306,NULL,0)))
+  if (!(sock = mysql_real_connect(&mysql,"127.0.0.1",0,0,argv[1],MYSQL_PORT,NULL,0)))
   {
     fprintf(stderr,"Couldn't connect to engine!\n%s\n\n",mysql_error(&mysql));
     perror("");

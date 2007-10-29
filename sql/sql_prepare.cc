@@ -1799,7 +1799,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_UNINSTALL_PLUGIN:
   case SQLCOM_CREATE_DB:
   case SQLCOM_DROP_DB:
-  case SQLCOM_RENAME_DB:
+  case SQLCOM_ALTER_DB_UPGRADE:
   case SQLCOM_CHECKSUM:
   case SQLCOM_CREATE_USER:
   case SQLCOM_RENAME_USER:
@@ -2107,7 +2107,7 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;
   }
 
-  if (stmt->prepare(query, query_len+1))
+  if (stmt->prepare(query, query_len))
   {
     /* Statement map deletes the statement on erase */
     thd->stmt_map.erase(stmt);
@@ -2270,7 +2270,7 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
 #ifndef EMBEDDED_LIBRARY
-  uchar *packet_end= packet + packet_length - 1;
+  uchar *packet_end= packet + packet_length;
 #endif
   Prepared_statement *stmt;
   bool error;
@@ -2588,14 +2588,14 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   Prepared_statement *stmt;
   Item_param *param;
 #ifndef EMBEDDED_LIBRARY
-  char *packet_end= packet + packet_length - 1;
+  char *packet_end= packet + packet_length;
 #endif
   DBUG_ENTER("mysql_stmt_get_longdata");
 
   status_var_increment(thd->status_var.com_stmt_send_long_data);
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
-  if (packet_length <= MYSQL_LONG_DATA_HEADER)
+  if (packet_length < MYSQL_LONG_DATA_HEADER)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_send_long_data");
     DBUG_VOID_RETURN;
@@ -2869,6 +2869,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   error= parse_sql(thd, &lip, NULL) ||
          thd->net.report_error ||
          init_param_array(this);
+
   lex->set_trg_event_type_for_tables();
 
   /* Remember the current database. */
@@ -2949,12 +2950,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       the general log.
     */
     if (thd->spcont == NULL)
-    {
-      const char *format= "[%lu] %.*b";
-      general_log_print(thd, COM_STMT_PREPARE, format, id,
-                        query_length, query);
-
-    }
+      general_log_write(thd, COM_STMT_PREPARE, query, query_length);
   }
   DBUG_RETURN(error);
 }
@@ -3062,7 +3058,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   if (expanded_query->length() &&
       alloc_query(thd, (char*) expanded_query->ptr(),
-                  expanded_query->length()+1))
+                  expanded_query->length()))
   {
     my_error(ER_OUTOFMEMORY, 0, expanded_query->length());
     goto error;
@@ -3152,11 +3148,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     the general log.
   */
   if (error == 0 && thd->spcont == NULL)
-  {
-    const char *format= "[%lu] %.*b";
-    general_log_print(thd, COM_STMT_EXECUTE, format, id,
-                      thd->query_length, thd->query);
-  }
+    general_log_write(thd, COM_STMT_EXECUTE, thd->query, thd->query_length);
 
 error:
   flags&= ~ (uint) IS_IN_USE;

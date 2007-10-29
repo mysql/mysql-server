@@ -565,9 +565,10 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
       if (!mergebuf)
       {
         length=param->sort_buffer_length;
-        while (length >= MIN_SORT_MEMORY && !mergebuf)
+        while (length >= MIN_SORT_MEMORY)
         {
-          mergebuf=my_malloc(length, MYF(0));
+          if ((mergebuf= my_malloc(length, MYF(0))))
+              break;
           length=length*3/4;
         }
         if (!mergebuf)
@@ -904,6 +905,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
 
   count=error=0;
   maxcount=keys/((uint) (Tb-Fb) +1);
+  DBUG_ASSERT(maxcount > 0);
   LINT_INIT(to_start_filepos);
   if (to_file)
     to_start_filepos=my_b_tell(to_file);
