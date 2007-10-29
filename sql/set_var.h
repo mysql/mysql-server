@@ -160,6 +160,28 @@ public:
 };
 
 
+class sys_var_bool_const_ptr : public sys_var
+{
+public:
+  my_bool *value;
+  sys_var_bool_const_ptr(const char *name_arg, my_bool *value_arg)
+    :sys_var(name_arg),value(value_arg)
+  {}
+  bool check(THD *thd, set_var *var)
+  {
+    return 1;
+  }
+  bool update(THD *thd, set_var *var)
+  {
+    return 1;
+  }
+  SHOW_TYPE show_type() { return SHOW_MY_BOOL; }
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  { return (byte*) value; }
+  bool check_update_type(Item_result type) { return 0; }
+  bool is_readonly() const { return 1; }
+};
+
 class sys_var_str :public sys_var
 {
 public:

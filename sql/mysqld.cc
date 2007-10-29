@@ -339,8 +339,8 @@ static my_bool opt_sync_bdb_logs;
 
 /* Global variables */
 
-bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
-my_bool opt_log_queries_not_using_indexes= 0;
+bool opt_update_log, opt_bin_log;
+my_bool opt_log, opt_slow_log, opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_character_set_client_handshake= 1;
