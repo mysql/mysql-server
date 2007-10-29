@@ -2593,7 +2593,7 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       DBUG_RETURN(0);
     }
 
-    thd->query_error=  1; // needed to catch query errors during replication
+    thd->is_slave_error=  1; // needed to catch query errors during replication
 
     if (!thd->no_warnings_for_error)
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
