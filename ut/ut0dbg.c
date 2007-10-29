@@ -7,6 +7,7 @@ Created 1/30/1994 Heikki Tuuri
 **********************************************************************/
 
 #include "univ.i"
+#include "ut0dbg.h"
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
 #else
@@ -96,3 +97,69 @@ ut_dbg_stop_thread(
 }
 # endif
 #endif /* __NETWARE__ */
+
+#ifdef UNIV_COMPILE_TEST_FUNCS
+
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
+#include <unistd.h>
+
+#ifndef timersub
+#define timersub(a, b, r)						\
+	do {								\
+		(r)->tv_sec = (a)->tv_sec - (b)->tv_sec;		\
+		(r)->tv_usec = (a)->tv_usec - (b)->tv_usec;		\
+		if ((r)->tv_usec < 0) {					\
+			(r)->tv_sec--;					\
+			(r)->tv_usec += 1000000;			\
+		}							\
+	} while (0)
+#endif /* timersub */
+
+/***********************************************************************
+Resets a speedo (records the current time in it). */
+
+void
+speedo_reset(
+/*=========*/
+	speedo_t*	speedo)	/* out: speedo */
+{
+	gettimeofday(&speedo->tv, NULL);
+
+	getrusage(RUSAGE_SELF, &speedo->ru);
+}
+
+/***********************************************************************
+Shows the time elapsed and usage statistics since the last reset of a
+speedo. */
+
+void
+speedo_show(
+/*========*/
+	const speedo_t*	speedo)	/* in: speedo */
+{
+	struct rusage	ru_now;
+	struct timeval	tv_now;
+	struct timeval	tv_diff;
+
+	getrusage(RUSAGE_SELF, &ru_now);
+
+	gettimeofday(&tv_now, NULL);
+
+#define PRINT_TIMEVAL(prefix, tvp)		\
+	fprintf(stderr, "%s% 5ld.%06ld sec\n",	\
+		prefix, (tvp)->tv_sec, (tvp)->tv_usec)
+
+	timersub(&tv_now, &speedo->tv, &tv_diff);
+	PRINT_TIMEVAL("real", &tv_diff);
+
+	timersub(&ru_now.ru_utime, &speedo->ru.ru_utime, &tv_diff);
+	PRINT_TIMEVAL("user", &tv_diff);
+
+	timersub(&ru_now.ru_stime, &speedo->ru.ru_stime, &tv_diff);
+	PRINT_TIMEVAL("sys ", &tv_diff);
+}
+
+#endif /* UNIV_COMPILE_TEST_FUNCS */

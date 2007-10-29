@@ -12,8 +12,10 @@ Created 4/20/1996 Heikki Tuuri
 #include "row0row.ic"
 #endif
 
+#include "data0type.h"
 #include "dict0dict.h"
 #include "btr0btr.h"
+#include "ha_prototypes.h"
 #include "mach0data.h"
 #include "trx0rseg.h"
 #include "trx0trx.h"
@@ -26,6 +28,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "row0upd.h"
 #include "rem0cmp.h"
 #include "read0read.h"
+#include "ut0mem.h"
 
 /*************************************************************************
 Gets the offset of trx id field, in bytes relative to the origin of
@@ -767,3 +770,459 @@ row_search_index_entry(
 
 	return(!page_rec_is_infimum(rec) && low_match == n_fields);
 }
+
+#ifndef UNIV_HOTBACKUP
+
+#include <my_sys.h>
+
+/***********************************************************************
+Formats the raw data in "data" (in InnoDB on-disk format) that is of
+type DATA_INT using "prtype" and writes the result to "buf".
+If the data is in unknown format, then nothing is written to "buf",
+0 is returned and "format_in_hex" is set to TRUE, otherwise
+"format_in_hex" is left untouched.
+Not more than "buf_size" bytes are written to "buf".
+The result is always '\0'-terminated (provided buf_size > 0) and the
+number of bytes that were written to "buf" is returned (including the
+terminating '\0'). */
+static
+ulint
+row_raw_format_int(
+/*===============*/
+					/* out: number of bytes
+					that were written */
+	const char*	data,		/* in: raw data */
+	ulint		data_len,	/* in: raw data length
+					in bytes */
+	ulint		prtype,		/* in: precise type */
+	char*		buf,		/* out: output buffer */
+	ulint		buf_size,	/* in: output buffer size
+					in bytes */
+	ibool*		format_in_hex)	/* out: should the data be
+					formated in hex */
+{
+	ulint	ret;
+
+	if (data_len <= sizeof(ullint)) {
+
+		ullint		value;
+		ibool		unsigned_type = prtype & DATA_UNSIGNED;
+
+		value = mach_read_int_type((const byte*) data,
+					   data_len, unsigned_type);
+
+		if (unsigned_type) {
+
+			ret = ut_snprintf(buf, buf_size, "%llu",
+					  value) + 1;
+		} else {
+
+			ret = ut_snprintf(buf, buf_size, "%lld",
+					  (long long) value) + 1;
+		}
+
+	} else {
+
+		*format_in_hex = TRUE;
+		ret = 0;
+	}
+
+	return(ut_min(ret, buf_size));
+}
+
+extern CHARSET_INFO*	system_charset_info;
+
+/***********************************************************************
+Formats the raw data in "data" (in InnoDB on-disk format) that is of
+type DATA_(CHAR|VARCHAR|MYSQL|VARMYSQL) using "charset_coll" and writes
+the result to "buf". The result is converted to "system_charset_info".
+Not more than "buf_size" bytes are written to "buf".
+The result is always '\0'-terminated (provided buf_size > 0) and the
+number of bytes that were written to "buf" is returned (including the
+terminating '\0'). */
+static
+ulint
+row_raw_format_str_convert(
+/*=======================*/
+					/* out: number of bytes
+					that were written */
+	const char*	data,		/* in: raw data */
+	ulint		data_len,	/* in: raw data length
+					in bytes */
+	ulint		charset_coll,	/* in: charset collation */
+	char*		buf,		/* out: output buffer */
+	ulint		buf_size)	/* in: output buffer size
+					in bytes */
+{
+	/* XXX we use a hard limit instead of allocating
+	but_size bytes from the heap */
+	CHARSET_INFO*	data_cs;
+	char		buf_tmp[8192];
+	ulint		buf_tmp_used;
+	uint		num_errors;
+
+	data_cs = all_charsets[charset_coll];
+
+	buf_tmp_used = innobase_convert_string(buf_tmp, sizeof(buf_tmp),
+					       system_charset_info,
+					       data, data_len, data_cs,
+					       &num_errors);
+
+	return(ut_str_sql_format(buf_tmp, buf_tmp_used, buf, buf_size));
+}
+
+/***********************************************************************
+Formats the raw data in "data" (in InnoDB on-disk format) that is of
+type DATA_(CHAR|VARCHAR|MYSQL|VARMYSQL) using "prtype" and writes the
+result to "buf".
+If the data is in binary format, then nothing is written to "buf",
+0 is returned and "format_in_hex" is set to TRUE, otherwise
+"format_in_hex" is left untouched.
+Not more than "buf_size" bytes are written to "buf".
+The result is always '\0'-terminated (provided buf_size > 0) and the
+number of bytes that were written to "buf" is returned (including the
+terminating '\0'). */
+static
+ulint
+row_raw_format_str(
+/*===============*/
+					/* out: number of bytes
+					that were written */
+	const char*	data,		/* in: raw data */
+	ulint		data_len,	/* in: raw data length
+					in bytes */
+	ulint		prtype,		/* in: precise type */
+	char*		buf,		/* out: output buffer */
+	ulint		buf_size,	/* in: output buffer size
+					in bytes */
+	ibool*		format_in_hex)	/* out: should the data be
+					formated in hex */
+{
+	ulint	charset_coll;
+
+	if (buf_size == 0) {
+
+		return(0);
+	}
+
+	/* we assume system_charset_info is UTF-8 */
+
+	charset_coll = dtype_get_charset_coll(prtype);
+
+	if (UNIV_LIKELY(dtype_is_utf8(prtype))) {
+
+		return(ut_str_sql_format(data, data_len, buf, buf_size));
+	}
+	/* else */
+
+	if (charset_coll == DATA_MYSQL_BINARY_CHARSET_COLL) {
+
+		*format_in_hex = TRUE;
+		return(0);
+	}
+	/* else */
+
+	return(row_raw_format_str_convert(data, data_len, charset_coll,
+					  buf, buf_size));
+}
+
+/***********************************************************************
+Formats the raw data in "data" (in InnoDB on-disk format) using
+"dict_field" and writes the result to "buf".
+Not more than "buf_size" bytes are written to "buf".
+The result is always '\0'-terminated (provided buf_size > 0) and the
+number of bytes that were written to "buf" is returned (including the
+terminating '\0'). */
+
+ulint
+row_raw_format(
+/*===========*/
+						/* out: number of bytes
+						that were written */
+	const char*		data,		/* in: raw data */
+	ulint			data_len,	/* in: raw data length
+						in bytes */
+	const dict_field_t*	dict_field,	/* in: index field */
+	char*			buf,		/* out: output buffer */
+	ulint			buf_size)	/* in: output buffer size
+						in bytes */
+{
+	ulint	mtype;
+	ulint	prtype;
+	ulint	ret;
+	ibool	format_in_hex;
+
+	if (buf_size == 0) {
+
+		return(0);
+	}
+
+	if (data_len == UNIV_SQL_NULL) {
+
+		ret = ut_snprintf((char*) buf, buf_size, "NULL") + 1;
+
+		return(ut_min(ret, buf_size));
+	}
+
+	mtype = dict_field->col->mtype;
+	prtype = dict_field->col->prtype;
+
+	format_in_hex = FALSE;
+
+	switch (mtype) {
+	case DATA_INT:
+
+		ret = row_raw_format_int(data, data_len, prtype,
+					 buf, buf_size, &format_in_hex);
+		break;
+	case DATA_CHAR:
+	case DATA_VARCHAR:
+	case DATA_MYSQL:
+	case DATA_VARMYSQL:
+
+		ret = row_raw_format_str(data, data_len, prtype,
+					 buf, buf_size, &format_in_hex);
+		break;
+	/* XXX support more data types */
+	default:
+
+		format_in_hex = TRUE;
+	}
+
+	if (format_in_hex) {
+
+		if (UNIV_LIKELY(buf_size > 2)) {
+
+			memcpy(buf, "0x", 2);
+			buf += 2;
+			buf_size -= 2;
+			ret = ut_raw_to_hex(data, data_len, buf, buf_size);
+		} else {
+
+			buf[0] = '\0';
+			ret = 1;
+		}
+	}
+
+	return(ret);
+}
+
+#endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_COMPILE_TEST_FUNCS
+
+#include "ut0dbg.h"
+
+void
+test_row_raw_format_int()
+{
+	ulint	ret;
+	char	buf[128];
+	ibool	format_in_hex;
+
+#define CALL_AND_TEST(data, data_len, prtype, buf, buf_size,\
+		      ret_expected, buf_expected, format_in_hex_expected)\
+	do {\
+		ibool	ok = TRUE;\
+		ulint	i;\
+		memset(buf, 'x', 10);\
+		buf[10] = '\0';\
+		format_in_hex = FALSE;\
+		fprintf(stderr, "TESTING \"\\x");\
+		for (i = 0; i < data_len; i++) {\
+			fprintf(stderr, "%02hhX", data[i]);\
+		}\
+		fprintf(stderr, "\", %lu, %lu, %lu\n",\
+                        (ulint) data_len, (ulint) prtype,\
+			(ulint) buf_size);\
+		ret = row_raw_format_int(data, data_len, prtype,\
+					 buf, buf_size, &format_in_hex);\
+		if (ret != ret_expected) {\
+			fprintf(stderr, "expected ret %lu, got %lu\n",\
+				(ulint) ret_expected, ret);\
+			ok = FALSE;\
+                }\
+                if (strcmp((char*) buf, buf_expected) != 0) {\
+                        fprintf(stderr, "expected buf \"%s\", got \"%s\"\n",\
+                                buf_expected, buf);\
+                        ok = FALSE;\
+                }\
+                if (format_in_hex != format_in_hex_expected) {\
+                        fprintf(stderr, "expected format_in_hex %d, got %d\n",\
+                                (int) format_in_hex_expected,\
+				(int) format_in_hex);\
+                        ok = FALSE;\
+                }\
+                if (ok) {\
+                        fprintf(stderr, "OK: %lu, \"%s\" %d\n\n",\
+                                (ulint) ret, buf, (int) format_in_hex);\
+                } else {\
+                        return;\
+                }\
+        } while (0)
+
+#if 1
+	/* min values for signed 1-8 byte integers */
+
+	CALL_AND_TEST("\x00", 1, 0,
+		      buf, sizeof(buf), 5, "-128", 0);
+
+	CALL_AND_TEST("\x00\x00", 2, 0,
+		      buf, sizeof(buf), 7, "-32768", 0);
+
+	CALL_AND_TEST("\x00\x00\x00", 3, 0,
+		      buf, sizeof(buf), 9, "-8388608", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00", 4, 0,
+		      buf, sizeof(buf), 12, "-2147483648", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00\x00", 5, 0,
+		      buf, sizeof(buf), 14, "-549755813888", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00\x00\x00", 6, 0,
+		      buf, sizeof(buf), 17, "-140737488355328", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00\x00\x00\x00", 7, 0,
+		      buf, sizeof(buf), 19, "-36028797018963968", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00\x00\x00\x00\x00", 8, 0,
+		      buf, sizeof(buf), 21, "-9223372036854775808", 0);
+
+	/* min values for unsigned 1-8 byte integers */
+
+	CALL_AND_TEST("\x00", 1, DATA_UNSIGNED,
+		      buf, sizeof(buf), 2, "0", 0);
+
+	CALL_AND_TEST("\x00\x00", 2, DATA_UNSIGNED,
+		      buf, sizeof(buf), 2, "0", 0);
+
+	CALL_AND_TEST("\x00\x00\x00", 3, DATA_UNSIGNED,
+		      buf, sizeof(buf), 2, "0", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00", 4, DATA_UNSIGNED,
+		      buf, sizeof(buf), 2, "0", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00\x00", 5, DATA_UNSIGNED,
+		      buf, sizeof(buf), 2, "0", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00\x00\x00", 6, DATA_UNSIGNED,
+		      buf, sizeof(buf), 2, "0", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00\x00\x00\x00", 7, DATA_UNSIGNED,
+		      buf, sizeof(buf), 2, "0", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00\x00\x00\x00\x00", 8, DATA_UNSIGNED,
+		      buf, sizeof(buf), 2, "0", 0);
+
+	/* max values for signed 1-8 byte integers */
+
+	CALL_AND_TEST("\xFF", 1, 0,
+		      buf, sizeof(buf), 4, "127", 0);
+
+	CALL_AND_TEST("\xFF\xFF", 2, 0,
+		      buf, sizeof(buf), 6, "32767", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF", 3, 0,
+		      buf, sizeof(buf), 8, "8388607", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF\xFF", 4, 0,
+		      buf, sizeof(buf), 11, "2147483647", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF\xFF\xFF", 5, 0,
+		      buf, sizeof(buf), 13, "549755813887", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF\xFF\xFF\xFF", 6, 0,
+		      buf, sizeof(buf), 16, "140737488355327", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 7, 0,
+		      buf, sizeof(buf), 18, "36028797018963967", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 8, 0,
+		      buf, sizeof(buf), 20, "9223372036854775807", 0);
+
+	/* max values for unsigned 1-8 byte integers */
+
+	CALL_AND_TEST("\xFF", 1, DATA_UNSIGNED,
+		      buf, sizeof(buf), 4, "255", 0);
+
+	CALL_AND_TEST("\xFF\xFF", 2, DATA_UNSIGNED,
+		      buf, sizeof(buf), 6, "65535", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF", 3, DATA_UNSIGNED,
+		      buf, sizeof(buf), 9, "16777215", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF\xFF", 4, DATA_UNSIGNED,
+		      buf, sizeof(buf), 11, "4294967295", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF\xFF\xFF", 5, DATA_UNSIGNED,
+		      buf, sizeof(buf), 14, "1099511627775", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF\xFF\xFF\xFF", 6, DATA_UNSIGNED,
+		      buf, sizeof(buf), 16, "281474976710655", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 7, DATA_UNSIGNED,
+		      buf, sizeof(buf), 18, "72057594037927935", 0);
+
+	CALL_AND_TEST("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 8, DATA_UNSIGNED,
+		      buf, sizeof(buf), 21, "18446744073709551615", 0);
+
+	/* some random values */
+
+	CALL_AND_TEST("\x52", 1, 0,
+		      buf, sizeof(buf), 4, "-46", 0);
+
+	CALL_AND_TEST("\x0E", 1, DATA_UNSIGNED,
+		      buf, sizeof(buf), 3, "14", 0);
+
+	CALL_AND_TEST("\x62\xCE", 2, 0,
+		      buf, sizeof(buf), 6, "-7474", 0);
+
+	CALL_AND_TEST("\x29\xD6", 2, DATA_UNSIGNED,
+		      buf, sizeof(buf), 6, "10710", 0);
+
+	CALL_AND_TEST("\x7F\xFF\x90", 3, 0,
+		      buf, sizeof(buf), 5, "-112", 0);
+
+	CALL_AND_TEST("\x00\xA1\x16", 3, DATA_UNSIGNED,
+		      buf, sizeof(buf), 6, "41238", 0);
+
+	CALL_AND_TEST("\x7F\xFF\xFF\xF7", 4, 0,
+		      buf, sizeof(buf), 3, "-9", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x5C", 4, DATA_UNSIGNED,
+		      buf, sizeof(buf), 3, "92", 0);
+
+	CALL_AND_TEST("\x7F\xFF\xFF\xFF\xFF\xFF\xDC\x63", 8, 0,
+		      buf, sizeof(buf), 6, "-9117", 0);
+
+	CALL_AND_TEST("\x00\x00\x00\x00\x00\x01\x64\x62", 8, DATA_UNSIGNED,
+		      buf, sizeof(buf), 6, "91234", 0);
+#endif
+
+	/* speed test */
+
+	speedo_t	speedo;
+	ulint		i;
+
+	speedo_reset(&speedo);
+
+	for (i = 0; i < 1000000; i++) {
+		row_raw_format_int("\x23", 1,
+				   0, buf, sizeof(buf),
+				   &format_in_hex);
+		row_raw_format_int("\x23", 1,
+				   DATA_UNSIGNED, buf, sizeof(buf),
+				   &format_in_hex);
+
+		row_raw_format_int("\x00\x00\x00\x00\x00\x01\x64\x62", 8,
+				   0, buf, sizeof(buf),
+				   &format_in_hex);
+		row_raw_format_int("\x00\x00\x00\x00\x00\x01\x64\x62", 8,
+				   DATA_UNSIGNED, buf, sizeof(buf),
+				   &format_in_hex);
+	}
+
+	speedo_show(&speedo);
+}
+
+#endif /* UNIV_COMPILE_TEST_FUNCS */
