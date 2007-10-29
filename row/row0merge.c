@@ -1824,6 +1824,7 @@ row_merge_drop_temp_indexes(void)
 		"\t\tDELETE FROM SYS_INDEXES WHERE CURRENT OF c;\n"
 		"\tEND LOOP;\n"
 		"\tCLOSE c;\n"
+		"\tCOMMIT WORK;\n"
 		"END;\n";
 
 	trx = trx_allocate_for_background();
@@ -1834,7 +1835,6 @@ row_merge_drop_temp_indexes(void)
 	ut_a(err == DB_SUCCESS);
 
 	row_mysql_unlock_data_dictionary(trx);
-	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
 }
 
