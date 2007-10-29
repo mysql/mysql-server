@@ -705,6 +705,7 @@ private:
   */
   KEY_MULTI_RANGE *m_multi_range_defined_end;
   const NdbOperation *m_current_multi_operation;
+  NdbIndexScanOperation *m_multi_cursor;
   Ndb *get_ndb();
 };
 
