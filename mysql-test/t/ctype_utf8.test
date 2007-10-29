@@ -1404,3 +1404,30 @@ SELECT b FROM t2 UNION SELECT c FROM t1;
 SELECT i FROM t2 UNION SELECT c FROM t1;
 
 DROP TABLE t1, t2;
+
+#
+# Bug#30982: CHAR(..USING..) can return a not-well-formed string
+# Bug #30986: Character set introducer followed by a HEX string can return bad result
+#
+set sql_mode=traditional;
+select hex(char(0xFF using utf8));
+select hex(convert(0xFF using utf8));
+--error ER_INVALID_CHARACTER_STRING
+select hex(_utf8 0x616263FF);
+--error ER_INVALID_CHARACTER_STRING
+select hex(_utf8 X'616263FF');
+--error ER_INVALID_CHARACTER_STRING
+select hex(_utf8 B'001111111111');
+--error ER_INVALID_CHARACTER_STRING
+select (_utf8 X'616263FF');
+set sql_mode=default;
+select hex(char(0xFF using utf8));
+select hex(convert(0xFF using utf8));
+--error ER_INVALID_CHARACTER_STRING
+select hex(_utf8 0x616263FF);
+--error ER_INVALID_CHARACTER_STRING
+select hex(_utf8 X'616263FF');
+--error ER_INVALID_CHARACTER_STRING
+select hex(_utf8 B'001111111111');
+--error ER_INVALID_CHARACTER_STRING
+select (_utf8 X'616263FF');

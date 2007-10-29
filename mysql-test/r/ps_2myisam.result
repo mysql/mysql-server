@@ -2973,11 +2973,13 @@ Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
+Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
+Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
@@ -3011,7 +3013,6 @@ Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1

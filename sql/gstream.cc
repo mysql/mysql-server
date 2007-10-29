@@ -44,7 +44,7 @@ bool Gis_read_stream::get_next_word(LEX_STRING *res)
   skip_space();
   res->str= (char*) m_cur;
   /* The following will also test for \0 */
-  if (!my_isvar_start(&my_charset_bin, *m_cur))
+  if ((m_cur >= m_limit) || !my_isvar_start(&my_charset_bin, *m_cur))
     return 1;
 
   /*
