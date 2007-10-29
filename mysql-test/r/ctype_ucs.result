@@ -922,4 +922,7 @@ ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_gen
 select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
 ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation '='
 drop table t1;
+select hex(char(0x41 using ucs2));
+hex(char(0x41 using ucs2))
+0041
 End of 5.0 tests
