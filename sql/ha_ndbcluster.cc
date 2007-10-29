@@ -2386,6 +2386,26 @@ static void shrink_varchar(Field* field, const uchar* & ptr, uchar* buf)
   }
 }
 
+bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
+{
+  KEY* key_info= table->key_info + keyno;
+  KEY_PART_INFO* key_part= key_info->key_part;
+  KEY_PART_INFO* end= key_part+key_info->key_parts;
+  uint i;
+  DBUG_ENTER("check_index_fields_in_write_set");
+
+  for (i= 0; key_part != end; key_part++, i++)
+  {
+    Field* field= key_part->field;
+    if (!bitmap_is_set(table->write_set, field->field_index))
+    {
+      DBUG_RETURN(false);
+    }
+  }
+
+  DBUG_RETURN(true);
+}
+
 
 /*
   Read one record from NDB using primary key
@@ -2603,8 +2623,8 @@ static char dummy_row[1];
  * primary key or unique index values
 */
 
-int ha_ndbcluster::peek_indexed_rows(const uchar *record,
-				     bool check_pk)
+int ha_ndbcluster::peek_indexed_rows(const uchar *record, 
+                                     NDB_WRITE_OP write_op)
 {
   NdbTransaction *trans;
   NdbOperation *op;
@@ -2619,7 +2639,7 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
   NdbOperation::LockMode lm=
       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, NULL);
   first= NULL;
-  if (check_pk && table->s->primary_key != MAX_KEY)
+  if (write_op != NDB_UPDATE && table->s->primary_key != MAX_KEY)
   {
     /*
      * Fetch any row with colliding primary key
@@ -2666,6 +2686,11 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
       if (check_null_in_record(key_info, record))
       {
         DBUG_PRINT("info", ("skipping check for key with NULL"));
+        continue;
+      }
+      if (write_op != NDB_INSERT && !check_index_fields_in_write_set(i))
+      {
+        DBUG_PRINT("info", ("skipping check for key %u not in write_set", i));
         continue;
       }
 
@@ -3521,7 +3546,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       start_bulk_insert will set parameters to ensure that each
       write_row is committed individually
     */
-    int peek_res= peek_indexed_rows(record, TRUE);
+    int peek_res= peek_indexed_rows(record, NDB_INSERT);
     
     if (!peek_res) 
     {
@@ -4037,7 +4062,8 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   if (m_ignore_dup_key && (thd->lex->sql_command == SQLCOM_UPDATE ||
                            thd->lex->sql_command == SQLCOM_UPDATE_MULTI))
   {
-    int peek_res= peek_indexed_rows(new_data, pk_update);
+    NDB_WRITE_OP write_op= (pk_update) ? NDB_PK_UPDATE : NDB_UPDATE;
+    int peek_res= peek_indexed_rows(new_data, write_op);
     
     if (!peek_res) 
     {
