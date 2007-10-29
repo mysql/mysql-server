@@ -35,7 +35,6 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
-  String *check_well_formed_result(String *str);
   bool fix_fields(THD *thd, Item **ref);
 };
 
@@ -509,7 +508,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   {
-    max_length= arg_count * collation.collation->mbmaxlen;
+    max_length= arg_count * 4;
   }
   const char *func_name() const { return "char"; }
 };

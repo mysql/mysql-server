@@ -1250,10 +1250,9 @@ disconnect user1;
 disconnect user2;
 disconnect user3;
 
---echo End of 5.0 tests
-
 #
 # Bug #28211 RENAME DATABASE and query cache don't play nicely together
+#
 # TODO: enable these tests when RENAME DATABASE is implemented.
 # --disable_warnings
 # drop database if exists db1;
@@ -1298,4 +1297,25 @@ set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
+
+--echo End of 5.0 tests
+
+#
+# Bug #31157: Crash when select+order by the avg of some field within the
+# group by
+#
+
+CREATE TABLE t1 (a ENUM('rainbow'));
+INSERT INTO t1 VALUES (),(),(),(),();
+SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
+DROP TABLE t1;
+CREATE TABLE t1 (a LONGBLOB);
+INSERT INTO t1 SET a = 'aaaa';
+INSERT INTO t1 SET a = 'aaaa';
+SELECT 1 FROM t1 GROUP BY
+  (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
+DROP TABLE t1;
+
+
+--echo End of 5.1 tests
 

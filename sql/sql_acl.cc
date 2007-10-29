@@ -3991,47 +3991,78 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
 }
 
 
-bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
-                             const char* db_name, const char *table_name,
-                             Field_iterator *fields)
+/** 
+  @brief check if a query can access a set of columns
+
+  @param  thd  the current thread
+  @param  want_access_arg  the privileges requested
+  @param  fields an iterator over the fields of a table reference.
+  @return Operation status
+    @retval 0 Success
+    @retval 1 Falure
+  @details This function walks over the columns of a table reference 
+   The columns may originate from different tables, depending on the kind of
+   table reference, e.g. join.
+   For each table it will retrieve the grant information and will use it
+   to check the required access privileges for the fields requested from it.
+*/    
+bool check_grant_all_columns(THD *thd, ulong want_access_arg, 
+                             Field_iterator_table_ref *fields)
 {
   Security_context *sctx= thd->security_ctx;
-  GRANT_TABLE *grant_table;
-  GRANT_COLUMN *grant_column;
+  ulong want_access= want_access_arg;
+  const char *table_name= NULL;
 
-  want_access &= ~grant->privilege;
-  if (!want_access)
-    return 0;				// Already checked
+  const char* db_name; 
+  GRANT_INFO *grant;
+  /* Initialized only to make gcc happy */
+  GRANT_TABLE *grant_table= NULL;
 
   rw_rdlock(&LOCK_grant);
-
-  /* reload table if someone has modified any grants */
-
-  if (grant->version != grant_version)
-  {
-    grant->grant_table=
-      table_hash_search(sctx->host, sctx->ip, db_name,
-			sctx->priv_user,
-			table_name, 0);	/* purecov: inspected */
-    grant->version= grant_version;		/* purecov: inspected */
-  }
-  /* The following should always be true */
-  if (!(grant_table= grant->grant_table))
-    goto err;					/* purecov: inspected */
 
   for (; !fields->end_of_fields(); fields->next())
   {
     const char *field_name= fields->name();
-    grant_column= column_hash_search(grant_table, field_name,
-				    (uint) strlen(field_name));
-    if (!grant_column || (~grant_column->rights & want_access))
-      goto err;
+
+    if (table_name != fields->table_name())
+    {
+      table_name= fields->table_name();
+      db_name= fields->db_name();
+      grant= fields->grant();
+      /* get a fresh one for each table */
+      want_access= want_access_arg & ~grant->privilege;
+      if (want_access)
+      {
+        /* reload table if someone has modified any grants */
+        if (grant->version != grant_version)
+        {
+          grant->grant_table=
+            table_hash_search(sctx->host, sctx->ip, db_name,
+                              sctx->priv_user,
+                              table_name, 0);	/* purecov: inspected */
+          grant->version= grant_version;	/* purecov: inspected */
+        }
+
+        grant_table= grant->grant_table;
+        DBUG_ASSERT (grant_table);
+      }
+    }
+
+    if (want_access)
+    {
+      GRANT_COLUMN *grant_column= 
+        column_hash_search(grant_table, field_name,
+                           (uint) strlen(field_name));
+      if (!grant_column || (~grant_column->rights & want_access))
+        goto err;
+    }
   }
   rw_unlock(&LOCK_grant);
   return 0;
 
 err:
   rw_unlock(&LOCK_grant);
+
   char command[128];
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
