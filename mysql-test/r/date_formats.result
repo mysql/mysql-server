@@ -478,7 +478,7 @@ str_to_date(a,b)
 create table t2 select str_to_date(a,b) from t1;
 describe t2;
 Field	Type	Null	Key	Default	Extra
-str_to_date(a,b)	binary(29)	YES		NULL	
+str_to_date(a,b)	datetime	YES		NULL	
 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
 str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S") as f2,
 str_to_date("2003-01-02", "%Y-%m-%d") as f3,

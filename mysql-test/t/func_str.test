@@ -1231,4 +1231,16 @@ SELECT SUBSTR(a,1,len) FROM t1;
 
 DROP TABLE t1; 
 
+#
+# Bug #28850: Potential bugs related to the return type of the CHAR function
+#
+
+CREATE TABLE t1 AS SELECT CHAR(0x414243) as c1;
+SELECT HEX(c1) from t1;
+DROP TABLE t1;
+
+CREATE VIEW v1 AS SELECT CHAR(0x414243) as c1;
+SELECT HEX(c1) from v1;
+DROP VIEW v1;
+
 --echo End of 5.0 tests

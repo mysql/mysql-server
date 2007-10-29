@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1, t2;
 select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
 NULL	NULL	isnull(null)	isnull(1/0)	isnull(1/0 = null)	ifnull(null,1)	ifnull(null,"TRUE")	ifnull("TRUE","ERROR")	1/0 is null	1 is not null
 NULL	NULL	1	1	1	1	TRUE	TRUE	1	1
@@ -320,3 +320,26 @@ bug19145c	CREATE TABLE `bug19145c` (
 drop table bug19145a;
 drop table bug19145b;
 drop table bug19145c;
+# End of 4.1 tests
+#
+# Bug #31471: decimal_bin_size: Assertion `scale >= 0 &&
+#             precision > 0 && scale <= precision'
+#
+CREATE TABLE t1 (a DECIMAL (1, 0) ZEROFILL, b DECIMAL (1, 0) ZEROFILL);
+INSERT INTO t1 (a, b) VALUES (0, 0);
+CREATE TABLE t2 SELECT IFNULL(a, b) FROM t1;
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+IFNULL(a, b)	decimal(1,0) unsigned	YES		NULL	
+DROP TABLE t2;
+CREATE TABLE t2 SELECT IFNULL(a, NULL) FROM t1;
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+IFNULL(a, NULL)	decimal(1,0)	YES		NULL	
+DROP TABLE t2;
+CREATE TABLE t2 SELECT IFNULL(NULL, b) FROM t1;
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+IFNULL(NULL, b)	decimal(1,0)	YES		NULL	
+DROP TABLE t1, t2;
+# End of 5.0 tests

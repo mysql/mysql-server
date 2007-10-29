@@ -42,20 +42,20 @@ show create table mysql.general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
   `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `user_host` mediumtext,
-  `thread_id` int(11) DEFAULT NULL,
-  `server_id` int(11) DEFAULT NULL,
-  `command_type` varchar(64) DEFAULT NULL,
-  `argument` mediumtext
+  `user_host` mediumtext NOT NULL,
+  `thread_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
+  `command_type` varchar(64) NOT NULL,
+  `argument` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 show fields from mysql.general_log;
 Field	Type	Null	Key	Default	Extra
 event_time	timestamp	NO		CURRENT_TIMESTAMP	
-user_host	mediumtext	YES		NULL	
-thread_id	int(11)	YES		NULL	
-server_id	int(11)	YES		NULL	
-command_type	varchar(64)	YES		NULL	
-argument	mediumtext	YES		NULL	
+user_host	mediumtext	NO		NULL	
+thread_id	int(11)	NO		NULL	
+server_id	int(11)	NO		NULL	
+command_type	varchar(64)	NO		NULL	
+argument	mediumtext	NO		NULL	
 show create table mysql.slow_log;
 Table	Create Table
 slow_log	CREATE TABLE `slow_log` (
@@ -65,10 +65,10 @@ slow_log	CREATE TABLE `slow_log` (
   `lock_time` time NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
-  `db` varchar(512) DEFAULT NULL,
-  `last_insert_id` int(11) DEFAULT NULL,
-  `insert_id` int(11) DEFAULT NULL,
-  `server_id` int(11) DEFAULT NULL,
+  `db` varchar(512) NOT NULL,
+  `last_insert_id` int(11) NOT NULL,
+  `insert_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
   `sql_text` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show fields from mysql.slow_log;
@@ -79,10 +79,10 @@ query_time	time	NO		NULL
 lock_time	time	NO		NULL	
 rows_sent	int(11)	NO		NULL	
 rows_examined	int(11)	NO		NULL	
-db	varchar(512)	YES		NULL	
-last_insert_id	int(11)	YES		NULL	
-insert_id	int(11)	YES		NULL	
-server_id	int(11)	YES		NULL	
+db	varchar(512)	NO		NULL	
+last_insert_id	int(11)	NO		NULL	
+insert_id	int(11)	NO		NULL	
+server_id	int(11)	NO		NULL	
 sql_text	mediumtext	NO		NULL	
 flush logs;
 flush tables;
@@ -141,11 +141,11 @@ show create table mysql.general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
   `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `user_host` mediumtext,
-  `thread_id` int(11) DEFAULT NULL,
-  `server_id` int(11) DEFAULT NULL,
-  `command_type` varchar(64) DEFAULT NULL,
-  `argument` mediumtext
+  `user_host` mediumtext NOT NULL,
+  `thread_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
+  `command_type` varchar(64) NOT NULL,
+  `argument` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 show create table mysql.slow_log;
 Table	Create Table
@@ -156,10 +156,10 @@ slow_log	CREATE TABLE `slow_log` (
   `lock_time` time NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
-  `db` varchar(512) DEFAULT NULL,
-  `last_insert_id` int(11) DEFAULT NULL,
-  `insert_id` int(11) DEFAULT NULL,
-  `server_id` int(11) DEFAULT NULL,
+  `db` varchar(512) NOT NULL,
+  `last_insert_id` int(11) NOT NULL,
+  `insert_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
   `sql_text` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 alter table mysql.general_log engine=myisam;
@@ -168,11 +168,11 @@ show create table mysql.general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
   `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `user_host` mediumtext,
-  `thread_id` int(11) DEFAULT NULL,
-  `server_id` int(11) DEFAULT NULL,
-  `command_type` varchar(64) DEFAULT NULL,
-  `argument` mediumtext
+  `user_host` mediumtext NOT NULL,
+  `thread_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
+  `command_type` varchar(64) NOT NULL,
+  `argument` mediumtext NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='General log'
 show create table mysql.slow_log;
 Table	Create Table
@@ -183,10 +183,10 @@ slow_log	CREATE TABLE `slow_log` (
   `lock_time` time NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
-  `db` varchar(512) DEFAULT NULL,
-  `last_insert_id` int(11) DEFAULT NULL,
-  `insert_id` int(11) DEFAULT NULL,
-  `server_id` int(11) DEFAULT NULL,
+  `db` varchar(512) NOT NULL,
+  `last_insert_id` int(11) NOT NULL,
+  `insert_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
   `sql_text` mediumtext NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Slow log'
 set global general_log='ON';
@@ -241,11 +241,11 @@ use mysql;
 CREATE TABLE `general_log` (
 `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ON UPDATE CURRENT_TIMESTAMP,
-`user_host` mediumtext,
-`thread_id` int(11) DEFAULT NULL,
-`server_id` int(11) DEFAULT NULL,
-`command_type` varchar(64) DEFAULT NULL,
-`argument` mediumtext
+`user_host` mediumtext NOT NULL,
+`thread_id` int(11) NOT NULL,
+`server_id` int(11) NOT NULL,
+`command_type` varchar(64) NOT NULL,
+`argument` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log';
 CREATE TABLE `slow_log` (
 `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -255,10 +255,10 @@ ON UPDATE CURRENT_TIMESTAMP,
 `lock_time` time NOT NULL,
 `rows_sent` int(11) NOT NULL,
 `rows_examined` int(11) NOT NULL,
-`db` varchar(512) DEFAULT NULL,
-`last_insert_id` int(11) DEFAULT NULL,
-`insert_id` int(11) DEFAULT NULL,
-`server_id` int(11) DEFAULT NULL,
+`db` varchar(512) NOT NULL,
+`last_insert_id` int(11) NOT NULL,
+`insert_id` int(11) NOT NULL,
+`server_id` int(11) NOT NULL,
 `sql_text` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log';
 set global general_log='ON';
@@ -403,9 +403,9 @@ My own slow query	sleep(2)
 My own slow query	0
 SELECT * FROM mysql.slow_log WHERE seq >= 2 LIMIT 3;
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text	seq
-START_TIME	USER_HOST	QUERY_TIME	00:00:00	1	0	test	NULL	NULL	1	SELECT "My own slow query", sleep(2)	2
-START_TIME	USER_HOST	QUERY_TIME	00:00:00	1	0	test	NULL	NULL	1	SELECT "My own slow query", sleep(2)	3
-START_TIME	USER_HOST	QUERY_TIME	00:00:00	1	0	test	NULL	NULL	1	SELECT "My own slow query", sleep(2)	4
+START_TIME	USER_HOST	QUERY_TIME	00:00:00	1	0	test	0	0	1	SELECT "My own slow query", sleep(2)	2
+START_TIME	USER_HOST	QUERY_TIME	00:00:00	1	0	test	0	0	1	SELECT "My own slow query", sleep(2)	3
+START_TIME	USER_HOST	QUERY_TIME	00:00:00	1	0	test	0	0	1	SELECT "My own slow query", sleep(2)	4
 SET GLOBAL slow_query_log = 0;
 SET SESSION long_query_time =@old_long_query_time;
 FLUSH LOGS;
