@@ -753,6 +753,8 @@ public:
   void print(String *str);
   Item *find_item(String *str);
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  void agg_str_lengths(Item *arg);
+  void agg_num_lengths(Item *arg);
 };
 
 
