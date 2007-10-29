@@ -7,6 +7,7 @@ Created 5/30/1994 Heikki Tuuri
 ************************************************************************/
 
 #include "ut0byte.h"
+#include "mach0data.h"
 
 UNIV_INLINE
 void*
@@ -189,4 +190,103 @@ ut_raw_to_hex(
 	*hex = '\0';
 
 	return(write_bytes);
+}
+
+/***********************************************************************
+Adds single quotes to the start and end of string and escapes any quotes
+by doubling them. Returns the number of bytes that were written to "buf"
+(including the terminating '\0'). If buf_size is too small then the
+trailing bytes from "str" are discarded. */
+UNIV_INLINE
+ulint
+ut_str_sql_format(
+/*==============*/
+					/* out: number of bytes
+					that were written */
+	const char*	str,		/* in: string */
+	ulint		str_len,	/* in: string length in bytes */
+	char*		buf,		/* out: output buffer */
+	ulint		buf_size)	/* in: output buffer size
+					in bytes */
+{
+	ulint	str_i;
+	ulint	buf_i;
+
+	buf_i = 0;
+
+	switch (buf_size) {
+	case 3:
+
+		if (str_len == 0) {
+
+			buf[buf_i] = '\'';
+			buf_i++;
+			buf[buf_i] = '\'';
+			buf_i++;
+		}
+		/* FALLTHROUGH */
+	case 2:
+	case 1:
+
+		buf[buf_i] = '\0';
+		buf_i++;
+		/* FALLTHROUGH */
+	case 0:
+
+		return(buf_i);
+	}
+
+	/* buf_size >= 4 */
+
+	buf[0] = '\'';
+	buf_i = 1;
+
+	for (str_i = 0; str_i < str_len; str_i++) {
+
+		char	ch;
+
+		if (buf_size - buf_i == 2) {
+
+			break;
+		}
+
+		ch = str[str_i];
+
+		switch (ch) {
+		case '\0':
+
+			if (UNIV_UNLIKELY(buf_size - buf_i < 4)) {
+
+				goto func_exit;
+			}
+			buf[buf_i] = '\\';
+			buf_i++;
+			buf[buf_i] = '0';
+			buf_i++;
+			break;
+		case '\'':
+		case '\\':
+
+			if (UNIV_UNLIKELY(buf_size - buf_i < 4)) {
+
+				goto func_exit;
+			}
+			buf[buf_i] = ch;
+			buf_i++;
+			/* FALLTHROUGH */
+		default:
+
+			buf[buf_i] = ch;
+			buf_i++;
+		}
+	}
+
+func_exit:
+
+	buf[buf_i] = '\'';
+	buf_i++;
+	buf[buf_i] = '\0';
+	buf_i++;
+
+	return(buf_i);
 }

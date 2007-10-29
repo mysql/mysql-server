@@ -269,6 +269,27 @@ row_search_index_entry(
 No new latches may be obtained while the kernel mutex is reserved.
 However, the kernel mutex can be reserved while latches are owned. */
 
+/***********************************************************************
+Formats the raw data in "data" (in InnoDB on-disk format) using
+"dict_field" and writes the result to "buf".
+Not more than "buf_size" bytes are written to "buf".
+The result is always '\0'-terminated (provided buf_size > 0) and the
+number of bytes that were written to "buf" is returned (including the
+terminating '\0'). */
+
+ulint
+row_raw_format(
+/*===========*/
+						/* out: number of bytes
+						that were written */
+	const char*		data,		/* in: raw data */
+	ulint			data_len,	/* in: raw data length
+						in bytes */
+	const dict_field_t*	dict_field,	/* in: index field */
+	char*			buf,		/* out: output buffer */
+	ulint			buf_size);	/* in: output buffer size
+						in bytes */
+
 #ifndef UNIV_NONINL
 #include "row0row.ic"
 #endif

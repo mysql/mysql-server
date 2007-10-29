@@ -14,6 +14,10 @@ Created July 17, 2007 Vasil Dimov
 #include "univ.i"
 #include "ut0ut.h"
 
+/* the maximum length of a string that can be stored in
+i_s_locks_row_t::lock_data */
+#define TRX_I_S_LOCK_DATA_MAX_LEN	8192
+
 typedef struct i_s_locks_row_struct	i_s_locks_row_t;
 typedef struct i_s_hash_chain_struct	i_s_hash_chain_t;
 
@@ -34,6 +38,8 @@ struct i_s_locks_row_struct {
 	ulint		lock_space;
 	ulint		lock_page;
 	ulint		lock_rec;
+	const char*	lock_data;
+
 	/* The following are auxiliary and not included in the table */
 	ullint		lock_table_id;
 	i_s_hash_chain_t hash_chain; /* this object is added to the hash

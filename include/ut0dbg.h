@@ -110,4 +110,35 @@ ut_dbg_stop_thread(
 
 #define UT_NOT_USED(A)	A = A
 
+#ifdef UNIV_COMPILE_TEST_FUNCS
+
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
+/* structure used for recording usage statistics */
+typedef struct speedo_struct {
+	struct rusage	ru;
+	struct timeval	tv;
+} speedo_t;
+
+/***********************************************************************
+Resets a speedo (records the current time in it). */
+
+void
+speedo_reset(
+/*=========*/
+	speedo_t*	speedo);	/* out: speedo */
+
+/***********************************************************************
+Shows the time elapsed and usage statistics since the last reset of a
+speedo. */
+
+void
+speedo_show(
+/*========*/
+	const speedo_t*	speedo);	/* in: speedo */
+
+#endif /* UNIV_COMPILE_TEST_FUNCS */
+
 #endif

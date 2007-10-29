@@ -220,6 +220,23 @@ ut_raw_to_hex(
 	char*		hex,		/* out: hex string */
 	ulint		hex_size);	/* in: "hex" size in bytes */
 
+/***********************************************************************
+Adds single quotes to the start and end of string and escapes any quotes
+by doubling them. Returns the number of bytes that were written to "buf"
+(including the terminating '\0'). If buf_size is too small then the
+trailing bytes from "str" are discarded. */
+UNIV_INLINE
+ulint
+ut_str_sql_format(
+/*==============*/
+					/* out: number of bytes
+					that were written */
+	const char*	str,		/* in: string */
+	ulint		str_len,	/* in: string length in bytes */
+	char*		buf,		/* out: output buffer */
+	ulint		buf_size);	/* in: output buffer size
+					in bytes */
+
 #ifndef UNIV_NONINL
 #include "ut0mem.ic"
 #endif
