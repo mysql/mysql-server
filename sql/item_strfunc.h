@@ -531,6 +531,7 @@ public:
   {
     collation.set(default_charset());
     decimals=0; max_length=64;
+    maybe_null= 1;
   }
 };
 
@@ -623,7 +624,7 @@ public:
     }
   String* val_str(String* str);
   const char *func_name() const { return "inet_ntoa"; }
-  void fix_length_and_dec() { decimals = 0; max_length=3*8+7; }
+  void fix_length_and_dec() { decimals = 0; max_length=3*8+7; maybe_null=1;}
 };
 
 class Item_func_quote :public Item_str_func
