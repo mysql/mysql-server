@@ -10516,6 +10516,7 @@ set:
             lex->option_type=OPT_SESSION;
             lex->var_list.empty();
             lex->one_shot_set= 0;
+            lex->autocommit= 0;
           }
           option_value_list
           {}
@@ -10558,6 +10559,7 @@ option_type_value:
               lex->option_type=OPT_SESSION;
               lex->var_list.empty();
               lex->one_shot_set= 0;
+              lex->autocommit= 0;
               lex->sphead->m_tmp_query= lip->get_tok_start();
             }
           }
@@ -10799,10 +10801,16 @@ option_value:
             user->host=null_lex_str;
             user->user.str=thd->security_ctx->priv_user;
             thd->lex->var_list.push_back(new set_var_password(user, $3));
+            thd->lex->autocommit= TRUE;
+            if (lex->sphead)
+              lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
           }
         | PASSWORD FOR_SYM user equal text_or_password
           {
             Lex->var_list.push_back(new set_var_password($3,$5));
+            Lex->autocommit= TRUE;
+            if (Lex->sphead)
+              Lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
           }
         ;
 
