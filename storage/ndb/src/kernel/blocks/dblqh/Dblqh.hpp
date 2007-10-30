@@ -2025,7 +2025,6 @@ public:
     Uint8 reclenAiLqhkey;
     Uint8 m_offset_current_keybuf;
     Uint8 replicaType;
-    Uint8 simpleRead;
     Uint8 seqNoReplica;
     Uint8 tcNodeFailrec;
     Uint8 m_disk_table;
@@ -2145,6 +2144,7 @@ private:
   void execSTORED_PROCCONF(Signal* signal);
   void execSTORED_PROCREF(Signal* signal);
   void execCOPY_FRAGREQ(Signal* signal);
+  void execPREPARE_COPY_FRAG_REQ(Signal* signal);
   void execUPDATE_FRAG_DIST_KEY_ORD(Signal*);
   void execCOPY_ACTIVEREQ(Signal* signal);
   void execCOPY_STATEREQ(Signal* signal);
