@@ -607,11 +607,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	period	NULL	NULL	NULL	41810	Using filesort
+1	SIMPLE	t3	index	period	period	4	NULL	1	
 1	SIMPLE	t1	ref	period	period	4	test.t3.period	4181	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	period	NULL	NULL	NULL	41810	Using filesort
+1	SIMPLE	t1	index	period	period	4	NULL	1	
 1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
 select period from t1;
 period
@@ -4047,4 +4047,55 @@ SHOW WARNINGS;
 Level	Code	Message
 Note	1003	select '0' AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by '0','0','0','0','0'
 DROP TABLE t1;
+SELECT 1 AS ` `;
+
+1
+Warnings:
+Warning	1474	Name ' ' has become ''
+SELECT 1 AS `  `;
+
+1
+Warnings:
+Warning	1474	Name '  ' has become ''
+SELECT 1 AS ` x`;
+x
+1
+Warnings:
+Warning	1466	Leading spaces are removed from name ' x'
+CREATE VIEW v1 AS SELECT 1 AS ` `;
+Warnings:
+Warning	1474	Name ' ' has become ''
+SELECT `` FROM v1;
+
+1
+CREATE VIEW v2 AS SELECT 1 AS `  `;
+Warnings:
+Warning	1474	Name '  ' has become ''
+SELECT `` FROM v2;
+
+1
+CREATE VIEW v3 AS SELECT 1 AS ` x`;
+Warnings:
+Warning	1466	Leading spaces are removed from name ' x'
+SELECT `x` FROM v3;
+x
+1
+DROP VIEW v1, v2, v3;
 End of 5.0 tests
+create table t1(a INT, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SELECT a FROM t1 ORDER BY a LIMIT 2;
+a
+1
+2
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967296;
+a
+3
+4
+5
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967297;
+a
+3
+4
+5
+DROP TABLE t1;

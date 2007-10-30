@@ -396,7 +396,7 @@ then
 does not exist or is not executable. Please cd to the mysql installation
 directory and restart this script from there as follows:
 ./bin/mysqld_safe&
-See http://dev.mysql.com/doc/mysql/en/mysqld_safe.html for more information"
+See http://dev.mysql.com/doc/mysql/en/mysqld-safe.html for more information"
   exit 1
 fi
 

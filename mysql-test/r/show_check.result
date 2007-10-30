@@ -228,7 +228,7 @@ show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 test_set	set('val1','val2','val3')	latin1_swedish_ci	NO				select,insert,update,references	
 name	char(20)	latin1_swedish_ci	YES		O'Brien		select,insert,update,references	O'Brien as default
-c	int(11)	NULL	NO				select,insert,update,references	int column
+c	int(11)	NULL	NO		NULL		select,insert,update,references	int column
 c-b	int(11)	NULL	YES		NULL		select,insert,update,references	name with a minus
 space 2	int(11)	NULL	YES		NULL		select,insert,update,references	name with a space
 drop table t1;
@@ -1000,7 +1000,7 @@ def			COLUMNS	COLUMN_KEY	Key	253	9	3	N	1	0	33
 def			COLUMNS	COLUMN_DEFAULT	Default	252	589815	0	Y	16	0	33
 def			COLUMNS	EXTRA	Extra	253	60	0	N	1	0	33
 Field	Type	Null	Key	Default	Extra
-c	int(11)	NO	PRI		
+c	int(11)	NO	PRI	NULL	
 ----------------------------------------------------------------
 SHOW TRIGGERS LIKE 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr

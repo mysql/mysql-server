@@ -86,7 +86,6 @@ const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
 };
 
-
 static void unlock_locked_tables(THD *thd)
 {
   if (thd->locked_tables)
@@ -321,8 +320,6 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
     values of init_command_var can't be changed
   */
   rw_rdlock(var_mutex);
-  thd->query= init_command_var->value;
-  thd->query_length= init_command_var->value_length;
   save_client_capabilities= thd->client_capabilities;
   thd->client_capabilities|= CLIENT_MULTI_QUERIES;
   /*
@@ -332,7 +329,9 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   save_vio= thd->net.vio;
   thd->net.vio= 0;
   thd->net.no_send_error= 0;
-  dispatch_command(COM_QUERY, thd, thd->query, thd->query_length+1);
+  dispatch_command(COM_QUERY, thd,
+                   init_command_var->value,
+                   init_command_var->value_length);
   rw_unlock(var_mutex);
   thd->client_capabilities= save_client_capabilities;
   thd->net.vio= save_vio;
@@ -681,40 +680,49 @@ bool do_command(THD *thd)
     DBUG_PRINT("info",("Got error %d reading command from socket %s",
 		       net->error,
 		       vio_description(net->vio)));
+
     /* Check if we can continue without closing the connection */
+
     if (net->error != 3)
-    {
-      statistic_increment(aborted_threads,&LOCK_status);
       DBUG_RETURN(TRUE);			// We have to close it.
-    }
+
     net_send_error(thd, net->last_errno, NullS);
     net->error= 0;
     DBUG_RETURN(FALSE);
   }
-  else
+
+  packet= (char*) net->read_pos;
+  /*
+    'packet_length' contains length of data, as it was stored in packet
+    header. In case of malformed header, my_net_read returns zero.
+    If packet_length is not zero, my_net_read ensures that the returned
+    number of bytes was actually read from network.
+    There is also an extra safety measure in my_net_read:
+    it sets packet[packet_length]= 0, but only for non-zero packets.
+  */
+  if (packet_length == 0)                       /* safety */
   {
-    packet=(char*) net->read_pos;
-    command = (enum enum_server_command) (uchar) packet[0];
-    if (command >= COM_END)
-      command= COM_END;				// Wrong command
-    DBUG_PRINT("info",("Command on %s = %d (%s)",
-		       vio_description(net->vio), command,
-		       command_name[command].str));
+    /* Initialize with COM_SLEEP packet */
+    packet[0]= (uchar) COM_SLEEP;
+    packet_length= 1;
   }
+  /* Do not rely on my_net_read, extra safety against programming errors. */
+  packet[packet_length]= '\0';                  /* safety */
+
+  command= (enum enum_server_command) (uchar) packet[0];
+
+  if (command >= COM_END)
+    command= COM_END;				// Wrong command
+
+  DBUG_PRINT("info",("Command on %s = %d (%s)",
+                     vio_description(net->vio), command,
+                     command_name[command].str));
 
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
-  /*
-    packet_length contains length of data, as it was stored in packet
-    header. In case of malformed header, packet_length can be zero.
-    If packet_length is not zero, my_net_read ensures that this number
-    of bytes was actually read from network. Additionally my_net_read
-    sets packet[packet_length]= 0 (thus if packet_length == 0,
-    command == packet[0] == COM_SLEEP).
-    In dispatch_command packet[packet_length] points beyond the end of packet.
-  */
-  DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
+  DBUG_ASSERT(packet_length);
+  DBUG_RETURN(dispatch_command(command, thd, packet+1, (uint) (packet_length-1)));
 }
 #endif  /* EMBEDDED_LIBRARY */
 
@@ -727,9 +735,7 @@ bool do_command(THD *thd)
     thd             connection handle
     command         type of command to perform 
     packet          data for the command, packet is always null-terminated
-    packet_length   length of packet + 1 (to show that data is
-                    null-terminated) except for COM_SLEEP, where it
-                    can be zero.
+    packet_length   length of packet. Can be zero, e.g. in case of COM_SLEEP.
   RETURN VALUE
     0   ok
     1   request of thread shutdown, i. e. if command is
@@ -773,10 +779,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     LEX_STRING tmp;
     status_var_increment(thd->status_var.com_stat[SQLCOM_CHANGE_DB]);
     thd->convert_string(&tmp, system_charset_info,
-			packet, packet_length-1, thd->charset());
+			packet, packet_length, thd->charset());
     if (!mysql_change_db(thd, &tmp, FALSE))
     {
-      general_log_print(thd, command, "%s",thd->db);
+      general_log_write(thd, command, thd->db, thd->db_length);
       send_ok(thd);
     }
     break;
@@ -793,14 +799,16 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     char *tbl_name;
     LEX_STRING db;
+    /* Safe because there is always a trailing \0 at the end of the packet */
     uint db_len= *(uchar*) packet;
-    if (db_len >= packet_length || db_len > NAME_LEN)
+    if (db_len + 1 > packet_length || db_len > NAME_LEN)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;
     }
+    /* Safe because there is always a trailing \0 at the end of the packet */
     uint tbl_len= *(uchar*) (packet + db_len + 1);
-    if (db_len+tbl_len+2 > packet_length || tbl_len > NAME_LEN)
+    if (db_len + tbl_len + 2 > packet_length || tbl_len > NAME_LEN)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;
@@ -823,7 +831,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CHANGE_USER:
   {
     status_var_increment(thd->status_var.com_other);
-    char *user= (char*) packet, *packet_end= packet+ packet_length;
+    char *user= (char*) packet, *packet_end= packet + packet_length;
+    /* Safe because there is always a trailing \0 at the end of the packet */
     char *passwd= strend(user)+1;
 
     thd->change_user();
@@ -840,6 +849,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char db_buff[NAME_LEN+1];                 // buffer to store db in utf8
     char *db= passwd;
     char *save_db;
+    /*
+      If there is no password supplied, the packet must contain '\0',
+      in any type of handshake (4.1 or pre-4.1).
+     */
+    if (passwd >= packet_end)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      break;
+    }
     uint passwd_len= (thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
                       (uchar)(*passwd++) : strlen(passwd));
     uint dummy_errors, save_db_length, db_length;
@@ -848,22 +866,32 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     USER_CONN *save_user_connect;
 
     db+= passwd_len + 1;
-#ifndef EMBEDDED_LIBRARY
-    /* Small check for incoming packet */
-    if ((uint) ((uchar*) db - net->read_pos) > packet_length)
+    /*
+      Database name is always NUL-terminated, so in case of empty database
+      the packet must contain at least the trailing '\0'.
+    */
+    if (db >= packet_end)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;
     }
-#endif
+    db_length= strlen(db);
+
+    char *ptr= db + db_length + 1;
+    uint cs_number= 0;
+
+    if (ptr < packet_end)
+    {
+      if (ptr + 2 > packet_end)
+      {
+        my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+        break;
+      }
+
+      cs_number= uint2korr(ptr);
+    }
+
     /* Convert database name to utf8 */
-    /*
-      Handle problem with old bug in client protocol where db had an extra
-      \0
-    */
-    db_length= (packet_end - db);
-    if (db_length > 0 && db[db_length-1] == 0)
-      db_length--;
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info, db, db_length,
                              thd->charset(), &dummy_errors)]= 0;
@@ -907,6 +935,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
       x_free((uchar*) save_db);
       x_free((uchar*)  save_security_ctx.user);
+
+      if (cs_number)
+      {
+        thd_init_client_charset(thd, cs_number);
+        thd->update_charset();
+      }
     }
     break;
   }
@@ -946,10 +980,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;					// fatal error is set
     char *packet_end= thd->query + thd->query_length;
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
-    const char *format= "%.*b";
     const char* found_semicolon= NULL;
 
-    general_log_print(thd, command, format, thd->query_length, thd->query);
+    general_log_write(thd, command, thd->query, thd->query_length);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -999,7 +1032,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
 #else
   {
-    char *fields, *packet_end= packet + packet_length - 1, *arg_end;
+    char *fields, *packet_end= packet + packet_length, *arg_end;
     /* Locked closure of all tables */
     TABLE_LIST table_list;
     LEX_STRING conv_name;
@@ -1073,7 +1106,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       HA_CREATE_INFO create_info;
 
       status_var_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB]);
-      if (thd->make_lex_string(&db, packet, packet_length - 1, FALSE) ||
+      if (thd->make_lex_string(&db, packet, packet_length, FALSE) ||
           thd->make_lex_string(&alias, db.str, db.length, FALSE) ||
           check_db_name(&db))
       {
@@ -1094,7 +1127,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       status_var_increment(thd->status_var.com_stat[SQLCOM_DROP_DB]);
       LEX_STRING db;
 
-      if (thd->make_lex_string(&db, packet, packet_length - 1, FALSE) ||
+      if (thd->make_lex_string(&db, packet, packet_length, FALSE) ||
           check_db_name(&db))
       {
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
@@ -1108,7 +1141,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                    ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
 	break;
       }
-      general_log_print(thd, command, db.str);
+      general_log_write(thd, command, db.str, db.length);
       mysql_rm_db(thd, db.str, 0, 0);
       break;
     }
@@ -1163,7 +1196,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break; /* purecov: inspected */
     /*
       If the client is < 4.1.3, it is going to send us no argument; then
-      packet_length is 1, packet[0] is the end 0 of the packet. Note that
+      packet_length is 0, packet[0] is the end 0 of the packet. Note that
       SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
       packet[0].
     */
@@ -1521,9 +1554,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
 bool alloc_query(THD *thd, const char *packet, uint packet_length)
 {
-  packet_length--;				// Remove end null
   /* Remove garbage at start and end of query */
-  while (my_isspace(thd->charset(),packet[0]) && packet_length > 0)
+  while (packet_length > 0 && my_isspace(thd->charset(), packet[0]))
   {
     packet++;
     packet_length--;
@@ -3173,12 +3205,9 @@ end_with_restore_list:
     res= mysql_rm_db(thd, lex->name.str, lex->drop_if_exists, 0);
     break;
   }
-  case SQLCOM_RENAME_DB:
+  case SQLCOM_ALTER_DB_UPGRADE:
   {
-    LEX_STRING *olddb, *newdb;
-    List_iterator <LEX_STRING> db_list(lex->db_list);
-    olddb= db_list++;
-    newdb= db_list++;
+    LEX_STRING *db= & lex->name;
     if (end_active_trans(thd))
     {
       res= 1;
@@ -3186,24 +3215,22 @@ end_with_restore_list:
     }
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread && 
-       (!rpl_filter->db_ok(olddb->str) ||
-        !rpl_filter->db_ok(newdb->str) ||
-        !rpl_filter->db_ok_with_wild_table(olddb->str) ||
-        !rpl_filter->db_ok_with_wild_table(newdb->str)))
+       (!rpl_filter->db_ok(db->str) ||
+        !rpl_filter->db_ok_with_wild_table(db->str)))
     {
       res= 1;
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
     }
 #endif
-    if (check_db_name(newdb))
+    if (check_db_name(db))
     {
-      my_error(ER_WRONG_DB_NAME, MYF(0), newdb->str);
+      my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
       break;
     }
-    if (check_access(thd,ALTER_ACL,olddb->str,0,1,0,is_schema_db(olddb->str)) ||
-        check_access(thd,DROP_ACL,olddb->str,0,1,0,is_schema_db(olddb->str)) ||
-        check_access(thd,CREATE_ACL,newdb->str,0,1,0,is_schema_db(newdb->str)))
+    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
+        check_access(thd, DROP_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
+        check_access(thd, CREATE_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
     {
       res= 1;
       break;
@@ -3215,7 +3242,8 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    res= mysql_rename_db(thd, olddb, newdb);
+
+    res= mysql_upgrade_db(thd, db);
     if (!res)
       send_ok(thd);
     break;
@@ -3328,12 +3356,6 @@ end_with_restore_list:
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
       break;
 #ifdef HAVE_DLOPEN
-    if (sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
-                        &thd->sp_func_cache, FALSE))
-    {
-      my_error(ER_UDF_EXISTS, MYF(0), lex->spname->m_name.str);
-      goto error;
-    }
     if (!(res = mysql_create_function(thd, &lex->udf)))
       send_ok(thd);
 #else
@@ -3789,6 +3811,9 @@ end_with_restore_list:
     case SP_BODY_TOO_LONG:
       my_error(ER_TOO_LONG_BODY, MYF(0), name);
     break;
+    case SP_FLD_STORE_FAILED:
+      my_error(ER_CANT_CREATE_SROUTINE, MYF(0), name);
+      break;
     default:
       my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
     break;
@@ -5769,7 +5794,12 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
         (schema_table->hidden && 
-         (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
+         ((sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0 || 
+          /*
+            this check is used for show columns|keys from I_S hidden table
+          */
+          lex->sql_command == SQLCOM_SHOW_FIELDS ||
+          lex->sql_command == SQLCOM_SHOW_KEYS)))
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
                ptr->table_name, INFORMATION_SCHEMA_NAME.str);
@@ -7245,7 +7275,12 @@ bool parse_sql(THD *thd,
 
   /* Parse the query. */
 
-  bool err_status= MYSQLparse(thd) != 0 || thd->is_fatal_error;
+  bool mysql_parse_status= MYSQLparse(thd) != 0;
+
+  /* Check that if MYSQLparse() failed, thd->net.report_error is set. */
+
+  DBUG_ASSERT(!mysql_parse_status ||
+              mysql_parse_status && thd->net.report_error);
 
   /* Reset Lex_input_stream. */
 
@@ -7258,7 +7293,7 @@ bool parse_sql(THD *thd,
 
   /* That's it. */
 
-  return err_status;
+  return mysql_parse_status || thd->is_fatal_error;
 }
 
 /**

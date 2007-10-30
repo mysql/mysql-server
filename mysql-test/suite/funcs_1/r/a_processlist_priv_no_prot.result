@@ -467,3 +467,5 @@ Cleanup: close connections, DROP USER etc.
 ####################################################################################
 DROP USER ddicttestuser1@'localhost';
 DROP USER ddicttestuser2@'localhost';
+REVOKE USAGE ON *.* FROM ''@'localhost';
+DROP USER ''@'localhost';

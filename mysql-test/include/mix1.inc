@@ -29,6 +29,7 @@ eval SET SESSION STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
 drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
+drop procedure if exists p1;
 --enable_warnings
 
 
@@ -996,6 +997,29 @@ SELECT c,b   FROM t1 GROUP BY c,b;
 
 DROP TABLE t1;
 
+#
+# Bug #31001: ORDER BY DESC in InnoDB not working
+#
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a), INDEX b (b)) ENGINE=InnoDB;
+INSERT INTO t1(a,b) VALUES (1,1), (2,2), (3,2);
+
+#The two queries below should produce different results, but they don't.
+query_vertical EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
+SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
+query_vertical EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a DESC;
+SELECT * FROM t1 WHERE b=2 ORDER BY a DESC;
+
+query_vertical EXPLAIN SELECT * FROM t1 ORDER BY b ASC, a ASC;
+SELECT * FROM t1 ORDER BY b ASC, a ASC;
+query_vertical EXPLAIN SELECT * FROM t1 ORDER BY b DESC, a DESC;
+SELECT * FROM t1 ORDER BY b DESC, a DESC;
+query_vertical EXPLAIN SELECT * FROM t1 ORDER BY b ASC, a DESC;
+SELECT * FROM t1 ORDER BY b ASC, a DESC;
+query_vertical EXPLAIN SELECT * FROM t1 ORDER BY b DESC, a ASC;
+SELECT * FROM t1 ORDER BY b DESC, a ASC;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
@@ -1122,5 +1146,162 @@ insert into t1(f1) select f1 from t1 on duplicate key update f1="1";
 select @b:=f2 from t1;
 select if(@a=@b,"ok","wrong");
 drop table t1;
+
+#
+# Bug #31310: Locked rows silently skipped in read-committed isolation level.
+#
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+SET SESSION AUTOCOMMIT = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--echo # Switch to connection con1
+connection con1;
+
+eval
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(256))
+ENGINE = $engine_type;
+INSERT INTO t1 VALUES (1,2);
+
+--#echo 1. test for locking:
+
+BEGIN;
+--enable_info
+UPDATE t1 SET b = 12 WHERE a = 1;
+--disable_info
+SELECT * FROM t1;
+
+--echo # Switch to connection con2
+connection con2;
+
+--enable_info
+--disable_abort_on_error
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET b = 21 WHERE a = 1;
+--disable_info
+
+--echo # Switch to connection con1
+connection con1;
+SELECT * FROM t1;
+ROLLBACK;
+
+--echo # 2. test for serialized update:
+
+CREATE TABLE t2 (a INT);
+
+TRUNCATE t1;
+INSERT INTO t1 VALUES (1,'init');
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  UPDATE t1 SET b = CONCAT(b, '+con2')  WHERE a = 1;
+  INSERT INTO t2 VALUES ();
+END|
+DELIMITER ;|
+
+BEGIN;
+--enable_info
+UPDATE t1 SET b = CONCAT(b, '+con1') WHERE a = 1;
+--disable_info
+SELECT * FROM t1;
+
+--echo # Switch to connection con2
+connection con2;
+
+--send CALL p1;
+
+--echo # Switch to connection con1
+connection con1;
+SELECT * FROM t1;
+COMMIT;
+
+let $bug31310 = 1;
+while ($bug31310)
+{
+  let $bug31310= `SELECT 1 - COUNT(*) FROM t2`;
+}
+
+SELECT * FROM t1;
+
+--echo # Switch to connection con2
+connection con2;
+SELECT * FROM t1;
+
+--echo # Switch to connection con1
+connection con1;
+
+--echo # 3. test for updated key column:
+
+TRUNCATE t1;
+TRUNCATE t2;
+
+INSERT INTO t1 VALUES (1,'init');
+
+BEGIN;
+--enable_info
+UPDATE t1 SET a = 2, b = CONCAT(b, '+con1') WHERE a = 1;
+--disable_info
+SELECT * FROM t1;
+
+--echo # Switch to connection con2
+connection con2;
+
+--send CALL p1;
+
+--echo # Switch to connection con1
+connection con1;
+SELECT * FROM t1;
+COMMIT;
+
+let $bug31310 = 1;
+while ($bug31310)
+{
+  let $bug31310= `SELECT 1 - COUNT(*) FROM t2`;
+}
+
+SELECT * FROM t1;
+
+--echo # Switch to connection con2
+connection con2;
+SELECT * FROM t1;
+
+connection default;
+disconnect con1;
+disconnect con2;
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+# Bug#30747 Create table with identical constraint names behaves incorrectly
+#
+
+if ($test_foreign_keys)
+{
+  CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b)) engine=innodb;
+  --error ER_WRONG_FK_DEF
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  CONSTRAINT c2 FOREIGN KEY f2 (c) REFERENCES t1 (a,b) ON UPDATE NO ACTION) engine=innodb;
+  --error ER_WRONG_FK_DEF
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a,b) ON UPDATE NO ACTION) engine=innodb;
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  CONSTRAINT c1 FOREIGN KEY c2 (c) REFERENCES t1 (a) ON DELETE NO ACTION,
+                  CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION) engine=innodb;
+  ALTER TABLE t2 DROP FOREIGN KEY c2;
+  DROP TABLE t2;
+  --error ER_WRONG_FK_DEF
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  FOREIGN KEY (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
+  --error ER_WRONG_FK_DEF
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  FOREIGN KEY f1 (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  CONSTRAINT c1 FOREIGN KEY f1 (c) REFERENCES t1 (a) ON DELETE NO ACTION,
+                  CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION,
+                  FOREIGN KEY f3 (c) REFERENCES t1 (a) ON UPDATE NO ACTION,
+                  FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION) engine=innodb;
+  SHOW CREATE TABLE t2;
+  DROP TABLE t2;
+  DROP TABLE t1;
+}
 
 --echo End of 5.1 tests

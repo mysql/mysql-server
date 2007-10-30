@@ -1019,12 +1019,14 @@ sub command_line_setup () {
   {
     $opt_testcase_timeout= $default_testcase_timeout;
     $opt_testcase_timeout*= 10 if $opt_valgrind;
+    $opt_testcase_timeout*= 10 if ($opt_debug and $glob_win32);
   }
 
   if ( ! $opt_suite_timeout )
   {
     $opt_suite_timeout= $default_suite_timeout;
     $opt_suite_timeout*= 6 if $opt_valgrind;
+    $opt_suite_timeout*= 6 if ($opt_debug and $glob_win32);
   }
 
   if ( ! $opt_user )
@@ -1354,6 +1356,7 @@ sub datadir_list_setup () {
 
 sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
+  my $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
 
   #
   # Execute "mysqld --help --verbose" to get a list
@@ -1364,7 +1367,7 @@ sub collect_mysqld_features () {
   #
   # --datadir must exist, mysqld will chdir into it
   #
-  my $list= `$exe_mysqld --no-defaults --datadir=$path_language --language=$path_language --skip-grant-tables --verbose --help`;
+  my $list= `$exe_mysqld --no-defaults --datadir=$tmpdir --language=$path_language --skip-grant-tables --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {
@@ -1419,7 +1422,7 @@ sub collect_mysqld_features () {
       }
     }
   }
-
+  rmtree($tmpdir);
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
@@ -3082,6 +3085,7 @@ sub install_db ($$) {
   mtr_appendfile_to_file("$path_sql_dir/fill_help_tables.sql",
 			 $bootstrap_sql_file);
 
+  # Remove anonymous users
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';");
 
@@ -3741,6 +3745,11 @@ sub mysqld_arguments ($$$$) {
   mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
+
+  # Increase default connect_timeout to avoid intermittent
+  # disconnects when test servers are put under load
+  # see BUG#28359
+  mtr_add_arg($args, "%s--connect-timeout=60", $prefix);
 
   if ( $opt_valgrind_mysqld )
   {
@@ -5045,7 +5054,7 @@ sub valgrind_arguments {
   }
 
   # Add valgrind options, can be overriden by user
-  mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options));
+  mtr_add_arg($args, '%s', $opt_valgrind_options);
 
   mtr_add_arg($args, $$exe);
 
@@ -5118,14 +5127,18 @@ Options to control what test suites or cases to run
   skip-ndb[cluster]     Skip all tests that need cluster
   skip-ndb[cluster]-slave Skip all tests that need a slave cluster
   ndb-extra             Run extra tests from ndb directory
-  do-test=PREFIX        Run test cases which name are prefixed with PREFIX
+  do-test=PREFIX or REGEX
+                        Run test cases which name are prefixed with PREFIX
+                        or fulfills REGEX
+  skip-test=PREFIX or REGEX
+                        Skip test cases which name are prefixed with PREFIX
+                        or fulfills REGEX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
   suite[s]=NAME1,..,NAMEN Collect tests in suites from the comma separated
                         list of suite names.
                         The default is: "$opt_suites"
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
-  skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
   big-test              Set the environment variable BIG_TEST, which can be
                         checked from test cases.
 

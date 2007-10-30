@@ -981,6 +981,60 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 
 #define LIST_PROCESS_HOST_LEN 64
 
+static bool get_field_default_value(THD *thd, TABLE *table,
+                                    Field *field, String *def_value,
+                                    bool quoted)
+{
+  bool has_default;
+  bool has_now_default;
+
+  /* 
+     We are using CURRENT_TIMESTAMP instead of NOW because it is
+     more standard
+  */
+  has_now_default= table->timestamp_field == field && 
+    field->unireg_check != Field::TIMESTAMP_UN_FIELD;
+    
+  has_default= (field->type() != FIELD_TYPE_BLOB &&
+                !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
+                field->unireg_check != Field::NEXT_NUMBER &&
+                !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+                  && has_now_default));
+
+  def_value->length(0);
+  if (has_default)
+  {
+    if (has_now_default)
+      def_value->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
+    else if (!field->is_null())
+    {                                             // Not null by default
+      char tmp[MAX_FIELD_WIDTH];
+      String type(tmp, sizeof(tmp), field->charset());
+      field->val_str(&type);
+      if (type.length())
+      {
+        String def_val;
+        uint dummy_errors;
+        /* convert to system_charset_info == utf8 */
+        def_val.copy(type.ptr(), type.length(), field->charset(),
+                     system_charset_info, &dummy_errors);
+        if (quoted)
+          append_unescaped(def_value, def_val.ptr(), def_val.length());
+        else
+          def_value->append(def_val.ptr(), def_val.length());
+      }
+      else if (quoted)
+        def_value->append(STRING_WITH_LEN("''"));
+    }
+    else if (field->maybe_null() && quoted)
+      def_value->append(STRING_WITH_LEN("NULL"));    // Null as default
+    else
+      return 0;
+
+  }
+  return has_default;
+}
+
 /*
   Build a CREATE TABLE statement for a table.
 
@@ -995,11 +1049,11 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
                       to tailor the format of the statement.  Can be
                       NULL, in which case only SQL_MODE is considered
                       when building the statement.
-
+  
   NOTE
     Currently always return 0, but might return error code in the
     future.
-
+    
   RETURN
     0       OK
  */
@@ -1008,9 +1062,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO *create_info_arg)
 {
   List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128];
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], def_value_buf[MAX_FIELD_WIDTH];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
+  String def_value(def_value_buf, sizeof(def_value_buf), system_charset_info);
   Field **ptr,*field;
   uint primary_key;
   KEY *key_info;
@@ -1063,8 +1118,6 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
-    bool has_default;
-    bool has_now_default;
     uint flags = field->flags;
 
     if (ptr != table->field)
@@ -1141,44 +1194,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
           packet->append(STRING_WITH_LEN(" DYNAMIC */"));
       }
     }
-    /* 
-      Again we are using CURRENT_TIMESTAMP instead of NOW because it is
-      more standard 
-    */
-    has_now_default= table->timestamp_field == field && 
-                     field->unireg_check != Field::TIMESTAMP_UN_FIELD;
-    
-    has_default= (field->type() != MYSQL_TYPE_BLOB &&
-                  !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
-		  field->unireg_check != Field::NEXT_NUMBER &&
-                  !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
-		    && has_now_default));
-
-    if (has_default)
+    if (get_field_default_value(thd, table, field, &def_value, 1))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
-      if (has_now_default)
-        packet->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
-      else if (!field->is_null())
-      {                                             // Not null by default
-        type.set(tmp, sizeof(tmp), field->charset());
-        field->val_str(&type);
-	if (type.length())
-	{
-	  String def_val;
-          uint dummy_errors;
-	  /* convert to system_charset_info == utf8 */
-	  def_val.copy(type.ptr(), type.length(), field->charset(),
-		       system_charset_info, &dummy_errors);
-          append_unescaped(packet, def_val.ptr(), def_val.length());
-	}
-        else
-	  packet->append(STRING_WITH_LEN("''"));
-      }
-      else if (field->maybe_null())
-        packet->append(STRING_WITH_LEN("NULL"));    // Null as default
-      else
-        packet->append(tmp);
+      packet->append(def_value.ptr(), def_value.length(), system_charset_info);
     }
 
     if (!limited_mysql_mode && table->timestamp_field == field && 
@@ -2306,10 +2325,12 @@ int make_table_list(THD *thd, SELECT_LEX *sel,
   @param[in]      table                 I_S table
   @param[in, out] lookup_field_vals     Struct which holds lookup values 
 
-  @return         void
+  @return
+    0             success
+    1             error, there can be no matching records for the condition
 */
 
-void get_lookup_value(THD *thd, Item_func *item_func,
+bool get_lookup_value(THD *thd, Item_func *item_func,
                       TABLE_LIST *table, 
                       LOOKUP_FIELD_VALUES *lookup_field_vals)
 {
@@ -2342,12 +2363,16 @@ void get_lookup_value(THD *thd, Item_func *item_func,
       idx_val= 0;
     }
     else
-      return;
+      return 0;
 
     item_field= (Item_field*) item_func->arguments()[idx_field];
     if (table->table != item_field->field->table)
-      return;
+      return 0;
     tmp_str= item_func->arguments()[idx_val]->val_str(&str_buff);
+
+    /* impossible value */
+    if (!tmp_str)
+      return 1;
 
     /* Lookup value is database name */
     if (!cs->coll->strnncollsp(cs, (uchar *) field_name1, strlen(field_name1),
@@ -2367,7 +2392,7 @@ void get_lookup_value(THD *thd, Item_func *item_func,
                            tmp_str->length(), FALSE);
     }
   }
-  return;
+  return 0;
 }
 
 
@@ -2383,14 +2408,16 @@ void get_lookup_value(THD *thd, Item_func *item_func,
   @param[in]      table                 I_S table
   @param[in, out] lookup_field_vals     Struct which holds lookup values 
 
-  @return         void
+  @return
+    0             success
+    1             error, there can be no matching records for the condition
 */
 
-void calc_lookup_values_from_cond(THD *thd, COND *cond, TABLE_LIST *table,
+bool calc_lookup_values_from_cond(THD *thd, COND *cond, TABLE_LIST *table,
                                   LOOKUP_FIELD_VALUES *lookup_field_vals)
 {
   if (!cond)
-    return;
+    return 0;
 
   if (cond->type() == Item::COND_ITEM)
   {
@@ -2401,16 +2428,23 @@ void calc_lookup_values_from_cond(THD *thd, COND *cond, TABLE_LIST *table,
       while ((item= li++))
       {
         if (item->type() == Item::FUNC_ITEM)
-          get_lookup_value(thd, (Item_func*)item, table, lookup_field_vals);
+        {
+          if (get_lookup_value(thd, (Item_func*)item, table, lookup_field_vals))
+            return 1;
+        }
         else
-          calc_lookup_values_from_cond(thd, item, table, lookup_field_vals);
+        {
+          if (calc_lookup_values_from_cond(thd, item, table, lookup_field_vals))
+            return 1;
+        }
       }
     }
-    return;
+    return 0;
   }
-  else if (cond->type() == Item::FUNC_ITEM)
-    get_lookup_value(thd, (Item_func*) cond, table, lookup_field_vals);
-  return;
+  else if (cond->type() == Item::FUNC_ITEM &&
+           get_lookup_value(thd, (Item_func*) cond, table, lookup_field_vals))
+    return 1;
+  return 0;
 }
 
 
@@ -2523,10 +2557,12 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
   @param[in]      tables                I_S table
   @param[in, out] lookup_field_values   Struct which holds lookup values 
 
-  @return         void
+  @return
+    0             success
+    1             error, there can be no matching records for the condition
 */
 
-void get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
+bool get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
                              LOOKUP_FIELD_VALUES *lookup_field_values)
 {
   LEX *lex= thd->lex;
@@ -2540,7 +2576,7 @@ void get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
       lookup_field_values->db_value.length= strlen(wild);
       lookup_field_values->wild_db_value= 1;
     }
-    break;
+    return 0;
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_TRIGGERS:
@@ -2553,14 +2589,13 @@ void get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
       lookup_field_values->table_value.length= strlen(wild);
       lookup_field_values->wild_table_value= 1;
     }
-    break;
+    return 0;
   default:
     /*
       The "default" is for queries over I_S.
       All previous cases handle SHOW commands.
     */
-    calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
-    break;
+    return calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
   }
 }
 
@@ -3150,7 +3185,11 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   }
 
   schema_table_idx= get_schema_table_idx(schema_table);
-  get_lookup_field_values(thd, cond, tables, &lookup_field_vals);
+  if (get_lookup_field_values(thd, cond, tables, &lookup_field_vals))
+  {
+    error= 0;
+    goto err;
+  }
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              lookup_field_vals.db_value.str,
                              lookup_field_vals.table_value.str));
@@ -3365,7 +3404,8 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
 #endif
   DBUG_ENTER("fill_schema_shemata");
 
-  get_lookup_field_values(thd, cond, tables, &lookup_field_vals);
+  if (get_lookup_field_values(thd, cond, tables, &lookup_field_vals))
+    DBUG_RETURN(0);
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              lookup_field_vals.db_value.str,
                              lookup_field_vals.table_value.str));
@@ -3376,7 +3416,8 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
   /*
     If we have lookup db value we should check that the database exists
   */
-  if(lookup_field_vals.db_value.str && !lookup_field_vals.wild_db_value)
+  if(lookup_field_vals.db_value.str && !lookup_field_vals.wild_db_value &&
+     !with_i_schema)
   {
     char path[FN_REFLEN+16];
     uint path_len;
@@ -3523,6 +3564,10 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
 
+    tmp_buff= (share->table_charset ?
+               share->table_charset->name : "default");
+    table->field[17]->store(tmp_buff, strlen(tmp_buff), cs);
+
     if (share->comment.str)
       table->field[20]->store(share->comment.str, share->comment.length, cs);
 
@@ -3600,9 +3645,6 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
         table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
         table->field[16]->set_notnull();
       }
-      tmp_buff= (share->table_charset ?
-                 share->table_charset->name : "default");
-      table->field[17]->store(tmp_buff, strlen(tmp_buff), cs);
       if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
       {
         table->field[18]->store((longlong) file->checksum(), TRUE);
@@ -3655,7 +3697,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     bool is_blob;
     uint flags=field->flags;
     char tmp[MAX_FIELD_WIDTH];
-    char tmp1[MAX_FIELD_WIDTH];
     String type(tmp,sizeof(tmp), system_charset_info);
     char *end;
     int decimals, field_length;
@@ -3701,31 +3742,10 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     table->field[7]->store(type.ptr(),
                            (tmp_buff ? tmp_buff - type.ptr() :
                             type.length()), cs);
-    if (show_table->timestamp_field == field &&
-        field->unireg_check != Field::TIMESTAMP_UN_FIELD)
+
+    if (get_field_default_value(thd, show_table, field, &type, 0))
     {
-      table->field[5]->store(STRING_WITH_LEN("CURRENT_TIMESTAMP"), cs);
-      table->field[5]->set_notnull();
-    }
-    else if (field->unireg_check != Field::NEXT_NUMBER &&
-             !field->is_null() &&
-             !(field->flags & NO_DEFAULT_VALUE_FLAG))
-    {
-      String def(tmp1,sizeof(tmp1), cs);
-      type.set(tmp, sizeof(tmp), field->charset());
-      field->val_str(&type);
-      uint dummy_errors;
-      def.copy(type.ptr(), type.length(), type.charset(), cs, &dummy_errors);
-      table->field[5]->store(def.ptr(), def.length(), def.charset());
-      table->field[5]->set_notnull();
-    }
-    else if (field->unireg_check == Field::NEXT_NUMBER ||
-             lex->sql_command != SQLCOM_SHOW_FIELDS ||
-             field->maybe_null())
-      table->field[5]->set_null();                // Null as default
-    else
-    {
-      table->field[5]->store("",0, cs);
+      table->field[5]->store(type.ptr(), type.length(), cs);
       table->field[5]->set_notnull();
     }
     pos=(uchar*) ((flags & NOT_NULL_FLAG) ?  "NO" : "YES");

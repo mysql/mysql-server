@@ -1481,6 +1481,15 @@ ALTER TABLE t1 DROP PARTITION p1;
 DROP TABLE t1;
 
 #
+# Bug #30484: Partitions: crash with self-referencing trigger
+#
+
+create table t (s1 int) engine=myisam partition by key (s1);
+create trigger t_ad after delete on t for each row insert into t values (old.s1);
+insert into t values (1);
+drop table t;
+
+#
 # Bug #27816: Log tables ran with partitions crashes the server when logging
 # is enabled.
 #
@@ -1493,10 +1502,30 @@ ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
   (PARTITION p0 VALUES LESS THAN (733144), PARTITION p1 VALUES LESS THAN (3000000));
 ALTER TABLE general_log ENGINE = CSV;
 SET GLOBAL general_log = default;
+use test;
 
 #
 # Bug #27084 partitioning by list seems failing when using case 
 # BUG #18198: Case no longer supported, test case removed
 #
+
+#
+# Bug #29444: crash with partition refering to table in create-select
+#
+
+create table t2 (b int);
+--error 1054
+create table t1 (b int)
+PARTITION BY RANGE (t2.b) (
+  PARTITION p1 VALUES LESS THAN (10),
+  PARTITION p2 VALUES LESS THAN (20)
+) select * from t2;
+create table t1 (a int)
+PARTITION BY RANGE (b) (
+  PARTITION p1 VALUES LESS THAN (10),
+  PARTITION p2 VALUES LESS THAN (20)
+) select * from t2;
+show create table t1;
+drop table t1, t2;
 
 --echo End of 5.1 tests

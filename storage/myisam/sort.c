@@ -141,7 +141,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
     if ((records < UINT_MAX32) && 
        ((my_off_t) (records + 1) * 
         (sort_length + sizeof(char*)) <= (my_off_t) memavl))
-      keys= records+1;
+      keys= (uint)records+1;
     else
       do
       {
@@ -349,7 +349,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
     sort_keys= (uchar **) NULL;
 
     memavl=       max(sort_param->sortbuff_size, MIN_SORT_MEMORY);
-    idx=          sort_param->sort_info->max_records;
+    idx=          (uint)sort_param->sort_info->max_records;
     sort_length=  sort_param->key_length;
     maxbuffer=    1;
 
@@ -565,9 +565,10 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
       if (!mergebuf)
       {
         length=param->sort_buffer_length;
-        while (length >= MIN_SORT_MEMORY && !mergebuf)
+        while (length >= MIN_SORT_MEMORY)
         {
-          mergebuf=my_malloc(length, MYF(0));
+          if ((mergebuf= my_malloc(length, MYF(0))))
+              break;
           length=length*3/4;
         }
         if (!mergebuf)
@@ -904,6 +905,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
 
   count=error=0;
   maxcount=keys/((uint) (Tb-Fb) +1);
+  DBUG_ASSERT(maxcount > 0);
   LINT_INIT(to_start_filepos);
   if (to_file)
     to_start_filepos=my_b_tell(to_file);

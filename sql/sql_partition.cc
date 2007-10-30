@@ -902,6 +902,7 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   const char *save_where;
   char* db_name;
   char db_name_string[FN_REFLEN];
+  bool save_use_only_table_context;
   DBUG_ENTER("fix_fields_part_func");
 
   if (part_info->fixed)
@@ -958,7 +959,13 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     This is a tricky call to prepare for since it can have a large number
     of interesting side effects, both desirable and undesirable.
   */
+
+  save_use_only_table_context= thd->lex->use_only_table_context;
+  thd->lex->use_only_table_context= TRUE;
+  
   error= func_expr->fix_fields(thd, (Item**)0);
+
+  thd->lex->use_only_table_context= save_use_only_table_context;
 
   context->table_list= save_table_list;
   context->first_name_resolution_table= save_first_table;
@@ -2727,7 +2734,8 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
   uint min_list_index= 0, max_list_index= part_info->no_list_values - 1;
   longlong list_value;
   /* Get the partitioning function value for the endpoint */
-  longlong part_func_value= part_val_int(part_info->part_expr);
+  longlong part_func_value= 
+    part_info->part_expr->val_int_endpoint(left_endpoint, &include_endpoint);
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("get_list_array_idx_for_endpoint");
 
@@ -2872,7 +2880,9 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   uint max_partition= part_info->no_parts - 1;
   uint min_part_id= 0, max_part_id= max_partition, loc_part_id;
   /* Get the partitioning function value for the endpoint */
-  longlong part_func_value= part_val_int(part_info->part_expr);
+  longlong part_func_value= 
+    part_info->part_expr->val_int_endpoint(left_endpoint, &include_endpoint);
+
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("get_partition_id_range_for_endpoint");
 
@@ -6580,8 +6590,6 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 static void set_up_range_analysis_info(partition_info *part_info)
 {
-  enum_monotonicity_info minfo;
-
   /* Set the catch-all default */
   part_info->get_part_iter_for_interval= NULL;
   part_info->get_subpart_iter_for_interval= NULL;
@@ -6593,11 +6601,8 @@ static void set_up_range_analysis_info(partition_info *part_info)
   switch (part_info->part_type) {
   case RANGE_PARTITION:
   case LIST_PARTITION:
-    minfo= part_info->part_expr->get_monotonicity_info();
-    if (minfo != NON_MONOTONIC)
+    if (part_info->part_expr->get_monotonicity_info() != NON_MONOTONIC)
     {
-      part_info->range_analysis_include_bounds=
-        test(minfo == MONOTONIC_INCREASING);
       part_info->get_part_iter_for_interval=
         get_part_iter_for_interval_via_mapping;
       goto setup_subparts;
@@ -6766,8 +6771,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
         index-in-ordered-array-of-list-constants (for LIST) space.
       */
       store_key_image_to_rec(field, min_value, field_len);
-      bool include_endp= part_info->range_analysis_include_bounds ||
-                         !test(flags & NEAR_MIN);
+      bool include_endp= !test(flags & NEAR_MIN);
       part_iter->part_nums.start= get_endpoint(part_info, 1, include_endp);
       part_iter->part_nums.cur= part_iter->part_nums.start;
       if (part_iter->part_nums.start == max_endpoint_val)
@@ -6783,8 +6787,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   else
   {
     store_key_image_to_rec(field, max_value, field_len);
-    bool include_endp= part_info->range_analysis_include_bounds ||
-                       !test(flags & NEAR_MAX);
+    bool include_endp= !test(flags & NEAR_MAX);
     part_iter->part_nums.end= get_endpoint(part_info, 0, include_endp);
     if (part_iter->part_nums.start == part_iter->part_nums.end &&
         !part_iter->ret_null_part)

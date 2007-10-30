@@ -346,7 +346,7 @@ send_eof(THD *thd)
 {
   NET *net= &thd->net;
   DBUG_ENTER("send_eof");
-  if (net->vio != 0 && !net->no_send_eof)
+  if (net->vio != 0)
   {
     write_eof_packet(thd, net);
     VOID(net_flush(net));
@@ -827,6 +827,7 @@ bool Protocol_text::store(const char *from, size_t length,
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
               field_types[field_pos] == MYSQL_TYPE_BIT ||
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
+              field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
 	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;

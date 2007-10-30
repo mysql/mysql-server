@@ -968,7 +968,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
         parser_name.str= (char*) next_chunk;
         parser_name.length= strlen((char*) next_chunk);
-        next_chunk+= (parser_name.length + 1);
+        next_chunk+= parser_name.length + 1;
         keyinfo->parser= my_plugin_lock_by_name(NULL, &parser_name,
                                                 MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
@@ -1406,9 +1406,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           keyinfo->key_length+= HA_KEY_NULL_LENGTH;
         }
         if (field->type() == MYSQL_TYPE_BLOB ||
-            field->real_type() == MYSQL_TYPE_VARCHAR)
+            field->real_type() == MYSQL_TYPE_VARCHAR ||
+            field->type() == MYSQL_TYPE_GEOMETRY)
         {
-          if (field->type() == MYSQL_TYPE_BLOB)
+          if (field->type() == MYSQL_TYPE_BLOB ||
+              field->type() == MYSQL_TYPE_GEOMETRY)
             key_part->key_part_flag|= HA_BLOB_PART;
           else
             key_part->key_part_flag|= HA_VAR_LENGTH_PART;
