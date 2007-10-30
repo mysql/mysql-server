@@ -502,7 +502,7 @@ private:
                              void *tab);
   int set_range_data(void *tab, partition_info* part_info);
   int set_list_data(void *tab, partition_info* part_info);
-  int complemented_read(const uchar *old_data, uchar *new_data,
+  int ndb_pk_update_row(const uchar *old_data, uchar *new_data,
                         uint32 old_part_id);
   int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 part_id);
   int ordered_index_scan(const key_range *start_key,
