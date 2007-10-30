@@ -108,8 +108,8 @@ ulonglong my_micro_time()
   if (query_performance_frequency)
   {
     QueryPerformanceCounter((LARGE_INTEGER*) &newtime);
-    return ((new_time / query_performance_frequency * 10000000) +
-            (new_time % query_performance_frequency * 10000000 /
+    return ((newtime / query_performance_frequency * 10000000) +
+            (newtime % query_performance_frequency * 10000000 /
              query_performance_frequency));
   }
   else
