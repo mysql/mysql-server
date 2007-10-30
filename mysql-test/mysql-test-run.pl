@@ -3749,6 +3749,13 @@ sub mysqld_arguments ($$$$) {
   # see BUG#28359
   mtr_add_arg($args, "%s--connect-timeout=60", $prefix);
 
+  # When mysqld is run by a root user(euid is 0), it will fail
+  # to start unless we specify what user to run as. If not running
+  # as root it will be ignored, see BUG#30630
+  if (!(grep(/^--user/, @$extra_opt, @opt_extra_mysqld_opt))) {
+    mtr_add_arg($args, "%s--user=root");
+  }
+
   if ( $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
