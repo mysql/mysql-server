@@ -36,6 +36,63 @@
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
+#ifndef MYSQL_CLIENT
+static const char *HA_ERR(int i)
+{
+  switch (i) {
+  case HA_ERR_KEY_NOT_FOUND: return "HA_ERR_KEY_NOT_FOUND";
+  case HA_ERR_FOUND_DUPP_KEY: return "HA_ERR_FOUND_DUPP_KEY";
+  case HA_ERR_RECORD_CHANGED: return "HA_ERR_RECORD_CHANGED";
+  case HA_ERR_WRONG_INDEX: return "HA_ERR_WRONG_INDEX";
+  case HA_ERR_CRASHED: return "HA_ERR_CRASHED";
+  case HA_ERR_WRONG_IN_RECORD: return "HA_ERR_WRONG_IN_RECORD";
+  case HA_ERR_OUT_OF_MEM: return "HA_ERR_OUT_OF_MEM";
+  case HA_ERR_NOT_A_TABLE: return "HA_ERR_NOT_A_TABLE";
+  case HA_ERR_WRONG_COMMAND: return "HA_ERR_WRONG_COMMAND";
+  case HA_ERR_OLD_FILE: return "HA_ERR_OLD_FILE";
+  case HA_ERR_NO_ACTIVE_RECORD: return "HA_ERR_NO_ACTIVE_RECORD";
+  case HA_ERR_RECORD_DELETED: return "HA_ERR_RECORD_DELETED";
+  case HA_ERR_RECORD_FILE_FULL: return "HA_ERR_RECORD_FILE_FULL";
+  case HA_ERR_INDEX_FILE_FULL: return "HA_ERR_INDEX_FILE_FULL";
+  case HA_ERR_END_OF_FILE: return "HA_ERR_END_OF_FILE";
+  case HA_ERR_UNSUPPORTED: return "HA_ERR_UNSUPPORTED";
+  case HA_ERR_TO_BIG_ROW: return "HA_ERR_TO_BIG_ROW";
+  case HA_WRONG_CREATE_OPTION: return "HA_WRONG_CREATE_OPTION";
+  case HA_ERR_FOUND_DUPP_UNIQUE: return "HA_ERR_FOUND_DUPP_UNIQUE";
+  case HA_ERR_UNKNOWN_CHARSET: return "HA_ERR_UNKNOWN_CHARSET";
+  case HA_ERR_WRONG_MRG_TABLE_DEF: return "HA_ERR_WRONG_MRG_TABLE_DEF";
+  case HA_ERR_CRASHED_ON_REPAIR: return "HA_ERR_CRASHED_ON_REPAIR";
+  case HA_ERR_CRASHED_ON_USAGE: return "HA_ERR_CRASHED_ON_USAGE";
+  case HA_ERR_LOCK_WAIT_TIMEOUT: return "HA_ERR_LOCK_WAIT_TIMEOUT";
+  case HA_ERR_LOCK_TABLE_FULL: return "HA_ERR_LOCK_TABLE_FULL";
+  case HA_ERR_READ_ONLY_TRANSACTION: return "HA_ERR_READ_ONLY_TRANSACTION";
+  case HA_ERR_LOCK_DEADLOCK: return "HA_ERR_LOCK_DEADLOCK";
+  case HA_ERR_CANNOT_ADD_FOREIGN: return "HA_ERR_CANNOT_ADD_FOREIGN";
+  case HA_ERR_NO_REFERENCED_ROW: return "HA_ERR_NO_REFERENCED_ROW";
+  case HA_ERR_ROW_IS_REFERENCED: return "HA_ERR_ROW_IS_REFERENCED";
+  case HA_ERR_NO_SAVEPOINT: return "HA_ERR_NO_SAVEPOINT";
+  case HA_ERR_NON_UNIQUE_BLOCK_SIZE: return "HA_ERR_NON_UNIQUE_BLOCK_SIZE";
+  case HA_ERR_NO_SUCH_TABLE: return "HA_ERR_NO_SUCH_TABLE";
+  case HA_ERR_TABLE_EXIST: return "HA_ERR_TABLE_EXIST";
+  case HA_ERR_NO_CONNECTION: return "HA_ERR_NO_CONNECTION";
+  case HA_ERR_NULL_IN_SPATIAL: return "HA_ERR_NULL_IN_SPATIAL";
+  case HA_ERR_TABLE_DEF_CHANGED: return "HA_ERR_TABLE_DEF_CHANGED";
+  case HA_ERR_NO_PARTITION_FOUND: return "HA_ERR_NO_PARTITION_FOUND";
+  case HA_ERR_RBR_LOGGING_FAILED: return "HA_ERR_RBR_LOGGING_FAILED";
+  case HA_ERR_DROP_INDEX_FK: return "HA_ERR_DROP_INDEX_FK";
+  case HA_ERR_FOREIGN_DUPLICATE_KEY: return "HA_ERR_FOREIGN_DUPLICATE_KEY";
+  case HA_ERR_TABLE_NEEDS_UPGRADE: return "HA_ERR_TABLE_NEEDS_UPGRADE";
+  case HA_ERR_TABLE_READONLY: return "HA_ERR_TABLE_READONLY";
+  case HA_ERR_AUTOINC_READ_FAILED: return "HA_ERR_AUTOINC_READ_FAILED";
+  case HA_ERR_AUTOINC_ERANGE: return "HA_ERR_AUTOINC_ERANGE";
+  case HA_ERR_GENERIC: return "HA_ERR_GENERIC";
+  case HA_ERR_RECORD_IS_THE_SAME: return "HA_ERR_RECORD_IS_THE_SAME";
+  case HA_ERR_LOGGING_IMPOSSIBLE: return "HA_ERR_LOGGING_IMPOSSIBLE";
+  case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
+  }
+}
+#endif
+
 /*
   Cache that will automatically be written to a dedicated file on
   destruction.
@@ -6228,8 +6285,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       /* Some recoverable errors */
       case HA_ERR_RECORD_CHANGED:
-      case HA_ERR_KEY_NOT_FOUND:	/* Idempotency support: OK if
-                                           tuple does not exist */
+      case HA_ERR_RECORD_DELETED:
+      case HA_ERR_KEY_NOT_FOUND:
+      case HA_ERR_END_OF_FILE:
+        /* Idempotency support: OK if tuple does not exist */
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
         error= 0;
         break;
 
@@ -7467,6 +7527,9 @@ static bool record_compare(TABLE *table)
     records. Check that the other engines also return correct records.
    */
 
+  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+  DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
+
   bool result= FALSE;
   uchar saved_x[2], saved_filler[2];
 
@@ -7555,7 +7618,7 @@ record_compare_exit:
 
 int Rows_log_event::find_row(const Relay_log_info *rli)
 {
-  DBUG_ENTER("find_row");
+  DBUG_ENTER("Rows_log_event::find_row");
 
   DBUG_ASSERT(m_table && m_table->in_use != NULL);
 
@@ -7784,7 +7847,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       DBUG_DUMP("record found", table->record[0], table->s->reclength);
     table->file->ha_rnd_end();
 
-    DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
+    DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == HA_ERR_RECORD_DELETED || error == 0);
     DBUG_RETURN(error);
   }
 
