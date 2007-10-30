@@ -1,0 +1,79 @@
+# Testing various forms of idempotency for replication that should
+# work the same way under statement based as under row based.
+
+source include/master-slave.inc;
+
+connection master;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (-1),(-2),(-3);
+INSERT INTO t2 VALUES (-1),(-2),(-3);
+sync_slave_with_master;
+
+# A delete for a row that does not exist, the statement is
+# deliberately written to be idempotent for statement-based
+# replication as well. We test this towards both a table with a
+# primary key and without a primary key.
+
+connection slave;
+DELETE FROM t1 WHERE a = -2;
+DELETE FROM t2 WHERE a = -2;
+connection master;
+DELETE FROM t1 WHERE a = -2;
+DELETE FROM t2 WHERE a = -2;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+sync_slave_with_master;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+
+# An insert of a row that already exists. Since we are replacing the
+# row if it already exists, the most apropriate representation is
+# INSERT IGNORE. We only test this towards a table with a primary key,
+# since the other case does not make sense.
+
+INSERT IGNORE INTO t1 VALUES (-2);
+connection master;
+INSERT IGNORE INTO t1 VALUES (-2);
+SELECT * FROM t1 ORDER BY a;
+sync_slave_with_master;
+SELECT * FROM t1 ORDER BY a;
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+
+# BUG#19958: RBR idempotency issue for UPDATE and DELETE
+
+# Statement-based and row-based replication have different behaviour
+# when updating a row with an explicit WHERE-clause that matches
+# exactly one row (or no row at all). For statement-based replication,
+# the statement is idempotent since the first time it is executed, it
+# will update exactly one row, and the second time it will not update
+# any row at all.  This was not the case for row-based replication, so
+# we test under both row-based and statement-based replication both
+# for tables with and without primary keys.
+
+connection slave;
+UPDATE t1 SET a = 1 WHERE a = -1;
+UPDATE t2 SET a = 1 WHERE a = -1;
+connection master;
+UPDATE t1 SET a = 1 WHERE a = -1;
+UPDATE t2 SET a = 1 WHERE a = -1;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+sync_slave_with_master;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+
+connection master;
+DROP TABLE t1, t2;
+sync_slave_with_master;
