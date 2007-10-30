@@ -596,7 +596,7 @@ private:
   int start_statement(THD *thd, Thd_ndb *thd_ndb, Ndb* ndb);
   int init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb);
 
-  NdbTransaction *m_active_trans;
+  Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
   const NdbDictionary::Table *m_table;
   /*
