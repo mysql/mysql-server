@@ -7525,8 +7525,7 @@ retry_temporary_error1:
   int table_dropped= dict->getNdbError().code != 709;
 
   {
-    ndbcluster_handle_drop_table(thd, ndb,
-                                 share, "delete table",
+    ndbcluster_handle_drop_table(thd, ndb, share, "delete table",
                                  table_dropped ?
                                  (path + sizeof(share_prefix) - 1) : 0);
   }
