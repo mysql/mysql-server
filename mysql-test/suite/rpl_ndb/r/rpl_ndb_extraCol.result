@@ -707,7 +707,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1060
 Last_SQL_Error	Error 'Duplicate column name 'c6'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 *** Try to insert in master ****
 INSERT INTO t15 () VALUES(5,2.00,'Replication Testing',@b1,'Buda',2);

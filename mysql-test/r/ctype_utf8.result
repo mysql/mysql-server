@@ -267,6 +267,51 @@ b
 select * from t1 where a = 'b' and a != 'b';
 a
 drop table t1;
+set collation_connection=utf8_general_ci;
+drop table if exists t1;
+create table t1 as
+select repeat(' ', 64) as s1, repeat(' ',64) as s2
+union
+select null, null;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `s1` varchar(64) CHARACTER SET utf8 DEFAULT NULL,
+  `s2` varchar(64) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+delete from t1;
+insert into t1 values('aaa','aaa');
+insert into t1 values('aaa|qqq','qqq');
+insert into t1 values('gheis','^[^a-dXYZ]+$');
+insert into t1 values('aab','^aa?b');
+insert into t1 values('Baaan','^Ba*n');
+insert into t1 values('aaa','qqq|aaa');
+insert into t1 values('qqq','qqq|aaa');
+insert into t1 values('bbb','qqq|aaa');
+insert into t1 values('bbb','qqq');
+insert into t1 values('aaa','aba');
+insert into t1 values(null,'abc');
+insert into t1 values('def',null);
+insert into t1 values(null,null);
+insert into t1 values('ghi','ghi[');
+select HIGH_PRIORITY s1 regexp s2 from t1;
+s1 regexp s2
+1
+1
+1
+1
+1
+1
+1
+0
+0
+0
+NULL
+NULL
+NULL
+NULL
+drop table t1;
+set names utf8;
 set names utf8;
 select  'вася'  rlike '[[:<:]]вася[[:>:]]';
 'вася'  rlike '[[:<:]]вася[[:>:]]'
