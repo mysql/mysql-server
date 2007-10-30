@@ -2583,7 +2583,7 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       TODO: There are two exceptions mechanism (THD and sp_rcontext),
       this could be improved by having a common stack of handlers.
     */
-    if (thd->handle_error(error,
+    if (thd->handle_error(error, str,
                           MYSQL_ERROR::WARN_LEVEL_ERROR))
       DBUG_RETURN(0);
 
