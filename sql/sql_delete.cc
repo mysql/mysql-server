@@ -352,12 +352,6 @@ cleanup:
     {
       if (error < 0)
         thd->clear_error();
-<<<<<<< gca sql/sql_delete.cc 1.144.1.57
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    transactional_table, FALSE);
-      if (mysql_bin_log.write(&qinfo) && transactional_table)
-<<<<<<< local sql/sql_delete.cc 1.230
-
       /*
         [binlog]: If 'handler::delete_all_rows()' was called and the
         storage engine does not inject the rows itself, we replicate
@@ -366,15 +360,10 @@ cleanup:
       */
       int log_result= thd->binlog_query(THD::ROW_QUERY_TYPE,
                                         thd->query, thd->query_length,
-                                        transactional_table, FALSE);
+                                        transactional_table, FALSE, killed_status);
 
       if (log_result && transactional_table)
       {
-<<<<<<< remote sql/sql_delete.cc 1.144.1.58
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    transactional_table, FALSE, killed_status);
-      if (mysql_bin_log.write(&qinfo) && transactional_table)
->>>>>>>
 	error=1;
       }
     }
@@ -902,21 +891,11 @@ bool multi_delete::send_eof()
     {
       if (local_error == 0)
         thd->clear_error();
-<<<<<<< gca sql/sql_delete.cc 1.144.1.57
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    transactional_tables, FALSE);
-      if (mysql_bin_log.write(&qinfo) && !normal_tables)
-<<<<<<< local sql/sql_delete.cc 1.230
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_tables, FALSE) &&
+                            transactional_tables, FALSE, killed_status) &&
           !normal_tables)
       {
-<<<<<<< remote sql/sql_delete.cc 1.144.1.58
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    transactional_tables, FALSE, killed_status);
-      if (mysql_bin_log.write(&qinfo) && !normal_tables)
->>>>>>>
 	local_error=1;  // Log write failed: roll back the SQL statement
       }
     }

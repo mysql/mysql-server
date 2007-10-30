@@ -430,12 +430,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (mysql_bin_log.is_open())
     {
       {
-<<<<<<< gca sql/sql_load.cc 1.78.1.39
-	if (thd->transaction.stmt.modified_non_trans_table)
-	  write_execute_load_query_log_event(thd, handle_duplicates,
-					     ignore, transactional_table);
-	else
-<<<<<<< local sql/sql_load.cc 1.131
 	/*
 	  Make sure last block (the one which caused the error) gets
 	  logged.  This is needed because otherwise after write of (to
@@ -461,17 +455,11 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	read_info.end_io_cache();
 	/* If the file was not empty, wrote_create_file is true */
 	if (lf_info.wrote_create_file)
-<<<<<<< remote sql/sql_load.cc 1.78.1.40
-	if (thd->transaction.stmt.modified_non_trans_table)
-	  write_execute_load_query_log_event(thd, handle_duplicates,
-					     ignore, transactional_table,
-                                             killed_status);
-	else
->>>>>>>
 	{
 	  if (thd->transaction.stmt.modified_non_trans_table)
 	    write_execute_load_query_log_event(thd, handle_duplicates,
-					       ignore, transactional_table);
+					       ignore, transactional_table,
+                                               killed_status);
 	  else
 	  {
 	    Delete_file_log_event d(thd, db, transactional_table);
@@ -497,16 +485,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (mysql_bin_log.is_open())
   {
     /*
-<<<<<<< gca sql/sql_load.cc 1.78.1.39
-      As already explained above, we need to call end_io_cache() or the last
-      block will be logged only after Execute_load_query_log_event (which is
-      wrong), when read_info is destroyed.
-    */
-    read_info.end_io_cache();
-    if (lf_info.wrote_create_file)
-      write_execute_load_query_log_event(thd, handle_duplicates,
-					 ignore, transactional_table);
-<<<<<<< local sql/sql_load.cc 1.131
       We need to do the job that is normally done inside
       binlog_query() here, which is to ensure that the pending event
       is written before tables are unlocked and before any other
@@ -526,21 +504,10 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       read_info.end_io_cache();
       if (lf_info.wrote_create_file)
       {
-        write_execute_load_query_log_event(thd, handle_duplicates,
-                                           ignore, transactional_table);
+        write_execute_load_query_log_event(thd, handle_duplicates, ignore,
+                                           transactional_table,killed_status);
       }
     }
-<<<<<<< remote sql/sql_load.cc 1.78.1.40
-      As already explained above, we need to call end_io_cache() or the last
-      block will be logged only after Execute_load_query_log_event (which is
-      wrong), when read_info is destroyed.
-    */
-    read_info.end_io_cache();
-    if (lf_info.wrote_create_file)
-      write_execute_load_query_log_event(thd, handle_duplicates,
-					 ignore, transactional_table,
-                                         killed_status);
->>>>>>>
   }
 #endif /*!EMBEDDED_LIBRARY*/
   if (transactional_table)
@@ -577,14 +544,8 @@ static bool write_execute_load_query_log_event(THD *thd,
       (char*)thd->lex->fname_end - (char*)thd->query,
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
-<<<<<<< gca sql/sql_load.cc 1.78.1.39
-      transactional_table, FALSE);
-<<<<<<< local sql/sql_load.cc 1.131
-      transactional_table, FALSE);
-  e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
-<<<<<<< remote sql/sql_load.cc 1.78.1.40
       transactional_table, FALSE, killed_err_arg);
->>>>>>>
+  e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
   return mysql_bin_log.write(&e);
 }
 

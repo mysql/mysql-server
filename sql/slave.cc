@@ -1805,70 +1805,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     int exec_res= 0;
 
     /*
-    */
-
-<<<<<<< gca sql/slave.cc 1.241.1.61
-    DBUG_PRINT("info",("type_code=%d, server_id=%d",type_code,ev->server_id));
-
-    if ((ev->server_id == (uint32) ::server_id &&
-         !replicate_same_server_id &&
-         type_code != FORMAT_DESCRIPTION_EVENT) ||
-        (rli->slave_skip_counter &&
-         type_code != ROTATE_EVENT && type_code != STOP_EVENT &&
-         type_code != START_EVENT_V3 && type_code!= FORMAT_DESCRIPTION_EVENT))
-    {
-      DBUG_PRINT("info", ("event skipped"));
-      if (thd->options & OPTION_BEGIN)
-        rli->inc_event_relay_log_pos();
-      else
-      {
-        rli->inc_group_relay_log_pos((type_code == ROTATE_EVENT ||
-                                      type_code == STOP_EVENT ||
-                                      type_code == FORMAT_DESCRIPTION_EVENT) ?
-                                     LL(0) : ev->log_pos,
-                                     1/* skip lock*/);
-        flush_relay_log_info(rli);
-      }
-
-      /*
-        Protect against common user error of setting the counter to 1
-        instead of 2 while recovering from an insert which used auto_increment,
-        rand or user var.
-      */
-      if (rli->slave_skip_counter &&
-          !((type_code == INTVAR_EVENT ||
-             type_code == RAND_EVENT ||
-             type_code == USER_VAR_EVENT) &&
-            rli->slave_skip_counter == 1) &&
-          /*
-            The events from ourselves which have something to do with the relay
-            log itself must be skipped, true, but they mustn't decrement
-            rli->slave_skip_counter, because the user is supposed to not see
-            these events (they are not in the master's binlog) and if we
-            decremented, START SLAVE would for example decrement when it sees
-            the Rotate, so the event which the user probably wanted to skip
-            would not be skipped.
-          */
-          !(ev->server_id == (uint32) ::server_id &&
-            (type_code == ROTATE_EVENT || type_code == STOP_EVENT ||
-             type_code == START_EVENT_V3 || type_code == FORMAT_DESCRIPTION_EVENT)))
-        --rli->slave_skip_counter;
-      pthread_mutex_unlock(&rli->data_lock);
-      delete ev;
-      return 0;                                 // avoid infinite update loops
-    }
-    pthread_mutex_unlock(&rli->data_lock);
-<<<<<<< local sql/slave.cc 1.321
-    DBUG_PRINT("exec_event",("%s(type_code: %d; server_id: %d)",
-                       ev->get_type_str(), type_code, ev->server_id));
-    DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
-                        FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
-                        FLAGSTR(thd->options, OPTION_BEGIN),
-                        rli->last_event_start_time));
-
-
-
-    /*
       Execute the event to change the database and update the binary
       log coordinates, but first we set some data that is needed for
       the thread.
@@ -1891,9 +1827,14 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       log (remember that now the relay log starts with its Format_desc,
       has a Rotate etc).
     */
-<<<<<<< remote sql/slave.cc 1.241.1.62
+
     DBUG_PRINT("info",("type_code: %d; server_id: %d; slave_skip_counter: %d",
                        type_code, ev->server_id, rli->slave_skip_counter));
+
+    DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
+                        FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
+                        FLAGSTR(thd->options, OPTION_BEGIN),
+                        rli->last_event_start_time));
 
     /*
       If the slave skip counter is positive, we still need to set the
@@ -1951,7 +1892,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       }
 
       DBUG_PRINT("info", ("thd->options: %s",
-                          (thd->options & OPTION_BEGIN) ? "OPTION_BEGIN" : ""))
+                          (thd->options & OPTION_BEGIN) ? "OPTION_BEGIN" : ""));
 
       /*
         Protect against common user error of setting the counter to 1
@@ -1991,8 +1932,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       delete ev;
       return 0;                                 // avoid infinite update loops
     }
-    pthread_mutex_unlock(&rli->data_lock);
->>>>>>>
 
     thd->server_id = ev->server_id; // use the original server id for logging
     thd->set_time();                            // time the query
@@ -2132,7 +2071,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           non-transient error, the slave will stop with an error.
          */
         rli->trans_retries= 0; // restart from fresh
-        DBUG_PRINT("info", ("Resetting retry counter, rli->trans_retries: %d",
+        DBUG_PRINT("info", ("Resetting retry counter, rli->trans_retries: %lu",
                             rli->trans_retries));
       }
     }
@@ -2622,7 +2561,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   rli->ignore_log_space_limit= 0;
   pthread_mutex_unlock(&rli->log_space_lock);
   rli->trans_retries= 0; // start from "no error"
-  DBUG_PRINT("info", ("rli->trans_retries: %d", rli->trans_retries));
+  DBUG_PRINT("info", ("rli->trans_retries: %lu", rli->trans_retries));
 
   if (init_relay_log_pos(rli,
                          rli->group_relay_log_name,
