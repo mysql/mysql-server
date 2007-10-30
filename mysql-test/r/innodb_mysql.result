@@ -1192,6 +1192,103 @@ c	b
 3	1
 3	2
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a), INDEX b (b)) ENGINE=InnoDB;
+INSERT INTO t1(a,b) VALUES (1,1), (2,2), (3,2);
+EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
+id	1
+select_type	SIMPLE
+table	t1
+type	ref
+possible_keys	b
+key	b
+key_len	5
+ref	const
+rows	1
+Extra	Using where; Using index
+SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
+a	b
+2	2
+3	2
+EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a DESC;
+id	1
+select_type	SIMPLE
+table	t1
+type	ref
+possible_keys	b
+key	b
+key_len	5
+ref	const
+rows	1
+Extra	Using where; Using index
+SELECT * FROM t1 WHERE b=2 ORDER BY a DESC;
+a	b
+3	2
+2	2
+EXPLAIN SELECT * FROM t1 ORDER BY b ASC, a ASC;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	b
+key_len	5
+ref	NULL
+rows	3
+Extra	Using index
+SELECT * FROM t1 ORDER BY b ASC, a ASC;
+a	b
+1	1
+2	2
+3	2
+EXPLAIN SELECT * FROM t1 ORDER BY b DESC, a DESC;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	b
+key_len	5
+ref	NULL
+rows	3
+Extra	Using index
+SELECT * FROM t1 ORDER BY b DESC, a DESC;
+a	b
+3	2
+2	2
+1	1
+EXPLAIN SELECT * FROM t1 ORDER BY b ASC, a DESC;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	b
+key_len	5
+ref	NULL
+rows	3
+Extra	Using index; Using filesort
+SELECT * FROM t1 ORDER BY b ASC, a DESC;
+a	b
+1	1
+3	2
+2	2
+EXPLAIN SELECT * FROM t1 ORDER BY b DESC, a ASC;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	b
+key_len	5
+ref	NULL
+rows	3
+Extra	Using index; Using filesort
+SELECT * FROM t1 ORDER BY b DESC, a ASC;
+a	b
+2	2
+3	2
+1	1
+DROP TABLE t1;
 End of 5.0 tests
 CREATE TABLE `t2` (
 `k` int(11) NOT NULL auto_increment,
