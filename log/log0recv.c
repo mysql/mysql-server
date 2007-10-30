@@ -2949,7 +2949,7 @@ recv_recovery_from_checkpoint_finish(void)
 		/* Rollback the uncommitted transactions which have no user
 		session */
 
-		os_thread_create(trx_rollback_or_clean_all_without_sess,
+		os_thread_create(trx_rollback_or_clean_all_recovered,
 				 (void *)&i, NULL);
 	}
 }

@@ -102,14 +102,15 @@ trx_rollback(
 				calling function can start running
 				a new query thread */
 /***********************************************************************
-Rollback or clean up transactions which have no user session. If the
-transaction already was committed, then we clean up a possible insert
-undo log. If the transaction was not yet committed, then we roll it back.
+Rollback or clean up any incomplete transactions which were
+encountered in crash recovery.  If the transaction already was
+committed, then we clean up a possible insert undo log. If the
+transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread. */
 
 os_thread_ret_t
-trx_rollback_or_clean_all_without_sess(
-/*===================================*/
+trx_rollback_or_clean_all_recovered(
+/*================================*/
 			/* out: a dummy parameter */
 	void*	arg __attribute__((unused)));
 			/* in: a dummy parameter required by
