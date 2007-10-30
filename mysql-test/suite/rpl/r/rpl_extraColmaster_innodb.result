@@ -563,7 +563,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1533
+Last_Errno	1534
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -581,7 +581,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1533
+Last_SQL_Errno	1534
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -638,7 +638,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1533
+Last_Errno	1534
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -656,7 +656,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1533
+Last_SQL_Errno	1534
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -1703,7 +1703,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1533
+Last_Errno	1534
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -1721,7 +1721,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1533
+Last_SQL_Errno	1534
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -1778,7 +1778,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1533
+Last_Errno	1534
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -1796,7 +1796,1147 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1533
+Last_SQL_Errno	1534
+Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+
+*** Drop t11  ***
+DROP TABLE t11;
+
+*********************************************
+* More columns in master at middle of table *
+* Expect: This one should pass blob-text    *
+*********************************************
+
+*** Create t12 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
+) ENGINE='InnoDB';
+
+*** Create t12 on Master ***
+CREATE TABLE t12 (a INT KEY, b BLOB, f TEXT,
+c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='InnoDB';
+RESET MASTER;
+
+*** Start Slave ***
+START SLAVE;
+
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t12 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+(2,@b1,'JOE',DEFAULT,DEFAULT),
+(3,@b1,'QA',DEFAULT,DEFAULT);
+
+SELECT a,hex(b),f,c,e FROM t12 ORDER BY a;
+a	hex(b)	f	c	e
+1	62316231623162316231623162316231	Kyle	test	1
+2	62316231623162316231623162316231	JOE	test	1
+3	62316231623162316231623162316231	QA	test	1
+
+*** Select on Slave ***
+SELECT a,hex(b),c FROM t12 ORDER BY a;
+a	hex(b)	c
+1	62316231623162316231623162316231	Kyle
+2	62316231623162316231623162316231	JOE
+3	62316231623162316231623162316231	QA
+
+*** Drop t12  ***
+DROP TABLE t12;
+
+****************************************************
+* - Alter Master adding columns at middle of table *
+*   Expect: columns added                          *
+****************************************************
+
+
+*** Create t14 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+) ENGINE='InnoDB';
+
+*** Create t14 on Master ***
+CREATE TABLE t14 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+c6 INT DEFAULT '1',
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+RESET MASTER;
+
+*** Start Slave ***
+START SLAVE;
+
+*** Master Data Insert ***
+ALTER TABLE t14 ADD COLUMN c2 DECIMAL(8,2) AFTER c1;
+ALTER TABLE t14 ADD COLUMN c3 TEXT AFTER c2;
+
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t14 () VALUES(1,1.00,'Replication Testing Extra Col',@b1,'Kyle',DEFAULT,DEFAULT),
+(2,2.00,'This Test Should work',@b1,'JOE',DEFAULT,DEFAULT),
+(3,3.00,'If is does not, I will open a bug',@b1,'QA',DEFAULT,DEFAULT);
+
+SELECT c1,c2,c3,hex(c4),c5,c6,c7 FROM t14 ORDER BY c1;
+c1	c2	c3	hex(c4)	c5	c6	c7
+1	1.00	Replication Testing Extra Col	62316231623162316231623162316231	Kyle	1	CURRENT_TIMESTAMP
+2	2.00	This Test Should work	62316231623162316231623162316231	JOE	1	CURRENT_TIMESTAMP
+3	3.00	If is does not, I will open a bug	62316231623162316231623162316231	QA	1	CURRENT_TIMESTAMP
+
+*** Select on Slave ****
+SELECT c1,c2,c3,hex(c4),c5 FROM t14 ORDER BY c1;
+c1	c2	c3	hex(c4)	c5
+1	1.00	Replication Testing Extra Col	62316231623162316231623162316231	Kyle
+2	2.00	This Test Should work	62316231623162316231623162316231	JOE
+3	3.00	If is does not, I will open a bug	62316231623162316231623162316231	QA
+
+****************************************************
+* - Alter Master Dropping columns from the middle. *
+*   Expect: columns dropped                        *
+****************************************************
+
+*** connect to master and drop columns ***
+ALTER TABLE t14 DROP COLUMN c2;
+ALTER TABLE t14 DROP COLUMN c7;
+
+*** Select from Master ***
+SELECT c1,c3,hex(c4),c5,c6 FROM t14 ORDER BY c1;
+c1	c3	hex(c4)	c5	c6
+1	Replication Testing Extra Col	62316231623162316231623162316231	Kyle	1
+2	This Test Should work	62316231623162316231623162316231	JOE	1
+3	If is does not, I will open a bug	62316231623162316231623162316231	QA	1
+
+************
+* Bug30415 *
+************
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	1091
+Last_Error	Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1091
+Last_SQL_Error	Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
+STOP SLAVE;
+RESET SLAVE;
+
+*** Drop t14  ***
+DROP TABLE t14;
+DROP TABLE t14;
+RESET MASTER;
+START SLAVE;
+
+*************************************************
+* - Alter Master adding columns at end of table *
+*   Expect: Error 1054                          *
+*************************************************
+
+*** Create t15 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t15 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+) ENGINE='InnoDB';
+
+*** Create t15 on Master ***
+CREATE TABLE t15 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+c6 INT DEFAULT '1',
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+RESET MASTER;
+
+*** Start Slave ***
+START SLAVE;
+
+*** Master Data Insert ***
+ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t15 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT,3.00),
+(2,@b1,'JOE',DEFAULT,DEFAULT,3.00),
+(3,@b1,'QA',DEFAULT,DEFAULT,3.00);
+SELECT c1,hex(c4),c5,c6,c7,c2 FROM t15 ORDER BY c1;
+c1	hex(c4)	c5	c6	c7	c2
+1	62316231623162316231623162316231	Kyle	1	CURRENT_TIMESTAMP	3.00
+2	62316231623162316231623162316231	JOE	1	CURRENT_TIMESTAMP	3.00
+3	62316231623162316231623162316231	QA	1	CURRENT_TIMESTAMP	3.00
+
+********************************************
+*** Expect slave to fail with Error 1054 ***
+********************************************
+
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	1054
+Last_Error	Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1054
+Last_SQL_Error	Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
+STOP SLAVE;
+RESET SLAVE;
+
+*** Drop t15  ***
+DROP TABLE t15;
+DROP TABLE t15;
+RESET MASTER;
+START SLAVE;
+
+************************************************
+* - Create index on Master column not on slave *
+*   Expect:Warning                             *
+************************************************
+
+*** Create t16 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t16 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+) ENGINE='InnoDB';
+
+*** Create t16 on Master ***
+CREATE TABLE t16 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+c6 INT DEFAULT '1',
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+RESET MASTER;
+
+*** Start Slave ***
+START SLAVE;
+
+*** Master Create Index and Data Insert ***
+CREATE INDEX part_of_c6 ON t16 (c6);
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t16 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+(2,@b1,'JOE',2,DEFAULT),
+(3,@b1,'QA',3,DEFAULT);
+SELECT c1,hex(c4),c5,c6,c7 FROM t16 ORDER BY c1;
+c1	hex(c4)	c5	c6	c7
+1	62316231623162316231623162316231	Kyle	1	CURRENT_TIMESTAMP
+2	62316231623162316231623162316231	JOE	2	CURRENT_TIMESTAMP
+3	62316231623162316231623162316231	QA	3	CURRENT_TIMESTAMP
+
+*****************
+*** BUG 30434 ***
+*****************
+
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	1072
+Last_Error	Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1072
+Last_SQL_Error	Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
+STOP SLAVE;
+RESET SLAVE;
+
+*** Drop t16  ***
+DROP TABLE t16;
+DROP TABLE t16;
+RESET MASTER;
+START SLAVE;
+
+*****************************************************
+* - Delete rows using column on Master not on slave *
+*   Expect: Rows Deleted                            *
+*****************************************************
+
+*** Create t17 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t17 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+) ENGINE='InnoDB';
+
+*** Create t17 on Master ***
+CREATE TABLE t17 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+c6 INT DEFAULT '1',
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+RESET MASTER;
+
+*** Start Slave ***
+START SLAVE;
+
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t17 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+(2,@b1,'JOE',2,DEFAULT),
+(3,@b1,'QA',3,DEFAULT);
+SELECT c1,hex(c4),c5,c6,c7 FROM t17 ORDER BY c1;
+c1	hex(c4)	c5	c6	c7
+1	62316231623162316231623162316231	Kyle	1	CURRENT_TIMESTAMP
+2	62316231623162316231623162316231	JOE	2	CURRENT_TIMESTAMP
+3	62316231623162316231623162316231	QA	3	CURRENT_TIMESTAMP
+
+** Select * from Slave **
+SELECT c1,hex(c4),c5 FROM t17 ORDER BY c1;
+c1	hex(c4)	c5
+1	62316231623162316231623162316231	Kyle
+2	62316231623162316231623162316231	JOE
+3	62316231623162316231623162316231	QA
+
+** Delete from master **
+DELETE FROM t17 WHERE c6 = 3;
+SELECT c1,hex(c4),c5,c6,c7 FROM t17 ORDER BY c1;
+c1	hex(c4)	c5	c6	c7
+1	62316231623162316231623162316231	Kyle	1	CURRENT_TIMESTAMP
+2	62316231623162316231623162316231	JOE	2	CURRENT_TIMESTAMP
+
+** Check slave **
+SELECT c1,hex(c4),c5 FROM t17 ORDER BY c1;
+c1	hex(c4)	c5
+1	62316231623162316231623162316231	Kyle
+2	62316231623162316231623162316231	JOE
+DROP TABLE t17;
+
+
+*****************************************************
+* - Update row using column on Master not on slave *
+*   Expect: Rows updated                           *
+*****************************************************
+
+** Bug30674 **
+
+*** Create t18 on slave  ***
+
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t18 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+) ENGINE='InnoDB';
+
+*** Create t18 on Master ***
+CREATE TABLE t18 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+c6 INT DEFAULT '1',
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+RESET MASTER;
+
+*** Start Slave ***
+START SLAVE;
+
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t18 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+(2,@b1,'JOE',2,DEFAULT),
+(3,@b1,'QA',3,DEFAULT);
+SELECT c1,hex(c4),c5,c6,c7 FROM t18 ORDER BY c1;
+c1	hex(c4)	c5	c6	c7
+1	62316231623162316231623162316231	Kyle	1	CURRENT_TIMESTAMP
+2	62316231623162316231623162316231	JOE	2	CURRENT_TIMESTAMP
+3	62316231623162316231623162316231	QA	3	CURRENT_TIMESTAMP
+
+** Select * from Slave **
+SELECT c1,hex(c4),c5 FROM t18 ORDER BY c1;
+c1	hex(c4)	c5
+1	62316231623162316231623162316231	Kyle
+2	62316231623162316231623162316231	JOE
+3	62316231623162316231623162316231	QA
+
+** update from master **
+SELECT c1,hex(c4),c5,c6,c7 FROM t18 ORDER BY c1;
+c1	hex(c4)	c5	c6	c7
+1	62316231623162316231623162316231	Kyle	1	CURRENT_TIMESTAMP
+2	62316231623162316231623162316231	JOE	2	CURRENT_TIMESTAMP
+3	62316231623162316231623162316231	QA	3	CURRENT_TIMESTAMP
+
+** Check slave **
+SELECT c1,hex(c4),c5 FROM t18 ORDER BY c1;
+c1	hex(c4)	c5
+1	62316231623162316231623162316231	Kyle
+2	62316231623162316231623162316231	JOE
+3	62316231623162316231623162316231	QA
+DROP TABLE t18;
+
+
+*****************************************************
+* - Insert UUID  column on Master not on slave *
+*   Expect: Rows inserted                      *
+*****************************************************
+
+*** Create t5 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t5 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+) ENGINE='InnoDB';
+
+*** Create t5 on Master ***
+CREATE TABLE t5 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+c6 LONG, 
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+RESET MASTER;
+
+*** Start Slave ***
+START SLAVE;
+
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+INSERT INTO t5 () VALUES(1,@b1,'Kyle',UUID(),DEFAULT),
+(2,@b1,'JOE',UUID(),DEFAULT),
+(3,@b1,'QA',UUID(),DEFAULT);
+SELECT c1,hex(c4),c5,c6,c7 FROM t5 ORDER BY c1;
+c1	hex(c4)	c5	c6	c7
+1	6231623162316231	Kyle	UUID	TIME
+2	6231623162316231	JOE	UUID	TIME
+3	6231623162316231	QA	UUID	TIME
+
+** Select * from Slave **
+SELECT c1,hex(c4),c5 FROM t5 ORDER BY c1;
+c1	hex(c4)	c5
+1	6231623162316231	Kyle
+2	6231623162316231	JOE
+3	6231623162316231	QA
+DROP TABLE t5;
+
+set binlog_format=mixed;
+
+***********************************************************
+***********************************************************
+***************** Start of Testing ************************
+***********************************************************
+***********************************************************
+* This test format == binlog_format	MIXED and engine == 'InnoDB'
+***********************************************************
+***********************************************************
+
+***** Testing more columns on the Master *****
+
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+/* extra */
+f5 FLOAT DEFAULT '2.00', 
+f6 CHAR(4) DEFAULT 'TEST',
+f7 INT DEFAULT '0',
+f8 TEXT,
+f9 LONGBLOB,
+f10 BIT(63),
+f11 VARBINARY(64))ENGINE='InnoDB';
+
+* Alter Table on Slave and drop columns f5 through f11 *
+
+alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11;
+
+* Insert data in Master then update and delete some rows*
+
+* Select count and 20 rows from Master *
+
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+40
+
+SELECT f1,f2,f3,f4,f5,f6,f7,f8,f9,
+hex(f10),hex(f11) FROM t1 ORDER BY f3 LIMIT 20;
+f1	f2	f3	f4	f5	f6	f7	f8	f9	hex(f10)	hex(f11)
+2	2	2	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+3	3	3	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+5	5	5	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+6	6	6	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+8	8	8	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+9	9	9	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+11	11	11	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+12	12	12	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+14	14	14	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+15	15	15	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+17	17	17	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+18	18	18	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+20	20	20	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+21	21	21	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+23	23	23	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+24	24	24	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+26	26	26	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+27	27	27	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+29	29	29	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+30	30	30	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
+
+* Select count and 20 rows from Slave *
+
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+40
+
+SELECT * FROM t1 ORDER BY f3 LIMIT 20;
+f1	f2	f3	f4
+2	2	2	second
+3	3	3	next
+5	5	5	second
+6	6	6	next
+8	8	8	second
+9	9	9	next
+11	11	11	second
+12	12	12	next
+14	14	14	second
+15	15	15	next
+17	17	17	second
+18	18	18	next
+20	20	20	second
+21	21	21	next
+23	23	23	second
+24	24	24	next
+26	26	26	second
+27	27	27	next
+29	29	29	second
+30	30	30	next
+
+* Show Slave Status *
+
+show slave status;;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
+
+
+***** Testing Altering table def scenario *****
+
+CREATE TABLE t2 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+/* extra */
+f5 DOUBLE DEFAULT '2.00', 
+f6 ENUM('a', 'b', 'c') default 'a',
+f7 DECIMAL(17,9) default '1000.00',
+f8 MEDIUMBLOB,
+f9 NUMERIC(6,4) default '2000.00',
+f10 VARCHAR(1024),
+f11 BINARY(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+f12 SET('a', 'b', 'c') default 'b')
+ENGINE='InnoDB';
+Warnings:
+Warning	1264	Out of range value for column 'f9' at row 1
+
+CREATE TABLE t3 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+/* extra */
+f5 DOUBLE DEFAULT '2.00', 
+f6 ENUM('a', 'b', 'c') default 'a',
+f8 MEDIUMBLOB,
+f10 VARCHAR(1024),
+f11 BINARY(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+f12 SET('a', 'b', 'c') default 'b')
+ENGINE='InnoDB';
+
+CREATE TABLE t4 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+/* extra */
+f5 DOUBLE DEFAULT '2.00', 
+f6 DECIMAL(17,9) default '1000.00',
+f7 MEDIUMBLOB,
+f8 NUMERIC(6,4) default '2000.00',
+f9 VARCHAR(1024),
+f10 BINARY(20) not null default '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+f11 CHAR(255))
+ENGINE='InnoDB';
+Warnings:
+Warning	1264	Out of range value for column 'f8' at row 1
+
+CREATE TABLE t31 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+/* extra */
+f5  BIGINT,
+f6  BLOB,
+f7  DATE,
+f8  DATETIME,
+f9  FLOAT,
+f10 INT,
+f11 LONGBLOB,
+f12 LONGTEXT,
+f13 MEDIUMBLOB,
+f14 MEDIUMINT,
+f15 MEDIUMTEXT,
+f16 REAL,
+f17 SMALLINT,
+f18 TEXT,
+f19 TIME,
+f20 TIMESTAMP,
+f21 TINYBLOB,
+f22 TINYINT,
+f23 TINYTEXT,
+f24 YEAR,
+f25 BINARY(255),
+f26 BIT(64),
+f27 CHAR(255),
+f28 DECIMAL(30,7),
+f29 DOUBLE,
+f30 ENUM ('a','b', 'c') default 'a',
+f31 FLOAT,
+f32 NUMERIC(17,9),
+f33 SET ('a', 'b', 'c') default 'b',
+f34 VARBINARY(1025),
+f35 VARCHAR(257)       
+) ENGINE='InnoDB';
+
+** Alter tables on slave and drop columns **
+
+alter table t2 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11, drop
+f12;
+alter table t3 drop f5, drop f6, drop f8, drop f10, drop f11, drop f12;
+alter table t4 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11;
+alter table t31 
+drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11,
+drop f12, drop f13, drop f14, drop f15, drop f16, drop f17, drop f18,
+drop f19, drop f20, drop f21, drop f22, drop f23, drop f24, drop f25,
+drop f26, drop f27, drop f28, drop f29, drop f30, drop f31, drop f32,
+drop f33, drop f34, drop f35;
+
+** Insert Data into Master **
+INSERT into t2 set f1=1, f2=1, f3=1, f4='first', f8='f8: medium size blob', f10='f10:
+some var char';
+INSERT into t2 values (2, 2, 2, 'second',
+2.0, 'b', 2000.0002, 'f8: medium size blob', 2000, 'f10: some var char',
+'01234567', 'c'),
+(3, 3, 3, 'third',
+3.0, 'b', 3000.0003, 'f8: medium size blob', 3000, 'f10: some var char',
+'01234567', 'c');
+Warnings:
+Warning	1264	Out of range value for column 'f9' at row 1
+Warning	1264	Out of range value for column 'f9' at row 2
+INSERT into t3 set f1=1, f2=1, f3=1, f4='first', f10='f10: some var char';
+INSERT into t4 set f1=1, f2=1, f3=1, f4='first', f7='f7: medium size blob', f10='f10:
+binary data';
+INSERT into t31 set f1=1, f2=1, f3=1, f4='first';
+INSERT into t31 set f1=1, f2=1, f3=2, f4='second',
+f9=2.2,  f10='seven samurai', f28=222.222, f35='222';
+Warnings:
+Warning	1366	Incorrect integer value: 'seven samurai' for column 'f10' at row 1
+INSERT into t31 values (1, 1, 3, 'third',
+/* f5  BIGINT,  */            333333333333333333333333,
+/* f6  BLOB,  */              '3333333333333333333333',
+/* f7  DATE,  */              '2007-07-18',
+/* f8  DATETIME,  */          "2007-07-18",
+/* f9  FLOAT,  */             3.33333333,
+/* f10 INT,  */               333333333,
+/* f11 LONGBLOB,  */          '3333333333333333333',
+/* f12 LONGTEXT,  */          '3333333333333333333',
+/* f13 MEDIUMBLOB,  */        '3333333333333333333',
+/* f14 MEDIUMINT,  */         33,
+/* f15 MEDIUMTEXT,  */        3.3,
+/* f16 REAL,  */              3.3,
+/* f17 SMALLINT,  */          3,
+/* f18 TEXT,  */              '33',
+/* f19 TIME,  */              '2:59:58.999',
+/* f20 TIMESTAMP,  */         20000303000000,
+/* f21 TINYBLOB,  */          '3333',
+/* f22 TINYINT,  */           3,
+/* f23 TINYTEXT,  */          '3',
+/* f24 YEAR,  */              3000,
+/* f25 BINARY(255),  */       'three_33333',
+/* f26 BIT(64),  */           b'011', 
+/* f27 CHAR(255),  */         'three',
+/* f28 DECIMAL(30,7),  */     3.333,
+/* f29 DOUBLE,  */            3.333333333333333333333333333,
+/* f30 ENUM ('a','b','c')*/   'c',
+/* f31 FLOAT,  */             3.0,
+/* f32 NUMERIC(17,9),  */     3.3333,
+/* f33 SET ('a','b','c'),*/   'c',
+/*f34 VARBINARY(1025),*/      '3333 minus 3',
+/*f35 VARCHAR(257),*/         'three times three'
+      );
+Warnings:
+Warning	1264	Out of range value for column 'f5' at row 1
+Warning	1264	Out of range value for column 'f24' at row 1
+INSERT into t31 values (1, 1, 4, 'fourth',
+/* f5  BIGINT,  */            333333333333333333333333,
+/* f6  BLOB,  */              '3333333333333333333333',
+/* f7  DATE,  */              '2007-07-18',
+/* f8  DATETIME,  */          "2007-07-18",
+/* f9  FLOAT,  */             3.33333333,
+/* f10 INT,  */               333333333,
+/* f11 LONGBLOB,  */          '3333333333333333333',
+/* f12 LONGTEXT,  */          '3333333333333333333',
+/* f13 MEDIUMBLOB,  */        '3333333333333333333',
+/* f14 MEDIUMINT,  */         33,
+/* f15 MEDIUMTEXT,  */        3.3,
+/* f16 REAL,  */              3.3,
+/* f17 SMALLINT,  */          3,
+/* f18 TEXT,  */              '33',
+/* f19 TIME,  */              '2:59:58.999',
+/* f20 TIMESTAMP,  */         20000303000000,
+/* f21 TINYBLOB,  */          '3333',
+/* f22 TINYINT,  */           3,
+/* f23 TINYTEXT,  */          '3',
+/* f24 YEAR,  */              3000,
+/* f25 BINARY(255),  */       'three_33333',
+/* f26 BIT(64),  */           b'011',
+/* f27 CHAR(255),  */         'three',
+/* f28 DECIMAL(30,7),  */     3.333,
+/* f29 DOUBLE,  */            3.333333333333333333333333333,
+/* f30 ENUM ('a','b','c')*/   'c',
+/* f31 FLOAT,  */             3.0,
+/* f32 NUMERIC(17,9),  */     3.3333,
+/* f33 SET ('a','b','c'),*/   'c',
+/*f34 VARBINARY(1025),*/      '3333 minus 3',
+/*f35 VARCHAR(257),*/         'three times three'
+       ),
+(1, 1, 5, 'fifth',
+/* f5  BIGINT,  */            333333333333333333333333,
+/* f6  BLOB,  */              '3333333333333333333333',
+/* f7  DATE,  */              '2007-07-18',
+/* f8  DATETIME,  */          "2007-07-18",
+/* f9  FLOAT,  */             3.33333333,
+/* f10 INT,  */               333333333,
+/* f11 LONGBLOB,  */          '3333333333333333333',
+/* f12 LONGTEXT,  */          '3333333333333333333',
+/* f13 MEDIUMBLOB,  */        '3333333333333333333',
+/* f14 MEDIUMINT,  */         33,
+/* f15 MEDIUMTEXT,  */        3.3,
+/* f16 REAL,  */              3.3,
+/* f17 SMALLINT,  */          3,
+/* f18 TEXT,  */              '33',
+/* f19 TIME,  */              '2:59:58.999',
+/* f20 TIMESTAMP,  */         20000303000000,
+/* f21 TINYBLOB,  */          '3333',
+/* f22 TINYINT,  */           3,
+/* f23 TINYTEXT,  */          '3',
+/* f24 YEAR,  */              3000,
+/* f25 BINARY(255),  */       'three_33333',
+/* f26 BIT(64),  */           b'011',
+/* f27 CHAR(255),  */         'three',
+/* f28 DECIMAL(30,7),  */     3.333,
+/* f29 DOUBLE,  */            3.333333333333333333333333333,
+/* f30 ENUM ('a','b','c')*/   'c',
+/* f31 FLOAT,  */             3.0,
+/* f32 NUMERIC(17,9),  */     3.3333,
+/* f33 SET ('a','b','c'),*/   'c',
+/*f34 VARBINARY(1025),*/      '3333 minus 3',
+/*f35 VARCHAR(257),*/         'three times three'
+       ),
+(1, 1, 6, 'sixth',
+/* f5  BIGINT,  */            NULL,
+/* f6  BLOB,  */              '3333333333333333333333',
+/* f7  DATE,  */              '2007-07-18',
+/* f8  DATETIME,  */          "2007-07-18",
+/* f9  FLOAT,  */             3.33333333,
+/* f10 INT,  */               333333333,
+/* f11 LONGBLOB,  */          '3333333333333333333',
+/* f12 LONGTEXT,  */          '3333333333333333333',
+/* f13 MEDIUMBLOB,  */        '3333333333333333333',
+/* f14 MEDIUMINT,  */         33,
+/* f15 MEDIUMTEXT,  */        3.3,
+/* f16 REAL,  */              3.3,
+/* f17 SMALLINT,  */          3,
+/* f18 TEXT,  */              '33',
+/* f19 TIME,  */              '2:59:58.999',
+/* f20 TIMESTAMP,  */         20000303000000,
+/* f21 TINYBLOB,  */          '3333',
+/* f22 TINYINT,  */           3,
+/* f23 TINYTEXT,  */          '3',
+/* f24 YEAR,  */              3000,
+/* f25 BINARY(255),  */       'three_33333',
+/* f26 BIT(64),  */           b'011',
+/* f27 CHAR(255),  */         'three',
+/* f28 DECIMAL(30,7),  */     3.333,
+/* f29 DOUBLE,  */            3.333333333333333333333333333,
+/* f30 ENUM ('a','b','c')*/   'c',
+/* f31 FLOAT,  */             3.0,
+/* f32 NUMERIC(17,9),  */     3.3333,
+/* f33 SET ('a','b','c'),*/   'c',
+/*f34 VARBINARY(1025),*/      '3333 minus 3',
+/*f35 VARCHAR(257),*/         NULL
+);
+Warnings:
+Warning	1264	Out of range value for column 'f5' at row 1
+Warning	1264	Out of range value for column 'f24' at row 1
+Warning	1264	Out of range value for column 'f5' at row 2
+Warning	1264	Out of range value for column 'f24' at row 2
+Warning	1264	Out of range value for column 'f24' at row 3
+
+** Sync slave with master ** 
+** Do selects from tables **
+
+select * from t1 order by f3;
+f1	f2	f3	f4
+2	2	2	second
+3	3	3	next
+5	5	5	second
+6	6	6	next
+8	8	8	second
+9	9	9	next
+11	11	11	second
+12	12	12	next
+14	14	14	second
+15	15	15	next
+17	17	17	second
+18	18	18	next
+20	20	20	second
+21	21	21	next
+23	23	23	second
+24	24	24	next
+26	26	26	second
+27	27	27	next
+29	29	29	second
+30	30	30	next
+31	31	31	second
+32	32	32	second
+33	33	33	second
+34	34	34	second
+35	35	35	second
+36	36	36	second
+37	37	37	second
+38	38	38	second
+39	39	39	second
+40	40	40	second
+41	41	41	second
+42	42	42	second
+43	43	43	second
+44	44	44	second
+45	45	45	second
+46	46	46	second
+47	47	47	second
+48	48	48	second
+49	49	49	second
+50	50	50	second
+select * from t2 order by f1;
+f1	f2	f3	f4
+1	1	1	first
+2	2	2	second
+3	3	3	third
+select * from t3 order by f1;
+f1	f2	f3	f4
+1	1	1	first
+select * from t4 order by f1;
+f1	f2	f3	f4
+1	1	1	first
+select * from t31 order by f1;
+f1	f2	f3	f4
+1	1	1	first
+1	1	2	second
+1	1	3	third
+1	1	4	fourth
+1	1	5	fifth
+1	1	6	sixth
+
+** Do updates master **
+
+update t31 set f5=555555555555555 where f3=6;
+update t31 set f2=2 where f3=2;
+update t31 set f1=NULL where f3=1;
+update t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
+Warnings:
+Warning	1048	Column 'f3' cannot be null
+
+** Delete from Master **
+
+delete from t1;
+delete from t2;
+delete from t3;
+delete from t4;
+delete from t31;
+
+** Check slave status **
+
+select * from t31;
+f1	f2	f3	f4
+show slave status;;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
+
+****************************************
+* columns in master at middle of table *
+* Expect: Proper error message         *
+****************************************
+
+** Stop and Reset Slave **
+
+STOP SLAVE;
+RESET SLAVE;
+
+** create table slave side **
+CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
+) ENGINE='InnoDB';
+
+** Connect to master and create table **
+
+CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233',
+c CHAR(5), e INT DEFAULT '1')ENGINE='InnoDB';
+RESET MASTER;
+
+*** Start Slave ***
+START SLAVE;
+
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
+(2,@b1,DEFAULT,'JOE',DEFAULT),
+(3,@b1,DEFAULT,'QA',DEFAULT);
+
+********************************************
+*** Expect slave to fail with Error 1523 ***
+********************************************
+
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	1534
+Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1534
+Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+
+*** Drop t10  ***
+DROP TABLE t10;
+
+*********************************************
+* More columns in master at middle of table *
+* Expect: Proper error message              *
+*********************************************
+
+*** Create t11 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
+) ENGINE='InnoDB';
+
+*** Create t11 on Master ***
+CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
+c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='InnoDB';
+RESET MASTER;
+
+*** Start Slave ***
+START SLAVE;
+
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
+(2,@b1,'Testing is cool','JOE',DEFAULT),
+(3,@b1,DEFAULT,'QA',DEFAULT);
+
+********************************************
+*** Expect slave to fail with Error 1523 ***
+********************************************
+
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	1534
+Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1534
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
