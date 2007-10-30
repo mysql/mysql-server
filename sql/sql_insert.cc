@@ -3084,19 +3084,11 @@ void select_insert::send_error(uint errcode,const char *err)
 
 bool select_insert::send_eof()
 {
-<<<<<<< gca sql/sql_insert.cc 1.146.1.105
-  int error, error2;
-  bool changed, transactional_table= table->file->has_transactions();
-<<<<<<< local sql/sql_insert.cc 1.300
   int error;
   bool const trans_table= table->file->has_transactions();
   ulonglong id;
   bool changed;
-<<<<<<< remote sql/sql_insert.cc 1.146.1.106
-  int error, error2;
-  bool changed, transactional_table= table->file->has_transactions();
   THD::killed_state killed_status= thd->killed;
->>>>>>>
   DBUG_ENTER("select_insert::send_eof");
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
@@ -3129,17 +3121,9 @@ bool select_insert::send_eof()
   {
     if (!error)
       thd->clear_error();
-<<<<<<< gca sql/sql_insert.cc 1.146.1.105
-    Query_log_event qinfo(thd, thd->query, thd->query_length,
-			  transactional_table, FALSE);
-    mysql_bin_log.write(&qinfo);
-  }
-  if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
-    error=error2;
-<<<<<<< local sql/sql_insert.cc 1.300
     thd->binlog_query(THD::ROW_QUERY_TYPE,
                       thd->query, thd->query_length,
-                      trans_table, FALSE);
+                      trans_table, FALSE, killed_status);
   }
   /*
     We will call ha_autocommit_or_rollback() also for
@@ -3155,14 +3139,6 @@ bool select_insert::send_eof()
   }
   table->file->ha_release_auto_increment();
 
-<<<<<<< remote sql/sql_insert.cc 1.146.1.106
-    Query_log_event qinfo(thd, thd->query, thd->query_length,
-			  transactional_table, FALSE, killed_status);
-    mysql_bin_log.write(&qinfo);
-  }
-  if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
-    error=error2;
->>>>>>>
   if (error)
   {
     table->file->print_error(error,MYF(0));
