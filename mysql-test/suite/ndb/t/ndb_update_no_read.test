@@ -1,0 +1,79 @@
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# New test case for WL 3686 (which is not until CGE-6.3)
+# but test is committed in 5.1 to verify consistant results.
+#
+# When only constant expressions in update statements and
+# only PK or UK in WHERE clause. No extra WHERE parts are
+# allowed. WL #3687 takes of more advanced variants of
+# avoiding the read before the update/delete
+
+create table t1 (a int not null primary key, b int not null, c int,
+                 unique index_b (b) using hash)
+engine ndb;
+
+insert into t1 values (1,10,1),(2,9,1),(3,8,1),(4,7,1),(5,6,1),(6,5,2),(7,4,2),(8,3,2),
+            (9,2,2),(10,1,2);
+
+# These ones should use optimisation
+
+update t1 set c = 111, b = 20 where a = 1;
+
+select * from t1 where a = 1 order by a;
+
+delete from t1 where a = 1;
+
+select * from t1 where a = 1 order by a;
+
+update t1 set c = 12, b = 19 where b = 2;
+
+select * from t1 where b = 2 order by a;
+
+delete from t1 where b = 19;
+
+select * from t1 where b = 19 order by a;
+
+update t1 set c = 22 where a = 10 or a >= 10;
+
+select * from t1 order by a;
+
+update t1 set c = 23 where a in (8,10);
+
+select * from t1 order by a;
+
+update t1 set c = 23 where a in (7,8) or a >= 10;
+
+select * from t1 order by a;
+
+# These ones should not use optimisation
+
+update t1 set c = 11 where a = 3 or b = 7;
+
+select * from t1 where a = 3 or b = 7 order by a;
+
+update t1 set a = 13, b = 20 where a = 3;
+
+select * from t1 where a = 13 order by a;
+
+update t1 set a = 12, b = 19 where b = 7;
+
+select * from t1 where b = 19 order by a;
+
+select * from t1 where b = 7 order by a;
+
+update t1 set c = 12, b = 29 where a = 5 and b = 6;
+
+select * from t1 where b = 19 order by a;
+
+delete from t1 where b = 6 and c = 12;
+
+select * from t1 where b = 6 order by a;
+
+drop table t1;
+

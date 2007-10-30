@@ -122,4 +122,31 @@ connection server2;
 show tables;
 drop database db;
 
+
+#
+# bug#31470, ndb table with special characters in name
+# are not discovered correctly
 connection server1;
+use test;
+create table `test`.`t1$EX`
+ (server_id int unsigned,
+  master_server_id int unsigned,
+  master_epoch bigint unsigned,
+  count int unsigned,
+  primary key(server_id, master_server_id,
+              master_epoch, count))
+  engine ndb;
+
+# check that table shows up ok on both servers
+# before bugfix table would not show up on server2
+show tables like '%$%';
+connection server2;
+use test;
+show tables like '%$%';
+
+# check cleanup
+drop table `test`.`t1$EX`;
+show tables like '%$%';
+
+connection server1;
+show tables like '%$%';
