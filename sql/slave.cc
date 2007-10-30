@@ -1804,6 +1804,14 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     int const type_code= ev->get_type_code();
     int exec_res= 0;
 
+    DBUG_PRINT("exec_event",("%s(type_code: %d; server_id: %d)",
+                       ev->get_type_str(), type_code, ev->server_id));
+    DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
+                        FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
+                        FLAGSTR(thd->options, OPTION_BEGIN),
+                        rli->last_event_start_time));
+
+
     /*
       Execute the event to change the database and update the binary
       log coordinates, but first we set some data that is needed for
@@ -1827,111 +1835,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       log (remember that now the relay log starts with its Format_desc,
       has a Rotate etc).
     */
-
-    DBUG_PRINT("info",("type_code: %d; server_id: %d; slave_skip_counter: %d",
-                       type_code, ev->server_id, rli->slave_skip_counter));
-
-    DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
-                        FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
-                        FLAGSTR(thd->options, OPTION_BEGIN),
-                        rli->last_event_start_time));
-
-    /*
-      If the slave skip counter is positive, we still need to set the
-      OPTION_BEGIN flag correctly and not skip the log events that
-      start or end a transaction. If we do this, the slave will not
-      notice that it is inside a transaction, and happily start
-      executing from inside the transaction.
-
-      Note that the code block below is strictly 5.0.
-     */
-#if MYSQL_VERSION_ID < 50100
-    if (unlikely(rli->slave_skip_counter > 0))
-    {
-      switch (type_code)
-      {
-      case QUERY_EVENT:
-      {
-        Query_log_event* const qev= (Query_log_event*) ev;
-        DBUG_PRINT("info", ("QUERY_EVENT { query: '%s', q_len: %u }",
-                            qev->query, qev->q_len));
-        if (memcmp("BEGIN", qev->query, qev->q_len+1) == 0)
-          thd->options|= OPTION_BEGIN;
-        else if (memcmp("COMMIT", qev->query, qev->q_len+1) == 0 ||
-                 memcmp("ROLLBACK", qev->query, qev->q_len+1) == 0)
-          thd->options&= ~OPTION_BEGIN;
-      }
-      break;
-
-      case XID_EVENT:
-        DBUG_PRINT("info", ("XID_EVENT"));
-        thd->options&= ~OPTION_BEGIN;
-        break;
-      }
-    }
-#endif
-
-    if ((ev->server_id == (uint32) ::server_id &&
-         !replicate_same_server_id &&
-         type_code != FORMAT_DESCRIPTION_EVENT) ||
-        (rli->slave_skip_counter &&
-         type_code != ROTATE_EVENT && type_code != STOP_EVENT &&
-         type_code != START_EVENT_V3 && type_code!= FORMAT_DESCRIPTION_EVENT))
-    {
-      DBUG_PRINT("info", ("event skipped"));
-      if (thd->options & OPTION_BEGIN)
-        rli->inc_event_relay_log_pos();
-      else
-      {
-        rli->inc_group_relay_log_pos((type_code == ROTATE_EVENT ||
-                                      type_code == STOP_EVENT ||
-                                      type_code == FORMAT_DESCRIPTION_EVENT) ?
-                                     LL(0) : ev->log_pos,
-                                     1/* skip lock*/);
-        flush_relay_log_info(rli);
-      }
-
-      DBUG_PRINT("info", ("thd->options: %s",
-                          (thd->options & OPTION_BEGIN) ? "OPTION_BEGIN" : ""));
-
-      /*
-        Protect against common user error of setting the counter to 1
-        instead of 2 while recovering from an insert which used auto_increment,
-        rand or user var.
-      */
-      if (rli->slave_skip_counter &&
-          !((type_code == INTVAR_EVENT ||
-             type_code == RAND_EVENT ||
-             type_code == USER_VAR_EVENT) &&
-            rli->slave_skip_counter == 1) &&
-#if MYSQL_VERSION_ID < 50100
-          /*
-            Decrease the slave skip counter only if we are not inside
-            a transaction or the slave skip counter is more than
-            1. The slave skip counter will be decreased from 1 to 0
-            when reaching the final ROLLBACK, COMMIT, or XID_EVENT.
-           */
-          (!(thd->options & OPTION_BEGIN) || rli->slave_skip_counter > 1) &&
-#endif
-          /*
-            The events from ourselves which have something to do with the relay
-            log itself must be skipped, true, but they mustn't decrement
-            rli->slave_skip_counter, because the user is supposed to not see
-            these events (they are not in the master's binlog) and if we
-            decremented, START SLAVE would for example decrement when it sees
-            the Rotate, so the event which the user probably wanted to skip
-            would not be skipped.
-          */
-          !(ev->server_id == (uint32) ::server_id &&
-            (type_code == ROTATE_EVENT ||
-             type_code == STOP_EVENT ||
-             type_code == START_EVENT_V3 ||
-             type_code == FORMAT_DESCRIPTION_EVENT)))
-        --rli->slave_skip_counter;
-      pthread_mutex_unlock(&rli->data_lock);
-      delete ev;
-      return 0;                                 // avoid infinite update loops
-    }
 
     thd->server_id = ev->server_id; // use the original server id for logging
     thd->set_time();                            // time the query
