@@ -5,13 +5,13 @@ Next DBACC 3002
 Next DBTUP 4029
 Next DBLQH 5048
 Next DBDICT 6008
-Next DBDIH 7190
-Next DBTC 8053
+Next DBDIH 7193
+Next DBTC 8054
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
 Next DBTUX 12008
-Next SUMA 13001
+Next SUMA 13034
 
 TESTING NODE FAILURE, ARBITRATION
 ---------------------------------
@@ -172,6 +172,9 @@ And crash when all have "not" been sent
 7027: Crash in  master when changing state to LCP_TAB_SAVED
 7018: Crash in  master when changing state to LCP_TAB_SAVED
 
+7191: Crash when receiving LCP_COMPLETE_REP
+7192: Crash in setLcpActiveStatusStart - when dead node missed to LCP's
+
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
 
@@ -266,6 +269,8 @@ Delay execution of COMPLETECONF signal 2 seconds to generate time-out.
 Delay execution of ABORTCONF signal 2 seconds to generate time-out.
 
 8050: Send ZABORT_TIMEOUT_BREAK delayed
+
+8053: Crash in timeOutFoundLab, state CS_WAIT_COMMIT_CONF
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------

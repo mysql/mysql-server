@@ -11,3 +11,5 @@ set binlog_format=row;
 set binlog_format=statement;
 -- source extra/rpl_tests/rpl_extraMaster_Col.test
 
+set binlog_format=mixed;
+-- source extra/rpl_tests/rpl_extraMaster_Col.test

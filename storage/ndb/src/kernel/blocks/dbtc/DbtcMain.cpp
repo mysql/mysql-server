@@ -2793,9 +2793,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TNoDiskFlag         = TcKeyReq::getNoDiskFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
   
-  regCachePtr->opSimple = TSimpleFlag;
-  regCachePtr->opExec   = TInterpretedFlag;
   regTcPtr->dirtyOp  = TDirtyFlag;
+  regTcPtr->opSimple = TSimpleFlag;
+  regCachePtr->opExec   = TInterpretedFlag;
   regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
   regCachePtr->m_no_disk_flag = TNoDiskFlag;
 
@@ -3249,9 +3249,10 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   LqhKeyReq::setScanTakeOverFlag(tslrAttrLen, regCachePtr->scanTakeOverInd);
 
   Tdata10 = 0;
-  sig0 = regCachePtr->opSimple;
+  sig0 = regTcPtr->opSimple;
   sig1 = regTcPtr->operation;
-  bool simpleRead = (sig1 == ZREAD && sig0 == ZTRUE);
+  sig2 = regTcPtr->dirtyOp;
+  bool dirtyRead = (sig1 == ZREAD && sig2 == ZTRUE);
   LqhKeyReq::setKeyLen(Tdata10, regCachePtr->keylen);
   LqhKeyReq::setLastReplicaNo(Tdata10, regTcPtr->lastReplicaNo);
   if (unlikely(version < NDBD_ROWID_VERSION))
@@ -3264,7 +3265,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   // Indicate Application Reference is present in bit 15
   /* ---------------------------------------------------------------------- */
   LqhKeyReq::setApplicationAddressFlag(Tdata10, 1);
-  LqhKeyReq::setDirtyFlag(Tdata10, regTcPtr->dirtyOp);
+  LqhKeyReq::setDirtyFlag(Tdata10, sig2);
   LqhKeyReq::setInterpretedFlag(Tdata10, regCachePtr->opExec);
   LqhKeyReq::setSimpleFlag(Tdata10, sig0);
   LqhKeyReq::setOperation(Tdata10, sig1);
@@ -3325,7 +3326,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   sig5 = regTcPtr->clientData;
   sig6 = regCachePtr->scanInfo;
 
-  if (! simpleRead)
+  if (! dirtyRead)
   {
     regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[0]);
     regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[1]);
@@ -3398,7 +3399,6 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
                                BlockReference TBRef) 
 {
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
-  CacheRecord * const regCachePtr = cachePtr.p;
 #ifdef ERROR_INSERT
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   if (ERROR_INSERTED(8009)) {
@@ -3423,8 +3423,8 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
     if (anAttrBufIndex == RNIL) {
       UintR TtcTimer = ctcTimer;
       UintR Tread = (regTcPtr->operation == ZREAD);
-      UintR Tsimple = (regCachePtr->opSimple == ZTRUE);
-      UintR Tboth = Tread & Tsimple;
+      UintR Tdirty = (regTcPtr->dirtyOp == ZTRUE);
+      UintR Tboth = Tread & Tdirty;
       setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
       jam();
       /*--------------------------------------------------------------------
@@ -3433,7 +3433,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
       releaseAttrinfo();
       if (Tboth) {
         jam();
-        releaseSimpleRead(signal, apiConnectptr, tcConnectptr.p);
+        releaseDirtyRead(signal, apiConnectptr, tcConnectptr.p);
         return;
       }//if
       regTcPtr->tcConnectstate = OS_OPERATING;
@@ -3493,11 +3493,11 @@ void Dbtc::releaseAttrinfo()
 }//Dbtc::releaseAttrinfo()
 
 /* ========================================================================= */
-/* -------   RELEASE ALL RECORDS CONNECTED TO A SIMPLE OPERATION     ------- */
+/* -------   RELEASE ALL RECORDS CONNECTED TO A DIRTY OPERATION     ------- */
 /* ========================================================================= */
-void Dbtc::releaseSimpleRead(Signal* signal, 
-			     ApiConnectRecordPtr regApiPtr,
-			     TcConnectRecord* regTcPtr) 
+void Dbtc::releaseDirtyRead(Signal* signal, 
+                            ApiConnectRecordPtr regApiPtr,
+                            TcConnectRecord* regTcPtr) 
 {
   Uint32 Ttckeyrec = regApiPtr.p->tckeyrec;
   Uint32 TclientData = regTcPtr->clientData;
@@ -3507,7 +3507,7 @@ void Dbtc::releaseSimpleRead(Signal* signal,
   ConnectionState state = regApiPtr.p->apiConnectstate;
   
   regApiPtr.p->tcSendArray[Ttckeyrec] = TclientData;
-  regApiPtr.p->tcSendArray[Ttckeyrec + 1] = TcKeyConf::SimpleReadBit | Tnode;
+  regApiPtr.p->tcSendArray[Ttckeyrec + 1] = TcKeyConf::DirtyReadBit | Tnode;
   regApiPtr.p->tckeyrec = Ttckeyrec + 2;
   
   unlinkReadyTcCon(signal);
@@ -3537,8 +3537,8 @@ void Dbtc::releaseSimpleRead(Signal* signal,
   /**
    * Emulate LQHKEYCONF
    */
-  lqhKeyConf_checkTransactionState(signal, regApiPtr.p);
-}//Dbtc::releaseSimpleRead()
+  lqhKeyConf_checkTransactionState(signal, regApiPtr);
+}//Dbtc::releaseDirtyRead()
 
 /* ------------------------------------------------------------------------- */
 /* -------        CHECK IF ALL TC CONNECTIONS ARE COMPLETED          ------- */
@@ -3720,12 +3720,13 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     TCKEY_abort(signal, 29);
     return;
   }//if
-  ApiConnectRecord * const regApiPtr = 
-                            &localApiConnectRecord[TapiConnectptrIndex];
+  Ptr<ApiConnectRecord> regApiPtr;
+  regApiPtr.i = TapiConnectptrIndex;
+  regApiPtr.p = &localApiConnectRecord[TapiConnectptrIndex];
   apiConnectptr.i = TapiConnectptrIndex;
-  apiConnectptr.p = regApiPtr;
-  compare_transid1 = regApiPtr->transid[0] ^ Ttrans1;
-  compare_transid2 = regApiPtr->transid[1] ^ Ttrans2;
+  apiConnectptr.p = regApiPtr.p;
+  compare_transid1 = regApiPtr.p->transid[0] ^ Ttrans1;
+  compare_transid2 = regApiPtr.p->transid[1] ^ Ttrans2;
   compare_transid1 = compare_transid1 | compare_transid2;
   if (compare_transid1 != 0) {
     warningReport(signal, 24);
@@ -3737,25 +3738,25 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     systemErrorLab(signal, __LINE__);
   }//if
   if (ERROR_INSERTED(8003)) {
-    if (regApiPtr->apiConnectstate == CS_STARTED) {
+    if (regApiPtr.p->apiConnectstate == CS_STARTED) {
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }//if
   }//if
   if (ERROR_INSERTED(8004)) {
-    if (regApiPtr->apiConnectstate == CS_RECEIVING) {
+    if (regApiPtr.p->apiConnectstate == CS_RECEIVING) {
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }//if
   }//if
   if (ERROR_INSERTED(8005)) {
-    if (regApiPtr->apiConnectstate == CS_REC_COMMITTING) {
+    if (regApiPtr.p->apiConnectstate == CS_REC_COMMITTING) {
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }//if
   }//if
   if (ERROR_INSERTED(8006)) {
-    if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
+    if (regApiPtr.p->apiConnectstate == CS_START_COMMITTING) {
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }//if
@@ -3770,10 +3771,12 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   regTcPtr->lastLqhNodeId = refToNode(tlastLqhBlockref);
   regTcPtr->noFiredTriggers = noFired;
 
-  UintR Ttckeyrec = (UintR)regApiPtr->tckeyrec;
+  UintR Ttckeyrec = (UintR)regApiPtr.p->tckeyrec;
   UintR TclientData = regTcPtr->clientData;
   UintR TdirtyOp = regTcPtr->dirtyOp;
-  ConnectionState TapiConnectstate = regApiPtr->apiConnectstate;
+  Uint32 TopSimple = regTcPtr->opSimple;
+  Uint32 Toperation = regTcPtr->operation;
+  ConnectionState TapiConnectstate = regApiPtr.p->apiConnectstate;
   if (Ttckeyrec > (ZTCOPCONF_SIZE - 2)) {
     TCKEY_abort(signal, 30);
     return;
@@ -3798,23 +3801,34 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
        * since they will enter execLQHKEYCONF a second time
        * Skip counting internally generated TcKeyReq
        */
-      regApiPtr->tcSendArray[Ttckeyrec] = TclientData;
-      regApiPtr->tcSendArray[Ttckeyrec + 1] = treadlenAi;
-      regApiPtr->tckeyrec = Ttckeyrec + 2;
+      regApiPtr.p->tcSendArray[Ttckeyrec] = TclientData;
+      regApiPtr.p->tcSendArray[Ttckeyrec + 1] = treadlenAi;
+      regApiPtr.p->tckeyrec = Ttckeyrec + 2;
     }//if
   }//if
-  if (TdirtyOp == ZTRUE) {
-    UintR Tlqhkeyreqrec = regApiPtr->lqhkeyreqrec;
+  if (TdirtyOp == ZTRUE) 
+  {
+    UintR Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
     jam();
     releaseDirtyWrite(signal);
-    regApiPtr->lqhkeyreqrec = Tlqhkeyreqrec - 1;
-  } else {
+    regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
+  } 
+  else if (Toperation == ZREAD && TopSimple)
+  {
+    UintR Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
+    jam();
+    unlinkReadyTcCon(signal);
+    releaseTcCon();
+    regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
+  } 
+  else 
+  {
     jam();
     if (noFired == 0) {
       jam();
       // No triggers to execute
-      UintR Tlqhkeyconfrec = regApiPtr->lqhkeyconfrec;
-      regApiPtr->lqhkeyconfrec = Tlqhkeyconfrec + 1;
+      UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
+      regApiPtr.p->lqhkeyconfrec = Tlqhkeyconfrec + 1;
       regTcPtr->tcConnectstate = OS_PREPARED;
     }
   }//if
@@ -3844,21 +3858,18 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     jam();
     if (regTcPtr->isIndexOp) {
       jam();
-      setupIndexOpReturn(regApiPtr, regTcPtr);
+      setupIndexOpReturn(regApiPtr.p, regTcPtr);
     }
     lqhKeyConf_checkTransactionState(signal, regApiPtr);
   } else {
     // We have fired triggers
     jam();
     saveTriggeringOpState(signal, regTcPtr);
-    if (regTcPtr->noReceivedTriggers == noFired) {
-      ApiConnectRecordPtr transPtr;
-      
+    if (regTcPtr->noReceivedTriggers == noFired) 
+    {
       // We have received all data
       jam();
-      transPtr.i = TapiConnectptrIndex;
-      transPtr.p = regApiPtr;
-      executeTriggers(signal, &transPtr);
+      executeTriggers(signal, &regApiPtr);
     }
     // else wait for more trigger data
   }
@@ -3882,7 +3893,7 @@ void Dbtc::setupIndexOpReturn(ApiConnectRecord* regApiPtr,
  */
 void
 Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
-				       ApiConnectRecord * const apiConnectPtrP)
+				       Ptr<ApiConnectRecord> regApiPtr)
 {
 /*---------------------------------------------------------------*/
 /* IF THE COMMIT FLAG IS SET IN SIGNAL TCKEYREQ THEN DBTC HAS TO */
@@ -3893,9 +3904,9 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
 /* FOR ALL OPERATIONS, AND THEN WAIT FOR THE API TO CONCLUDE THE */
 /* TRANSACTION                                                   */
 /*---------------------------------------------------------------*/
-  ConnectionState TapiConnectstate = apiConnectPtrP->apiConnectstate;
-  UintR Tlqhkeyconfrec = apiConnectPtrP->lqhkeyconfrec;
-  UintR Tlqhkeyreqrec = apiConnectPtrP->lqhkeyreqrec;
+  ConnectionState TapiConnectstate = regApiPtr.p->apiConnectstate;
+  UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
+  UintR Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
   int TnoOfOutStanding = Tlqhkeyreqrec - Tlqhkeyconfrec;
 
   switch (TapiConnectstate) {
@@ -3905,11 +3916,11 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
       diverify010Lab(signal);
       return;
     } else if (TnoOfOutStanding > 0) {
-      if (apiConnectPtrP->tckeyrec == ZTCOPCONF_SIZE) {
+      if (regApiPtr.p->tckeyrec == ZTCOPCONF_SIZE) {
         jam();
         sendtckeyconf(signal, 0);
         return;
-      } else if (apiConnectPtrP->indexOpReturn) {
+      } else if (regApiPtr.p->indexOpReturn) {
 	jam();
         sendtckeyconf(signal, 0);
         return;
@@ -3928,11 +3939,11 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
       sendtckeyconf(signal, 2);
       return;
     } else {
-      if (apiConnectPtrP->tckeyrec == ZTCOPCONF_SIZE) {
+      if (regApiPtr.p->tckeyrec == ZTCOPCONF_SIZE) {
         jam();
         sendtckeyconf(signal, 0);
         return;
-      } else if (apiConnectPtrP->indexOpReturn) {
+      } else if (regApiPtr.p->indexOpReturn) {
 	jam();
         sendtckeyconf(signal, 0);
         return;
@@ -3942,11 +3953,11 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
     return;
   case CS_REC_COMMITTING:
     if (TnoOfOutStanding > 0) {
-      if (apiConnectPtrP->tckeyrec == ZTCOPCONF_SIZE) {
+      if (regApiPtr.p->tckeyrec == ZTCOPCONF_SIZE) {
         jam();
         sendtckeyconf(signal, 0);
         return;
-      } else if (apiConnectPtrP->indexOpReturn) {
+      } else if (regApiPtr.p->indexOpReturn) {
         jam();
         sendtckeyconf(signal, 0);
         return;
@@ -3963,7 +3974,7 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
 /*       CONSISTING OF DIRTY WRITES AND ALL OF THOSE WERE        */
 /*       COMPLETED. ENSURE TCKEYREC IS ZERO TO PREVENT ERRORS.   */
 /*---------------------------------------------------------------*/
-    apiConnectPtrP->tckeyrec = 0;
+    regApiPtr.p->tckeyrec = 0;
     return;
   default:
     TCKEY_abort(signal, 46);
@@ -4236,34 +4247,46 @@ void Dbtc::diverify010Lab(Signal* signal)
     jam();
     systemErrorLab(signal, __LINE__);
   }//if
-  if (TfirstfreeApiConnectCopy != RNIL) {
-    seizeApiConnectCopy(signal);
-    regApiPtr->apiConnectstate = CS_PREPARE_TO_COMMIT;
-    /*-----------------------------------------------------------------------
-     * WE COME HERE ONLY IF THE TRANSACTION IS PREPARED ON ALL TC CONNECTIONS.
-     * THUS WE CAN START THE COMMIT PHASE BY SENDING DIVERIFY ON ALL TC     
-     * CONNECTIONS AND THEN WHEN ALL DIVERIFYCONF HAVE BEEN RECEIVED THE 
-     * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
-     *-----------------------------------------------------------------------*/
-    EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal, 1);
-    if (signal->theData[3] == 0) {
-      execDIVERIFYCONF(signal);
+
+  if (regApiPtr->lqhkeyreqrec)
+  {
+    if (TfirstfreeApiConnectCopy != RNIL) {
+      seizeApiConnectCopy(signal);
+      regApiPtr->apiConnectstate = CS_PREPARE_TO_COMMIT;
+      /*-----------------------------------------------------------------------
+       * WE COME HERE ONLY IF THE TRANSACTION IS PREPARED ON ALL TC CONNECTIONS
+       * THUS WE CAN START THE COMMIT PHASE BY SENDING DIVERIFY ON ALL TC     
+       * CONNECTIONS AND THEN WHEN ALL DIVERIFYCONF HAVE BEEN RECEIVED THE 
+       * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
+       *---------------------------------------------------------------------*/
+      EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal, 1);
+      if (signal->theData[3] == 0) {
+        execDIVERIFYCONF(signal);
+      }
+      return;
+    } else {
+      /*-----------------------------------------------------------------------
+       * There were no free copy connections available. We must abort the 
+       * transaction since otherwise we will have a problem with the report 
+       * to the application.
+       * This should more or less not happen but if it happens we do 
+       * not want to crash and we do not want to create code to handle it 
+       * properly since it is difficult to test it and will be complex to 
+       * handle a problem more or less not occurring.
+       *---------------------------------------------------------------------*/
+      terrorCode = ZSEIZE_API_COPY_ERROR;
+      abortErrorLab(signal);
+      return;
     }
-    return;
-  } else {
-    /*-----------------------------------------------------------------------
-     * There were no free copy connections available. We must abort the 
-     * transaction since otherwise we will have a problem with the report 
-     * to the application.
-     * This should more or less not happen but if it happens we do not want to
-     * crash and we do not want to create code to handle it properly since 
-     * it is difficult to test it and will be complex to handle a problem 
-     * more or less not occurring.
-     *-----------------------------------------------------------------------*/
-    terrorCode = ZSEIZE_API_COPY_ERROR;
-    abortErrorLab(signal);
-    return;
-  }//if
+  }
+  else
+  {
+    jam();
+    sendtckeyconf(signal, 1);
+    regApiPtr->apiConnectstate = CS_CONNECTED;
+    regApiPtr->m_transaction_nodes.clear();
+    setApiConTimer(apiConnectptr.i, 0,__LINE__);
+  }
 }//Dbtc::diverify010Lab()
 
 /* ------------------------------------------------------------------------- */
@@ -5290,16 +5313,8 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       regApiPtr->lqhkeyreqrec--;
       if (regApiPtr->lqhkeyconfrec == regApiPtr->lqhkeyreqrec) {
 	if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
-	  if(regApiPtr->lqhkeyconfrec) {
-	    jam();
-	    diverify010Lab(signal);
-	  } else {
-	    jam();
-	    sendtckeyconf(signal, 1);
-	    regApiPtr->apiConnectstate = CS_CONNECTED;
-	    regApiPtr->m_transaction_nodes.clear();
-	    setApiConTimer(apiConnectptr.i, 0,__LINE__);
-	  }
+          jam();
+          diverify010Lab(signal);
 	  return;
 	} else if (regApiPtr->tckeyrec > 0 || regApiPtr->m_exec_flag) {
 	  jam();
@@ -6310,7 +6325,6 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
     if (api_timer != 0) {
       Uint32 error= ZTIME_OUT_ERROR;
       time_out_value= time_out_param + (ndb_rand() & mask_value);
-      ndbout_c("timeout value: %u %u",time_out_value, time_out_value-time_out_param);
       if (unlikely(old_mask_value)) // abort during single user mode
       {
         apiConnectptr.i = api_con_ptr;
@@ -6513,6 +6527,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     return;
   case CS_WAIT_COMMIT_CONF:
     jam();
+    CRASH_INSERTION(8053);
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
     ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
     arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);

@@ -21,6 +21,7 @@
 #include <NdbAutoPtr.hpp>
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
@@ -1737,7 +1738,7 @@ runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped() == false) 
   {
-    if (hugoTrans.scanUpdateRecords(GETNDB(step), records, abort, 
+    if (hugoTrans.scanUpdateRecords(GETNDB(step), 0, abort, 
 				    parallelism) == NDBT_FAILED){
       return NDBT_FAILED;
     }
@@ -1762,6 +1763,85 @@ runInsertDeleteUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
   
+  return NDBT_OK;
+}
+
+int 
+runBug31701(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+
+  NdbRestarter restarter;
+
+  if (restarter.getNumDbNodes() < 2){
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+  // This should really wait for applier to start...10s is likely enough
+  NdbSleep_SecSleep(10);
+
+  int nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  if (restarter.dumpStateOneNode(nodeId, val2, 2))
+    return NDBT_FAILED;
+  
+  restarter.insertErrorInNode(nodeId, 13033);
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.startNodes(&nodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+
+  
+  int records = ctx->getNumRecords();
+  HugoTransactions hugoTrans(*ctx->getTab());
+  
+  if(ctx->getPropertyWait("LastGCI", ~(Uint32)0))
+  {
+    g_err << "FAIL " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+
+  hugoTrans.clearTable(GETNDB(step), 0);
+  
+  if (hugoTrans.loadTable(GETNDB(step), 3*records, 1, true, 1) != 0){
+    g_err << "FAIL " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+  
+  if (hugoTrans.pkDelRecords(GETNDB(step), 3*records, 1, true, 1) != 0){
+    g_err << "FAIL " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+  if (hugoTrans.loadTable(GETNDB(step), records, 1, true, 1) != 0){
+    g_err << "FAIL " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+  if (hugoTrans.pkUpdateRecords(GETNDB(step), records, 1, 1) != 0){
+    g_err << "FAIL " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+  if (hugoTrans.pkUpdateRecords(GETNDB(step), records, 1, 1) != 0){
+    g_err << "FAIL " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+  if (hugoTrans.pkUpdateRecords(GETNDB(step), records, 1, 1) != 0){
+    g_err << "FAIL " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+  
+  ctx->setProperty("LastGCI", hugoTrans.m_latest_gci);
+  if(ctx->getPropertyWait("LastGCI", ~(Uint32)0))
+  {
+    g_err << "FAIL " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+
+  ctx->stopTest();  
   return NDBT_OK;
 }
 
@@ -1893,6 +1973,14 @@ TESTCASE("Bug27169", ""){
   STEP(runScanUpdateUntilStopped);
   STEP(runRestarterLoop);
   FINALIZER(runDropEvent);
+}
+TESTCASE("Bug31701", ""){
+  INITIALIZER(runCreateEvent);
+  INITIALIZER(runCreateShadowTable);
+  STEP(runEventApplier);
+  STEP(runBug31701);
+  FINALIZER(runDropEvent);
+  FINALIZER(runDropShadowTable);
 }
 NDBT_TESTSUITE_END(test_event);
 

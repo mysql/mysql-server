@@ -2701,8 +2701,16 @@ Lgman::execute_undo_record(Signal* signal)
       Uint32 lcp = * (ptr - len + 1);
       if(m_latest_lcp && lcp > m_latest_lcp)
       {
-	// Just ignore
-	break;
+        if (0)
+        {
+	  const Uint32 * base = ptr - len + 1;
+          Uint32 lcp = base[0];
+          Uint32 tableId = base[1] >> 16;
+          Uint32 fragId = base[1] & 0xFFFF;
+
+	  ndbout_c("NOT! ignoring lcp: %u tab: %u frag: %u", 
+		   lcp, tableId, fragId);
+	}
       }
 
       if(m_latest_lcp == 0 || 

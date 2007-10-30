@@ -96,8 +96,9 @@ public:
     ,LM_CommittedRead       ///< Ignore locks, read last committed value
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     = 2,
-    LM_Dirty = 2
+    LM_Dirty = 2,
 #endif
+    LM_SimpleRead = 3       ///< Read with shared lock, but release lock directly
   };
 
   /**
@@ -854,8 +855,10 @@ protected:
   virtual ~NdbOperation();
   void	next(NdbOperation*);		// Set next pointer		      
   NdbOperation*	    next();	        // Get next pointer		       
+
 public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  NdbTransaction* getNdbTransaction();
   const NdbOperation* next() const;
   const NdbRecAttr* getFirstRecAttr() const;
 #endif

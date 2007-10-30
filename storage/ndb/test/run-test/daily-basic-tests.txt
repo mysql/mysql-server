@@ -65,6 +65,14 @@ args: -n PkRead
 
 max-time: 500
 cmd: testBasic
+args: -n PkSimpleRead
+
+max-time: 500
+cmd: testBasic
+args: -n PkDirtyRead
+
+max-time: 500
+cmd: testBasic
 args: -n PkUpdate 
 
 max-time: 500
@@ -571,7 +579,7 @@ args: -n Bug28023 T7 D2
 
 max-time: 3000
 cmd: testNodeRestart
-args: -n Bug25984
+args: -n Bug25984 T1
 
 max-time: 1000
 cmd: testNodeRestart
@@ -591,6 +599,14 @@ args: -n Bug29364 T1
 
 #
 # DICT TESTS
+max-time: 500
+cmd: testDict
+args: -n Bug29501 T1
+
+max-time: 500
+cmd: testDict
+args: -n testDropDDObjects T1
+
 max-time: 1500
 cmd: testDict
 args: -n CreateAndDrop 
@@ -981,4 +997,77 @@ args: -n Bug28804 T1 T3
 max-time: 180
 cmd: testIndex
 args: -n Bug28804_ATTRINFO T1 T3
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_1 D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_1b D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_1 D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_1b D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_1_LCP D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_1b_LCP D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_1_LCP D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_1b_LCP D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_2 D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_2b D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_2 D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_2b D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_2_LCP D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_2b_LCP D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_2_LCP D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_2b_LCP D2
+
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug31525 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug31701 T1
+
 

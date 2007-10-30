@@ -774,7 +774,7 @@ int runTestFragmentTypes(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == records);
     CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
-    CHECK(hugoTrans.scanUpdateRecords(pNdb, records) == 0);
+    CHECK(hugoTrans.scanUpdateRecords(pNdb, records/2) == 0);
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == (records/2));
 
@@ -952,7 +952,7 @@ int runPkSizes(NDBT_Context* ctx, NDBT_Step* step){
       CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
       CHECK(count == records);
       CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
-      CHECK(hugoTrans.scanUpdateRecords(pNdb, records) == 0);
+      CHECK(hugoTrans.scanUpdateRecords(pNdb, records/2) == 0);
       CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
       CHECK(count == (records/2));
       CHECK(utilTrans.clearTable(pNdb, records) == 0);
@@ -3008,7 +3008,262 @@ runDictRestart(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug29501(NDBT_Context* ctx, NDBT_Step* step) {
+  NdbRestarter res;
+  NdbDictionary::LogfileGroup lg;
+  lg.setName("DEFAULT-LG");
+  lg.setUndoBufferSize(8*1024*1024);
+
+  if (res.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  int node = res.getRandomNotMasterNodeId(rand());
+  res.restartOneDbNode(node, true, true, false);
+
+  if(pDict->createLogfileGroup(lg) != 0){
+    g_err << "Failed to create logfilegroup:"
+        << endl << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbDictionary::Undofile uf;
+  uf.setPath("undofile01.dat");
+  uf.setSize(5*1024*1024);
+  uf.setLogfileGroup("DEFAULT-LG");
+
+  if(pDict->createUndofile(uf) != 0){
+    g_err << "Failed to create undofile:"
+        << endl << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  res.waitNodesNoStart(&node, 1);
+  res.startNodes(&node, 1);
+
+  if (res.waitClusterStarted()){
+  	g_err << "Node restart failed"
+  	<< endl << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+  }
+
+  if (pDict->dropLogfileGroup(pDict->getLogfileGroup(lg.getName())) != 0){
+  	g_err << "Drop of LFG Failed"
+  	<< endl << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+int
+runDropDDObjects(NDBT_Context* ctx, NDBT_Step* step){
+  //Purpose is to drop all tables, data files, Table spaces and LFG's
+  Uint32 i = 0;
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  
+  NdbDictionary::Dictionary::List list;
+  if (pDict->listObjects(list) == -1)
+    return NDBT_FAILED;
+  
+  //Search the list and drop all tables found
+  const char * tableFound = 0;
+  for (i = 0; i < list.count; i++){
+    switch(list.elements[i].type){
+      case NdbDictionary::Object::UserTable:
+        tableFound = list.elements[i].name;
+        if(tableFound != 0){
+      	  if(pDict->dropTable(tableFound) != 0){
+            g_err << "Failed to drop table: " << pDict->getNdbError() << endl;
+            return NDBT_FAILED;
+          }
+        }
+        tableFound = 0;
+        break;
+      default:
+        break;
+    }
+  }
+ 
+  //Search the list and drop all data file found
+  const char * dfFound = 0;
+  for (i = 0; i < list.count; i++){
+    switch(list.elements[i].type){
+      case NdbDictionary::Object::Datafile:
+        dfFound = list.elements[i].name;
+        if(dfFound != 0){
+      	  if(pDict->dropDatafile(pDict->getDatafile(0, dfFound)) != 0){
+            g_err << "Failed to drop datafile: " << pDict->getNdbError() << endl;
+            return NDBT_FAILED;
+          }
+        }
+        dfFound = 0;
+        break;
+      default:
+        break;
+    }
+  }
+
+  //Search the list and drop all Table Spaces Found 
+  const char * tsFound  = 0;
+  for (i = 0; i <list.count; i++){
+    switch(list.elements[i].type){
+      case NdbDictionary::Object::Tablespace:
+        tsFound = list.elements[i].name;
+        if(tsFound != 0){
+          if(pDict->dropTablespace(pDict->getTablespace(tsFound)) != 0){
+            g_err << "Failed to drop tablespace: " << pDict->getNdbError() << endl;
+            return NDBT_FAILED;
+          }
+        }
+        tsFound = 0;
+        break;
+      default:
+        break;
+    }
+  }
+
+  //Search the list and drop all LFG Found
+  //Currently only 1 LGF is supported, but written for future 
+  //when more then one is supported. 
+  const char * lgFound  = 0;
+  for (i = 0; i < list.count; i++){
+    switch(list.elements[i].type){
+      case NdbDictionary::Object::LogfileGroup:
+        lgFound = list.elements[i].name;
+        if(lgFound != 0){
+          if (pDict->dropLogfileGroup(pDict->getLogfileGroup(lgFound)) != 0){
+            g_err << "Failed to drop tablespace: " << pDict->getNdbError() << endl;
+            return NDBT_FAILED;
+          }
+       }   
+        lgFound = 0;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+runWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
+
+  NdbRestarter restarter;
+  restarter.waitClusterStarted(300);
+
+  NdbSleep_SecSleep(3);
+  return NDBT_OK;
+}
+
+int
+testDropDDObjectsSetup(NDBT_Context* ctx, NDBT_Step* step){
+  //Purpose is to setup to test DropDDObjects
+  char tsname[256];
+  char dfname[256];
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  NdbDictionary::LogfileGroup lg;
+  lg.setName("DEFAULT-LG");
+  lg.setUndoBufferSize(8*1024*1024);
+
+
+  if(pDict->createLogfileGroup(lg) != 0){
+    g_err << "Failed to create logfilegroup:"
+        << endl << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbDictionary::Undofile uf;
+  uf.setPath("undofile01.dat");
+  uf.setSize(5*1024*1024);
+  uf.setLogfileGroup("DEFAULT-LG");
+
+  if(pDict->createUndofile(uf) != 0){
+    g_err << "Failed to create undofile:"
+        << endl << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
+  BaseString::snprintf(tsname, sizeof(tsname), "TS-%u", rand());
+  BaseString::snprintf(dfname, sizeof(dfname), "%s-%u.dat", tsname, rand());
+
+  if (create_tablespace(pDict, lg.getName(), tsname, dfname)){
+  	g_err << "Failed to create undofile:"
+        << endl << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
+int
+DropDDObjectsVerify(NDBT_Context* ctx, NDBT_Step* step){
+  //Purpose is to verify test DropDDObjects worked
+  Uint32 i = 0;
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  NdbDictionary::Dictionary::List list;
+  if (pDict->listObjects(list) == -1)
+    return NDBT_FAILED;
+
+    bool ddFound  = false;
+  for (i = 0; i <list.count; i++){
+    switch(list.elements[i].type){
+      case NdbDictionary::Object::Tablespace:
+        ddFound = true;
+        break;
+      case NdbDictionary::Object::LogfileGroup:
+        ddFound = true;
+        break;
+      default:
+        break;
+    }
+    if(ddFound == true){
+      g_err << "DropDDObjects Failed: DD found:"
+        << endl;
+      return NDBT_FAILED;
+    }
+  }
+  return NDBT_OK;
+}
+ 
 NDBT_TESTSUITE(testDict);
+TESTCASE("testDropDDObjects",
+         "* 1. start cluster\n"
+         "* 2. Create LFG\n"
+         "* 3. create TS\n"
+         "* 4. run DropDDObjects\n"
+         "* 5. Verify DropDDObjectsRestart worked\n"){
+INITIALIZER(runWaitStarted);
+INITIALIZER(runDropDDObjects);
+INITIALIZER(testDropDDObjectsSetup);
+STEP(runDropDDObjects);
+FINALIZER(DropDDObjectsVerify);
+}
+
+TESTCASE("Bug29501",
+         "* 1. start cluster\n"
+         "* 2. Restart 1 node -abort -nostart\n"
+         "* 3. create LFG\n"
+         "* 4. Restart data node\n"
+         "* 5. Restart 1 node -nostart\n"
+         "* 6. Drop LFG\n"){
+INITIALIZER(runWaitStarted);
+INITIALIZER(runDropDDObjects);
+STEP(runBug29501);
+FINALIZER(runDropDDObjects);
+}
 TESTCASE("CreateAndDrop", 
 	 "Try to create and drop the table loop number of times\n"){
   INITIALIZER(runCreateAndDrop);

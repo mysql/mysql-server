@@ -809,7 +809,7 @@ int runSystemRestart1(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(hugoTrans.pkUpdateRecords(pNdb, records) == 0);
     CHECK(utilTrans.verifyIndex(pNdb, idxName, 16, false) == 0);
     CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
-    CHECK(hugoTrans.scanUpdateRecords(pNdb, records) == 0);
+    CHECK(hugoTrans.scanUpdateRecords(pNdb, records/2) == 0);
     CHECK(utilTrans.verifyIndex(pNdb, idxName, 16, false) == 0);
     CHECK(utilTrans.clearTable(pNdb, records) == 0);
     CHECK(hugoTrans.loadTable(pNdb, records, 1) == 0);
@@ -834,7 +834,7 @@ int runSystemRestart1(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(utilTrans.verifyIndex(pNdb, idxName,  16, false) == 0);
     CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
     CHECK(utilTrans.verifyIndex(pNdb, idxName,  16, false) == 0);
-    CHECK(hugoTrans.scanUpdateRecords(pNdb, records) == 0);
+    CHECK(hugoTrans.scanUpdateRecords(pNdb, records/2) == 0);
     CHECK(utilTrans.verifyIndex(pNdb, idxName,  16, false) == 0);
     CHECK(utilTrans.clearTable(pNdb, records) == 0);
     CHECK(hugoTrans.loadTable(pNdb, records, 1) == 0);

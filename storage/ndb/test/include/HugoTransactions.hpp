@@ -36,6 +36,16 @@ public:
 		int updateValue = 0,
 		bool abort = false);
 
+  int loadTableStartFrom(Ndb*, 
+                         int startFrom,
+                         int records,
+                         int batch = 512,
+                         bool allowConstraintViolation = true,
+                         int doSleep = 0,
+                         bool oneTrans = false,
+                         int updateValue = 0,
+                         bool abort = false);
+
   int scanReadRecords(Ndb*, 
 		      int records,
 		      int abort = 0,
@@ -56,6 +66,11 @@ public:
 		    int batchsize = 1,
 		    NdbOperation::LockMode = NdbOperation::LM_Read);
   
+  int scanUpdateRecords(Ndb*, NdbScanOperation::ScanFlag, 
+			int records,
+			int abort = 0,
+			int parallelism = 0);
+
   int scanUpdateRecords(Ndb*, 
 			int records,
 			int abort = 0,
@@ -90,8 +105,11 @@ public:
 		  int records,
 		  int percentToLock = 1,
 		  int lockTime = 1000);
+
   int fillTable(Ndb*,
 		int batch=512);
+
+  int fillTableStartFrom(Ndb*, int startFrom, int batch=512);
 
   /**
    * Reading using UniqHashIndex with key = pk

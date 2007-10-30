@@ -3560,7 +3560,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->dirtyOp       = LqhKeyReq::getDirtyFlag(Treqinfo);
   regTcPtr->opExec        = LqhKeyReq::getInterpretedFlag(Treqinfo);
   regTcPtr->opSimple      = LqhKeyReq::getSimpleFlag(Treqinfo);
-  regTcPtr->simpleRead    = op == ZREAD && regTcPtr->opSimple;
   regTcPtr->seqNoReplica  = LqhKeyReq::getSeqNoReplica(Treqinfo);
   UintR TreclenAiLqhkey   = LqhKeyReq::getAIInLqhKeyReq(Treqinfo);
   regTcPtr->apiVersionNo  = 0; 
@@ -3577,9 +3576,15 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     regTcPtr->lockType = 
       op == ZREAD_EX ? ZUPDATE : (Operation_t) op == ZWRITE ? ZINSERT : (Operation_t) op;
   }
+
+  if (regTcPtr->dirtyOp)
+  {
+    ndbrequire(regTcPtr->opSimple);
+  }
   
-  CRASH_INSERTION2(5041, regTcPtr->simpleRead && 
-		   refToNode(signal->senderBlockRef()) != cownNodeid);
+  CRASH_INSERTION2(5041, (op == ZREAD && 
+                          (regTcPtr->opSimple || regTcPtr->dirtyOp) &&
+                          refToNode(signal->senderBlockRef()) != cownNodeid));
   
   regTcPtr->reclenAiLqhkey = TreclenAiLqhkey;
   regTcPtr->currReclenAi = TreclenAiLqhkey;
@@ -3753,8 +3758,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   Uint8 TdistKey = LqhKeyReq::getDistributionKey(TtotReclenAi);
   if ((tfragDistKey != TdistKey) &&
       (regTcPtr->seqNoReplica == 0) &&
-      (regTcPtr->dirtyOp == ZFALSE) &&
-      (regTcPtr->simpleRead == ZFALSE)) {
+      (regTcPtr->dirtyOp == ZFALSE)) 
+  {
     /* ----------------------------------------------------------------------
      * WE HAVE DIFFERENT OPINION THAN THE DIH THAT STARTED THE TRANSACTION. 
      * THE REASON COULD BE THAT THIS IS AN OLD DISTRIBUTION WHICH IS NO LONGER
@@ -4845,7 +4850,18 @@ void Dblqh::tupkeyConfLab(Signal* signal)
 
   TRACE_OP(regTcPtr, "TUPKEYCONF");
 
-  if (regTcPtr->simpleRead) {
+  if (readLen != 0) 
+  {
+    jam();
+
+    /* SET BIT 15 IN REQINFO */
+    LqhKeyReq::setApplicationAddressFlag(regTcPtr->reqinfo, 1);
+    regTcPtr->readlenAi = readLen;
+  }//if
+
+  if (regTcPtr->operation == ZREAD && 
+      (regTcPtr->opSimple || regTcPtr->dirtyOp))
+  {
     jam();
     /* ----------------------------------------------------------------------
      * THE OPERATION IS A SIMPLE READ. 
@@ -4858,14 +4874,6 @@ void Dblqh::tupkeyConfLab(Signal* signal)
      * --------------------------------------------------------------------- */
     commitContinueAfterBlockedLab(signal);
     return;
-  }//if
-  if (readLen != 0) 
-  {
-    jam();
-
-    /* SET BIT 15 IN REQINFO */
-    LqhKeyReq::setApplicationAddressFlag(regTcPtr->reqinfo, 1);
-    regTcPtr->readlenAi = readLen;
   }//if
   regTcPtr->totSendlenAi = writeLen;
   ndbrequire(regTcPtr->totSendlenAi == regTcPtr->currTupAiLen);
@@ -5245,12 +5253,15 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
 /*                                                                           */
 /* ------------------------------------------------------------------------- */
     sendLqhkeyconfTc(signal, regTcPtr->tcBlockref);
-    if (regTcPtr->dirtyOp != ZTRUE) {
+    if (! (regTcPtr->dirtyOp || 
+           (regTcPtr->operation == ZREAD && regTcPtr->opSimple)))
+    {
       jam();
       regTcPtr->transactionState = TcConnectionrec::PREPARED;
       releaseOprec(signal);
     } else {
       jam();
+
 /*************************************************************>*/
 /*       DIRTY WRITES ARE USED IN TWO SITUATIONS. THE FIRST    */
 /*       SITUATION IS WHEN THEY ARE USED TO UPDATE COUNTERS AND*/
@@ -6490,8 +6501,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
   Ptr<TcConnectionrec> regTcPtr = tcConnectptr;
   Ptr<Fragrecord> regFragptr = fragptr;
   Uint32 operation = regTcPtr.p->operation;
-  Uint32 simpleRead = regTcPtr.p->simpleRead;
   Uint32 dirtyOp = regTcPtr.p->dirtyOp;
+  Uint32 opSimple = regTcPtr.p->opSimple;
   if (regTcPtr.p->activeCreat != Fragrecord::AC_IGNORED) {
     if (operation != ZREAD) {
       TupCommitReq * const tupCommitReq = 
@@ -6550,20 +6561,29 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
 	EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
       }
       
-      if (simpleRead) {
+      if (dirtyOp) 
+      {
 	jam();
-/* ------------------------------------------------------------------------- */
-/*THE OPERATION WAS A SIMPLE READ THUS THE COMMIT PHASE IS ONLY NEEDED TO    */
-/*RELEASE THE LOCKS. AT THIS POINT IN THE CODE THE LOCKS ARE RELEASED AND WE */
-/*ARE IN A POSITION TO SEND LQHKEYCONF TO TC. WE WILL ALSO RELEASE ALL       */
-/*RESOURCES BELONGING TO THIS OPERATION SINCE NO MORE WORK WILL BE           */
-/*PERFORMED.                                                                 */
-/* ------------------------------------------------------------------------- */
+        /**
+         * The dirtyRead does not send anything but TRANSID_AI from LDM
+         */
 	fragptr = regFragptr;
 	tcConnectptr = regTcPtr;
 	cleanUp(signal);
 	return;
-      }//if
+      }
+
+      /**
+       * The simpleRead will send a LQHKEYCONF
+       *   but have already released the locks
+       */
+      if (opSimple)
+      {
+	fragptr = regFragptr;
+	tcConnectptr = regTcPtr;
+        packLqhkeyreqLab(signal);
+        return;
+      }
     }
   }//if
   jamEntry();
@@ -7173,7 +7193,7 @@ void Dblqh::abortStateHandlerLab(Signal* signal)
 /* ------------------------------------------------------------------------- */
       return;
     }//if
-    if (regTcPtr->simpleRead) {
+    if (regTcPtr->opSimple) {
       jam();
 /* ------------------------------------------------------------------------- */
 /*A SIMPLE READ IS CURRENTLY RELEASING THE LOCKS OR WAITING FOR ACCESS TO    */
@@ -7441,7 +7461,8 @@ void Dblqh::continueAbortLab(Signal* signal)
 void Dblqh::continueAfterLogAbortWriteLab(Signal* signal) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (regTcPtr->simpleRead) {
+  if (regTcPtr->operation == ZREAD && regTcPtr->dirtyOp)
+  {
     jam();
     TcKeyRef * const tcKeyRef = (TcKeyRef *) signal->getDataPtrSend();
     
@@ -10159,51 +10180,63 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
 
   CRASH_INSERTION(5045);
 
-  Uint32 max_page_no = 0;
-  if (getOwnNodeId() == req.copyNodeId)
+  tabptr.i = req.tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+
+  Uint32 max_page = RNIL;
+  
+  if (getOwnNodeId() != req.startingNodeId)
   {
     jam();
-    //max_page_no = c_tup->get_max_page_no(req.tableId, req.fragId);
-  }
-  else
-  {
-    jam();
-    ndbrequire(getOwnNodeId() == req.startingNodeId);
+    /**
+     * This is currently dead code...
+     *   but is provided so we can impl. a better scan+delete on
+     *   starting node wo/ having to change running node
+     */
+    ndbrequire(getOwnNodeId() == req.copyNodeId);
+    c_tup->get_frag_info(req.tableId, req.fragId, &max_page);    
 
-    tabptr.i = req.tableId;
-    ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-
-    if (! DictTabInfo::isOrderedIndex(tabptr.p->tableType))
-    {
-      jam();
-      ndbrequire(getFragmentrec(signal, req.fragId));
-      fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
-      fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
-      fragptr.p->logFlag = Fragrecord::STATE_FALSE;
-      
-      /**
-       *
-       */
-      if (cstartType == NodeState::ST_SYSTEM_RESTART)
-      {
-        jam();
-        signal->theData[0] = fragptr.p->tabRef;
-        signal->theData[1] = fragptr.p->fragId;
-        sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
-      }
+    PrepareCopyFragConf* conf = (PrepareCopyFragConf*)signal->getDataPtrSend();
+    conf->senderData = req.senderData;
+    conf->senderRef = reference();
+    conf->tableId = req.tableId;
+    conf->fragId = req.fragId;
+    conf->copyNodeId = req.copyNodeId;
+    conf->startingNodeId = req.startingNodeId;
+    conf->maxPageNo = max_page;
+    sendSignal(req.senderRef, GSN_PREPARE_COPY_FRAG_CONF,
+               signal, PrepareCopyFragConf::SignalLength, JBB);  
     
-    
-      /**
-       *
-       */
-      Uint32 copyVersion = getNodeInfo(req.copyNodeId).m_version;
-      if (copyVersion >= NDBD_PREPARE_COPY_FRAG_VERSION)
-      {
-        jam();
-      }
-    }
+    return;
   }
   
+  if (! DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+  {
+    jam();
+    ndbrequire(getFragmentrec(signal, req.fragId));
+    
+    /**
+     *
+     */
+    if (cstartType == NodeState::ST_SYSTEM_RESTART)
+    {
+      jam();
+      signal->theData[0] = fragptr.p->tabRef;
+      signal->theData[1] = fragptr.p->fragId;
+      sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+    }
+    
+    
+    /**
+     *
+     */
+    fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
+    fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
+    fragptr.p->logFlag = Fragrecord::STATE_FALSE;
+
+    c_tup->get_frag_info(req.tableId, req.fragId, &max_page);
+  }    
+    
   PrepareCopyFragConf* conf = (PrepareCopyFragConf*)signal->getDataPtrSend();
   conf->senderData = req.senderData;
   conf->senderRef = reference();
@@ -10211,9 +10244,9 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
   conf->fragId = req.fragId;
   conf->copyNodeId = req.copyNodeId;
   conf->startingNodeId = req.startingNodeId;
-  conf->maxPageNo = max_page_no;
+  conf->maxPageNo = max_page;
   sendSignal(req.senderRef, GSN_PREPARE_COPY_FRAG_CONF,
-	     signal, PrepareCopyFragConf::SignalLength, JBB);
+             signal, PrepareCopyFragConf::SignalLength, JBB);  
 }
 
 /* *************************************** */
@@ -10250,6 +10283,13 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     ndbrequire(nodeCount <= MAX_REPLICAS);
     for (i = 0; i<nodeCount; i++)
       nodemask.set(copyFragReq->nodeList[i]);
+  }
+  Uint32 maxPage = copyFragReq->nodeList[nodeCount];
+  Uint32 version = getNodeInfo(refToNode(userRef)).m_version;
+  if (ndb_check_prep_copy_frag_version(version) < 2)
+  {
+    jam();
+    maxPage = RNIL;
   }
     
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
@@ -10327,14 +10367,15 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   req->requestInfo = 0;
   AccScanReq::setLockMode(req->requestInfo, 0);
   AccScanReq::setReadCommittedFlag(req->requestInfo, 0);
-  AccScanReq::setNRScanFlag(req->requestInfo, gci ? 1 : 0);
+  AccScanReq::setNRScanFlag(req->requestInfo, 1);
   AccScanReq::setNoDiskScanFlag(req->requestInfo, 1);
 
   req->transId1 = tcConnectptr.p->transid[0];
   req->transId2 = tcConnectptr.p->transid[1];
   req->savePointId = tcConnectptr.p->savePointId;
+  req->maxPage = maxPage;
   sendSignal(scanptr.p->scanBlockref, GSN_ACC_SCANREQ, signal, 
-	     AccScanReq::SignalLength, JBB);
+	     AccScanReq::SignalLength + 1, JBB);
   
   if (! nodemask.isclear())
   {
@@ -14270,11 +14311,16 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
       fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;	
     }
 
-    c_tup->disk_restart_mark_no_lcp(tabptr.i, fragId);
+    c_tup->disk_restart_lcp_id(tabptr.i, fragId, RNIL);
     jamEntry();
-
     return;
-  }//if
+  }
+  else
+  {
+    jam();
+    c_tup->disk_restart_lcp_id(tabptr.i, fragId, lcpId);
+    jamEntry();
+  }
 
   c_lcpId = (c_lcpId == 0 ? lcpId : c_lcpId);
   c_lcpId = (c_lcpId < lcpId ? c_lcpId : lcpId);
@@ -19429,7 +19475,6 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     ndbout << " operation = " << tcRec.p->operation<<endl;
     ndbout << " tcNodeFailrec = " << tcRec.p->tcNodeFailrec
 	   << " seqNoReplica = " << tcRec.p->seqNoReplica
-	   << " simpleRead = " << tcRec.p->simpleRead
 	   << endl;
     ndbout << " replicaType = " << tcRec.p->replicaType
 	   << " reclenAiLqhkey = " << tcRec.p->reclenAiLqhkey

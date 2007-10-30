@@ -210,6 +210,7 @@ extern NDB_SHARE *ndb_schema_share;
 extern THD *injector_thd;
 extern my_bool ndb_binlog_running;
 extern my_bool ndb_binlog_tables_inited;
+extern my_bool ndb_binlog_is_ready;
 
 bool
 ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
