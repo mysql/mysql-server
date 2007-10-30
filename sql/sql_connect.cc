@@ -975,12 +975,12 @@ void end_connection(THD *thd)
     decrease_user_connections(thd->user_connect);
 
   if (thd->killed ||
-      net->error && net->vio != 0 && net->report_error)
+      net->error && net->vio != 0 && thd->is_error())
   {
     statistic_increment(aborted_threads,&LOCK_status);
   }
 
-  if (net->error && net->vio != 0 && net->report_error)
+  if (net->error && net->vio != 0 && thd->is_error())
   {
     if (!thd->killed && thd->variables.log_warnings > 1)
     {
@@ -1030,7 +1030,7 @@ static void prepare_new_connection_state(THD* thd)
   if (sys_init_connect.value_length && !(sctx->master_access & SUPER_ACL))
   {
     execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
-    if (thd->net.report_error)
+    if (thd->is_error())
     {
       thd->killed= THD::KILL_CONNECTION;
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
