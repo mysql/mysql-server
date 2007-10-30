@@ -1,1 +1,1 @@
---default-storage-engine=ndbcluster 
+--default-storage-engine=ndbcluster --new --ndb_log_updated_only=0
