@@ -85,7 +85,8 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
 static bool write_execute_load_query_log_event(THD *thd,
 					       bool duplicates, bool ignore,
-					       bool transactional_table);
+					       bool transactional_table,
+                                               THD::killed_state killed_status);
 #endif /* EMBEDDED_LIBRARY */
 
 /*
@@ -134,6 +135,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
   bool transactional_table;
+  THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_load");
 
 #ifdef EMBEDDED_LIBRARY
@@ -403,7 +405,16 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   free_blobs(table);				/* if pack_blob was used */
   table->copy_blobs=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-
+  /* 
+     simulated killing in the middle of per-row loop
+     must be effective for binlogging
+  */
+  DBUG_EXECUTE_IF("simulate_kill_bug27571",
+                  {
+                    error=1;
+                    thd->killed= THD::KILL_QUERY;
+                  };);
+  killed_status= (error == 0)? THD::NOT_KILLED : thd->killed;
   /*
     We must invalidate the table in query cache before binlog writing and
     ha_autocommit_...
@@ -419,6 +430,12 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (mysql_bin_log.is_open())
     {
       {
+<<<<<<< gca sql/sql_load.cc 1.78.1.39
+	if (thd->transaction.stmt.modified_non_trans_table)
+	  write_execute_load_query_log_event(thd, handle_duplicates,
+					     ignore, transactional_table);
+	else
+<<<<<<< local sql/sql_load.cc 1.131
 	/*
 	  Make sure last block (the one which caused the error) gets
 	  logged.  This is needed because otherwise after write of (to
@@ -444,6 +461,13 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	read_info.end_io_cache();
 	/* If the file was not empty, wrote_create_file is true */
 	if (lf_info.wrote_create_file)
+<<<<<<< remote sql/sql_load.cc 1.78.1.40
+	if (thd->transaction.stmt.modified_non_trans_table)
+	  write_execute_load_query_log_event(thd, handle_duplicates,
+					     ignore, transactional_table,
+                                             killed_status);
+	else
+>>>>>>>
 	{
 	  if (thd->transaction.stmt.modified_non_trans_table)
 	    write_execute_load_query_log_event(thd, handle_duplicates,
@@ -473,6 +497,16 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (mysql_bin_log.is_open())
   {
     /*
+<<<<<<< gca sql/sql_load.cc 1.78.1.39
+      As already explained above, we need to call end_io_cache() or the last
+      block will be logged only after Execute_load_query_log_event (which is
+      wrong), when read_info is destroyed.
+    */
+    read_info.end_io_cache();
+    if (lf_info.wrote_create_file)
+      write_execute_load_query_log_event(thd, handle_duplicates,
+					 ignore, transactional_table);
+<<<<<<< local sql/sql_load.cc 1.131
       We need to do the job that is normally done inside
       binlog_query() here, which is to ensure that the pending event
       is written before tables are unlocked and before any other
@@ -496,6 +530,17 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                                            ignore, transactional_table);
       }
     }
+<<<<<<< remote sql/sql_load.cc 1.78.1.40
+      As already explained above, we need to call end_io_cache() or the last
+      block will be logged only after Execute_load_query_log_event (which is
+      wrong), when read_info is destroyed.
+    */
+    read_info.end_io_cache();
+    if (lf_info.wrote_create_file)
+      write_execute_load_query_log_event(thd, handle_duplicates,
+					 ignore, transactional_table,
+                                         killed_status);
+>>>>>>>
   }
 #endif /*!EMBEDDED_LIBRARY*/
   if (transactional_table)
@@ -523,7 +568,8 @@ err:
 /* Not a very useful function; just to avoid duplication of code */
 static bool write_execute_load_query_log_event(THD *thd,
 					       bool duplicates, bool ignore,
-					       bool transactional_table)
+					       bool transactional_table,
+                                               THD::killed_state killed_err_arg)
 {
   Execute_load_query_log_event
     e(thd, thd->query, thd->query_length,
@@ -531,8 +577,14 @@ static bool write_execute_load_query_log_event(THD *thd,
       (char*)thd->lex->fname_end - (char*)thd->query,
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
+<<<<<<< gca sql/sql_load.cc 1.78.1.39
+      transactional_table, FALSE);
+<<<<<<< local sql/sql_load.cc 1.131
       transactional_table, FALSE);
   e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
+<<<<<<< remote sql/sql_load.cc 1.78.1.40
+      transactional_table, FALSE, killed_err_arg);
+>>>>>>>
   return mysql_bin_log.write(&e);
 }
 
