@@ -370,7 +370,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   thd->abort_on_warning= save_abort_on_warning;
   thd->transaction.stmt.modified_non_trans_table= save_stmt_modified_non_trans_table;
 
-  if (thd->net.report_error)
+  if (thd->is_error())
   {
     /* Return error status if something went wrong. */
     err_status= TRUE;
@@ -1277,7 +1277,7 @@ sp_head::execute(THD *thd)
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
 		      err_status, thd->killed, thd->is_slave_error,
-                      thd->net.report_error));
+                      thd->is_error()));
 
   if (thd->killed)
     err_status= TRUE;
@@ -2673,7 +2673,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
     cleanup_items() is called in sp_head::execute()
   */
-  DBUG_RETURN(res || thd->net.report_error);
+  DBUG_RETURN(res || thd->is_error());
 }
 
 

@@ -252,10 +252,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   table->mark_columns_needed_for_delete();
 
   while (!(error=info.read_record(&info)) && !thd->killed &&
-	 !thd->net.report_error)
+	 ! thd->is_error())
   {
-    // thd->net.report_error is tested to disallow delete row on error
-    if (!(select && select->skip_record())&& !thd->net.report_error )
+    // thd->is_error() is tested to disallow delete row on error
+    if (!(select && select->skip_record())&& ! thd->is_error() )
     {
 
       if (table->triggers &&
@@ -389,7 +389,7 @@ cleanup:
     send_ok(thd, (ha_rows) thd->row_count_func);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
-  DBUG_RETURN(error >= 0 || thd->net.report_error);
+  DBUG_RETURN(error >= 0 || thd->is_error());
 }
 
 
