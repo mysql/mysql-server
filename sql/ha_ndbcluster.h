@@ -190,6 +190,21 @@ struct Ndb_tuple_id_range_guard {
 #define NSF_HIDDEN_PK 1 /* table has hidden primary key */
 #define NSF_BLOB_FLAG 2 /* table has blob attributes */
 #define NSF_NO_BINLOG 4 /* table should not be binlogged */
+#define NSF_BINLOG_FULL        8 /* table should be binlogged with full rows */
+#define NSF_BINLOG_USE_UPDATE 16  /* table update should be binlogged using
+                                     update log event */
+inline void set_binlog_nologging(NDB_SHARE *share)
+{ share->flags|= NSF_NO_BINLOG; }
+inline my_bool get_binlog_nologging(NDB_SHARE *share)
+{ return (share->flags & NSF_NO_BINLOG) != 0; }
+inline void set_binlog_full(NDB_SHARE *share)
+{ share->flags|= NSF_BINLOG_FULL; }
+inline my_bool get_binlog_full(NDB_SHARE *share)
+{ return (share->flags & NSF_BINLOG_FULL) != 0; }
+inline void set_binlog_use_update(NDB_SHARE *share)
+{ share->flags|= NSF_BINLOG_USE_UPDATE; }
+inline my_bool get_binlog_use_update(NDB_SHARE *share)
+{ return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 #endif
 
 typedef enum ndb_query_state_bits {

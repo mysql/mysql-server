@@ -11,8 +11,6 @@
 ##############################################################################
 
 
-rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
-rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
 rpl_ndb_2other           : BUG#21842 2007-08-30 tsmith test has never worked on bigendian (sol10-sparc-a, powermacg5
 rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
 rpl_ndb_innodb2ndb       : Bug#29549 rpl_ndb_myisam2ndb,rpl_ndb_innodb2ndb failed on Solaris for pack_length issue

@@ -35,6 +35,9 @@
 
 extern my_bool opt_ndb_log_orig;
 
+extern my_bool opt_ndb_log_update_as_write;
+extern my_bool opt_ndb_log_updated_only;
+
 /*
   defines for cluster replication table names
 */
@@ -2337,7 +2340,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             Start subscribing to data changes to the new table definition
           */
           String event_name(INJECTOR_EVENT_LEN);
-          ndb_rep_event_name(&event_name, schema->db, schema->name);
+          ndb_rep_event_name(&event_name, schema->db, schema->name,
+                             get_binlog_full(share));
           NdbEventOperation *tmp_op= share->op;
           share->new_op= 0;
           share->op= 0;
@@ -2671,15 +2675,28 @@ int ndbcluster_binlog_start()
   used by the client sql threads
 **************************************************************/
 void
-ndb_rep_event_name(String *event_name,const char *db, const char *tbl)
+ndb_rep_event_name(String *event_name,const char *db, const char *tbl,
+                   my_bool full)
 {
-  event_name->set_ascii("REPL$", 5);
+  if (full)
+    event_name->set_ascii("REPLF$", 6);
+  else
+    event_name->set_ascii("REPL$", 5);
   event_name->append(db);
   if (tbl)
   {
     event_name->append('/');
     event_name->append(tbl);
   }
+  DBUG_PRINT("info", ("ndb_rep_event_name: %s", event_name->c_ptr()));
+}
+
+void set_binlog_flags(NDB_SHARE *share)
+{
+  if (!opt_ndb_log_update_as_write)
+    set_binlog_use_update(share);
+  if (!opt_ndb_log_updated_only)
+    set_binlog_full(share);
 }
 
 bool
@@ -2755,7 +2772,7 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
 
   if (share && share_may_exist)
   {
-    if (share->flags & NSF_NO_BINLOG ||
+    if (get_binlog_nologging(share) ||
         share->op != 0 ||
         share->new_op != 0)
     {
@@ -2811,7 +2828,7 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
 
   if (!do_event_op)
   {
-    share->flags|= NSF_NO_BINLOG;
+    set_binlog_nologging(share);
     pthread_mutex_unlock(&ndbcluster_mutex);
     DBUG_RETURN(0);
   }
@@ -2840,8 +2857,13 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
                               dict->getNdbError().code);
       break; // error
     }
+
+    /*
+     */
+    set_binlog_flags(share);
+
     String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, db, table_name);
+    ndb_rep_event_name(&event_name, db, table_name, get_binlog_full(share));
     /*
       event should have been created by someone else,
       but let's make sure, and create if it doesn't exist
@@ -2939,8 +2961,16 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
     if (ndb_schema_share || strcmp(share->db, NDB_REP_DB) ||
         strcmp(share->table_name, NDB_SCHEMA_TABLE))
     {
-      my_event.setReport(NDBEVENT::ER_UPDATED);
-      DBUG_PRINT("info", ("subscription only updated"));
+      if (get_binlog_full(share))
+      {
+        my_event.setReport(NDBEVENT::ER_ALL);
+        DBUG_PRINT("info", ("subscription all"));
+      }
+      else
+      {
+        my_event.setReport(NDBEVENT::ER_UPDATED);
+        DBUG_PRINT("info", ("subscription only updated"));
+      }
     }
     else
     {
@@ -3290,18 +3320,32 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
                      share->key, (long) share->op, share->use_count));
 
   if (ndb_extra_logging)
-    sql_print_information("NDB Binlog: logging %s", share->key);
+    sql_print_information("NDB Binlog: logging %s (%s,%s)", share->key,
+                          get_binlog_full(share) ? "FULL" : "UPDATED",
+                          get_binlog_use_update(share) ? "USE_UPDATE" : "USE_WRITE");
   DBUG_RETURN(0);
 }
 
 int
-ndbcluster_drop_event(THD *thd, Ndb *ndb, const char *event_name,
-                      NDB_SHARE *share, const char *type_str)
+ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
+                      const char *type_str,
+                      const char *event_name_prefix)
 {
   DBUG_ENTER("ndbcluster_drop_event");
-  NDBDICT *dict= ndb->getDictionary();
-  if (event_name && dict->dropEvent(event_name))
+  /*
+    There might be 2 types of events setup for the table, we cannot know
+    which ones are supposed to be there as they may have been created
+    differently for different mysqld's.  So we drop both
+  */
+  for (uint i= 0; event_name_prefix && i < 2; i++)
   {
+    NDBDICT *dict= ndb->getDictionary();
+    String event_name(INJECTOR_EVENT_LEN);
+    ndb_rep_event_name(&event_name, event_name_prefix, 0, i);
+
+    if (!dict->dropEvent(event_name.c_ptr()))
+      continue;
+
     if (dict->getNdbError().code != 4710)
     {
       /* drop event failed for some reason, issue a warning */
@@ -3312,7 +3356,7 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, const char *event_name,
       /* error is not that the event did not exist */
       sql_print_error("NDB Binlog: Unable to drop event in database. "
                       "Event: %s Error Code: %d Message: %s",
-                      event_name,
+                      event_name.c_ptr(),
                       dict->getNdbError().code,
                       dict->getNdbError().message);
       /* ToDo; handle error? */
@@ -3372,12 +3416,13 @@ ndbcluster_handle_alter_table(THD *thd, NDB_SHARE *share, const char *type_str)
 */
 
 int
-ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, const char *event_name,
-                             NDB_SHARE *share, const char *type_str)
+ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
+                             const char *type_str,
+                             const char *event_name_prefix)
 {
   DBUG_ENTER("ndbcluster_handle_drop_table");
 
-  if (ndbcluster_drop_event(thd, ndb, event_name, share, type_str))
+  if (ndbcluster_drop_event(thd, ndb, share, type_str, event_name_prefix))
     DBUG_RETURN(-1);
 
   if (share == 0 || share->op == 0)
@@ -3943,7 +3988,8 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       ndb_unpack_record(table, event_data->ndb_value[0],
                         &b, table->record[0]);
       DBUG_EXECUTE("info", print_records(table, table->record[0]););
-      if (table->s->primary_key != MAX_KEY) 
+      if (table->s->primary_key != MAX_KEY &&
+          !get_binlog_use_update(share)) 
       {
         /*
           since table has a primary key, we can do a write
