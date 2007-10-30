@@ -528,9 +528,8 @@ buf_buddy_relocate(
 	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_ad(!ut_align_offset(src, size));
 	ut_ad(!ut_align_offset(dst, size));
-#ifdef UNIV_DEBUG_VALGRIND
-	VALGRIND_CHECK_MEM_IS_ADDRESSABLE(dst, BUF_BUDDY_LOW << i);
-#endif /* UNIV_DEBUG_VALGRIND */
+	UNIV_MEM_ASSERT_RW(src, size);
+	UNIV_MEM_ASSERT_W(dst, size);
 
 	/* We assume that all memory from buf_buddy_alloc()
 	is used for either compressed pages or buf_page_t
