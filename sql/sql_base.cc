@@ -44,7 +44,7 @@ public:
 
   virtual ~Prelock_error_handler() {}
 
-  virtual bool handle_error(uint sql_errno,
+  virtual bool handle_error(uint sql_errno, const char *message,
                             MYSQL_ERROR::enum_warning_level level,
                             THD *thd);
 
@@ -58,6 +58,7 @@ private:
 
 bool
 Prelock_error_handler::handle_error(uint sql_errno,
+                                    const char * /* message */,
                                     MYSQL_ERROR::enum_warning_level /* level */,
                                     THD * /* thd */)
 {

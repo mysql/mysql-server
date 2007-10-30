@@ -969,6 +969,7 @@ public:
     @return true if the error is handled
   */
   virtual bool handle_error(uint sql_errno,
+                            const char *message,
                             MYSQL_ERROR::enum_warning_level level,
                             THD *thd) = 0;
 };
@@ -1923,7 +1924,7 @@ public:
     @param level the error level
     @return true if the error is handled
   */
-  virtual bool handle_error(uint sql_errno,
+  virtual bool handle_error(uint sql_errno, const char *message,
                             MYSQL_ERROR::enum_warning_level level);
 
   /**

@@ -72,13 +72,14 @@ public:
 
   virtual ~Silence_log_table_errors() {}
 
-  virtual bool handle_error(uint sql_errno,
+  virtual bool handle_error(uint sql_errno, const char *message,
                             MYSQL_ERROR::enum_warning_level level,
                             THD *thd);
 };
 
 bool
 Silence_log_table_errors::handle_error(uint /* sql_errno */,
+                                       const char * /* message */,
                                        MYSQL_ERROR::enum_warning_level /* level */,
                                        THD * /* thd */)
 {
