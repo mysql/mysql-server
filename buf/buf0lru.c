@@ -949,6 +949,7 @@ buf_LRU_free_block(
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
 	ut_ad(!bpage->in_flush_list == !bpage->oldest_modification);
+	UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
 
 	if (!buf_page_can_relocate(bpage)) {
 
