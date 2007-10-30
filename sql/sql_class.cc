@@ -1368,7 +1368,7 @@ bool select_send::send_data(List<Item> &items)
   thd->sent_row_count++;
   if (!thd->vio_ok())
     DBUG_RETURN(0);
-  if (!thd->net.report_error)
+  if (! thd->is_error())
     DBUG_RETURN(protocol->write());
   protocol->remove_last_row();
   DBUG_RETURN(1);
@@ -1389,7 +1389,7 @@ bool select_send::send_eof()
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  if (!thd->net.report_error)
+  if (! thd->is_error())
   {
     ::send_eof(thd);
     status= 0;
