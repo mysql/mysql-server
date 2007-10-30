@@ -66,7 +66,7 @@ tags:
   test-pl test-force-pl test-full-pl test-force-full-pl test-force-pl-mem \
   test-unit test-ps test-nr test-pr test-ns test-binlog-statement \
   test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp \
-  test-ext-stress test-ext \
+  test-ext-stress test-ext test-embedded \
   test-fast test-fast-cursor test-fast-view test-fast-prepare \
   test-full-qa
 
@@ -101,6 +101,15 @@ test-binlog-statement:
 	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
 
+test-embedded:
+	if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
+	  cd mysql-test ; MTR_BUILD_THREAD=auto \
+	  @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
+	    --embedded-server --skip-rpl --skip-ndbcluster ; \
+	else \
+	  echo "no program found for 'embedded' tests - skipped testing" ; \
+	fi
+
 test:	test-unit test-ns test-pr
 
 test-full:	test test-nr test-ps
@@ -131,11 +140,7 @@ test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --comment=NDB            --force --timer \
 	--with-ndbcluster-only
-	-if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
-	  cd mysql-test ; MTR_BUILD_THREAD=auto \
-	  @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
-	    --embedded-server --skip-rpl --skip-ndbcluster ; \
-	fi
+	-$(MAKE) test-embedded
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs1_ps --ps-protocol --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
