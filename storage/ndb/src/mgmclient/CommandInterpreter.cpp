@@ -271,8 +271,8 @@ static const char* helpText =
 "CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off\n"
 "CLUSTERLOG INFO                        Print cluster log information\n"
 "<id> START                             Start data node (started with -n)\n"
-"<id> RESTART [-n] [-i]                 Restart data or management server node\n"
-"<id> STOP                              Stop data or management server node\n"
+"<id> RESTART [-n] [-i] [-a]            Restart data or management server node\n"
+"<id> STOP [-a]                         Stop data or management server node\n"
 "ENTER SINGLE USER MODE <id>            Enter single user mode\n"
 "EXIT SINGLE USER MODE                  Exit single user mode\n"
 "<id> STATUS                            Print status\n"
@@ -437,7 +437,7 @@ static const char* helpTextRestart =
 " NDB Cluster -- Management Client -- Help for RESTART command\n"
 "---------------------------------------------------------------------------\n"
 "RESTART  Restart data or management server node\n\n"
-"<id> RESTART [-n] [-i] \n"
+"<id> RESTART [-n] [-i] [-a]\n"
 "                   Restart the data or management node <id>(or All data nodes).\n\n"
 "                   -n (--nostart) restarts the node but does not\n"
 "                   make it join the cluster. Use '<id> START' to\n"
@@ -448,6 +448,7 @@ static const char* helpTextRestart =
 "                   in the same node group during start up.\n\n"
 "                   Consult the documentation before using -i.\n\n" 
 "                   INCORRECT USE OF -i WILL CAUSE DATA LOSS!\n"
+"                   -a Aborts the node, not syncing GCP.\n"
 ;
 
 static const char* helpTextStop =
@@ -455,10 +456,11 @@ static const char* helpTextStop =
 " NDB Cluster -- Management Client -- Help for STOP command\n"
 "---------------------------------------------------------------------------\n"
 "STOP  Stop data or management server node\n\n"
-"<id> STOP          Stop the data or management server node <id>.\n\n"
+"<id> STOP [-a]     Stop the data or management server node <id>.\n\n"
 "                   ALL STOP will just stop all data nodes.\n\n"
 "                   If you desire to also shut down management servers,\n"
-"                   use SHUTDOWN instead.\n" 
+"                   use SHUTDOWN instead.\n"
+"                   -a Aborts the node, not syncing GCP.\n"
 ;
 
 static const char* helpTextEnterSingleUserMode =

@@ -97,7 +97,23 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       }
     }
 
-    bits |= AccScanReq::getNRScanFlag(req->requestInfo) ? ScanOp::SCAN_NR : 0;
+    if (AccScanReq::getNRScanFlag(req->requestInfo))
+    {
+      jam();
+      bits |= ScanOp::SCAN_NR;
+      scanPtr.p->m_endPage = req->maxPage;
+      if (req->maxPage != RNIL && req->maxPage > frag.noOfPages)
+      {
+         ndbout_c("%u %u endPage: %u (noOfPages: %u)", 
+                   tablePtr.i, fragId,
+                   req->maxPage, fragPtr.p->noOfPages);
+      }
+    }
+    else
+    {
+      jam();
+      scanPtr.p->m_endPage = RNIL;
+    }
     
     // set up scan op
     new (scanPtr.p) ScanOp();
@@ -542,7 +558,7 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
   // in the future should not pre-allocate pages
-  if (frag.noOfPages == 0) {
+  if (frag.noOfPages == 0 && ((bits & ScanOp::SCAN_NR) == 0)) {
     jam();
     scan.m_state = ScanOp::Last;
     return;
@@ -634,11 +650,23 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         key.m_page_no++;
         if (key.m_page_no >= frag.noOfPages) {
           jam();
+
+          if ((bits & ScanOp::SCAN_NR) && (scan.m_endPage != RNIL))
+          {
+            jam();
+            if (key.m_page_no < scan.m_endPage)
+            {
+              jam();
+              ndbout_c("scanning page %u", key.m_page_no);
+              goto cont;
+            }
+          }
           // no more pages, scan ends
           pos.m_get = ScanPos::Get_undef;
           scan.m_state = ScanOp::Last;
           return true;
         }
+    cont:
         key.m_page_idx = 0;
         pos.m_get = ScanPos::Get_page_mm;
         // clear cached value
@@ -656,6 +684,11 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           if (pos.m_realpid_mm == RNIL)
           {
             jam();
+            if (bits & ScanOp::SCAN_NR)
+            {
+              jam();
+              goto nopage;
+            }
             pos.m_get = ScanPos::Get_next_page_mm;
             break; // incr loop count
           }
@@ -666,9 +699,18 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         if (pagePtr.p->page_state == ZEMPTY_MM) {
           // skip empty page
           jam();
-          pos.m_get = ScanPos::Get_next_page_mm;
-          break; // incr loop count
+          if (! (bits & ScanOp::SCAN_NR))
+          {
+            pos.m_get = ScanPos::Get_next_page_mm;
+            break; // incr loop count
+          }
+          else
+          {
+            jam();
+            pos.m_realpid_mm = RNIL;
+          }
         }
+    nopage:
         pos.m_page = pagePtr.p;
         pos.m_get = ScanPos::Get_tuple;
       }
@@ -781,7 +823,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  uncommitted = committed = ~(unsigned)0;
 	  int ret = tsman.get_page_free_bits(&key, &uncommitted, &committed);
 	  ndbrequire(ret == 0);
-	  if (committed == 0) {
+	  if (committed == 0 && uncommitted == 0) {
 	    // skip empty page
 	    jam();
 	    pos.m_get = ScanPos::Get_next_page_dd;
@@ -829,11 +871,11 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	{
 	  pos.m_get = ScanPos::Get_next_tuple_fs;
           th = (Tuple_header*)&page->m_data[key.m_page_idx];
-	  thbits = th->m_header_bits;
 	  
 	  if (likely(! (bits & ScanOp::SCAN_NR)))
 	  {
 	    jam();
+            thbits = th->m_header_bits;
 	    if (! (thbits & Tuple_header::FREE))
 	    {
               goto found_tuple;
@@ -841,7 +883,15 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  }
 	  else
 	  {
-	    if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI)
+            if (pos.m_realpid_mm == RNIL)
+            {
+              jam();
+              foundGCI = 0;
+              goto found_deleted_rowid;
+            }
+            thbits = th->m_header_bits;
+	    if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI ||
+                foundGCI == 0)
 	    {
 	      if (! (thbits & Tuple_header::FREE))
 	      {
@@ -913,7 +963,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  
 	  Fix_page *mmpage = (Fix_page*)c_page_pool.getPtr(pos.m_realpid_mm);
 	  th = (Tuple_header*)(mmpage->m_data + key_mm.m_page_idx);
-	  if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI)
+	  if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI ||
+              foundGCI == 0)
 	  {
 	    if (! (thbits & Tuple_header::FREE))
 	      break;

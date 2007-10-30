@@ -92,6 +92,12 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_unique_record_row;
 } NDB_INDEX_DATA;
 
+typedef enum ndb_write_op {
+  NDB_INSERT = 0,
+  NDB_UPDATE = 1,
+  NDB_PK_UPDATE = 2
+} NDB_WRITE_OP;
+
 class NDB_ALTER_DATA : public Sql_alloc
 {
 public:
@@ -499,7 +505,7 @@ private:
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
-  int peek_indexed_rows(const uchar *record, bool check_pk);
+  int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
   int next_result(uchar *buf); 
@@ -550,6 +556,7 @@ private:
                       const MY_BITMAP *bitmap, uint *set_count);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   void eventSetAnyValue(THD *thd, NdbOperation *op);
+  bool check_index_fields_in_write_set(uint keyno);
 
   NdbOperation *pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
                                          NdbOperation::LockMode lm);
@@ -698,6 +705,7 @@ private:
   */
   KEY_MULTI_RANGE *m_multi_range_defined_end;
   const NdbOperation *m_current_multi_operation;
+  NdbIndexScanOperation *m_multi_cursor;
   Ndb *get_ndb();
 };
 

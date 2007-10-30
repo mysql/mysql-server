@@ -38,7 +38,7 @@ show create database mysqltest3;
 
 connection master;
 use mysqltest2;
-create table t1 (a int auto_increment primary key, b varchar(100));
+--eval create table t1 (a int auto_increment primary key, b varchar(100))engine=$engine_type;
 set character_set_client=cp850, collation_connection=latin2_croatian_ci;
 insert into t1 (b) values(@@character_set_server);
 insert into t1 (b) values(@@collation_server);
@@ -146,13 +146,15 @@ set collation_server=9999998;
 
 select "--- --3943--" as "";
 use test;
-CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255));
+--eval CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255))ENGINE=$engine_type;
 SET CHARACTER_SET_CLIENT=koi8r,
  CHARACTER_SET_CONNECTION=cp1251, 
  CHARACTER_SET_RESULTS=koi8r;
 INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку');
+SET SQL_BIG_SELECTS=1;
 select hex(c1), hex(c2) from t1;
 sync_slave_with_master;
+SET SQL_BIG_SELECTS=1;
 select hex(c1), hex(c2) from t1;
 
 connection master;

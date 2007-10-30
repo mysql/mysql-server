@@ -6529,6 +6529,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     m_tblnam(tbl->s->table_name.str),
     m_tbllen(tbl->s->table_name.length),
     m_colcnt(tbl->s->fields), m_field_metadata(0),
+    m_field_metadata_size(0), m_memory(NULL), m_meta_memory(NULL), m_data_size(0),
     m_table_id(tid), m_null_bits(0), m_flags(flags)
 {
   DBUG_ASSERT(m_table_id != ~0UL);
@@ -6605,10 +6606,13 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
   : Log_event(buf, description_event),
 #ifndef MYSQL_CLIENT
-  m_table(NULL),
+    m_table(NULL),
 #endif
-  m_memory(NULL),
-  m_field_metadata(0), m_field_metadata_size(0)
+    m_dbnam(NULL), m_dblen(0), m_tblnam(NULL), m_tbllen(0),
+    m_colcnt(0), m_coltype(0),
+    m_memory(NULL), m_table_id(ULONG_MAX), m_flags(0),
+    m_data_size(0), m_field_metadata(0), m_field_metadata_size(0),
+    m_null_bits(0), m_meta_memory(NULL)
 {
   unsigned int bytes_read= 0;
   DBUG_ENTER("Table_map_log_event::Table_map_log_event(const char*,uint,...)");

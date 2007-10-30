@@ -14,11 +14,15 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <NdbScanFilter.hpp>
+#include <Ndb.hpp>
 #include <NdbOperation.hpp>
 #include "NdbDictionaryImpl.hpp"
 #include <Vector.hpp>
 #include <NdbOut.hpp>
 #include <Interpreter.hpp>
+#include <signaldata/AttrInfo.hpp>
+#include "NdbApiSignal.hpp"
+#include "NdbUtil.hpp"
 
 #ifdef VM_TRACE
 #include <NdbEnv.h>
@@ -52,14 +56,37 @@ public:
   
   int cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, 
 		     const void * value, Uint32 len);
+
+  bool m_abort_on_too_large;
+
+  NdbOperation::OperationStatus m_initial_op_status;
+  Uint32 m_initial_AI_size;
+  Uint32 m_max_size;
+
+  Uint32 get_size() {
+    assert(m_operation->theTotalCurrAI_Len >= m_initial_AI_size);
+    return m_operation->theTotalCurrAI_Len - m_initial_AI_size;
+  }
+  bool check_size() {
+    if (get_size() <= m_max_size)
+      return true;
+    handle_filter_too_large();
+    return false;
+  }
+  void handle_filter_too_large();
+
+  NdbError m_error;
 };
 
 const Uint32 LabelExit = ~0;
 
 
-NdbScanFilter::NdbScanFilter(class NdbOperation * op)
+NdbScanFilter::NdbScanFilter(class NdbOperation * op,
+                             bool abort_on_too_large,
+                             Uint32 max_size)
   : m_impl(* new NdbScanFilterImpl())
 {
+  DBUG_ENTER("NdbScanFilter::NdbScanFilter");
   m_impl.m_current.m_group = (NdbScanFilter::Group)0;
   m_impl.m_current.m_popCount = 0;
   m_impl.m_current.m_ownLabel = 0;
@@ -69,6 +96,21 @@ NdbScanFilter::NdbScanFilter(class NdbOperation * op)
   m_impl.m_latestAttrib = ~0;
   m_impl.m_operation = op;
   m_impl.m_negative = 0;
+
+  DBUG_PRINT("info", ("op status: %d tot AI: %u in curr: %u",
+                      op->theStatus,
+                      op->theTotalCurrAI_Len, op->theAI_LenInCurrAI));
+
+  m_impl.m_abort_on_too_large = abort_on_too_large;
+
+  m_impl.m_initial_op_status = op->theStatus;
+  m_impl.m_initial_AI_size = op->theTotalCurrAI_Len;
+  if (max_size > NDB_MAX_SCANFILTER_SIZE_IN_WORDS)
+    max_size = NDB_MAX_SCANFILTER_SIZE_IN_WORDS;
+  m_impl.m_max_size = max_size;
+
+  m_impl.m_error.code = 0;
+  DBUG_VOID_RETURN;
 }
 
 NdbScanFilter::~NdbScanFilter(){
@@ -200,30 +242,38 @@ NdbScanFilter::end(){
   switch(tmp.m_group){
   case NdbScanFilter::AND:
     if(tmp.m_trueLabel == (Uint32)~0){
-      m_impl.m_operation->interpret_exit_ok();
+      if (m_impl.m_operation->interpret_exit_ok() == -1)
+        return -1;
     } else {
-      m_impl.m_operation->branch_label(tmp.m_trueLabel);
+      if (m_impl.m_operation->branch_label(tmp.m_trueLabel) == -1)
+        return -1;
     }
     break;
   case NdbScanFilter::NAND:
     if(tmp.m_trueLabel == (Uint32)~0){
-      m_impl.m_operation->interpret_exit_nok();
+      if (m_impl.m_operation->interpret_exit_nok() == -1)
+        return -1;
     } else {
-      m_impl.m_operation->branch_label(tmp.m_falseLabel);
+      if (m_impl.m_operation->branch_label(tmp.m_falseLabel) == -1)
+        return -1;
     }
     break;
   case NdbScanFilter::OR:
     if(tmp.m_falseLabel == (Uint32)~0){
-      m_impl.m_operation->interpret_exit_nok();
+      if (m_impl.m_operation->interpret_exit_nok() == -1)
+        return -1;
     } else {
-      m_impl.m_operation->branch_label(tmp.m_falseLabel);
+      if (m_impl.m_operation->branch_label(tmp.m_falseLabel) == -1)
+        return -1;
     }
     break;
   case NdbScanFilter::NOR:
     if(tmp.m_falseLabel == (Uint32)~0){
-      m_impl.m_operation->interpret_exit_ok();
+      if (m_impl.m_operation->interpret_exit_ok() == -1)
+        return -1;
     } else {
-      m_impl.m_operation->branch_label(tmp.m_trueLabel);
+      if (m_impl.m_operation->branch_label(tmp.m_trueLabel) == -1)
+        return -1;
     }
     break;
   default:
@@ -231,24 +281,29 @@ NdbScanFilter::end(){
     return -1;
   }
 
-  m_impl.m_operation->def_label(tmp.m_ownLabel);
+  if (m_impl.m_operation->def_label(tmp.m_ownLabel) == -1)
+    return -1;
 
   if(m_impl.m_stack.size() == 0){
     switch(tmp.m_group){
     case NdbScanFilter::AND:
     case NdbScanFilter::NOR:
-      m_impl.m_operation->interpret_exit_nok();
+      if (m_impl.m_operation->interpret_exit_nok() == -1)
+        return -1;
       break;
     case NdbScanFilter::OR:
     case NdbScanFilter::NAND:
-      m_impl.m_operation->interpret_exit_ok();
+      if (m_impl.m_operation->interpret_exit_ok() == -1)
+        return -1;
       break;
     default:
       m_impl.m_operation->setErrorCodeAbort(4260);
       return -1;
     }
   }
-  
+
+  if (!m_impl.check_size())
+    return -1;
   return 0;
 }
 
@@ -261,10 +316,16 @@ NdbScanFilter::istrue(){
   }
 
   if(m_impl.m_current.m_trueLabel == (Uint32)~0){
-    return m_impl.m_operation->interpret_exit_ok();
+    if (m_impl.m_operation->interpret_exit_ok() == -1)
+      return -1;
   } else {
-    return m_impl.m_operation->branch_label(m_impl.m_current.m_trueLabel);
+    if (m_impl.m_operation->branch_label(m_impl.m_current.m_trueLabel) == -1)
+      return -1;
   }
+
+  if (!m_impl.check_size())
+    return -1;
+  return 0;
 }
 
 int
@@ -276,12 +337,22 @@ NdbScanFilter::isfalse(){
   }
   
   if(m_impl.m_current.m_falseLabel == (Uint32)~0){
-    return m_impl.m_operation->interpret_exit_nok();
+    if (m_impl.m_operation->interpret_exit_nok() == -1)
+      return -1;
   } else {
-    return m_impl.m_operation->branch_label(m_impl.m_current.m_falseLabel);
+    if (m_impl.m_operation->branch_label(m_impl.m_current.m_falseLabel) == -1)
+      return -1;
   }
+
+  if (!m_impl.check_size())
+    return -1;
+  return 0;
 }
 
+NdbOperation * 
+NdbScanFilter::getNdbOperation(){
+  return m_impl.m_operation; 
+}
 
 #define action(x, y, z)
 
@@ -330,7 +401,11 @@ NdbScanFilterImpl::cond_col(Interpreter::UnaryCondition op, Uint32 AttrId){
   }
   
   Branch1 branch = table2[op].m_branches[m_current.m_group];
-  (m_operation->* branch)(AttrId, m_current.m_ownLabel);
+  if ((m_operation->* branch)(AttrId, m_current.m_ownLabel) == -1)
+    return -1;
+
+  if (!check_size())
+    return -1;
   return 0;
 }
 
@@ -463,8 +538,12 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
     return -1;
   }
   
-  int ret = (m_operation->* branch)(AttrId, value, len, false, m_current.m_ownLabel);
-  return ret;
+  if ((m_operation->* branch)(AttrId, value, len, false, m_current.m_ownLabel) == -1)
+    return -1;
+
+  if (!check_size())
+    return -1;
+  return 0;
 }
 
 int
@@ -490,7 +569,130 @@ NdbScanFilter::cmp(BinaryCondition cond, int ColId,
     return m_impl.cond_col_const(Interpreter::NOT_LIKE, ColId, val, len);
   }
   return -1;
-} 
+}
+
+void
+NdbScanFilterImpl::handle_filter_too_large()
+{
+  DBUG_ENTER("NdbScanFilterImpl::handle_filter_too_large");
+
+  NdbOperation* const op = m_operation;
+  m_error.code = NdbScanFilter::FilterTooLarge;
+  if (m_abort_on_too_large)
+    op->setErrorCodeAbort(m_error.code);
+
+  /*
+   * Possible interpreted parts at this point are:
+   *
+   * 1. initial read
+   * 2. interpreted program
+   *
+   * It is assumed that NdbScanFilter has created all of 2
+   * so that we don't have to save interpreter state.
+   */
+
+  const Uint32 size = get_size();
+  assert(size != 0);
+
+  // new ATTRINFO size
+  const Uint32 new_size = m_initial_AI_size;
+
+  // find last signal for new size
+  assert(op->theFirstATTRINFO != NULL);
+  NdbApiSignal* lastSignal = op->theFirstATTRINFO;
+  Uint32 n = 0;
+  while (n + AttrInfo::DataLength < new_size) {
+    lastSignal = lastSignal->next();
+    assert(lastSignal != NULL);
+    n += AttrInfo::DataLength;
+  }
+  assert(n < size);
+
+  // release remaining signals
+  NdbApiSignal* tSignal = lastSignal->next();
+  op->theNdb->releaseSignalsInList(&tSignal);
+  lastSignal->next(NULL);
+
+  // length of lastSignal
+  const Uint32 new_curr = AttrInfo::HeaderLength + new_size - n;
+  assert(new_curr <= 25);
+
+  DBUG_PRINT("info", ("op status: %d->%d tot AI: %u->%u in curr: %u->%u",
+                      op->theStatus, m_initial_op_status,
+                      op->theTotalCurrAI_Len, new_size,
+                      op->theAI_LenInCurrAI, new_curr));
+
+  // reset op state
+  op->theStatus = m_initial_op_status;
+
+  // reset interpreter state to initial
+
+  NdbBranch* tBranch = op->theFirstBranch;
+  while (tBranch != NULL) {
+    NdbBranch* tmp = tBranch;
+    tBranch = tBranch->theNext;
+    op->theNdb->releaseNdbBranch(tmp);
+  }
+  op->theFirstBranch = NULL;
+  op->theLastBranch = NULL;
+
+  NdbLabel* tLabel = op->theFirstLabel;
+  while (tLabel != NULL) {
+    NdbLabel* tmp = tLabel;
+    tLabel = tLabel->theNext;
+    op->theNdb->releaseNdbLabel(tmp);
+  }
+  op->theFirstLabel = NULL;
+  op->theLastLabel = NULL;
+
+  NdbCall* tCall = op->theFirstCall;
+  while (tCall != NULL) {
+    NdbCall* tmp = tCall;
+    tCall = tCall->theNext;
+    op->theNdb->releaseNdbCall(tmp);
+  }
+  op->theFirstCall = NULL;
+  op->theLastCall = NULL;
+
+  NdbSubroutine* tSubroutine = op->theFirstSubroutine;
+  while (tSubroutine != NULL) {
+    NdbSubroutine* tmp = tSubroutine;
+    tSubroutine = tSubroutine->theNext;
+    op->theNdb->releaseNdbSubroutine(tmp);
+  }
+  op->theFirstSubroutine = NULL;
+  op->theLastSubroutine = NULL;
+
+  op->theNoOfLabels = 0;
+  op->theNoOfSubroutines = 0;
+
+  // reset AI size
+  op->theTotalCurrAI_Len = new_size;
+  op->theAI_LenInCurrAI = new_curr;
+
+  // reset signal pointers
+  op->theCurrentATTRINFO = lastSignal;
+  op->theATTRINFOptr = &lastSignal->getDataPtrSend()[new_curr];
+
+  // interpreter sizes are set later somewhere
+
+  DBUG_VOID_RETURN;
+}
+
+static void
+update(const NdbError & _err){
+  NdbError & error = (NdbError &) _err;
+  ndberror_struct ndberror = (ndberror_struct)error;
+  ndberror_update(&ndberror);
+  error = NdbError(ndberror);
+}
+
+const NdbError &
+NdbScanFilter::getNdbError() const
+{
+  update(m_impl.m_error);
+  return m_impl.m_error;
+}
 
 
 #if 0

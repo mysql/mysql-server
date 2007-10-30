@@ -309,6 +309,7 @@ public:
     Uint8 noOfStartedChkpt;
 
     MasterLCPConf::State lcpStateAtTakeOver;
+    Uint32 m_remove_node_from_table_lcp_id;
   };
   typedef Ptr<NodeRecord> NodeRecordPtr;
   /**********************************************************************/
@@ -547,6 +548,7 @@ public:
       TO_SLAVE_COPY_COMPLETED = 5
     };
     Uint32 startGci;
+    Uint32 maxPage;
     Uint32 toCopyNode;
     Uint32 toCurrentFragid;
     Uint32 toCurrentReplica;

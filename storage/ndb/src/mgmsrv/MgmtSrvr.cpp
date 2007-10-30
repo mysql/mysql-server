@@ -234,10 +234,10 @@ MgmtSrvr::startEventLog()
   }
 }
 
-void 
-MgmtSrvr::stopEventLog() 
+void
+MgmtSrvr::stopEventLog()
 {
-  // Nothing yet
+  g_eventLogger.close();
 }
 
 bool

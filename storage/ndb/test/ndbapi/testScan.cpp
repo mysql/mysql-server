@@ -579,7 +579,7 @@ int runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
       para = myRandom48(239)+1;
 
     g_info << i << ": ";
-    if (hugoTrans.scanUpdateRecords(GETNDB(step), records, 0, para) == NDBT_FAILED){
+    if (hugoTrans.scanUpdateRecords(GETNDB(step), 0, 0, para) == NDBT_FAILED){
       return NDBT_FAILED;
     }
     i++;

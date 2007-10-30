@@ -60,6 +60,7 @@ int ndb_binlog_thread_running= 0;
 */
 my_bool ndb_binlog_running= FALSE;
 my_bool ndb_binlog_tables_inited= FALSE;
+my_bool ndb_binlog_is_ready= FALSE;
 
 /*
   Global reference to the ndb injector thread THD oject
@@ -489,12 +490,17 @@ static void ndbcluster_binlog_wait(THD *thd)
     if (thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
 	"reach current position";
-    while (count && ndb_binlog_running &&
-           ndb_latest_handled_binlog_epoch < wait_epoch)
+    pthread_mutex_lock(&injector_mutex);
+    while (!thd->killed && count && ndb_binlog_running &&
+           (ndb_latest_handled_binlog_epoch == 0 ||
+            ndb_latest_handled_binlog_epoch < wait_epoch))
     {
       count--;
-      sleep(1);
+      struct timespec abstime;
+      set_timespec(abstime, 1);
+      pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
     }
+    pthread_mutex_unlock(&injector_mutex);
     if (thd)
       thd->proc_info= save_info;
     DBUG_VOID_RETURN;
@@ -1974,6 +1980,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                                ndb_schema_share->use_count));
       free_share(&ndb_schema_share);
       ndb_schema_share= 0;
+      ndb_binlog_is_ready= FALSE;
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
 
@@ -4228,7 +4235,8 @@ restart:
 
     pthread_mutex_lock(&injector_mutex);
     while (!ndb_schema_share ||
-           (ndb_binlog_running && !ndb_apply_status_share))
+           (ndb_binlog_running && !ndb_apply_status_share) ||
+           !ndb_binlog_tables_inited)
     {
       /* ndb not connected yet */
       struct timespec abstime;
@@ -4319,6 +4327,12 @@ restart:
       }
     }
   }
+  /*
+    binlog thread is ready to receive events
+    - client threads may now start updating data, i.e. tables are
+    no longer read only
+  */
+  ndb_binlog_is_ready= TRUE;
   {
     static char db[]= "";
     thd->db= db;
