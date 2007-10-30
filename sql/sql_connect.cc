@@ -1030,7 +1030,17 @@ static void prepare_new_connection_state(THD* thd)
   if (sys_init_connect.value_length && !(sctx->master_access & SUPER_ACL))
   {
     execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
-    if (thd->net.report_error)
+    /*
+      execute_init_command calls net_send_error.
+      If there was an error during execution of the init statements, 
+      the error at this moment is present in thd->net.last_error and also
+      thd->is_slave_error and thd->net.report_error are set.
+      net_send_error sends the contents of thd->net.last_error and
+      clears thd->net.report_error. It doesn't, however, clean
+      thd->is_slave_error or thd->net.last_error. Here we make use of this
+      fact.
+    */
+    if (thd->is_slave_error)
     {
       thd->killed= THD::KILL_CONNECTION;
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
