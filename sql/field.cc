@@ -1457,15 +1457,24 @@ void Field_num::add_zerofill_and_unsigned(String &res) const
 
 void Field::make_field(Send_field *field)
 {
-  if (orig_table->s->db.str && *orig_table->s->db.str)
+  if (orig_table && orig_table->s->db.str && *orig_table->s->db.str)
   {
     field->db_name= orig_table->s->db.str;
     field->org_table_name= orig_table->s->table_name.str;
   }
   else
     field->org_table_name= field->db_name= "";
-  field->table_name= orig_table->alias;
-  field->col_name= field->org_col_name= field_name;
+  if (orig_table)
+  {
+    field->table_name= orig_table->alias;
+    field->org_col_name= field_name;
+  }
+  else
+  {
+    field->table_name= "";
+    field->org_col_name= "";
+  }
+  field->col_name= field_name;
   field->charsetnr= charset()->number;
   field->length=field_length;
   field->type=type();
@@ -5600,7 +5609,7 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   {
     tmp= l_time.day + l_time.month*32 + l_time.year*16*32;
     if (!error && (ret != MYSQL_TIMESTAMP_DATE) &&
-        thd->count_cuted_fields != CHECK_FIELD_IGNORE)
+        (l_time.hour || l_time.minute || l_time.second || l_time.second_part))
       error= 3;                                 // Datetime was cut (note)
   }
 
@@ -5648,10 +5657,16 @@ int Field_newdate::store(longlong nr, bool unsigned_val)
   else
     tmp= l_time.day + l_time.month*32 + l_time.year*16*32;
 
+  if (!error && l_time.time_type != MYSQL_TIMESTAMP_DATE &&
+      (l_time.hour || l_time.minute || l_time.second || l_time.second_part))
+    error= 3;
+
   if (error)
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                         error == 2 ? ER_WARN_DATA_OUT_OF_RANGE :
-                         WARN_DATA_TRUNCATED,nr,MYSQL_TIMESTAMP_DATE, 1);
+    set_datetime_warning(error == 3 ? MYSQL_ERROR::WARN_LEVEL_NOTE :
+                         MYSQL_ERROR::WARN_LEVEL_WARN,
+                         error == 2 ? 
+                         ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED,
+                         nr,MYSQL_TIMESTAMP_DATE, 1);
 
   int3store(ptr,tmp);
   return error;
@@ -5678,6 +5693,17 @@ int Field_newdate::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
       make_date((DATE_TIME_FORMAT *) 0, ltime, &str);
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                            str.ptr(), str.length(), MYSQL_TIMESTAMP_DATE, 1);
+    }
+    if (!error && ltime->time_type != MYSQL_TIMESTAMP_DATE &&
+        (ltime->hour || ltime->minute || ltime->second || ltime->second_part))
+    {
+      char buff[MAX_DATE_STRING_REP_LENGTH];
+      String str(buff, sizeof(buff), &my_charset_latin1);
+      make_datetime((DATE_TIME_FORMAT *) 0, ltime, &str);
+      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_NOTE,
+                           WARN_DATA_TRUNCATED,
+                           str.ptr(), str.length(), MYSQL_TIMESTAMP_DATE, 1);
+      error= 3;
     }
   }
   else
@@ -8009,36 +8035,6 @@ uint Field_blob::is_equal(Create_field *new_field)
 
 
 #ifdef HAVE_SPATIAL
-
-uint Field_geom::get_key_image(uchar *buff, uint length, imagetype type)
-{
-  uchar *blob;
-  const char *dummy;
-  MBR mbr;
-  ulong blob_length= get_length(ptr);
-  Geometry_buffer buffer;
-  Geometry *gobj;
-  const uint image_length= SIZEOF_STORED_DOUBLE*4;
-
-  if (blob_length < SRID_SIZE)
-  {
-    bzero(buff, image_length);
-    return image_length;
-  }
-  get_ptr(&blob);
-  gobj= Geometry::construct(&buffer, (char*) blob, blob_length);
-  if (!gobj || gobj->get_mbr(&mbr, &dummy))
-    bzero(buff, image_length);
-  else
-  {
-    float8store(buff, mbr.xmin);
-    float8store(buff + 8, mbr.xmax);
-    float8store(buff + 16, mbr.ymin);
-    float8store(buff + 24, mbr.ymax);
-  }
-  return image_length;
-}
-
 
 void Field_geom::sql_type(String &res) const
 {

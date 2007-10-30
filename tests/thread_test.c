@@ -103,7 +103,13 @@ static struct my_option my_long_options[] =
    (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"query", 'Q', "Query to execute in each threads", (uchar**) &query,
    (uchar**) &query, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection", (uchar**) &tcp_port,
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   (uchar**) &tcp_port,
    (uchar**) &tcp_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection", (uchar**) &unix_socket,
    (uchar**) &unix_socket, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

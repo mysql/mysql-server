@@ -23,15 +23,22 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
-			@thread_dirs@ pstack \
+			@pstack_dir@ \
 			@sql_union_dirs@ unittest storage plugin \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			mysql-test support-files sql-bench @tools_dirs@ \
 			win
 
-DIST_SUBDIRS =		$(SUBDIRS) BUILD debian
-
+DIST_SUBDIRS =		. include Docs zlib \
+			cmd-line-utils sql-common scripts \
+			pstack \
+			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
+			vio sql man tests \
+			netware libmysqld \
+			mysql-test support-files sql-bench server-tools \
+			win \
+			BUILD
 DISTCLEANFILES = ac_available_languages_fragment
 
 # Create permission databases
@@ -45,7 +52,6 @@ bin-dist:		all
 # Create initial database files for Windows installations.
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
-	rm -f  `find $(distdir) -type l -print`
 	mkdir -p $(distdir)/win
 	scripts/mysql_install_db --no-defaults --windows \
 		--basedir=$(top_builddir) \

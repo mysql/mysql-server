@@ -1192,16 +1192,31 @@ bool sys_var_thd_ulong::check(THD *thd, set_var *var)
 bool sys_var_thd_ulong::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
+  char buf[22];
+  bool truncated= false;
 
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ulong) tmp > max_system_variables.*offset)
+  {
+    truncated= true;
+    llstr(tmp, buf);
     tmp= max_system_variables.*offset;
+  }
 
 #if SIZEOF_LONG == 4
   /* Avoid overflows on 32 bit systems */
   if (tmp > (ulonglong) ~(ulong) 0)
+  {
+    truncated= true;
+    llstr(tmp, buf);
     tmp= ((ulonglong) ~(ulong) 0);
+  }
 #endif
+  if (truncated)
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), name,
+                        buf);
 
   if (option_limits)
     tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
@@ -1409,7 +1424,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 					    &not_used));
     if (error_len)
     {
-      strmake(buff, error, min(sizeof(buff), error_len));
+      strmake(buff, error, min(sizeof(buff) - 1, error_len));
       goto err;
     }
   }

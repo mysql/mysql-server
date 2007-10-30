@@ -189,11 +189,9 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    Field_iterator_table field_it;
-    field_it.set_table(table);
-    if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
-                                table->s->db.str, table->s->table_name.str,
-                                &field_it))
+    Field_iterator_table_ref field_it;
+    field_it.set(table_list);
+    if (check_grant_all_columns(thd, INSERT_ACL, &field_it))
       return -1;
 #endif
     clear_timestamp_auto_bits(table->timestamp_field_type,
@@ -1639,6 +1637,8 @@ public:
   char *record;
   enum_duplicates dup;
   time_t start_time;
+  ulong sql_mode;
+  bool auto_increment_field_not_null;
   bool query_start_used, ignore, log_query;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
   ulonglong first_successful_insert_id_in_prev_stmt;
@@ -2141,6 +2141,9 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   /* Copy session variables. */
   row->auto_increment_increment= thd->variables.auto_increment_increment;
   row->auto_increment_offset=    thd->variables.auto_increment_offset;
+  row->sql_mode=                 thd->variables.sql_mode;
+  row->auto_increment_field_not_null= table->auto_increment_field_not_null;
+
   /* Copy the next forced auto increment value, if any. */
   if ((forced_auto_inc= thd->auto_inc_intervals_forced.get_next()))
   {
@@ -2555,10 +2558,13 @@ bool Delayed_insert::handle_inserts(void)
     thd.stmt_depends_on_first_successful_insert_id_in_prev_stmt= 
       row->stmt_depends_on_first_successful_insert_id_in_prev_stmt;
     table->timestamp_field_type= row->timestamp_field_type;
+    table->auto_increment_field_not_null= row->auto_increment_field_not_null;
 
     /* Copy the session variables. */
     thd.variables.auto_increment_increment= row->auto_increment_increment;
     thd.variables.auto_increment_offset=    row->auto_increment_offset;
+    thd.variables.sql_mode=                 row->sql_mode;
+
     /* Copy a forced insert_id, if any. */
     if (row->forced_insert_id)
     {
@@ -2778,7 +2784,8 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
                              bool ignore_check_option_errors)
   :table_list(table_list_par), table(table_par), fields(fields_par),
    autoinc_value_of_last_inserted_row(0),
-   insert_into_view(table_list_par && table_list_par->view != 0)
+   insert_into_view(table_list_par && table_list_par->view != 0),
+   is_bulk_insert_mode(FALSE)
 {
   bzero((char*) &info,sizeof(info));
   info.handle_duplicates= duplic;
@@ -2964,8 +2971,11 @@ int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
   if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      !thd->prelocked_mode)
+      !thd->prelocked_mode && !is_bulk_insert_mode)
+  {
     table->file->ha_start_bulk_insert((ha_rows) 0);
+    is_bulk_insert_mode= TRUE;
+  }
   DBUG_RETURN(0);
 }
 
@@ -3084,6 +3094,7 @@ bool select_insert::send_eof()
                        trans_table, table->file->table_type()));
 
   error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert():0;
+  is_bulk_insert_mode= FALSE;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -3307,7 +3318,10 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     Create_field *cr_field;
     Field *field, *def_field;
     if (item->type() == Item::FUNC_ITEM)
-      field= item->tmp_table_field(&tmp_table);
+      if (item->result_type() != STRING_RESULT)
+        field= item->tmp_table_field(&tmp_table);
+      else
+        field= item->tmp_table_field_from_field_type(&tmp_table, 0);
     else
       field= create_tmp_field(thd, &tmp_table, item, item->type(),
                               (Item ***) 0, &tmp_field, &def_field, 0, 0, 0, 0,
@@ -3419,6 +3433,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 int
 select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
+  MYSQL_LOCK *extra_lock= NULL;
   DBUG_ENTER("select_create::prepare");
 
   TABLEOP_HOOKS *hook_ptr= NULL;
@@ -3488,8 +3503,20 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,
-                                       &thd->extra_lock, hook_ptr)))
+                                       &extra_lock, hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
+
+  if (extra_lock)
+  {
+    DBUG_ASSERT(m_plock == NULL);
+
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+      m_plock= &m_lock;
+    else
+      m_plock= &thd->extra_lock;
+
+    *m_plock= extra_lock;
+  }
 
   if (table->s->fields < values.elements)
   {
@@ -3518,7 +3545,10 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (!thd->prelocked_mode)
+  {
     table->file->ha_start_bulk_insert((ha_rows) 0);
+    is_bulk_insert_mode= TRUE;
+  }
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
@@ -3629,10 +3659,11 @@ bool select_create::send_eof()
 
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-    if (thd->extra_lock)
+    if (m_plock)
     {
-      mysql_unlock_tables(thd, thd->extra_lock);
-      thd->extra_lock=0;
+      mysql_unlock_tables(thd, *m_plock);
+      *m_plock= NULL;
+      m_plock= NULL;
     }
   }
   return tmp;
@@ -3667,10 +3698,11 @@ void select_create::abort()
   if (thd->current_stmt_binlog_row_based)
     ha_rollback_stmt(thd);
 
-  if (thd->extra_lock)
+  if (m_plock)
   {
-    mysql_unlock_tables(thd, thd->extra_lock);
-    thd->extra_lock=0;
+    mysql_unlock_tables(thd, *m_plock);
+    *m_plock= NULL;
+    m_plock= NULL;
   }
 
   if (table)

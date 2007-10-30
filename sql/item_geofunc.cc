@@ -28,7 +28,7 @@ Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
 {
   Field *result;
   if ((result= new Field_geom(max_length, maybe_null, name, t_arg->s,
-                              (Field::geometry_type) get_geometry_type())))
+                              get_geometry_type())))
     result->init(t_arg);
   return result;
 }
@@ -41,10 +41,6 @@ void Item_geometry_func::fix_length_and_dec()
   maybe_null= 1;
 }
 
-int Item_geometry_func::get_geometry_type() const
-{
-  return (int)Field::GEOM_GEOMETRY;
-}
 
 String *Item_func_geometry_from_text::val_str(String *str)
 {
@@ -163,9 +159,9 @@ String *Item_func_geometry_type::val_str(String *str)
 }
 
 
-int Item_func_envelope::get_geometry_type() const
+Field::geometry_type Item_func_envelope::get_geometry_type() const
 {
-  return (int) Field::GEOM_POLYGON;
+  return Field::GEOM_POLYGON;
 }
 
 
@@ -193,9 +189,9 @@ String *Item_func_envelope::val_str(String *str)
 }
 
 
-int Item_func_centroid::get_geometry_type() const
+Field::geometry_type Item_func_centroid::get_geometry_type() const
 {
-  return (int) Field::GEOM_POINT;
+  return Field::GEOM_POINT;
 }
 
 
@@ -333,9 +329,9 @@ err:
 */
 
 
-int Item_func_point::get_geometry_type() const
+Field::geometry_type Item_func_point::get_geometry_type() const
 {
-  return (int) Field::GEOM_POINT;
+  return Field::GEOM_POINT;
 }
 
 

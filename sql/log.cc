@@ -387,10 +387,15 @@ bool Log_to_csv_event_handler::
   if (table->field[1]->store(user_host, user_host_len, client_cs) ||
       table->field[2]->store((longlong) thread_id, TRUE) ||
       table->field[3]->store((longlong) server_id, TRUE) ||
-      table->field[4]->store(command_type, command_type_len, client_cs) ||
-      table->field[5]->store(sql_text, sql_text_len, client_cs))
+      table->field[4]->store(command_type, command_type_len, client_cs))
     goto err;
 
+  /*
+    A positive return value in store() means truncation.
+    Still logging a message in the log in this case.
+  */
+  if (table->field[5]->store(sql_text, sql_text_len, client_cs) < 0)
+    goto err;
 
   /* mark all fields as not null */
   table->field[1]->set_notnull();
@@ -407,19 +412,14 @@ bool Log_to_csv_event_handler::
 
   /* log table entries are not replicated */
   if (table->file->ha_write_row(table->record[0]))
-  {
-    struct tm start;
-    localtime_r(&event_time, &start);
-
-    sql_print_error("%02d%02d%02d %2d:%02d:%02d - Failed to write to mysql.general_log",
-                    start.tm_year % 100, start.tm_mon + 1,
-                    start.tm_mday, start.tm_hour,
-                    start.tm_min, start.tm_sec);
-  }
+    goto err;
 
   result= FALSE;
 
 err:
+  if (result)
+    sql_print_error("Failed to write to mysql.general_log");
+
   if (need_rnd_end)
   {
     table->file->ha_rnd_end();
@@ -595,25 +595,24 @@ bool Log_to_csv_event_handler::
     goto err;
   table->field[9]->set_notnull();
 
-  /* sql_text */
-  if (table->field[10]->store(sql_text,sql_text_len, client_cs))
+  /*
+    Column sql_text.
+    A positive return value in store() means truncation.
+    Still logging a message in the log in this case.
+  */
+  if (table->field[10]->store(sql_text, sql_text_len, client_cs) < 0)
     goto err;
 
   /* log table entries are not replicated */
   if (table->file->ha_write_row(table->record[0]))
-  {
-    struct tm start;
-    localtime_r(&current_time, &start);
-
-    sql_print_error("%02d%02d%02d %2d:%02d:%02d - Failed to write to mysql.slow_log",
-                    start.tm_year % 100, start.tm_mon + 1,
-                    start.tm_mday, start.tm_hour,
-                    start.tm_min, start.tm_sec);
-  }
+    goto err;
 
   result= FALSE;
 
 err:
+  if (result)
+    sql_print_error("Failed to write to mysql.slow_log");
+
   if (need_rnd_end)
   {
     table->file->ha_rnd_end();
@@ -945,71 +944,63 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   return error;
 }
 
-bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
-                               const char *format, va_list args)
+bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
+                               const char *query, uint query_length)
 {
   bool error= FALSE;
   Log_event_handler **current_handler= general_log_handler_list;
+  char user_host_buff[MAX_USER_HOST_SIZE];
+  Security_context *sctx= thd->security_ctx;
+  ulong id;
+  uint user_host_len= 0;
+  time_t current_time;
 
-  /*
-    Print the message to the buffer if we have at least one log event handler
-    enabled and want to log this king of commands
-  */
-  if (*general_log_handler_list && (what_to_log & (1L << (uint) command)))
+  if (thd)
+    id= thd->thread_id;                 /* Normal thread */
+  else
+    id= 0;                              /* Log from connect handler */
+
+  lock_shared();
+  if (!opt_log)
   {
-    char message_buff[MAX_LOG_BUFFER_SIZE];
-    char user_host_buff[MAX_USER_HOST_SIZE];
-    Security_context *sctx= thd->security_ctx;
-    ulong id;
-    uint message_buff_len= 0, user_host_len= 0;
-    time_t current_time;
-    if (thd)
-    {                                           /* Normal thread */
-      if ((thd->options & OPTION_LOG_OFF)
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-          && (sctx->master_access & SUPER_ACL)
-#endif
-         )
-      {
-        return 0;                         /* No logging */
-      }
-      id= thd->thread_id;
-    }
-    else
-      id=0;                                     /* Log from connect handler */
-
-    lock_shared();
-    if (!opt_log)
-    {
-      unlock();
-      return 0;
-    }
-    user_host_len= strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                            sctx->priv_user ? sctx->priv_user : "", "[",
-                            sctx->user ? sctx->user : "", "] @ ",
-                            sctx->host ? sctx->host : "", " [",
-                            sctx->ip ? sctx->ip : "", "]", NullS) -
-                                                            user_host_buff;
-
-    /* prepare message */
-    if (format)
-      message_buff_len= my_vsnprintf(message_buff,
-                   sizeof(message_buff), format, args);
-    else
-      message_buff[0]= '\0';
-
-    current_time= my_time(0);
-    while (*current_handler)
-      error+= (*current_handler++)->
-        log_general(thd, current_time, user_host_buff,
-                   user_host_len, id,
-                   command_name[(uint) command].str,
-                   command_name[(uint) command].length,
-                   message_buff, message_buff_len,
-                   thd->variables.character_set_client) || error;
     unlock();
+    return 0;
   }
+  user_host_len= strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
+                          sctx->priv_user ? sctx->priv_user : "", "[",
+                          sctx->user ? sctx->user : "", "] @ ",
+                          sctx->host ? sctx->host : "", " [",
+                          sctx->ip ? sctx->ip : "", "]", NullS) -
+                                                          user_host_buff;
+
+  current_time= my_time(0);
+  while (*current_handler)
+    error+= (*current_handler++)->
+      log_general(thd, current_time, user_host_buff,
+                  user_host_len, id,
+                  command_name[(uint) command].str,
+                  command_name[(uint) command].length,
+                  query, query_length,
+                  thd->variables.character_set_client) || error;
+  unlock();
+
   return error;
+}
+
+bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
+                               const char *format, va_list args)
+{
+  uint message_buff_len= 0;
+  char message_buff[MAX_LOG_BUFFER_SIZE];
+
+  /* prepare message */
+  if (format)
+    message_buff_len= my_vsnprintf(message_buff, sizeof(message_buff),
+                                   format, args);
+  else
+    message_buff[0]= '\0';
+
+  return general_log_write(thd, command, message_buff, message_buff_len);
 }
 
 void LOGGER::init_error_log(uint error_log_printer)
@@ -2076,10 +2067,10 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
         if (my_b_write(&log_file, (uchar*) buff, buff_len))
           tmp_errno= errno;
       }
-      if (my_b_printf(&log_file, "# User@Host: ", sizeof("# User@Host: ") - 1)
-          != sizeof("# User@Host: ") - 1)
+      const uchar uh[]= "# User@Host: ";
+      if (my_b_write(&log_file, uh, sizeof(uh) - 1))
         tmp_errno= errno;
-      if (my_b_printf(&log_file, user_host, user_host_len) != user_host_len)
+      if (my_b_write(&log_file, (uchar*) user_host, user_host_len))
         tmp_errno= errno;
       if (my_b_write(&log_file, (uchar*) "\n", 1))
         tmp_errno= errno;
@@ -3737,17 +3728,59 @@ bool slow_log_print(THD *thd, const char *query, uint query_length,
 }
 
 
+bool LOGGER::log_command(THD *thd, enum enum_server_command command)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *sctx= thd->security_ctx;
+#endif
+  /*
+    Log command if we have at least one log event handler enabled and want
+    to log this king of commands
+  */
+  if (*general_log_handler_list && (what_to_log & (1L << (uint) command)))
+  {
+    if ((thd->options & OPTION_LOG_OFF)
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+         && (sctx->master_access & SUPER_ACL)
+#endif
+       )
+    {
+      /* No logging */
+      return FALSE;
+    }
+
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
 bool general_log_print(THD *thd, enum enum_server_command command,
                        const char *format, ...)
 {
   va_list args;
   uint error= 0;
 
+  /* Print the message to the buffer if we want to log this king of commands */
+  if (! logger.log_command(thd, command))
+    return FALSE;
+
   va_start(args, format);
   error= logger.general_log_print(thd, command, format, args);
   va_end(args);
 
   return error;
+}
+
+bool general_log_write(THD *thd, enum enum_server_command command,
+                       const char *query, uint query_length)
+{
+  /* Write the message to the log if we want to log this king of commands */
+  if (logger.log_command(thd, command))
+    return logger.general_log_write(thd, command, query, query_length);
+
+  return FALSE;
 }
 
 void MYSQL_BIN_LOG::rotate_and_purge(uint flags)

@@ -205,7 +205,7 @@ typedef struct st_net {
   unsigned char reading_or_writing;
   char save_char;
   my_bool no_send_ok;  /* For SPs and other things that do multiple stmts */
-  my_bool no_send_eof; /* For SPs' first version read-only cursors */
+  my_bool unused; /* Please remove with the next incompatible ABI change */
   my_bool compress;
   /*
     Set if OK packet is already sent, and we do not need to send error

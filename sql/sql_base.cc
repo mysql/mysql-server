@@ -2471,7 +2471,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
 
-  /* close handler tables which are marked for flush */
+  /*
+    In order for the back off and re-start process to work properly,
+    handler tables having old versions (due to FLUSH TABLES or pending
+    name-lock) MUST be closed. This is specially important if a name-lock
+    is pending for any table of the handler_tables list, otherwise a
+    deadlock may occur.
+  */
   if (thd->handler_tables)
     mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
 
@@ -2538,6 +2544,10 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         table->db_stat == 0 signals wait_for_locked_table_names
         that the tables in question are not used any more. See
         table_is_used call for details.
+
+        Notice that HANDLER tables were already taken care of by
+        the earlier call to mysql_ha_flush() in this same critical
+        section.
       */
       close_old_data_files(thd,thd->open_tables,0,0);
       /*
@@ -6572,10 +6582,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         !any_privileges)
     {
       field_iterator.set(tables);
-      if (check_grant_all_columns(thd, SELECT_ACL, field_iterator.grant(),
-                                  field_iterator.db_name(),
-                                  field_iterator.table_name(),
-                                  &field_iterator))
+      if (check_grant_all_columns(thd, SELECT_ACL, &field_iterator))
         DBUG_RETURN(TRUE);
     }
 #endif
@@ -7767,7 +7774,17 @@ open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   }
   else
+  {
+    /*
+      If error in mysql_lock_tables(), open_ltable doesn't close the
+      table. Thread kill during mysql_lock_tables() is such error. But
+      open tables cannot be accepted when restoring the open tables
+      state.
+    */
+    if (thd->killed)
+      close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);
+  }
 
   thd->utime_after_lock= save_utime_after_lock;
   DBUG_RETURN(table);

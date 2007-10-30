@@ -5760,7 +5760,7 @@ ha_innobase::info(
 
 				table->key_info[i].rec_per_key[j]=
 				  rec_per_key >= ~(ulong) 0 ? ~(ulong) 0 :
-				  rec_per_key;
+				  (ulong) rec_per_key;
 			}
 
 			index = dict_table_get_next_index_noninline(index);

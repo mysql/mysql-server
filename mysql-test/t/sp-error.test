@@ -196,7 +196,7 @@ select f(10)|
 
 drop function f|
 
---error 1322
+--error ER_PARSE_ERROR
 create procedure p()
 begin
   declare c cursor for insert into test.t1 values ("foo", 42);
@@ -1763,7 +1763,7 @@ drop procedure bug15091;
 drop function if exists bug16896;
 --enable_warnings
 
---error ER_SP_NO_AGGREGATE
+--error ER_PARSE_ERROR
 create aggregate function bug16896() returns int return 1;
 
 #
@@ -2149,6 +2149,78 @@ retry:
 end//
 
 delimiter ;//
+
+
+#
+# Bug#28360 (RENAME DATABASE destroys routines)
+#
+
+--disable_warnings
+drop procedure if exists proc_28360;
+drop function if exists func_28360;
+--enable_warnings
+
+delimiter //;
+
+--error ER_SP_NO_DROP_SP
+CREATE PROCEDURE proc_28360()
+BEGIN
+  ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
+END//
+
+--error ER_SP_NO_DROP_SP
+CREATE FUNCTION func_28360() RETURNS int
+BEGIN
+  ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
+  RETURN 0;
+END//
+
+delimiter ;//
+
+
+#
+# Bug#29223 declare cursor c for SHOW .....
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+--delimiter |
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE c char(100);
+  DECLARE cur1 CURSOR FOR SHOW TABLES;
+
+  OPEN cur1;
+  FETCH cur1 INTO c;
+  select c;
+  CLOSE cur1;
+END|
+--delimiter ;
+
+#
+# Bug#29816 Syntactically wrong query fails with misleading error message
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+# Both ER_SP_DOES_NOT_EXIST and ER_PARSE_ERROR are valid here,
+# the result is implementation dependent:
+# See Bug#29816 for details
+--error ER_SP_DOES_NOT_EXIST
+SELECT inexistent(), 1 + ,;
+--error ER_SP_DOES_NOT_EXIST
+SELECT inexistent();
+--error ER_PARSE_ERROR
+SELECT .inexistent();
+--error ER_PARSE_ERROR
+SELECT ..inexistent();
+USE test;
 
 #
 # BUG#NNNN: New bug synopsis

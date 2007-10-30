@@ -867,5 +867,18 @@ SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1 and b > 1;
 
 DROP TABLE t1, t2, t3, t4, t5;
 
+#
+# Bug #31156: mysqld: item_sum.cc:918: 
+#  virtual bool Item_sum_distinct::setup(THD*): Assertion
+#
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 values (),(),();
+SELECT (SELECT SLEEP(0) FROM t1 ORDER BY AVG(DISTINCT a) ) as x FROM t1 
+  GROUP BY x;
+SELECT 1 FROM t1 GROUP BY (SELECT SLEEP(0) FROM t1 ORDER BY AVG(DISTINCT a) );
+
+DROP TABLE t1;
+
 ###
 --echo End of 5.0 tests

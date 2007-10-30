@@ -430,3 +430,5 @@ disconnect anonymous1;
 disconnect anonymous2;
 DROP USER ddicttestuser1@'localhost';
 DROP USER ddicttestuser2@'localhost';
+REVOKE USAGE ON *.* FROM ''@'localhost';
+DROP USER ''@'localhost';

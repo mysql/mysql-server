@@ -133,10 +133,23 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
       {
 	struct servent *serv_ptr;
 	char	*env;
-	if ((serv_ptr = getservbyname("mysql", "tcp")))
-	  mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
-	if ((env = getenv("MYSQL_TCP_PORT")))
-	  mysql_port =(uint) atoi(env);
+
+        /*
+          if builder specifically requested a default port, use that
+          (even if it coincides with our factory default).
+          only if they didn't do we check /etc/services (and, failing
+          on that, fall back to the factory default of 3306).
+          either default can be overridden by the environment variable
+          MYSQL_TCP_PORT, which in turn can be overridden with command
+          line options.
+        */
+
+#if MYSQL_PORT_DEFAULT == 0
+        if ((serv_ptr = getservbyname("mysql", "tcp")))
+          mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
+#endif
+        if ((env = getenv("MYSQL_TCP_PORT")))
+          mysql_port =(uint) atoi(env);
       }
 #endif
     }
@@ -685,13 +698,24 @@ int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd)
   return 0;
 }
 
-
 my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
   char buff[512],*end=buff;
   int rc;
+  CHARSET_INFO *saved_cs= mysql->charset;
+
   DBUG_ENTER("mysql_change_user");
+
+  /* Get the connection-default character set. */
+
+  if (mysql_init_character_set(mysql))
+  {
+    mysql->charset= saved_cs;
+    DBUG_RETURN(TRUE);
+  }
+
+  /* Use an empty string instead of NULL. */
 
   if (!user)
     user="";
@@ -721,6 +745,14 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   /* Add database if needed */
   end= strmov(end, db ? db : "") + 1;
 
+  /* Add character set number. */
+
+  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    int2store(end, (ushort) mysql->charset->number);
+    end+= 2;
+  }
+
   /* Write authentication package */
   simple_command(mysql,COM_CHANGE_USER, (uchar*) buff, (ulong) (end-buff), 1);
 
@@ -743,6 +775,11 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     mysql->passwd=my_strdup(passwd,MYF(MY_WME));
     mysql->db=    db ? my_strdup(db,MYF(MY_WME)) : 0;
   }
+  else
+  {
+    mysql->charset= saved_cs;
+  }
+
   DBUG_RETURN(rc);
 }
 
@@ -2502,7 +2539,7 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
              5 /* execution flags */];
   my_bool res;
   DBUG_ENTER("execute");
-  DBUG_DUMP("packet", packet, length);
+  DBUG_DUMP("packet", (uchar *) packet, length);
 
   mysql->last_used_con= mysql;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
@@ -3860,7 +3897,19 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       sprintf(buff, "%.*f", (int) field->decimals, value);
       end= strend(buff);
     }
-    fetch_string_with_conversion(param, buff, (uint) (end - buff));
+
+    {
+      size_t length= end - buff;
+      if (field->flags & ZEROFILL_FLAG && length < field->length &&
+          field->length < MAX_DOUBLE_STRING_REP_LENGTH - 1)
+      {
+        bmove_upp((char*) buff + field->length, buff + length, length);
+        bfill((char*) buff, field->length - length, '0');
+        length= field->length;
+      }
+      fetch_string_with_conversion(param, buff, length);
+    }
+
     break;
   }
   }
@@ -4352,6 +4401,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_NEWDATE:
     DBUG_ASSERT(param->buffer_length != 0);
     param->fetch_result= fetch_result_str;
     break;
@@ -4424,6 +4474,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_BIT:
+  case MYSQL_TYPE_NEWDATE:
     param->skip_result= skip_result_string;
     break;
   default:
@@ -4678,13 +4729,13 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
   MYSQL_ROWS *cur, **prev_ptr= &result->data;
   NET        *net;
 
+  DBUG_ENTER("cli_read_binary_rows");
+
   if (!mysql)
   {
     set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate);
-    return 1;
+    DBUG_RETURN(1);
   }
-
-  DBUG_ENTER("cli_read_binary_rows");
 
   net = &mysql->net;
   mysql= mysql->last_used_con;

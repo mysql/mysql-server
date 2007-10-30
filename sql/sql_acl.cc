@@ -1264,7 +1264,7 @@ static void acl_update_db(const char *user, const char *host, const char *db,
     {
       if (!acl_db->host.hostname && !host[0] ||
 	  acl_db->host.hostname &&
-	  !my_strcasecmp(system_charset_info, host, acl_db->host.hostname))
+          !strcmp(host, acl_db->host.hostname))
       {
 	if (!acl_db->db && !db[0] ||
 	    acl_db->db && !strcmp(db,acl_db->db))
@@ -3991,47 +3991,78 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
 }
 
 
-bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
-                             const char* db_name, const char *table_name,
-                             Field_iterator *fields)
+/** 
+  @brief check if a query can access a set of columns
+
+  @param  thd  the current thread
+  @param  want_access_arg  the privileges requested
+  @param  fields an iterator over the fields of a table reference.
+  @return Operation status
+    @retval 0 Success
+    @retval 1 Falure
+  @details This function walks over the columns of a table reference 
+   The columns may originate from different tables, depending on the kind of
+   table reference, e.g. join.
+   For each table it will retrieve the grant information and will use it
+   to check the required access privileges for the fields requested from it.
+*/    
+bool check_grant_all_columns(THD *thd, ulong want_access_arg, 
+                             Field_iterator_table_ref *fields)
 {
   Security_context *sctx= thd->security_ctx;
-  GRANT_TABLE *grant_table;
-  GRANT_COLUMN *grant_column;
+  ulong want_access= want_access_arg;
+  const char *table_name= NULL;
 
-  want_access &= ~grant->privilege;
-  if (!want_access)
-    return 0;				// Already checked
+  const char* db_name; 
+  GRANT_INFO *grant;
+  /* Initialized only to make gcc happy */
+  GRANT_TABLE *grant_table= NULL;
 
   rw_rdlock(&LOCK_grant);
-
-  /* reload table if someone has modified any grants */
-
-  if (grant->version != grant_version)
-  {
-    grant->grant_table=
-      table_hash_search(sctx->host, sctx->ip, db_name,
-			sctx->priv_user,
-			table_name, 0);	/* purecov: inspected */
-    grant->version= grant_version;		/* purecov: inspected */
-  }
-  /* The following should always be true */
-  if (!(grant_table= grant->grant_table))
-    goto err;					/* purecov: inspected */
 
   for (; !fields->end_of_fields(); fields->next())
   {
     const char *field_name= fields->name();
-    grant_column= column_hash_search(grant_table, field_name,
-				    (uint) strlen(field_name));
-    if (!grant_column || (~grant_column->rights & want_access))
-      goto err;
+
+    if (table_name != fields->table_name())
+    {
+      table_name= fields->table_name();
+      db_name= fields->db_name();
+      grant= fields->grant();
+      /* get a fresh one for each table */
+      want_access= want_access_arg & ~grant->privilege;
+      if (want_access)
+      {
+        /* reload table if someone has modified any grants */
+        if (grant->version != grant_version)
+        {
+          grant->grant_table=
+            table_hash_search(sctx->host, sctx->ip, db_name,
+                              sctx->priv_user,
+                              table_name, 0);	/* purecov: inspected */
+          grant->version= grant_version;	/* purecov: inspected */
+        }
+
+        grant_table= grant->grant_table;
+        DBUG_ASSERT (grant_table);
+      }
+    }
+
+    if (want_access)
+    {
+      GRANT_COLUMN *grant_column= 
+        column_hash_search(grant_table, field_name,
+                           (uint) strlen(field_name));
+      if (!grant_column || (~grant_column->rights & want_access))
+        goto err;
+    }
   }
   rw_unlock(&LOCK_grant);
   return 0;
 
 err:
   rw_unlock(&LOCK_grant);
+
   char command[128];
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
@@ -4494,6 +4525,13 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     if (!(host=acl_db->host.hostname))
       host= "";
 
+    /*
+      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
+      but make it case-insensitive because that's the way they are
+      actually applied, and showing fewer privileges than are applied
+      would be wrong from a security point of view.
+    */
+
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
     {
@@ -4529,8 +4567,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	db.append(lex_user->user.str, lex_user->user.length,
 		  system_charset_info);
 	db.append (STRING_WITH_LEN("'@'"));
-	db.append(lex_user->host.str, lex_user->host.length,
-                  system_charset_info);
+	// host and lex_user->host are equal except for case
+	db.append(host, strlen(host), system_charset_info);
 	db.append ('\'');
 	if (want_access & GRANT_ACL)
 	  db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
@@ -4556,6 +4594,13 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       user= "";
     if (!(host= grant_table->host.hostname))
       host= "";
+
+    /*
+      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
+      but make it case-insensitive because that's the way they are
+      actually applied, and showing fewer privileges than are applied
+      would be wrong from a security point of view.
+    */
 
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
@@ -4637,8 +4682,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	global.append(lex_user->user.str, lex_user->user.length,
 		      system_charset_info);
 	global.append(STRING_WITH_LEN("'@'"));
-	global.append(lex_user->host.str,lex_user->host.length,
-		      system_charset_info);
+	// host and lex_user->host are equal except for case
+	global.append(host, strlen(host), system_charset_info);
 	global.append('\'');
 	if (table_access & GRANT_ACL)
 	  global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
@@ -4693,6 +4738,13 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
     if (!(host= grant_proc->host.hostname))
       host= "";
 
+    /*
+      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
+      but make it case-insensitive because that's the way they are
+      actually applied, and showing fewer privileges than are applied
+      would be wrong from a security point of view.
+    */
+
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
     {
@@ -4736,8 +4788,8 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
 	global.append(lex_user->user.str, lex_user->user.length,
 		      system_charset_info);
 	global.append(STRING_WITH_LEN("'@'"));
-	global.append(lex_user->host.str,lex_user->host.length,
-		      system_charset_info);
+	// host and lex_user->host are equal except for case
+	global.append(host, strlen(host), system_charset_info);
 	global.append('\'');
 	if (proc_access & GRANT_ACL)
 	  global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
@@ -5713,7 +5765,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  host= "";
 
 	if (!strcmp(lex_user->user.str,user) &&
-	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+            !strcmp(lex_user->host.str, host))
 	{
 	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user,
                                 ~(ulong)0, 1))
@@ -5745,7 +5797,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  host= "";
 
 	if (!strcmp(lex_user->user.str,user) &&
-	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+            !strcmp(lex_user->host.str, host))
 	{
 	  if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
 				  grant_table->db,
@@ -5791,7 +5843,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  host= "";
 
 	if (!strcmp(lex_user->user.str,user) &&
-	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+            !strcmp(lex_user->host.str, host))
 	{
 	  if (!replace_routine_table(thd,grant_proc,tables[4].table,*lex_user,
 				  grant_proc->db,
