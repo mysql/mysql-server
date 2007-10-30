@@ -580,7 +580,7 @@ int mysql_update(THD *thd,
     Sometimes we want to binlog even if we updated no rows, in case user used
     it to be sure master and slave are in same state.
   */
-  if ((error < 0) || (updated && !transactional_table))
+  if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
     {
@@ -994,8 +994,8 @@ multi_update::multi_update(TABLE_LIST *table_list,
   :all_tables(table_list), leaves(leaves_list), update_tables(0),
    tmp_tables(0), updated(0), found(0), fields(field_list),
    values(value_list), table_count(0), copy_field(0),
-   handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(0),
-   transactional_tables(1), ignore(ignore_arg)
+   handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(1),
+   transactional_tables(1), ignore(ignore_arg), error_handled(0)
 {}
 
 
@@ -1202,7 +1202,6 @@ multi_update::initialize_tables(JOIN *join)
   if ((thd->options & OPTION_SAFE_UPDATES) && error_if_full_join(join))
     DBUG_RETURN(1);
   main_table=join->join_tab->table;
-  trans_safe= transactional_tables= main_table->file->has_transactions();
   table_to_update= 0;
 
   /* Any update has at least one pair (field, value) */
@@ -1484,12 +1483,14 @@ void multi_update::send_error(uint errcode,const char *err)
   /* First send error what ever it is ... */
   my_error(errcode, MYF(0), err);
 
-  /* If nothing updated return */
-  if (updated == 0) /* the counter might be reset in send_eof */
-    return;         /* and then the query has been binlogged */
+  /* the error was handled or nothing deleted and no side effects return */
+  if (error_handled ||
+      !thd->transaction.stmt.modified_non_trans_table && !updated)
+    return;
 
   /* Something already updated so we have to invalidate cache */
-  query_cache_invalidate3(thd, update_tables, 1);
+  if (updated)
+    query_cache_invalidate3(thd, update_tables, 1);
   /*
     If all tables that has been updated are trans safe then just do rollback.
     If not attempt to do remaining updates.
@@ -1525,8 +1526,7 @@ void multi_update::send_error(uint errcode,const char *err)
                             transactional_tables, FALSE);
       mysql_bin_log.write(&qinfo);
     }
-    if (!trans_safe)
-      thd->transaction.all.modified_non_trans_table= TRUE;
+    thd->transaction.all.modified_non_trans_table= TRUE;
   }
   DBUG_ASSERT(trans_safe || !updated || thd->transaction.stmt.modified_non_trans_table);
   
@@ -1739,8 +1739,6 @@ bool multi_update::send_eof()
     {
       if (local_error == 0)
         thd->clear_error();
-      else
-        updated= 0; /* if there's an error binlog it here not in ::send_error */
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);
       if (mysql_bin_log.write(&qinfo) && trans_safe)
@@ -1749,6 +1747,8 @@ bool multi_update::send_eof()
     if (thd->transaction.stmt.modified_non_trans_table)
       thd->transaction.all.modified_non_trans_table= TRUE;
   }
+  if (local_error != 0)
+    error_handled= TRUE; // to force early leave from ::send_error()
 
   if (transactional_tables)
   {
