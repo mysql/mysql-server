@@ -1813,8 +1813,8 @@ wait_until_unfixed:
 		buf_block_init_low(block);
 		block->lock_hash_val = lock_rec_hash(space, offset);
 
-		UNIV_MEM_DESC(bpage->zip.data,
-			      page_zip_get_size(&bpage->zip), block);
+		UNIV_MEM_DESC(&block->page.zip.data,
+			      page_zip_get_size(&block->page.zip), block);
 
 		if (buf_page_get_state(&block->page)
 		    == BUF_BLOCK_ZIP_PAGE) {
@@ -1884,6 +1884,7 @@ wait_until_unfixed:
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	mutex_enter(&block->mutex);
+	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
 
 	buf_block_buf_fix_inc(block, file, line);
 	mutex_exit(&buf_pool->mutex);
