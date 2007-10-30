@@ -1,1 +1,1 @@
---innodb --default-storage-engine=innodb 
+--innodb --default-storage-engine=innodb --replicate-ignore-table=mysql.ndb_apply_status

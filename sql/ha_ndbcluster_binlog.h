@@ -204,13 +204,11 @@ int ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                                  const char *event_name_prefix);
 void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl, my_bool full);
-
 int
 ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,
                                    const NDBTAB *ndbtab,
                                    uint server_id);
-
 int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
 int ndbcluster_binlog_start();
@@ -272,6 +270,8 @@ inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
 {
   ndbcluster_free_share(share, have_lock);
 }
+
+void set_binlog_flags(NDB_SHARE *share);
 
 inline
 Thd_ndb *

@@ -33,9 +33,10 @@
 #define assert(x) do { if(x) break; ::printf("%s %d: assert failed: %s\n", __FILE__, __LINE__, #x); ::fflush(stdout); ::signal(SIGABRT,SIG_DFL); ::abort(); ::kill(::getpid(),6); ::kill(::getpid(),9); } while (0)
 #endif
 
+extern my_bool opt_ndb_log_orig;
+
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
-extern my_bool opt_ndb_log_orig;
 
 /*
   defines for cluster replication table names
@@ -3919,7 +3920,7 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
     which ones are supposed to be there as they may have been created
     differently for different mysqld's.  So we drop both
   */
-  for (uint i= 0; event_name_prefix && i < 1; i++)
+  for (uint i= 0; event_name_prefix && i < 2; i++)
   {
     NDBDICT *dict= ndb->getDictionary();
     String event_name(INJECTOR_EVENT_LEN);
