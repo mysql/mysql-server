@@ -3614,7 +3614,9 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
     Batch update operation if we are doing a scan for update, unless
     there exist UPDATE AFTER triggers
   */
-  if (cursor && !m_update_cannot_batch)
+  if (!m_update_cannot_batch &&
+      (cursor || ((thd->options & OPTION_ALLOW_BATCH) &&
+                  (table_share->primary_key != MAX_KEY))))
   {
     /* For a scan, we only need to execute() if the batch buffer is full. */
     row= batch_copy_row_to_buffer(thd_ndb, new_data, need_execute);
@@ -3664,16 +3666,31 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   {  
     const NdbRecord *key_rec;
     const uchar *key_row;
+    uint key_len;
     if (table_share->primary_key != MAX_KEY)
     {
       key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
-      key_row= old_data;
+      key_row= row;
+      key_len= table->s->reclength;
     }
     else
     {
       /* Use hidden primary key previously read into m_ref. */
       key_rec= m_ndb_hidden_key_record;
       key_row= (const uchar *)(&m_ref);
+      key_len= sizeof(m_ref);
+    }
+
+    if (!need_execute)
+    {
+      /*
+        Poor approx. let delete ~ tabsize / 4
+      */
+      uint delete_size= 12 + m_bytes_per_write >> 2;
+      key_row= batch_copy_key_to_buffer(thd_ndb, key_row, key_len,
+                                        delete_size, need_execute);
+      if (unlikely(!key_row))
+        DBUG_RETURN(ER_OUTOFMEMORY);
     }
 
     if (!(op= trans->updateTuple(key_rec, (const char *)key_row,
@@ -6028,8 +6045,11 @@ int ha_ndbcluster::create(const char *name,
 
     while (!IS_TMP_PREFIX(m_tabname))
     {
+      set_binlog_flags(share);
+
       String event_name(INJECTOR_EVENT_LEN);
-      ndb_rep_event_name(&event_name,m_dbname,m_tabname);
+      ndb_rep_event_name(&event_name, m_dbname, m_tabname,
+                         get_binlog_full(share));
       int do_event_op= ndb_binlog_running;
 
       if (!ndb_schema_share &&
@@ -6408,19 +6428,21 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   /* handle old table */
   if (!is_old_table_tmpfile)
   {
-    /* old event to be dropped irrespective of rename or offline alter */
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, from + sizeof(share_prefix) - 1, 0);
-    ndbcluster_drop_event(thd, ndb, event_name.c_ptr(), share, "rename table");
+    ndbcluster_drop_event(thd, ndb, share, "rename table",
+                          from + sizeof(share_prefix) - 1);
   }
 
   if (!result && !is_new_table_tmpfile)
   {
-    /* always create an event for the table */
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, to + sizeof(share_prefix) - 1, 0);
     Ndb_table_guard ndbtab_g2(dict, new_tabname);
     const NDBTAB *ndbtab= ndbtab_g2.get_table();
+
+    set_binlog_flags(share);
+
+    /* always create an event for the table */
+    String event_name(INJECTOR_EVENT_LEN);
+    ndb_rep_event_name(&event_name, to + sizeof(share_prefix) - 1, 0,
+                       get_binlog_full(share));
 
     if (!ndbcluster_create_event(ndb, ndbtab, event_name.c_ptr(), share,
                                  share && ndb_binlog_running ? 2 : 1/* push warning */))
@@ -6646,11 +6668,9 @@ retry_temporary_error1:
   int table_dropped= dict->getNdbError().code != 709;
 
   {
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, path + sizeof(share_prefix) - 1, 0);
-    ndbcluster_handle_drop_table(thd, ndb,
-                                 table_dropped ? event_name.c_ptr() : 0,
-                                 share, "delete table");
+    ndbcluster_handle_drop_table(thd, ndb, share, "delete table",
+                                 table_dropped ?
+                                 (path + sizeof(share_prefix) - 1) : 0);
   }
 
   if (!IS_TMP_PREFIX(table_name) && share &&
