@@ -1,6 +1,9 @@
 drop table if exists t1;
 create table t1 (a int key) engine=ndb;
 reset master;
+select * from t1;
+a
+1
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Incident	1	#	#1 (LOST_EVENTS)

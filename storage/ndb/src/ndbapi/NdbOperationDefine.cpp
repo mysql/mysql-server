@@ -131,6 +131,8 @@ NdbOperation::readTuple(NdbOperation::LockMode lm)
   case LM_CommittedRead:
     return committedRead();
     break;
+  case LM_SimpleRead:
+    return simpleRead();
   default:
     return -1;
   };
@@ -185,24 +187,22 @@ NdbOperation::readTupleExclusive()
 int
 NdbOperation::simpleRead()
 {
-  /**
-   * Currently/still disabled
-   */
-  return readTuple();
-#if 0
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
     theOperationType = ReadRequest;
     theSimpleIndicator = 1;
+    theDirtyIndicator = 0;
     theErrorLine = tErrorLine++;
-    theLockMode = LM_Read;
+    theLockMode = LM_SimpleRead;
+    m_abortOption = AO_IgnoreError;
+    tNdbCon->theSimpleState = 0;
     return 0;
   } else {
     setErrorCode(4200);
     return -1;
   }//if
-#endif
 }//NdbOperation::simpleRead()
 
 /*****************************************************************************
@@ -338,28 +338,32 @@ NdbOperation::setReadLockMode(LockMode lockMode)
 {
   /* We only support changing lock mode for read operations at this time. */
   assert(theOperationType == ReadRequest || theOperationType == ReadExclusive);
-  switch (lockMode)
-  {
-    case LM_CommittedRead:
-      theOperationType= ReadRequest;
-      theSimpleIndicator= 1;
-      theDirtyIndicator= 1;
-      break;
-    case LM_Read:
-      theNdbCon->theSimpleState= 0;
-      theOperationType= ReadRequest;
-      theSimpleIndicator= 0;
-      theDirtyIndicator= 0;
-      break;
-    case LM_Exclusive:
-      theNdbCon->theSimpleState= 0;
-      theOperationType= ReadExclusive;
-      theSimpleIndicator= 0;
-      theDirtyIndicator= 0;
-      break;
-    default:
-      /* Not supported / invalid. */
-      assert(false);
+  switch (lockMode) {
+  case LM_CommittedRead: /* TODO, check theNdbCon->theSimpleState */
+    theOperationType= ReadRequest;
+    theSimpleIndicator= 1;
+    theDirtyIndicator= 1;
+    break;
+  case LM_SimpleRead: /* TODO, check theNdbCon->theSimpleState */
+    theOperationType= ReadRequest;
+    theSimpleIndicator= 1;
+    theDirtyIndicator= 0;
+    break;
+  case LM_Read:
+    theNdbCon->theSimpleState= 0;
+    theOperationType= ReadRequest;
+    theSimpleIndicator= 0;
+    theDirtyIndicator= 0;
+    break;
+  case LM_Exclusive:
+    theNdbCon->theSimpleState= 0;
+    theOperationType= ReadExclusive;
+    theSimpleIndicator= 0;
+    theDirtyIndicator= 0;
+    break;
+  default:
+    /* Not supported / invalid. */
+    assert(false);
   }
   theLockMode= lockMode;
 }
@@ -406,9 +410,8 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 	return NULL;
       }//if
     }//if
-    Uint32 ah;
-    AttributeHeader::init(&ah, tAttrInfo->m_attrId, 0);
-    if (insertATTRINFO(ah) != -1) {	
+    AttributeHeader ah(tAttrInfo->m_attrId, 0);
+    if (insertATTRINFO(ah.m_value) != -1) {	
       // Insert Attribute Id into ATTRINFO part. 
       
       /************************************************************************
@@ -551,12 +554,11 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   tAttrId = tAttrInfo->m_attrId;
   m_no_disk_flag &= (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
   const char *aValue = aValuePassed; 
-  Uint32 ahValue;
   if (aValue == NULL) {
     if (tAttrInfo->m_nullable) {
-      AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, 0);
+      AttributeHeader ah(tAttrId, 0);
       ah.setNULL();
-      insertATTRINFO(ahValue);
+      insertATTRINFO(ah.m_value);
       // Insert Attribute Id with the value
       // NULL into ATTRINFO part. 
       DBUG_RETURN(0);
@@ -592,8 +594,8 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   
   // Excluding bits in last word
   const Uint32 sizeInWords = sizeInBytes / 4;          
-  (void) AttributeHeader::init(&ahValue, tAttrId, sizeInBytes);
-  insertATTRINFO( ahValue );
+  AttributeHeader ah(tAttrId, sizeInBytes);
+  insertATTRINFO( ah.m_value );
 
   /***********************************************************************
    * Check if the pointer of the value passed is aligned on a 4 byte boundary.
