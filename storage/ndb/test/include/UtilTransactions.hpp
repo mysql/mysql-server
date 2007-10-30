@@ -30,6 +30,11 @@ public:
   int closeTransaction(Ndb*);
   
   int clearTable(Ndb*, 
+                 NdbScanOperation::ScanFlag,
+		 int records = 0,
+		 int parallelism = 0);
+
+  int clearTable(Ndb*, 
 		 int records = 0,
 		 int parallelism = 0);
   

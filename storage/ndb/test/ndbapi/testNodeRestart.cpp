@@ -1762,6 +1762,80 @@ runBug28717(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug31525(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  int nodes[2];
+  nodes[0] = res.getMasterNodeId();
+  nodes[1] = res.getNextMasterNodeId(nodes[0]);
+  
+  while (res.getNodeGroup(nodes[0]) != res.getNodeGroup(nodes[1]))
+  {
+    ndbout_c("Restarting %u as it not in same node group as %u",
+             nodes[1], nodes[0]);
+    if (res.restartOneDbNode(nodes[1], false, true, true))
+      return NDBT_FAILED;
+    
+    if (res.waitNodesNoStart(nodes+1, 1))
+      return NDBT_FAILED;
+    
+    if (res.startNodes(nodes+1, 1))
+      return NDBT_FAILED;
+    
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+
+    nodes[1] = res.getNextMasterNodeId(nodes[0]);
+  }
+  
+  ndbout_c("nodes[0]: %u nodes[1]: %u", nodes[0], nodes[1]);
+  
+  int val = DumpStateOrd::DihMinTimeBetweenLCP;
+  if (res.dumpStateAllNodes(&val, 1))
+    return NDBT_FAILED;
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };  
+  if (res.dumpStateAllNodes(val2, 2))
+    return NDBT_FAILED;
+  
+  if (res.insertErrorInAllNodes(932))
+    return NDBT_FAILED;
+
+  if (res.insertErrorInNode(nodes[1], 7192))
+    return NDBT_FAILED;
+  
+  if (res.insertErrorInNode(nodes[0], 7191))
+    return NDBT_FAILED;
+  
+  if (res.waitClusterNoStart())
+    return NDBT_FAILED;
+
+  if (res.startAll())
+    return NDBT_FAILED;
+  
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+
+  if (res.restartOneDbNode(nodes[1], false, false, true))
+    return NDBT_FAILED;
+
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -2084,6 +2158,9 @@ TESTCASE("Bug21271",
   STEP(runBug21271);
   STEP(runPkUpdateUntilStopped);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug31525", ""){
+  INITIALIZER(runBug31525);
 }
 TESTCASE("Bug24717", ""){
   INITIALIZER(runBug24717);

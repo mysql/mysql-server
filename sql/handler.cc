@@ -2641,8 +2641,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     frmblob and frmlen are set, write the frm to disk
   */
 
-  (void)strxnmov(path,FN_REFLEN-1,mysql_data_home,FN_ROOTDIR,
-                 db,FN_ROOTDIR,name,NullS);
+  build_table_filename(path, FN_REFLEN-1, db, name, "", 0);
   // Save the frm file
   error= writefrm(path, frmblob, frmlen);
   my_free(frmblob, MYF(0));
