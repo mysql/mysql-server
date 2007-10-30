@@ -4410,7 +4410,7 @@ Item_func_regex::regcomp(bool send_error)
     res= &conv;
   }
 
-  if ((error= my_regcomp(&preg, res->c_ptr(),
+  if ((error= my_regcomp(&preg, res->c_ptr_safe(),
                          regex_lib_flags, regex_lib_charset)))
   {
     if (send_error)

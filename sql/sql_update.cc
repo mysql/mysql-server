@@ -200,9 +200,18 @@ int mysql_update(THD *thd,
   SQL_SELECT	*select;
   READ_RECORD	info;
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
+<<<<<<< gca sql/sql_update.cc 1.154.2.70
+  bool need_reopen;
+  List<Item> all_fields;
+<<<<<<< local sql/sql_update.cc 1.258
   bool          need_reopen;
   ulonglong     id;
   List<Item> all_fields;
+<<<<<<< remote sql/sql_update.cc 1.154.2.71
+  bool need_reopen;
+  List<Item> all_fields;
+  THD::killed_state killed_status= THD::NOT_KILLED;
+>>>>>>>
   DBUG_ENTER("mysql_update");
 
   for ( ; ; )
@@ -713,11 +722,66 @@ int mysql_update(THD *thd,
       table->file->unlock_row();
     thd->row_count++;
   }
+<<<<<<< gca sql/sql_update.cc 1.154.2.70
+<<<<<<< local sql/sql_update.cc 1.258
   dup_key_found= 0;
+<<<<<<< remote sql/sql_update.cc 1.154.2.71
+  /*
+    Caching the killed status to pass as the arg to query event constuctor;
+    The cached value can not change whereas the killed status can
+    (externally) since this point and change of the latter won't affect
+    binlogging.
+    It's assumed that if an error was set in combination with an effective 
+    killed status then the error is due to killing.
+  */
+  killed_status= thd->killed; // get the status of the volatile 
+  // simulated killing after the loop must be ineffective for binlogging
+  DBUG_EXECUTE_IF("simulate_kill_bug27571",
+                  {
+                    thd->killed= THD::KILL_QUERY;
+                  };);
+  error= (killed_status == THD::NOT_KILLED)?  error : 1;
+  
+>>>>>>>
 
   if (!transactional_table && updated > 0)
     thd->transaction.stmt.modified_non_trans_table= TRUE;
 
+<<<<<<< gca sql/sql_update.cc 1.154.2.70
+
+  /*
+    todo bug#27571: to avoid asynchronization of `error' and
+    `error_code' of binlog event constructor
+
+    The concept, which is a bit different for insert(!), is to
+    replace `error' assignment with the following lines
+
+       killed_status= thd->killed; // get the status of the volatile 
+    
+    Notice: thd->killed is type of "state" whereas the lhs has
+    "status" the suffix which translates according to WordNet: a state
+    at a particular time - at the time of the end of per-row loop in
+    our case. Binlogging ops are conducted with the status.
+
+       error= (killed_status == THD::NOT_KILLED)?  error : 1;
+    
+    which applies to most mysql_$query functions.
+    Event's constructor will accept `killed_status' as an argument:
+    
+       Query_log_event qinfo(..., killed_status);
+    
+    thd->killed might be changed after killed_status had got cached and this
+    won't affect binlogging event but other effects remain.
+
+    Open issue: In a case the error happened not because of KILLED -
+    and then KILLED was caught later still within the loop - we shall
+    do something to avoid binlogging of incorrect ER_SERVER_SHUTDOWN
+    error_code.
+  */
+
+  if (thd->killed && !error)
+    error= 1;					// Aborted
+<<<<<<< local sql/sql_update.cc 1.258
 
   /*
     todo bug#27571: to avoid asynchronization of `error' and
@@ -774,6 +838,8 @@ int mysql_update(THD *thd,
   if (will_batch)
     table->file->end_bulk_update();
   table->file->try_semi_consistent_read(0);
+<<<<<<< remote sql/sql_update.cc 1.154.2.71
+>>>>>>>
   end_read_record(&info);
   delete select;
   thd->proc_info= "end";
@@ -803,6 +869,12 @@ int mysql_update(THD *thd,
     {
       if (error < 0)
         thd->clear_error();
+<<<<<<< gca sql/sql_update.cc 1.154.2.70
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+			    transactional_table, FALSE);
+      if (mysql_bin_log.write(&qinfo) && transactional_table)
+	error=1;				// Rollback update
+<<<<<<< local sql/sql_update.cc 1.258
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
                             transactional_table, FALSE) &&
@@ -810,6 +882,12 @@ int mysql_update(THD *thd,
       {
         error=1;				// Rollback update
       }
+<<<<<<< remote sql/sql_update.cc 1.154.2.71
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+			    transactional_table, FALSE, killed_status);
+      if (mysql_bin_log.write(&qinfo) && transactional_table)
+	error=1;				// Rollback update
+>>>>>>>
     }
     if (thd->transaction.stmt.modified_non_trans_table)
       thd->transaction.all.modified_non_trans_table= TRUE;
@@ -1751,9 +1829,24 @@ void multi_update::send_error(uint errcode,const char *err)
     */
     if (mysql_bin_log.is_open())
     {
+<<<<<<< gca sql/sql_update.cc 1.154.2.70
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            transactional_tables, FALSE);
+      mysql_bin_log.write(&qinfo);
+<<<<<<< local sql/sql_update.cc 1.258
       thd->binlog_query(THD::ROW_QUERY_TYPE,
                         thd->query, thd->query_length,
                         transactional_tables, FALSE);
+<<<<<<< remote sql/sql_update.cc 1.154.2.71
+      /*
+        THD::killed status might not have been set ON at time of an error
+        got caught and if happens later the killed error is written
+        into repl event.
+      */
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            transactional_tables, FALSE);
+      mysql_bin_log.write(&qinfo);
+>>>>>>>
     }
     thd->transaction.all.modified_non_trans_table= TRUE;
   }
@@ -1946,12 +2039,25 @@ err2:
 bool multi_update::send_eof()
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
+<<<<<<< gca sql/sql_update.cc 1.154.2.70
+<<<<<<< local sql/sql_update.cc 1.258
   ulonglong id;
   DBUG_ENTER("multi_update::send_eof");
+<<<<<<< remote sql/sql_update.cc 1.154.2.71
+  THD::killed_state killed_status= THD::NOT_KILLED;
+>>>>>>>
   thd->proc_info="updating reference tables";
 
-  /* Does updates for the last n - 1 tables, returns 0 if ok */
+  /* 
+     Does updates for the last n - 1 tables, returns 0 if ok;
+     error takes into account killed status gained in do_updates()
+  */
   int local_error = (table_count) ? do_updates(0) : 0;
+  /*
+    if local_error is not set ON until after do_updates() then
+    later carried out killing should not affect binlogging.
+  */
+  killed_status= (local_error == 0)? THD::NOT_KILLED : thd->killed;
   thd->proc_info= "end";
 
   /* We must invalidate the query cache before binlog writing and
@@ -1978,6 +2084,12 @@ bool multi_update::send_eof()
     {
       if (local_error == 0)
         thd->clear_error();
+<<<<<<< gca sql/sql_update.cc 1.154.2.70
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+			    transactional_tables, FALSE);
+      if (mysql_bin_log.write(&qinfo) && trans_safe)
+        local_error= 1;				// Rollback update
+<<<<<<< local sql/sql_update.cc 1.258
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
                             transactional_tables, FALSE) &&
@@ -1985,6 +2097,12 @@ bool multi_update::send_eof()
       {
 	local_error= 1;				// Rollback update
       }
+<<<<<<< remote sql/sql_update.cc 1.154.2.71
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+			    transactional_tables, FALSE, killed_status);
+      if (mysql_bin_log.write(&qinfo) && trans_safe)
+        local_error= 1;				// Rollback update
+>>>>>>>
     }
     if (thd->transaction.stmt.modified_non_trans_table)
       thd->transaction.all.modified_non_trans_table= TRUE;
