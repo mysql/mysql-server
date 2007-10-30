@@ -563,7 +563,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1534
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -581,7 +581,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1532
+Last_SQL_Errno	1534
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -638,7 +638,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1534
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -656,7 +656,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1532
+Last_SQL_Errno	1534
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -1703,7 +1703,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1534
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -1721,7 +1721,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1532
+Last_SQL_Errno	1534
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -1778,7 +1778,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1534
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -1796,7 +1796,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1532
+Last_SQL_Errno	1534
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
