@@ -3053,6 +3053,10 @@ end_with_restore_list:
   case SQLCOM_SET_OPTION:
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
+
+    if (lex->autocommit && end_active_trans(thd))
+      goto error;
+
     if ((check_table_access(thd, SELECT_ACL, all_tables, 0) ||
 	 open_and_lock_tables(thd, all_tables)))
       goto error;
