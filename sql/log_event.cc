@@ -114,6 +114,9 @@ private:
   flag_set m_flags;
 };
 
+#ifndef DBUG_OFF
+uint debug_not_change_ts_if_art_event= 1; // bug#29309 simulation
+#endif
 
 /*
   pretty_print_str()
@@ -555,8 +558,32 @@ int Log_event::do_update_pos(Relay_log_info *rli)
     Matz: I don't think we will need this check with this refactoring.
   */
   if (rli)
-    rli->stmt_done(log_pos, when);
-
+  {
+    /*
+      bug#29309 simulation: resetting the flag to force
+      wrong behaviour of artificial event to update
+      rli->last_master_timestamp for only one time -
+      the first FLUSH LOGS in the test.
+    */
+    DBUG_EXECUTE_IF("let_first_flush_log_change_timestamp",
+                    if (debug_not_change_ts_if_art_event == 1
+                        && is_artificial_event())
+                    {
+                      debug_not_change_ts_if_art_event= 0;
+                    });
+#ifndef DBUG_OFF
+    rli->stmt_done(log_pos, 
+                   is_artificial_event() &&
+                   debug_not_change_ts_if_art_event > 0 ? 0 : when);
+#else
+    rli->stmt_done(log_pos, is_artificial_event()? 0 : when);
+#endif
+    DBUG_EXECUTE_IF("let_first_flush_log_change_timestamp",
+                    if (debug_not_change_ts_if_art_event == 0)
+                    {
+                      debug_not_change_ts_if_art_event= 2;
+                    });
+  }
   return 0;                                   // Cannot fail currently
 }
 
@@ -570,7 +597,8 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       (ulong) server_id, (ulong) ::server_id,
                       rli->replicate_same_server_id,
                       rli->slave_skip_counter));
-  if (server_id == ::server_id && !rli->replicate_same_server_id)
+  if (server_id == ::server_id && !rli->replicate_same_server_id ||
+      rli->slave_skip_counter == 1 && rli->is_in_group())
     return EVENT_SKIP_IGNORE;
   else if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
@@ -1227,6 +1255,16 @@ void Log_event::print_timestamp(IO_CACHE* file, time_t* ts)
 #endif /* MYSQL_CLIENT */
 
 
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+inline Log_event::enum_skip_reason
+Log_event::continue_group(Relay_log_info *rli)
+{
+  if (rli->slave_skip_counter == 1)
+    return Log_event::EVENT_SKIP_IGNORE;
+  return Log_event::do_shall_skip(rli);
+}
+#endif
+
 /**************************************************************************
 	Query_log_event methods
 **************************************************************************/
@@ -1290,6 +1328,11 @@ static void write_str_with_code_and_len(char **dst, const char *src,
 
 bool Query_log_event::write(IO_CACHE* file)
 {
+  /**
+    @todo if catalog can be of length FN_REFLEN==512, then we are not
+    replicating it correctly, since the length is stored in a byte
+    /sven
+  */
   uchar buf[QUERY_HEADER_LEN+
             1+4+           // code of flags2 and flags2
             1+8+           // code of sql_mode and sql_mode
@@ -1516,6 +1559,10 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   
   time(&end_time);
   exec_time = (ulong) (end_time  - thd_arg->start_time);
+  /**
+    @todo this means that if we have no catalog, then it is replicated
+    as an existing catalog of length zero. is that safe? /sven
+  */
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
   /* status_vars_len is set just before writing the event */
   db_len = (db) ? (uint32) strlen(db) : 0;
@@ -1525,7 +1572,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   /*
     If we don't use flags2 for anything else than options contained in
     thd_arg->options, it would be more efficient to flags2=thd_arg->options
-    (OPTIONS_WRITTEN_TO_BINLOG would be used only at reading time).
+    (OPTIONS_WRITTEN_TO_BIN_LOG would be used only at reading time).
     But it's likely that we don't want to use 32 bits for 3 bits; in the future
     we will probably want to reclaim the 29 bits. So we need the &.
   */
@@ -1726,6 +1773,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
+    /**
+      @todo we should clean up and do only copy_str_and_move; it
+      works for both cases.  Then we can remove the catalog_nz
+      flag. /sven
+    */
     if (likely(catalog_nz)) // true except if event comes from 5.0.0|1|2|3.
       copy_str_and_move(&catalog, &start, catalog_len);
     else
@@ -1737,6 +1789,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   }
   if (time_zone_len)
     copy_str_and_move(&time_zone_str, &start, time_zone_len);
+
+  /**
+    if time_zone_len or catalog_len are 0, then time_zone and catalog
+    are uninitialized at this point.  shouldn't they point to the
+    zero-length null-terminated strings we allocated space for in the
+    my_alloc call above? /sven
+  */
 
   /* A 2nd variable part; this is common to all versions */ 
   memcpy((char*) start, end, data_len);          // Copy db and query
@@ -2234,6 +2293,30 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
     return Log_event::do_update_pos(rli);
 }
 
+
+Log_event::enum_skip_reason
+Query_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  DBUG_ENTER("Query_log_event::do_shall_skip");
+  DBUG_PRINT("debug", ("query: %s; q_len: %d", query, q_len));
+  DBUG_ASSERT(query && q_len > 0);
+
+  if (rli->slave_skip_counter > 0)
+  {
+    if (strcmp("BEGIN", query) == 0)
+    {
+      thd->options|= OPTION_BEGIN;
+      DBUG_RETURN(Log_event::continue_group(rli));
+    }
+
+    if (strcmp("COMMIT", query) == 0 || strcmp("ROLLBACK", query) == 0)
+    {
+      thd->options&= ~OPTION_BEGIN;
+      DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
+    }
+  }
+  DBUG_RETURN(Log_event::do_shall_skip(rli));
+}
 
 #endif
 
@@ -2774,7 +2857,7 @@ uint Load_log_event::get_query_buffer_length()
     21 + sql_ex.field_term_len*4 + 2 +      // " FIELDS TERMINATED BY 'str'"
     23 + sql_ex.enclosed_len*4 + 2 +        // " OPTIONALLY ENCLOSED BY 'str'"
     12 + sql_ex.escaped_len*4 + 2 +         // " ESCAPED BY 'str'"
-    21 + sql_ex.line_term_len*4 + 2 +       // " FIELDS TERMINATED BY 'str'"
+    21 + sql_ex.line_term_len*4 + 2 +       // " LINES TERMINATED BY 'str'"
     19 + sql_ex.line_start_len*4 + 2 +      // " LINES STARTING BY 'str'"
     15 + 22 +                               // " IGNORE xxx  LINES"
     3 + (num_fields-1)*2 + field_block_len; // " (field1, field2, ...)"
@@ -3871,10 +3954,7 @@ Intvar_log_event::do_shall_skip(Relay_log_info *rli)
     that we do not change the value of the slave skip counter since it
     will be decreased by the following insert event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 
 #endif
@@ -3970,10 +4050,7 @@ Rand_log_event::do_shall_skip(Relay_log_info *rli)
     that we do not change the value of the slave skip counter since it
     will be decreased by the following insert event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 
 #endif /* !MYSQL_CLIENT */
@@ -4048,6 +4125,17 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
   return end_trans(thd, COMMIT);
+}
+
+Log_event::enum_skip_reason
+Xid_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  DBUG_ENTER("Xid_log_event::do_shall_skip");
+  if (rli->slave_skip_counter > 0) {
+    thd->options&= ~OPTION_BEGIN;
+    DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
+  }
+  DBUG_RETURN(Log_event::do_shall_skip(rli));
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -4427,10 +4515,7 @@ User_var_log_event::do_shall_skip(Relay_log_info *rli)
     that we do not change the value of the slave skip counter since it
     will be decreased by the following insert event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -5366,6 +5451,19 @@ int Begin_load_query_log_event::get_create_or_append() const
 #endif /* defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
 
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+Log_event::enum_skip_reason
+Begin_load_query_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  /*
+    If the slave skip counter is 1, then we should not start executing
+    on the next event.
+  */
+  return continue_group(rli);
+}
+#endif
+
+
 /**************************************************************************
 	Execute_load_query_log_event methods
 **************************************************************************/
@@ -5577,6 +5675,10 @@ bool sql_ex_info::write_data(IO_CACHE* file)
   }
   else
   {
+    /**
+      @todo This is sensitive to field padding. We should write a
+      char[7], not an old_sql_ex. /sven
+    */
     old_sql_ex old_ex;
     old_ex.field_term= *field_term;
     old_ex.enclosed=   *enclosed;
@@ -6146,13 +6248,15 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       table->in_use = old_thd;
       switch (error)
       {
-        /* Some recoverable errors */
+      case 0:
+	break;
+
+      /* Some recoverable errors */
       case HA_ERR_RECORD_CHANGED:
       case HA_ERR_KEY_NOT_FOUND:	/* Idempotency support: OK if
                                            tuple does not exist */
-	error= 0;
-      case 0:
-	break;
+        error= 0;
+        break;
 
       default:
 	rli->report(ERROR_LEVEL, thd->net.last_errno,
@@ -6170,6 +6274,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
        m_curr_row_end.
       */ 
    
+      DBUG_PRINT("info", ("error: %d", error));
+      DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
+                          (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
+
       if (!m_curr_row_end && !error)
         unpack_current_row(rli);
   
@@ -6469,6 +6577,16 @@ void Rows_log_event::print_helper(FILE *file,
   data) in the table map are initialized as zero (0). The array size is the 
   same as the columns for the table on the slave.
 
+  Additionally, values saved for field metadata on the master are saved as a 
+  string of bytes (uchar) in the binlog. A field may require 1 or more bytes
+  to store the information. In cases where values require multiple bytes 
+  (e.g. values > 255), the endian-safe methods are used to properly encode 
+  the values on the master and decode them on the slave. When the field
+  metadata values are captured on the slave, they are stored in an array of
+  type uint16. This allows the least number of casts to prevent casting bugs
+  when the field metadata is used in comparisons of field attributes. When
+  the field metadata is used for calculating addresses in pointer math, the
+  type used is uint32. 
 */
 
 /**
@@ -6860,10 +6978,7 @@ Table_map_log_event::do_shall_skip(Relay_log_info *rli)
     If the slave skip counter is 1, then we should not start executing
     on the next event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 
 int Table_map_log_event::do_update_pos(Relay_log_info *rli)
@@ -7894,7 +8009,15 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   int error= find_row(rli); 
   if (error)
+  {
+    /*
+      We need to read the second image in the event of error to be
+      able to skip to the next pair of updates
+    */
+    m_curr_row= m_curr_row_end;
+    unpack_current_row(rli);
     return error;
+  }
 
   /*
     This is the situation after locating BI:
