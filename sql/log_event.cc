@@ -5472,12 +5472,13 @@ Begin_load_query_log_event::do_shall_skip(Relay_log_info *rli)
 #ifndef MYSQL_CLIENT
 Execute_load_query_log_event::
 Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
-                     ulong query_length_arg, uint fn_pos_start_arg,
-                     uint fn_pos_end_arg,
-                     enum_load_dup_handling dup_handling_arg,
-                     bool using_trans, bool suppress_use):
+                             ulong query_length_arg, uint fn_pos_start_arg,
+                             uint fn_pos_end_arg,
+                             enum_load_dup_handling dup_handling_arg,
+                             bool using_trans, bool suppress_use,
+                             THD::killed_state killed_err_arg):
   Query_log_event(thd_arg, query_arg, query_length_arg, using_trans,
-                  suppress_use),
+                  suppress_use, killed_err_arg),
   file_id(thd_arg->file_id), fn_pos_start(fn_pos_start_arg),
   fn_pos_end(fn_pos_end_arg), dup_handling(dup_handling_arg)
 {
