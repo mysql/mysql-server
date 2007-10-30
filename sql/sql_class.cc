@@ -498,12 +498,12 @@ void THD::push_internal_handler(Internal_error_handler *handler)
 }
 
 
-bool THD::handle_error(uint sql_errno,
+bool THD::handle_error(uint sql_errno, const char *message,
                        MYSQL_ERROR::enum_warning_level level)
 {
   if (m_internal_handler)
   {
-    return m_internal_handler->handle_error(sql_errno, level, this);
+    return m_internal_handler->handle_error(sql_errno, message, level, this);
   }
 
   return FALSE;                                 // 'FALSE', as per coding style
