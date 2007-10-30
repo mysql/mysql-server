@@ -643,6 +643,7 @@ ErrorBundle ErrorCodes[] = {
   { 4291, DMEC, AE, "Duplicate column specification in NdbDictionary::RecordSpecification" },
   { 4292, DMEC, AE, "NdbRecord for tuple access is not an index key NdbRecord" },
   { 4293, DMEC, AE, "Error returned from application scanIndex() callback" },
+  { 4294, DMEC, AE, "Scan filter is too large, discarded" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

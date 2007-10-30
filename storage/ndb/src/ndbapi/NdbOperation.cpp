@@ -433,3 +433,9 @@ NdbOperation::getTable() const
 {
   return m_currentTable;
 }
+
+NdbTransaction* 
+NdbOperation::getNdbTransaction()
+{
+  return theNdbCon; 
+}

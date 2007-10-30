@@ -338,3 +338,18 @@ select * from t2 order by id;
 
 drop trigger kaboom;
 drop table t1;
+
+#bug#31874
+
+create table t1 (
+  a int not null primary key,
+  b int
+) engine = ndb;
+insert into t1 values (7,2),(8,3),(10,4);
+
+update t1 set b = 5 where a in (7,8) or a >= 10;
+select * from t1 order by a;
+delete from t1 where a in (7,8) or a >= 10;
+select * from t1 order by a;
+
+drop table t1;

@@ -492,3 +492,18 @@ id
 3
 drop trigger kaboom;
 drop table t1;
+create table t1 (
+a int not null primary key,
+b int
+) engine = ndb;
+insert into t1 values (7,2),(8,3),(10,4);
+update t1 set b = 5 where a in (7,8) or a >= 10;
+select * from t1 order by a;
+a	b
+7	5
+8	5
+10	5
+delete from t1 where a in (7,8) or a >= 10;
+select * from t1 order by a;
+a	b
+drop table t1;

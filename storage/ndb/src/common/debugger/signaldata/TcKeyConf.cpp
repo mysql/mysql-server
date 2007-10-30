@@ -53,11 +53,11 @@ printTCKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
 	    (TcKeyConf::getMarkerFlag(confInfo) == 0)?"false":"true");
     fprintf(output, "Operations:\n");
     for(i = 0; i < noOfOp; i++) {
-      if(sig->operations[i].attrInfoLen > TcKeyConf::SimpleReadBit)
+      if(sig->operations[i].attrInfoLen > TcKeyConf::DirtyReadBit)
 	fprintf(output,
 		" apiOperationPtr: H'%.8x, simplereadnode: %u\n",
 		sig->operations[i].apiOperationPtr,
-		sig->operations[i].attrInfoLen & (~TcKeyConf::SimpleReadBit));
+		sig->operations[i].attrInfoLen & (~TcKeyConf::DirtyReadBit));
       else
 	fprintf(output,
 		" apiOperationPtr: H'%.8x, attrInfoLen: %u\n",

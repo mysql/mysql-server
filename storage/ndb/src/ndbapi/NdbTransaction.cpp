@@ -1811,8 +1811,8 @@ from other transactions.
       const Uint32 tAttrInfoLen = *tPtr++;
       if (tOp && tOp->checkMagicNumber()) {
 	Uint32 done = tOp->execTCOPCONF(tAttrInfoLen);
-	if(tAttrInfoLen > TcKeyConf::SimpleReadBit){
-	  Uint32 node = tAttrInfoLen & (~TcKeyConf::SimpleReadBit);
+	if(tAttrInfoLen > TcKeyConf::DirtyReadBit){
+	  Uint32 node = tAttrInfoLen & (~TcKeyConf::DirtyReadBit);
 	  NdbNodeBitmask::set(m_db_nodes, node);
 	  if(NdbNodeBitmask::get(m_failed_db_nodes, node) && !done)
 	  {
@@ -2259,8 +2259,14 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
     op->theDirtyIndicator= 1;
     op->theSimpleIndicator= 1;
   }
-  else
+  else 
   {
+    if (op->theLockMode == NdbOperation::LM_SimpleRead)
+    {
+      op->theSimpleIndicator = 1;
+    }
+    
+    
     theSimpleState= 0;
   }
 
@@ -2902,7 +2908,7 @@ NdbTransaction::report_node_failure(Uint32 id){
    * 4)   X           X
    */
   NdbOperation* tmp = theFirstExecOpInList;
-  const Uint32 len = TcKeyConf::SimpleReadBit | id;
+  const Uint32 len = TcKeyConf::DirtyReadBit | id;
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
   Uint32 count = 0;

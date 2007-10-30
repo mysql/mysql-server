@@ -182,12 +182,11 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   Uint8 tInterpretIndicator = theInterpretIndicator;
   Uint8 tNoDisk = m_no_disk_flag;
 
-//-------------------------------------------------------------
-// Simple state is set if start and commit is set and it is
-// a read request. Otherwise it is set to zero.
-//-------------------------------------------------------------
+  /**
+   * A dirty read, can not abort the transaction
+   */
   Uint8 tReadInd = (theOperationType == ReadRequest);
-  Uint8 tSimpleState = tReadInd & tSimpleIndicator;
+  Uint8 tDirtyState = tReadInd & tDirtyIndicator;
 
   tcKeyReq->transId1           = tTransId1;
   tcKeyReq->transId2           = tTransId2;
@@ -213,8 +212,8 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->setOperationType(tReqInfo, tOperationType);
   tcKeyReq->setKeyLength(tReqInfo, tTupKeyLen);
   
-  // A simple read is always ignore error
-  abortOption = tSimpleState ? (Uint8) AO_IgnoreError : (Uint8) abortOption;
+  // A dirty read is always ignore error
+  abortOption = tDirtyState ? (Uint8) AO_IgnoreError : (Uint8) abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   m_abortOption = abortOption;
   
@@ -1209,8 +1208,8 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   theStatus = Finished;
   theReceiver.m_received_result_length = ~0;
 
-  // not simple read
-  if(! (theOperationType == ReadRequest && theSimpleIndicator))
+  // not dirty read
+  if(! (theOperationType == ReadRequest && theDirtyIndicator))
   {
     theNdbCon->OpCompleteFailure(this);
     return -1;

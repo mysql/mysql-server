@@ -89,7 +89,6 @@ Uint32 ndbGetOwnVersion();
 #define NDBD_NODE_VERSION_REP NDB_MAKE_VERSION(6,1,1)
 
 #define NDBD_255_NODES_VERSION NDB_MAKE_VERSION(5,1,4)
-#define NDBD_PREPARE_COPY_FRAG_VERSION NDB_MAKE_VERSION(6,2,1)
 
 #define NDBD_MICRO_GCP_62 NDB_MAKE_VERSION(6,2,5)
 #define NDBD_MICRO_GCP_63 NDB_MAKE_VERSION(6,3,2)
@@ -111,6 +110,53 @@ ndb_check_micro_gcp(Uint32 version)
       return version >= NDBD_MICRO_GCP_63;
     }
   }
+  return 0;
+}
+
+#define NDBD_PREPARE_COPY_FRAG_VERSION NDB_MAKE_VERSION(6,2,1)
+#define NDBD_PREPARE_COPY_FRAG_V2_51 NDB_MAKE_VERSION(5,1,23)
+#define NDBD_PREPARE_COPY_FRAG_V2_62 NDB_MAKE_VERSION(6,2,8)
+#define NDBD_PREPARE_COPY_FRAG_V2_63 NDB_MAKE_VERSION(6,3,6)
+
+/**
+ * 0 = NO PREP COPY FRAG SUPPORT
+ * 1 = NO MAX PAGE SUPPORT
+ * 2 = LATEST VERSION
+ */
+static
+inline
+int
+ndb_check_prep_copy_frag_version(Uint32 version)
+{	
+  if (version == NDB_VERSION_D)
+    return 2;
+
+  const Uint32 major = (version >> 16) & 0xFF;
+  const Uint32 minor = (version >>  8) & 0xFF;
+  if (major >= 6)
+  {
+    if (minor == 2)
+    {
+      if (version >= NDBD_PREPARE_COPY_FRAG_V2_62)
+        return 2;
+      if (version >= NDBD_PREPARE_COPY_FRAG_VERSION)
+        return 1;
+      return 0;
+    }
+    else if (minor == 3)
+    {
+      if (version >= NDBD_PREPARE_COPY_FRAG_V2_63)
+        return 2;
+      return 1;
+    }
+    return 2;
+  }
+  else if (major == 5 && minor == 1)
+  {
+    if (version >= NDBD_PREPARE_COPY_FRAG_V2_51)
+      return 2;
+  }
+    
   return 0;
 }
 

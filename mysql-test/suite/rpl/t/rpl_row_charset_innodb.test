@@ -1,8 +1,9 @@
 ########################################################
 # By JBM 2005-02-15 Wrapped to allow reuse of test code#
+# Added to skip if ndb is default                      #
 ########################################################
--- source include/have_ndb.inc
--- source include/have_binlog_format_mixed_or_row.inc
--- source include/ndb_master-slave.inc
-let $engine_type=NDB;
+-- source include/not_ndb_default.inc
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+let $engine_type=innodb;
 -- source extra/rpl_tests/rpl_row_charset.test
