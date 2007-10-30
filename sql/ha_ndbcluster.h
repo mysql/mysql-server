@@ -187,9 +187,30 @@ struct Ndb_tuple_id_range_guard {
 
 #ifdef HAVE_NDB_BINLOG
 /* NDB_SHARE.flags */
-#define NSF_HIDDEN_PK 1 /* table has hidden primary key */
-#define NSF_BLOB_FLAG 2 /* table has blob attributes */
-#define NSF_NO_BINLOG 4 /* table should not be binlogged */
+#define NSF_HIDDEN_PK   1u /* table has hidden primary key */
+#define NSF_BLOB_FLAG   2u /* table has blob attributes */
+#define NSF_NO_BINLOG   4u /* table should not be binlogged */
+#define NSF_BINLOG_FULL 8u /* table should be binlogged with full rows */
+#define NSF_BINLOG_USE_UPDATE 16u  /* table update should be binlogged using
+                                     update log event */
+inline void set_binlog_logging(NDB_SHARE *share)
+{ share->flags&= ~NSF_NO_BINLOG; }
+inline void set_binlog_nologging(NDB_SHARE *share)
+{ share->flags|= NSF_NO_BINLOG; }
+inline my_bool get_binlog_nologging(NDB_SHARE *share)
+{ return (share->flags & NSF_NO_BINLOG) != 0; }
+inline void set_binlog_updated_only(NDB_SHARE *share)
+{ share->flags&= ~NSF_BINLOG_FULL; }
+inline void set_binlog_full(NDB_SHARE *share)
+{ share->flags|= NSF_BINLOG_FULL; }
+inline my_bool get_binlog_full(NDB_SHARE *share)
+{ return (share->flags & NSF_BINLOG_FULL) != 0; }
+inline void set_binlog_use_write(NDB_SHARE *share)
+{ share->flags&= ~NSF_BINLOG_USE_UPDATE; }
+inline void set_binlog_use_update(NDB_SHARE *share)
+{ share->flags|= NSF_BINLOG_USE_UPDATE; }
+inline my_bool get_binlog_use_update(NDB_SHARE *share)
+{ return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 #endif
 
 typedef enum ndb_query_state_bits {
