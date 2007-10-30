@@ -1,0 +1,68 @@
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/have_log_bin.inc
+
+#
+# bug#27571 asynchronous setting mysql_`query`::error and Query_log_e::error_code
+# 
+# Checking that if killing happens inbetween of the end of rows loop and
+# recording into binlog that will not lead to recording any error incl 
+# the killed error.
+#
+
+connect (looser, localhost, root,,);
+connect (killer, localhost, root,,);
+
+create table t1 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
+
+delete from t1;
+insert into t1 values (1,1),(2,2);
+reset master;
+
+connection looser;
+let $ID= `select connection_id()`;
+send update t1 set b=11 where a=2;
+
+connection killer;
+sleep 1; # let 1 second for the update to get to the sleeping point
+--replace_result $ID ID
+eval kill query $ID;
+
+connection looser;
+--error 0 # zero even though the query must be got killed while it was sleepin for 5 secs
+reap;
+
+#
+# this is another possible artifact. The killed error was not caught
+# as that is logical as killing was not effective:
+# data are ok and well as binlog event is without killed error (further).
+# The reason of the following `show error' is to prove that 
+# killing simulation was effective
+#
+show errors; 
+
+connection killer;
+
+# nothing is rolled back
+
+select * from t1 where a=2 /* must be 11 */;
+
+# a proof the query is binlogged with an error
+
+--exec $MYSQL_BINLOG --start-position=98 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select
+(@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+let $error_code= `select @a like "%#%error_code=0%"`;
+
+eval select $error_code  /* must return 1*/;
+
+#
+# cleanup
+#
+
+drop table t1;
+
+--echo end of the tests
