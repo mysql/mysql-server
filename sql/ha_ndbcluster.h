@@ -278,6 +278,8 @@ class Thd_ndb
 
   Ndb_cluster_connection *connection;
   Ndb *ndb;
+  /* this */
+  ha_ndbcluster *m_handler;
   ulong count;
   uint lock_count;
   uint start_stmt_count;
@@ -310,6 +312,7 @@ class Thd_ndb
   uint m_conflict_fn_usage_count;
 };
 
+int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
 class ha_ndbcluster: public handler
 {
  public:
@@ -320,6 +323,7 @@ class ha_ndbcluster: public handler
   void column_bitmaps_signal(uint sig_type);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
+  void local_close(THD *thd, bool release_metadata);
 
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
@@ -366,6 +370,8 @@ class ha_ndbcluster: public handler
   int info(uint);
   void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
   uint32 calculate_key_hash_value(Field **field_array);
+  bool read_before_write_removal_possible(List<Item> *fields,
+                                          List<Item> *values);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
@@ -519,11 +525,16 @@ private:
                                  uchar *new_data,
                                  NdbInterpretedCode *);
 #endif
+  uint setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
+                                    const uchar **key_row,
+                                    const uchar *record,
+                                    bool use_active_index);
   friend int ndbcluster_drop_database_impl(const char *path);
   friend int ndb_handle_schema_change(THD *thd, 
                                       Ndb *ndb, NdbEventOperation *pOp,
                                       NDB_SHARE *share);
 
+  void check_read_before_write_removal();
   static int delete_table(ha_ndbcluster *h, Ndb *ndb,
 			  const char *path,
 			  const char *db,
@@ -687,7 +698,9 @@ private:
   int write_conflict_row(NdbTransaction*, const uchar* row, NdbError&);
   friend int check_completed_operations_pre_commit(Thd_ndb*,
                                                    NdbTransaction*,
-                                                   const NdbOperation*);
+                                                   const NdbOperation*,
+                                                   uint *ignore_count);
+  friend int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
   int start_statement(THD *thd, Thd_ndb *thd_ndb, uint table_count);
   int init_handler_for_statement(THD *thd);
 
@@ -715,7 +728,7 @@ private:
                               8*sizeof(my_bitmap_map) - 1) /
                              (8*sizeof(my_bitmap_map))]; // Buffer for m_bitmap
   /* Bitmap with bit set for all primary key columns. */
-  MY_BITMAP m_pk_bitmap;
+  MY_BITMAP *m_pk_bitmap_p;
   my_bitmap_map m_pk_bitmap_buf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
                                  8*sizeof(my_bitmap_map) - 1) /
                                 (8*sizeof(my_bitmap_map))]; // Buffer for m_pk_bitmap
@@ -750,6 +763,9 @@ private:
   char *m_row_buffer_current;
   /* Extra bytes needed in row for hidden fields. */
   uint m_extra_reclength;
+
+  MY_BITMAP **m_key_fields;
+  MY_BITMAP m_save_read_set;
   // NdbRecAttr has no reference to blob
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   Uint64 m_ref;
@@ -762,6 +778,10 @@ private:
   bool m_ignore_dup_key;
   bool m_has_unique_index;
   bool m_ignore_no_key;
+  bool m_read_before_write_removal_possible;
+  bool m_read_before_write_removal_used;
+  ha_rows m_rows_updated;
+  ha_rows m_rows_deleted;
   ha_rows m_rows_to_insert; // TODO: merge it with handler::estimation_rows_to_insert?
   ha_rows m_rows_inserted;
   ha_rows m_rows_changed;
