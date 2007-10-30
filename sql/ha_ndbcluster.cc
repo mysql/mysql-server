@@ -2207,22 +2207,21 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
 }
 
 /*
-  Read one complementing record from NDB using primary key from old_data
-  or hidden key
+  Update primary key or part id by doing delete insert
 */
 
-int ha_ndbcluster::complemented_read(const uchar *old_data, uchar *new_data,
+int ha_ndbcluster::ndb_pk_update_row(const uchar *old_data, uchar *new_data,
                                      uint32 old_part_id)
 {
   NdbTransaction *trans= m_thd_ndb->trans;
+  int read_needed= !bitmap_is_set_all(table->read_set);
+  int error;
   NdbOperation *op;
-  DBUG_ENTER("complemented_read");
+  DBUG_ENTER("ndb_pk_update_row");
 
-  if (bitmap_is_set_all(table->read_set))
-  {
-    // We have allready retrieved all fields, nothing to complement
-    DBUG_RETURN(0);
-  }
+  DBUG_PRINT("info", ("primary key update or partition change, "
+                      "doing read+delete+insert"));
+  // Get all old fields, since we optimize away fields not in query
 
   const NdbRecord *key_rec;
   const uchar *key_row;
@@ -2238,37 +2237,75 @@ int ha_ndbcluster::complemented_read(const uchar *old_data, uchar *new_data,
     key_row= (const uchar*)(&m_ref);
   }
 
+  if (!read_needed)
+  {
+    // We have allready retrieved all fields
+    goto delete_tuple;
+  }
+
   /*
     Use mask only with columns that are not in write_set, not in
     read_set, and not part of the primary key.
   */
-  bitmap_copy(&m_bitmap, table->read_set);
-  bitmap_union(&m_bitmap, table->write_set);
-  bitmap_invert(&m_bitmap);
-  NdbOperation::LockMode lm=
-    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, &m_bitmap);
-  if (!(op= trans->readTuple(key_rec, (const char *)key_row,
-                             m_ndb_record, (char *)new_data,
-                             lm, (const unsigned char *)(m_bitmap.bitmap))))
-    ERR_RETURN(trans->getNdbError());
+  {
+    bitmap_copy(&m_bitmap, table->read_set);
+    bitmap_union(&m_bitmap, table->write_set);
+    bitmap_invert(&m_bitmap);
+    NdbOperation::LockMode lm=
+      (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, &m_bitmap);
+    if (!(op= trans->readTuple(key_rec, (const char *)key_row,
+                               m_ndb_record, (char *)new_data,
+                               lm, (const unsigned char *)(m_bitmap.bitmap))))
+      ERR_RETURN(trans->getNdbError());
+  }
 
   if (table_share->blob_fields > 0)
   {
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-    int res= get_blob_values(op, new_data, &m_bitmap);
+    error= get_blob_values(op, new_data, &m_bitmap);
     dbug_tmp_restore_column_map(table->read_set, old_map);
-    if (res != 0)
+    if (error != 0)
       ERR_RETURN(op->getNdbError());
   }
 
   if (m_user_defined_partitioning)
     op->setPartitionId(old_part_id);
-  
-  if (execute_no_commit(this,trans,FALSE) != 0) 
+
+  if (execute_no_commit(this, trans, FALSE) != 0)
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
   }
+
+delete_tuple:
+  // Delete old row
+  error= ndb_delete_row(old_data, TRUE);
+  if (error)
+  {
+    DBUG_PRINT("info", ("delete failed"));
+    DBUG_RETURN(error);
+  }
+
+  // Insert new row
+  DBUG_PRINT("info", ("delete succeded"));
+  bool batched_update= (m_active_cursor != 0);
+  error= ndb_write_row(new_data, TRUE, batched_update);
+  if (error)
+  {
+    DBUG_PRINT("info", ("insert failed"));
+    if (trans->commitStatus() == NdbConnection::Started)
+    {
+      // Undo delete_row(old_data)
+      int undo_res= ndb_write_row((uchar *)old_data, TRUE, batched_update);
+      if (undo_res)
+        push_warning(current_thd,
+                     MYSQL_ERROR::WARN_LEVEL_WARN,
+                     undo_res,
+                     "NDB failed undoing delete at primary key update");
+    }
+    DBUG_RETURN(error);
+  }
+  DBUG_PRINT("info", ("delete+insert succeeded"));
 
   DBUG_RETURN(0);
 }
@@ -3554,45 +3591,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
    */  
   if (pk_update || old_part_id != new_part_id)
   {
-    int read_res, insert_res, delete_res, undo_res;
-
-    DBUG_PRINT("info", ("primary key update or partition change, "
-                        "doing read+delete+insert"));
-    // Get all old fields, since we optimize away fields not in query
-    read_res= complemented_read(old_data, new_data, old_part_id);
-    if (read_res)
-    {
-      DBUG_PRINT("info", ("read failed"));
-      DBUG_RETURN(read_res);
-    }
-    // Delete old row
-    delete_res= ndb_delete_row(old_data, TRUE);
-    if (delete_res)
-    {
-      DBUG_PRINT("info", ("delete failed"));
-      DBUG_RETURN(delete_res);
-    }     
-    // Insert new row
-    DBUG_PRINT("info", ("delete succeded"));
-    bool batched_update= (cursor != 0);
-    insert_res= ndb_write_row(new_data, TRUE, batched_update);
-    if (insert_res)
-    {
-      DBUG_PRINT("info", ("insert failed"));
-      if (trans->commitStatus() == NdbConnection::Started)
-      {
-        // Undo delete_row(old_data)
-        undo_res= ndb_write_row((uchar *)old_data, TRUE, batched_update);
-        if (undo_res)
-          push_warning(thd, 
-                       MYSQL_ERROR::WARN_LEVEL_WARN, 
-                       undo_res, 
-                       "NDB failed undoing delete at primary key update");
-      }
-      DBUG_RETURN(insert_res);
-    }
-    DBUG_PRINT("info", ("delete+insert succeeded"));
-    DBUG_RETURN(0);
+    DBUG_RETURN(ndb_pk_update_row(old_data, new_data, old_part_id));
   }
 
   /*
