@@ -6507,7 +6507,6 @@ ST_SCHEMA_TABLE schema_tables[]=
    get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0,
    OPEN_TABLE_ONLY},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
-   fill_open_tables, make_old_format, 0, -1, -1, 1, 0},
   {"PARTITIONS", partitions_fields_info, create_schema_table,
    get_all_tables, 0, get_schema_partitions_record, 1, 2, 0, OPEN_TABLE_ONLY},
   {"PLUGINS", plugin_fields_info, create_schema_table,
