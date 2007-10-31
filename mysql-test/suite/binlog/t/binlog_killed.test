@@ -216,11 +216,12 @@ connection con2;
 --error ER_QUERY_INTERRUPTED
 reap;
 select * from t2 /* must be (1,2), (2,2) */;
-show master status  /* must have the update event more to FD */;
+--echo must have the update event more to FD
+source include/show_binlog_events.inc;
 
 # a proof the query is binlogged with an error
 
---exec $MYSQL_BINLOG --start-position=98 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --start-position=106 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
@@ -256,11 +257,12 @@ connection con2;
 --error ER_QUERY_INTERRUPTED
 reap;
 select * from t2 /* must be (1,2), (2,2) */;
-show master status  /* must have the update event more to FD */;
+--echo must have the update event more to FD
+source include/show_binlog_events.inc;
 
 # a proof the query is binlogged with an error
 
---exec $MYSQL_BINLOG --start-position=98 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --start-position=106 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
