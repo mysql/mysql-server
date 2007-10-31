@@ -915,11 +915,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if (res)
     {
-      /* authentication failure, we shall restore old user */
-      if (res > 0)
-        my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      else
-        thd->clear_error();                     // Error already sent to client
       x_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
