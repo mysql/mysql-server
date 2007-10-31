@@ -1052,6 +1052,8 @@ page_zip_compress(
 	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
 
+	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
+
 	/* Check the data that will be omitted. */
 	ut_a(!memcmp(page + (PAGE_NEW_INFIMUM - REC_N_NEW_EXTRA_BYTES),
 		     infimum_extra, sizeof infimum_extra));
@@ -2477,6 +2479,8 @@ page_zip_decompress(
 	ulint*		offsets;
 
 	ut_ad(page_zip_simple_validate(page_zip));
+	UNIV_MEM_ASSERT_W(page, UNIV_PAGE_SIZE);
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
 	/* The dense directory excludes the infimum and supremum records. */
 	n_dense = page_dir_get_n_heap(page_zip->data) - PAGE_HEAP_NO_USER_LOW;
@@ -2492,6 +2496,7 @@ page_zip_decompress(
 	/* Clear the page. */
 	memset(page, 0x55, UNIV_PAGE_SIZE);
 #endif /* UNIV_ZIP_DEBUG */
+	UNIV_MEM_INVALID(page, UNIV_PAGE_SIZE);
 	/* Copy the page header. */
 	memcpy(page, page_zip->data, PAGE_DATA);
 
