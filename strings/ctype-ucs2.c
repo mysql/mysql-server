@@ -1019,6 +1019,7 @@ size_t my_l10tostr_ucs2(CHARSET_INFO *cs,
   register char *p, *db, *de;
   long int new_val;
   int  sl=0;
+  unsigned long int uval = (unsigned long int) val;
   
   p = &buffer[sizeof(buffer)-1];
   *p='\0';
@@ -1028,12 +1029,13 @@ size_t my_l10tostr_ucs2(CHARSET_INFO *cs,
     if (val < 0)
     {
       sl   = 1;
-      val  = -val;
+      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      uval  = (unsigned long int)0 - uval;
     }
   }
   
-  new_val = (long) ((unsigned long int) val / 10);
-  *--p    = '0'+ (char) ((unsigned long int) val - (unsigned long) new_val * 10);
+  new_val = (long) (uval / 10);
+  *--p    = '0'+ (char) (uval - (unsigned long) new_val * 10);
   val     = new_val;
   
   while (val != 0)
@@ -1067,34 +1069,36 @@ size_t my_ll10tostr_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   register char *p, *db, *de;
   long long_val;
   int  sl=0;
+  ulonglong uval= (ulonglong) val;
   
   if (radix < 0)
   {
     if (val < 0)
     {
       sl=1;
-      val = -val;
+      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      uval = (ulonglong)0 - uval;
     }
   }
   
   p = &buffer[sizeof(buffer)-1];
   *p='\0';
   
-  if (val == 0)
+  if (uval == 0)
   {
     *--p='0';
     goto cnv;
   }
   
-  while ((ulonglong) val > (ulonglong) LONG_MAX)
+  while (uval > (ulonglong) LONG_MAX)
   {
-    ulonglong quo=(ulonglong) val/(size_t) 10;
-    uint rem= (uint) (val- quo* (uint) 10);
+    ulonglong quo= uval/(uint) 10;
+    uint rem= (uint) (uval- quo* (uint) 10);
     *--p = '0' + rem;
-    val= quo;
+    uval= quo;
   }
   
-  long_val= (long) val;
+  long_val= (long) uval;
   while (long_val != 0)
   {
     long quo= long_val/10;
