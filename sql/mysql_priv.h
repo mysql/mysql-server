@@ -648,6 +648,7 @@ inline THD *_current_thd(void)
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
   three calling-info parameters. 
 */
+extern "C"
 const char *set_thd_proc_info(THD *thd, const char *info, 
                               const char *calling_func, 
                               const char *calling_file, 
@@ -1912,7 +1913,7 @@ extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
 
 extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
-uextern SHOW_COMP_OPTION have_query_cache;
+extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
