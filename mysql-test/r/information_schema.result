@@ -1402,6 +1402,13 @@ TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 VIEWS	information_schema.VIEWS	1
+show global status like "Uptime_%";
+Variable_name	Value
+Uptime_since_flush_status	#
+flush status;
+show global status like "Uptime_%";
+Variable_name	Value
+Uptime_since_flush_status	#
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);

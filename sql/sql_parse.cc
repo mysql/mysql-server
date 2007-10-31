@@ -1509,6 +1509,15 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     break;
   }
 #endif
+  case SCH_PROFILES:
+    /* 
+      Mark this current profiling record to be discarded.  We don't
+      wish to have SHOW commands show up in profiling.
+    */
+#ifdef ENABLED_PROFILING
+    thd->profiling.discard();
+#endif
+    break;
   case SCH_OPEN_TABLES:
   case SCH_VARIABLES:
   case SCH_STATUS:
@@ -2007,23 +2016,6 @@ mysql_execute_command(THD *thd)
       goto error;
 #else
     my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILES", "enable-profiling");
-    goto error;
-#endif
-    break;
-  }
-  case SQLCOM_SHOW_PROFILE:
-  {
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-    thd->profiling.store();
-    thd->profiling.discard(); // will get re-enabled by reset()
-    if (lex->profile_query_id != 0)
-      res= thd->profiling.show(lex->profile_options, lex->profile_query_id);
-    else
-      res= thd->profiling.show_last(lex->profile_options);
-    if (res)
-      goto error;
-#else
-    my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILE", "enable-profiling");
     goto error;
 #endif
     break;
