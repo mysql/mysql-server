@@ -624,6 +624,7 @@ Thd_ndb::Thd_ndb()
   start_stmt_count= 0;
   count= 0;
   trans= NULL;
+  m_handler= NULL;
   m_error= FALSE;
   m_error_code= 0;
   query_state&= NDB_QUERY_NORMAL;
@@ -5629,13 +5630,30 @@ int ha_ndbcluster::start_statement(THD *thd,
   {
     PRINT_OPTION_FLAGS(thd);
     trans_register_ha(thd, FALSE, ndbcluster_hton);
-    if ((!trans) &&
-        (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
-      trans_register_ha(thd, TRUE, ndbcluster_hton);
-    thd_ndb->m_handler= this;
+    if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    {
+      if (!trans)
+        trans_register_ha(thd, TRUE, ndbcluster_hton);
+      thd_ndb->m_handler= NULL;
+    }
+    else
+    {
+      /*
+        this is an autocommit, we may keep a reference to the
+        handler to be used in the commit phase for optimization
+        reasons, defering execute
+      */
+      thd_ndb->m_handler= this;
+    }
   }
   else
+  {
+    /*
+      there is more than one handler involved, execute deferal
+      not possible
+    */
     thd_ndb->m_handler= NULL;
+  }
   if (!trans)
   {
     DBUG_PRINT("trans",("Possibly starting transaction"));
@@ -5821,6 +5839,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           DBUG_PRINT("trans",("ending non-updating transaction"));
           thd_ndb->ndb->closeTransaction(thd_ndb->trans);
           thd_ndb->trans= NULL;
+          thd_ndb->m_handler= NULL;
         }
       }
     }
@@ -6042,6 +6061,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   }
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;
+  thd_ndb->m_handler= NULL;
 
   /* Clear commit_count for tables changed by transaction */
   NDB_SHARE* share;
@@ -6104,6 +6124,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   }
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;
+  thd_ndb->m_handler= NULL;
 
   /* Clear list of tables changed by transaction */
   thd_ndb->changed_tables.empty();
