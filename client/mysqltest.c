@@ -277,7 +277,7 @@ enum enum_commands {
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
-  Q_SEND_QUIT,
+  Q_SEND_QUIT, Q_CHANGE_USER,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -366,6 +366,7 @@ const char *command_names[]=
   "cat_file",
   "diff_files",
   "send_quit",
+  "change_user",
   0
 };
 
@@ -3041,6 +3042,69 @@ void do_send_quit(struct st_command *command)
     die("connection '%s' not found in connection pool", name);
 
   simple_command(&con->mysql,COM_QUIT,NullS,0,1);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_change_user
+  command       called command
+
+  DESCRIPTION
+  change_user [<user>], [<passwd>], [<db>]
+  <user> - user to change to
+  <passwd> - user password
+  <db> - default database
+
+  Changes the user and causes the database specified by db to become
+  the default (current) database for the the current connection.
+
+*/
+
+void do_change_user(struct st_command *command)
+{
+  MYSQL *mysql = &cur_con->mysql;
+  /* static keyword to make the NetWare compiler happy. */
+  static DYNAMIC_STRING ds_user, ds_passwd, ds_db;
+  const struct command_arg change_user_args[] = {
+    { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
+    { "password", ARG_STRING, FALSE, &ds_passwd, "Password used when connecting" },
+    { "database", ARG_STRING, FALSE, &ds_db, "Database to select after connect" },
+  };
+
+  DBUG_ENTER("do_change_user");
+
+  check_command_args(command, command->first_argument,
+                     change_user_args,
+                     sizeof(change_user_args)/sizeof(struct command_arg),
+                     ',');
+
+  if (cur_con->stmt)
+  {
+    mysql_stmt_close(cur_con->stmt);
+    cur_con->stmt= NULL;
+  }
+
+  if (!ds_user.length)
+    dynstr_set(&ds_user, mysql->user);
+
+  if (!ds_passwd.length)
+    dynstr_set(&ds_passwd, mysql->passwd);
+
+  if (!ds_db.length)
+    dynstr_set(&ds_db, mysql->db);
+
+  DBUG_PRINT("info",("connection: '%s' user: '%s' password: '%s' database: '%s'",
+                      cur_con->name, ds_user.str, ds_passwd.str, ds_db.str));
+
+  if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str))
+    die("change user failed: %s", mysql_error(mysql));
+
+  dynstr_free(&ds_user);
+  dynstr_free(&ds_passwd);
+  dynstr_free(&ds_db);
 
   DBUG_VOID_RETURN;
 }
@@ -6852,6 +6916,7 @@ int main(int argc, char **argv)
       case Q_APPEND_FILE: do_append_file(command); break;
       case Q_DIFF_FILES: do_diff_files(command); break;
       case Q_SEND_QUIT: do_send_quit(command); break;
+      case Q_CHANGE_USER: do_change_user(command); break;
       case Q_CAT_FILE: do_cat_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
