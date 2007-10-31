@@ -920,7 +920,6 @@ bool init_new_connection_handler_thread();
 void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
-int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
 void thd_init_client_charset(THD *thd, uint cs_number);
 bool setup_connection_thread_globals(THD *thd);
