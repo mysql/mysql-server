@@ -1188,12 +1188,17 @@ buf_LRU_block_remove_hashed_page(
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
 
+	UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
+
 	buf_LRU_remove_block(bpage);
 
 	buf_pool->freed_page_clock += 1;
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_FILE_PAGE:
+		UNIV_MEM_ASSERT_W(bpage, sizeof(buf_block_t));
+		UNIV_MEM_ASSERT_W(((buf_block_t*) bpage)->frame,
+				  UNIV_PAGE_SIZE);
 		buf_block_modify_clock_inc((buf_block_t*) bpage);
 		if (bpage->zip.data) {
 			const page_t*	page = ((buf_block_t*) bpage)->frame;
@@ -1233,6 +1238,8 @@ buf_LRU_block_remove_hashed_page(
 		/* fall through */
 	case BUF_BLOCK_ZIP_PAGE:
 		ut_a(bpage->oldest_modification == 0);
+		UNIV_MEM_ASSERT_W(bpage->zip.data,
+				  page_zip_get_size(&bpage->zip));
 		break;
 	case BUF_BLOCK_ZIP_FREE:
 	case BUF_BLOCK_ZIP_DIRTY:
