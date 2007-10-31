@@ -1528,4 +1528,15 @@ PARTITION BY RANGE (b) (
 show create table t1;
 drop table t1, t2;
 
+#
+# Bug #31893 Partitions: crash if subpartitions and engine change
+#
+create table t1 (int_column int, char_column char(5))
+  PARTITION BY RANGE (int_column) subpartition by key (char_column)
+  (PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB);
+alter table t1 PARTITION BY RANGE (int_column) subpartition by key (char_column)
+  (PARTITION p1 VALUES LESS THAN (5) ENGINE = myisam);
+show create table t1;
+drop table t1;
+
 --echo End of 5.1 tests
