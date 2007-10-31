@@ -1221,6 +1221,10 @@ zlib_error:
 	ut_ad(buf + c_stream.total_out == c_stream.next_out);
 	ut_ad((ulint) (storage - c_stream.next_out) >= c_stream.avail_out);
 
+	/* Valgrind believes that zlib does not initialize some bits
+	in the last 7 or 8 bytes of the stream.  Make Valgrind happy. */
+	UNIV_MEM_VALID(buf, c_stream.total_out);
+
 	/* Zero out the area reserved for the modification log.
 	Space for the end marker of the modification log is not
 	included in avail_out. */
