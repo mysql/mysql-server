@@ -272,6 +272,76 @@ static int wait_for_data(my_socket fd, uint timeout)
 }
 #endif /* defined(__WIN__) || defined(__NETWARE__) */
 
+/**
+  Set the internal error message to mysql handler
+
+  @param mysql    connection handle (client side)
+  @param errcode  CR_ error code, passed to ER macro to get
+                  error text
+  @parma sqlstate SQL standard sqlstate
+*/
+
+void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
+{
+  NET *net;
+  DBUG_ENTER("set_mysql_error");
+  DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER(errcode)));
+  DBUG_ASSERT(mysql != 0);
+
+  net= &mysql->net;
+  net->last_errno= errcode;
+  strmov(net->last_error, ER(errcode));
+  strmov(net->sqlstate, sqlstate);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Clear possible error state of struct NET
+
+  @param net  clear the state of the argument
+*/
+
+void net_clear_error(NET *net)
+{
+  net->last_errno= 0;
+  net->last_error[0]= '\0';
+  strmov(net->sqlstate, not_error_sqlstate);
+}
+
+/**
+  Set an error message on the client.
+
+  @param mysql     connection handle
+  @param errcode   CR_* errcode, for client errors
+  @param sqlstate  SQL standard sql state, unknown_sqlstate for the
+                   majority of client errors.
+  @param format    error message template, in sprintf format
+  @param ...       variable number of arguments
+*/
+
+static void set_mysql_extended_error(MYSQL *mysql, int errcode,
+                                     const char *sqlstate,
+                                     const char *format, ...)
+{
+  NET *net;
+  va_list args;
+  DBUG_ENTER("set_mysql_extended_error");
+  DBUG_PRINT("enter", ("error :%d '%s'", errcode, format));
+  DBUG_ASSERT(mysql != 0);
+
+  net= &mysql->net;
+  net->last_errno= errcode;
+  va_start(args, format);
+  my_vsnprintf(net->last_error, sizeof(net->last_error)-1,
+               format, args);
+  va_end(args);
+  strmov(net->sqlstate, sqlstate);
+
+  DBUG_VOID_RETURN;
+}
+
+
 
 /*
   Create a named pipe connection
@@ -726,61 +796,6 @@ void free_old_query(MYSQL *mysql)
   mysql->info= 0;
   DBUG_VOID_RETURN;
 }
-
-/*
-  Set the internal error message to mysql handler
-*/
-
-void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
-{
-  NET *net;
-  DBUG_ENTER("set_mysql_error");
-  DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER(errcode)));
-  DBUG_ASSERT(mysql != 0);
-
-  net= &mysql->net;
-  net->last_errno= errcode;
-  strmov(net->last_error, ER(errcode));
-  strmov(net->sqlstate, sqlstate);
-
-  DBUG_VOID_RETURN;
-}
-
-/**
-  Clear possible error state of struct NET
-
-  @param net  clear the state of the argument
-*/
-
-void net_clear_error(NET *net)
-{
-  net->last_errno= 0;
-  net->last_error[0]= '\0';
-  strmov(net->sqlstate, not_error_sqlstate);
-}
-
-
-static void set_mysql_extended_error(MYSQL *mysql, int errcode,
-                                     const char *sqlstate,
-                                     const char *format, ...)
-{
-  NET *net;
-  va_list args;
-  DBUG_ENTER("set_mysql_extended_error");
-  DBUG_PRINT("enter", ("error :%d '%s'", errcode, format));
-  DBUG_ASSERT(mysql != 0);
-
-  net= &mysql->net;
-  net->last_errno= errcode;
-  va_start(args, format);
-  my_vsnprintf(net->last_error, sizeof(net->last_error)-1,
-               format, args);
-  va_end(args);
-  strmov(net->sqlstate, sqlstate);
-
-  DBUG_VOID_RETURN;
-}
-
 
 /*
   Flush result set sent from server
