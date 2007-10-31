@@ -2888,6 +2888,7 @@ page_zip_write_rec(
 	ut_ad(page_zip_header_cmp(page_zip, page));
 	ut_ad(page_simple_validate_new((page_t*) page));
 
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
 	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
 			   rec_offs_extra_size(offsets));
@@ -3141,6 +3142,7 @@ page_zip_write_blob_ptr(
 	ut_ad(page_is_leaf(page));
 	ut_ad(dict_index_is_clust(index));
 
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
 	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
 			   rec_offs_extra_size(offsets));
@@ -3289,6 +3291,9 @@ page_zip_write_node_ptr(
 
 	ut_ad(!page_is_leaf(page));
 
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
+	UNIV_MEM_ASSERT_RW(rec, size);
+
 	storage = page_zip->data + page_zip_get_size(page_zip)
 		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
 		* PAGE_ZIP_DIR_SLOT_SIZE
@@ -3354,6 +3359,8 @@ page_zip_write_trx_id_and_roll_ptr(
 
 	ut_ad(page_is_leaf(page));
 
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
+
 	storage = page_zip->data + page_zip_get_size(page_zip)
 		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
 		* PAGE_ZIP_DIR_SLOT_SIZE
@@ -3384,6 +3391,7 @@ page_zip_write_trx_id_and_roll_ptr(
 	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
 	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
 			   rec_offs_extra_size(offsets));
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 }
 
 #ifdef UNIV_ZIP_DEBUG
@@ -3418,6 +3426,7 @@ page_zip_clear_rec(
 	heap_no = rec_get_heap_no_new(rec);
 	ut_ad(heap_no >= PAGE_HEAP_NO_USER_LOW);
 
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
 	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
 			   rec_offs_extra_size(offsets));
@@ -3513,6 +3522,7 @@ page_zip_rec_set_deleted(
 {
 	byte*	slot = page_zip_dir_find(page_zip, page_offset(rec));
 	ut_a(slot);
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 	if (flag) {
 		*slot |= (PAGE_ZIP_DIR_SLOT_DEL >> 8);
 	} else {
@@ -3533,6 +3543,7 @@ page_zip_rec_set_owned(
 {
 	byte*	slot = page_zip_dir_find(page_zip, page_offset(rec));
 	ut_a(slot);
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 	if (flag) {
 		*slot |= (PAGE_ZIP_DIR_SLOT_OWNED >> 8);
 	} else {
@@ -3559,6 +3570,8 @@ page_zip_dir_insert(
 	ut_ad(prev_rec != rec);
 	ut_ad(page_rec_get_next((rec_t*) prev_rec) == rec);
 	ut_ad(page_zip_simple_validate(page_zip));
+
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
 	if (page_rec_is_infimum(prev_rec)) {
 		/* Use the first slot. */
@@ -3637,6 +3650,7 @@ page_zip_dir_delete(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_comp(offsets));
 
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
 	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
 			   rec_offs_extra_size(offsets));
@@ -3728,6 +3742,7 @@ page_zip_dir_add_slot(
 	byte*	stored;
 
 	ut_ad(page_is_comp(page_zip->data));
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
 	/* Read the old n_dense (n_heap has already been incremented). */
 	n_dense = page_dir_get_n_heap(page_zip->data)
@@ -3893,6 +3908,8 @@ page_zip_reorganize(
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_is_comp(page));
 	/* Note that page_zip_validate(page_zip, page) may fail here. */
+	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
 	/* Disable logging */
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
@@ -3962,6 +3979,11 @@ page_zip_copy(
 		ut_a(page_is_leaf(src));
 		ut_a(dict_index_is_clust(index));
 	}
+
+	UNIV_MEM_ASSERT_W(page, UNIV_PAGE_SIZE);
+	UNIV_MEM_ASSERT_W(page_zip->data, page_zip_get_size(page_zip));
+	UNIV_MEM_ASSERT_RW(src, UNIV_PAGE_SIZE);
+	UNIV_MEM_ASSERT_RW(src_zip->data, page_zip_get_size(page_zip));
 
 	/* Skip the file page header and trailer. */
 	memcpy(page + FIL_PAGE_DATA, src + FIL_PAGE_DATA,
