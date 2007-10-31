@@ -5654,8 +5654,8 @@ master-ssl",
    (uchar**) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory",
-   (gptr*) &global_system_variables.profiling_history_size,
-   (gptr*) &max_system_variables.profiling_history_size,
+   (uchar**) &global_system_variables.profiling_history_size,
+   (uchar**) &max_system_variables.profiling_history_size,
    0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
 #endif
   {"relay-log", OPT_RELAY_LOG,
@@ -7204,7 +7204,6 @@ static void mysql_init_variables(void)
 			     "d:t:i:o,/tmp/mysqld.trace");
 #endif
   opt_error_log= IF_WIN(1,0);
-#endif
 #ifdef COMMUNITY_SERVER
     have_community_features = SHOW_OPTION_YES;
 #else
