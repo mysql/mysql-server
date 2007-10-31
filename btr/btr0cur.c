@@ -1029,6 +1029,12 @@ btr_cur_optimistic_insert(
 	page = buf_block_get_frame(block);
 	index = cursor->index;
 	zip_size = buf_block_get_zip_size(block);
+#ifdef UNIV_DEBUG_VALGRIND
+	if (zip_size) {
+		UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
+		UNIV_MEM_ASSERT_RW(buf_block_get_page_zip(block), zip_size);
+	}
+#endif /* UNIV_DEBUG_VALGRIND */
 
 	if (!dtuple_check_typed_no_assert(entry)) {
 		fputs("InnoDB: Error in a tuple to insert into ", stderr);
