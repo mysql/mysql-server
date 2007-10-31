@@ -28,7 +28,7 @@ const char * const _unknown_func_ = "<unknown>";
 /**
   Connects Information_Schema and Profiling.
 */
-int fill_query_profile_statistics_info(THD *thd, struct st_table_list *tables, 
+int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, 
                                        Item *cond)
 {
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
@@ -40,26 +40,26 @@ int fill_query_profile_statistics_info(THD *thd, struct st_table_list *tables,
 
 ST_FIELD_INFO query_profile_statistics_info[]=
 {
-  /* name, length, type, value, maybe_null, old_name */
-  {"QUERY_ID", 20, MYSQL_TYPE_LONG, 0, false, NULL},
-  {"SEQ", 20, MYSQL_TYPE_LONG, 0, false, NULL},
-  {"STATE", 30, MYSQL_TYPE_STRING, 0, false, NULL},
-  {"DURATION", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, false, NULL},
-  {"CPU_USER", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL},
-  {"CPU_SYSTEM", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL},
-  {"CONTEXT_VOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"CONTEXT_INVOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"BLOCK_OPS_IN", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"BLOCK_OPS_OUT", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"MESSAGES_SENT", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"MESSAGES_RECEIVED", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"PAGE_FAULTS_MAJOR", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"PAGE_FAULTS_MINOR", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"SWAPS", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"SOURCE_FUNCTION", 30, MYSQL_TYPE_STRING, 0, true, NULL},
-  {"SOURCE_FILE", 20, MYSQL_TYPE_STRING, 0, true, NULL},
-  {"SOURCE_LINE", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {NULL, 0, MYSQL_TYPE_STRING, 0, true, NULL}
+  /* name, length, type, value, maybe_null, old_name, open_method */
+  {"QUERY_ID", 20, MYSQL_TYPE_LONG, 0, false, NULL, SKIP_OPEN_TABLE},
+  {"SEQ", 20, MYSQL_TYPE_LONG, 0, false, NULL, SKIP_OPEN_TABLE},
+  {"STATE", 30, MYSQL_TYPE_STRING, 0, false, NULL, SKIP_OPEN_TABLE},
+  {"DURATION", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, false, NULL, SKIP_OPEN_TABLE},
+  {"CPU_USER", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"CPU_SYSTEM", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"CONTEXT_VOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"CONTEXT_INVOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"BLOCK_OPS_IN", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"BLOCK_OPS_OUT", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"MESSAGES_SENT", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"MESSAGES_RECEIVED", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"PAGE_FAULTS_MAJOR", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"PAGE_FAULTS_MINOR", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"SWAPS", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"SOURCE_FUNCTION", 30, MYSQL_TYPE_STRING, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"SOURCE_FILE", 20, MYSQL_TYPE_STRING, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"SOURCE_LINE", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {NULL, 0, MYSQL_TYPE_STRING, 0, true, NULL, NULL}
 };
 
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
@@ -663,7 +663,7 @@ bool PROFILING::show_last(uint options)
 /**
   Fill the information schema table, "query_profile", as defined in show.cc .
 */
-int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item *cond)
+int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("PROFILING::fill_statistics_info");
   TABLE *table= tables->table;

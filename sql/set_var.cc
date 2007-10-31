@@ -583,9 +583,10 @@ static sys_var_thd_bit	sys_unique_checks(&vars, "unique_checks", 0,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
 					  1);
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-static sys_var_thd_bit  sys_profiling("profiling", NULL, set_option_bit,
+static sys_var_thd_bit  sys_profiling(&vars, "profiling", NULL, 
+                                      set_option_bit,
                                       ulonglong(OPTION_PROFILING));
-static sys_var_thd_ulong	sys_profiling_history_size("profiling_history_size",
+static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
 					      &SV::profiling_history_size);
 #endif
 
@@ -699,10 +700,6 @@ static SHOW_VAR fixed_vars[]= {
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                 SHOW_INT},
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-  {sys_profiling.name,        (char*) &sys_profiling,               SHOW_SYS},
-  {sys_profiling_history_size.name, (char*) &sys_profiling_history_size, SHOW_SYS},
-#endif
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
 #ifdef HAVE_SMEM
   {"shared_memory",           (char*) &opt_enable_shared_memory,    SHOW_MY_BOOL},

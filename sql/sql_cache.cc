@@ -1455,7 +1455,6 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 
 void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 {
-  THD *thd= current_thd;
   DBUG_ENTER("Query_cache::invalidate (changed table list)");
   THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next)
