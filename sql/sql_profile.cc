@@ -338,9 +338,6 @@ void PROFILING::store()
     DBUG_VOID_RETURN;
   }
 
-  while (history.elements > thd->variables.profiling_history_size)
-    delete history.pop();
-
   if (likely(((thd)->options & OPTION_PROFILING) == 0))
     DBUG_VOID_RETURN;
 
@@ -369,6 +366,9 @@ void PROFILING::store()
   DBUG_ASSERT(current == NULL);
   if (enabled)
     current= new QUERY_PROFILE(this, thd->query, thd->query_length);
+
+  while (history.elements > thd->variables.profiling_history_size)
+    delete history.pop();
 
   DBUG_VOID_RETURN;
 }
