@@ -701,7 +701,8 @@ int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd)
 my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
-  char buff[512],*end=buff;
+  char buff[USERNAME_LENGTH+SCRAMBLED_PASSWORD_CHAR_LENGTH+NAME_LEN+2];
+  char *end= buff;
   int rc;
   CHARSET_INFO *saved_cs= mysql->charset;
 
@@ -723,7 +724,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     passwd="";
 
   /* Store user into the buffer */
-  end=strmov(end,user)+1;
+  end= strmake(end, user, USERNAME_LENGTH) + 1;
 
   /* write scrambled password according to server capabilities */
   if (passwd[0])
@@ -743,7 +744,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   else
     *end++= '\0';                               /* empty password */
   /* Add database if needed */
-  end= strmov(end, db ? db : "") + 1;
+  end= strmake(end, db ? db : "", NAME_LEN) + 1;
 
   /* Add character set number. */
 
