@@ -1253,6 +1253,8 @@ zlib_error:
 
 	page_zip_compress_ok[page_zip->ssize]++;
 
+	UNIV_MEM_ASSERT_RW(page_zip, page_zip_get_size(page_zip));
+
 	return(TRUE);
 }
 
