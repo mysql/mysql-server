@@ -679,9 +679,9 @@ page_zip_compress_node_ptrs(
 		/* Only leaf nodes may contain externally stored columns. */
 		ut_ad(!rec_offs_any_extern(offsets));
 
-		UNIV_MEM_VALID(rec, rec_offs_data_size(offsets));
-		UNIV_MEM_VALID(rec - rec_offs_extra_size(offsets),
-			       rec_offs_extra_size(offsets));
+		UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+		UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
+				   rec_offs_extra_size(offsets));
 
 		/* Compress the extra bytes. */
 		c_stream->avail_in = rec - REC_N_NEW_EXTRA_BYTES
@@ -741,7 +741,8 @@ page_zip_compress_sec(
 			- c_stream->next_in;
 
 		if (UNIV_LIKELY(c_stream->avail_in)) {
-			UNIV_MEM_VALID(c_stream->next_in, c_stream->avail_in);
+			UNIV_MEM_ASSERT_RW(c_stream->next_in,
+					   c_stream->avail_in);
 			err = deflate(c_stream, Z_NO_FLUSH);
 			if (UNIV_UNLIKELY(err != Z_OK)) {
 				break;
@@ -782,9 +783,9 @@ page_zip_compress_clust_ext(
 	int	err;
 	ulint	i;
 
-	UNIV_MEM_VALID(rec, rec_offs_data_size(offsets));
-	UNIV_MEM_VALID(rec - rec_offs_extra_size(offsets),
-		       rec_offs_extra_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
+			   rec_offs_extra_size(offsets));
 
 	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
 		ulint		len;
@@ -921,9 +922,9 @@ page_zip_compress_clust(
 					  ULINT_UNDEFINED, &heap);
 		ut_ad(rec_offs_n_fields(offsets)
 		      == dict_index_get_n_fields(index));
-		UNIV_MEM_VALID(rec, rec_offs_data_size(offsets));
-		UNIV_MEM_VALID(rec - rec_offs_extra_size(offsets),
-			       rec_offs_extra_size(offsets));
+		UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+		UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
+				   rec_offs_extra_size(offsets));
 
 		/* Compress the extra bytes. */
 		c_stream->avail_in = rec - REC_N_NEW_EXTRA_BYTES
@@ -968,9 +969,9 @@ page_zip_compress_clust(
 			      == rec_get_nth_field(rec, offsets,
 						   trx_id_col + 1, &len));
 			ut_ad(len == DATA_ROLL_PTR_LEN);
-			UNIV_MEM_VALID(rec, rec_offs_data_size(offsets));
-			UNIV_MEM_VALID(rec - rec_offs_extra_size(offsets),
-				       rec_offs_extra_size(offsets));
+			UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+			UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
+					   rec_offs_extra_size(offsets));
 
 			/* Compress any preceding bytes. */
 			c_stream->avail_in = src - c_stream->next_in;
@@ -1151,7 +1152,7 @@ page_zip_compress(
 		trx_id_col = ULINT_UNDEFINED;
 	}
 
-	UNIV_MEM_VALID(c_stream.next_in, c_stream.avail_in);
+	UNIV_MEM_ASSERT_RW(c_stream.next_in, c_stream.avail_in);
 	err = deflate(&c_stream, Z_FULL_FLUSH);
 	if (err != Z_OK) {
 		goto zlib_error;
@@ -1202,7 +1203,7 @@ page_zip_compress(
 		- (c_stream.next_in - page);
 	ut_a(c_stream.avail_in <= UNIV_PAGE_SIZE - PAGE_ZIP_START - PAGE_DIR);
 
-	UNIV_MEM_VALID(c_stream.next_in, c_stream.avail_in);
+	UNIV_MEM_ASSERT_RW(c_stream.next_in, c_stream.avail_in);
 	err = deflate(&c_stream, Z_FINISH);
 
 	if (UNIV_UNLIKELY(err != Z_STREAM_END)) {
@@ -2747,9 +2748,9 @@ page_zip_write_rec_ext(
 	ulint		n_ext	= rec_offs_n_extern(offsets);
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
-	UNIV_MEM_VALID(rec, rec_offs_data_size(offsets));
-	UNIV_MEM_VALID(rec - rec_offs_extra_size(offsets),
-		       rec_offs_extra_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
+			   rec_offs_extra_size(offsets));
 
 	externs -= (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
 		* (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW);
@@ -2882,9 +2883,9 @@ page_zip_write_rec(
 	ut_ad(page_zip_header_cmp(page_zip, page));
 	ut_ad(page_simple_validate_new((page_t*) page));
 
-	UNIV_MEM_VALID(rec, rec_offs_data_size(offsets));
-	UNIV_MEM_VALID(rec - rec_offs_extra_size(offsets),
-		       rec_offs_extra_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
+			   rec_offs_extra_size(offsets));
 
 	slot = page_zip_dir_find(page_zip, page_offset(rec));
 	ut_a(slot);
@@ -3135,9 +3136,9 @@ page_zip_write_blob_ptr(
 	ut_ad(page_is_leaf(page));
 	ut_ad(dict_index_is_clust(index));
 
-	UNIV_MEM_VALID(rec, rec_offs_data_size(offsets));
-	UNIV_MEM_VALID(rec - rec_offs_extra_size(offsets),
-		       rec_offs_extra_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
+			   rec_offs_extra_size(offsets));
 
 	blob_no = page_zip_get_n_prev_extern(page_zip, rec, index)
 		+ rec_get_n_extern_new(rec, index, n);
@@ -3375,9 +3376,9 @@ page_zip_write_trx_id_and_roll_ptr(
 	mach_write_to_7(field + DATA_TRX_ID_LEN, roll_ptr);
 	memcpy(storage, field, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 
-	UNIV_MEM_VALID(rec, rec_offs_data_size(offsets));
-	UNIV_MEM_VALID(rec - rec_offs_extra_size(offsets),
-		       rec_offs_extra_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
+			   rec_offs_extra_size(offsets));
 }
 
 #ifdef UNIV_ZIP_DEBUG
@@ -3412,9 +3413,9 @@ page_zip_clear_rec(
 	heap_no = rec_get_heap_no_new(rec);
 	ut_ad(heap_no >= PAGE_HEAP_NO_USER_LOW);
 
-	UNIV_MEM_VALID(rec, rec_offs_data_size(offsets));
-	UNIV_MEM_VALID(rec - rec_offs_extra_size(offsets),
-		       rec_offs_extra_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
+			   rec_offs_extra_size(offsets));
 
 	if (
 #ifdef UNIV_ZIP_DEBUG
@@ -3631,9 +3632,9 @@ page_zip_dir_delete(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_comp(offsets));
 
-	UNIV_MEM_VALID(rec, rec_offs_data_size(offsets));
-	UNIV_MEM_VALID(rec - rec_offs_extra_size(offsets),
-		       rec_offs_extra_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
+			   rec_offs_extra_size(offsets));
 
 	slot_rec = page_zip_dir_find(page_zip, page_offset(rec));
 
