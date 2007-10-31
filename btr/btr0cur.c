@@ -1032,7 +1032,7 @@ btr_cur_optimistic_insert(
 #ifdef UNIV_DEBUG_VALGRIND
 	if (zip_size) {
 		UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
-		UNIV_MEM_ASSERT_RW(buf_block_get_page_zip(block), zip_size);
+		UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 
