@@ -2261,6 +2261,7 @@ buf_page_init_low(
 /*==============*/
 	buf_page_t*	bpage)	/* in: block to init */
 {
+	bpage->flush_type = BUF_FLUSH_LRU;
 	bpage->accessed = FALSE;
 	bpage->io_fix = BUF_IO_NONE;
 	bpage->buf_fix_count = 0;
