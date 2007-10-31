@@ -2051,14 +2051,20 @@ public:
 
 
 class select_send :public select_result {
-  int status;
+  /**
+    True if we have sent result set metadata to the client.
+    In this case the client always expects us to end the result
+    set with an eof or error packet
+  */
+  bool is_result_set_started;
 public:
-  select_send() :status(0) {}
+  select_send() :is_result_set_started(FALSE) {}
   bool send_fields(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
   void abort();
+  virtual void cleanup();
 };
 
 
