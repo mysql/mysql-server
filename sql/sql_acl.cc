@@ -428,7 +428,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       continue;
     }
 
-    const char *password= get_field(&mem, table->field[2]);
+    const char *password= get_field(thd->mem_root, table->field[2]);
     uint password_len= password ? strlen(password) : 0;
     set_user_salt(&user, password, password_len);
     if (user.salt_len == 0 && password_len != 0)
@@ -495,7 +495,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       /* Starting from 4.0.2 we have more fields */
       if (table->s->fields >= 31)
       {
-        char *ssl_type=get_field(&mem, table->field[next_field++]);
+        char *ssl_type=get_field(thd->mem_root, table->field[next_field++]);
         if (!ssl_type)
           user.ssl_type=SSL_TYPE_NONE;
         else if (!strcmp(ssl_type, "ANY"))
@@ -509,11 +509,11 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         user.x509_issuer=  get_field(&mem, table->field[next_field++]);
         user.x509_subject= get_field(&mem, table->field[next_field++]);
 
-        char *ptr = get_field(&mem, table->field[next_field++]);
+        char *ptr = get_field(thd->mem_root, table->field[next_field++]);
         user.user_resource.questions=ptr ? atoi(ptr) : 0;
-        ptr = get_field(&mem, table->field[next_field++]);
+        ptr = get_field(thd->mem_root, table->field[next_field++]);
         user.user_resource.updates=ptr ? atoi(ptr) : 0;
-        ptr = get_field(&mem, table->field[next_field++]);
+        ptr = get_field(thd->mem_root, table->field[next_field++]);
         user.user_resource.conn_per_hour= ptr ? atoi(ptr) : 0;
         if (user.user_resource.questions || user.user_resource.updates ||
             user.user_resource.conn_per_hour)
@@ -522,7 +522,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         if (table->s->fields >= 36)
         {
           /* Starting from 5.0.3 we have max_user_connections field */
-          ptr= get_field(&mem, table->field[next_field++]);
+          ptr= get_field(thd->mem_root, table->field[next_field++]);
           user.user_resource.user_conn= ptr ? atoi(ptr) : 0;
         }
         else
@@ -5050,6 +5050,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   uchar user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   DBUG_ENTER("handle_grant_table");
+  THD *thd= current_thd;
 
   table->use_all_columns();
   if (! table_no) // mysql.user table
@@ -5118,17 +5119,18 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
           DBUG_PRINT("info",("scan error: %d", error));
           continue;
         }
-        if (! (host= get_field(&mem, host_field)))
+        if (! (host= get_field(thd->mem_root, host_field)))
           host= "";
-        if (! (user= get_field(&mem, user_field)))
+        if (! (user= get_field(thd->mem_root, user_field)))
           user= "";
 
 #ifdef EXTRA_DEBUG
         DBUG_PRINT("loop",("scan fields: '%s'@'%s' '%s' '%s' '%s'",
                            user, host,
-                           get_field(&mem, table->field[1]) /*db*/,
-                           get_field(&mem, table->field[3]) /*table*/,
-                           get_field(&mem, table->field[4]) /*column*/));
+                           get_field(thd->mem_root, table->field[1]) /*db*/,
+                           get_field(thd->mem_root, table->field[3]) /*table*/,
+                           get_field(thd->mem_root,
+                                     table->field[4]) /*column*/));
 #endif
         if (strcmp(user_str, user) ||
             my_strcasecmp(system_charset_info, host_str, host))
