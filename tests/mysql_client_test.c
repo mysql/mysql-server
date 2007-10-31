@@ -17112,8 +17112,8 @@ static void test_bug31669()
   int rc;
   static char buff[LARGE_BUFFER_SIZE+1];
 #ifndef EMBEDDED_LIBRARY
-  static char user[USERNAME_LENGTH+1];
-  static char db[NAME_LEN+1];
+  static char user[USERNAME_CHAR_LENGTH+1];
+  static char db[NAME_CHAR_LEN+1];
   static char query[LARGE_BUFFER_SIZE*2];
 #endif
 
@@ -17136,13 +17136,13 @@ static void test_bug31669()
 
 #ifndef EMBEDDED_LIBRARY
   memset(db, 'a', sizeof(db));
-  db[NAME_LEN]= 0;
+  db[NAME_CHAR_LEN]= 0;
   strxmov(query, "CREATE DATABASE IF NOT EXISTS ", db, NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
   memset(user, 'b', sizeof(user));
-  user[USERNAME_LENGTH]= 0;
+  user[USERNAME_CHAR_LENGTH]= 0;
   memset(buff, 'c', sizeof(buff));
   buff[LARGE_BUFFER_SIZE]= 0;
   strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' IDENTIFIED BY "
@@ -17156,21 +17156,21 @@ static void test_bug31669()
   rc= mysql_change_user(mysql, user, buff, db);
   DIE_UNLESS(!rc);
 
-  user[USERNAME_LENGTH-1]= 'a';
+  user[USERNAME_CHAR_LENGTH-1]= 'a';
   rc= mysql_change_user(mysql, user, buff, db);
   DIE_UNLESS(rc);
 
-  user[USERNAME_LENGTH-1]= 'b';
+  user[USERNAME_CHAR_LENGTH-1]= 'b';
   buff[LARGE_BUFFER_SIZE-1]= 'd';
   rc= mysql_change_user(mysql, user, buff, db);
   DIE_UNLESS(rc);
 
   buff[LARGE_BUFFER_SIZE-1]= 'c';
-  db[NAME_LEN-1]= 'e';
+  db[NAME_CHAR_LEN-1]= 'e';
   rc= mysql_change_user(mysql, user, buff, db);
   DIE_UNLESS(rc);
 
-  db[NAME_LEN-1]= 'a';
+  db[NAME_CHAR_LEN-1]= 'a';
   rc= mysql_change_user(mysql, user, buff, db);
   DIE_UNLESS(!rc);
 
