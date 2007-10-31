@@ -36,8 +36,10 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const unsigned char *arg, ulong arg_length,
                      my_bool skip_check, MYSQL_STMT *stmt);
 unsigned long cli_safe_read(MYSQL *mysql);
-void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
-		     const char *sqlstate);
+void net_clear_error(NET *net);
+void set_stmt_errmsg(MYSQL_STMT *stmt, NET *net);
+void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
+                    const char *err);
 void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 #ifdef	__cplusplus
 }
