@@ -612,7 +612,7 @@ buf_block_align(
 	const buf_block_t*	block;
 	ulint			space_id, page_no;
 
-	ptr = ut_align_down(ptr, UNIV_PAGE_SIZE);
+	ptr = (const byte*) ut_align_down(ptr, UNIV_PAGE_SIZE);
 	page_no = mach_read_from_4(ptr + FIL_PAGE_OFFSET);
 	space_id = mach_read_from_4(ptr + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
