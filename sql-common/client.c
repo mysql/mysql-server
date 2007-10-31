@@ -349,7 +349,7 @@ static void set_mysql_extended_error(MYSQL *mysql, int errcode,
 
 #ifdef __WIN__
 
-HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
+HANDLE create_named_pipe(MYSQL *mysql, uint connect_timeout, char **arg_host,
 			 char **arg_unix_socket)
 {
   HANDLE hPipe=INVALID_HANDLE_VALUE;
@@ -1950,8 +1950,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
        (! have_tcpip && (unix_socket || !host && is_NT()))))
   {
     sock=0;
-    if ((hPipe=create_named_pipe(net, mysql->options.connect_timeout,
-				 (char**) &host, (char**) &unix_socket)) ==
+    if ((hPipe= create_named_pipe(mysql, mysql->options.connect_timeout,
+                                  (char**) &host, (char**) &unix_socket)) ==
 	INVALID_HANDLE_VALUE)
     {
       DBUG_PRINT("error",
