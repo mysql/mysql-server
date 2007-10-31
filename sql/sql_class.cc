@@ -1305,23 +1305,26 @@ bool select_send::send_fields(List<Item> &list, uint flags)
 {
   bool res;
   if (!(res= thd->protocol->send_fields(&list, flags)))
-    status= 1;
+    is_result_set_started= 1;
   return res;
 }
 
 void select_send::abort()
 {
   DBUG_ENTER("select_send::abort");
-  if (status && thd->spcont &&
+  if (is_result_set_started && thd->spcont &&
       thd->spcont->find_handler(thd, thd->net.last_errno,
                                 MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
     /*
-      Executing stored procedure without a handler.
-      Here we should actually send an error to the client,
-      but as an error will break a multiple result set, the only thing we
-      can do for now is to nicely end the current data set and remembering
-      the error so that the calling routine will abort
+      We're executing a stored procedure, have an open result
+      set, an SQL exception conditiona and a handler for it.
+      In this situation we must abort the current statement,
+      silence the error and start executing the continue/exit
+      handler.
+      Before aborting the statement, let's end the open result set, as
+      otherwise the client will hang due to the violation of the
+      client/server protocol.
     */
     thd->net.report_error= 0;
     send_eof();
@@ -1330,6 +1333,17 @@ void select_send::abort()
   DBUG_VOID_RETURN;
 }
 
+
+/** 
+  Cleanup an instance of this class for re-use
+  at next execution of a prepared statement/
+  stored procedure statement.
+*/
+
+void select_send::cleanup()
+{
+  is_result_set_started= FALSE;
+}
 
 /* Send data to client. Returns 0 if ok */
 
@@ -1392,7 +1406,7 @@ bool select_send::send_eof()
   if (! thd->is_error())
   {
     ::send_eof(thd);
-    status= 0;
+    is_result_set_started= 0;
     return 0;
   }
   else

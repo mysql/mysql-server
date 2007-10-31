@@ -1714,7 +1714,6 @@ static MYSQL_METHODS client_methods=
 C_MODE_START
 int mysql_init_character_set(MYSQL *mysql)
 {
-  NET		*net= &mysql->net;
   const char *default_collation_name;
   
   /* Set character set */
