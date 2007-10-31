@@ -528,7 +528,7 @@ buf_buddy_relocate(
 	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_ad(!ut_align_offset(src, size));
 	ut_ad(!ut_align_offset(dst, size));
-	UNIV_MEM_ASSERT_RW(src, size);
+	UNIV_MEM_ASSERT_W(src, size);
 	UNIV_MEM_ASSERT_W(dst, size);
 
 	/* We assume that all memory from buf_buddy_alloc()
@@ -571,11 +571,9 @@ buf_buddy_relocate(
 			return(FALSE);
 		}
 
-#ifdef UNIV_VALGRIND_DEBUG
 		/* The block must have been allocated, but it may
 		contain uninitialized data. */
-		VALGRIND_CHECK_MEM_IS_ADDRESSABLE(src, size);
-#endif /* UNIV_VALGRIND_DEBUG */
+		UNIV_MEM_ASSERT_W(src, size);
 
 		mutex = buf_page_get_mutex(bpage);
 
@@ -596,9 +594,7 @@ success:
 		mutex_exit(mutex);
 	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
-#ifdef UNIV_VALGRIND_DEBUG
-		VALGRIND_CHECK_MEM_IS_DEFINED(src, size);
-#endif /* UNIV_VALGRIND_DEBUG */
+		UNIV_MEM_ASSERT_RW(src, size);
 		if (buf_buddy_relocate_block(src, dst)) {
 
 			goto success;
@@ -628,10 +624,7 @@ buf_buddy_free_low(
 
 	buf_buddy_used[i]--;
 recombine:
-#ifdef UNIV_DEBUG_VALGRIND
-	VALGRIND_CHECK_MEM_IS_ADDRESSABLE(buf, BUF_BUDDY_LOW << i);
-	UNIV_MEM_INVALID(buf, BUF_BUDDY_LOW << i);
-#endif /* UNIV_DEBUG_VALGRIND */
+	UNIV_MEM_ASSERT_AND_ALLOC(buf, BUF_BUDDY_LOW << i);
 	ut_d(((buf_page_t*) buf)->state = BUF_BLOCK_ZIP_FREE);
 
 	if (i == BUF_BUDDY_SIZES) {
