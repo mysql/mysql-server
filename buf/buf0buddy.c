@@ -528,7 +528,6 @@ buf_buddy_relocate(
 	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_ad(!ut_align_offset(src, size));
 	ut_ad(!ut_align_offset(dst, size));
-	UNIV_MEM_ASSERT_W(src, size);
 	UNIV_MEM_ASSERT_W(dst, size);
 
 	/* We assume that all memory from buf_buddy_alloc()
