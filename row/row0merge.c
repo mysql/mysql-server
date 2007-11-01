@@ -1200,8 +1200,10 @@ row_merge_read_clustered_index(
 
 			if (buf->n_tuples) {
 				if (dict_index_is_unique(index)) {
-					row_merge_dup_t	dup
-						= { buf->index, table, 0 };
+					row_merge_dup_t	dup;
+					dup.index = buf->index;
+					dup.table = table;
+					dup.n_dup = 0;
 
 					row_merge_buf_sort(buf, &dup);
 
