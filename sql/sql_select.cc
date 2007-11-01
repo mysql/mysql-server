@@ -571,11 +571,12 @@ JOIN::prepare(Item ***rref_pointer_array,
   
 
   /*
-    Check if one one uses a not constant column with group functions
-    and no GROUP BY.
+    Check if there are references to un-aggregated columns when computing 
+    aggregate functions with implicit grouping (there is no GROUP BY).
     TODO:  Add check of calculation of GROUP functions and fields:
 	   SELECT COUNT(*)+table.col1 from table1;
   */
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
   {
     if (!group_list)
     {
@@ -588,6 +589,13 @@ JOIN::prepare(Item ***rref_pointer_array,
 	  flag|=1;
 	else if (!(flag & 2) && !item->const_during_execution())
 	  flag|=2;
+      }
+      if (having)
+      {
+        if (having->with_sum_func)
+          flag |= 1;
+        else if (!having->const_during_execution())
+          flag |= 2;
       }
       if (flag == 3)
       {
