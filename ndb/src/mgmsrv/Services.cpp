@@ -923,7 +923,6 @@ printNodeStatus(OutputStream *output,
 		MgmtSrvr &mgmsrv,
 		enum ndb_mgm_node_type type) {
   NodeId nodeId = 0;
-  mgmsrv.updateStatus();
   while(mgmsrv.getNextNodeId(&nodeId, type)) {
     enum ndb_mgm_node_status status;
     Uint32 startPhase = 0, 
@@ -972,6 +971,7 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
   
   m_output->println("node status");
   m_output->println("nodes: %d", noOfNodes);
+  m_mgmsrv.updateStatus();
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_NDB);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_MGM);
   printNodeStatus(m_output, m_mgmsrv, NDB_MGM_NODE_TYPE_API);
