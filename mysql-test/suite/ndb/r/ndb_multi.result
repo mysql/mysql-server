@@ -1,4 +1,5 @@
 drop table if exists t1, t2, t3, t4;
+flush status;
 drop table if exists t1, t2, t3, t4;
 flush status;
 create table t1 (a int) engine=ndbcluster;
@@ -132,11 +133,11 @@ master_epoch, count))
 engine ndb;
 show tables like '%$%';
 Tables_in_test (%$%)
-t1$EX
+t1$ex
 use test;
 show tables like '%$%';
 Tables_in_test (%$%)
-t1$EX
+t1$ex
 drop table `test`.`t1$EX`;
 show tables like '%$%';
 Tables_in_test (%$%)

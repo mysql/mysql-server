@@ -4288,6 +4288,7 @@ restart:
   /*
     Main NDB Injector loop
   */
+  if (ndb_binlog_running)
   {
     /*
       Always insert a GAP event as we cannot know what has happened

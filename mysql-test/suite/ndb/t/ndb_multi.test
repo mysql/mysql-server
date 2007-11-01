@@ -4,11 +4,11 @@
 --disable_warnings
 connection server2;
 drop table if exists t1, t2, t3, t4;
+flush status;
 connection server1;
 drop table if exists t1, t2, t3, t4;
---enable_warnings
-
 flush status;
+--enable_warnings
 
 # Create test tables on server1
 create table t1 (a int) engine=ndbcluster;
@@ -139,9 +139,11 @@ create table `test`.`t1$EX`
 
 # check that table shows up ok on both servers
 # before bugfix table would not show up on server2
+--replace_regex /EX/ex/
 show tables like '%$%';
 connection server2;
 use test;
+--replace_regex /EX/ex/
 show tables like '%$%';
 
 # check cleanup
