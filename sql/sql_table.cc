@@ -434,7 +434,7 @@ static uint read_ddl_log_header()
 
   create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= my_open(file_name,
-                                        O_RDWR | O_BINARY, MYF(MY_WME))) >= 0)
+                                        O_RDWR | O_BINARY, MYF(0))) >= 0)
   {
     if (read_ddl_log_file_entry(0UL))
     {
