@@ -549,7 +549,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
 
   if (simple_open_n_lock_tables(thd, &tables))
   {
-    close_thread_tables(thd, FALSE, FALSE);
+    close_thread_tables(thd);
     DBUG_RETURN(TRUE);
   }
 

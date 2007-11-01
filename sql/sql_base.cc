@@ -1055,6 +1055,29 @@ bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
 }
 
 
+/**
+  Mark all temporary tables which were used by the current statement or
+  substatement as free for reuse, but only if the query_id can be cleared.
+
+  @param thd thread context
+
+  @remark For temp tables associated with a open SQL HANDLER the query_id
+          is not reset until the HANDLER is closed.
+*/
+
+static void mark_temp_tables_as_free_for_reuse(THD *thd)
+{
+  for (TABLE *table= thd->temporary_tables ; table ; table= table->next)
+  {
+    if ((table->query_id == thd->query_id) && ! table->open_by_handler)
+    {
+      table->query_id= 0;
+      table->file->ha_reset();
+    }
+  }
+}
+
+
 /*
   Mark all tables in the list which were used by current substatement
   as free for reuse.
@@ -1091,6 +1114,42 @@ static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
 }
 
 
+/**
+  Auxiliary function to close all tables in the open_tables list.
+
+  @param thd Thread context.
+
+  @remark It should not ordinarily be called directly.
+*/
+
+static void close_open_tables(THD *thd)
+{
+  bool found_old_table= 0;
+
+  safe_mutex_assert_not_owner(&LOCK_open);
+
+  VOID(pthread_mutex_lock(&LOCK_open));
+
+  DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
+
+  while (thd->open_tables)
+    found_old_table|= close_thread_table(thd, &thd->open_tables);
+  thd->some_tables_deleted= 0;
+
+  /* Free tables to hold down open files */
+  while (open_cache.records > table_cache_size && unused_tables)
+    VOID(hash_delete(&open_cache,(uchar*) unused_tables)); /* purecov: tested */
+  check_unused();
+  if (found_old_table)
+  {
+    /* Tell threads waiting for refresh that something has happened */
+    broadcast_refresh();
+  }
+
+  VOID(pthread_mutex_unlock(&LOCK_open));
+}
+
+
 /*
   Close all tables used by the current substatement, or all tables
   used by this thread if we are on the upper level.
@@ -1098,26 +1157,19 @@ static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
   SYNOPSIS
     close_thread_tables()
     thd			Thread handler
-    lock_in_use		Set to 1 (0 = default) if caller has a lock on
-			LOCK_open
-    skip_derived	Set to 1 (0 = default) if we should not free derived
-			tables.
-    stopper             When closing tables from thd->open_tables(->next)*, 
-                        don't close/remove tables starting from stopper.
 
   IMPLEMENTATION
     Unlocks tables and frees derived tables.
     Put all normal tables used by thread in free list.
 
-    When in prelocked mode it will only close/mark as free for reuse
-    tables opened by this substatement, it will also check if we are
-    closing tables after execution of complete query (i.e. we are on
-    upper level) and will leave prelocked mode if needed.
+    It will only close/mark as free for reuse tables opened by this
+    substatement, it will also check if we are closing tables after
+    execution of complete query (i.e. we are on upper level) and will
+    leave prelocked mode if needed.
 */
 
-void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
+void close_thread_tables(THD *thd)
 {
-  bool found_old_table;
   prelocked_mode_type prelocked_mode= thd->prelocked_mode;
   DBUG_ENTER("close_thread_tables");
 
@@ -1132,7 +1184,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
           derived tables with (sub-)statement instead of thread and destroy
           them at the end of its execution.
   */
-  if (thd->derived_tables && !skip_derived)
+  if (thd->derived_tables)
   {
     TABLE *table, *next;
     /*
@@ -1147,13 +1199,10 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     thd->derived_tables= 0;
   }
 
-  if (prelocked_mode)
-  {
-    /*
-      Mark all temporary tables used by this substatement as free for reuse.
-    */
-    mark_used_tables_as_free_for_reuse(thd, thd->temporary_tables);
-  }
+  /*
+    Mark all temporary tables used by this statement as free for reuse.
+  */
+  mark_temp_tables_as_free_for_reuse(thd);
 
   if (thd->locked_tables || prelocked_mode)
   {
@@ -1217,28 +1266,8 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
   if (!thd->active_transaction())
     thd->transaction.xid_state.xid.null();
 
-  if (!lock_in_use)
-    VOID(pthread_mutex_lock(&LOCK_open));
-
-  DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
-
-  found_old_table= 0;
-  while (thd->open_tables)
-    found_old_table|= close_thread_table(thd, &thd->open_tables);
-  thd->some_tables_deleted=0;
-
-  /* Free tables to hold down open files */
-  while (open_cache.records > table_cache_size && unused_tables)
-    VOID(hash_delete(&open_cache,(uchar*) unused_tables)); /* purecov: tested */
-  check_unused();
-  if (found_old_table)
-  {
-    /* Tell threads waiting for refresh that something has happened */
-    broadcast_refresh();
-  }
-  if (!lock_in_use)
-    VOID(pthread_mutex_unlock(&LOCK_open));
-  /*  VOID(pthread_sigmask(SIG_SETMASK,&thd->signals,NULL)); */
+  if (thd->open_tables)
+    close_open_tables(thd);
 
   if (prelocked_mode == PRELOCKED)
   {
@@ -1675,6 +1704,7 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list)
 
   Try to locate the table in the list of thd->temporary_tables.
   If the table is found:
+   - if the table is being used by some outer statement, fail.
    - if the table is in thd->locked_tables, unlock it and
      remove it from the list of locked tables. Currently only transactional
      temporary tables are present in the locked_tables list.
@@ -1689,24 +1719,34 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list)
   thd->temporary_tables list, it's impossible to tell here whether
   we're dealing with an internal or a user temporary table.
 
-  @retval TRUE   the table was not found in the list of temporary tables
-                 of this thread
-  @retval FALSE  the table was found and dropped successfully.
+  @retval  0  the table was found and dropped successfully.
+  @retval  1  the table was not found in the list of temporary tables
+              of this thread
+  @retval -1  the table is in use by a outer query
 */
 
-bool close_temporary_table(THD *thd, TABLE_LIST *table_list)
+int drop_temporary_table(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
+  DBUG_ENTER("drop_temporary_table");
 
   if (!(table= find_temporary_table(thd, table_list)))
-    return 1;
+    DBUG_RETURN(1);
+
+  /* Table might be in use by some outer statement. */
+  if (table->query_id && table->query_id != thd->query_id)
+  {
+    my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
+    DBUG_RETURN(-1);
+  }
+
   /*
     If LOCK TABLES list is not empty and contains this table,
     unlock the table and remove the table from this list.
   */
   mysql_lock_remove(thd, thd->locked_tables, table, FALSE);
   close_temporary_table(thd, table, 1, 1);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /*
@@ -2285,8 +2325,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
           is always represented by only one TABLE object in THD, and
           it can not be cloned. Emit an error for an unsupported behaviour.
         */
-	if (table->query_id == thd->query_id ||
-            thd->prelocked_mode && table->query_id)
+	if (table->query_id)
 	{
           DBUG_PRINT("error",
                      ("query_id: %lu  server_id: %u  pseudo_thread_id: %lu",
@@ -2296,7 +2335,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 	  DBUG_RETURN(0);
 	}
 	table->query_id= thd->query_id;
-	table->clear_query_id= 1;
 	thd->thread_specific_used= TRUE;
         DBUG_PRINT("info",("Using temporary table"));
         goto reset;
@@ -4306,7 +4344,6 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables)
   sp_remove_not_own_routines(thd->lex);
   for (TABLE_LIST *tmp= *tables; tmp; tmp= tmp->next_global)
     tmp->table= 0;
-  mark_used_tables_as_free_for_reuse(thd, thd->temporary_tables);
   close_thread_tables(thd);
 }
 

@@ -1503,7 +1503,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   char path[FN_REFLEN], *alias;
   uint path_length;
   String wrong_tables;
-  int error;
+  int error= 0;
   int non_temp_tables_count= 0;
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
   String built_query;
@@ -1563,10 +1563,27 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     enum legacy_db_type frm_db_type;
 
     mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, 1);
-    if (!close_temporary_table(thd, table))
-    {
-      tmp_table_deleted=1;
-      continue;					// removed temporary table
+
+    error= drop_temporary_table(thd, table);
+
+    switch (error) {
+    case  0:
+      // removed temporary table
+      tmp_table_deleted= 1;
+      continue;
+    case -1:
+      // table already in use
+      /*
+        XXX: This branch should never be taken outside of SF, trigger or
+             prelocked mode.
+
+        DBUG_ASSERT(thd->in_sub_stmt);
+      */
+      error= 1;
+      goto err_with_placeholders;
+    default:
+      // temporary table not found
+      error= 0;
     }
 
     /*
@@ -1593,7 +1610,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       built_query.append("`,");
     }
 
-    error=0;
     table_type= table->db_type;
     if (!drop_temporary)
     {

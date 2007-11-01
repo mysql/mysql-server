@@ -679,7 +679,7 @@ extern my_decimal decimal_zero;
 void free_items(Item *item);
 void cleanup_items(Item *item);
 class THD;
-void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
+void close_thread_tables(THD *thd);
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_single_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables, bool no_errors);
@@ -1419,7 +1419,7 @@ TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
                          bool check_alias);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list);
-bool close_temporary_table(THD *thd, TABLE_LIST *table_list);
+int drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
 void close_temporary(TABLE *table, bool free_share, bool delete_table);
