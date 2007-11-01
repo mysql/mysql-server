@@ -3587,6 +3587,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   Thd_ndb *thd_ndb=0;
   int ndb_update_ndb_binlog_index= 1;
   injector *inj= injector::instance();
+  uint incident_id= 0;
 
 #ifdef RUN_NDB_BINLOG_TIMER
   Timer main_timer;
@@ -3692,17 +3693,43 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_mutex_unlock(&injector_mutex);
   pthread_cond_signal(&injector_cond);
 
+  /*
+    wait for mysql server to start (so that the binlog is started
+    and thus can receive the first GAP event)
+  */
+  pthread_mutex_lock(&LOCK_server_started);
+  while (!mysqld_server_started)
+  {
+    struct timespec abstime;
+    set_timespec(abstime, 1);
+    pthread_cond_timedwait(&COND_server_started, &LOCK_server_started,
+                           &abstime);
+    if (ndbcluster_terminating)
+    {
+      pthread_mutex_unlock(&LOCK_server_started);
+      pthread_mutex_lock(&LOCK_ndb_util_thread);
+      goto err;
+    }
+  }
+  pthread_mutex_unlock(&LOCK_server_started);
 restart:
   /*
     Main NDB Injector loop
   */
   {
     /*
-      Always insert a GAP event as we cannot know what has happened in the cluster
-      while not being connected.
+      Always insert a GAP event as we cannot know what has happened
+      in the cluster while not being connected.
     */
-    LEX_STRING const msg= { C_STRING_WITH_LEN("Cluster connect") };
-    inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg);
+    LEX_STRING const msg[2]=
+      {
+        { C_STRING_WITH_LEN("mysqld startup")    },
+        { C_STRING_WITH_LEN("cluster disconnect")}
+      };
+    IF_DBUG(int error=)
+      inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg[incident_id]);
+    DBUG_ASSERT(!error);
+    incident_id= 1;
   }
   {
     thd->proc_info= "Waiting for ndbcluster to start";
