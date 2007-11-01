@@ -1,0 +1,24 @@
+# Tests for the partition storage engine in connection with the
+# storage engine BLACKHOLE.
+#
+# Creation:
+# 2007-10-18 mleich  - Move BLACKHOLE related sub tests of partition.test to
+#                      this test. Reason: BLACKHOLE is not everytime available.
+#                    - Minor cleanup
+#
+
+--source include/have_partition.inc
+--source include/have_blackhole.inc
+
+#
+# Bug#14524 Partitions: crash if blackhole
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE `t1` (
+  `id` int(11) default NULL
+) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1 PARTITION BY HASH (id) ;
+SELECT * FROM t1;
+
+DROP TABLE t1;
