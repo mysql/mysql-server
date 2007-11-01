@@ -7,8 +7,6 @@ Smart ALTER TABLE
 #include <mysql_priv.h>
 #include <mysqld_error.h>
 
-#include "ha_innodb.h"
-
 extern "C" {
 #include "log0log.h"
 #include "row0merge.h"
@@ -18,6 +16,8 @@ extern "C" {
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 }
+
+#include "ha_innodb.h"
 
 /*****************************************************************
 Copies an InnoDB column to a MySQL field.  This function is

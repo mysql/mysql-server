@@ -9,6 +9,23 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef univ_i
 #define univ_i
 
+#ifdef MYSQL_DYNAMIC_PLUGIN
+/* In the dynamic plugin, redefine all symbols not to conflict with
+the symbols of a builtin InnoDB.  The build process works as follows:
+
+* compile the InnoDB plugin using an empty include/innodb_redefine.h
+* overwrite include/innodb_redefine.h with the following command
+* compile the final InnoDB plugin
+
+nm .libs/ha_innodb.so.0.0.0|
+sed -ne 's/^[^ ]* . \([a-zA-Z][a-zA-Z0-9_]*\)$/#define \1 ibd_\1/p'|
+grep -v 'innodb_hton_ptr\|builtin_innobase_plugin' > include/innodb_redefine.h
+*/
+# include "innodb_redefine.h"
+/* Redefine all C++ classes here. */
+# define ha_innobase ha_innodb
+#endif /* MYSQL_DYNAMIC_PLUGIN */
+
 #if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(MYSQL_SERVER) && !defined(__WIN__)
 # undef __WIN__
 # define __WIN__
