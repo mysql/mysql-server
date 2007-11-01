@@ -142,8 +142,6 @@ static my_bool	innobase_use_adaptive_hash_indexes	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
-static my_bool	innobase_dynamic;
-
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -182,11 +180,7 @@ innobase_alter_table_flags(
 /*=======================*/
 	uint	flags);
 
-#ifdef MYSQL_DYNAMIC_PLUGIN
-static const char innobase_hton_name[]= "InnoDBzip";
-#else
 static const char innobase_hton_name[]= "InnoDB";
-#endif
 
 static MYSQL_THDVAR_BOOL(support_xa, PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB support for the XA two-phase commit",
@@ -1441,21 +1435,13 @@ innobase_init(
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 	if (!innodb_plugin_init()) {
-		sql_print_error("InnoDB plugin init failed."
-				" Did you set innodb_dynamic=1?");
+		sql_print_error("InnoDB plugin init failed.");
 		DBUG_RETURN(-1);
 	}
 
 	if (innodb_hton_ptr) {
 		/* Patch the statically linked handlerton and variables */
 		innobase_hton = innodb_hton_ptr;
-	}
-#else /* MYSQL_DYNAMIC_PLUGIN */
-	if (innobase_dynamic) {
-		innobase_hton->state = SHOW_OPTION_NO;
-		/* Disable the built-in InnoDB */
-		sql_print_error("Builtin InnoDB disabled by innodb_dynamic");
-		DBUG_RETURN(-1);
 	}
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 
@@ -8062,11 +8048,6 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   "Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
 
-static MYSQL_SYSVAR_BOOL(dynamic, innobase_dynamic,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-  "Enable a dynamic InnoDB plugin (and disable a built-in InnoDB).",
-  NULL, NULL, FALSE);
-
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
@@ -8256,7 +8237,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
-  MYSQL_SYSVAR(dynamic),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(file_per_table),
@@ -8332,8 +8312,15 @@ innodb_plugin_init(void)
 			return(FALSE);
 		}
 
-		if (UNIV_UNLIKELY((*v)->flags != (*w)->flags
-				  || strcmp((*v)->name, (*w)->name))) {
+		if (UNIV_UNLIKELY(strcmp((*v)->name, (*w)->name))) {
+			/* Skip the destination parameter, since it doesn't
+			exist in the source. */
+			v--;
+			continue;
+		}
+
+		if (UNIV_UNLIKELY(((*v)->flags ^ (*w)->flags))
+		    & ~PLUGIN_VAR_READONLY) {
 			fprintf(stderr,
 				"InnoDB: parameter mismatch:"
 				" %s,%s,0x%x,0x%x\n",
@@ -8343,6 +8330,7 @@ innodb_plugin_init(void)
 		}
 
 		if ((*v)->flags & PLUGIN_VAR_THDLOCAL) {
+			/* Do not copy session variables. */
 			continue;
 		}
 
@@ -8368,7 +8356,7 @@ innodb_plugin_init(void)
 		(*v)->value = (*w)->value;
 	}
 
-	return(innobase_dynamic);
+	return(TRUE);
 }
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 
