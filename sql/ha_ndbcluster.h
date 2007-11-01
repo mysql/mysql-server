@@ -787,7 +787,6 @@ private:
   ha_rows m_rows_changed;
   bool m_delete_cannot_batch;
   bool m_update_cannot_batch;
-  ha_rows m_ops_pending;
   uint m_bytes_per_write;
   bool m_skip_auto_increment;
   bool m_blobs_pending;
