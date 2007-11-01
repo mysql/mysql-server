@@ -2851,7 +2851,7 @@ ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
       ERR_RETURN(trans->getNdbError());
       /* purecov: end */    
     }
-    m_ops_pending++;
+    m_thd_ndb->m_unsent_bytes+=12;
   }
   m_lock_tuple= FALSE;
   DBUG_RETURN(0);
@@ -2875,7 +2875,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
     /*
       We can only handle one tuple with blobs at a time.
     */
-    if (m_ops_pending && m_blobs_pending)
+    if (m_thd_ndb->m_unsent_bytes && m_blobs_pending)
     {
       if (execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
         DBUG_RETURN(ndb_err(trans));
@@ -2904,8 +2904,9 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
         all pending update or delete operations should 
         be sent to NDB
       */
-      DBUG_PRINT("info", ("ops_pending: %ld", (long) m_ops_pending));    
-      if (m_ops_pending)
+      DBUG_PRINT("info", ("thd_ndb->m_unsent_bytes: %ld",
+                          (long) m_thd_ndb->m_unsent_bytes));
+      if (m_thd_ndb->m_unsent_bytes)
       {
         if (execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
           DBUG_RETURN(-1);
@@ -4252,7 +4253,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       ERR_RETURN(trans->getNdbError());
 
     m_lock_tuple= FALSE;
-    m_ops_pending++;
+    thd_ndb->m_unsent_bytes+= 12;
   }
   else
   {  
@@ -4319,29 +4320,33 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   if (m_user_defined_partitioning)
     op->setPartitionId(new_part_id);
 
-  uint blob_count;
+  uint blob_count= 0;
   if (uses_blob_value(table->write_set))
   {
     int row_offset= new_data - table->record[0];
     if (set_blob_values(op, row_offset, table->write_set, &blob_count) != 0)
       ERR_RETURN(op->getNdbError());
-    if (cursor && blob_count > 0)
-      m_blobs_pending= TRUE;
   }
 
   eventSetAnyValue(thd, op);
 
   uint ignore_count= 0;
-  if (need_execute &&
-      execute_no_commit(m_thd_ndb, trans, FALSE,
-                        m_ignore_no_key || m_read_before_write_removal_used,
-                        &ignore_count) != 0)
+  if (need_execute)
   {
-    no_uncommitted_rows_execute_failure();
-    DBUG_RETURN(ndb_err(trans));
+    if (execute_no_commit(m_thd_ndb, trans, FALSE,
+                          m_ignore_no_key || m_read_before_write_removal_used,
+                          &ignore_count) != 0)
+    {
+      no_uncommitted_rows_execute_failure();
+      DBUG_RETURN(ndb_err(trans));
+    }
   }
+  else if (blob_count > 0)
+    m_blobs_pending= TRUE;
+  
   m_rows_changed+= 1 - ignore_count;
   m_rows_updated+= 1 - ignore_count;
+
   DBUG_RETURN(0);
 }
 
@@ -4429,7 +4434,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     if ((op= cursor->deleteCurrentTuple(trans, m_ndb_record)) == 0)
       ERR_RETURN(trans->getNdbError());     
     m_lock_tuple= FALSE;
-    m_ops_pending++;
+    thd_ndb->m_unsent_bytes+= 12;
 
     if (m_user_defined_partitioning)
       op->setPartitionId(part_id);
@@ -4937,13 +4942,14 @@ int ha_ndbcluster::close_scan()
   if ((error= scan_handle_lock_tuple(cursor, trans)) != 0)
     DBUG_RETURN(error);
 
-  if (m_ops_pending)
+  if (m_thd_ndb->m_unsent_bytes)
   {
     /*
       Take over any pending transactions to the 
       deleteing/updating transaction before closing the scan    
     */
-    DBUG_PRINT("info", ("ops_pending: %ld", (long) m_ops_pending));    
+    DBUG_PRINT("info", ("thd_ndb->m_unsent_bytes: %ld",
+                        (long) m_thd_ndb->m_unsent_bytes));    
     if (execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
     {
       no_uncommitted_rows_execute_failure();
@@ -5742,7 +5748,6 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd)
 
   // Start of transaction
   m_rows_changed= 0;
-  m_ops_pending= 0;
   m_blobs_pending= FALSE;
   m_slow_path= m_thd_ndb->m_slow_path;
 #ifdef HAVE_NDB_BINLOG
@@ -5867,9 +5872,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("warning", ("blobs_pending != 0"));
     m_blobs_pending= 0;
     
-    if (m_ops_pending)
-      DBUG_PRINT("warning", ("ops_pending != 0L"));
-    m_ops_pending= 0;
     DBUG_RETURN(0);
   }
 }
@@ -7719,7 +7721,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_rows_changed((ha_rows) 0),
   m_delete_cannot_batch(FALSE),
   m_update_cannot_batch(FALSE),
-  m_ops_pending(0),
   m_skip_auto_increment(TRUE),
   m_row_buffer_current(NULL),
   m_blobs_pending(0),
