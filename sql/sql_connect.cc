@@ -953,7 +953,6 @@ bool setup_connection_thread_globals(THD *thd)
 bool login_connection(THD *thd)
 {
   NET *net= &thd->net;
-  Security_context *sctx= thd->security_ctx;
   DBUG_ENTER("login_connection");
   DBUG_PRINT("info", ("login_connection called by thread %lu",
                       thd->thread_id));
