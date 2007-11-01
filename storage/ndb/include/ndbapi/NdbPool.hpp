@@ -17,7 +17,8 @@ class Ndb;
 class NdbPool;
 
 bool
-create_instance(Uint32 max_ndb_objects,
+create_instance(Ndb_cluster_connection* cc,
+                Uint32 max_ndb_objects,
                 Uint32 no_conn_obj,
                 Uint32 init_no_ndb_objects);
 
