@@ -3004,3 +3004,9 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+libmysql_r/client_settings.h
+libmysql_r/link_sources
+libmysqld/scheduler.cc
+libmysqld/sql_connect.cc
+libmysqld/sql_tablespace.cc
+sql/link_sources
