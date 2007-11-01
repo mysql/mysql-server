@@ -3399,7 +3399,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
             it preparable for open. But let us do close_temporary_table() here
             just in case.
           */
-          close_temporary_table(thd, create_table);
+          drop_temporary_table(thd, create_table);
         }
       }
     }
