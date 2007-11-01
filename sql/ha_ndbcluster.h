@@ -582,7 +582,7 @@ private:
                       const uchar *key, 
                       uint key_len,
                       uchar *buf);
-  int flush_bulk_insert();
+  int flush_bulk_insert(bool allow_batch= FALSE);
   int ndb_write_row(uchar *record, bool primary_key_update,
                     bool batched_update);
 

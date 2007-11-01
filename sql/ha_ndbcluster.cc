@@ -5372,7 +5372,7 @@ int ha_ndbcluster::reset()
 */
 
 int
-ha_ndbcluster::flush_bulk_insert()
+ha_ndbcluster::flush_bulk_insert(bool allow_batch)
 {
   NdbTransaction *trans= m_thd_ndb->trans;
   DBUG_ENTER("ha_ndbcluster::flush_bulk_insert");
@@ -5382,7 +5382,8 @@ ha_ndbcluster::flush_bulk_insert()
 
   if (m_thd_ndb->m_transaction_on)
   {
-    if (execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
+    if (!allow_batch &&
+        execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
     {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -5456,7 +5457,8 @@ int ha_ndbcluster::end_bulk_insert()
   
   if ((thd->options & OPTION_ALLOW_BATCH) == 0 && thd_ndb->m_unsent_bytes)
   {
-    error= flush_bulk_insert();
+    bool allow_batch= (thd_ndb->m_handler != 0);
+    error= flush_bulk_insert(allow_batch);
     if (error != 0)
       my_errno= error;
   }
@@ -12888,7 +12890,7 @@ static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
   {
     char *mem= (char*)sql_alloc(sizeof(struct st_ndb_status) +
                                 sizeof(ndb_status_variables));
-    st= new (mem) struct st_ndb_status;
+    st= new (mem) st_ndb_status;
     st_var= (SHOW_VAR*)(mem + sizeof(struct st_ndb_status));
     memcpy(st_var, &ndb_status_variables, sizeof(ndb_status_variables));
     int i= 0;

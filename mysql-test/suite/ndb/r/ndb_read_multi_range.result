@@ -10,7 +10,7 @@ insert into t1 values
 (5,2,12),(6,3,11),(7,4,10),(8,5,9),
 (9,2,8),(10,3,7),(11,4,6),(12,5,5);
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
-3
+2
 create table r1 as select * from t1 where a in (2,8,12);
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
@@ -173,7 +173,7 @@ insert into t1 values
 (1,2,1,4,1),
 (1,2,1,5,1);
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
-3
+2
 create table r1 as select * from t1
 where a=1 and b=2 and c=1 and d in (1,4,3,2);
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
