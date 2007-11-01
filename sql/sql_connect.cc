@@ -316,17 +316,20 @@ int check_user(THD *thd, enum enum_server_command command,
 {
   DBUG_ENTER("check_user");
   LEX_STRING db_str= { (char *) db, db ? strlen(db) : 0 };
-  
+
+  /*
+    Clear thd->db as it points to something, that will be freed when
+    connection is closed. We don't want to accidentally free a wrong
+    pointer if connect failed. Also in case of 'CHANGE USER' failure,
+    current database will be switched to 'no database selected'.
+  */
+  thd->reset_db(NULL, 0);
+
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
   thd->main_security_ctx.master_access= GLOBAL_ACLS;       // Full rights
   /* Change database if necessary */
   if (db && db[0])
   {
-    /*
-      thd->db is saved in caller and needs to be freed by caller if this
-      function returns 0
-    */
-    thd->reset_db(NULL, 0);
     if (mysql_change_db(thd, &db_str, FALSE))
     {
       /* Send the error to the client */
@@ -357,14 +360,6 @@ int check_user(THD *thd, enum enum_server_command command,
       passwd_len != SCRAMBLE_LENGTH &&
       passwd_len != SCRAMBLE_LENGTH_323)
     DBUG_RETURN(ER_HANDSHAKE_ERROR);
-
-  /*
-    Clear thd->db as it points to something, that will be freed when 
-    connection is closed. We don't want to accidentally free a wrong pointer
-    if connect failed. Also in case of 'CHANGE USER' failure, current
-    database will be switched to 'no database selected'.
-  */
-  thd->reset_db(NULL, 0);
 
   USER_RESOURCES ur;
   int res= acl_getroot(thd, &ur, passwd, passwd_len);

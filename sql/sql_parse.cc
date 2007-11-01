@@ -911,6 +911,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     /* Clear variables that are allocated */
     thd->user_connect= 0;
+    thd->security_ctx->priv_user= thd->security_ctx->user;
     res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, FALSE);
 
     if (res)
@@ -933,8 +934,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
-      x_free((uchar*) save_db);
-      x_free((uchar*)  save_security_ctx.user);
+      x_free(save_db);
+      x_free(save_security_ctx.user);
 
       if (cs_number)
       {
