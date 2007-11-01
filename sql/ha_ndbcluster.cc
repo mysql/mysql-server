@@ -4062,7 +4062,9 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
 {
   DBUG_ENTER("ha_ndbcluster::exec_bulk_update");
   *dup_key_found= 0;
-  if (m_thd_ndb->m_unsent_bytes)
+  if (m_thd_ndb->m_unsent_bytes &&
+      (!m_thd_ndb->m_handler ||
+       m_blobs_pending))
   {
     uint ignore_count= 0;
     if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans, FALSE,
