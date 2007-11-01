@@ -6862,6 +6862,9 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
 {
   TABLE_LIST *lst= get_trigger_table(thd, trg_name);
 
+  if (!lst)
+    return TRUE;
+
   /*
     Open the table by name in order to load Table_triggers_list object.
 
