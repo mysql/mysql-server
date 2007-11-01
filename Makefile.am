@@ -182,8 +182,7 @@ pkglib_LTLIBRARIES =	@plugin_innobase_shared_target@
 # we must rename class ha_innobase to something else.  Also global symbols
 # will have to be redefined, but that can be done by objcopy --redefine-syms.
 ha_innodb_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir)
-ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) \
-			-DMYSQL_DYNAMIC_PLUGIN -Dha_innobase=ha_innodb
+ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_innodb_la_CFLAGS  =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_innodb_la_SOURCES =	$(libinnobase_a_SOURCES)
 
