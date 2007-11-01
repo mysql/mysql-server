@@ -41,6 +41,7 @@ link_sources:
 	    @LN_CP_F@ $$d/$$f $$f; \
 	  done; \
 	done
+	echo timestamp > link_sources
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
