@@ -4302,6 +4302,7 @@ void create_thread_to_handle_connection(THD *thd)
   }
   else
   {
+    char error_message_buff[MYSQL_ERRMSG_SIZE];
     /* Create new thread to handle connection */
     int error;
     thread_created++;
@@ -4320,7 +4321,10 @@ void create_thread_to_handle_connection(THD *thd)
       thd->killed= THD::KILL_CONNECTION;			// Safety
       (void) pthread_mutex_unlock(&LOCK_thread_count);
       statistic_increment(aborted_connects,&LOCK_status);
-      net_printf_error(thd, ER_CANT_CREATE_THREAD, error);
+      /* Can't use my_error() since store_globals has not been called. */
+      my_snprintf(error_message_buff, sizeof(error_message_buff),
+                  ER(ER_CANT_CREATE_THREAD), error);
+      net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff);
       (void) pthread_mutex_lock(&LOCK_thread_count);
       close_connection(thd,0,0);
       delete thd;
