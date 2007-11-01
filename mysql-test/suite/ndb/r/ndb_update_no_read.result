@@ -24,16 +24,16 @@ a	b	c
 1	20	111
 affected rows: 1
 
-# expected result 4 roundtrips
+# expected result 3 roundtrips
 # 1 - info call
 # 1 - read the row
-# 1 - delete the row
-# 1 - commit the transaction
+# 0 - delete the row (deferred to commit)
+# 1 - delete + commit the transaction
 
 delete from t1 where a = 1;
 affected rows: 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
-4
+3
 affected rows: 1
 select * from t1 where a = 1 order by a;
 a	b	c
@@ -55,16 +55,16 @@ select * from t1 where b = 2 order by a;
 a	b	c
 affected rows: 0
 
-# expected result 4 roundtrips
+# expected result 3 roundtrips
 # 1 - info call
 # 1 - read the row
-# 1 - delete the row
-# 1 - commit the transaction
+# 0 - delete the row (deferred to commit)
+# 1 - delete and commit the transaction
 
 delete from t1 where b = 19;
 affected rows: 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
-4
+3
 affected rows: 1
 select * from t1 where b = 19 order by a;
 a	b	c
