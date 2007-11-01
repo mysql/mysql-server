@@ -2299,8 +2299,7 @@ Handler_read_next	0
 FLUSH STATUS;
 DELETE FROM t3 WHERE (SELECT (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) x 
 FROM t1) > 10000;
-Warnings:
-Error	1242	Subquery returns more than 1 row
+ERROR 21000: Subquery returns more than 1 row
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
 Handler_read_key	8
