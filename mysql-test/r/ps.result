@@ -2680,4 +2680,24 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`(10))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+drop table if exists t1, t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+create table t1 (a int, b int);
+create table t2 like t1;
+insert into t1 (a, b) values (1,1), (1,2), (1,3), (1,4), (1,5),
+(2,2), (2,3), (2,1), (3,1), (4,1), (4,2), (4,3), (4,4), (4,5), (4,6);
+insert into t2 select a, max(b) from t1 group by a;
+prepare stmt from "delete from t2 where (select (select max(b) from t1 group
+by a having a < 2) x from t1) > 10000";
+delete from t2 where (select (select max(b) from t1 group
+by a having a < 2) x from t1) > 10000;
+ERROR 21000: Subquery returns more than 1 row
+execute stmt;
+ERROR 21000: Subquery returns more than 1 row
+execute stmt;
+ERROR 21000: Subquery returns more than 1 row
+deallocate prepare stmt;
+drop table t1, t2;
 End of 5.1 tests.
