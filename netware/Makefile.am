@@ -56,9 +56,6 @@ link_sources:
 	done
 	echo timestamp > link_sources
 
-BUILT_SOURCES =                 link_sources
-CLEANFILES = 			$(BUILT_SOURCES)
-
 else
 
 BUILT_SOURCES =                 libmysql.imp init_db.sql test_db.sql
