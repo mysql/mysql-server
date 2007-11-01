@@ -32,7 +32,7 @@ static const char plugin_author[] = "Innobase Oy";
 		DBUG_RETURN(1);	\
 	}
 
-#if defined(__GNUC__) && (__GNUC__) > 2 && !defined(__INTEL_COMPILER)
+#if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 && !defined __INTEL_COMPILER
 #define STRUCT_FLD(name, value)	name: value
 #else
 #define STRUCT_FLD(name, value)	value
