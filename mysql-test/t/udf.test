@@ -35,20 +35,20 @@ eval CREATE FUNCTION reverse_lookup
 eval CREATE AGGREGATE FUNCTION avgcost
         RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
 
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select myfunc_double();
 select myfunc_double(1);
 select myfunc_double(78654);
 --error 1305
 select myfunc_nonexist();
 select myfunc_int();
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select lookup();
 select lookup("127.0.0.1");
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select lookup(127,0,0,1);
 select lookup("localhost");
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select reverse_lookup();
 
 # These two functions should return "localhost", but it's
@@ -59,9 +59,9 @@ select reverse_lookup(127,0,0,1);
 --enable_result_log
 
 select reverse_lookup("localhost");
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select avgcost();
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select avgcost(100,23.76);
 create table t1(sum int, price float(24));
 insert into t1 values(100, 50.00), (100, 100.00);

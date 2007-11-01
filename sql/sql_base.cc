@@ -44,7 +44,7 @@ public:
 
   virtual ~Prelock_error_handler() {}
 
-  virtual bool handle_error(uint sql_errno,
+  virtual bool handle_error(uint sql_errno, const char *message,
                             MYSQL_ERROR::enum_warning_level level,
                             THD *thd);
 
@@ -58,6 +58,7 @@ private:
 
 bool
 Prelock_error_handler::handle_error(uint sql_errno,
+                                    const char * /* message */,
                                     MYSQL_ERROR::enum_warning_level /* level */,
                                     THD * /* thd */)
 {
@@ -6260,7 +6261,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   thd->lex->allow_sum_func= save_allow_sum_func;
   thd->mark_used_columns= save_mark_used_columns;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
-  DBUG_RETURN(test(thd->net.report_error));
+  DBUG_RETURN(test(thd->is_error()));
 }
 
 
@@ -6804,7 +6805,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     select_lex->conds_processed_with_permanent_arena= 1;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
-  DBUG_RETURN(test(thd->net.report_error));
+  DBUG_RETURN(test(thd->is_error()));
 
 err_no_arena:
   select_lex->is_item_list_lookup= save_is_item_list_lookup;
@@ -6886,7 +6887,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       goto err;
     }
   }
-  DBUG_RETURN(thd->net.report_error);
+  DBUG_RETURN(thd->is_error());
 err:
   if (table)
     table->auto_increment_field_not_null= FALSE;
@@ -6971,7 +6972,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     table= (*ptr)->table;
     table->auto_increment_field_not_null= FALSE;
   }
-  while ((field = *ptr++) && !thd->net.report_error)
+  while ((field = *ptr++) && ! thd->is_error())
   {
     value=v++;
     table= field->table;
@@ -6980,7 +6981,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     if (value->save_in_field(field, 0) < 0)
       goto err;
   }
-  DBUG_RETURN(thd->net.report_error);
+  DBUG_RETURN(thd->is_error());
 
 err:
   if (table)
@@ -7390,7 +7391,7 @@ open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
     else
     {
       /* only VIEWs are supported now */
-      my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), share->path,  parser->type()->str);
+      my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), share->path.str,  parser->type()->str);
       goto err;
     }
     DBUG_RETURN(0);
