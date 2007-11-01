@@ -4370,7 +4370,8 @@ int ha_ndbcluster::bulk_delete_row(const uchar *record)
 int ha_ndbcluster::end_bulk_delete()
 {
   DBUG_ENTER("end_bulk_delete");
-  if (m_thd_ndb->m_unsent_bytes)
+  if (m_thd_ndb->m_unsent_bytes &&
+      !m_thd_ndb->m_handler)
   {
     uint ignore_count= 0;
     if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans, FALSE,
@@ -6057,7 +6058,10 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     set_ndb_err(thd, err);
     res= ndb_to_mysql_error(&err);
     if (res != -1)
-      ndbcluster_print_error(res, error_op);
+     if (thd_ndb->m_handler)
+       thd_ndb->m_handler->print_error(res, MYF(0));
+     else
+       ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;

@@ -39,11 +39,11 @@ update t1 set c = 111, b = 20 where a = 1;
 select * from t1 where a = 1 order by a;
 
 --echo
---echo # expected result 4 roundtrips
+--echo # expected result 3 roundtrips
 --echo # 1 - info call
 --echo # 1 - read the row
---echo # 1 - delete the row
---echo # 1 - commit the transaction
+--echo # 0 - delete the row (deferred to commit)
+--echo # 1 - delete + commit the transaction
 --echo
 --source include/ndb_init_execute_count.inc
 delete from t1 where a = 1;
@@ -65,11 +65,11 @@ update t1 set c = 12, b = 19 where b = 2;
 select * from t1 where b = 2 order by a;
 
 --echo
---echo # expected result 4 roundtrips
+--echo # expected result 3 roundtrips
 --echo # 1 - info call
 --echo # 1 - read the row
---echo # 1 - delete the row
---echo # 1 - commit the transaction
+--echo # 0 - delete the row (deferred to commit)
+--echo # 1 - delete and commit the transaction
 --echo
 --source include/ndb_init_execute_count.inc
 delete from t1 where b = 19;
