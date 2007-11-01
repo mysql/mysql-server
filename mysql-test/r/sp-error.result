@@ -1523,3 +1523,13 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT ..inexistent();
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.inexistent()' at line 1
 USE test;
+create function f1() returns int
+begin
+set @test = 1, password = password('foo');
+return 1;
+end|
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+create trigger t1
+before insert on t2 for each row set password = password('foo');
+delimiter ;|
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
