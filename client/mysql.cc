@@ -776,7 +776,7 @@ static struct my_option my_long_options[] =
     0, 0, 0, 0, 0, 0},
   {"comments", 'c', "Preserve comments. Send comments to the server."
    " Comments are discarded by default, enable with --enable-comments",
-   (gptr*) &preserve_comments, (gptr*) &preserve_comments,
+   (uchar**) &preserve_comments, (uchar**) &preserve_comments,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
