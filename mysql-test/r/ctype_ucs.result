@@ -803,4 +803,10 @@ quote(name)
 ????????
 ????????????????
 drop table bug20536;
+CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci);
+INSERT INTO t1 VALUES('abcd');
+SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
+a
+abcd
+DROP TABLE t1;
 End of 4.1 tests
