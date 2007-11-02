@@ -536,7 +536,12 @@ trx_rollback_or_clean_all_recovered(
 	} else {
 		goto leave_function;
 	}
+
+	mutex_exit(&kernel_mutex);
+
 loop:
+	mutex_enter(&kernel_mutex);
+
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list); trx;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 		if (!trx->is_recovered) {
