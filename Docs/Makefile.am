@@ -13,19 +13,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-EXTRA_DIST =		mysql.info INSTALL-BINARY
+EXTRA_DIST =		manual.chm mysql.info INSTALL-BINARY
 
 # make sure that "make install" installs the info page, too
 # automake only seems to take care of this automatically,
 # if we're building the info page from texi directly.
-install-data-hook:	$(srcdir)/mysql.info $(srcdir)/INSTALL-BINARY
+install-data-hook:	$(srcdir)/mysql.info
 	$(mkinstalldirs) $(DESTDIR)$(infodir)
 	$(INSTALL_DATA) $(srcdir)/mysql.info $(DESTDIR)$(infodir)
-	$(INSTALL_DATA) $(srcdir)/INSTALL-BINARY $(DESTDIR)$(infodir)
 
 uninstall-local:
 	@RM@ -f $(DESTDIR)$(infodir)/mysql.info
-	@RM@ -f $(DESTDIR)$(infodir)/INSTALL-BINARY
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
