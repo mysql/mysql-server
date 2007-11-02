@@ -18,5 +18,25 @@ select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schem
 --source include/ndb_not_readonly.inc
 enable_query_log;
 
+# cleanup
+
+connection server1;
+disable_query_log;
+disable_warnings;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+flush tables;
+flush status;
+enable_warnings;
+enable_query_log;
+
+connection server2;
+disable_query_log;
+disable_warnings;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+flush tables;
+flush status;
+enable_warnings;
+enable_query_log;
+
 # Set the default connection
 connection default;
