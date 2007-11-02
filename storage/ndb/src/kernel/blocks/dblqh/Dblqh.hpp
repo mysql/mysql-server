@@ -2540,7 +2540,8 @@ private:
   void sendAddAttrReq(Signal* signal);
   void checkDropTab(Signal*);
   Uint32 checkDropTabState(Tablerec::TableStatus, Uint32) const;
-  
+
+  void remove_commit_marker(TcConnectionrec * const regTcPtr);
   // Initialisation
   void initData();
   void initRecords();
@@ -2919,6 +2920,7 @@ public:
     Uint32 tcNodeId;  
     union { Uint32 nextPool; Uint32 nextHash; };
     Uint32 prevHash;
+    Uint32 reference_count;
 
     inline bool equal(const CommitAckMarker & p) const {
       return ((p.transid1 == transid1) && (p.transid2 == transid2));

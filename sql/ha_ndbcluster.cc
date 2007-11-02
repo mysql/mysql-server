@@ -5322,9 +5322,6 @@ bool ha_ndbcluster::read_before_write_removal_possible(List<Item> *fields,
       }
     }
   }
-  /* disable read_before_write_removal until commit ack marker patch is in */
-  DBUG_RETURN(FALSE);
-
   DBUG_PRINT("info", ("read_before_write_removal_possible TRUE"));
   m_read_before_write_removal_possible= TRUE;
   DBUG_RETURN(TRUE);
