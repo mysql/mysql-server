@@ -19,10 +19,9 @@ EXTRA_DIST =		mysql.info INSTALL-BINARY
 # make sure that "make install" installs the info page, too
 # automake only seems to take care of this automatically,
 # if we're building the info page from texi directly.
-install-data-hook:	$(EXTRA_DIST)
+install-data-hook:	mysql.info
 	$(mkinstalldirs) $(DESTDIR)$(infodir)
 	$(INSTALL_DATA) $(srcdir)/mysql.info $(DESTDIR)$(infodir)
-	$(INSTALL_DATA) $(srcdir)/INSTALL-BINARY $(DESTDIR)$(infodir)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
