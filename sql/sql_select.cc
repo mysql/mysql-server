@@ -15827,6 +15827,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       /* Add "rows" field to item_list. */
       if (table_list->schema_table)
       {
+        /* in_rows */
+        if (join->thd->lex->describe & DESCRIBE_EXTENDED)
+          item_list.push_back(item_null);
+        /* rows */
         item_list.push_back(item_null);
       }
       else
