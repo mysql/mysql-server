@@ -94,9 +94,9 @@ a	b	c
 10	1	22
 affected rows: 8
 
-# expected result 3 roundtrips
+# expected result 2 roundtrips
 # 1 - info call
-# 1 - read the rows
+# 0 - read the rows (1 with read before)
 # 0 - update the rows (2 if no bulk update + 1 deferred to commit)
 # 1 - update + commit the transaction
 
@@ -104,7 +104,7 @@ update t1 set c = 23 where a in (8,10);
 affected rows: 2
 info: Rows matched: 2  Changed: 2  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
-3
+2
 affected rows: 1
 select * from t1 order by a;
 a	b	c
@@ -219,16 +219,16 @@ a	b	c
 12	19	11
 affected rows: 1
 
-# expected result 2 roundtrips
+# expected result 3 roundtrips
 # 1 - info call
-# 0 - read the rows (1 with read before)
+# 1 - read the rows
 # 0 - delete the rows (no row found)
 # 1 - commit the transaction
 
 delete from t1 where b = 6 and c = 12;
 affected rows: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
-2
+3
 affected rows: 1
 select * from t1 where b = 6 order by a;
 a	b	c
