@@ -1,0 +1,20 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+*** on slave there should be zero rows ***
+select count(*) from mysql.ndb_apply_status;
+count(*)
+0
+create table t1 (a int key, b int) engine ndb;
+insert into t1 values (1,1);
+*** on master it should be empty ***
+select * from mysql.ndb_apply_status;
+server_id	epoch	log_name	start_pos	end_pos
+*** on slave there should be one row ***
+select count(*) from mysql.ndb_apply_status;
+count(*)
+1
+drop table t1;
