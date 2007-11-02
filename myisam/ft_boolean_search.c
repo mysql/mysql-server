@@ -446,7 +446,8 @@ static int _ftb_strstr(const byte *s0, const byte *e0,
   {
     if (cs->coll->instr(cs, p0, e0 - p0, s1, e1 - s1, m, 2) != 2)
       return(0);
-    if ((!s_after || p0 + m[1].beg == s0 || !true_word_char(cs, p0[m[1].beg-1])) &&
+    if ((!s_after || p0 + m[1].beg == s0 ||
+         !true_word_char(cs, p0[(int) m[1].beg - 1])) &&
         (!e_before || p0 + m[1].end == e0 || !true_word_char(cs, p0[m[1].end])))
       return(1);
     p0+= m[1].beg;
