@@ -2785,8 +2785,9 @@ drop table t1;
 # Test that there is an error for prepared delete just like for the normal
 # one.
 #
-
+--disable_warnings
 drop table if exists t1, t2;
+--enable_warnings
 create table t1 (a int, b int);
 create table t2 like t1;
 
