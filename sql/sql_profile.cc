@@ -34,6 +34,7 @@ int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables,
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   return(thd->profiling.fill_statistics_info(thd, tables, cond));
 #else
+  my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILE", "enable-profiling");
   return(1);
 #endif
 }
@@ -41,24 +42,24 @@ int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables,
 ST_FIELD_INFO query_profile_statistics_info[]=
 {
   /* name, length, type, value, maybe_null, old_name, open_method */
-  {"QUERY_ID", 20, MYSQL_TYPE_LONG, 0, false, NULL, SKIP_OPEN_TABLE},
-  {"SEQ", 20, MYSQL_TYPE_LONG, 0, false, NULL, SKIP_OPEN_TABLE},
-  {"STATE", 30, MYSQL_TYPE_STRING, 0, false, NULL, SKIP_OPEN_TABLE},
-  {"DURATION", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, false, NULL, SKIP_OPEN_TABLE},
-  {"CPU_USER", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"CPU_SYSTEM", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"CONTEXT_VOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"CONTEXT_INVOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"BLOCK_OPS_IN", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"BLOCK_OPS_OUT", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"MESSAGES_SENT", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"MESSAGES_RECEIVED", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"PAGE_FAULTS_MAJOR", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"PAGE_FAULTS_MINOR", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"SWAPS", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"SOURCE_FUNCTION", 30, MYSQL_TYPE_STRING, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"SOURCE_FILE", 20, MYSQL_TYPE_STRING, 0, true, NULL, SKIP_OPEN_TABLE},
-  {"SOURCE_LINE", 20, MYSQL_TYPE_LONG, 0, true, NULL, SKIP_OPEN_TABLE},
+  {"QUERY_ID", 20, MYSQL_TYPE_LONG, 0, false, "Query_id", SKIP_OPEN_TABLE},
+  {"SEQ", 20, MYSQL_TYPE_LONG, 0, false, "Seq", SKIP_OPEN_TABLE},
+  {"STATE", 30, MYSQL_TYPE_STRING, 0, false, "Status", SKIP_OPEN_TABLE},
+  {"DURATION", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, false, "Duration", SKIP_OPEN_TABLE},
+  {"CPU_USER", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, "CPU_user", SKIP_OPEN_TABLE},
+  {"CPU_SYSTEM", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, "CPU_system", SKIP_OPEN_TABLE},
+  {"CONTEXT_VOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, "Context_voluntary", SKIP_OPEN_TABLE},
+  {"CONTEXT_INVOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, "Context_involuntary", SKIP_OPEN_TABLE},
+  {"BLOCK_OPS_IN", 20, MYSQL_TYPE_LONG, 0, true, "Block_ops_in", SKIP_OPEN_TABLE},
+  {"BLOCK_OPS_OUT", 20, MYSQL_TYPE_LONG, 0, true, "Block_ops_out", SKIP_OPEN_TABLE},
+  {"MESSAGES_SENT", 20, MYSQL_TYPE_LONG, 0, true, "Messages_sent", SKIP_OPEN_TABLE},
+  {"MESSAGES_RECEIVED", 20, MYSQL_TYPE_LONG, 0, true, "Messages_received", SKIP_OPEN_TABLE},
+  {"PAGE_FAULTS_MAJOR", 20, MYSQL_TYPE_LONG, 0, true, "Page_faults_major", SKIP_OPEN_TABLE},
+  {"PAGE_FAULTS_MINOR", 20, MYSQL_TYPE_LONG, 0, true, "Page_faults_minor", SKIP_OPEN_TABLE},
+  {"SWAPS", 20, MYSQL_TYPE_LONG, 0, true, "Swaps", SKIP_OPEN_TABLE},
+  {"SOURCE_FUNCTION", 30, MYSQL_TYPE_STRING, 0, true, "Source_function", SKIP_OPEN_TABLE},
+  {"SOURCE_FILE", 20, MYSQL_TYPE_STRING, 0, true, "Source_file", SKIP_OPEN_TABLE},
+  {"SOURCE_LINE", 20, MYSQL_TYPE_LONG, 0, true, "Source_line", SKIP_OPEN_TABLE},
   {NULL, 0, MYSQL_TYPE_STRING, 0, true, NULL, NULL}
 };
 
@@ -513,7 +514,7 @@ int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
     {
       entry= query->entries.iterator_value(entry_iterator);
 
-      if (thd->lex->orig_sql_command == SQLCOM_SHOW_PROFILE)
+      if (thd->lex->sql_command == SQLCOM_SHOW_PROFILE)
       {
         /* 
           We got here via a SHOW command.  That means that we stored

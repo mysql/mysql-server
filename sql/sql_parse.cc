@@ -265,6 +265,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_PROC_CODE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_FUNC_CODE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PROFILES]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PROFILE]= CF_STATUS_COMMAND;
 
    sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                CF_SHOW_TABLE_COMMAND);
@@ -1911,6 +1913,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_COLLATIONS:
   case SQLCOM_SHOW_STORAGE_ENGINES:
+  case SQLCOM_SHOW_PROFILE:
   case SQLCOM_SELECT:
     thd->status_var.last_query_cost= 0.0;
     if (all_tables)
