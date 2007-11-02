@@ -167,8 +167,49 @@ delimiter ;
 show create procedure nicesp;
 drop procedure nicesp;
 
-# Triggers can be tested only in 5.1, since 5.0 does not have 
-# SHOW CREATE TRIGGER
+##============================================================================
+## Comments inside triggers
+##============================================================================
+
+drop trigger if exists t1_empty;
+
+create trigger t1_empty after delete on t1
+for each row
+begin
+end;
+
+show create trigger t1_empty;
+
+drop trigger if exists t1_bi;
+
+delimiter |
+
+create trigger t1_bi before insert on t1
+for each row
+begin
+# comment 1a
+-- comment 1b
+/*
+   comment 1c
+*/
+  -- declare some variables here
+  declare b int;
+  declare c float;
+
+  -- do more stuff here
+  -- commented nicely and so on
+
+  -- famous last words ...
+  set NEW.data := 12;
+end|
+
+delimiter ;
+
+show create trigger t1_bi;
+
+# also make sure the trigger still works
+insert into t1(id) value ("trig");
+select * from t1;
 
 ##============================================================================
 ## Cleanup
