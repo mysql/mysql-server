@@ -4,6 +4,11 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+STOP SLAVE;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+RESET SLAVE;
+START SLAVE;
 **** On Master ****
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET GLOBAL  BINLOG_FORMAT=STATEMENT;
@@ -31,12 +36,19 @@ a	b
 DROP TABLE t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t1
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+RESET MASTER;
+STOP SLAVE;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+RESET SLAVE;
+START SLAVE;
 **** On Master ****
 SET SESSION BINLOG_FORMAT=MIXED;
 SET GLOBAL  BINLOG_FORMAT=MIXED;
@@ -64,12 +76,19 @@ a	b
 DROP TABLE t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t1
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+RESET MASTER;
+STOP SLAVE;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+RESET SLAVE;
+START SLAVE;
 **** On Master ****
 SET SESSION BINLOG_FORMAT=ROW;
 SET GLOBAL  BINLOG_FORMAT=ROW;
@@ -97,6 +116,7 @@ a	b
 DROP TABLE t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t1
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -104,6 +124,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+RESET MASTER;
+STOP SLAVE;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+RESET SLAVE;
+START SLAVE;
 **** On Master ****
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET GLOBAL  BINLOG_FORMAT=STATEMENT;
@@ -131,12 +157,19 @@ a	b
 DROP TABLE t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t1
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+RESET MASTER;
+STOP SLAVE;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+RESET SLAVE;
+START SLAVE;
 **** On Master ****
 SET SESSION BINLOG_FORMAT=MIXED;
 SET GLOBAL  BINLOG_FORMAT=MIXED;
@@ -164,12 +197,19 @@ a	b
 DROP TABLE t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t1
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+RESET MASTER;
+STOP SLAVE;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+RESET SLAVE;
+START SLAVE;
 **** On Master ****
 SET SESSION BINLOG_FORMAT=ROW;
 SET GLOBAL  BINLOG_FORMAT=ROW;
@@ -198,6 +238,7 @@ a	b
 DROP TABLE t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t1
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -206,3 +247,4 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+RESET MASTER;
