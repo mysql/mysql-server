@@ -14,38 +14,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-noinst_SCRIPTS =	Support/generate-text-files.pl
-
-EXTRA_DIST =		$(noinst_SCRIPTS) mysql.info INSTALL-BINARY
-
-all:			txt_files
-
-txt_files:		../INSTALL-SOURCE \
-			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
+EXTRA_DIST =		mysql.info INSTALL-BINARY
 
 # make sure that "make install" installs the info page, too
 # automake only seems to take care of this automatically,
 # if we're building the info page from texi directly.
-install-data-hook:	mysql.info
+install-data-hook:	$(EXTRA_DIST)
 	$(mkinstalldirs) $(DESTDIR)$(infodir)
 	$(INSTALL_DATA) $(srcdir)/mysql.info $(DESTDIR)$(infodir)
-
-CLEAN_FILES:		$(txt_files)
-	touch $(txt_files)
-
-GT = $(srcdir)/Support/generate-text-files.pl
-
-../INSTALL-SOURCE:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "installing-source" "windows-source-build" > $@
-
-# We put the description for the binary installation here so that
-# people who download source wont have to see it. It is moved up to
-# the toplevel by the script that makes the binary tar files.
-INSTALL-BINARY:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "installing-binary" "installing-source" > $@
-
-../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "mac-os-x-installation" "netware-installation" > $@
+	$(INSTALL_DATA) $(srcdir)/INSTALL-BINARY $(DESTDIR)$(infodir)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
