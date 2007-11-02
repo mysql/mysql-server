@@ -1538,7 +1538,9 @@ int ha_ndbcluster::get_metadata(const char *path)
   if ((error= open_indexes(ndb, table, FALSE)) == 0)
   {
     ndbtab_g.release();
+#ifdef HAVE_NDB_BINLOG
     ndbcluster_read_binlog_replication(thd, ndb, m_share, m_table, ::server_id, table);
+#endif
     DBUG_RETURN(0);
   }
 
