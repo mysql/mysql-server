@@ -1921,6 +1921,207 @@ runBug31525(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int 
+runCommitAck(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+
+  if (records < 2)
+    return NDBT_OK;
+  if (restarter.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  int trans_type= -1;
+  NdbConnection *pCon;
+  int node;
+  while (loops--)
+  {
+    trans_type++;
+    if (trans_type > 2)
+      trans_type= 0;
+    HugoTransactions hugoTrans(*ctx->getTab());
+    switch (trans_type) {
+    case 0:
+      /*
+        - load records less 1
+      */
+      g_info << "case 0\n";
+      if (hugoTrans.loadTable(GETNDB(step), records - 1))
+      {
+        return NDBT_FAILED;
+      }
+      break;
+    case 1:
+      /*
+        - load 1 record
+      */
+      g_info << "case 1\n";
+      if (hugoTrans.loadTable(GETNDB(step), 1))
+      {
+        return NDBT_FAILED;
+      }
+      break;
+    case 2:
+      /*
+        - load 1 record in the end
+      */
+      g_info << "case 2\n";
+      {
+        HugoOperations hugoOps(*ctx->getTab());
+        if (hugoOps.startTransaction(pNdb))
+          abort();
+        if (hugoOps.pkInsertRecord(pNdb, records-1))
+          abort();
+        if (hugoOps.execute_Commit(pNdb))
+          abort();
+        if (hugoOps.closeTransaction(pNdb))
+          abort();
+      }
+      break;
+    default:
+      abort();
+    }
+
+    /* run transaction that should be tested */
+    HugoOperations hugoOps(*ctx->getTab());
+    if (hugoOps.startTransaction(pNdb))
+      return NDBT_FAILED;
+    pCon= hugoOps.getTransaction();
+    node= pCon->getConnectedNodeId();
+    switch (trans_type) {
+    case 0:
+    case 1:
+      /*
+        insert records with ignore error
+        - insert rows, some exist already
+      */
+      for (int i= 0; i < records; i++)
+      {
+        if (hugoOps.pkInsertRecord(pNdb, i))
+          goto err;
+      }
+      break;
+    case 2:
+      /*
+        insert records with ignore error
+        - insert rows, some exist already
+      */
+      for (int i= 0; i < records; i++)
+      {
+        if (hugoOps.pkInsertRecord(pNdb, i))
+          goto err;
+      }
+      break;
+    default:
+      abort();
+    }
+
+    /*
+      insert error in ndb kernel (TC) that throws away acknowledge of commit
+      and then die 5 seconds later
+    */
+    {
+      if (restarter.insertErrorInNode(node, 8054))
+        goto err;
+    }
+    {
+      int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+      if (restarter.dumpStateOneNode(node, val2, 2))
+        goto err;
+    }
+
+    /* execute transaction and verify return code */
+    g_info << "  execute... hangs for 5 seconds\n";
+    {
+      const NdbOperation *first= pCon->getFirstDefinedOperation();
+      int check= pCon->execute(Commit, AO_IgnoreError);
+      const NdbError err = pCon->getNdbError();
+
+      while (first)
+      {
+        const NdbError &err= first->getNdbError();
+        g_info << "         error " << err.code << endl;
+        first= pCon->getNextCompletedOperation(first);
+      }
+
+      int expected_commit_res[3]= { 630, 630, 630 };
+      if (check == -1 ||
+          err.code != expected_commit_res[trans_type])
+      {
+        g_err << "check == " << check << endl;
+        g_err << "got error: "
+              << err.code
+              << " expected: "
+              << expected_commit_res[trans_type]
+              << endl;
+        goto err;
+      }
+    }
+
+    g_info << "  wait node nostart\n";
+    if (restarter.waitNodesNoStart(&node, 1))
+    {
+      g_err << "  wait node nostart failed\n";
+      goto err;
+    }
+
+    /* close transaction */
+    if (hugoOps.closeTransaction(pNdb))
+      return NDBT_FAILED;
+
+    /* commit ack marker pools should be empty */
+    g_info << "  dump pool status\n";
+    {
+      int dump[255];
+      dump[0] = 2552;
+      if (restarter.dumpStateAllNodes(dump, 1))
+        return NDBT_FAILED;
+    }
+
+    /* wait for cluster to come up again */
+    g_info << "  wait cluster started\n";
+    if (restarter.startNodes(&node, 1) ||
+        restarter.waitNodesStarted(&node, 1))
+    {
+      g_err << "Cluster failed to start\n";
+      return NDBT_FAILED;
+    }
+
+    /* verify data */
+    g_info << "  verifying\n";
+    switch (trans_type) {
+    case 0:
+    case 1:
+    case 2:
+      /*
+        insert records with ignore error
+        - should have all records
+      */
+      if (hugoTrans.scanReadRecords(GETNDB(step), records, 0, 64) != 0){
+        return NDBT_FAILED;
+      }
+      break;
+    default:
+      abort();
+    }
+
+    /* cleanup for next round in loop */
+    g_info << "  cleaning\n";
+    if (hugoTrans.clearTable(GETNDB(step), records))
+    {
+      return NDBT_FAILED;
+    }
+    continue;
+err:
+    hugoOps.closeTransaction(pNdb);
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -2294,6 +2495,10 @@ TESTCASE("GCP", ""){
   INITIALIZER(runLoadTable);
   STEP(runGCP);
   STEP(runScanUpdateUntilStopped);
+  FINALIZER(runClearTable);
+}
+TESTCASE("CommitAck", ""){
+  INITIALIZER(runCommitAck);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
