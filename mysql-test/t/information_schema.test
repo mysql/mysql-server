@@ -1232,4 +1232,9 @@ select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_TABLE` = NULL;
 select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
 select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 
+#
+# Bug#31630 debug assert with explain extended select ... from i_s
+#
+explain extended select 1 from information_schema.TABLES;
+
 --echo End of 5.1 tests.
