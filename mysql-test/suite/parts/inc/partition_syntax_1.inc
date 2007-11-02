@@ -10,11 +10,13 @@
 #    The parameter $part_number must be set before sourcing this script.       #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
-# Original Date: 2006-03-05                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
+# Original Author: mleich                                                      #
+# Original Date:   2006-03-05                                                  #
+# Change Author:   mleich                                                      #
+# Change Date:     2007-10-08                                                  #
+# Change:          Fix for                                                     #
+#                  Bug#31481 test suite parts: Many tests fail because of      #
+#                            changed server error codes                        #
 ################################################################################
 
 --disable_abort_on_error
@@ -30,13 +32,13 @@ let $run= `SELECT @my_errno = 0`;
 # 0
 # 1064 ER_PARSE_ERROR
 #      Reason: assign -1 partitions
-# 1496 ER_TOO_MANY_PARTITIONS_ERROR
-# 1501 ER_NO_PARTS_ERROR
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1064,1496,1501)`;
+# 1498 ER_TOO_MANY_PARTITIONS_ERROR
+# 1503 ER_NO_PARTS_ERROR
+let $unexpected_error= `SELECT @my_errno NOT IN (0,1064,1498,1503)`;
 if ($unexpected_error)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1064,1496,1501
+   --echo #      Expected/handled SQL codes are 0,1064,1498,1503
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;
@@ -68,13 +70,13 @@ let $run= `SELECT @my_errno = 0`;
 # 0
 # 1064 ER_PARSE_ERROR
 #      Reason: assign -1 partitions
-# 1496 ER_TOO_MANY_PARTITIONS_ERROR
-# 1501 ER_NO_PARTS_ERROR
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1064,1496,1501)`;
+# 1498 ER_TOO_MANY_PARTITIONS_ERROR
+# 1503 ER_NO_PARTS_ERROR
+let $unexpected_error= `SELECT @my_errno NOT IN (0,1064,1498,1503)`;
 if ($unexpected_error)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1064,1496,1501
+   --echo #      Expected/handled SQL codes are 0,1064,1498,1503
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;
