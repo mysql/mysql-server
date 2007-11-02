@@ -1,9 +1,14 @@
 #--disable_abort_on_error
 #
 # Simple test for the partition storage engine
-# Taken fromm the select test
+# taken from the select test.
 #
--- source include/have_partition.inc
+# Last update:
+# 2007-10-22 mleich  - Move ARCHIVE, BLACKHOLE and CSV related sub tests to
+#                      new tests. Reason: All these might be not available.
+#                    - Minor cleanup
+#
+--source include/have_partition.inc
 
 --disable_warnings
 drop table if exists t1;
@@ -12,19 +17,19 @@ drop table if exists t1;
 #
 # Bug 15890: Strange number of partitions accepted
 #
--- error 1064
+-- error ER_PARSE_ERROR
 create table t1 (a int)
 partition by key(a)
 partitions 0.2+e1;
--- error 1064
+-- error ER_PARSE_ERROR
 create table t1 (a int)
 partition by key(a)
 partitions -1;
--- error 1064
+-- error ER_PARSE_ERROR
 create table t1 (a int)
 partition by key(a)
 partitions 1.5;
--- error 1064
+-- error ER_PARSE_ERROR
 create table t1 (a int)
 partition by key(a)
 partitions 1e+300;
@@ -32,7 +37,7 @@ partitions 1e+300;
 #
 # Bug 21350: Data Directory problems
 #
--- error 1103
+-- error ER_WRONG_TABLE_NAME
 create table t1 (a int)
 partition by key (a)
 (partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
@@ -41,7 +46,7 @@ partition by key (a)
 # Insert a test that manages to create the first partition and fails with
 # the second, ensure that we clean up afterwards in a proper manner.
 #
---error 1103
+--error ER_WRONG_TABLE_NAME
 create table t1 (a int)
 partition by key (a)
 (partition p0,
@@ -63,23 +68,14 @@ drop procedure pz;
 drop table t1;
 
 #
-# Bug 19307: CSV engine crashes
-#
---error ER_PARTITION_MERGE_ERROR
-create table t1 (a int)
-engine = csv
-partition by list (a)
-(partition p0 values in (null));
-
-#
 # BUG 16002: Handle unsigned integer functions properly
 #
---error 1064
+--error ER_PARSE_ERROR
 create table t1 (a bigint)
 partition by range (a)
 (partition p0 values less than (0xFFFFFFFFFFFFFFFF),
  partition p1 values less than (10));
---error 1064
+--error ER_PARSE_ERROR
 create table t1 (a bigint)
 partition by list (a)
 (partition p0 values in (0xFFFFFFFFFFFFFFFF),
@@ -99,15 +95,6 @@ insert into t1 values (0xFFFFFFFFFFFFFFFE);
 select * from t1 where (a + 1) < 10;
 select * from t1 where (a + 1) > 10;
 drop table t1;
-
-#
-# Bug 19307: CSV engine crashes
-#
---error ER_PARTITION_MERGE_ERROR
-create table t1 (a int)
-engine = csv
-partition by list (a)
-(partition p0 values in (null));
 
 #
 # Added test case
@@ -409,34 +396,6 @@ PARTITION BY LIST (a)
 (PARTITION x1 VALUES IN (10), PARTITION x2 VALUES IN (20));
 
 analyze table t1;
-
-drop table t1;
-
-#
-# BUG 14524
-#
-# Disable warnings to allow this test case to work without
-# the Blackhole engine.
---disable_warnings
-CREATE TABLE `t1` (
-  `id` int(11) default NULL
-) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1 PARTITION BY HASH (id) ;
---enable_warnings
-SELECT * FROM t1;
-
-drop table t1;
-
-#
-# BUG 14524
-#
-# Disable warnings to allow this test case to work without
-# the Blackhole engine.
---disable_warnings
-CREATE TABLE `t1` (
-  `id` int(11) default NULL
-) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1 PARTITION BY HASH (id) ;
---enable_warnings
-SELECT * FROM t1;
 
 drop table t1;
 
@@ -766,7 +725,7 @@ create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
 
---error 1064
+--error ER_PARSE_ERROR
 alter table t1 rebuild partition;
 
 drop table t1;
@@ -810,14 +769,14 @@ drop table t1;
 #
 # BUG 15407 Crash with subpartition
 #
---error 1064
+--error ER_PARSE_ERROR
 create table t1 (a int, b int)
 partition by range (a)
 subpartition by hash(a)
 (partition p0 values less than (0) (subpartition sp0),
  partition p1 values less than (1));
 
---error 1064
+--error ER_PARSE_ERROR
 create table t1 (a int, b int)
 partition by range (a)
 subpartition by hash(a)
@@ -875,7 +834,7 @@ create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
 
---error 1064
+--error ER_PARSE_ERROR
 alter table t1 rebuild partition;
 
 drop table t1;
@@ -937,7 +896,7 @@ drop table t1;
 #
 prepare stmt1 from 'create table t1 (s1 int) partition by hash (s1)';
 execute stmt1;
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 execute stmt1;
 drop table t1;
 
@@ -1126,7 +1085,7 @@ PARTITION BY LIST (a)
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (a int)
 PARTITION BY RANGE(a)
 (PARTITION p0 VALUES LESS THAN (NULL));
@@ -1220,23 +1179,6 @@ REPAIR TABLE t1;
 OPTIMIZE TABLE t1;
 
 drop table t1;
-
-#
-# Bug 17310 Partitions: Bugs with archived partitioned tables
-#
-create database db99;
-use db99;
-create table t1 (a int not null)
-engine=archive
-partition by list (a)
-(partition p0 values in (1), partition p1 values in (2));
-insert into t1 values (1), (2);
---error 0, 1005
-create index inx on t1 (a);
-alter table t1 add partition (partition p2 values in (3));
-alter table t1 drop partition p2;
-use test;
-drop database db99;
 
 #
 #BUG 17138 Problem with stored procedure and analyze partition
@@ -1509,12 +1451,8 @@ use test;
 # BUG #18198: Case no longer supported, test case removed
 #
 
-#
-# Bug #29444: crash with partition refering to table in create-select
-#
-
 create table t2 (b int);
---error 1054
+--error ER_BAD_FIELD_ERROR
 create table t1 (b int)
 PARTITION BY RANGE (t2.b) (
   PARTITION p1 VALUES LESS THAN (10),
