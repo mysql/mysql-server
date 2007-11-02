@@ -23,6 +23,9 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 IF(WIN32)
   ADD_DEFINITIONS(-DUSE_TLS)
 ENDIF(WIN32)
+
+ADD_DEFINITIONS(-DEMBEDDED_LIBRARY)
+
 ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
                ../../client/mysql.cc ../../client/readline.cc
                ../../client/sql_string.cc)
