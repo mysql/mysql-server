@@ -91,9 +91,9 @@ update t1 set c = 22 where a = 10 or a >= 10;
 select * from t1 order by a;
 
 --echo
---echo # expected result 3 roundtrips
+--echo # expected result 2 roundtrips
 --echo # 1 - info call
---echo # 1 - read the rows
+--echo # 0 - read the rows (1 with read before)
 --echo # 0 - update the rows (2 if no bulk update + 1 deferred to commit)
 --echo # 1 - update + commit the transaction
 --echo
@@ -178,9 +178,9 @@ update t1 set c = 12, b = 29 where a = 5 and b = 6;
 select * from t1 where b = 19 order by a;
 
 --echo
---echo # expected result 2 roundtrips
+--echo # expected result 3 roundtrips
 --echo # 1 - info call
---echo # 0 - read the rows (1 with read before)
+--echo # 1 - read the rows
 --echo # 0 - delete the rows (no row found)
 --echo # 1 - commit the transaction
 --echo
