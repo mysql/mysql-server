@@ -6,7 +6,7 @@ Next DBTUP 4029
 Next DBLQH 5048
 Next DBDICT 6008
 Next DBDIH 7193
-Next DBTC 8054
+Next DBTC 8055
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
@@ -271,6 +271,8 @@ Delay execution of ABORTCONF signal 2 seconds to generate time-out.
 8050: Send ZABORT_TIMEOUT_BREAK delayed
 
 8053: Crash in timeOutFoundLab, state CS_WAIT_COMMIT_CONF
+
+8054: Throw away TC_KEYCONF to api and die 5 seconds later.  To test commit ack markers
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------

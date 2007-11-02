@@ -3528,30 +3528,44 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->applOprec = sig4;
 
   regTcPtr->commitAckMarker = RNIL;
-  if(LqhKeyReq::getMarkerFlag(Treqinfo)){
-    jam();
-    
+  if (LqhKeyReq::getMarkerFlag(Treqinfo))
+  {
+    struct CommitAckMarker check;
     CommitAckMarkerPtr markerPtr;
-    m_commitAckMarkerHash.seize(markerPtr);
-    if(markerPtr.i == RNIL){
-      noFreeRecordLab(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
-      return;
+    jam();
+    check.transid1 = regTcPtr->transid[0];
+    check.transid2 = regTcPtr->transid[1];
+
+    if (m_commitAckMarkerHash.find(markerPtr, check))
+    {
+      /*
+        A commit ack marker was already placed here for this transaction.
+        We increase the reference count to ensure we don't remove the
+        commit ack marker prematurely.
+      */
+      markerPtr.p->reference_count++;
     }
-    markerPtr.p->transid1 = sig1;
-    markerPtr.p->transid2 = sig2;
-    markerPtr.p->apiRef   = sig3;
-    markerPtr.p->apiOprec = sig4;
-    const NodeId tcNodeId  = refToNode(sig5);
-    markerPtr.p->tcNodeId = tcNodeId;
+    else
+    {
+      m_commitAckMarkerHash.seize(markerPtr);
+      if (markerPtr.i == RNIL)
+      {
+        noFreeRecordLab(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
+        return;
+      }
+      markerPtr.p->transid1 = sig1;
+      markerPtr.p->transid2 = sig2;
+      markerPtr.p->apiRef   = sig3;
+      markerPtr.p->apiOprec = sig4;
+      const NodeId tcNodeId  = refToNode(sig5);
+      markerPtr.p->tcNodeId = tcNodeId;
+      markerPtr.p->reference_count = 1;
+      m_commitAckMarkerHash.add(markerPtr);
+    }
     
-    CommitAckMarkerPtr tmp;
-#if defined VM_TRACE || defined ERROR_INSERT
 #ifdef MARKER_TRACE
     ndbout_c("Add marker[%.8x %.8x]", markerPtr.p->transid1, markerPtr.p->transid2);
 #endif
-    ndbrequire(!m_commitAckMarkerHash.find(tmp, * markerPtr.p));
-#endif
-    m_commitAckMarkerHash.add(markerPtr);
     regTcPtr->commitAckMarker = markerPtr.i;
   } 
   
@@ -6826,6 +6840,28 @@ void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr)
 /*                                                                           */
 /*THIS PART IS USED AT ERRORS THAT CAUSE ABORT OF TRANSACTION.               */
 /* ------------------------------------------------------------------------- */
+void
+Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
+{
+  CommitAckMarker *tmp;
+  Uint32 commitAckMarker = regTcPtr->commitAckMarker;
+  regTcPtr->commitAckMarker = RNIL;
+  if (commitAckMarker == RNIL)
+    return;
+  jam();
+  tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
+#ifdef MARKER_TRACE
+  ndbout_c("Ab2 marker[%.8x %.8x]", tmp->transid1, tmp->transid2);
+#endif
+  ndbrequire(tmp->reference_count > 0);
+  tmp->reference_count--;
+  if (tmp->reference_count == 0)
+  {
+    jam();
+    m_commitAckMarkerHash.release(commitAckMarker);
+  }
+}
+
 /* ***************************************************>> */
 /*  ABORT: Abort transaction in connection. Sender TC.   */
 /*  This is the normal protocol (See COMMIT)             */
@@ -6902,21 +6938,7 @@ void Dblqh::execABORT(Signal* signal)
   }//if
   regTcPtr->abortState = TcConnectionrec::ABORT_FROM_TC;
 
-  const Uint32 commitAckMarker = regTcPtr->commitAckMarker;
-  if(commitAckMarker != RNIL)
-  {
-    jam();
-#ifdef MARKER_TRACE
-    {
-      CommitAckMarkerPtr tmp;
-      m_commitAckMarkerHash.getPtr(tmp, commitAckMarker);
-      ndbout_c("Ab2 marker[%.8x %.8x]", tmp.p->transid1, tmp.p->transid2);
-    }
-#endif
-    m_commitAckMarkerHash.release(commitAckMarker);
-    regTcPtr->commitAckMarker = RNIL;
-  }
-
+  remove_commit_marker(regTcPtr);
   TRACE_OP(regTcPtr, "ABORT");
 
   abortStateHandlerLab(signal);
@@ -7248,24 +7270,9 @@ void Dblqh::abortErrorLab(Signal* signal)
 void Dblqh::abortCommonLab(Signal* signal) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  const Uint32 commitAckMarker = regTcPtr->commitAckMarker;
   const Uint32 activeCreat = regTcPtr->activeCreat;
-  if (commitAckMarker != RNIL)
-  {
-    /**
-     * There is no NR ongoing and we have a marker
-     */
-    jam();
-#ifdef MARKER_TRACE
-    {
-      CommitAckMarkerPtr tmp;
-      m_commitAckMarkerHash.getPtr(tmp, commitAckMarker);
-      ndbout_c("Abo marker[%.8x %.8x]", tmp.p->transid1, tmp.p->transid2);
-    }
-#endif
-    m_commitAckMarkerHash.release(commitAckMarker);
-    regTcPtr->commitAckMarker = RNIL;
-  }
+
+  remove_commit_marker(regTcPtr);
 
   if (unlikely(activeCreat == Fragrecord::AC_NR_COPY))
   {
@@ -19189,13 +19196,14 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     for(m_commitAckMarkerHash.first(iter); iter.curr.i != RNIL;
 	m_commitAckMarkerHash.next(iter)){
       infoEvent("CommitAckMarker: i = %d (0x%x, 0x%x)"
-		" ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d",
+		" ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d, ref_count: %d",
 		iter.curr.i,
 		iter.curr.p->transid1,
 		iter.curr.p->transid2,
 		iter.curr.p->apiRef,
 		iter.curr.p->apiOprec,
-		iter.curr.p->tcNodeId);
+		iter.curr.p->tcNodeId,
+                iter.curr.p->reference_count);
     }
   }
 

@@ -7673,7 +7673,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
     jam();
     ndbassert(tabPtr.p->method == TabRecord::USER_DEFINED);
     fragId= hashValue;
-    if (fragId >= tabPtr.p->totalfragments)
+    if (fragId >= tabPtr.p->totalfragments || !req->distr_key_indicator)
     {
       jam();
       conf->zero= 1; //Indicate error;
@@ -7693,6 +7693,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
 Uint32 Dbdih::extractNodeInfo(const Fragmentstore * fragPtr, Uint32 nodes[]) 
 {
   Uint32 nodeCount = 0;
+  nodes[0] = nodes[1] = nodes[2] = nodes[3] = 0;
   for (Uint32 i = 0; i < fragPtr->fragReplicas; i++) {
     jam();
     NodeRecordPtr nodePtr;
