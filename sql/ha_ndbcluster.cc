@@ -6064,10 +6064,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     set_ndb_err(thd, err);
     res= ndb_to_mysql_error(&err);
     if (res != -1)
-     if (thd_ndb->m_handler)
-       thd_ndb->m_handler->print_error(res, MYF(0));
-     else
-       ndbcluster_print_error(res, error_op);
+      ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;
