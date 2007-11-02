@@ -208,7 +208,8 @@ int
 ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,
                                    const NDBTAB *ndbtab,
-                                   uint server_id);
+                                   uint server_id,
+                                   TABLE *table);
 int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
 int ndbcluster_binlog_start();

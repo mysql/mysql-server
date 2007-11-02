@@ -2731,11 +2731,22 @@ set_binlog_flags(NDB_SHARE *share,
   }
   set_binlog_logging(share);
 }
-static int
-slave_set_resolve_max(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index,
-                      enum_conflict_fn_type type)
+
+
+inline void slave_reset_conflict_fn(NDB_SHARE *share)
 {
-  DBUG_ENTER("slave_set_resolve_max");
+  NDB_CONFLICT_FN_SHARE *cfn_share= share->m_cfn_share;
+  if (cfn_share)
+  {
+    bzero((char*)cfn_share, sizeof(*cfn_share));
+  }
+}
+
+static int
+slave_set_resolve_fn(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index,
+                     enum_conflict_fn_type type, TABLE *table)
+{
+  DBUG_ENTER("slave_set_resolve_fn");
 
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   Ndb *ndb= thd_ndb->ndb;
@@ -2757,19 +2768,22 @@ slave_set_resolve_max(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index,
   default:
     DBUG_PRINT("info", ("resolve column %u has wrong type",
                         field_index));
+    slave_reset_conflict_fn(share);
     DBUG_RETURN(-1);
     break;
   }
-  if (share->m_cfn_share == NULL)
+
+  NDB_CONFLICT_FN_SHARE *cfn_share= share->m_cfn_share;
+  if (cfn_share == NULL)
   {
-    share->m_cfn_share= (NDB_CONFLICT_FN_SHARE*)
+    share->m_cfn_share= cfn_share= (NDB_CONFLICT_FN_SHARE*)
       alloc_root(&share->mem_root, sizeof(NDB_CONFLICT_FN_SHARE));
+    slave_reset_conflict_fn(share);
   }
-  share->m_cfn_share->m_resolve_size= sz;
-  share->m_cfn_share->m_resolve_column= field_index;
-  share->m_cfn_share->m_resolve_cft= type;
-  share->m_cfn_share->m_ex_tab= NULL;
-  share->m_cfn_share->m_count= 0;
+  cfn_share->m_resolve_size= sz;
+  cfn_share->m_resolve_column= field_index;
+  cfn_share->m_resolve_cft= type;
+
   {
     /* get exceptions table */
     char ex_tab_name[FN_REFLEN];
@@ -2805,13 +2819,15 @@ slave_set_resolve_max(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index,
               col->getLength() == ex_col->getLength() &&
               col->getNullable() == ex_col->getNullable();
             if (!ok)
-             break;
+              break;
+            cfn_share->m_offset[k]= (uint16)(table->field[i]->ptr - table->record[0]);
             k++;
           }
         }
         if (ok)
         {
-          share->m_cfn_share->m_ex_tab= ex_tab;
+          cfn_share->m_ex_tab= ex_tab;
+          cfn_share->m_pk_cols= nkey;
           ndbtab_g.release();
           if (ndb_extra_logging)
             sql_print_information("NDB Slave: log exceptions to %s", ex_tab_name);
@@ -2859,12 +2875,11 @@ set_conflict_fn(NDB_SHARE *share,
                 const NDBTAB *ndbtab,
                 const NDBCOL *conflict_col,
                 char *conflict_fn,
-                char *msg, uint msg_len)
+                char *msg, uint msg_len,
+                TABLE *table)
 {
   DBUG_ENTER("set_conflict_fn");
   uint len= 0;
-  Ndb_event_data *event_data= (share->event_data != 0) ?
-    share->event_data : (Ndb_event_data *)share->op->getCustomData();
   switch (conflict_col->getArrayType())
   {
   case NDBCOL::ArrayTypeShortVar:
@@ -2961,7 +2976,7 @@ set_conflict_fn(NDB_SHARE *share,
       {
         /* find column in table */
         DBUG_PRINT("info", ("searching for %s %u", start_arg, len));
-        TABLE_SHARE *table_s= event_data->table_share;
+        TABLE_SHARE *table_s= table->s;
         for (uint j= 0; j < table_s->fields; j++)
         {
           Field *field= table_s->field[j];
@@ -3013,22 +3028,20 @@ set_conflict_fn(NDB_SHARE *share,
     case CFT_NDB_OLD:
       if (args[0].fieldno == (uint32)-1)
         break;
-      if (slave_set_resolve_max(share, ndbtab, args[0].fieldno, fn.type))
+      if (slave_set_resolve_fn(share, ndbtab, args[0].fieldno, fn.type, table))
       {
         /* wrong data type */
-        TABLE_SHARE *table_s= event_data->table_share;
         snprintf(msg, msg_len,
                  "column '%s' has wrong datatype",
-                 table_s->field[args[0].fieldno]->field_name);
+                 table->s->field[args[0].fieldno]->field_name);
         DBUG_PRINT("info", (msg));
         DBUG_RETURN(-1);
       }
       if (ndb_extra_logging)
       {
-        TABLE_SHARE *table_s= event_data->table_share;
         sql_print_information("NDB Slave: conflict_fn %s on attribute %s",
                               fn.name,
-                              table_s->field[args[0].fieldno]->field_name);
+                              table->s->field[args[0].fieldno]->field_name);
       }
       break;
     case CFT_NDB_UNDEF:
@@ -3054,7 +3067,8 @@ int
 ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,
                                    const NDBTAB *ndbtab,
-                                   uint server_id)
+                                   uint server_id,
+                                   TABLE *table)
 {
   DBUG_ENTER("ndbcluster_read_binlog_replication");
   const char *db= share->db;
@@ -3071,7 +3085,8 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       dict->getNdbError().classification == NdbError::SchemaError)
   {
     DBUG_PRINT("info", ("No %s.%s table", ndb_rep_db, ndb_replication_table));
-    set_binlog_flags(share, NBT_DEFAULT);
+    if (!table)
+      set_binlog_flags(share, NBT_DEFAULT);
     DBUG_RETURN(0);
   }
   const NDBCOL
@@ -3201,20 +3216,26 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       ndb_conflict_fn[1]= ndb_conflict_fn[0];
     }
 
-    if (col_binlog_type_rec_attr[1] == NULL ||
-        col_binlog_type_rec_attr[1]->isNULL())
-      set_binlog_flags(share, NBT_DEFAULT);
-    else
-      set_binlog_flags(share, (enum Ndb_binlog_type) ndb_binlog_type[1]);
-    if (col_conflict_fn_rec_attr[1] == NULL ||
-        col_conflict_fn_rec_attr[1]->isNULL())
-      ; /* no conflict_fn */
-    else if (set_conflict_fn(share, ndbtab, col_conflict_fn, ndb_conflict_fn[1],
-                             tmp_buf, sizeof(tmp_buf)))
+    if (!table)
     {
-      error_str= tmp_buf;
-      error= 1;
-      goto err;
+      if (col_binlog_type_rec_attr[1] == NULL ||
+          col_binlog_type_rec_attr[1]->isNULL())
+        set_binlog_flags(share, NBT_DEFAULT);
+      else
+        set_binlog_flags(share, (enum Ndb_binlog_type) ndb_binlog_type[1]);
+    }
+    else
+    {
+      if (col_conflict_fn_rec_attr[1] == NULL ||
+          col_conflict_fn_rec_attr[1]->isNULL())
+        slave_reset_conflict_fn(share); /* no conflict_fn */
+      else if (set_conflict_fn(share, ndbtab, col_conflict_fn, ndb_conflict_fn[1],
+                               tmp_buf, sizeof(tmp_buf), table))
+      {
+        error_str= tmp_buf;
+        error= 1;
+        goto err;
+      }
     }
 
     DBUG_RETURN(0);
@@ -3424,7 +3445,8 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
 
     /*
      */
-    ndbcluster_read_binlog_replication(current_thd, ndb, share, ndbtab, ::server_id);
+    ndbcluster_read_binlog_replication(current_thd, ndb, share, ndbtab,
+                                       ::server_id, NULL);
 
     /*
       check if logging turned off for this table
