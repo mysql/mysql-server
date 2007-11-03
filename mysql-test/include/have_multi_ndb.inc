@@ -41,4 +41,4 @@ enable_warnings;
 enable_query_log;
 
 # Set the default connection
-connection default;
+connection server1;

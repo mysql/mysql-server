@@ -799,6 +799,7 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
 
   const int no_print_error[4]= {ER_TABLE_EXISTS_ERROR,
                                 701,
+                                702,
                                 4009,
                                 0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
@@ -859,6 +860,7 @@ static int ndbcluster_create_schema_table(THD *thd)
 
   const int no_print_error[4]= {ER_TABLE_EXISTS_ERROR,
                                 701,
+                                702,
                                 4009,
                                 0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
