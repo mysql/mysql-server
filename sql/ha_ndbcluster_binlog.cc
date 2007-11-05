@@ -3070,7 +3070,8 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,
                                    const NDBTAB *ndbtab,
                                    uint server_id,
-                                   TABLE *table)
+                                   TABLE *table,
+                                   bool do_set_binlog_flags)
 {
   DBUG_ENTER("ndbcluster_read_binlog_replication");
   const char *db= share->db;
@@ -3218,7 +3219,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       ndb_conflict_fn[1]= ndb_conflict_fn[0];
     }
 
-    if (!table)
+    if (do_set_binlog_flags)
     {
       if (col_binlog_type_rec_attr[1] == NULL ||
           col_binlog_type_rec_attr[1]->isNULL())
@@ -3226,7 +3227,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       else
         set_binlog_flags(share, (enum Ndb_binlog_type) ndb_binlog_type[1]);
     }
-    else
+    if (table)
     {
       if (col_conflict_fn_rec_attr[1] == NULL ||
           col_conflict_fn_rec_attr[1]->isNULL())
@@ -3448,7 +3449,7 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
     /*
      */
     ndbcluster_read_binlog_replication(current_thd, ndb, share, ndbtab,
-                                       ::server_id, NULL);
+                                       ::server_id, NULL, TRUE);
 
     /*
       check if logging turned off for this table

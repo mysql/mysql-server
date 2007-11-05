@@ -1539,7 +1539,8 @@ int ha_ndbcluster::get_metadata(const char *path)
   {
     ndbtab_g.release();
 #ifdef HAVE_NDB_BINLOG
-    ndbcluster_read_binlog_replication(thd, ndb, m_share, m_table, ::server_id, table);
+    ndbcluster_read_binlog_replication(thd, ndb, m_share, m_table,
+                                       ::server_id, table, FALSE);
 #endif
     DBUG_RETURN(0);
   }
@@ -6925,7 +6926,8 @@ int ha_ndbcluster::create(const char *name,
     while (!IS_TMP_PREFIX(m_tabname))
     {
       if (share)
-        ndbcluster_read_binlog_replication(thd, ndb, share, m_table, ::server_id, NULL);
+        ndbcluster_read_binlog_replication(thd, ndb, share, m_table,
+                                           ::server_id, form, TRUE);
       String event_name(INJECTOR_EVENT_LEN);
       ndb_rep_event_name(&event_name, m_dbname, m_tabname,
                          get_binlog_full(share));
@@ -7317,7 +7319,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     const NDBTAB *ndbtab= ndbtab_g2.get_table();
 
     if (share)
-      ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab, ::server_id, NULL);
+      ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
+                                         ::server_id, NULL, TRUE);
 
     /* always create an event for the table */
     String event_name(INJECTOR_EVENT_LEN);
