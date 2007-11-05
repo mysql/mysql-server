@@ -1087,6 +1087,7 @@ pthread_handler_t handle_one_connection(void *arg)
   {
     NET *net= &thd->net;
 
+    lex_start(thd);
     if (login_connection(thd))
       goto end_thread;
 
