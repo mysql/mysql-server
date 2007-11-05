@@ -2251,7 +2251,7 @@ EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t1	range	NULL	a	5	NULL	8	Using index for group-by
+2	SUBQUERY	t1	range	NULL	a	5	NULL	8	
 EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE 
 a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2268,7 +2268,7 @@ AND t1_outer1.b = t1_outer2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1_outer1	ref	a	a	5	const	1	Using where; Using index
 1	PRIMARY	t1_outer2	index	NULL	a	10	NULL	15	Using where; Using index; Using join buffer
-2	SUBQUERY	t1	range	NULL	a	5	NULL	8	Using index for group-by
+2	SUBQUERY	t1	range	NULL	a	5	NULL	8	
 EXPLAIN SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
 FROM t1 AS t1_outer) x2 FROM t1 AS t1_outer2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2299,8 +2299,7 @@ Handler_read_next	0
 FLUSH STATUS;
 DELETE FROM t3 WHERE (SELECT (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) x 
 FROM t1) > 10000;
-Warnings:
-Error	1242	Subquery returns more than 1 row
+ERROR 21000: Subquery returns more than 1 row
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
 Handler_read_key	8
