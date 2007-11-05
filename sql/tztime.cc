@@ -1575,6 +1575,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     DBUG_RETURN(1);
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+  lex_start(thd);
 
   /* Init all memory structures that require explicit destruction */
   if (hash_init(&tz_names, &my_charset_latin1, 20,
