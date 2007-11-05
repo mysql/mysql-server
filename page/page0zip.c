@@ -1142,7 +1142,8 @@ page_zip_compress(
 		trx_id_col = ULINT_UNDEFINED;
 	}
 
-	if (UNIV_UNLIKELY(c_stream.avail_out < n_dense * slot_size)) {
+	if (UNIV_UNLIKELY(c_stream.avail_out <= n_dense * slot_size
+			  + 6/* sizeof(zlib header and footer) */)) {
 		goto zlib_error;
 	}
 
