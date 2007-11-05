@@ -4049,8 +4049,21 @@ btr_free_externally_stored_field(
 
 	if (UNIV_UNLIKELY(space_id != dict_index_get_space(index))) {
 		ext_zip_size = fil_space_get_zip_size(space_id);
+		/* This must be an undo log record in the system tablespace,
+		that is, in row_purge_upd_exist_or_extern().
+		Currently, externally stored records are stored in the
+		same tablespace as the referring records. */
+		ut_ad(!page_get_space_id(page_align(field_ref)));
+		ut_ad(!rec);
+		ut_ad(!page_zip);
 	} else {
 		ext_zip_size = rec_zip_size;
+	}
+
+	if (!rec) {
+		/* This is a call from row_purge_upd_exist_or_extern(). */
+		ut_ad(!page_zip);
+		rec_zip_size = 0;
 	}
 
 	for (;;) {
