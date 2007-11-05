@@ -844,7 +844,7 @@ int mysql_update(THD *thd,
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
   thd->abort_on_warning= 0;
-  DBUG_RETURN((error >= 0 || thd->net.report_error) ? 1 : 0);
+  DBUG_RETURN((error >= 0 || thd->is_error()) ? 1 : 0);
 
 err:
   delete select;
@@ -1193,8 +1193,8 @@ bool mysql_multi_update(THD *thd,
                       OPTION_SETUP_TABLES_DONE,
                       result, unit, select_lex);
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
-                     thd->net.report_error));
-  res|= thd->net.report_error;
+                     (int) thd->is_error()));
+  res|= thd->is_error();
   if (unlikely(res))
   {
     /* If we had a another error reported earlier then this will be ignored */

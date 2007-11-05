@@ -1124,11 +1124,25 @@ Events::load_events_from_db(THD *thd)
   READ_RECORD read_record_info;
   bool ret= TRUE;
   uint count= 0;
+  ulong saved_master_access;
 
   DBUG_ENTER("Events::load_events_from_db");
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
 
-  if (db_repository->open_event_table(thd, TL_WRITE, &table))
+  /*
+    NOTE: even if we run in read-only mode, we should be able to lock the
+    mysql.event table for writing. In order to achieve this, we should call
+    mysql_lock_tables() under the super user.
+  */
+
+  saved_master_access= thd->security_ctx->master_access;
+  thd->security_ctx->master_access |= SUPER_ACL;
+
+  ret= db_repository->open_event_table(thd, TL_WRITE, &table);
+
+  thd->security_ctx->master_access= saved_master_access;
+
+  if (ret)
   {
     sql_print_error("Event Scheduler: Failed to open table mysql.event");
     DBUG_RETURN(TRUE);

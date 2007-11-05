@@ -1866,7 +1866,7 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
           an error with it's return value without calling my_error(), we
           set the generic "mysql.proc table corrupt" error here.
          */
-        if (!thd->net.report_error)
+        if (! thd->is_error())
         {
           /*
             SP allows full NAME_LEN chars thus he have to allocate enough
