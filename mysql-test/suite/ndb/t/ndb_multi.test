@@ -139,9 +139,11 @@ create table `test`.`t1$EX`
 
 # check that table shows up ok on both servers
 # before bugfix table would not show up on server2
+--replace_regex /EX/ex/
 show tables like '%$%';
 connection server2;
 use test;
+--replace_regex /EX/ex/
 show tables like '%$%';
 
 # check cleanup
