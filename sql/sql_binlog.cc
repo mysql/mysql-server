@@ -38,10 +38,7 @@ void mysql_client_binlog_statement(THD* thd)
                      thd->lex->comment.str));
 
   if (check_global_access(thd, SUPER_ACL))
-  {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
     DBUG_VOID_RETURN;
-  }
 
   /*
     Temporarily turn off send_ok, since different events handle this
