@@ -900,7 +900,9 @@ libmysql_r/.libs/libmysqlclient_r.lai
 libmysql_r/.libs/libmysqlclient_r.so.15
 libmysql_r/.libs/libmysqlclient_r.so.15.0.0
 libmysql_r/acconfig.h
+libmysql_r/client_settings.h
 libmysql_r/conf_to_src
+libmysql_r/link_sources
 libmysql_r/my_static.h
 libmysql_r/mysys_priv.h
 libmysql_r/vio_priv.h
@@ -1136,6 +1138,7 @@ libmysqld/rpl_filter.cc
 libmysqld/rpl_injector.cc
 libmysqld/rpl_record.cc
 libmysqld/rpl_record_old.cc
+libmysqld/scheduler.cc
 libmysqld/set_var.cc
 libmysqld/simple-test
 libmysqld/slave.cc
@@ -1152,6 +1155,7 @@ libmysqld/sql_builtin.cc
 libmysqld/sql_cache.cc
 libmysqld/sql_class.cc
 libmysqld/sql_command
+libmysqld/sql_connect.cc
 libmysqld/sql_crypt.cc
 libmysqld/sql_cursor.cc
 libmysqld/sql_cursor.h
@@ -1182,6 +1186,7 @@ libmysqld/sql_show.cc
 libmysqld/sql_state.c
 libmysqld/sql_string.cc
 libmysqld/sql_table.cc
+libmysqld/sql_tablespace.cc
 libmysqld/sql_test.cc
 libmysqld/sql_trigger.cc
 libmysqld/sql_udf.cc
@@ -2081,6 +2086,7 @@ sql/gen_lex_hash
 sql/gmon.out
 sql/handlerton.cc
 sql/lex_hash.h
+sql/link_sources
 sql/max/*
 sql/message.h
 sql/message.mc
@@ -3004,4 +3010,3 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
-libmysql_r/client_settings.h
