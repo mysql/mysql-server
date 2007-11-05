@@ -243,7 +243,8 @@ static void run_query(THD *thd, char *buf, char *end,
 {
   ulong save_query_length= thd->query_length;
   char *save_query= thd->query;
-  ulong save_thread_id= thd->variables.pseudo_thread_id;
+  struct system_variables save_variables= thd->variables;
+  struct system_status_var save_status_var= thd->status_var;
   ulonglong save_thd_options= thd->options;
   DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->options));
   NET save_net= thd->net;
@@ -277,7 +278,8 @@ static void run_query(THD *thd, char *buf, char *end,
   thd->options= save_thd_options;
   thd->query_length= save_query_length;
   thd->query= save_query;
-  thd->variables.pseudo_thread_id= save_thread_id;
+  thd->variables= save_variables;
+  thd->status_var= save_status_var;
   thd->net= save_net;
 
   if (thd == injector_thd)
