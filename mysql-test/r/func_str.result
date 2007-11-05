@@ -723,7 +723,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `bin(130)` varchar(64) DEFAULT NULL,
-  `oct(130)` varchar(64) EFAULT NULL,
+  `oct(130)` varchar(64) DEFAULT NULL,
   `conv(130,16,10)` varchar(64) DEFAULT NULL,
   `hex(130)` varchar(6) NOT NULL DEFAULT '',
   `char(130)` varbinary(4) NOT NULL DEFAULT '',
