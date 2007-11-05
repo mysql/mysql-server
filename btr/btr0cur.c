@@ -2253,6 +2253,13 @@ btr_cur_pessimistic_update(
 	if (!rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
 		/* The new inserted record owns its possible externally
 		stored fields */
+		buf_block_t*	rec_block = btr_cur_get_block(cursor);
+
+#ifdef UNIV_ZIP_DEBUG
+		ut_a(!page_zip || page_zip_validate(page_zip, page));
+		page = buf_block_get_frame(rec_block);
+#endif /* UNIV_ZIP_DEBUG */
+		page_zip = buf_block_get_page_zip(rec_block);
 
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, heap);
