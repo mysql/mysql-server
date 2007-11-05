@@ -722,9 +722,9 @@ Warning	1265	Data truncated for column 'format(130,10)' at row 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `bin(130)` varchar(64) NOT NULL default '',
-  `oct(130)` varchar(64) NOT NULL default '',
-  `conv(130,16,10)` varchar(64) NOT NULL default '',
+  `bin(130)` varchar(64) default NULL,
+  `oct(130)` varchar(64) default NULL,
+  `conv(130,16,10)` varchar(64) default NULL,
   `hex(130)` varchar(6) NOT NULL default '',
   `char(130)` varbinary(4) NOT NULL default '',
   `format(130,10)` varchar(4) NOT NULL default '',
