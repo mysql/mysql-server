@@ -78,6 +78,7 @@ time_t			MYSQL_TYPE_DATETIME
 /* XXX these are defined in mysql_priv.h inside #ifdef MYSQL_SERVER */
 bool schema_table_store_record(THD *thd, TABLE *table);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
+bool check_global_access(THD *thd, ulong want_access);
 
 /***********************************************************************
 Common function to fill any of the dynamic tables:
@@ -808,6 +809,12 @@ trx_i_s_common_fill_table(
 	trx_i_s_cache_t*	cache;
 
 	DBUG_ENTER("trx_i_s_common_fill_table");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, SUPER_ACL)) {
+
+		DBUG_RETURN(0);
+	}
 
 	/* minimize the number of places where global variables are
 	referenced */
