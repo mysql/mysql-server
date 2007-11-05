@@ -363,7 +363,7 @@ then
     USER_OPTION="--user=$user"
   fi
   # Change the err log to the right user, if it is in use
-  if [ $syslog -eq 0 ]; then
+  if [ $want_syslog -eq 0 ]; then
     touch $err_log
     chown $user $err_log
   fi
