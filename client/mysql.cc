@@ -1365,10 +1365,9 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
     }
     else if (!*ml_comment && !*in_string &&
-             (out - line) >= 9 &&
-             !my_strnncoll(charset_info, (uchar*) pos, 9,
-                           (const uchar*) "delimiter", 9) &&
-             my_isspace(charset_info, pos[9]))
+             strlen(pos) >= 10 &&
+             !my_strnncoll(charset_info, (uchar*) pos, 10,
+                           (const uchar*) "delimiter ", 10))
     {
       // Flush previously accepted characters
       if (out != line)
