@@ -2225,6 +2225,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   SORT_INFO sort_info;
   ulonglong key_map;
   DBUG_ENTER("mi_repair_by_sort");
+  LINT_INIT(key_map);
 
   start_records=info->state->records;
   got_error=1;
@@ -2649,6 +2650,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   ulonglong key_map;
   pthread_attr_t thr_attr;
   DBUG_ENTER("mi_repair_parallel");
+  LINT_INIT(key_map);
 
   start_records=info->state->records;
   got_error=1;
