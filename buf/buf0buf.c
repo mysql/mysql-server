@@ -1655,6 +1655,36 @@ buf_zip_decompress(
 }
 
 /************************************************************************
+Find out if a buffer block was created by buf_chunk_init(). */
+static
+ibool
+buf_block_is_uncompressed(
+/*======================*/
+					/* out: TRUE if "block" has
+					been added to buf_pool->free
+					by buf_chunk_init() */
+	const buf_block_t*	block)	/* in: pointer to block,
+					not dereferenced */
+{
+	const buf_chunk_t*		chunk	= buf_pool->chunks;
+	const buf_chunk_t* const	echunk	= chunk + buf_pool->n_chunks;
+
+	ut_ad(mutex_own(&buf_pool->mutex));
+
+	while (chunk < echunk) {
+		if (block >= chunk->blocks
+		    && block < chunk->blocks + chunk->size) {
+
+			return(TRUE);
+		}
+
+		chunk++;
+	}
+
+	return(FALSE);
+}
+
+/************************************************************************
 This is the general function used to get access to a database page. */
 
 buf_block_t*
@@ -1696,11 +1726,21 @@ loop:
 	mutex_enter_fast(&(buf_pool->mutex));
 
 	if (block) {
-		if (offset != block->page.offset
+		/* If this is a compressed page descriptor that
+		has been allocated by buf_buddy_alloc(), it may have
+		been invalidated by buf_buddy_relocate().  In that
+		case,  block could point to something that happens to
+		contain the expected bits in block->page. */
+
+		if (!buf_block_is_uncompressed(block)
+		    || offset != block->page.offset
 		    || space != block->page.space
-		    || !buf_page_in_file(&block->page)) {
+		    || buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
 
 			block = guess = NULL;
+		} else {
+			ut_ad(!block->page.in_zip_hash);
+			ut_ad(block->page.in_page_hash);
 		}
 	}
 
@@ -1759,7 +1799,6 @@ wait_until_unfixed:
 			mutex_exit(&buf_pool->mutex);
 			os_thread_sleep(WAIT_FOR_READ);
 
-			guess = block;
 			goto loop;
 		}
 
