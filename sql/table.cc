@@ -1608,6 +1608,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
 
+  /* Parsing of partitioning information from .frm needs thd->lex set up. */
+  DBUG_ASSERT(thd->lex->is_lex_started);
+
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
   outparam->in_use= thd;
