@@ -68,7 +68,6 @@ select @result /* must be zero either way */;
 delete from t1;
 delete from t2;
 insert into t1 values (1,1),(2,2);
-let $ID= `select connection_id()`;
 
 #
 # simple update
@@ -77,6 +76,7 @@ connection con1;
 begin; update t1 set b=11 where a=2;
 
 connection con2;
+let $ID= `select connection_id()`;
 send update t1 set b=b+10;
 
 connection con1;
@@ -85,9 +85,9 @@ eval kill query $ID;
 rollback;
 
 connection con2;
---error ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED
 reap;
-select * from t1 /* must be the same as before (1,1),(2,2) */;
+select * from t1  order by a /* must be the same as before (1,1),(2,2) */;
 
 #
 # multi update
@@ -120,6 +120,7 @@ connection con1;
 begin; delete from t1 where a=2;
 
 connection con2;
+let $ID= `select connection_id()`;
 send delete from t1 where a=2;
 
 connection con1;
@@ -128,9 +129,9 @@ eval kill query $ID;
 rollback;
 
 connection con2;
---error ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED
 reap;
-select * from t1 /* must be the same as before (1,1),(2,2) */;
+select * from t1 order by a /* must be the same as before (1,1),(2,2) */;
 
 #
 # multi delete
@@ -163,6 +164,7 @@ insert into t4 values (3, 3);
 begin; insert into t1 values (3, 3);
 
 connection con2;
+let $ID= `select connection_id()`;
 begin;
 send insert into t1 select * from t4 for update;
 
@@ -172,7 +174,7 @@ eval kill query $ID;
 rollback;
 
 connection con2;
---error ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED
 reap;
 rollback;
 select * from t1 /* must be the same as before (1,1),(2,2) */;
@@ -182,13 +184,17 @@ drop table t4; # cleanup for the sub-case
 ###
 ## non-ta table case: killing must be recorded in binlog
 ###
+create table t4 (a int, b int) ENGINE=MyISAM /* for killing update and delete */;
+
 delimiter |;
 create function bug27563(n int) 
 RETURNS int(11)
 DETERMINISTIC
 begin
-  if n > 1 then
+  if @b > 0 then
      select get_lock("a", 10)  into @a;
+  else 
+     set @b= 1;
   end if;
   return n;
 end|
@@ -198,25 +204,27 @@ delimiter ;|
 # update
 #
 
-delete from t2;
-insert into t2 values (1,1), (2,2);
+delete from t4;
+insert into t4 values (1,1), (1,1);
 reset master;
 connection con1;
 select get_lock("a", 20);
 
 connection con2;
 let $ID= `select connection_id()`;
-send update t2 set b=b + bug27563(b) order by a;
+set @b= 0;
+send update t4 set b=b + bug27563(b);
 
 connection con1;
 --replace_result $ID ID
 eval kill query $ID;
 
 connection con2;
---error ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED
 reap;
-select * from t2 /* must be (1,2), (2,2) */;
---echo must have the update event more to FD
+select * from t4 order by b /* must be (1,1), (1,2) */;
+select @b  /* must be 1 at the end of a stmt calling bug27563() */;
+--echo must have the update query event more to FD
 source include/show_binlog_events.inc;
 
 # a proof the query is binlogged with an error
@@ -239,25 +247,27 @@ select RELEASE_LOCK("a");
 # delete
 #
 
-delete from t2;
-insert into t2 values (1,1), (2,2);
+delete from t4;
+insert into t4 values (1,1), (2,2);
 reset master;
 connection con1;
 select get_lock("a", 20);
 
 connection con2;
 let $ID= `select connection_id()`;
-send delete from t2 where a=1 or a=bug27563(2) order by a;
+set @b= 0;
+send delete from t4 where b=bug27563(1) or b=bug27563(2);
 
 connection con1;
 --replace_result $ID ID
 eval kill query $ID;
 
 connection con2;
---error ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED
 reap;
-select * from t2 /* must be (1,2), (2,2) */;
---echo must have the update event more to FD
+select count(*) from t4 /* must be 1 */;
+select @b  /* must be 1 at the end of a stmt calling bug27563() */;
+--echo must have the delete query event more to FD
 source include/show_binlog_events.inc;
 
 # a proof the query is binlogged with an error
@@ -275,6 +285,8 @@ eval select $error_code /* must return 0 to mean the killed query is in */;
 connection con1;
 select RELEASE_LOCK("a");
 --remove_file $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+
+drop table t4;
 
 #
 # load data - see simulation tests
