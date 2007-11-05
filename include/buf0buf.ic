@@ -900,7 +900,7 @@ buf_page_hash_get(
 	if (bpage) {
 		ut_a(buf_page_in_file(bpage));
 		ut_ad(bpage->in_page_hash);
-		ut_ad(bpage->in_zip_hash);
+		ut_ad(!bpage->in_zip_hash);
 		UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
 	}
 
