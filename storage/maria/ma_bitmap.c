@@ -149,7 +149,8 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
                           (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
                           PAGECACHE_LOCK_LEFT_UNLOCKED,
                           PAGECACHE_PIN_LEFT_UNPINNED,
-                          PAGECACHE_WRITE_DELAY, 0));
+                          PAGECACHE_WRITE_DELAY, 0,
+                          LSN_IMPOSSIBLE));
 }
 
 /*

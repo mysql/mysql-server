@@ -2059,6 +2059,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
                         PAGECACHE_PLAIN_PAGE,
                         PAGECACHE_LOCK_LEFT_UNLOCKED,
                         PAGECACHE_PIN_LEFT_UNPINNED, 0,
+                        LSN_IMPOSSIBLE,
                         &translog_page_validator, (uchar*) &data))
     {
       UNRECOVERABLE_ERROR(("Can't write page (%lu,0x%lx) to pagecache",

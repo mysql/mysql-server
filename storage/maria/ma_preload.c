@@ -100,7 +100,7 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
                               PAGECACHE_PLAIN_PAGE,
                               PAGECACHE_LOCK_LEFT_UNLOCKED,
                               PAGECACHE_PIN_LEFT_UNPINNED,
-                              PAGECACHE_WRITE_DONE, 0))
+                              PAGECACHE_WRITE_DONE, 0, LSN_IMPOSSIBLE))
 	    goto err;
 	}
         pos+= block_length;
@@ -117,7 +117,8 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
                           PAGECACHE_PLAIN_PAGE,
                           PAGECACHE_LOCK_LEFT_UNLOCKED,
                           PAGECACHE_PIN_LEFT_UNPINNED,
-                          PAGECACHE_WRITE_DONE, 0))
+                          PAGECACHE_WRITE_DONE, 0,
+                          LSN_IMPOSSIBLE))
 	goto err;
       pos+= length;
     }

@@ -237,7 +237,7 @@ void writer(int num)
                     PAGECACHE_LOCK_WRITE_UNLOCK,
                     PAGECACHE_UNPIN,
                     PAGECACHE_WRITE_DELAY,
-                    0);
+                    0, LSN_IMPOSSIBLE);
 
     if (i % flush_divider == 0)
       flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
@@ -380,7 +380,7 @@ int main(int argc __attribute__((unused)),
                       PAGECACHE_LOCK_LEFT_UNLOCKED,
                       PAGECACHE_PIN_LEFT_UNPINNED,
                       PAGECACHE_WRITE_DELAY,
-                      0);
+                      0, LSN_IMPOSSIBLE);
     }
     flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
     free(buffr);

@@ -1451,7 +1451,8 @@ static my_bool write_tail(MARIA_HA *info,
                              PAGECACHE_LOCK_READ,
                              block_is_read ? PAGECACHE_PIN_LEFT_PINNED :
                              PAGECACHE_PIN,
-                             PAGECACHE_WRITE_DELAY, &page_link.link)))
+                             PAGECACHE_WRITE_DELAY, &page_link.link,
+                             LSN_IMPOSSIBLE)))
   {
     page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
     if (block_is_read)
@@ -1544,7 +1545,7 @@ static my_bool write_full_pages(MARIA_HA *info,
                         PAGECACHE_LOCK_LEFT_UNLOCKED,
                         PAGECACHE_PIN_LEFT_UNPINNED,
                         PAGECACHE_WRITE_DELAY,
-                        0))
+                        0, LSN_IMPOSSIBLE))
       DBUG_RETURN(1);
     page++;
     block->used= BLOCKUSED_USED;
@@ -2262,7 +2263,8 @@ static my_bool write_block_record(MARIA_HA *info,
                       PAGECACHE_LOCK_READ,
                       head_block_is_read ? PAGECACHE_PIN_LEFT_PINNED :
                       PAGECACHE_PIN,
-                      PAGECACHE_WRITE_DELAY, &page_link.link))
+                      PAGECACHE_WRITE_DELAY, &page_link.link,
+                      LSN_IMPOSSIBLE))
     goto disk_err;
   page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
   if (head_block_is_read)
@@ -3041,7 +3043,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                         buff, share->page_type,
                         lock_at_write,
                         PAGECACHE_PIN_LEFT_PINNED,
-                        PAGECACHE_WRITE_DELAY, &page_link.link))
+                        PAGECACHE_WRITE_DELAY, &page_link.link,
+                        LSN_IMPOSSIBLE))
       DBUG_RETURN(1);
   }
   else /* page is now empty */
@@ -3069,7 +3072,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                         buff, share->page_type,
                         lock_at_write,
                         PAGECACHE_PIN_LEFT_PINNED,
-                        PAGECACHE_WRITE_DELAY, &page_link.link))
+                        PAGECACHE_WRITE_DELAY, &page_link.link,
+                        LSN_IMPOSSIBLE))
       DBUG_RETURN(1);
 
     DBUG_ASSERT(empty_space >= info->s->bitmap.sizes[0]);
@@ -5037,7 +5041,8 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                       &info->dfile, page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
                       unlock_method, unpin_method,
-                      PAGECACHE_WRITE_DELAY, 0))
+                      PAGECACHE_WRITE_DELAY, 0,
+                      LSN_IMPOSSIBLE))
     DBUG_RETURN(my_errno);
 
   /* Fix bitmap */
@@ -5144,7 +5149,8 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
                       &info->dfile, page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
                       PAGECACHE_LOCK_WRITE_UNLOCK, PAGECACHE_UNPIN,
-                      PAGECACHE_WRITE_DELAY, 0))
+                      PAGECACHE_WRITE_DELAY, 0,
+                      LSN_IMPOSSIBLE))
     result= my_errno;
 
   /* This will work even if the page was marked as UNALLOCATED_PAGE */
@@ -5224,7 +5230,8 @@ uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
                           &info->dfile, page+i, 0,
                           buff, PAGECACHE_PLAIN_PAGE,
                           PAGECACHE_LOCK_WRITE_UNLOCK, PAGECACHE_UNPIN,
-                          PAGECACHE_WRITE_DELAY, 0))
+                          PAGECACHE_WRITE_DELAY, 0,
+                          LSN_IMPOSSIBLE))
         DBUG_RETURN(my_errno);
     }
     /** @todo leave bitmap lock to the bitmap code... */

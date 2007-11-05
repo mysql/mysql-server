@@ -106,7 +106,7 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                               level, buff, PAGECACHE_PLAIN_PAGE,
                               PAGECACHE_LOCK_LEFT_UNLOCKED,
                               PAGECACHE_PIN_LEFT_UNPINNED,
-                              PAGECACHE_WRITE_DELAY, 0));
+                              PAGECACHE_WRITE_DELAY, 0, LSN_IMPOSSIBLE));
 } /* maria_write_keypage */
 
 
@@ -140,7 +140,7 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
                                    PAGECACHE_PLAIN_PAGE,
                                    PAGECACHE_LOCK_LEFT_UNLOCKED,
                                    PAGECACHE_PIN_LEFT_UNPINNED,
-                                   PAGECACHE_WRITE_DELAY, 0,
+                                   PAGECACHE_WRITE_DELAY, 0, LSN_IMPOSSIBLE,
                                    offset, sizeof(buff), 0, 0));
 } /* _ma_dispose */
 

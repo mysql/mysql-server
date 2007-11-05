@@ -632,6 +632,24 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
            (pageno)<<(pagecache->shift), flags)
 
 
+/**
+  @brief set rec_lsn of pagecache block (if it is needed)
+
+  @param block                   block where to set rec_lsn
+  @param first_REDO_LSN_for_page the LSN to set
+*/
+
+static inline void pagecache_set_block_rec_lsn(PAGECACHE_BLOCK_LINK *block,
+                                               LSN first_REDO_LSN_for_page)
+{
+  if (block->rec_lsn == LSN_MAX)
+    block->rec_lsn= first_REDO_LSN_for_page;
+  else
+    DBUG_ASSERT(cmp_translog_addr(block->rec_lsn,
+                                  first_REDO_LSN_for_page) <= 0);
+}
+
+
 /*
   next_power(value) is 2 at the power of (1+floor(log2(value)));
   e.g. next_power(2)=4, next_power(3)=4.
@@ -2568,12 +2586,7 @@ void pagecache_unlock(PAGECACHE *pagecache,
   {
     DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK);
     DBUG_ASSERT(pin == PAGECACHE_UNPIN);
-    if (block->rec_lsn == LSN_MAX)
-      block->rec_lsn= first_REDO_LSN_for_page;
-    else
-      DBUG_ASSERT(cmp_translog_addr(block->rec_lsn,
-                                    first_REDO_LSN_for_page) <= 0);
-
+    pagecache_set_block_rec_lsn(block, first_REDO_LSN_for_page);
   }
   if (lsn != LSN_IMPOSSIBLE)
     check_and_set_lsn(pagecache, lsn, block);
@@ -2726,14 +2739,10 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
       with WRITE lock that was temporarly converted to READ lock before
       it's unpinned
     */
-    DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK || 
+    DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
                 lock == PAGECACHE_LOCK_READ_UNLOCK);
     DBUG_ASSERT(pin == PAGECACHE_UNPIN);
-    if (block->rec_lsn == LSN_MAX)
-      block->rec_lsn= first_REDO_LSN_for_page;
-    else
-      DBUG_ASSERT(cmp_translog_addr(block->rec_lsn,
-                                    first_REDO_LSN_for_page) <= 0);
+    pagecache_set_block_rec_lsn(block, first_REDO_LSN_for_page);
   }
   if (lsn != LSN_IMPOSSIBLE)
     check_and_set_lsn(pagecache, lsn, block);
@@ -3153,25 +3162,27 @@ my_bool pagecache_delete_pages(PAGECACHE *pagecache,
 }
 
 
-/*
-  Write a buffer into a cached file.
+/**
+  @brief Writes a buffer into a cached file.
 
-  SYNOPSIS
+  @param pagecache       pointer to a page cache data structure
+  @param file            handler for the file to write data to
+  @param pageno          number of the block of data in the file
+  @param level           determines the weight of the data
+  @param buff            buffer with the data
+  @param type            type of the page
+  @param lock            lock change
+  @param pin             pin page
+  @param write_mode      how to write page
+  @param link            link to the page if we pin it
+  @param first_REDO_LSN_for_page the lsn to set rec_lsn
+  @param offset          offset in the page
+  @param size            size of data
+  @param validator       read page validator
+  @param validator_data  the validator data
 
-    pagecache_write_part()
-      pagecache           pointer to a page cache data structure
-      file                handler for the file to write data to
-      pageno              number of the block of data in the file
-      level               determines the weight of the data
-      buff                buffer with the data
-      type                type of the page
-      lock                lock change
-      pin                 pin page
-      write_mode          how to write page
-      link                link to the page if we pin it
-
-  RETURN VALUE
-    0 if a success, 1 - otherwise.
+  @retval 0 if a success.
+  @retval 1 Error.
 */
 
 /* description of how to change lock before and after write */
@@ -3235,6 +3246,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
                              enum pagecache_page_pin pin,
                              enum pagecache_write_mode write_mode,
                              PAGECACHE_BLOCK_LINK **link,
+                             LSN first_REDO_LSN_for_page,
                              uint offset, uint size,
                              pagecache_disk_read_validator validator,
                              uchar* validator_data)
@@ -3363,6 +3375,15 @@ restart:
           memcpy(block->buffer + offset, buff, size);
         block->status|= PCBLOCK_READ;
       }
+    }
+    if (first_REDO_LSN_for_page)
+    {
+      /* single write action of the last write action */
+      DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
+                  lock == PAGECACHE_LOCK_LEFT_UNLOCKED);
+      DBUG_ASSERT(pin == PAGECACHE_UNPIN ||
+                  pin == PAGECACHE_PIN_LEFT_UNPINNED);
+      pagecache_set_block_rec_lsn(block, first_REDO_LSN_for_page);
     }
 
     if (need_lock_change)
