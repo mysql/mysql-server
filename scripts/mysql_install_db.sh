@@ -231,6 +231,7 @@ then
   pkgdatadir="@pkgdatadir@"
 else
   bindir="$basedir/bin"
+  extra_bindir="$bindir"
   # We set up bootstrap-specific paths later, so skip this for --windows
   if test "$windows" -eq 0
   then
