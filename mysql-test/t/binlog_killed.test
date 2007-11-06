@@ -57,6 +57,8 @@ select @result /* must be zero either way */;
 
 
 --remove_file $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
+connection con1;
+select RELEASE_LOCK("a");
 
 #
 # bug#27571 asynchronous setting mysql_`query`::error and Query_log_e::error_code
@@ -68,7 +70,6 @@ select @result /* must be zero either way */;
 delete from t1;
 delete from t2;
 insert into t1 values (1,1),(2,2);
-let $ID= `select connection_id()`;
 
 #
 # simple update
@@ -77,6 +78,7 @@ connection con1;
 begin; update t1 set b=11 where a=2;
 
 connection con2;
+let $ID= `select connection_id()`;
 send update t1 set b=b+10;
 
 connection con1;
@@ -85,9 +87,9 @@ eval kill query $ID;
 rollback;
 
 connection con2;
---error ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED
 reap;
-select * from t1 /* must be the same as before (1,1),(2,2) */;
+select * from t1  order by a /* must be the same as before (1,1),(2,2) */;
 
 #
 # multi update
@@ -120,6 +122,7 @@ connection con1;
 begin; delete from t1 where a=2;
 
 connection con2;
+let $ID= `select connection_id()`;
 send delete from t1 where a=2;
 
 connection con1;
@@ -128,9 +131,9 @@ eval kill query $ID;
 rollback;
 
 connection con2;
---error ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED
 reap;
-select * from t1 /* must be the same as before (1,1),(2,2) */;
+select * from t1 order by a /* must be the same as before (1,1),(2,2) */;
 
 #
 # multi delete
@@ -163,6 +166,7 @@ insert into t4 values (3, 3);
 begin; insert into t1 values (3, 3);
 
 connection con2;
+let $ID= `select connection_id()`;
 begin;
 send insert into t1 select * from t4 for update;
 
@@ -172,7 +176,7 @@ eval kill query $ID;
 rollback;
 
 connection con2;
---error ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED
 reap;
 rollback;
 select * from t1 /* must be the same as before (1,1),(2,2) */;
@@ -182,106 +186,10 @@ drop table t4; # cleanup for the sub-case
 ###
 ## non-ta table case: killing must be recorded in binlog
 ###
-delimiter |;
-create function bug27563(n int) 
-RETURNS int(11)
-DETERMINISTIC
-begin
-  if n > 1 then
-     select get_lock("a", 10)  into @a;
-  end if;
-  return n;
-end|
-delimiter ;|
 
-#
-# update
-#
-
-delete from t2;
-insert into t2 values (1,1), (2,2);
-reset master;
-connection con1;
-select get_lock("a", 20);
-
-connection con2;
-let $ID= `select connection_id()`;
-send update t2 set b=b + bug27563(b) order by a;
-
-connection con1;
---replace_result $ID ID
-eval kill query $ID;
-
-connection con2;
---error ER_QUERY_INTERRUPTED
-reap;
-select * from t2 /* must be (1,2), (2,2) */;
-show master status  /* must have the update event more to FD */;
-
-# a proof the query is binlogged with an error
-
---exec $MYSQL_BINLOG --start-position=98 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval select
-(@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
-is not null;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-let $error_code= `select @a like "%#%error_code=0%" /* must return 0*/`;
-eval select $error_code /* must return 0 to mean the killed query is in */;
-
-# cleanup for the sub-case
-connection con1;
-select RELEASE_LOCK("a");
---remove_file $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
-
-#
-# delete
-#
-
-delete from t2;
-insert into t2 values (1,1), (2,2);
-reset master;
-connection con1;
-select get_lock("a", 20);
-
-connection con2;
-let $ID= `select connection_id()`;
-send delete from t2 where a=1 or a=bug27563(2) order by a;
-
-connection con1;
---replace_result $ID ID
-eval kill query $ID;
-
-connection con2;
---error ER_QUERY_INTERRUPTED
-reap;
-select * from t2 /* must be (1,2), (2,2) */;
-show master status  /* must have the update event more to FD */;
-
-# a proof the query is binlogged with an error
-
---exec $MYSQL_BINLOG --start-position=98 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval select
-(@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
-is not null;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-let $error_code= `select @a like "%#%error_code=0%" /* must return 0*/`;
-eval select $error_code /* must return 0 to mean the killed query is in */;
-
-# cleanup for the sub-case
-connection con1;
-select RELEASE_LOCK("a");
---remove_file $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
-
-#
-# load data - see simulation tests
-#
-
-
-# bug#27571 cleanup
-
-drop function bug27563;
+# In order to be deterministic the test needs INFORMATION_SCHEMA.PROCESSLIST
+# which is not available on 5.0 at this time.
+# Therefore, skip this part on 5.0.
 
 
 #
