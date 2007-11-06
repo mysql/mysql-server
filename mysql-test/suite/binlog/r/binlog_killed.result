@@ -17,8 +17,10 @@ delete from t2;
 insert into t1 values (1,1),(2,2);
 begin;
 update t1 set b=11 where a=2;
+begin;
 update t1 set b=b+10;
 kill query ID;
+rollback;
 rollback;
 select * from t1  order by a /* must be the same as before (1,1),(2,2) */;
 a	b
@@ -26,8 +28,10 @@ a	b
 2	2
 begin;
 delete from t1 where a=2;
+begin;
 delete from t1 where a=2;
 kill query ID;
+rollback;
 rollback;
 select * from t1 order by a /* must be the same as before (1,1),(2,2) */;
 a	b
