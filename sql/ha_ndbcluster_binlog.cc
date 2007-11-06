@@ -3731,6 +3731,7 @@ restart:
       check if it is the first log, if so we do not insert a GAP event
       as there is really no log to have a GAP in
     */
+    if (incident_id == 0)
     {
       LOG_INFO log_info;
       mysql_bin_log.get_current_log(&log_info);
