@@ -2938,6 +2938,7 @@ bool select_insert::send_eof()
 {
   int error, error2;
   bool changed, transactional_table= table->file->has_transactions();
+  THD::killed_state killed_status= thd->killed;
   DBUG_ENTER("select_insert::send_eof");
 
   error= (!thd->prelocked_mode) ? table->file->end_bulk_insert():0;
@@ -2967,7 +2968,7 @@ bool select_insert::send_eof()
     if (!error)
       thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
-			  transactional_table, FALSE);
+			  transactional_table, FALSE, killed_status);
     mysql_bin_log.write(&qinfo);
   }
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
