@@ -57,6 +57,8 @@ select @result /* must be zero either way */;
 
 
 --remove_file $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
+connection con1;
+select RELEASE_LOCK("a");
 
 #
 # bug#27571 asynchronous setting mysql_`query`::error and Query_log_e::error_code
@@ -192,7 +194,7 @@ RETURNS int(11)
 DETERMINISTIC
 begin
   if @b > 0 then
-     select get_lock("a", 10)  into @a;
+     select get_lock("a", 20)  into @a;
   else 
      set @b= 1;
   end if;
@@ -220,7 +222,7 @@ connection con1;
 eval kill query $ID;
 
 connection con2;
---error 0,ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED,ER_SP_PROC_TABLE_CORRUPT
 reap;
 select * from t4 order by b /* must be (1,1), (1,2) */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
@@ -263,7 +265,7 @@ connection con1;
 eval kill query $ID;
 
 connection con2;
---error 0,ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED,ER_SP_PROC_TABLE_CORRUPT
 reap;
 select count(*) from t4 /* must be 1 */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
