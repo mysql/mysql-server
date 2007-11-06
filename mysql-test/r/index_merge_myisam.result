@@ -286,7 +286,7 @@ NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL
 explain select * from (select * from t1 where key1 = 3 or key2 =3) as Z where key8 >5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where
+2	DERIVED	t1	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where; Using index
 create table t3 like t0;
 insert into t3 select * from t0;
 alter table t3 add key9 int not null, add index i9(key9);
