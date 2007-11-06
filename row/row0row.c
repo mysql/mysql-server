@@ -996,7 +996,8 @@ row_raw_format(
 			memcpy(buf, "0x", 2);
 			buf += 2;
 			buf_size -= 2;
-			ret = ut_raw_to_hex(data, data_len, buf, buf_size);
+			ret = 2 + ut_raw_to_hex(data, data_len,
+						buf, buf_size);
 		} else {
 
 			buf[0] = '\0';
