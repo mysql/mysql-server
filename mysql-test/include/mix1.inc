@@ -1163,7 +1163,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(256))
 ENGINE = $engine_type;
 INSERT INTO t1 VALUES (1,2);
 
---#echo 1. test for locking:
+--echo # 1. test for locking:
 
 BEGIN;
 --enable_info
