@@ -881,7 +881,7 @@ buf_LRU_block_free_non_file_page(
 	UT_LIST_ADD_FIRST(free, buf_pool->free, block);
 	block->in_free_list = TRUE;
 
-	UNIV_MEM_FREE(block->frame, UNIV_PAGE_SIZE);
+	UNIV_MEM_ASSERT_AND_FREE(block->frame, UNIV_PAGE_SIZE);
 
 	if (srv_use_awe && block->frame) {
 		/* Add to the list of mapped pages */

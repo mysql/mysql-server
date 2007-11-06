@@ -129,6 +129,7 @@ static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool innobase_stats_on_metadata		= TRUE;
+static my_bool	innobase_use_adaptive_hash_indexes	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -1246,8 +1247,7 @@ innobase_invalidate_query_cache(
 }
 
 /*********************************************************************
-Display an SQL identifier.
-This definition must match the one in innobase/ut/ut0ut.c! */
+Display an SQL identifier. */
 extern "C"
 void
 innobase_print_identifier(
@@ -1634,6 +1634,9 @@ innobase_init(
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_stats_on_metadata = (ibool) innobase_stats_on_metadata;
+
+	srv_use_adaptive_hash_indexes =
+		(ibool) innobase_use_adaptive_hash_indexes;
 
 	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
@@ -2320,13 +2323,18 @@ ha_innobase::open(
 
 	if (NULL == ib_table) {
 		ut_print_timestamp(stderr);
-		sql_print_error("Cannot find table %s from the internal data "
-				"dictionary\nof InnoDB though the .frm file "
-				"for the table exists. Maybe you\nhave "
-				"deleted and recreated InnoDB data files but "
-				"have forgotten\nto delete the corresponding "
-				".frm files of InnoDB tables, or you\n"
-				"have moved .frm files to another database?\n"
+		sql_print_error("Cannot find or open table %s from\n"
+				"the internal data dictionary of InnoDB "
+				"though the .frm file for the\n"
+				"table exists. Maybe you have deleted and "
+				"recreated InnoDB data\n"
+				"files but have forgotten to delete the "
+				"corresponding .frm files\n"
+				"of InnoDB tables, or you have moved .frm "
+				"files to another database?\n"
+				"or, the table contains indexes that this "
+				"version of the engine\n"
+				"doesn't support.\n"
 				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
@@ -3476,6 +3484,7 @@ no_commit:
 
 	/* Handle duplicate key errors */
 	if (auto_inc_used) {
+		ulint		err;
 		ulonglong	auto_inc;
 
 		/* Note the number of rows processed for this statement, used
@@ -3529,7 +3538,11 @@ set_max_autoinc:
 				ut_a(prebuilt->table->autoinc_increment > 0);
 				auto_inc += prebuilt->table->autoinc_increment;
 
-				innobase_set_max_autoinc(auto_inc);
+				err = innobase_set_max_autoinc(auto_inc);
+
+				if (err != DB_SUCCESS) {
+					error = err;
+				}
 			}
 			break;
 		}
@@ -3765,7 +3778,7 @@ ha_innobase::update_row(
 		if (auto_inc != 0) {
 			auto_inc += prebuilt->table->autoinc_increment;
 
-			innobase_set_max_autoinc(auto_inc);
+			error = innobase_set_max_autoinc(auto_inc);
 		}
 	}
 
@@ -6304,6 +6317,9 @@ ha_innobase::start_stmt(
 
 	innobase_release_stat_resources(trx);
 
+	/* Reset the AUTOINC statement level counter for multi-row INSERTs. */
+	trx->n_autoinc_rows = 0;
+
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 	reset_template(prebuilt);
@@ -6446,9 +6462,6 @@ ha_innobase::external_lock(
 			innobase_register_stmt(ht, thd);
 		}
 
-		trx->n_mysql_tables_in_use++;
-		prebuilt->mysql_has_locked = TRUE;
-
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
 			&& prebuilt->select_lock_type == LOCK_NONE
 			&& thd_test_options(thd,
@@ -6496,6 +6509,9 @@ ha_innobase::external_lock(
 
 			trx->mysql_n_tables_locked++;
 		}
+
+		trx->n_mysql_tables_in_use++;
+		prebuilt->mysql_has_locked = TRUE;
 
 		DBUG_RETURN(0);
 	}
@@ -7120,8 +7136,8 @@ the value of the auto-inc counter. */
 int
 ha_innobase::innobase_read_and_init_auto_inc(
 /*=========================================*/
-						/* out: 0 or error code:
-						deadlock or lock wait timeout */
+						/* out: 0 or generic MySQL
+						error code */
         longlong*	value)			/* out: the autoinc value */
 {
 	longlong	auto_inc;
@@ -7178,9 +7194,9 @@ ha_innobase::innobase_read_and_init_auto_inc(
 			++auto_inc;
 			dict_table_autoinc_initialize(innodb_table, auto_inc);
 		} else {
-			fprintf(stderr, "  InnoDB error: Couldn't read the "
-				"max AUTOINC value from index (%s).\n",
-				index->name);
+			fprintf(stderr, " InnoDB error (%lu): Couldn't read "
+				"the max AUTOINC value from the index (%s).\n",
+				error, index->name);
 
 			mysql_error = 1;
 		}
@@ -7217,6 +7233,11 @@ ha_innobase::innobase_get_auto_increment(
 {
 	ulong		error;
 
+	*value = 0;
+
+	/* Note: If the table is not initialized when we attempt the
+	read below. We initialize the table's auto-inc counter  and
+	always do a reread of the AUTOINC value. */
 	do {
 		error = innobase_autoinc_lock();
 
@@ -7256,7 +7277,16 @@ ha_innobase::innobase_get_auto_increment(
 			} else {
 				*value = (ulonglong) autoinc;
 			}
+		/* A deadlock error during normal processing is OK
+		and can be ignored. */
+		} else if (error != DB_DEADLOCK) {
+
+			ut_print_timestamp(stderr);
+			sql_print_error(" InnoDB Error %lu in "
+					"::innobase_get_auto_increment()",
+					error);
 		}
+
 	} while (*value == 0 && error == DB_SUCCESS);
 
 	return(error);
@@ -7272,7 +7302,7 @@ we have a table-level lock). offset, increment, nb_desired_values are ignored.
 
 void
 ha_innobase::get_auto_increment(
-/*=================================*/
+/*============================*/
         ulonglong	offset,              /* in: */
         ulonglong	increment,           /* in: table autoinc increment */
         ulonglong	nb_desired_values,   /* in: number of values reqd */
@@ -7289,13 +7319,6 @@ ha_innobase::get_auto_increment(
 	error = innobase_get_auto_increment(&autoinc);
 
 	if (error != DB_SUCCESS) {
-		/* This should never happen in the code > ver 5.0.6,
-		since we call this function only after the counter
-		has been initialized. */
-
-		ut_print_timestamp(stderr);
-		sql_print_error("Error %lu in ::get_auto_increment()", error);
-
 		*first_value = (~(ulonglong) 0);
 		return;
 	}
@@ -7310,6 +7333,11 @@ ha_innobase::get_auto_increment(
 
 	trx = prebuilt->trx;
 
+	/* Note: We can't rely on *first_value since some MySQL engines,
+	in particular the partition engine, don't initialize it to 0 when
+	invoking this method. So we are not sure if it's guaranteed to
+	be 0 or not. */
+
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
@@ -7318,16 +7346,16 @@ ha_innobase::get_auto_increment(
 		/* It's possible for nb_desired_values to be 0:
 		e.g., INSERT INTO T1(C) SELECT C FROM T2; */
 		if (nb_desired_values == 0) {
-  
+
 			trx->n_autoinc_rows = 1;
 		}
-  
+
 		set_if_bigger(*first_value, autoinc);
 	/* Not in the middle of a mult-row INSERT. */
 	} else if (prebuilt->last_value == 0) {
 		set_if_bigger(*first_value, autoinc);
 	}
-  
+
 	*nb_reserved_values = trx->n_autoinc_rows;
 
 	/* With old style AUTOINC locking we only update the table's
@@ -7359,7 +7387,9 @@ ha_innobase::get_auto_increment(
 
 /* See comment in handler.h */
 int
-ha_innobase::reset_auto_increment(ulonglong value)
+ha_innobase::reset_auto_increment(
+/*==============================*/
+	ulonglong	value)		/* in: new value for table autoinc */
 {
 	DBUG_ENTER("ha_innobase::reset_auto_increment");
 
@@ -7923,6 +7953,11 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(use_adaptive_hash_indexes, innobase_use_adaptive_hash_indexes,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Enable the InnoDB adaptive hash indexes (enabled by default)",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
@@ -8051,6 +8086,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
+  MYSQL_SYSVAR(use_adaptive_hash_indexes),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sync_spin_loops),

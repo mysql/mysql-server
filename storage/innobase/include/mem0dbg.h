@@ -60,6 +60,14 @@ mem_heap_validate_or_print(
 	ulint*		n_blocks); /* out: number of blocks in the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored */
+/******************************************************************
+Validates the contents of a memory heap. */
+
+ibool
+mem_heap_validate(
+/*==============*/
+				/* out: TRUE if ok */
+	mem_heap_t*   heap);	/* in: memory heap */
 #endif /* UNIV_MEM_DEBUG || UNIV_DEBUG */
 #ifdef UNIV_DEBUG
 /******************************************************************
@@ -71,14 +79,6 @@ mem_heap_check(
 				/* out: TRUE if ok */
 	mem_heap_t*   heap);	/* in: memory heap */
 #endif /* UNIV_DEBUG */
-/******************************************************************
-Validates the contents of a memory heap. */
-
-ibool
-mem_heap_validate(
-/*==============*/
-				/* out: TRUE if ok */
-	mem_heap_t*   heap);	/* in: memory heap */
 #ifdef UNIV_MEM_DEBUG
 /*********************************************************************
 TRUE if no memory is currently allocated. */
