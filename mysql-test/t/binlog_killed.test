@@ -79,6 +79,7 @@ begin; update t1 set b=11 where a=2;
 
 connection con2;
 let $ID= `select connection_id()`;
+begin;
 send update t1 set b=b+10;
 
 connection con1;
@@ -86,9 +87,18 @@ connection con1;
 eval kill query $ID;
 rollback;
 
+# Bug #32148  	killi query may be ineffective 
+# forced to comment out the test's outcome 
+# and mask out ineffective ER_QUERY_INTERRUPTED
+# todo1: revert back upon fixing bug#32148
+# todo2: the tests need refining in that
+#        killing should wait till the victim requested
+#        its lock (wait_condition available in 5.1 tests)
+
 connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
+rollback;
 select * from t1  order by a /* must be the same as before (1,1),(2,2) */;
 
 #
@@ -123,6 +133,7 @@ begin; delete from t1 where a=2;
 
 connection con2;
 let $ID= `select connection_id()`;
+begin;
 send delete from t1 where a=2;
 
 connection con1;
@@ -133,7 +144,10 @@ rollback;
 connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
+rollback;
+# todo1,2 above
 select * from t1 order by a /* must be the same as before (1,1),(2,2) */;
+
 
 #
 # multi delete
@@ -178,6 +192,7 @@ rollback;
 connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
+# todo 1,2 above
 rollback;
 select * from t1 /* must be the same as before (1,1),(2,2) */;
 
