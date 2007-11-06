@@ -725,7 +725,9 @@ main(int argc, char** argv)
   char buf[NDB_VERSION_STRING_BUF_SZ];
   info.setLevel(254);
   info << "Ndb version in backup files: " 
-       <<  ndbGetVersionString(version, 0, 0, buf, sizeof(buf)) << endl;
+       <<  ndbGetVersionString(version, 0, 
+                               version == DROP6_VERSION ? "-drop6" : 0, 
+                               buf, sizeof(buf)) << endl;
   
   /**
    * check wheater we can restore the backup (right version).
