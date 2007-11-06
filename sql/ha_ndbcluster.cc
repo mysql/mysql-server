@@ -4901,7 +4901,7 @@ int ha_ndbcluster::drop_table()
 
 ulonglong ha_ndbcluster::get_auto_increment()
 {  
-  int cache_size;
+  uint cache_size;
   Uint64 auto_value;
   THD *thd= current_thd;
   Uint64 step= thd->variables.auto_increment_increment;
@@ -4915,15 +4915,14 @@ ulonglong ha_ndbcluster::get_auto_increment()
     /* We guessed too low */
     m_rows_to_insert+= m_autoincrement_prefetch;
   }
-  int remaining= m_rows_to_insert - m_rows_inserted;
-  int min_prefetch= 
+  uint remaining= m_rows_to_insert - m_rows_inserted;
+  uint min_prefetch= 
     (remaining < thd->variables.ndb_autoincrement_prefetch_sz) ?
     thd->variables.ndb_autoincrement_prefetch_sz
     : remaining;
-  cache_size= 
-    (int) ((remaining < m_autoincrement_prefetch) ?
-           min_prefetch
-	   : remaining);
+  cache_size= ((remaining < m_autoincrement_prefetch) ?
+	       min_prefetch
+	       : remaining);
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
   int retry_sleep= 30; /* 30 milliseconds, transaction */
   for (;;)
