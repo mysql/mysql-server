@@ -1,6 +1,8 @@
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
+#ifndef UNIV_HOTBACKUP
+
 #include "univ.i" /* ulint, uint */
 #include "m_ctype.h" /* CHARSET_INFO */
 
@@ -21,6 +23,19 @@ innobase_convert_string(
 	ulint		from_length,
 	CHARSET_INFO*	from_cs,
 	uint*		errors);
+
+/*********************************************************************
+Display an SQL identifier. */
+
+void
+innobase_print_identifier(
+/*======================*/
+	FILE*		f,	/* in: output stream */
+	trx_t*		trx,	/* in: transaction */
+	ibool		table_id,/* in: TRUE=print a table name,
+				FALSE=print other identifier */
+	const char*	name,	/* in: name to print */
+	ulint		namelen);/* in: length of name */
 
 /**********************************************************************
 Returns true if the thread is the replication thread on the slave
@@ -48,4 +63,5 @@ thd_has_edited_nontrans_tables(
 			been edited */
 	void*	thd);	/* in: thread handle (THD*) */
 
+#endif
 #endif
