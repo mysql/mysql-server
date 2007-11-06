@@ -1,0 +1,44 @@
+# This test runs with old-style locking, as:
+# --innodb-autoinc-lock-mode=0
+
+-- source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+
+#
+# Search on unique key
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  ggid varchar(32) binary DEFAULT '' NOT NULL,
+  email varchar(64) DEFAULT '' NOT NULL,
+  passwd varchar(32) binary DEFAULT '' NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE ggid (ggid)
+) ENGINE=innodb;
+
+insert into t1 (ggid,passwd) values ('test1','xxx');
+insert into t1 (ggid,passwd) values ('test2','yyy');
+-- error ER_DUP_ENTRY
+insert into t1 (ggid,passwd) values ('test2','this will fail');
+-- error ER_DUP_ENTRY
+insert into t1 (ggid,id) values ('this will fail',1);
+
+select * from t1 where ggid='test1';
+select * from t1 where passwd='xxx';
+select * from t1 where id=2;
+
+replace into t1 (ggid,id) values ('this will work',1);
+replace into t1 (ggid,passwd) values ('test2','this will work');
+-- error ER_DUP_ENTRY
+update t1 set id=100,ggid='test2' where id=1;
+select * from t1;
+select * from t1 where id=1;
+select * from t1 where id=999;
+drop table t1;
+
+--echo End of tests
