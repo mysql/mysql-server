@@ -24,6 +24,7 @@
 
 #include <ndb_version.h>
 #include <version.h>
+#define DROP6_VERSION MAKE_VERSION(5,2,1)
 
 const int FileNameLenC = 256;
 const int TableNameLenC = 256;
@@ -368,6 +369,7 @@ public:
 private:
 
   int readTupleData(Uint32 *buf_ptr, Uint32 *ptr, Uint32 dataLength);
+  int readTupleData_drop6(Uint32 *buf_ptr, Uint32 *ptr, Uint32 dataLength);
 };
 
 class LogEntry {
