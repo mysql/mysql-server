@@ -6651,14 +6651,7 @@ void JOIN::cleanup(bool full)
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
 	if (tab->table)
-        {
-          if (tab->table->key_read)
-          {
-            tab->table->key_read= 0;
-            tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
-          }
           tab->table->file->ha_index_or_rnd_end();
-        }
       }
     }
   }
