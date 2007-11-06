@@ -241,19 +241,22 @@ static void dbug_print_table(const char *info, TABLE *table)
 static void run_query(THD *thd, char *buf, char *end,
                       const int *no_print_error, my_bool disable_binlog)
 {
-  ulong save_query_length= thd->query_length;
-  char *save_query= thd->query;
-  struct system_variables save_variables= thd->variables;
-  struct system_status_var save_status_var= thd->status_var;
+  ulong save_thd_query_length= thd->query_length;
+  char *save_thd_query= thd->query;
+  struct system_variables save_thd_variables= thd->variables;
+  struct system_status_var save_thd_status_var= thd->status_var;
+  THD_TRANS save_thd_transaction_all= thd->transaction.all;
+  THD_TRANS save_thd_transaction_stmt= thd->transaction.stmt;
   ulonglong save_thd_options= thd->options;
   DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->options));
-  NET save_net= thd->net;
+  NET save_thd_net= thd->net;
   const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
   thd->query_length= end - buf;
   thd->query= buf;
   thd->variables.pseudo_thread_id= thread_id;
+  thd->transaction.stmt.modified_non_trans_table= FALSE;
   if (disable_binlog)
     thd->options&= ~OPTION_BIN_LOG;
     
@@ -276,11 +279,13 @@ static void run_query(THD *thd, char *buf, char *end,
   }
 
   thd->options= save_thd_options;
-  thd->query_length= save_query_length;
-  thd->query= save_query;
-  thd->variables= save_variables;
-  thd->status_var= save_status_var;
-  thd->net= save_net;
+  thd->query_length= save_thd_query_length;
+  thd->query= save_thd_query;
+  thd->variables= save_thd_variables;
+  thd->status_var= save_thd_status_var;
+  thd->transaction.all= save_thd_transaction_all;
+  thd->transaction.stmt= save_thd_transaction_stmt;
+  thd->net= save_thd_net;
 
   if (thd == injector_thd)
   {
