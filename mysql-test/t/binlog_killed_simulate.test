@@ -1,3 +1,4 @@
+-- source include/have_debug.inc
 #
 # bug#27571 asynchronous setting mysql_$query()'s local error and 
 #           Query_log_event::error_code
