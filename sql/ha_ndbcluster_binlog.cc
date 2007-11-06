@@ -4297,8 +4297,25 @@ restart:
   /*
     Main NDB Injector loop
   */
-  if (ndb_binlog_running)
+  while (ndb_binlog_running)
   {
+    /*
+      check if it is the first log, if so we do not insert a GAP event
+      as there is really no log to have a GAP in
+    */
+    {
+      LOG_INFO log_info;
+      mysql_bin_log.get_current_log(&log_info);
+      int len=  strlen(log_info.log_file_name);
+      uint no= 0;
+      if ((sscanf(log_info.log_file_name + len - 6, "%u", &no) == 1) &&
+          no == 1)
+      {
+        /* this is the fist log, so skip GAP event */
+        break;
+      }
+    }
+
     /*
       Always insert a GAP event as we cannot know what has happened
       in the cluster while not being connected.
@@ -4311,8 +4328,9 @@ restart:
     IF_DBUG(int error=)
       inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg[incident_id]);
     DBUG_ASSERT(!error);
-    incident_id= 1;
+    break;
   }
+  incident_id= 1;
   {
     thd->proc_info= "Waiting for ndbcluster to start";
 
