@@ -674,6 +674,7 @@ int
 RestoreDataIterator::readTupleData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
                                          Uint32 dataLength)
 {
+  Uint32 i;
   for (i = 0; i < m_currentTable->m_variableAttribs.size(); i++)
   {
     const Uint32 attrId = m_currentTable->m_variableAttribs[i]->attrId;
