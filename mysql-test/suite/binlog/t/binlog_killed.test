@@ -218,11 +218,15 @@ set @b= 0;
 send update t4 set b=b + bug27563(b);
 
 connection con1;
+let $wait_condition= select count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+source include/wait_condition.inc;
+select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+
 --replace_result $ID ID
 eval kill query $ID;
 
 connection con2;
---error 0,ER_QUERY_INTERRUPTED,ER_SP_PROC_TABLE_CORRUPT
+--error ER_QUERY_INTERRUPTED
 reap;
 select * from t4 order by b /* must be (1,1), (1,2) */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
@@ -261,11 +265,14 @@ set @b= 0;
 send delete from t4 where b=bug27563(1) or b=bug27563(2);
 
 connection con1;
+let $wait_condition= select count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+source include/wait_condition.inc;
+select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
 --replace_result $ID ID
 eval kill query $ID;
 
 connection con2;
---error 0,ER_QUERY_INTERRUPTED,ER_SP_PROC_TABLE_CORRUPT
+--error ER_QUERY_INTERRUPTED
 reap;
 select count(*) from t4 /* must be 1 */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
