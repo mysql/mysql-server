@@ -584,6 +584,88 @@ TupleS::prepareRecord(TableS & tab){
   return true;
 }
 
+int
+RestoreDataIterator::readTupleData(Uint32 *buf_ptr, Uint32 *ptr,
+                                   Uint32 dataLength)
+{
+  while (ptr + 2 < buf_ptr + dataLength)
+  {
+    typedef BackupFormat::DataFile::VariableData VarData;
+    VarData * data = (VarData *)ptr;
+    Uint32 sz = ntohl(data->Sz);
+    Uint32 attrId = ntohl(data->Id); // column_no
+
+    AttributeData * attr_data = m_tuple.getData(attrId);
+    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
+    
+    // just a reminder - remove when backwards compat implemented
+    if (m_currentTable->backupVersion < MAKE_VERSION(5,1,3) && 
+        attr_desc->m_column->getNullable())
+    {
+      const Uint32 ind = attr_desc->m_nullBitIndex;
+      if(BitmaskImpl::get(m_currentTable->m_nullBitmaskSize, 
+                          buf_ptr,ind))
+      {
+        attr_data->null = true;
+        attr_data->void_value = NULL;
+        continue;
+      }
+    }
+
+    if (m_currentTable->backupVersion < MAKE_VERSION(5,1,3))
+    {
+      sz *= 4;
+    }
+    
+    attr_data->null = false;
+    attr_data->void_value = &data->Data[0];
+    attr_data->size = sz;
+
+    //if (m_currentTable->getTableId() >= 2) { ndbout << "var off=" << ptr-buf_ptr << " attrId=" << attrId << endl; }
+
+    /**
+     * Compute array size
+     */
+    const Uint32 arraySize = sz / (attr_desc->size / 8);
+    assert(arraySize <= attr_desc->arraySize);
+
+    //convert the length of blob(v1) and text(v1)
+    if(!m_hostByteOrder
+        && (attr_desc->m_column->getType() == NdbDictionary::Column::Blob
+           || attr_desc->m_column->getType() == NdbDictionary::Column::Text)
+        && attr_desc->m_column->getArrayType() == NdbDictionary::Column::ArrayTypeFixed)
+    {
+      char* p = (char*)&attr_data->u_int64_value[0];
+      Uint64 x;
+      memcpy(&x, p, sizeof(Uint64));
+      x = Twiddle64(x);
+      memcpy(p, &x, sizeof(Uint64));
+    }
+
+    //convert datetime type
+    if(!m_hostByteOrder
+        && attr_desc->m_column->getType() == NdbDictionary::Column::Datetime)
+    {
+      char* p = (char*)&attr_data->u_int64_value[0];
+      Uint64 x;
+      memcpy(&x, p, sizeof(Uint64));
+      x = Twiddle64(x);
+      memcpy(p, &x, sizeof(Uint64));
+    }
+
+    if(!Twiddle(attr_desc, attr_data, attr_desc->arraySize))
+    {
+      return -1;
+    }
+    
+    ptr += ((sz + 3) >> 2) + 2;
+  }
+
+  assert(ptr == buf_ptr + dataLength);
+
+  return 0;
+}
+
 const TupleS *
 RestoreDataIterator::getNextTuple(int  & res)
 {
@@ -680,78 +762,8 @@ RestoreDataIterator::getNextTuple(int  & res)
     attr_data->void_value = NULL;
   }
 
-  while (ptr + 2 < buf_ptr + dataLength) {
-    typedef BackupFormat::DataFile::VariableData VarData;
-    VarData * data = (VarData *)ptr;
-    Uint32 sz = ntohl(data->Sz);
-    Uint32 attrId = ntohl(data->Id); // column_no
-
-    AttributeData * attr_data = m_tuple.getData(attrId);
-    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
-    
-    // just a reminder - remove when backwards compat implemented
-    if(m_currentTable->backupVersion < MAKE_VERSION(5,1,3) && 
-       attr_desc->m_column->getNullable()){
-      const Uint32 ind = attr_desc->m_nullBitIndex;
-      if(BitmaskImpl::get(m_currentTable->m_nullBitmaskSize, 
-			  buf_ptr,ind)){
-	attr_data->null = true;
-	attr_data->void_value = NULL;
-	continue;
-      }
-    }
-
-    if (m_currentTable->backupVersion < MAKE_VERSION(5,1,3))
-    {
-      sz *= 4;
-    }
-    
-    attr_data->null = false;
-    attr_data->void_value = &data->Data[0];
-    attr_data->size = sz;
-
-    //if (m_currentTable->getTableId() >= 2) { ndbout << "var off=" << ptr-buf_ptr << " attrId=" << attrId << endl; }
-
-    /**
-     * Compute array size
-     */
-    const Uint32 arraySize = sz / (attr_desc->size / 8);
-    assert(arraySize <= attr_desc->arraySize);
-
-    //convert the length of blob(v1) and text(v1)
-    if(!m_hostByteOrder
-        && (attr_desc->m_column->getType() == NdbDictionary::Column::Blob
-           || attr_desc->m_column->getType() == NdbDictionary::Column::Text)
-        && attr_desc->m_column->getArrayType() == NdbDictionary::Column::ArrayTypeFixed)
-    {
-      char* p = (char*)&attr_data->u_int64_value[0];
-      Uint64 x;
-      memcpy(&x, p, sizeof(Uint64));
-      x = Twiddle64(x);
-      memcpy(p, &x, sizeof(Uint64));
-    }
-
-    //convert datetime type
-    if(!m_hostByteOrder
-        && attr_desc->m_column->getType() == NdbDictionary::Column::Datetime)
-    {
-      char* p = (char*)&attr_data->u_int64_value[0];
-      Uint64 x;
-      memcpy(&x, p, sizeof(Uint64));
-      x = Twiddle64(x);
-      memcpy(p, &x, sizeof(Uint64));
-    }
-
-    if(!Twiddle(attr_desc, attr_data, attr_desc->arraySize))
-      {
-	res = -1;
-	return NULL;
-      }
-    
-    ptr += ((sz + 3) >> 2) + 2;
-  }
-
-  assert(ptr == buf_ptr + dataLength);
+  if ((res = readTupleData(buf_ptr, ptr, dataLength)))
+    return NULL;
 
   m_count ++;  
   res = 0;
