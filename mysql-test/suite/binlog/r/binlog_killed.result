@@ -9,6 +9,9 @@ insert into t2 values (null, null), (null, get_lock("a", 10));
 select @result /* must be zero either way */;
 @result
 0
+select RELEASE_LOCK("a");
+RELEASE_LOCK("a")
+1
 delete from t1;
 delete from t2;
 insert into t1 values (1,1),(2,2);
@@ -51,7 +54,7 @@ RETURNS int(11)
 DETERMINISTIC
 begin
 if @b > 0 then
-select get_lock("a", 10)  into @a;
+select get_lock("a", 20)  into @a;
 else 
 set @b= 1;
 end if;
