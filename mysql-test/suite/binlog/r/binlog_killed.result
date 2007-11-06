@@ -68,7 +68,11 @@ get_lock("a", 20)
 1
 set @b= 0;
 update t4 set b=b + bug27563(b);
+select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+count(*)
+1
 kill query ID;
+ERROR 70100: Query execution was interrupted
 select * from t4 order by b /* must be (1,1), (1,2) */;
 a	b
 1	1
@@ -101,7 +105,11 @@ get_lock("a", 20)
 1
 set @b= 0;
 delete from t4 where b=bug27563(1) or b=bug27563(2);
+select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+count(*)
+1
 kill query ID;
+ERROR 70100: Query execution was interrupted
 select count(*) from t4 /* must be 1 */;
 count(*)
 1
