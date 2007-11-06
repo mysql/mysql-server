@@ -75,5 +75,9 @@ drop table t1;
 delete from mysql.ndb_replication;
 
 --disable_query_log
+--sync_slave_with_master
+stop slave;
+drop table mysql.ndb_replication;
+--connection master
 drop table mysql.ndb_replication;
 --enable_query_log
