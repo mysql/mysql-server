@@ -84,3 +84,9 @@ t1	CREATE TABLE `t1` (
   `b` int(11) default NULL
 ) TYPE=MyISAM
 drop table t1;
+CREATE TABLE t1(a INT)
+DATA DIRECTORY='TEST_DIR/var/master-data/mysql'
+INDEX DIRECTORY='TEST_DIR/var/master-data/mysql';
+RENAME TABLE t1 TO user;
+Can't create/write to file 'TEST_DIR/var/master-data/mysql/user.MYI' (Errcode: 17)
+DROP TABLE t1;
