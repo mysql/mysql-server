@@ -33,16 +33,14 @@ my $skip_test;
 
 sub init_pattern {
   my ($from, $what)= @_;
-  if ( $from =~ /[a-z0-9]/ ) {
+  if ( $from =~ /^[a-z0-9]$/ ) {
     # Does not contain any regex, make the pattern match
     # beginning of string
     $from= "^$from";
   }
-  else {
-    # Check that pattern is a valid regex
-    eval { "" =~/$from/; 1 } or
-      mtr_error("Invalid regex '$from' passed to $what\nPerl says: $@");
-  }
+  # Check that pattern is a valid regex
+  eval { "" =~/$from/; 1 } or
+    mtr_error("Invalid regex '$from' passed to $what\nPerl says: $@");
   return $from;
 }
 
