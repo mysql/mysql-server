@@ -1235,6 +1235,6 @@ select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 #
 # Bug#31630 debug assert with explain extended select ... from i_s
 #
-explain extended select 1 from information_schema.TABLES;
+explain extended select 1 from information_schema.tables;
 
 --echo End of 5.1 tests.
