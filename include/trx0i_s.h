@@ -18,6 +18,10 @@ Created July 17, 2007 Vasil Dimov
 i_s_locks_row_t::lock_data */
 #define TRX_I_S_LOCK_DATA_MAX_LEN	8192
 
+/* the maximum length of a string that can be stored in
+i_s_trx_row_t::trx_query */
+#define TRX_I_S_TRX_QUERY_MAX_LEN	1024
+
 typedef struct i_s_locks_row_struct	i_s_locks_row_t;
 typedef struct i_s_hash_chain_struct	i_s_hash_chain_t;
 
@@ -55,6 +59,7 @@ typedef struct i_s_trx_row_struct {
 	const i_s_locks_row_t*	wait_lock_row;
 	ib_time_t		trx_wait_started;
 	ulint			trx_mysql_thread_id;
+	const char*		trx_query;
 } i_s_trx_row_t;
 
 /* This structure represents INFORMATION_SCHEMA.innodb_lock_waits row */
