@@ -921,6 +921,13 @@ void Dbtc::execAPI_FAILREQ(Signal* signal)
    * can only be true after all api connect records have been checked.
    **************************************************************************/
   jamEntry();  
+
+  if (ERROR_INSERTED(8056))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
+
   capiFailRef = signal->theData[1];
   arrGuard(signal->theData[0], MAX_NODES);
   capiConnectClosing[signal->theData[0]] = 1;
@@ -4703,6 +4710,24 @@ void Dbtc::sendApiCommit(Signal* signal)
 {
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
 
+  if (ERROR_INSERTED(8055))
+  {
+    /**
+     * 1) Kill self
+     * 2) Disconnect API
+     * 3) Prevent execAPI_FAILREQ from handling trans...
+     */
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+    
+    Uint32 node = refToNode(regApiPtr->ndbapiBlockref);
+    signal->theData[0] = node;
+    sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
+
+    SET_ERROR_INSERT_VALUE(8056);
+    return;
+  }
+  
   if (regApiPtr->returnsignal == RS_TCKEYCONF) {
     sendtckeyconf(signal, 1);
   } else if (regApiPtr->returnsignal == RS_TC_COMMITCONF) {
@@ -7821,7 +7846,15 @@ Dbtc::routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord* regApiPtr,
     }
   }
   
+ 
+   /**
+    * This code was 'unfinished' code for partially connected API's
+    *   it does however not really work...
+    *   and we seriously need to think about semantics for API connect
+    */
+#if 0
   ndbrequire(getNodeInfo(refToNode(ref)).m_type == NodeInfo::DB);
+#endif
 }
 
 void
