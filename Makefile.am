@@ -71,7 +71,9 @@ noinst_HEADERS = include/btr0btr.h include/btr0btr.ic			\
 			include/mem0pool.h include/mem0pool.ic		\
 			include/mtr0log.h include/mtr0log.ic		\
 			include/mtr0mtr.h include/mtr0mtr.ic		\
-			include/mtr0types.h include/os0file.h		\
+			include/mtr0types.h				\
+			include/mysql_addons.h				\
+			include/os0file.h				\
 			include/os0proc.h include/os0proc.ic		\
 			include/os0sync.h include/os0sync.ic		\
 			include/os0thread.h include/os0thread.ic	\
@@ -170,7 +172,8 @@ libinnobase_a_SOURCES =	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
 			ut/ut0list.c ut/ut0mem.c ut/ut0rnd.c		\
 			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c		\
 			handler/ha_innodb.cc handler/handler0alter.cc	\
-			handler/i_s.cc
+			handler/i_s.cc					\
+			handler/mysql_addons.cc
 
 libinnobase_a_CXXFLAGS=	$(AM_CFLAGS)
 libinnobase_a_CFLAGS  =	$(AM_CFLAGS)
