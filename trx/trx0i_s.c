@@ -333,11 +333,14 @@ fill_trx_row(
 						that's filled */
 	const trx_t*		trx,		/* in: transaction to
 						get data from */
-	const i_s_locks_row_t*	wait_lock_row)	/* in: pointer to the
+	const i_s_locks_row_t*	wait_lock_row,	/* in: pointer to the
 						corresponding row in
 						innodb_locks if trx is
 						waiting or NULL if trx
 						is not waiting */
+	trx_i_s_cache_t*	cache)		/* in/out: cache into
+						which to copy volatile
+						strings */
 {
 	row->trx_id = trx_get_id(trx);
 	row->trx_started = (ib_time_t) trx->start_time;
@@ -358,6 +361,30 @@ fill_trx_row(
 	}
 
 	row->trx_mysql_thread_id = ib_thd_get_thread_id(trx->mysql_thd);
+
+	if (trx->mysql_query_str != NULL && *trx->mysql_query_str != NULL) {
+
+		if (strlen(*trx->mysql_query_str)
+		    > TRX_I_S_TRX_QUERY_MAX_LEN) {
+
+			char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
+
+			memcpy(query, *trx->mysql_query_str,
+			       TRX_I_S_TRX_QUERY_MAX_LEN);
+			query[TRX_I_S_TRX_QUERY_MAX_LEN] = '\0';
+
+			row->trx_query = ha_storage_put(
+				cache->storage, query,
+				TRX_I_S_TRX_QUERY_MAX_LEN + 1);
+		} else {
+
+			row->trx_query = ha_storage_put_str(
+				cache->storage, *trx->mysql_query_str);
+		}
+	} else {
+
+		row->trx_query = NULL;
+	}
 
 	return(row);
 }
@@ -960,7 +987,7 @@ fetch_data_into_cache(
 		trx_row = (i_s_trx_row_t*)
 			table_cache_create_empty_row(&cache->innodb_trx);
 
-		fill_trx_row(trx_row, trx, wait_lock_row);
+		fill_trx_row(trx_row, trx, wait_lock_row, cache);
 	}
 }
 

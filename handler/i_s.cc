@@ -241,6 +241,15 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define IDX_TRX_QUERY		6
+	{STRUCT_FLD(field_name,		"trx_query"),
+	 STRUCT_FLD(field_length,	TRX_I_S_TRX_QUERY_MAX_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -312,6 +321,10 @@ fill_innodb_trx_from_cache(
 		/* trx_mysql_thread_id */
 		OK(fields[IDX_TRX_MYSQL_THREAD_ID]->store(
 			   row->trx_mysql_thread_id));
+
+		/* trx_query */
+		OK(field_store_string(fields[IDX_TRX_QUERY],
+				      row->trx_query));
 
 		OK(schema_table_store_record(thd, table));
 	}
