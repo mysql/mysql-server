@@ -2678,12 +2678,16 @@ page_zip_validate(
 	temp_page = ut_align(temp_page_buf, UNIV_PAGE_SIZE);
 
 #ifdef UNIV_DEBUG_VALGRIND
-	/* Get some more information if the UNIV_MEM_ASSERT_RW below fail. */
+	/* Get detailed information on the valid bits in case the
+	UNIV_MEM_ASSERT_RW() checks fail. */
 	VALGRIND_GET_VBITS(page, temp_page, UNIV_PAGE_SIZE);
-	VALGRIND_GET_VBITS(page_zip, &temp_page_zip, sizeof temp_page_zip);
-#endif /* UNIV_DEBUG_VALGRIND */
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
+	VALGRIND_GET_VBITS(page_zip, &temp_page_zip, sizeof temp_page_zip);
+	UNIV_MEM_ASSERT_RW(page_zip, sizeof *page_zip);
+	VALGRIND_GET_VBITS(page_zip->data, temp_page,
+			   page_zip_get_size(page_zip));
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
+#endif /* UNIV_DEBUG_VALGRIND */
 
 	temp_page_zip = *page_zip;
 	valid = page_zip_decompress(&temp_page_zip, temp_page);
