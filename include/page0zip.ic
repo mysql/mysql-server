@@ -215,7 +215,7 @@ page_zip_get_trailer_len(
 	ulint	uncompressed_size;
 
 	ut_ad(page_zip_simple_validate(page_zip));
-	UNIV_MEM_ASSERT_RW(page_zip, page_zip_get_size(page_zip));
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
 	if (UNIV_UNLIKELY(!page_is_leaf(page_zip->data))) {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
@@ -356,7 +356,7 @@ page_zip_write_header(
 
 	ut_ad(buf_frame_get_page_zip(str) == page_zip);
 	ut_ad(page_zip_simple_validate(page_zip));
-	UNIV_MEM_ASSERT_RW(page_zip, page_zip_get_size(page_zip));
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
 	pos = page_offset(str);
 
