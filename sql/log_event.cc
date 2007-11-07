@@ -36,7 +36,7 @@
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
-#ifndef MYSQL_CLIENT
+#if !defined(MYSQL_CLIENT) && !defined(DBUG_OFF)
 static const char *HA_ERR(int i)
 {
   switch (i) {
@@ -90,6 +90,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_LOGGING_IMPOSSIBLE: return "HA_ERR_LOGGING_IMPOSSIBLE";
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   }
+  return "<unknown error>";
 }
 #endif
 
