@@ -6,7 +6,7 @@ Next DBTUP 4029
 Next DBLQH 5048
 Next DBDICT 6008
 Next DBDIH 7193
-Next DBTC 8055
+Next DBTC 8057
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
@@ -329,6 +329,9 @@ ABORT OF TCKEYREQ
 ------
 
 8038 : Simulate API disconnect just after SCAN_TAB_REQ
+
+8055 : Crash in sendApiCommit, disconnect API, and set 8056
+8056 : return directly in API_FAILREQ
 
 8052 : Simulate failure of TransactionBufferMemory allocation for OI lookup
 
