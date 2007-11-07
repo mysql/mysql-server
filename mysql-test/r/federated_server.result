@@ -253,6 +253,14 @@ drop user guest_usage@localhost;
 drop user guest_select@localhost;
 drop table federated.t1;
 drop server 's1';
+create server 's1' foreign data wrapper 'mysql' options (port 3306);
+alter server 's1' options
+(host 'localhost', database '', user '',
+password '', socket '', owner '', port 3306);
+alter server 's1' options
+(host 'localhost', database 'database1', user '',
+password '', socket '', owner '', port 3306);
+drop server 's1';
 # End of 5.1 tests
 use test;
 create procedure p1 ()
@@ -262,7 +270,7 @@ DECLARE e INT DEFAULT 0;
 DECLARE i INT;
 DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET e = e + 1;
 SET i = sleep(5);
-WHILE v < 20000 do
+WHILE v < 10000 do
 CREATE SERVER s
 FOREIGN DATA WRAPPER mysql
 OPTIONS (USER 'Remote', HOST '192.168.1.106', DATABASE 'test');
