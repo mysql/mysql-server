@@ -663,10 +663,10 @@ row_prebuilt_free(
 {
 	ulint	i;
 
-	if ((prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
-	     && prebuilt->magic_n != ROW_PREBUILT_OBSOLETE)
-	    || (prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED
-		&& prebuilt->magic_n != ROW_PREBUILT_OBSOLETE)) {
+	if (UNIV_UNLIKELY(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE)) {
+	} else if (UNIV_UNLIKELY
+		   (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
+		    || prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED)) {
 
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
@@ -1134,8 +1134,10 @@ row_insert_for_mysql(
 		return(DB_ERROR);
 	}
 
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED 
-	    && prebuilt->magic_n != ROW_PREBUILT_OBSOLETE) {
+	if (UNIV_UNLIKELY(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE)) {
+		row_update_prebuilt(prebuilt, prebuilt->table);
+	} else if (UNIV_UNLIKELY
+		   (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
 			"InnoDB: table handle. Magic n %lu, table name ",
@@ -1148,11 +1150,7 @@ row_insert_for_mysql(
 		ut_error;
 	}
 
-	if (prebuilt->magic_n == ROW_PREBUILT_OBSOLETE) {
-		row_update_prebuilt(prebuilt, prebuilt->table);
-	}
-
-	if (srv_created_new_raw || srv_force_recovery) {
+	if (UNIV_UNLIKELY(srv_created_new_raw || srv_force_recovery)) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
@@ -1202,7 +1200,7 @@ run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
 
-	if (prebuilt->magic_n == ROW_PREBUILT_OBSOLETE) {
+	if (UNIV_UNLIKELY(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE)) {
 		row_update_prebuilt(prebuilt, prebuilt->table);
 	}
 
@@ -1388,8 +1386,10 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
-	    && prebuilt->magic_n != ROW_PREBUILT_OBSOLETE) {
+	if (UNIV_UNLIKELY(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE)) {
+		row_update_prebuilt(prebuilt, prebuilt->table);
+	} else if (UNIV_UNLIKELY
+		   (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
 			"InnoDB: table handle. Magic n %lu, table name ",
@@ -1402,11 +1402,7 @@ row_update_for_mysql(
 		ut_error;
 	}
 
-	if (prebuilt->magic_n == ROW_PREBUILT_OBSOLETE) {
-		row_update_prebuilt(prebuilt, prebuilt->table);
-	}
-
-	if (srv_created_new_raw || srv_force_recovery) {
+	if (UNIV_UNLIKELY(srv_created_new_raw || srv_force_recovery)) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
@@ -1458,7 +1454,7 @@ run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
 
-	if (prebuilt->magic_n == ROW_PREBUILT_OBSOLETE) {
+	if (UNIV_UNLIKELY(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE)) {
 		row_update_prebuilt(prebuilt, prebuilt->table);
 	}
 
