@@ -6436,7 +6436,15 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	  else if (!table->covering_keys.is_clear_all() &&
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
-	    tab->index=find_shortest_key(table, & table->covering_keys);
+	    /*
+	      See bug #26447: "Using the clustered index for a table scan
+	      is always faster than using a secondary index".
+	    */
+            if (table->s->primary_key != MAX_KEY &&
+                table->file->primary_key_is_clustered())
+              tab->index= table->s->primary_key;
+            else
+              tab->index=find_shortest_key(table, & table->covering_keys);
 	    tab->read_first_record= join_read_first;
 	    tab->type=JT_NEXT;		// Read with index_first / index_next
 	  }
