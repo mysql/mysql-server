@@ -152,7 +152,7 @@ trx_i_s_possibly_fetch_data_into_cache(
 					/* out: 0 - fetched, 1 - not */
 	trx_i_s_cache_t*	cache);	/* in/out: cache */
 
-/* The maximum length that may be required by lock_id_sz in
+/* The maximum length that may be required by lock_id_size in
 trx_i_s_create_lock_id(). "%llu:%lu:%lu:%lu" -> 84 chars */
 
 #define TRX_I_S_LOCK_ID_MAX_LEN	84
