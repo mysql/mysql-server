@@ -1713,6 +1713,26 @@ page_zip_apply_log(
 		/* Determine the heap number and status bits of the record. */
 		rec = recs[(val >> 1) - 1];
 
+		hs = ((val >> 1) + 1) << REC_HEAP_NO_SHIFT;
+		hs |= heap_status & ((1 << REC_HEAP_NO_SHIFT) - 1);
+
+		/* This may either be an old record that is being
+		overwritten (updated in place, or allocated from
+		the free list), or a new record, with the next
+		available_heap_no. */
+		if (UNIV_UNLIKELY(hs > heap_status)) {
+			return(NULL);
+		} else if (hs == heap_status) {
+			/* A new record was allocated from the heap. */
+			if (UNIV_UNLIKELY(val & 1)) {
+				/* Only existing records may be cleared. */
+				return(NULL);
+			}
+			heap_status += 1 << REC_HEAP_NO_SHIFT;
+		}
+
+		mach_write_to_2(rec - REC_NEW_HEAP_NO, hs);
+
 		if (val & 1) {
 			/* Clear the data bytes of the record. */
 			mem_heap_t*	heap	= NULL;
@@ -1727,21 +1747,6 @@ page_zip_apply_log(
 			continue;
 		}
 
-		hs = ((val >> 1) + 1) << REC_HEAP_NO_SHIFT;
-		hs |= heap_status & ((1 << REC_HEAP_NO_SHIFT) - 1);
-
-		/* This may either be an old record that is being
-		overwritten (updated in place, or allocated from
-		the free list), or a new record, with the next
-		available_heap_no. */
-		if (UNIV_UNLIKELY(hs > heap_status)) {
-			return(NULL);
-		} else if (hs == heap_status) {
-			/* A new record was allocated from the heap. */
-			heap_status += 1 << REC_HEAP_NO_SHIFT;
-		}
-
-		mach_write_to_2(rec - REC_NEW_HEAP_NO, hs);
 #if REC_STATUS_NODE_PTR != TRUE
 # error "REC_STATUS_NODE_PTR != TRUE"
 #endif
