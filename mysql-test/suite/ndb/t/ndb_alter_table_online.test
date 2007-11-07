@@ -511,7 +511,7 @@ let $v=5;
 disable_query_log;
 while ($v)
 {
-  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308); 
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308); 
   dec $v;
 }
 enable_query_log;
@@ -525,7 +525,7 @@ let $v=5;
 disable_query_log;
 while ($v)
 {
-  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308, 345.21); 
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308, 345.21); 
   dec $v;
 }
 enable_query_log;
@@ -539,7 +539,7 @@ let $v=5;
 disable_query_log;
 while ($v)
 {
-  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308, 345.21, '1000-01-01 00:00:00'); 
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308, 345.21, '1000-01-01 00:00:00'); 
   dec $v;
 }
 enable_query_log;
@@ -553,7 +553,7 @@ let $v=5;
 disable_query_log;
 while ($v)
 {
-  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308, 345.21, '1000-01-01 00:00:00', '0101');
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308, 345.21, '1000-01-01 00:00:00', '0101');
   dec $v;
 }
 enable_query_log;
@@ -570,7 +570,7 @@ SELECT COUNT(*) FROM t1 WHERE e IS NULL;
 SELECT COUNT(*) FROM t1 WHERE f IS NULL;
 SELECT COUNT(*) FROM t1 WHERE g IS NULL;
 
-UPDATE t1 SET c = 3.402823466E+38, d = 1.2686868689898989E+308, e = 666.66, f = '2007-10-23 23:23:23', g = '1111' WHERE a = 1;
+UPDATE t1 SET c = 3.402823466E+38, d = 1.2686868689898E+308, e = 666.66, f = '2007-10-23 23:23:23', g = '1111' WHERE a = 1;
 SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
 
 ##############################
