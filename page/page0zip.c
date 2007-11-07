@@ -2629,6 +2629,7 @@ err_exit:
 	}
 
 	ut_a(page_is_comp(page));
+	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
@@ -2651,7 +2652,7 @@ page_zip_validate(
 	const page_zip_des_t*	page_zip,/* in: compressed page */
 	const page_t*		page)	/* in: uncompressed page */
 {
-	page_zip_des_t	temp_page_zip = *page_zip;
+	page_zip_des_t	temp_page_zip;
 	byte*		temp_page_buf;
 	page_t*		temp_page;
 	ibool		valid;
@@ -2676,6 +2677,15 @@ page_zip_validate(
 	temp_page_buf = ut_malloc(2 * UNIV_PAGE_SIZE);
 	temp_page = ut_align(temp_page_buf, UNIV_PAGE_SIZE);
 
+#ifdef UNIV_DEBUG_VALGRIND
+	/* Get some more information if the UNIV_MEM_ASSERT_RW below fail. */
+	VALGRIND_GET_VBITS(page, temp_page, UNIV_PAGE_SIZE);
+	VALGRIND_GET_VBITS(page_zip, &temp_page_zip, sizeof temp_page_zip);
+#endif /* UNIV_DEBUG_VALGRIND */
+	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
+	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
+
+	temp_page_zip = *page_zip;
 	valid = page_zip_decompress(&temp_page_zip, temp_page);
 	if (!valid) {
 		fputs("page_zip_validate(): failed to decompress\n", stderr);
