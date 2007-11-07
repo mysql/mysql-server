@@ -548,14 +548,17 @@ public:
   enum store_key_result copy()
   {
     enum store_key_result result;
-    enum_check_fields saved_count_cuted_fields= 
-      to_field->table->in_use->count_cuted_fields;
+    THD *thd= to_field->table->in_use;
+    enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
+    ulong sql_mode= thd->variables.sql_mode;
+    thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
 
-    to_field->table->in_use->count_cuted_fields= CHECK_FIELD_IGNORE;
+    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
     result= copy_inner();
 
-    to_field->table->in_use->count_cuted_fields= saved_count_cuted_fields;
+    thd->count_cuted_fields= saved_count_cuted_fields;
+    thd->variables.sql_mode= sql_mode;
 
     return result;
   }
