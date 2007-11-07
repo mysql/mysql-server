@@ -57,6 +57,8 @@ select @result /* must be zero either way */;
 
 
 --remove_file $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
+connection con1;
+select RELEASE_LOCK("a");
 
 #
 # bug#27571 asynchronous setting mysql_`query`::error and Query_log_e::error_code
@@ -77,6 +79,7 @@ begin; update t1 set b=11 where a=2;
 
 connection con2;
 let $ID= `select connection_id()`;
+begin;
 send update t1 set b=b+10;
 
 connection con1;
@@ -84,9 +87,18 @@ connection con1;
 eval kill query $ID;
 rollback;
 
+# Bug #32148  	killi query may be ineffective 
+# forced to comment out the test's outcome 
+# and mask out ineffective ER_QUERY_INTERRUPTED
+# todo1: revert back upon fixing bug#32148
+# todo2: the tests need refining in that
+#        killing should wait till the victim requested
+#        its lock (wait_condition available in 5.1 tests)
+
 connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
+rollback;
 select * from t1  order by a /* must be the same as before (1,1),(2,2) */;
 
 #
@@ -121,6 +133,7 @@ begin; delete from t1 where a=2;
 
 connection con2;
 let $ID= `select connection_id()`;
+begin;
 send delete from t1 where a=2;
 
 connection con1;
@@ -131,7 +144,10 @@ rollback;
 connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
+rollback;
+# todo1,2 above
 select * from t1 order by a /* must be the same as before (1,1),(2,2) */;
+
 
 #
 # multi delete
@@ -176,6 +192,7 @@ rollback;
 connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
+# todo 1,2 above
 rollback;
 select * from t1 /* must be the same as before (1,1),(2,2) */;
 
@@ -192,7 +209,7 @@ RETURNS int(11)
 DETERMINISTIC
 begin
   if @b > 0 then
-     select get_lock("a", 10)  into @a;
+     select get_lock("a", 20)  into @a;
   else 
      set @b= 1;
   end if;
@@ -216,11 +233,15 @@ set @b= 0;
 send update t4 set b=b + bug27563(b);
 
 connection con1;
+let $wait_condition= select count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+source include/wait_condition.inc;
+select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+
 --replace_result $ID ID
 eval kill query $ID;
 
 connection con2;
---error 0,ER_QUERY_INTERRUPTED
+--error ER_QUERY_INTERRUPTED
 reap;
 select * from t4 order by b /* must be (1,1), (1,2) */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
@@ -259,11 +280,14 @@ set @b= 0;
 send delete from t4 where b=bug27563(1) or b=bug27563(2);
 
 connection con1;
+let $wait_condition= select count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+source include/wait_condition.inc;
+select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
 --replace_result $ID ID
 eval kill query $ID;
 
 connection con2;
---error 0,ER_QUERY_INTERRUPTED
+--error ER_QUERY_INTERRUPTED
 reap;
 select count(*) from t4 /* must be 1 */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
