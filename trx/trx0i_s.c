@@ -13,6 +13,8 @@ Created July 17, 2007 Vasil Dimov
 
 #include <mysql/plugin.h>
 
+#include "mysql_addons.h"
+
 #include "univ.i"
 #include "buf0buf.h"
 #include "dict0dict.h"
@@ -44,11 +46,6 @@ and each subsequent is N/2 where N is the number of rows we have
 allocated till now, then 39th chunk would have 1677416425 number of rows
 and all chunks would have 3354832851 number of rows. */
 #define MEM_CHUNKS_IN_TABLE_CACHE	39
-
-/* XXX delete this macro as soon as a real thd_get_thread_id()
-function is added to the MySQL code, bug
-http://bugs.mysql.com/30930 has been opened for this */
-#define thd_get_thread_id(thd)		0
 
 /* The following are some testing auxiliary macros. Do not enable them
 in a production environment. */
@@ -360,7 +357,7 @@ fill_trx_row(
 		row->trx_wait_started = 0;
 	}
 
-	row->trx_mysql_thread_id = thd_get_thread_id(trx->mysql_thd);
+	row->trx_mysql_thread_id = ib_thd_get_thread_id(trx->mysql_thd);
 
 	return(row);
 }
