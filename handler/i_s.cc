@@ -957,6 +957,12 @@ i_s_zip_fill_low(
 
 	DBUG_ENTER("i_s_zip_fill_low");
 
+	/* deny access to non-superusers */
+	if (check_global_access(thd, SUPER_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
 	/* Determine log2(PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW). */
 	for (uint r = PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW; r >>= 1; y++);
 
