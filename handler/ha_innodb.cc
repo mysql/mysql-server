@@ -4796,6 +4796,11 @@ create_table_def(
 
 	innodb_check_for_record_too_big_error(flags & DICT_TF_COMPACT, error);
 
+	if (error == DB_TABLE_ZIP_NO_IBD) {
+		my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+			 innobase_hton_name, "KEY_BLOCK_SIZE");
+	}
+
 	error = convert_error_code_to_mysql(error, NULL);
 
 	DBUG_RETURN(error);

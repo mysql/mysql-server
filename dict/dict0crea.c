@@ -274,7 +274,7 @@ dict_build_table_def_step(
 	} else {
 		/* Create in the system tablespace: disallow compression */
 		if (table->flags & DICT_TF_COMPRESSED_MASK) {
-			return(DB_ERROR);
+			return(DB_TABLE_ZIP_NO_IBD);
 		}
 	}
 
