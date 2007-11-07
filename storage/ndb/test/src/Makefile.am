@@ -24,7 +24,7 @@ libNDBT_a_SOURCES = \
 	NdbRestarter.cpp NdbRestarts.cpp NDBT_Output.cpp \
 	NdbBackup.cpp  NdbConfig.cpp NdbGrep.cpp NDBT_Table.cpp \
 	NdbSchemaCon.cpp NdbSchemaOp.cpp getarg.c \
-	CpcClient.cpp NdbMixRestarter.cpp NDBT_Thread.cpp
+	CpcClient.cpp NdbMixRestarter.cpp NDBT_Thread.cpp dbutil.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/common/mgmcommon -I$(top_srcdir)/storage/ndb/include/mgmcommon -I$(top_srcdir)/storage/ndb/include/kernel -I$(top_srcdir)/storage/ndb/src/mgmapi
 
