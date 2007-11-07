@@ -1921,6 +1921,58 @@ runBug31525(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug31980(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+
+  HugoOperations hugoOps (* ctx->getTab());
+  if(hugoOps.startTransaction(pNdb) != 0)
+    return NDBT_FAILED;
+  
+  if(hugoOps.pkInsertRecord(pNdb, 1) != 0)
+    return NDBT_FAILED;
+  
+  if(hugoOps.execute_NoCommit(pNdb) != 0)
+    return NDBT_FAILED;
+  
+  int transNode= hugoOps.getTransaction()->getConnectedNodeId();
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
+
+  if (res.dumpStateOneNode(transNode, val2, 2))
+  {
+    return NDBT_FAILED;
+  }
+
+  if (res.insertErrorInNode(transNode, 8055))
+  {
+    return NDBT_FAILED;
+  }
+    
+  hugoOps.execute_Commit(pNdb); // This should hang/fail
+
+  if (res.waitNodesNoStart(&transNode, 1))
+    return NDBT_FAILED;
+
+  if (res.startNodes(&transNode, 1))
+    return NDBT_FAILED;
+
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -2286,6 +2338,9 @@ TESTCASE("Bug28023", ""){
 }
 TESTCASE("Bug28717", ""){
   INITIALIZER(runBug28717);
+}
+TESTCASE("Bug31980", ""){
+  INITIALIZER(runBug31980);
 }
 TESTCASE("Bug29364", ""){
   INITIALIZER(runBug29364);
