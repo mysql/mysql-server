@@ -36,7 +36,7 @@
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
-#if !defined(MYSQL_CLIENT) && !defined(DBUG_OFF)
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) && !defined(DBUG_OFF) && !defined(_lint)
 static const char *HA_ERR(int i)
 {
   switch (i) {
