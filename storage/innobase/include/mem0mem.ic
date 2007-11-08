@@ -271,19 +271,16 @@ mem_heap_free_heap_top(
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
 
 	/* In the debug version erase block from top up */
-	{
-		ulint	len = (byte*)block + block->len - old_top;
-		mem_erase_buf(old_top, len);
-		UNIV_MEM_FREE(old_top, len);
-	}
+	mem_erase_buf(old_top, (byte*)block + block->len - old_top);
 
 	/* Update allocated memory count */
 	mutex_enter(&mem_hash_mutex);
 	mem_current_allocated_memory -= (total_size - size);
 	mutex_exit(&mem_hash_mutex);
 #else /* UNIV_MEM_DEBUG */
-	UNIV_MEM_FREE(old_top, (byte*)block + block->len - old_top);
+	UNIV_MEM_ASSERT_W(old_top, (byte*)block + block->len - old_top);
 #endif /* UNIV_MEM_DEBUG */
+	UNIV_MEM_ALLOC(old_top, (byte*)block + block->len - old_top);
 
 	/* If free == start, we may free the block if it is not the first
 	one */
@@ -363,6 +360,7 @@ mem_heap_free_top(
 	/* Subtract the free field of block */
 	mem_block_set_free(block, mem_block_get_free(block)
 			   - MEM_SPACE_NEEDED(n));
+	UNIV_MEM_ASSERT_W((byte*) block + mem_block_get_free(block), n);
 #ifdef UNIV_MEM_DEBUG
 
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
@@ -378,7 +376,11 @@ mem_heap_free_top(
 				== mem_block_get_start(block))) {
 		mem_heap_block_free(heap, block);
 	} else {
-		UNIV_MEM_FREE((byte*) block + mem_block_get_free(block), n);
+		/* Avoid a bogus UNIV_MEM_ASSERT_W() warning in a
+		subsequent invocation of mem_heap_free_top().
+		Originally, this was UNIV_MEM_FREE(), to catch writes
+		to freed memory. */
+		UNIV_MEM_ALLOC((byte*) block + mem_block_get_free(block), n);
 	}
 }
 

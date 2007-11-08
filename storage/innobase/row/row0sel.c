@@ -531,12 +531,13 @@ row_sel_build_prev_vers(
 /*====================*/
 					/* out: DB_SUCCESS or error code */
 	read_view_t*	read_view,	/* in: read view */
-	plan_t*		plan,		/* in: plan node for table */
+	dict_index_t*	index,		/* in: plan node for table */
 	rec_t*		rec,		/* in: record in a clustered index */
 	ulint**		offsets,	/* in/out: offsets returned by
 					rec_get_offsets(rec, plan->index) */
 	mem_heap_t**	offset_heap,	/* in/out: memory heap from which
 					the offsets are allocated */
+	mem_heap_t**    old_vers_heap,  /* out: old version heap to use */
 	rec_t**		old_vers,	/* out: old version, or NULL if the
 					record does not exist in the view:
 					i.e., it was freshly inserted
@@ -545,15 +546,15 @@ row_sel_build_prev_vers(
 {
 	ulint	err;
 
-	if (plan->old_vers_heap) {
-		mem_heap_empty(plan->old_vers_heap);
+	if (*old_vers_heap) {
+		mem_heap_empty(*old_vers_heap);
 	} else {
-		plan->old_vers_heap = mem_heap_create(512);
+		*old_vers_heap = mem_heap_create(512);
 	}
 
 	err = row_vers_build_for_consistent_read(
-		rec, mtr, plan->index, offsets, read_view, offset_heap,
-		plan->old_vers_heap, old_vers);
+		rec, mtr, index, offsets, read_view, offset_heap,
+		*old_vers_heap, old_vers);
 	return(err);
 }
 
@@ -765,9 +766,11 @@ row_sel_get_clust_rec(
 		if (!lock_clust_rec_cons_read_sees(clust_rec, index, offsets,
 						   node->read_view)) {
 
-			err = row_sel_build_prev_vers(node->read_view, plan,
-						      clust_rec, &offsets,
-						      &heap, &old_vers, mtr);
+			err = row_sel_build_prev_vers(
+				node->read_view, index, clust_rec,
+				&offsets, &heap, &plan->old_vers_heap,
+				&old_vers, mtr);
+
 			if (err != DB_SUCCESS) {
 
 				goto err_exit;
@@ -1490,10 +1493,11 @@ skip_lock:
 			if (!lock_clust_rec_cons_read_sees(rec, index, offsets,
 							   node->read_view)) {
 
-				err = row_sel_build_prev_vers(node->read_view,
-							      plan, rec,
-							      &offsets, &heap,
-							      &old_vers, &mtr);
+				err = row_sel_build_prev_vers(
+					node->read_view, index, rec,
+					&offsets, &heap, &plan->old_vers_heap,
+					&old_vers, &mtr);
+
 				if (err != DB_SUCCESS) {
 
 					goto lock_wait_or_error;
@@ -3999,6 +4003,7 @@ no_gap_lock:
 			mutex_enter(&kernel_mutex);
 			if (trx->was_chosen_as_deadlock_victim) {
 				mutex_exit(&kernel_mutex);
+				err = DB_DEADLOCK;
 
 				goto lock_wait_or_error;
 			}
@@ -4521,7 +4526,8 @@ row_search_check_if_query_cache_permitted(
 }
 
 /***********************************************************************
-Read the AUTOINC column from the current row. */
+Read the AUTOINC column from the current row. If the value is less than
+0 and the type is not unsigned then we reset the value to 0. */
 static
 ib_longlong
 row_search_autoinc_read_column(
@@ -4536,6 +4542,7 @@ row_search_autoinc_read_column(
 	const byte*	data;
 	ib_longlong	value;
 	mem_heap_t*	heap = NULL;
+	/* Our requirement is that dest should be word aligned. */
 	byte		dest[sizeof(value)];
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
@@ -4554,26 +4561,43 @@ row_search_autoinc_read_column(
 	ut_a(len != UNIV_SQL_NULL);
 	ut_a(len <= sizeof value);
 
-	/* Copy integer data and restore sign bit */
-	if (unsigned_type || (data[0] & 128))
-		memset(dest, 0x00, sizeof(dest));
-	else
-		memset(dest, 0xff, sizeof(dest));
+	mach_read_int_type(dest, data, len, unsigned_type);
 
-	memcpy(dest + (sizeof(value) - len), data, len);
+	/* The assumption here is that the AUTOINC value can't be negative
+	and that dest is word aligned. */
+	switch (len) {
+	case 8:
+		value = *(ib_longlong*) dest;
+		break;
 
-	if (!unsigned_type)
-		dest[sizeof(value) - len] ^= 128;
+	case 4:
+		value = *(ib_uint32_t*) dest;
+		break;
 
-	/* The assumption here is that the AUTOINC value can't be negative.*/
-	value = (((ib_longlong) mach_read_from_4(dest)) << 32) |
-		 ((ib_longlong) mach_read_from_4(dest + 4));        
+	case 3:
+		value = *(ib_uint32_t*) dest;
+		value &= 0xFFFFFF;
+		break;
+
+	case 2:
+		value = *(uint16 *) dest;
+		break;
+
+	case 1:
+		value = *dest;
+		break;
+
+	default:
+		ut_error;
+	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
-	ut_a(value >= 0);
+	if (!unsigned_type && value < 0) {
+		value = 0;
+	}
 
 	return(value);
 }
