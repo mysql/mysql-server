@@ -101,7 +101,7 @@ extern FILE *_db_fp_(void);
 #define DBUG_LONGJMP(a1) longjmp(a1)
 #define DBUG_DUMP(keyword,a1,a2)
 #define DBUG_END()
-#define DBUG_ASSERT(A)
+#define DBUG_ASSERT(A)              do { } while(0)
 #define DBUG_LOCK_FILE
 #define DBUG_FILE (stderr)
 #define DBUG_UNLOCK_FILE
