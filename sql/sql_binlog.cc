@@ -37,6 +37,9 @@ void mysql_client_binlog_statement(THD* thd)
                             thd->lex->comment.length : 2048),
                      thd->lex->comment.str));
 
+  if (check_global_access(thd, SUPER_ACL))
+    DBUG_VOID_RETURN;
+
   /*
     Temporarily turn off send_ok, since different events handle this
     differently
