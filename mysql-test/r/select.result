@@ -2827,6 +2827,14 @@ FFFFFFFFFFFFFFFF	7FFFFFFFFFFFFFFF
 FFFFFFFFFFFFFFFF	7FFFFFFFFFFFFFFF
 8FFFFFFFFFFFFFFF	7FFFFFFFFFFFFFFF
 drop table t1;
+CREATE TABLE t1 (c0 int);
+CREATE TABLE t2 (c0 int);
+INSERT INTO t1 VALUES(@@connect_timeout);
+INSERT INTO t2 VALUES(@@connect_timeout);
+SELECT * FROM t1 JOIN t2 ON t1.c0 = t2.c0 WHERE (t1.c0 <=> @@connect_timeout);
+c0	c0
+X	X
+DROP TABLE t1, t2;
 End of 4.1 tests
 CREATE TABLE t1 ( 
 K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
