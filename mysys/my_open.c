@@ -71,6 +71,7 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
 #else
   fd = open((char *) FileName, Flags);
 #endif
+
   DBUG_RETURN(my_register_filename(fd, FileName, FILE_BY_OPEN,
 				   EE_FILENOTFOUND, MyFlags));
 } /* my_open */
@@ -124,61 +125,66 @@ int my_close(File fd, myf MyFlags)
    
   SYNOPSIS
     my_register_filename()
-      fd
-      FileName
-      type_file_type
+    fd			   File number opened, -1 if error on open
+    FileName		   File name
+    type_file_type	   How file was created
+    error_message_number   Error message number if caller got error (fd == -1)
+    MyFlags		   Flags for my_close()
+
+  RETURN
+    -1   error
+     #   Filenumber
+
 */
 
 File my_register_filename(File fd, const char *FileName, enum file_type
 			  type_of_file, uint error_message_number, myf MyFlags)
 {
+  DBUG_ENTER("my_register_filename");
   if ((int) fd >= 0)
   {
     if ((uint) fd >= my_file_limit)
     {
 #if defined(THREAD) && !defined(HAVE_PREAD)
-      (void) my_close(fd,MyFlags);
-      my_errno=EMFILE;
-      if (MyFlags & (MY_FFNF | MY_FAE | MY_WME))
-	my_error(EE_OUT_OF_FILERESOURCES, MYF(ME_BELL+ME_WAITTANG),
-		 FileName, my_errno);
-      return(-1);
-#endif
+      my_errno= EMFILE;
+#else
       thread_safe_increment(my_file_opened,&THR_LOCK_open);
-      return(fd);				/* safeguard */
-    }
-    pthread_mutex_lock(&THR_LOCK_open);
-    if ((my_file_info[fd].name = (char*) my_strdup(FileName,MyFlags)))
-    {
-      my_file_opened++;
-      my_file_total_opened++;
-      my_file_info[fd].type = type_of_file;
-#if defined(THREAD) && !defined(HAVE_PREAD)
-      pthread_mutex_init(&my_file_info[fd].mutex,MY_MUTEX_INIT_FAST);
+      DBUG_RETURN(fd);				/* safeguard */
 #endif
-      pthread_mutex_unlock(&THR_LOCK_open);
-      DBUG_PRINT("exit",("fd: %d",fd));
-      return(fd);
     }
-    pthread_mutex_unlock(&THR_LOCK_open);
+    else
+    {
+      pthread_mutex_lock(&THR_LOCK_open);
+      if ((my_file_info[fd].name = (char*) my_strdup(FileName,MyFlags)))
+      {
+        my_file_opened++;
+        my_file_total_opened++;
+        my_file_info[fd].type = type_of_file;
+#if defined(THREAD) && !defined(HAVE_PREAD)
+        pthread_mutex_init(&my_file_info[fd].mutex,MY_MUTEX_INIT_FAST);
+#endif
+        pthread_mutex_unlock(&THR_LOCK_open);
+        DBUG_PRINT("exit",("fd: %d",fd));
+        DBUG_RETURN(fd);
+      }
+      pthread_mutex_unlock(&THR_LOCK_open);
+      my_errno= ENOMEM;
+    }
     (void) my_close(fd, MyFlags);
-    my_errno=ENOMEM;
   }
   else
-    my_errno=errno;
-  DBUG_PRINT("error",("Got error %d on open",my_errno));
-  if (MyFlags & (MY_FFNF | MY_FAE | MY_WME)) {
-    if (my_errno == EMFILE) {
-      DBUG_PRINT("error",("print err: %d",EE_OUT_OF_FILERESOURCES));
-      my_error(EE_OUT_OF_FILERESOURCES, MYF(ME_BELL+ME_WAITTANG),
-	     FileName, my_errno);
-    } else {
-      DBUG_PRINT("error",("print err: %d",error_message_number));
-      my_error(error_message_number, MYF(ME_BELL+ME_WAITTANG),
-	     FileName, my_errno);
-    }
+    my_errno= errno;
+
+  DBUG_PRINT("error",("Got error %d on open", my_errno));
+  if (MyFlags & (MY_FFNF | MY_FAE | MY_WME))
+  {
+    if (my_errno == EMFILE)
+      error_message_number= EE_OUT_OF_FILERESOURCES;
+    DBUG_PRINT("error",("print err: %d",error_message_number));
+    my_error(error_message_number, MYF(ME_BELL+ME_WAITTANG),
+             FileName, my_errno);
   }
-  return(fd);
+  DBUG_RETURN(-1);
 }
 
 #ifdef __WIN__

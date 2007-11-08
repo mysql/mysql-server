@@ -17,11 +17,10 @@
 #include <my_pthread.h>
 
 #ifndef HAVE_INLINE
-/*
-  the following will cause all inline functions to be instantiated
-*/
+/* the following will cause all inline functions to be instantiated */
 #define HAVE_INLINE
-#define static extern
+#undef STATIC_INLINE
+#define STATIC_INLINE extern
 #endif
 
 #include <my_atomic.h>
@@ -35,7 +34,7 @@
 */
 int my_atomic_initialize()
 {
-  DBUG_ASSERT(sizeof(intptr) == sizeof(void *));
+  compile_time_assert(sizeof(intptr) == sizeof(void *));
   /* currently the only thing worth checking is SMP/UP issue */
 #ifdef MY_ATOMIC_MODE_DUMMY
   return my_getncpus() == 1 ? MY_ATOMIC_OK : MY_ATOMIC_NOT_1CPU;
