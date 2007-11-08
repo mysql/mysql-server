@@ -440,6 +440,7 @@ THD::THD()
   cleanup_done= abort_on_warning= no_warnings_for_error= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
+  transaction.on= 1;
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
