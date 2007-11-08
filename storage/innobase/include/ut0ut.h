@@ -263,6 +263,24 @@ ut_copy_file(
 	FILE*	dest,	/* in: output file */
 	FILE*	src);	/* in: input file to be appended to output */
 
+/**************************************************************************
+snprintf(). */
+
+#ifdef __WIN__
+int
+ut_snprintf(
+				/* out: number of characters that would
+				have been printed if the size were
+				unlimited, not including the terminating
+				'\0'. */
+	char*		str,	/* out: string */
+	size_t		size,	/* in: str size */
+	const char*	fmt,	/* in: format */
+	...);			/* in: format values */
+#else
+#define ut_snprintf	snprintf
+#endif /* __WIN__ */
+
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"
 #endif
