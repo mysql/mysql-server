@@ -84,11 +84,6 @@ int my_error(int nr, myf MyFlags, ...)
     if (nr <= meh_p->meh_last)
       break;
 
-#ifdef SHARED_LIBRARY
-  if ((meh_p == &my_errmsgs_globerrs) && ! globerrs[0])
-    init_glob_errs();
-#endif
-
   /* get the error message string. Default, if NULL or empty string (""). */
   if (! (format= (meh_p && (nr >= meh_p->meh_first)) ?
          meh_p->meh_errmsgs[nr - meh_p->meh_first] : NULL) || ! *format)
