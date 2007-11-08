@@ -869,6 +869,30 @@ a	b
 3	30
 4	1
 drop table t1,t2;
+create table t1 (a varchar(100) primary key, b varchar(100)) engine = NDB;
+insert into t1 values
+('a', 'a'),('b','b'),('c', 'c'),('aa', 'aa'),('bb', 'bb'),('cc', 'cc');
+replace into t1 values ('a', '-a');
+replace into t1 values ('b', '-b');
+replace into t1 values ('c', '-c');
+replace into t1 values ('aa', '-aa');
+replace into t1 values ('bb', '-bb');
+replace into t1 values ('cc', '-cc');
+replace into t1 values ('aaa', '-aaa');
+replace into t1 values ('bbb', '-bbb');
+replace into t1 values ('ccc', '-ccc');
+select * from t1 order by 1,2;
+a	b
+a	-a
+aa	-aa
+aaa	-aaa
+b	-b
+bb	-bb
+bbb	-bbb
+c	-c
+cc	-cc
+ccc	-ccc
+drop table t1;
 End of 5.0 tests
 CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
 CONSTRAINT pk_a PRIMARY KEY (a))engine=ndb;
