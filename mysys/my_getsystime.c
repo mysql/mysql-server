@@ -17,6 +17,11 @@
 /* thus to get the current time we should use the system function
    with the highest possible resolution */
 
+/* 
+   TODO: in functions my_micro_time() and my_micro_time_and_time() there
+   exists some common code that should be merged into a function.
+*/
+
 #include "mysys_priv.h"
 #include "my_static.h"
 
@@ -113,7 +118,7 @@ ulonglong my_micro_time()
              query_performance_frequency));
   }
   else
-    newtime= (GetTickCount() * 1000); /* GetTickCount only returns milliseconds */
+    newtime= (GetTickCount() * 1000); /* GetTickCount only returns millisec */
   return newtime;
 #elif defined(HAVE_GETHRTIME)
   return gethrtime()/1000;
@@ -161,7 +166,9 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
   if (query_performance_frequency)
   {
     QueryPerformanceCounter((LARGE_INTEGER*) &newtime);
-    newtime/= (query_performance_frequency * 1000000);
+    return ((newtime / query_performance_frequency * 10000000) +
+            (newtime % query_performance_frequency * 10000000 /
+             query_performance_frequency));
   }
   else
     newtime= (GetTickCount() * 1000); /* GetTickCount only returns millisec. */
