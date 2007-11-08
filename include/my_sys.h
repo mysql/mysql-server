@@ -691,6 +691,8 @@ extern WF_PACK *wf_comp(char * str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);
 extern size_t strip_sp(char * str);
+extern my_bool array_append_string_unique(const char *str,
+                                          const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);
 extern void soundex(CHARSET_INFO *, char * out_pntr, char * in_pntr,
                     pbool remove_garbage);
