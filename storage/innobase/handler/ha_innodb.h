@@ -250,17 +250,3 @@ int thd_binlog_format(const MYSQL_THD thd);
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 }
-
-/*
-  don't delete it - it may be re-enabled later
-  as an optimization for the most common case InnoDB+binlog
-*/
-#if 0
-int innobase_report_binlog_offset_and_commit(
-	THD*	thd,
-	void*	trx_handle,
-	char*	log_file_name,
-	my_off_t end_offset);
-int innobase_commit_complete(void* trx_handle);
-void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
-#endif

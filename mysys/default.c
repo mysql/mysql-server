@@ -47,7 +47,7 @@ char *my_defaults_extra_file=0;
 
 /* Which directories are searched for options (and in which order) */
 
-#define MAX_DEFAULT_DIRS 7
+#define MAX_DEFAULT_DIRS 6
 const char *default_directories[MAX_DEFAULT_DIRS + 1];
 
 #ifdef __WIN__
@@ -83,7 +83,22 @@ static int search_default_file_with_ext(Process_option_func func,
                                         void *func_ctx,
 					const char *dir, const char *ext,
 					const char *config_file, int recursion_level);
-static void init_default_directories();
+
+
+
+/**
+  Create the list of default directories.
+
+  @details
+  On all systems, if a directory is already in the list, it will be moved
+  to the end of the list.  This avoids reading defaults files multiple times,
+  while ensuring the correct precedence.
+
+  @return void
+*/
+
+static void (*init_default_directories)();
+
 
 static char *remove_end_comment(char *ptr);
 
@@ -922,6 +937,25 @@ void print_defaults(const char *conf_file, const char **groups)
 #include <help_end.h>
 
 
+#define ADD_DIRECTORY(DIR) \
+  do { \
+    my_bool rc= \
+      array_append_string_unique((DIR), default_directories, \
+                                 array_elements(default_directories)); \
+    DBUG_ASSERT(rc == FALSE);                   /* Success */ \
+  } while (0)
+
+
+#define ADD_COMMON_DIRECTORIES() \
+  do { \
+    char *env; \
+    if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV)))) \
+      ADD_DIRECTORY(env); \
+    /* Placeholder for --defaults-extra-file=<path> */ \
+    ADD_DIRECTORY(""); \
+  } while (0)
+
+
 #ifdef __WIN__
 /*
   This wrapper for GetSystemWindowsDirectory() will dynamically bind to the
@@ -956,71 +990,33 @@ static size_t my_get_system_windows_directory(char *buffer, size_t size)
   }
   return count;
 }
-#endif
 
 
-/*
-  Create the list of default directories.
+/**
+  Initialize default directories for Microsoft Windows
 
-  On Microsoft Windows, this is:
-    1. C:/
+  @details
+    1. GetSystemWindowsDirectory()
     2. GetWindowsDirectory()
-    3. GetSystemWindowsDirectory()
-    4. getenv(DEFAULT_HOME_ENV)
-    5. Directory above where the executable is located
-    6. ""
-    7. --sysconfdir=<path>
+    3. C:/
+    4. Directory above where the executable is located
+    5. getenv(DEFAULT_HOME_ENV)
+    6. --defaults-extra-file=<path> (run-time option)
+*/
 
-  On Novell NetWare, this is:
-    1. sys:/etc/
-    2. getenv(DEFAULT_HOME_ENV)
-    3. ""
-    4. --sysconfdir=<path>
-
-  On OS/2, this is:
-    1. getenv(ETC)
-    2. /etc/
-    3. getenv(DEFAULT_HOME_ENV)
-    4. ""
-    5. "~/"
-    6. --sysconfdir=<path>
-
-  Everywhere else, this is:
-    1. /etc/
-    2. /etc/mysql/
-    3. getenv(DEFAULT_HOME_ENV)
-    4. ""
-    5. "~/"
-    6. --sysconfdir=<path>
-
- */
-
-static void init_default_directories()
+static void init_default_directories_win()
 {
-  const char *env, **ptr= default_directories;
+  bzero(default_directories, sizeof(default_directories));
 
-#ifdef __WIN__
-  *ptr++= "C:/";
+  if (my_get_system_windows_directory(shared_system_dir,
+                                      sizeof(shared_system_dir)))
+    ADD_DIRECTORY(&shared_system_dir);
 
   if (GetWindowsDirectory(system_dir,sizeof(system_dir)))
-    *ptr++= (char*)&system_dir;
-  if (my_get_system_windows_directory(shared_system_dir,
-                                      sizeof(shared_system_dir)) &&
-      strcmp(system_dir, shared_system_dir))
-    *ptr++= (char *)&shared_system_dir;
+    ADD_DIRECTORY(&system_dir);
 
-#elif defined(__NETWARE__)
-  *ptr++= "sys:/etc/";
-#else
-  *ptr++= "/etc/";
-  *ptr++= "/etc/mysql/";
-#endif
-  if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV))))
-    *ptr++= env;
-  *ptr++= "";			/* Place for defaults_extra_file */
-#if !defined(__WIN__) && !defined(__NETWARE__)
-  *ptr++= "~/";;
-#elif defined(__WIN__)
+  ADD_DIRECTORY("C:/");
+
   if (GetModuleFileName(NULL, config_dir, sizeof(config_dir)))
   {
     char *last= NULL, *end= strend(config_dir);
@@ -1050,12 +1046,61 @@ static void init_default_directories()
         last= end;
       }
     }
-    *ptr++= (char *)&config_dir;
+    ADD_DIRECTORY(&config_dir);
   }
-#endif
+
+  ADD_COMMON_DIRECTORIES();
+}
+
+static void (*init_default_directories)()= init_default_directories_win;
+
+#elif defined(__NETWARE__)
+
+/**
+  Initialize default directories for Novell Netware
+
+  @details
+    1. sys:/etc/
+    2. getenv(DEFAULT_HOME_ENV)
+    3. --defaults-extra-file=<path> (run-time option)
+*/
+
+static void init_default_directories_netware()
+{
+  bzero(default_directories, sizeof(default_directories));
+  ADD_DIRECTORY("sys:/etc/");
+  ADD_COMMON_DIRECTORIES();
+}
+
+static void (*init_default_directories)()= init_default_directories_netware;
+
+#else
+
+/**
+  Initialize default directories for Unix
+
+  @details
+    1. /etc/
+    2. /etc/mysql/
+    3. --sysconfdir=<path> (compile-time option)
+    4. getenv(DEFAULT_HOME_ENV)
+    5. --defaults-extra-file=<path> (run-time option)
+    6. "~/"
+*/
+
+static void init_default_directories_unix()
+{
+  bzero(default_directories, sizeof(default_directories));
+  ADD_DIRECTORY("/etc/");
+  ADD_DIRECTORY("/etc/mysql/");
 #ifdef DEFAULT_SYSCONFDIR
   if (DEFAULT_SYSCONFDIR != "")
-    *ptr++= DEFAULT_SYSCONFDIR;
+    ADD_DIRECTORY(DEFAULT_SYSCONFDIR);
 #endif
-  *ptr= 0;			/* end marker */
+  ADD_COMMON_DIRECTORIES();
+  ADD_DIRECTORY("~/");
 }
+
+static void (*init_default_directories)()= init_default_directories_unix;
+
+#endif

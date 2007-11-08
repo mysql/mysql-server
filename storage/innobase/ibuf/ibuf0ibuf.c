@@ -2900,7 +2900,7 @@ dump:
 				ut_print_timestamp(stderr);
 
 				fprintf(stderr,
-					"InnoDB: Error: Insert buffer insert"
+					"  InnoDB: Error: Insert buffer insert"
 					" fails; page free %lu,"
 					" dtuple size %lu\n",
 					(ulong) page_get_max_insert_size(
@@ -2925,7 +2925,7 @@ dump:
 					buf_frame_get_page_no(page),
 					IBUF_BITMAP_FREE, mtr);
 
-				fprintf(stderr, "Bitmap bits %lu\n",
+				fprintf(stderr, "InnoDB: Bitmap bits %lu\n",
 					(ulong) old_bits);
 
 				fputs("InnoDB: Submit a detailed bug report"
