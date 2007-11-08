@@ -3694,8 +3694,9 @@ mysql_rename_table(handlerton *base, const char *old_db,
     wait_while_table_is_used()
     thd			Thread handler
     table		Table to remove from cache
-    function		HA_EXTRA_PREPARE_FOR_DELETE if table is to be deleted
-			HA_EXTRA_FORCE_REOPEN if table is not be used
+    function            HA_EXTRA_PREPARE_FOR_DROP if table is to be deleted
+                        HA_EXTRA_FORCE_REOPEN if table is not be used
+                        HA_EXTRA_PREPARE_FOR_RENAME if table is to be renamed
   NOTES
    When returning, the table will be unusable for other threads until
    the table is closed.
@@ -3745,7 +3746,7 @@ void close_cached_table(THD *thd, TABLE *table)
 {
   DBUG_ENTER("close_cached_table");
 
-  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DELETE);
+  wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
   /* Close lock if this is not got with LOCK TABLES */
   if (thd->lock)
   {
@@ -6506,7 +6507,7 @@ view_err:
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, old_name);
 
-  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DELETE);
+  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME);
   close_data_files_and_morph_locks(thd, db, table_name);
 
   error=0;
@@ -6964,7 +6965,6 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   DBUG_ENTER("mysql_recreate_table");
 
   bzero((char*) &create_info, sizeof(create_info));
-  create_info.db_type= 0;
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
