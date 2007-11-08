@@ -3078,9 +3078,13 @@ runDropDDObjects(NDBT_Context* ctx, NDBT_Step* step){
       case NdbDictionary::Object::UserTable:
         tableFound = list.elements[i].name;
         if(tableFound != 0){
-      	  if(pDict->dropTable(tableFound) != 0){
-            g_err << "Failed to drop table: " << pDict->getNdbError() << endl;
-            return NDBT_FAILED;
+          if(strcmp(tableFound, "ndb_apply_status") != 0 && 
+             strcmp(tableFound, "NDB$BLOB_2_3") != 0 &&
+             strcmp(tableFound, "ndb_schema") != 0){
+      	    if(pDict->dropTable(tableFound) != 0){
+              g_err << "Failed to drop table: " << tableFound << pDict->getNdbError() << endl;
+              return NDBT_FAILED;
+            }
           }
         }
         tableFound = 0;
