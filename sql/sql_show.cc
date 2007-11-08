@@ -70,6 +70,9 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names, NULL};
 #endif
 
+/* Match the values of enum ha_choice */
+static const char *ha_choice_values[] = {"", "0", "1"};
+
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
 
@@ -1182,6 +1185,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
   key_info= table->key_info;
   bzero((char*) &create_info, sizeof(create_info));
+  /* Allow update_create_info to update row type */
+  create_info.row_type= share->row_type;
   file->update_create_info(&create_info);
   primary_key= share->primary_key;
 
@@ -1366,19 +1371,25 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" PACK_KEYS=1"));
     if (share->db_create_options & HA_OPTION_NO_PACK_KEYS)
       packet->append(STRING_WITH_LEN(" PACK_KEYS=0"));
+    /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
+    if (share->page_checksum != HA_CHOICE_UNDEF)
+    {
+      packet->append(STRING_WITH_LEN(" PAGE_CHECKSUM="));
+      packet->append(ha_choice_values[(uint) share->page_checksum], 1);
+    }
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       packet->append(STRING_WITH_LEN(" DELAY_KEY_WRITE=1"));
-    if (share->row_type != ROW_TYPE_DEFAULT)
+    if (create_info.row_type != ROW_TYPE_DEFAULT)
     {
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
-      packet->append(ha_row_type[(uint) share->row_type]);
+      packet->append(ha_row_type[(uint) create_info.row_type]);
     }
     if (share->transactional != HA_CHOICE_UNDEF)
     {
       packet->append(STRING_WITH_LEN(" TRANSACTIONAL="));
-      packet->append(share->transactional == HA_CHOICE_YES ? "1" : "0", 1);
+      packet->append(ha_choice_values[(uint) share->transactional], 1);
     }
     if (table->s->key_block_size)
     {
@@ -3484,8 +3495,12 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       ptr=strmov(ptr," pack_keys=1");
     if (share->db_create_options & HA_OPTION_NO_PACK_KEYS)
       ptr=strmov(ptr," pack_keys=0");
+    /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       ptr=strmov(ptr," checksum=1");
+    if (share->page_checksum != HA_CHOICE_UNDEF)
+      ptr= strxmov(ptr, " page_checksum=",
+                   ha_choice_values[(uint) share->page_checksum], NullS);
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       ptr=strmov(ptr," delay_key_write=1");
     if (share->row_type != ROW_TYPE_DEFAULT)
@@ -3504,6 +3519,9 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
         show_table->part_info->no_parts > 0)
       ptr= strmov(ptr, " partitioned");
 #endif
+    if (share->transactional != HA_CHOICE_UNDEF)
+      ptr= strxmov(ptr, " transactional=",
+                   ha_choice_values[(uint) share->transactional], NullS);
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
