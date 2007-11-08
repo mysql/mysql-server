@@ -1347,7 +1347,17 @@ private:
     LcpStatus lcpStatus;
     Uint32 lcpStatusUpdatedPlace;
 
+    struct Save {
+      LcpStatus m_status;
+      Uint32 m_place;
+    } m_saveState[10];
+
     void setLcpStatus(LcpStatus status, Uint32 line){
+      for (Uint32 i = 9; i > 0; i--)
+        m_saveState[i] = m_saveState[i-1];
+      m_saveState[0].m_status = lcpStatus;
+      m_saveState[0].m_place = lcpStatusUpdatedPlace;
+
       lcpStatus = status;
       lcpStatusUpdatedPlace = line;
     }
