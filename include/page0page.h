@@ -749,7 +749,7 @@ page_copy_rec_list_end(
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
-	__attribute__((warn_unused_result, nonnull));
+	__attribute__((nonnull));
 /*****************************************************************
 Copies records from page to new_page, up to the given record, NOT
 including that record. Infimum and supremum records are not copied.
@@ -767,7 +767,7 @@ page_copy_rec_list_start(
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
-	__attribute__((warn_unused_result, nonnull));
+	__attribute__((nonnull));
 /*****************************************************************
 Deletes records from a page from a given record onward, including that record.
 The infimum and supremum records are not deleted. */
