@@ -93,7 +93,7 @@ page_zip_compress(
 	const page_t*	page,	/* in: uncompressed page */
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
-	__attribute__((warn_unused_result, nonnull(1,2,3)));
+	__attribute__((nonnull(1,2,3)));
 
 /**************************************************************************
 Decompress a page.  This function should tolerate errors on the compressed
@@ -107,7 +107,7 @@ page_zip_decompress(
 	page_zip_des_t*	page_zip,/* in: data, size;
 				out: m_start, m_end, m_nonempty, n_blobs */
 	page_t*		page)	/* out: uncompressed page, may be trashed */
-	__attribute__((warn_unused_result, nonnull));
+	__attribute__((nonnull));
 
 #ifdef UNIV_DEBUG
 /**************************************************************************
@@ -146,7 +146,7 @@ page_zip_max_ins_size(
 					zero or negative */
 	const page_zip_des_t*	page_zip,/* in: compressed page */
 	ibool			is_clust)/* in: TRUE if clustered index */
-	__attribute__((warn_unused_result, nonnull, pure));
+	__attribute__((nonnull, pure));
 
 /**************************************************************************
 Determine if enough space is available in the modification log. */
@@ -161,7 +161,7 @@ page_zip_available(
 	ulint			length,	/* in: combined size of the record */
 	ulint			create)	/* in: nonzero=add the record to
 					the heap */
-	__attribute__((warn_unused_result, nonnull, pure));
+	__attribute__((nonnull, pure));
 
 /**************************************************************************
 Write data to the uncompressed header portion of a page.  The data must
@@ -369,7 +369,7 @@ page_zip_reorganize(
 				m_start, m_end, m_nonempty */
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	mtr_t*		mtr)	/* in: mini-transaction */
-	__attribute__((warn_unused_result, nonnull));
+	__attribute__((nonnull));
 /**************************************************************************
 Copy a page byte for byte, except for the file page header and trailer. */
 
