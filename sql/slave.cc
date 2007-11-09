@@ -980,7 +980,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     DBUG_RETURN(1);
   }
   thd->query= query;
-  thd->query_error = 0;
+  thd->is_slave_error = 0;
   thd->net.no_send_ok = 1;
 
   bzero((char*) &tables,sizeof(tables));
@@ -1009,7 +1009,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   thd->db_length= save_db_length;
   thd->options = save_options;
 
-  if (thd->query_error)
+  if (thd->is_slave_error)
     goto err;                   // mysql_parse took care of the error send
 
   thd_proc_info(thd, "Opening master dump table");
@@ -2353,7 +2353,7 @@ err:
   change_rpl_status(RPL_ACTIVE_SLAVE,RPL_IDLE_SLAVE);
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
-  close_thread_tables(thd, 0);
+  close_thread_tables(thd);
   pthread_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
@@ -2501,7 +2501,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   if (sys_init_slave.value_length)
   {
     execute_init_command(thd, &sys_init_slave, &LOCK_sys_init_slave);
-    if (thd->query_error)
+    if (thd->is_slave_error)
     {
       sql_print_error("\
 Slave SQL thread aborted. Can't execute init_slave query");

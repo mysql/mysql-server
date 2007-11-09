@@ -68,7 +68,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const Relay_log_info *rli
     {
       if (!need_reopen)
       {
-        if (thd->query_error || thd->is_fatal_error)
+        if (thd->is_slave_error || thd->is_fatal_error)
         {
           /*
             Error reporting borrowed from Query_log_event with many excessive
@@ -112,7 +112,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const Relay_log_info *rli
       uint tables_count= rli->tables_to_lock_count;
       if ((error= open_tables(thd, &tables, &tables_count, 0)))
       {
-        if (thd->query_error || thd->is_fatal_error)
+        if (thd->is_slave_error || thd->is_fatal_error)
         {
           /*
             Error reporting borrowed from Query_log_event with many excessive
@@ -123,7 +123,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const Relay_log_info *rli
                       "Error '%s' on reopening tables",
                       (actual_error ? thd->net.last_error :
                        "unexpected success or fatal error"));
-          thd->query_error= 1;
+          thd->is_slave_error= 1;
         }
         const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
         DBUG_RETURN(error);
@@ -146,7 +146,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const Relay_log_info *rli
         {
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
-          thd->query_error= 1;
+          thd->is_slave_error= 1;
           const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(Rows_log_event::ERR_BAD_TABLE_DEF);
         }
@@ -255,7 +255,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const Relay_log_info *rli
                     "Error in %s event: row application failed. %s",
                     ev->get_type_str(),
                     thd->net.last_error ? thd->net.last_error : "");
-  thd->query_error= 1;
+  thd->is_slave_error= 1;
   break;
       }
 
@@ -300,7 +300,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const Relay_log_info *rli
     */
     thd->reset_current_stmt_binlog_row_based();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
-    thd->query_error= 1;
+    thd->is_slave_error= 1;
     DBUG_RETURN(error);
   }
 

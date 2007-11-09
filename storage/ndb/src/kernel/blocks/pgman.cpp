@@ -238,6 +238,13 @@ Pgman::execCONTINUEB(Signal* signal)
     }
     else
     {
+      if (ERROR_INSERTED(11007))
+      {
+        ndbout << "No more writes..." << endl;
+        SET_ERROR_INSERT_VALUE(11008);
+        signal->theData[0] = 9999;
+        sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 10000, 1);
+      }
       signal->theData[0] = m_end_lcp_req.senderData;
       sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
     }
@@ -493,6 +500,11 @@ Pgman::release_page_entry(Ptr<Page_entry>& ptr)
 
   if (! (state & Page_entry::LOCKED))
     ndbrequire(! (state & Page_entry::REQUEST));
+
+  if (ptr.p->m_copy_page_i != RNIL)
+  {
+    m_global_page_pool.release(ptr.p->m_copy_page_i);
+  }
   
   set_page_state(ptr, 0);
   m_page_hashlist.remove(ptr);
@@ -1142,7 +1154,8 @@ Pgman::process_cleanup(Signal* signal)
 #ifdef VM_TRACE
       debugOut << "PGMAN: " << ptr << " : process_cleanup" << endl;
 #endif
-      c_tup->disk_page_unmap_callback(ptr.p->m_real_page_i, 
+      c_tup->disk_page_unmap_callback(0, 
+				      ptr.p->m_real_page_i, 
 				      ptr.p->m_dirty_count);
       pageout(signal, ptr);
       max_count--;
@@ -1180,6 +1193,11 @@ Pgman::move_cleanup_ptr(Ptr<Page_entry> ptr)
 void
 Pgman::execLCP_FRAG_ORD(Signal* signal)
 {
+  if (ERROR_INSERTED(11008))
+  {
+    ndbout_c("Ignore LCP_FRAG_ORD");
+    return;
+  }
   LcpFragOrd* ord = (LcpFragOrd*)signal->getDataPtr();
   ndbrequire(ord->lcpId >= m_last_lcp_complete + 1 || m_last_lcp_complete == 0);
   m_last_lcp = ord->lcpId;
@@ -1196,6 +1214,12 @@ Pgman::execLCP_FRAG_ORD(Signal* signal)
 void
 Pgman::execEND_LCP_REQ(Signal* signal)
 {
+  if (ERROR_INSERTED(11008))
+  {
+    ndbout_c("Ignore END_LCP");
+    return;
+  }
+
   EndLcpReq* req = (EndLcpReq*)signal->getDataPtr();
   m_end_lcp_req = *req;
 
@@ -1274,7 +1298,8 @@ Pgman::process_lcp(Signal* signal)
         {
 	  DBG_LCP(" pageout()" << endl);
           ptr.p->m_state |= Page_entry::LCP;
-	  c_tup->disk_page_unmap_callback(ptr.p->m_real_page_i, 
+	  c_tup->disk_page_unmap_callback(0,
+					  ptr.p->m_real_page_i, 
 					  ptr.p->m_dirty_count);
           pageout(signal, ptr);
         }
@@ -1301,6 +1326,13 @@ Pgman::process_lcp(Signal* signal)
     }
     else
     {
+      if (ERROR_INSERTED(11007))
+      {
+        ndbout << "No more writes..." << endl;
+        signal->theData[0] = 9999;
+        sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 10000, 1);
+        SET_ERROR_INSERT_VALUE(11008);
+      }
       signal->theData[0] = m_end_lcp_req.senderData;
       sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
     }
@@ -1489,6 +1521,10 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   Page_state state = ptr.p->m_state;
   ndbrequire(state & Page_entry::PAGEOUT);
 
+  c_tup->disk_page_unmap_callback(1, 
+				  ptr.p->m_real_page_i, 
+				  ptr.p->m_dirty_count);
+  
   state &= ~ Page_entry::PAGEOUT;
   state &= ~ Page_entry::EMPTY;
   state &= ~ Page_entry::DIRTY;
@@ -1588,8 +1624,11 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
   }
 #endif
   
-  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
-	     FsReadWriteReq::FixedLength + 1, JBA);
+  if (!ERROR_INSERTED(11008))
+  {
+    sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
+               FsReadWriteReq::FixedLength + 1, JBA);
+  }
 }
 
 void
@@ -1739,7 +1778,7 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
 #endif
   
   state |= Page_entry::REQUEST;
-  if (only_request && req_flags & Page_request::EMPTY_PAGE)
+  if (only_request && (req_flags & Page_request::EMPTY_PAGE))
   {
     state |= Page_entry::EMPTY;
   }
@@ -2401,7 +2440,8 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
     if (pl_hash.find(ptr, key))
     {
       ndbout << "pageout " << ptr << endl;
-      c_tup->disk_page_unmap_callback(ptr.p->m_real_page_i, 
+      c_tup->disk_page_unmap_callback(0,
+				      ptr.p->m_real_page_i, 
 				      ptr.p->m_dirty_count);
       pageout(signal, ptr);
     }
@@ -2451,6 +2491,16 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 11006)
   {
     SET_ERROR_INSERT_VALUE(11006);
+  }
+
+  if (signal->theData[0] == 11007)
+  {
+    SET_ERROR_INSERT_VALUE(11007);
+  }
+
+  if (signal->theData[0] == 11008)
+  {
+    SET_ERROR_INSERT_VALUE(11008);
   }
 }
 

@@ -712,18 +712,6 @@ DROP TABLE event_log;
 #DROP DATABASE ev_db_1;
 SET GLOBAL event_scheduler = OFF;
 
-# 
-# End of tests
-#
-
-let $wait_condition=
-  select count(*) = 0 from information_schema.processlist
-  where db='events_test' and command = 'Connect' and user=current_user();
---source include/wait_condition.inc
-
-DROP DATABASE events_test;
-
-
 #
 # Bug#28641 CREATE EVENT with '2038.01.18 03:00:00' let server crash.
 #
@@ -737,3 +725,215 @@ CREATE EVENT bug28641 ON SCHEDULE AT '2038.01.18 03:00:00'
 DELIMITER ;|
 SET GLOBAL event_scheduler= OFF;
 DROP EVENT bug28641;
+
+###########################################################################
+
+--echo
+--echo #####################################################################
+--echo #
+--echo # BUG#31111: --read-only crashes MySQL (events fail to load).
+--echo #
+--echo #####################################################################
+--echo
+
+--error 0,ER_CANNOT_USER
+DROP USER mysqltest_u1@localhost;
+
+--disable_warnings
+DROP EVENT IF EXISTS e1;
+DROP EVENT IF EXISTS e2;
+--enable_warnings
+
+--echo
+
+# Check that an ordinary user can not create/update/drop events in the
+# read-only mode.
+
+GRANT EVENT ON *.* TO mysqltest_u1@localhost;
+
+--echo
+
+SET GLOBAL READ_ONLY = 1;
+
+--echo
+
+--echo #
+--echo # Connection: u1_con (mysqltest_u1@localhost/events_test).
+--echo #
+
+--connect(u1_con,localhost,mysqltest_u1,,events_test)
+
+--echo
+
+--error ER_OPTION_PREVENTS_STATEMENT
+CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
+
+--echo
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER EVENT e1 COMMENT 'comment';
+
+--echo
+
+--error ER_OPTION_PREVENTS_STATEMENT
+DROP EVENT e1;
+
+--echo
+
+# Check that the super user still can create/update/drop events.
+
+--echo #
+--echo # Connection: root_con (root@localhost/events_test).
+--echo #
+
+--connect(root_con,localhost,root,,events_test)
+
+--echo
+
+CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
+
+--echo
+
+ALTER EVENT e1 COMMENT 'comment';
+
+--echo
+
+DROP EVENT e1;
+
+--echo
+
+#
+# Switch to read-write mode; create test events under the user mysqltest_u1;
+# switch back to read-only mode.
+#
+
+SET GLOBAL READ_ONLY = 0;
+
+--echo
+
+--echo #
+--echo # Connection: u1_con (mysqltest_u1@localhost/test).
+--echo #
+
+--connection u1_con
+
+--echo
+
+CREATE EVENT e1 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND DO SET @a = 1;
+CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO SET @a = 1;
+
+--echo
+
+SELECT
+  event_name,
+  last_executed IS NULL,
+  definer
+FROM INFORMATION_SCHEMA.EVENTS
+WHERE event_schema = 'events_test';
+
+--echo
+
+--echo #
+--echo # Connection: root_con (root@localhost/events_test).
+--echo #
+
+--connection root_con
+
+--echo
+
+SET GLOBAL READ_ONLY = 1;
+
+# Check that the event scheduler is able to update event.
+
+--echo
+
+SET GLOBAL EVENT_SCHEDULER = ON;
+
+--echo
+
+--echo # Waiting for the event scheduler to execute and drop event e1...
+
+let $wait_timeout = 2;
+let $wait_condition =
+  SELECT COUNT(*) = 0
+  FROM INFORMATION_SCHEMA.EVENTS
+  WHERE event_schema = 'events_test' AND event_name = 'e1';
+--source include/wait_condition.inc
+
+--echo
+
+--echo # Waiting for the event scheduler to execute and update event e2...
+
+let $wait_condition =
+  SELECT last_executed IS NOT NULL
+  FROM INFORMATION_SCHEMA.EVENTS
+  WHERE event_schema = 'events_test' AND event_name = 'e2';
+--source include/wait_condition.inc
+
+--echo
+
+SET GLOBAL EVENT_SCHEDULER = OFF;
+
+--echo
+
+SELECT
+  event_name,
+  last_executed IS NULL,
+  definer
+FROM INFORMATION_SCHEMA.EVENTS
+WHERE event_schema = 'events_test';
+
+--echo
+
+--error ER_EVENT_DOES_NOT_EXIST
+DROP EVENT e1;
+
+--echo
+--echo # Cleanup.
+--echo
+
+DROP EVENT e2;
+
+--echo
+
+SET GLOBAL READ_ONLY = 0;
+
+--echo
+
+--echo #
+--echo # Connection: default
+--echo #
+
+--disconnect u1_con
+--disconnect root_con
+--connection default
+
+--echo
+
+DROP USER mysqltest_u1@localhost;
+
+--echo
+--echo #####################################################################
+--echo #
+--echo # End of BUG#31111.
+--echo #
+--echo #####################################################################
+--echo
+
+
+###########################################################################
+# 
+# End of tests
+#
+# !!! KEEP this section AT THE END of this file !!!
+#
+###########################################################################
+
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where db='events_test' and command = 'Connect' and user=current_user();
+--source include/wait_condition.inc
+
+DROP DATABASE events_test;
+
+# THIS MUST BE THE LAST LINE in this file.

@@ -187,7 +187,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
     }
   }
   fix_length_and_dec();
-  if (thd->net.report_error) // An error inside fix_length_and_dec occured
+  if (thd->is_error()) // An error inside fix_length_and_dec occured
     return TRUE;
   fixed= 1;
   return FALSE;
@@ -2897,6 +2897,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
   if (u_d->func_init)
   {
+    char init_msg_buff[MYSQL_ERRMSG_SIZE];
     char *to=num_buffer;
     for (uint i=0; i < arg_count; i++)
     {
@@ -2949,10 +2950,10 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     }
     thd->net.last_error[0]=0;
     Udf_func_init init= u_d->func_init;
-    if ((error=(uchar) init(&initid, &f_args, thd->net.last_error)))
+    if ((error=(uchar) init(&initid, &f_args, init_msg_buff)))
     {
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
-               u_d->name.str, thd->net.last_error);
+               u_d->name.str, init_msg_buff);
       free_udf(u_d);
       DBUG_RETURN(TRUE);
     }
@@ -4073,7 +4074,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
 
   NOTES
     For now it always return OK. All problem with value evaluating
-    will be caught by thd->net.report_error check in sql_set_variables().
+    will be caught by thd->is_error() check in sql_set_variables().
 
   RETURN
     FALSE OK.
