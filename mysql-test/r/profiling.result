@@ -364,5 +364,17 @@ drop view if exists v1;
 Warnings:
 Note	1051	Unknown table 'test.v1'
 drop function if exists f1;
+select 1; select 2; select 3;;
+1
+1
+2
+2
+3
+3
+select state from information_schema.profiling where seq=1 order by query_id desc limit 3;
+state
+continuing
+continuing
+initializing
 set session profiling = OFF;
 End of 5.0 tests

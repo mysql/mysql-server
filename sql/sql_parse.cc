@@ -426,6 +426,10 @@ pthread_handler_t handle_bootstrap(void *arg)
                                           QUERY_CACHE_FLAGS_SIZE);
     thd->query[length] = '\0';
     DBUG_PRINT("query",("%-.4096s",thd->query));
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.set_query_source(thd->query, length);
+#endif
+
     /*
       We don't need to obtain LOCK_thread_count here because in bootstrap
       mode we have only one thread.
@@ -645,6 +649,9 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
 /*
   Read one command from connection and execute it (query or simple command).
   This function is called in loop from thread function.
+
+  For profiling to work, it must never be called recursively.
+
   SYNOPSIS
     do_command()
   RETURN VALUE
@@ -654,12 +661,16 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
 
 bool do_command(THD *thd)
 {
+  bool return_value;
   char *packet= 0;
   ulong packet_length;
   NET *net= &thd->net;
   enum enum_server_command command;
   DBUG_ENTER("do_command");
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.start_new_query();
+#endif
   /*
     indicator of uninitialized lex => normal flow of errors handling
     (see my_message_sql)
@@ -686,11 +697,15 @@ bool do_command(THD *thd)
     /* Check if we can continue without closing the connection */
 
     if (net->error != 3)
-      DBUG_RETURN(TRUE);			// We have to close it.
+    {
+      return_value= TRUE;			// We have to close it.
+      goto out;
+    }
 
     net_send_error(thd, net->last_errno, NullS);
     net->error= 0;
-    DBUG_RETURN(FALSE);
+    return_value= FALSE;
+    goto out;
   }
 
   packet= (char*) net->read_pos;
@@ -724,7 +739,13 @@ bool do_command(THD *thd)
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
   DBUG_ASSERT(packet_length);
-  DBUG_RETURN(dispatch_command(command, thd, packet+1, (uint) (packet_length-1)));
+  return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));
+
+out:
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.finish_current_query();
+#endif
+  DBUG_RETURN(return_value);
 }
 #endif  /* EMBEDDED_LIBRARY */
 
@@ -982,19 +1003,22 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;					// fatal error is set
     char *packet_end= thd->query + thd->query_length;
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
-    const char* found_semicolon= NULL;
+    const char* end_of_stmt= NULL;
 
     general_log_write(thd, command, thd->query, thd->query_length);
     DBUG_PRINT("query",("%-.4096s",thd->query));
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.set_query_source(thd->query, thd->query_length);
+#endif
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
-    mysql_parse(thd, thd->query, thd->query_length, & found_semicolon);
+    mysql_parse(thd, thd->query, thd->query_length, &end_of_stmt);
 
-    while (!thd->killed && found_semicolon && !thd->net.report_error)
+    while (!thd->killed && (end_of_stmt != NULL) && !thd->net.report_error)
     {
-      char *next_packet= (char*) found_semicolon;
+      char *beginning_of_next_stmt= (char*) end_of_stmt;
       net->no_send_error= 0;
       /*
         Multiple queries exits, execute them individually
@@ -1002,24 +1026,31 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (thd->lock || thd->open_tables || thd->derived_tables ||
           thd->prelocked_mode)
         close_thread_tables(thd);
-      ulong length= (ulong)(packet_end - next_packet);
+      ulong length= (ulong)(packet_end - beginning_of_next_stmt);
 
       log_slow_statement(thd);
 
       /* Remove garbage at start of query */
-      while (my_isspace(thd->charset(), *next_packet) && length > 0)
+      while (length > 0 && my_isspace(thd->charset(), *beginning_of_next_stmt))
       {
-        next_packet++;
+        beginning_of_next_stmt++;
         length--;
       }
+
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+      thd->profiling.finish_current_query();
+      thd->profiling.start_new_query("continuing");
+      thd->profiling.set_query_source(beginning_of_next_stmt, length);
+#endif
+
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_length= length;
-      thd->query= next_packet;
+      thd->query= beginning_of_next_stmt;
       thd->query_id= next_query_id();
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
-      mysql_parse(thd, next_packet, length, & found_semicolon);
+      mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1516,8 +1547,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       Mark this current profiling record to be discarded.  We don't
       wish to have SHOW commands show up in profiling.
     */
-#ifdef ENABLED_PROFILING
-    thd->profiling.discard();
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.discard_current_query();
 #endif
     break;
   case SCH_OPEN_TABLES:
@@ -2012,8 +2043,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_PROFILES:
   {
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-    thd->profiling.store();
-    thd->profiling.discard();
+    thd->profiling.discard_current_query();
     res= thd->profiling.show_profiles();
     if (res)
       goto error;
@@ -5274,9 +5304,6 @@ void mysql_reset_thd_for_next_command(THD *thd)
     thd->total_warn_count=0;			// Warnings for this query
     thd->rand_used= 0;
     thd->sent_row_count= thd->examined_row_count= 0;
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-    thd->profiling.reset();
-#endif
   }
   /*
     Because we come here only for start of top-statements, binlog format is

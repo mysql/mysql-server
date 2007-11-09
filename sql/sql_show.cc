@@ -5361,17 +5361,24 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
 }
 
 
-/*
-  Create information_schema table using schema_table data
+/**
+  Create information_schema table using schema_table data.
 
-  SYNOPSIS
-    create_schema_table()
+  @note
+    For MYSQL_TYPE_DECIMAL fields only, the field_length member has encoded
+    into it two numbers, based on modulus of base-10 numbers.  In the ones
+    position is the number of decimals.  Tens position is unused.  In the
+    hundreds and thousands position is a two-digit decimal number representing
+    length.  Encode this value with  (decimals*100)+length  , where
+    0<decimals<10 and 0<=length<100 .
+
+  @param
     thd	       	          thread handler
+  @param
     schema_table          pointer to 'shema_tables' element
 
-  RETURN
-    #	                  Pointer to created table
-    0	                  Can't create table
+  @retval  \#             Pointer to created table
+  @retval  NULL           Can't create table
 */
 
 TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
