@@ -1066,8 +1066,16 @@ static int new_table(uint16 sid, const char *name,
     tprint(tracef, ", length unknown\n");
     goto end;
   }
-  share->state.state.data_file_length= dfile_len;
-  share->state.state.key_file_length=  kfile_len;
+  if (share->state.state.data_file_length != dfile_len)
+  {
+    tprint(tracef, ", has wrong state.data_file_length (fixing it)");
+    share->state.state.data_file_length= dfile_len;
+  }
+  if (share->state.state.key_file_length != kfile_len)
+  {
+    tprint(tracef, ", has wrong state.key_file_length (fixing it)");
+    share->state.state.key_file_length= kfile_len;
+  }
   if ((dfile_len % share->block_size) > 0)
   {
     tprint(tracef, ", has too short last page\n");
@@ -1145,6 +1153,19 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD)
     goto end;
   }
   buff= log_record_buffer.str;
+  /**
+     @todo RECOVERY BUG
+     we stamp page with UNDO's LSN. Assume an operation logs REDO-REDO-UNDO
+     where the two REDOs are about the same page. Then recovery applies first
+     REDO and skips second REDO which is wrong. Solutions:
+     a) when applying REDO, keep page pinned, don't stamp it, remember it;
+     when seeing UNDO, unpin pages and stamp them; for BLOB pages we cannot
+     pin them (too large for memory) so need an additional pass in REDO phase:
+      - find UNDO
+      - execute all REDOs about this UNDO but skipping REDOs for
+     or b) when applying REDO, stamp page with REDO's LSN (=> difference in
+     'cmp' between run-time and recovery, need a special 'cmp'...).
+  */
   if (_ma_apply_redo_insert_row_head_or_tail(info, current_group_end_lsn,
                                              HEAD_PAGE,
                                              buff + FILEID_STORE_SIZE,

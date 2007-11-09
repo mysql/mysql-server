@@ -1288,6 +1288,11 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       thd->proc_info= "Repair with keycache";
       param.testflag &= ~T_REP_BY_SORT;
       error= maria_repair(&param, file, fixed_name, param.testflag & T_QUICK);
+      /**
+         @todo RECOVERY BUG we do things with the index file
+         (maria_sort_index() after the above which already has logged the
+         record and bumped create_rename_lsn. Is it ok?
+      */
     }
     param.testflag= testflag;
     optimize_done= 1;
@@ -1356,6 +1361,11 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   thd->proc_info= old_proc_info;
   if (!thd->locked_tables)
   {
+    /**
+       @todo RECOVERY BUG find why this is needed. Monty says it's because a
+       new non-transactional table is created by maria_repair(): find how this
+       new table's state influences the old one's.
+    */
     _ma_reenable_logging_for_table(file->s);
     maria_lock_database(file, F_UNLCK);
   }

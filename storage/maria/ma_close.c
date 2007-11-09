@@ -86,8 +86,9 @@ int maria_close(register MARIA_HA *info)
         may be using the file at this point
         IF using --external-locking, which does not apply to Maria.
       */
-      if ((share->changed && share->base.born_transactional) ||
-          (share->mode != O_RDONLY && maria_is_crashed(info)))
+      if (share->mode != O_RDONLY &&
+          ((share->changed && share->base.born_transactional) ||
+           maria_is_crashed(info)))
       {
         /*
           State must be written to file as it was not done at table's

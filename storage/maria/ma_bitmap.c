@@ -533,6 +533,17 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
       Inexistent or half-created page (could be crash in the middle of
       _ma_bitmap_create_first(), before appending maria_bitmap_marker).
     */
+    /*
+      We are updating data_file_length before writing any log record for the
+      row operation. What if now state is flushed by a checkpoint with the
+      new value, and crash before the checkpoint record is written, recovery
+      may not even open the table (no log records) so not fix
+      data_file_length ("WAL violation")? In fact this is ok:
+      - checkpoint flushes state only if share->id!=0
+      - so if state was flushed, table had share->id!=0, so had a
+      LOGREC_FILE_ID (or was in previous checkpoint record), so recovery will
+      meet and open it and fix data_file_length.
+    */
     share->state.state.data_file_length= end_of_page;
     bzero(bitmap->map, bitmap->block_size);
     memcpy(bitmap->map + bitmap->block_size - sizeof(maria_bitmap_marker),
