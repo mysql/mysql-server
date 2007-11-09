@@ -318,6 +318,7 @@ public:
     Uint8 noOfStartedChkpt;
 
     MasterLCPConf::State lcpStateAtTakeOver;
+    Uint32 m_remove_node_from_table_lcp_id;
   };
   typedef Ptr<NodeRecord> NodeRecordPtr;
   /**********************************************************************/
@@ -544,7 +545,8 @@ public:
       TO_WAIT_ENDING = 21,
       ENDING = 22,
       
-      STARTING_LOCAL_FRAGMENTS = 24
+      STARTING_LOCAL_FRAGMENTS = 24,
+      PREPARE_COPY = 25
     };
     enum ToSlaveStatus {
       TO_SLAVE_IDLE = 0,
@@ -555,6 +557,7 @@ public:
       TO_SLAVE_COPY_COMPLETED = 5
     };
     Uint32 startGci;
+    Uint32 maxPage;
     Uint32 toCopyNode;
     Uint32 toCurrentFragid;
     Uint32 toCurrentReplica;
@@ -671,6 +674,8 @@ private:
   void execNODE_FAILREP(Signal *);
   void execCOPY_FRAGCONF(Signal *);
   void execCOPY_FRAGREF(Signal *);
+  void execPREPARE_COPY_FRAG_REF(Signal*);
+  void execPREPARE_COPY_FRAG_CONF(Signal*);
   void execDIADDTABREQ(Signal *);
   void execDIGETNODESREQ(Signal *);
   void execDIRELEASEREQ(Signal *);
@@ -1113,6 +1118,7 @@ private:
   void sendStartTo(Signal *, Uint32 takeOverPtr);
   void startNextCopyFragment(Signal *, Uint32 takeOverPtr);
   void toCopyFragLab(Signal *, Uint32 takeOverPtr);
+  void toStartCopyFrag(Signal *, TakeOverRecordPtr);
   void startHsAddFragConfLab(Signal *);
   void prepareSendCreateFragReq(Signal *, Uint32 takeOverPtr);
   void sendUpdateTo(Signal *, Uint32 takeOverPtr, Uint32 updateState);

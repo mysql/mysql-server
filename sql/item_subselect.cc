@@ -248,7 +248,7 @@ bool Item_subselect::exec()
 {
   int res;
 
-  if (thd->net.report_error)
+  if (thd->is_error())
   /* Do not execute subselect in case of a fatal error */
     return 1;
 

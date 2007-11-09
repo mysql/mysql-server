@@ -2867,7 +2867,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   lex_start(thd);
 
   error= parse_sql(thd, &lip, NULL) ||
-         thd->net.report_error ||
+         thd->is_error() ||
          init_param_array(this);
 
   lex->set_trg_event_type_for_tables();

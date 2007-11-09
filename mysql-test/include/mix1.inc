@@ -1020,6 +1020,55 @@ SELECT * FROM t1 ORDER BY b DESC, a ASC;
 
 DROP TABLE t1;
 
+###########################################################################
+
+--echo
+--echo #
+--echo # Bug#27610: ALTER TABLE ROW_FORMAT=... does not rebuild the table.
+--echo #
+
+--echo
+--echo # - prepare;
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1(c INT)
+  ENGINE = InnoDB
+  ROW_FORMAT = COMPACT;
+
+--echo
+--echo # - initial check;
+--echo
+
+SELECT table_schema, table_name, row_format
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = DATABASE() AND table_name = 't1';
+
+--echo
+--echo # - change ROW_FORMAT and check;
+--echo
+
+ALTER TABLE t1 ROW_FORMAT = REDUNDANT;
+
+--echo
+
+SELECT table_schema, table_name, row_format
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = DATABASE() AND table_name = 't1';
+
+--echo
+--echo # - that's it, cleanup.
+--echo
+
+DROP TABLE t1;
+
+###########################################################################
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY

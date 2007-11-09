@@ -81,6 +81,12 @@ typedef struct ndb_index_data {
   uint index_stat_query_count;
 } NDB_INDEX_DATA;
 
+typedef enum ndb_write_op {
+  NDB_INSERT = 0,
+  NDB_UPDATE = 1,
+  NDB_PK_UPDATE = 2
+} NDB_WRITE_OP;
+
 typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
 
 int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
@@ -204,8 +210,8 @@ class Thd_ndb
   Ndb *ndb;
   ulong count;
   uint lock_count;
-  NdbTransaction *all;
-  NdbTransaction *stmt;
+  uint start_stmt_count;
+  NdbTransaction *trans;
   bool m_error;
   bool m_slow_path;
   int m_error_code;
@@ -438,7 +444,7 @@ private:
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
-  int peek_indexed_rows(const uchar *record, bool check_pk);
+  int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int fetch_next(NdbScanOperation* op);
   int next_result(uchar *buf); 
   int define_read_attrs(uchar* buf, NdbOperation* op);
@@ -463,6 +469,7 @@ private:
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   int set_primary_key(NdbOperation *op, const uchar *key);
   int set_primary_key_from_record(NdbOperation *op, const uchar *record);
+  bool check_index_fields_in_write_set(uint keyno);
   int set_index_key_from_record(NdbOperation *op, const uchar *record,
                                 uint keyno);
   int set_bounds(NdbIndexScanOperation*, uint inx, bool rir,
@@ -495,6 +502,10 @@ private:
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);
+
+  void transaction_checks(THD *thd);
+  int start_statement(THD *thd, Thd_ndb *thd_ndb, Ndb* ndb);
+  int init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb);
 
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
