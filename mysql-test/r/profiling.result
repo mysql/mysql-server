@@ -375,6 +375,6 @@ select state from information_schema.profiling where seq=1 order by query_id des
 state
 continuing
 continuing
-initializing
+starting
 set session profiling = OFF;
 End of 5.0 tests
