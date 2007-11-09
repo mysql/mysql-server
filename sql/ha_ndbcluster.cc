@@ -166,17 +166,6 @@ pthread_cond_t COND_ndb_util_ready;
 pthread_handler_t ndb_util_thread_func(void *arg);
 ulong ndb_cache_check_time;
 
-/*
-  Stats that can be retrieved from ndb
-*/
-
-struct Ndb_statistics {
-  Uint64 row_count;
-  Uint64 commit_count;
-  Uint64 row_size;
-  Uint64 fragment_memory;
-};
-
 /* Status variables shown with 'show status like 'Ndb%' */
 
 struct st_ndb_status {
@@ -442,9 +431,9 @@ Thd_ndb::get_open_table(THD *thd, const void *key)
 }
 
 inline
-Ndb *ha_ndbcluster::get_ndb()
+Ndb *ha_ndbcluster::get_ndb(THD *thd)
 {
-  return get_thd_ndb(current_thd)->ndb;
+  return get_thd_ndb(thd)->ndb;
 }
 
 /*
@@ -463,74 +452,24 @@ void ha_ndbcluster::set_rec_per_key()
 
 ha_rows ha_ndbcluster::records()
 {
-  ha_rows retval;
   DBUG_ENTER("ha_ndbcluster::records");
   struct Ndb_local_table_statistics *local_info= m_table_info;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
                       ((const NDBTAB *)m_table)->getTableId(),
                       local_info->no_uncommitted_rows_count));
 
-  Ndb *ndb= get_ndb();
-  ndb->setDatabaseName(m_dbname);
-  struct Ndb_statistics stat;
-  if (ndb_get_table_statistics(this, TRUE, ndb, m_ndb_statistics_record,
-                               &stat) == 0)
+  if (update_stats(table->in_use, 1) == 0)
   {
-    retval= stat.row_count;
+    DBUG_RETURN(stats.records);
   }
   else
   {
     DBUG_RETURN(HA_POS_ERROR);
   }
-
-  THD *thd= current_thd;
-  if (get_thd_ndb(thd)->m_error)
-    local_info->no_uncommitted_rows_count= 0;
-
-  DBUG_RETURN(retval + local_info->no_uncommitted_rows_count);
-}
-
-int ha_ndbcluster::records_update()
-{
-  if (m_ha_not_exact_count)
-    return 0;
-  DBUG_ENTER("ha_ndbcluster::records_update");
-  int result= 0;
-
-  struct Ndb_local_table_statistics *local_info= m_table_info;
-  DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
-                      ((const NDBTAB *)m_table)->getTableId(),
-                      local_info->no_uncommitted_rows_count));
-  {
-    Ndb *ndb= get_ndb();
-    struct Ndb_statistics stat;
-    if (ndb->setDatabaseName(m_dbname))
-    {
-      return my_errno= HA_ERR_OUT_OF_MEM;
-    }
-    result= ndb_get_table_statistics(this, TRUE, ndb, m_ndb_statistics_record,
-                                     &stat);
-    if (result == 0)
-    {
-      stats.mean_rec_length= stat.row_size;
-      stats.data_file_length= stat.fragment_memory;
-      local_info->records= stat.row_count;
-    }
-  }
-  {
-    THD *thd= current_thd;
-    if (get_thd_ndb(thd)->m_error)
-      local_info->no_uncommitted_rows_count= 0;
-  }
-  if (result == 0)
-    stats.records= local_info->records+ local_info->no_uncommitted_rows_count;
-  DBUG_RETURN(result);
 }
 
 void ha_ndbcluster::no_uncommitted_rows_execute_failure()
 {
-  if (m_ha_not_exact_count)
-    return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
   get_thd_ndb(current_thd)->m_error= TRUE;
   get_thd_ndb(current_thd)->m_error_code= 0;
@@ -539,8 +478,6 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure()
 
 void ha_ndbcluster::no_uncommitted_rows_update(int c)
 {
-  if (m_ha_not_exact_count)
-    return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_update");
   struct Ndb_local_table_statistics *local_info= m_table_info;
   local_info->no_uncommitted_rows_count+= c;
@@ -552,8 +489,6 @@ void ha_ndbcluster::no_uncommitted_rows_update(int c)
 
 void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
 {
-  if (m_ha_not_exact_count)
-    return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_reset");
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   thd_ndb->count++;
@@ -1193,9 +1128,9 @@ int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
   DBUG_RETURN(0);
 }
 
-int ha_ndbcluster::get_metadata(const char *path)
+int ha_ndbcluster::get_metadata(THD *thd, const char *path)
 {
-  Ndb *ndb= get_ndb();
+  Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
   const NDBTAB *tab;
   int error;
@@ -3346,7 +3281,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   if (table_share->primary_key == MAX_KEY)
   {
     // Table has hidden primary key
-    Ndb *ndb= get_ndb();
+    Ndb *ndb= get_ndb(thd);
     Uint64 auto_value;
     uint retries= NDB_AUTO_INCREMENT_RETRIES;
     int retry_sleep= 30; /* 30 milliseconds, transaction */
@@ -3481,7 +3416,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
   if ((has_auto_increment) && (m_skip_auto_increment))
   {
-    Ndb *ndb= get_ndb();
+    Ndb *ndb= get_ndb(thd);
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
 #ifndef DBUG_OFF
     char buff[22];
@@ -4440,51 +4375,42 @@ void ha_ndbcluster::position(const uchar *record)
 
 int ha_ndbcluster::info(uint flag)
 {
+  THD *thd= table->in_use;
   int result= 0;
   DBUG_ENTER("info");
   DBUG_PRINT("enter", ("flag: %d", flag));
   
   if (flag & HA_STATUS_POS)
     DBUG_PRINT("info", ("HA_STATUS_POS"));
-  if (flag & HA_STATUS_NO_LOCK)
-    DBUG_PRINT("info", ("HA_STATUS_NO_LOCK"));
   if (flag & HA_STATUS_TIME)
     DBUG_PRINT("info", ("HA_STATUS_TIME"));
-  if (flag & HA_STATUS_VARIABLE)
+  while (flag & HA_STATUS_VARIABLE)
   {
+    if (!thd)
+      thd= current_thd;
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
-    if (m_table_info)
+    if ((flag & HA_STATUS_NO_LOCK) &&
+        !thd->variables.ndb_use_exact_count)
     {
-      if (m_ha_not_exact_count)
-        stats.records= 100;
-      else
-	result= records_update();
+      if (thd->lex->sql_command != SQLCOM_SHOW_TABLE_STATUS &&
+          thd->lex->sql_command != SQLCOM_SHOW_KEYS)
+      {
+        /*
+          just use whatever stats we have
+          however, optimizer behaves strangely if we return 0 rows
+        */
+        if (stats.records < 1)
+          stats.records= 1;
+        break;
+      }
     }
-    else
+    if (!m_table_info)
     {
-      if ((my_errno= check_ndb_connection()))
+      if ((my_errno= check_ndb_connection(thd)))
         DBUG_RETURN(my_errno);
-      Ndb *ndb= get_ndb();
-      ndb->setDatabaseName(m_dbname);
-      struct Ndb_statistics stat;
-      if (ndb->setDatabaseName(m_dbname))
-      {
-        DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
-      }
-      if (current_thd->variables.ndb_use_exact_count &&
-          (result= ndb_get_table_statistics
-           (this, TRUE, ndb, m_ndb_statistics_record, &stat)) == 0)
-      {
-        stats.mean_rec_length= stat.row_size;
-        stats.data_file_length= stat.fragment_memory;
-        stats.records= stat.row_count;
-      }
-      else
-      {
-        stats.mean_rec_length= 0;
-        stats.records= 100;
-      }
     }
+    result= update_stats(thd, 1);
+    break;
   }
   if (flag & HA_STATUS_CONST)
   {
@@ -4501,9 +4427,11 @@ int ha_ndbcluster::info(uint flag)
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
     if (m_table && table->found_next_number_field)
     {
-      if ((my_errno= check_ndb_connection()))
+      if (!thd)
+        thd= current_thd;
+      if ((my_errno= check_ndb_connection(thd)))
         DBUG_RETURN(my_errno);
-      Ndb *ndb= get_ndb();
+      Ndb *ndb= get_ndb(thd);
       Ndb_tuple_id_range_guard g(m_share);
       
       Uint64 auto_increment_value64;
@@ -4949,7 +4877,6 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb)
   DBUG_ENTER("ha_ndbcluster::init_handler_for_statement");
   // store thread specific data first to set the right context
   m_force_send=          thd->variables.ndb_force_send;
-  m_ha_not_exact_count= !thd->variables.ndb_use_exact_count;
   m_autoincrement_prefetch= 
     (ha_rows) thd->variables.ndb_autoincrement_prefetch_sz;
 
@@ -5725,10 +5652,10 @@ int ha_ndbcluster::create(const char *name,
   set_dbname(name);
   set_tabname(name);
 
-  if ((my_errno= check_ndb_connection()))
+  if ((my_errno= check_ndb_connection(thd)))
     DBUG_RETURN(my_errno);
   
-  Ndb *ndb= get_ndb();
+  Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
 
   DBUG_PRINT("info", ("Tablespace %s,%s", form->s->tablespace, create_info->tablespace));
@@ -5755,7 +5682,7 @@ int ha_ndbcluster::create(const char *name,
     if ((my_errno= write_ndb_file(name)))
       DBUG_RETURN(my_errno);
 #ifdef HAVE_NDB_BINLOG
-    ndbcluster_create_binlog_setup(get_ndb(), name, strlen(name),
+    ndbcluster_create_binlog_setup(get_ndb(thd), name, strlen(name),
                                    m_dbname, m_tabname, FALSE);
 #endif /* HAVE_NDB_BINLOG */
     DBUG_RETURN(my_errno);
@@ -6183,7 +6110,8 @@ int ha_ndbcluster::create_ndb_index(const char *name,
                                      KEY *key_info,
                                      bool unique)
 {
-  Ndb *ndb= get_ndb();
+  THD *thd= current_thd;
+  Ndb *ndb= get_ndb(thd);
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
   KEY_PART_INFO *key_part= key_info->key_part;
   KEY_PART_INFO *end= key_part + key_info->key_parts;
@@ -6322,6 +6250,7 @@ int ha_ndbcluster::final_drop_index(TABLE *table_arg)
 
 int ha_ndbcluster::rename_table(const char *from, const char *to)
 {
+  THD *thd= current_thd;
   NDBDICT *dict;
   char old_dbname[FN_HEADLEN];
   char new_dbname[FN_HEADLEN];
@@ -6338,10 +6267,10 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   set_tabname(from);
   set_tabname(to, new_tabname);
 
-  if (check_ndb_connection())
+  if (check_ndb_connection(thd))
     DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
 
-  Ndb *ndb= get_ndb();
+  Ndb *ndb= get_ndb(thd);
   ndb->setDatabaseName(old_dbname);
   dict= ndb->getDictionary();
   Ndb_table_guard ndbtab_g(dict, m_tabname);
@@ -6363,7 +6292,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 #ifdef HAVE_NDB_BINLOG
   int ndb_table_id= orig_tab->getObjectId();
   int ndb_table_version= orig_tab->getObjectVersion();
-  THD *thd= current_thd;
   /* ndb_share reference temporary */
   NDB_SHARE *share= get_share(from, 0, FALSE);
   int is_old_table_tmpfile= IS_TMP_PREFIX(m_tabname);
@@ -6710,6 +6638,7 @@ retry_temporary_error1:
 
 int ha_ndbcluster::delete_table(const char *name)
 {
+  THD *thd= current_thd;
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
   set_dbname(name);
@@ -6727,13 +6656,13 @@ int ha_ndbcluster::delete_table(const char *name)
   }
 #endif
 
-  if (check_ndb_connection())
+  if (check_ndb_connection(thd))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
   /* Call ancestor function to delete .ndb file */
   handler::delete_table(name);
 
-  DBUG_RETURN(delete_table(this, get_ndb(),name, m_dbname, m_tabname));
+  DBUG_RETURN(delete_table(this, get_ndb(thd), name, m_dbname, m_tabname));
 }
 
 
@@ -6746,7 +6675,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   Uint64 auto_value;
   DBUG_ENTER("get_auto_increment");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
-  Ndb *ndb= get_ndb();
+  Ndb *ndb= get_ndb(table->in_use);
    
   if (m_rows_inserted > m_rows_to_insert)
   {
@@ -6848,7 +6777,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_ndb_hidden_key_record(0),
   m_ndb_statistics_record(0),
   m_dupkey((uint) -1),
-  m_ha_not_exact_count(FALSE),
   m_force_send(TRUE),
   m_autoincrement_prefetch((ha_rows) 32),
   m_transaction_on(TRUE),
@@ -6956,6 +6884,7 @@ ha_ndbcluster::column_bitmaps_signal()
 
 int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
 {
+  THD *thd= current_thd;
   int res;
   KEY *key;
   DBUG_ENTER("ha_ndbcluster::open");
@@ -6993,8 +6922,8 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   set_dbname(name);
   set_tabname(name);
   
-  if ((res= check_ndb_connection()) ||
-      (res= get_metadata(name)))
+  if ((res= check_ndb_connection(thd)) ||
+      (res= get_metadata(thd, name)))
   {
     /* ndb_share reference handler free */
     DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",
@@ -7003,30 +6932,12 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     m_share= 0;
     DBUG_RETURN(res);
   }
-  while (1)
-  {
-    Ndb *ndb= get_ndb();
-    if (ndb->setDatabaseName(m_dbname))
-    {
-      set_ndb_err(current_thd, ndb->getNdbError());
-      res= ndb_to_mysql_error(&ndb->getNdbError());
-      break;
-    }
-    struct Ndb_statistics stat;
-    res= ndb_get_table_statistics(NULL, FALSE, ndb, m_ndb_statistics_record,
-                                  &stat);
-    stats.mean_rec_length= stat.row_size;
-    stats.data_file_length= stat.fragment_memory;
-    stats.records= stat.row_count;
-    if(!res)
-      res= info(HA_STATUS_CONST);
-    break;
-  }
-  if (res)
+  if ((res= update_stats(thd, 1)) ||
+      (res= info(HA_STATUS_CONST)))
   {
     free_share(&m_share);
     m_share= 0;
-    release_metadata(current_thd, get_ndb());
+    release_metadata(thd, get_ndb(thd));
     DBUG_RETURN(res);
   }
 #ifdef HAVE_NDB_BINLOG
@@ -7034,6 +6945,16 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     table->db_stat|= HA_READ_ONLY;
 #endif
   DBUG_RETURN(0);
+}
+
+int ha_ndbcluster::optimize(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return update_stats(thd, 1);
+}
+
+int ha_ndbcluster::analyze(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return update_stats(thd, 1);
 }
 
 /*
@@ -8364,9 +8285,10 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
        idx_type == ORDERED_INDEX) &&
     m_index[inx].index_stat != NULL)
   {
+    THD *thd= current_thd;
     NDB_INDEX_DATA& d=m_index[inx];
     const NDBINDEX* index= d.index;
-    Ndb* ndb=get_ndb();
+    Ndb *ndb= get_ndb(thd);
     NdbTransaction* active_trans= m_thd_ndb ? m_thd_ndb->trans : 0;
     NdbTransaction* trans=NULL;
     NdbIndexScanOperation* op=NULL;
@@ -8377,19 +8299,16 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
     {
       // We must provide approx table rows
       Uint64 table_rows=0;
-      Ndb_local_table_statistics *ndb_info= m_table_info;
-      if (ndb_info->records != ~(ha_rows)0 && ndb_info->records != 0)
+      if (stats.records != ~(ha_rows)0 && stats.records != 0)
       {
-        table_rows = ndb_info->records;
+        table_rows = stats.records;
         DBUG_PRINT("info", ("use info->records: %lu", (ulong) table_rows));
       }
       else
       {
-        Ndb_statistics stat;
-        if ((res=ndb_get_table_statistics(this, TRUE, ndb,
-                                          m_ndb_statistics_record, &stat)))
+        if (update_stats(thd, 1))
           break;
-        table_rows=stat.row_count;
+        table_rows= stats.records;
         DBUG_PRINT("info", ("use db row_count: %lu", (ulong) table_rows));
         if (table_rows == 0) {
           // Problem if autocommit=0
@@ -8446,8 +8365,6 @@ ulonglong ha_ndbcluster::table_flags(void) const
 {
   THD *thd= current_thd;
   ulonglong f= m_table_flags;
-  if (m_ha_not_exact_count)
-    f= f & ~HA_STATS_RECORDS_IS_EXACT;
   /*
     To allow for logging of ndb tables during stmt based logging;
     flag cabablity, but also turn off flag for OWN_BINLOGGING
@@ -9208,6 +9125,57 @@ struct ndb_table_statistics_row {
   Uint64 var_mem;
 };
 
+int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
+{
+  struct Ndb_statistics new_stat;
+  struct Ndb_statistics *stat= NULL;
+  DBUG_ENTER("ha_ndbcluster::update_stats");
+  if (m_share)
+  {
+    stat= &m_share->stat;
+  }
+  if (do_read_stat || !stat)
+  {
+    Ndb *ndb= get_ndb(thd);
+    if (ndb->setDatabaseName(m_dbname))
+    {
+      DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
+    }
+    if (ndb_get_table_statistics(this, TRUE, ndb, m_ndb_statistics_record,
+                                 &new_stat))
+    {
+      DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
+    }
+    stat= &new_stat;
+    if (m_share)
+    {
+      DBUG_PRINT("info", ("new_stat.commit_count: %d  "
+                          "m_share->stat.commit_count: %d",
+                          (int)new_stat.commit_count,
+                          (int)m_share->stat.commit_count));
+      pthread_mutex_lock(&m_share->mutex);
+      m_share->stat= new_stat;
+      pthread_mutex_unlock(&m_share->mutex);
+    }
+  }
+  struct Ndb_local_table_statistics *local_info= m_table_info;
+  int no_uncommitted_rows_count;
+  if (get_thd_ndb(thd)->m_error || !local_info)
+    no_uncommitted_rows_count= 0;
+  else
+    no_uncommitted_rows_count= local_info->no_uncommitted_rows_count;
+  stats.mean_rec_length= stat->row_size;
+  stats.data_file_length= stat->fragment_memory;
+  stats.records= stat->row_count + no_uncommitted_rows_count;
+  DBUG_PRINT("exit", ("stats.records: %d  "
+                      "stat->row_count: %d  "
+                      "no_uncommitted_rows_count: %d",
+                      (int)stats.records,
+                      (int)stat->row_count,
+                      (int)no_uncommitted_rows_count));
+  DBUG_RETURN(0);
+}
+
 static
 NdbRecord *
 ndb_get_table_statistics_ndbrecord(NDBDICT *dict, const NDBTAB *table)
@@ -9300,6 +9268,8 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
       /* NDB API ensures proper alignment of rows to make the cast valid. */
       const ndb_table_statistics_row *stat=
         (const ndb_table_statistics_row *)row;
+      DBUG_PRINT("info", ("nextResult stat->rows: %d  stat->commits: %d",
+                          (int)stat->rows, (int)stat->commits));
       sum_rows+= stat->rows;
       sum_commits+= stat->commits;
       if (sum_row_size < stat->size)
@@ -9367,151 +9337,24 @@ retry:
 }
 
 /*
-  Query cache stuff still call this NdbRecAttr-based version, as they
-  have no easy access to a pre-computed NdbRecord for the table. Could be
-  fixed to also use the NdbRecord version.
+  Query cache stuff
 */
 static 
 int
-ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb, const NDBTAB *ndbtab,
-                         struct Ndb_statistics * ndbstat)
+ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
+                         const NDBTAB *ndbtab,
+                         struct Ndb_statistics *ndbstat)
 {
-  NdbTransaction* pTrans;
-  NdbError error;
-  int retries= 10;
-  int reterr= 0;
-  int retry_sleep= 30; /* 30 milliseconds, transaction */
-#ifndef DBUG_OFF
-  char buff[22], buff2[22], buff3[22], buff4[22];
-#endif
-  DBUG_ENTER("ndb_get_table_statistics");
-  DBUG_PRINT("enter", ("table: %s", ndbtab->getName()));
-
-  DBUG_ASSERT(ndbtab != 0);
-
-  do
+  NDBDICT *dict= ndb->getDictionary();
+  NdbRecord *rec= ndb_get_table_statistics_ndbrecord(dict, ndbtab);
+  if (!rec)
   {
-    Uint64 rows, commits, fixed_mem, var_mem;
-    Uint32 size;
-    Uint32 count= 0;
-    Uint64 sum_rows= 0;
-    Uint64 sum_commits= 0;
-    Uint64 sum_row_size= 0;
-    Uint64 sum_mem= 0;
-    NdbScanOperation*pOp;
-    int check;
-
-    if ((pTrans= ndb->startTransaction()) == NULL)
-    {
-      error= ndb->getNdbError();
-      goto retry;
-    }
-      
-    if ((pOp= pTrans->getNdbScanOperation(ndbtab)) == NULL)
-    {
-      error= pTrans->getNdbError();
-      goto retry;
-    }
-
-    /*
-      Set batch_size = 1 to avoid allocating unnecessary NdbRecAttr's.
-      We will in any case only read a single row from each fragment.
-    */
-    if (pOp->readTuples(NdbOperation::LM_CommittedRead, 0, 0, 1))
-    {
-      error= pOp->getNdbError();
-      goto retry;
-    }
-    
-    if (pOp->interpret_exit_last_row() == -1)
-    {
-      error= pOp->getNdbError();
-      goto retry;
-    }
-    
-    pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
-    pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
-    pOp->getValue(NdbDictionary::Column::ROW_SIZE, (char*)&size);
-    pOp->getValue(NdbDictionary::Column::FRAGMENT_FIXED_MEMORY, 
-		  (char*)&fixed_mem);
-    pOp->getValue(NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY, 
-		  (char*)&var_mem);
-    
-    if (pTrans->execute(NdbTransaction::NoCommit,
-                        NdbOperation::AbortOnError,
-                        TRUE) == -1)
-    {
-      error= pTrans->getNdbError();
-      goto retry;
-    }
-    
-    while ((check= pOp->nextResult(TRUE, TRUE)) == 0)
-    {
-      sum_rows+= rows;
-      sum_commits+= commits;
-      if (sum_row_size < size)
-        sum_row_size= size;
-      sum_mem+= fixed_mem + var_mem;
-      count++;
-    }
-    
-    if (check == -1)
-    {
-      error= pOp->getNdbError();
-      goto retry;
-    }
-
-    pOp->close(TRUE);
-
-    ndb->closeTransaction(pTrans);
-
-    ndbstat->row_count= sum_rows;
-    ndbstat->commit_count= sum_commits;
-    ndbstat->row_size= sum_row_size;
-    ndbstat->fragment_memory= sum_mem;
-
-    DBUG_PRINT("exit", ("records: %s  commits: %s "
-                        "row_size: %s  mem: %s count: %u",
-			llstr(sum_rows, buff),
-                        llstr(sum_commits, buff2),
-                        llstr(sum_row_size, buff3),
-                        llstr(sum_mem, buff4),
-                        count));
-
-    DBUG_RETURN(0);
-retry:
-    if(report_error)
-    {
-      if (file && pTrans)
-      {
-        reterr= file->ndb_err(pTrans);
-      }
-      else
-      {
-        const NdbError& tmp= error;
-        ERR_PRINT(tmp);
-        reterr= ndb_to_mysql_error(&tmp);
-      }
-    }
-    else
-      reterr= error.code;
-
-    if (pTrans)
-    {
-      ndb->closeTransaction(pTrans);
-      pTrans= NULL;
-    }
-    if (error.status == NdbError::TemporaryError && retries--)
-    {
-      my_sleep(retry_sleep);
-      continue;
-    }
-    set_ndb_err(current_thd, error);
-    break;
-  } while(1);
-  DBUG_PRINT("exit", ("failed, reterr: %u, NdbError %u(%s)", reterr,
-                      error.code, error.message));
-  DBUG_RETURN(reterr);
+    DBUG_ENTER("ndb_get_table_statistics");
+    ERR_RETURN(dict->getNdbError());
+  }
+  int res= ndb_get_table_statistics(file, report_error, ndb, rec, ndbstat);
+  dict->releaseRecord(rec);
+  return res;
 }
 
 /*
@@ -10041,6 +9884,7 @@ ha_ndbcluster::update_table_comment(
                                 /* out: table comment + additional */
         const char*     comment)/* in:  table comment defined by user */
 {
+  THD *thd= current_thd;
   uint length= strlen(comment);
   if (length > 64000 - 3)
   {
@@ -10048,7 +9892,7 @@ ha_ndbcluster::update_table_comment(
   }
 
   Ndb* ndb;
-  if (!(ndb= get_ndb()))
+  if (!(ndb= get_ndb(thd)))
   {
     return((char*)comment);
   }
@@ -10841,6 +10685,7 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
                                             HA_ALTER_FLAGS *alter_flags,
                                             uint table_changes)
 {
+  THD *thd= current_thd;
   HA_ALTER_FLAGS not_supported= ~(supported_alter_operations());
   uint i;
   const NDBTAB *tab= (const NDBTAB *) m_table;
@@ -10856,7 +10701,7 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
   adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX;
   dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
 
-  if (current_thd->variables.ndb_use_copying_alter_table)
+  if (thd->variables.ndb_use_copying_alter_table)
   {
     DBUG_PRINT("info", ("On-line alter table disabled"));
     DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
@@ -10877,7 +10722,7 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
   if (alter_flags->is_set(HA_ADD_COLUMN))
   {
      NDBCOL col;
-     Ndb *ndb= get_ndb();
+     Ndb *ndb= get_ndb(thd);
      NDBDICT *dict= ndb->getDictionary();
      ndb->setDatabaseName(m_dbname);
      const NDBTAB *old_tab= m_table;
@@ -11032,7 +10877,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
 {
   int error= 0;
   uint i;
-  Ndb *ndb= get_ndb();
+  Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
   ndb->setDatabaseName(m_dbname);
   NDB_ALTER_DATA *alter_data;
@@ -11568,6 +11413,7 @@ ndberror2:
 
 bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
 {
+  THD *thd= current_thd;
   Ndb *ndb;
   NDBDICT *dict;
   int err;
@@ -11578,12 +11424,12 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
   set_tabname(name);
   for (;;)
   {
-    if (check_ndb_connection())
+    if (check_ndb_connection(thd))
     {
       err= HA_ERR_NO_CONNECTION;
       break;
     }
-    ndb= get_ndb();
+    ndb= get_ndb(thd);
     ndb->setDatabaseName(m_dbname);
     Ndb_table_guard ndbtab_g(dict= ndb->getDictionary(), m_tabname);
     if (!ndbtab_g.get_table())
