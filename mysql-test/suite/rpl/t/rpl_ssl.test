@@ -76,6 +76,16 @@ if (`select $slave_count != $master_count`)
   echo master and slave differed in number of rows;
   echo master: $master_count;
   echo slave: $slave_count;
+
+  connection master;
+  echo === master ===;
+  select count(*) t1;
+  select * from t1;
+  connection slave;
+  echo === slave ===;
+  select count(*) t1;
+  select * from t1;
+  query_vertical show slave status;
 }
 
 connection master;
