@@ -197,7 +197,7 @@ drop function if exists f1;
 
 # Multiple queries in one packet.
 --eval select 1; select 2; select 3;
-# two continuations, one initialization
+# two continuations, one starting
 select state from information_schema.profiling where seq=1 order by query_id desc limit 3;
 
 ## last thing in the file
