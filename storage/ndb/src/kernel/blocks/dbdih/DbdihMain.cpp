@@ -5302,11 +5302,19 @@ void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
   }
   
   jam();
-  signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
-  signal->theData[1] = failedNodePtr.i;
-  signal->theData[2] = 0; // Tab id
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
-  
+
+  if (!ERROR_INSERTED(7194))
+  {
+    signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
+    signal->theData[1] = failedNodePtr.i;
+    signal->theData[2] = 0; // Tab id
+    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  }    
+  else
+  {
+    ndbout_c("7194 Not starting ZREMOVE_NODE_FROM_TABLE");
+  }
+
   setLocalNodefailHandling(signal, failedNodePtr.i, NF_REMOVE_NODE_FROM_TABLE);
 }//Dbdih::startRemoveFailedNode()
 
@@ -6131,12 +6139,22 @@ Dbdih::checkEmptyLcpComplete(Signal *signal){
     
     signal->theData[0] = 7012;
     execDUMP_STATE_ORD(signal);
+
+    if (ERROR_INSERTED(7194))
+    {
+      ndbout_c("7194 starting ZREMOVE_NODE_FROM_TABLE");
+      signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
+      signal->theData[1] = c_lcpMasterTakeOverState.failedNodeId;
+      signal->theData[2] = 0; // Tab id
+      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    }
     
     c_lcpMasterTakeOverState.set(LMTOS_INITIAL, __LINE__);
     MasterLCPReq * const req = (MasterLCPReq *)&signal->theData[0];
     req->masterRef = reference();
     req->failedNodeId = c_lcpMasterTakeOverState.failedNodeId;
     sendLoopMacro(MASTER_LCPREQ, sendMASTER_LCPREQ);
+
   } else {
     sendMASTER_LCPCONF(signal);
   }
@@ -6449,6 +6467,15 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
 {
   const MasterLCPConf * const conf = (MasterLCPConf *)&signal->theData[0];
   jamEntry();
+
+  if (ERROR_INSERTED(7194))
+  {
+    ndbout_c("delaying MASTER_LCPCONF due to error 7194");
+    sendSignalWithDelay(reference(), GSN_MASTER_LCPCONF, signal, 
+                        300, signal->getLength());
+    return;
+  }
+
   Uint32 senderNodeId = conf->senderNodeId;
   MasterLCPConf::State lcpState = (MasterLCPConf::State)conf->lcpState;
   const Uint32 failedNodeId = conf->failedNodeId;
@@ -6583,7 +6610,6 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
 #endif
     
       c_lcpState.keepGci = SYSFILE->keepGCI;
-      c_lcpState.setLcpStatus(LCP_START_LCP_ROUND, __LINE__);
       startLcpRoundLoopLab(signal, 0, 0);
       break;
     }
@@ -10977,6 +11003,8 @@ void Dbdih::sendLastLCP_FRAG_ORD(Signal* signal)
       if(ERROR_INSERTED(7075)){
 	continue;
       }
+
+      CRASH_INSERTION(7193);
       BlockReference ref = calcLqhBlockRef(nodePtr.i);
       sendSignal(ref, GSN_LCP_FRAG_ORD, signal,LcpFragOrd::SignalLength, JBB);
     }
@@ -11204,6 +11232,13 @@ Dbdih::checkLcpAllTablesDoneInLqh(){
   CRASH_INSERTION2(7017, !isMaster());
   
   c_lcpState.setLcpStatus(LCP_TAB_COMPLETED, __LINE__);
+
+  if (ERROR_INSERTED(7194))
+  {
+    ndbout_c("CLEARING 7194");
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+  
   return true;
 }
 
@@ -11392,6 +11427,11 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
   ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
   
   BlockReference ref = calcLqhBlockRef(replicaPtr.p->procNode);
+  
+  if (ERROR_INSERTED(7193) && replicaPtr.p->procNode == getOwnNodeId())
+  {
+    return;
+  }
   
   LcpFragOrd * const lcpFragOrd = (LcpFragOrd *)&signal->theData[0];
   lcpFragOrd->tableId    = info.tableId;
@@ -15069,6 +15109,14 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       ("immediateLcpStart = %d masterLcpNodeId = %d",
        c_lcpState.immediateLcpStart,
        refToNode(c_lcpState.m_masterLcpDihRef));
+
+    for (Uint32 i = 0; i<10; i++)
+    {
+      infoEvent("%u : status: %u place: %u", i, 
+                c_lcpState.m_saveState[i].m_status,
+                c_lcpState.m_saveState[i].m_place);
+    }
+    
     infoEvent("-- Node %d LCP STATE --", getOwnNodeId());
   }
 

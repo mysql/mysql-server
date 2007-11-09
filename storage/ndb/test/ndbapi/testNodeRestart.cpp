@@ -1969,6 +1969,51 @@ runBug31980(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.waitClusterStarted())
     return NDBT_FAILED;
+
+  return NDBT_OK;
+}
+
+int
+runBug32160(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  int master = res.getMasterNodeId();
+  int next = res.getNextMasterNodeId(master);
+
+  if (res.insertErrorInNode(next, 7194))
+  {
+    return NDBT_FAILED;
+  }
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
+  if (res.dumpStateOneNode(master, val2, 2))
+    return NDBT_FAILED;
+
+  if (res.insertErrorInNode(master, 7193))
+    return NDBT_FAILED;
+
+  int val3[] = { 7099 };
+  if (res.dumpStateOneNode(master, val3, 1))
+    return NDBT_FAILED;
+
+  if (res.waitNodesNoStart(&master, 1))
+    return NDBT_FAILED;
+
+  if (res.startNodes(&master, 1))
+    return NDBT_FAILED;
+
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
   
   return NDBT_OK;
 }
@@ -2350,6 +2395,9 @@ TESTCASE("GCP", ""){
   STEP(runGCP);
   STEP(runScanUpdateUntilStopped);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug32160", ""){
+  INITIALIZER(runBug32160);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
