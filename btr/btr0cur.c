@@ -1293,9 +1293,7 @@ btr_cur_pessimistic_insert(
 		success = fsp_reserve_free_extents(&n_reserved, index->space,
 						   n_extents, FSP_NORMAL, mtr);
 		if (!success) {
-			err = DB_OUT_OF_FILE_SPACE;
-
-			return(err);
+			return(DB_OUT_OF_FILE_SPACE);
 		}
 	}
 
@@ -1386,15 +1384,13 @@ btr_cur_pessimistic_insert(
 		lock_update_insert(btr_cur_get_block(cursor), *rec);
 	}
 
-	err = DB_SUCCESS;
-
 	if (n_extents > 0) {
 		fil_space_release_free_extents(index->space, n_reserved);
 	}
 
 	*big_rec = big_rec_vec;
 
-	return(err);
+	return(DB_SUCCESS);
 }
 
 /*==================== B-TREE UPDATE =========================*/
