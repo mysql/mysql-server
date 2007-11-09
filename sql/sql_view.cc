@@ -607,7 +607,7 @@ err:
   thd_proc_info(thd, "end");
   lex->link_first_table_back(view, link_to_local);
   unit->cleanup();
-  DBUG_RETURN(res || thd->net.report_error);
+  DBUG_RETURN(res || thd->is_error());
 }
 
 
@@ -823,7 +823,7 @@ loop_out:
                         view_parameters + revision_number_position, 1,
                         &file_parser_dummy_hook))
       {
-        error= thd->net.report_error? -1 : 0;
+        error= thd->is_error() ? -1 : 0;
         goto err;
       }
     }
@@ -886,7 +886,7 @@ loop_out:
   if (sql_create_definition_file(&dir, &file, view_file_type,
 				 (uchar*)view, view_parameters, num_view_backups))
   {
-    error= thd->net.report_error? -1 : 1;
+    error= thd->is_error() ? -1 : 1;
     goto err;
   }
   DBUG_RETURN(0);

@@ -970,6 +970,7 @@ public:
     @return true if the error is handled
   */
   virtual bool handle_error(uint sql_errno,
+                            const char *message,
                             MYSQL_ERROR::enum_warning_level level,
                             THD *thd) = 0;
 };
@@ -1474,7 +1475,14 @@ public:
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
-  bool       query_error, bootstrap, cleanup_done;
+  /**
+    True if a slave error. Causes the slave to stop. Not the same
+    as the statement execution error (is_error()), since
+    a statement may be expected to return an error, e.g. because
+    it returned an error on master, and this is OK on the slave.
+  */
+  bool       is_slave_error;
+  bool       bootstrap, cleanup_done;
   
   /**  is set if some thread specific value(s) used in a statement. */
   bool       thread_specific_used;
@@ -1703,7 +1711,7 @@ public:
     net.last_error[0]= 0;
     net.last_errno= 0;
     net.report_error= 0;
-    query_error= 0;
+    is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
   inline bool vio_ok() const { return net.vio != 0; }
@@ -1717,6 +1725,20 @@ public:
     net.report_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
+  /**
+    TRUE if there is an error in the error stack.
+
+    Please use this method instead of direct access to
+    net.report_error.
+
+    If TRUE, the current (sub)-statement should be aborted.
+    The main difference between this member and is_fatal_error
+    is that a fatal error can not be handled by a stored
+    procedure continue handler, whereas a normal error can.
+
+    To raise this flag, use my_error().
+  */
+  inline bool is_error() const { return net.report_error; }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
 
@@ -1910,7 +1932,7 @@ public:
     @param level the error level
     @return true if the error is handled
   */
-  virtual bool handle_error(uint sql_errno,
+  virtual bool handle_error(uint sql_errno, const char *message,
                             MYSQL_ERROR::enum_warning_level level);
 
   /**
@@ -2037,14 +2059,20 @@ public:
 
 
 class select_send :public select_result {
-  int status;
+  /**
+    True if we have sent result set metadata to the client.
+    In this case the client always expects us to end the result
+    set with an eof or error packet
+  */
+  bool is_result_set_started;
 public:
-  select_send() :status(0) {}
+  select_send() :is_result_set_started(FALSE) {}
   bool send_fields(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
   void abort();
+  virtual void cleanup();
 };
 
 

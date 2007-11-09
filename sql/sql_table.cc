@@ -434,7 +434,7 @@ static uint read_ddl_log_header()
 
   create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= my_open(file_name,
-                                        O_RDWR | O_BINARY, MYF(MY_WME))) >= 0)
+                                        O_RDWR | O_BINARY, MYF(0))) >= 0)
   {
     if (read_ddl_log_file_entry(0UL))
     {
@@ -1503,7 +1503,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   char path[FN_REFLEN], *alias;
   uint path_length;
   String wrong_tables;
-  int error;
+  int error= 0;
   int non_temp_tables_count= 0;
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
   String built_query;
@@ -1563,10 +1563,27 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     enum legacy_db_type frm_db_type;
 
     mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, 1);
-    if (!close_temporary_table(thd, table))
-    {
-      tmp_table_deleted=1;
-      continue;					// removed temporary table
+
+    error= drop_temporary_table(thd, table);
+
+    switch (error) {
+    case  0:
+      // removed temporary table
+      tmp_table_deleted= 1;
+      continue;
+    case -1:
+      // table already in use
+      /*
+        XXX: This branch should never be taken outside of SF, trigger or
+             prelocked mode.
+
+        DBUG_ASSERT(thd->in_sub_stmt);
+      */
+      error= 1;
+      goto err_with_placeholders;
+    default:
+      // temporary table not found
+      error= 0;
     }
 
     /*
@@ -1593,7 +1610,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       built_query.append("`,");
     }
 
-    error=0;
     table_type= table->db_type;
     if (!drop_temporary)
     {
@@ -2380,8 +2396,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  sql_field->length=		dup_field->char_length;
           sql_field->pack_length=	dup_field->pack_length;
           sql_field->key_length=	dup_field->key_length;
-	  sql_field->create_length_to_internal_length();
 	  sql_field->decimals=		dup_field->decimals;
+	  sql_field->create_length_to_internal_length();
 	  sql_field->unireg_check=	dup_field->unireg_check;
           /* 
             We're making one field from two, the result field will have
@@ -4985,6 +5001,7 @@ compare_tables(TABLE *table,
       create_info->used_fields & HA_CREATE_USED_ENGINE ||
       create_info->used_fields & HA_CREATE_USED_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
+      create_info->used_fields & HA_CREATE_USED_ROW_FORMAT ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
       order_num ||
       !table->s->mysql_version ||
@@ -5200,7 +5217,8 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
   if (error == HA_ERR_WRONG_COMMAND)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                        ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), table->s->table_name);
+                        ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+                        table->s->table_name.str);
     error= 0;
   } else if (error)
     table->file->print_error(error, MYF(0));
@@ -5392,7 +5410,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   {
     if (def->change && ! def->field)
     {
-      my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table->s->table_name);
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table->s->table_name.str);
       goto err;
     }
     /*
@@ -5427,7 +5445,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       if (!find)
       {
-	my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after, table->s->table_name);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after, table->s->table_name.str);
         goto err;
       }
       find_it.after(def);			// Put element after this
@@ -5437,7 +5455,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (alter_info->alter_list.elements)
   {
     my_error(ER_BAD_FIELD_ERROR, MYF(0),
-             alter_info->alter_list.head()->name, table->s->table_name);
+             alter_info->alter_list.head()->name, table->s->table_name.str);
     goto err;
   }
   if (!new_create_list.elements)

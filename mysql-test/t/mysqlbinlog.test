@@ -250,4 +250,31 @@ flush logs;
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000016 >/dev/null 2>/dev/null
 --exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000016 >/dev/null 2>/dev/null
 
+--echo BUG#31611: Security risk with BINLOG statement
+
+SET BINLOG_FORMAT=ROW;
+CREATE DATABASE mysqltest1;
+CREATE USER untrusted@localhost;
+GRANT SELECT ON mysqltest1.* TO untrusted@localhost;
+
+SHOW GRANTS FOR untrusted@localhost;
+USE mysqltest1;
+CREATE TABLE t1 (a INT, b CHAR(64));
+flush logs;
+INSERT INTO t1 VALUES (1,USER());
+flush logs;
+echo mysqlbinlog var/log/master-bin.000017 > var/tmp/bug31611.sql;
+exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000017 > $MYSQLTEST_VARDIR/tmp/bug31611.sql;
+connect (unsecure,localhost,untrusted,,mysqltest1);
+echo mysql mysqltest1 -uuntrusted < var/tmp/bug31611.sql;
+error 1;
+exec $MYSQL mysqltest1 -uuntrusted < $MYSQLTEST_VARDIR/tmp/bug31611.sql;
+connection unsecure;
+error ER_TABLEACCESS_DENIED_ERROR;
+INSERT INTO t1 VALUES (1,USER());
+
+SELECT * FROM t1;
+connection default;
+DROP DATABASE mysqltest1;
+
 --echo End of 5.1 tests

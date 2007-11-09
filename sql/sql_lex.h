@@ -1623,7 +1623,7 @@ typedef struct st_lex : public Query_tables_list
   uint8 create_view_algorithm;
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
-
+  bool autocommit;
   bool verbose, no_write_to_binlog;
 
   bool tx_chain, tx_release;

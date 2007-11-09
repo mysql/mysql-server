@@ -46,7 +46,7 @@ public:
    */
   STATIC_CONST( StaticLength = 5 );
   STATIC_CONST( OperationLength = 2 );
-  STATIC_CONST( SimpleReadBit = (((Uint32)1) << 31) );
+  STATIC_CONST( DirtyReadBit = (((Uint32)1) << 31) );
   
 private:
 

@@ -738,7 +738,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                                                table->triggers,
                                                TRG_EVENT_INSERT))
       {
-	if (values_list.elements != 1 && !thd->net.report_error)
+	if (values_list.elements != 1 && ! thd->is_error())
 	{
 	  info.records++;
 	  continue;
@@ -769,7 +769,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                                                table->triggers,
                                                TRG_EVENT_INSERT))
       {
-	if (values_list.elements != 1 && ! thd->net.report_error)
+	if (values_list.elements != 1 && ! thd->is_error())
 	{
 	  info.records++;
 	  continue;
@@ -1909,7 +1909,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       thd_proc_info(thd, "got old table");
       if (di->thd.killed)
       {
-        if (di->thd.net.report_error)
+        if (di->thd.is_error())
         {
           /*
             Copy the error message. Note that we don't treat fatal
@@ -1940,7 +1940,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
   pthread_mutex_unlock(&di->mutex);
   if (table_list->table)
   {
-    DBUG_ASSERT(thd->net.report_error == 0);
+    DBUG_ASSERT(! thd->is_error());
     thd->di= di;
   }
   /* Unlock the delayed insert object after its last access. */
@@ -1949,7 +1949,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
 
 end_create:
   pthread_mutex_unlock(&LOCK_delayed_create);
-  DBUG_RETURN(thd->net.report_error);
+  DBUG_RETURN(thd->is_error());
 }
 
 
@@ -3015,7 +3015,7 @@ bool select_insert::send_data(List<Item> &values)
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// Calculate cuted fields
   store_values(values);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-  if (thd->net.report_error)
+  if (thd->is_error())
     DBUG_RETURN(1);
   if (table_list)                               // Not CREATE ... SELECT
   {
@@ -3399,7 +3399,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
             it preparable for open. But let us do close_temporary_table() here
             just in case.
           */
-          close_temporary_table(thd, create_table);
+          drop_temporary_table(thd, create_table);
         }
       }
     }
