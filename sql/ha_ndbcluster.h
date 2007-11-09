@@ -154,6 +154,16 @@ typedef struct st_ndbcluster_conflict_fn_share {
   uint32 m_count;
 } NDB_CONFLICT_FN_SHARE;
 
+/*
+  Stats that can be retrieved from ndb
+*/
+struct Ndb_statistics {
+  Uint64 row_count;
+  Uint64 commit_count;
+  Uint64 row_size;
+  Uint64 fragment_memory;
+};
+
 typedef struct st_ndbcluster_share {
   NDB_SHARE_STATE state;
   MEM_ROOT mem_root;
@@ -169,6 +179,7 @@ typedef struct st_ndbcluster_share {
   char *db;
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
+  struct Ndb_statistics stat;
 #ifdef HAVE_NDB_BINLOG
   uint32 connect_count;
   uint32 flags;
@@ -330,6 +341,9 @@ class ha_ndbcluster: public handler
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   void local_close(THD *thd, bool release_metadata);
+
+  int optimize(THD* thd, HA_CHECK_OPT* check_opt);
+  int analyze(THD* thd, HA_CHECK_OPT* check_opt);
 
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
@@ -561,7 +575,7 @@ private:
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict,
                            KEY *key_info, uint index_no);
-  int get_metadata(const char* path);
+  int get_metadata(THD *thd, const char* path);
   void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
@@ -677,7 +691,7 @@ private:
 
   int write_ndb_file(const char *name);
 
-  int check_ndb_connection(THD* thd= current_thd);
+  int check_ndb_connection(THD* thd);
 
   void set_rec_per_key();
   int records_update();
@@ -808,7 +822,6 @@ private:
   uint32 m_blobs_buffer_size;
   uint m_dupkey;
   // set from thread variables at external lock
-  bool m_ha_not_exact_count;
   ha_rows m_autoincrement_prefetch;
 
   ha_ndbcluster_cond *m_cond;
@@ -823,7 +836,9 @@ private:
   KEY_MULTI_RANGE *m_multi_range_defined_end;
   const NdbOperation *m_current_multi_operation;
   NdbIndexScanOperation *m_multi_cursor;
-  Ndb *get_ndb();
+  Ndb *get_ndb(THD *thd);
+
+  int update_stats(THD *thd, bool do_read_stat);
 };
 
 extern SHOW_VAR ndb_status_variables[];
