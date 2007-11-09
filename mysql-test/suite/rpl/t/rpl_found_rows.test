@@ -44,10 +44,10 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a < 5 ORDER BY a LIMIT 1;
 SELECT FOUND_ROWS() INTO @a;
 INSERT INTO logtbl VALUES(1,2,@a);
 
-SELECT * FROM logtbl WHERE sect = 1;
+SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 --echo **** On Slave ****
 sync_slave_with_master;
-SELECT * FROM logtbl WHERE sect = 1;
+SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 
 --echo ==== 1.2. Stored procedure ====
 
@@ -81,10 +81,10 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 SELECT FOUND_ROWS() INTO @found_rows;
 CALL just_log(2,3,@found_rows);
 
-SELECT * FROM logtbl WHERE sect = 2;
+SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
 --echo **** On Slave ****
 sync_slave_with_master;
-SELECT * FROM logtbl WHERE sect = 2;
+SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
 
 --echo ==== 1.3. Stored functions ====
 --echo **** On Master ****
@@ -102,10 +102,10 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 SELECT FOUND_ROWS() INTO @found_rows;
 SELECT log_rows(3,1,@found_rows), log_rows(3,2,@found_rows);
 
-SELECT * FROM logtbl WHERE sect = 3;
+SELECT * FROM logtbl WHERE sect = 3 ORDER BY sect,test;
 --echo **** On Slave ****
 sync_slave_with_master;
-SELECT * FROM logtbl WHERE sect = 3;
+SELECT * FROM logtbl WHERE sect = 3 ORDER BY sect,test;
 
 --echo ==== 1.9. Cleanup ====
 --echo **** On Master ****
@@ -139,6 +139,7 @@ sync_slave_with_master;
 
 --echo **** On Master 1 ****
 connection master1;
+SET BINLOG_FORMAT=MIXED;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 CALL just_log(1,1);
 
@@ -161,10 +162,10 @@ CALL just_log(1,4);
 sync_slave_with_master;
 
 connection master;
-SELECT * FROM logtbl WHERE sect = 1;
+SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 --echo **** On Slave ****
 sync_slave_with_master;
-SELECT * FROM logtbl WHERE sect = 1;
+SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 
 --echo ==== 2.1. Checking a stored function ====
 --echo **** On Master ****
@@ -241,11 +242,15 @@ END $$
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 INSERT INTO t2 VALUES (2,5), (2,6);
 
-SELECT * FROM logtbl WHERE sect = 2;
+SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
 sync_slave_with_master;
-SELECT * FROM logtbl WHERE sect = 2;
+SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
 
 connection master;
 DROP TABLE t1, logtbl;
+DROP PROCEDURE just_log;
+DROP PROCEDURE log_me;
+DROP PROCEDURE log_me_inner;
+DROP FUNCTION log_rows;
 sync_slave_with_master;
 
