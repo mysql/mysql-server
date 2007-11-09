@@ -6546,7 +6546,8 @@ my_bool translog_flush(LSN lsn)
     struct st_translog_buffer *buffer= log_descriptor.bc.buffer;
     /* we can't flush in future */
     DBUG_ASSERT(cmp_translog_addr(log_descriptor.horizon, lsn) >= 0);
-    if (cmp_translog_addr(log_descriptor.flushed, lsn) >= 0)
+    if (cmp_translog_addr(log_descriptor.flushed, lsn) >= 0 ||
+        full_circle)
     {
       DBUG_PRINT("info", ("already flushed: (%lu,0x%lx)",
                           LSN_IN_PARTS(log_descriptor.flushed)));
