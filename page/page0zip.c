@@ -2505,9 +2505,15 @@ page_zip_decompress(
 	recs = mem_heap_alloc(heap, n_dense * (2 * sizeof *recs));
 
 #ifdef UNIV_ZIP_DEBUG
-	/* Clear the page. */
-	memset(page, 0x55, UNIV_PAGE_SIZE);
+	/* Clear the page.  The fill byte used to be 0x55, but we use
+	0 from now on in order to mask a known discrepancy: When a
+	record is freed (i.e., delete-marked and deleted), a shorter
+	record is allocated from the space, and the page is
+	compressed, the unused bytes after the shorter record will not
+	be initialized by the decompressor. */
+	memset(page, 0, UNIV_PAGE_SIZE);
 #endif /* UNIV_ZIP_DEBUG */
+	/* To avoid bogus warnings, use UNIV_MEM_VALID instead.  See above. */
 	UNIV_MEM_INVALID(page, UNIV_PAGE_SIZE);
 	/* Copy the page header. */
 	memcpy(page, page_zip->data, PAGE_DATA);
