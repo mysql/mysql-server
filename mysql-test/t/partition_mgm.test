@@ -1,6 +1,7 @@
 -- source include/have_partition.inc
 -- disable_warnings
 DROP TABLE IF EXISTS t1;
+DROP DATABASE IF EXISTS mysqltest2;
 -- enable_warnings
 
 #
@@ -21,7 +22,7 @@ DROP TABLE IF EXISTS t1;
 -- echo # Creating two non colliding tables mysqltest2.t1 and test.t1
 -- echo # test.t1 have partitions in mysqltest2-directory!
 -- echo # user root:
-  GRANT USAGE ON test.* TO mysqltest_1@localhost;
+  CREATE USER mysqltest_1@localhost;
   CREATE DATABASE mysqltest2;
   USE mysqltest2;
   CREATE TABLE t1 (a INT);
@@ -109,7 +110,7 @@ connection default;
 -- echo # user root (cleanup):
   DROP DATABASE mysqltest2;
   USE test;
-  REVOKE USAGE ON *.* FROM mysqltest_1@localhost;
+  DROP USER mysqltest_1@localhost;
   disconnect con1;
 
 #
