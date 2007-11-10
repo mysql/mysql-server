@@ -1291,4 +1291,18 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (b) (PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM, PARTITION p2 VALUES LESS THAN (20) ENGINE = MyISAM) */
 drop table t1, t2;
+create table t1 (int_column int, char_column char(5))
+PARTITION BY RANGE (int_column) subpartition by key (char_column)
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB);
+Warnings:
+Warning	1286	Unknown table engine 'InnoDB'
+alter table t1 PARTITION BY RANGE (int_column) subpartition by key (char_column)
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = myisam);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `int_column` int(11) DEFAULT NULL,
+  `char_column` char(5) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (int_column) SUBPARTITION BY KEY (char_column) (PARTITION p1 VALUES LESS THAN (5) ENGINE = MyISAM) */
+drop table t1;
 End of 5.1 tests
