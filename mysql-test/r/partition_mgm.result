@@ -65,7 +65,7 @@ PARTITION p1 VALUES IN (1)
 DATA DIRECTORY 'MYSQLTEST_VARDIR/master-data/test'
      INDEX DIRECTORY 'MYSQLTEST_VARDIR/master-data/test'
    );
-ERROR HY000: Can't create/write to file 'MYSQLTEST_VARDIR/master-data/mysqltest2/t1#P#p0.MYI' (Errcode: 17)
+Got one of the listed errors
 CREATE TABLE t1 (a INT)
 PARTITION BY LIST (a) (
 PARTITION p0 VALUES IN (0)
@@ -75,7 +75,7 @@ PARTITION p1 VALUES IN (1)
 DATA DIRECTORY 'MYSQLTEST_VARDIR/master-data/mysqltest2'
      INDEX DIRECTORY 'MYSQLTEST_VARDIR/master-data/mysqltest2'
   );
-ERROR HY000: Can't create/write to file 'MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYI' (Errcode: 17)
+Got one of the listed errors
 # user root (cleanup):
 DROP DATABASE mysqltest2;
 USE test;
