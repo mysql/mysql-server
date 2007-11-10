@@ -924,3 +924,34 @@ set global general_log = off;
 select command_type, argument from mysql.general_log;
 deallocate prepare long_query;
 set global general_log = @old_general_log_state;
+
+#
+# Bug #31700: thd->examined_row_count not incremented for 'const' type queries
+#
+SET @old_slow_log_state = @@global.slow_query_log;
+
+SET SESSION long_query_time = 0;
+SET GLOBAL slow_query_log = ON;
+FLUSH LOGS;
+TRUNCATE TABLE mysql.slow_log;
+
+# Let there be three columns, unique, non-unique, and non-indexed:
+CREATE TABLE t1 (f1 SERIAL,f2 INT, f3 INT, PRIMARY KEY(f1), KEY(f2));
+INSERT INTO t1 VALUES (1,1,1);
+INSERT INTO t1 VALUES (2,2,2);
+INSERT INTO t1 VALUES (3,3,3);
+INSERT INTO t1 VALUES (4,4,4);
+
+SELECT SQL_NO_CACHE 'Bug#31700 - SCAN',f1,f2,f3 FROM t1 WHERE f3=4;
+SELECT SQL_NO_CACHE 'Bug#31700 - KEY', f1,f2,f3 FROM t1 WHERE f2=3;
+SELECT SQL_NO_CACHE 'Bug#31700 - PK',  f1,f2,f3 FROM t1 WHERE f1=2;
+
+--replace_column 1 TIMESTAMP
+SELECT start_time, rows_examined, rows_sent, sql_text FROM mysql.slow_log WHERE sql_text LIKE '%Bug#31700%' ORDER BY start_time;
+
+DROP TABLE t1;
+
+TRUNCATE TABLE mysql.slow_log;
+
+SET GLOBAL slow_query_log = @old_slow_log_state;
+SET SESSION long_query_time =@old_long_query_time;

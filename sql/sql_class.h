@@ -1365,9 +1365,20 @@ public:
 
   ulonglong  limit_found_rows;
   ulonglong  options;           /* Bitmap of states */
-  longlong   row_count_func;	/* For the ROW_COUNT() function */
-  ha_rows    cuted_fields,
-             sent_row_count, examined_row_count;
+  longlong   row_count_func;    /* For the ROW_COUNT() function */
+  ha_rows    cuted_fields;
+
+  /*
+    number of rows we actually sent to the client, including "synthetic"
+    rows in ROLLUP etc.
+  */
+  ha_rows    sent_row_count;
+
+  /*
+    number of rows we read, sent or not, including in create_sort_index()
+  */
+  ha_rows    examined_row_count;
+
   /*
     The set of those tables whose fields are referenced in all subqueries
     of the query.
@@ -1403,7 +1414,11 @@ public:
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
-  ulong      row_count;  // Row counter, mainly for errors and warnings
+  /*
+    Row counter, mainly for errors and warnings. Not increased in
+    create_sort_index(); may differ from examined_row_count.
+  */
+  ulong      row_count;
   pthread_t  real_id;                           /* For debugging */
   my_thread_id  thread_id;
   uint	     tmp_table, global_read_lock;
