@@ -84,7 +84,7 @@ connection con1;
 -- echo # user mysqltest_1:
   USE test;
   -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-  -- error 1
+  -- error 1,1
   eval CREATE TABLE t1 (a INT)
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
@@ -95,7 +95,7 @@ connection con1;
      INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
    );
   -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-  -- error 1
+  -- error 1,1
   eval CREATE TABLE t1 (a INT)
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
