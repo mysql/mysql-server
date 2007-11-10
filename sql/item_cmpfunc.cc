@@ -604,26 +604,26 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 }
 
 
-/*
-  Convert date provided in a string to the int representation.
+/**
+  @brief Convert date provided in a string to the int representation.
 
-  SYNOPSIS
-    get_date_from_str()
-    thd              Thread handle
-    str              a string to convert
-    warn_type        type of the timestamp for issuing the warning
-    warn_name        field name for issuing the warning
-    error_arg  [out] TRUE if string isn't a DATETIME or clipping occur
+  @param[in]   thd        thread handle
+  @param[in]   str        a string to convert
+  @param[in]   warn_type  type of the timestamp for issuing the warning
+  @param[in]   warn_name  field name for issuing the warning
+  @param[out]  error_arg  could not extract a DATE or DATETIME
 
-  DESCRIPTION
-    Convert date provided in the string str to the int representation.
-    if the string contains wrong date or doesn't contain it at all
-    then the warning is issued and TRUE returned in the error_arg argument.
-    The warn_type and the warn_name arguments are used as the name and the
-    type of the field when issuing the warning.
+  @details Convert date provided in the string str to the int
+    representation.  If the string contains wrong date or doesn't
+    contain it at all then a warning is issued.  The warn_type and
+    the warn_name arguments are used as the name and the type of the
+    field when issuing the warning.  If any input was discarded
+    (trailing or non-timestampy characters), was_cut will be non-zero.
+    was_type will return the type str_to_datetime() could correctly
+    extract.
 
-  RETURN
-    converted value.
+  @return
+    converted value. 0 on error and on zero-dates -- check 'failure'
 */
 
 static ulonglong
@@ -634,26 +634,33 @@ get_date_from_str(THD *thd, String *str, timestamp_type warn_type,
   int error;
   MYSQL_TIME l_time;
   enum_mysql_timestamp_type ret;
-  *error_arg= TRUE;
 
   ret= str_to_datetime(str->ptr(), str->length(), &l_time,
                        (TIME_FUZZY_DATE | MODE_INVALID_DATES |
                         (thd->variables.sql_mode &
                          (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE))),
                        &error);
-  if ((ret == MYSQL_TIMESTAMP_DATETIME || ret == MYSQL_TIMESTAMP_DATE))
+
+  if (ret == MYSQL_TIMESTAMP_DATETIME || ret == MYSQL_TIMESTAMP_DATE)
   {
-    value= TIME_to_ulonglong_datetime(&l_time);
+    /*
+      Do not return yet, we may still want to throw a "trailing garbage"
+      warning.
+    */
     *error_arg= FALSE;
+    value= TIME_to_ulonglong_datetime(&l_time);
+  }
+  else
+  {
+    *error_arg= TRUE;
+    error= 1;                                   /* force warning */
   }
 
-  if (error || *error_arg)
-  {
+  if (error > 0)
     make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  str->ptr(), str->length(),
                                  warn_type, warn_name);
-    *error_arg= TRUE;
-  }
+
   return value;
 }
 
@@ -954,6 +961,12 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     timestamp_type t_type= f_type ==
       MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME;
     value= get_date_from_str(thd, str, t_type, warn_item->name, &error);
+    /*
+      If str did not contain a valid date according to the current
+      SQL_MODE, get_date_from_str() has already thrown a warning,
+      and we don't want to throw NULL on invalid date (see 5.2.6
+      "SQL modes" in the manual), so we're done here.
+    */
   }
   /*
     Do not cache GET_USER_VAR() function as its const_item() may return TRUE
