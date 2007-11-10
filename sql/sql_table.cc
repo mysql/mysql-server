@@ -2429,12 +2429,12 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     strxmov(src_path, (*tmp_table)->path, reg_ext, NullS);
   else
   {
-    strxmov(src_path, mysql_data_home, "/", src_db, "/", src_table,
-	    reg_ext, NullS);
+    char *tablename_pos= strxmov(src_path, mysql_data_home, "/", NullS);
+    strxmov(tablename_pos, src_db, "/", src_table, reg_ext, NullS);
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, tablename_pos);
     /* Resolve symlinks (for windows) */
     fn_format(src_path, src_path, "", "", MYF(MY_UNPACK_FILENAME));
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, src_path);
     if (access(src_path, F_OK))
     {
       my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
