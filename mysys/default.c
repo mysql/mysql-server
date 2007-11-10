@@ -997,14 +997,14 @@ static uint my_get_system_windows_directory(char *buffer, uint size)
 
 static void init_default_directories_win()
 {
-  bzero(default_directories, sizeof(default_directories));
+  bzero((char *) default_directories, sizeof(default_directories));
 
   if (my_get_system_windows_directory(shared_system_dir,
                                       sizeof(shared_system_dir)))
-    ADD_DIRECTORY(&shared_system_dir);
+    ADD_DIRECTORY(shared_system_dir);
 
   if (GetWindowsDirectory(system_dir,sizeof(system_dir)))
-    ADD_DIRECTORY(&system_dir);
+    ADD_DIRECTORY(system_dir);
 
   ADD_DIRECTORY("C:/");
 
@@ -1037,7 +1037,7 @@ static void init_default_directories_win()
         last= end;
       }
     }
-    ADD_DIRECTORY(&config_dir);
+    ADD_DIRECTORY(config_dir);
   }
 
   ADD_COMMON_DIRECTORIES();
@@ -1058,7 +1058,7 @@ static void (*init_default_directories)()= init_default_directories_win;
 
 static void init_default_directories_netware()
 {
-  bzero(default_directories, sizeof(default_directories));
+  bzero((char *) default_directories, sizeof(default_directories));
   ADD_DIRECTORY("sys:/etc/");
   ADD_COMMON_DIRECTORIES();
 }
@@ -1081,7 +1081,7 @@ static void init_default_directories_os2()
 {
   const char *env;
 
-  bzero(default_directories, sizeof(default_directories));
+  bzero((char *) default_directories, sizeof(default_directories));
   ADD_DIRECTORY("/etc/");
   if ((env= getenv("ETC")))
     ADD_DIRECTORY(env);
@@ -1105,7 +1105,7 @@ static void (*init_default_directories)()= init_default_directories_os2;
 
 static void init_default_directories_unix()
 {
-  bzero(default_directories, sizeof(default_directories));
+  bzero((char *) default_directories, sizeof(default_directories));
   ADD_DIRECTORY("/etc/");
 #ifdef DEFAULT_SYSCONFDIR
   if (DEFAULT_SYSCONFDIR != "")
