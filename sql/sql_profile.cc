@@ -378,6 +378,7 @@ void PROFILING::finish_current_query()
 
     if ((enabled) &&                                    /* ON at start? */
         ((thd->options & OPTION_PROFILING) != 0) &&   /* and ON at end? */
+        (current->query_source != NULL) &&
         (! current->entries.is_empty()))
     {
       current->profiling_query_id= next_profile_id();   /* assign an id */

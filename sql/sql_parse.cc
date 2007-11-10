@@ -668,9 +668,6 @@ bool do_command(THD *thd)
   enum enum_server_command command;
   DBUG_ENTER("do_command");
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-  thd->profiling.start_new_query();
-#endif
   /*
     indicator of uninitialized lex => normal flow of errors handling
     (see my_message_sql)
@@ -688,7 +685,12 @@ bool do_command(THD *thd)
   thd->clear_error();				// Clear error message
 
   net_new_transaction(net);
-  if ((packet_length=my_net_read(net)) == packet_error)
+
+  packet_length= my_net_read(net);
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.start_new_query();
+#endif
+  if (packet_length == packet_error)
   {
     DBUG_PRINT("info",("Got error %d reading command from socket %s",
 		       net->error,
