@@ -183,3 +183,7 @@ c1	c2	c3
 182	abc	2002-11-09
 184	abc	2002-11-22
 drop table t1;
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM PARTITION BY HASH(c1) PARTITIONS 1;
+INSERT DELAYED INTO t1 VALUES (1);
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+DROP TABLE t1;
