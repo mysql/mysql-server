@@ -1223,6 +1223,16 @@ EXECUTE st1;
 DEALLOCATE PREPARE st1;
 DROP TABLE t1;
 
+
+#
+# Bug #32137: prepared statement crash with str_to_date in update clause
+#
+create table t1 (a int, b tinyint);
+prepare st1 from 'update t1 set b= (str_to_date(a, a))';
+execute st1;
+deallocate prepare st1;
+drop table t1;
+
 --echo End of 4.1 tests.
 
 ############################# 5.0 tests start ################################
