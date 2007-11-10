@@ -1073,10 +1073,19 @@ JOIN::optimize()
         We have found that grouping can be removed since groups correspond to
         only one row anyway, but we still have to guarantee correct result
         order. The line below effectively rewrites the query from GROUP BY
-        <fields> to ORDER BY <fields>. One exception is if skip_sort_order is
-        set (see above), then we can simply skip GROUP BY.
-      */
-      order= skip_sort_order ? 0 : group_list;
+        <fields> to ORDER BY <fields>. There are two exceptions:
+        - if skip_sort_order is set (see above), then we can simply skip
+          GROUP BY;
+        - we can only rewrite ORDER BY if the ORDER BY fields are 'compatible'
+          with the GROUP BY ones, i.e. either one is a prefix of another.
+          We only check if the ORDER BY is a prefix of GROUP BY. In this case
+          test_if_subpart() copies the ASC/DESC attributes from the original
+          ORDER BY fields.
+          If GROUP BY is a prefix of ORDER BY, then it is safe to leave
+          'order' as is.
+       */
+      if (!order || test_if_subpart(group_list, order))
+          order= skip_sort_order ? 0 : group_list;
       /*
         If we have an IGNORE INDEX FOR GROUP BY(fields) clause, this must be 
         rewritten to IGNORE INDEX FOR ORDER BY(fields).
