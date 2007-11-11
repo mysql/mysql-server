@@ -2637,7 +2637,7 @@ public:
   };
   virtual void store(Item *)= 0;
   enum Type type() const { return CACHE_ITEM; }
-  static Item_cache* get_cache(Item_result type);
+  static Item_cache* get_cache(const Item *item);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
   // to prevent drop fixed flag (no need parent cleanup call)
@@ -2699,9 +2699,16 @@ class Item_cache_str: public Item_cache
 {
   char buffer[STRING_BUFFER_USUAL_SIZE];
   String *value, value_buff;
+  bool is_varbinary;
+  
 public:
-  Item_cache_str(): Item_cache(), value(0) { }
-
+  Item_cache_str(const Item *item) :
+    Item_cache(), value(0),
+    is_varbinary(item->type() == FIELD_ITEM &&
+                 ((const Item_field *) item)->field->type() ==
+                   MYSQL_TYPE_VARCHAR &&
+                 !((const Item_field *) item)->field->has_charset())
+  {}
   void store(Item *item);
   double val_real();
   longlong val_int();
@@ -2709,6 +2716,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };
+  int save_in_field(Field *field, bool no_conversions);
 };
 
 class Item_cache_row: public Item_cache
