@@ -144,3 +144,11 @@ select * from t1 where c3 between '2002-01-01' and '2002-12-31';
 
 drop table t1;
 
+#
+# Bug#31210 - INSERT DELAYED crashes server when used on partitioned table
+#
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM PARTITION BY HASH(c1) PARTITIONS 1;
+--error ER_ILLEGAL_HA
+INSERT DELAYED INTO t1 VALUES (1);
+DROP TABLE t1;
+

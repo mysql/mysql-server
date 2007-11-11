@@ -2,7 +2,7 @@
 # if federated can utilise the servers table
 # should work with embedded server after mysqltest is fixed
 -- source include/not_embedded.inc
--- source include/federated.inc;
+-- source include/federated.inc
 -- source include/big_test.inc
 
 connection slave;
@@ -282,6 +282,18 @@ drop user guest_select@localhost;
 drop table federated.t1;
 drop server 's1';
 
+#
+# Bug#30671 - ALTER SERVER causes the server to crash
+#
+create server 's1' foreign data wrapper 'mysql' options (port 3306);
+alter server 's1' options
+  (host 'localhost', database '', user '',
+  password '', socket '', owner '', port 3306);
+# The next statement would crash unpatched server
+alter server 's1' options
+  (host 'localhost', database 'database1', user '',
+  password '', socket '', owner '', port 3306);
+drop server 's1';
 
 --echo # End of 5.1 tests
 

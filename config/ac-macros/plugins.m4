@@ -360,6 +360,17 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
      AC_MSG_ERROR([cannot disable mandatory plugin])
    fi
    [mysql_plugin_]$2=yes
+  ],[
+   case "$with_mysqld_ldflags " in
+     *"-all-static "*)
+       # No need to build shared plugins when mysqld is linked with
+       # -all-static as it won't be able to load them.
+       if test "X[$mysql_plugin_]$2" != Xyes -a \
+               "X[$with_plugin_]$2" != Xyes; then
+	     [with_plugin_]$2=no
+	   fi
+     ;;
+   esac
   ])
   if test "X[$with_plugin_]$2" = Xno; then
     AC_MSG_RESULT([no])
