@@ -1156,13 +1156,14 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD)
   /**
      @todo RECOVERY BUG
      we stamp page with UNDO's LSN. Assume an operation logs REDO-REDO-UNDO
-     where the two REDOs are about the same page. Then recovery applies first
-     REDO and skips second REDO which is wrong. Solutions:
-     a) when applying REDO, keep page pinned, don't stamp it, remember it;
-     when seeing UNDO, unpin pages and stamp them; for BLOB pages we cannot
-     pin them (too large for memory) so need an additional pass in REDO phase:
-      - find UNDO
-      - execute all REDOs about this UNDO but skipping REDOs for
+     where the two REDOs are about the same page (that is possible only with a
+     head or tail page, not blob page). Then recovery applies first REDO and
+     skips second REDO which is wrong. Solution:
+     a)
+       * when applying REDO to head or tail, keep page pinned, don't stamp it,
+       * when applying REDO to blob page, stamp it with UNDO's LSN
+       * when seeing UNDO, unpin head/tail pages and stamp them with UNDO's
+       LSN.
      or b) when applying REDO, stamp page with REDO's LSN (=> difference in
      'cmp' between run-time and recovery, need a special 'cmp'...).
   */

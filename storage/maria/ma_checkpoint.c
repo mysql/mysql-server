@@ -176,27 +176,6 @@ static int really_execute_checkpoint(void)
   DBUG_PRINT("info",("checkpoint_start_log_horizon (%lu,0x%lx)",
                      LSN_IN_PARTS(checkpoint_start_log_horizon)));
   lsn_store(checkpoint_start_log_horizon_char, checkpoint_start_log_horizon);
-  /*
-    We are going to flush the state of some tables (in collect_tables()) if
-    it's older than checkpoint_start_log_horizon. Before, all records
-    describing how to undo this flushed state must be in the log
-    (WAL). Usually this means UNDOs. In the special case of data_file_length,
-    recovery just needs to open the table, so any LOGREC_FILE_ID/REDO/UNDO
-    allowing recovery to understand it must open a table, is enough.
-  */
-  /**
-     Apart from data|key_file_length which are easily recoverable from the OS,
-     all other state members must be updated only when writing the UNDO;
-     otherwise, if updated before, if their new value is flushed by a
-     checkpoint and there is a crash before UNDO is written, their REDO group
-     will be missing or at least incomplete and skipped by recovery, so bad
-     state value will stay. For example, setting key_root before writing the
-     UNDO: the table would have old index page (they were pinned at time of
-     crash) and a new, thus wrong, key_root.
-     @todo RECOVERY BUG check that all code honours that.
-  */
-  if (translog_flush(checkpoint_start_log_horizon))
-    goto err;
 
   /*
     STEP 2: fetch information about transactions.
@@ -887,9 +866,32 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
         */
       }
       translog_unlock();
+      /**
+         We are going to flush these states.
+         Before, all records describing how to undo such state must be
+         in the log (WAL). Usually this means UNDOs. In the special case of
+         data|key_file_length, recovery just needs to open the table to fix the
+         length, so any LOGREC_FILE_ID/REDO/UNDO allowing recovery to
+         understand it must open a table, is enough; so as long as
+         data|key_file_length is updated after writing any log record it's ok:
+         if we copied new value above, it means the record was before
+         state_copies_horizon and we flush such record below.
+         Apart from data|key_file_length which are easily recoverable from the
+         real file's size, all other state members must be updated only when
+         writing the UNDO; otherwise, if updated before, if their new value is
+         flushed by a checkpoint and there is a crash before UNDO is written,
+         their REDO group will be missing or at least incomplete and skipped
+         by recovery, so bad state value will stay. For example, setting
+         key_root before writing the UNDO: the table would have old index
+         pages (they were pinned at time of crash) and a new, thus wrong,
+         key_root.
+         @todo RECOVERY BUG check that all code honours that.
+      */
+      if (translog_flush(state_copies_horizon))
+        goto err;
+      /* now we have cached states and they are WAL-safe*/
       state_copies_end= state_copy;
       state_copy= state_copies;
-      /* so now we have cached states */
     }
 
     /* locate our state among these cached ones */
@@ -911,15 +913,11 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
     dfile= share->bitmap.file;
     /*
       Ignore table which has no logged writes (all its future log records will
-      be found naturally by Recovery). This also avoids flushing
-      a data_file_length changed too early by a client (before any log record
-      was written, giving no chance to recovery to meet and open the table,
-      see _ma_read_bitmap_page()).
-      Ignore obsolete shares (_before_ setting themselves to last_version=0
-      they already did all flush and sync; if we flush their state now we may
-      be flushing an obsolete state onto a newer one (assuming the table has
-      been reopened with a different share but of course same physical index
-      file).
+      be found naturally by Recovery). Ignore obsolete shares (_before_
+      setting themselves to last_version=0 they already did all flush and
+      sync; if we flush their state now we may be flushing an obsolete state
+      onto a newer one (assuming the table has been reopened with a different
+      share but of course same physical index file).
     */
     if ((share->id != 0) && (share->last_version != 0))
     {
@@ -974,7 +972,6 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
           It may also be a share which got last_version==0 since we checked
           last_version; in this case, it flushed its state and the LSN test
           above will catch it.
-          Last, see comments at start of really_execute_checkpoint().
         */
       }
       else
@@ -1005,6 +1002,12 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
           each checkpoint if the table was once written and then not anymore.
         */
       }
+      /**
+         @todo RECOVERY BUG this is going to flush the bitmap page possibly to
+         disk even though it could be over-allocated with not yet any
+         REDO-UNDO complete group (WAL violation: no way to undo the
+         over-allocation if crash); see also _ma_change_bitmap_page().
+      */
       sync_error|=
         _ma_flush_bitmap(share); /* after that, all is in page cache */
       DBUG_ASSERT(share->pagecache == maria_pagecache);

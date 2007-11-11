@@ -1444,17 +1444,9 @@ static my_bool write_tail(MARIA_HA *info,
   {
     /*
       We are modifying a state member before writing the UNDO; this is a WAL
-      violation: assume this setting is made, checkpoint flushes new state,
-      and crash happens before the UNDO is written: how to undo the bad state?
-      Fortunately for data_file_length this is ok: as long as we change
-      data_file_length after writing any REDO or UNDO we are safe:
-      - checkpoint flushes state only if it's older than
-      checkpoint_start_log_horizon, and flushes log up to that horizon first
-      - so if checkpoint flushed state with new data_file_length, REDO is in
-      log so LOGREC_FILE_ID too, recovery will meet and open the table thus
-      fix data_file_length to be the file's physical size.
-      Same property is currently true in all places of this file which change
-      data_file_length.
+      violation. But for data_file_length this is ok, as long as we change
+      data_file_length after writing any log record (FILE_ID/REDO/UNDO) (see
+      collect_tables()).
     */
     info->state->data_file_length= position + block_size;
   }
