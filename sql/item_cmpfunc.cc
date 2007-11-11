@@ -1438,7 +1438,7 @@ longlong Item_func_truth::val_int()
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
   if (!args[0]->fixed && args[0]->fix_fields(thd, args) ||
-      !cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
+      !cache && !(cache= Item_cache::get_cache(args[0])))
     return 1;
 
   cache->setup(args[0]);
