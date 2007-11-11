@@ -3568,6 +3568,10 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
                         PCBLOCK_NUMBER(pagecache, block), (ulong)block,
                         block->pins));
     DBUG_ASSERT(block->pins == 1);
+    /**
+       @todo If page is contiguous with next page to flush, group flushes in
+       one single my_pwrite().
+    */
     error= pagecache_fwrite(pagecache, file,
                             block->buffer,
                             block->hash_link->pageno,

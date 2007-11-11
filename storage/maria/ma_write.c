@@ -176,8 +176,15 @@ int maria_write(MARIA_HA *info, uchar *record)
       info->cur_row.checksum;
   }
   if (share->base.auto_key)
+  {
+    /**
+       @todo RECOVERY BUG
+       if updated here, it's not recoverable (no mutex => checkpoint may see a
+       crazy value and flush it into the table's state on disk).
+    */
     set_if_bigger(info->s->state.auto_increment,
                   ma_retrieve_auto_increment(info, record));
+  }
   info->update= (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_WRITTEN |
 		 HA_STATE_ROW_CHANGED);
   info->state->records+= !share->now_transactional; /*otherwise already done*/

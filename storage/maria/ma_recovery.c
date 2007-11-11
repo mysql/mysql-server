@@ -253,6 +253,11 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
       there was a crash during a DDL (see comment in execution of
       REDO_RENAME_TABLE ).
     */
+    /**
+       @todo RECOVERY BUG instead of this warning, whenever log becomes
+       incomplete (ALTER TABLE, CREATE SELECT) write a log record
+       LOGREC_INCOMPLETE; when seeing this record, print warning below.
+    */
     tprint(tracef, "WARNING: MySQL server currently disables log records"
            " about insertion of data by ALTER TABLE"
            " (copy_data_between_tables()), applying of log records may"

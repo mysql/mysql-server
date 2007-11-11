@@ -501,11 +501,6 @@ filter_flush_data_file_evenly(enum pagecache_page_type type,
 
    @note MikaelR questioned why the same thread does two different jobs, the
    risk could be that while a checkpoint happens no LRD flushing happens.
-
-   @note MikaelR noted that he observed that Linux's file cache may never
-   fsync to  disk until this cache is full, at which point it decides to empty
-   the cache, making the machine very slow. A solution was to fsync after
-   writing 2 MB.
 */
 
 pthread_handler_t ma_checkpoint_background(void *arg)
@@ -622,6 +617,13 @@ pthread_handler_t ma_checkpoint_background(void *arg)
           if (filter_param.max_pages == 0) /* bunch all flushed, sleep */
             break; /* and we will continue with the same file */
           dfile++; /* otherwise all this file is flushed, move to next file */
+          /*
+            MikaelR noted that he observed that Linux's file cache may never
+            fsync to  disk until this cache is full, at which point it decides
+            to empty the cache, making the machine very slow. A solution was
+            to fsync after writing 2 MB. So we might want to fsync() here if
+            we wrote enough pages.
+          */
         }
         filter_param.is_data_file= FALSE;
         while (kfile != kfiles_end)
