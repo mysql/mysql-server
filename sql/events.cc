@@ -884,6 +884,7 @@ Events::init(my_bool opt_noacl)
   */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+  lex_start(thd);
 
   /*
     We will need Event_db_repository anyway, even if the scheduler is
