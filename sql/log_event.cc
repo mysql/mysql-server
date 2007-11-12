@@ -148,7 +148,7 @@ static void pretty_print_str(IO_CACHE* cache, char* str, int len)
 
 static void clear_all_errors(THD *thd, Relay_log_info *rli)
 {
-  thd->query_error = 0;
+  thd->is_slave_error = 0;
   thd->clear_error();
   rli->clear_error();
 }
@@ -2106,7 +2106,7 @@ and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the \
 slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; \
 START SLAVE; . Query: '%s'", expected_error, thd->query);
-        thd->query_error= 1;
+        thd->is_slave_error= 1;
       }
       goto end;
     }
@@ -2138,7 +2138,7 @@ Default database: '%s'. Query: '%s'",
                       actual_error ? thd->net.last_error: "no error",
                       actual_error,
                       print_slave_db_safe(db), query_arg);
-      thd->query_error= 1;
+      thd->is_slave_error= 1;
     }
     /*
       If we get the same error code as expected, or they should be ignored. 
@@ -2153,14 +2153,14 @@ Default database: '%s'. Query: '%s'",
     /*
       Other cases: mostly we expected no error and get one.
     */
-    else if (thd->query_error || thd->is_fatal_error)
+    else if (thd->is_slave_error || thd->is_fatal_error)
     {
       rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' on query. Default database: '%s'. Query: '%s'",
                       (actual_error ? thd->net.last_error :
                        "unexpected success or fatal error"),
                       print_slave_db_safe(thd->db), query_arg);
-      thd->query_error= 1;
+      thd->is_slave_error= 1;
     }
 
     /*
@@ -2171,7 +2171,7 @@ Default database: '%s'. Query: '%s'",
       sql_print_error("Slave: did not get the expected number of affected \
       rows running query from master - expected %d, got %d (this numbers \
       should have matched modulo 4294967296).", 0, ...);
-      thd->query_error = 1;
+      thd->is_slave_error = 1;
       }
       We may also want an option to tell the slave to ignore "affected"
       mismatch. This mismatch could be implemented with a new ER_ code, and
@@ -2215,7 +2215,7 @@ end:
   thd->first_successful_insert_id_in_prev_stmt= 0;
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-  return thd->query_error;
+  return thd->is_slave_error;
 }
 
 int Query_log_event::do_update_pos(Relay_log_info *rli)
@@ -3255,7 +3255,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   thd->set_db(new_db.str, new_db.length);
   DBUG_ASSERT(thd->query == 0);
   thd->query_length= 0;                         // Should not be needed
-  thd->query_error= 0;
+  thd->is_slave_error= 0;
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
 
   /* see Query_log_event::do_apply_event() and BUG#13360 */
@@ -3429,7 +3429,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       List<Item> tmp_list;
       if (mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
                      handle_dup, ignore, net != 0))
-        thd->query_error= 1;
+        thd->is_slave_error= 1;
       if (thd->cuted_fields)
       {
 	/* log_pos is the position of the LOAD event in the master log */
@@ -3468,9 +3468,9 @@ error:
   close_thread_tables(thd);
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error",
-                  thd->query_error= 0; thd->is_fatal_error= 1;);
+                  thd->is_slave_error= 0; thd->is_fatal_error= 1;);
 
-  if (thd->query_error)
+  if (thd->is_slave_error)
   {
     /* this err/sql_errno code is copy-paste from net_send_error() */
     const char *err;
@@ -5655,7 +5655,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     m_width(tbl_arg ? tbl_arg->s->fields : 1),
     m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0) 
 #ifdef HAVE_REPLICATION
-    ,m_key(NULL), m_curr_row(NULL), m_curr_row_end(NULL)
+    , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
 #endif
 {
   /*
@@ -5703,7 +5703,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 #endif
     m_table_id(0), m_rows_buf(0), m_rows_cur(0), m_rows_end(0)
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-    ,m_key(NULL), m_curr_row(NULL), m_curr_row_end(NULL)
+    , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
 #endif
 {
   DBUG_ENTER("Rows_log_event::Rows_log_event(const char*,...)");
@@ -5951,7 +5951,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     {
       if (!need_reopen)
       {
-        if (thd->query_error || thd->is_fatal_error)
+        if (thd->is_slave_error || thd->is_fatal_error)
         {
           /*
             Error reporting borrowed from Query_log_event with many excessive
@@ -5995,7 +5995,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       uint tables_count= rli->tables_to_lock_count;
       if ((error= open_tables(thd, &tables, &tables_count, 0)))
       {
-        if (thd->query_error || thd->is_fatal_error)
+        if (thd->is_slave_error || thd->is_fatal_error)
         {
           /*
             Error reporting borrowed from Query_log_event with many excessive
@@ -6006,7 +6006,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                       "Error '%s' on reopening tables",
                       (actual_error ? thd->net.last_error :
                        "unexpected success or fatal error"));
-          thd->query_error= 1;
+          thd->is_slave_error= 1;
         }
         const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
         DBUG_RETURN(error);
@@ -6029,7 +6029,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         {
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
-          thd->query_error= 1;
+          thd->is_slave_error= 1;
           const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
@@ -6165,7 +6165,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                     "Error in %s event: row application failed. %s",
                     get_type_str(),
                     thd->net.last_error ? thd->net.last_error : "");
-	thd->query_error= 1;
+	thd->is_slave_error= 1;
 	break;
       }
 
@@ -6230,7 +6230,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     thd->reset_current_stmt_binlog_row_based();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
-    thd->query_error= 1;
+    thd->is_slave_error= 1;
     DBUG_RETURN(error);
   }
 
@@ -6528,9 +6528,15 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     m_dblen(m_dbnam ? tbl->s->db.length : 0),
     m_tblnam(tbl->s->table_name.str),
     m_tbllen(tbl->s->table_name.length),
-    m_colcnt(tbl->s->fields), m_field_metadata(0),
-    m_field_metadata_size(0), m_memory(NULL), m_meta_memory(NULL), m_data_size(0),
-    m_table_id(tid), m_null_bits(0), m_flags(flags)
+    m_colcnt(tbl->s->fields),
+    m_memory(NULL),
+    m_table_id(tid),
+    m_flags(flags),
+    m_data_size(0),
+    m_field_metadata(0),
+    m_field_metadata_size(0),
+    m_null_bits(0),
+    m_meta_memory(NULL)
 {
   DBUG_ASSERT(m_table_id != ~0UL);
   /*
@@ -6807,7 +6813,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
     TABLE_LIST *tmp_table_list= table_list;
     if ((error= open_tables(thd, &tmp_table_list, &count, 0)))
     {
-      if (thd->query_error || thd->is_fatal_error)
+      if (thd->is_slave_error || thd->is_fatal_error)
       {
         /*
           Error reporting borrowed from Query_log_event with many excessive
@@ -6819,7 +6825,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                     (actual_error ? thd->net.last_error :
                      "unexpected success or fatal error"),
                     table_list->db, table_list->table_name);
-        thd->query_error= 1;
+        thd->is_slave_error= 1;
       }
       goto err;
     }

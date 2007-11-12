@@ -1289,6 +1289,40 @@ a	b
 3	2
 1	1
 DROP TABLE t1;
+
+#
+# Bug#27610: ALTER TABLE ROW_FORMAT=... does not rebuild the table.
+#
+
+# - prepare;
+
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1(c INT)
+ENGINE = InnoDB
+ROW_FORMAT = COMPACT;
+
+# - initial check;
+
+SELECT table_schema, table_name, row_format
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = DATABASE() AND table_name = 't1';
+table_schema	table_name	row_format
+test	t1	Compact
+
+# - change ROW_FORMAT and check;
+
+ALTER TABLE t1 ROW_FORMAT = REDUNDANT;
+
+SELECT table_schema, table_name, row_format
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = DATABASE() AND table_name = 't1';
+table_schema	table_name	row_format
+test	t1	Redundant
+
+# - that's it, cleanup.
+
+DROP TABLE t1;
 End of 5.0 tests
 CREATE TABLE `t2` (
 `k` int(11) NOT NULL auto_increment,

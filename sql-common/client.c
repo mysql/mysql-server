@@ -272,6 +272,76 @@ static int wait_for_data(my_socket fd, uint timeout)
 }
 #endif /* defined(__WIN__) || defined(__NETWARE__) */
 
+/**
+  Set the internal error message to mysql handler
+
+  @param mysql    connection handle (client side)
+  @param errcode  CR_ error code, passed to ER macro to get
+                  error text
+  @parma sqlstate SQL standard sqlstate
+*/
+
+void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
+{
+  NET *net;
+  DBUG_ENTER("set_mysql_error");
+  DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER(errcode)));
+  DBUG_ASSERT(mysql != 0);
+
+  net= &mysql->net;
+  net->last_errno= errcode;
+  strmov(net->last_error, ER(errcode));
+  strmov(net->sqlstate, sqlstate);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Clear possible error state of struct NET
+
+  @param net  clear the state of the argument
+*/
+
+void net_clear_error(NET *net)
+{
+  net->last_errno= 0;
+  net->last_error[0]= '\0';
+  strmov(net->sqlstate, not_error_sqlstate);
+}
+
+/**
+  Set an error message on the client.
+
+  @param mysql     connection handle
+  @param errcode   CR_* errcode, for client errors
+  @param sqlstate  SQL standard sql state, unknown_sqlstate for the
+                   majority of client errors.
+  @param format    error message template, in sprintf format
+  @param ...       variable number of arguments
+*/
+
+static void set_mysql_extended_error(MYSQL *mysql, int errcode,
+                                     const char *sqlstate,
+                                     const char *format, ...)
+{
+  NET *net;
+  va_list args;
+  DBUG_ENTER("set_mysql_extended_error");
+  DBUG_PRINT("enter", ("error :%d '%s'", errcode, format));
+  DBUG_ASSERT(mysql != 0);
+
+  net= &mysql->net;
+  net->last_errno= errcode;
+  va_start(args, format);
+  my_vsnprintf(net->last_error, sizeof(net->last_error)-1,
+               format, args);
+  va_end(args);
+  strmov(net->sqlstate, sqlstate);
+
+  DBUG_VOID_RETURN;
+}
+
+
 
 /*
   Create a named pipe connection
@@ -279,7 +349,7 @@ static int wait_for_data(my_socket fd, uint timeout)
 
 #ifdef __WIN__
 
-HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
+HANDLE create_named_pipe(MYSQL *mysql, uint connect_timeout, char **arg_host,
 			 char **arg_unix_socket)
 {
   HANDLE hPipe=INVALID_HANDLE_VALUE;
@@ -312,42 +382,34 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
       break;
     if (GetLastError() != ERROR_PIPE_BUSY)
     {
-      net->last_errno=CR_NAMEDPIPEOPEN_ERROR;
-      strmov(net->sqlstate, unknown_sqlstate);
-      my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                  ER(net->last_errno), host, unix_socket,
-	          (ulong) GetLastError());
+      set_mysql_extended_error(mysql, CR_NAMEDPIPEOPEN_ERROR,
+                               unknown_sqlstate, ER(CR_NAMEDPIPEOPEN_ERROR),
+                               host, unix_socket, (ulong) GetLastError());
       return INVALID_HANDLE_VALUE;
     }
     /* wait for for an other instance */
     if (! WaitNamedPipe(pipe_name, connect_timeout*1000) )
     {
-      net->last_errno=CR_NAMEDPIPEWAIT_ERROR;
-      strmov(net->sqlstate, unknown_sqlstate);
-      my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                  ER(net->last_errno), host, unix_socket,
-	          (ulong) GetLastError());
+      set_mysql_extended_error(mysql, CR_NAMEDPIPEWAIT_ERROR, unknown_sqlstate,
+                               ER(CR_NAMEDPIPEWAIT_ERROR),
+                               host, unix_socket, (ulong) GetLastError());
       return INVALID_HANDLE_VALUE;
     }
   }
   if (hPipe == INVALID_HANDLE_VALUE)
   {
-    net->last_errno=CR_NAMEDPIPEOPEN_ERROR;
-    strmov(net->sqlstate, unknown_sqlstate);
-    my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                ER(net->last_errno), host, unix_socket,
-	        (ulong) GetLastError());
+    set_mysql_extended_error(mysql, CR_NAMEDPIPEOPEN_ERROR, unknown_sqlstate,
+                             ER(CR_NAMEDPIPEOPEN_ERROR), host, unix_socket,
+                             (ulong) GetLastError());
     return INVALID_HANDLE_VALUE;
   }
   dwMode = PIPE_READMODE_BYTE | PIPE_WAIT;
   if ( !SetNamedPipeHandleState(hPipe, &dwMode, NULL, NULL) )
   {
     CloseHandle( hPipe );
-    net->last_errno=CR_NAMEDPIPESETSTATE_ERROR;
-    strmov(net->sqlstate, unknown_sqlstate);
-    my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                ER(net->last_errno),host, unix_socket,
-	        (ulong) GetLastError());
+    set_mysql_extended_error(mysql, CR_NAMEDPIPESETSTATE_ERROR,
+                             unknown_sqlstate, ER(CR_NAMEDPIPESETSTATE_ERROR),
+                             host, unix_socket, (ulong) GetLastError());
     return INVALID_HANDLE_VALUE;
   }
   *arg_host=host ; *arg_unix_socket=unix_socket;	/* connect arg */
@@ -566,14 +628,12 @@ err:
     CloseHandle(handle_connect_file_map);
   if (error_allow)
   {
-    net->last_errno=error_allow;
-    strmov(net->sqlstate, unknown_sqlstate);
     if (error_allow == CR_SHARED_MEMORY_EVENT_ERROR)
-      my_snprintf(net->last_error,sizeof(net->last_error)-1,
-                  ER(net->last_errno),suffix_pos,error_code);
+      set_mysql_extended_error(mysql, error_allow, unknown_sqlstate,
+                               ER(error_allow), suffix_pos, error_code);
     else
-      my_snprintf(net->last_error,sizeof(net->last_error)-1,
-                  ER(net->last_errno),error_code);
+      set_mysql_extended_error(mysql, error_allow, unknown_sqlstate,
+                               ER(error_allow), error_code);
     return(INVALID_HANDLE_VALUE);
   }
   return(handle_map);
@@ -683,10 +743,8 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     DBUG_RETURN(1);
   }
 
-  net->last_error[0]=0;
-  net->last_errno= 0;
-  strmov(net->sqlstate, not_error_sqlstate);
-  mysql->net.report_error=0;
+  net_clear_error(net);
+  net->report_error=0;
   mysql->info=0;
   mysql->affected_rows= ~(my_ulonglong) 0;
   /*
@@ -703,8 +761,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 			socket_errno));
     if (net->last_errno == ER_NET_PACKET_TOO_LARGE)
     {
-      net->last_errno=CR_NET_PACKET_TOO_LARGE;
-      strmov(net->last_error,ER(net->last_errno));
+      set_mysql_error(mysql, CR_NET_PACKET_TOO_LARGE, unknown_sqlstate);
       goto end;
     }
     end_server(mysql);
@@ -713,8 +770,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     if (net_write_command(net,(uchar) command, header, header_length,
 			  arg, arg_length))
     {
-      net->last_errno=CR_SERVER_GONE_ERROR;
-      strmov(net->last_error,ER(net->last_errno));
+      set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
       goto end;
     }
   }
@@ -740,48 +796,6 @@ void free_old_query(MYSQL *mysql)
   mysql->info= 0;
   DBUG_VOID_RETURN;
 }
-
-/*
-  Set the internal error message to mysql handler
-*/
-
-void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
-{
-  NET *net;
-  DBUG_ENTER("set_mysql_error");
-  DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER(errcode)));
-  DBUG_ASSERT(mysql != 0);
-
-  net= &mysql->net;
-  net->last_errno= errcode;
-  strmov(net->last_error, ER(errcode));
-  strmov(net->sqlstate, sqlstate);
-
-  DBUG_VOID_RETURN;
-}
-
-
-static void set_mysql_extended_error(MYSQL *mysql, int errcode,
-                                     const char *sqlstate,
-                                     const char *format, ...)
-{
-  NET *net;
-  va_list args;
-  DBUG_ENTER("set_mysql_extended_error");
-  DBUG_PRINT("enter", ("error :%d '%s'", errcode, format));
-  DBUG_ASSERT(mysql != 0);
-
-  net= &mysql->net;
-  net->last_errno= errcode;
-  va_start(args, format);
-  my_vsnprintf(net->last_error, sizeof(net->last_error)-1,
-               format, args);
-  va_end(args);
-  strmov(net->sqlstate, sqlstate);
-
-  DBUG_VOID_RETURN;
-}
-
 
 /*
   Flush result set sent from server
@@ -846,9 +860,8 @@ static int check_license(MYSQL *mysql)
   {
     if (net->last_errno == ER_UNKNOWN_SYSTEM_VARIABLE)
     {
-      net->last_errno= CR_WRONG_LICENSE;
-      my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                  ER(net->last_errno), required_license);
+      set_mysql_extended_error(mysql, CR_WRONG_LICENSE, unknown_sqlstate,
+                               ER(CR_WRONG_LICENSE), required_license);
     }
     return 1;
   }
@@ -864,9 +877,8 @@ static int check_license(MYSQL *mysql)
       (!row || !row[0] ||
        strncmp(row[0], required_license, sizeof(required_license))))
   {
-    net->last_errno= CR_WRONG_LICENSE;
-    my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                ER(net->last_errno), required_license);
+    set_mysql_extended_error(mysql, CR_WRONG_LICENSE, unknown_sqlstate,
+                             ER(CR_WRONG_LICENSE), required_license);
   }
   mysql_free_result(res);
   return net->last_errno;
@@ -1717,7 +1729,6 @@ static MYSQL_METHODS client_methods=
 C_MODE_START
 int mysql_init_character_set(MYSQL *mysql)
 {
-  NET		*net= &mysql->net;
   const char *default_collation_name;
   
   /* Set character set */
@@ -1761,24 +1772,22 @@ int mysql_init_character_set(MYSQL *mysql)
     }
     charsets_dir= save;
   }
-  
+
   if (!mysql->charset)
   {
-    net->last_errno=CR_CANT_READ_CHARSET;
-    strmov(net->sqlstate, unknown_sqlstate);
     if (mysql->options.charset_dir)
-      my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                  ER(net->last_errno),
-                  mysql->options.charset_name,
-                  mysql->options.charset_dir);
+      set_mysql_extended_error(mysql, CR_CANT_READ_CHARSET, unknown_sqlstate,
+                               ER(CR_CANT_READ_CHARSET),
+                               mysql->options.charset_name,
+                               mysql->options.charset_dir);
     else
     {
       char cs_dir_name[FN_REFLEN];
       get_charsets_dir(cs_dir_name);
-      my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                  ER(net->last_errno),
-                  mysql->options.charset_name,
-                  cs_dir_name);
+      set_mysql_extended_error(mysql, CR_CANT_READ_CHARSET, unknown_sqlstate,
+                               ER(CR_CANT_READ_CHARSET),
+                               mysql->options.charset_name,
+                               cs_dir_name);
     }
     return 1;
   }
@@ -1910,10 +1919,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     DBUG_PRINT("info",("Using UNIX sock '%s'",unix_socket));
     if ((sock = socket(AF_UNIX,SOCK_STREAM,0)) == SOCKET_ERROR)
     {
-      net->last_errno=CR_SOCKET_CREATE_ERROR;
-      strmov(net->sqlstate, unknown_sqlstate);
-      my_snprintf(net->last_error,sizeof(net->last_error)-1,
-                  ER(net->last_errno),socket_errno);
+      set_mysql_extended_error(mysql, CR_SOCKET_CREATE_ERROR,
+                               unknown_sqlstate,
+                               ER(CR_SOCKET_CREATE_ERROR),
+                               socket_errno);
       goto error;
     }
     net->vio= vio_new(sock, VIO_TYPE_SOCKET,
@@ -1926,10 +1935,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     {
       DBUG_PRINT("error",("Got error %d on connect to local server",
 			  socket_errno));
-      net->last_errno=CR_CONNECTION_ERROR;
-      strmov(net->sqlstate, unknown_sqlstate);
-      my_snprintf(net->last_error,sizeof(net->last_error)-1,
-                  ER(net->last_errno),unix_socket,socket_errno);
+      set_mysql_extended_error(mysql, CR_CONNECTION_ERROR,
+                               unknown_sqlstate,
+                               ER(CR_CONNECTION_ERROR),
+                               unix_socket, socket_errno);
       goto error;
     }
     mysql->options.protocol=MYSQL_PROTOCOL_SOCKET;
@@ -1941,8 +1950,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
        (! have_tcpip && (unix_socket || !host && is_NT()))))
   {
     sock=0;
-    if ((hPipe=create_named_pipe(net, mysql->options.connect_timeout,
-				 (char**) &host, (char**) &unix_socket)) ==
+    if ((hPipe= create_named_pipe(mysql, mysql->options.connect_timeout,
+                                  (char**) &host, (char**) &unix_socket)) ==
 	INVALID_HANDLE_VALUE)
     {
       DBUG_PRINT("error",
@@ -1986,10 +1995,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #endif
     if (sock == SOCKET_ERROR)
     {
-      net->last_errno=CR_IPSOCK_ERROR;
-      strmov(net->sqlstate, unknown_sqlstate);
-      my_snprintf(net->last_error,sizeof(net->last_error)-1,
-                  ER(net->last_errno),socket_errno);
+      set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
+                               ER(CR_IPSOCK_ERROR), socket_errno);
       goto error;
     }
     net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
@@ -2014,10 +2021,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       if (!hp)
       {
 	my_gethostbyname_r_free();
-	net->last_errno=CR_UNKNOWN_HOST;
-	strmov(net->sqlstate, unknown_sqlstate);
-	my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                    ER(CR_UNKNOWN_HOST), host, tmp_errno);
+        set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
+                                 ER(CR_UNKNOWN_HOST), host, tmp_errno);
 	goto error;
       }
       memcpy(&sock_addr.sin_addr, hp->h_addr,
@@ -2030,10 +2035,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     {
       DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,
 			  host));
-      net->last_errno= CR_CONN_HOST_ERROR;
-      strmov(net->sqlstate, unknown_sqlstate);
-      my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                  ER(CR_CONN_HOST_ERROR), host, socket_errno);
+      set_mysql_extended_error(mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
+                               ER(CR_CONN_HOST_ERROR), host, socket_errno);
       goto error;
     }
   }
@@ -2097,11 +2100,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		     PROTOCOL_VERSION, mysql->protocol_version));
   if (mysql->protocol_version != PROTOCOL_VERSION)
   {
-    strmov(net->sqlstate, unknown_sqlstate);
-    net->last_errno= CR_VERSION_ERROR;
-    my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                ER(CR_VERSION_ERROR), mysql->protocol_version,
-	        PROTOCOL_VERSION);
+    set_mysql_extended_error(mysql, CR_VERSION_ERROR, unknown_sqlstate,
+                             ER(CR_VERSION_ERROR), mysql->protocol_version,
+                             PROTOCOL_VERSION);
     goto error;
   }
   end=strend((char*) net->read_pos+1);
@@ -2625,7 +2626,7 @@ void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
   for (; element; element= element->next)
   {
     MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
-    set_stmt_errmsg(stmt, buff, CR_STMT_CLOSED, unknown_sqlstate);
+    set_stmt_error(stmt, CR_STMT_CLOSED, unknown_sqlstate, buff);
     stmt->mysql= 0;
     /* No need to call list_delete for statement here */
   }
@@ -3142,11 +3143,8 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
   {
     char cs_dir_name[FN_REFLEN];
     get_charsets_dir(cs_dir_name);
-    mysql->net.last_errno= CR_CANT_READ_CHARSET;
-    strmov(mysql->net.sqlstate, unknown_sqlstate);
-    my_snprintf(mysql->net.last_error, sizeof(mysql->net.last_error) - 1,
-		ER(mysql->net.last_errno), cs_name, cs_dir_name);
-
+    set_mysql_extended_error(mysql, CR_CANT_READ_CHARSET, unknown_sqlstate,
+                             ER(CR_CANT_READ_CHARSET), cs_name, cs_dir_name);
   }
   charsets_dir= save_csdir;
   return mysql->net.last_errno;

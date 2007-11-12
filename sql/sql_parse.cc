@@ -436,7 +436,7 @@ pthread_handler_t handle_bootstrap(void *arg)
     if (thd->is_fatal_error)
       break;
 
-    if (thd->net.report_error)
+    if (thd->is_error())
     {
       /* The query failed, send error to log and abort bootstrap */
       net_send_error(thd);
@@ -911,15 +911,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     /* Clear variables that are allocated */
     thd->user_connect= 0;
+    thd->security_ctx->priv_user= thd->security_ctx->user;
     res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, FALSE);
 
     if (res)
     {
-      /* authentication failure, we shall restore old user */
-      if (res > 0)
-        my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      else
-        thd->clear_error();                     // Error already sent to client
       x_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
@@ -933,8 +929,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
-      x_free((uchar*) save_db);
-      x_free((uchar*)  save_security_ctx.user);
+      x_free(save_db);
+      x_free(save_security_ctx.user);
 
       if (cs_number)
       {
@@ -990,16 +986,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     mysql_parse(thd, thd->query, thd->query_length, & found_semicolon);
 
-    while (!thd->killed && found_semicolon && !thd->net.report_error)
+    while (!thd->killed && found_semicolon && ! thd->is_error())
     {
       char *next_packet= (char*) found_semicolon;
       net->no_send_error= 0;
       /*
         Multiple queries exits, execute them individually
       */
-      if (thd->lock || thd->open_tables || thd->derived_tables ||
-          thd->prelocked_mode)
-        close_thread_tables(thd);
+      close_thread_tables(thd);
       ulong length= (ulong)(packet_end - next_packet);
 
       log_slow_statement(thd);
@@ -1336,12 +1330,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
-  if (thd->lock || thd->open_tables || thd->derived_tables ||
-      thd->prelocked_mode)
-  {
-    thd->proc_info="closing tables";
-    close_thread_tables(thd);			/* Free tables */
-  }
+
+  thd->proc_info= "closing tables";
+  /* Free tables */
+  close_thread_tables(thd);
+
   /*
     assume handlers auto-commit (if some doesn't - transaction handling
     in MySQL should be redesigned to support it; it's a big change,
@@ -1355,9 +1348,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->transaction.xid_state.xid.null();
 
   /* report error issued during command execution */
-  if (thd->killed_errno() && !thd->net.report_error)
+  if (thd->killed_errno() && ! thd->is_error())
     thd->send_kill_message();
-  if (thd->net.report_error)
+  if (thd->is_error())
     net_send_error(thd);
 
   log_slow_statement(thd);
@@ -3053,6 +3046,10 @@ end_with_restore_list:
   case SQLCOM_SET_OPTION:
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
+
+    if (lex->autocommit && end_active_trans(thd))
+      goto error;
+
     if ((check_table_access(thd, SELECT_ACL, all_tables, 0) ||
 	 open_and_lock_tables(thd, all_tables)))
       goto error;
@@ -3930,7 +3927,7 @@ create_sp_error:
                                 thd->row_count_func));
 	else
         {
-          DBUG_ASSERT(thd->net.report_error == 1 || thd->killed);
+          DBUG_ASSERT(thd->is_error() || thd->killed);
 	  goto error;		// Substatement should already have sent error
         }
       }
@@ -4523,7 +4520,7 @@ finish:
     */
     start_waiting_global_read_lock(thd);
   }
-  DBUG_RETURN(res || thd->net.report_error);
+  DBUG_RETURN(res || thd->is_error());
 }
 
 
@@ -5467,7 +5464,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
       else
 #endif
       {
-	if (! thd->net.report_error)
+	if (! thd->is_error())
 	{
           /*
             Binlog logs a string starting from thd->query and having length
@@ -5491,7 +5488,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     }
     else
     {
-      DBUG_ASSERT(thd->net.report_error);
+      DBUG_ASSERT(thd->is_error());
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
 
@@ -6314,7 +6311,7 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 
   RETURN
     0	 ok
-    !=0  error.  thd->killed or thd->net.report_error is set
+    !=0  error.  thd->killed or thd->is_error() is set
 */
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
@@ -7277,10 +7274,10 @@ bool parse_sql(THD *thd,
 
   bool mysql_parse_status= MYSQLparse(thd) != 0;
 
-  /* Check that if MYSQLparse() failed, thd->net.report_error is set. */
+  /* Check that if MYSQLparse() failed, thd->is_error() is set. */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              mysql_parse_status && thd->net.report_error);
+              mysql_parse_status && thd->is_error());
 
   /* Reset Lex_input_stream. */
 

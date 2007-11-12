@@ -3473,6 +3473,54 @@ DROP VIEW v1, v2, v3;
 
 --enable_ps_protocol
 
+###########################################################################
+
+--echo
+--echo #
+--echo # Bug#30736: Row Size Too Large Error Creating a Table and
+--echo # Inserting Data.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1(
+  c1 DECIMAL(10, 2),
+  c2 FLOAT);
+
+--echo
+
+INSERT INTO t1 VALUES (0, 1), (2, 3), (4, 5);
+
+--echo
+
+CREATE TABLE t2(
+  c3 DECIMAL(10, 2))
+  SELECT
+    c1 * c2 AS c3
+  FROM t1;
+
+--echo
+
+SELECT * FROM t1;
+
+--echo
+
+SELECT * FROM t2;
+
+--echo
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo
+
+###########################################################################
+
 --echo End of 5.0 tests
 
 #
