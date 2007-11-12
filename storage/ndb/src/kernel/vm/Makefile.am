@@ -36,7 +36,7 @@ libkernel_a_SOURCES = \
         Rope.cpp \
 	ndbd_malloc.cpp ndbd_malloc_impl.cpp \
         Pool.cpp WOPool.cpp RWPool.cpp \
-        DynArr256.cpp
+        DynArr256.cpp LockQueue.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 

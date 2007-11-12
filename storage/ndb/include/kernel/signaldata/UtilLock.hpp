@@ -36,13 +36,18 @@ public:
   STATIC_CONST( SignalLength = 4 );
 
   enum RequestInfo {
-    TryLock = 1
+    TryLock    = 1,
+    SharedLock = 2,
+    Notify     = 4,
+    Granted    = 8
   };
+
 public:
   Uint32 senderData;  
   Uint32 senderRef;
   Uint32 lockId;
   Uint32 requestInfo;
+  Uint32 extra;
 };
 
 class UtilLockConf {
@@ -66,7 +71,6 @@ public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
-  Uint32 lockKey;
 };
 
 class UtilLockRef {
@@ -91,10 +95,11 @@ public:
     NoSuchLock = 1,
     OutOfLockRecords = 2,
     DistributedLockNotSupported = 3,
-    LockAlreadyHeld = 4
-    
+    LockAlreadyHeld = 4,
+    InLockQueue = 5 // lock + notify
   };
 public:
+
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
@@ -122,7 +127,6 @@ public:
   Uint32 senderData;  
   Uint32 senderRef;
   Uint32 lockId;
-  Uint32 lockKey;
 };
 
 class UtilUnlockConf {
@@ -168,7 +172,8 @@ public:
   enum ErrorCode {
     OK = 0,
     NoSuchLock = 1,
-    NotLockOwner = 2
+    NotLockOwner = 2,
+    NotInLockQueue = 3
   };
 public:
   Uint32 senderData;
@@ -278,7 +283,6 @@ public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
-  Uint32 lockKey;
 };
 
 class UtilDestroyLockRef {

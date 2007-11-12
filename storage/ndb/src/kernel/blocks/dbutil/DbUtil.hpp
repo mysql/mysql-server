@@ -36,6 +36,8 @@
 #include <SimpleProperties.hpp>
 #include <Array.hpp>
 
+#include <LockQueue.hpp>
+
 #define UTIL_WORDS_PER_PAGE 1023
 
 /**
@@ -423,26 +425,15 @@ public:
   /***************************************************************************
    * Lock manager
    */
-  struct LockQueueElement {
-    Uint32 m_senderData;
-    Uint32 m_senderRef;
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
-    Uint32 prevList;
-  };
-  typedef Ptr<LockQueueElement> LockQueueElementPtr;
-
-  struct LockQueue {
-    LockQueue(){}
-    LockQueue(Uint32 id) : m_queue() { m_lockId = id; m_lockKey = 0;}
+  struct LockQueueInstance {
+    LockQueueInstance(){}
+    LockQueueInstance(Uint32 id) : m_queue() { m_lockId = id; }
     union {
       Uint32 m_lockId;
       Uint32 key;
     };
-    Uint32 m_lockKey;
-    DLFifoList<LockQueueElement>::Head m_queue;
+    
+    LockQueue m_queue;
     union {
       Uint32 nextHash;
       Uint32 nextPool;
@@ -452,16 +443,15 @@ public:
     Uint32 hashValue() const {
       return m_lockId;
     }
-    bool equal(const LockQueue & rec) const {
+    bool equal(const LockQueueInstance & rec) const {
       return m_lockId == rec.m_lockId;
     }
   };
-  typedef Ptr<LockQueue> LockQueuePtr;
+  typedef Ptr<LockQueueInstance> LockQueuePtr;
   
-  
-  ArrayPool<LockQueue> c_lockQueuePool;
-  ArrayPool<LockQueueElement> c_lockElementPool;
-  KeyTable<LockQueue> c_lockQueues;
+  ArrayPool<LockQueueInstance> c_lockQueuePool;
+  KeyTable<LockQueueInstance> c_lockQueues;
+  LockQueue::Pool c_lockElementPool;
   
   void execUTIL_CREATE_LOCK_REQ(Signal* signal);
   void execUTIL_DESTORY_LOCK_REQ(Signal* signal);
@@ -469,10 +459,9 @@ public:
   void execUTIL_UNLOCK_REQ(Signal* signal);
   
   void sendLOCK_REF(Signal*, const UtilLockReq * req, UtilLockRef::ErrorCode);
-  void sendLOCK_CONF(Signal*, LockQueue *, LockQueueElement *);
+  void sendLOCK_CONF(Signal*, const UtilLockReq * req);
 
   void sendUNLOCK_REF(Signal*, const UtilUnlockReq*, UtilUnlockRef::ErrorCode);
-  void sendUNLOCK_CONF(Signal*, LockQueue *, LockQueueElement *);
 
   // For testing of mutex:es
   void mutex_created(Signal* signal, Uint32 mutexId, Uint32 retVal);

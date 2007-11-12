@@ -16390,6 +16390,8 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
 
   ord->lockPtr = lockPtr.p->lockPtr;
   ord->lockType = lockPtr.p->lockType;
+  ord->senderData = lockPtr.i;
+  ord->senderRef = reference();
 
   c_dictLockSlavePool.release(lockPtr);
 
