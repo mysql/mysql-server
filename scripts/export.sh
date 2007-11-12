@@ -14,6 +14,14 @@ if [ $# -ne 2 ] ; then
   die "Usage: export.sh revision-number-of-last-snapshot current-revision-number"
 fi
 
+# If we are run from within the scripts/ directory then change directory to
+# one level up so that the relative paths work.
+DIR=`basename $PWD`
+
+if [ "${DIR}" = "scripts" ]; then
+  cd ..
+fi
+
 START_REV=$(($1 + 1))
 END_REV=$2
 
