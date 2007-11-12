@@ -276,5 +276,6 @@ INSERT INTO t1 VALUES (1,USER());
 SELECT * FROM t1;
 connection default;
 DROP DATABASE mysqltest1;
+DROP USER untrusted@localhost;
 
 --echo End of 5.1 tests
