@@ -5,51 +5,173 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 CREATE TABLE t1 (c1 INT KEY) ROW_FORMAT=DYNAMIC ENGINE=NDB;
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+INSERT INTO t1 VALUES (1),(2),(3);
 ALTER TABLE t1 ADD c2 INT;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2
 1	NULL
 2	NULL
 3	NULL
-4	NULL
-5	NULL
-6	NULL
-7	NULL
-8	NULL
-9	NULL
-10	NULL
-INSERT INTO t1 VALUES (11,11),(12,12),(13,13),(14,14);
+INSERT INTO t1 VALUES (6,6),(7,7),(8,8);
 SELECT * FROM t1 ORDER BY c1;
 c1	c2
 1	NULL
 2	NULL
 3	NULL
-4	NULL
-5	NULL
-6	NULL
-7	NULL
-8	NULL
-9	NULL
-10	NULL
-11	11
-12	12
-13	13
-14	14
+6	6
+7	7
+8	8
 SELECT * FROM t1 ORDER BY c1;
 c1	c2
 1	NULL
 2	NULL
 3	NULL
-4	NULL
-5	NULL
-6	NULL
-7	NULL
-8	NULL
-9	NULL
-10	NULL
-11	11
-12	12
-13	13
-14	14
+6	6
+7	7
+8	8
+ALTER ONLINE TABLE t1 ADD c CHAR(19);
+INSERT INTO t1 values (11,1,"a");
+ALTER ONLINE TABLE t1 ADD d FLOAT;
+INSERT INTO t1 VALUES(12, 2,'b', -3.402823466E+38);
+ALTER ONLINE TABLE t1 ADD f DECIMAL(5,2);
+INSERT INTO t1 VALUES(14, 4,'d', -3.402823466E+38, 456.78);
+ALTER ONLINE TABLE t1 ADD g DATETIME;
+INSERT INTO t1 VALUES(15, 5,'e', -3.402823466E+38, 456.78, '2007-10-26 12:00:00');
+ALTER ONLINE TABLE t1 ADD h BINARY(4);
+INSERT INTO t1 VALUES(16, 6,'f', -3.402823466E+38, 456.78, '2007-10-26 12:00:00',"abcd");
+**********************
+"Master data"
+**********************
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c	d	f	g	h
+1	NULL	NULL	NULL	NULL	NULL	NULL
+2	NULL	NULL	NULL	NULL	NULL	NULL
+3	NULL	NULL	NULL	NULL	NULL	NULL
+6	6	NULL	NULL	NULL	NULL	NULL
+7	7	NULL	NULL	NULL	NULL	NULL
+8	8	NULL	NULL	NULL	NULL	NULL
+11	1	a	NULL	NULL	NULL	NULL
+12	2	b	-3.40282e+38	NULL	NULL	NULL
+14	4	d	-3.40282e+38	456.78	NULL	NULL
+15	5	e	-3.40282e+38	456.78	2007-10-26 12:00:00	NULL
+16	6	f	-3.40282e+38	456.78	2007-10-26 12:00:00	abcd
+**********************
+"Slave data"
+**********************
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c	d	f	g	h
+1	NULL	NULL	NULL	NULL	NULL	NULL
+2	NULL	NULL	NULL	NULL	NULL	NULL
+3	NULL	NULL	NULL	NULL	NULL	NULL
+6	6	NULL	NULL	NULL	NULL	NULL
+7	7	NULL	NULL	NULL	NULL	NULL
+8	8	NULL	NULL	NULL	NULL	NULL
+11	1	a	NULL	NULL	NULL	NULL
+12	2	b	-3.40282e+38	NULL	NULL	NULL
+14	4	d	-3.40282e+38	456.78	NULL	NULL
+15	5	e	-3.40282e+38	456.78	2007-10-26 12:00:00	NULL
+16	6	f	-3.40282e+38	456.78	2007-10-26 12:00:00	abcd
+UPDATE t1 SET c = "abcdef", d = 3.402823466E+38, f = 987.65, g = '2007-10-22 22:22:22', h = "aaaa";
+***************************
+"Master Data After Update"
+***************************
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c	d	f	g	h
+1	NULL	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+2	NULL	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+3	NULL	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+6	6	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+7	7	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+8	8	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+11	1	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+12	2	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+14	4	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+15	5	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+16	6	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+*************************
+"Slave Data After Update"
+*************************
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c	d	f	g	h
+1	NULL	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+2	NULL	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+3	NULL	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+6	6	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+7	7	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+8	8	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+11	1	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+12	2	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+14	4	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+15	5	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+16	6	abcdef	3.40282e+38	987.65	2007-10-22 22:22:22	aaaa
+DROP TABLE t1;
+*************************************************
+* Insert And Update New Added Columns With Commit
+*************************************************
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 VALUES(1,1),(2,2);
+BEGIN;
+ALTER ONLINE TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
+INSERT INTO t1 VALUES (3,0,'3','3','3'),(4,0,'4','4','4'),(5,0,null,null,null);
+UPDATE t1 SET c = 'aaa', d = 'bbb', e = 'ccc' WHERE a = 4;
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+a	b	c	d	e
+1	1	NULL	NULL	NULL
+2	2	NULL	NULL	NULL
+3	0	3	3	3
+4	0	aaa	bbb	ccc
+5	0	NULL	NULL	NULL
+*************************
+"Slave Data With Commit
+*************************
+SELECT * FROM t1 ORDER BY a;
+a	b	c	d	e
+1	1	NULL	NULL	NULL
+2	2	NULL	NULL	NULL
+3	0	3	3	3
+4	0	aaa	bbb	ccc
+5	0	NULL	NULL	NULL
+***************************************************
+* Insert And Update New Added Columns With Rollback
+***************************************************
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 VALUES(1,1),(2,2);
+ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
+BEGIN;
+INSERT INTO t1 VALUES (3,0,'3','3','3'),(4,0,'4','4','4'),(5,0,null,null,null);
+UPDATE t1 SET c = 'aaa', d = 'bbb', e = 'ccc' WHERE a = 4;
+ROLLBACK;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL,
+  `b` int(10) unsigned DEFAULT NULL,
+  `c` char(19) DEFAULT NULL,
+  `d` varchar(255) DEFAULT NULL,
+  `e` char(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+SELECT * FROM t1 ORDER BY a;
+a	b	c	d	e
+1	1	NULL	NULL	NULL
+2	2	NULL	NULL	NULL
+*************************
+"Slave Data With Rollback
+*************************
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL,
+  `b` int(10) unsigned DEFAULT NULL,
+  `c` char(19) DEFAULT NULL,
+  `d` varchar(255) DEFAULT NULL,
+  `e` char(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+SELECT * FROM t1 ORDER BY a;
+a	b	c	d	e
+1	1	NULL	NULL	NULL
+2	2	NULL	NULL	NULL
 DROP TABLE t1;

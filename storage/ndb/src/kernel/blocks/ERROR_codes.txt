@@ -5,8 +5,8 @@ Next DBACC 3002
 Next DBTUP 4029
 Next DBLQH 5048
 Next DBDICT 6008
-Next DBDIH 7193
-Next DBTC 8054
+Next DBDIH 7195
+Next DBTC 8057
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
@@ -95,6 +95,11 @@ Delay GCP_SAVEREQ by 10 secs
 7184: Crash before starting next GCP after a node failure
 
 7185: Dont reply to COPY_GCI_REQ where reason == GCP
+
+7193: Dont send LCP_FRAG_ORD to self, and crash when sending first
+      LCP_FRAG_ORD(last)
+
+7194: Force removeNodeFromStored to complete in the middle of MASTER_LCPCONF
 
 ERROR CODES FOR TESTING NODE FAILURE, LOCAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
@@ -327,6 +332,9 @@ ABORT OF TCKEYREQ
 ------
 
 8038 : Simulate API disconnect just after SCAN_TAB_REQ
+
+8055 : Crash in sendApiCommit, disconnect API, and set 8056
+8056 : return directly in API_FAILREQ
 
 8052 : Simulate failure of TransactionBufferMemory allocation for OI lookup
 

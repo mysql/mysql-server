@@ -6,11 +6,12 @@
 --disable_warnings
 connection server2;
 drop table if exists t1, t2, t3, t4;
+flush status;
 connection server1;
 drop table if exists t1, t2, t3, t4;
+flush status;
 --enable_warnings
 
-flush status;
 
 # Create test tables on server1
 create table t1 (a int) engine=ndbcluster;

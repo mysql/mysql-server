@@ -364,6 +364,10 @@ public:
   bool validateFragmentFooter();
 
   const TupleS *getNextTuple(int & res);
+
+private:
+
+  int readTupleData(Uint32 *buf_ptr, Uint32 *ptr, Uint32 dataLength);
 };
 
 class LogEntry {
