@@ -326,6 +326,29 @@ static int write_dynamic_record(MI_INFO *info, const uchar *record,
   DBUG_ENTER("write_dynamic_record");
 
   flag=0;
+
+  /*
+    Check if we have enough room for the new record.
+    First we do simplified check to make usual case faster.
+    Then we do more precise check for the space left.
+    Though it still is not absolutely precise, as
+    we always use MI_MAX_DYN_BLOCK_HEADER while it can be
+    less in the most of the cases.
+  */
+
+  if (unlikely(info->s->base.max_data_file_length -
+               info->state->data_file_length <
+               reclength + MI_MAX_DYN_BLOCK_HEADER))
+  {
+    if (info->s->base.max_data_file_length - info->state->data_file_length +
+        info->state->empty - info->state->del * MI_MAX_DYN_BLOCK_HEADER <
+        reclength + MI_MAX_DYN_BLOCK_HEADER)
+    {
+      my_errno=HA_ERR_RECORD_FILE_FULL;
+      DBUG_RETURN(1);
+    }
+  }
+
   do
   {
     if (_mi_find_writepos(info,reclength,&filepos,&length))
@@ -762,6 +785,51 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
   DBUG_ENTER("update_dynamic_record");
 
   flag=block_info.second_read=0;
+  /*
+     Check if we have enough room for the record.
+     First we do simplified check to make usual case faster.
+     Then we do more precise check for the space left.
+     Though it still is not absolutely precise, as
+     we always use MI_MAX_DYN_BLOCK_HEADER while it can be
+     less in the most of the cases.
+  */
+
+  /*
+    compare with just the reclength as we're going
+    to get some space from the old replaced record
+  */
+  if (unlikely(info->s->base.max_data_file_length -
+        info->state->data_file_length < reclength))
+  {
+    /*
+       let's read the old record's block to find out the length of the
+       old record
+    */
+    if ((error=_mi_get_block_info(&block_info,info->dfile,filepos))
+        & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR | BLOCK_FATAL_ERROR))
+    {
+      DBUG_PRINT("error",("Got wrong block info"));
+      if (!(error & BLOCK_FATAL_ERROR))
+        my_errno=HA_ERR_WRONG_IN_RECORD;
+      goto err;
+    }
+
+    /*
+      if new record isn't longer, we can go on safely
+    */
+    if (block_info.rec_len < reclength)
+    {
+      if (info->s->base.max_data_file_length - info->state->data_file_length +
+          info->state->empty - info->state->del * MI_MAX_DYN_BLOCK_HEADER <
+          reclength - block_info.rec_len + MI_MAX_DYN_BLOCK_HEADER)
+      {
+        my_errno=HA_ERR_RECORD_FILE_FULL;
+        goto err;
+      }
+    }
+    block_info.second_read=0;
+  }
+
   while (reclength > 0)
   {
     if (filepos != info->s->state.dellink)
