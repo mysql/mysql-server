@@ -1,0 +1,119 @@
+# Test that must have symlink. eg. using DATA/INDEX DIR
+# (DATA/INDEX DIR requires symlinks)
+-- source include/have_partition.inc
+-- source include/have_symlink.inc
+-- disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP DATABASE IF EXISTS mysqltest2;
+-- enable_warnings
+
+#
+# Bug 32091: Security breach via directory changes
+#
+# The below test shows that a pre-existing table mysqltest2.t1 cannot be
+# replaced by a user with no rights in 'mysqltest2'. The altered table
+# test.t1 will be altered (remove partitioning) into the test directory
+# and having its partitions removed from the mysqltest2 directory.
+# (the partitions data files are named <tablename>#P#<partname>.MYD
+# and will not collide with a non partitioned table's data files.) 
+# NOTE: the privileges on files and directories are the same for all
+# database users in mysqld, though mysqld enforces privileges on
+# the database and table levels which in turn maps to directories and
+# files, but not the other way around (any db-user can use any
+# directory or file that the mysqld-process can use, via DATA/INDEX DIR)
+# this is the security flaw that was used in bug#32091 and bug#32111
+-- echo # Creating two non colliding tables mysqltest2.t1 and test.t1
+-- echo # test.t1 have partitions in mysqltest2-directory!
+-- echo # user root:
+  CREATE USER mysqltest_1@localhost;
+  CREATE DATABASE mysqltest2;
+  USE mysqltest2;
+  CREATE TABLE t1 (a INT);
+  INSERT INTO t1 VALUES (0);
+connect(con1,localhost,mysqltest_1,,);
+-- echo # user mysqltest_1:
+  USE test;
+  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  eval CREATE TABLE t1 (a INT)
+   PARTITION BY LIST (a) (
+    PARTITION p0 VALUES IN (0)
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2',
+    PARTITION p1 VALUES IN (1)
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test',
+    PARTITION p2 VALUES IN (2)
+  );
+  -- echo # without the patch for bug#32091 this would create
+  -- echo # files mysqltest2/t1.MYD + .MYI and possible overwrite
+  -- echo # the mysqltest2.t1 table (depending on bug#32111)
+  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  ALTER TABLE t1 REMOVE PARTITIONING;
+  INSERT INTO t1 VALUES (1);
+  SELECT * FROM t1;
+connection default;
+-- echo # user root:
+  USE mysqltest2;
+  FLUSH TABLES;
+  -- echo # if the patch works, this should be different
+  -- echo # and before the patch they were the same!
+  SELECT * FROM t1;
+  USE test;
+  SELECT * FROM t1;
+  DROP TABLE t1;
+  DROP DATABASE mysqltest2;
+# The below test shows that a pre-existing partition can not be
+# destroyed by a new partition from another table.
+# (Remember that a table or partition that uses the DATA/INDEX DIR
+# is symlinked and thus has
+# 1. the real file in the DATA/INDEX DIR and
+# 2. a symlink in its default database directory pointing to
+# the real file.
+# So it is using/blocking 2 files in (in 2 different directories
+-- echo # test that symlinks can not overwrite files when CREATE TABLE
+-- echo # user root:
+  CREATE DATABASE mysqltest2;
+  USE mysqltest2;
+  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  eval CREATE TABLE t1 (a INT)
+   PARTITION BY LIST (a) (
+    PARTITION p0 VALUES IN (0)
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2',
+    PARTITION p1 VALUES IN (1)
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
+   );
+connection con1;
+-- echo # user mysqltest_1:
+  USE test;
+  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  -- error 1,1
+  eval CREATE TABLE t1 (a INT)
+   PARTITION BY LIST (a) (
+    PARTITION p0 VALUES IN (0)
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2',
+    PARTITION p1 VALUES IN (1)
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
+   );
+  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  -- error 1,1
+  eval CREATE TABLE t1 (a INT)
+   PARTITION BY LIST (a) (
+    PARTITION p0 VALUES IN (0)
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test',
+    PARTITION p1 VALUES IN (1)
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
+  );
+connection default;
+-- echo # user root (cleanup):
+  DROP DATABASE mysqltest2;
+  USE test;
+  DROP USER mysqltest_1@localhost;
+  disconnect con1;
+
+
