@@ -42,6 +42,8 @@ truncate ndb_show_tables_results;
 
 INSERT INTO t1 values (2,1,"a");
 SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c='b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
 --echo *******************************
@@ -65,6 +67,8 @@ truncate ndb_show_tables_results;
 
 INSERT INTO t1 values (2,"a",1);
 SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 2 where a = 2;
+SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
 --echo *******************************
@@ -87,6 +91,8 @@ select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1
 truncate ndb_show_tables_results;
 
 INSERT INTO t1 values (2,1,1);
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 2 where a = 2;
 SELECT * FROM t1 ORDER BY a;
 
 --echo *******************************
@@ -240,6 +246,8 @@ ALTER TABLE t1 ADD c CHAR(19);
 
 INSERT INTO t1 values (2,1,"a");
 SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 'b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
 --echo *******************************
@@ -263,7 +271,8 @@ ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17;
 
 INSERT INTO t1 values (2,1,"a");
 SELECT * FROM t1 ORDER BY a;
-
+UPDATE t1 SET c = 'b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
 --echo *******************************
 --echo * Not supported Test#3
 --echo *******************************
@@ -279,7 +288,9 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 truncate ndb_show_tables_results;
 
 ALTER TABLE t1 ADD d INT AFTER b;
-
+INSERT INTO t1 VALUES(3,1,1,'b');
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET d = 2 where a = 3;
 SELECT * FROM t1 ORDER BY a;
 
 --echo *******************************
@@ -315,6 +326,8 @@ ALTER TABLE t1 ADD c TIMESTAMP;
 
 INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
 SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = '2007-10-22 16:35:06' where a = 2;
+SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
 --echo *******************************
@@ -338,6 +351,8 @@ ALTER TABLE t1 ADD c CHAR(19) NOT NULL;
 
 INSERT INTO t1 values (2,1,"a");
 SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 'b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
 --echo *******************************
@@ -360,6 +375,8 @@ truncate ndb_show_tables_results;
 ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
 
 INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 'b' WHERE a = 2;
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
@@ -425,9 +442,9 @@ DROP TABLE t1;
 ######################################
 # Bug:30205
 ######################################
---echo *******************************
---echo * Add column c as nullable TEXT
---echo *******************************
+--echo ****************************************
+--echo * Add column c as nullable TEXT and BLOB
+--echo ****************************************
 CREATE TABLE t1 (a INT UNSIGNED  AUTO_INCREMENT KEY, b INT DEFAULT 2 COLUMN_FORMAT DYNAMIC) ENGINE NDB;
 --source include/ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
@@ -442,6 +459,11 @@ while ($v)
 enable_query_log;
 --error ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE t1 ADD c TEXT;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD d BLOB;
 --source include/ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 truncate ndb_show_tables_results;
@@ -489,7 +511,7 @@ let $v=5;
 disable_query_log;
 while ($v)
 {
-  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308); 
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308); 
   dec $v;
 }
 enable_query_log;
@@ -503,7 +525,7 @@ let $v=5;
 disable_query_log;
 while ($v)
 {
-  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308, 345.21); 
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308, 345.21); 
   dec $v;
 }
 enable_query_log;
@@ -517,7 +539,7 @@ let $v=5;
 disable_query_log;
 while ($v)
 {
-  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308, 345.21, '1000-01-01 00:00:00'); 
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308, 345.21, '1000-01-01 00:00:00'); 
   dec $v;
 }
 enable_query_log;
@@ -531,7 +553,7 @@ let $v=5;
 disable_query_log;
 while ($v)
 {
-  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308, 345.21, '1000-01-01 00:00:00', '0101');
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308, 345.21, '1000-01-01 00:00:00', '0101');
   dec $v;
 }
 enable_query_log;
@@ -547,6 +569,9 @@ SELECT COUNT(*) FROM t1 WHERE d IS NULL;
 SELECT COUNT(*) FROM t1 WHERE e IS NULL;
 SELECT COUNT(*) FROM t1 WHERE f IS NULL;
 SELECT COUNT(*) FROM t1 WHERE g IS NULL;
+
+UPDATE t1 SET c = 3.402823466E+38, d = 1.2686868689898E+308, e = 666.66, f = '2007-10-23 23:23:23', g = '1111' WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
 
 ##############################
 # Backup and restore section #
@@ -593,7 +618,24 @@ ENGINE=NDB;
 
 --error ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE t1 CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC;
-
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN c INT COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN d FLOAT COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN  e DOUBLE COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN f DATETIME COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN g DECIMAL(5,2) COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN h CHAR(20) COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN h VARCHAR(20) COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN h BINARY(20) COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN h VARBINARY(20) COLUMN_FORMAT DYNAMIC;
 DROP TABLE t1;
 
 ALTER TABLESPACE ts1
