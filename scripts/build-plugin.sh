@@ -26,6 +26,14 @@
 
 set -eu
 
+# Calculate the length of a string
+strlen()
+{
+	STRLEN=`echo "$@" | wc -c | cut -c1-8`
+	STRLEN=`expr $STRLEN - 1`
+	echo $STRLEN
+}
+
 # Set to dummy value if not defined
 : ${CC="x"}
 : ${CXX="x"}
@@ -48,6 +56,7 @@ INNODIR="storage/innobase"
 DYNTMPFILE="/tmp/configure.$$"
 DYNCONFIG="$INNODIR/scripts/dynconfig"
 SVN_REPO="https://svn.innodb.com/svn/innodb"
+SVN_REPO_STRLEN=`strlen $SVN_REPO`
 
 if [ $# -lt 4 ]; then
     echo>&2 "Usage: $0 mysql-source-dir build-dir innosrc (/path/to/mysqlbug | - followed by configure options)"
@@ -80,7 +89,7 @@ rm -rf $INNODIR
 # If we are building from the SVN repository then use svn tools
 # otherwise the assumption is that we are dealing with a gzipped
 # tarball.
-REPO=${SVN:0:33}
+REPO=${SVN:0:$SVN_REPO_STRLEN}
 if [ "$REPO"x = "$SVN_REPO"x ]; then
 	$SVN_CO "$SVN" $INNODIR
 else
