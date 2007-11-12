@@ -350,4 +350,5 @@ SELECT * FROM t1;
 a	b
 1	root@localhost
 DROP DATABASE mysqltest1;
+DROP USER untrusted@localhost;
 End of 5.1 tests
