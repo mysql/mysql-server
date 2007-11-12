@@ -356,10 +356,35 @@ String *Item_func_concat::val_str(String *str)
       }
       else
       {						// Two big const strings
-	if (tmp_value.alloc(max_length) ||
-	    tmp_value.copy(*res) ||
-	    tmp_value.append(*res2))
+        /*
+          NOTE: We should be prudent in the initial allocation unit -- the
+          size of the arguments is a function of data distribution, which
+          can be any. Instead of overcommitting at the first row, we grow
+          the allocated amount by the factor of 2. This ensures that no
+          more than 25% of memory will be overcommitted on average.
+        */
+
+        uint concat_len= res->length() + res2->length();
+
+        if (tmp_value.alloced_length() < concat_len)
+        {
+          if (tmp_value.alloced_length() == 0)
+          {
+            if (tmp_value.alloc(concat_len))
+              goto null;
+          }
+          else
+          {
+            uint new_len = max(tmp_value.alloced_length() * 2, concat_len);
+
+            if (tmp_value.realloc(new_len))
+              goto null;
+          }
+        }
+
+	if (tmp_value.copy(*res) || tmp_value.append(*res2))
 	  goto null;
+
 	res= &tmp_value;
 	use_as_buff=str;
       }
@@ -679,8 +704,33 @@ String *Item_func_concat_ws::val_str(String *str)
     }
     else
     {						// Two big const strings
-      if (tmp_value.alloc(max_length) ||
-	  tmp_value.copy(*res) ||
+      /*
+        NOTE: We should be prudent in the initial allocation unit -- the
+        size of the arguments is a function of data distribution, which can
+        be any. Instead of overcommitting at the first row, we grow the
+        allocated amount by the factor of 2. This ensures that no more than
+        25% of memory will be overcommitted on average.
+      */
+
+      uint concat_len= res->length() + sep_str->length() + res2->length();
+
+      if (tmp_value.alloced_length() < concat_len)
+      {
+        if (tmp_value.alloced_length() == 0)
+        {
+          if (tmp_value.alloc(concat_len))
+            goto null;
+        }
+        else
+        {
+          uint new_len = max(tmp_value.alloced_length() * 2, concat_len);
+
+          if (tmp_value.realloc(new_len))
+            goto null;
+        }
+      }
+
+      if (tmp_value.copy(*res) ||
 	  tmp_value.append(*sep_str) ||
 	  tmp_value.append(*res2))
 	goto null;
