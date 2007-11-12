@@ -4081,6 +4081,45 @@ SELECT `x` FROM v3;
 x
 1
 DROP VIEW v1, v2, v3;
+CREATE TABLE t1 (c11 INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t2 (c21 INT UNSIGNED NOT NULL, 
+c22 INT DEFAULT NULL, 
+KEY(c21, c22));
+CREATE TABLE t3 (c31 INT UNSIGNED NOT NULL DEFAULT 0, 
+c32 INT DEFAULT NULL, 
+c33 INT NOT NULL, 
+c34 INT UNSIGNED DEFAULT 0,
+KEY (c33, c34, c32));
+INSERT INTO t1 values (),(),(),(),();
+INSERT INTO t2 SELECT a.c11, b.c11 FROM t1 a, t1 b;
+INSERT INTO t3 VALUES (1, 1, 1, 0), 
+(2, 2, 0, 0), 
+(3, 3, 1, 0), 
+(4, 4, 0, 0), 
+(5, 5, 1, 0);
+SELECT c32 FROM t1, t2, t3 WHERE t1.c11 IN (1, 3, 5) AND 
+t3.c31 = t1.c11 AND t2.c21 = t1.c11 AND 
+t3.c33 = 1 AND t2.c22 in (1, 3) 
+ORDER BY c32;
+c32
+1
+1
+3
+3
+5
+5
+SELECT c32 FROM t1, t2, t3 WHERE t1.c11 IN (1, 3, 5) AND 
+t3.c31 = t1.c11 AND t2.c21 = t1.c11 AND 
+t3.c33 = 1 AND t2.c22 in (1, 3) 
+ORDER BY c32 DESC;
+c32
+5
+5
+3
+3
+1
+1
+DROP TABLE t1, t2, t3;
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
