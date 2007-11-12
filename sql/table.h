@@ -501,6 +501,24 @@ struct st_table {
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
   MY_BITMAP     *read_set, *write_set;          /* Active column sets */
+  /*
+   The ID of the query that opened and is using this table. Has different
+   meanings depending on the table type.
+
+   Temporary tables:
+
+   table->query_id is set to thd->query_id for the duration of a statement
+   and is reset to 0 once it is closed by the same statement. A non-zero
+   table->query_id means that a statement is using the table even if it's
+   not the current statement (table is in use by some outer statement).
+
+   Non-temporary tables:
+
+   Under pre-locked or LOCK TABLES mode: query_id is set to thd->query_id
+   for the duration of a statement and is reset to 0 once it is closed by
+   the same statement. A non-zero query_id is used to control which tables
+   in the list of pre-opened and locked tables are actually being used.
+  */
   query_id_t	query_id;
 
   /* 
@@ -595,8 +613,8 @@ struct st_table {
   my_bool locked_by_name;
   my_bool fulltext_searched;
   my_bool no_cache;
-  /* To signal that we should reset query_id for tables and cols */
-  my_bool clear_query_id;
+  /* To signal that the table is associated with a HANDLER statement */
+  my_bool open_by_handler;
   /*
     To indicate that a non-null value of the auto_increment field
     was provided by the user or retrieved from the current record.

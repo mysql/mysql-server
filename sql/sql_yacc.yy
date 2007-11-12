@@ -9866,9 +9866,10 @@ literal:
               MYSQL_YYABORT;
             }
           }
-	| DATE_SYM text_literal { $$ = $2; }
-	| TIME_SYM text_literal { $$ = $2; }
-	| TIMESTAMP text_literal { $$ = $2; };
+        | DATE_SYM text_literal { $$ = $2; }
+        | TIME_SYM text_literal { $$ = $2; }
+        | TIMESTAMP text_literal { $$ = $2; }
+        ;
 
 NUM_literal:
           NUM
@@ -9886,7 +9887,7 @@ NUM_literal:
         | DECIMAL_NUM
           {
             $$= new Item_decimal($1.str, $1.length, YYTHD->charset());
-            if (YYTHD->net.report_error)
+            if (YYTHD->is_error())
             {
               MYSQL_YYABORT;
             }
@@ -9894,7 +9895,7 @@ NUM_literal:
         | FLOAT_NUM
           {
             $$ = new Item_float($1.str, $1.length);
-            if (YYTHD->net.report_error)
+            if (YYTHD->is_error())
             {
               MYSQL_YYABORT;
             }
@@ -10601,6 +10602,7 @@ set:
             lex->option_type=OPT_SESSION;
             lex->var_list.empty();
             lex->one_shot_set= 0;
+            lex->autocommit= 0;
           }
           option_value_list
           {}
@@ -10643,6 +10645,7 @@ option_type_value:
               lex->option_type=OPT_SESSION;
               lex->var_list.empty();
               lex->one_shot_set= 0;
+              lex->autocommit= 0;
               lex->sphead->m_tmp_query= lip->get_tok_start();
             }
           }
@@ -10884,10 +10887,16 @@ option_value:
             user->host=null_lex_str;
             user->user.str=thd->security_ctx->priv_user;
             thd->lex->var_list.push_back(new set_var_password(user, $3));
+            thd->lex->autocommit= TRUE;
+            if (lex->sphead)
+              lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
           }
         | PASSWORD FOR_SYM user equal text_or_password
           {
             Lex->var_list.push_back(new set_var_password($3,$5));
+            Lex->autocommit= TRUE;
+            if (Lex->sphead)
+              Lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
           }
         ;
 

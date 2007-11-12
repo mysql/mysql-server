@@ -610,7 +610,6 @@ id	ev_nm	ev_cnt
 6	ev_sched_1823	6
 DROP TABLE event_log;
 SET GLOBAL event_scheduler = OFF;
-DROP DATABASE events_test;
 SET GLOBAL event_scheduler= ON;
 CREATE EVENT bug28641 ON SCHEDULE AT '2038.01.18 03:00:00'
             DO BEGIN
@@ -618,3 +617,105 @@ SELECT 1;
 END;|
 SET GLOBAL event_scheduler= OFF;
 DROP EVENT bug28641;
+
+#####################################################################
+#
+# BUG#31111: --read-only crashes MySQL (events fail to load).
+#
+#####################################################################
+
+DROP USER mysqltest_u1@localhost;
+DROP EVENT IF EXISTS e1;
+DROP EVENT IF EXISTS e2;
+
+GRANT EVENT ON *.* TO mysqltest_u1@localhost;
+
+SET GLOBAL READ_ONLY = 1;
+
+#
+# Connection: u1_con (mysqltest_u1@localhost/events_test).
+#
+
+CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+
+ALTER EVENT e1 COMMENT 'comment';
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+
+DROP EVENT e1;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+
+#
+# Connection: root_con (root@localhost/events_test).
+#
+
+CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
+
+ALTER EVENT e1 COMMENT 'comment';
+
+DROP EVENT e1;
+
+SET GLOBAL READ_ONLY = 0;
+
+#
+# Connection: u1_con (mysqltest_u1@localhost/test).
+#
+
+CREATE EVENT e1 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND DO SET @a = 1;
+CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO SET @a = 1;
+
+SELECT
+event_name,
+last_executed IS NULL,
+definer
+FROM INFORMATION_SCHEMA.EVENTS
+WHERE event_schema = 'events_test';
+event_name	last_executed IS NULL	definer
+e1	1	mysqltest_u1@localhost
+e2	1	mysqltest_u1@localhost
+
+#
+# Connection: root_con (root@localhost/events_test).
+#
+
+SET GLOBAL READ_ONLY = 1;
+
+SET GLOBAL EVENT_SCHEDULER = ON;
+
+# Waiting for the event scheduler to execute and drop event e1...
+
+# Waiting for the event scheduler to execute and update event e2...
+
+SET GLOBAL EVENT_SCHEDULER = OFF;
+
+SELECT
+event_name,
+last_executed IS NULL,
+definer
+FROM INFORMATION_SCHEMA.EVENTS
+WHERE event_schema = 'events_test';
+event_name	last_executed IS NULL	definer
+e2	0	mysqltest_u1@localhost
+
+DROP EVENT e1;
+ERROR HY000: Unknown event 'e1'
+
+# Cleanup.
+
+DROP EVENT e2;
+
+SET GLOBAL READ_ONLY = 0;
+
+#
+# Connection: default
+#
+
+DROP USER mysqltest_u1@localhost;
+
+#####################################################################
+#
+# End of BUG#31111.
+#
+#####################################################################
+
+DROP DATABASE events_test;

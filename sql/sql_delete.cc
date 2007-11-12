@@ -35,6 +35,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   READ_RECORD	info;
   bool          using_limit=limit != HA_POS_ERROR;
   bool		transactional_table, safe_update, const_cond;
+  bool          const_cond_result;
   ha_rows	deleted= 0;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
@@ -86,6 +87,12 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   select_lex->no_error= thd->lex->ignore;
 
+  const_cond_result= const_cond && (!conds || conds->val_int());
+  if (thd->is_error())
+  {
+    /* Error evaluating val_int(). */
+    DBUG_RETURN(TRUE);
+  }
   /*
     Test if the user wants to delete all rows and deletion doesn't have
     any side-effects (because of triggers), so we can use optimized
@@ -105,7 +112,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       - We should not be binlogging this statement row-based, and
       - there should be no delete triggers associated with the table.
   */
-  if (!using_limit && const_cond && (!conds || conds->val_int()) &&
+  if (!using_limit && const_cond_result &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       (thd->lex->sql_command == SQLCOM_TRUNCATE ||
        (!thd->current_stmt_binlog_row_based &&
@@ -252,10 +259,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   table->mark_columns_needed_for_delete();
 
   while (!(error=info.read_record(&info)) && !thd->killed &&
-	 !thd->net.report_error)
+	 ! thd->is_error())
   {
-    // thd->net.report_error is tested to disallow delete row on error
-    if (!(select && select->skip_record())&& !thd->net.report_error )
+    // thd->is_error() is tested to disallow delete row on error
+    if (!(select && select->skip_record())&& ! thd->is_error() )
     {
 
       if (table->triggers &&
@@ -300,7 +307,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     else
       table->file->unlock_row();  // Row failed selection, release lock on it
   }
-  if (thd->killed && !error)
+  if (thd->killed || thd->is_error())
     error= 1;					// Aborted
   if (will_batch && (loc_error= table->file->end_bulk_delete()))
   {
@@ -389,7 +396,7 @@ cleanup:
     send_ok(thd, (ha_rows) thd->row_count_func);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
-  DBUG_RETURN(error >= 0 || thd->net.report_error);
+  DBUG_RETURN(error >= 0 || thd->is_error());
 }
 
 

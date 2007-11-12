@@ -328,4 +328,26 @@ drop table t1;
 drop table t1;
 End of 5.0 tests
 flush logs;
+BUG#31611: Security risk with BINLOG statement
+SET BINLOG_FORMAT=ROW;
+CREATE DATABASE mysqltest1;
+CREATE USER untrusted@localhost;
+GRANT SELECT ON mysqltest1.* TO untrusted@localhost;
+SHOW GRANTS FOR untrusted@localhost;
+Grants for untrusted@localhost
+GRANT USAGE ON *.* TO 'untrusted'@'localhost'
+GRANT SELECT ON `mysqltest1`.* TO 'untrusted'@'localhost'
+USE mysqltest1;
+CREATE TABLE t1 (a INT, b CHAR(64));
+flush logs;
+INSERT INTO t1 VALUES (1,USER());
+flush logs;
+mysqlbinlog var/log/master-bin.000017 > var/tmp/bug31611.sql
+mysql mysqltest1 -uuntrusted < var/tmp/bug31611.sql
+INSERT INTO t1 VALUES (1,USER());
+ERROR 42000: INSERT command denied to user 'untrusted'@'localhost' for table 't1'
+SELECT * FROM t1;
+a	b
+1	root@localhost
+DROP DATABASE mysqltest1;
 End of 5.1 tests
