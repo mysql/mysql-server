@@ -130,6 +130,7 @@ int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
   int was_symlink= (!my_disable_symlinks &&
 		    !my_readlink(link_name, from, MYF(0)));
   int result=0;
+  int name_is_different;
   DBUG_ENTER("my_rename_with_symlink");
 
   if (!was_symlink)
@@ -138,6 +139,14 @@ int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
   /* Change filename that symlink pointed to */
   strmov(tmp_name, to);
   fn_same(tmp_name,link_name,1);		/* Copy dir */
+  name_is_different= strcmp(link_name, tmp_name);
+  if (name_is_different && !access(tmp_name, F_OK))
+  {
+    my_errno= EEXIST;
+    if (MyFlags & MY_WME)
+      my_error(EE_CANTCREATEFILE, MYF(0), tmp_name, EEXIST);
+    DBUG_RETURN(1);
+  }
 
   /* Create new symlink */
   if (my_symlink(tmp_name, to, MyFlags))
@@ -149,7 +158,7 @@ int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
     the same basename and different directories.
    */
 
-  if (strcmp(link_name, tmp_name) && my_rename(link_name, tmp_name, MyFlags))
+  if (name_is_different && my_rename(link_name, tmp_name, MyFlags))
   {
     int save_errno=my_errno;
     my_delete(to, MyFlags);			/* Remove created symlink */
