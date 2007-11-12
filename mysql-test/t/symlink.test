@@ -123,11 +123,11 @@ drop table t1;
 #
 # BUG#32111 - Security Breach via DATA/INDEX DIRECORY and RENAME TABLE
 #
---replace_result $MYSQL_TEST_DIR TEST_DIR
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
 eval CREATE TABLE t1(a INT)
-DATA DIRECTORY='$MYSQL_TEST_DIR/var/master-data/mysql'
-INDEX DIRECTORY='$MYSQL_TEST_DIR/var/master-data/mysql';
---replace_result $MYSQL_TEST_DIR TEST_DIR
+DATA DIRECTORY='$MYSQLTEST_VARDIR/master-data/mysql'
+INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data/mysql';
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
 --error 1
 RENAME TABLE t1 TO user;
 DROP TABLE t1;
