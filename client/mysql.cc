@@ -2447,6 +2447,7 @@ static char *fieldflags2str(uint f) {
   ff2s_check_flag(GROUP);
   ff2s_check_flag(UNIQUE);
   ff2s_check_flag(BINCMP);
+  ff2s_check_flag(ON_UPDATE_NOW);
 #undef ff2s_check_flag
   if (f)
     sprintf(s, " unknows=0x%04x", f);
