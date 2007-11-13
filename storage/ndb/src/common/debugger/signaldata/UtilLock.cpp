@@ -36,6 +36,7 @@ printUTIL_LOCK_CONF (FILE * output, const Uint32 * theData,
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
+  fprintf (output, " extra: %x\n", sig->extra);
   return true;
 }
 
@@ -48,6 +49,7 @@ printUTIL_LOCK_REF (FILE * output, const Uint32 * theData,
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
   fprintf (output, " errorCode: %x\n", sig->errorCode);
+  fprintf (output, " extra: %x\n", sig->extra);
   return true;
 }
 

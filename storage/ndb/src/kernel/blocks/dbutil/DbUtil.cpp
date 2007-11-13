@@ -668,22 +668,7 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
       }
       
       infoEvent("LockQueue %u", iter.curr.p->m_lockId);
-      
-      LockQueue::Iterator iter2;
-      if (iter.curr.p->m_queue.first(c_lockElementPool, iter2))
-      {
-        do
-        {
-          Ptr<LockQueue::LockQueueElement> ptr = iter2.m_curr;
-          infoEvent("- sender: 0x%x data: %u %s %s",
-                    ptr.p->m_req.senderRef,
-                    ptr.p->m_req.senderData,
-                    (ptr.p->m_req.requestInfo & UtilLockReq::SharedLock) ? 
-                    "S":"X",
-                    (ptr.p->m_req.requestInfo & UtilLockReq::Granted) ? 
-                    "granted" : "");
-        } while (iter.curr.p->m_queue.next(iter2));
-      }
+      iter.curr.p->m_queue.dump_queue(c_lockElementPool, this);
       c_lockQueues.next(iter);
     }
     signal->theData[0] = 244;
@@ -2447,6 +2432,7 @@ DbUtil::execUTIL_UNLOCK_REQ(Signal* signal)
   Uint32 res = lockQPtr.p->m_queue.unlock(c_lockElementPool, &req);
   switch(res){
   case UtilUnlockRef::OK:
+    jam();
   case UtilUnlockRef::NotLockOwner: {
     jam();
     UtilUnlockConf * conf = (UtilUnlockConf*)signal->getDataPtrSend();
@@ -2486,7 +2472,8 @@ DbUtil::execUTIL_UNLOCK_REQ(Signal* signal)
         sendLOCK_CONF(signal, &lockReq);
       }        
       
-      lockQPtr.p->m_queue.next(iter);
+      if (!lockQPtr.p->m_queue.next(iter))
+        break;
     }
   }
 }
@@ -2498,12 +2485,14 @@ DbUtil::sendLOCK_REF(Signal* signal,
   const Uint32 senderData = req->senderData;
   const Uint32 senderRef = req->senderRef;
   const Uint32 lockId = req->lockId;
+  const Uint32 extra = req->extra;
 
   UtilLockRef * ref = (UtilLockRef*)signal->getDataPtrSend();
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->lockId = lockId;
   ref->errorCode = err;
+  ref->extra = extra;
   sendSignal(senderRef, GSN_UTIL_LOCK_REF, signal, 
 	     UtilLockRef::SignalLength, JBB);
 }
@@ -2514,11 +2503,13 @@ DbUtil::sendLOCK_CONF(Signal* signal, const UtilLockReq * req)
   const Uint32 senderData = req->senderData;
   const Uint32 senderRef = req->senderRef;
   const Uint32 lockId = req->lockId;
+  const Uint32 extra = req->extra;
 
   UtilLockConf * conf = (UtilLockConf*)signal->getDataPtrSend();
   conf->senderData = senderData;
   conf->senderRef = reference();
   conf->lockId = lockId;
+  conf->extra = extra;
   sendSignal(senderRef, GSN_UTIL_LOCK_CONF, signal, 
 	     UtilLockConf::SignalLength, JBB);
 }

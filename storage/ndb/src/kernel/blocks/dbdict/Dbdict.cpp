@@ -14288,7 +14288,8 @@ Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req)
                    DictLockConf::SignalLength, JBB);
       }        
       
-      m_dict_lock.next(iter);
+      if (!m_dict_lock.next(iter))
+        break;
     }
   }
 

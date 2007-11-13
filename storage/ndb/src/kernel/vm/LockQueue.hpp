@@ -68,6 +68,11 @@ public:
    * Clear lock queue
    */
   void clear (Pool&);
+
+  /**
+   * Dump
+   */
+  void dump_queue(Pool&, SimulatedBlock* block);
   
 private:
   /**

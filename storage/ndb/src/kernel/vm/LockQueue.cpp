@@ -72,22 +72,19 @@ LockQueue::lock(Pool & thePool,
   }
   
   lockEPtr.p->m_req = *req;
+  queue.addLast(lockEPtr);
   
-  int retVal = UtilLockRef::OK;
   if(grant)
   {
     jam();
     lockEPtr.p->m_req.requestInfo |= UtilLockReq::Granted;
+    return UtilLockRef::OK;
   }
-  else if (notify)
+  else
   {
     jam();
-    retVal = UtilLockRef::InLockQueue;
+    return UtilLockRef::InLockQueue;
   }
-  
-  queue.addLast(lockEPtr);
-  
-  return retVal;
 }
 
 Uint32
@@ -204,3 +201,26 @@ LockQueue::clear(Pool& thePool)
   LocalDLFifoList<LockQueueElement> queue(thePool, m_queue);
   queue.release();
 }
+
+#include "SimulatedBlock.hpp"
+
+void
+LockQueue::dump_queue(Pool& thePool, SimulatedBlock* block)
+{
+  Ptr<LockQueueElement> ptr;
+  LocalDLFifoList<LockQueueElement> queue(thePool, m_queue);
+
+  for (queue.first(ptr); !ptr.isNull(); queue.next(ptr))
+  {
+    jam();
+    block->infoEvent("- sender: 0x%x data: %u %s %s extra: %u",
+                     ptr.p->m_req.senderRef,
+                     ptr.p->m_req.senderData,
+                     (ptr.p->m_req.requestInfo & UtilLockReq::SharedLock) ? 
+                     "S":"X",
+                     (ptr.p->m_req.requestInfo & UtilLockReq::Granted) ? 
+                     "granted" : "",
+                     ptr.p->m_req.extra);
+  }
+}
+

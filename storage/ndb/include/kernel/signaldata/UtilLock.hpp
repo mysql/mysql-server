@@ -33,7 +33,7 @@ class UtilLockReq {
 
   friend bool printUTIL_LOCK_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
 
   enum RequestInfo {
     TryLock    = 1,
@@ -71,6 +71,7 @@ public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
+  Uint32 extra;
 };
 
 class UtilLockRef {
@@ -88,7 +89,7 @@ class UtilLockRef {
   
   friend bool printUTIL_LOCK_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
   
   enum ErrorCode {
     OK = 0,
@@ -104,6 +105,7 @@ public:
   Uint32 senderRef;
   Uint32 lockId;
   Uint32 errorCode;
+  Uint32 extra;
 };
 
 class UtilUnlockReq {
@@ -121,7 +123,7 @@ class UtilUnlockReq {
 
   friend bool printUTIL_UNLOCK_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 3 );
   
 public:
   Uint32 senderData;  
