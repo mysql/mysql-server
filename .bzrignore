@@ -900,6 +900,7 @@ libmysql_r/.libs/libmysqlclient_r.lai
 libmysql_r/.libs/libmysqlclient_r.so.15
 libmysql_r/.libs/libmysqlclient_r.so.15.0.0
 libmysql_r/acconfig.h
+libmysql_r/client_settings.h
 libmysql_r/conf_to_src
 libmysql_r/my_static.h
 libmysql_r/mysys_priv.h
