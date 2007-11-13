@@ -15612,8 +15612,21 @@ void TABLE_LIST::print(THD *thd, String *str)
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias))
     {
+      char t_alias_buff[MAX_ALIAS_NAME];
+      const char *t_alias= alias;
+
       str->append(' ');
-      append_identifier(thd, str, alias, strlen(alias));
+      if (lower_case_table_names== 1)
+      {
+        if (alias && alias[0])
+        {
+          strmov(t_alias_buff, alias);
+          my_casedn_str(files_charset_info, t_alias_buff);
+          t_alias= t_alias_buff;
+        }
+      }
+
+      append_identifier(thd, str, t_alias, strlen(t_alias));
     }
 
     if (use_index)
