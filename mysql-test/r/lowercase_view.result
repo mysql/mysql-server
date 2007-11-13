@@ -141,8 +141,8 @@ a
 CREATE OR REPLACE VIEW v1 AS
 select X.a from t1 AS X group by X.b having (X.a = 1);
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `x`.`a` AS `a` from `t1` `x` group by `x`.`b` having (`x`.`a` = 1)
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `x`.`a` AS `a` from `t1` `x` group by `x`.`b` having (`x`.`a` = 1)	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 a
 DROP VIEW v1;
