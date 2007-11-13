@@ -346,6 +346,43 @@ int ma_checkpoint_init(ulong interval)
 }
 
 
+#ifndef DBUG_OFF
+/**
+   Function used to test recovery: flush some table pieces and then caller
+   crashes.
+
+   @param  what_to_flush   0: current bitmap and all data pages
+                           1: state
+*/
+static void flush_all_tables(int what_to_flush)
+{
+  LIST *pos; /**< to iterate over open tables */
+  pthread_mutex_lock(&THR_LOCK_maria);
+  for (pos= maria_open_list; pos; pos= pos->next)
+  {
+    MARIA_HA *info= (MARIA_HA*)pos->data;
+    if (info->s->now_transactional)
+    {
+      switch (what_to_flush)
+      {
+      case 0:
+        _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                              FLUSH_KEEP, FLUSH_KEEP);
+        break;
+      case 1:
+        _ma_state_info_write(info->s, 1|4);
+        DBUG_PRINT("maria_flush_states",
+                   ("is_of_horizon: LSN (%lu,0x%lx)",
+                    LSN_IN_PARTS(info->s->state.is_of_horizon)));
+        break;
+      }
+    }
+  }
+  pthread_mutex_unlock(&THR_LOCK_maria);
+}
+#endif
+
+
 /**
    @brief Destroys the checkpoint module
 */
@@ -353,6 +390,32 @@ int ma_checkpoint_init(ulong interval)
 void ma_checkpoint_end(void)
 {
   DBUG_ENTER("ma_checkpoint_end");
+  DBUG_EXECUTE_IF("maria_flush_whole_page_cache",
+                  {
+                    DBUG_PRINT("maria_flush_whole_page_cache", ("now"));
+                    flush_all_tables(0);
+                  });
+  DBUG_EXECUTE_IF("maria_flush_whole_log",
+                  {
+                    DBUG_PRINT("maria_flush_whole_log", ("now"));
+                    translog_flush(translog_get_horizon());
+                  });
+  /*
+    Note that for WAL reasons, maria_flush_states requires
+    maria_flush_whole_log.
+  */
+  DBUG_EXECUTE_IF("maria_flush_states",
+                  {
+                    DBUG_PRINT("maria_flush_states", ("now"));
+                    flush_all_tables(1);
+                  });
+  DBUG_EXECUTE_IF("maria_crash",
+                  {
+                    DBUG_PRINT("maria_crash", ("now"));
+                    fflush(DBUG_FILE);
+                    abort();
+                  });
+
   if (checkpoint_inited)
   {
     pthread_mutex_lock(&LOCK_checkpoint);

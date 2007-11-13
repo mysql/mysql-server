@@ -48,6 +48,10 @@ static HASH all_dirty_pages;
 static struct st_dirty_page *dirty_pages_pool;
 static LSN current_group_end_lsn,
   checkpoint_start= LSN_IMPOSSIBLE;
+#ifndef DBUG_OFF
+/** Current group of REDOs is about this table and only this one */
+static MARIA_HA *current_group_table;
+#endif
 static TrID max_long_trid= 0; /**< max long trid seen by REDO phase */
 static FILE *tracef; /**< trace file for debugging */
 static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
@@ -169,7 +173,7 @@ int maria_recover(void)
   maria_in_recovery= TRUE;
 
 #ifdef EXTRA_DEBUG
-  trace_file= fopen("maria_recovery.trace", "w");
+  trace_file= fopen("maria_recovery.trace", "a+");
 #else
   trace_file= NULL; /* no trace file for being fast */
 #endif
@@ -1040,8 +1044,12 @@ static int new_table(uint16 sid, const char *name,
   if (share->reopen != 1)
   {
     tprint(tracef, ", is already open (reopen=%u)\n", share->reopen);
-    ALERT_USER();
-    goto end;
+    /*
+      It could be that we have in the log
+      FILE_ID(t1,10) ... (t1 was flushed) ... FILE_ID(t1,12);
+    */
+    if (close_one_table(share->open_file_name, lsn_of_file_id))
+      goto end;
   }
   DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
   if (!share->base.born_transactional)
@@ -1062,6 +1070,8 @@ static int new_table(uint16 sid, const char *name,
   }
   /* don't log any records for this work */
   _ma_tmp_disable_logging_for_table(share);
+  /* _ma_unpin_all_pages() reads info->trn: */
+  info->trn= &dummy_transaction_object;
   /* execution of some REDO records relies on data_file_length */
   my_off_t dfile_len= my_seek(info->dfile.file, 0, SEEK_END, MYF(MY_WME));
   my_off_t kfile_len= my_seek(info->s->kfile.file, 0, SEEK_END, MYF(MY_WME));
@@ -1316,7 +1326,8 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
-    tprint(tracef, "   state older than record, updating rows' count\n");
+    tprint(tracef, "   state has LSN (%lu,0x%lx) older than record, updating"
+           " rows' count\n", LSN_IN_PARTS(share->state.is_of_horizon));
     share->state.state.records++;
     if (share->calc_checksum)
     {
@@ -1339,6 +1350,8 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
+  /* Unpin all pages, stamp them with UNDO's LSN */
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
 
@@ -1371,6 +1384,7 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
 
@@ -1400,6 +1414,7 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
     share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
 
@@ -1488,6 +1503,7 @@ prototype_redo_exec_hook(CLR_END)
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
 
@@ -1659,6 +1675,9 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_undo_exec_hook(UNDO_ROW_UPDATE);
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
+#ifndef DBUG_OFF
+  current_group_table= NULL;
+#endif
 
   if (unlikely(lsn == LSN_IMPOSSIBLE || lsn == translog_get_horizon()))
   {
@@ -1774,6 +1793,9 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
       if (apply == MARIA_LOG_APPLY &&
           display_and_apply_record(log_desc, &rec))
         goto err;
+#ifndef DBUG_OFF
+      current_group_table= NULL;
+#endif
     }
     else /* record does not end group */
     {
@@ -1983,6 +2005,7 @@ static void prepare_table_for_close(MARIA_HA *info, TRANSLOG_ADDRESS horizon)
     _ma_state_info_write_sub(share->kfile.file, &share->state, 1);
   }
   _ma_reenable_logging_for_table(share);
+  info->trn= NULL; /* safety */
 }
 
 
@@ -2012,6 +2035,10 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
     break;
   }
   info= all_tables[sid].info;
+#ifndef DBUG_OFF
+  DBUG_ASSERT(current_group_table == NULL || current_group_table == info);
+  current_group_table= info;
+#endif
   if (info == NULL)
   {
     tprint(tracef, ", table skipped, so skipping record\n");
@@ -2074,6 +2101,10 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
   sid= fileid_korr(rec->header + LSN_STORE_SIZE);
   tprint(tracef, "   For table of short id %u", sid);
   info= all_tables[sid].info;
+#ifndef DBUG_OFF
+  DBUG_ASSERT(current_group_table == NULL || current_group_table == info);
+  current_group_table= info;
+#endif
   if (info == NULL)
   {
     tprint(tracef, ", table skipped, so skipping record\n");

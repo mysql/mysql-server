@@ -2504,7 +2504,12 @@ static void check_and_set_lsn(PAGECACHE *pagecache,
 {
   LSN old;
   DBUG_ENTER("check_and_set_lsn");
-  DBUG_ASSERT(block->type == PAGECACHE_LSN_PAGE);
+  /*
+    In recovery, we can _ma_unpin_all_pages() to put a LSN on page, though
+    page would be PAGECACHE_PLAIN_PAGE (transactionality temporarily disabled
+    to not log REDOs).
+  */
+  DBUG_ASSERT((block->type == PAGECACHE_LSN_PAGE) || maria_in_recovery);
   old= lsn_korr(block->buffer + PAGE_LSN_OFFSET);
   DBUG_PRINT("info", ("old lsn: (%lu, 0x%lx)  new lsn: (%lu, 0x%lx)",
                       LSN_IN_PARTS(old), LSN_IN_PARTS(lsn)));

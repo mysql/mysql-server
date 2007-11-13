@@ -773,11 +773,13 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
   DBUG_ENTER("_ma_unpin_all_pages");
   DBUG_PRINT("info", ("undo_lsn: %lu", (ulong) undo_lsn));
 
-  /* True if not disk error */
-  DBUG_ASSERT((undo_lsn != LSN_IMPOSSIBLE) || !info->s->now_transactional);
-
-  if (!info->s->now_transactional)
-    undo_lsn= LSN_IMPOSSIBLE; /* don't try to set a LSN on pages */
+  if (info->s->now_transactional)
+    DBUG_ASSERT(undo_lsn != LSN_IMPOSSIBLE); /* true except if disk error */
+  else
+  {
+    /* In recovery, we stamp page though table has transactions disabled */
+    DBUG_ASSERT((undo_lsn == LSN_IMPOSSIBLE) || maria_in_recovery);
+  }
 
   while (pinned_page-- != page_link)
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
@@ -2380,7 +2382,7 @@ static my_bool write_block_record(MARIA_HA *info,
   }
 
   /* Write UNDO or CLR record */
-  lsn= 0;
+  lsn= LSN_IMPOSSIBLE;
   if (share->now_transactional)
   {
     LEX_STRING *log_array= info->log_row_parts;
@@ -2546,7 +2548,7 @@ disk_err:
     Unpin all pinned pages to not cause problems for disk cache. This is
     safe to call even if we already called _ma_unpin_all_pages() above.
   */
-  _ma_unpin_all_pages_and_finalize_row(info, 0);
+  _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
 
   DBUG_RETURN(1);
 }
@@ -2879,7 +2881,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   DBUG_RETURN(res);
 
 err:
-  _ma_unpin_all_pages_and_finalize_row(info, 0);
+  _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
   DBUG_RETURN(1);
 }
 
@@ -3141,6 +3143,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
   ulonglong page;
   uint record_number;
   MARIA_SHARE *share= info->s;
+  LSN lsn= LSN_IMPOSSIBLE;
   DBUG_ENTER("_ma_delete_block_record");
 
   page=          ma_recordpos_to_page(info->cur_row.lastpos);
@@ -3157,7 +3160,6 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
 
   if (share->now_transactional)
   {
-    LSN lsn;
     uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE +
                    DIRPOS_STORE_SIZE + HA_CHECKSUM_STORE_SIZE];
     size_t row_length;
@@ -3195,11 +3197,11 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
 
   }
 
-  _ma_unpin_all_pages_and_finalize_row(info, info->trn->undo_lsn);
+  _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(0);
 
 err:
-  _ma_unpin_all_pages_and_finalize_row(info, 0);
+  _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
   DBUG_RETURN(1);
 }
 
@@ -4953,8 +4955,8 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     empty_space= (block_size - PAGE_OVERHEAD_SIZE);
     rec_offset= PAGE_HEADER_SIZE;
     dir= buff+ block_size - PAGE_SUFFIX_SIZE - DIR_ENTRY_SIZE;
-    unlock_method= PAGECACHE_LOCK_LEFT_UNLOCKED;
-    unpin_method=  PAGECACHE_PIN_LEFT_UNPINNED;
+    unlock_method= PAGECACHE_LOCK_WRITE;
+    unpin_method=  PAGECACHE_PIN;
   }
   else
   {
@@ -4976,8 +4978,8 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
         DBUG_RETURN(my_errno);
       DBUG_RETURN(0);
     }
-    unlock_method= PAGECACHE_LOCK_WRITE_UNLOCK;
-    unpin_method=  PAGECACHE_UNPIN;
+    unlock_method= PAGECACHE_LOCK_LEFT_WRITELOCKED;
+    unpin_method=  PAGECACHE_PIN_LEFT_PINNED;
 
     max_entry= (uint) ((uchar*) buff)[DIR_COUNT_OFFSET];
     if (((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != page_type))
@@ -5043,15 +5045,22 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   empty_space-= data_length;
   int2store(buff + EMPTY_SPACE_OFFSET, empty_space);
 
-  /* Write modified page */
-  lsn_store(buff, lsn);
+  /*
+    Write modified page. We don't update its LSN, and keep it pinned. When we
+    have processed all REDOs for this page in the current REDO's group, we
+    will stamp page with UNDO's LSN (if we stamped it now, a next REDO, in
+    this group, for this page, would be skipped) and unpin then.
+  */
   if (pagecache_write(share->pagecache,
                       &info->dfile, page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
                       unlock_method, unpin_method,
-                      PAGECACHE_WRITE_DELAY, 0,
+                      PAGECACHE_WRITE_DELAY, &page_link.link,
                       LSN_IMPOSSIBLE))
     DBUG_RETURN(my_errno);
+
+  page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+  push_dynamic(&info->pinned_pages, (void*) &page_link);
 
   /* Fix bitmap */
   if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
@@ -5070,7 +5079,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   DBUG_RETURN(0);
 
 err:
-  if (unlock_method == PAGECACHE_LOCK_WRITE_UNLOCK)
+  if (unlock_method == PAGECACHE_LOCK_LEFT_WRITELOCKED)
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
@@ -5151,19 +5160,23 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
   if (delete_dir_entry(buff, block_size, rownr, &empty_space) < 0)
     goto err;
 
-  lsn_store(buff, lsn);
   result= 0;
   if (pagecache_write(share->pagecache,
                       &info->dfile, page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
-                      PAGECACHE_LOCK_WRITE_UNLOCK, PAGECACHE_UNPIN,
+                      PAGECACHE_LOCK_LEFT_WRITELOCKED,
+                      PAGECACHE_PIN_LEFT_PINNED,
                       PAGECACHE_WRITE_DELAY, 0,
                       LSN_IMPOSSIBLE))
     result= my_errno;
-
-  /* This will work even if the page was marked as UNALLOCATED_PAGE */
-  if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
-    result= my_errno;
+  else
+  {
+    page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+    push_dynamic(&info->pinned_pages, (void*) &page_link);
+    /* This will work even if the page was marked as UNALLOCATED_PAGE */
+    if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
+      result= my_errno;
+  }
 
   DBUG_RETURN(result);
 
@@ -5210,7 +5223,12 @@ uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
     uint i;
     page= page_korr(header);
     header+= PAGE_STORE_SIZE;
-    page_range= pagerange_korr(header);
+    /* Page range may have this bit set to indicate a tail page */
+    page_range= pagerange_korr(header) & ~TAIL_BIT;
+    /** @todo RECOVERY BUG enable this assertion when newer tree pulled */
+#if 0
+    DBUG_ASSERT(page_range > 0);
+#endif
     header+= PAGERANGE_STORE_SIZE;
 
     for (i= 0; i < page_range ; i++)
@@ -5233,14 +5251,23 @@ uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
         continue;
       }
       buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
-      lsn_store(buff, lsn);
+      /**
+         @todo RECOVERY BUG
+         we need to distinguish between blob page (too big, can't pin, and
+         needn't pin because in a group there is a single REDO touching the
+         page) and head/tail.
+         When merged with newer code this should become possible.
+      */
       if (pagecache_write(share->pagecache,
                           &info->dfile, page+i, 0,
                           buff, PAGECACHE_PLAIN_PAGE,
-                          PAGECACHE_LOCK_WRITE_UNLOCK, PAGECACHE_UNPIN,
+                          PAGECACHE_LOCK_LEFT_WRITELOCKED,
+                          PAGECACHE_PIN_LEFT_PINNED,
                           PAGECACHE_WRITE_DELAY, 0,
                           LSN_IMPOSSIBLE))
         DBUG_RETURN(my_errno);
+      page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+      push_dynamic(&info->pinned_pages, (void*) &page_link);
     }
     /** @todo leave bitmap lock to the bitmap code... */
     pthread_mutex_lock(&share->bitmap.bitmap_lock);

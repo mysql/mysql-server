@@ -1,0 +1,87 @@
+# Maria helper script.
+# Runs recovery, compare with expected table data.
+
+# API:
+# 1) set $mms_tables to N, the script will cover tables mysqltest.t1,...tN
+# 2) set $mvr_debug_option to the crash way
+# 3) set $mvr_restore_old_snapshot to 1 if you want recovery to run on
+# an old copy of tables and of the control file, 0 for normal recovery.
+
+# "mvr" is a namespace for Maria_Verify_Recovery
+
+connection admin;
+
+# warn mtr that mysqld is going to die and should not be restarted immediately
+#append_file $MYSQLTEST_VARDIR/tmp/master0.expect;
+#wait-maria_verify_recovery.inc
+#EOF
+# todo: remove this "system" and uncomment above when BUG#32296 is fixed
+system echo wait-maria_verify_recovery.inc >> $MYSQLTEST_VARDIR/tmp/master0.expect;
+
+# flush page cache and log, only log, or nothing, and kill mysqld with
+# abort().
+# When we restore an old snapshot, we could just kill mysqld nicely,
+# but that would implicitely commit all work, which the tester may
+# not want (tester may want to observe rollback happening).
+
+eval SET SESSION debug=$mvr_debug_option;
+--echo * crashing mysqld intentionally
+--error 2013
+set global maria_checkpoint_interval=1; # this will crash (DBUG magic)
+
+if ($mvr_restore_old_snapshot)
+{
+
+  # copy snapshot made by maria_make_snapshot_for_feeding_recovery back
+  # into datadir.
+
+  let $mms_table_to_use=$mms_tables;
+  let $mms_purpose=feeding_recovery;
+  let $mms_reverse_copy=1;
+  while ($mms_table_to_use)
+  {
+    -- source include/maria_make_snapshot.inc
+    dec $mms_table_to_use;
+  }
+  let $mms_reverse_copy=0;
+
+  # also copy back control file, to force recovery to start from an early
+  # point, ignoring further checkpoints.
+  -- error 0,1
+  remove_file $MYSQLTEST_VARDIR/master-data/maria_log_control;
+  copy_file $MYSQLTEST_VARDIR/tmp/mms_for_$mms_purpose.maria_log_control $MYSQLTEST_VARDIR/master-data/maria_log_control;
+}
+
+--echo * recovery happens
+# let mtr restart mysqld (and thus execute the maria log)
+#append_file $MYSQLTEST_VARDIR/tmp/master0.expect;
+#restart-maria_verify_recovery.inc
+#EOF
+system echo restart-maria_verify_recovery.inc >> $MYSQLTEST_VARDIR/tmp/master0.expect;
+
+--source include/wait_until_connected_again.inc
+
+# compare that tables of $mms_tables are identical to old.
+let $mms_table_to_use=$mms_tables;
+let $mms_purpose=comparison;
+let $mms_compare=1;
+while ($mms_table_to_use)
+{
+  # Todo: remove this REPAIR when we have index recovery working.
+  # It is a quick repair, so that it will fail if data file is corrupted.
+  --echo * rebuilding index (until we have recovery of index)
+  eval repair table t$mms_table_to_use quick;
+  --echo * testing that checksum after recovery is as expected
+  let $new_checksum=`CHECKSUM TABLE t$mms_table_to_use`;
+  let $old_checksum=`CHECKSUM TABLE mysqltest_for_$mms_purpose.t$mms_table_to_use`;
+  # the $ text variables above are of the form "db.tablename\tchecksum",
+  # as db differs, we use substring().
+  eval select if(substring("$new_checksum",instr("$new_checksum",".t1")) = substring("$old_checksum",instr("$old_checksum",".t1")),"ok","failure");
+  -- source include/maria_make_snapshot.inc
+  dec $mms_table_to_use;
+}
+let $mms_compare=0;
+
+connection default;
+# the effect of "use" is lost after a restart so we are back into db "test"
+use mysqltest;

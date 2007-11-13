@@ -1,0 +1,168 @@
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+* shut down mysqld, removed logs, restarted it
+use mysqltest;
+create table t1 (a varchar(1000)) engine=maria;
+* TEST: see if recovery can reconstruct if we give it an old table
+* copied t1 for feeding_recovery
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global maria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* copied t1 back for feeding_recovery
+* recovery happens
+* rebuilding index (until we have recovery of index)
+repair table t1 quick;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	repair	status	OK
+* testing that checksum after recovery is as expected
+select if(substring("mysqltest.t1	488070860",instr("mysqltest.t1	488070860",".t1")) = substring("mysqltest_for_comparison.t1	488070860",instr("mysqltest_for_comparison.t1	488070860",".t1")),"ok","failure");
+if(substring("mysqltest.t1	488070860",instr("mysqltest.t1	488070860",".t1")) = substring("mysqltest_for_comparison.t1	488070860",instr("mysqltest_for_comparison.t1	488070860",".t1")),"ok","failure")
+ok
+use mysqltest;
+select * from t1;
+a
+00000000
+* TEST: normal recovery test (no moving tables under its feet)
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+SET SESSION debug="+d,maria_crash";
+* crashing mysqld intentionally
+set global maria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+* rebuilding index (until we have recovery of index)
+repair table t1 quick;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	repair	status	OK
+* testing that checksum after recovery is as expected
+select if(substring("mysqltest.t1	976141720",instr("mysqltest.t1	976141720",".t1")) = substring("mysqltest_for_comparison.t1	976141720",instr("mysqltest_for_comparison.t1	976141720",".t1")),"ok","failure");
+if(substring("mysqltest.t1	976141720",instr("mysqltest.t1	976141720",".t1")) = substring("mysqltest_for_comparison.t1	976141720",instr("mysqltest_for_comparison.t1	976141720",".t1")),"ok","failure")
+ok
+use mysqltest;
+select * from t1;
+a
+00000000
+00000000
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+SET SESSION debug="+d,maria_flush_whole_page_cache,maria_crash";
+* crashing mysqld intentionally
+set global maria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+* rebuilding index (until we have recovery of index)
+repair table t1 quick;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	repair	status	OK
+* testing that checksum after recovery is as expected
+select if(substring("mysqltest.t1	1464212580",instr("mysqltest.t1	1464212580",".t1")) = substring("mysqltest_for_comparison.t1	1464212580",instr("mysqltest_for_comparison.t1	1464212580",".t1")),"ok","failure");
+if(substring("mysqltest.t1	1464212580",instr("mysqltest.t1	1464212580",".t1")) = substring("mysqltest_for_comparison.t1	1464212580",instr("mysqltest_for_comparison.t1	1464212580",".t1")),"ok","failure")
+ok
+use mysqltest;
+select * from t1;
+a
+00000000
+00000000
+00000000
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+SET SESSION debug="+d,maria_flush_states,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global maria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+* rebuilding index (until we have recovery of index)
+repair table t1 quick;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	repair	status	OK
+* testing that checksum after recovery is as expected
+select if(substring("mysqltest.t1	1952283440",instr("mysqltest.t1	1952283440",".t1")) = substring("mysqltest_for_comparison.t1	1952283440",instr("mysqltest_for_comparison.t1	1952283440",".t1")),"ok","failure");
+if(substring("mysqltest.t1	1952283440",instr("mysqltest.t1	1952283440",".t1")) = substring("mysqltest_for_comparison.t1	1952283440",instr("mysqltest_for_comparison.t1	1952283440",".t1")),"ok","failure")
+ok
+use mysqltest;
+select * from t1;
+a
+00000000
+00000000
+00000000
+00000000
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global maria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+* rebuilding index (until we have recovery of index)
+repair table t1 quick;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	repair	status	OK
+* testing that checksum after recovery is as expected
+select if(substring("mysqltest.t1	2440354300",instr("mysqltest.t1	2440354300",".t1")) = substring("mysqltest_for_comparison.t1	2440354300",instr("mysqltest_for_comparison.t1	2440354300",".t1")),"ok","failure");
+if(substring("mysqltest.t1	2440354300",instr("mysqltest.t1	2440354300",".t1")) = substring("mysqltest_for_comparison.t1	2440354300",instr("mysqltest_for_comparison.t1	2440354300",".t1")),"ok","failure")
+ok
+use mysqltest;
+select * from t1;
+a
+00000000
+00000000
+00000000
+00000000
+00000000
+drop table t1;
+* shut down mysqld, removed logs, restarted it
+use mysqltest;
+CREATE TABLE t1 (
+i int,
+b blob default NULL,
+c varchar(6000) default NULL
+) ENGINE=MARIA CHECKSUM=1;
+* copied t1 for feeding_recovery
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000), REPEAT('b', 5000));
+UPDATE t1 SET i=3, b=CONCAT(b,'c') WHERE i=1;
+SELECT LENGTH(b) FROM t1 WHERE i=3;
+LENGTH(b)
+5001
+flush table t1;
+* copied t1 for comparison
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global maria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* copied t1 back for feeding_recovery
+* recovery happens
+* rebuilding index (until we have recovery of index)
+repair table t1 quick;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	repair	status	OK
+* testing that checksum after recovery is as expected
+select if(substring("mysqltest.t1	3472399915",instr("mysqltest.t1	3472399915",".t1")) = substring("mysqltest_for_comparison.t1	3472399915",instr("mysqltest_for_comparison.t1	3472399915",".t1")),"ok","failure");
+if(substring("mysqltest.t1	3472399915",instr("mysqltest.t1	3472399915",".t1")) = substring("mysqltest_for_comparison.t1	3472399915",instr("mysqltest_for_comparison.t1	3472399915",".t1")),"ok","failure")
+ok
+use mysqltest;
+SELECT LENGTH(b) FROM t1 WHERE i=3;
+LENGTH(b)
+5001
+drop table t1;
+drop database mysqltest_for_feeding_recovery;
+drop database mysqltest_for_comparison;
+drop database mysqltest;
