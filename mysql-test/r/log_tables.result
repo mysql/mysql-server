@@ -50,7 +50,7 @@ general_log	CREATE TABLE `general_log` (
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 show fields from mysql.general_log;
 Field	Type	Null	Key	Default	Extra
-event_time	timestamp	NO		CURRENT_TIMESTAMP	
+event_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 user_host	mediumtext	NO		NULL	
 thread_id	int(11)	NO		NULL	
 server_id	int(11)	NO		NULL	
@@ -73,7 +73,7 @@ slow_log	CREATE TABLE `slow_log` (
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show fields from mysql.slow_log;
 Field	Type	Null	Key	Default	Extra
-start_time	timestamp	NO		CURRENT_TIMESTAMP	
+start_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 user_host	mediumtext	NO		NULL	
 query_time	time	NO		NULL	
 lock_time	time	NO		NULL	

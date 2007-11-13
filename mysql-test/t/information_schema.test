@@ -807,7 +807,8 @@ DROP FUNCTION func2;
 select column_type, group_concat(table_schema, '.', table_name), count(*) as num
 from information_schema.columns where
 table_schema='information_schema' and
-(column_type = 'varchar(7)' or column_type = 'varchar(20)')
+(column_type = 'varchar(7)' or column_type = 'varchar(20)'
+ or column_type = 'varchar(27)')
 group by column_type order by num;
 
 #
