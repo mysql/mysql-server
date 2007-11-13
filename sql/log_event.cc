@@ -1455,6 +1455,7 @@ static void copy_str_and_move(const char **src,
 }
 
 
+#ifndef DBUG_OFF
 static char const *
 code_name(int code)
 {
@@ -1473,6 +1474,7 @@ code_name(int code)
   sprintf(buf, "CODE#%d", code);
   return buf;
 }
+#endif
 
 /**
    Macro to check that there is enough space to read from memory.
