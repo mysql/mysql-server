@@ -4164,7 +4164,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         if (item_field->field_name && item_field->table_name &&
 	    !my_strcasecmp(system_charset_info, item_field->field_name,
                            field_name) &&
-            !strcmp(item_field->table_name, table_name) &&
+            !my_strcasecmp(table_alias_charset, item_field->table_name, 
+                           table_name) &&
             (!db_name || (item_field->db_name &&
                           !strcmp(item_field->db_name, db_name))))
         {
