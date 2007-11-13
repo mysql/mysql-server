@@ -33,7 +33,9 @@
 #include "my_sys.h"
 
 #define TIME_FLOAT_DIGITS 9
-#define TIME_I_S_DECIMAL_SIZE (6*100)+6 /**< two vals encoded: (dec*100)+len */
+/** two vals encoded: (dec*100)+len */
+#define TIME_I_S_DECIMAL_SIZE (TIME_FLOAT_DIGITS*100)+(TIME_FLOAT_DIGITS-3)
+
 #define MAX_QUERY_LENGTH 300
 
 /* Reserved for systems that can't record the function name in source. */
