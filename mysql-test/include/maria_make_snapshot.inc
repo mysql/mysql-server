@@ -9,21 +9,10 @@
 # 1) set one of
 # $mms_copy : to copy table from database to spare directory
 # $mms_reverse : to copy it back
-# $mms_compare : to compare both
+# $mms_compare_physically : to compare both byte-for-byte
 # 2) set $mms_table_to_use to a number N: table will be mysqltest.tN
 # 3) set $mms_purpose to say what this copy is for (influences the naming
 # of the spare directory).
-
-if (!$mms_copy)
-{
-  if (!$mms_reverse_copy)
-  {
-    if (!$mms_compare)
-    {
-      --die misuse of maria_make_snapshot.inc: no command
-    }
-  }
-}
 
 if ($mms_copy)
 {
@@ -45,14 +34,15 @@ if ($mms_reverse_copy)
   copy_file $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/t$mms_table_to_use.MAI $MYSQLTEST_VARDIR/master-data/mysqltest/t$mms_table_to_use.MAI;
 }
 
-if ($mms_compare)
+if ($mms_compare_physically)
 {
-  # this was meant to do a physical file compare (diff_files)
-  # but after the UNDO phase this is normally impossible
+  # After the UNDO phase this is normally impossible
   # (UNDO execution has created new log records => pages have new LSNs).
-  # So for now it does nothing.
-#  --echo * compared t$mms_table_to_use
-#  diff_files $MYSQLTEST_VARDIR/master-data/mysqltest/t$mms_table_to_use.MAD $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/t$mms_table_to_use.MAD;
+  # So, do this only when testing REDO phase.
+  # If UNDO phase, we nevertheless compare checksums
+  # (see maria_verify_recovery.inc).
+  --echo * compared t$mms_table_to_use to old version
+  diff_files $MYSQLTEST_VARDIR/master-data/mysqltest/t$mms_table_to_use.MAD $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/t$mms_table_to_use.MAD;
 # index file not yet recovered
 #  diff_files $MYSQLTEST_VARDIR/master-data/mysqltest/t$mms_table_to_use.MAI $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/t$mms_table_to_use.MAI;
 }

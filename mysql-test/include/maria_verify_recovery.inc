@@ -6,10 +6,17 @@
 # 2) set $mvr_debug_option to the crash way
 # 3) set $mvr_restore_old_snapshot to 1 if you want recovery to run on
 # an old copy of tables and of the control file, 0 for normal recovery.
+# 4) set $mms_compare_physically to 1 if you want a physical byte-for-byte
+# comparison with expected table. Checksum comparison is always done.
 
 # "mvr" is a namespace for Maria_Verify_Recovery
 
 connection admin;
+
+# we may do a copy-back  of tables before comparison, so save comparison
+# request made by caller:
+let $mms_compare_physically_save=$mms_compare_physically;
+let $mms_compare_physically=0;
 
 # warn mtr that mysqld is going to die and should not be restarted immediately
 #append_file $MYSQLTEST_VARDIR/tmp/master0.expect;
@@ -61,10 +68,13 @@ system echo restart-maria_verify_recovery.inc >> $MYSQLTEST_VARDIR/tmp/master0.e
 
 --source include/wait_until_connected_again.inc
 
-# compare that tables of $mms_tables are identical to old.
+# Compare that tables of $mms_tables are identical to old.
+# We always compare with CHECKSUM TABLE, and if requested (which makes sense
+# only for testing the REDO phase, as UNDO phase generates new records so new
+# LSNs on pages.) with a physical byte-for-byte comparison.
 let $mms_table_to_use=$mms_tables;
 let $mms_purpose=comparison;
-let $mms_compare=1;
+let $mms_compare_physically=$mms_compare_physically_save;
 while ($mms_table_to_use)
 {
   # Todo: remove this REPAIR when we have index recovery working.
@@ -77,10 +87,10 @@ while ($mms_table_to_use)
   # the $ text variables above are of the form "db.tablename\tchecksum",
   # as db differs, we use substring().
   eval select if(substring("$new_checksum",instr("$new_checksum",".t1")) = substring("$old_checksum",instr("$old_checksum",".t1")),"ok","failure");
+  # this script may compare physically or do nothing
   -- source include/maria_make_snapshot.inc
   dec $mms_table_to_use;
 }
-let $mms_compare=0;
 
 connection default;
 # the effect of "use" is lost after a restart so we are back into db "test"

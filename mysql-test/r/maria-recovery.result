@@ -4,13 +4,11 @@ use mysqltest;
 * shut down mysqld, removed logs, restarted it
 use mysqltest;
 create table t1 (a varchar(1000)) engine=maria;
-* TEST: see if recovery can reconstruct if we give it an old table
+* TEST of REDO: see if recovery can reconstruct if we give it an old table
 * copied t1 for feeding_recovery
 insert into t1 values ("00000000");
 flush table t1;
 * copied t1 for comparison
-lock tables t1 write;
-insert into t1 values ("aaaaaaaaa");
 SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global maria_checkpoint_interval=1;
@@ -25,11 +23,12 @@ mysqltest.t1	repair	status	OK
 select if(substring("mysqltest.t1	488070860",instr("mysqltest.t1	488070860",".t1")) = substring("mysqltest_for_comparison.t1	488070860",instr("mysqltest_for_comparison.t1	488070860",".t1")),"ok","failure");
 if(substring("mysqltest.t1	488070860",instr("mysqltest.t1	488070860",".t1")) = substring("mysqltest_for_comparison.t1	488070860",instr("mysqltest_for_comparison.t1	488070860",".t1")),"ok","failure")
 ok
+* compared t1 to old version
 use mysqltest;
 select * from t1;
 a
 00000000
-* TEST: normal recovery test (no moving tables under its feet)
+* TEST of REDO+UNDO: normal recovery test (no moving tables under its feet)
 insert into t1 values ("00000000");
 flush table t1;
 * copied t1 for comparison

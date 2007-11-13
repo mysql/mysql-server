@@ -25,25 +25,26 @@ use mysqltest;
 let $mms_tables=1;
 create table t1 (a varchar(1000)) engine=maria;
 
---echo * TEST: see if recovery can reconstruct if we give it an old table
+--echo * TEST of REDO: see if recovery can reconstruct if we give it an old table
 
 -- source include/maria_make_snapshot_for_feeding_recovery.inc
 # Your committed statements here, which we expect to
 # be reconstructed from the log
 insert into t1 values ("00000000");
 -- source include/maria_make_snapshot_for_comparison.inc
-# Your statements which should not commit and we expect to be rolled back
-lock tables t1 write;
-insert into t1 values ("aaaaaaaaa");
 # we want recovery to run on the first snapshot made above
 let $mvr_restore_old_snapshot=1;
-# the script below will trigger recovery and compare checksums
+# As we did only committed work, we test REDO applying, which could
+# produce a physically identical table.
+let $mms_compare_physically=1;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+# the script below will trigger recovery and compare checksums
 -- source include/maria_verify_recovery.inc
+let $mms_compare_physically=0;
 # so a SELECT like this is pure visual effect, brings nothing.
 select * from t1;
 
---echo * TEST: normal recovery test (no moving tables under its feet)
+--echo * TEST of REDO+UNDO: normal recovery test (no moving tables under its feet)
 
 # different types of crash => a loop; here are loop control variables
 let $crash_no_flush=1;
@@ -54,6 +55,9 @@ let $crash_loop=1;
 
 # we want recovery to use the tables as they were at time of crash
 let $mvr_restore_old_snapshot=0;
+# UNDO phase prevents physical comparison, normally,
+# so we'll only use checksums to compare.
+let $mms_compare_physically=0;
 
 # Note that we don't remove logs between iterations. Test is
 # cumulative (each new recovery processes more log records than the previous).
@@ -109,7 +113,7 @@ drop table t1;
 # we had a bug where new page's LSN was 0... todo.
 
 #
-# Test problem where an UPDATE purges and rewrites a tail page, and
+# Test for this bug: an UPDATE purges and rewrites a tail page, and
 # recovery applied the purge, stamped page with UNDO's LSN, thus
 # the rewrite was ignored.
 #
@@ -128,6 +132,7 @@ SELECT LENGTH(b) FROM t1 WHERE i=3;
 -- source include/maria_make_snapshot_for_comparison.inc
 # we want recovery to run on the first snapshot made above
 let $mvr_restore_old_snapshot=1;
+let $mms_compare_physically=0;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
 -- source include/maria_verify_recovery.inc
 SELECT LENGTH(b) FROM t1 WHERE i=3;
