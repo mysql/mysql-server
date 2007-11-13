@@ -1162,15 +1162,36 @@ sp_head::execute(THD *thd)
   */
   thd->spcont->callers_arena= &backup_arena;
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  /* Discard the initial part of executing routines. */
+  thd->profiling.discard_current_query();
+#endif
   do
   {
     sp_instr *i;
     uint hip;			// Handler ip
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    /* 
+     Treat each "instr" of a routine as discrete unit that could be profiled.
+     Profiling only records information for segments of code that set the
+     source of the query, and almost all kinds of instructions in s-p do not.
+    */
+    thd->profiling.finish_current_query();
+    thd->profiling.start_new_query("continuing inside routine");
+#endif
+
     i = get_instr(ip);	// Returns NULL when we're done.
     if (i == NULL)
+    {
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+      thd->profiling.discard_current_query();
+#endif
       break;
+    }
+
     DBUG_PRINT("execute", ("Instruction %u", ip));
+
     /* Don't change NOW() in FUNCTION or TRIGGER */
     if (!thd->in_sub_stmt)
       thd->set_time();		// Make current_time() et al work
@@ -1247,6 +1268,11 @@ sp_head::execute(THD *thd)
       }
     }
   } while (!err_status && !thd->killed);
+
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.finish_current_query();
+  thd->profiling.start_new_query("tail end of routine");
+#endif
 
   /* Restore query context. */
 
@@ -2725,6 +2751,10 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   query= thd->query;
   query_length= thd->query_length;
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  /* This s-p instr is profilable and will be captured. */
+  thd->profiling.set_query_source(m_query.str, m_query.length);
+#endif
   if (!(res= alloc_query(thd, m_query.str, m_query.length)) &&
       !(res=subst_spvars(thd, this, &m_query)))
   {
