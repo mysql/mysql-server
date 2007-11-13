@@ -1455,8 +1455,10 @@ static void copy_str_and_move(const char **src,
 }
 
 
-static char const *code_name(int code) {
-  char buf[255];
+static char const *
+code_name(int code)
+{
+  static char buf[255];
   switch (code) {
   case Q_FLAGS2_CODE: return "Q_FLAGS2_CODE";
   case Q_SQL_MODE_CODE: return "Q_SQL_MODE_CODE";
@@ -1549,7 +1551,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     */
     if (status_vars_len > min(data_len, MAX_SIZE_LOG_EVENT_STATUS))
     {
-      DBUG_PRINT("info", ("status_vars_len: %d; data_len: %d; query= 0",
+      DBUG_PRINT("info", ("status_vars_len (%u) > data_len (%lu); query= 0",
                           status_vars_len, data_len));
       query= 0;
       DBUG_VOID_RETURN;
@@ -1594,7 +1596,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
     case Q_CATALOG_NZ_CODE:
       DBUG_PRINT("info", ("case Q_CATALOG_NZ_CODE; pos: 0x%lx; end: 0x%lx",
-                          pos, end));
+                          (ulong) pos, (ulong) end));
       if (get_str_len_and_pointer(&pos, &catalog, &catalog_len, end))
       {
         DBUG_PRINT("info", ("query= 0"));
