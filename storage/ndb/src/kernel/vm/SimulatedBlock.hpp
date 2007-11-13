@@ -96,6 +96,7 @@ class SimulatedBlock {
   friend class Lgman;
   friend class Logfile_client;
   friend struct Pool_context;
+  friend class LockQueue;
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();

@@ -158,6 +158,7 @@ SimulatedBlock::MutexManager::lock(Signal* signal,
   req->senderRef = m_block.reference();
   req->lockId = ptr.p->m_mutexId;
   req->requestInfo = flags;
+  req->extra = ptr.p->m_callback.m_callbackData;
 
   m_block.sendSignal(DBUTIL_REF, 
 		     GSN_UTIL_LOCK_REQ, 
