@@ -3349,7 +3349,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
       if (cur_field->table_name && table_name)
       {
         /* If field_name is qualified by a table name. */
-        if (strcmp(cur_field->table_name, table_name))
+        if (my_strcasecmp(table_alias_charset, cur_field->table_name, table_name))
           /* Same field names, different tables. */
           return NULL;
 
