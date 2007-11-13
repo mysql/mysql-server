@@ -581,6 +581,7 @@ void *create_embedded_thd(int client_flag)
     fprintf(stderr,"store_globals failed.\n");
     goto err;
   }
+  lex_start(thd);
 
   /* TODO - add init_connect command execution */
 
