@@ -2,6 +2,8 @@
 # (DATA/INDEX DIR requires symlinks)
 -- source include/have_partition.inc
 -- source include/have_symlink.inc
+# remove the not_windows line after fixing bug#30459
+-- source include/not_windows.inc
 -- disable_warnings
 DROP TABLE IF EXISTS t1;
 DROP DATABASE IF EXISTS mysqltest2;
