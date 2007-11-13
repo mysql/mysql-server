@@ -6,7 +6,7 @@
 #
 # Purpose: Build a dynamic plugin that can be distributed to users.
 #
-# Usage: This scripts takes at the minimum 4 parameters:
+# Usage: This script takes at the minimum 4 parameters:
 # 1.     the MySQL source directory,
 #
 # 2.     the plugin build directory - better if this doesn't exist,
@@ -17,7 +17,7 @@
 #        the tar file. e.g. innodb-5.1-1.0.b1.tar.gz when extracted should
 #        have a top level directory named "innodb-5.1-1.0.b1".
 #
-# 4.     path to to the target mysqlbug file or '-', if the third param is
+# 4.     path to the target mysqlbug file or '-', if the third param is
 #        '-' then all options following it are passed to the configure command.
 #
 # Note: The mysqlbug file is normally located in the bin directory where you
