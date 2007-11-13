@@ -34,24 +34,6 @@ strlen()
 	echo $STRLEN
 }
 
-# Set to dummy value if not defined
-: ${CC="x"}
-: ${CXX="x"}
-
-# Export CC and CXX, so that dynconfig can generate the correct
-# configure parameters.
-if [ "${CC}" != "x" ]; then
-	export CC
-else
-	CC=
-fi
-
-if [ "${CXX}" != "x" ]; then
-	export CXX
-else
-	CXX=
-fi
-
 INNODIR="storage/innobase"
 DYNTMPFILE="/tmp/configure.$$"
 DYNCONFIG="$INNODIR/scripts/dynconfig"
