@@ -43,6 +43,8 @@ BINS =  $(REGRESSION_TESTS) \
         randdb4 \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
+logdump: LDFLAGS+=-lz
+
 libs: log.o
 bins: $(BINS)
 check: bins
