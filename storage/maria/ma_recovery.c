@@ -59,6 +59,7 @@ static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
 static my_bool checkpoint_useful;
 static ulonglong now; /**< for tracking execution time of phases */
 static char preamble[]= "Maria engine: starting recovery; ";
+uint warnings; /**< count of warnings */
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -77,6 +78,7 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE);
 prototype_redo_exec_hook(REDO_REPAIR_TABLE);
 prototype_redo_exec_hook(REDO_DROP_TABLE);
 prototype_redo_exec_hook(FILE_ID);
+prototype_redo_exec_hook(INCOMPLETE_LOG);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
 prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL);
 prototype_redo_exec_hook(REDO_PURGE_ROW_HEAD);
@@ -167,6 +169,7 @@ int maria_recover(void)
 {
   int res= 1;
   FILE *trace_file;
+  uint warnings_count;
   DBUG_ENTER("maria_recover");
 
   DBUG_ASSERT(!maria_in_recovery);
@@ -180,9 +183,22 @@ int maria_recover(void)
   tprint(trace_file, "TRACE of the last MARIA recovery from mysqld\n");
   DBUG_ASSERT(maria_pagecache->inited);
   res= maria_apply_log(LSN_IMPOSSIBLE, MARIA_LOG_APPLY, trace_file,
-                       TRUE, TRUE, TRUE);
+                       TRUE, TRUE, TRUE, &warnings_count);
   if (!res)
-    tprint(trace_file, "SUCCESS\n");
+  {
+    if (warnings_count == 0)
+      tprint(trace_file, "SUCCESS\n");
+    else
+    {
+      tprint(trace_file, "DOUBTFUL (%u warnings, check previous output)\n",
+             warnings_count);
+      /*
+        We asked for execution of UNDOs, and skipped DDLs, so shouldn't get
+        any warnings.
+      */
+      DBUG_ASSERT(0);
+    }
+  }
   if (trace_file)
     fclose(trace_file);
   maria_in_recovery= FALSE;
@@ -200,6 +216,7 @@ int maria_recover(void)
    @param  skip_DDLs_arg   Should DDL records (CREATE/RENAME/DROP/REPAIR)
                            be skipped by the REDO phase or not
    @param  take_checkpoints Should we take checkpoints or not.
+   @param[out] warnings_count Count of warnings will be put there
 
    @todo This trace_file thing is primitive; soon we will make it similar to
    ma_check_print_warning() etc, and a successful recovery does not need to
@@ -213,7 +230,7 @@ int maria_recover(void)
 int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
                     FILE *trace_file,
                     my_bool should_run_undo_phase, my_bool skip_DDLs_arg,
-                    my_bool take_checkpoints)
+                    my_bool take_checkpoints, uint *warnings_count)
 {
   int error= 0;
   uint unfinished_trans;
@@ -222,6 +239,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
 
   DBUG_ASSERT(apply == MARIA_LOG_APPLY || !should_run_undo_phase);
   DBUG_ASSERT(!maria_multi_threaded);
+  warnings= 0;
   /* checkpoints can happen only if TRNs have been built */
   DBUG_ASSERT(should_run_undo_phase || !take_checkpoints);
   all_active_trans= (struct st_trn_for_recovery *)
@@ -238,36 +256,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
 
   recovery_message_printed= REC_MSG_NONE;
   tracef= trace_file;
-  if (!(skip_DDLs= skip_DDLs_arg))
-  {
-    /*
-      Example of what can go wrong when replaying DDLs:
-      CREATE TABLE t (logged); INSERT INTO t VALUES(1) (logged);
-      ALTER TABLE t ... which does
-        CREATE a temporary table #sql... (logged)
-        INSERT data from t into #sql... (not logged)
-        RENAME #sql TO t (logged)
-      Removing tables by hand and replaying the log will leave in the
-      end an empty table "t": missing records. If after the RENAME an INSERT
-      into t was done, that row had number 1 in its page, executing the
-      REDO_INSERT_ROW_HEAD on the recreated empty t will fail (assertion
-      failure in _ma_apply_redo_insert_row_head_or_tail(): new data page is
-      created whereas rownr is not 0).
-      Another issue is that replaying of DDLs is not correct enough to work if
-      there was a crash during a DDL (see comment in execution of
-      REDO_RENAME_TABLE ).
-    */
-    /**
-       @todo RECOVERY BUG instead of this warning, whenever log becomes
-       incomplete (ALTER TABLE, CREATE SELECT) write a log record
-       LOGREC_INCOMPLETE; when seeing this record, print warning below.
-    */
-    tprint(tracef, "WARNING: MySQL server currently disables log records"
-           " about insertion of data by ALTER TABLE"
-           " (copy_data_between_tables()), applying of log records may"
-           " well not work. Additionally, applying of DDL records will"
-           " cause damage if there are tables left by a crash of a DDL.\n");
-  }
+  skip_DDLs= skip_DDLs_arg;
 
   if (from_lsn == LSN_IMPOSSIBLE)
   {
@@ -313,7 +302,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
      start from the checkpoint and never from before, wrongly skipping REDOs
      (tested).
 
-     @todo fix this.
+     @todo fix this; pagecache_write() now can have a rec_lsn argument.
   */
 #if 0
   if (take_checkpoints && checkpoint_useful)
@@ -334,8 +323,11 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
       goto err;
   }
   else if (unfinished_trans > 0)
-    tprint(tracef, "WARNING: %u unfinished transactions; some tables may be"
-           " left inconsistent!\n", unfinished_trans);
+  {
+    tprint(tracef, "***WARNING: %u unfinished transactions; some tables may"
+           " be left inconsistent!***\n", unfinished_trans);
+    warnings++;
+  }
 
   old_now= now;
   now= my_getsystime();
@@ -386,6 +378,7 @@ end:
   log_record_buffer.str= NULL;
   log_record_buffer.length= 0;
   ma_checkpoint_end();
+  *warnings_count= warnings;
   if (recovery_message_printed != REC_MSG_NONE)
   {
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
@@ -489,6 +482,48 @@ static void new_transaction(uint16 sid, TrID long_id, LSN undo_lsn,
 prototype_redo_exec_hook_dummy(CHECKPOINT)
 {
   /* the only checkpoint we care about was found via control file, ignore */
+  return 0;
+}
+
+
+prototype_redo_exec_hook(INCOMPLETE_LOG)
+{
+  MARIA_HA *info;
+  if (skip_DDLs)
+  {
+    tprint(tracef, "we skip DDLs\n");
+    return 0;
+  }
+  if ((info= get_MARIA_HA_from_REDO_record(rec)) == NULL)
+  {
+    /* no such table, don't need to warn */
+    return 0;
+  }
+  /*
+    Example of what can go wrong when replaying DDLs:
+    CREATE TABLE t (logged); INSERT INTO t VALUES(1) (logged);
+    ALTER TABLE t ... which does
+    CREATE a temporary table #sql... (logged)
+    INSERT data from t into #sql... (not logged)
+    RENAME #sql TO t (logged)
+    Removing tables by hand and replaying the log will leave in the
+    end an empty table "t": missing records. If after the RENAME an INSERT
+    into t was done, that row had number 1 in its page, executing the
+    REDO_INSERT_ROW_HEAD on the recreated empty t will fail (assertion
+    failure in _ma_apply_redo_insert_row_head_or_tail(): new data page is
+    created whereas rownr is not 0).
+    So when the server disables logging for ALTER TABLE or CREATE SELECT, it
+    logs LOGREC_INCOMPLETE_LOG to warn maria_read_log and then the user.
+
+    Another issue is that replaying of DDLs is not correct enough to work if
+    there was a crash during a DDL (see comment in execution of
+    REDO_RENAME_TABLE ).
+  */
+  tprint(tracef, "***WARNING: MySQL server currently logs no records"
+         " about insertion of data by ALTER TABLE and CREATE SELECT,"
+         " as they are not necessary for recovery;"
+         " present applying of log records may well not work.***\n");
+  warnings++;
   return 0;
 }
 
@@ -708,7 +743,7 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
     scratch. It means that "maria_read_log -a" should not be used on a
     database which just crashed during a DDL. And also ALTER TABLE does not
     log insertions of records into the temporary table, so replaying may
-    fail (see comment and warning in maria_apply_log()).
+    fail (grep for INCOMPLETE_LOG in files).
   */
   info= maria_open(old_name, O_RDONLY, HA_OPEN_FOR_REPAIR);
   if (info)
@@ -1069,7 +1104,7 @@ static int new_table(uint16 sid, const char *name,
     goto end;
   }
   /* don't log any records for this work */
-  _ma_tmp_disable_logging_for_table(share);
+  _ma_tmp_disable_logging_for_table(info, FALSE);
   /* _ma_unpin_all_pages() reads info->trn: */
   info->trn= &dummy_transaction_object;
   /* execution of some REDO records relies on data_file_length */
@@ -1168,20 +1203,6 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD)
     goto end;
   }
   buff= log_record_buffer.str;
-  /**
-     @todo RECOVERY BUG
-     we stamp page with UNDO's LSN. Assume an operation logs REDO-REDO-UNDO
-     where the two REDOs are about the same page (that is possible only with a
-     head or tail page, not blob page). Then recovery applies first REDO and
-     skips second REDO which is wrong. Solution:
-     a)
-       * when applying REDO to head or tail, keep page pinned, don't stamp it,
-       * when applying REDO to blob page, stamp it with UNDO's LSN
-       * when seeing UNDO, unpin head/tail pages and stamp them with UNDO's
-       LSN.
-     or b) when applying REDO, stamp page with REDO's LSN (=> difference in
-     'cmp' between run-time and recovery, need a special 'cmp'...).
-  */
   if (_ma_apply_redo_insert_row_head_or_tail(info, current_group_end_lsn,
                                              HEAD_PAGE,
                                              buff + FILEID_STORE_SIZE,
@@ -1659,6 +1680,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_redo_exec_hook(REDO_REPAIR_TABLE);
   install_redo_exec_hook(REDO_DROP_TABLE);
   install_redo_exec_hook(FILE_ID);
+  install_redo_exec_hook(INCOMPLETE_LOG);
   install_redo_exec_hook(REDO_INSERT_ROW_HEAD);
   install_redo_exec_hook(REDO_INSERT_ROW_TAIL);
   install_redo_exec_hook(REDO_PURGE_ROW_HEAD);
@@ -2370,6 +2392,39 @@ static my_bool close_one_table(const char *name, TRANSLOG_ADDRESS addr)
   return res;
 }
 
+
+/**
+   Temporarily disables logging for this table.
+
+   If that makes the log incomplete, writes a LOGREC_INCOMPLETE_LOG to the log
+   to warn log readers.
+
+   @param  info            table
+   @param  log_incomplete  if that disabling makes the log incomplete
+
+   @note for example in the REDO phase we disable logging but that does not
+   make the log incomplete.
+*/
+void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
+                                       my_bool log_incomplete)
+{
+  MARIA_SHARE *share= info->s;
+  if (log_incomplete)
+  {
+    uchar log_data[FILEID_STORE_SIZE];
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    LSN lsn;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+    translog_write_record(&lsn, LOGREC_INCOMPLETE_LOG,
+                          info->trn, info, sizeof(log_data),
+                          TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                          log_data, NULL);
+  }
+  /* if we disabled before writing the record, record wouldn't reach log */
+  share->now_transactional= FALSE;
+  share->page_type= PAGECACHE_PLAIN_PAGE;
+}
 
 static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
 {

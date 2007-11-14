@@ -952,8 +952,8 @@ int _ma_update_create_rename_lsn_sub(MARIA_SHARE *share,
                                      LSN lsn, my_bool do_sync);
 
 void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
-#define _ma_tmp_disable_logging_for_table(S) \
-  { (S)->now_transactional= FALSE; (S)->page_type= PAGECACHE_PLAIN_PAGE; }
+void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
+                                       my_bool log_incomplete);
 #define _ma_reenable_logging_for_table(S)                        \
   { if (((S)->now_transactional= (S)->base.born_transactional))  \
       (S)->page_type= PAGECACHE_LSN_PAGE; }

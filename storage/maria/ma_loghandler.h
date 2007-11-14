@@ -127,6 +127,7 @@ enum translog_record_type
   LOGREC_REDO_REPAIR_TABLE,
   LOGREC_FILE_ID,
   LOGREC_LONG_TRANSACTION_ID,
+  LOGREC_INCOMPLETE_LOG,
   LOGREC_RESERVED_FUTURE_EXTENSION= 63
 };
 #define LOGREC_NUMBER_OF_TYPES 64              /* Maximum, can't be extended */

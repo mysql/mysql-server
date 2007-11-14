@@ -5256,7 +5256,9 @@ uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
          we need to distinguish between blob page (too big, can't pin, and
          needn't pin because in a group there is a single REDO touching the
          page) and head/tail.
-         When merged with newer code this should become possible.
+         When merged with newer code this should become possible, as full
+         pages will be purged with different types of records than head/tail
+         pages.
       */
       if (pagecache_write(share->pagecache,
                           &info->dfile, page+i, 0,

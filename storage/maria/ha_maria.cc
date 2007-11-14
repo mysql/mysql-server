@@ -2043,20 +2043,6 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     goto skip_transaction;
   if (lock_type != F_UNLCK)
   {
-    if (!thd->transaction.on)
-    {
-      /*
-        No need to log REDOs/UNDOs. If this is an internal temporary table
-        which will be renamed to a permanent table (like in ALTER TABLE),
-        the rename happens after unlocking so will be durable (and the table
-        will get its create_rename_lsn).
-        Note: if we wanted to enable users to have an old backup and apply
-        tons of archived logs to roll-forward, we could then not disable
-        REDOs/UNDOs in this case.
-      */
-      DBUG_PRINT("info", ("Disabling logging for table"));
-      _ma_tmp_disable_logging_for_table(file->s);
-    }
     if (!trn)  /* no transaction yet - open it now */
     {
       trn= trnman_new_trn(& thd->mysys_var->mutex,
@@ -2076,6 +2062,20 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     {
       trans_register_ha(thd, FALSE, maria_hton);
       trnman_new_statement(trn);
+    }
+    if (!thd->transaction.on)
+    {
+      /*
+        No need to log REDOs/UNDOs. If this is an internal temporary table
+        which will be renamed to a permanent table (like in ALTER TABLE),
+        the rename happens after unlocking so will be durable (and the table
+        will get its create_rename_lsn).
+        Note: if we wanted to enable users to have an old backup and apply
+        tons of archived logs to roll-forward, we could then not disable
+        REDOs/UNDOs in this case.
+      */
+      DBUG_PRINT("info", ("Disabling logging for table"));
+      _ma_tmp_disable_logging_for_table(file, TRUE);
     }
   }
   else
