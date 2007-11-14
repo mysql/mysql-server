@@ -176,7 +176,6 @@ static int really_execute_checkpoint(void)
                      LSN_IN_PARTS(checkpoint_start_log_horizon)));
   lsn_store(checkpoint_start_log_horizon_char, checkpoint_start_log_horizon);
 
-
   /*
     STEP 2: fetch information about transactions.
     We must fetch transactions before dirty pages. Indeed, a transaction
@@ -346,6 +345,43 @@ int ma_checkpoint_init(ulong interval)
 }
 
 
+#ifndef DBUG_OFF
+/**
+   Function used to test recovery: flush some table pieces and then caller
+   crashes.
+
+   @param  what_to_flush   0: current bitmap and all data pages
+                           1: state
+*/
+static void flush_all_tables(int what_to_flush)
+{
+  LIST *pos; /**< to iterate over open tables */
+  pthread_mutex_lock(&THR_LOCK_maria);
+  for (pos= maria_open_list; pos; pos= pos->next)
+  {
+    MARIA_HA *info= (MARIA_HA*)pos->data;
+    if (info->s->now_transactional)
+    {
+      switch (what_to_flush)
+      {
+      case 0:
+        _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                              FLUSH_KEEP, FLUSH_KEEP);
+        break;
+      case 1:
+        _ma_state_info_write(info->s, 1|4);
+        DBUG_PRINT("maria_flush_states",
+                   ("is_of_horizon: LSN (%lu,0x%lx)",
+                    LSN_IN_PARTS(info->s->state.is_of_horizon)));
+        break;
+      }
+    }
+  }
+  pthread_mutex_unlock(&THR_LOCK_maria);
+}
+#endif
+
+
 /**
    @brief Destroys the checkpoint module
 */
@@ -353,6 +389,32 @@ int ma_checkpoint_init(ulong interval)
 void ma_checkpoint_end(void)
 {
   DBUG_ENTER("ma_checkpoint_end");
+  DBUG_EXECUTE_IF("maria_flush_whole_page_cache",
+                  {
+                    DBUG_PRINT("maria_flush_whole_page_cache", ("now"));
+                    flush_all_tables(0);
+                  });
+  DBUG_EXECUTE_IF("maria_flush_whole_log",
+                  {
+                    DBUG_PRINT("maria_flush_whole_log", ("now"));
+                    translog_flush(translog_get_horizon());
+                  });
+  /*
+    Note that for WAL reasons, maria_flush_states requires
+    maria_flush_whole_log.
+  */
+  DBUG_EXECUTE_IF("maria_flush_states",
+                  {
+                    DBUG_PRINT("maria_flush_states", ("now"));
+                    flush_all_tables(1);
+                  });
+  DBUG_EXECUTE_IF("maria_crash",
+                  {
+                    DBUG_PRINT("maria_crash", ("now"));
+                    fflush(DBUG_FILE);
+                    abort();
+                  });
+
   if (checkpoint_inited)
   {
     pthread_mutex_lock(&LOCK_checkpoint);
@@ -501,11 +563,6 @@ filter_flush_data_file_evenly(enum pagecache_page_type type,
 
    @note MikaelR questioned why the same thread does two different jobs, the
    risk could be that while a checkpoint happens no LRD flushing happens.
-
-   @note MikaelR noted that he observed that Linux's file cache may never
-   fsync to  disk until this cache is full, at which point it decides to empty
-   the cache, making the machine very slow. A solution was to fsync after
-   writing 2 MB.
 */
 
 pthread_handler_t ma_checkpoint_background(void *arg)
@@ -622,6 +679,13 @@ pthread_handler_t ma_checkpoint_background(void *arg)
           if (filter_param.max_pages == 0) /* bunch all flushed, sleep */
             break; /* and we will continue with the same file */
           dfile++; /* otherwise all this file is flushed, move to next file */
+          /*
+            MikaelR noted that he observed that Linux's file cache may never
+            fsync to  disk until this cache is full, at which point it decides
+            to empty the cache, making the machine very slow. A solution was
+            to fsync after writing 2 MB. So we might want to fsync() here if
+            we wrote enough pages.
+          */
         }
         filter_param.is_data_file= FALSE;
         while (kfile != kfiles_end)
@@ -866,9 +930,32 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
         */
       }
       translog_unlock();
+      /**
+         We are going to flush these states.
+         Before, all records describing how to undo such state must be
+         in the log (WAL). Usually this means UNDOs. In the special case of
+         data|key_file_length, recovery just needs to open the table to fix the
+         length, so any LOGREC_FILE_ID/REDO/UNDO allowing recovery to
+         understand it must open a table, is enough; so as long as
+         data|key_file_length is updated after writing any log record it's ok:
+         if we copied new value above, it means the record was before
+         state_copies_horizon and we flush such record below.
+         Apart from data|key_file_length which are easily recoverable from the
+         real file's size, all other state members must be updated only when
+         writing the UNDO; otherwise, if updated before, if their new value is
+         flushed by a checkpoint and there is a crash before UNDO is written,
+         their REDO group will be missing or at least incomplete and skipped
+         by recovery, so bad state value will stay. For example, setting
+         key_root before writing the UNDO: the table would have old index
+         pages (they were pinned at time of crash) and a new, thus wrong,
+         key_root.
+         @todo RECOVERY BUG check that all code honours that.
+      */
+      if (translog_flush(state_copies_horizon))
+        goto err;
+      /* now we have cached states and they are WAL-safe*/
       state_copies_end= state_copy;
       state_copy= state_copies;
-      /* so now we have cached states */
     }
 
     /* locate our state among these cached ones */
@@ -979,6 +1066,12 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
           each checkpoint if the table was once written and then not anymore.
         */
       }
+      /**
+         @todo RECOVERY BUG this is going to flush the bitmap page possibly to
+         disk even though it could be over-allocated with not yet any
+         REDO-UNDO complete group (WAL violation: no way to undo the
+         over-allocation if crash); see also _ma_change_bitmap_page().
+      */
       sync_error|=
         _ma_flush_bitmap(share); /* after that, all is in page cache */
       DBUG_ASSERT(share->pagecache == maria_pagecache);

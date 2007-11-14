@@ -1243,6 +1243,11 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       thd->proc_info= "Repair with keycache";
       param.testflag &= ~T_REP_BY_SORT;
       error= maria_repair(&param, file, fixed_name, param.testflag & T_QUICK);
+      /**
+         @todo RECOVERY BUG we do things with the index file
+         (maria_sort_index() after the above which already has logged the
+         record and bumped create_rename_lsn. Is it ok?
+      */
     }
     param.testflag= testflag;
     optimize_done= 1;
@@ -1311,6 +1316,11 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   thd->proc_info= old_proc_info;
   if (!thd->locked_tables)
   {
+    /**
+       @todo RECOVERY BUG find why this is needed. Monty says it's because a
+       new non-transactional table is created by maria_repair(): find how this
+       new table's state influences the old one's.
+    */
     _ma_reenable_logging_for_table(file->s);
     maria_lock_database(file, F_UNLCK);
   }
@@ -1991,20 +2001,6 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     goto skip_transaction;
   if (lock_type != F_UNLCK)
   {
-    if (!thd->transaction.on)
-    {
-      /*
-        No need to log REDOs/UNDOs. If this is an internal temporary table
-        which will be renamed to a permanent table (like in ALTER TABLE),
-        the rename happens after unlocking so will be durable (and the table
-        will get its create_rename_lsn).
-        Note: if we wanted to enable users to have an old backup and apply
-        tons of archived logs to roll-forward, we could then not disable
-        REDOs/UNDOs in this case.
-      */
-      DBUG_PRINT("info", ("Disabling logging for table"));
-      _ma_tmp_disable_logging_for_table(file->s);
-    }
     if (!trn)  /* no transaction yet - open it now */
     {
       trn= trnman_new_trn(& thd->mysys_var->mutex,
@@ -2024,6 +2020,20 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     {
       trans_register_ha(thd, FALSE, maria_hton);
       trnman_new_statement(trn);
+    }
+    if (!thd->transaction.on)
+    {
+      /*
+        No need to log REDOs/UNDOs. If this is an internal temporary table
+        which will be renamed to a permanent table (like in ALTER TABLE),
+        the rename happens after unlocking so will be durable (and the table
+        will get its create_rename_lsn).
+        Note: if we wanted to enable users to have an old backup and apply
+        tons of archived logs to roll-forward, we could then not disable
+        REDOs/UNDOs in this case.
+      */
+      DBUG_PRINT("info", ("Disabling logging for table"));
+      _ma_tmp_disable_logging_for_table(file, TRUE);
     }
   }
   else

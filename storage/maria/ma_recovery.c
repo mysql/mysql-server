@@ -49,6 +49,10 @@ static HASH all_dirty_pages;
 static struct st_dirty_page *dirty_pages_pool;
 static LSN current_group_end_lsn,
   checkpoint_start= LSN_IMPOSSIBLE;
+#ifndef DBUG_OFF
+/** Current group of REDOs is about this table and only this one */
+static MARIA_HA *current_group_table;
+#endif
 static TrID max_long_trid= 0; /**< max long trid seen by REDO phase */
 static FILE *tracef; /**< trace file for debugging */
 static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
@@ -56,6 +60,7 @@ static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
 static my_bool checkpoint_useful;
 static ulonglong now; /**< for tracking execution time of phases */
 static char preamble[]= "Maria engine: starting recovery; ";
+uint warnings; /**< count of warnings */
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -74,6 +79,7 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE);
 prototype_redo_exec_hook(REDO_REPAIR_TABLE);
 prototype_redo_exec_hook(REDO_DROP_TABLE);
 prototype_redo_exec_hook(FILE_ID);
+prototype_redo_exec_hook(INCOMPLETE_LOG);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
 prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL);
 prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS);
@@ -175,22 +181,36 @@ int maria_recover(void)
 {
   int res= 1;
   FILE *trace_file;
+  uint warnings_count;
   DBUG_ENTER("maria_recover");
 
   DBUG_ASSERT(!maria_in_recovery);
   maria_in_recovery= TRUE;
 
 #ifdef EXTRA_DEBUG
-  trace_file= fopen("maria_recovery.trace", "w");
+  trace_file= fopen("maria_recovery.trace", "a+");
 #else
   trace_file= NULL; /* no trace file for being fast */
 #endif
   tprint(trace_file, "TRACE of the last MARIA recovery from mysqld\n");
   DBUG_ASSERT(maria_pagecache->inited);
   res= maria_apply_log(LSN_IMPOSSIBLE, MARIA_LOG_APPLY, trace_file,
-                       TRUE, TRUE, TRUE);
+                       TRUE, TRUE, TRUE, &warnings_count);
   if (!res)
-    tprint(trace_file, "SUCCESS\n");
+  {
+    if (warnings_count == 0)
+      tprint(trace_file, "SUCCESS\n");
+    else
+    {
+      tprint(trace_file, "DOUBTFUL (%u warnings, check previous output)\n",
+             warnings_count);
+      /*
+        We asked for execution of UNDOs, and skipped DDLs, so shouldn't get
+        any warnings.
+      */
+      DBUG_ASSERT(0);
+    }
+  }
   if (trace_file)
     fclose(trace_file);
   maria_in_recovery= FALSE;
@@ -208,6 +228,7 @@ int maria_recover(void)
    @param  skip_DDLs_arg   Should DDL records (CREATE/RENAME/DROP/REPAIR)
                            be skipped by the REDO phase or not
    @param  take_checkpoints Should we take checkpoints or not.
+   @param[out] warnings_count Count of warnings will be put there
 
    @todo This trace_file thing is primitive; soon we will make it similar to
    ma_check_print_warning() etc, and a successful recovery does not need to
@@ -221,7 +242,7 @@ int maria_recover(void)
 int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
                     FILE *trace_file,
                     my_bool should_run_undo_phase, my_bool skip_DDLs_arg,
-                    my_bool take_checkpoints)
+                    my_bool take_checkpoints, uint *warnings_count)
 {
   int error= 0;
   uint unfinished_trans;
@@ -230,6 +251,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
 
   DBUG_ASSERT(apply == MARIA_LOG_APPLY || !should_run_undo_phase);
   DBUG_ASSERT(!maria_multi_threaded);
+  warnings= 0;
   /* checkpoints can happen only if TRNs have been built */
   DBUG_ASSERT(should_run_undo_phase || !take_checkpoints);
   all_active_trans= (struct st_trn_for_recovery *)
@@ -246,31 +268,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
 
   recovery_message_printed= REC_MSG_NONE;
   tracef= trace_file;
-  if (!(skip_DDLs= skip_DDLs_arg))
-  {
-    /*
-      Example of what can go wrong when replaying DDLs:
-      CREATE TABLE t (logged); INSERT INTO t VALUES(1) (logged);
-      ALTER TABLE t ... which does
-        CREATE a temporary table #sql... (logged)
-        INSERT data from t into #sql... (not logged)
-        RENAME #sql TO t (logged)
-      Removing tables by hand and replaying the log will leave in the
-      end an empty table "t": missing records. If after the RENAME an INSERT
-      into t was done, that row had number 1 in its page, executing the
-      REDO_INSERT_ROW_HEAD on the recreated empty t will fail (assertion
-      failure in _ma_apply_redo_insert_row_head_or_tail(): new data page is
-      created whereas rownr is not 0).
-      Another issue is that replaying of DDLs is not correct enough to work if
-      there was a crash during a DDL (see comment in execution of
-      REDO_RENAME_TABLE ).
-    */
-    tprint(tracef, "WARNING: MySQL server currently disables log records"
-           " about insertion of data by ALTER TABLE"
-           " (copy_data_between_tables()), applying of log records may"
-           " well not work. Additionally, applying of DDL records will"
-           " cause damage if there are tables left by a crash of a DDL.\n");
-  }
+  skip_DDLs= skip_DDLs_arg;
 
   if (from_lsn == LSN_IMPOSSIBLE)
   {
@@ -316,7 +314,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
      start from the checkpoint and never from before, wrongly skipping REDOs
      (tested).
 
-     @todo fix this.
+     @todo fix this; pagecache_write() now can have a rec_lsn argument.
   */
 #if 0
   if (take_checkpoints && checkpoint_useful)
@@ -337,8 +335,11 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
       goto err;
   }
   else if (unfinished_trans > 0)
-    tprint(tracef, "WARNING: %u unfinished transactions; some tables may be"
-           " left inconsistent!\n", unfinished_trans);
+  {
+    tprint(tracef, "***WARNING: %u unfinished transactions; some tables may"
+           " be left inconsistent!***\n", unfinished_trans);
+    warnings++;
+  }
 
   old_now= now;
   now= my_getsystime();
@@ -389,6 +390,7 @@ end:
   log_record_buffer.str= NULL;
   log_record_buffer.length= 0;
   ma_checkpoint_end();
+  *warnings_count= warnings;
   if (recovery_message_printed != REC_MSG_NONE)
   {
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
@@ -492,6 +494,48 @@ static void new_transaction(uint16 sid, TrID long_id, LSN undo_lsn,
 prototype_redo_exec_hook_dummy(CHECKPOINT)
 {
   /* the only checkpoint we care about was found via control file, ignore */
+  return 0;
+}
+
+
+prototype_redo_exec_hook(INCOMPLETE_LOG)
+{
+  MARIA_HA *info;
+  if (skip_DDLs)
+  {
+    tprint(tracef, "we skip DDLs\n");
+    return 0;
+  }
+  if ((info= get_MARIA_HA_from_REDO_record(rec)) == NULL)
+  {
+    /* no such table, don't need to warn */
+    return 0;
+  }
+  /*
+    Example of what can go wrong when replaying DDLs:
+    CREATE TABLE t (logged); INSERT INTO t VALUES(1) (logged);
+    ALTER TABLE t ... which does
+    CREATE a temporary table #sql... (logged)
+    INSERT data from t into #sql... (not logged)
+    RENAME #sql TO t (logged)
+    Removing tables by hand and replaying the log will leave in the
+    end an empty table "t": missing records. If after the RENAME an INSERT
+    into t was done, that row had number 1 in its page, executing the
+    REDO_INSERT_ROW_HEAD on the recreated empty t will fail (assertion
+    failure in _ma_apply_redo_insert_row_head_or_tail(): new data page is
+    created whereas rownr is not 0).
+    So when the server disables logging for ALTER TABLE or CREATE SELECT, it
+    logs LOGREC_INCOMPLETE_LOG to warn maria_read_log and then the user.
+
+    Another issue is that replaying of DDLs is not correct enough to work if
+    there was a crash during a DDL (see comment in execution of
+    REDO_RENAME_TABLE ).
+  */
+  tprint(tracef, "***WARNING: MySQL server currently logs no records"
+         " about insertion of data by ALTER TABLE and CREATE SELECT,"
+         " as they are not necessary for recovery;"
+         " present applying of log records may well not work.***\n");
+  warnings++;
   return 0;
 }
 
@@ -711,7 +755,7 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
     scratch. It means that "maria_read_log -a" should not be used on a
     database which just crashed during a DDL. And also ALTER TABLE does not
     log insertions of records into the temporary table, so replaying may
-    fail (see comment and warning in maria_apply_log()).
+    fail (grep for INCOMPLETE_LOG in files).
   */
   info= maria_open(old_name, O_RDONLY, HA_OPEN_FOR_REPAIR);
   if (info)
@@ -1048,8 +1092,12 @@ static int new_table(uint16 sid, const char *name,
   if (share->reopen != 1)
   {
     tprint(tracef, ", is already open (reopen=%u)\n", share->reopen);
-    ALERT_USER();
-    goto end;
+    /*
+      It could be that we have in the log
+      FILE_ID(t1,10) ... (t1 was flushed) ... FILE_ID(t1,12);
+    */
+    if (close_one_table(share->open_file_name, lsn_of_file_id))
+      goto end;
   }
   DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
   if (!share->base.born_transactional)
@@ -1069,7 +1117,9 @@ static int new_table(uint16 sid, const char *name,
     goto end;
   }
   /* don't log any records for this work */
-  _ma_tmp_disable_logging_for_table(share);
+  _ma_tmp_disable_logging_for_table(info, FALSE);
+  /* _ma_unpin_all_pages() reads info->trn: */
+  info->trn= &dummy_transaction_object;
   /* execution of some REDO records relies on data_file_length */
   my_off_t dfile_len= my_seek(info->dfile.file, 0, SEEK_END, MYF(MY_WME));
   my_off_t kfile_len= my_seek(info->s->kfile.file, 0, SEEK_END, MYF(MY_WME));
@@ -1079,8 +1129,16 @@ static int new_table(uint16 sid, const char *name,
     tprint(tracef, ", length unknown\n");
     goto end;
   }
-  share->state.state.data_file_length= dfile_len;
-  share->state.state.key_file_length=  kfile_len;
+  if (share->state.state.data_file_length != dfile_len)
+  {
+    tprint(tracef, ", has wrong state.data_file_length (fixing it)");
+    share->state.state.data_file_length= dfile_len;
+  }
+  if (share->state.state.key_file_length != kfile_len)
+  {
+    tprint(tracef, ", has wrong state.key_file_length (fixing it)");
+    share->state.state.key_file_length= kfile_len;
+  }
   if ((dfile_len % share->block_size) > 0)
   {
     tprint(tracef, ", has too short last page\n");
@@ -1416,7 +1474,8 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
-    tprint(tracef, "   state older than record, updating rows' count\n");
+    tprint(tracef, "   state has LSN (%lu,0x%lx) older than record, updating"
+           " rows' count\n", LSN_IN_PARTS(share->state.is_of_horizon));
     share->state.state.records++;
     if (share->calc_checksum)
     {
@@ -1438,6 +1497,8 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
     info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
+  /* Unpin all pages, stamp them with UNDO's LSN */
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
 
@@ -1471,6 +1532,7 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
     share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
 
@@ -1500,20 +1562,26 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
     }
     share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   }
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
+
 
 prototype_redo_exec_hook(UNDO_KEY_INSERT)
 {
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
+
 
 prototype_redo_exec_hook(UNDO_KEY_DELETE)
 {
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
+
 
 prototype_redo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT)
 {
@@ -1534,6 +1602,7 @@ prototype_redo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT)
                                     HA_OFFSET_ERROR :
                                     page * share->block_size);
   }
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
 
@@ -1626,6 +1695,7 @@ prototype_redo_exec_hook(CLR_END)
     share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
+  _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
 
@@ -1918,6 +1988,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_redo_exec_hook(REDO_REPAIR_TABLE);
   install_redo_exec_hook(REDO_DROP_TABLE);
   install_redo_exec_hook(FILE_ID);
+  install_redo_exec_hook(INCOMPLETE_LOG);
   install_redo_exec_hook(REDO_INSERT_ROW_HEAD);
   install_redo_exec_hook(REDO_INSERT_ROW_TAIL);
   install_redo_exec_hook(REDO_INSERT_ROW_BLOBS);
@@ -1945,6 +2016,9 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT);
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
+#ifndef DBUG_OFF
+  current_group_table= NULL;
+#endif
 
   if (unlikely(lsn == LSN_IMPOSSIBLE || lsn == translog_get_horizon()))
   {
@@ -2060,6 +2134,9 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
       if (apply == MARIA_LOG_APPLY &&
           display_and_apply_record(log_desc, &rec))
         goto err;
+#ifndef DBUG_OFF
+      current_group_table= NULL;
+#endif
     }
     else /* record does not end group */
     {
@@ -2268,6 +2345,7 @@ static void prepare_table_for_close(MARIA_HA *info, TRANSLOG_ADDRESS horizon)
     _ma_state_info_write_sub(share->kfile.file, &share->state, 1);
   }
   _ma_reenable_logging_for_table(share);
+  info->trn= NULL; /* safety */
 }
 
 
@@ -2299,6 +2377,10 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
     break;
   }
   info= all_tables[sid].info;
+#ifndef DBUG_OFF
+  DBUG_ASSERT(current_group_table == NULL || current_group_table == info);
+  current_group_table= info;
+#endif
   if (info == NULL)
   {
     tprint(tracef, ", table skipped, so skipping record\n");
@@ -2361,6 +2443,10 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
   sid= fileid_korr(rec->header + LSN_STORE_SIZE);
   tprint(tracef, "   For table of short id %u", sid);
   info= all_tables[sid].info;
+#ifndef DBUG_OFF
+  DBUG_ASSERT(current_group_table == NULL || current_group_table == info);
+  current_group_table= info;
+#endif
   if (info == NULL)
   {
     tprint(tracef, ", table skipped, so skipping record\n");
@@ -2626,6 +2712,39 @@ static my_bool close_one_table(const char *name, TRANSLOG_ADDRESS addr)
   return res;
 }
 
+
+/**
+   Temporarily disables logging for this table.
+
+   If that makes the log incomplete, writes a LOGREC_INCOMPLETE_LOG to the log
+   to warn log readers.
+
+   @param  info            table
+   @param  log_incomplete  if that disabling makes the log incomplete
+
+   @note for example in the REDO phase we disable logging but that does not
+   make the log incomplete.
+*/
+void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
+                                       my_bool log_incomplete)
+{
+  MARIA_SHARE *share= info->s;
+  if (log_incomplete)
+  {
+    uchar log_data[FILEID_STORE_SIZE];
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    LSN lsn;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+    translog_write_record(&lsn, LOGREC_INCOMPLETE_LOG,
+                          info->trn, info, sizeof(log_data),
+                          TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                          log_data, NULL);
+  }
+  /* if we disabled before writing the record, record wouldn't reach log */
+  share->now_transactional= FALSE;
+  share->page_type= PAGECACHE_PLAIN_PAGE;
+}
 
 static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
 {

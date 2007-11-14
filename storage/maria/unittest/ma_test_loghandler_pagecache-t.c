@@ -129,7 +129,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                     PAGECACHE_LOCK_LEFT_UNLOCKED,
                     PAGECACHE_PIN_LEFT_UNPINNED,
                     PAGECACHE_WRITE_DELAY,
-                    0);
+                    0, LSN_IMPOSSIBLE);
     flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   }
   if ((stat= my_stat(first_translog_file, &st,  MYF(0))) == 0)

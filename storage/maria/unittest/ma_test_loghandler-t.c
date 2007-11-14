@@ -185,7 +185,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   /* Suppressing of automatic record writing */
   trn->first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
-  plan(((ITERATIONS - 1) * 4 + 1)*2 + ITERATIONS - 1);
+  plan(((ITERATIONS - 1) * 4 + 1)*2 + ITERATIONS - 1 + 1);
 
   srandom(122334817L);
 
@@ -334,6 +334,15 @@ int main(int argc __attribute__((unused)), char *argv[])
     }
     ok(1, "flush");
   }
+
+  if (translog_flush(translog_get_horizon()))
+  {
+    fprintf(stderr, "Can't flush up to horizon\n", (ulong) i);
+    translog_destroy();
+    ok(0, "flush");
+    exit(1);
+  }
+  ok(1, "flush");
 
   srandom(122334817L);
 

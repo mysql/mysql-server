@@ -152,7 +152,8 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
                           (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
                           PAGECACHE_LOCK_LEFT_UNLOCKED,
                           PAGECACHE_PIN_LEFT_UNPINNED,
-                          PAGECACHE_WRITE_DELAY, 0));
+                          PAGECACHE_WRITE_DELAY, 0,
+                          LSN_IMPOSSIBLE));
 }
 
 /*
@@ -571,6 +572,26 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
       Inexistent or half-created page (could be crash in the middle of
       _ma_bitmap_create_first(), before appending maria_bitmap_marker).
     */
+    /**
+       @todo RECOVERY BUG
+       We are updating data_file_length before writing any log record for the
+       row operation. What if now state is flushed by a checkpoint with the
+       new value, and crash before the checkpoint record is written, recovery
+       may not even open the table (no log records) so not fix
+       data_file_length ("WAL violation")?
+       Scenario: assume share->id==0, then:
+       thread 1 (here)                thread 2 (checkpoint)
+       update data_file_length
+                                      copy state to memory, flush log
+       set share->id and write FILE_ID (not flushed)
+                                      see share->id!=0 so flush state
+                                      crash
+       FILE_ID will be missing, Recovery will not open table and not fix
+       data_file_length. This bug should be fixed with other "checkpoint vs
+       bitmap" bugs.
+       One possibility will be logging a standalone LOGREC_CREATE_BITMAP in a
+       separate transaction (using dummy_transaction_object).
+    */
     share->state.state.data_file_length= end_of_page;
     bzero(bitmap->map, bitmap->block_size);
     memcpy(bitmap->map + bitmap->block_size - sizeof(maria_bitmap_marker),
@@ -641,6 +662,12 @@ static my_bool _ma_change_bitmap_page(MARIA_HA *info,
 
   if (bitmap->changed)
   {
+    /**
+       @todo RECOVERY BUG this is going to flush the bitmap page possibly to
+       disk even though it could be over-allocated with not yet any REDO-UNDO
+       complete group (WAL violation: no way to undo the over-allocation if
+       crash). See also collect_tables().
+    */
     if (write_changed_bitmap(info->s, bitmap))
       DBUG_RETURN(1);
     bitmap->changed= 0;

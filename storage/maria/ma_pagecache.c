@@ -633,6 +633,24 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
            (pageno)<<(pagecache->shift), flags)
 
 
+/**
+  @brief set rec_lsn of pagecache block (if it is needed)
+
+  @param block                   block where to set rec_lsn
+  @param first_REDO_LSN_for_page the LSN to set
+*/
+
+static inline void pagecache_set_block_rec_lsn(PAGECACHE_BLOCK_LINK *block,
+                                               LSN first_REDO_LSN_for_page)
+{
+  if (block->rec_lsn == LSN_MAX)
+    block->rec_lsn= first_REDO_LSN_for_page;
+  else
+    DBUG_ASSERT(cmp_translog_addr(block->rec_lsn,
+                                  first_REDO_LSN_for_page) <= 0);
+}
+
+
 /*
   next_power(value) is 2 at the power of (1+floor(log2(value)));
   e.g. next_power(2)=4, next_power(3)=4.
@@ -2488,7 +2506,12 @@ static void check_and_set_lsn(PAGECACHE *pagecache,
 {
   LSN old;
   DBUG_ENTER("check_and_set_lsn");
-  DBUG_ASSERT(block->type == PAGECACHE_LSN_PAGE);
+  /*
+    In recovery, we can _ma_unpin_all_pages() to put a LSN on page, though
+    page would be PAGECACHE_PLAIN_PAGE (transactionality temporarily disabled
+    to not log REDOs).
+  */
+  DBUG_ASSERT((block->type == PAGECACHE_LSN_PAGE) || maria_in_recovery);
   old= lsn_korr(block->buffer + PAGE_LSN_OFFSET);
   DBUG_PRINT("info", ("old lsn: (%lu, 0x%lx)  new lsn: (%lu, 0x%lx)",
                       LSN_IN_PARTS(old), LSN_IN_PARTS(lsn)));
@@ -2570,12 +2593,7 @@ void pagecache_unlock(PAGECACHE *pagecache,
   {
     DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK);
     DBUG_ASSERT(pin == PAGECACHE_UNPIN);
-    if (block->rec_lsn == LSN_MAX)
-      block->rec_lsn= first_REDO_LSN_for_page;
-    else
-      DBUG_ASSERT(cmp_translog_addr(block->rec_lsn,
-                                    first_REDO_LSN_for_page) <= 0);
-
+    pagecache_set_block_rec_lsn(block, first_REDO_LSN_for_page);
   }
   if (lsn != LSN_IMPOSSIBLE)
     check_and_set_lsn(pagecache, lsn, block);
@@ -2755,11 +2773,7 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
       DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
                   lock == PAGECACHE_LOCK_READ_UNLOCK);
       DBUG_ASSERT(pin == PAGECACHE_UNPIN);
-      if (block->rec_lsn == LSN_MAX)
-        block->rec_lsn= first_REDO_LSN_for_page;
-      else
-        DBUG_ASSERT(cmp_translog_addr(block->rec_lsn,
-                                      first_REDO_LSN_for_page) <= 0);
+      pagecache_set_block_rec_lsn(block, first_REDO_LSN_for_page);
     }
     if (lsn != LSN_IMPOSSIBLE)
       check_and_set_lsn(pagecache, lsn, block);
@@ -2785,6 +2799,7 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
                         (ulong) block));
 
   }
+    pagecache_set_block_rec_lsn(block, first_REDO_LSN_for_page);
 
   if (make_lock_and_pin(pagecache, block, lock, pin, 0))
     DBUG_ASSERT(0);                           /* should not happend */
@@ -3214,25 +3229,27 @@ my_bool pagecache_delete_pages(PAGECACHE *pagecache,
 }
 
 
-/*
-  Write a buffer into a cached file.
+/**
+  @brief Writes a buffer into a cached file.
 
-  SYNOPSIS
+  @param pagecache       pointer to a page cache data structure
+  @param file            handler for the file to write data to
+  @param pageno          number of the block of data in the file
+  @param level           determines the weight of the data
+  @param buff            buffer with the data
+  @param type            type of the page
+  @param lock            lock change
+  @param pin             pin page
+  @param write_mode      how to write page
+  @param link            link to the page if we pin it
+  @param first_REDO_LSN_for_page the lsn to set rec_lsn
+  @param offset          offset in the page
+  @param size            size of data
+  @param validator       read page validator
+  @param validator_data  the validator data
 
-    pagecache_write_part()
-      pagecache           pointer to a page cache data structure
-      file                handler for the file to write data to
-      pageno              number of the block of data in the file
-      level               determines the weight of the data
-      buff                buffer with the data
-      type                type of the page
-      lock                lock change
-      pin                 pin page
-      write_mode          how to write page
-      link                link to the page if we pin it
-
-  RETURN VALUE
-    0 if a success, 1 - otherwise.
+  @retval 0 if a success.
+  @retval 1 Error.
 */
 
 /* description of how to change lock before and after write */
@@ -3296,6 +3313,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
                              enum pagecache_page_pin pin,
                              enum pagecache_write_mode write_mode,
                              PAGECACHE_BLOCK_LINK **page_link,
+                             LSN first_REDO_LSN_for_page,
                              uint offset, uint size,
                              pagecache_disk_read_validator validator,
                              uchar* validator_data)
@@ -3428,6 +3446,16 @@ restart:
       /* Page is correct again if we made a full write in it */
       if (size == pagecache->block_size)
         block->status&= ~PCBLOCK_ERROR;
+    }
+
+    if (first_REDO_LSN_for_page)
+    {
+      /* single write action of the last write action */
+      DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
+                  lock == PAGECACHE_LOCK_LEFT_UNLOCKED);
+      DBUG_ASSERT(pin == PAGECACHE_UNPIN ||
+                  pin == PAGECACHE_PIN_LEFT_UNPINNED);
+      pagecache_set_block_rec_lsn(block, first_REDO_LSN_for_page);
     }
 
     if (need_lock_change)
@@ -3612,6 +3640,10 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
                         PCBLOCK_NUMBER(pagecache, block), (ulong)block,
                         block->pins));
     DBUG_ASSERT(block->pins == 1);
+    /**
+       @todo If page is contiguous with next page to flush, group flushes in
+       one single my_pwrite().
+    */
     error= pagecache_fwrite(pagecache, file,
                             block->buffer,
                             block->hash_link->pageno,

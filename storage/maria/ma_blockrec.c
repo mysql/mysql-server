@@ -1433,7 +1433,15 @@ static my_bool write_tail(MARIA_HA *info,
   /* Increase data file size, if extended */
   position= (my_off_t) block->page * block_size;
   if (info->state->data_file_length <= position)
+  {
+    /*
+      We are modifying a state member before writing the UNDO; this is a WAL
+      violation. But for data_file_length this is ok, as long as we change
+      data_file_length after writing any log record (FILE_ID/REDO/UNDO) (see
+      collect_tables()).
+    */
     info->state->data_file_length= position + block_size;
+  }
 
   DBUG_ASSERT(share->pagecache->block_size == block_size);
   if (!(res= pagecache_write(share->pagecache,
@@ -1443,7 +1451,8 @@ static my_bool write_tail(MARIA_HA *info,
                              PAGECACHE_LOCK_READ,
                              block_is_read ? PAGECACHE_PIN_LEFT_PINNED :
                              PAGECACHE_PIN,
-                             PAGECACHE_WRITE_DELAY, &page_link.link)))
+                             PAGECACHE_WRITE_DELAY, &page_link.link,
+                             LSN_IMPOSSIBLE)))
   {
     page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
     page_link.changed= 1;
@@ -1547,7 +1556,7 @@ static my_bool write_full_pages(MARIA_HA *info,
                         PAGECACHE_LOCK_LEFT_UNLOCKED,
                         PAGECACHE_PIN_LEFT_UNPINNED,
                         PAGECACHE_WRITE_DELAY,
-                        0))
+                        0, LSN_IMPOSSIBLE))
       DBUG_RETURN(1);
     page++;
     block->used= BLOCKUSED_USED;
@@ -2351,7 +2360,8 @@ static my_bool write_block_record(MARIA_HA *info,
                       PAGECACHE_LOCK_READ,
                       head_block_is_read ? PAGECACHE_PIN_LEFT_PINNED :
                       PAGECACHE_PIN,
-                      PAGECACHE_WRITE_DELAY, &page_link.link))
+                      PAGECACHE_WRITE_DELAY, &page_link.link,
+                      LSN_IMPOSSIBLE))
     goto disk_err;
   page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
   page_link.changed= 1;
@@ -3172,7 +3182,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                         buff, share->page_type,
                         lock_at_write,
                         PAGECACHE_PIN_LEFT_PINNED,
-                        PAGECACHE_WRITE_DELAY, &page_link.link))
+                        PAGECACHE_WRITE_DELAY, &page_link.link,
+                        LSN_IMPOSSIBLE))
       DBUG_RETURN(1);
   }
   else /* page is now empty */
@@ -3196,7 +3207,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                         buff, share->page_type,
                         lock_at_write,
                         PAGECACHE_PIN_LEFT_PINNED,
-                        PAGECACHE_WRITE_DELAY, &page_link.link))
+                        PAGECACHE_WRITE_DELAY, &page_link.link,
+                        LSN_IMPOSSIBLE))
       DBUG_RETURN(1);
 
     DBUG_ASSERT(empty_space >= info->s->bitmap.sizes[0]);
@@ -3257,6 +3269,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
   ulonglong page;
   uint record_number;
   MARIA_SHARE *share= info->s;
+  LSN lsn= LSN_IMPOSSIBLE;
   DBUG_ENTER("_ma_delete_block_record");
 
   page=          ma_recordpos_to_page(info->cur_row.lastpos);
@@ -3273,7 +3286,6 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
 
   if (share->now_transactional)
   {
-    LSN lsn;
     uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE +
                    DIRPOS_STORE_SIZE + HA_CHECKSUM_STORE_SIZE];
     size_t row_length;
@@ -3311,7 +3323,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
 
   }
 
-  _ma_unpin_all_pages_and_finalize_row(info, info->trn->undo_lsn);
+  _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(0);
 
 err:
@@ -5078,8 +5090,8 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     DBUG_ASSERT(rownr == 0);
     if (rownr != 0)
       goto err;
-    unlock_method= PAGECACHE_LOCK_LEFT_UNLOCKED;
-    unpin_method=  PAGECACHE_PIN_LEFT_UNPINNED;
+    unlock_method= PAGECACHE_LOCK_WRITE;
+    unpin_method=  PAGECACHE_PIN;
 
     buff= info->keyread_buff;
     info->keyread_buff_used= 1;
@@ -5120,8 +5132,8 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
         DBUG_RETURN(my_errno);
       DBUG_RETURN(0);
     }
-    unlock_method= PAGECACHE_LOCK_WRITE_UNLOCK;
-    unpin_method=  PAGECACHE_UNPIN;
+    unlock_method= PAGECACHE_LOCK_LEFT_WRITELOCKED;
+    unpin_method=  PAGECACHE_PIN_LEFT_PINNED;
 
     if (((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != page_type))
     {
@@ -5189,14 +5201,22 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   empty_space-= data_length;
   int2store(buff + EMPTY_SPACE_OFFSET, empty_space);
 
-  /* Write modified page */
-  lsn_store(buff, lsn);
+  /*
+    Write modified page. We don't update its LSN, and keep it pinned. When we
+    have processed all REDOs for this page in the current REDO's group, we
+    will stamp page with UNDO's LSN (if we stamped it now, a next REDO, in
+    this group, for this page, would be skipped) and unpin then.
+  */
   if (pagecache_write(share->pagecache,
                       &info->dfile, page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
                       unlock_method, unpin_method,
-                      PAGECACHE_WRITE_DELAY, 0))
+                      PAGECACHE_WRITE_DELAY, &page_link.link,
+                      LSN_IMPOSSIBLE))
     DBUG_RETURN(my_errno);
+
+  page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+  push_dynamic(&info->pinned_pages, (void*) &page_link);
 
   /* Fix bitmap */
   if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
@@ -5215,7 +5235,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   DBUG_RETURN(0);
 
 err:
-  if (unlock_method == PAGECACHE_LOCK_WRITE_UNLOCK)
+  if (unlock_method == PAGECACHE_LOCK_LEFT_WRITELOCKED)
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
@@ -5302,18 +5322,23 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
   if (delete_dir_entry(buff, block_size, rownr, &empty_space) < 0)
     goto err;
 
-  lsn_store(buff, lsn);
   result= 0;
   if (pagecache_write(share->pagecache,
                       &info->dfile, page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
-                      PAGECACHE_LOCK_WRITE_UNLOCK, PAGECACHE_UNPIN,
-                      PAGECACHE_WRITE_DELAY, 0))
+                      PAGECACHE_LOCK_LEFT_WRITELOCKED,
+                      PAGECACHE_PIN_LEFT_PINNED,
+                      PAGECACHE_WRITE_DELAY, 0,
+                      LSN_IMPOSSIBLE))
     result= my_errno;
-
-  /* This will work even if the page was marked as UNALLOCATED_PAGE */
-  if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
-    result= my_errno;
+  else
+  {
+    page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+    push_dynamic(&info->pinned_pages, (void*) &page_link);
+    /* This will work even if the page was marked as UNALLOCATED_PAGE */
+    if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
+      result= my_errno;
+  }
 
   DBUG_RETURN(result);
 
@@ -5360,7 +5385,12 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info,
 
     start_page= page= page_korr(header);
     header+= PAGE_STORE_SIZE;
-    page_range= pagerange_korr(header);
+    /* Page range may have this bit set to indicate a tail page */
+    page_range= pagerange_korr(header) & ~TAIL_BIT;
+    /** @todo RECOVERY BUG enable this assertion when newer tree pulled */
+#if 0
+    DBUG_ASSERT(page_range > 0);
+#endif
     header+= PAGERANGE_STORE_SIZE;
 
     DBUG_PRINT("info", ("page: %lu  pages: %u", (long) page, page_range));

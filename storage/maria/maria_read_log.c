@@ -38,6 +38,7 @@ int main(int argc, char **argv)
 {
   LSN lsn;
   char **default_argv;
+  uint warnings_count;
   MY_INIT(argv[0]);
   my_progname_short= my_progname+dirname_length(my_progname);
 
@@ -106,9 +107,13 @@ int main(int argc, char **argv)
   if (maria_apply_log(lsn, opt_apply ?  MARIA_LOG_APPLY :
                       (opt_check ? MARIA_LOG_CHECK :
                        MARIA_LOG_DISPLAY_HEADER), opt_silent ? NULL : stdout,
-                      opt_apply_undo, FALSE, FALSE))
+                      opt_apply_undo, FALSE, FALSE, &warnings_count))
     goto err;
-  fprintf(stdout, "%s: SUCCESS\n", my_progname_short);
+  if (warnings_count == 0)
+    fprintf(stdout, "%s: SUCCESS\n", my_progname_short);
+  else
+    fprintf(stdout, "%s: DOUBTFUL (%u warnings, check previous output)\n",
+            my_progname_short, warnings_count);
 
   goto end;
 err:
@@ -130,7 +135,8 @@ end:
 static struct my_option my_long_options[] =
 {
   {"apply", 'a',
-   "Apply log to tables. Will display a lot of information if not run with --silent",
+   "Apply log to tables: modifies tables! you should make a backup first! "
+   " Displays a lot of information if not run with --silent",
    (uchar **) &opt_apply, (uchar **) &opt_apply, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
@@ -143,7 +149,7 @@ static struct my_option my_long_options[] =
 #endif
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"only-display", 'o', "display brief info about records's header",
+  {"only-display", 'o', "display brief info read from records' header",
    (uchar **) &opt_only_display, (uchar **) &opt_only_display, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
   { "page_buffer_size", 'P', "",
@@ -154,7 +160,7 @@ static struct my_option my_long_options[] =
   {"silent", 's', "Print less information during apply/undo phase",
    (uchar **) &opt_silent, (uchar **) &opt_silent, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"undo", 'u', "Apply undos to tables. (disable with --disable-undo)",
+  {"undo", 'u', "Apply UNDO records to tables. (disable with --disable-undo)",
    (uchar **) &opt_apply_undo, (uchar **) &opt_apply_undo, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.",

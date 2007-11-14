@@ -30,5 +30,5 @@ int maria_recover(void);
 int maria_apply_log(LSN lsn, enum maria_apply_log_way apply,
                     FILE *trace_file,
                     my_bool execute_undo_phase, my_bool skip_DDLs,
-                    my_bool take_checkpoints);
+                    my_bool take_checkpoints, uint *warnings_count);
 C_MODE_END

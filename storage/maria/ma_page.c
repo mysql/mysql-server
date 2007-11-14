@@ -137,7 +137,8 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                        lock == PAGECACHE_LOCK_LEFT_WRITELOCKED ?
                        PAGECACHE_PIN_LEFT_PINNED :
                        PAGECACHE_PIN,
-                       PAGECACHE_WRITE_DELAY, &page_link.link);
+                       PAGECACHE_WRITE_DELAY, &page_link.link,
+		       LSN_IMPOSSIBLE);
 
   if (lock == PAGECACHE_LOCK_WRITE)
   {
@@ -192,7 +193,6 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
   _ma_store_keynr(info, buff, (uchar) MARIA_DELETE_KEY_NR);
   mi_sizestore(buff + share->keypage_header, old_link);
   share->state.changed|= STATE_NOT_SORTED_PAGES;
-
   if (info->s->now_transactional)
   {
     LSN lsn;
@@ -235,6 +235,7 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
                            share->page_type,
                            lock_method, pin_method,
                            PAGECACHE_WRITE_DELAY, &page_link.link,
+			   LSN_IMPOSSIBLE,
                            0, share->keypage_header+8, 0, 0))
     result= 1;
 

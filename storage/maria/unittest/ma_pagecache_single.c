@@ -104,7 +104,7 @@ int simple_read_write_test()
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
                   PAGECACHE_PIN_LEFT_UNPINNED,
                   PAGECACHE_WRITE_DELAY,
-                  0);
+                  0, LSN_IMPOSSIBLE);
   pagecache_read(&pagecache, &file1, 0, 3, (char*)buffr,
                  PAGECACHE_PLAIN_PAGE,
                  PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -140,7 +140,7 @@ int simple_read_change_write_read_test()
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
                   PAGECACHE_PIN_LEFT_UNPINNED,
                   PAGECACHE_WRITE_DELAY,
-                  0);
+                  0, LSN_IMPOSSIBLE);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   /* test */
   pagecache_read(&pagecache, &file1, 0, 3, (char*)buffw,
@@ -153,7 +153,7 @@ int simple_read_change_write_read_test()
                   PAGECACHE_LOCK_WRITE_UNLOCK,
                   PAGECACHE_UNPIN,
                   PAGECACHE_WRITE_DELAY,
-                  0);
+                  0, LSN_IMPOSSIBLE);
 
   pagecache_read(&pagecache, &file1, 0, 3, (char*)buffr,
                  PAGECACHE_PLAIN_PAGE,
@@ -194,7 +194,7 @@ int simple_pin_test()
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
                   PAGECACHE_PIN_LEFT_UNPINNED,
                   PAGECACHE_WRITE_DELAY,
-                  0);
+                  0, LSN_IMPOSSIBLE);
   /* test */
   if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
   {
@@ -210,14 +210,14 @@ int simple_pin_test()
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
                   PAGECACHE_PIN_LEFT_UNPINNED,
                   PAGECACHE_WRITE_DELAY,
-                  0);
+                  0, LSN_IMPOSSIBLE);
   bfill(buffw + PAGE_SIZE/2, PAGE_SIZE/2, ((unsigned char) 129));
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_WRITE_TO_READ,
                   PAGECACHE_PIN_LEFT_PINNED,
                   PAGECACHE_WRITE_DELAY,
-                  0);
+                  0, LSN_IMPOSSIBLE);
   /*
     We have to get error because one page of the file is pinned,
     other page should be flushed
@@ -272,7 +272,7 @@ int simple_delete_forget_test()
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
                   PAGECACHE_PIN_LEFT_UNPINNED,
                   PAGECACHE_WRITE_DELAY,
-                  0);
+                  0, LSN_IMPOSSIBLE);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   /* test */
   bfill(buffw, PAGE_SIZE, '\2');
@@ -281,7 +281,7 @@ int simple_delete_forget_test()
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
                   PAGECACHE_PIN_LEFT_UNPINNED,
                   PAGECACHE_WRITE_DELAY,
-                  0);
+                  0, LSN_IMPOSSIBLE);
   pagecache_delete(&pagecache, &file1, 0,
                    PAGECACHE_LOCK_WRITE, 0);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
@@ -314,7 +314,7 @@ int simple_delete_flush_test()
                   PAGECACHE_LOCK_WRITE,
                   PAGECACHE_PIN,
                   PAGECACHE_WRITE_DELAY,
-                  0);
+                  0, LSN_IMPOSSIBLE);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   /* test */
   bfill(buffw, PAGE_SIZE, '\2');
@@ -323,7 +323,7 @@ int simple_delete_flush_test()
                   PAGECACHE_LOCK_LEFT_WRITELOCKED,
                   PAGECACHE_PIN_LEFT_PINNED,
                   PAGECACHE_WRITE_DELAY,
-                  0);
+                  0, LSN_IMPOSSIBLE);
   pagecache_delete(&pagecache, &file1, 0,
                    PAGECACHE_LOCK_LEFT_WRITELOCKED, 1);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
@@ -362,7 +362,7 @@ int simple_big_test()
                     PAGECACHE_LOCK_LEFT_UNLOCKED,
                     PAGECACHE_PIN_LEFT_UNPINNED,
                     PAGECACHE_WRITE_DELAY,
-                    0);
+                    0, LSN_IMPOSSIBLE);
   }
   desc[i].length= 0;
   desc[i].content= '\0';
