@@ -685,6 +685,9 @@ convert_error_code_to_mysql(
 		return(HA_ERR_RECORD_FILE_FULL);
 #endif
 
+	} else if (error == DB_UNSUPPORTED) {
+
+		return(HA_ERR_UNSUPPORTED);
     	} else {
     		return(-1);			// Unknown error
     	}
@@ -3995,11 +3998,21 @@ convert_search_mode_to_innobase(
 		  and comparison of non-latin1 char type fields in
 		  innobase_mysql_cmp() to get PAGE_CUR_LE_OR_EXTENDS to
 		  work correctly. */
-
-		default:			assert(0);
+		case HA_READ_MBR_CONTAIN:
+		case HA_READ_MBR_INTERSECT:
+		case HA_READ_MBR_WITHIN:
+		case HA_READ_MBR_DISJOINT:
+			my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
+			return(PAGE_CUR_UNSUPP);
+		/* do not use "default:" in order to produce a gcc warning:
+		enumeration value '...' not handled in switch
+		(if -Wswitch or -Wall is used)
+		*/
 	}
 
-	return(0);
+	my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "this functionality");
+
+	return(PAGE_CUR_UNSUPP);
 }
 
 /*
@@ -4127,11 +4140,18 @@ ha_innobase::index_read(
 
 	last_match_mode = (uint) match_mode;
 
-	innodb_srv_conc_enter_innodb(prebuilt->trx);
+	if (mode != PAGE_CUR_UNSUPP) {
 
-	ret = row_search_for_mysql((byte*) buf, mode, prebuilt, match_mode, 0);
+		innodb_srv_conc_enter_innodb(prebuilt->trx);
 
-	innodb_srv_conc_exit_innodb(prebuilt->trx);
+		ret = row_search_for_mysql((byte*) buf, mode, prebuilt,
+					   match_mode, 0);
+
+		innodb_srv_conc_exit_innodb(prebuilt->trx);
+	} else {
+
+		ret = DB_UNSUPPORTED;
+	}
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -5481,8 +5501,16 @@ ha_innobase::records_in_range(
 	mode2 = convert_search_mode_to_innobase(max_key ? max_key->flag :
 						HA_READ_KEY_EXACT);
 
-	n_rows = btr_estimate_n_rows_in_range(index, range_start,
-						mode1, range_end, mode2);
+	if (mode1 != PAGE_CUR_UNSUPP && mode2 != PAGE_CUR_UNSUPP) {
+
+		n_rows = btr_estimate_n_rows_in_range(index, range_start,
+						      mode1, range_end,
+						      mode2);
+	} else {
+
+		n_rows = 0;
+	}
+
 	dtuple_free_for_mysql(heap1);
 	dtuple_free_for_mysql(heap2);
 
