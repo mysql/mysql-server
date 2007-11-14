@@ -62,6 +62,7 @@ void sample_db_btree_stat_offsets (void) {
 
 void sample_db_env_offsets (void) {
     field_counter=0;
+    STRUCT_SETUP(DB_ENV, app_private, "void *%s");
     STRUCT_SETUP(DB_ENV, close, "int  (*%s) (DB_ENV *, u_int32_t)");
     STRUCT_SETUP(DB_ENV, err, "void (*%s) (const DB_ENV *, int, const char *, ...)");
     STRUCT_SETUP(DB_ENV, log_archive, "int  (*%s) (DB_ENV *, char **[], u_int32_t)");
@@ -105,6 +106,7 @@ void sample_db_offsets (void) {
     STRUCT_SETUP(DB, app_private,    "void *%s");
     STRUCT_SETUP(DB, close,          "int (*%s) (DB*, u_int32_t)");
     STRUCT_SETUP(DB, cursor,         "int (*%s) (DB *, DB_TXN *, DBC **, u_int32_t)");
+    STRUCT_SETUP(DB, dbenv,          "DB_ENV *%s");
     STRUCT_SETUP(DB, del,            "int (*%s) (DB *, DB_TXN *, DBT *, u_int32_t)");
     STRUCT_SETUP(DB, get,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
     STRUCT_SETUP(DB, key_range,      "int (*%s) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)");
@@ -113,6 +115,8 @@ void sample_db_offsets (void) {
     STRUCT_SETUP(DB, remove,         "int (*%s) (DB *, const char *, const char *, u_int32_t)");
     STRUCT_SETUP(DB, rename,         "int (*%s) (DB *, const char *, const char *, const char *, u_int32_t)");
     STRUCT_SETUP(DB, set_bt_compare, "int (*%s) (DB *, int (*)(DB *, const DBT *, const DBT *))");
+    STRUCT_SETUP(DB, set_dup_compare, "int (*%s) (DB *, int (*)(DB *, const DBT *, const DBT *))");
+    STRUCT_SETUP(DB, set_pagesize,   "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB, set_flags,      "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB, stat,           "int (*%s) (DB *, void *, u_int32_t)");
     STRUCT_SETUP(DB, verify,         "int (*%s) (DB *, const char *, const char *, FILE *, u_int32_t)");
@@ -151,7 +155,7 @@ void sample_dbc_offsets (void) {
 
 void sample_dbt_offsets (void) {
     field_counter=0;
-#if DB_VERSION_MAJOR==4 && DB_VERSION_MINOR==1
+#if 0 && DB_VERSION_MAJOR==4 && DB_VERSION_MINOR==1
     STRUCT_SETUP(DBT, app_private, "void*%s");
 #endif
     STRUCT_SETUP(DBT, data,        "void*%s");
