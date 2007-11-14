@@ -5667,9 +5667,9 @@ ER_ILLEGAL_HA_CREATE_OPTION
         eng "Table storage engine '%-.64s' does not support the create option '%.64s'"
         ger "Speicher-Engine '%-.64s' der Tabelle unterstützt die Option '%.64s' nicht"
 ER_PARTITION_REQUIRES_VALUES_ERROR
-        eng "%-.64s PARTITIONING requires definition of VALUES %-.64s for each partition"
-        ger "%-.64s-PARTITIONierung erfordert Definition von VALUES %-.64s für jede Partition"
-        swe "%-.64s PARTITIONering kräver definition av VALUES %-.64s för varje partition"
+        eng "Syntax error: %-.64s PARTITIONING requires definition of VALUES %-.64s for each partition"
+        ger "Fehler in der SQL-Syntax: %-.64s-PARTITIONierung erfordert Definition von VALUES %-.64s für jede Partition"
+        swe "Syntaxfel: %-.64s PARTITIONering kräver definition av VALUES %-.64s för varje partition"
 ER_PARTITION_WRONG_VALUES_ERROR
         eng "Only %-.64s PARTITIONING can use VALUES %-.64s in partition definition"
         ger "Nur %-.64s-PARTITIONierung kann VALUES %-.64s in der Partitionsdefinition verwenden"

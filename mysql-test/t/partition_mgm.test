@@ -22,17 +22,18 @@ drop table t1;
 CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
 PARTITION BY HASH(YEAR(f_date)) PARTITIONS 2;
 SHOW CREATE TABLE t1;
-
---replace_result $MYSQLTEST_VARDIR "hello"
---exec ls $MYSQLTEST_VARDIR/master-data/test/t1#*
---replace_result $MYSQLTEST_VARDIR "hello"
---exec ls $MYSQLTEST_VARDIR/master-data/test/t1.*
+-- file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYD
+-- file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYI
+-- file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYD
+-- file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYI
+-- file_exists $MYSQLTEST_VARDIR/master-data/test/t1.frm
+-- file_exists $MYSQLTEST_VARDIR/master-data/test/t1.par
 ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
---replace_result $MYSQLTEST_VARDIR "hello"
---exec ls $MYSQLTEST_VARDIR/master-data/test/t1#*
---replace_result $MYSQLTEST_VARDIR "hello"
---exec ls $MYSQLTEST_VARDIR/master-data/test/t1.*
+-- file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYD
+-- file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYI
+-- file_exists $MYSQLTEST_VARDIR/master-data/test/t1.frm
+-- file_exists $MYSQLTEST_VARDIR/master-data/test/t1.par
 drop table t1;
 #
 # Bug 20767: REORGANIZE partition crashes
