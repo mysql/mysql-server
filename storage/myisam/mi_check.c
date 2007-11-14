@@ -1488,7 +1488,7 @@ static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
   /* Remove all key blocks of this index file from key cache. */
   if ((error= flush_key_blocks(share->key_cache, share->kfile,
                                FLUSH_IGNORE_CHANGED)))
-    goto end;
+    goto end; /* purecov: inspected */
 
   /* Clear index root block pointers. */
   for (i= 0; i < share->base.keys; i++)
