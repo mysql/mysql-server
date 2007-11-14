@@ -3976,38 +3976,45 @@ convert_search_mode_to_innobase(
 	enum ha_rkey_function	find_flag)
 {
 	switch (find_flag) {
-		case HA_READ_KEY_EXACT:		return(PAGE_CUR_GE);
-			/* the above does not require the index to be UNIQUE */
-		case HA_READ_KEY_OR_NEXT:	return(PAGE_CUR_GE);
-		case HA_READ_KEY_OR_PREV:	return(PAGE_CUR_LE);
-		case HA_READ_AFTER_KEY:		return(PAGE_CUR_G);
-		case HA_READ_BEFORE_KEY:	return(PAGE_CUR_L);
-		case HA_READ_PREFIX:		return(PAGE_CUR_GE);
-		case HA_READ_PREFIX_LAST:	return(PAGE_CUR_LE);
-		case HA_READ_PREFIX_LAST_OR_PREV:return(PAGE_CUR_LE);
-		  /* In MySQL-4.0 HA_READ_PREFIX and HA_READ_PREFIX_LAST always
-		  pass a complete-field prefix of a key value as the search
-		  tuple. I.e., it is not allowed that the last field would
-		  just contain n first bytes of the full field value.
-		  MySQL uses a 'padding' trick to convert LIKE 'abc%'
-		  type queries so that it can use as a search tuple
-		  a complete-field-prefix of a key value. Thus, the InnoDB
-		  search mode PAGE_CUR_LE_OR_EXTENDS is never used.
-		  TODO: when/if MySQL starts to use also partial-field
-		  prefixes, we have to deal with stripping of spaces
-		  and comparison of non-latin1 char type fields in
-		  innobase_mysql_cmp() to get PAGE_CUR_LE_OR_EXTENDS to
-		  work correctly. */
-		case HA_READ_MBR_CONTAIN:
-		case HA_READ_MBR_INTERSECT:
-		case HA_READ_MBR_WITHIN:
-		case HA_READ_MBR_DISJOINT:
-			my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
-			return(PAGE_CUR_UNSUPP);
-		/* do not use "default:" in order to produce a gcc warning:
-		enumeration value '...' not handled in switch
-		(if -Wswitch or -Wall is used)
-		*/
+	case HA_READ_KEY_EXACT:
+		/* this does not require the index to be UNIQUE */
+		return(PAGE_CUR_GE);
+	case HA_READ_KEY_OR_NEXT:
+		return(PAGE_CUR_GE);
+	case HA_READ_KEY_OR_PREV:
+		return(PAGE_CUR_LE);
+	case HA_READ_AFTER_KEY:	
+		return(PAGE_CUR_G);
+	case HA_READ_BEFORE_KEY:
+		return(PAGE_CUR_L);
+	case HA_READ_PREFIX:
+		return(PAGE_CUR_GE);
+	case HA_READ_PREFIX_LAST:
+		return(PAGE_CUR_LE);
+	case HA_READ_PREFIX_LAST_OR_PREV:
+		return(PAGE_CUR_LE);
+		/* In MySQL-4.0 HA_READ_PREFIX and HA_READ_PREFIX_LAST always
+		pass a complete-field prefix of a key value as the search
+		tuple. I.e., it is not allowed that the last field would
+		just contain n first bytes of the full field value.
+		MySQL uses a 'padding' trick to convert LIKE 'abc%'
+		type queries so that it can use as a search tuple
+		a complete-field-prefix of a key value. Thus, the InnoDB
+		search mode PAGE_CUR_LE_OR_EXTENDS is never used.
+		TODO: when/if MySQL starts to use also partial-field
+		prefixes, we have to deal with stripping of spaces
+		and comparison of non-latin1 char type fields in
+		innobase_mysql_cmp() to get PAGE_CUR_LE_OR_EXTENDS to
+		work correctly. */
+	case HA_READ_MBR_CONTAIN:
+	case HA_READ_MBR_INTERSECT:
+	case HA_READ_MBR_WITHIN:
+	case HA_READ_MBR_DISJOINT:
+		my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
+		return(PAGE_CUR_UNSUPP);
+	/* do not use "default:" in order to produce a gcc warning:
+	enumeration value '...' not handled in switch
+	(if -Wswitch or -Wall is used) */
 	}
 
 	my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "this functionality");
