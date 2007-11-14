@@ -1189,4 +1189,12 @@ if ($test_foreign_keys)
   DROP TABLE t1;
 }
 
+#
+# Bug #26447: "ALTER TABLE .. ORDER" does not work with InnoDB and 
+#             auto_increment keys
+#
+create table t1 (a int auto_increment primary key) engine=innodb;
+alter table t1 order by a;
+drop table t1;
+
 --echo End of 5.1 tests
