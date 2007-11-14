@@ -6506,7 +6506,7 @@ bool_pri:
           { $$= (*$2)(0)->create($1,$3); }
         | bool_pri comp_op all_or_any '(' subselect ')' %prec EQ
           { $$= all_any_subquery_creator($1, $2, $3, $5); }
-        | predicate ;
+        | predicate
         ;
 
 predicate:
