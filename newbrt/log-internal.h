@@ -11,13 +11,20 @@ struct tokulogger {
     int fd;
     int n_in_file;
     long long next_log_file_number;
+    LSN lsn;
     char buf[LOGGER_BUF_SIZE];
     int  n_in_buf;
 };
 
 int tokulogger_find_next_unused_log_file(const char *directory, long long *result);
 
-enum { LT_INSERT_WITH_NO_OVERWRITE = 'I', LT_DELETE = 'D', LT_COMMIT = 'C' };
+enum {
+    LT_COMMIT                   = 'C',
+    LT_DELETE                   = 'D',
+    LT_INSERT_WITH_NO_OVERWRITE = 'I',
+    LT_CHECKPOINT               = 'P',
+    LT_BLOCK_RENAME             = 'R'
+};
 
 struct tokutxn {
     u_int64_t txnid64;

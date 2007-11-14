@@ -47,4 +47,8 @@ void *mempool_malloc(struct mempool *mp, int size, int alignment);
    pool does not keep track of the locations of the free chunks */
 void mempool_mfree(struct mempool *mp, void *vp, int size);
 
+static inline int mempool_inrange(struct mempool *mp, void *vp, int size) {
+    return mp->base <= vp && vp + size <= mp->base + mp->size;
+}
+
 #endif

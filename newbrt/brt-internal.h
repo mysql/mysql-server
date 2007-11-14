@@ -2,14 +2,15 @@
 #include "hashtable.h"
 #include "pma.h"
 #include "brt.h"
-//#include "pma.h"
+#include "crc.h"
 
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
 #endif
-enum { TREE_FANOUT = BRT_FANOUT }; //, NODESIZE=1<<20 };
+enum { TREE_FANOUT = BRT_FANOUT };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
 enum { BRT_CMD_OVERHEAD = 1 };
+enum { BRT_DEFAULT_NODE_SIZE = 1 << 20 };
 
 struct nodeheader_in_file {
     int n_in_buffer;
@@ -22,21 +23,28 @@ typedef struct brtnode *BRTNODE;
 /* Internal nodes. */
 struct brtnode {
     enum typ_tag tag;
+    BRT          brt;       // The containing BRT     
     unsigned int nodesize;
-    diskoff thisnodename;
+    DISKOFF thisnodename;   // The size of the node allocated on disk.  Not all is necessarily in use.
+    LSN     lsn;            // Need the LSN as of the most recent modification.
+    int     layout_version; // What version of the data structure?
     BRTNODE parent_brtnode; /* Invariant: The parent of an in-memory node must be in main memory.  This is so we can find and update the down pointer when we change the diskoff of a node. */
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
-    int dirty;
+    u_int32_t rand4fingerprint;
+    u_int32_t local_fingerprint; /* For leaves this is everything in the buffer.  For nonleaves, this is everything in the hash tables, but does not include child subtree fingerprints. */
+    int    dirty;
     union node {
 	struct nonleaf {
+	    // Don't actually store the subree fingerprint in the in-memory data structure.
 	    int             n_children;  /* if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced. */
+	    u_int32_t       child_subtree_fingerprints[TREE_FANOUT+1];
 	    bytevec         childkeys[TREE_FANOUT];   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
 							 Note: It is possible that Child 1's keys are == to child 0's key's, so it is
 							 not necessarily true that child 1's keys are > childkeys[0].
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
 	    unsigned int    childkeylens[TREE_FANOUT];
 	    unsigned int    totalchildkeylens;
-	    diskoff         children[TREE_FANOUT+1];  /* unused if height==0 */   /* Note: The last element of these arrays is used only temporarily while splitting a node. */
+	    DISKOFF         children[TREE_FANOUT+1];  /* unused if height==0 */   /* Note: The last element of these arrays is used only temporarily while splitting a node. */
 	    HASHTABLE       htables[TREE_FANOUT+1];
 	    unsigned int    n_bytes_in_hashtable[TREE_FANOUT+1]; /* how many bytes are in each hashtable (including overheads) */
 	    unsigned int    n_bytes_in_hashtables;
@@ -52,12 +60,13 @@ struct brtnode {
 struct brt_header {
     int dirty;
     unsigned int nodesize;
-    diskoff freelist;
-    diskoff unused_memory;
-    diskoff unnamed_root;
+    DISKOFF freelist;
+    DISKOFF unused_memory;
+    DISKOFF unnamed_root;
     int n_named_roots; /* -1 if the only one is unnamed */
     char  **names;
-    diskoff *roots;
+    DISKOFF *roots;
+    unsigned int flags;
 };
 
 
@@ -69,21 +78,24 @@ struct brt {
 
     BRT_CURSOR cursors_head, cursors_tail;
 
+    unsigned int nodesize;
+    unsigned int flags;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
+    int (*dup_compare)(DB*,const DBT*,const DBT*);
 
     void *skey,*sval; /* Used for DBT return values. */
 };
 
 /* serialization code */
-void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node);
-int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesize);
+void serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
+int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesize);
 unsigned int serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
 void verify_counts(BRTNODE);
 
 int serialize_brt_header_to (int fd, struct brt_header *h);
-int deserialize_brtheader_from (int fd, diskoff off, struct brt_header **brth);
+int deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth);
 
 /* return the size of a tree node */
 long brtnode_size (BRTNODE node);
@@ -169,3 +181,21 @@ struct brt_cmd {
 };
 typedef struct brt_cmd BRT_CMD;
 
+struct brtenv {
+    CACHETABLE ct;
+    TOKULOGGER logger;
+    long long checksum_number;
+//    SPINLOCK  checkpointing;
+};
+
+extern cachetable_flush_func_t brtnode_flush_callback;
+extern cachetable_fetch_func_t brtnode_fetch_callback;
+extern int toku_read_and_pin_brt_header (CACHEFILE cf, struct brt_header **header);
+extern int toku_unpin_brt_header (BRT brt);
+extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt);
+
+static const BRTNODE null_brtnode=0;
+
+extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
+extern u_int32_t toku_calccrc32_cmd (int type, const void *key, int keylen, const void *val, int vallen);
+extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD *cmd);

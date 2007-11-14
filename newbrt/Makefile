@@ -12,7 +12,7 @@ FPICFLAGS = -fPIC
 DTOOL = valgrind --quiet --error-exitcode=1
 endif
 
-CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS)
+CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) -Wshadow
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
@@ -31,10 +31,10 @@ REGRESSION_TESTS = \
         ybt-test \
         pma-test \
         brt-serialize-test \
-        brt-test \
         cachetable-test \
         cachetable-test2 \
         hashtest \
+        brt-test \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 BINS =  $(REGRESSION_TESTS) \
@@ -46,7 +46,6 @@ BINS =  $(REGRESSION_TESTS) \
 libs: log.o
 bins: $(BINS)
 check: bins
-	./benchmark-test --valsize 256 --verify 1
 	$(DTOOL) ./ybt-test
 	$(DTOOL) ./pma-test
 	$(DTOOL) ./cachetable-test
@@ -54,6 +53,7 @@ check: bins
 	$(DTOOL) ./brt-serialize-test
 	$(DTOOL) ./brt-test
 	$(DTOOL) ./hashtest
+	./benchmark-test --valsize 256 --verify 1
 #	./mdict-test
 
 check-fanout:
@@ -63,33 +63,40 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
+pma-test benchmark-test brt-test brt-serialize-test: LDFLAGS+=-lz
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
+
+BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h hashtable.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
 key.o: brttypes.h key.h
-pma-test.o: pma-internal.h pma.h yerror.h memory.h  ../include/db.h list.h kv-pair.h brttypes.h ybt.h yerror.h
-pma-test: pma.o memory.o key.o ybt.o log.o mempool.o
+pma-test.o: $(BRT_INTERNAL_H_INCLUDES) pma-internal.h pma.h list.h mempool.h
+pma-test: pma.o memory.o key.o ybt.o log.o mempool.o fingerprint.o
 pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../include/db.h
 ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: cachetable.h hashfun.h
-brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o primes.o log.o mempool.o
-log.o: log-internal.h log.h
+brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o primes.o log.o mempool.o brt-verify.o fingerprint.o
+log.o: log-internal.h log.h wbuf.h crc.h
 brt-test.o brt.o: brt.h ../include/db.h hashtable.h pma.h brttypes.h cachetable.h
-brt-serialize-test.o: pma.h yerror.h brt.h ../include/db.h memory.h hashtable.h brttypes.h brt-internal.h
-brt.o: brt.h ../include/db.h mdict.h pma.h brttypes.h memory.h brt-internal.h cachetable.h hashtable.h
+brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
+brt.o: $(BRT_INTERNAL_H_INCLUDES)
 mdict.o: pma.h
 hashtable.o: hashtable.h brttypes.h memory.h key.h yerror.h ../include/db.h hashfun.h
 memory.o: memory.h
 primes.o: primes.h
 hashtest: hashtable.o memory.o primes.o
-brt-serialize.o: brt.h ../include/db.h cachetable.h memory.h mdict.h pma.h brttypes.h brt-internal.h hashtable.h wbuf.h rbuf.h
-header-io.o: brttypes.h brt-internal.h brt.h ../include/db.h memory.h
+brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
+header-io.o: $(BRT_INTERNAL_H_INCLUDES)
 mdict-test: hashtable.o pma.o memory.o
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o
 brt-bigtest.o: brt.h ../include/db.h
 log-test: log.o memory.o
+brt-verify.o: $(BRT_INTERNAL_H_INCLUDES)
+fingerprint.o: $(BRT_INTERNAL_H_INCLUDES)
 
-brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o primes.o log.o mempool.o
+brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o primes.o log.o mempool.o brt-verify.o fingerprint.o
+
+
 
 cachetable-test.o: cachetable.h memory.h 
 cachetable-test: cachetable.o memory.o cachetable-test.o primes.o
@@ -97,7 +104,7 @@ cachetable-test: cachetable.o memory.o cachetable-test.o primes.o
 cachetable-test2.o: cachetable.h memory.h
 cachetable-test2: cachetable.o memory.o cachetable-test2.o primes.o
 
-benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o primes.o log.o mempool.o
+benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o primes.o log.o mempool.o brt-verify.o fingerprint.o
 benchmark-test.o: brt.h ../include/db.h
 
 clean:

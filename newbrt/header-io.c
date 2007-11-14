@@ -1,6 +1,4 @@
-#include "brttypes.h"
 #include "brt-internal.h"
-#include "memory.h"
 #include <sys/types.h>
 #include <unistd.h>
 #include <assert.h>
@@ -32,7 +30,7 @@ int write_int (int fd, unsigned int v) {
     return 0;
 }
 
-int read_diskoff (int fd, diskoff *result) {
+int read_diskoff (int fd, DISKOFF *result) {
     unsigned int i0,i1;
     int r;
     r = read_uint(fd, &i0);  if(r!=0) return r;
@@ -41,7 +39,7 @@ int read_diskoff (int fd, diskoff *result) {
     return 0;
 }
 
-int write_diskoff (int fd, diskoff v) {
+int write_diskoff (int fd, DISKOFF v) {
     int r;
     r = write_int(fd, (unsigned int)(v>>32));        if (r!=0) return r;
     r = write_int(fd, (unsigned int)(v&0xffffffff)); if (r!=0) return r;
@@ -97,14 +95,14 @@ int read_brt_header (int fd, struct brt_header *header) {
     return 0;
 }
 
-int read_brt_h_unused_memory (int fd, diskoff *unused_memory) {
+int read_brt_h_unused_memory (int fd, DISKOFF *unused_memory) {
     off_t r = lseek(fd, 12, SEEK_SET);
     assert(r==12);
     r = read_diskoff(fd, unused_memory);
     return r;
 }
 
-int write_brt_h_unused_memory (int fd, diskoff unused_memory) {
+int write_brt_h_unused_memory (int fd, DISKOFF unused_memory) {
     off_t r = lseek(fd, 12, SEEK_SET);
     assert(r==12);
     r = write_diskoff(fd, unused_memory);

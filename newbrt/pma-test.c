@@ -1,5 +1,4 @@
-#include "../include/db.h"
-#include "memory.h"
+#include "brt-internal.h"
 #include "key.h"
 #include <assert.h>
 #include <string.h>
@@ -7,12 +6,11 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include "list.h"
-#include "kv-pair.h"
 #include "pma-internal.h"
 
 TOKUTXN const null_txn = 0;
 DB * const null_db = 0;
-const diskoff null_diskoff = -1;
+const DISKOFF null_diskoff = -1;
 
 #define NULL_ARGS null_db, null_txn, null_diskoff
 
@@ -253,33 +251,62 @@ static void test_count_region (void) {
             kv_pair_free(pairs[i]);
 }
 
+// Add a kvpair into a expected sum and check to see if it matches the actual sum.
+void add_fingerprint_and_check(u_int32_t rand4fingerprint, u_int32_t actual_fingerprint, u_int32_t *expect_fingerprint, const void *key, int klen, const void *data, int dlen) {
+    *expect_fingerprint += rand4fingerprint*toku_calccrc32_kvpair(key, klen, data, dlen);
+    assert(*expect_fingerprint==actual_fingerprint);
+}
+
+
+static void do_insert (PMA pma, const void *key, int keylen, const void *data, int datalen, u_int32_t rand4fingerprint, u_int32_t *sum, u_int32_t *expect_fingerprint) {
+    DBT k,v;
+    assert(*sum==*expect_fingerprint);
+    int r = pma_insert(pma, fill_dbt(&k, key, keylen), fill_dbt(&v, data, datalen), NULL_ARGS, rand4fingerprint, sum);
+    assert(r==BRT_OK);
+    add_fingerprint_and_check(rand4fingerprint, *sum, expect_fingerprint, key, keylen, data, datalen);
+    pma_verify_fingerprint(pma, rand4fingerprint, *sum);
+}
+
+static void do_delete (PMA pma, const void *key, int keylen, const void *data, int datalen, u_int32_t rand4fingerprint, u_int32_t *sum, u_int32_t *expect_fingerprint) {
+    DBT k;
+    assert(*sum==*expect_fingerprint);
+    int r = pma_delete(pma, fill_dbt(&k, key, keylen), 0, rand4fingerprint, sum);
+    assert(r==BRT_OK);
+    add_fingerprint_and_check(-rand4fingerprint, *sum, expect_fingerprint, key, keylen, data, datalen); // negative rand4 means subtract.
+    pma_verify_fingerprint(pma, rand4fingerprint, *sum);
+}
+
 static void test_pma_random_pick (void) {
     PMA pma;
     int r = pma_create(&pma, default_compare_fun, 0);
     bytevec key,val;
     ITEMLEN keylen,vallen;
-    DBT k,v;
+    DBT k;
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     assert(r==0);
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==DB_NOTFOUND);
-    r = pma_insert(pma, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), NULL_ARGS);
-    assert(r==BRT_OK);
+    do_insert(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint);
+    pma_verify_fingerprint(pma, rand4fingerprint, sum);
+
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==0);
     assert(keylen==6); assert(vallen==6);
     assert(strcmp(key,"hello")==0);
     assert(strcmp(val,"there")==0);
-    r = pma_delete(pma, fill_dbt(&k, "nothello", 9), 0);
+    r = pma_delete(pma, fill_dbt(&k, "nothello", 9), 0, rand4fingerprint, &sum);
     assert(r==DB_NOTFOUND);
-    r = pma_delete(pma, fill_dbt(&k, "hello", 6), 0);
-    assert(r==BRT_OK);
+    assert(sum==expect_fingerprint); // didn't change because nothing was deleted.
+
+    do_delete(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint);
 
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==DB_NOTFOUND);
     
-    r = pma_insert(pma, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), NULL_ARGS);
-    assert(r==BRT_OK);
-
+    do_insert(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint);
 
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==0);
@@ -287,26 +314,29 @@ static void test_pma_random_pick (void) {
     assert(strcmp(key,"hello")==0);
     assert(strcmp(val,"there")==0);
 
-    r = pma_insert(pma, fill_dbt(&k, "aaa", 4), fill_dbt(&v, "athere", 7), NULL_ARGS); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aab", 4), fill_dbt(&v, "bthere", 7), NULL_ARGS); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aac", 4), fill_dbt(&v, "cthere", 7), NULL_ARGS); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aad", 4), fill_dbt(&v, "dthere", 7), NULL_ARGS); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aae", 4), fill_dbt(&v, "ethere", 7), NULL_ARGS); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aaf", 4), fill_dbt(&v, "fthere", 7), NULL_ARGS); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aag", 4), fill_dbt(&v, "gthere", 7), NULL_ARGS); assert(r==BRT_OK);
-    r = pma_delete(pma, fill_dbt(&k, "aaa", 4), 0);              assert(r==BRT_OK);
-    r = pma_delete(pma, fill_dbt(&k, "aab", 4), 0);              assert(r==BRT_OK);
-    r = pma_delete(pma, fill_dbt(&k, "aac", 4), 0);              assert(r==BRT_OK);
-    r = pma_delete(pma, fill_dbt(&k, "aad", 4), 0);              assert(r==BRT_OK);
-    r = pma_delete(pma, fill_dbt(&k, "aae", 4), 0);              assert(r==BRT_OK);
-    r = pma_delete(pma, fill_dbt(&k, "aag", 4), 0);              assert(r==BRT_OK);
-    r = pma_delete(pma, fill_dbt(&k, "hello", 6), 0);            assert(r==BRT_OK);
+    do_insert(pma, "aaa", 4, "athere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "aab", 4, "bthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "aac", 4, "cthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "aad", 4, "dthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "aae", 4, "ethere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "aaf", 4, "fthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "aag", 4, "gthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    pma_verify_fingerprint(pma, rand4fingerprint, sum);
+    do_delete(pma, "aaa", 4, "athere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_delete(pma, "aab", 4, "bthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_delete(pma, "aac", 4, "cthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_delete(pma, "aad", 4, "dthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_delete(pma, "aae", 4, "ethere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    /* don't delete aaf */
+    do_delete(pma, "aag", 4, "gthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    do_delete(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint);
    
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==0);
     assert(keylen==4); assert(vallen==7);
     assert(strcmp(key,"aaf")==0);
     assert(strcmp(val,"fthere")==0);
+    pma_verify_fingerprint(pma, rand4fingerprint, sum);
     r=pma_free(&pma); assert(r==0);
     assert(pma==0);
 }
@@ -315,12 +345,17 @@ static void test_find_insert (void) {
     PMA pma;
     int r;
     DBT k,v;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+
     pma_create(&pma, default_compare_fun, 0);
     r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==DB_NOTFOUND);
 
-    r=pma_insert(pma, fill_dbt(&k, "aaa", 3), fill_dbt(&v, "aaadata", 7), NULL_ARGS);
-    assert(r==BRT_OK);
+    do_insert(pma, "aaa", 3, "aaadata", 7, rand4fingerprint, &sum, &expect_fingerprint);
 
     init_dbt(&v);
     r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
@@ -329,8 +364,7 @@ static void test_find_insert (void) {
     assert(keycompare(v.data,v.size,"aaadata", 7)==0);
     //toku_free(v.data); v.data=0;
 
-    r=pma_insert(pma, fill_dbt(&k, "bbb", 4), fill_dbt(&v, "bbbdata", 8), NULL_ARGS);
-    assert(r==BRT_OK);
+    do_insert(pma, "bbb", 4, "bbbdata", 8, rand4fingerprint, &sum, &expect_fingerprint);
 
     init_dbt(&v);
     r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
@@ -344,13 +378,15 @@ static void test_find_insert (void) {
 
     assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
     
-    r=pma_insert(pma, fill_dbt(&k, "00000", 6), fill_dbt(&v, "d0", 3), NULL_ARGS);
-    assert(r==BRT_OK);
+    do_insert(pma, "00000", 6, "d0", 3, rand4fingerprint, &sum, &expect_fingerprint);
 
     assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
 
     r=pma_free(&pma); assert(r==0); assert(pma==0);
     pma_create(&pma, default_compare_fun, 0); assert(pma!=0);
+
+    rand4fingerprint = random();
+    sum = expect_fingerprint = 0;
 
     {
 	int i;
@@ -359,9 +395,8 @@ static void test_find_insert (void) {
 	    char dstring[10];
 	    snprintf(string,10,"%05d",i);
 	    snprintf(dstring,10,"d%d", i);
-	    printf("Inserting %d: string=%s dstring=%s\n", i, string, dstring);
-	    r=pma_insert(pma, fill_dbt(&k, string, strlen(string)+1), fill_dbt(&v, dstring, strlen(dstring)+1), NULL_ARGS);
-	    assert(r==BRT_OK);
+	    //printf("Inserting %d: string=%s dstring=%s (before sum=%08x) \n", i, string, dstring, sum);
+	    do_insert(pma, string, strlen(string)+1, dstring, strlen(dstring)+1,  rand4fingerprint, &sum, &expect_fingerprint);
 	}
     }
     r=pma_free(&pma); assert(r==0); assert(pma==0);
@@ -386,14 +421,16 @@ static void test_pma_iterate_internal (PMA pma, int expected_k, int expected_v) 
 static void test_pma_iterate (void) {
     PMA pma;
     int r;
-    DBT k,v;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     pma_create(&pma, default_compare_fun, 0);
-    r=pma_insert(pma, fill_dbt(&k, "42", 3), fill_dbt(&v, "-19", 4), NULL_ARGS);
-    assert(r==BRT_OK);
+    do_insert(pma, "42", 3, "-19", 4, rand4fingerprint, &sum, &expect_fingerprint);
     test_pma_iterate_internal(pma, 42, -19);
 
-    r=pma_insert(pma, fill_dbt(&k, "12", 3), fill_dbt(&v, "-100", 5), NULL_ARGS);
-    assert(r==BRT_OK);
+    do_insert(pma, "12", 3, "-100", 5, rand4fingerprint, &sum, &expect_fingerprint);
     test_pma_iterate_internal(pma, 42+12, -19-100);
     r=pma_free(&pma); assert(r==0); assert(pma==0);
 }
@@ -403,12 +440,20 @@ static void test_pma_iterate2 (void) {
     int r;
     int sum=0;
     int n_items=0;
-    DBT k,v;
+
+    u_int32_t rand4fingerprint0 = random();
+    u_int32_t sum0 = 0;
+    u_int32_t expect_fingerprint0 = 0;
+
+    u_int32_t rand4fingerprint1 = random();
+    u_int32_t sum1 = 0;
+    u_int32_t expect_fingerprint1 = 0;
+
     r=pma_create(&pma0, default_compare_fun, 0); assert(r==0);
     r=pma_create(&pma1, default_compare_fun, 0); assert(r==0);
-    pma_insert(pma0, fill_dbt(&k, "a", 2), fill_dbt(&v, "aval", 5), NULL_ARGS);
-    pma_insert(pma0, fill_dbt(&k, "b", 2), fill_dbt(&v, "bval", 5), NULL_ARGS);
-    pma_insert(pma1, fill_dbt(&k, "x", 2), fill_dbt(&v, "xval", 5), NULL_ARGS);
+    do_insert(pma0, "a", 2, "aval", 5, rand4fingerprint0, &sum0, &expect_fingerprint0);
+    do_insert(pma0, "b", 2, "bval", 5, rand4fingerprint0, &sum0, &expect_fingerprint0);
+    do_insert(pma1, "x", 2, "xval", 5, rand4fingerprint1, &sum1, &expect_fingerprint1);
     PMA_ITERATE(pma0,kv __attribute__((__unused__)),kl,dv __attribute__((__unused__)),dl, (n_items++,sum+=kl+dl));
     PMA_ITERATE(pma1,kv __attribute__((__unused__)),kl,dv __attribute__((__unused__)), dl, (n_items++,sum+=kl+dl));
     assert(sum==21);
@@ -483,11 +528,15 @@ void test_pma_cursor_3 (void) {
     PMA_CURSOR c=0;
     int r;
     DBT key,val;
-    DBT k,v;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     r=pma_create(&pma, default_compare_fun, 0); assert(r==0);
-    r=pma_insert(pma, fill_dbt(&k, "x", 2),  fill_dbt(&v, "xx", 3), NULL_ARGS); assert(r==BRT_OK);
-    r=pma_insert(pma, fill_dbt(&k, "m", 2),  fill_dbt(&v, "mm", 3), NULL_ARGS); assert(r==BRT_OK);
-    r=pma_insert(pma, fill_dbt(&k, "aa", 3), fill_dbt(&v,"a", 2),   NULL_ARGS); assert(r==BRT_OK);
+    do_insert(pma, "x",  2, "xx", 3, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "m",  2, "mm", 3, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "aa", 3, "a",  2, rand4fingerprint, &sum, &expect_fingerprint);
     init_dbt(&key); key.flags=DB_DBT_REALLOC;
     init_dbt(&val); val.flags=DB_DBT_REALLOC;
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
@@ -545,21 +594,20 @@ void test_pma_cursor_4 (void) {
     PMA_CURSOR cursora, cursorb, cursorc;
     int i;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     printf("test_pma_cursor_4\n");
     error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     for (i=1; i<=4; i += 1) {
-        DBT dbtk, dbtv;
         char k[5]; int v;
 
         sprintf(k, "%4.4d", i);
-        fill_dbt(&dbtk, &k, strlen(k)+1);
         v = i;
-        fill_dbt(&dbtv, &v, sizeof v);
-
-        error = pma_insert(pma, &dbtk, &dbtv, NULL_ARGS); 
-        assert(error == BRT_OK);
+	do_insert(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     assert(pma_n_entries(pma) == 4);
     printf("a:"); print_pma(pma);
@@ -586,16 +634,11 @@ void test_pma_cursor_4 (void) {
     assert_cursor_val(cursorc, 4);
 
     for (i=5; i<=8; i += 1) {
-        DBT dbtk, dbtv;
         char k[5]; int v;
 
         sprintf(k, "%4.4d", i);
-        fill_dbt(&dbtk, &k, strlen(k)+1);
         v = i;
-        fill_dbt(&dbtv, &v, sizeof v);
-
-        error = pma_insert(pma, &dbtk, &dbtv, NULL_ARGS); 
-        assert(error == BRT_OK);
+	do_insert(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     assert(pma_n_entries(pma) == 8);
     printf("a:"); print_pma(pma);
@@ -621,18 +664,19 @@ void test_pma_cursor_delete(int n) {
     PMA pma;
     int error;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     /* insert 1 -> 42 */
-    DBT key, val; int k, v;
+    int k, v;
     int i;
     for (i=0; i<n; i++) {
         k = i; v = -i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, NULL_ARGS);
-        assert(error == 0);
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
     /* point the cursor to the first kv */
@@ -660,11 +704,9 @@ void test_pma_cursor_delete(int n) {
     toku_free(cursorkey.data);
     toku_free(cursorval.data);
 
-    /* delete the first key */
+    /* delete the first key, which is (int)(0) with value (0) */
     k = 0; 
-    fill_dbt(&key, &k, sizeof k);
-    error = pma_delete(pma, &key, 0);
-    assert(error == 0);
+    do_delete(pma, &k, sizeof k, &k, sizeof k, rand4fingerprint, &sum, &expect_fingerprint);
   
     /* cursor get should fail */
     init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
@@ -729,12 +771,16 @@ void test_pma_compare_fun (int wrong_endian_p) {
     char *right_endian_expected_keys[] = {"00", "01", "10", "11"};
     char **expected_keys = wrong_endian_p ? wrong_endian_expected_keys : right_endian_expected_keys;
     int i;
-    DBT k,v;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     r = pma_create(&pma, wrong_endian_p ? wrong_endian_compare_fun : default_compare_fun, 0); assert(r==0);
-    r = pma_insert(pma, fill_dbt(&k, "10", 3), fill_dbt(&v, "10v", 4), NULL_ARGS); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "00", 3), fill_dbt(&v, "00v", 4), NULL_ARGS); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "01", 3), fill_dbt(&v, "01v", 4), NULL_ARGS); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "11", 3), fill_dbt(&v, "11v", 4), NULL_ARGS); assert(r==BRT_OK);
+    do_insert(pma, "10", 3, "10v", 4, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "00", 3, "00v", 4, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "01", 3, "01v", 4, rand4fingerprint, &sum, &expect_fingerprint);
+    do_insert(pma, "11", 3, "11v", 4, rand4fingerprint, &sum, &expect_fingerprint);
     init_dbt(&key); key.flags=DB_DBT_REALLOC;
     init_dbt(&val); val.flags=DB_DBT_REALLOC;
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
@@ -767,6 +813,15 @@ void test_pma_split_n(int n) {
     int i;
     int na, nb, nc;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    u_int32_t brand = random();
+    u_int32_t bsum = 0;
+    u_int32_t crand = random();
+    u_int32_t csum = 0;
+
     printf("test_pma_split_n:%d\n", n);
 
     error = pma_create(&pmaa, default_compare_fun, 0);
@@ -778,22 +833,24 @@ void test_pma_split_n(int n) {
 
     /* insert some kv pairs */
     for (i=0; i<n; i++) {
-        DBT dbtk, dbtv;
         char k[5]; int v;
 
         sprintf(k, "%4.4d", i);
-        fill_dbt(&dbtk, &k, strlen(k)+1);
         v = i;
-        fill_dbt(&dbtv, &v, sizeof v);
+	do_insert(pmaa, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
 
-        error = pma_insert(pmaa, &dbtk, &dbtv, NULL_ARGS); 
-        assert(error == BRT_OK);
+        pma_verify(pmaa, null_db);
     }
 
     printf("a:"); print_pma(pmaa);
 
-    error = pma_split(pmaa, 0, pmab, 0, pmac, 0);
+    error = pma_split(pmaa, 0, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
     assert(error == 0);
+    pma_verify(pmaa, null_db);
+    pma_verify(pmab, null_db);
+    pma_verify(pmac, null_db);
+    pma_verify_fingerprint(pmab, brand, bsum);
+    pma_verify_fingerprint(pmac, crand, csum);
 
     printf("a:"); print_pma(pmaa);
     na = pma_n_entries(pmaa);
@@ -821,6 +878,15 @@ void test_pma_split_varkey(void) {
     int i;
     int n, na, nb, nc;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    u_int32_t brand = random();
+    u_int32_t bsum = 0;
+    u_int32_t crand = random();
+    u_int32_t csum = 0;
+
     printf("test_pma_split_varkey\n");
 
     error = pma_create(&pmaa, default_compare_fun, 0);
@@ -832,22 +898,20 @@ void test_pma_split_varkey(void) {
 
     /* insert some kv pairs */
     for (i=0; keys[i]; i++) {
-        DBT dbtk, dbtv;
-        char v;
-
-        fill_dbt(&dbtk, keys[i], strlen(keys[i])+1);
-        v = i;
-        fill_dbt(&dbtv, &v, sizeof v);
-
-        error = pma_insert(pmaa, &dbtk, &dbtv, NULL_ARGS); 
-        assert(error == BRT_OK);
+        char v = i;
+	do_insert(pmaa, keys[i], strlen(keys[i])+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     n = i;
 
     printf("a:"); print_pma(pmaa);
 
-    error = pma_split(pmaa, 0, pmab, 0, pmac, 0);
+    error = pma_split(pmaa, 0, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
     assert(error == 0);
+    pma_verify(pmaa, null_db);
+    pma_verify(pmab, null_db);
+    pma_verify(pmac, null_db);
+    pma_verify_fingerprint(pmab, brand, bsum);
+    pma_verify_fingerprint(pmac, crand, csum);
 
     printf("a:"); print_pma(pmaa);
     na = pma_n_entries(pmaa);
@@ -931,6 +995,16 @@ void test_pma_split_cursor(void) {
     int i;
     int na, nb, nc;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    u_int32_t brand = random();
+    u_int32_t bsum = 0;
+    u_int32_t crand = random();
+    u_int32_t csum = 0;
+
+
     printf("test_pma_split_cursor\n");
 
     error = pma_create(&pmaa, default_compare_fun, 0);
@@ -942,16 +1016,12 @@ void test_pma_split_cursor(void) {
 
     /* insert some kv pairs */
     for (i=1; i<=16; i += 1) {
-        DBT dbtk, dbtv;
         char k[11]; int v;
 
         snprintf(k, sizeof k, "%.10d", i);
-        fill_dbt(&dbtk, &k, strlen(k)+1);
         v = i;
-        fill_dbt(&dbtv, &v, sizeof v);
 
-        error = pma_insert(pmaa, &dbtk, &dbtv, NULL_ARGS); 
-        assert(error == BRT_OK);
+	do_insert(pmaa, k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     assert(pma_n_entries(pmaa) == 16);
     printf("a:"); print_pma(pmaa);
@@ -979,8 +1049,11 @@ void test_pma_split_cursor(void) {
     // print_cursor("cursorc", cursorc);
     assert_cursor_val(cursorc, 16);
 
-    error = pma_split(pmaa, 0, pmab, 0, pmac, 0);
+    error = pma_split(pmaa, 0, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
     assert(error == 0);
+
+    pma_verify_fingerprint(pmab, brand, bsum);
+    pma_verify_fingerprint(pmac, crand, csum);
 
     printf("a:"); print_pma(pmaa);
     na = pma_n_entries(pmaa);
@@ -1045,6 +1118,10 @@ void test_pma_bulk_insert_n(int n) {
     int i;
     DBT *keys, *vals;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     printf("test_pma_bulk_insert_n: %d\n", n);
 
     error = pma_create(&pma, default_compare_fun, 0);
@@ -1074,11 +1151,16 @@ void test_pma_bulk_insert_n(int n) {
         assert(v);
         *v = i;
         fill_dbt(&vals[i], v, vlen);
+
+	expect_fingerprint += rand4fingerprint*toku_calccrc32_kvpair (k, klen, v, vlen);
     }
 
     /* bulk insert n kv pairs */
-    error = pma_bulk_insert(pma, keys, vals, n);
+    error = pma_bulk_insert(pma, keys, vals, n, rand4fingerprint, &sum);
     assert(error == 0);
+    assert(sum==expect_fingerprint);
+    pma_verify(pma, null_db);
+    pma_verify_fingerprint(pma, rand4fingerprint, sum);
 
     /* verify */
     if (0) print_pma(pma);
@@ -1122,16 +1204,21 @@ void test_pma_insert_or_replace(void) {
     int r;
     DBT dbtk, dbtv;
     int n_diff=-2;
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
     r = pma_create(&pma, default_compare_fun, 0);
     assert(r==0);
-    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "aaa", 4), fill_dbt(&dbtv, "zzz", 4), &n_diff, NULL_ARGS);
+    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "aaa", 4), fill_dbt(&dbtv, "zzz", 4), &n_diff, NULL_ARGS, rand4fingerprint, &sum);
     assert(r==0); assert(n_diff==-1);
+    add_fingerprint_and_check(rand4fingerprint, sum, &expect_fingerprint, "aaa", 4, "zzz", 4);
 
     r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==4); assert(memcmp(dbtv.data, "zzz", 4)==0);
 
-    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "ww", 3), &n_diff, NULL_ARGS);
+    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "ww", 3), &n_diff, NULL_ARGS, rand4fingerprint, &sum);
     assert(r==0); assert(n_diff==-1);
+    add_fingerprint_and_check(rand4fingerprint, sum, &expect_fingerprint, "bbbb", 5, "ww", 3);
 
     r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==4); assert(memcmp(dbtv.data, "zzz", 4)==0);
@@ -1139,8 +1226,11 @@ void test_pma_insert_or_replace(void) {
     r = pma_lookup(pma, fill_dbt(&dbtk, "bbbb", 5), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==3); assert(memcmp(dbtv.data, "ww", 3)==0);
 
-    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "xxxx", 5), &n_diff, NULL_ARGS);
+    // replae bbbb
+    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "xxxx", 5), &n_diff, NULL_ARGS, rand4fingerprint, &sum);
     assert(r==0); assert(n_diff==3);
+    expect_fingerprint -= rand4fingerprint*toku_calccrc32_kvpair("bbbb", 5, "ww", 3);
+    add_fingerprint_and_check(rand4fingerprint, sum, &expect_fingerprint, "bbbb", 5, "xxxx", 5);
     
     r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==4); assert(memcmp(dbtv.data, "zzz", 4)==0);
@@ -1160,6 +1250,10 @@ void test_pma_delete_shrink(int n) {
     int r;
     int i;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     printf("test_pma_delete_shrink:%d\n", n);
 
     r = pma_create(&pma, default_compare_fun, n*(8 + 11 + sizeof (int)));
@@ -1169,25 +1263,20 @@ void test_pma_delete_shrink(int n) {
     for (i=0; i<n; i++) {
         char k[11];
         int v;
-        DBT key, val;
 
         snprintf(k, sizeof k, "%.10d", i);
-        fill_dbt(&key, k, strlen(k)+1);
         v = i;
-        fill_dbt(&val, &v, sizeof v);
-        r = pma_insert(pma, &key, &val, NULL_ARGS);
-        assert(r == 0);
+
+	do_insert(pma, k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
     /* delete */
     for (i=0; i<n; i++) {
         char k[11]; 
-        DBT key;
+	int v=i;
 
         snprintf(k, sizeof k, "%.10d", i);
-        fill_dbt(&key, k, strlen(k)+1);
-        r = pma_delete(pma, &key, 0);
-        assert(r == 0);
+	do_delete(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     assert(pma->N == PMA_MIN_ARRAY_SIZE);
 
@@ -1205,6 +1294,10 @@ void test_pma_delete_random(int n) {
     int i;
     int keys[n];
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     printf("test_pma_delete_random:%d\n", n);
 
     r = pma_create(&pma, default_compare_fun, n * (8 + 11 + sizeof (int)));
@@ -1218,25 +1311,20 @@ void test_pma_delete_random(int n) {
     for (i=0; i<n; i++) {
         char k[11];
         int v;
-        DBT key, val;
 
         snprintf(k, sizeof k, "%.10d", keys[i]);
-        fill_dbt(&key, k, strlen(k)+1);
         v = keys[i];
-        fill_dbt(&val, &v, sizeof v);
-        r = pma_insert(pma, &key, &val, NULL_ARGS);
-        assert(r == 0);
+
+	do_insert(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
     /* delete */
     for (i=0; i<n; i++) {
         char k[11]; 
-        DBT key;
+	int v = keys[i];
 
         snprintf(k, sizeof k, "%.10d", keys[i]);
-        fill_dbt(&key, k, strlen(k)+1);
-        r = pma_delete(pma, &key, 0);
-        assert(r == 0);
+	do_delete(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     assert(pma->N == PMA_MIN_ARRAY_SIZE);
 
@@ -1282,6 +1370,10 @@ void test_pma_delete_cursor(int n) {
     PMA pma;
     int r;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     r = pma_create(&pma, default_compare_fun, 0);
     assert(r == 0);
 
@@ -1289,14 +1381,10 @@ void test_pma_delete_cursor(int n) {
     for (i=0; i<n; i++) {
         char k[11];
         int v;
-        DBT key, val;
 
         snprintf(k, sizeof k, "%.10d", i);
-        fill_dbt(&key, k, strlen(k)+1);
         v = i;
-        fill_dbt(&val, &v, sizeof v);
-        r = pma_insert(pma, &key, &val, NULL_ARGS);
-        assert(r == 0);
+	do_insert(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
     PMA_CURSOR pmacursor;
@@ -1311,12 +1399,10 @@ void test_pma_delete_cursor(int n) {
 
     for (i=0; i<n; i++) {
         char k[11]; 
-        DBT key;
+	int v=i;
 
         snprintf(k, sizeof k, "%.10d", i);
-        fill_dbt(&key, k, strlen(k)+1);
-        r = pma_delete(pma, &key, 0);
-        assert(r == 0);
+	do_delete(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
         if (i == n-1)
             assert_cursor_nokey(pmacursor);
         else
@@ -1347,6 +1433,10 @@ void test_pma_delete_insert() {
     PMA pma;
     int error;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
@@ -1359,19 +1449,14 @@ void test_pma_delete_insert() {
     int k, v;
 
     k = 1; v = 1;
-    fill_dbt(&key, &k, sizeof k);
-    fill_dbt(&val, &v, sizeof v);
-    error = pma_insert(pma, &key, &val, NULL_ARGS);
-    assert(error == 0);
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
 
     error = pma_cursor_set_position_first(pmacursor);
     assert(error == 0);
     assert_cursor_equal(pmacursor, 1);
 
-    k = 1;
-    fill_dbt(&key, &k, sizeof k);
-    error = pma_delete(pma, &key, 0);
-    assert(error == 0);
+    k = 1; v = 1;
+    do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     assert_cursor_nokey(pmacursor);
 
     k = 1;
@@ -1381,10 +1466,7 @@ void test_pma_delete_insert() {
     assert(error != 0);
 
     k = 1; v = 2;
-    fill_dbt(&key, &k, sizeof k);
-    fill_dbt(&val, &v, sizeof v);
-    error = pma_insert(pma, &key, &val, NULL_ARGS);
-    assert(error == 0);
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     assert_cursor_equal(pmacursor, 2);
 
     error = pma_cursor_free(&pmacursor);
@@ -1400,6 +1482,10 @@ void test_pma_double_delete() {
     PMA pma;
     int error;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
@@ -1408,29 +1494,25 @@ void test_pma_double_delete() {
     error = pma_cursor(pma, &pmacursor);
     assert(error == 0);
 
-    DBT key, val;
+    DBT key;
     int k, v;
 
     k = 1; v = 1;
-    fill_dbt(&key, &k, sizeof k);
-    fill_dbt(&val, &v, sizeof v);
-    error = pma_insert(pma, &key, &val, NULL_ARGS);
-    assert(error == 0);
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
 
     error = pma_cursor_set_position_first(pmacursor);
     assert(error == 0);
     assert_cursor_equal(pmacursor, 1);
 
-    k = 1;
-    fill_dbt(&key, &k, sizeof k);
-    error = pma_delete(pma, &key, 0);
-    assert(error == 0);
+    k = 1; v = 1;
+    do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     assert_cursor_nokey(pmacursor);
 
     k = 1;
     fill_dbt(&key, &k, sizeof k);
-    error = pma_delete(pma, &key, 0);
+    error = pma_delete(pma, &key, 0, rand4fingerprint, &sum);
     assert(error == DB_NOTFOUND);
+    assert(sum == expect_fingerprint);
 
     error = pma_cursor_free(&pmacursor);
     assert(error == 0);
@@ -1445,20 +1527,20 @@ void test_pma_cursor_first_delete_last() {
     int error;
     PMA pma;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
-    DBT key, val;
     int k, v;
 
     int i;
     for (i=1; i<=2; i++) {
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, NULL_ARGS);
-        assert(error == 0);
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     assert(pma_n_entries(pma) == 2);
 
@@ -1471,9 +1553,8 @@ void test_pma_cursor_first_delete_last() {
     assert(error == 0);
 
     k = htonl(1);
-    fill_dbt(&key, &k, sizeof k);
-    error = pma_delete(pma, &key, 0);
-    assert(error == 0);
+    v = 1;
+    do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     assert(pma_n_entries(pma) == 2);
 
     error = pma_cursor_set_position_last(pmacursor);
@@ -1493,20 +1574,20 @@ void test_pma_cursor_last_delete_first() {
     int error;
     PMA pma;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
-    DBT key, val;
     int k, v;
 
     int i;
     for (i=1; i<=2; i++) {
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, NULL_ARGS);
-        assert(error == 0);
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     assert(pma_n_entries(pma) == 2);
 
@@ -1519,9 +1600,8 @@ void test_pma_cursor_last_delete_first() {
     assert(error == 0);
 
     k = htonl(2);
-    fill_dbt(&key, &k, sizeof k);
-    error = pma_delete(pma, &key, 0);
-    assert(error == 0);
+    v = 2;
+    do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     assert(pma_n_entries(pma) == 2);
 
     error = pma_cursor_set_position_first(pmacursor);
@@ -1551,6 +1631,9 @@ void test_pma_already_there() {
     int error;
     PMA pma;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+
     error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
@@ -1560,10 +1643,12 @@ void test_pma_already_there() {
     k = 1; v = 1;
     fill_dbt(&key, &k, sizeof k);
     fill_dbt(&val, &v, sizeof v);
-    error = pma_insert(pma, &key, &val, NULL_ARGS);
+    error = pma_insert(pma, &key, &val, NULL_ARGS, rand4fingerprint, &sum);
     assert(error == 0);
-    error = pma_insert(pma, &key, &val, NULL_ARGS);
+    u_int32_t savesum = sum;
+    error = pma_insert(pma, &key, &val, NULL_ARGS, rand4fingerprint, &sum);
     assert(error == BRT_ALREADY_THERE);
+    assert(sum==savesum);
 
     error = pma_free(&pma);
     assert(error == 0);
@@ -1581,15 +1666,16 @@ void test_pma_cursor_set_key() {
     DBT key, val;
     int k, v;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     const int n = 100;
     int i;
     for (i=0; i<n; i += 10) {
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, NULL_ARGS);
-        assert(error == 0);
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
     PMA_CURSOR cursor;
@@ -1630,6 +1716,10 @@ void test_pma_cursor_set_range() {
     int error;
     PMA pma;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
@@ -1642,10 +1732,7 @@ void test_pma_cursor_set_range() {
     for (i=smallest_key; i<=largest_key; i += 10) {
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, NULL_ARGS);
-        assert(error == 0);
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
     PMA_CURSOR cursor;
@@ -1687,6 +1774,10 @@ void test_pma_cursor_delete_under() {
     int error;
     PMA pma;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     const int n = 1000;
 
     error = pma_create(&pma, default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
@@ -1711,10 +1802,7 @@ void test_pma_cursor_delete_under() {
     for (i=0; i<n; i++) {
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, NULL_ARGS);
-        assert(error == 0);
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
     for (i=0;;i++) {
@@ -1758,6 +1846,10 @@ void test_pma_cursor_set_both() {
     int error;
     PMA pma;
 
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
     const int n = 1000;
 
     error = pma_create(&pma, default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
@@ -1776,10 +1868,7 @@ void test_pma_cursor_set_both() {
     for (i=0; i<n; i++) {
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, NULL_ARGS);
-        assert(error == 0);
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
     /* verify key not in pma fails */
@@ -1827,6 +1916,399 @@ void test_pma_cursor_set_both() {
     assert(error == 0);
 }
 
+/* insert n duplicate keys */
+void test_nodup_key_insert(int n) {
+    printf("test_nodup_key_insert:%d\n", n);
+
+    PMA pma;
+    int r;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    r = pma_create(&pma, default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
+    assert(r == 0);
+
+    /* insert 0->0, 0->1, .. 0->n-1 */
+    DBT key, val;
+    int k, v;
+    int i;
+    for (i=0; i<n; i++) {
+        k = htonl(0);
+        v = i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        r = pma_insert(pma, &key, &val, NULL_ARGS, rand4fingerprint, &sum);
+        if (i == 0) {
+            assert(r == 0);
+	    add_fingerprint_and_check(rand4fingerprint, sum, &expect_fingerprint, &k, sizeof k, &v, sizeof v);
+	} else {
+            assert(r != 0);
+	    assert(sum==expect_fingerprint);
+	}
+    }
+
+    r = pma_free(&pma);
+    assert(r == 0);
+}
+
+/* insert n duplicate keys */
+void test_dup_key_insert(int n) {
+    printf("test_dup_key_insert:%d\n", n);
+
+    PMA pma;
+    int r;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    r = pma_create(&pma, default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
+    assert(r == 0);
+    pma_verify(pma, null_db);
+
+    r = pma_set_dup_mode(pma, DB_DUP);
+    assert(r == 0);
+
+
+    DBT key, val;
+    int k, v;
+
+    /* insert 1->1, 3->3 */
+    k = htonl(1); v = 1;
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    pma_verify(pma, null_db);
+    k = htonl(3); v = 3;
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    pma_verify(pma, null_db);
+
+    int i;
+    /* insert 2->0, 2->1, .. 2->n-1 */
+    for (i=0; i<n; i++) {
+        k = htonl(2);
+        v = i;
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+        pma_verify(pma, null_db);
+    }
+
+    /* cursor walk from key k should find values 0, 1, .. n-1 */
+    PMA_CURSOR cursor;
+    r = pma_cursor(pma, &cursor);
+    assert(r == 0);
+
+    k = htonl(2);
+    fill_dbt(&key, &k, sizeof k);
+    r = pma_cursor_set_key(cursor, &key, 0);
+    if (r != 0) {
+        assert(n == 0);
+    } else {
+        i = 0;
+        while (1) {
+            init_dbt(&key); key.flags = DB_DBT_MALLOC;
+            init_dbt(&val); val.flags = DB_DBT_MALLOC;
+            r = pma_cursor_get_current(cursor, &key, &val);
+            assert(r == 0);
+            int kk;
+            assert(key.size == sizeof kk);
+            memcpy(&kk, key.data, key.size);
+            if (k != kk) {
+                toku_free(key.data);
+                toku_free(val.data);
+                break;
+            }
+            int vv;
+            assert(val.size == sizeof vv);
+            memcpy(&vv, val.data, val.size);
+            assert(vv == i);
+            toku_free(key.data);
+            toku_free(val.data);
+
+            i += 1;
+
+            r = pma_cursor_set_position_next(cursor);
+            if (r != 0)
+                break;
+        }
+        assert(i == n);
+    }
+
+    r = pma_cursor_free(&cursor);
+    assert(r == 0);
+
+    r = pma_free(&pma);
+    assert(r == 0);
+}
+
+/* insert n duplicate keys, delete key, verify all keys are deleted */
+void test_dup_key_delete(int n, int mode) {
+    printf("test_dup_key_delete:%d %x\n", n, mode);
+
+    PMA pma;
+    int r;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    r = pma_create(&pma, default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
+    assert(r == 0);
+    pma_verify(pma, null_db);
+
+    r = pma_set_dup_mode(pma, mode);
+    assert(r == 0);
+
+    if (mode & DB_DUPSORT) {
+        r = pma_set_dup_compare(pma, default_compare_fun);
+        assert(r == 0);
+    }
+
+    DBT key, val;
+    int k, v;
+
+    /* insert 1->1, 3->3 */
+    k = htonl(1); v = 1;
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    pma_verify(pma, null_db);
+    k = htonl(3); v = 3;
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    pma_verify(pma, null_db);
+
+    u_int32_t sum_before_all_the_duplicates = sum;
+    int i;
+    /* insert 2->0, 2->1, .. 2->n-1 */
+    for (i=0; i<n; i++) {
+        k = htonl(2);
+        v = i;
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+        pma_verify(pma, null_db);
+    }
+
+    k = htonl(2);
+    r = pma_delete(pma, fill_dbt(&key, &k, sizeof k), null_db, rand4fingerprint, &sum);
+    if (r != 0) assert(n == 0);
+    expect_fingerprint = sum_before_all_the_duplicates;
+    assert(sum == expect_fingerprint);
+    pma_verify(pma, null_db);
+    pma_verify_fingerprint(pma, rand4fingerprint, sum);
+
+    /* cursor walk should find keys 1, 3 */
+    PMA_CURSOR cursor;
+    r = pma_cursor(pma, &cursor);
+    assert(r == 0);
+
+    r = pma_cursor_set_position_first(cursor);
+    assert(r == 0);
+
+    int kk, vv;
+
+    k = htonl(1); v = 1;
+    init_dbt(&key); key.flags = DB_DBT_MALLOC;
+    init_dbt(&val); val.flags = DB_DBT_MALLOC;
+    r = pma_cursor_get_current(cursor, &key, &val);
+    assert(r == 0);
+    assert(key.size == sizeof kk);
+    memcpy(&kk, key.data, key.size);
+    assert(k == kk);
+    assert(val.size == sizeof vv);
+    memcpy(&vv, val.data, val.size);
+    assert(v == vv);
+    toku_free(key.data);
+    toku_free(val.data);
+
+    r = pma_cursor_set_position_next(cursor);
+    assert(r == 0);
+
+    k = htonl(3); v = 3;
+    init_dbt(&key); key.flags = DB_DBT_MALLOC;
+    init_dbt(&val); val.flags = DB_DBT_MALLOC;
+    r = pma_cursor_get_current(cursor, &key, &val);
+    assert(r == 0);
+    assert(key.size == sizeof kk);
+    memcpy(&kk, key.data, key.size);
+    assert(k == kk);
+    assert(val.size == sizeof vv);
+    memcpy(&vv, val.data, val.size);
+    assert(v == vv);
+    toku_free(key.data);
+    toku_free(val.data);
+
+    r = pma_cursor_free(&cursor);
+    assert(r == 0);
+
+    r = pma_free(&pma);
+    assert(r == 0);
+}
+
+/* insert n duplicate keys */
+void test_dupsort_key_insert(int n) {
+    printf("test_dup_key_insert:%d\n", n);
+
+    PMA pma;
+    int r;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    r = pma_create(&pma, default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
+    assert(r == 0);
+    pma_verify(pma, null_db);
+
+    r = pma_set_dup_mode(pma, DB_DUP+DB_DUPSORT);
+    assert(r == 0);
+
+    r = pma_set_dup_compare(pma, default_compare_fun);
+    assert(r == 0);
+
+    DBT key, val;
+    int k, v;
+
+    /* insert 1->1, 3->3 */
+    k = htonl(1); v = 1;
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    pma_verify(pma, null_db);
+    k = htonl(3); v = 3;
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    pma_verify(pma, null_db);
+
+    int values[n];
+
+    int i;
+    /* insert 2->n-i */
+    for (i=0; i<n; i++) {
+        k = htonl(2);
+        values[i] = htonl(random());
+	do_insert(pma, &k, sizeof k, &values[i], sizeof values[i], rand4fingerprint, &sum, &expect_fingerprint);
+        pma_verify(pma, null_db);
+    }
+
+    /* cursor walk from key k should find values 0, 1, .. n-1 */
+    PMA_CURSOR cursor;
+    r = pma_cursor(pma, &cursor);
+    assert(r == 0);
+
+    k = htonl(2);
+    fill_dbt(&key, &k, sizeof k);
+    r = pma_cursor_set_key(cursor, &key, 0);
+    if (r != 0) {
+        assert(n == 0);
+    } else {
+        int cmpint(const void *a, const void *b) {
+            return memcmp(a, b, sizeof (int));
+        }
+        qsort(values, n, sizeof (int), cmpint);
+        i = 0;
+        while (1) {
+            init_dbt(&key); key.flags = DB_DBT_MALLOC;
+            init_dbt(&val); val.flags = DB_DBT_MALLOC;
+            r = pma_cursor_get_current(cursor, &key, &val);
+            assert(r == 0);
+            int kk;
+            assert(key.size == sizeof kk);
+            memcpy(&kk, key.data, key.size);
+            if (k != kk) {
+                toku_free(key.data);
+                toku_free(val.data);
+                break;
+            }
+            int vv;
+            assert(val.size == sizeof vv);
+            memcpy(&vv, val.data, val.size);
+            assert(vv == values[i]);
+            toku_free(key.data);
+            toku_free(val.data);
+
+            i += 1;
+
+            r = pma_cursor_set_position_next(cursor);
+            if (r != 0)
+                break;
+        }
+        assert(i == n);
+    }
+
+    r = pma_cursor_free(&cursor);
+    assert(r == 0);
+
+    r = pma_free(&pma);
+    assert(r == 0);
+}
+
+void test_dup_key_lookup(int n, int mode) {
+    printf("test_dup_lookup:%d %d\n", n, mode);
+
+    PMA pma;
+    int r;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    r = pma_create(&pma, default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
+    assert(r == 0);
+    pma_verify(pma, null_db);
+
+    r = pma_set_dup_mode(pma, mode);
+    assert(r == 0);
+
+    if (mode & DB_DUPSORT) {
+        r = pma_set_dup_compare(pma, default_compare_fun);
+        assert(r == 0);
+    }
+
+    DBT key, val;
+    int k, v;
+
+    /* insert 1->1, 3->3 */
+    k = htonl(1); v = 1;
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    pma_verify(pma, null_db);
+    k = htonl(3); v = 3;
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    pma_verify(pma, null_db);
+
+    int i;
+    /* insert 2->0, 2->1, .. 2->n-1 */
+    for (i=0; i<n; i++) {
+        k = htonl(2);
+        v = htonl(i);
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+        pma_verify(pma, null_db);
+    }
+
+    /* lookup should find the first insert and smallest value */
+    k = htonl(2);
+    r = pma_lookup(pma, fill_dbt(&key, &k, sizeof k), fill_dbt(&val, &v, sizeof v), null_db);
+    assert(r == 0);
+    int kk;
+    assert(key.size == sizeof k);
+    memcpy(&kk, key.data, key.size);
+    assert((unsigned int) kk == htonl(2));
+    int vv;
+    assert(val.size == sizeof v);
+    memcpy(&vv, val.data, val.size);
+    assert(vv == 0);
+
+    r = pma_free(&pma);
+    assert(r == 0);
+}
+
+void test_dup() {
+    test_nodup_key_insert(2);                            memory_check_all_free();
+    test_dup_key_insert(0);                              memory_check_all_free();
+    test_dup_key_insert(2);                              memory_check_all_free();
+    test_dup_key_insert(1000);                           memory_check_all_free();
+    test_dup_key_delete(0, DB_DUP);                      memory_check_all_free();
+    test_dup_key_delete(1000, DB_DUP);                   memory_check_all_free();
+    test_dupsort_key_insert(2);                          memory_check_all_free();
+    test_dupsort_key_insert(1000);                       memory_check_all_free();
+    test_dup_key_delete(0, DB_DUP+DB_DUPSORT);           memory_check_all_free();
+    test_dup_key_delete(1000, DB_DUP+DB_DUPSORT);        memory_check_all_free();
+    test_dup_key_lookup(32, DB_DUP);                     memory_check_all_free();
+    test_dup_key_lookup(32, DB_DUP+DB_DUPSORT);          memory_check_all_free();
+}
+
 void pma_tests (void) {
     memory_check=1;
     test_keycompare();            memory_check_all_free();
@@ -1840,8 +2322,10 @@ void pma_tests (void) {
     test_pma_find();              memory_check_all_free();
     test_calculate_parameters();  memory_check_all_free();
     test_count_region();          memory_check_all_free();
+
     test_pma_random_pick();       memory_check_all_free();
     test_pma_cursor();            memory_check_all_free();
+
     test_pma_split();             memory_check_all_free();
     test_pma_bulk_insert();       memory_check_all_free();
     test_pma_insert_or_replace(); memory_check_all_free();
@@ -1851,6 +2335,7 @@ void pma_tests (void) {
     test_pma_cursor_set_range();  memory_check_all_free();    
     test_pma_cursor_delete_under();  memory_check_all_free();    
     test_pma_cursor_set_both();   memory_check_all_free();
+    test_dup();
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {

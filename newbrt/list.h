@@ -1,3 +1,4 @@
+// This list is intended to be embedded in other data structures.
 struct list {
     struct list *next, *prev;
 };

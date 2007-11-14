@@ -2,6 +2,7 @@
 #define CACHETABLE_H
 
 #include <fcntl.h>
+#include "brttypes.h"
 
 /* Implement the cache table. */
 
@@ -22,14 +23,16 @@ typedef struct cachefile *CACHEFILE;
  * table_size is the initial size of the cache table hash table (in number of entries)
  * size limit is the upper bound of the sum of size of the entries in the cache table (total number of bytes)
  */
-int create_cachetable(CACHETABLE */*result*/, int table_size, long size_limit);
+int create_cachetable(CACHETABLE */*result*/, long size_limit, LSN initial_lsn, TOKULOGGER);
 
 int cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, int flags, mode_t mode);
 
-typedef void (*cachetable_flush_func_t)(CACHEFILE, CACHEKEY key, void*value, long size, int write_me, int keep_me);
+typedef void (cachetable_flush_func_t)(CACHEFILE, CACHEKEY key, void*value, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p);
+typedef cachetable_flush_func_t *CACHETABLE_FLUSH_FUNC_T;
 
 /* If we are asked to fetch something, get it by calling this back. */
-typedef int (*cachetable_fetch_func_t)(CACHEFILE, CACHEKEY key, void **value, long *sizep, void *extraargs); 
+typedef int (cachetable_fetch_func_t)(CACHEFILE, CACHEKEY key, void **value, long *sizep, void *extraargs, LSN *written_lsn);
+typedef cachetable_fetch_func_t *CACHETABLE_FETCH_FUNC_T;
 
 /* Error if already present.  On success, pin the value. */
 int cachetable_put(CACHEFILE cf, CACHEKEY key, void* value, long size,
@@ -51,6 +54,9 @@ int cachetable_remove (CACHEFILE, CACHEKEY, int /*write_me*/); /* Removing somet
 int cachetable_assert_all_unpinned (CACHETABLE);
 int cachefile_count_pinned (CACHEFILE, int /*printthem*/ );
 
+/* Rename whatever is at oldkey to be newkey.  Requires that the object be pinned. */
+int cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newkey);
+
 //int cachetable_fsync_all (CACHETABLE); /* Flush everything to disk, but keep it in cache. */
 int cachetable_close (CACHETABLE*); /* Flushes everything to disk, and destroys the cachetable. */
 
@@ -63,7 +69,7 @@ int cachefile_close (CACHEFILE*);
 
 int cachefile_fd (CACHEFILE);
 
-// Useful for debugging 
+// Useful for debugging
 void cachetable_print_state (CACHETABLE ct);
 void cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr);
 int cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
@@ -71,5 +77,8 @@ int cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
 
 void cachefile_verify (CACHEFILE cf);  // Verify the whole cachetable that the CF is in.  Slow.
 void cachetable_verify (CACHETABLE t); // Slow...
+
+TOKULOGGER cachefile_logger (CACHEFILE);
+FILENUM cachefile_filenum (CACHEFILE);
 
 #endif

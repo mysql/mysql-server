@@ -16,9 +16,11 @@ DBT *fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
     return dbt;
 }
 
-DBT *fill_dbt_ap(DBT *dbt, bytevec k, ITEMLEN len, void *app_private) {
+DBT *fill_dbt_ap(DBT *dbt, bytevec k, ITEMLEN len, void *app_private __attribute__((unused))) {
     fill_dbt(dbt, k, len);
+#if USE_DBT_APP_PRIVATE
     dbt->app_private=app_private;
+#endif
     return dbt;
 }
 

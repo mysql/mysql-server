@@ -10,11 +10,26 @@
 /* An in-memory Packed Memory Array dictionary. */
 /* There is a built-in-cursor. */
 
+/* All functions return 0 on success. */
+
 typedef struct pma *PMA;
 typedef struct pma_cursor *PMA_CURSOR;
 
-/* All functions return 0 on success. */
-int pma_create(PMA *,  int (*compare_fun)(DB*,const DBT*,const DBT*), int maxsize);
+/* compare 2 DBT's
+   return a value < 0, = 0, > 0 if a < b, a == b, a > b respectively */
+typedef int (*pma_compare_fun_t)(DB *, const DBT *a, const DBT *b);
+
+int pma_create(PMA *, pma_compare_fun_t compare_fun, int maxsize);
+
+/* set the duplicate mode 
+   0 -> no duplications, DB_DUP, DB_DUPSORT */
+int pma_set_dup_mode(PMA pma, int mode);
+
+/* set the duplicate compare function */
+int pma_set_dup_compare(PMA pma, pma_compare_fun_t dup_compare_fun);
+
+/* verify the integrity of a pma */
+void pma_verify(PMA pma, DB *db);
 
 /* returns 0 if OK.
  * You must have freed all the cursors, otherwise returns nonzero and does nothing. */
@@ -28,15 +43,16 @@ int  pma_n_entries (PMA);
 /* Duplicates the key and keylen. */
 //enum pma_errors pma_insert (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 // The DB pointer is there so that the comparison function can be called.
-enum pma_errors pma_insert (PMA, DBT*, DBT*, DB*, TOKUTXN txn, diskoff);
+enum pma_errors pma_insert (PMA, DBT*, DBT*, DB*, TOKUTXN txn, DISKOFF, u_int32_t /*random for fingerprint */, u_int32_t */*fingerprint*/);
 /* This returns an error if the key is NOT present. */
 int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 /* This returns an error if the key is NOT present. */
-int pma_delete (PMA, DBT *, DB*);
+int pma_delete (PMA, DBT *, DB*, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/);
 
 int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 			   int *replaced_v_size, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
-			   DB *db, TOKUTXN txn, diskoff);
+			   DB *db, TOKUTXN txn, DISKOFF,
+			   u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/);
 
 
 /* Exposes internals of the PMA by returning a pointer to the guts.
@@ -53,13 +69,14 @@ enum pma_errors pma_lookup (PMA, DBT*, DBT*, DB*);
  * leftpma - the pma assigned keys <= pivot key
  * rightpma - the pma assigned keys > pivot key
  */
-int pma_split(PMA origpma, unsigned int *origpma_size,
-    PMA leftpma, unsigned int *leftpma_size,
-    PMA rightpma, unsigned int *rightpma_size);
+int pma_split(PMA origpma,  unsigned int *origpma_size,
+	      PMA leftpma,  unsigned int *leftpma_size,  u_int32_t leftrand4sum,  u_int32_t *leftfingerprint,
+	      PMA rightpma, unsigned int *rightpma_size, u_int32_t rightrand4sum, u_int32_t *rightfingerprint);
 
 /*
- * Insert several key value pairs into an empty pma.  The keys are
- * assumed to be sorted.
+ * Insert several key value pairs into an empty pma.  
+ * Doesn't delete any existing keys (even if they are duplicates)
+ * Requires: The keys are sorted
  *
  * pma - the pma that the key value pairs will be inserted into.
  *      must be empty with no cursors.
@@ -67,7 +84,7 @@ int pma_split(PMA origpma, unsigned int *origpma_size,
  * vals - an array of values
  * n_newpairs - the number of key value pairs
  */
-int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs);
+int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4sem, u_int32_t *fingerprint);
 
 /* Move the cursor to the beginning or the end or to a key */
 int pma_cursor (PMA, PMA_CURSOR *);
@@ -121,5 +138,7 @@ void pma_iterate (PMA, void(*)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*);
 } } })
 
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
+
+void pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint);
 
 #endif

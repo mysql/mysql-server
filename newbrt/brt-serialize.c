@@ -1,35 +1,45 @@
 #define _XOPEN_SOURCE 500
 
-#include "brt.h"
-#include "memory.h"
 //#include "pma.h"
 #include "brt-internal.h"
 #include "key.h"
 #include "rbuf.h"
 #include "wbuf.h"
 
-
 #include <assert.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <arpa/inet.h>
 
+
+const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokuleaf"
+				     8+   // checkpoint number
+				     4+   // block size
+				     4+   // data size
+				     4+   // height
+				     4+   // random for fingerprint
+				     4+   // localfingerprint
+				     4);  // crc32 at the end
+
 static unsigned int serialize_brtnode_size_slow(BRTNODE node) {
-    unsigned int size=4+4; /* size+height */
+    unsigned int size=brtnode_header_overhead;
     if (node->height>0) {
 	unsigned int hsize=0;
 	unsigned int csize=0;
 	int i;
 	size+=4; /* n_children */
+	size+=4; /* subtree fingerprint. */
 	for (i=0; i<node->u.n.n_children-1; i++) {
 	    size+=4;
 	    csize+=node->u.n.childkeylens[i];
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
-	    size+=8;
+	    size+=8; // diskoff
+	    size+=4; // subsum
 	}
-	int n_hashtables = node->u.n.n_bytes_in_hashtables;
+	int n_hashtables = node->u.n.n_children;
 	size+=4; /* n_entries */
+        assert(0 <= n_hashtables && n_hashtables < TREE_FANOUT+1);
 	for (i=0; i< n_hashtables; i++) {
 	    HASHTABLE_ITERATE(node->u.n.htables[i],
 			      key __attribute__((__unused__)), keylen,
@@ -53,13 +63,14 @@ static unsigned int serialize_brtnode_size_slow(BRTNODE node) {
 }
 
 unsigned int serialize_brtnode_size (BRTNODE node) {
-    unsigned int result = 4+4; /* size+height */
+    unsigned int result =brtnode_header_overhead;
     assert(sizeof(off_t)==8);
     if (node->height>0) {
 	result+=4; /* n_children */
+	result+=4; /* subtree fingerpirnt */
 	result+=4*(node->u.n.n_children-1); /* key lengths */
 	result+=node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
-	result+=(8+4)*(node->u.n.n_children); /* For each child, a child offset and a count for the number of hash table entries. */
+	result+=(8+4+4)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and the subtree fingerprint. */
 	result+=node->u.n.n_bytes_in_hashtables;
     } else {
 	result+=4; /* n_entries in buffer table. */
@@ -73,7 +84,8 @@ unsigned int serialize_brtnode_size (BRTNODE node) {
     return result;
 }
 
-void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
+void serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
+    //printf("%s:%d serializing\n", __FILE__, __LINE__);
     struct wbuf w;
     int i;
     unsigned int calculated_size = serialize_brtnode_size(node);
@@ -82,11 +94,33 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
     assert(size>0);
     wbuf_init(&w, buf, size);
     //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
+    wbuf_literal_bytes(&w, "toku", 4);
+    if (node->height==0) wbuf_literal_bytes(&w, "leaf", 4);
+    else wbuf_literal_bytes(&w, "node", 4);
+    wbuf_int(&w, node->layout_version);
+    wbuf_ulonglong(&w, node->lsn.lsn);
+    //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_int(&w, calculated_size);
     wbuf_int(&w, node->height);
+    //printf("%s:%d %lld rand=%08x sum=%08x height=%d\n", __FILE__, __LINE__, node->thisnodename, node->rand4fingerprint, node->subtree_fingerprint, node->height);
+    wbuf_int(&w, node->rand4fingerprint);
+    wbuf_int(&w, node->local_fingerprint);
+    //printf("%s:%d local_fingerprint=%8x\n", __FILE__, __LINE__, node->local_fingerprint);
     //printf("%s:%d w.ndone=%d n_children=%d\n", __FILE__, __LINE__, w.ndone, node->n_children);
-    if (node->height>0) { 
+    if (node->height>0) {
+	// Local fingerprint is not actually stored while in main memory.  Must calculate it.
+	// Subtract the child fingerprints from the subtree fingerprint to get the local fingerprint.
+	{
+	    u_int32_t subtree_fingerprint = node->local_fingerprint;
+	    for (i=0; i<node->u.n.n_children; i++) {
+		subtree_fingerprint += node->u.n.child_subtree_fingerprints[i];
+	    }
+	    wbuf_int(&w, subtree_fingerprint);
+	}
 	wbuf_int(&w, node->u.n.n_children);
+	for (i=0; i<node->u.n.n_children; i++) {
+	    wbuf_int(&w, node->u.n.child_subtree_fingerprints[i]);
+	}
 	//printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
 	for (i=0; i<node->u.n.n_children-1; i++) {
 	    wbuf_bytes(&w, node->u.n.childkeys[i], node->u.n.childkeylens[i]);
@@ -99,21 +133,37 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
 
 	{
 	    int n_hash_tables = node->u.n.n_children;
+	    u_int32_t check_local_fingerprint = 0;
 	    for (i=0; i< n_hash_tables; i++) {
 		//printf("%s:%d p%d=%p n_entries=%d\n", __FILE__, __LINE__, i, node->mdicts[i], mdict_n_entries(node->mdicts[i]));
 		wbuf_int(&w, toku_hashtable_n_entries(node->u.n.htables[i]));
 		HASHTABLE_ITERATE(node->u.n.htables[i], key, keylen, data, datalen, type,
-				  (wbuf_char(&w, type), wbuf_bytes(&w, key, keylen),
-				   wbuf_bytes(&w, data, datalen)));
+				  ({
+				      wbuf_char(&w, type);
+				      wbuf_bytes(&w, key, keylen);
+				      wbuf_bytes(&w, data, datalen);
+				      check_local_fingerprint+=node->rand4fingerprint*toku_calccrc32_cmd(type, key, keylen, data, datalen);
+				  }));
 	    }
+	    //printf("%s:%d check_local_fingerprint=%8x\n", __FILE__, __LINE__, check_local_fingerprint);
+	    assert(check_local_fingerprint==node->local_fingerprint);
 	}
     } else {
+	//printf(" n_entries=%d\n", pma_n_entries(node->u.l.buffer));
 	wbuf_int(&w, pma_n_entries(node->u.l.buffer));
 	PMA_ITERATE(node->u.l.buffer, key, keylen, data, datalen,
 		    (wbuf_bytes(&w, key, keylen),
 		     wbuf_bytes(&w, data, datalen)));
     }
     assert(w.ndone<=w.size);
+#ifdef CRC_ATEND
+    wbuf_int(&w, crc32(toku_null_crc, w.buf, w.ndone)); 
+#endif
+#ifdef CRC_INCR
+    wbuf_int(&w, w.crc32);
+#endif
+
+    //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     {
 	ssize_t r=pwrite(fd, w.buf, w.ndone, off);
 	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
@@ -128,11 +178,11 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
     toku_free(buf);
 }
 
-int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesize) {
+int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesize) {
     TAGMALLOC(BRTNODE, result);
     struct rbuf rc;
     int i;
-    uint32_t datasize;
+    u_int32_t datasize;
     int r;
     if (errno!=0) {
 	r=errno;
@@ -140,8 +190,8 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	return r;
     }
     {
-	uint32_t datasize_n;
-	r = pread(fd, &datasize_n, sizeof(datasize_n), off);
+	u_int32_t datasize_n;
+	r = pread(fd, &datasize_n, sizeof(datasize_n), off +8+4+8);
 	//printf("%s:%d r=%d the datasize=%d\n", __FILE__, __LINE__, r, ntohl(datasize_n));
 	if (r!=sizeof(datasize_n)) {
 	    if (r==-1) r=errno;
@@ -152,6 +202,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	if (datasize<=0 || datasize>(1<<30)) { r = DB_BADFORMAT; goto died0; }
     }
     rc.buf=toku_malloc(datasize);
+    //printf("%s:%d errno=%d\n", __FILE__, __LINE__, errno);
     if (errno!=0) {
 	if (0) { died1: toku_free(rc.buf); }
 	r=errno;
@@ -162,10 +213,30 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
     rc.ndone=0;
     //printf("Deserializing %lld datasize=%d\n", off, datasize);
     {
-	ssize_t r=pread(fd, rc.buf, datasize, off);
-	if ((size_t)r!=datasize) { r=errno; goto died1; }
+	ssize_t rlen=pread(fd, rc.buf, datasize, off);
+	//printf("%s:%d pread->%d datasize=%d\n", __FILE__, __LINE__, r, datasize);
+	if ((size_t)rlen!=datasize) {
+	    //printf("%s:%d size messed up\n", __FILE__, __LINE__);
+	    r=errno;
+	    goto died1;
+	}
 	//printf("Got %d %d %d %d\n", rc.buf[0], rc.buf[1], rc.buf[2], rc.buf[3]);
     }
+    {
+	bytevec tmp;
+	rbuf_literal_bytes(&rc, &tmp, 8);
+	if (memcmp(tmp, "tokuleaf", 8)!=0
+	    && memcmp(tmp, "tokunode", 8)!=0) {
+	    r = DB_BADFORMAT;
+	    goto died1;
+	}
+    }
+    result->layout_version    = rbuf_int(&rc);
+    if (result->layout_version!=0) {
+	r=DB_BADFORMAT;
+	goto died1;
+    }
+    result->lsn.lsn = rbuf_ulonglong(&rc);
     {
 	unsigned int stored_size = rbuf_int(&rc);
 	if (stored_size!=datasize) { r=DB_BADFORMAT; goto died1; }
@@ -173,11 +244,14 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
     result->nodesize = nodesize; // How to compute the nodesize?
     result->thisnodename = off;
     result->height = rbuf_int(&rc);
+    result->rand4fingerprint = rbuf_int(&rc);
+    result->local_fingerprint = rbuf_int(&rc);
     result->dirty = 0;
     //printf("height==%d\n", result->height);
     if (result->height>0) {
 	result->u.n.totalchildkeylens=0;
 	for (i=0; i<TREE_FANOUT; i++) { 
+	    result->u.n.child_subtree_fingerprints[i]=0;
             result->u.n.childkeys[i]=0; 
             result->u.n.childkeylens[i]=0; 
         }
@@ -187,9 +261,16 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
             result->u.n.n_bytes_in_hashtable[i]=0;
             result->u.n.n_cursors[i]=0;
         }
+	u_int32_t subtree_fingerprint = rbuf_int(&rc);
+	u_int32_t check_subtree_fingerprint = 0;
 	result->u.n.n_children = rbuf_int(&rc);
 	//printf("n_children=%d\n", result->n_children);
 	assert(result->u.n.n_children>=0 && result->u.n.n_children<=TREE_FANOUT);
+	for (i=0; i<result->u.n.n_children; i++) {
+	    u_int32_t childfp = rbuf_int(&rc);
+	    result->u.n.child_subtree_fingerprints[i]= childfp;
+	    check_subtree_fingerprint += childfp;
+	}
 	for (i=0; i<result->u.n.n_children-1; i++) {
 	    bytevec childkeyptr;
 	    rbuf_bytes(&rc, &childkeyptr, &result->u.n.childkeylens[i]); /* Returns a pointer into the rbuf. */
@@ -206,7 +287,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	}
 	result->u.n.n_bytes_in_hashtables = 0; 
 	for (i=0; i<result->u.n.n_children; i++) {
-	    int r=toku_hashtable_create(&result->u.n.htables[i]);
+	    r=toku_hashtable_create(&result->u.n.htables[i]);
 	    if (r!=0) {
 		int j;
 		if (0) { died_12: j=result->u.n.n_bytes_in_hashtables; }
@@ -216,6 +297,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	}
 	{
 	    int cnum;
+	    u_int32_t check_local_fingerprint = 0;
 	    for (cnum=0; cnum<result->u.n.n_children; cnum++) {
 		int n_in_this_hash = rbuf_int(&rc);
 		//printf("%d in hash\n", n_in_hash);
@@ -228,9 +310,10 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
                     type = rbuf_char(&rc);
 		    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
 		    rbuf_bytes(&rc, &val, &vallen);
+		    check_local_fingerprint += result->rand4fingerprint * toku_calccrc32_cmd(type, key, keylen, val, vallen);
 		    //printf("Found %s,%s\n", (char*)key, (char*)val);
 		    {
-			int r=toku_hash_insert(result->u.n.htables[cnum], key, keylen, val, vallen, type); /* Copies the data into the hash table. */
+			r=toku_hash_insert(result->u.n.htables[cnum], key, keylen, val, vallen, type); /* Copies the data into the hash table. */
 			if (r!=0) { goto died_12; }
 		    }
 		    diff =  keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
@@ -239,11 +322,19 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 		    //printf("Inserted\n");
 		}
 	    }
+	    if (check_local_fingerprint != result->local_fingerprint) {
+		fprintf(stderr, "%s:%d local fingerprint is wrong (found %8x calcualted %8x\n", __FILE__, __LINE__, result->local_fingerprint, check_local_fingerprint);
+		return DB_BADFORMAT;
+	    }
+	    if (check_subtree_fingerprint+check_local_fingerprint != subtree_fingerprint) {
+		fprintf(stderr, "%s:%d subtree fingerprint is wrong\n", __FILE__, __LINE__);
+		return DB_BADFORMAT;
+	    }
 	}
     } else {
 	int n_in_buf = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	int r=pma_create(&result->u.l.buffer, default_compare_fun, nodesize);
+	r=pma_create(&result->u.l.buffer, default_compare_fun, nodesize);
 	if (r!=0) {
 	    if (0) { died_21: pma_free(&result->u.l.buffer); }
 	    goto died1;
@@ -253,7 +344,6 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 #if BRT_USE_PMA_BULK_INSERT
 {
         DBT keys[n_in_buf], vals[n_in_buf];
-        int r;
 
 	for (i=0; i<n_in_buf; i++) {
 	    bytevec key; ITEMLEN keylen; 
@@ -266,8 +356,16 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;
         }
         if (n_in_buf > 0) {
-            r = pma_bulk_insert(result->u.l.buffer, keys, vals, n_in_buf);
+	    u_int32_t actual_sum = 0;
+            r = pma_bulk_insert(result->u.l.buffer, keys, vals, n_in_buf, result->rand4fingerprint, &actual_sum);
             if (r!=0) goto died_21;
+	    if (actual_sum!=result->local_fingerprint) {
+		//fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);
+		return DB_BADFORMAT;
+		goto died_21;
+	    } else {
+		//fprintf(stderr, "%s:%d Good checksum=%08x height=%d\n", __FILE__, __LINE__, actual_sum, result->height);
+	    }
         }
 }
 #else
@@ -279,12 +377,26 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	    rbuf_bytes(&rc, &val, &vallen);
 	    {
 		DBT k,v;
-		int r = pma_insert(result->u.l.buffer, fill_dbt(&k, key, keylen), fill_dbt(&v, val, vallen), 0);
+		r = pma_insert(result->u.l.buffer, fill_dbt(&k, key, keylen), fill_dbt(&v, val, vallen), 0);
 		if (r!=0) goto died_21;
 	    }
 	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;
 	}
 #endif
+    }
+    {
+	unsigned int n_read_so_far = rc.ndone;
+	if (n_read_so_far+4!=rc.size) {
+	    r = DB_BADFORMAT; goto died_21;
+	}
+	uint32_t crc = toku_crc32(toku_null_crc, rc.buf, n_read_so_far);
+	uint32_t storedcrc = rbuf_int(&rc);
+	if (crc!=storedcrc) {
+	    printf("Bad CRC\n");
+	    assert(0);//this is wrong!!!
+	    r = DB_BADFORMAT;
+	    goto died_21;
+	}
     }
     //printf("%s:%d Ok got %lld n_children=%d\n", __FILE__, __LINE__, result->thisnodename, result->n_children);
     toku_free(rc.buf);
@@ -302,9 +414,11 @@ void verify_counts (BRTNODE node) {
 	int i;
 	for (i=0; i<node->u.n.n_children; i++)
 	    sum += node->u.n.n_bytes_in_hashtable[i];
+	// We don't rally care of the later hashtables have garbage in them.  Valgrind would do a better job noticing if we leave it uninitialized.
+	// But for now the code always initializes the later tables so they are 0.
 	for (; i<TREE_FANOUT+1; i++) {
 	    assert(node->u.n.n_bytes_in_hashtable[i]==0);
-	}
+        }
 	assert(sum==node->u.n.n_bytes_in_hashtables);
     }
 }
@@ -313,7 +427,7 @@ int serialize_brt_header_to (int fd, struct brt_header *h) {
     struct wbuf w;
     int i;
     unsigned int size=0; /* I don't want to mess around calculating it exactly. */ 
-    size += 4+4+8+8+4; /* this size, the tree's nodesize, freelist, unused_memory, nnamed_rootse. */
+    size += 4+4+4+8+8+4; /* this size, flags, the tree's nodesize, freelist, unused_memory, nnamed_rootse. */
     if (h->n_named_roots<0) {
 	size+=8;
     } else {
@@ -321,10 +435,9 @@ int serialize_brt_header_to (int fd, struct brt_header *h) {
 	    size+=12 + 1 + strlen(h->names[i]);
 	}
     }
-    w.buf = toku_malloc(size);
-    w.size = size;
-    w.ndone = 0;
+    wbuf_init(&w, toku_malloc(size), size);
     wbuf_int    (&w, size);
+    wbuf_int    (&w, h->flags);
     wbuf_int    (&w, h->nodesize);
     wbuf_diskoff(&w, h->freelist);
     wbuf_diskoff(&w, h->unused_memory);
@@ -350,7 +463,7 @@ int serialize_brt_header_to (int fd, struct brt_header *h) {
     return 0;
 }
 
-int deserialize_brtheader_from (int fd, diskoff off, struct brt_header **brth) {
+int deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth) {
     //printf("%s:%d calling MALLOC\n", __FILE__, __LINE__);
     struct brt_header *MALLOC(h);
     struct rbuf rc;
@@ -376,6 +489,7 @@ int deserialize_brtheader_from (int fd, diskoff off, struct brt_header **brth) {
     h->dirty=0;
     sizeagain        = rbuf_int(&rc);
     assert(sizeagain==size);
+    h->flags         = rbuf_int(&rc);
     h->nodesize      = rbuf_int(&rc);
     h->freelist      = rbuf_diskoff(&rc);
     h->unused_memory = rbuf_diskoff(&rc);
@@ -403,3 +517,4 @@ int deserialize_brtheader_from (int fd, diskoff off, struct brt_header **brth) {
     *brth = h;
     return 0;
 }
+

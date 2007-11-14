@@ -31,7 +31,8 @@ void create_directory (void) {
     assert(r==0);
     r=env->set_cachesize(env, 0, 512*(1<<20), 0);
     assert(r==0);
-    
+
+#if DB_VERSION_MAJOR >= 4 && DB_VERSION_MINOR >= 3
     IF40((void)0,
 	 ({
 	     unsigned int gbytes,bytes;
@@ -40,7 +41,7 @@ void create_directory (void) {
       assert(r==0);
       printf("Using %.2fMiB Berkeley DB Cache Size\n", gbytes*1024 + ((double)bytes/(1<<20)));
     }));
-    
+#endif
 
     r= env->open(env, dir, DB_CREATE|DB_INIT_MPOOL,0777); // No logging.
     assert(r==0);

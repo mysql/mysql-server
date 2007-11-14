@@ -29,12 +29,15 @@ struct ctpair {
     PAIR     next,prev; // In LRU list.
     PAIR     hash_chain;
     CACHEFILE cachefile;
-    cachetable_flush_func_t flush_callback;
-    cachetable_fetch_func_t fetch_callback;
-    void*extraargs;
+    CACHETABLE_FLUSH_FUNC_T flush_callback;
+    CACHETABLE_FETCH_FUNC_T fetch_callback;
+    void    *extraargs;
     int      verify_flag; /* Used in verify_cachetable() */
+    LSN      modified_lsn; // What was the LSN when modified (undefined if not dirty)
+    LSN      written_lsn;  // What was the LSN when written (we need to get this information when we fetch)
 };
 
+// The cachetable is as close to an ENV as we get.
 struct cachetable {
     enum typ_tag tag;
     int n_in_table;
@@ -44,6 +47,8 @@ struct cachetable {
     CACHEFILE cachefiles;
     long size_current, size_limit;
     int primeidx;
+    LSN lsn_of_checkpoint;  // the most recent checkpoint in the log.
+    TOKULOGGER logger;
 };
 
 struct fileid {
@@ -57,9 +62,10 @@ struct cachefile {
     int fd;       /* Bug: If a file is opened read-only, then it is stuck in read-only.  If it is opened read-write, then subsequent writers can write to it too. */
     CACHETABLE cachetable;
     struct fileid fileid;
+    FILENUM filenum;
 };
 
-int create_cachetable(CACHETABLE *result, int table_size __attribute__((unused)), long size_limit) {
+int create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER logger) {
     TAGMALLOC(CACHETABLE, t);
     int i;
     t->n_in_table = 0;
@@ -74,6 +80,8 @@ int create_cachetable(CACHETABLE *result, int table_size __attribute__((unused))
     t->cachefiles = 0;
     t->size_current = 0;
     t->size_limit = size_limit;
+    t->lsn_of_checkpoint = initial_lsn;
+    t->logger = logger; 
     *result = t;
     return 0;
 }
@@ -257,13 +265,25 @@ static PAIR remove_from_hash_chain (PAIR remove_me, PAIR list) {
     return list;
 }
 
+// Predicate to determine if a node must be renamed.  Nodes are renamed on the time they are written
+// after a checkpoint.
+//   Thus we need to rename it if it is dirty,
+//    if it has been modified within the current checkpoint regime (hence non-strict inequality)
+//    and the last time it was written was in a previous checkpoint regime (strict inequality)
+static BOOL need_to_rename_p (CACHETABLE t, PAIR p) {
+    return (p->dirty
+	    && p->modified_lsn.lsn>=t->lsn_of_checkpoint.lsn   // nonstrict
+	    && p->written_lsn.lsn < t->lsn_of_checkpoint.lsn); // strict
+}
+
 static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
     lru_remove(t, remove_me);
     //printf("flush_callback(%lld,%p)\n", remove_me->key, remove_me->value);
     WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, dirty=%d, 0)\n", __FILE__, __LINE__, remove_me->key, remove_me->value, remove_me->dirty && write_me)); 
     //printf("%s:%d TAG=%x p=%p\n", __FILE__, __LINE__, remove_me->tag, remove_me);
     //printf("%s:%d dirty=%d\n", __FILE__, __LINE__, remove_me->dirty);
-    remove_me->flush_callback(remove_me->cachefile, remove_me->key, remove_me->value, remove_me->size, remove_me->dirty && write_me, 0);
+    remove_me->flush_callback(remove_me->cachefile, remove_me->key, remove_me->value, remove_me->size, remove_me->dirty && write_me, 0,
+			      t->lsn_of_checkpoint, need_to_rename_p(t, remove_me));
     t->n_in_table--;
     // Remove it from the hash chain.
     {
@@ -272,14 +292,6 @@ static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
     }
     t->size_current -= remove_me->size;
     toku_free(remove_me);
-}
-
-static void flush_and_keep (PAIR flush_me) {
-    if (flush_me->dirty) {
-	WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, dirty=1, 0)\n", __FILE__, __LINE__, flush_me->key, flush_me->value)); 
-        flush_me->flush_callback(flush_me->cachefile, flush_me->key, flush_me->value, flush_me->size, 1, 1);
-	flush_me->dirty=0;
-    }
 }
 
 static int maybe_flush_some (CACHETABLE t, long size __attribute__((unused))) {
@@ -309,7 +321,8 @@ again:
 static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *value, long size,
                                 cachetable_flush_func_t flush_callback,
                                 cachetable_fetch_func_t fetch_callback,
-                                void *extraargs, int dirty) {
+                                void *extraargs, int dirty,
+				LSN   written_lsn) {
     TAGMALLOC(PAIR, p);
     p->pinned = 1;
     p->dirty = dirty;
@@ -322,6 +335,8 @@ static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *
     p->flush_callback = flush_callback;
     p->fetch_callback = fetch_callback;
     p->extraargs = extraargs;
+    p->modified_lsn.lsn = 0;
+    p->written_lsn  = written_lsn;
     CACHETABLE ct = cachefile->cachetable;
     lru_add_to_list(ct, p);
     p->hash_chain = ct->table[h];
@@ -352,7 +367,7 @@ int cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size,
     if (maybe_flush_some(cachefile->cachetable, size)) 
         return -2;
     // flushing could change the result from hashit()
-    int r = cachetable_insert_at(cachefile, hashit(cachefile->cachetable, key), key, value, size, flush_callback, fetch_callback, extraargs, 1);
+    int r = cachetable_insert_at(cachefile, hashit(cachefile->cachetable, key), key, value, size, flush_callback, fetch_callback, extraargs, 1, ZERO_LSN);
     return r;
 }
 
@@ -377,10 +392,11 @@ int cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, long 
 	void *toku_value; 
         long size = 1; // compat
 	int r;
+	LSN written_lsn;
 	WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));
-	if ((r=fetch_callback(cachefile, key, &toku_value, &size, extraargs))) 
+	if ((r=fetch_callback(cachefile, key, &toku_value, &size, extraargs, &written_lsn))) 
             return r;
-	cachetable_insert_at(cachefile, hashit(t,key), key, toku_value, size, flush_callback, fetch_callback, extraargs, 0);
+	cachetable_insert_at(cachefile, hashit(t,key), key, toku_value, size, flush_callback, fetch_callback, extraargs, 0, written_lsn);
 	*value = toku_value;
         if (sizep)
             *sizep = size;
@@ -426,6 +442,26 @@ int cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, int dirty, long size) {
 	}
     }
     return 0;
+}
+
+// effect:   Move an object from one key to another key.
+// requires: The object is pinned in the table
+int cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newkey) {
+  CACHETABLE t = cachefile->cachetable;
+  PAIR *ptr_to_p,p;
+  for (ptr_to_p = &t->table[hashit(t, oldkey)],  p = *ptr_to_p;
+       p;
+       ptr_to_p = &p->hash_chain,                p = *ptr_to_p) {
+    if (p->key==oldkey && p->cachefile==cachefile) {
+      *ptr_to_p = p->hash_chain;
+      p->key = newkey;
+      int nh = hashit(t, newkey);
+      p->hash_chain = t->table[nh];
+      t->table[nh] = p;
+      return 0;
+    }
+  }
+  return -1;
 }
 
 int cachetable_flush (CACHETABLE t) {
@@ -559,6 +595,15 @@ int cachetable_remove (CACHEFILE cachefile, CACHEKEY key, int write_me) {
     return 0;
 }
 
+#if 0
+static void flush_and_keep (PAIR flush_me) {
+    if (flush_me->dirty) {
+	WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, dirty=1, 0)\n", __FILE__, __LINE__, flush_me->key, flush_me->value)); 
+        flush_me->flush_callback(flush_me->cachefile, flush_me->key, flush_me->value, flush_me->size, 1, 1);
+	flush_me->dirty=0;
+    }
+}
+
 static int cachetable_fsync_pairs (CACHETABLE t, PAIR p) {
     if (p) {
 	int r = cachetable_fsync_pairs(t, p->hash_chain);
@@ -577,6 +622,7 @@ int cachetable_fsync (CACHETABLE t) {
     }
     return 0;
 }
+#endif
 
 #if 0
 int cachefile_pwrite (CACHEFILE cf, const void *buf, size_t count, off_t offset) {
@@ -642,4 +688,55 @@ int cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
         }
     }
     return 1;
+}
+
+int cachetable_checkpoint (CACHETABLE ct) {
+    // Single threaded checkpoint.
+    // In future: for multithreaded checkpoint we should not proceed if the previous checkpoint has not finished.
+    // Requires: Everything is unpinned.  (In the multithreaded version we have to wait for things to get unpinned and then
+    //  grab them (or else the unpinner has to do something.)
+    // Algorithm:  Write a checkpoint record to the log, noting the LSN of that record.
+    //  Note the LSN of the previous checkpoint (stored in lsn_of_checkpoint)
+    //  For every (unpinnned) dirty node in which the LSN is newer than the prev checkpoint LSN:
+    //      flush the node (giving it a new nodeid, and fixing up the downpointer in the parent)
+    // Watch out since evicting the node modifies the hash table.
+
+//?? This is a skeleton.  It compiles, but doesn't do anything reasonable yet.
+//??    log_the_checkpoint();
+    int n_saved=0;
+    int n_in_table = ct->n_in_table;
+    struct save_something {
+	CACHEFILE cf;
+	DISKOFF   key;
+	void     *value;
+	long      size;
+	LSN       modified_lsn;
+	CACHETABLE_FLUSH_FUNC_T flush_callback;
+    } *MALLOC_N(n_in_table, info);
+    {
+	PAIR pair;
+	for (pair=ct->head; pair; pair=pair->next) {
+	    assert(!pair->pinned);
+	    if (pair->dirty && pair->modified_lsn.lsn>ct->lsn_of_checkpoint.lsn) {
+//??		/save_something_about_the_pair(); // This read-only so it doesn't modify the table.
+		n_saved++;
+	    }
+	}
+    }
+    {
+	int i;
+	for (i=0; i<n_saved; i++) {
+	    info[i].flush_callback(info[i].cf, info[i].key, info[i].value, info[i].size, 1, 1, info[i].modified_lsn, 0);
+	}
+    }
+    toku_free(info);
+    return 0;
+}
+
+TOKULOGGER cachefile_logger (CACHEFILE cf) {
+    return cf->cachetable->logger;
+}
+
+FILENUM cachefile_filenum (CACHEFILE cf) {
+    return cf->filenum;
 }

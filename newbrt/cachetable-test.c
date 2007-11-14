@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +30,7 @@ static void expectN(CACHEKEY key) {
 
 CACHEFILE expect_f;
 
-static void flush (CACHEFILE f, CACHEKEY key, void*value, long size __attribute__((__unused__)), int write_me __attribute__((__unused__)), int keep_mee __attribute__((__unused__))) {
+static void flush (CACHEFILE f, CACHEKEY key, void*value, long size __attribute__((__unused__)), BOOL write_me __attribute__((__unused__)), BOOL keep_me __attribute__((__unused__)), LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
     struct item *it = value;
     int i;
 
@@ -60,12 +62,13 @@ struct item *make_item (CACHEKEY key) {
 }
 
 CACHEKEY did_fetch=-1;
-int fetch (CACHEFILE f, CACHEKEY key, void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
+int fetch (CACHEFILE f, CACHEKEY key, void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     printf("Fetch %lld\n", key);
     assert (expect_f==f);
     assert((long)extraargs==23);
     *value = make_item(key);
     did_fetch=key;
+    written_lsn->lsn = 0;
     return 0;
 }
 
@@ -76,7 +79,7 @@ void test0 (void) {
     CACHEFILE f;
     int r;
     char fname[] = "test.dat";
-    r=create_cachetable(&t, 5, 5);
+    r=create_cachetable(&t, 5, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
     r = cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
@@ -177,15 +180,17 @@ void test0 (void) {
 }
 
 static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)), void *value,
-                     long size __attribute__((__unused__)), int write_me __attribute__((__unused__)), 
-                     int keep_me __attribute__((__unused__))) {
+                     long size __attribute__((__unused__)),
+		     BOOL write_me __attribute__((__unused__)),    BOOL keep_me __attribute__((__unused__)),
+		     LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute ((__unused__))) {
     int *v = value;
     assert(*v==0);
 }
 static int fetch_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)), 
-                    void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
+                    void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     assert((long)extraargs==42);
     *value=0;
+    written_lsn->lsn = 0;
     return 0;
 }
 
@@ -198,7 +203,7 @@ void test_nested_pin (void) {
     int r;
     void *vv;
     char fname[] = "test_ct.dat";
-    r = create_cachetable(&t, 1, 1);
+    r = create_cachetable(&t, 1, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
     r = cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
@@ -227,21 +232,25 @@ void test_nested_pin (void) {
 }
 
 
-void null_flush (CACHEFILE cf  __attribute__((__unused__)),
-		 CACHEKEY k    __attribute__((__unused__)),
-		 void *v       __attribute__((__unused__)),		 
-                 long size     __attribute__((__unused__)),
-		 int write_me  __attribute__((__unused__)),
-		 int keep_me   __attribute__((__unused__))) {
+void null_flush (CACHEFILE cf     __attribute__((__unused__)),
+		 CACHEKEY k       __attribute__((__unused__)),
+		 void *v          __attribute__((__unused__)),		 
+                 long size        __attribute__((__unused__)),
+		 BOOL write_me    __attribute__((__unused__)),
+		 BOOL keep_me     __attribute__((__unused__)),
+		 LSN modified_lsn __attribute__((__unused__)),
+		 BOOL rename_p    __attribute__((__unused__))) {
 }
-int add123_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, long *sizep __attribute__((__unused__)), void*extraargs) {
+int add123_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     assert((long)extraargs==123);
     *value = (void*)((unsigned long)key+123L);
+    written_lsn->lsn = 0;
     return 0;
 }
-int add222_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, long *sizep __attribute__((__unused__)), void*extraargs) {
+int add222_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     assert((long)extraargs==222);
     *value = (void*)((unsigned long)key+222L);
+    written_lsn->lsn = 0;
     return 0;
 }
 
@@ -257,7 +266,7 @@ void test_multi_filehandles (void) {
     unlink(fname1);
     unlink(fname2);
 
-    r = create_cachetable(&t, 4, 4);                              assert(r==0);
+    r = create_cachetable(&t, 4, ZERO_LSN, NULL_LOGGER);          assert(r==0);
     r = cachetable_openf(&f1, t, fname1, O_RDWR|O_CREAT, 0777);   assert(r==0);
     r = link(fname1, fname2);                                     assert(r==0);
     r = cachetable_openf(&f2, t, fname2, O_RDWR|O_CREAT, 0777);   assert(r==0);
@@ -282,12 +291,13 @@ void test_multi_filehandles (void) {
     r = cachetable_close(&t); assert(r==0);
 }
 
-void test_dirty_flush(CACHEFILE f, CACHEKEY key, void *value, long size, int write, int keep) {
-    printf("test_dirty_flush %p %lld %p %ld %d %d\n", f, key, value, size, write, keep);
+void test_dirty_flush(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
+    printf("test_dirty_flush %p %lld %p %ld %d %d\n", f, key, value, size, do_write, keep);
 }
 
-int test_dirty_fetch(CACHEFILE f, CACHEKEY key, void **value_ptr, long *size_ptr, void *arg) {
+int test_dirty_fetch(CACHEFILE f, CACHEKEY key, void **value_ptr, long *size_ptr, void *arg, LSN *written_lsn) {
     *value_ptr = arg;
+    written_lsn->lsn = 0;
     printf("test_dirty_fetch %p %lld %p %ld %p\n", f, key, *value_ptr, *size_ptr, arg);
     return 0;
 }
@@ -301,7 +311,7 @@ void test_dirty() {
     int dirty; long long pinned; long entry_size;
     int r;
 
-    r = create_cachetable(&t, 4, 4);
+    r = create_cachetable(&t, 4, ZERO_LSN, NULL_LOGGER);
     assert(r == 0);
 
     char *fname = "test.dat";
@@ -393,8 +403,8 @@ void test_dirty() {
 int test_size_debug;
 CACHEKEY test_size_flush_key;
 
-void test_size_flush_callback(CACHEFILE f, CACHEKEY key, void *value, long size, int write, int keep) {
-    if (test_size_debug) printf("test_size_flush %p %lld %p %ld %d %d\n", f, key, value, size, write, keep);
+void test_size_flush_callback(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
+    if (test_size_debug) printf("test_size_flush %p %lld %p %ld %d %d\n", f, key, value, size, do_write, keep);
     assert(write != 0);
     test_size_flush_key = key;
 }
@@ -409,7 +419,7 @@ void test_size_resize() {
     int n = 3;
     long size = 1;
 
-    r = create_cachetable(&t, n, n*size);
+    r = create_cachetable(&t, n*size, ZERO_LSN, NULL_LOGGER);
     assert(r == 0);
 
     char *fname = "test.dat";
@@ -460,7 +470,7 @@ void test_size_flush() {
 
     const int n = 8;
     long long size = 1*1024*1024;
-    r = create_cachetable(&t, 3, n*size);
+    r = create_cachetable(&t, n*size, ZERO_LSN, NULL_LOGGER);
     assert(r == 0);
 
     char *fname = "test.dat";
@@ -509,7 +519,99 @@ void test_size_flush() {
     assert(r == 0);
 }
 
+enum { KEYLIMIT = 4, TRIALLIMIT=64 };
+CACHEKEY  keys[KEYLIMIT];
+void*     vals[KEYLIMIT];
+int       n_keys=0;
+
+static void r_flush (CACHEFILE f __attribute__((__unused__)),
+		     CACHEKEY k, void *value,
+		     long size __attribute__((__unused__)),
+		     BOOL write_me  __attribute__((__unused__)),
+		     BOOL keep_me,
+		     LSN modified_lsn __attribute__((__unused__)),
+		     BOOL rename_p    __attribute__((__unused__))) {
+    int i;
+    //printf("Flush\n");
+    for (i=0; i<n_keys; i++) {
+	if (keys[i]==k) {
+	    assert(vals[i]==value);
+	    if (!keep_me) {
+		keys[i]=keys[n_keys-1];
+		vals[i]=vals[n_keys-1];
+		n_keys--;
+		return;
+	    }
+	}
+    }
+    fprintf(stderr, "Whoops\n");
+    abort();
+}
+
+int r_fetch (CACHEFILE f      __attribute__((__unused__)),
+	     CACHEKEY key     __attribute__((__unused__)),
+	     void**value      __attribute__((__unused__)),
+	     long *sizep      __attribute__((__unused__)),
+	     void*extraargs   __attribute__((__unused__)),
+	     LSN *modified_lsn __attribute__((__unused__))) {
+    fprintf(stderr, "Whoops, this should never be called");
+    return 0;
+}
+
+void test_rename (void) {
+    CACHETABLE t;
+    CACHEFILE f;
+    int i;
+    int r;
+    const char fname[] = "ct-test-rename.dat";
+    r=create_cachetable(&t, KEYLIMIT, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    unlink(fname);
+    r = cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
+    assert(r==0);
+  
+    for (i=0; i<TRIALLIMIT; i++) {
+	int ra = random()%3;
+	if (ra<=1) {
+	    // Insert something
+	    CACHEKEY nkey = random();
+	    long     nval = random();
+	    //printf("n_keys=%d Insert %08llx\n", n_keys, nkey);
+	    r = cachetable_put(f, nkey, (void*)nval, 1,
+			       r_flush, r_fetch, 0);
+	    assert(r==0);
+	    assert(n_keys<KEYLIMIT);
+	    keys[n_keys] = nkey;
+	    vals[n_keys] = (void*)nval;
+	    n_keys++;
+	    r = cachetable_unpin(f, nkey, CACHETABLE_DIRTY, 1);
+	    assert(r==0);
+	} else if (ra==2 && n_keys>0) {
+	    // Rename something
+	    int objnum = random()%n_keys;
+	    CACHEKEY okey = keys[objnum];
+	    CACHEKEY nkey = random();
+	    void *current_value;
+	    long current_size;
+	    keys[objnum]=nkey;
+	    //printf("Rename %llx to %llx\n", okey, nkey);
+	    r = cachetable_get_and_pin(f, okey, &current_value, &current_size, r_flush, r_fetch, 0);
+	    assert(r==0);
+	    r = cachetable_rename(f, okey, nkey);
+	    assert(r==0);
+	    r = cachetable_unpin(f, nkey, CACHETABLE_DIRTY, 1);
+	}
+    }
+
+    r = cachefile_close(&f);
+    assert(r == 0);
+    r = cachetable_close(&t);
+    assert(r == 0);
+
+    assert(n_keys == 0);
+}
+
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+    test_rename();
     test0();
     test_nested_pin();
     test_multi_filehandles ();
