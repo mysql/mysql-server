@@ -1,0 +1,136 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+show slave status /* Second_behind reports 0 */;;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	9306
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	106
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	106
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	0
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	0
+Last_SQL_Error	
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1 (f1 int);
+flush logs /* contaminate rli->last_master_timestamp */;
+lock table t1 write;
+insert into t1 values (1);
+show slave status /* bug emulated: reports slave threads starting time about 3*3 not 3 secs */;;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	9306
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	367
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	279
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	9
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	0
+Last_SQL_Error	
+unlock tables;
+flush logs /* this time rli->last_master_timestamp is not affected */;
+lock table t1 write;
+insert into t1 values (2);
+show slave status /* reports the correct diff with master query time about 3+3 secs */;;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	9306
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	455
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	367
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	7
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	0
+Last_SQL_Error	
+unlock tables;
+drop table t1;

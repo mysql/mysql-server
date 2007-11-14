@@ -41,26 +41,26 @@ DELETE FROM t2 WHERE b <> UUID();
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 2	t1, text 2
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 2	t1, text 2
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 DELETE FROM t1;
 DELETE FROM t2;
@@ -76,13 +76,13 @@ DELETE FROM t2 WHERE a = 2;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	t1, text 1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 1
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 1	t2, text 1
 ==========SLAVE===========
@@ -90,13 +90,13 @@ USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	t1, text 1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 1
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 1	t2, text 1
 DELETE FROM t1;
@@ -104,7 +104,7 @@ DELETE FROM t2;
 
 ******************** LOAD DATA INFILE ********************
 LOAD DATA INFILE '../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 10	line A
 20	line B
@@ -113,7 +113,7 @@ a	b
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 10	line A
 20	line B
@@ -121,14 +121,14 @@ a	b
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 10	line A
 20	line B
@@ -136,7 +136,7 @@ a	b
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 DELETE FROM t1;
 DELETE FROM t2;
@@ -153,35 +153,35 @@ DELETE FROM t1 WHERE a = 2;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	t1, text 11
 3	t1, text 33
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	t1, text 11
 3	t1, text 33
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 DELETE FROM t1;
 DELETE FROM t2;
 
 ******************** SELECT ********************
 INSERT INTO t1 VALUES(1, 't1, text 1');
-SELECT * FROM t1 WHERE b <> UUID();
+SELECT * FROM t1 WHERE b <> UUID() ORDER BY a;
 a	b
 1	t1, text 1
 DELETE FROM t1;
@@ -192,11 +192,11 @@ INSERT INTO t1 VALUES(1, 'CCC');
 INSERT INTO t1 VALUES(2, 'DDD');
 INSERT INTO t2 VALUES(1, 'DDD');
 INSERT INTO t2 VALUES(2, 'CCC');
-SELECT * FROM t1 LEFT JOIN  t2 ON t1.a = t2.a;
+SELECT * FROM t1 LEFT JOIN  t2 ON t1.a = t2.a ORDER BY t1.a,t2.a;
 a	b	a	b
 1	CCC	1	DDD
 2	DDD	2	CCC
-SELECT * FROM t1 INNER JOIN  t2 ON t1.b = t2.b;
+SELECT * FROM t1 INNER JOIN  t2 ON t1.b = t2.b ORDER BY t1.a,t2.a;
 a	b	a	b
 1	CCC	2	CCC
 2	DDD	1	DDD
@@ -219,50 +219,50 @@ INSERT INTO t1 VALUES(1, 't1, text 1');
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	t1, text 1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	t1, text 1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 TRUNCATE t1;
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 DELETE FROM t1;
 DELETE FROM t2;
@@ -275,13 +275,13 @@ UPDATE t1 SET b = 't1, text 1 updated' WHERE a = 1;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	t1, text 1 updated
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 1
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 1	t2, text 1
 ==========SLAVE===========
@@ -289,13 +289,13 @@ USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	t1, text 1 updated
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 1
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 1	t2, text 1
 UPDATE t1, t2 SET t1.b = 'test', t2.b = 'test';
@@ -303,13 +303,13 @@ UPDATE t1, t2 SET t1.b = 'test', t2.b = 'test';
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	test
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 1
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 1	test
 ==========SLAVE===========
@@ -317,13 +317,13 @@ USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	test
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 1
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 1	test
 DELETE FROM t1;
@@ -349,26 +349,26 @@ COMMIT;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	start
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	start
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 START TRANSACTION;
 INSERT INTO t1 VALUES (2, 'rollback');
@@ -377,26 +377,26 @@ ROLLBACK;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	start
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	start
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 START TRANSACTION;
 INSERT INTO t1 VALUES (3, 'before savepoint s1');
@@ -407,27 +407,27 @@ ROLLBACK TO SAVEPOINT s1;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	start
 3	before savepoint s1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	start
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 START TRANSACTION;
 INSERT INTO t1 VALUES (5, 'before savepoint s2');
@@ -441,7 +441,7 @@ DELETE FROM t1 WHERE a = 7;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 4
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	start
 3	before savepoint s1
@@ -450,14 +450,14 @@ a	b
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 4
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	start
 3	before savepoint s1
@@ -466,7 +466,7 @@ a	b
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 DELETE FROM t1;
 DELETE FROM t2;
@@ -610,28 +610,28 @@ DELETE FROM t1 WHERE a = 202;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 100	test
 201	test
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 100	test
 201	test
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ALTER PROCEDURE p1 COMMENT 'p1';
 DROP PROCEDURE p1;
@@ -649,13 +649,13 @@ INSERT INTO t1 VALUES (1, 'test');
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	test
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 1
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 1	test
 ==========SLAVE===========
@@ -663,13 +663,13 @@ USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	test
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 1
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 1	test
 DELETE FROM t1;
@@ -694,51 +694,51 @@ test_rpl	e1	@	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	test1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	test1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	test1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	test1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ALTER EVENT e1 RENAME TO e2;
 ==========MASTER==========
@@ -754,26 +754,26 @@ test_rpl	e2	@	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	test1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 ==========SLAVE===========
 USE test_rpl;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	test1
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 a	b
 DROP EVENT e2;
 ==========MASTER==========
@@ -795,7 +795,7 @@ CREATE VIEW v2 AS SELECT * FROM t1 WHERE b <> UUID();
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 1)	latin1	latin1_swedish_ci
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY a;
 a	b
 1	test1
 ==========SLAVE===========
@@ -803,7 +803,7 @@ USE test_rpl;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 1)	latin1	latin1_swedish_ci
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY a;
 a	b
 1	test1
 ALTER VIEW v1 AS SELECT * FROM t1 WHERE a = 2;
@@ -811,7 +811,7 @@ ALTER VIEW v1 AS SELECT * FROM t1 WHERE a = 2;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 2)	latin1	latin1_swedish_ci
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY a;
 a	b
 2	test2
 ==========SLAVE===========
@@ -819,7 +819,7 @@ USE test_rpl;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 2)	latin1	latin1_swedish_ci
-SELECT * FROM v1;
+SELECT * FROM v1 ORDER BY a;
 a	b
 2	test2
 DROP VIEW v1;

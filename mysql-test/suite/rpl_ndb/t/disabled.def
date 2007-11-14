@@ -15,8 +15,6 @@ rpl_ndb_2innodb          : Bug#29549 rpl_ndb_myisam2ndb,rpl_ndb_innodb2ndb faile
 rpl_ndb_2myisam          : Bug#29549 rpl_ndb_myisam2ndb,rpl_ndb_innodb2ndb failed on Solaris for pack_length issue
 rpl_ndb_2other           : BUG#21842 2007-08-30 tsmith test has never worked on bigendian (sol10-sparc-a, powermacg5
 rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
-rpl_ndb_innodb2ndb       : Bug#29549 rpl_ndb_myisam2ndb,rpl_ndb_innodb2ndb failed on Solaris for pack_length issue
-rpl_ndb_myisam2ndb       : Bug#29549 rpl_ndb_myisam2ndb,rpl_ndb_innodb2ndb failed on Solaris for pack_length issue
 rpl_ndb_ddl              : BUG#28798 2007-05-31  lars  Valgrind failure in NDB
 rpl_ndb_mix_innodb       : BUG#28123 rpl_ndb_mix_innodb.test casue slave to core on sol10-sparc-a
 rpl_ndb_ctype_ucs2_def   : BUG#27404 util thd mysql_parse sig11 when mysqld default multibyte charset
