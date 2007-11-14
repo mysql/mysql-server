@@ -312,9 +312,9 @@ sub mtr_report_stats ($) {
                 /Slave SQL:.*(?:Error_code: \d+|Query:.*)/ or
 		/Sort aborted/ or
 		/Time-out in NDB/ or
-		/Warning:\s+One can only use the --user.*root/ or
-		/Warning:\s+Setting lower_case_table_names=2/ or
-		/Warning:\s+Table:.* on (delete|rename)/ or
+		/One can only use the --user.*root/ or
+		/Setting lower_case_table_names=2/ or
+		/Table:.* on (delete|rename)/ or
 		/You have an error in your SQL syntax/ or
 		/deprecated/ or
 		/description of time zone/ or
