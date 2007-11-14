@@ -135,6 +135,7 @@ void udf_init()
   initialized = 1;
   new_thd->thread_stack= (char*) &new_thd;
   new_thd->store_globals();
+  lex_start(new_thd);
   new_thd->set_db(db, sizeof(db)-1);
 
   bzero((uchar*) &tables,sizeof(tables));
