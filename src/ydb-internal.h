@@ -13,17 +13,14 @@ struct db_header {
 
 struct __toku_db_internal {
     int freed;
-    int (*bt_compare)(DB *, const DBT *, const DBT *);
     struct db_header *header;
     int database_number; // -1 if it is the single unnamed database.  Nonnengative number otherwise.
-    DB_ENV *env;
     char *full_fname;
     char *database_name;
     //int fd;
     u_int32_t open_flags;
     int open_mode;
     BRT brt;
-    int is_db_dup;
-    unsigned long long fileid;
+    FILENUM fileid;
 };
 #endif
