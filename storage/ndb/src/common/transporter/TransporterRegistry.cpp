@@ -765,7 +765,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     Uint32 node_id= t->getRemoteNodeId();
     
     // If the transporter is connected
-    if (t->isConnected() && is_connected(node_id)) {
+    if (is_connected(node_id) && t->isConnected()) {
       
       const NDB_SOCKET_TYPE socket = t->getSocket();
       // Find the highest socket value. It will be used by select
