@@ -12,13 +12,13 @@
 u_int32_t crc=0;
 u_int32_t actual_len=0;
 
-unsigned char get_char(void) {
+int get_char(void) {
     int v = getchar();
-    assert(v!=EOF);
+    if (v==EOF) return v;
     unsigned char c = v;
     crc=crc32(crc, &c, 1);
     actual_len++;
-    return c;
+    return v;
 }
 
 u_int32_t get_uint32 (void) {
@@ -98,7 +98,7 @@ int main (int argc, char *argv[]) {
 	count = atoi(argv[1]);
     }
     for (i=0;
-	 i!=count && (crc=0,cmd=get_char())!=EOF;
+	 i!=count && (crc=0,actual_len=0,cmd=get_char())!=EOF;
 	 i++) {
 	switch (cmd) {
 	case LT_INSERT_WITH_NO_OVERWRITE:
@@ -116,10 +116,14 @@ int main (int argc, char *argv[]) {
     
 	case LT_DELETE:
 	    printf("DELETE:");
+	    transcribe_lsn();
 	    transcribe_txnid();
+	    transcribe_fileid();
 	    transcribe_diskoff();
 	    transcribe_key_or_data("key");
 	    transcribe_key_or_data("data");
+	    transcribe_crc32();
+	    transcribe_len();
 	    printf("\n");
 	    break;
 
