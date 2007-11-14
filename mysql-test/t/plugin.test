@@ -24,3 +24,18 @@ UNINSTALL PLUGIN EXAMPLE;
 
 --error 1305
 UNINSTALL PLUGIN non_exist;
+
+
+--echo #
+--echo # Bug#32034: check_func_enum() does not check correct values but set it
+--echo #            to impossible int val
+--echo #
+
+INSTALL PLUGIN example SONAME 'ha_example.so';
+
+SET GLOBAL example_enum_var= e1;
+SET GLOBAL example_enum_var= e2;
+--error 1231
+SET GLOBAL example_enum_var= impossible;
+
+UNINSTALL PLUGIN example;

@@ -1,0 +1,89 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+--echo #
+--echo # Bug#31663 FIELDS TERMINATED BY special character
+--echo #
+
+CREATE TABLE t1 (i1 int, i2 int, c1 VARCHAR(256), c2 VARCHAR(256));
+INSERT INTO t1 VALUES (101, 202, '-r-', '=raker=');
+
+--let $fields=*
+--let $clauses=FIELDS TERMINATED BY 'raker'
+--echo # $clauses, warning:
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT $fields INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' $clauses FROM t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT LOAD_FILE('$MYSQLTEST_VARDIR/tmp/bug31663.txt')
+--eval CREATE TABLE t2 SELECT $fields FROM t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 $clauses
+--eval SELECT $fields FROM t2
+--remove_file $MYSQLTEST_VARDIR/tmp/bug31663.txt
+DROP TABLE t2;
+
+--let $fields=i1, i2
+--let $clauses=FIELDS TERMINATED BY 'r'
+--echo # Only numeric fields, $clauses, no warnings:
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT $fields INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' $clauses FROM t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT LOAD_FILE('$MYSQLTEST_VARDIR/tmp/bug31663.txt')
+--eval CREATE TABLE t2 SELECT $fields FROM t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 $clauses
+--eval SELECT $fields FROM t2
+--remove_file $MYSQLTEST_VARDIR/tmp/bug31663.txt
+DROP TABLE t2;
+
+--let $fields=*
+--let $clauses=FIELDS TERMINATED BY '0'
+--echo # $clauses, warning:
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT $fields INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' $clauses FROM t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT LOAD_FILE('$MYSQLTEST_VARDIR/tmp/bug31663.txt')
+--eval CREATE TABLE t2 SELECT $fields FROM t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 $clauses
+--eval SELECT $fields FROM t2
+--remove_file $MYSQLTEST_VARDIR/tmp/bug31663.txt
+DROP TABLE t2;
+
+--let $fields=*
+--let $clauses=FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0'
+--echo # $clauses, warning:
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT $fields INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' $clauses FROM t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT LOAD_FILE('$MYSQLTEST_VARDIR/tmp/bug31663.txt')
+--eval CREATE TABLE t2 SELECT $fields FROM t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 $clauses
+--eval SELECT $fields FROM t2
+--remove_file $MYSQLTEST_VARDIR/tmp/bug31663.txt
+DROP TABLE t2;
+
+--let $fields=c1, c2
+--let $clauses=FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0'
+--echo # Only string fields, $clauses, no warnings:
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT $fields INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' $clauses FROM t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT LOAD_FILE('$MYSQLTEST_VARDIR/tmp/bug31663.txt')
+--eval CREATE TABLE t2 SELECT $fields FROM t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 $clauses
+--eval SELECT $fields FROM t2
+--remove_file $MYSQLTEST_VARDIR/tmp/bug31663.txt
+DROP TABLE t2;
+
+DROP TABLE t1;
+
+--echo # End of 5.0 tests.

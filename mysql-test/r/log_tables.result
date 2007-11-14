@@ -50,7 +50,7 @@ general_log	CREATE TABLE `general_log` (
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 show fields from mysql.general_log;
 Field	Type	Null	Key	Default	Extra
-event_time	timestamp	NO		CURRENT_TIMESTAMP	
+event_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 user_host	mediumtext	NO		NULL	
 thread_id	int(11)	NO		NULL	
 server_id	int(11)	NO		NULL	
@@ -73,7 +73,7 @@ slow_log	CREATE TABLE `slow_log` (
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show fields from mysql.slow_log;
 Field	Type	Null	Key	Default	Extra
-start_time	timestamp	NO		CURRENT_TIMESTAMP	
+start_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 user_host	mediumtext	NO		NULL	
 query_time	time	NO		NULL	
 lock_time	time	NO		NULL	
@@ -820,3 +820,31 @@ Execute	select '000 001 002 003 004 005 006 007 008 009010 011 012 013 014 015 0
 Query	set global general_log = off
 deallocate prepare long_query;
 set global general_log = @old_general_log_state;
+SET @old_slow_log_state = @@global.slow_query_log;
+SET SESSION long_query_time = 0;
+SET GLOBAL slow_query_log = ON;
+FLUSH LOGS;
+TRUNCATE TABLE mysql.slow_log;
+CREATE TABLE t1 (f1 SERIAL,f2 INT, f3 INT, PRIMARY KEY(f1), KEY(f2));
+INSERT INTO t1 VALUES (1,1,1);
+INSERT INTO t1 VALUES (2,2,2);
+INSERT INTO t1 VALUES (3,3,3);
+INSERT INTO t1 VALUES (4,4,4);
+SELECT SQL_NO_CACHE 'Bug#31700 - SCAN',f1,f2,f3 FROM t1 WHERE f3=4;
+Bug#31700 - SCAN	f1	f2	f3
+Bug#31700 - SCAN	4	4	4
+SELECT SQL_NO_CACHE 'Bug#31700 - KEY', f1,f2,f3 FROM t1 WHERE f2=3;
+Bug#31700 - KEY	f1	f2	f3
+Bug#31700 - KEY	3	3	3
+SELECT SQL_NO_CACHE 'Bug#31700 - PK',  f1,f2,f3 FROM t1 WHERE f1=2;
+Bug#31700 - PK	f1	f2	f3
+Bug#31700 - PK	2	2	2
+SELECT start_time, rows_examined, rows_sent, sql_text FROM mysql.slow_log WHERE sql_text LIKE '%Bug#31700%' ORDER BY start_time;
+start_time	rows_examined	rows_sent	sql_text
+TIMESTAMP	4	1	SELECT SQL_NO_CACHE 'Bug#31700 - SCAN',f1,f2,f3 FROM t1 WHERE f3=4
+TIMESTAMP	1	1	SELECT SQL_NO_CACHE 'Bug#31700 - KEY', f1,f2,f3 FROM t1 WHERE f2=3
+TIMESTAMP	1	1	SELECT SQL_NO_CACHE 'Bug#31700 - PK',  f1,f2,f3 FROM t1 WHERE f1=2
+DROP TABLE t1;
+TRUNCATE TABLE mysql.slow_log;
+SET GLOBAL slow_query_log = @old_slow_log_state;
+SET SESSION long_query_time =@old_long_query_time;
