@@ -31,8 +31,8 @@ typedef struct st_queue {
   void *first_cmp_arg;
   uint elements;
   uint max_elements;
-  uint offset_to_key;			/* compare is done on element+offset */
-  int max_at_top;			/* Set if queue_top gives max */
+  uint offset_to_key;	/* compare is done on element+offset */
+  int max_at_top;	/* Normally 1, set to -1 if queue_top gives max */
   int  (*compare)(void *, uchar *,uchar *);
   uint auto_extent;
 } QUEUE;
@@ -43,7 +43,7 @@ typedef struct st_queue {
 #define queue_replaced(queue) _downheap(queue,1)
 #define queue_set_cmp_arg(queue, set_arg) (queue)->first_cmp_arg= set_arg
 #define queue_set_max_at_top(queue, set_arg) \
-  (queue)->max_at_top= set_arg ? (-1 ^ 1) : 0
+  (queue)->max_at_top= set_arg ? -1 : 1
 typedef int (*queue_compare)(void *,uchar *, uchar *);
 
 int init_queue(QUEUE *queue,uint max_elements,uint offset_to_key,
