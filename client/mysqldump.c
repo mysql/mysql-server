@@ -1040,8 +1040,10 @@ static int fetch_db_collation(const char *db_name,
   char query[QUERY_LENGTH];
   MYSQL_RES *db_cl_res;
   MYSQL_ROW db_cl_row;
+  char quoted_database_buf[NAME_LEN*2+3];
+  char *qdatabase= quote_name(db_name, quoted_database_buf, 1);
 
-  my_snprintf(query, sizeof (query), "use %s", db_name);
+  my_snprintf(query, sizeof (query), "use %s", qdatabase);
 
   if (mysql_query_with_error_report(mysql, NULL, query))
     return 1;

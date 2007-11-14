@@ -1945,7 +1945,7 @@ static int check_func_enum(THD *thd, struct st_mysql_sys_var *var,
     length= sizeof(buff);
     if (!(str= value->val_str(value, buff, &length)))
       goto err;
-    if ((result= find_type(typelib, str, length, 1)-1) < 0)
+    if ((result= (long)find_type(typelib, str, length, 1)-1) < 0)
     {
       strvalue= str;
       goto err;
