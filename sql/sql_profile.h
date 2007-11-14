@@ -54,24 +54,7 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 #define PROFILE_ALL          (~0)
 
 
-#ifndef ENABLED_PROFILING
-
-#  define thd_proc_info(thd, msg) do { (thd)->proc_info= (msg); } while (0)
-
-#else
-
-#  define thd_proc_info(thd, msg)                                             \
-  do {                                                                        \
-    if (unlikely(((thd)->options & OPTION_PROFILING) != 0))                   \
-    {                                                                         \
-      (thd)->profiling.status_change((msg), __func__, __FILE__, __LINE__);    \
-    }                                                                         \
-    else                                                                      \
-    {                                                                         \
-      (thd)->proc_info= (msg);                                                \
-    }                                                                         \
-  } while (0)
-
+#if defined(ENABLED_PROFILING)
 #include "mysql_priv.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
@@ -79,7 +62,7 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 #endif
 
 
-class PROFILE_ENTRY;
+class PROF_MEASUREMENT;
 class QUERY_PROFILE;
 class PROFILING;
 
@@ -193,7 +176,7 @@ public:
 /**
   A single entry in a single profile.
 */
-class PROFILE_ENTRY
+class PROF_MEASUREMENT
 {
 private:
   friend class QUERY_PROFILE;
@@ -212,22 +195,22 @@ private:
   double time_usecs;
   char *allocated_status_memory;
 
-  void set_status(const char *status_arg, const char *function_arg, 
+  void set_label(const char *status_arg, const char *function_arg, 
                   const char *file_arg, unsigned int line_arg);
   void clean_up();
   
-  PROFILE_ENTRY();
-  PROFILE_ENTRY(QUERY_PROFILE *profile_arg, const char *status_arg);
-  PROFILE_ENTRY(QUERY_PROFILE *profile_arg, const char *status_arg,
+  PROF_MEASUREMENT();
+  PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char *status_arg);
+  PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char *status_arg,
                 const char *function_arg,
                 const char *file_arg, unsigned int line_arg);
-  ~PROFILE_ENTRY();
+  ~PROF_MEASUREMENT();
   void collect();
 };
 
 
 /**
-  The full profile for a single query, and includes multiple PROFILE_ENTRY
+  The full profile for a single query, and includes multiple PROF_MEASUREMENT
   objects.
 */
 class QUERY_PROFILE
@@ -237,21 +220,21 @@ private:
 
   PROFILING *profiling;
 
-  query_id_t server_query_id;           /* Global id. */
   query_id_t profiling_query_id;        /* Session-specific id. */
   char *query_source;
-  PROFILE_ENTRY profile_start;
-  PROFILE_ENTRY *profile_end;
-  Queue<PROFILE_ENTRY> entries;
+
+  PROF_MEASUREMENT *profile_start;
+  PROF_MEASUREMENT *profile_end;
+  Queue<PROF_MEASUREMENT> entries;
 
 
-  QUERY_PROFILE(PROFILING *profiling_arg, char *query_source_arg, uint query_length_arg);
+  QUERY_PROFILE(PROFILING *profiling_arg, const char *status_arg);
   ~QUERY_PROFILE();
 
   void set_query_source(char *query_source_arg, uint query_length_arg);
 
   /* Add a profile status change to the current profile. */
-  void status(const char *status_arg,
+  void new_status(const char *status_arg,
               const char *function_arg,
               const char *file_arg, unsigned int line_arg);
 
@@ -269,7 +252,7 @@ private:
 class PROFILING
 {
 private:
-  friend class PROFILE_ENTRY;
+  friend class PROF_MEASUREMENT;
   friend class QUERY_PROFILE;
 
   /* 
@@ -291,39 +274,12 @@ public:
   ~PROFILING();
   void set_query_source(char *query_source_arg, uint query_length_arg);
 
-  /** Reset the current profile and state of profiling for the next query. */
-  void reset();
+  void start_new_query(const char *initial_state= "starting");
 
-  /**
-    Do we intend to keep the currently collected profile?
-    
-    We don't keep profiles for some commands, such as SHOW PROFILE, SHOW
-    PROFILES, and some SQLCOM commands which aren't useful to profile.  The
-    keep() and discard() functions can be called many times, only the final
-    setting when the query finishes is used to decide whether to discard the
-    profile.
-    
-    The default is to keep the profile for all queries.
-  */
-  inline void keep()    { keeping= true; };
+  void discard_current_query();
 
-  /**
-    Do we intend to keep the currently collected profile?
-    @see keep()
-  */
-  inline void discard() { keeping= false; };
+  void finish_current_query();
 
-  /** 
-    Stash this profile in the profile history and remove the oldest
-    profile if the history queue is full, as defined by the 
-    profiling_history_size system variable.
-  */
-  void store();
-
-  /**
-    Called with every update of the status via thd_proc_info() , and is
-    therefore the main hook into the profiling code.
-  */
   void status_change(const char *status_arg,
                      const char *function_arg,
                      const char *file_arg, unsigned int line_arg);

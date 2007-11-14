@@ -495,6 +495,8 @@ enum enum_parsing_place
 struct st_table;
 class THD;
 
+#define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
+
 /* Struct to handle simple linked lists */
 
 typedef struct st_sql_list {
@@ -579,6 +581,16 @@ class Comp_creator;
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #include "item.h"
 extern my_decimal decimal_zero;
+
+/**    
+  The meat of thd_proc_info(THD*, char*), a macro that packs the last
+  three calling-info parameters. 
+*/
+extern "C"
+const char *set_thd_proc_info(THD *thd, const char *info, 
+                              const char *calling_func,
+                              const char *calling_file,
+                              const unsigned int calling_line);
 
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -977,6 +989,8 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
+
+bool schema_table_store_record(THD *thd, TABLE *table);
 
 #define is_schema_db(X) \
   !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))

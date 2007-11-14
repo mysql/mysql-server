@@ -1313,6 +1313,10 @@ pthread_handler_t handle_bootstrap(void *arg)
 				  thd->db_length+1+QUERY_CACHE_FLAGS_SIZE);
     thd->query[length] = '\0';
     DBUG_PRINT("query",("%-.4096s",thd->query));
+#if defined(ENABLED_PROFILING)
+    thd->profiling.set_query_source(thd->query, length);
+#endif
+
     /*
       We don't need to obtain LOCK_thread_count here because in bootstrap
       mode we have only one thread.
@@ -1522,6 +1526,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
 
 bool do_command(THD *thd)
 {
+  bool return_value;
   char *packet= 0;
   ulong packet_length;
   NET *net= &thd->net;
@@ -1545,7 +1550,12 @@ bool do_command(THD *thd)
   thd->clear_error();				// Clear error message
 
   net_new_transaction(net);
-  if ((packet_length=my_net_read(net)) == packet_error)
+
+  packet_length= my_net_read(net);
+#if defined(ENABLED_PROFILING)
+  thd->profiling.start_new_query();
+#endif
+  if (packet_length == packet_error)
   {
     DBUG_PRINT("info",("Got error %d reading command from socket %s",
 		       net->error,
@@ -1554,11 +1564,13 @@ bool do_command(THD *thd)
     if (net->error != 3)
     {
       statistic_increment(aborted_threads,&LOCK_status);
-      DBUG_RETURN(TRUE);			// We have to close it.
+      return_value= TRUE;			// We have to close it.
+      goto out;
     }
     net_send_error(thd, net->last_errno, NullS);
     net->error= 0;
-    DBUG_RETURN(FALSE);
+    return_value= FALSE;
+    goto out;
   }
   else
   {
@@ -1583,7 +1595,13 @@ bool do_command(THD *thd)
     command == packet[0] == COM_SLEEP).
     In dispatch_command packet[packet_length] points beyond the end of packet.
   */
-  DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
+  return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length));
+
+out:
+#if defined(ENABLED_PROFILING)
+  thd->profiling.finish_current_query();
+#endif
+  DBUG_RETURN(return_value);
 }
 #endif  /* EMBEDDED_LIBRARY */
 
@@ -1805,6 +1823,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     mysql_log.write(thd,command, format, thd->query_length, thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
+#if defined(ENABLED_PROFILING)
+    thd->profiling.set_query_source(thd->query, thd->query_length);
+#endif
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
@@ -1831,6 +1852,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         next_packet++;
         length--;
       }
+
+#if defined(ENABLED_PROFILING)
+      thd->profiling.finish_current_query();
+      thd->profiling.start_new_query("continuing");
+      thd->profiling.set_query_source(next_packet, length);
+#endif
+
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_length= length;
       thd->query= next_packet;
@@ -2325,7 +2353,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       wish to have SHOW commands show up in profiling.
     */
 #ifdef ENABLED_PROFILING
-    thd->profiling.discard();
+    thd->profiling.discard_current_query();
 #endif
     break;
   case SCH_OPEN_TABLES:
@@ -2762,8 +2790,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_PROFILES:
   {
 #ifdef ENABLED_PROFILING
-    thd->profiling.store();
-    thd->profiling.discard();
+    thd->profiling.discard_current_query();
     res= thd->profiling.show_profiles();
     if (res)
       goto error;
@@ -5887,9 +5914,6 @@ void mysql_reset_thd_for_next_command(THD *thd)
     thd->total_warn_count=0;			// Warnings for this query
     thd->rand_used= 0;
     thd->sent_row_count= thd->examined_row_count= 0;
-#ifdef ENABLED_PROFILING
-    thd->profiling.reset();
-#endif
   }
   DBUG_VOID_RETURN;
 }
