@@ -1068,3 +1068,5 @@ include/check_abi
 include/mysql_h.ic
 mysql-test/r/blackhole.log
 mysql-test/lib/init_db.sql
+libmysql_r/client_settings.h
+libmysqld/ha_blackhole.cc
