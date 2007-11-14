@@ -6813,23 +6813,35 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   if (order)
   {
-    from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
-					      MYF(MY_FAE | MY_ZEROFILL));
-    bzero((char*) &tables,sizeof(tables));
-    tables.table= from;
-    tables.alias= tables.table_name= from->s->table_name.str;
-    tables.db=    from->s->db.str;
-    error=1;
+    if (to->s->primary_key != MAX_KEY && to->file->primary_key_is_clustered())
+    {
+      char warn_buff[MYSQL_ERRMSG_SIZE];
+      my_snprintf(warn_buff, sizeof(warn_buff), 
+                  "ORDER BY ignored as there is a user-defined clustered index"
+                  " in the table '%-.192s'", from->s->table_name.str);
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                   warn_buff);
+    }
+    else
+    {
+      from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+                                                MYF(MY_FAE | MY_ZEROFILL));
+      bzero((char *) &tables, sizeof(tables));
+      tables.table= from;
+      tables.alias= tables.table_name= from->s->table_name.str;
+      tables.db= from->s->db.str;
+      error= 1;
 
-    if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
-	setup_order(thd, thd->lex->select_lex.ref_pointer_array,
-		    &tables, fields, all_fields, order) ||
-	!(sortorder=make_unireg_sortorder(order, &length, NULL)) ||
-	(from->sort.found_records = filesort(thd, from, sortorder, length,
-					     (SQL_SELECT *) 0, HA_POS_ERROR, 1,
-					     &examined_rows)) ==
-	HA_POS_ERROR)
-      goto err;
+      if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
+          setup_order(thd, thd->lex->select_lex.ref_pointer_array,
+                      &tables, fields, all_fields, order) ||
+          !(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
+          (from->sort.found_records= filesort(thd, from, sortorder, length,
+                                              (SQL_SELECT *) 0, HA_POS_ERROR,
+                                              1, &examined_rows)) ==
+          HA_POS_ERROR)
+        goto err;
+    }
   };
 
   /* Tell handler that we have values for all columns in the to table */
