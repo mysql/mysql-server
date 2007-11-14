@@ -1329,6 +1329,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   }
   new_thd->thread_stack= (char*) &tables;
   new_thd->store_globals();
+  lex_start(new_thd);
   new_thd->db= my_strdup("mysql", MYF(0));
   new_thd->db_length= 5;
   bzero((uchar*)&tables, sizeof(tables));

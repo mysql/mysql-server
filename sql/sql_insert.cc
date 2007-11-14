@@ -2267,7 +2267,12 @@ pthread_handler_t handle_delayed_insert(void *arg)
     goto err;
   }
 
-  /* open table */
+  /*
+    Open table requires an initialized lex in case the table is
+    partitioned. The .frm file contains a partial SQL string which is
+    parsed using a lex, that depends on initialized thd->lex.
+  */
+  lex_start(thd);
   if (!(di->table=open_ltable(thd, &di->table_list, TL_WRITE_DELAYED, 0)))
   {
     thd->fatal_error();				// Abort waiting inserts
