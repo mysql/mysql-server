@@ -1818,6 +1818,14 @@ ALTER TABLE t1 ENABLE KEYS;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+# Enable keys with parallel repair
+SET @@myisam_repair_threads=2;
+ALTER TABLE t1 DISABLE KEYS;
+ALTER TABLE t1 ENABLE KEYS;
+SET @@myisam_repair_threads=1;
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 DROP TABLE t1;
 End of 5.0 tests
 create table t1 (a int not null, key `a` (a) key_block_size=1024);
