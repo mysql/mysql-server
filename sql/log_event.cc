@@ -1436,11 +1436,12 @@ get_str_len_and_pointer(const Log_event::Byte **src,
   if (length > 0)
   {
     if (*src + length >= end)
-      return *src + length - end;           // Number of bytes missing
+      return *src + length - end + 1;       // Number of bytes missing
     *dst= (char *)*src + 1;                    // Will be copied later
   }
   *len= length;
-  (*src)+= *len + 1;
+  *src+= length + 1;
+  return 0;
 }
 
 static void copy_str_and_move(const char **src, 
@@ -1454,6 +1455,27 @@ static void copy_str_and_move(const char **src,
 }
 
 
+#ifndef DBUG_OFF
+static char const *
+code_name(int code)
+{
+  static char buf[255];
+  switch (code) {
+  case Q_FLAGS2_CODE: return "Q_FLAGS2_CODE";
+  case Q_SQL_MODE_CODE: return "Q_SQL_MODE_CODE";
+  case Q_CATALOG_CODE: return "Q_CATALOG_CODE";
+  case Q_AUTO_INCREMENT: return "Q_AUTO_INCREMENT";
+  case Q_CHARSET_CODE: return "Q_CHARSET_CODE";
+  case Q_TIME_ZONE_CODE: return "Q_TIME_ZONE_CODE";
+  case Q_CATALOG_NZ_CODE: return "Q_CATALOG_NZ_CODE";
+  case Q_LC_TIME_NAMES_CODE: return "Q_LC_TIME_NAMES_CODE";
+  case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
+  }
+  sprintf(buf, "CODE#%d", code);
+  return buf;
+}
+#endif
+
 /**
    Macro to check that there is enough space to read from memory.
 
@@ -1461,13 +1483,15 @@ static void copy_str_and_move(const char **src,
    @param END End of memory
    @param CNT Number of bytes that should be read.
  */
-#define CHECK_SPACE(PTR,END,CNT)         \
-  do {                                   \
-    DBUG_ASSERT((PTR) + (CNT) <= (END)); \
-    if ((PTR) + (CNT) > (END)) {         \
-      query= 0;                          \
-      DBUG_VOID_RETURN;                  \
-    }                                    \
+#define CHECK_SPACE(PTR,END,CNT)                      \
+  do {                                                \
+    DBUG_PRINT("info", ("Read %s", code_name(pos[-1]))); \
+    DBUG_ASSERT((PTR) + (CNT) <= (END));              \
+    if ((PTR) + (CNT) > (END)) {                      \
+      DBUG_PRINT("info", ("query= 0"));               \
+      query= 0;                                       \
+      DBUG_VOID_RETURN;                               \
+    }                                                 \
   } while (0)
 
 /*
@@ -1527,8 +1551,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       be even bigger, but this will suffice to catch most corruption
       errors that can lead to a crash.
     */
-    if (status_vars_len >= min(data_len + 1, MAX_SIZE_LOG_EVENT_STATUS))
+    if (status_vars_len > min(data_len, MAX_SIZE_LOG_EVENT_STATUS))
     {
+      DBUG_PRINT("info", ("status_vars_len (%u) > data_len (%lu); query= 0",
+                          status_vars_len, data_len));
       query= 0;
       DBUG_VOID_RETURN;
     }
@@ -1571,8 +1597,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       break;
     }
     case Q_CATALOG_NZ_CODE:
+      DBUG_PRINT("info", ("case Q_CATALOG_NZ_CODE; pos: 0x%lx; end: 0x%lx",
+                          (ulong) pos, (ulong) end));
       if (get_str_len_and_pointer(&pos, &catalog, &catalog_len, end))
       {
+        DBUG_PRINT("info", ("query= 0"));
         query= 0;
         DBUG_VOID_RETURN;
       }
@@ -1595,6 +1624,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     {
       if (get_str_len_and_pointer(&pos, &time_zone_str, &time_zone_len, end))
       {
+        DBUG_PRINT("info", ("Q_TIME_ZONE_CODE: query= 0"));
         query= 0;
         DBUG_VOID_RETURN;
       }
@@ -2124,6 +2154,7 @@ end:
   */
   thd->catalog= 0;
   thd->set_db(NULL, 0);                 /* will free the current database */
+  DBUG_PRINT("info", ("end: query= 0"));
   thd->query= 0;			// just to be sure
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
