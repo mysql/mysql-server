@@ -316,8 +316,13 @@ SELECT * FROM t2;
 
 # 2. Check that the trigger is non-SUID on the slave;
 # 3. Check that the trigger can be activated on the slave.
+#
+# We disable warnings here since it affects the result file in
+# different ways depending on the mode being used.
 
+disable_warnings;
 INSERT INTO t1 VALUES(2);
+enable_warnings;
 
 SELECT * FROM t1;
 SELECT * FROM t2;

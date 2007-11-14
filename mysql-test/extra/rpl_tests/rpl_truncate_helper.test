@@ -1,17 +1,16 @@
-
---disable_query_log
---disable_warnings
 connection slave;
 STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
 connection master;
+--disable_warnings
 DROP TABLE IF EXISTS t1;
-RESET MASTER;
+--enable_warnings
 connection slave;
+--disable_warnings
 DROP TABLE IF EXISTS t1;
+--enable_warnings
 RESET SLAVE;
 START SLAVE;
---enable_warnings
---enable_query_log
 
 --echo **** On Master ****
 connection master;
@@ -38,3 +37,6 @@ connection master;
 DROP TABLE t1;
 let $SERVER_VERSION=`select version()`;
 source include/show_binlog_events.inc;
+
+connection master;
+RESET MASTER;
