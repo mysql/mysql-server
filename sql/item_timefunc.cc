@@ -2586,6 +2586,13 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 }
 
 
+bool Item_date_typecast::get_time(MYSQL_TIME *ltime)
+{
+  bzero((char *)ltime, sizeof(MYSQL_TIME));
+  return args[0]->null_value;
+}
+
+
 String *Item_date_typecast::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);

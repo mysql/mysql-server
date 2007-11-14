@@ -179,6 +179,42 @@ SET GLOBAL READ_ONLY = OFF;
 SET GLOBAL general_log = @old_general_log_state;
 SET GLOBAL slow_query_log = @old_slow_log_state;
 
+#
+# Bug #29131: SHOW VARIABLES reports variable 'log' but SET doesn't recognize it
+#
+
+SET @old_general_log_state = @@global.general_log;
+SET @old_slow_log_state = @@global.slow_query_log;
+
+SHOW VARIABLES LIKE 'general_log';
+SHOW VARIABLES LIKE 'log';
+SELECT @@general_log, @@log;
+SET GLOBAL log = 0;
+SHOW VARIABLES LIKE 'general_log';
+SHOW VARIABLES LIKE 'log';
+SELECT @@general_log, @@log;
+SET GLOBAL general_log = 1;
+SHOW VARIABLES LIKE 'general_log';
+SHOW VARIABLES LIKE 'log';
+SELECT @@general_log, @@log;
+
+SHOW VARIABLES LIKE 'slow_query_log';
+SHOW VARIABLES LIKE 'log_slow_queries';
+SELECT @@slow_query_log, @@log_slow_queries;
+SET GLOBAL log_slow_queries = 0;
+SHOW VARIABLES LIKE 'slow_query_log';
+SHOW VARIABLES LIKE 'log_slow_queries';
+SELECT @@slow_query_log, @@log_slow_queries;
+SET GLOBAL slow_query_log = 1;
+SHOW VARIABLES LIKE 'slow_query_log';
+SHOW VARIABLES LIKE 'log_slow_queries';
+SELECT @@slow_query_log, @@log_slow_queries;
+
+SET GLOBAL general_log = @old_general_log_state;
+SET GLOBAL slow_query_log = @old_slow_log_state;
+
+--echo End of 5.1 tests
+
 --enable_ps_protocol
 
 #
