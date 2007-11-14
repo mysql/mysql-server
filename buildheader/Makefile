@@ -1,5 +1,5 @@
 CFLAGS = -Wall -W -O2 -Werror -g
-MYSQL_H = -I../../mysql-5.0.27/mysql-5.0.27/bdb/build_unix/
+MYSQL_H = -I../../berkeleydb/db-4.1.25/build_unix/
 runs: runs_mysql runs_installed
 hs: db.h_4_3 db.h_4_1
 # the mysql versions use the header in the mysql distribution.
@@ -35,5 +35,8 @@ clean:
 install_4_1: db.h_4_1
 	cp db.h_4_1 ../include/db.h
 
-# Note: To make the ompile work, you must cd to the ../../mysql-5.0.27/mysql-5.0.27/bdb/build_unix
+# Note: To make the compile work, you must cd to the ../../berkeleydb/db-4.1.25/build_unix
 # and do ../dist/configure
+
+# to build mysql-5.0.27 with berkeley db 4.1.25
+# ./configure --with-berkeley-db=../../berkeleydb/db-4.1.25/build_unix

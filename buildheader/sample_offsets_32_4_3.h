@@ -8,6 +8,7 @@ struct fieldinfo db_btree_stat_fields32[] = {
   {0, 84, 84} /* size of whole struct */
 };
 struct fieldinfo db_env_fields32[] = {
+  {"void *app_private", 44, 4},
   {"int  (*close) (DB_ENV *, u_int32_t)", 276, 4},
   {"void (*err) (const DB_ENV *, int, const char *, ...)", 288, 4},
   {"int  (*open) (DB_ENV *, const char *, u_int32_t, int)", 296, 4},
@@ -41,6 +42,7 @@ struct fieldinfo db_lsn_fields32[] = {
 };
 struct fieldinfo db_fields32[] = {
   {"void *app_private", 16, 4},
+  {"DB_ENV *dbenv", 20, 4},
   {"int (*close) (DB*, u_int32_t)", 272, 4},
   {"int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t)", 276, 4},
   {"int (*del) (DB *, DB_TXN *, DBT *, u_int32_t)", 280, 4},
@@ -50,7 +52,9 @@ struct fieldinfo db_fields32[] = {
   {"int (*put) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)", 372, 4},
   {"int (*remove) (DB *, const char *, const char *, u_int32_t)", 376, 4},
   {"int (*rename) (DB *, const char *, const char *, const char *, u_int32_t)", 380, 4},
+  {"int (*set_dup_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 400, 4},
   {"int (*set_flags) (DB *, u_int32_t)", 424, 4},
+  {"int (*set_pagesize) (DB *, u_int32_t)", 444, 4},
   {"int (*stat) (DB *, void *, u_int32_t)", 452, 4},
   {"int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t)", 468, 4},
   {"int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 476, 4},

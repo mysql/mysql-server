@@ -50,6 +50,7 @@ void print_defines (void) {
     dodefine(DB_LOCK_RANDOM);
 
     dodefine(DB_DUP);
+    dodefine(DB_DUPSORT);
 
     dodefine(DB_NOOVERWRITE);
 
