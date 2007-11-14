@@ -300,6 +300,53 @@ id
 select @@profiling;
 @@profiling
 1
+set session profiling = OFF;
+drop table if exists profile_log;
+Warnings:
+Note	1051	Unknown table 'profile_log'
+create table profile_log (how_many int);
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop procedure if exists p3;
+create procedure p1 () 
+modifies sql data 
+begin 
+set profiling = ON; 
+select 'This p1 should show up in profiling'; 
+insert into profile_log select count(*) from information_schema.profiling; 
+end//
+create procedure p2() 
+deterministic 
+begin 
+set profiling = ON; 
+call p1(); 
+select 'This p2 should show up in profiling'; 
+end//
+create procedure p3 () 
+reads sql data 
+begin 
+set profiling = ON; 
+select 'This p3 should show up in profiling'; 
+show profile; 
+end//
+first call to p1
+call p1;
+select * from profile_log;
+second call to p1
+call p1;
+select * from profile_log;
+third call to p1
+call p1;
+select * from profile_log;
+set session profiling = OFF;
+call p2;
+set session profiling = OFF;
+call p3;
+show profiles;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop procedure if exists p3;
+drop table if exists profile_log;
 set session profiling = ON;
 drop table if exists t2;
 create table t2 (id int not null);

@@ -3622,6 +3622,14 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
 /*
   Create information_schema table using schema_table data
 
+  @note
+    For MYSQL_TYPE_DECIMAL fields only, the field_length member has encoded
+    into it two numbers, based on modulus of base-10 numbers.  In the ones
+    position is the number of decimals.  Tens position is unused.  In the
+    hundreds and thousands position is a two-digit decimal number representing
+    length.  Encode this value with  (decimals*100)+length  , where
+    0<decimals<10 and 0<=length<100 .
+
   SYNOPSIS
     create_schema_table()
     thd	       	          thread handler
@@ -3667,6 +3675,19 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
         DBUG_RETURN(NULL);
       break;
     case MYSQL_TYPE_DECIMAL:
+      if (!(item= new Item_decimal((longlong) fields_info->value, false)))
+      {
+        DBUG_RETURN(0);
+      }
+      item->decimals= fields_info->field_length%10;
+      item->max_length= (fields_info->field_length/100)%100;
+      if (item->unsigned_flag == 0)
+        item->max_length+= 1;
+      if (item->decimals > 0)
+        item->max_length+= 1;
+      item->set_name(fields_info->field_name,
+                     strlen(fields_info->field_name), cs);
+      break;
     case MYSQL_TYPE_STRING:
     default:
       /* Don't let unimplemented types pass through. Could be a grave error. */
