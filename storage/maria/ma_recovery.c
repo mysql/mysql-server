@@ -23,8 +23,9 @@
 #include "maria_def.h"
 #include "ma_recovery.h"
 #include "ma_blockrec.h"
-#include "trnman.h"
 #include "ma_checkpoint.h"
+#include "trnman.h"
+#include "ma_key_recover.h"
 
 struct st_trn_for_recovery /* used only in the REDO phase */
 {
@@ -81,14 +82,23 @@ prototype_redo_exec_hook(REDO_PURGE_ROW_TAIL);
 prototype_redo_exec_hook(REDO_FREE_HEAD_OR_TAIL);
 prototype_redo_exec_hook(REDO_FREE_BLOCKS);
 prototype_redo_exec_hook(REDO_DELETE_ALL);
+prototype_redo_exec_hook(REDO_INDEX);
+prototype_redo_exec_hook(REDO_INDEX_NEW_PAGE);
+prototype_redo_exec_hook(REDO_INDEX_FREE_PAGE);
 prototype_redo_exec_hook(UNDO_ROW_INSERT);
 prototype_redo_exec_hook(UNDO_ROW_DELETE);
 prototype_redo_exec_hook(UNDO_ROW_UPDATE);
+prototype_redo_exec_hook(UNDO_KEY_INSERT);
+prototype_redo_exec_hook(UNDO_KEY_DELETE);
+prototype_redo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT);
 prototype_redo_exec_hook(COMMIT);
 prototype_redo_exec_hook(CLR_END);
 prototype_undo_exec_hook(UNDO_ROW_INSERT);
 prototype_undo_exec_hook(UNDO_ROW_DELETE);
 prototype_undo_exec_hook(UNDO_ROW_UPDATE);
+prototype_undo_exec_hook(UNDO_KEY_INSERT);
+prototype_undo_exec_hook(UNDO_KEY_DELETE);
+prototype_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT);
 
 static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply);
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase);
@@ -879,7 +889,7 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
 {
   char *name;
   int error= 1;
-  MARIA_HA *info= NULL;
+  MARIA_HA *info;
   if (skip_DDLs)
   {
     tprint(tracef, "we skip DDLs\n");
@@ -892,7 +902,7 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
       rec->record_length)
   {
     tprint(tracef, "Failed to read record\n");
-    goto end;
+    return 1;
   }
   name= log_record_buffer.str;
   tprint(tracef, "Table '%s'", name);
@@ -1005,6 +1015,7 @@ static int new_table(uint16 sid, const char *name,
   */
   int error= 1;
   MARIA_HA *info;
+  MARIA_SHARE *share;
 
   checkpoint_useful= TRUE;
   if ((name == NULL) || (name[0] == 0))
@@ -1032,7 +1043,7 @@ static int new_table(uint16 sid, const char *name,
     tprint(tracef, "Table is crashed, can't apply log records to it\n");
     goto end;
   }
-  MARIA_SHARE *share= info->s;
+  share= info->s;
   /* check that we're not already using it */
   if (share->reopen != 1)
   {
@@ -1320,6 +1331,75 @@ end:
 }
 
 
+prototype_redo_exec_hook(REDO_INDEX)
+{
+  int error= 1;
+  MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
+  if (info == NULL)
+    return 0;
+  enlarge_buffer(rec);
+
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+       rec->record_length)
+  {
+    tprint(tracef, "Failed to read record\n");
+    goto end;
+  }
+
+  if (_ma_apply_redo_index(info, current_group_end_lsn,
+                           log_record_buffer.str + FILEID_STORE_SIZE,
+                           rec->record_length - FILEID_STORE_SIZE))
+    goto end;
+  error= 0;
+end:
+  return error;
+}
+
+prototype_redo_exec_hook(REDO_INDEX_NEW_PAGE)
+{
+  int error= 1;
+  MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
+  if (info == NULL)
+    return 0;
+  enlarge_buffer(rec);
+
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+       rec->record_length)
+  {
+    tprint(tracef, "Failed to read record\n");
+    goto end;
+  }
+
+  if (_ma_apply_redo_index_new_page(info, current_group_end_lsn,
+                                    log_record_buffer.str + FILEID_STORE_SIZE,
+                                    rec->record_length - FILEID_STORE_SIZE))
+    goto end;
+  error= 0;
+end:
+  return error;
+}
+
+
+prototype_redo_exec_hook(REDO_INDEX_FREE_PAGE)
+{
+  int error= 1;
+  MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
+  if (info == NULL)
+    return 0;
+
+  if (_ma_apply_redo_index_free_page(info, current_group_end_lsn,
+                                     rec->header + FILEID_STORE_SIZE))
+    goto end;
+  error= 0;
+end:
+  return error;
+}
+
+
 #define set_undo_lsn_for_active_trans(TRID, LSN) do {  \
     all_active_trans[TRID].undo_lsn= LSN;                            \
     if (all_active_trans[TRID].first_undo_lsn == LSN_IMPOSSIBLE)   \
@@ -1328,9 +1408,11 @@ end:
 prototype_redo_exec_hook(UNDO_ROW_INSERT)
 {
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  MARIA_SHARE *share;
+
   if (info == NULL)
     return 0;
-  MARIA_SHARE *share= info->s;
+  share= info->s;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
@@ -1353,8 +1435,7 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
        @todo some bits below will rather be set when executing UNDOs related
        to keys
     */
-    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-      STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
   return 0;
@@ -1364,9 +1445,11 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
 prototype_redo_exec_hook(UNDO_ROW_DELETE)
 {
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  MARIA_SHARE *share;
+
   if (info == NULL)
     return 0;
-  MARIA_SHARE *share= info->s;
+  share= info->s;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
@@ -1385,8 +1468,7 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-      STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
   return 0;
@@ -1396,9 +1478,10 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
 prototype_redo_exec_hook(UNDO_ROW_UPDATE)
 {
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  MARIA_SHARE *share;
   if (info == NULL)
     return 0;
-  MARIA_SHARE *share= info->s;
+  share= info->s;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
@@ -1415,8 +1498,41 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-      STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+  }
+  return 0;
+}
+
+prototype_redo_exec_hook(UNDO_KEY_INSERT)
+{
+  set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  return 0;
+}
+
+prototype_redo_exec_hook(UNDO_KEY_DELETE)
+{
+  set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  return 0;
+}
+
+prototype_redo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT)
+{
+  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  MARIA_SHARE *share;
+  if (info == NULL)
+    return 0;
+  share= info->s;
+  set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
+  {
+    uint key_nr;
+    my_off_t page;
+    page=  page_korr(rec->header +  LSN_STORE_SIZE + FILEID_STORE_SIZE);
+    key_nr= key_nr_korr(rec->header + LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                        PAGE_STORE_SIZE);
+    share->state.key_root[key_nr]= (page == IMPOSSIBLE_PAGE_NO ?
+                                    HA_OFFSET_ERROR :
+                                    page * share->block_size);
   }
   return 0;
 }
@@ -1464,13 +1580,18 @@ prototype_redo_exec_hook(COMMIT)
 prototype_redo_exec_hook(CLR_END)
 {
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  MARIA_SHARE *share;
+  LSN previous_undo_lsn;
+  enum translog_record_type undone_record_type;
+  const LOG_DESC *log_desc;
+
   if (info == NULL)
     return 0;
-  MARIA_SHARE *share= info->s;
-  LSN previous_undo_lsn= lsn_korr(rec->header);
-  enum translog_record_type undone_record_type=
+  share= info->s;
+  previous_undo_lsn= lsn_korr(rec->header);
+  undone_record_type=
     clr_type_korr(rec->header + LSN_STORE_SIZE + FILEID_STORE_SIZE);
-  const LOG_DESC *log_desc= &log_record_type_descriptor[undone_record_type];
+  log_desc= &log_record_type_descriptor[undone_record_type];
 
   set_undo_lsn_for_active_trans(rec->short_trid, previous_undo_lsn);
   tprint(tracef, "   CLR_END was about %s, undo_lsn now LSN (%lu,0x%lx)\n",
@@ -1502,8 +1623,7 @@ prototype_redo_exec_hook(CLR_END)
     default:
       DBUG_ASSERT(0);
     }
-    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-      STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
   return 0;
@@ -1515,6 +1635,8 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT)
   my_bool error;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   LSN previous_undo_lsn= lsn_korr(rec->header);
+  MARIA_SHARE *share;
+  const uchar *record_ptr;
 
   if (info == NULL)
   {
@@ -1526,11 +1648,10 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT)
     */
     return 1;
   }
-  MARIA_SHARE *share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-    STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+  share= info->s;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
 
-  const uchar *record_ptr= rec->header;
+  record_ptr= rec->header;
   if (share->calc_checksum)
   {
     /*
@@ -1568,14 +1689,13 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
   my_bool error;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   LSN previous_undo_lsn= lsn_korr(rec->header);
+  MARIA_SHARE *share;
 
   if (info == NULL)
     return 1;
 
-  MARIA_SHARE *share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-    STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
-
+  share= info->s;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
       translog_read_record(rec->lsn, 0, rec->record_length,
@@ -1610,12 +1730,13 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
   my_bool error;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   LSN previous_undo_lsn= lsn_korr(rec->header);
+  MARIA_SHARE *share;
 
   if (info == NULL)
     return 1;
-  MARIA_SHARE *share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-    STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+
+  share= info->s;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
 
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
@@ -1638,6 +1759,142 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
          LSN_IN_PARTS(previous_undo_lsn));
   return error;
 }
+
+
+prototype_undo_exec_hook(UNDO_KEY_INSERT)
+{
+  my_bool error;
+  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  LSN previous_undo_lsn= lsn_korr(rec->header);
+  MARIA_SHARE *share;
+
+  if (info == NULL)
+  {
+    /*
+      Unlike for REDOs, if the table was skipped it is abnormal; we have a
+      transaction to rollback which used this table, as it is not rolled back
+      it was supposed to hold this table and so the table should still be
+      there.
+    */
+    return 1;
+  }
+
+  share= info->s;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+        rec->record_length)
+  {
+    tprint(tracef, "Failed to read record\n");
+    return 1;
+  }
+
+  info->trn= trn;
+  error= _ma_apply_undo_key_insert(info, previous_undo_lsn,
+                                   log_record_buffer.str + LSN_STORE_SIZE +
+                                   FILEID_STORE_SIZE,
+                                   rec->record_length - LSN_STORE_SIZE -
+                                   FILEID_STORE_SIZE);
+  info->trn= 0;
+  /* trn->undo_lsn is updated in an inwrite_hook when writing the CLR_END */
+  tprint(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
+         LSN_IN_PARTS(previous_undo_lsn));
+  return error;
+}
+
+
+prototype_undo_exec_hook(UNDO_KEY_DELETE)
+{
+  my_bool error;
+  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  LSN previous_undo_lsn= lsn_korr(rec->header);
+  MARIA_SHARE *share;
+
+  if (info == NULL)
+  {
+    /*
+      Unlike for REDOs, if the table was skipped it is abnormal; we have a
+      transaction to rollback which used this table, as it is not rolled back
+      it was supposed to hold this table and so the table should still be
+      there.
+    */
+    return 1;
+  }
+
+  share= info->s;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+        rec->record_length)
+  {
+    tprint(tracef, "Failed to read record\n");
+    return 1;
+  }
+
+  info->trn= trn;
+  error= _ma_apply_undo_key_delete(info, previous_undo_lsn,
+                                   log_record_buffer.str + LSN_STORE_SIZE +
+                                   FILEID_STORE_SIZE,
+                                   rec->record_length - LSN_STORE_SIZE -
+                                   FILEID_STORE_SIZE);
+  info->trn= 0;
+  /* trn->undo_lsn is updated in an inwrite_hook when writing the CLR_END */
+  tprint(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
+         LSN_IN_PARTS(previous_undo_lsn));
+  return error;
+}
+
+
+prototype_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT)
+{
+  my_bool error;
+  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  LSN previous_undo_lsn= lsn_korr(rec->header);
+  MARIA_SHARE *share;
+
+  if (info == NULL)
+  {
+    /*
+      Unlike for REDOs, if the table was skipped it is abnormal; we have a
+      transaction to rollback which used this table, as it is not rolled back
+      it was supposed to hold this table and so the table should still be
+      there.
+    */
+    return 1;
+  }
+
+  share= info->s;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+        rec->record_length)
+  {
+    tprint(tracef, "Failed to read record\n");
+    return 1;
+  }
+
+  info->trn= trn;
+  error= _ma_apply_undo_key_delete(info, previous_undo_lsn,
+                                   log_record_buffer.str + LSN_STORE_SIZE +
+                                   FILEID_STORE_SIZE + PAGE_STORE_SIZE,
+                                   rec->record_length - LSN_STORE_SIZE -
+                                   FILEID_STORE_SIZE - PAGE_STORE_SIZE);
+  info->trn= 0;
+  /* trn->undo_lsn is updated in an inwrite_hook when writing the CLR_END */
+  tprint(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
+         LSN_IN_PARTS(previous_undo_lsn));
+  return error;
+}
+
 
 
 static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
@@ -1669,14 +1926,23 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_redo_exec_hook(REDO_FREE_HEAD_OR_TAIL);
   install_redo_exec_hook(REDO_FREE_BLOCKS);
   install_redo_exec_hook(REDO_DELETE_ALL);
+  install_redo_exec_hook(REDO_INDEX);
+  install_redo_exec_hook(REDO_INDEX_NEW_PAGE);
+  install_redo_exec_hook(REDO_INDEX_FREE_PAGE);
   install_redo_exec_hook(UNDO_ROW_INSERT);
   install_redo_exec_hook(UNDO_ROW_DELETE);
   install_redo_exec_hook(UNDO_ROW_UPDATE);
+  install_redo_exec_hook(UNDO_KEY_INSERT);
+  install_redo_exec_hook(UNDO_KEY_DELETE);
+  install_redo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT);
   install_redo_exec_hook(COMMIT);
   install_redo_exec_hook(CLR_END);
   install_undo_exec_hook(UNDO_ROW_INSERT);
   install_undo_exec_hook(UNDO_ROW_DELETE);
   install_undo_exec_hook(UNDO_ROW_UPDATE);
+  install_undo_exec_hook(UNDO_KEY_INSERT);
+  install_undo_exec_hook(UNDO_KEY_DELETE);
+  install_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT);
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
 
@@ -1870,7 +2136,6 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
              LSN_IN_PARTS(gslsn), sid);
     if (all_active_trans[sid].undo_lsn != LSN_IMPOSSIBLE)
     {
-      char llbuf[22];
       llstr(long_trid, llbuf);
       tprint(tracef, "Transaction long_trid %s short_trid %u unfinished\n",
              llbuf, sid);
@@ -2017,13 +2282,15 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   print_redo_phase_progress(rec->lsn);
   sid= fileid_korr(rec->header);
   page= page_korr(rec->header + FILEID_STORE_SIZE);
-  switch(rec->type)
-  {
+  switch(rec->type) {
     /* not all REDO records have a page: */
   case LOGREC_REDO_INSERT_ROW_HEAD:
   case LOGREC_REDO_INSERT_ROW_TAIL:
   case LOGREC_REDO_PURGE_ROW_HEAD:
   case LOGREC_REDO_PURGE_ROW_TAIL:
+  case LOGREC_REDO_INDEX_NEW_PAGE:
+  case LOGREC_REDO_INDEX:
+  case LOGREC_REDO_INDEX_FREE_PAGE:
     llstr(page, llbuf);
     tprint(tracef, "   For page %s of table of short id %u", llbuf, sid);
     break;
@@ -2281,7 +2548,7 @@ static int new_page(File fileid, pgcache_page_no_t pageid, LSN rec_lsn,
 static int close_all_tables(void)
 {
   int error= 0;
-  uint count;
+  uint count= 0;
   LIST *list_element, *next_open;
   MARIA_HA *info;
   pthread_mutex_lock(&THR_LOCK_maria);
@@ -2364,6 +2631,9 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
 {
   static int end_logno= FILENO_IMPOSSIBLE, end_offset, percentage_printed= 0;
   static ulonglong initial_remainder= -1;
+  int cur_logno, cur_offset;
+  ulonglong local_remainder;
+
   if (tracef == stdout)
     return;
   if (recovery_message_printed == REC_MSG_NONE)
@@ -2379,16 +2649,15 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
     end_logno= LSN_FILE_NO(end_addr);
     end_offset= LSN_OFFSET(end_addr);
   }
-  int cur_logno= LSN_FILE_NO(addr);
-  int cur_offset= LSN_OFFSET(addr);
-  ulonglong remainder;
-  remainder= (cur_logno == end_logno) ? (end_offset - cur_offset) :
+  cur_logno= LSN_FILE_NO(addr);
+  cur_offset= LSN_OFFSET(addr);
+  local_remainder= (cur_logno == end_logno) ? (end_offset - cur_offset) :
     (TRANSLOG_FILE_SIZE - cur_offset +
      max(end_logno - cur_logno - 1, 0) * TRANSLOG_FILE_SIZE + end_offset);
   if (initial_remainder == (ulonglong)(-1))
-    initial_remainder= remainder;
+    initial_remainder= local_remainder;
   int percentage_done=
-    (initial_remainder - remainder) * ULL(100) / initial_remainder;
+    (initial_remainder - local_remainder) * ULL(100) / initial_remainder;
   if ((percentage_done - percentage_printed) >= 10)
   {
     percentage_printed= percentage_done;
@@ -2433,11 +2702,10 @@ effect on the state in case of crash. But we make them sync the state
 as soon as they have finished. This reduces the window for a problem.
 
 It looks like only one thread at a time updates the state in memory or
-on disk. However there is not 100% certainty when it comes to
-HA_EXTRA_(FORCE_REOPEN|PREPARE_FOR_RENAME): can they read the state
-from memory while some other thread is updating "records" in memory?
-If yes, they may write a corrupted state to disk.
-We assume that no for now: ASK_MONTY.
+on disk. We assume that the upper level (normally MySQL) has protection
+against issuing HA_EXTRA_(FORCE_REOPEN|PREPARE_FOR_RENAME) so that these
+are not issued while there are any running transactions on the given table.
+If this is not done, we may write a corrupted state to disk.
 
 With checkpoints
 ================

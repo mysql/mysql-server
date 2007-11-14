@@ -148,7 +148,8 @@ int maria_close(register MARIA_HA *info)
       error = my_errno;
   }
 
-  my_free((uchar*) info,MYF(0));
+  delete_dynamic(&info->pinned_pages);
+  my_free(info, MYF(0));
 
   if (error)
     DBUG_RETURN(my_errno= error);

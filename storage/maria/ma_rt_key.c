@@ -100,7 +100,8 @@ int maria_rtree_set_key_mbr(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
 {
   DBUG_ENTER("maria_rtree_set_key_mbr");
   if (!_ma_fetch_keypage(info, keyinfo, child_page,
-                         DFLT_INIT_HITS, info->buff, 0))
+                         PAGECACHE_LOCK_LEFT_UNLOCKED,
+                         DFLT_INIT_HITS, info->buff, 0, 0))
     DBUG_RETURN(-1);
 
   DBUG_RETURN(maria_rtree_page_mbr(info, keyinfo->seg,

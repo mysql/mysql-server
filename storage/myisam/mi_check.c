@@ -1008,7 +1008,7 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info,int extend)
 	del_length+=info->s->base.pack_reclength;
 	continue;					/* Record removed */
       }
-      param->glob_crc+= mi_static_checksum(info,record);
+      param->glob_crc+= (*info->s->calc_check_checksum)(info,record);
       used+=info->s->base.pack_reclength;
       break;
     case DYNAMIC_RECORD:
@@ -1162,7 +1162,7 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info,int extend)
 	}
 	else
 	{
-	  info->checksum=mi_checksum(info,record);
+	  info->checksum= (*info->s->calc_check_checksum)(info,record);
 	  if (param->testflag & (T_EXTEND | T_MEDIUM | T_VERBOSE))
 	  {
 	    if (_mi_rec_check(info,record, info->rec_buff,block_info.rec_len,
@@ -1208,10 +1208,7 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info,int extend)
 			     llstr(start_recpos,llbuff));
 	got_error=1;
       }
-      if (static_row_size)
-	param->glob_crc+= mi_static_checksum(info,record);
-      else
-	param->glob_crc+= mi_checksum(info,record);
+      param->glob_crc+= (*info->s->calc_check_checksum)(info,record);
       link_used+= (block_info.filepos - start_recpos);
       used+= (pos-start_recpos);
     } /* switch */
@@ -3164,7 +3161,9 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
       {
 	if (sort_param->calc_checksum)
 	  param->glob_crc+= (info->checksum=
-			     mi_static_checksum(info,sort_param->record));
+                             (*info->s->calc_check_checksum)(info,
+                                                             sort_param->
+                                                             record));
 	DBUG_RETURN(0);
       }
       if (!sort_param->fix_datafile && sort_param->master)
@@ -3440,7 +3439,8 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	if (sort_param->read_cache.error < 0)
 	  DBUG_RETURN(1);
 	if (sort_param->calc_checksum)
-	  info->checksum= mi_checksum(info, sort_param->record);
+	  info->checksum= (*info->s->calc_check_checksum)(info,
+                                                          sort_param->record);
 	if ((param->testflag & (T_EXTEND | T_REP)) || searching)
 	{
 	  if (_mi_rec_check(info, sort_param->record, sort_param->rec_buff,
@@ -3525,7 +3525,9 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
       info->packed_length=block_info.rec_len;
       if (sort_param->calc_checksum)
 	param->glob_crc+= (info->checksum=
-                           mi_checksum(info, sort_param->record));
+                           (*info->s->calc_check_checksum)(info,
+                                                           sort_param->
+                                                           record));
       DBUG_RETURN(0);
     }
   }
@@ -3576,7 +3578,6 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       }
       sort_param->filepos+=share->base.pack_reclength;
       info->s->state.split++;
-      /* sort_info->param->glob_crc+=mi_static_checksum(info, sort_param->record); */
       break;
     case DYNAMIC_RECORD:
       if (! info->blobs)
@@ -3599,10 +3600,9 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
 	from= sort_info->buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER);
       }
       /* We can use info->checksum here as only one thread calls this. */
-      info->checksum=mi_checksum(info,sort_param->record);
+      info->checksum= (*info->s->calc_check_checksum)(info,sort_param->record);
       reclength=_mi_rec_pack(info,from,sort_param->record);
       flag=0;
-      /* sort_info->param->glob_crc+=info->checksum; */
 
       do
       {

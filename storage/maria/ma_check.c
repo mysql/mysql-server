@@ -92,7 +92,7 @@ static int _ma_safe_scan_block_record(MARIA_SORT_INFO *sort_info,
 static void copy_data_file_state(MARIA_STATE_INFO *to,
                                  MARIA_STATE_INFO *from);
 static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info);
-
+static void report_keypage_fault(HA_CHECK *param, my_off_t position);
 
 void maria_chk_init(HA_CHECK *param)
 {
@@ -218,7 +218,7 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info, uint test_flag)
       else
       {
 	param->record_checksum+=(ha_checksum) next_link;
-	next_link= _ma_rec_pos(info->s, buff+1);
+	next_link= _ma_rec_pos(info, buff+1);
 	empty+=info->s->base.pack_reclength;
       }
     }
@@ -259,7 +259,7 @@ wrong:
 
 	/* Check delete links in index file */
 
-static int check_k_link(HA_CHECK *param, register MARIA_HA *info, 
+static int check_k_link(HA_CHECK *param, register MARIA_HA *info,
                         my_off_t next_link)
 {
   uint block_size= info->s->block_size;
@@ -287,7 +287,7 @@ static int check_k_link(HA_CHECK *param, register MARIA_HA *info,
       DBUG_RETURN(1);
       /* purecov: end */
     }
-    
+
     /* Key blocks must be aligned at block_size */
     if (next_link & (block_size -1))
     {
@@ -443,8 +443,8 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
   if (!(param->testflag & T_SILENT)) puts("- check index reference");
 
   all_keydata=all_totaldata=key_totlength=0;
-  old_record_checksum=0;
   init_checksum=param->record_checksum;
+  old_record_checksum=0;
   if (share->data_file_type == STATIC_RECORD)
     old_record_checksum= (calc_checksum(info->state->records +
                                         info->state->del-1) *
@@ -474,14 +474,17 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
       printf ("- check data record references index: %d\n",key+1);
     if (keyinfo->flag & HA_FULLTEXT)
       full_text_keys++;
-    if (share->state.key_root[key] == HA_OFFSET_ERROR &&
-	(info->state->records == 0 || keyinfo->flag & HA_FULLTEXT))
-      goto do_stat;
-    if (!_ma_fetch_keypage(info,keyinfo,share->state.key_root[key],
-                           DFLT_INIT_HITS,info->buff,0))
+    if (share->state.key_root[key] == HA_OFFSET_ERROR)
     {
-      _ma_check_print_error(param,"Can't read indexpage from filepos: %s",
-		  llstr(share->state.key_root[key],buff));
+      if (info->state->records != 0 && !(keyinfo->flag & HA_FULLTEXT))
+        _ma_check_print_error(param, "Key tree %u is empty", key + 1);
+      goto do_stat;
+    }
+    if (!_ma_fetch_keypage(info, keyinfo, share->state.key_root[key],
+                           PAGECACHE_LOCK_LEFT_UNLOCKED, DFLT_INIT_HITS,
+                           info->buff, 0, 0))
+    {
+      report_keypage_fault(param, share->state.key_root[key]);
       if (!(param->testflag & T_INFO))
 	DBUG_RETURN(-1);
       result= -1;
@@ -513,7 +516,9 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
       else if (old_record_checksum != param->record_checksum)
       {
 	if (key)
-	  _ma_check_print_error(param,"Key %u doesn't point at same records that key 1",
+	  _ma_check_print_error(param,
+                                "Key %u doesn't point at same records as "
+                                "key 1",
 		      key+1);
 	else
 	  _ma_check_print_error(param,"Key 1 doesn't point at all records");
@@ -600,6 +605,7 @@ do_stat:
 } /* maria_chk_key */
 
 
+
 static int chk_index_down(HA_CHECK *param, MARIA_HA *info,
                           MARIA_KEYDEF *keyinfo,
                           my_off_t page, uchar *buff, ha_rows *keys,
@@ -638,10 +644,10 @@ static int chk_index_down(HA_CHECK *param, MARIA_HA *info,
     /* purecov: end */
   }
 
-  if (!_ma_fetch_keypage(info,keyinfo,page, DFLT_INIT_HITS,buff,0))
+  if (!_ma_fetch_keypage(info, keyinfo, page, PAGECACHE_LOCK_LEFT_UNLOCKED,
+                         DFLT_INIT_HITS, buff, 0, 0))
   {
-    _ma_check_print_error(param,"Can't read key from filepos: %s",
-        llstr(page,llbuff));
+    report_keypage_fault(param, page);
     goto err;
   }
   param->key_file_blocks+=keyinfo->block_length;
@@ -1068,7 +1074,7 @@ static int check_static_record(HA_CHECK *param, MARIA_HA *info, int extend,
   my_off_t start_recpos, pos;
   char llbuff[22];
 
-  pos= 0;  
+  pos= 0;
   while (pos < info->state->data_file_length)
   {
     if (*_ma_killed_ptr(param))
@@ -1114,7 +1120,7 @@ static int check_dynamic_record(HA_CHECK *param, MARIA_HA *info, int extend,
   LINT_INIT(start_recpos);
   LINT_INIT(to);
 
-  pos= 0;  
+  pos= 0;
   while (pos < info->state->data_file_length)
   {
     my_bool got_error= 0;
@@ -1217,7 +1223,7 @@ static int check_dynamic_record(HA_CHECK *param, MARIA_HA *info, int extend,
           if (_ma_alloc_buffer(&info->rec_buff, &info->rec_buff_size,
                                block_info.rec_len +
                                info->s->base.extra_rec_buff_size))
-                                       
+
           {
             _ma_check_print_error(param,
                                   "Not enough memory (%lu) for blob at %s",
@@ -1302,7 +1308,7 @@ static int check_dynamic_record(HA_CHECK *param, MARIA_HA *info, int extend,
         }
         param->glob_crc+= checksum;
       }
-      
+
       if (! got_error)
       {
         if (check_keys_in_record(param, info, extend, start_recpos, record))
@@ -1881,7 +1887,7 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
 
   bzero((char*) param->tmp_key_crc,
         info->s->base.keys * sizeof(param->tmp_key_crc[0]));
-  
+
   switch (info->s->data_file_type) {
   case BLOCK_RECORD:
     error= check_block_record(param, info, extend, record);
@@ -1989,7 +1995,7 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
                llstr(param->records,llbuff),
                (long)((param->used - param->link_used)/param->records),
                (info->s->base.blobs ? 0.0 :
-                (ulonglong2double((ulonglong) info->s->base.reclength * 
+                (ulonglong2double((ulonglong) info->s->base.reclength *
                                   param->records)-
                  my_off_t2double(param->used))/
                 ulonglong2double((ulonglong) info->s->base.reclength *
@@ -2520,8 +2526,9 @@ int maria_movepoint(register MARIA_HA *info, uchar *record,
 	nod_flag=_ma_test_if_nod(info, info->buff);
 	_ma_dpointer(info,info->int_keypos-nod_flag-
 		     info->s->rec_reflength,newpos);
-	if (_ma_write_keypage(info,keyinfo,info->last_keypage,
-                              DFLT_INIT_HITS,info->buff))
+	if (_ma_write_keypage(info, keyinfo, info->last_keypage,
+                              PAGECACHE_LOCK_LEFT_UNLOCKED, DFLT_INIT_HITS,
+                              info->buff))
 	  DBUG_RETURN(-1);
       }
       else
@@ -2694,7 +2701,6 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
   uchar *buff,*keypos,*endpos;
   uchar key[HA_MAX_POSSIBLE_KEY_BUFF];
   my_off_t new_page_pos,next_page;
-  char llbuff[22];
   DBUG_ENTER("sort_one_index");
 
   /* cannot walk over R-tree indices */
@@ -2707,10 +2713,10 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
     _ma_check_print_error(param,"Not enough memory for key block");
     DBUG_RETURN(-1);
   }
-  if (!_ma_fetch_keypage(info,keyinfo,pagepos,DFLT_INIT_HITS,buff,0))
+  if (!_ma_fetch_keypage(info, keyinfo, pagepos,PAGECACHE_LOCK_LEFT_UNLOCKED,
+                         DFLT_INIT_HITS, buff, 0, 0))
   {
-    _ma_check_print_error(param,"Can't read key block from filepos: %s",
-		llstr(pagepos,llbuff));
+    report_keypage_fault(param, pagepos);
     goto err;
   }
   if ((nod_flag=_ma_test_if_nod(info, buff)) || keyinfo->flag & HA_FULLTEXT)
@@ -3938,7 +3944,6 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
           {
             if (param->testflag & T_VERBOSE)
             {
-              char llbuff[22];
               record_pos_to_txt(info, info->cur_row.lastpos, llbuff);
               _ma_check_print_info(param,
                                    "Found record with wrong checksum at %s",
@@ -4179,7 +4184,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
                                  &sort_param->rec_buff_size,
                                  block_info.rec_len +
                                  info->s->base.extra_rec_buff_size))
-				       
+
 	    {
 	      if (param->max_record_length >= block_info.rec_len)
 	      {
@@ -4441,7 +4446,7 @@ int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param)
 	from=sort_info->buff+ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER);
       }
       /* We can use info->checksum here as only one thread calls this */
-      info->cur_row.checksum= (*info->s->calc_check_checksum)(info, 
+      info->cur_row.checksum= (*info->s->calc_check_checksum)(info,
                                                               sort_param->
                                                               record);
       reclength= _ma_rec_pack(info,from,sort_param->record);
@@ -4735,6 +4740,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
   MARIA_KEYDEF *keyinfo=sort_param->keyinfo;
   MARIA_SORT_INFO *sort_info= sort_param->sort_info;
   HA_CHECK *param=sort_info->param;
+  MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
   DBUG_ENTER("sort_insert_key");
 
   anc_buff= key_block->buff;
@@ -4753,6 +4759,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
     }
     a_length= info->s->keypage_header + nod_flag;
     key_block->end_pos= anc_buff + info->s->keypage_header;
+    bzero(anc_buff, info->s->keypage_header);
     _ma_store_keynr(info, anc_buff, (uint) (sort_param->keyinfo -
                                             info->s->keyinfo));
     lastkey=0;					/* No previous key in block */
@@ -4783,13 +4790,16 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
   bzero(anc_buff+key_block->last_length,
 	keyinfo->block_length- key_block->last_length);
   key_file_length=info->state->key_file_length;
-  if ((filepos= _ma_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
+  if ((filepos= _ma_new(info, DFLT_INIT_HITS, &page_link)) == HA_OFFSET_ERROR)
     DBUG_RETURN(1);
 
   /* If we read the page from the key cache, we have to write it back to it */
-  if (key_file_length == info->state->key_file_length)
+  if (page_link->changed)
   {
-    if (_ma_write_keypage(info, keyinfo, filepos, DFLT_INIT_HITS, anc_buff))
+    pop_dynamic(&info->pinned_pages);
+    if (_ma_write_keypage(info, keyinfo, filepos,
+                          PAGECACHE_LOCK_WRITE_UNLOCK,
+                          DFLT_INIT_HITS, anc_buff))
       DBUG_RETURN(1);
   }
   else if (my_pwrite(info->s->kfile.file, anc_buff,
@@ -4882,6 +4892,7 @@ int _ma_flush_pending_blocks(MARIA_SORT_PARAM *sort_param)
   myf myf_rw=sort_info->param->myf_rw;
   MARIA_HA *info=sort_info->info;
   MARIA_KEYDEF *keyinfo=sort_param->keyinfo;
+  MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
   DBUG_ENTER("_ma_flush_pending_blocks");
 
   filepos= HA_OFFSET_ERROR;			/* if empty file */
@@ -4894,13 +4905,16 @@ int _ma_flush_pending_blocks(MARIA_SORT_PARAM *sort_param)
       _ma_kpointer(info,key_block->end_pos,filepos);
     key_file_length=info->state->key_file_length;
     bzero(key_block->buff+length, keyinfo->block_length-length);
-    if ((filepos= _ma_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
+    if ((filepos= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==
+        HA_OFFSET_ERROR)
       DBUG_RETURN(1);
 
     /* If we read the page from the key cache, we have to write it back */
-    if (key_file_length == info->state->key_file_length)
+    if (page_link->changed)
     {
+      pop_dynamic(&info->pinned_pages);
       if (_ma_write_keypage(info, keyinfo, filepos,
+                            PAGECACHE_LOCK_WRITE_UNLOCK,
                             DFLT_INIT_HITS, key_block->buff))
 	DBUG_RETURN(1);
     }
@@ -5583,7 +5597,7 @@ static int _ma_safe_scan_block_record(MARIA_SORT_INFO *sort_info,
       length= uint2korr(info->scan.dir + 2);
       end_of_data= data + length;
       info->scan.dir-= DIR_ENTRY_SIZE;          /* Point to previous row */
-  
+
       if (end_of_data > info->scan.dir_end ||
           offset < PAGE_HEADER_SIZE || length < info->s->base.min_block_length)
       {
@@ -5619,7 +5633,7 @@ read_next_page:
                            PAGECACHE_READ_UNKNOWN_PAGE,
                            PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
         DBUG_RETURN(my_errno);
-      
+
       page_type= (info->scan.page_buff[PAGE_TYPE_OFFSET] &
                   PAGE_TYPE_MASK);
       if (page_type == HEAD_PAGE)
@@ -5723,4 +5737,22 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
       return 1;
   }
   return 0;
+}
+
+
+/* Give error message why reading of key page failed */
+
+static void report_keypage_fault(HA_CHECK *param, my_off_t position)
+{
+  char buff[11];
+
+  if (my_errno == HA_ERR_CRASHED)
+    _ma_check_print_error(param,
+                          "Wrong base information on indexpage at filepos: %s",
+                          llstr(position, buff));
+  else
+    _ma_check_print_error(param,
+                          "Can't read indexpage from filepos: %s, "
+                          "error: %d",
+                          llstr(position,buff), my_errno);
 }

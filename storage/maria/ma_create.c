@@ -188,6 +188,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
         max_field_lengths++;
         packed++;
         column->fill_length= 1;
+        options|= HA_OPTION_NULL_FIELDS;        /* Use ma_checksum() */
+
         /* We must test for 257 as length includes pack-length */
         if (test(column->length >= 257))
 	{
@@ -270,16 +272,17 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   {
     options|= HA_OPTION_TMP_TABLE;
     tmp_table= TRUE;
-    create_mode|= O_EXCL | O_NOFOLLOW;
+    create_mode|= O_NOFOLLOW;
     /* "CREATE TEMPORARY" tables are not crash-safe (dropped at restart) */
     ci->transactional= FALSE;
+    flags&= ~HA_CREATE_PAGE_CHECKSUM;
   }
   share.base.null_bytes= ci->null_bytes;
   share.base.original_null_bytes= ci->null_bytes;
   share.base.born_transactional= ci->transactional;
   share.base.max_field_lengths= max_field_lengths;
   share.base.field_offsets= 0;                  /* for future */
-  
+
   if (pack_reclength != INT_MAX32)
     pack_reclength+= max_field_lengths + long_varchar_count;
 
@@ -654,9 +657,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   share.state.dellink = HA_OFFSET_ERROR;
   share.state.first_bitmap_with_space= 0;
+#ifdef EXTERNAL_LOCKING
   share.state.process=	(ulong) getpid();
-  share.state.unique=	(ulong) 0;
-  share.state.update_count=(ulong) 0;
+#endif
   share.state.version=	(ulong) time((time_t*) 0);
   share.state.sortkey=  (ushort) ~0;
   share.state.auto_increment=ci->auto_increment;
@@ -957,7 +960,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     char empty_string[]= "";
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
     uint total_rec_length= 0;
-    uint i;
+    uint k;
     LSN lsn;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= 1 + 2 + 2 +
       kfile_size_before_extension;
@@ -988,9 +991,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       (ci->index_file_name ? ci->index_file_name : empty_string);
     log_array[TRANSLOG_INTERNAL_PARTS + 3].length=
       strlen(log_array[TRANSLOG_INTERNAL_PARTS + 3].str) + 1;
-    for (i= TRANSLOG_INTERNAL_PARTS;
-         i < (sizeof(log_array)/sizeof(log_array[0])); i++)
-      total_rec_length+= log_array[i].length;
+    for (k= TRANSLOG_INTERNAL_PARTS;
+         k < (sizeof(log_array)/sizeof(log_array[0])); k++)
+      total_rec_length+= log_array[k].length;
     /**
        For this record to be of any use for Recovery, we need the upper
        MySQL layer to be crash-safe, which it is not now (that would require

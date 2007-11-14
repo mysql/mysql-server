@@ -53,7 +53,7 @@ extern "C" {
 #define MARIA_MIN_KEY_BLOCK_LENGTH	1024	/* Min key block length */
 #define MARIA_MAX_KEY_BLOCK_LENGTH	32768
 /* Minimal page cache when we only want to be able to scan a table */
-#define MARIA_MIN_PAGE_CACHE_SIZE	65536
+#define MARIA_MIN_PAGE_CACHE_SIZE	(8192L*16L)
 
 /*
   In the following macros '_keyno_' is 0 .. keys-1.
@@ -168,22 +168,25 @@ typedef struct st_maria_keydef          /* Key definition with open & info */
   uint16 flag;                          /* NOSAME, PACK_USED */
 
   uint8 key_alg;                        /* BTREE, RTREE */
+  uint8 key_nr;				/* key number (auto) */
   uint16 block_length;                  /* Length of keyblock (auto) */
   uint16 underflow_block_length;        /* When to execute underflow */
   uint16 keylength;                     /* Tot length of keyparts (auto) */
   uint16 minlength;                     /* min length of (packed) key (auto) */
   uint16 maxlength;                     /* max length of (packed) key (auto) */
+  uint32 write_comp_flag;		/* compare flag for write key (auto) */
   uint32 version;                       /* For concurrent read/write */
   uint32 ftparser_nr;                   /* distinct ftparser number */
 
   HA_KEYSEG *seg, *end;
   struct st_mysql_ftparser *parser;     /* Fulltext [pre]parser */
   int (*bin_search)(MARIA_HA *info,
-		    struct st_maria_keydef *keyinfo, uchar *page, uchar *key,
-		    uint key_len, uint comp_flag, uchar **ret_pos,
+		    struct st_maria_keydef *keyinfo, uchar *page,
+                    const uchar *key, uint key_len, uint comp_flag,
+                    uchar **ret_pos,
 		    uchar *buff, my_bool *was_last_key);
-    uint(*get_key)(struct st_maria_keydef *keyinfo, uint nod_flag,
-                   uchar **page, uchar *key);
+  uint(*get_key)(struct st_maria_keydef *keyinfo, uint nod_flag,
+                 uchar **page, uchar *key);
   int (*pack_key)(struct st_maria_keydef *keyinfo, uint nod_flag,
 		  uchar *next_key, uchar *org_key, uchar *prev_key,
 		  const uchar *key, struct st_maria_s_param *s_temp);

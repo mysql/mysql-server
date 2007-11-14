@@ -66,7 +66,7 @@ static const char *field_pack[]=
 };
 
 static const char *record_formats[]=
-{  
+{
   "Fixed length", "Packed", "Compressed", "Block", "?"
 };
 
@@ -1255,6 +1255,8 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
 
   printf("\nMARIA file:          %s\n",name);
   printf("Record format:       %s\n", record_formats[share->data_file_type]);
+  printf("Crashsafe:           %s\n",
+         share->base.born_transactional ? "yes" : "no");
   printf("Character set:       %s (%d)\n",
 	 get_charset_name(share->state.header.language),
 	 share->state.header.language);

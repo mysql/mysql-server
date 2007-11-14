@@ -15,7 +15,7 @@
 
 #include "maria_def.h"
 #include "ma_blockrec.h" /* for some constants and in-write hooks */
-#include "trnman.h"      /* for access to members of TRN */
+#include "trnman.h"
 
 /**
    @file
@@ -65,7 +65,7 @@
 static int translog_mutex_lock(pthread_mutex_t *M)
 {
   int rc;
-  DBUG_PRINT("info", ("Going lock mutex 0x%lx...", (ulong)(M)));
+  DBUG_PRINT("info", ("Going lock mutex 0x%lx", (ulong)(M)));
   rc= pthread_mutex_lock(M);
   DBUG_PRINT("info", ("Mutex locked 0x%lx  rc: %d", (ulong)(M), rc));
   return (rc);
@@ -74,7 +74,7 @@ static int translog_mutex_lock(pthread_mutex_t *M)
 static int translog_mutex_unlock(pthread_mutex_t *M)
 {
   int rc;
-  DBUG_PRINT("info", ("Going unlock mutex 0x%lx...", (ulong)(M)));
+  DBUG_PRINT("info", ("Going unlock mutex 0x%lx", (ulong)(M)));
   rc= pthread_mutex_unlock(M);
   DBUG_PRINT("info", ("Mutex unlocked 0x%lx  rc: %d", (ulong)(M), rc));
   return(rc);
@@ -270,19 +270,9 @@ static void check_translog_description_table(int num)
   DBUG_ASSERT(num > 0);
   /* last is reserved for extending the table */
   DBUG_ASSERT(num < LOGREC_NUMBER_OF_TYPES - 1);
-  DBUG_PRINT("info", ("records number: OK"));
-  DBUG_PRINT("info",
-             ("record type: %d  class: %d  fixed: %u  header: %u  LSNs: %u  "
-              "name: %s",
-              0,
-              log_record_type_descriptor[0].class,
-              (uint)log_record_type_descriptor[0].fixed_length,
-              (uint)log_record_type_descriptor[0].read_header_len,
-              (uint)log_record_type_descriptor[0].compressed_LSN,
-              log_record_type_descriptor[0].name));
   DBUG_ASSERT(log_record_type_descriptor[0].class == LOGRECTYPE_NOT_ALLOWED);
-  DBUG_PRINT("info", ("record type 0: OK"));
-  for (i= 1; i <= num; i++)
+
+  for (i= 0; i <= num; i++)
   {
     DBUG_PRINT("info",
                ("record type: %d  class: %d  fixed: %u  header: %u  LSNs: %u  "
@@ -294,7 +284,7 @@ static void check_translog_description_table(int num)
                 log_record_type_descriptor[i].name));
     switch (log_record_type_descriptor[i].class) {
     case LOGRECTYPE_NOT_ALLOWED:
-      DBUG_ASSERT(0);
+      DBUG_ASSERT(i == 0);
       break;
     case LOGRECTYPE_VARIABLE_LENGTH:
       DBUG_ASSERT(log_record_type_descriptor[i].fixed_length == 0);
@@ -320,13 +310,10 @@ static void check_translog_description_table(int num)
     default:
       DBUG_ASSERT(0);
     }
-    DBUG_PRINT("info", ("record type %d: OK", i));
   }
-  DBUG_PRINT("info", ("All filled records are OK"));
   for (i= num + 1; i < LOGREC_NUMBER_OF_TYPES; i++)
   {
     DBUG_ASSERT(log_record_type_descriptor[i].class == LOGRECTYPE_NOT_ALLOWED);
-    DBUG_PRINT("info", ("record type %d: OK", i));
   }
   DBUG_VOID_RETURN;
 }
@@ -453,6 +440,18 @@ static LOG_DESC INIT_LOGREC_REDO_INDEX=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0,
  "redo_index", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
+static LOG_DESC INIT_LOGREC_REDO_INDEX_NEW_PAGE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE * 2 + KEY_NR_STORE_SIZE + 1,
+ NULL, write_hook_for_redo, NULL, 0,
+ "redo_index_new_page", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
+
+static LOG_DESC INIT_LOGREC_REDO_INDEX_FREE_PAGE=
+{LOGRECTYPE_FIXEDLENGTH, FILEID_STORE_SIZE + PAGE_STORE_SIZE * 2,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE * 2,
+ NULL, write_hook_for_redo, NULL, 0,
+ "redo_index_free_page", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
+
 static LOG_DESC INIT_LOGREC_REDO_UNDELETE_ROW=
 {LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, write_hook_for_redo, NULL, 0,
  "redo_undelete_row", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
@@ -485,12 +484,22 @@ static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
  "undo_row_update", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 10, NULL, write_hook_for_undo, NULL, 1,
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ LSN_STORE_SIZE + FILEID_STORE_SIZE + KEY_NR_STORE_SIZE,
+ NULL, write_hook_for_undo_key, NULL, 1,
  "undo_key_insert", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_DELETE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 15, NULL, write_hook_for_undo, NULL, 1,
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ LSN_STORE_SIZE + FILEID_STORE_SIZE + KEY_NR_STORE_SIZE,
+ NULL, write_hook_for_undo_key, NULL, 1,
  "undo_key_delete", LOGREC_LAST_IN_GROUP, NULL, NULL};
+
+static LOG_DESC INIT_LOGREC_UNDO_KEY_DELETE_WITH_ROOT=
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ LSN_STORE_SIZE + FILEID_STORE_SIZE + KEY_NR_STORE_SIZE + PAGE_STORE_SIZE,
+ NULL, write_hook_for_undo_key, NULL, 1,
+ "undo_key_delete_with_root", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_PREPARE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
@@ -572,6 +581,10 @@ static void loghandler_init()
     INIT_LOGREC_REDO_UPDATE_ROW_HEAD;
   log_record_type_descriptor[LOGREC_REDO_INDEX]=
     INIT_LOGREC_REDO_INDEX;
+  log_record_type_descriptor[LOGREC_REDO_INDEX_NEW_PAGE]=
+    INIT_LOGREC_REDO_INDEX_NEW_PAGE;
+  log_record_type_descriptor[LOGREC_REDO_INDEX_FREE_PAGE]=
+    INIT_LOGREC_REDO_INDEX_FREE_PAGE;
   log_record_type_descriptor[LOGREC_REDO_UNDELETE_ROW]=
     INIT_LOGREC_REDO_UNDELETE_ROW;
   log_record_type_descriptor[LOGREC_CLR_END]=
@@ -588,6 +601,8 @@ static void loghandler_init()
     INIT_LOGREC_UNDO_KEY_INSERT;
   log_record_type_descriptor[LOGREC_UNDO_KEY_DELETE]=
     INIT_LOGREC_UNDO_KEY_DELETE;
+  log_record_type_descriptor[LOGREC_UNDO_KEY_DELETE_WITH_ROOT]=
+    INIT_LOGREC_UNDO_KEY_DELETE_WITH_ROOT;
   log_record_type_descriptor[LOGREC_PREPARE]=
     INIT_LOGREC_PREPARE;
   log_record_type_descriptor[LOGREC_PREPARE_WITH_UNDO_PURGE]=
@@ -2432,13 +2447,13 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
                                 last_protected_sector));
             for (i= 1; i <= last_protected_sector; i++)
             {
-              uint index= i * 2;
+              uint idx= i * 2;
               uint offset= i * DISK_DRIVE_SECTOR_SIZE;
               DBUG_PRINT("info", ("Sector %u: 0x%02x%02x <- 0x%02x%02x",
                                   i, buffer[offset],  buffer[offset + 1],
-                                  table[index], table[index + 1]));
-              buffer[offset]= table[index];
-              buffer[offset + 1]= table[index + 1];
+                                  table[idx], table[idx + 1]));
+              buffer[offset]= table[idx];
+              buffer[offset + 1]= table[idx + 1];
             }
           }
           else
@@ -2533,7 +2548,7 @@ static void translog_free_link(PAGECACHE_BLOCK_LINK *direct_link)
   if (direct_link)
     pagecache_unlock_by_link(log_descriptor.pagecache, direct_link,
                              PAGECACHE_LOCK_READ_UNLOCK, PAGECACHE_UNPIN,
-                             LSN_IMPOSSIBLE, LSN_IMPOSSIBLE);
+                             LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, 0);
   DBUG_VOID_RETURN;
 }
 
@@ -2555,21 +2570,21 @@ static void translog_free_link(PAGECACHE_BLOCK_LINK *direct_link)
 static my_bool translog_get_last_page_addr(TRANSLOG_ADDRESS *addr,
                                            my_bool *last_page_ok)
 {
-  MY_STAT stat_buff, *stat;
+  MY_STAT stat_buff, *local_stat;
   char path[FN_REFLEN];
   uint32 rec_offset;
   uint32 file_no= LSN_FILE_NO(*addr);
   DBUG_ENTER("translog_get_last_page_addr");
 
-  if (!(stat= my_stat(translog_filename_by_fileno(file_no, path),
-                      &stat_buff, MYF(MY_WME))))
+  if (!(local_stat= my_stat(translog_filename_by_fileno(file_no, path),
+                            &stat_buff, MYF(MY_WME))))
     DBUG_RETURN(1);
-  DBUG_PRINT("info", ("File size: %lu", (ulong) stat->st_size));
-  if (stat->st_size > TRANSLOG_PAGE_SIZE)
+  DBUG_PRINT("info", ("File size: %lu", (ulong) local_stat->st_size));
+  if (local_stat->st_size > TRANSLOG_PAGE_SIZE)
   {
-    rec_offset= (((stat->st_size / TRANSLOG_PAGE_SIZE) - 1) *
+    rec_offset= (((local_stat->st_size / TRANSLOG_PAGE_SIZE) - 1) *
                        TRANSLOG_PAGE_SIZE);
-    *last_page_ok= (stat->st_size == rec_offset + TRANSLOG_PAGE_SIZE);
+    *last_page_ok= (local_stat->st_size == rec_offset + TRANSLOG_PAGE_SIZE);
   }
   else
   {
@@ -5769,15 +5784,15 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
 
     for (;;)
     {
-      uint i, read= grp_no;
+      uint i, read_length= grp_no;
 
       buff->chunk0_pages++;
       if (page_rest < grp_no * (7 + 1))
-        read= page_rest / (7 + 1);
+        read_length= page_rest / (7 + 1);
       DBUG_PRINT("info", ("Read chunk0 page#%u  read: %u  left: %u  "
                           "start from: %u",
-                          buff->chunk0_pages, read, grp_no, curr));
-      for (i= 0; i < read; i++, curr++)
+                          buff->chunk0_pages, read_length, grp_no, curr));
+      for (i= 0; i < read_length; i++, curr++)
       {
         DBUG_ASSERT(curr < buff->groups_no);
         buff->groups[curr].addr= lsn_korr(src + i * (7 + 1));
@@ -5787,22 +5802,23 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
                             LSN_IN_PARTS(buff->groups[curr].addr),
                             (uint) buff->groups[curr].num));
       }
-      grp_no-= read;
+      grp_no-= read_length;
       if (grp_no == 0)
       {
         if (scanner)
         {
           buff->chunk0_data_addr= scanner->page_addr;
+          /* offset increased */
           buff->chunk0_data_addr+= (page_offset + header_to_skip +
-                                    read * (7 + 1)); /* offset increased */
+                                    read_length * (7 + 1));
         }
         else
         {
           buff->chunk0_data_addr= buff->lsn;
           /* offset increased */
-          buff->chunk0_data_addr+= (header_to_skip + read * (7 + 1));
+          buff->chunk0_data_addr+= (header_to_skip + read_length * (7 + 1));
         }
-        buff->chunk0_data_len= chunk_len - 2 - read * (7 + 1);
+        buff->chunk0_data_len= chunk_len - 2 - read_length * (7 + 1);
         DBUG_PRINT("info", ("Data address: (%lu,0x%lx)  len: %u",
                             LSN_IN_PARTS(buff->chunk0_data_addr),
                             buff->chunk0_data_len));

@@ -247,7 +247,7 @@ static int lockfind(LOCK * volatile *head, LOCK *node,
 {
   uint32        hashnr, cur_hashnr;
   uint64        resource, cur_resource;
-  intptr        link;
+  intptr        cur_link;
   my_bool       cur_active, compatible, upgrading, prev_active;
   enum lock_type lock, prev_lock, cur_lock;
   uint16        loid, cur_loid;
@@ -276,10 +276,10 @@ retry:
     if (!cursor->curr)
       break;
     do {
-      link= cursor->curr->link;
-      cursor->next= PTR(link);
+      cur_link= cursor->curr->link;
+      cursor->next= PTR(cur_link);
       _lf_pin(pins, 0, cursor->next);
-    } while(link != cursor->curr->link && LF_BACKOFF);
+    } while (cur_link != cursor->curr->link && LF_BACKOFF);
     cur_hashnr= cursor->curr->hashnr;
     cur_resource= cursor->curr->resource;
     cur_lock= cursor->curr->lock;
@@ -290,7 +290,7 @@ retry:
       (void)LF_BACKOFF;
       goto retry;
     }
-    if (!DELETED(link))
+    if (!DELETED(cur_link))
     {
       if (cur_hashnr > hashnr ||
           (cur_hashnr == hashnr && cur_resource >= resource))
@@ -429,7 +429,7 @@ static int lockinsert(LOCK * volatile *head, LOCK *node, LF_PINS *pins,
       if (res & LOCK_UPGRADE)
         cursor.upgrade_from->flags|= IGNORE_ME;
       /*
-        QQ: is this OK ? if a reader has already read upgrade_from, 
+        QQ: is this OK ? if a reader has already read upgrade_from,
         it may find it conflicting with node :(
         - see the last test from test_lockman_simple()
       */

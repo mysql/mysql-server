@@ -156,6 +156,7 @@ struct st_pagecache_hash_link
 #define PCBLOCK_REASSIGNED  8 /* block does not accept requests for old page */
 #define PCBLOCK_IN_FLUSH   16 /* block is in flush operation                 */
 #define PCBLOCK_CHANGED    32 /* block buffer contains a dirty page          */
+#define PCBLOCK_DIRECT_W   64 /* possible direct write to the block          */
 
 /* page status, returned by find_block */
 #define PAGE_READ               0
@@ -463,7 +464,7 @@ error:
   DBUG_RETURN(1);
 }
 #endif /* NOT_USED */
-#endif /* !DBUG_OFF */ 
+#endif /* !DBUG_OFF */
 
 #define FLUSH_CACHE         2000            /* sort this many blocks at once */
 
@@ -719,6 +720,11 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
   {
     for ( ; ; )
     {
+      if (blocks < 8)
+      {
+        my_errno= ENOMEM;
+        goto err;
+      }
       /* Set my_hash_entries to the next bigger 2 power */
       if ((pagecache->hash_entries= next_power(blocks)) <
           (blocks) * 5/4)
@@ -748,11 +754,6 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
           break;
         my_large_free(pagecache->block_mem, MYF(0));
         pagecache->block_mem= 0;
-      }
-      if (blocks < 8)
-      {
-        my_errno= ENOMEM;
-        goto err;
       }
       blocks= blocks / 4*3;
     }
@@ -1082,7 +1083,8 @@ void end_pagecache(PAGECACHE *pagecache, my_bool cleanup)
 
   DBUG_PRINT("status", ("used: %lu  changed: %lu  w_requests: %lu  "
                         "writes: %lu  r_requests: %lu  reads: %lu",
-                        pagecache->blocks_used, pagecache->global_blocks_changed,
+                        pagecache->blocks_used,
+                        pagecache->global_blocks_changed,
                         (ulong) pagecache->global_cache_w_requests,
                         (ulong) pagecache->global_cache_write,
                         (ulong) pagecache->global_cache_r_requests,
@@ -1132,9 +1134,9 @@ static inline void link_changed(PAGECACHE_BLOCK_LINK *block,
 
 static void link_to_file_list(PAGECACHE *pagecache,
                               PAGECACHE_BLOCK_LINK *block,
-                              PAGECACHE_FILE *file, my_bool unlink)
+                              PAGECACHE_FILE *file, my_bool unlink_flag)
 {
-  if (unlink)
+  if (unlink_flag)
     unlink_changed(block);
   link_changed(block, &pagecache->file_blocks[FILE_HASH(*file)]);
   if (block->status & PCBLOCK_CHANGED)
@@ -2503,22 +2505,22 @@ static void check_and_set_lsn(PAGECACHE *pagecache,
 }
 
 
-/*
-  Unlock/unpin page and put LSN stamp if it need
+/**
+  @brief Unlock/unpin page and put LSN stamp if it need
 
-  SYNOPSIS
-    pagecache_unlock()
-    pagecache           pointer to a page cache data structure
-    file                handler for the file for the block of data to be read
-    pageno              number of the block of data in the file
-    lock                lock change
-    pin                 pin page
-    first_REDO_LSN_for_page do not set it if it is zero
-    lsn                 if it is not LSN_IMPOSSIBLE (0) and it
+  @param pagecache      pointer to a page cache data structure
+  @pagam file           handler for the file for the block of data to be read
+  @param pageno         number of the block of data in the file
+  @param lock           lock change
+  @param pin            pin page
+  @param first_REDO_LSN_for_page do not set it if it is zero
+  @param lsn            if it is not LSN_IMPOSSIBLE (0) and it
                         is bigger then LSN on the page it will be written on
                         the page
+  @param was_changed    should be true if the page was write locked with
+                        direct link giving and the page was changed
 
-  NOTE
+  @note
     Pininig uses requests registration mechanism it works following way:
                                 | beginnig    | ending        |
                                 | of func.    | of func.      |
@@ -2537,7 +2539,7 @@ void pagecache_unlock(PAGECACHE *pagecache,
                       enum pagecache_page_lock lock,
                       enum pagecache_page_pin pin,
                       LSN first_REDO_LSN_for_page,
-                      LSN lsn)
+                      LSN lsn, my_bool was_changed)
 {
   PAGECACHE_BLOCK_LINK *block;
   int page_st;
@@ -2577,6 +2579,26 @@ void pagecache_unlock(PAGECACHE *pagecache,
   }
   if (lsn != LSN_IMPOSSIBLE)
     check_and_set_lsn(pagecache, lsn, block);
+
+  /* if we lock for write we must link the block to changed blocks */
+  DBUG_ASSERT((block->status & PCBLOCK_DIRECT_W) == 0 ||
+              (lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
+               lock == PAGECACHE_LOCK_LEFT_WRITELOCKED));
+  /*
+    if was_changed then status should be PCBLOCK_DIRECT_W or marked
+    as dirty
+  */
+  DBUG_ASSERT(!was_changed || (block->status & PCBLOCK_DIRECT_W) ||
+              (block->status & PCBLOCK_CHANGED));
+  if ((block->status & PCBLOCK_DIRECT_W) &&
+      (lock == PAGECACHE_LOCK_WRITE_UNLOCK))
+  {
+    if (!(block->status & PCBLOCK_CHANGED) && was_changed)
+      link_to_changed_list(pagecache, block);
+    block->status&= ~PCBLOCK_DIRECT_W;
+    DBUG_PRINT("info", ("Drop PCBLOCK_DIRECT_W for block: 0x%lx",
+                        (ulong) block));
+  }
 
   if (make_lock_and_pin(pagecache, block, lock, pin, file))
   {
@@ -2635,6 +2657,8 @@ void pagecache_unpin(PAGECACHE *pagecache,
   block= find_block(pagecache, file, pageno, 0, 0, 0, &page_st);
   DBUG_ASSERT(block != 0);
   DBUG_ASSERT(page_st == PAGE_READ);
+  /* we can't unpin such page without unlock */
+  DBUG_ASSERT((block->status & PCBLOCK_DIRECT_W) == 0);
 
   if (lsn != LSN_IMPOSSIBLE)
     check_and_set_lsn(pagecache, lsn, block);
@@ -2665,19 +2689,19 @@ void pagecache_unpin(PAGECACHE *pagecache,
 }
 
 
-/*
-  Unlock/unpin page and put LSN stamp if it need
+/**
+  @brief Unlock/unpin page and put LSN stamp if it need
   (uses direct block/page pointer)
 
-  SYNOPSIS
-    pagecache_unlock_by_link()
-    pagecache           pointer to a page cache data structure
-    link                direct link to page (returned by read or write)
-    lock                lock change
-    pin                 pin page
-    first_REDO_LSN_for_page do not set it if it is LSN_IMPOSSIBLE (0)
-    lsn                 if it is not LSN_IMPOSSIBLE and it is bigger then
+  @param pagecache      pointer to a page cache data structure
+  @param link           direct link to page (returned by read or write)
+  @param lock           lock change
+  @param pin            pin page
+  @param first_REDO_LSN_for_page do not set it if it is LSN_IMPOSSIBLE (0)
+  @param lsn            if it is not LSN_IMPOSSIBLE and it is bigger then
                         LSN on the page it will be written on the page
+  @param was_changed    should be true if the page was write locked with
+                        direct link giving and the page was changed
 */
 
 void pagecache_unlock_by_link(PAGECACHE *pagecache,
@@ -2685,7 +2709,7 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
                               enum pagecache_page_lock lock,
                               enum pagecache_page_pin pin,
                               LSN first_REDO_LSN_for_page,
-                              LSN lsn)
+                              LSN lsn, my_bool was_changed)
 {
   DBUG_ENTER("pagecache_unlock_by_link");
   DBUG_PRINT("enter", ("block: 0x%lx fd: %u  page: %lu  %s  %s",
@@ -2719,24 +2743,48 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
   DBUG_ASSERT(pagecache->can_be_used);
 
   inc_counter_for_resize_op(pagecache);
-  if (first_REDO_LSN_for_page != LSN_IMPOSSIBLE)
+  if (was_changed)
   {
-    /*
-      LOCK_READ_UNLOCK is ok here as the page may have first locked
-      with WRITE lock that was temporarly converted to READ lock before
-      it's unpinned
-    */
-    DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK || 
-                lock == PAGECACHE_LOCK_READ_UNLOCK);
-    DBUG_ASSERT(pin == PAGECACHE_UNPIN);
-    if (block->rec_lsn == LSN_MAX)
-      block->rec_lsn= first_REDO_LSN_for_page;
-    else
-      DBUG_ASSERT(cmp_translog_addr(block->rec_lsn,
-                                    first_REDO_LSN_for_page) <= 0);
+    if (first_REDO_LSN_for_page != LSN_IMPOSSIBLE)
+    {
+      /*
+        LOCK_READ_UNLOCK is ok here as the page may have first locked
+        with WRITE lock that was temporarly converted to READ lock before
+        it's unpinned
+      */
+      DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
+                  lock == PAGECACHE_LOCK_READ_UNLOCK);
+      DBUG_ASSERT(pin == PAGECACHE_UNPIN);
+      if (block->rec_lsn == LSN_MAX)
+        block->rec_lsn= first_REDO_LSN_for_page;
+      else
+        DBUG_ASSERT(cmp_translog_addr(block->rec_lsn,
+                                      first_REDO_LSN_for_page) <= 0);
+    }
+    if (lsn != LSN_IMPOSSIBLE)
+      check_and_set_lsn(pagecache, lsn, block);
   }
-  if (lsn != LSN_IMPOSSIBLE)
-    check_and_set_lsn(pagecache, lsn, block);
+
+  /* if we lock for write we must link the block to changed blocks */
+  DBUG_ASSERT((block->status & PCBLOCK_DIRECT_W) == 0 ||
+              (lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
+               lock == PAGECACHE_LOCK_LEFT_WRITELOCKED));
+  /*
+    If was_changed then status should be PCBLOCK_DIRECT_W or marked
+    as dirty
+  */
+  DBUG_ASSERT(!was_changed || (block->status & PCBLOCK_DIRECT_W) ||
+              (block->status & PCBLOCK_CHANGED));
+  if ((block->status & PCBLOCK_DIRECT_W) &&
+      (lock == PAGECACHE_LOCK_WRITE_UNLOCK))
+  {
+    if (!(block->status & PCBLOCK_CHANGED) && was_changed)
+      link_to_changed_list(pagecache, block);
+    block->status&= ~PCBLOCK_DIRECT_W;
+    DBUG_PRINT("info", ("Drop PCBLOCK_DIRECT_W for block: 0x%lx",
+                        (ulong) block));
+
+  }
 
   if (make_lock_and_pin(pagecache, block, lock, pin, 0))
     DBUG_ASSERT(0);                           /* should not happend */
@@ -2786,6 +2834,8 @@ void pagecache_unpin_by_link(PAGECACHE *pagecache,
     unlock.
   */
   DBUG_ASSERT(pagecache->can_be_used);
+  /* we can't unpin such page without unlock */
+  DBUG_ASSERT((block->status & PCBLOCK_DIRECT_W) == 0);
 
   inc_counter_for_resize_op(pagecache);
 
@@ -2869,7 +2919,7 @@ uchar *pagecache_valid_read(PAGECACHE *pagecache,
                            uchar *buff,
                            enum pagecache_page_type type,
                            enum pagecache_page_lock lock,
-                           PAGECACHE_BLOCK_LINK **link,
+                           PAGECACHE_BLOCK_LINK **page_link,
                            pagecache_disk_read_validator validator,
                            uchar* validator_data)
 {
@@ -2887,9 +2937,9 @@ uchar *pagecache_valid_read(PAGECACHE *pagecache,
   DBUG_ASSERT(buff != 0 || (buff == 0 && (pin == PAGECACHE_PIN ||
                                           pin == PAGECACHE_PIN_LEFT_PINNED)));
 
-  if (!link)
-    link= &fake_link;
-  *link= 0;                                     /* Catch errors */
+  if (!page_link)
+    page_link= &fake_link;
+  *page_link= 0;                                 /* Catch errors */
 
 restart:
 
@@ -2932,6 +2982,11 @@ restart:
                  validator, validator_data);
       DBUG_PRINT("info", ("read is done"));
     }
+
+    /* PCBLOCK_DIRECT_W should be unlocked in unlock */
+    DBUG_ASSERT((block->status & PCBLOCK_DIRECT_W) == 0 ||
+                lock == PAGECACHE_LOCK_LEFT_WRITELOCKED);
+
     if (make_lock_and_pin(pagecache, block, lock, pin, file))
     {
       /*
@@ -2947,11 +3002,15 @@ restart:
     if (!buff)
     {
       buff=  block->buffer;
-      /* if we lock for write we must link the block to changed blocks */
+      /* possibly we will write here (resolved on unlock) */
       if ((lock == PAGECACHE_LOCK_WRITE ||
            lock == PAGECACHE_LOCK_LEFT_WRITELOCKED) &&
           !(block->status & PCBLOCK_CHANGED))
-          link_to_changed_list(pagecache, block);
+      {
+        block->status|= PCBLOCK_DIRECT_W;
+        DBUG_PRINT("info", ("Set PCBLOCK_DIRECT_W for block: 0x%lx",
+                            (ulong) block));
+      }
     }
     else
     {
@@ -2980,7 +3039,7 @@ restart:
     if (pin == PAGECACHE_PIN_LEFT_UNPINNED || pin == PAGECACHE_UNPIN)
       unreg_request(pagecache, block, 1);
     else
-      *link= block;
+      *page_link= block;
 
     dec_counter_for_resize_op(pagecache);
 
@@ -3039,28 +3098,27 @@ my_bool pagecache_delete(PAGECACHE *pagecache,
               lock == PAGECACHE_LOCK_LEFT_WRITELOCKED);
   DBUG_ASSERT(pin == PAGECACHE_PIN ||
               pin == PAGECACHE_PIN_LEFT_PINNED);
-
 restart:
 
   if (pagecache->can_be_used)
   {
     /* Key cache is used */
     reg1 PAGECACHE_BLOCK_LINK *block;
-    PAGECACHE_HASH_LINK **unused_start, *link;
+    PAGECACHE_HASH_LINK **unused_start, *page_link;
 
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
     if (!pagecache->can_be_used)
       goto end;
 
     inc_counter_for_resize_op(pagecache);
-    link= get_present_hash_link(pagecache, file, pageno, &unused_start);
-    if (!link)
+    page_link= get_present_hash_link(pagecache, file, pageno, &unused_start);
+    if (!page_link)
     {
       DBUG_PRINT("info", ("There is no such page in the cache"));
       pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
       DBUG_RETURN(0);
     }
-    block= link->block;
+    block= page_link->block;
     /* See NOTE for pagecache_unlock about registering requests. */
     if (pin == PAGECACHE_PIN)
       reg_requests(pagecache, block, 1);
@@ -3075,6 +3133,9 @@ restart:
       DBUG_PRINT("info", ("restarting..."));
       goto restart;
     }
+
+    /* we can't delete with opened direct link for write */
+    DBUG_ASSERT((block->status & PCBLOCK_DIRECT_W) == 0);
 
     if (block->status & PCBLOCK_CHANGED)
     {
@@ -3116,8 +3177,8 @@ restart:
     make_lock_and_pin(pagecache, block,
                       PAGECACHE_LOCK_WRITE_UNLOCK,
                       PAGECACHE_UNPIN, file);
-    DBUG_ASSERT(link->requests > 0);
-    link->requests--;
+    DBUG_ASSERT(page_link->requests > 0);
+    page_link->requests--;
     /* See NOTE for pagecache_unlock about registering requests. */
     free_block(pagecache, block);
 
@@ -3234,7 +3295,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
                              enum pagecache_page_lock lock,
                              enum pagecache_page_pin pin,
                              enum pagecache_write_mode write_mode,
-                             PAGECACHE_BLOCK_LINK **link,
+                             PAGECACHE_BLOCK_LINK **page_link,
                              uint offset, uint size,
                              pagecache_disk_read_validator validator,
                              uchar* validator_data)
@@ -3257,9 +3318,9 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
   DBUG_ASSERT(lock != PAGECACHE_LOCK_READ_UNLOCK);
   DBUG_ASSERT(offset + size <= pagecache->block_size);
 
-  if (!link)
-    link= &fake_link;
-  *link= 0;
+  if (!page_link)
+    page_link= &fake_link;
+  *page_link= 0;
 
 restart:
 
@@ -3307,6 +3368,10 @@ restart:
                 (block->type == PAGECACHE_PLAIN_PAGE &&
                  type == PAGECACHE_LSN_PAGE));
     block->type= type;
+    /* we write to the page so it has no sense to keep the flag */
+    block->status&= ~PCBLOCK_DIRECT_W;
+    DBUG_PRINT("info", ("Drop PCBLOCK_DIRECT_W for block: 0x%lx",
+                        (ulong) block));
 
     if (make_lock_and_pin(pagecache, block,
                           write_lock_change_table[lock].new_lock,
@@ -3384,7 +3449,7 @@ restart:
     if (pin == PAGECACHE_PIN_LEFT_UNPINNED || pin == PAGECACHE_UNPIN)
       unreg_request(pagecache, block, 1);
     else
-      *link= block;
+      *page_link= block;
 
     if (block->status & PCBLOCK_ERROR)
       error= 1;
@@ -3629,8 +3694,10 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
   PAGECACHE_BLOCK_LINK *cache_buff[FLUSH_CACHE],**cache;
   int last_errno= 0;
   DBUG_ENTER("flush_pagecache_blocks_int");
-  DBUG_PRINT("enter",("file: %d  blocks_used: %lu  blocks_changed: %lu",
-              file->file, pagecache->blocks_used, pagecache->blocks_changed));
+  DBUG_PRINT("enter",
+             ("file: %d  blocks_used: %lu  blocks_changed: %lu  type: %d",
+              file->file, pagecache->blocks_used, pagecache->blocks_changed,
+              type));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
     DBUG_EXECUTE("check_pagecache",
@@ -4044,7 +4111,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       wqueue_add_to_queue(&other_flusher->flush_queue, thread);
       do
       {
-        KEYCACHE_DBUG_PRINT("pagecache_collect_Ã§hanged_blocks_with_lsn: wait",
+        KEYCACHE_DBUG_PRINT("pagecache_collect_çhanged_blocks_with_lsn: wait",
                             ("suspend thread %ld", thread->id));
         pagecache_pthread_cond_wait(&thread->suspend,
                                     &pagecache->cache_lock);
@@ -4311,7 +4378,7 @@ static int pagecache_pthread_cond_wait(pthread_cond_t *cond,
 #endif
 #endif /* defined(PAGECACHE_TIMEOUT) && !defined(__WIN__) */
 
-#if defined(PAGECACHE_DEBUG) 
+#if defined(PAGECACHE_DEBUG)
 static int ___pagecache_pthread_mutex_lock(pthread_mutex_t *mutex)
 {
   int rc;

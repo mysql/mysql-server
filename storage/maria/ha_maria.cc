@@ -2131,7 +2131,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                      HA_CREATE_INFO *ha_create_info)
 {
   int error;
-  uint create_flags= 0, records, i;
+  uint create_flags= 0, record_count, i;
   char buff[FN_REFLEN];
   MARIA_KEYDEF *keydef;
   MARIA_COLUMNDEF *recinfo;
@@ -2159,7 +2159,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                  ER_ILLEGAL_HA_CREATE_OPTION,
                  "Row format set to PAGE because of TRANSACTIONAL=1 option");
 
-  if ((error= table2maria(table_arg, &keydef, &recinfo, &records)))
+  if ((error= table2maria(table_arg, &keydef, &recinfo, &record_count)))
     DBUG_RETURN(error); /* purecov: inspected */
   bzero((char*) &create_info, sizeof(create_info));
   create_info.max_rows= share->max_rows;
@@ -2204,7 +2204,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     maria_create(fn_format(buff, name, "", "",
                            MY_UNPACK_FILENAME | MY_APPEND_EXT),
                  row_type, share->keys, keydef,
-                 records,  recinfo,
+                 record_count,  recinfo,
                  0, (MARIA_UNIQUEDEF *) 0,
                  &create_info, create_flags);
 
@@ -2322,22 +2322,22 @@ uint ha_maria::checksum() const
 }
 
 
-bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *info,
+bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                           uint table_changes)
 {
   uint options= table->s->db_options_in_use;
 
-  if (info->auto_increment_value != stats.auto_increment_value ||
-      info->data_file_name != data_file_name ||
-      info->index_file_name != index_file_name ||
-      maria_row_type(info) != data_file_type ||
+  if (create_info->auto_increment_value != stats.auto_increment_value ||
+      create_info->data_file_name != data_file_name ||
+      create_info->index_file_name != index_file_name ||
+      maria_row_type(create_info) != data_file_type ||
       table_changes == IS_EQUAL_NO ||
       table_changes & IS_EQUAL_PACK_LENGTH) // Not implemented yet
     return COMPATIBLE_DATA_NO;
 
   if ((options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
                   HA_OPTION_DELAY_KEY_WRITE)) !=
-      (info->table_options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
+      (create_info->table_options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
                               HA_OPTION_DELAY_KEY_WRITE)))
     return COMPATIBLE_DATA_NO;
   return COMPATIBLE_DATA_YES;
@@ -2413,7 +2413,7 @@ static int ha_maria_init(void *p)
     maria_recover() ||
     ma_checkpoint_init(checkpoint_interval);
   maria_multi_threaded= TRUE;
-  return res;
+  return res ? HA_ERR_INITIALIZATION : 0;
 }
 
 
@@ -2519,9 +2519,9 @@ static void update_checkpoint_interval(MYSQL_THD thd,
 }
 
 static SHOW_VAR status_variables[]= {
-  {"Maria_pagecache_blocks_not_flushed", (char*) &maria_pagecache_var.global_blocks_changed, SHOW_LONG},
-  {"Maria_pagecache_blocks_unused",      (char*) &maria_pagecache_var.blocks_unused, SHOW_LONG},
-  {"Maria_pagecache_blocks_used",        (char*) &maria_pagecache_var.blocks_used, SHOW_LONG},
+  {"Maria_pagecache_blocks_not_flushed", (char*) &maria_pagecache_var.global_blocks_changed, SHOW_LONG_NOFLUSH},
+  {"Maria_pagecache_blocks_unused",      (char*) &maria_pagecache_var.blocks_unused, SHOW_LONG_NOFLUSH},
+  {"Maria_pagecache_blocks_used",        (char*) &maria_pagecache_var.blocks_used, SHOW_LONG_NOFLUSH},
   {"Maria_pagecache_read_requests",      (char*) &maria_pagecache_var.global_cache_r_requests, SHOW_LONGLONG},
   {"Maria_pagecache_reads",              (char*) &maria_pagecache_var.global_cache_read, SHOW_LONGLONG},
   {"Maria_pagecache_write_requests",     (char*) &maria_pagecache_var.global_cache_w_requests, SHOW_LONGLONG},

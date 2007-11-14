@@ -51,7 +51,7 @@ static	int verbose=0,testflag=0,
             die_in_middle_of_transaction= 0;
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1;
 static int create_flag= 0, srand_arg= 0, checkpoint= 0;
-static ulong pagecache_size=IO_SIZE*16;
+static ulong pagecache_size=8192*32;
 static enum data_file_type record_type= DYNAMIC_RECORD;
 
 static uint keys=MARIA_KEYS,recant=1000;
@@ -253,14 +253,6 @@ int main(int argc, char *argv[])
   for (i=0 ; i < recant ; i++)
   {
     ulong blob_length;
-#if 0
-    /*
-      Starting from i==72, there was a difference between runtime and
-      log-applying. This is now fixed, by not using non_header_data_len in
-      log-applying.
-    */
-    if (i == 72) goto end;
-#endif
     n1=rnd(1000); n2=rnd(100); n3=rnd(5000);
     sprintf((char*) record,"%6d:%4d:%8d:Pos: %4d    ",n1,n2,n3,write_count);
     int4store(record+STANDARD_LENGTH-4,(long) i);
@@ -1160,6 +1152,7 @@ static void put_blob_in_record(uchar *blob_pos, char **blob_buffer,
                                ulong *blob_length)
 {
   ulong i,length;
+  *blob_length= 0;
   if (use_blob)
   {
     if (rnd(10) == 0)
@@ -1180,7 +1173,6 @@ static void put_blob_in_record(uchar *blob_pos, char **blob_buffer,
     else
     {
       int4store(blob_pos,0);
-      *blob_length= 0;
     }
   }
   return;

@@ -92,6 +92,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
 {
   char buffer[CONTROL_FILE_SIZE];
   char name[FN_REFLEN];
+  const char *errmsg;
   MY_STAT stat_buff;
   my_bool create_file;
   int open_flags= O_BINARY | /*O_DIRECT |*/ O_RDWR;
@@ -121,7 +122,8 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     if (maria_in_recovery)
       DBUG_RETURN(CONTROL_FILE_MISSING);
     if ((control_file_fd= my_create(name, 0,
-                                    open_flags, MYF(MY_SYNC_DIR))) < 0)
+                                    open_flags,
+                                    MYF(MY_SYNC_DIR | MY_WME))) < 0)
       DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
 
     /* Create unique uuid for the control file */
@@ -153,10 +155,16 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
   /* Otherwise, file exists */
 
   if ((control_file_fd= my_open(name, open_flags, MYF(MY_WME))) < 0)
+  {
+    errmsg= "Can't open file";
     goto err;
+  }
 
-  if (my_stat(name, &stat_buff, MYF(MY_WME)) == NULL)
+  if (my_stat(name, &stat_buff, MYF(0)) == NULL)
+  {
+    errmsg= "Can't read status";
     goto err;
+  }
 
   if ((uint)stat_buff.st_size < CONTROL_FILE_SIZE)
   {
@@ -176,6 +184,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
       MySQL's error log at startup.
     */
     error= CONTROL_FILE_TOO_SMALL;
+    errmsg= "File size to small";
     goto err;
   }
 
@@ -183,17 +192,21 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
   {
     /* TODO: store "too big file" message */
     error= CONTROL_FILE_TOO_BIG;
+    errmsg= "File size bigger than expected";
     goto err;
   }
 
-  if (my_read(control_file_fd, buffer, CONTROL_FILE_SIZE,
-              MYF(MY_FNABP | MY_WME)))
+  if (my_read(control_file_fd, buffer, CONTROL_FILE_SIZE, MYF(MY_FNABP)))
+  {
+    errmsg= "Can't read file";
     goto err;
+  }
   if (memcmp(buffer + CONTROL_FILE_MAGIC_STRING_OFFSET,
              CONTROL_FILE_MAGIC_STRING, CONTROL_FILE_MAGIC_STRING_SIZE))
   {
     /* TODO: store message "bad magic string" somewhere */
     error= CONTROL_FILE_BAD_MAGIC_STRING;
+    errmsg= "Missing valid id at start of file";
     goto err;
   }
   memcpy(maria_uuid, buffer + CONTROL_FILE_UUID_OFFSET,
@@ -203,15 +216,19 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
                   CONTROL_FILE_SIZE - CONTROL_FILE_LSN_OFFSET) !=
       uint4korr(buffer + CONTROL_FILE_CHECKSUM_OFFSET))
   {
-    /* TODO: store message "checksum mismatch" somewhere */
     error= CONTROL_FILE_BAD_CHECKSUM;
+    errmsg= "Checksum missmatch";
     goto err;
   }
   last_checkpoint_lsn= lsn_korr(buffer + CONTROL_FILE_LSN_OFFSET);
   last_logno= uint4korr(buffer + CONTROL_FILE_FILENO_OFFSET);
 
   DBUG_RETURN(0);
+
 err:
+  my_printf_error(HA_ERR_INITIALIZATION,
+                  "Error when trying to use maria control file '%s': %s", 0,
+                  name, errmsg);
   ma_control_file_end();
   DBUG_RETURN(error);
 }
@@ -247,7 +264,7 @@ err:
 */
 
 int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
-                                 uint objs_to_write)
+                                    uint objs_to_write)
 {
   char buffer[CONTROL_FILE_SIZE];
   my_bool update_checkpoint_lsn= FALSE, update_logno= FALSE;

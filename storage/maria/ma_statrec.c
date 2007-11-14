@@ -30,7 +30,7 @@ my_bool _ma_write_static_record(MARIA_HA *info, const uchar *record)
 		info->s->state.dellink+1,
 		 MYF(MY_NABP)))
       goto err;
-    info->s->state.dellink= _ma_rec_pos(info->s,temp);
+    info->s->state.dellink= _ma_rec_pos(info, temp);
     info->state->del--;
     info->state->empty-=info->s->base.pack_reclength;
     if (info->s->file_write(info, record, info->s->base.reclength,

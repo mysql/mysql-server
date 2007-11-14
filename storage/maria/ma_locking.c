@@ -67,18 +67,11 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks)
       {
-        if (!share->delay_key_write &&
-            flush_pagecache_blocks(share->pagecache, &share->kfile,
-                                   FLUSH_KEEP))
-        {
-          error= my_errno;
-          maria_print_error(info->s, HA_ERR_CRASHED);
-          /* Mark that table must be checked */
-          maria_mark_crashed(info);
-        }
         /* pages of transactional tables get flushed at Checkpoint */
-        if (!share->base.born_transactional &&
-            _ma_flush_table_files(info, MARIA_FLUSH_DATA,
+        if (!share->base.born_transactional && !share->temporary &&
+            _ma_flush_table_files(info,
+                                  share->delay_key_write ? MARIA_FLUSH_DATA :
+                                  MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                                   FLUSH_KEEP, FLUSH_KEEP))
           error= my_errno;
       }
@@ -110,9 +103,11 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
               rw_unlock(&info->s->mmap_lock);
           }
 #endif
+#ifdef EXTERNAL_LOCKING
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
 	  share->state.update_count= info->last_loop= ++info->this_loop;
+#endif
           /* transactional tables rather flush their state at Checkpoint */
           if (!share->base.born_transactional)
           {
@@ -239,7 +234,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
     /*
        Check for bad file descriptors if this table is part
        of a merge union. Failing to capture this may cause
-       a crash on windows if the table is renamed and 
+       a crash on windows if the table is renamed and
        later on referenced by the merge table.
      */
     if( info->owned_by_merge && (info->s)->kfile.file < 0 )
@@ -438,9 +433,17 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
     if (operation)
     {					/* Two threads can't be here */
       olderror= my_errno;               /* Remember last error */
+
+#ifdef EXTERNAL_LOCKING
+      /*
+        The following only makes sense if we want to be allow two different
+        processes access the same table at the same time
+      */
       share->state.process= share->last_process=   share->this_process;
       share->state.unique=  info->last_unique=	   info->this_unique;
       share->state.update_count= info->last_loop= ++info->this_loop;
+#endif
+
       if ((error= _ma_state_info_write_sub(share->kfile.file,
                                            &share->state, 1)))
 	olderror=my_errno;
@@ -460,11 +463,14 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
 } /* _ma_writeinfo */
 
 
-	/* Test if someone has changed the database */
-	/* (Should be called after readinfo) */
+/*
+  Test if an external process has changed the database
+  (Should be called after readinfo)
+*/
 
 int _ma_test_if_changed(register MARIA_HA *info)
 {
+#ifdef EXTERNAL_LOCKING
   MARIA_SHARE *share=info->s;
   if (share->state.process != share->last_process ||
       share->state.unique  != info->last_unique ||
@@ -481,6 +487,7 @@ int _ma_test_if_changed(register MARIA_HA *info)
     info->data_changed= 1;			/* For maria_is_changed */
     return 1;
   }
+#endif
   return (!(info->update & HA_STATE_AKTIV) ||
 	  (info->update & (HA_STATE_WRITTEN | HA_STATE_DELETED |
 			   HA_STATE_KEY_CHANGED)));

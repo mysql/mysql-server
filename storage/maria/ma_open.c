@@ -19,7 +19,6 @@
 #include "ma_sp_defs.h"
 #include "ma_rt_index.h"
 #include "ma_blockrec.h"
-#include "trnman.h"
 #include <m_ctype.h>
 
 #if defined(MSDOS) || defined(__WIN__)
@@ -153,6 +152,14 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   if ((*share->init)(&info))
     goto err;
 
+  /* The following should be big enough for all pinning purposes */
+  if (my_init_dynamic_array(&info.pinned_pages,
+                            sizeof(MARIA_PINNED_PAGE),
+                            max(share->base.blobs*2 + 4,
+                                MARIA_MAX_TREE_LEVELS*3), 16))
+    goto err;
+
+
   pthread_mutex_lock(&share->intern_lock);
   info.read_record= share->read_record;
   share->reopen++;
@@ -207,7 +214,8 @@ err:
   switch (errpos) {
   case 6:
     (*share->end)(&info);
-    my_free((uchar*) m_info,MYF(0));
+    delete_dynamic(&info.pinned_pages);
+    my_free(m_info, MYF(0));
     /* fall through */
   case 5:
     if (data_file < 0)
@@ -491,6 +499,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       {
         share->keyinfo[i].share= share;
 	disk_pos=_ma_keydef_read(disk_pos, &share->keyinfo[i]);
+        share->keyinfo[i].key_nr= i;
         disk_pos_assert(disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
  			end_pos);
         if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
@@ -718,7 +727,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
 #ifdef THREAD
     thr_lock_init(&share->lock);
-    VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
+    VOID(pthread_mutex_init(&share->intern_lock, MY_MUTEX_INIT_FAST));
+    VOID(pthread_cond_init(&share->intern_cond, 0));
     for (i=0; i<keys; i++)
       VOID(my_rwlock_init(&share->key_root_lock[i], NULL));
     VOID(my_rwlock_init(&share->mmap_lock, NULL));
@@ -851,6 +861,8 @@ void _ma_setup_functions(register MARIA_SHARE *share)
   share->scan_end=           maria_scan_end_dummy;/* Compat. dummy function */
   share->write_record_init=  _ma_write_init_default;
   share->write_record_abort= _ma_write_abort_default;
+  share->keypos_to_recpos=   _ma_transparent_recpos;
+  share->recpos_to_keypos=   _ma_transparent_recpos;
 
   switch (share->data_file_type) {
   case COMPRESSED_RECORD:
@@ -890,13 +902,15 @@ void _ma_setup_functions(register MARIA_SHARE *share)
     }
     break;
   case STATIC_RECORD:
-    share->read_record= _ma_read_static_record;
-    share->scan= _ma_read_rnd_static_record;
-    share->delete_record= _ma_delete_static_record;
-    share->compare_record= _ma_cmp_static_record;
-    share->update_record= _ma_update_static_record;
-    share->write_record= _ma_write_static_record;
-    share->compare_unique= _ma_cmp_static_unique;
+    share->read_record=      _ma_read_static_record;
+    share->scan=             _ma_read_rnd_static_record;
+    share->delete_record=    _ma_delete_static_record;
+    share->compare_record=   _ma_cmp_static_record;
+    share->update_record=    _ma_update_static_record;
+    share->write_record=     _ma_write_static_record;
+    share->compare_unique=   _ma_cmp_static_unique;
+    share->keypos_to_recpos= _ma_static_keypos_to_recpos;
+    share->recpos_to_keypos= _ma_static_recpos_to_keypos;
     if (share->state.header.org_data_file_type == STATIC_RECORD &&
         ! (share->options & HA_OPTION_NULL_FIELDS))
       share->calc_checksum= _ma_static_checksum;
@@ -920,6 +934,9 @@ void _ma_setup_functions(register MARIA_SHARE *share)
     share->write_record=  _ma_write_block_record;
     share->compare_unique= _ma_cmp_block_unique;
     share->calc_checksum= _ma_checksum;
+    share->keypos_to_recpos= _ma_transaction_keypos_to_recpos;
+    share->recpos_to_keypos= _ma_transaction_recpos_to_keypos;
+
     /*
       write_block_record() will calculate the checksum; Tell maria_write()
       that it doesn't have to do this.
@@ -988,6 +1005,18 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
     keyinfo->pack_key= _ma_calc_static_key_length;
     keyinfo->store_key= _ma_store_static_key;
   }
+
+  /* set keyinfo->write_comp_flag */
+  if (keyinfo->flag & HA_SORT_ALLOWS_SAME)
+    keyinfo->write_comp_flag=SEARCH_BIGGER; /* Put after same key */
+  else if (keyinfo->flag & ( HA_NOSAME | HA_FULLTEXT))
+  {
+    keyinfo->write_comp_flag= SEARCH_FIND | SEARCH_UPDATE; /* No duplicates */
+    if (keyinfo->flag & HA_NULL_ARE_EQUAL)
+      keyinfo->write_comp_flag|= SEARCH_NULL_ARE_EQUAL;
+  }
+  else
+    keyinfo->write_comp_flag= SEARCH_SAME; /* Keys in rec-pos order */
   return;
 }
 

@@ -32,7 +32,6 @@
 
 #include "maria_def.h"
 #include "ma_pagecache.h"
-#include "trnman.h"
 #include "ma_blockrec.h"
 #include "ma_checkpoint.h"
 #include "ma_loghandler_lsn.h"

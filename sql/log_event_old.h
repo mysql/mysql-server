@@ -112,9 +112,9 @@ public:
   };
 
 #if !defined(MYSQL_CLIENT)
-  Write_rows_log_event_old(THD *thd, TABLE *table, ulong table_id,
+  Write_rows_log_event_old(THD *thd_arg, TABLE *table, ulong table_id,
                            MY_BITMAP const *cols, bool is_transactional)
-    : Write_rows_log_event(thd, table, table_id, cols, is_transactional)
+    : Write_rows_log_event(thd_arg, table, table_id, cols, is_transactional)
   {
   }
 #endif
@@ -158,9 +158,9 @@ public:
   };
 
 #if !defined(MYSQL_CLIENT)
-  Update_rows_log_event_old(THD *thd, TABLE *table, ulong table_id,
+  Update_rows_log_event_old(THD *thd_arg, TABLE *table, ulong table_id,
                            MY_BITMAP const *cols, bool is_transactional)
-    : Update_rows_log_event(thd, table, table_id, cols, is_transactional),
+    : Update_rows_log_event(thd_arg, table, table_id, cols, is_transactional),
       m_after_image(NULL), m_memory(NULL)
   {
   }
@@ -205,9 +205,9 @@ public:
   };
 
 #if !defined(MYSQL_CLIENT)
-  Delete_rows_log_event_old(THD *thd, TABLE *table, ulong table_id,
+  Delete_rows_log_event_old(THD *thd_arg, TABLE *table, ulong table_id,
                            MY_BITMAP const *cols, bool is_transactional)
-    : Delete_rows_log_event(thd, table, table_id, cols, is_transactional),
+    : Delete_rows_log_event(thd_arg, table, table_id, cols, is_transactional),
       m_after_image(NULL), m_memory(NULL)
   {
   }

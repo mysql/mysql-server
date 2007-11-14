@@ -182,7 +182,9 @@ typedef struct st_mi_isam_share
   int(*delete_record) (struct st_myisam_info *);
   int(*read_rnd) (struct st_myisam_info *, uchar*, my_off_t, my_bool);
   int(*compare_record) (struct st_myisam_info *, const uchar*);
-    ha_checksum(*calc_checksum) (struct st_myisam_info *, const uchar*);
+  ha_checksum(*calc_checksum) (struct st_myisam_info *, const uchar*);
+  /* calculate checksum for a row during check table */
+  ha_checksum(*calc_check_checksum)(struct st_myisam_info *, const uchar *);
   int(*compare_unique) (struct st_myisam_info *, MI_UNIQUEDEF *,
                         const uchar *record, my_off_t pos);
     size_t (*file_read) (MI_INFO *, uchar *, size_t, my_off_t, myf);
@@ -518,8 +520,6 @@ extern void _mi_kpointer(MI_INFO *info, uchar *buff, my_off_t pos);
 extern my_off_t _mi_dpos(MI_INFO *info, uint nod_flag, uchar *after_key);
 extern my_off_t _mi_rec_pos(MYISAM_SHARE *info, uchar *ptr);
 extern void _mi_dpointer(MI_INFO *info, uchar *buff, my_off_t pos);
-extern int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b,
-                      uint key_length, uint nextflag, uint *diff_length);
 extern uint _mi_get_static_key(MI_KEYDEF *keyinfo, uint nod_flag,
                                uchar **page, uchar *key);
 extern uint _mi_get_pack_key(MI_KEYDEF *keyinfo, uint nod_flag, uchar **page,

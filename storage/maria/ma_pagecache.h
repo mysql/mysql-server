@@ -97,6 +97,9 @@ typedef struct st_pagecache_hash_link PAGECACHE_HASH_LINK;
 typedef my_bool (*pagecache_disk_read_validator)(uchar *page, uchar *data);
 
 #define PAGECACHE_CHANGED_BLOCKS_HASH 128  /* must be power of 2 */
+#define PAGECACHE_PRIORITY_LOW 0
+#define PAGECACHE_PRIORITY_DEFAULT 3
+#define PAGECACHE_PRIORITY_HIGH 6
 
 /*
   The page cache structure
@@ -228,13 +231,13 @@ extern void pagecache_unlock(PAGECACHE *pagecache,
                              enum pagecache_page_lock lock,
                              enum pagecache_page_pin pin,
                              LSN first_REDO_LSN_for_page,
-                             LSN lsn);
+                             LSN lsn, my_bool was_changed);
 extern void pagecache_unlock_by_link(PAGECACHE *pagecache,
                                      PAGECACHE_BLOCK_LINK *block,
                                      enum pagecache_page_lock lock,
                                      enum pagecache_page_pin pin,
                                      LSN first_REDO_LSN_for_page,
-                                     LSN lsn);
+                                     LSN lsn, my_bool was_changed);
 extern void pagecache_unpin(PAGECACHE *pagecache,
                             PAGECACHE_FILE *file,
                             pgcache_page_no_t pageno,

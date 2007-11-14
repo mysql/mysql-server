@@ -921,6 +921,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
+
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {
@@ -931,17 +932,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
 
-#ifdef WITH_MARIA_STORAGE_ENGINE
-    /**
-       @todo MARIA_HACK until BUG#30309 is fixed.
-       Had to make this, otherwise tests "temp_table.test" and "truncate.test"
-       crashes server at shutdown when using Maria tables: a temporary table
-       is correctly created as non-transactional but then, when truncated, is
-      recreated as transactional.
-    */
-    if (table_type == maria_hton)
-      create_info.transactional= HA_CHOICE_NO;
-#endif
+    create_info.options|= HA_LEX_CREATE_TMP_TABLE;
     close_temporary_table(thd, table, 0, 0);    // Don't free share
     ha_create_table(thd, share->normalized_path.str,
                     share->db.str, share->table_name.str, &create_info, 1);
@@ -972,7 +963,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                table_list->db, table_list->table_name);
       DBUG_RETURN(TRUE);
     }
-    if (!ha_check_storage_engine_flag(ha_resolve_by_legacy_type(thd, table_type),
+    if (!ha_check_storage_engine_flag(ha_resolve_by_legacy_type(thd,
+                                                                table_type),
                                       HTON_CAN_RECREATE))
       goto trunc_by_del;
 
@@ -980,9 +972,11 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       DBUG_RETURN(TRUE);
   }
 
-  // Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this
-  // crashes, replacement works.  *(path + path_length - reg_ext_length)=
-  // '\0';
+  /*
+    Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this
+    crashes, replacement works.  *(path + path_length - reg_ext_length)=
+     '\0';
+  */
   path[path_length - reg_ext_length] = 0;
   VOID(pthread_mutex_lock(&LOCK_open));
   error= ha_create_table(thd, path, table_list->db, table_list->table_name,
@@ -1017,12 +1011,15 @@ end:
 trunc_by_del:
   /* Probably InnoDB table */
   ulonglong save_options= thd->options;
+  bool save_binlog_row_based= thd->current_stmt_binlog_row_based;
+
   table_list->lock_type= TL_WRITE;
   thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
   ha_enable_transaction(thd, FALSE);
   mysql_init_select(thd->lex);
-  bool save_binlog_row_based= thd->current_stmt_binlog_row_based;
   thd->clear_current_stmt_binlog_row_based();
+
+  /* Delete all rows from table */
   error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
                       HA_POS_ERROR, LL(0), TRUE);
   ha_enable_transaction(thd, TRUE);

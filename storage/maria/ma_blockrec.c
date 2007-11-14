@@ -265,8 +265,9 @@
 
 #include "maria_def.h"
 #include "ma_blockrec.h"
-#include <lf.h>
 #include "trnman.h"
+#include "ma_key_recover.h"
+#include <lf.h>
 
 /*
   Struct for having a cursor over a set of extent.
@@ -314,12 +315,7 @@ typedef struct st_maria_extent_cursor
    trn->undo_lsn under log mutex, and needs to know the type of UNDO being
    undone now to modify state.records under log mutex.
 */
-struct st_msg_to_write_hook_for_clr_end
-{
-  LSN previous_undo_lsn;
-  enum translog_record_type undone_record_type;
-  ha_checksum checksum_delta;
-};
+
 /** S:share,D:checksum_delta,E:expression,P:pointer_into_record,L:length */
 #define store_checksum_in_rec(S,D,E,P,L)        do      \
   {                                                     \
@@ -498,12 +494,6 @@ my_bool _ma_init_block_record(MARIA_HA *info)
                             sizeof(MARIA_BITMAP_BLOCK),
                             ELEMENTS_RESERVED_FOR_MAIN_PART, 16))
     goto err;
-  /* The following should be big enough for all purposes */
-  if (my_init_dynamic_array(&info->pinned_pages,
-                            sizeof(MARIA_PINNED_PAGE),
-                            max(info->s->base.blobs*2 + 4,
-                                MARIA_MAX_TREE_LEVELS*2), 16))
-    goto err;
   row->base_length= new_row->base_length= info->s->base_length;
 
   /*
@@ -527,7 +517,6 @@ void _ma_end_block_record(MARIA_HA *info)
   DBUG_ENTER("_ma_end_block_record");
   my_free((uchar*) info->cur_row.empty_bits, MYF(MY_ALLOW_ZERO_PTR));
   delete_dynamic(&info->bitmap_blocks);
-  delete_dynamic(&info->pinned_pages);
   my_free((uchar*) info->cur_row.extents, MYF(MY_ALLOW_ZERO_PTR));
   /*
     The data file is closed, when needed, in ma_once_end_block_record().
@@ -783,50 +772,6 @@ void copy_not_changed_fields(MARIA_HA *info, MY_BITMAP *changed_fields,
   }
 }
 
-
-/*
-  Unpin all pinned pages
-
-  SYNOPSIS
-    _ma_unpin_all_pages()
-    info	Maria handler
-    undo_lsn	LSN for undo pages. LSN_IMPOSSIBLE if we shouldn't write undo
-                (error)
-
-  NOTE
-    We unpin pages in the reverse order as they where pinned; This may not
-    be strictly necessary but may simplify things in the future.
-
-  RETURN
-    0   ok
-    1   error (fatal disk error)
-
-*/
-
-void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
-{
-  MARIA_PINNED_PAGE *page_link= ((MARIA_PINNED_PAGE*)
-                                 dynamic_array_ptr(&info->pinned_pages, 0));
-  MARIA_PINNED_PAGE *pinned_page= page_link + info->pinned_pages.elements;
-  DBUG_ENTER("_ma_unpin_all_pages");
-  DBUG_PRINT("info", ("undo_lsn: %lu", (ulong) undo_lsn));
-
-  /* True if not disk error */
-  DBUG_ASSERT((undo_lsn != LSN_IMPOSSIBLE) || !info->s->now_transactional);
-
-  if (!info->s->now_transactional)
-    undo_lsn= LSN_IMPOSSIBLE; /* don't try to set a LSN on pages */
-
-  while (pinned_page-- != page_link)
-    pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
-                             pinned_page->unlock, PAGECACHE_UNPIN,
-                             info->trn->rec_lsn, undo_lsn);
-
-  info->pinned_pages.elements= 0;
-  DBUG_VOID_RETURN;
-}
-
-
 #ifdef NOT_YET_NEEDED
 /* Calculate empty space on a page */
 
@@ -842,23 +787,6 @@ static uint empty_space_on_page(uchar *buff, uint block_size)
   return 0;                                     /* Blob page */
 }
 #endif
-
-/**
-   When we have finished the write/update/delete of a row, we have cleanups to
-   do. For now it is signalling to Checkpoint that all dirtied pages have
-   their rec_lsn set and page LSN set (_ma_unpin_all_pages() has been called),
-   and that bitmap pages are correct (_ma_bitmap_release_unused() has been
-   called).
-*/
-#define _ma_finalize_row(info)                          \
-  do { info->trn->rec_lsn= LSN_IMPOSSIBLE; } while(0)
-/** unpinning is often the last operation before finalizing: */
-#define _ma_unpin_all_pages_and_finalize_row(info,undo_lsn)  do         \
-  {                                                                     \
-    _ma_unpin_all_pages(info, undo_lsn);                                \
-    _ma_finalize_row(info);                                             \
-  } while(0)
-
 
 /*
   Find free position in directory
@@ -1379,6 +1307,7 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
                                     lock, &page_link.link)))
       DBUG_RETURN(1);
     page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+    page_link.changed= 1;
     push_dynamic(&info->pinned_pages, (void*) &page_link);
 
     DBUG_ASSERT((res->buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type);
@@ -1517,6 +1446,7 @@ static my_bool write_tail(MARIA_HA *info,
                              PAGECACHE_WRITE_DELAY, &page_link.link)))
   {
     page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
+    page_link.changed= 1;
     if (block_is_read)
     {
       /* Change the lock used when we read the page */
@@ -1879,7 +1809,6 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
                               TRANSLOG_INTERNAL_PARTS + 1, log_array,
                               log_data, NULL))
       res= 1;
-
   }
   pthread_mutex_lock(&info->s->bitmap.bitmap_lock);
   if (_ma_reset_full_page_bits(info, &info->s->bitmap, page,
@@ -2343,13 +2272,12 @@ static my_bool write_block_record(MARIA_HA *info,
                         head_block+1, bitmap_blocks->count - 1);
       if (head_tail_block)
       {
-        ulong data_length= (tmp_data - info->rec_buff);
-        uint length;
+        ulong block_length= (tmp_data - info->rec_buff);
         uchar *extent_data;
 
-        length= (uint) (data_length % FULL_PAGE_SIZE(block_size));
+        length= (uint) (block_length % FULL_PAGE_SIZE(block_size));
         if (write_tail(info, head_tail_block,
-                       info->rec_buff + data_length - length,
+                       info->rec_buff + block_length - length,
                        length))
           goto disk_err;
         tmp_data-= length;                      /* Remove the tail */
@@ -2393,7 +2321,7 @@ static my_bool write_block_record(MARIA_HA *info,
   {
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
-    size_t data_length= (size_t) (data - row_pos->data);
+    size_t block_length= (size_t) (data - row_pos->data);
 
     /* Log REDO changes of head page */
     page_store(log_data + FILEID_STORE_SIZE, head_block->page);
@@ -2402,9 +2330,9 @@ static my_bool write_block_record(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) row_pos->data;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= data_length;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= block_length;
     if (translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_HEAD, info->trn,
-                              info, sizeof(log_data) + data_length,
+                              info, sizeof(log_data) + block_length,
                               TRANSLOG_INTERNAL_PARTS + 2, log_array,
                               log_data, NULL))
       goto disk_err;
@@ -2426,6 +2354,7 @@ static my_bool write_block_record(MARIA_HA *info,
                       PAGECACHE_WRITE_DELAY, &page_link.link))
     goto disk_err;
   page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
+  page_link.changed= 1;
   if (head_block_is_read)
   {
     /* Head page is always the first pinned page */
@@ -2477,12 +2406,12 @@ static my_bool write_block_record(MARIA_HA *info,
     if (tmp_data_used)
     {
       /* Full head page */
-      size_t data_length= (ulong) (tmp_data - info->rec_buff);
+      size_t block_length= (ulong) (tmp_data - info->rec_buff);
       log_pos= store_page_range(log_pos, head_block+1, block_size,
-                                data_length, &extents);
+                                block_length, &extents);
       log_array_pos->str=    (char*) info->rec_buff;
-      log_array_pos->length= data_length;
-      log_entry_length+= data_length;
+      log_array_pos->length= block_length;
+      log_entry_length+= block_length;
       log_array_pos++;
       sub_extents++;
     }
@@ -2545,7 +2474,7 @@ static my_bool write_block_record(MARIA_HA *info,
   }
 
   /* Write UNDO or CLR record */
-  lsn= 0;
+  lsn= LSN_IMPOSSIBLE;
   if (share->now_transactional)
   {
     LEX_STRING *log_array= info->log_row_parts;
@@ -2609,6 +2538,8 @@ static my_bool write_block_record(MARIA_HA *info,
 
       if (!old_record)
       {
+        /* Store undo_lsn in case we are aborting the insert */
+        row->orig_undo_lsn= info->trn->undo_lsn;
         /* Write UNDO log record for the INSERT */
         if (translog_write_record(&lsn, LOGREC_UNDO_ROW_INSERT,
                                   info->trn, info,
@@ -2711,7 +2642,7 @@ disk_err:
     Unpin all pinned pages to not cause problems for disk cache. This is
     safe to call even if we already called _ma_unpin_all_pages() above.
   */
-  _ma_unpin_all_pages_and_finalize_row(info, 0);
+  _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
 
   DBUG_RETURN(1);
 }
@@ -2863,32 +2794,13 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
 
   if (share->now_transactional)
   {
-    TRANSLOG_HEADER_BUFFER rec;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
                    CLR_TYPE_STORE_SIZE + HA_CHECKSUM_STORE_SIZE];
-    int len;
     struct st_msg_to_write_hook_for_clr_end msg;
-    /*
-      We do need the code above (delete_head_or_tail() etc) for
-      non-transactional tables.
-      For transactional tables we could skip this code above and just execute
-      the UNDO_INSERT, but we try to have one code path.
-      Write CLR record, because we are somehow undoing UNDO_ROW_INSERT.
-      When we have logging for keys: as maria_write() first writes the row
-      then the keys, and if failure, deletes the keys then the rows,
-      info->trn->undo_lsn below will properly point to the UNDO of the
-      UNDO_ROW_INSERT for this row.
-    */
-    if ((len= translog_read_record_header(info->trn->undo_lsn, &rec)) ==
-        RECHEADER_READ_ERROR)
-    {
-      res= 1;
-      goto end;
-    }
-    DBUG_ASSERT(rec.type == LOGREC_UNDO_ROW_INSERT);
-    memcpy(log_data, rec.header, LSN_STORE_SIZE); /* previous UNDO LSN */
-    msg.previous_undo_lsn= lsn_korr(rec.header);
+
+    lsn_store(log_data, info->cur_row.orig_undo_lsn);
+    msg.previous_undo_lsn= info->cur_row.orig_undo_lsn;
     msg.undone_record_type= LOGREC_UNDO_ROW_INSERT;
     clr_type_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE,
                    LOGREC_UNDO_ROW_INSERT);
@@ -2907,7 +2819,6 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
                               log_data + LSN_STORE_SIZE, &msg))
       res= 1;
   }
-end:
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
@@ -2964,6 +2875,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
                              PAGECACHE_LOCK_WRITE, &page_link.link)))
     DBUG_RETURN(1);
   page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+  page_link.changed= 1;
   push_dynamic(&info->pinned_pages, (void*) &page_link);
 
   org_empty_size= uint2korr(buff + EMPTY_SPACE_OFFSET);
@@ -3018,7 +2930,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
     the head page
   */
   head_length= uint2korr(dir + 2);
-  if (buff[PAGE_TYPE_OFFSET] & PAGE_CAN_BE_COMPACTED && org_empty_size &&
+  if ((buff[PAGE_TYPE_OFFSET] & PAGE_CAN_BE_COMPACTED) && org_empty_size &&
       (head_length < new_row->head_length ||
        (new_row->total_length <= head_length &&
         org_empty_size + head_length >= new_row->total_length)))
@@ -3047,13 +2959,12 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   DBUG_RETURN(res);
 
 err:
-  _ma_unpin_all_pages_and_finalize_row(info, 0);
+  _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
   DBUG_RETURN(1);
 }
 
 
 /* Wrapper for _ma_update_block_record2() used by ma_update() */
-
 
 my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
                                 const uchar *orig_rec, const uchar *new_rec)
@@ -3142,7 +3053,7 @@ static int delete_dir_entry(uchar *buff, uint block_size, uint record_number,
       buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
 #ifdef IDENTICAL_PAGES_AFTER_RECOVERY
       {
-        uchar *dir= dir_entry_pos(buff, block_size, record_number);
+        dir= dir_entry_pos(buff, block_size, record_number);
         bzero(dir, (record_number+1) * DIR_ENTRY_SIZE);
       }
 #endif
@@ -3219,6 +3130,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                              PAGECACHE_LOCK_WRITE, &page_link.link)))
     DBUG_RETURN(1);
   page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+  page_link.changed= 1;
   push_dynamic(&info->pinned_pages, (void*) &page_link);
 
   if (from_update)
@@ -3291,6 +3203,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
   }
   /* The page is pinned with a read lock */
   page_link.unlock= lock_at_unpin;
+  page_link.changed= 1;
   set_dynamic(&info->pinned_pages, (void*) &page_link,
               info->pinned_pages.elements-1);
 
@@ -3402,7 +3315,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
   DBUG_RETURN(0);
 
 err:
-  _ma_unpin_all_pages_and_finalize_row(info, 0);
+  _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
   DBUG_RETURN(1);
 }
 
@@ -3579,6 +3492,7 @@ static uchar *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
   {
     /* Read during redo */
     page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+    page_link.changed= 1;
     push_dynamic(&info->pinned_pages, (void*) &page_link);
   }
 
@@ -3890,8 +3804,9 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
     }
     case FIELD_BLOB:
     {
-      uint size_length= column->length - portable_sizeof_char_ptr;
-      ulong blob_length= _ma_calc_blob_length(size_length, field_length_data);
+      uint column_size_length= column->length - portable_sizeof_char_ptr;
+      ulong blob_length= _ma_calc_blob_length(column_size_length,
+                                              field_length_data);
 
       if (!found_blob)
       {
@@ -3920,10 +3835,10 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
         blob_buffer= info->rec_buff;
       }
 
-      memcpy(field_pos, field_length_data, size_length);
-      memcpy_fixed(field_pos + size_length, (uchar *) & blob_buffer,
+      memcpy(field_pos, field_length_data, column_size_length);
+      memcpy_fixed(field_pos + column_size_length, (uchar *) &blob_buffer,
                    sizeof(char*));
-      field_length_data+= size_length;
+      field_length_data+= column_size_length;
 
       /*
         After we have read one extent, then each blob is in it's own extent
@@ -5061,16 +4976,21 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
     (struct st_msg_to_write_hook_for_clr_end *)hook_arg;
   DBUG_ASSERT(trn->trid != 0);
   trn->undo_lsn= msg->previous_undo_lsn;
-  share->state.state.checksum+= msg->checksum_delta;
 
   switch (msg->undone_record_type) {
   case LOGREC_UNDO_ROW_DELETE:
     share->state.state.records++;
+    share->state.state.checksum+= msg->checksum_delta;
     break;
   case LOGREC_UNDO_ROW_INSERT:
     share->state.state.records--;
+    share->state.state.checksum+= msg->checksum_delta;
     break;
   case LOGREC_UNDO_ROW_UPDATE:
+    share->state.state.checksum+= msg->checksum_delta;
+    break;
+  case LOGREC_UNDO_KEY_INSERT:
+  case LOGREC_UNDO_KEY_DELETE:
     break;
   default:
     DBUG_ASSERT(0);
@@ -5180,7 +5100,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
         pagecache_unlock_by_link(share->pagecache, page_link.link,
                                  PAGECACHE_LOCK_WRITE_UNLOCK,
                                  PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                                 LSN_IMPOSSIBLE);
+                                 LSN_IMPOSSIBLE, 0);
         DBUG_RETURN(my_errno);
       }
       /* Create new page */
@@ -5193,7 +5113,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
       pagecache_unlock_by_link(share->pagecache, page_link.link,
                                PAGECACHE_LOCK_WRITE_UNLOCK,
                                PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                               LSN_IMPOSSIBLE);
+                               LSN_IMPOSSIBLE, 0);
       /* Fix bitmap, just in case */
       empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
       if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
@@ -5299,7 +5219,7 @@ err:
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE);
+                             LSN_IMPOSSIBLE, 0);
   DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
 }
 
@@ -5351,7 +5271,7 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE);
+                             LSN_IMPOSSIBLE, 0);
     DBUG_RETURN(my_errno);
   }
 
@@ -5365,7 +5285,7 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE);
+                             LSN_IMPOSSIBLE, 0);
 
     if ((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type)
     {
@@ -5401,7 +5321,7 @@ err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE);
+                           LSN_IMPOSSIBLE, 0);
   DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
 
 }
@@ -5426,7 +5346,7 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info,
 {
   MARIA_SHARE *share= info->s;
   uint ranges;
-  DBUG_ENTER("_ma_apply_redo_purge_blocks");
+  DBUG_ENTER("_ma_apply_redo_free_blocks");
 
   ranges= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;
@@ -5493,7 +5413,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE);
+                             LSN_IMPOSSIBLE, 0);
     DBUG_RETURN(1);
   }
   if (lsn_korr(buff) >= lsn)
@@ -5502,7 +5422,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE);
+                             LSN_IMPOSSIBLE, 0);
   }
   else
   {
@@ -5618,7 +5538,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
               pagecache_unlock_by_link(share->pagecache, page_link.link,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                                       LSN_IMPOSSIBLE);
+                                       LSN_IMPOSSIBLE, 0);
               DBUG_RETURN(my_errno);
             }
             /* Physical file was too short; Create new page */
@@ -5634,7 +5554,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
               pagecache_unlock_by_link(share->pagecache, page_link.link,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                                       LSN_IMPOSSIBLE);
+                                       LSN_IMPOSSIBLE, 0);
               continue;
             }
           }
@@ -5685,15 +5605,12 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
 {
   ulonglong page;
   uint rownr;
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-  uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                 CLR_TYPE_STORE_SIZE + HA_CHECKSUM_STORE_SIZE],
-    *buff;
+  uchar *buff;
   my_bool res= 1;
   MARIA_PINNED_PAGE page_link;
-  LSN lsn;
   MARIA_SHARE *share= info->s;
-  struct st_msg_to_write_hook_for_clr_end msg;
+  ha_checksum checksum;
+  LSN lsn;
   DBUG_ENTER("_ma_apply_undo_row_insert");
 
   page=  page_korr(header);
@@ -5710,6 +5627,7 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
     DBUG_RETURN(1);
 
   page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+  page_link.changed= 1;
   push_dynamic(&info->pinned_pages, (void*) &page_link);
 
   if (read_row_extent_info(info, buff, rownr))
@@ -5722,26 +5640,11 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
   if (info->cur_row.extents && free_full_pages(info, &info->cur_row))
     goto err;
 
-  /* undo_lsn must be first for compression to work */
-  lsn_store(log_data, undo_lsn);
-  clr_type_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE,
-                 LOGREC_UNDO_ROW_INSERT);
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
-    sizeof(log_data) - HA_CHECKSUM_STORE_SIZE;
-  msg.undone_record_type= LOGREC_UNDO_ROW_INSERT;
-  msg.previous_undo_lsn=  undo_lsn;
-  store_checksum_in_rec(share, msg.checksum_delta,
-                        - ha_checksum_korr(header),
-                        log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                        CLR_TYPE_STORE_SIZE,
-                        log_array[TRANSLOG_INTERNAL_PARTS + 0].length);
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
-
-  if (translog_write_record(&lsn, LOGREC_CLR_END,
-                            info->trn, info, log_array[TRANSLOG_INTERNAL_PARTS
-                                                       + 0].length,
-                            TRANSLOG_INTERNAL_PARTS + 1, log_array,
-                            log_data + LSN_STORE_SIZE, &msg))
+  checksum= 0;
+  if (share->calc_checksum)
+    checksum= -ha_checksum_korr(header);
+  if (_ma_write_clr(info, undo_lsn, LOGREC_UNDO_ROW_INSERT,
+                    share->calc_checksum != 0, checksum, &lsn))
     goto err;
 
   res= 0;
@@ -5754,7 +5657,8 @@ err:
 /* Execute undo of a row delete (insert the row back somewhere) */
 
 my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
-                                  const uchar *header, size_t length)
+                                  const uchar *header,
+                                  size_t header_length __attribute__((unused)))
 {
   uchar *record;
   const uchar *null_bits, *field_length_data;
@@ -5853,6 +5757,8 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
       header+= column->length;
       break;
     case FIELD_SKIP_ENDSPACE:                   /* CHAR */
+    {
+      uint length;
       if (column->length <= 255)
         length= (uint) *field_length_data++;
       else
@@ -5868,6 +5774,7 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
               ' ');
       header+= length;
       break;
+    }
     case FIELD_VARCHAR:
     {
       uint length;

@@ -144,7 +144,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	  HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA |
 	  HA_OPTION_TEMP_COMPRESS_RECORD | HA_OPTION_CHECKSUM |
           HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE |
-          HA_OPTION_RELIES_ON_SQL_LAYER))
+          HA_OPTION_RELIES_ON_SQL_LAYER | HA_OPTION_NULL_FIELDS))
     {
       DBUG_PRINT("error",("wrong options: 0x%lx", share->options));
       my_errno=HA_ERR_OLD_FILE;
@@ -737,12 +737,14 @@ void mi_setup_functions(register MYISAM_SHARE *share)
   {
     share->read_record=_mi_read_pack_record;
     share->read_rnd=_mi_read_rnd_pack_record;
-    if (!(share->options & HA_OPTION_TEMP_COMPRESS_RECORD))
-      share->calc_checksum=0;				/* No checksum */
-    else if (share->options & HA_OPTION_PACK_RECORD)
+    if ((share->options &
+              (HA_OPTION_PACK_RECORD | HA_OPTION_NULL_FIELDS)))
       share->calc_checksum= mi_checksum;
     else
       share->calc_checksum= mi_static_checksum;
+    share->calc_check_checksum= share->calc_checksum;
+    if (!(share->options & HA_OPTION_TEMP_COMPRESS_RECORD))
+      share->calc_checksum=0;				/* No checksum */
   }
   else if (share->options & HA_OPTION_PACK_RECORD)
   {
@@ -752,6 +754,7 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->compare_record=_mi_cmp_dynamic_record;
     share->compare_unique=_mi_cmp_dynamic_unique;
     share->calc_checksum= mi_checksum;
+    share->calc_check_checksum= share->calc_checksum;
 
     /* add bits used to pack data to pack_reclength for faster allocation */
     share->base.pack_reclength+= share->base.pack_bits;
@@ -775,7 +778,11 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->update_record=_mi_update_static_record;
     share->write_record=_mi_write_static_record;
     share->compare_unique=_mi_cmp_static_unique;
-    share->calc_checksum= mi_static_checksum;
+    if (share->options & HA_OPTION_NULL_FIELDS)
+      share->calc_checksum= mi_checksum;
+    else
+      share->calc_checksum= mi_static_checksum;
+    share->calc_check_checksum= share->calc_checksum;
   }
   share->file_read= mi_nommap_pread;
   share->file_write= mi_nommap_pwrite;

@@ -75,7 +75,7 @@ int main(int argc,char *argv[])
   maria_data_root= ".";
   /* Maria requires that we always have a page cache */
   if (maria_init() ||
-      (init_pagecache(maria_pagecache, IO_SIZE*16, 0, 0,
+      (init_pagecache(maria_pagecache, maria_block_size * 16, 0, 0,
                       maria_block_size) == 0) ||
       ma_control_file_create_or_open() ||
       (init_pagecache(maria_log_pagecache,
@@ -86,7 +86,7 @@ int main(int argc,char *argv[])
                     TRANSLOG_DEFAULT_FLAGS) ||
       (transactional && (trnman_init(0) || ma_checkpoint_init(0))))
   {
-    fprintf(stderr, "Error in initialization");
+    fprintf(stderr, "Error in initialization\n");
     exit(1);
   }
 
@@ -214,7 +214,13 @@ static int run_test(const char *filename)
   row_count=deleted=0;
   for (i=49 ; i>=1 ; i-=2 )
   {
-    if (insert_count-- == 0) { VOID(maria_close(file)) ; exit(0) ; }
+    if (insert_count-- == 0)
+    {
+      if (testflag)
+        break;
+      VOID(maria_close(file));
+      exit(0);
+    }
     j=i%25 +1;
     create_record(record,j);
     error=maria_write(file,record);
@@ -712,7 +718,7 @@ static struct my_option my_long_options[] =
    (uchar**) &pagecacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key-length", 'k', "Undocumented", (uchar**) &key_length,
    (uchar**) &key_length, 0, GET_UINT, REQUIRED_ARG, 6, 0, 0, 0, 0, 0},
-  {"key-multiple", 'm', "Undocumented",
+  {"key-multiple", 'm', "Don't use unique keys",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key-prefix_pack", 'P', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},

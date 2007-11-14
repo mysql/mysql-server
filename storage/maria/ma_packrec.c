@@ -773,7 +773,7 @@ int _ma_pack_rec_unpack(register MARIA_HA *info, MARIA_BIT_BUFF *bit_buff,
   {
     memcpy(to, from, info->s->base.null_bytes);
     to+=   info->s->base.null_bytes;
-    from+= info->s->base.null_bytes; 
+    from+= info->s->base.null_bytes;
     reclength-= info->s->base.null_bytes;
   }
   init_bit_buffer(bit_buff, (uchar*) from, reclength);

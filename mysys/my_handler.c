@@ -21,23 +21,25 @@
 #include <my_handler.h>
 #include <my_sys.h>
 
-int ha_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
-		    uchar *b, uint b_length, my_bool part_key,
+int ha_compare_text(CHARSET_INFO *charset_info, const uchar *a, uint a_length,
+		    const uchar *b, uint b_length, my_bool part_key,
 		    my_bool skip_end_space)
 {
   if (!part_key)
     return charset_info->coll->strnncollsp(charset_info, a, a_length,
-                                           b, b_length, (my_bool)!skip_end_space);
+                                           b, b_length,
+                                           (my_bool)!skip_end_space);
   return charset_info->coll->strnncoll(charset_info, a, a_length,
                                        b, b_length, part_key);
 }
 
 
-static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
+static int compare_bin(const uchar *a, uint a_length,
+                       const uchar *b, uint b_length,
                        my_bool part_key, my_bool skip_end_space)
 {
   uint length= min(a_length,b_length);
-  uchar *end= a+ length;
+  const uchar *end= a+ length;
   int flag;
 
   while (a < end)
@@ -116,8 +118,8 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
 
 #define FCMP(A,B) ((int) (A) - (int) (B))
 
-int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
-	       register uchar *b, uint key_length, uint nextflag,
+int ha_key_cmp(register HA_KEYSEG *keyseg, register const uchar *a,
+	       register const uchar *b, uint key_length, uint nextflag,
 	       uint *diff_pos)
 {
   int flag;
@@ -127,12 +129,12 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
   float f_1,f_2;
   double d_1,d_2;
   uint next_key_length;
-  uchar *orig_b= b;
+  const uchar *orig_b= b;
 
   *diff_pos=0;
   for ( ; (int) key_length >0 ; key_length=next_key_length, keyseg++)
   {
-    uchar *end;
+    const uchar *end;
     uint piks=! (keyseg->flag & HA_NO_SORT);
     (*diff_pos)++;
     diff_pos[1]= (uint)(b - orig_b);
@@ -364,7 +366,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 
       if (keyseg->flag & HA_REVERSE_SORT)
       {
-        swap_variables(uchar*, a, b);
+        swap_variables(const uchar*, a, b);
         swap_flag=1;                            /* Remember swap of a & b */
         end= a+ (int) (end-b);
       }
@@ -389,7 +391,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 	  if (*b != '-')
 	    return -1;
 	  a++; b++;
-	  swap_variables(uchar*, a, b);
+	  swap_variables(const uchar*, a, b);
 	  swap_variables(int, alength, blength);
 	  swap_flag=1-swap_flag;
 	  alength--; blength--;
@@ -418,7 +420,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       }
 
       if (swap_flag)                            /* Restore pointers */
-        swap_variables(uchar*, a, b);
+        swap_variables(const uchar*, a, b);
       break;
     }
 #ifdef HAVE_LONG_LONG
@@ -604,7 +606,27 @@ static const char *handler_error_messages[]=
   "Foreign key constraint is incorrectly formed",
   "Cannot add a child row",
   "Cannot delete a parent row",
-  "Unknown handler error"
+  "No savepoint with that name",
+  "Non unique key block size",
+  "The table does not exist in engine",
+  "The table already existed in storage engine",
+  "Could not connect to storage engine",
+  "Unexpected null pointer found when using spatial index",
+  "The table changed in storage engine",
+  "There's no partition in table for the given value",
+  "Row-based binlogging of row failed",
+  "Index needed in foreign key constraint",
+  "Upholding foreign key constraints would lead to a duplicate key error in "
+  "some other table",
+  "Table needs to be upgraded before it can be used",
+  "Table is read only",
+  "Failed to get next auto increment value",
+  "Failed to set row auto increment value",
+  "Unknown (generic) error from engine",
+  "Record is the same",
+  "It is not possible to log this statement",
+  "The table is of a new format not supported by this version",
+  "Got a fatal error during initialzaction of handler"
 };
 
 

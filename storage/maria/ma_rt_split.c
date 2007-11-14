@@ -252,7 +252,6 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                            uint key_length, my_off_t *new_page_offs)
 {
   int n1, n2; /* Number of items in groups */
-
   SplitStruct *task;
   SplitStruct *cur;
   SplitStruct *stop;
@@ -268,6 +267,7 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                                   info->s->base.rec_reflength);
   int max_keys= ((_ma_get_page_used(info, page) - info->s->keypage_header) /
                  (full_length));
+  MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
   DBUG_ENTER("maria_rtree_split_page");
   DBUG_PRINT("rtree", ("splitting block"));
 
@@ -339,16 +339,19 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       memcpy(to - nod_flag, cur->key - nod_flag, full_length);
   }
 
+  bzero(new_page, info->s->keypage_header);
+  _ma_store_keynr(info, new_page, keyinfo->key_nr);
   _ma_store_page_used(info, page, info->s->keypage_header + n1 * full_length,
                       nod_flag);
   _ma_store_page_used(info, new_page, info->s->keypage_header +
                       n2 * full_length, nod_flag);
 
-  if ((*new_page_offs= _ma_new(info, keyinfo, DFLT_INIT_HITS)) ==
-                                                               HA_OFFSET_ERROR)
+  if ((*new_page_offs= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==
+      HA_OFFSET_ERROR)
     err_code= -1;
   else
     err_code= _ma_write_keypage(info, keyinfo, *new_page_offs,
+                                page_link->write_lock,
                                 DFLT_INIT_HITS, new_page);
   DBUG_PRINT("rtree", ("split new block: %lu", (ulong) *new_page_offs));
 

@@ -309,6 +309,7 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
   MARIA_KEYDEF *keyinfo=&info->s->ft2_keyinfo;
   uchar *key_ptr= (uchar*) dynamic_array_ptr(da, 0), *end;
   uint length, key_length;
+  MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
   DBUG_ENTER("_ma_ft_convert_to_ft2");
 
   /* we'll generate one pageful at once, and insert the rest one-by-one */
@@ -323,16 +324,18 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
     /*
       nothing to do here.
       _ma_ck_delete() will populate info->ft1_to_ft2 with deleted keys
-     */
+    */
   }
 
   /* creating pageful of keys */
+  bzero(info->buff, info->s->keypage_header);
   _ma_store_keynr(info, info->buff, keynr);
   _ma_store_page_used(info, info->buff, length + info->s->keypage_header, 0);
   memcpy(info->buff + info->s->keypage_header, key_ptr, length);
   info->keyread_buff_used= info->page_changed=1;      /* info->buff is used */
-  if ((root= _ma_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR ||
-      _ma_write_keypage(info,keyinfo,root,DFLT_INIT_HITS,info->buff))
+  if ((root= _ma_new(info, DFLT_INIT_HITS, &page_link)) == HA_OFFSET_ERROR ||
+      _ma_write_keypage(info, keyinfo, root, page_link->write_lock,
+                        DFLT_INIT_HITS, info->buff))
     DBUG_RETURN(-1);
 
   /* inserting the rest of key values */

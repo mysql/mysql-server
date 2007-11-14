@@ -50,6 +50,8 @@ struct st_maria_handler;
 
 /* Changing one of the "SIZE" below will break backward-compatibility! */
 /* Length of CRC at end of pages */
+#define ROW_EXTENT_PAGE_SIZE	5
+#define ROW_EXTENT_COUNT_SIZE   2
 #define CRC_LENGTH 4
 /* Size of file id in logs */
 #define FILEID_STORE_SIZE 2
@@ -61,6 +63,8 @@ struct st_maria_handler;
 #define CLR_TYPE_STORE_SIZE 1
 /* If table has live checksum we store its changes in UNDOs */
 #define HA_CHECKSUM_STORE_SIZE 4
+#define KEY_NR_STORE_SIZE 1
+#define PAGE_LENGTH_STORE_SIZE 2
 
 /* Store methods to match the above sizes */
 #define fileid_store(T,A) int2store(T,A)
@@ -68,12 +72,14 @@ struct st_maria_handler;
 #define dirpos_store(T,A) ((*(uchar*) (T)) = A)
 #define pagerange_store(T,A) int2store(T,A)
 #define clr_type_store(T,A) ((*(uchar*) (T)) = A)
+#define key_nr_store(T, A) ((*(uchar*) (T)) = A)
 #define ha_checksum_store(T,A) int4store(T,A)
 #define fileid_korr(P) uint2korr(P)
 #define page_korr(P)   uint5korr(P)
 #define dirpos_korr(P) ((P)[0])
 #define pagerange_korr(P) uint2korr(P)
 #define clr_type_korr(P) ((P)[0])
+#define key_nr_korr(P) ((P)[0])
 #define ha_checksum_korr(P) uint4korr(P)
 
 /*
@@ -108,6 +114,8 @@ enum translog_record_type
   LOGREC_REDO_DELETE_ROW,
   LOGREC_REDO_UPDATE_ROW_HEAD,
   LOGREC_REDO_INDEX,
+  LOGREC_REDO_INDEX_NEW_PAGE,
+  LOGREC_REDO_INDEX_FREE_PAGE,
   LOGREC_REDO_UNDELETE_ROW,
   LOGREC_CLR_END,
   LOGREC_PURGE_END,
@@ -116,6 +124,7 @@ enum translog_record_type
   LOGREC_UNDO_ROW_UPDATE,
   LOGREC_UNDO_KEY_INSERT,
   LOGREC_UNDO_KEY_DELETE,
+  LOGREC_UNDO_KEY_DELETE_WITH_ROOT,
   LOGREC_PREPARE,
   LOGREC_PREPARE_WITH_UNDO_PURGE,
   LOGREC_COMMIT,
@@ -131,6 +140,20 @@ enum translog_record_type
   LOGREC_RESERVED_FUTURE_EXTENSION= 63
 };
 #define LOGREC_NUMBER_OF_TYPES 64              /* Maximum, can't be extended */
+
+/* Type of operations in LOGREC_REDO_INDEX */
+
+enum en_key_op
+{
+  KEY_OP_NONE,		/* Not used */
+  KEY_OP_OFFSET,	/* Set current position */
+  KEY_OP_SHIFT,		/* Shift up/or down at current position */
+  KEY_OP_CHANGE,	/* Change data at current position */
+  KEY_OP_ADD_PREFIX,    /* Insert data at start of page */
+  KEY_OP_DEL_PREFIX,	/* Delete data at start of page */
+  KEY_OP_ADD_SUFFIX,    /* Insert data at end of page */
+  KEY_OP_DEL_SUFFIX,    /* Delete data at end of page */
+};
 
 /* Size of log file; One log file is restricted to 4G */
 typedef uint32 translog_size_t;

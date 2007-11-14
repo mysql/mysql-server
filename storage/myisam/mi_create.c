@@ -108,6 +108,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
        rec++,fields++)
   {
     reclength+=rec->length;
+    if (rec->null_bit)
+      options|= HA_OPTION_NULL_FIELDS;
+
     if ((type=(enum en_fieldtype) rec->type) != FIELD_NORMAL &&
 	type != FIELD_CHECK)
     {
@@ -142,6 +145,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	  long_varchar_count++;
 	  pack_reclength+= 2;			/* May be packed on 3 bytes */
 	}
+        options|= HA_OPTION_NULL_FIELDS;        /* Use of mi_checksum() */
       }
       else if (type != FIELD_SKIP_ZERO)
       {

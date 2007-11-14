@@ -2493,13 +2493,8 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->default_table_charset= share->table_charset;
   create_info->table_charset= 0;
   create_info->comment= share->comment;
-  /**
-     @todo MARIA_HACK
-     See hack in mysql_truncate(); when this is properly fixed, the if() below
-     can be removed, the assignment can always be made.
-  */
-  if (create_info->transactional == HA_CHOICE_UNDEF)
-    create_info->transactional= share->transactional;
+  create_info->transactional= share->transactional;
+  create_info->page_checksum= share->page_checksum;
 
   DBUG_VOID_RETURN;
 }

@@ -30,7 +30,7 @@
                                  locked. A maria_readinfo() is done for
                                  all single user files to get changes
                                  in database
-                                 
+
   RETURN
     0  ok
     #  error number in case of error

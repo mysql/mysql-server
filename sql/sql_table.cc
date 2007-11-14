@@ -3698,7 +3698,6 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
 
-  VOID(table->file->extra(function));
   /* Mark all tables that are in use as 'old' */
   mysql_lock_abort(thd, table, TRUE);	/* end threads waiting on lock */
 
@@ -3706,6 +3705,7 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
   remove_table_from_cache(thd, table->s->db.str,
                           table->s->table_name.str,
                           RTFC_WAIT_OTHER_THREAD_FLAG);
+  VOID(table->file->extra(function));
   DBUG_VOID_RETURN;
 }
 

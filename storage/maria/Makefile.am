@@ -62,7 +62,7 @@ noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_control_file.h ha_maria.h ma_blockrec.h \
 			ma_loghandler.h ma_loghandler_lsn.h ma_pagecache.h \
 			ma_checkpoint.h ma_recovery.h ma_commit.h \
-			trnman_public.h ma_check_standalone.h
+			trnman_public.h ma_check_standalone.h ma_key_recover.h
 ma_test1_DEPENDENCIES=	$(LIBRARIES)
 ma_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
@@ -103,7 +103,8 @@ ma_sp_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_rnext.c ma_rnext_same.c \
-			ma_search.c ma_page.c ma_key.c ma_locking.c \
+			ma_search.c ma_page.c ma_key_recover.c ma_key.c \
+			ma_locking.c \
 			ma_rrnd.c ma_scan.c ma_cache.c \
 			ma_statrec.c ma_packrec.c ma_dynrec.c \
 			ma_blockrec.c ma_bitmap.c \

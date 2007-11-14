@@ -236,7 +236,7 @@ int simple_pin_test()
                    0,
                    PAGECACHE_LOCK_READ_UNLOCK,
                    PAGECACHE_UNPIN,
-                   0, 0);
+                   0, 0, 0);
   if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
   {
     diag("Got error in flush_pagecache_blocks\n");
