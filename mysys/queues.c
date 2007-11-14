@@ -61,7 +61,7 @@ int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
   queue->first_cmp_arg=first_cmp_arg;
   queue->max_elements=max_elements;
   queue->offset_to_key=offset_to_key;
-  queue->max_at_top= max_at_top ? (-1 ^ 1) : 0;
+  queue_set_max_at_top(queue, max_at_top);
   DBUG_RETURN(0);
 }
 
@@ -137,7 +137,7 @@ int reinit_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
   queue->compare=compare;
   queue->first_cmp_arg=first_cmp_arg;
   queue->offset_to_key=offset_to_key;
-  queue->max_at_top= max_at_top ? (-1 ^ 1) : 0;
+  queue_set_max_at_top(queue, max_at_top);
   resize_queue(queue, max_elements);
   DBUG_RETURN(0);
 }
@@ -208,16 +208,14 @@ void delete_queue(QUEUE *queue)
 void queue_insert(register QUEUE *queue, uchar *element)
 {
   reg2 uint idx, next;
-  int cmp;
   DBUG_ASSERT(queue->elements < queue->max_elements);
   queue->root[0]= element;
   idx= ++queue->elements;
   /* max_at_top swaps the comparison if we want to order by desc */
-  while ((cmp= queue->compare(queue->first_cmp_arg,
-                              element + queue->offset_to_key,
-                              queue->root[(next= idx >> 1)] +
-                              queue->offset_to_key)) &&
-         (cmp ^ queue->max_at_top) < 0)
+  while ((queue->compare(queue->first_cmp_arg,
+                         element + queue->offset_to_key,
+                         queue->root[(next= idx >> 1)] +
+                         queue->offset_to_key) * queue->max_at_top) < 0)
   {
     queue->root[idx]= queue->root[next];
     idx= next;
@@ -287,19 +285,17 @@ void _downheap(register QUEUE *queue, uint idx)
 
   while (idx <= half_queue)
   {
-    int cmp;
     next_index=idx+idx;
     if (next_index < elements &&
 	(queue->compare(queue->first_cmp_arg,
 			queue->root[next_index]+offset_to_key,
-			queue->root[next_index+1]+offset_to_key) ^
+			queue->root[next_index+1]+offset_to_key) *
 	 queue->max_at_top) > 0)
       next_index++;
     if (first && 
-        (((cmp=queue->compare(queue->first_cmp_arg,
-                              queue->root[next_index]+offset_to_key,
-                              element+offset_to_key)) == 0) ||
-	 ((cmp ^ queue->max_at_top) > 0)))
+        (((queue->compare(queue->first_cmp_arg,
+                          queue->root[next_index]+offset_to_key,
+                          element+offset_to_key) * queue->max_at_top) >= 0)))
     {
       queue->root[idx]= element;
       return;
@@ -314,7 +310,7 @@ void _downheap(register QUEUE *queue, uint idx)
   {
     if ((queue->compare(queue->first_cmp_arg,
                        queue->root[next_index]+offset_to_key,
-                       element+offset_to_key) ^
+                       element+offset_to_key) *
          queue->max_at_top) < 0)
       break;
     queue->root[idx]=queue->root[next_index];
@@ -334,7 +330,6 @@ void _downheap(register QUEUE *queue, uint idx)
 {
   uchar *element;
   uint elements,half_queue,next_index,offset_to_key;
-  int cmp;
 
   offset_to_key=queue->offset_to_key;
   element=queue->root[idx];
@@ -346,13 +341,12 @@ void _downheap(register QUEUE *queue, uint idx)
     if (next_index < elements &&
 	(queue->compare(queue->first_cmp_arg,
 			queue->root[next_index]+offset_to_key,
-			queue->root[next_index+1]+offset_to_key) ^
+			queue->root[next_index+1]+offset_to_key) *
 	 queue->max_at_top) > 0)
       next_index++;
-    if ((cmp=queue->compare(queue->first_cmp_arg,
-			    queue->root[next_index]+offset_to_key,
-			    element+offset_to_key)) == 0 ||
-	(cmp ^ queue->max_at_top) > 0)
+    if ((queue->compare(queue->first_cmp_arg,
+                        queue->root[next_index]+offset_to_key,
+                        element+offset_to_key) * queue->max_at_top) >= 0)
       break;
     queue->root[idx]=queue->root[next_index];
     idx=next_index;
