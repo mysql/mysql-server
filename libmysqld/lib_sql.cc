@@ -93,6 +93,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   thd->current_stmt= stmt;
 
   thd->store_globals();				// Fix if more than one connect
+  lex_start(thd);
   /* 
      We have to call free_old_query before we start to fill mysql->fields 
      for new query. In the case of embedded server we collect field data
@@ -580,6 +581,7 @@ void *create_embedded_thd(int client_flag)
     fprintf(stderr,"store_globals failed.\n");
     goto err;
   }
+  lex_start(thd);
 
   /* TODO - add init_connect command execution */
 
