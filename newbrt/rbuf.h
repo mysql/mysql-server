@@ -25,16 +25,26 @@ static unsigned int rbuf_int (struct rbuf *r) {
 	    (c3<<0));
 }
 
+static inline void rbuf_literal_bytes (struct rbuf *r, bytevec *bytes, unsigned int n_bytes) {
+    *bytes =   &r->buf[r->ndone];
+    r->ndone+=n_bytes;
+    assert(r->ndone<=r->size);
+}
+
 /* Return a pointer into the middle of the buffer. */
 static void rbuf_bytes (struct rbuf *r, bytevec *bytes, unsigned int *n_bytes)
 {
     *n_bytes = rbuf_int(r);
-    *bytes =   &r->buf[r->ndone];
-    r->ndone+=*n_bytes;
-    assert(r->ndone<=r->size);
+    rbuf_literal_bytes(r, bytes, *n_bytes);
 }
 
-static diskoff rbuf_diskoff (struct rbuf *r) {
+static unsigned long long rbuf_ulonglong (struct rbuf *r) {
+    unsigned i0 = rbuf_int(r);  
+    unsigned i1 = rbuf_int(r);
+    return ((unsigned long long)(i0)<<32) | ((unsigned long long)(i1));
+}
+
+static DISKOFF rbuf_diskoff (struct rbuf *r) {
     unsigned i0 = rbuf_int(r);  
     unsigned i1 = rbuf_int(r);
     return ((unsigned long long)(i0)<<32) | ((unsigned long long)(i1));

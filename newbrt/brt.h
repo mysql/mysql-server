@@ -11,8 +11,15 @@
 #include "log.h"
 typedef struct brt *BRT;
 int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, int(*)(DB*,const DBT*,const DBT*));
-//int brt_create (BRT **, int nodesize, int n_nodes_in_cache); /* the nodesize and n_nodes in cache really should be separately configured. */
-//int brt_open (BRT *, char *fname, char *dbname);
+
+int brt_create(BRT *);
+int brt_set_flags(BRT, int flags);
+int brt_set_nodesize(BRT, int nodesize);
+int brt_set_bt_compare(BRT, int (*bt_compare)(DB *, const DBT*, const DBT*));
+int brt_set_dup_compare(BRT, int (*dup_compare)(DB *, const DBT*, const DBT*));
+int brt_set_cachetable(BRT, CACHETABLE);
+int brt_open(BRT, const char *fname, const char *dbname, int is_create, CACHETABLE ct);
+
 int brt_insert (BRT, DBT *, DBT *, DB*, TOKUTXN);
 int brt_lookup (BRT brt, DBT *k, DBT *v, DB*db);
 int brt_delete (BRT brt, DBT *k, DB *db);
@@ -22,12 +29,11 @@ void brt_fsync (BRT); /* fsync, but don't clear the caches. */
 
 void brt_flush (BRT); /* fsync and clear the caches. */ 
 
-int brt_create_cachetable (CACHETABLE *t, int n_cachlines /* Pass 0 if you want the default. */);
-
 /* create and initialize a cache table
-   hashsize is the initialize size of the lookup table
-   cachesize is the upper limit on the size of the size of the values in the table */
-int brt_create_cachetable_size (CACHETABLE *t, int hashsize, long cachesize);
+   cachesize is the upper limit on the size of the size of the values in the table 
+   pass 0 if you want the default */
+
+int brt_create_cachetable(CACHETABLE *t, long cachesize, LSN initial_lsn, TOKULOGGER);
 
 extern int brt_debug_mode;
 int verify_brt (BRT brt);
@@ -39,5 +45,8 @@ int brt_cursor (BRT, BRT_CURSOR*);
 int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, DB *db, TOKUTXN);
 int brt_cursor_delete(BRT_CURSOR cursor, int flags);
 int brt_cursor_close (BRT_CURSOR curs);
+
+typedef struct brtenv *BRTENV;
+int brtenv_checkpoint (BRTENV env);
 
 #endif

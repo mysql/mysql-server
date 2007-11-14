@@ -58,7 +58,14 @@ static void file_is_not_present(CACHEFILE cf) {
 }
 
 
-static void flush_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY key, void *value, long size __attribute__((__unused__)), int write_me __attribute__((__unused__)), int keep_me __attribute__((__unused__))) {
+static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
+			    CACHEKEY  key,
+			    void     *value,
+			    long      size         __attribute__((__unused__)),
+			    BOOL      write_me     __attribute__((__unused__)),
+			    BOOL      keep_me      __attribute__((__unused__)),
+			    LSN       modified_lsn __attribute__((__unused__)),
+			    BOOL      rename_p     __attribute__((__unused__))) {
     int *v = value;
     //cachetable_print_state(ct);
     //printf("Flush %lld %d\n", key, (int)value);
@@ -67,9 +74,10 @@ static void flush_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY ke
     //print_ints();
 }
 
-static int fetch_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY key, void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
+static int fetch_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY key, void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     assert((long)extraargs==(long)key);
     *value = (void*)(long)key;
+    written_lsn->lsn = 0;
     return 0;
 }
 
@@ -93,9 +101,9 @@ void test_chaining (void) {
     char fname[N_FILES][FILENAME_LEN];
     int r;
     long i, trial;
-    r = create_cachetable(&ct, N_PRESENT_LIMIT, N_PRESENT_LIMIT);                               assert(r==0);
+    r = create_cachetable(&ct, N_PRESENT_LIMIT, ZERO_LSN, NULL_LOGGER);    assert(r==0);
     for (i=0; i<N_FILES; i++) {
-	int r = snprintf(fname[i], FILENAME_LEN, "cachetabletest2.%ld.dat", i);
+	r = snprintf(fname[i], FILENAME_LEN, "cachetabletest2.%ld.dat", i);
 	assert(r>0 && r<FILENAME_LEN);
 	unlink(fname[i]);
 	r = cachetable_openf(&f[i], ct, fname[i], O_RDWR|O_CREAT, 0777);   assert(r==0);

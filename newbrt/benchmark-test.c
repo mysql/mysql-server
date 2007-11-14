@@ -30,7 +30,7 @@ BRT t;
 void setup (void) {
     int r;
     unlink(fname);
-    r = brt_create_cachetable(&ct, 0); assert(r==0);
+    r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
     r = open_brt(fname, 0, 1, &t, nodesize, ct, default_compare_fun); assert(r==0);
 }
 
@@ -69,6 +69,7 @@ long long llrandom (void) {
 
 void random_insert_below (long long below) {
     long long i;
+    assert(0 < below);
     for (i=0; i<ITEMS_TO_INSERT_PER_ITERATION; i++) {
 	insert(llrandom()%below);
     }
@@ -79,7 +80,7 @@ double tdiff (struct timeval *a, struct timeval *b) {
 }
 
 void biginsert (long long n_elements, struct timeval *starttime) {
-    long i;
+    long long i;
     struct timeval t1,t2;
     int iteration;
     for (i=0, iteration=0; i<n_elements; i+=ITEMS_TO_INSERT_PER_ITERATION, iteration++) {
