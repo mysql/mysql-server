@@ -309,7 +309,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       table->file->unlock_row();  // Row failed selection, release lock on it
   }
   killed_status= thd->killed;
-  if (killed_status == THD::NOT_KILLED || thd->is_error())
+  if (killed_status != THD::NOT_KILLED || thd->is_error())
     error= 1;					// Aborted
   if (will_batch && (loc_error= table->file->end_bulk_delete()))
   {
