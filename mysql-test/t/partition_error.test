@@ -9,6 +9,19 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# Bug 29368:
+# Incorrect error, 1467, for syntax error when creating partition
+--error ER_PARTITION_REQUIRES_VALUES_ERROR
+CREATE TABLE t1 (
+  a int
+)
+PARTITION BY RANGE (a)
+(
+  PARTITION p0 VALUES LESS THAN (1),
+  PARTITION p1 VALU ES LESS THAN (2)
+);
+
+#
 # Partition by key stand-alone error
 #
 --error 1064
