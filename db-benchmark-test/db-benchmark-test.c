@@ -17,7 +17,11 @@ enum { BOUND_INCREASE_PER_ITERATION = SERIAL_SPACING*ITEMS_TO_INSERT_PER_ITERATI
 
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
-
+/* default test parameters */
+int keysize = sizeof (long long);
+int valsize = sizeof (long long);
+int pagesize = 0;
+long long cachesize = 128*1024*1024;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
@@ -53,7 +57,7 @@ void setup (void) {
     }
 
     if (dbenv->set_cachesize) {
-        r = dbenv->set_cachesize(dbenv, 0, 128*1024*1024, 1);
+        r = dbenv->set_cachesize(dbenv, cachesize / (1024*1024*1024), cachesize % (1024*1024*1024), 1);
         if (r != 0) 
             printf("WARNING: set_cachesize %d\n", r);
     }
@@ -61,7 +65,6 @@ void setup (void) {
     {
 	int flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL | (do_transactions ? (DB_INIT_TXN | DB_INIT_LOG | DB_INIT_LOCK): 0);
 	r = dbenv->open(dbenv, dbdir, flags, 0644);
-	printf("Flags=%x\n", flags);
 	assert(r == 0);
     }
 
@@ -70,6 +73,10 @@ void setup (void) {
 
     if (do_transactions) {
 	r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+    }
+    if (pagesize && db->set_pagesize) {
+        r = db->set_pagesize(db, pagesize); 
+        assert(r == 0);
     }
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, DB_CREATE, 0644);
     assert(r == 0);
@@ -102,11 +109,13 @@ DBT *fill_dbt(DBT *dbt, void *data, int size) {
 }
 
 void insert (long long v) {
-    unsigned char kc[8], vc[8];
+    unsigned char kc[keysize], vc[valsize];
     DBT  kt, vt;
+    memset(kc, 0, sizeof kc);
     long_long_to_array(kc, v);
+    memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
-    int r = db->put(db, tid, fill_dbt(&kt, kc, 8), fill_dbt(&vt, vc, 8), 0);
+    int r = db->put(db, tid, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), 0);
     CKERR(r);
     if (do_transactions) {
 	if (n_insertions_since_txn_began>=ITEMS_PER_TRANSACTION) {
@@ -162,7 +171,7 @@ double tdiff (struct timeval *a, struct timeval *b) {
 }
 
 void biginsert (long long n_elements, struct timeval *starttime) {
-    long i;
+    long long i;
     struct timeval t1,t2;
     int iteration;
     for (i=0, iteration=0; i<n_elements; i+=ITEMS_TO_INSERT_PER_ITERATION, iteration++) {
@@ -185,9 +194,11 @@ const long long default_n_items = 1LL<<22;
 
 void print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n");
-    fprintf(stderr, " %s [-x] [ n_iterations ]\n", argv0);
+    fprintf(stderr, " %s [-x] [--keysize KEYSIZE] [--valsize VALSIZE] [ n_iterations ]\n", argv0);
     fprintf(stderr, "   where\n");
     fprintf(stderr, "    -x              do transactions (one transaction per iteration) (default: no transactions at all)\n");
+    fprintf(stderr, "    --keysize KEYSIZE sets the key size (default 8)\n");
+    fprintf(stderr, "    --valsize VALSIZE sets the value size (default 8)\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld iterations of %d items per iteration)\n", default_n_items/ITEMS_TO_INSERT_PER_ITERATION, ITEMS_TO_INSERT_PER_ITERATION);
 }
 
@@ -195,22 +206,56 @@ void print_usage (const char *argv0) {
 int main (int argc, const char *argv[]) {
     struct timeval t1,t2,t3;
     long long total_n_items = default_n_items;
-    const char *argv0 = argv[0];
-    while (argc>1) {
-	if (strcmp(argv[1], "-x")==0) do_transactions=1;
-	else {
-	    /* if it looks like a number */
-	    char *end;
-	    errno=0;
-	    long n_iterations = strtol(argv[1], &end, 10);
-	    if (errno!=0 || *end!=0 || end==argv[1]) {
-		print_usage(argv0);
-		exit(1);
-	    }
-	    total_n_items = ITEMS_TO_INSERT_PER_ITERATION * (long long)n_iterations;
-	}
-	argc--;
-	argv++;
+    int i;
+    for (i=1; i<argc; i++) {
+        const char *arg = argv[i];
+        if (arg[0] != '-')
+            break;
+        if (strcmp(arg, "-x") == 0) {
+            do_transactions = 1;
+            continue;
+        }
+        if (strcmp(arg, "--cachesize") == 0) {
+            if (i+1 < argc) {
+                i++;
+                cachesize = strtoll(argv[i], 0, 10);
+            }
+            continue;
+        }
+        if (strcmp(arg, "--keysize") == 0) {
+            if (i+1 < argc) {
+                i++;
+                keysize = atoi(argv[i]);
+            }
+            continue;
+        }
+        if (strcmp(arg, "--valsize") == 0) {
+            if (i+1 < argc) {
+                i++;
+                valsize = atoi(argv[i]);
+            }
+            continue;
+        }
+        if (strcmp(arg, "--pagesize") == 0) {
+            if (i+1 < argc) {
+                i++;
+                pagesize = atoi(argv[i]);
+            }
+            continue;
+        }
+        print_usage(argv[0]);
+        return 1;
+    }
+    if (i<argc) {
+        /* if it looks like a number */
+        char *end;
+        errno=0;
+        long n_iterations = strtol(argv[i], &end, 10);
+        if (errno!=0 || *end!=0 || end==argv[i]) {
+            print_usage(argv[0]);
+            return 1;
+        }
+        total_n_items = ITEMS_TO_INSERT_PER_ITERATION * (long long)n_iterations;
     }
     printf("Serial and random insertions of %d per batch%s\n", ITEMS_TO_INSERT_PER_ITERATION, do_transactions ? " (with transactions)" : "");
     setup();
