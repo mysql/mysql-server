@@ -4,3 +4,6 @@ select 1+1;
 select 1+2;
 1+2
 3
+SHOW GLOBAL VARIABLES LIKE 'thread_handling';
+Variable_name	Value
+thread_handling	no-threads
