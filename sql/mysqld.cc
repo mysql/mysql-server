@@ -7745,12 +7745,13 @@ mysqld_get_one_option(int optid,
     break;
   }
   case OPT_ONE_THREAD:
-    global_system_variables.thread_handling= 2;
+    global_system_variables.thread_handling=
+      SCHEDULER_ONE_THREAD_PER_CONNECTION;
     break;
   case OPT_THREAD_HANDLING:
   {
     global_system_variables.thread_handling=
-      find_type_or_exit(argument, &thread_handling_typelib, opt->name);
+      find_type_or_exit(argument, &thread_handling_typelib, opt->name)-1;
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
