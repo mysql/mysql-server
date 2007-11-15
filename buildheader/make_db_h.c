@@ -91,6 +91,12 @@ struct fieldinfo {
 #elif USE_MAJOR==4 && USE_MINOR==3
 #include "sample_offsets_32_4_3.h"
 #include "sample_offsets_64_4_3.h"
+#elif USE_MAJOR==4 && USE_MINOR==4
+#include "sample_offsets_32_4_4.h"
+#include "sample_offsets_64_4_4.h"
+#elif USE_MAJOR==4 && USE_MINOR==6
+#include "sample_offsets_32_4_6.h"
+#include "sample_offsets_64_4_6.h"
 #else
 #error
 #endif
