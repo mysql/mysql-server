@@ -320,6 +320,7 @@ void check_header(azio_stream *s)
   }
   else
   {
+    s->transparent = 1;
     s->z_err = Z_OK;
 
     return;

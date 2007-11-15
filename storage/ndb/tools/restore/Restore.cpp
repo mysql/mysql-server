@@ -835,7 +835,7 @@ RestoreDataIterator::getNextTuple(int  & res)
 BackupFile::BackupFile(void (* _free_data_callback)()) 
   : free_data_callback(_free_data_callback)
 {
-  m_file = 0;
+  m_file.file = -1;
   m_path[0] = 0;
   m_fileName[0] = 0;
 
@@ -849,29 +849,29 @@ BackupFile::BackupFile(void (* _free_data_callback)())
 }
 
 BackupFile::~BackupFile(){
-  if(m_file != 0)
-    fclose(m_file);
+  if(m_file.file > 1)
+    azclose(&m_file);
   if(m_buffer != 0)
     free(m_buffer);
 }
 
 bool
 BackupFile::openFile(){
-  if(m_file != NULL){
-    fclose(m_file);
-    m_file = 0;
+  if(m_file.file > 1){
+    azclose(&m_file);
+    m_file.file = 0;
     m_file_size = 0;
     m_file_pos = 0;
   }
-  
+
   info.setLevel(254);
   info << "Opening file '" << m_fileName << "'\n";
-  m_file = fopen(m_fileName, "r");
+  int r= azopen(&m_file,m_fileName, O_RDONLY);
 
-  if (m_file)
+  if (r==0)
   {
     struct stat buf;
-    if (fstat(fileno(m_file), &buf) == 0)
+    if (fstat(m_file.file, &buf) == 0)
     {
       m_file_size = (Uint64)buf.st_size;
       info << "File size " << m_file_size << " bytes\n";
@@ -884,7 +884,7 @@ BackupFile::openFile(){
     }
   }
 
-  return m_file != 0;
+  return r != 0;
 }
 
 Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
@@ -897,7 +897,10 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
 
     memcpy(m_buffer, m_buffer_ptr, m_buffer_data_left);
 
-    size_t r = fread(((char *)m_buffer) + m_buffer_data_left, 1, m_buffer_sz - m_buffer_data_left, m_file);
+    int error;
+    size_t r = azread(&m_file,
+                      ((char *)m_buffer) + m_buffer_data_left,
+                      m_buffer_sz - m_buffer_data_left, &error);
     m_file_pos += r;
     m_buffer_data_left += r;
     m_buffer_ptr = m_buffer;

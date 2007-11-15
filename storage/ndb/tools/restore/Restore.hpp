@@ -21,6 +21,7 @@
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 #include <NdbApi.hpp>
+#include <azlib.h>
 
 #include <ndb_version.h>
 #include <version.h>
@@ -258,7 +259,7 @@ class RestoreLogIterator;
 
 class BackupFile {
 protected:
-  FILE * m_file;
+  azio_stream m_file;
   char m_path[PATH_MAX];
   char m_fileName[PATH_MAX];
   bool m_hostByteOrder;
