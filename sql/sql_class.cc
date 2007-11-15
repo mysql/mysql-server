@@ -1553,7 +1553,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
   {
     if (!cache)
     {
-      cache= Item_cache::get_cache(val_item->result_type());
+      cache= Item_cache::get_cache(val_item);
       switch (val_item->result_type())
       {
       case REAL_RESULT:

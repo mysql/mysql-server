@@ -20,6 +20,7 @@
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <my_sys.h>
+#include <ndb_rand.h>
 
 #include <signaldata/EventReport.hpp>
 #include <signaldata/TcKeyReq.hpp>
@@ -6278,7 +6279,7 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
     jam();
     if (api_timer != 0) {
       Uint32 error= ZTIME_OUT_ERROR;
-      time_out_value= time_out_param + (api_con_ptr & mask_value);
+      time_out_value= time_out_param + (ndb_rand() & mask_value);
       if (unlikely(old_mask_value)) // abort during single user mode
       {
         apiConnectptr.i = api_con_ptr;
