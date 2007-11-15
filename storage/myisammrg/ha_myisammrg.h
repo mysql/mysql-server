@@ -27,8 +27,12 @@ class ha_myisammrg: public handler
   MYRG_INFO *file;
 
  public:
+  TABLE_LIST    *next_child_attach;     /* next child to attach */
+  uint          test_if_locked;         /* flags from ::open() */
+  bool          need_compat_check;      /* if need compatibility check */
+
   ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_myisammrg() {}
+  ~ha_myisammrg();
   const char *table_type() const { return "MRG_MyISAM"; }
   const char **bas_ext() const;
   const char *index_type(uint key_number);
@@ -53,6 +57,8 @@ class ha_myisammrg: public handler
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables; }
 
   int open(const char *name, int mode, uint test_if_locked);
+  int attach_children(void);
+  int detach_children(void);
   int close(void);
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);
@@ -85,6 +91,7 @@ class ha_myisammrg: public handler
   void update_create_info(HA_CREATE_INFO *create_info);
   void append_create_info(String *packet);
   MYRG_INFO *myrg_info() { return file; }
+  TABLE *table_ptr() { return table; }
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
 };
