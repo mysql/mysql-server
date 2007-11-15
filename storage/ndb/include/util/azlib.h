@@ -35,7 +35,7 @@
 
 #include <zlib.h>
 
-#include "../../mysys/mysys_priv.h"
+#include "../../../../mysys/mysys_priv.h"
 #include <my_dir.h>
 
 #ifdef  __cplusplus
@@ -273,7 +273,7 @@ extern unsigned int azread ( azio_stream *s, voidp buf, unsigned int len, int *e
      gzread returns the number of uncompressed bytes actually read (0 for
    end of file, -1 for error). */
 
-extern unsigned int azwrite (azio_stream *s, voidpc buf, unsigned int len);
+extern unsigned int azwrite (azio_stream *s, const void* buf, unsigned int len);
 /*
      Writes the given number of uncompressed bytes into the compressed file.
    azwrite returns the number of uncompressed bytes actually written
