@@ -1401,7 +1401,6 @@ int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
 
 int ha_ndbcluster::get_metadata(THD *thd, const char *path)
 {
-  THD *thd= current_thd;
   Ndb *ndb= get_thd_ndb(thd)->ndb;
   NDBDICT *dict= ndb->getDictionary();
   const NDBTAB *tab;

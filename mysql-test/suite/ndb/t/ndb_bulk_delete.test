@@ -22,8 +22,8 @@ insert into t1 select a+128 from t1;
 
 --echo
 --echo # test: simple delete of multiple pk's
---echo # expected result 2 roundtrips
---echo # 1 - info call
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
 --echo # 0 - read the rows (with read before delete, this is 1)
 --echo # 0 - delete the rows (without bulk update this is 5 + 1 for execute no commit)
 --echo # 1 - delete the row + commit the transaction
