@@ -2691,6 +2691,7 @@ int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
   prop = ndb_mgm_call(handle, reply, "report event", &args);
   DBUG_CHECK_REPLY(handle, prop, -1);
 
+  delete prop;
   DBUG_RETURN(0);
 }
 
