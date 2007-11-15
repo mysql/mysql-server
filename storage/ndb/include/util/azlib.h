@@ -43,16 +43,9 @@ extern "C" {
 #endif
 /* Start of MySQL Specific Information */
 
-/*
-  ulonglong + ulonglong + ulonglong + ulonglong + uchar
-*/
-#define AZMETA_BUFFER_SIZE sizeof(unsigned long long) \
-  + sizeof(unsigned long long) + sizeof(unsigned long long) + sizeof(unsigned long long) \
-  + sizeof(unsigned int) + sizeof(unsigned int) \
-  + sizeof(unsigned int) + sizeof(unsigned int) \
-  + sizeof(unsigned char)
 
 #define AZHEADER_SIZE 29
+#define AZMETA_BUFFER_SIZE 512-AZHEADER_SIZE
 
 #define AZ_MAGIC_POS 0
 #define AZ_VERSION_POS 1
@@ -82,6 +75,14 @@ extern "C" {
 #define AZ_STATE_DIRTY 1
 #define AZ_STATE_SAVED 2
 #define AZ_STATE_CRASHED 3
+
+size_t az_inflate_mem_size();
+size_t az_deflate_mem_size();
+struct az_alloc_rec {
+  size_t size;
+  size_t mfree;
+  char *mem;
+};
 
 /*
      The 'zlib' compression library provides in-memory compression and
@@ -199,18 +200,18 @@ extern "C" {
 #define AZ_BUFSIZE_READ 32768
 #define AZ_BUFSIZE_WRITE 16384
 
-
 typedef struct azio_stream {
   z_stream stream;
   int      z_err;   /* error code for last stream operation */
   int      z_eof;   /* set if end of input file */
   File     file;   /* .gz file */
-  Byte     inbuf[AZ_BUFSIZE_READ];  /* input buffer */
-  Byte     outbuf[AZ_BUFSIZE_WRITE]; /* output buffer */
+  Byte     *inbuf;  /* input buffer */
+  Byte     *outbuf; /* output buffer */
   uLong    crc;     /* crc32 of uncompressed data */
   char     *msg;    /* error message */
   int      transparent; /* 1 if input file is not a .gz file */
   char     mode;    /* 'w' or 'r' */
+  char     bufalloced; /* true if azio allocated buffers */
   my_off_t  start;   /* start of compressed data in file (header skipped) */
   my_off_t  in;      /* bytes into deflate or inflate */
   my_off_t  out;     /* bytes out of deflate or inflate */
@@ -233,7 +234,6 @@ typedef struct azio_stream {
 } azio_stream;
 
                         /* basic functions */
-
 extern int azopen(azio_stream *s, const char *path, int Flags);
 /*
      Opens a gzip (.gz) file for reading or writing. The mode parameter

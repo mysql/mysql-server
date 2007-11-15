@@ -3,18 +3,32 @@
     -Brian Aker
 */
 
+/*
+ * This version has been hacked around by Stewart Smith to get the following:
+ * - Direct IO
+ */
+
 /* gzio.c -- IO on .gz files
  * Copyright (C) 1995-2005 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
  */
 
-/* @(#) $Id$ */
+/**
+ * This is a casual hack to do static memory allocation
+ * (needed by NDB)
+ */
+#include "../../../../zlib/zutil.h"
+#include "../../../../zlib/zconf.h"
+#include "../../../../zlib/inftrees.h"
+#include "../../../../zlib/inflate.h"
+#include "../../../../zlib/deflate.h"
 
 #include "azlib.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
@@ -27,6 +41,8 @@ static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
 #define COMMENT      0x10 /* bit 4 set: file comment present */
 #define RESERVED     0xE0 /* bits 5..7: reserved */
 
+#define AZ_MEMLEVEL 8
+
 int az_open(azio_stream *s, const char *path, int Flags, File  fd);
 int do_flush(azio_stream *file, int flush);
 int    get_byte(azio_stream *s);
@@ -36,6 +52,40 @@ int    destroy(azio_stream *s);
 void putLong(File file, uLong x);
 uLong  getLong(azio_stream *s);
 void read_header(azio_stream *s, unsigned char *buffer);
+
+size_t az_inflate_mem_size()
+{
+  return sizeof(struct inflate_state)
+    + ((1U << MAX_WBITS)*sizeof(unsigned char));
+}
+
+size_t az_deflate_mem_size()
+{
+  return sizeof(deflate_state)
+    + ((1U << MAX_WBITS)*(2*sizeof(Byte)))
+    + ((1U << MAX_WBITS)*sizeof(Pos))
+    + ((1U << (AZ_MEMLEVEL+7))*sizeof(Pos))
+    + ((1U << (AZ_MEMLEVEL+6))*(sizeof(ush)+2));
+}
+
+voidpf az_alloc(voidpf opaque, uInt items, uInt size)
+{
+  struct az_alloc_rec *r = (struct az_alloc_rec*)opaque;
+
+  if((items * size) > r->mfree)
+    abort();
+
+  r->mfree -= items*size;
+
+  return (r->mem + r->size) - r->mfree;
+}
+void az_free(voidpf opaque, voidpf address)
+{
+  // Oh how we hack.
+  struct az_alloc_rec *r = (struct az_alloc_rec*)opaque;
+  r->mfree = r->size;
+}
+
 
 /* ===========================================================================
   Opens a gzip (.gz) file for reading or writing. The mode parameter
@@ -52,9 +102,20 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   int level = Z_DEFAULT_COMPRESSION; /* compression level */
   int strategy = Z_DEFAULT_STRATEGY; /* compression strategy */
 
-  s->stream.zalloc = (alloc_func)0;
-  s->stream.zfree = (free_func)0;
-  s->stream.opaque = (voidpf)0;
+  s->stream.zalloc = (alloc_func)az_alloc;
+  s->stream.zfree = (free_func)az_free;
+//  s->stream.opaque = (voidpf)r;
+  s->bufalloced = 0;
+  if(!s->inbuf)
+  {
+    err= posix_memalign(&(s->inbuf),512,AZ_BUFSIZE_READ);
+    if(err)
+      return err;
+    err= posix_memalign(&(s->outbuf),512,AZ_BUFSIZE_WRITE);
+    if(err)
+      return err;
+    s->bufalloced = 1;
+  }
   memset(s->inbuf, 0, AZ_BUFSIZE_READ);
   memset(s->outbuf, 0, AZ_BUFSIZE_WRITE);
   s->stream.next_in = s->inbuf;
@@ -84,7 +145,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   if (s->mode == 'w') 
   {
     err = deflateInit2(&(s->stream), level,
-                       Z_DEFLATED, -MAX_WBITS, 8, strategy);
+                       Z_DEFLATED, -MAX_WBITS, AZ_MEMLEVEL, strategy);
     /* windowBits is passed < 0 to suppress zlib header */
 
     s->stream.next_out = s->outbuf;
@@ -139,10 +200,9 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   }
   else if (s->mode == 'w') 
   {
-    uchar buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
-    my_pread(s->file, buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
+    my_pread(s->file, s->inbuf, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
              MYF(0));
-    read_header(s, buffer); /* skip the .az header */
+    read_header(s, s->inbuf); /* skip the .az header */
     my_seek(s->file, 0, MY_SEEK_END, MYF(0));
   }
   else
@@ -156,7 +216,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
 
 void write_header(azio_stream *s)
 {
-  char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
+  char *buffer= (char*)s->outbuf;
   char *ptr= buffer;
 
   s->block_size= AZ_BUFSIZE_WRITE;
@@ -378,6 +438,12 @@ int destroy (s)
 
   if (s->z_err < 0) err = s->z_err;
 
+  if(s->bufalloced)
+  {
+    free(s->inbuf);
+    free(s->outbuf);
+  }
+
   return err;
 }
 
@@ -569,14 +635,17 @@ int do_flush (azio_stream *s, int flush)
   {
     len = AZ_BUFSIZE_WRITE - s->stream.avail_out;
 
+    memset(s->outbuf+len,0,s->stream.avail_out);
+
     if (len != 0) 
     {
       s->check_point= my_tell(s->file, MYF(0));
-      if ((uInt)my_write(s->file, (uchar *)s->outbuf, len, MYF(0)) != len) 
+      if ((uInt)my_write(s->file, (uchar *)s->outbuf, AZ_BUFSIZE_WRITE, MYF(0)) != len) 
       {
         s->z_err = Z_ERRNO;
         return Z_ERRNO;
       }
+      my_seek(s->file, s->stream.avail_out, SEEK_CUR, MYF(0));
       s->stream.next_out = s->outbuf;
       s->stream.avail_out = AZ_BUFSIZE_WRITE;
     }

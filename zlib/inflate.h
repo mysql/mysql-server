@@ -16,6 +16,9 @@
 #  define GUNZIP
 #endif
 
+#ifndef __ZLIB_INFLATE_H__
+#define __ZLIB_INFLATE_H__
+
 /* Possible inflate modes between inflate() calls */
 typedef enum {
     HEAD,       /* i: waiting for magic header */
@@ -113,3 +116,5 @@ struct inflate_state {
     unsigned short work[288];   /* work area for code table building */
     code codes[ENOUGH];         /* space for code tables */
 };
+
+#endif
