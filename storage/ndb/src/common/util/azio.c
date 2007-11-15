@@ -78,7 +78,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   DBUG_ASSERT(Flags | O_APPEND);
   DBUG_ASSERT(Flags | O_WRONLY);
 
-  if (Flags & O_RDWR) 
+  if (Flags & O_RDWR || Flags & O_WRONLY)
     s->mode = 'w';
 
   if (s->mode == 'w') 

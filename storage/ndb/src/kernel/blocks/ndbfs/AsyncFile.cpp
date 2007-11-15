@@ -99,6 +99,7 @@ AsyncFile::AsyncFile(SimulatedBlock& fs) :
   theMemoryChannelPtr(NULL),
   m_fs(fs)
 {
+  memset(&azf,0,sizeof(azf));
   m_page_ptr.setNull();
   m_current_request= m_last_request= 0;
   m_open_flags = 0;
@@ -487,6 +488,7 @@ no_odirect:
   theFd = ::open(theFileName.c_str(), new_flags, mode);
   if (-1 == theFd)
   {
+    ndbout_c("1 ERROR opening %s",theFileName.c_str());
     PRINT_ERRORANDFLAGS(new_flags);
     if ((errno == ENOENT) && (new_flags & O_CREAT)) 
     {
@@ -501,6 +503,7 @@ no_odirect:
 	  goto no_odirect;
 	}
 #endif
+        ndbout_c("2 ERROR opening %s",theFileName.c_str());
         PRINT_ERRORANDFLAGS(new_flags);
         request->error = errno;
 	return;
@@ -663,7 +666,7 @@ no_odirect:
   }
 #endif
   if(use_gz)
-    if(!azdopen(&azf, theFd, O_CREAT|O_RDWR|O_BINARY))
+    if(!azdopen(&azf, theFd, new_flags))
     {
       ndbout_c("Stewart's brain broke");
       abort();
@@ -681,14 +684,29 @@ AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
   }
 #elif ! defined(HAVE_PREAD)
   off_t seek_val;
-  while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1 
-	&& errno == EINTR);
-  if(seek_val == (off_t)-1)
+  if(!use_gz)
   {
-    return errno;
+    while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1
+          && errno == EINTR);
+    if(seek_val == (off_t)-1)
+    {
+      return errno;
+    }
   }
 #endif
-    
+  off_t seek_val;
+  if(use_gz)
+  {
+    while((seek_val= azseek(&azf, offset, SEEK_SET)) == (off_t)-1
+          && errno == EINTR);
+    if(seek_val == (off_t)-1)
+    {
+      return errno;
+    }
+  }
+
+  int error;
+
   while (size > 0) {
     size_t bytes_read = 0;
     
@@ -704,9 +722,15 @@ AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
     } 
     bytes_read = dwBytesRead;
 #elif  ! defined(HAVE_PREAD)
-    return_value = ::read(theFd, buf, size);
+    if(use_gz)
+      return_value = azread(&azf, buf, size, &error);
+    else
+      return_value = ::read(theFd, buf, size);
 #else // UNIX
-    return_value = ::pread(theFd, buf, size, offset);
+    if(!use_gz)
+      return_value = ::pread(theFd, buf, size, offset);
+    else
+      return_value = azread(&azf, buf, size, &error);
 #endif
 #ifndef NDB_WIN32
     if (return_value == -1 && errno == EINTR) {
@@ -1010,6 +1034,7 @@ AsyncFile::closeReq(Request * request)
   else
     ::close(theFd);
   use_gz= 0;
+  memset(&azf,0,sizeof(azf));
   if (-1 == r) {
 #ifndef DBUG_OFF
     if (theFd == -1) {

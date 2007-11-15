@@ -359,7 +359,7 @@ Restore::open_file(Signal* signal, FilePtr file_ptr)
 {
   FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
-  req->fileFlags = FsOpenReq::OM_READONLY ;
+  req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_GZ;
   req->userPointer = file_ptr.i;
   
   FsOpenReq::setVersion(req->fileNumber, 5);
