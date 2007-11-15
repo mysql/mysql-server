@@ -246,4 +246,26 @@ INSERT INTO t1(d1) VALUES ('2007-07-19 08:30:00'), (NULL),
 SELECT cast(date(d1) as signed) FROM t1;
 drop table t1;
 
+#
+# Bug #31990: MINUTE() and SECOND() return bogus results when used on a DATE
+#
+
+# Show that HH:MM:SS of a DATE are 0, and that it's the same for columns
+# and typecasts (NULL in, NULL out).
+CREATE TABLE t1 (f1 DATE);
+INSERT INTO t1 VALUES ('2007-07-19'), (NULL);
+SELECT HOUR(f1),
+       MINUTE(f1),
+       SECOND(f1) FROM t1;
+SELECT HOUR(CAST('2007-07-19' AS DATE)),
+       MINUTE(CAST('2007-07-19' AS DATE)),
+       SECOND(CAST('2007-07-19' AS DATE));
+SELECT HOUR(CAST(NULL AS DATE)),
+       MINUTE(CAST(NULL AS DATE)),
+       SECOND(CAST(NULL AS DATE));
+SELECT HOUR(NULL),
+       MINUTE(NULL),
+       SECOND(NULL);
+DROP TABLE t1;
+
 --echo End of 5.0 tests

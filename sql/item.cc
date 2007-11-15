@@ -3307,7 +3307,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
       if (cur_field->table_name && table_name)
       {
         /* If field_name is qualified by a table name. */
-        if (strcmp(cur_field->table_name, table_name))
+        if (my_strcasecmp(table_alias_charset, cur_field->table_name, table_name))
           /* Same field names, different tables. */
           return NULL;
 
@@ -6259,9 +6259,9 @@ bool field_is_equal_to_item(Field *field,Item *item)
   return result == field->val_real();
 }
 
-Item_cache* Item_cache::get_cache(Item_result type)
+Item_cache* Item_cache::get_cache(const Item *item)
 {
-  switch (type) {
+  switch (item->result_type()) {
   case INT_RESULT:
     return new Item_cache_int();
   case REAL_RESULT:
@@ -6269,7 +6269,7 @@ Item_cache* Item_cache::get_cache(Item_result type)
   case DECIMAL_RESULT:
     return new Item_cache_decimal();
   case STRING_RESULT:
-    return new Item_cache_str();
+    return new Item_cache_str(item);
   case ROW_RESULT:
     return new Item_cache_row();
   default:
@@ -6447,6 +6447,14 @@ my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 }
 
 
+int Item_cache_str::save_in_field(Field *field, bool no_conversions)
+{
+  int res= Item_cache::save_in_field(field, no_conversions);
+  return (is_varbinary && field->type() == MYSQL_TYPE_STRING &&
+          value->length() < field->field_length) ? 1 : res;
+}
+
+
 bool Item_cache_row::allocate(uint num)
 {
   item_count= num;
@@ -6465,7 +6473,7 @@ bool Item_cache_row::setup(Item * item)
   {
     Item *el= item->element_index(i);
     Item_cache *tmp;
-    if (!(tmp= values[i]= Item_cache::get_cache(el->result_type())))
+    if (!(tmp= values[i]= Item_cache::get_cache(el)))
       return 1;
     tmp->setup(el);
   }
