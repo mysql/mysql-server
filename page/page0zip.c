@@ -59,6 +59,35 @@ static const byte supremum_extra_data[] = {
 static const byte zero[BTR_EXTERN_FIELD_REF_SIZE] = { 0, };
 #endif
 
+/* Enable some extra debugging output.  This code can be enabled
+independently of any UNIV_ debugging conditions. */
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+# include <stdarg.h>
+__attribute__((format (printf, 1, 2)))
+/**************************************************************************
+Report a failure to decompress or compress. */
+static
+int
+page_zip_fail_func(
+/*===============*/
+				/* out: number of characters printed */
+	const char*	fmt,	/* in: printf(3) format string */
+	...)			/* in: arguments corresponding to fmt */
+{
+	int	res;
+	va_list	ap;
+
+	va_start(ap, fmt);
+	res = vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	return(res);
+}
+# define page_zip_fail(fmt_args) page_zip_fail_func fmt_args
+#else /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+# define page_zip_fail(fmt_args) /* empty */
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
 /**************************************************************************
 Determine the guaranteed free space on an empty page. */
 
@@ -1442,6 +1471,8 @@ page_zip_dir_decode(
 	n_recs = page_get_n_recs(page);
 
 	if (UNIV_UNLIKELY(n_recs > n_dense)) {
+		page_zip_fail(("page_zip_dir_decode 1: %lu > %lu\n",
+			       (ulong) n_recs, (ulong) n_dense));
 		return(FALSE);
 	}
 
@@ -1470,6 +1501,9 @@ page_zip_dir_decode(
 
 		if (UNIV_UNLIKELY((offs & PAGE_ZIP_DIR_SLOT_MASK)
 				  < PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES)) {
+			page_zip_fail(("page_zip_dir_decode 2: %u %u %lx\n",
+				       (unsigned) i, (unsigned) n_recs,
+				       (ulong) offs));
 			return(FALSE);
 		}
 
@@ -1477,10 +1511,16 @@ page_zip_dir_decode(
 	}
 
 	mach_write_to_2(slot, PAGE_NEW_SUPREMUM);
-	if (UNIV_UNLIKELY
-	    (slot != page_dir_get_nth_slot(page,
-					   page_dir_get_n_slots(page) - 1))) {
-		return(FALSE);
+	{
+		const page_dir_slot_t*	last_slot = page_dir_get_nth_slot(
+			page, page_dir_get_n_slots(page) - 1);
+
+		if (UNIV_UNLIKELY(slot != last_slot)) {
+			page_zip_fail(("page_zip_dir_decode 3: %p != %p\n",
+				       (const void*) slot,
+				       (const void*) last_slot));
+			return(FALSE);
+		}
 	}
 
 	/* Copy the rest of the dense directory. */
@@ -1488,6 +1528,9 @@ page_zip_dir_decode(
 		ulint	offs = page_zip_dir_get(page_zip, i);
 
 		if (UNIV_UNLIKELY(offs & ~PAGE_ZIP_DIR_SLOT_MASK)) {
+			page_zip_fail(("page_zip_dir_decode 4: %u %u %lx\n",
+				       (unsigned) i, (unsigned) n_dense,
+				       (ulong) offs));
 			return(FALSE);
 		}
 
@@ -1536,6 +1579,10 @@ page_zip_set_extra_bytes(
 		offs &= PAGE_ZIP_DIR_SLOT_MASK;
 		if (UNIV_UNLIKELY(offs < PAGE_ZIP_START
 				  + REC_N_NEW_EXTRA_BYTES)) {
+			page_zip_fail(("page_zip_set_extra_bytes 1:"
+				       " %u %u %lx\n",
+				       (unsigned) i, (unsigned) n,
+				       (ulong) offs));
 			return(FALSE);
 		}
 
@@ -1555,8 +1602,13 @@ page_zip_set_extra_bytes(
 	n = page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW;
 
 	if (i >= n) {
+		if (UNIV_LIKELY(i == n)) {
+			return(TRUE);
+		}
 
-		return(UNIV_LIKELY(i == n));
+		page_zip_fail(("page_zip_set_extra_bytes 2: %u != %u\n",
+			       (unsigned) i, (unsigned) n));
+		return(FALSE);
 	}
 
 	offs = page_zip_dir_get(page_zip, i);
@@ -1565,6 +1617,9 @@ page_zip_set_extra_bytes(
 	for (;;) {
 		if (UNIV_UNLIKELY(!offs)
 		    || UNIV_UNLIKELY(offs & ~PAGE_ZIP_DIR_SLOT_MASK)) {
+
+			page_zip_fail(("page_zip_set_extra_bytes 3: %lx\n",
+				       (ulong) offs));
 			return(FALSE);
 		}
 
@@ -2508,6 +2563,9 @@ page_zip_decompress(
 	n_dense = page_dir_get_n_heap(page_zip->data) - PAGE_HEAP_NO_USER_LOW;
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
 			  >= page_zip_get_size(page_zip))) {
+		page_zip_fail(("page_zip_decompress 1: %lu %lu\n",
+			       (ulong) n_dense,
+			       (ulong) page_zip_get_size(page_zip)));
 		return(FALSE);
 	}
 
@@ -2672,7 +2730,7 @@ page_zip_validate(
 	    || memcmp(page_zip->data + FIL_PAGE_TYPE, page + FIL_PAGE_TYPE, 2)
 	    || memcmp(page_zip->data + FIL_PAGE_DATA, page + FIL_PAGE_DATA,
 		      PAGE_DATA - FIL_PAGE_DATA)) {
-		fputs("page_zip_validate(): page header mismatch\n", stderr);
+		page_zip_fail(("page_zip_validate: page header\n"));
 		return(FALSE);
 	}
 
@@ -2706,34 +2764,31 @@ page_zip_validate(
 		goto func_exit;
 	}
 	if (page_zip->n_blobs != temp_page_zip.n_blobs) {
-		fprintf(stderr,
-			"page_zip_validate(): n_blobs mismatch: %d!=%d\n",
-			page_zip->n_blobs, temp_page_zip.n_blobs);
+		page_zip_fail(("page_zip_validate: n_blobs: %u!=%u\n",
+			       page_zip->n_blobs, temp_page_zip.n_blobs));
 		valid = FALSE;
 	}
 #ifdef UNIV_DEBUG
 	if (page_zip->m_start != temp_page_zip.m_start) {
-		fprintf(stderr,
-			"page_zip_validate(): m_start mismatch: %d!=%d\n",
-			page_zip->m_start, temp_page_zip.m_start);
+		page_zip_fail(("page_zip_validate: m_start: %u!=%u\n",
+			       page_zip->m_start, temp_page_zip.m_start));
 		valid = FALSE;
 	}
 #endif /* UNIV_DEBUG */
 	if (page_zip->m_end != temp_page_zip.m_end) {
-		fprintf(stderr,
-			"page_zip_validate(): m_end mismatch: %d!=%d\n",
-			page_zip->m_end, temp_page_zip.m_end);
+		page_zip_fail(("page_zip_validate: m_end: %u!=%u\n",
+			       page_zip->m_end, temp_page_zip.m_end));
 		valid = FALSE;
 	}
 	if (page_zip->m_nonempty != temp_page_zip.m_nonempty) {
-		fprintf(stderr,
-			"page_zip_validate(): m_nonempty mismatch: %d!=%d\n",
-			page_zip->m_nonempty, temp_page_zip.m_nonempty);
+		page_zip_fail(("page_zip_validate(): m_nonempty: %u!=%u\n",
+			       page_zip->m_nonempty,
+			       temp_page_zip.m_nonempty));
 		valid = FALSE;
 	}
 	if (memcmp(page + PAGE_HEADER, temp_page + PAGE_HEADER,
 		   UNIV_PAGE_SIZE - PAGE_HEADER - FIL_PAGE_DATA_END)) {
-		fputs("page_zip_validate(): content mismatch\n", stderr);
+		page_zip_fail(("page_zip_validate: content\n"));
 		valid = FALSE;
 	}
 
