@@ -95,6 +95,7 @@ AsyncFile::AsyncFile(SimulatedBlock& fs) :
   theFd(-1),
 #endif
   theReportTo(0),
+  use_gz(0),
   theMemoryChannelPtr(NULL),
   m_fs(fs)
 {
@@ -460,6 +461,8 @@ void AsyncFile::openReq(Request* request)
     break;
     return;
   }
+  if(flags & FsOpenReq::OM_GZ)
+    use_gz= 1;
 
   // allow for user to choose any permissionsa with umask
   const int mode = S_IRUSR | S_IWUSR |
@@ -481,13 +484,15 @@ void AsyncFile::openReq(Request* request)
   }
 
 no_odirect:
-  if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) 
+  theFd = ::open(theFileName.c_str(), new_flags, mode);
+  if (-1 == theFd)
   {
     PRINT_ERRORANDFLAGS(new_flags);
     if ((errno == ENOENT) && (new_flags & O_CREAT)) 
     {
       createDirectories();
-      if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) 
+      theFd = ::open(theFileName.c_str(), new_flags, mode);
+      if (-1 == theFd)
       {
 #ifdef O_DIRECT
 	if (new_flags & O_DIRECT)
@@ -571,7 +576,11 @@ no_odirect:
       Uint32 size = request->par.open.page_size;
       char* buf = (char*)m_page_ptr.p;
       while(size > 0){
-	const int n = write(theFd, buf, size);
+        int n;
+	if(use_gz)
+          n= azwrite(&azf,buf,size);
+        else
+          n= write(theFd, buf, size);
 	if(n == -1 && errno == EINTR)
 	{
 	  continue;
@@ -653,6 +662,12 @@ no_odirect:
 #endif
   }
 #endif
+  if(use_gz)
+    if(!azdopen(&azf, theFd, O_CREAT|O_RDWR|O_BINARY))
+    {
+      ndbout_c("Stewart's brain broke");
+      abort();
+    }
 }
 
 int
@@ -800,9 +815,14 @@ AsyncFile::extendfile(Request* request) {
       ndbd_free(pbuf,maxSize);
       return -1;
     }
-    return_value = ::write(theFd, 
-                           pbuf,
-                           maxSize);
+    if(use_gz)
+      return_value = azwrite(&azf,
+                             pbuf,
+                             maxSize);
+    else
+      return_value = ::write(theFd,
+                             pbuf,
+                             maxSize);
     if ((return_value == -1) || (return_value != maxSize)) {
       ndbd_free(pbuf,maxSize);
       return -1;
@@ -923,9 +943,15 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
     }
     
 #elif ! defined(HAVE_PWRITE)
-    return_value = ::write(theFd, buf, bytes_to_write);
+    if(use_gz)
+      return_value= azwrite(&azf, buf, bytes_to_write);
+    else
+      return_value = ::write(theFd, buf, bytes_to_write);
 #else // UNIX
-    return_value = ::pwrite(theFd, buf, bytes_to_write, offset);
+    if(use_gz)
+      return_value= azwrite(&azf, buf, bytes_to_write);
+    else
+      return_value = ::pwrite(theFd, buf, bytes_to_write, offset);
 #endif
 #ifndef NDB_WIN32
     if (return_value == -1 && errno == EINTR) {
@@ -978,7 +1004,13 @@ AsyncFile::closeReq(Request * request)
   }
   hFile = INVALID_HANDLE_VALUE;
 #else
-  if (-1 == ::close(theFd)) {
+  int r;
+  if(use_gz)
+    r= azclose(&azf);
+  else
+    ::close(theFd);
+  use_gz= 0;
+  if (-1 == r) {
 #ifndef DBUG_OFF
     if (theFd == -1) {
       DEBUG(ndbout_c("close on fd = -1"));
@@ -1041,7 +1073,11 @@ AsyncFile::appendReq(Request * request){
   }
 #else
   while(size > 0){
-    const int n = write(theFd, buf, size);
+    int n;
+    if(use_gz)
+      n= azwrite(&azf,buf,size);
+    else
+      n= write(theFd, buf, size);
     if(n == -1 && errno == EINTR){
       continue;
     }
