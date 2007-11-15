@@ -1,7 +1,11 @@
+#include <stdlib.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <assert.h>
 #include <unistd.h>
 #include <db.h>
+
+#define DIR "dir.test_db_already_exists"
 
 int main() {
     DB_ENV * const null_env = 0;
@@ -10,7 +14,9 @@ int main() {
     const char * const fname = "test.already.exists.brt";
     int r;
 
-    r = unlink(fname);
+    system("rm -rf " DIR);
+    r=mkdir(DIR, 0777); assert(r==0);
+    r=chdir(DIR);       assert(r==0);
 
     r = db_create(&db, null_env, 0);
     assert(r == 0);
@@ -32,6 +38,8 @@ int main() {
     
     r = db->close(db, 0);
     assert(r == 0);
+
+    r=chdir("..");       assert(r==0);
 
     return 0;
 }
