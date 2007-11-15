@@ -556,12 +556,19 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
   {
     /* Display a bunch of stuff about Backup defaults */
     infoEvent("Compressed Backup: %d", c_defaults.m_compressed_backup);
+    infoEvent("Compressed LCP: %d", c_defaults.m_compressed_lcp);
   }
 
   if(signal->theData[0] == DumpStateOrd::DumpBackupSetCompressed)
   {
     c_defaults.m_compressed_backup= signal->theData[1];
     infoEvent("Compressed Backup: %d", c_defaults.m_compressed_backup);
+  }
+
+  if(signal->theData[0] == DumpStateOrd::DumpBackupSetCompressedLCP)
+  {
+    c_defaults.m_compressed_lcp= signal->theData[1];
+    infoEvent("Compressed LCP: %d", c_defaults.m_compressed_lcp);
   }
 }
 
@@ -5139,6 +5146,10 @@ Backup::lcp_open_file(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::OM_CREATE | 
     FsOpenReq::OM_APPEND |
     FsOpenReq::OM_AUTOSYNC;
+
+  if (c_defaults.m_compressed_lcp)
+    req->fileFlags |= FsOpenReq::OM_GZ;
+
   if (c_defaults.m_o_direct)
     req->fileFlags |= FsOpenReq::OM_DIRECT;
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);

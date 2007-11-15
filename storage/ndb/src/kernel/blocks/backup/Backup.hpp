@@ -552,6 +552,7 @@ public:
     Uint32 m_diskless;
     Uint32 m_o_direct;
     Uint32   m_compressed_backup;
+    Uint32 m_compressed_lcp;
   };
   
   /**
