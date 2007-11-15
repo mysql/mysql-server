@@ -249,7 +249,6 @@ no_odirect:
   theFd = ::open(theFileName.c_str(), new_flags, mode);
   if (-1 == theFd)
   {
-    ndbout_c("1 ERROR opening %s",theFileName.c_str());
     PRINT_ERRORANDFLAGS(new_flags);
     if ((errno == ENOENT) && (new_flags & O_CREAT))
     {
@@ -264,7 +263,6 @@ no_odirect:
 	  goto no_odirect;
 	}
 #endif
-        ndbout_c("2 ERROR opening %s",theFileName.c_str());
         PRINT_ERRORANDFLAGS(new_flags);
         request->error = errno;
 	return;
@@ -427,11 +425,15 @@ no_odirect:
 #endif
   }
   if(use_gz)
-    if(azdopen(&azf, theFd, new_flags) < 1)
+  {
+    int err;
+    if((err= azdopen(&azf, theFd, new_flags)) < 1)
     {
-      ndbout_c("Stewart's brain broke");
+      ndbout_c("Stewart's brain broke: %d %d %s",
+               err, my_errno, theFileName.c_str());
       abort();
     }
+  }
 }
 
 int PosixAsyncFile::readBuffer(Request *req, char *buf,
@@ -481,7 +483,14 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
     if (return_value == -1 && errno == EINTR) {
       DEBUG(ndbout_c("EINTR in read"));
       continue;
-    } else if (return_value == -1){
+    } else if (return_value < 1){
+      if(my_errno==0 && errno==0 && error==0 && azf.z_err==Z_STREAM_END)
+        break;
+      DEBUG(ndbout_c("ERROR DURING %sRead: %d off: %d from %s",(use_gz)?"gz":"",size,offset,theFileName.c_str()));
+      ndbout_c("ERROR IN PosixAsyncFile::readBuffer %d %d %d %d",
+               my_errno, errno, azf.z_err, error);
+      if(use_gz)
+        return my_errno;
       return errno;
     } else {
       bytes_read = return_value;
@@ -575,7 +584,9 @@ int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset,
     if (return_value == -1 && errno == EINTR) {
       bytes_written = 0;
       DEBUG(ndbout_c("EINTR in write"));
-    } else if (return_value == -1){
+    } else if (return_value == -1 || return_value < 1){
+      ndbout_c("ERROR IN PosixAsyncFile::writeBuffer %d %d %d",
+               my_errno, errno, azf.z_err);
       if(use_gz)
         return my_errno;
       return errno;
@@ -612,7 +623,7 @@ void PosixAsyncFile::closeReq(Request *request)
   if(use_gz)
     r= azclose(&azf);
   else
-    ::close(theFd);
+    r= ::close(theFd);
   use_gz= 0;
   Byte *a,*b;
   a= azf.inbuf;
@@ -748,6 +759,13 @@ void PosixAsyncFile::endReq()
   if (azfBufferUnaligned)
     ndbd_free(azfBufferUnaligned, (AZ_BUFSIZE_READ*AZ_BUFSIZE_WRITE)
               +NDB_O_DIRECT_WRITE_ALIGNMENT-1);
+
+  if(az_mempool.mem)
+    ndbd_free(az_mempool.mem,az_mempool.size);
+
+  az_mempool.mem = NULL;
+  theWriteBufferUnaligned = NULL;
+  azfBufferUnaligned = NULL;
 }
 
 
