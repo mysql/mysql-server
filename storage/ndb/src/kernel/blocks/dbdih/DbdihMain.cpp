@@ -10636,6 +10636,8 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
     return;
   }//if
 
+  setLcpActiveStatusStart(signal);
+
   signal->theData[0] = DihContinueB::ZCALCULATE_KEEP_GCI;
   signal->theData[1] = 0;  /* TABLE ID = 0          */
   signal->theData[2] = 0;  /* FRAGMENT ID = 0       */
@@ -10748,7 +10750,15 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
   /*    CHECK IF ANY NODE MUST BE TAKEN OUT OF SERVICE AND REFILLED WITH    */
   /*    NEW FRESH DATA FROM AN ACTIVE NODE.                                 */
   /* ---------------------------------------------------------------------- */
-  setLcpActiveStatusStart(signal);
+
+  /**
+   * This used be done in setLcpActiveStatusStart
+   *   but this function has been move "up" in the flow
+   *   to just before calcKeepGci
+   */
+  checkStartTakeOver(signal);
+  setNodeRestartInfoBits();
+
   c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
   //#ifdef VM_TRACE
   //  infoEvent("LocalCheckpoint %d started", SYSFILE->latestLCP_ID);
@@ -12288,22 +12298,29 @@ void Dbdih::checkKeepGci(TabRecordPtr tabPtr, Uint32 fragId, Fragmentstore*,
   while (ckgReplicaPtr.i != RNIL) {
     jam();
     ptrCheckGuard(ckgReplicaPtr, creplicaFileSize, replicaRecord);
-    Uint32 keepGci;
-    Uint32 oldestRestorableGci;
-    findMinGci(ckgReplicaPtr, keepGci, oldestRestorableGci);
-    if (keepGci < c_lcpState.keepGci) {
-      jam();
-      /* ------------------------------------------------------------------- */
-      /* WE MUST KEEP LOG RECORDS SO THAT WE CAN USE ALL LOCAL CHECKPOINTS   */
-      /* THAT ARE AVAILABLE. THUS WE NEED TO CALCULATE THE MINIMUM OVER ALL  */
-      /* FRAGMENTS.                                                          */
-      /* ------------------------------------------------------------------- */
-      c_lcpState.keepGci = keepGci;
-    }//if
-    if (oldestRestorableGci > c_lcpState.oldestRestorableGci) {
-      jam();
-      c_lcpState.oldestRestorableGci = oldestRestorableGci;
-    }//if
+    if (c_lcpState.m_participatingLQH.get(ckgReplicaPtr.p->procNode))
+    {
+      Uint32 keepGci;
+      Uint32 oldestRestorableGci;
+      findMinGci(ckgReplicaPtr, keepGci, oldestRestorableGci);
+      if (keepGci < c_lcpState.keepGci) {
+        jam();
+        /* ----------------------------------------------------------------- */
+        /* WE MUST KEEP LOG RECORDS SO THAT WE CAN USE ALL LOCAL CHECKPOINTS */
+        /* THAT ARE AVAILABLE. THUS WE NEED TO CALCULATE THE MINIMUM OVER ALL*/
+        /* FRAGMENTS.                                                        */
+        /* ----------------------------------------------------------------- */
+        c_lcpState.keepGci = keepGci;
+      }//if
+      if (oldestRestorableGci > c_lcpState.oldestRestorableGci) {
+        jam();
+        c_lcpState.oldestRestorableGci = oldestRestorableGci;
+      }//if
+    }
+    else
+    {
+      ndbout_c("dont consicider LCP for node %u", ckgReplicaPtr.p->procNode);
+    }
     ckgReplicaPtr.i = ckgReplicaPtr.p->nextReplica;
   }//while
 }//Dbdih::checkKeepGci()
@@ -14457,11 +14474,6 @@ void Dbdih::setLcpActiveStatusStart(Signal* signal)
       }//switch
     }//if
   }//for
-  if (isMaster()) {
-    jam();
-    checkStartTakeOver(signal);
-    setNodeRestartInfoBits();
-  }//if
 }//Dbdih::setLcpActiveStatusStart()
 
 /*************************************************************************/
