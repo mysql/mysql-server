@@ -231,6 +231,7 @@ private:
 
   int use_gz;
   azio_stream azf;
+  struct az_alloc_rec az_mempool;
 
   MemoryChannel<Request> *theReportTo;
   MemoryChannel<Request>* theMemoryChannelPtr;
@@ -242,6 +243,7 @@ private:
   int theWriteBufferSize;
   char* theWriteBuffer;
   void* theWriteBufferUnaligned;
+  void* azfBufferUnaligned;
   
   size_t m_write_wo_sync;  // Writes wo/ sync
   size_t m_auto_sync_freq; // Auto sync freq in bytes

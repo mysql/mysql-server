@@ -182,6 +182,22 @@ AsyncFile::run()
     (((UintPtr)theWriteBufferUnaligned + NDB_O_DIRECT_WRITE_ALIGNMENT - 1) &
      ~(UintPtr)(NDB_O_DIRECT_WRITE_ALIGNMENT - 1));
 
+  azfBufferUnaligned= (Byte*)ndbd_malloc((AZ_BUFSIZE_READ+AZ_BUFSIZE_WRITE)
+                                         +NDB_O_DIRECT_WRITE_ALIGNMENT-1);
+
+  azf.inbuf= (Byte*)(((UintPtr)azfBufferUnaligned
+                      + NDB_O_DIRECT_WRITE_ALIGNMENT - 1) &
+                     ~(UintPtr)(NDB_O_DIRECT_WRITE_ALIGNMENT - 1));
+
+  azf.outbuf= azf.inbuf + AZ_BUFSIZE_READ;
+
+  az_mempool.size = az_mempool.mfree = az_inflate_mem_size()+az_deflate_mem_size();
+
+  ndbout_c("NDBFS/AsyncFile: Allocating %d for In/Deflate buffer",az_mempool.size);
+  az_mempool.mem = (char*) ndbd_malloc(az_mempool.size);
+
+  azf.stream.opaque= &az_mempool;
+
   NdbMutex_Unlock(theStartMutexPtr);
   NdbCondition_Signal(theStartConditionPtr);
   
@@ -590,6 +606,7 @@ no_odirect:
 	}
 	if(n == -1 || n == 0)
 	{
+          ndbout_c("azwrite|write returned %d: errno: %d my_errno: %d",n,errno,my_errno);
 	  break;
 	}
 	size -= n;
@@ -666,7 +683,7 @@ no_odirect:
   }
 #endif
   if(use_gz)
-    if(!azdopen(&azf, theFd, new_flags))
+    if(azdopen(&azf, theFd, new_flags) < 1)
     {
       ndbout_c("Stewart's brain broke");
       abort();
@@ -848,6 +865,7 @@ AsyncFile::extendfile(Request* request) {
                              pbuf,
                              maxSize);
     if ((return_value == -1) || (return_value != maxSize)) {
+      ndbout_c("NDBFS ERROR during extendFile");
       ndbd_free(pbuf,maxSize);
       return -1;
     }
@@ -982,6 +1000,8 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
       bytes_written = 0;
       DEBUG(ndbout_c("EINTR in write"));
     } else if (return_value == -1){
+      if(use_gz)
+        return my_errno;
       return errno;
     } else {
       bytes_written = return_value;
@@ -1034,7 +1054,14 @@ AsyncFile::closeReq(Request * request)
   else
     ::close(theFd);
   use_gz= 0;
+  Byte *a,*b;
+  a= azf.inbuf;
+  b= azf.outbuf;
   memset(&azf,0,sizeof(azf));
+  azf.inbuf= a;
+  azf.outbuf= b;
+  azf.stream.opaque = (void*)&az_mempool;
+
   if (-1 == r) {
 #ifndef DBUG_OFF
     if (theFd == -1) {
@@ -1107,7 +1134,10 @@ AsyncFile::appendReq(Request * request){
       continue;
     }
     if(n == -1){
-      request->error = errno;
+      if(use_gz)
+        request->error = my_errno;
+      else
+        request->error = errno;
       return;
     }
     if(n == 0){
@@ -1235,6 +1265,10 @@ void AsyncFile::endReq()
   // Thread is ended with return
   if (theWriteBufferUnaligned)
     ndbd_free(theWriteBufferUnaligned, theWriteBufferSize);
+
+  if (azfBufferUnaligned)
+    ndbd_free(azfBufferUnaligned, (AZ_BUFSIZE_READ*AZ_BUFSIZE_WRITE)
+              +NDB_O_DIRECT_WRITE_ALIGNMENT-1);
 }
 
 
