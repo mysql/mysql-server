@@ -22,7 +22,8 @@ SUBDIRS = \
 
 noinst_LIBRARIES = libblocks.a
 
-INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/kernel/blocks/dblqh
+INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/kernel/blocks/dblqh \
+		@ZLIB_INCLUDES@
 libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   cmvmi/Cmvmi.cpp \
   dbacc/DbaccInit.cpp dbacc/DbaccMain.cpp \

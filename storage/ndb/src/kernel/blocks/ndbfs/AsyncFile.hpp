@@ -97,6 +97,8 @@
 #include "MemoryChannel.hpp"
 #include "Filename.hpp"
 
+#include <azlib.h>
+
 const int ERR_ReadUnderflow = 1000;
 
 const int WRITECHUNK = 262144;
@@ -226,7 +228,10 @@ private:
 #endif
 
   Uint32 m_open_flags; // OM_ flags from request to open file
-  
+
+  int use_gz;
+  azio_stream azf;
+
   MemoryChannel<Request> *theReportTo;
   MemoryChannel<Request>* theMemoryChannelPtr;
   

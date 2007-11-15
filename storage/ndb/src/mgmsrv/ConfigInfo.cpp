@@ -1465,6 +1465,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "false",
     "true"},
+  {
+    CFG_DB_COMPRESSED_BACKUP,
+    "CompressedBackup",
+    DB_TOKEN,
+    "Use zlib to compress BACKUPs as they are written",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"},
 
   /***************************************************************************
    * API

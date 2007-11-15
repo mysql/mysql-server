@@ -54,6 +54,7 @@
 
 #include <signaldata/WaitGCP.hpp>
 #include <signaldata/LCP.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 
 #include <signaldata/DumpStateOrd.hpp>
 
@@ -549,6 +550,18 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
 		 c_pagePool.getNoOfFree() + 
 		 lcp_file.p->pages.getSize());
     }
+  }
+
+  if(signal->theData[0] == DumpStateOrd::DumpBackup)
+  {
+    /* Display a bunch of stuff about Backup defaults */
+    infoEvent("Compressed Backup: %d", c_defaults.m_compressed_backup);
+  }
+
+  if(signal->theData[0] == DumpStateOrd::DumpBackupSetCompressed)
+  {
+    c_defaults.m_compressed_backup= signal->theData[1];
+    infoEvent("Compressed Backup: %d", c_defaults.m_compressed_backup);
   }
 }
 
@@ -2876,6 +2889,10 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::OM_CREATE | 
     FsOpenReq::OM_APPEND |
     FsOpenReq::OM_AUTOSYNC;
+
+  if (c_defaults.m_compressed_backup)
+    req->fileFlags |= FsOpenReq::OM_GZ;
+
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
   req->auto_sync_size = c_defaults.m_disk_synch_size;
   /**
