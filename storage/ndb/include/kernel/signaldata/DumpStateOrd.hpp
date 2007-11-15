@@ -163,7 +163,8 @@ public:
     DumpLgman = 10000,
     DumpPgman = 11000,
     DumpBackup = 13000,
-    DumpBackupSetCompressed = 13001
+    DumpBackupSetCompressed = 13001,
+    DumpBackupSetCompressedLCP = 13002
   };
 public:
   

@@ -1476,6 +1476,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "false",
     "true"},
+  {
+    CFG_DB_COMPRESSED_LCP,
+    "CompressedLCP",
+    DB_TOKEN,
+    "Write compressed LCPs using zlib",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"},
 
   /***************************************************************************
    * API

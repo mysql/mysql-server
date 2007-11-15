@@ -131,6 +131,8 @@
 
 #define CFG_DB_COMPRESSED_BACKUP      172
 
+#define CFG_DB_COMPRESSED_LCP         173
+
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
 
