@@ -1661,18 +1661,48 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 
 /* 2 utility functions for the next method */
 
-/* 
-  Get the pointer for a string (src) that contains the length in
-  the first byte. Set the output string (dst) to the string value
-  and place the length of the string in the byte after the string.
+/**
+   Read a string with length from memory.
+
+   This function reads the string-with-length stored at
+   <code>src</code> and extract the length into <code>*len</code> and
+   a pointer to the start of the string into <code>*dst</code>. The
+   string can then be copied using <code>memcpy()</code> with the
+   number of bytes given in <code>*len</code>.
+
+   @param src Pointer to variable holding a pointer to the memory to
+              read the string from.
+   @param dst Pointer to variable holding a pointer where the actual
+              string starts. Starting from this position, the string
+              can be copied using @c memcpy().
+   @param len Pointer to variable where the length will be stored.
+   @param end One-past-the-end of the memory where the string is
+              stored.
+
+   @return    Zero if the entire string can be copied successfully,
+              @c UINT_MAX if the length could not be read from memory
+              (that is, if <code>*src >= end</code>), otherwise the
+              number of bytes that are missing to read the full
+              string, which happends <code>*dst + *len >= end</code>.
 */
-static void get_str_len_and_pointer(const Log_event::Byte **src, 
-                                    const char **dst, 
-                                    uint *len)
+static int
+get_str_len_and_pointer(const Log_event::Byte **src,
+                        const char **dst,
+                        uint *len,
+                        const Log_event::Byte *end)
 {
-  if ((*len= **src))
-    *dst= (char *)*src + 1;                          // Will be copied later
-  (*src)+= *len + 1;
+  if (*src >= end)
+    return -1;       // Will be UINT_MAX in two-complement arithmetics
+  uint length= **src;
+  if (length > 0)
+  {
+    if (*src + length >= end)
+      return *src + length - end + 1;       // Number of bytes missing
+    *dst= (char *)*src + 1;                    // Will be copied later
+  }
+  *len= length;
+  *src+= length + 1;
+  return 0;
 }
 
 static void copy_str_and_move(const char **src, 
@@ -1684,6 +1714,46 @@ static void copy_str_and_move(const char **src,
   (*dst)+= len;
   *(*dst)++= 0;
 }
+
+
+#ifndef DBUG_OFF
+static char const *
+code_name(int code)
+{
+  static char buf[255];
+  switch (code) {
+  case Q_FLAGS2_CODE: return "Q_FLAGS2_CODE";
+  case Q_SQL_MODE_CODE: return "Q_SQL_MODE_CODE";
+  case Q_CATALOG_CODE: return "Q_CATALOG_CODE";
+  case Q_AUTO_INCREMENT: return "Q_AUTO_INCREMENT";
+  case Q_CHARSET_CODE: return "Q_CHARSET_CODE";
+  case Q_TIME_ZONE_CODE: return "Q_TIME_ZONE_CODE";
+  case Q_CATALOG_NZ_CODE: return "Q_CATALOG_NZ_CODE";
+  case Q_LC_TIME_NAMES_CODE: return "Q_LC_TIME_NAMES_CODE";
+  case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
+  }
+  sprintf(buf, "CODE#%d", code);
+  return buf;
+}
+#endif
+
+/**
+   Macro to check that there is enough space to read from memory.
+
+   @param PTR Pointer to memory
+   @param END End of memory
+   @param CNT Number of bytes that should be read.
+ */
+#define CHECK_SPACE(PTR,END,CNT)                      \
+  do {                                                \
+    DBUG_PRINT("info", ("Read %s", code_name(pos[-1]))); \
+    DBUG_ASSERT((PTR) + (CNT) <= (END));              \
+    if ((PTR) + (CNT) > (END)) {                      \
+      DBUG_PRINT("info", ("query= 0"));               \
+      query= 0;                                       \
+      DBUG_VOID_RETURN;                               \
+    }                                                 \
+  } while (0)
 
 /*
   Query_log_event::Query_log_event()
@@ -1737,6 +1807,19 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   if (tmp)
   {
     status_vars_len= uint2korr(buf + Q_STATUS_VARS_LEN_OFFSET);
+    /*
+      Check if status variable length is corrupt and will lead to very
+      wrong data. We could be even more strict and require data_len to
+      be even bigger, but this will suffice to catch most corruption
+      errors that can lead to a crash.
+    */
+    if (status_vars_len > min(data_len, MAX_SIZE_LOG_EVENT_STATUS))
+    {
+      DBUG_PRINT("info", ("status_vars_len (%u) > data_len (%lu); query= 0",
+                          status_vars_len, data_len));
+      query= 0;
+      DBUG_VOID_RETURN;
+    }
     data_len-= status_vars_len;
     DBUG_PRINT("info", ("Query_log_event has status_vars_len: %u",
                         (uint) status_vars_len));
@@ -1756,6 +1839,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   {
     switch (*pos++) {
     case Q_FLAGS2_CODE:
+      CHECK_SPACE(pos, end, 4);
       flags2_inited= 1;
       flags2= uint4korr(pos);
       DBUG_PRINT("info",("In Query_log_event, read flags2: %lu", (ulong) flags2));
@@ -1766,6 +1850,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 #ifndef DBUG_OFF
       char buff[22];
 #endif
+      CHECK_SPACE(pos, end, 8);
       sql_mode_inited= 1;
       sql_mode= (ulong) uint8korr(pos); // QQ: Fix when sql_mode is ulonglong
       DBUG_PRINT("info",("In Query_log_event, read sql_mode: %s",
@@ -1774,15 +1859,24 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       break;
     }
     case Q_CATALOG_NZ_CODE:
-      get_str_len_and_pointer(&pos, &catalog, &catalog_len);
+      DBUG_PRINT("info", ("case Q_CATALOG_NZ_CODE; pos: 0x%lx; end: 0x%lx",
+                          (ulong) pos, (ulong) end));
+      if (get_str_len_and_pointer(&pos, &catalog, &catalog_len, end))
+      {
+        DBUG_PRINT("info", ("query= 0"));
+        query= 0;
+        DBUG_VOID_RETURN;
+      }
       break;
     case Q_AUTO_INCREMENT:
+      CHECK_SPACE(pos, end, 4);
       auto_increment_increment= uint2korr(pos);
       auto_increment_offset=    uint2korr(pos+2);
       pos+= 4;
       break;
     case Q_CHARSET_CODE:
     {
+      CHECK_SPACE(pos, end, 6);
       charset_inited= 1;
       memcpy(charset, pos, 6);
       pos+= 6;
@@ -1790,20 +1884,29 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
     case Q_TIME_ZONE_CODE:
     {
-      get_str_len_and_pointer(&pos, &time_zone_str, &time_zone_len);
+      if (get_str_len_and_pointer(&pos, &time_zone_str, &time_zone_len, end))
+      {
+        DBUG_PRINT("info", ("Q_TIME_ZONE_CODE: query= 0"));
+        query= 0;
+        DBUG_VOID_RETURN;
+      }
       break;
     }
     case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
+      CHECK_SPACE(pos, end, 1);
       if ((catalog_len= *pos))
         catalog= (char*) pos+1;                           // Will be copied later
+      CHECK_SPACE(pos, end, catalog_len + 2);
       pos+= catalog_len+2; // leap over end 0
       catalog_nz= 0; // catalog has end 0 in event
       break;
     case Q_LC_TIME_NAMES_CODE:
+      CHECK_SPACE(pos, end, 2);
       lc_time_names_number= uint2korr(pos);
       pos+= 2;
       break;
     case Q_CHARSET_DATABASE_CODE:
+      CHECK_SPACE(pos, end, 2);
       charset_database_number= uint2korr(pos);
       pos+= 2;
       break;
@@ -2317,6 +2420,7 @@ end:
   */
   thd->catalog= 0;
   thd->set_db(NULL, 0);                 /* will free the current database */
+  DBUG_PRINT("info", ("end: query= 0"));
   thd->query= 0;			// just to be sure
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
