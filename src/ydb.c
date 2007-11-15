@@ -24,6 +24,8 @@ struct __toku_db_txn_internal {
     DB_TXN *parent;
 };
 
+static char *construct_full_name(const char *dir, const char *fname);
+    
 void __toku_db_env_err(const DB_ENV * env __attribute__ ((__unused__)), int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -104,7 +106,12 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
     env->i->dir = strdup(home);
     if (env->i->dir == 0) 
         return ENOMEM;
-
+    if (0) {
+        died1:
+        toku_free(env->i->dir);
+        env->i->dir = NULL;
+        return r;
+    }
     env->i->open_flags = flags;
     env->i->open_mode = mode;
 
@@ -391,6 +398,26 @@ int __toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr, u_i
     abort();
 }
 
+static int construct_full_name_in_buf(const char *dir, const char *fname, char* full, int length) {
+    int l;
+
+    if (!full) return EINVAL;
+    l = snprintf(full, length, "%s", dir);
+    if (l >= length) return ENAMETOOLONG;
+    if (l == 0 || full[l - 1] != '/') {
+        if (l + 1 == length) return ENAMETOOLONG;
+            
+        /* Didn't put a slash down. */
+        if (fname[0] != '/') {
+            full[l++] = '/';
+            full[l] = 0;
+        }
+    }
+    l += snprintf(full + l, length - l, "%s", fname);
+    if (l >= length) return ENAMETOOLONG;
+    return 0;
+}
+
 static char *construct_full_name(const char *dir, const char *fname) {
     if (fname[0] == '/')
         dir = "";
@@ -399,18 +426,10 @@ static char *construct_full_name(const char *dir, const char *fname) {
         int fnamelen = strlen(fname);
         int len = dirlen + fnamelen + 2;        // One for the / between (which may not be there).  One for the trailing null.
         char *result = toku_malloc(len);
-        if (result) {
-            int l;
-            // printf("%s:%d len(%d)=%d+%d+2\n", __FILE__, __LINE__, len, dirlen, fnamelen);
-            l = snprintf(result, len, "%s", dir);
-            if (l == 0 || result[l - 1] != '/') {
-                /* Didn't put a slash down. */
-                if (fname[0] != '/') {
-                    result[l++] = '/';
-                    result[l] = 0;
-                }
-            }
-            l += snprintf(result + l, len - l, "%s", fname);
+        // printf("%s:%d len(%d)=%d+%d+2\n", __FILE__, __LINE__, len, dirlen, fnamelen);
+        if (construct_full_name_in_buf(dir, fname, result, len) != 0) {
+            toku_free(result);
+            result = NULL;
         }
         return result;
     }
@@ -493,11 +512,30 @@ int __toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags)
 
 int __toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
     int r;
+    int r2;
     char ffull[PATH_MAX];
-    assert(dbname == 0);
-    r = snprintf(ffull, PATH_MAX, "%s%s", db->dbenv->i->dir, fname);
-    assert(r < PATH_MAX);
-    return unlink(ffull);
+
+    //TODO: Verify DB* db not yet opened
+
+    if (dbname) {
+        //TODO: Verify the target db is not open
+        //TODO: Use master database (instead of manual edit) when implemented.
+
+        if ((r = db->open(db, NULL, fname, dbname, DB_BTREE, 0, 0777)) != 0) goto cleanup;
+        r = brt_remove_subdb(db->i->brt, dbname, flags);
+cleanup:
+        r2 = db->close(db, 0);
+        return r ? r : r2;
+    }
+    //TODO: Verify db file not in use. (all dbs in the file must be unused)
+    if ((r = construct_full_name_in_buf(db->dbenv->i->dir, fname, ffull, sizeof(ffull))) != 0) {
+        //Name too long.
+        assert(r == ENAMETOOLONG);
+        return r;
+    }
+    r2 = db->close(db, 0);
+    if (r == 0 && r2 == 0) r = unlink(ffull);
+    return r ? r : r2;
 }
 
 int __toku_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {

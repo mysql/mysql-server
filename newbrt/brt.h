@@ -19,6 +19,7 @@ int brt_set_bt_compare(BRT, int (*bt_compare)(DB *, const DBT*, const DBT*));
 int brt_set_dup_compare(BRT, int (*dup_compare)(DB *, const DBT*, const DBT*));
 int brt_set_cachetable(BRT, CACHETABLE);
 int brt_open(BRT, const char *fname, const char *dbname, int is_create, CACHETABLE ct);
+int brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
 int brt_insert (BRT, DBT *, DBT *, DB*, TOKUTXN);
 int brt_lookup (BRT brt, DBT *k, DBT *v, DB*db);

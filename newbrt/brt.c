@@ -1335,6 +1335,52 @@ int brt_open(BRT t, const char *fname, const char *dbname, int is_create, CACHET
     return 0;
 }
 
+int brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags) {
+    int r;
+    int r2 = 0;
+    int i;
+    int found = -1;
+
+    assert(flags == 0);
+    r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
+    //TODO: What if r != 0? Is this possible?
+    //  We just called brt_open, so it should exist...
+    assert(r==0);  
+
+    assert(brt->h->unnamed_root==-1);
+    assert(brt->h->n_named_roots>=0);
+    for (i = 0; i < brt->h->n_named_roots; i++) {
+        if (strcmp(brt->h->names[i], dbname) == 0) {
+            found = i;
+            break;
+        }
+    }
+    if (found == -1) {
+        //Should not be possible.
+        r = ENOENT;
+        goto error;
+    }
+    //Free old db name
+    toku_free(brt->h->names[found]);
+    //TODO: Free Diskblocks including root
+    
+    for (i = found + 1; i < brt->h->n_named_roots; i++) {
+        brt->h->names[i - 1] = brt->h->names[i];
+        brt->h->roots[i - 1] = brt->h->roots[i];
+    }
+    brt->h->n_named_roots--;
+    brt->h->dirty = 1;
+    //TODO: What if n_named_roots becomes 0?  Should we handle it specially?  Should we delete the file?
+    if ((brt->h->names = toku_realloc(brt->h->names, (brt->h->n_named_roots)*sizeof(*brt->h->names))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto error; }
+    if ((brt->h->roots = toku_realloc(brt->h->roots, (brt->h->n_named_roots)*sizeof(*brt->h->roots))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto error; }
+
+error:
+    r2 = toku_unpin_brt_header(brt);
+    assert(r2==0);//TODO: Can r2 be non 0?
+    assert(brt->h==0);
+    return r ? r : r2;
+}
+
 int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable,
 	      int (*compare_fun)(DB*,const DBT*,const DBT*)) {
     BRT brt;
