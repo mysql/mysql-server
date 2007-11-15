@@ -91,6 +91,7 @@ class SimulatedBlock {
   friend class SafeCounterManager;
   friend struct UpgradeStartup;
   friend class AsyncFile;
+  friend class PosixAsyncFile; // FIXME
   friend class Pgman;
   friend class Page_cache_client;
   friend class Lgman;
