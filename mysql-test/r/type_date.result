@@ -211,7 +211,6 @@ a
 Warnings:
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '0000-00-00';
 a
 0000-00-00
