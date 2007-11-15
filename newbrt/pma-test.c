@@ -270,7 +270,7 @@ static void do_insert (PMA pma, const void *key, int keylen, const void *data, i
 static void do_delete (PMA pma, const void *key, int keylen, const void *data, int datalen, u_int32_t rand4fingerprint, u_int32_t *sum, u_int32_t *expect_fingerprint) {
     DBT k;
     assert(*sum==*expect_fingerprint);
-    int r = pma_delete(pma, fill_dbt(&k, key, keylen), 0, rand4fingerprint, sum);
+    int r = pma_delete(pma, fill_dbt(&k, key, keylen), 0, rand4fingerprint, sum, 0);
     assert(r==BRT_OK);
     add_fingerprint_and_check(-rand4fingerprint, *sum, expect_fingerprint, key, keylen, data, datalen); // negative rand4 means subtract.
     pma_verify_fingerprint(pma, rand4fingerprint, *sum);
@@ -297,7 +297,7 @@ static void test_pma_random_pick (void) {
     assert(keylen==6); assert(vallen==6);
     assert(strcmp(key,"hello")==0);
     assert(strcmp(val,"there")==0);
-    r = pma_delete(pma, fill_dbt(&k, "nothello", 9), 0, rand4fingerprint, &sum);
+    r = pma_delete(pma, fill_dbt(&k, "nothello", 9), 0, rand4fingerprint, &sum, 0);
     assert(r==DB_NOTFOUND);
     assert(sum==expect_fingerprint); // didn't change because nothing was deleted.
 
@@ -844,7 +844,7 @@ void test_pma_split_n(int n) {
 
     printf("a:"); print_pma(pmaa);
 
-    error = pma_split(pmaa, 0, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
+    error = pma_split(pmaa, 0, 0, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
     assert(error == 0);
     pma_verify(pmaa, null_db);
     pma_verify(pmab, null_db);
@@ -858,6 +858,83 @@ void test_pma_split_n(int n) {
     nb = pma_n_entries(pmab);
     printf("c:"); print_pma(pmac);
     nc = pma_n_entries(pmac);
+
+    assert(na == 0);
+    assert(nb + nc == n);
+
+    error = pma_free(&pmaa);
+    assert(error == 0);
+    error = pma_free(&pmab);
+    assert(error == 0);
+    error = pma_free(&pmac);
+    assert(error == 0);
+}
+
+void test_pma_dup_split_n(int n, int dup_mode) {
+    PMA pmaa, pmab, pmac;
+    int error;
+    int i;
+    int na, nb, nc;
+
+    u_int32_t rand4sum = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_sum = 0;
+
+    u_int32_t brand = random();
+    u_int32_t bsum = 0;
+    u_int32_t crand = random();
+    u_int32_t csum = 0;
+
+    printf("test_pma_dup_split_n:%d %d\n", n, dup_mode);
+
+    error = pma_create(&pmaa, default_compare_fun, 0);
+    assert(error == 0);
+    pma_set_dup_mode(pmaa, dup_mode);
+    error = pma_create(&pmab, default_compare_fun, 0);
+    assert(error == 0);
+    pma_set_dup_mode(pmab, dup_mode);
+    error = pma_create(&pmac, default_compare_fun, 0);
+    assert(error == 0);
+    pma_set_dup_mode(pmac, dup_mode);
+
+    /* insert some kv pairs */
+    int dupkey = random();
+    for (i=0; i<n; i++) {
+        int v = i;
+    	do_insert(pmaa, &dupkey, sizeof dupkey, &v, sizeof v, rand4sum, &sum, &expect_sum);
+
+        pma_verify(pmaa, null_db);
+    }
+
+    printf("a:"); print_pma(pmaa);
+
+    DBT splitk;
+
+    error = pma_split(pmaa, 0, &splitk, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
+    assert(error == 0);
+    pma_verify(pmaa, null_db);
+    pma_verify(pmab, null_db);
+    pma_verify(pmac, null_db);
+    pma_verify_fingerprint(pmab, brand, bsum);
+    pma_verify_fingerprint(pmac, crand, csum);
+
+    if (0) { printf("a:"); print_pma(pmaa); }
+    na = pma_n_entries(pmaa);
+    if (0) { printf("b:"); print_pma(pmab); }
+    nb = pma_n_entries(pmab);
+    if (0) { printf("c:"); print_pma(pmac); }
+    nc = pma_n_entries(pmac);
+
+    if (na > 0) {
+        int kk;
+        assert(splitk.size == sizeof kk);
+        memcpy(&kk, splitk.data, splitk.size);
+        assert(kk == dupkey);
+        if (nb > 0) assert(splitk.flags & BRT_PIVOT_PRESENT_L);
+        if (nc > 0) assert(splitk.flags & BRT_PIVOT_PRESENT_R);
+    }
+
+    if (splitk.data) toku_free(splitk.data);
 
     assert(na == 0);
     assert(nb + nc == n);
@@ -905,7 +982,7 @@ void test_pma_split_varkey(void) {
 
     printf("a:"); print_pma(pmaa);
 
-    error = pma_split(pmaa, 0, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
+    error = pma_split(pmaa, 0, 0, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
     assert(error == 0);
     pma_verify(pmaa, null_db);
     pma_verify(pmab, null_db);
@@ -1049,7 +1126,7 @@ void test_pma_split_cursor(void) {
     // print_cursor("cursorc", cursorc);
     assert_cursor_val(cursorc, 16);
 
-    error = pma_split(pmaa, 0, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
+    error = pma_split(pmaa, 0, 0, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
     assert(error == 0);
 
     pma_verify_fingerprint(pmab, brand, bsum);
@@ -1103,6 +1180,9 @@ void test_pma_split(void) {
     test_pma_split_n(4); memory_check_all_free();
     test_pma_split_n(8); memory_check_all_free();
     test_pma_split_n(9);  memory_check_all_free();
+    test_pma_dup_split_n(0, DB_DUP);  memory_check_all_free();
+    test_pma_dup_split_n(1, DB_DUP);  memory_check_all_free();
+    test_pma_dup_split_n(9, DB_DUP);  memory_check_all_free();
     test_pma_split_varkey(); memory_check_all_free();
     test_pma_split_cursor(); memory_check_all_free();
 }
@@ -1510,7 +1590,7 @@ void test_pma_double_delete() {
 
     k = 1;
     fill_dbt(&key, &k, sizeof k);
-    error = pma_delete(pma, &key, 0, rand4fingerprint, &sum);
+    error = pma_delete(pma, &key, 0, rand4fingerprint, &sum, 0);
     assert(error == DB_NOTFOUND);
     assert(sum == expect_fingerprint);
 
@@ -2085,7 +2165,7 @@ void test_dup_key_delete(int n, int mode) {
     }
 
     k = htonl(2);
-    r = pma_delete(pma, fill_dbt(&key, &k, sizeof k), null_db, rand4fingerprint, &sum);
+    r = pma_delete(pma, fill_dbt(&key, &k, sizeof k), null_db, rand4fingerprint, &sum, 0);
     if (r != 0) assert(n == 0);
     expect_fingerprint = sum_before_all_the_duplicates;
     assert(sum == expect_fingerprint);
@@ -2140,9 +2220,10 @@ void test_dup_key_delete(int n, int mode) {
     assert(r == 0);
 }
 
-/* insert n duplicate keys */
-void test_dupsort_key_insert(int n) {
-    printf("test_dup_key_insert:%d\n", n);
+/* insert n duplicate keys with random data
+   verify that the data is sorted  */
+void test_dupsort_key_insert(int n, int dup_data) {
+    printf("test_dupsort_key_insert:%d %d\n", n, dup_data);
 
     PMA pma;
     int r;
@@ -2172,13 +2253,14 @@ void test_dupsort_key_insert(int n) {
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     pma_verify(pma, null_db);
 
+    k = htonl(2);
     int values[n];
-
     int i;
+    for (i=0; i<n; i++)
+        values[i] = (i==0 || dup_data) ? (int) htonl(random()) : values[i-1];
+
     /* insert 2->n-i */
     for (i=0; i<n; i++) {
-        k = htonl(2);
-        values[i] = htonl(random());
 	do_insert(pma, &k, sizeof k, &values[i], sizeof values[i], rand4fingerprint, &sum, &expect_fingerprint);
         pma_verify(pma, null_db);
     }
@@ -2188,7 +2270,6 @@ void test_dupsort_key_insert(int n) {
     r = pma_cursor(pma, &cursor);
     assert(r == 0);
 
-    k = htonl(2);
     fill_dbt(&key, &k, sizeof k);
     r = pma_cursor_set_key(cursor, &key, 0);
     if (r != 0) {
@@ -2301,8 +2382,10 @@ void test_dup() {
     test_dup_key_insert(1000);                           memory_check_all_free();
     test_dup_key_delete(0, DB_DUP);                      memory_check_all_free();
     test_dup_key_delete(1000, DB_DUP);                   memory_check_all_free();
-    test_dupsort_key_insert(2);                          memory_check_all_free();
-    test_dupsort_key_insert(1000);                       memory_check_all_free();
+    test_dupsort_key_insert(2, 0);                       memory_check_all_free();
+    test_dupsort_key_insert(1000, 0);                    memory_check_all_free();
+    test_dupsort_key_insert(2, 1);                       memory_check_all_free();
+    test_dupsort_key_insert(1000, 1);                    memory_check_all_free();
     test_dup_key_delete(0, DB_DUP+DB_DUPSORT);           memory_check_all_free();
     test_dup_key_delete(1000, DB_DUP+DB_DUPSORT);        memory_check_all_free();
     test_dup_key_lookup(32, DB_DUP);                     memory_check_all_free();

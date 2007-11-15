@@ -984,7 +984,7 @@ static int pma_next_key(PMA pma, DBT *k, DB *db, int here, int n, int *found) {
     return here;
 }
 
-static int pma_delete_dup (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_t *fingerprint) {
+static int pma_delete_dup (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
     /* find the left most matching key in the pma */
     int found, lefthere;
     lefthere = __pma_left_search(pma, k, db, 0, pma->N, &found);
@@ -993,6 +993,7 @@ static int pma_delete_dup (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_
         struct kv_pair *kv = pma->pairs[righthere];
         if (kv_pair_valid(kv)) {
             /* mark the pair as deleted */
+            *deleted_size += KEY_VALUE_OVERHEAD + kv_pair_keylen(kv) + kv_pair_vallen(kv);
 	    *fingerprint -= rand4sem*toku_calccrc32_kvpair (kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
             pma->pairs[righthere] = kv_pair_set_deleted(kv);
             if (__pma_count_cursor_refs(pma, righthere) == 0) {
@@ -1011,13 +1012,14 @@ static int pma_delete_dup (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_
     return found ? BRT_OK : DB_NOTFOUND;
 }
 
-static int pma_delete_nodup (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_t *fingerprint) {
+static int pma_delete_nodup (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
     int idx = pmainternal_find(pma, k, db);
     struct kv_pair *kv = pma->pairs[idx];
     if (!kv_pair_valid(kv)) {
         if (0) printf("%s:%d l=%d r=%d\n", __FILE__, __LINE__, idx, DB_NOTFOUND);
         return DB_NOTFOUND;
     }
+    *deleted_size = KEY_VALUE_OVERHEAD + kv_pair_keylen(kv) + kv_pair_vallen(kv); 
     *fingerprint -= rand4sem*toku_calccrc32_kvpair (kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
     pma->pairs[idx] = kv_pair_set_deleted(kv);
     if (__pma_count_cursor_refs(pma, idx) == 0)
@@ -1025,11 +1027,15 @@ static int pma_delete_nodup (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int3
     return BRT_OK;
 }
 
-int pma_delete (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_t *fingerprint) {
+int pma_delete (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
+    u_int32_t my_deleted_size;
+    if (!deleted_size)
+        deleted_size = &my_deleted_size;
+    *deleted_size = 0;
     if (pma->dup_mode & DB_DUP) 
-        return pma_delete_dup(pma, k, db, rand4sem, fingerprint);
+        return pma_delete_dup(pma, k, db, rand4sem, fingerprint, deleted_size);
     else
-        return pma_delete_nodup(pma, k, db, rand4sem, fingerprint);
+        return pma_delete_nodup(pma, k, db, rand4sem, fingerprint, deleted_size);
 }
 
 void __pma_delete_resume(PMA pma, int here) {
@@ -1121,30 +1127,41 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 			   DB *db, TOKUTXN txn, DISKOFF diskoff,
 			   u_int32_t rand4fingerprint, u_int32_t *fingerprint) {
     //printf("%s:%d v->size=%d\n", __FILE__, __LINE__, v->size);
-    int idx = pmainternal_find(pma, k, db);
-    struct kv_pair *kv;
     int r;
-    if (idx < pma_index_limit(pma) && (kv = pma->pairs[idx])) {
-        DBT k2;
-	// printf("%s:%d\n", __FILE__, __LINE__);
-        kv = kv_pair_ptr(kv);
-        if (0==pma->compare_fun(db, k, fill_dbt(&k2, kv->key, kv->keylen))) {
-            if (!kv_pair_deleted(pma->pairs[idx])) {
-                *replaced_v_size = kv->vallen;
-		*fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
-		r=tokulogger_log_phys_add_or_delete_in_leaf(db, txn, diskoff, 0, kv);
-		if (r!=0) return r;
-	    }
-            if (v->size == (unsigned int) kv_pair_vallen(kv)) {
-                memcpy(kv_pair_val(kv), v->data, v->size);
-            } else {
-                pma_mfree_kv_pair(pma, kv);
-                pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
-                assert(pma->pairs[idx]);
+    int idx, found;
+    if (pma->dup_mode & DB_DUPSORT) {
+        idx = __pma_dup_search(pma, k, v, db, 0, pma->N, &found);
+        if (found)
+            idx += 1;
+    } else if (pma->dup_mode & DB_DUP) {
+        idx = __pma_right_search(pma, k, db, 0, pma->N, &found);
+        if (found)
+            idx += 1;
+    } else {
+        idx = pmainternal_find(pma, k, db);
+        struct kv_pair *kv;
+        if (idx < pma_index_limit(pma) && (kv = pma->pairs[idx])) {
+            DBT k2;
+            // printf("%s:%d\n", __FILE__, __LINE__);
+            kv = kv_pair_ptr(kv);
+            if (0==pma->compare_fun(db, k, fill_dbt(&k2, kv->key, kv->keylen))) {
+                if (!kv_pair_deleted(pma->pairs[idx])) {
+                    *replaced_v_size = kv->vallen;
+                    *fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
+                    r=tokulogger_log_phys_add_or_delete_in_leaf(db, txn, diskoff, 0, kv);
+                    if (r!=0) return r;
+                }
+                if (v->size == (unsigned int) kv_pair_vallen(kv)) {
+                    memcpy(kv_pair_val(kv), v->data, v->size);
+                } else {
+                    pma_mfree_kv_pair(pma, kv);
+                    pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
+                    assert(pma->pairs[idx]);
+                }
+                r = tokulogger_log_phys_add_or_delete_in_leaf(db, txn, diskoff, 0, pma->pairs[idx]);
+                *fingerprint += rand4fingerprint*toku_calccrc32_kvpair(k->data, k->size, v->data, v->size);
+                return r;
             }
-            r = tokulogger_log_phys_add_or_delete_in_leaf(db, txn, diskoff, 0, pma->pairs[idx]);
-	    *fingerprint += rand4fingerprint*toku_calccrc32_kvpair(k->data, k->size, v->data, v->size);
-            return r;
         }
     }
     if (kv_pair_inuse(pma->pairs[idx])) {
@@ -1274,7 +1291,7 @@ static void __pma_relocate_kvpairs(PMA pma) {
 
 #endif
 
-int pma_split(PMA origpma, unsigned int *origpma_size, 
+int pma_split(PMA origpma, unsigned int *origpma_size, DBT *splitk, DB *db,
               PMA leftpma,  unsigned int *leftpma_size,  u_int32_t leftrand4fp,  u_int32_t *leftfingerprint,
               PMA rightpma, unsigned int *rightpma_size, u_int32_t rightrand4fp, u_int32_t *rightfingerprint) {
     int error;
@@ -1289,8 +1306,11 @@ int pma_split(PMA origpma, unsigned int *origpma_size,
 
     /* extract the pairs */
     npairs = pma_n_entries(origpma);
-    if (npairs == 0)
+    if (npairs == 0) {
+        if (splitk)
+            memset(splitk, 0, sizeof *splitk);
         return 0;
+    }
     assert(pma_n_entries(leftpma) == 0);
     assert(pma_n_entries(rightpma) == 0);
 
@@ -1342,6 +1362,22 @@ int pma_split(PMA origpma, unsigned int *origpma_size,
 	*rightfingerprint += rightrand4fp * sum;
     }
 
+    if (splitk) {
+        struct kv_pair *kv = pairs[spliti-1].pair;
+        assert(kv_pair_valid(kv));
+        splitk->size = kv_pair_keylen(kv);
+        splitk->data = memdup(kv_pair_key(kv), splitk->size);
+        splitk->flags = BRT_PIVOT_PRESENT_L;
+        if (spliti < npairs) {
+            kv = pairs[spliti].pair;
+            DBT k2;
+            int cmp = origpma->compare_fun(db, splitk, fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+            if (cmp == 0) {
+                splitk->flags += BRT_PIVOT_PRESENT_R;
+            }
+        }
+    }
+
     /* put the first half of pairs into the left pma */
     n = spliti;
     error = __pma_resize_array(leftpma, n + n/4, 0);
@@ -1371,34 +1407,6 @@ int pma_split(PMA origpma, unsigned int *origpma_size,
         struct list *list = list_head(&cursors);
         list_remove(list);
         list_push(&leftpma->cursors, list);
-    }
-
-    return 0;
-}
-
-int pma_get_last(PMA pma, DBT *key, DBT *val) {
-    int position;
-    struct kv_pair *pair;
-    void *v; int vlen;
-
-    position = pma->N - 1;
-    while ((pair = pma->pairs[position]) == 0) {
-        if (position > 0)
-            position--;
-        else
-            return DB_NOTFOUND;
-    }
-
-    if (key) {
-        v = kv_pair_key(pair);
-        vlen = kv_pair_keylen(pair);
-        fill_dbt(key, memdup(v, vlen), vlen);
-    }
-
-    if (val) {
-        v = kv_pair_val(pair);
-        vlen = kv_pair_vallen(pair);
-        fill_dbt(val, memdup(v, vlen), vlen);
     }
 
     return 0;
@@ -1514,6 +1522,7 @@ void pma_verify(PMA pma, DB *db) {
     }
 #endif
 }
+
 void pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint) {
     u_int32_t actual_fingerprint=0;
     PMA_ITERATE(pma, kv, kl, dv, dl,
