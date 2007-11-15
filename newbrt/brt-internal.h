@@ -57,6 +57,13 @@ struct brtnode {
     } u;
 };
 
+enum {
+    BRT_PIVOT_PRESENT_L = 1,
+    BRT_PIVOT_PRESENT_R = 2,
+    BRT_PIVOT_TRUNC = 4,
+    BRT_PIVOT_FRONT_COMPRESS = 8,
+};
+
 struct brt_header {
     int dirty;
     unsigned int nodesize;
@@ -105,10 +112,6 @@ void brtnode_free (BRTNODE *node);
 //static inline int brtnode_n_hashtables(BRTNODE node) { if (node->height==0) return 1; else return node->u.n.n_children; }
 
 //int write_brt_header (int fd, struct brt_header *header);
-
-static inline void brtnode_set_dirty(BRTNODE node) {
-    node->dirty = 1;
-}
 
 #if 1
 #define DEADBEEF ((void*)0xDEADBEEF)

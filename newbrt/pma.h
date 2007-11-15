@@ -47,7 +47,7 @@ enum pma_errors pma_insert (PMA, DBT*, DBT*, DB*, TOKUTXN txn, DISKOFF, u_int32_
 /* This returns an error if the key is NOT present. */
 int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 /* This returns an error if the key is NOT present. */
-int pma_delete (PMA, DBT *, DB*, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/);
+int pma_delete (PMA, DBT *, DB*, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size);
 
 int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 			   int *replaced_v_size, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
@@ -69,7 +69,7 @@ enum pma_errors pma_lookup (PMA, DBT*, DBT*, DB*);
  * leftpma - the pma assigned keys <= pivot key
  * rightpma - the pma assigned keys > pivot key
  */
-int pma_split(PMA origpma,  unsigned int *origpma_size,
+int pma_split(PMA origpma,  unsigned int *origpma_size, DBT *splitk, DB *db,
 	      PMA leftpma,  unsigned int *leftpma_size,  u_int32_t leftrand4sum,  u_int32_t *leftfingerprint,
 	      PMA rightpma, unsigned int *rightpma_size, u_int32_t rightrand4sum, u_int32_t *rightfingerprint);
 
@@ -111,9 +111,6 @@ int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db);
 
 /* delete the key value pair under the cursor, return the size of the pair */
 int pma_cursor_delete_under(PMA_CURSOR c, int *kvsize);
-
-/* get the last key and value in the pma */
-int pma_get_last(PMA pma, DBT *key, DBT *val);
 
 int pma_random_pick(PMA, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 
