@@ -850,7 +850,10 @@ BackupFile::BackupFile(void (* _free_data_callback)())
 
 BackupFile::~BackupFile(){
   if(m_file.file > 1)
+  {
     azclose(&m_file);
+    memset(&m_file,0,sizeof(m_file));
+  }
   if(m_buffer != 0)
     free(m_buffer);
 }
