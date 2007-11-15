@@ -304,3 +304,19 @@ while ($i)
   dec $i ;
 }
 --enable_query_log
+
+###########################################################################
+
+--echo #
+--echo # Bug#19723: kill of active connection yields different error code
+--echo # depending on platform.
+--echo #
+
+--echo
+--echo # Connection: con2.
+--connection con2
+
+KILL CONNECTION_ID();
+
+--error 2013
+SELECT 1;

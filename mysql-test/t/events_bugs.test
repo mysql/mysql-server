@@ -10,6 +10,21 @@ create database events_test;
 use events_test;
 
 #
+# START:  Bug #31332 --event-scheduler option misbehaving
+#
+
+# NOTE!! this test must come first! It's testing that the --event-scheduler
+# option with no argument in events_bugs-master.opt turns the scheduler on.
+
+select * from information_schema.global_variables where variable_name like 'event_scheduler';
+
+SET GLOBAL event_scheduler = 'OFF';
+
+#
+# END: Bug #31332
+#
+
+#
 # START - 16415: Events: event names are case sensitive
 #
 CREATE EVENT lower_case ON SCHEDULE EVERY 1 MINUTE DO SELECT 1;
