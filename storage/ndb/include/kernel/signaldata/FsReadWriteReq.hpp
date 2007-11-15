@@ -35,6 +35,7 @@ class FsReadWriteReq {
   friend class Ndbfs;
   friend class VoidFs;
   friend class AsyncFile;
+  friend class PosixAsyncFile; // FIXME
 
   /**
    * Sender(s)
