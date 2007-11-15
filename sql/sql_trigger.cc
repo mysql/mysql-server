@@ -436,13 +436,37 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (lock_table_names(thd, tables))
     goto end;
 
-  /* We also don't allow creation of triggers on views. */
-  tables->required_type= FRMTYPE_TABLE;
-
-  if (reopen_name_locked_table(thd, tables, TRUE))
+  /*
+    If the table is under LOCK TABLES, lock_table_names() does not set
+    tables->table. Find the table in open_tables.
+  */
+  if (!tables->table && thd->locked_tables)
   {
-    unlock_table_name(thd, tables);
+    for (table= thd->open_tables;
+         table && (strcmp(table->s->table_name.str, tables->table_name) ||
+                   strcmp(table->s->db.str, tables->db));
+         table= table->next) {}
+    tables->table= table;
+  }
+  if (!tables->table)
+  {
+    /* purecov: begin inspected */
+    my_error(ER_TABLE_NOT_LOCKED, MYF(0), tables->alias);
     goto end;
+    /* purecov: end */
+  }
+
+  /* No need to reopen the table if it is locked with LOCK TABLES. */
+  if (!thd->locked_tables || (tables->table->in_use != thd))
+  {
+    /* We also don't allow creation of triggers on views. */
+    tables->required_type= FRMTYPE_TABLE;
+
+    if (reopen_name_locked_table(thd, tables, TRUE))
+    {
+      unlock_table_name(thd, tables);
+      goto end;
+    }
   }
   table= tables->table;
 
@@ -461,6 +485,16 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   result= (create ?
            table->triggers->create_trigger(thd, tables, &stmt_query):
            table->triggers->drop_trigger(thd, tables, &stmt_query));
+
+  /* Under LOCK TABLES we must reopen the table to activate the trigger. */
+  if (!result && thd->locked_tables)
+  {
+    close_data_files_and_morph_locks(thd, table->s->db.str,
+                                     table->s->table_name.str);
+    thd->in_lock_tables= 1;
+    result= reopen_tables(thd, 1, 0);
+    thd->in_lock_tables= 0;
+  }
 
 end:
 

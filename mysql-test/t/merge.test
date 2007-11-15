@@ -221,6 +221,7 @@ create table t2 (a int not null);
 insert into t1 values (1);
 insert into t2 values (2);
 create temporary table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+--error ER_WRONG_MRG_TABLE
 select * from t3;
 create temporary table t4 (a int not null);
 create temporary table t5 (a int not null);
@@ -229,6 +230,58 @@ insert into t5 values (2);
 create temporary table t6 (a int not null) ENGINE=MERGE UNION=(t4,t5);
 select * from t6;
 drop table t6, t3, t1, t2, t4, t5;
+#
+# Bug#19627 - temporary merge table locking
+# MERGE table and its children must match in temporary type.
+# Forbid temporary merge on non-temporary children: shown above.
+# Forbid non-temporary merge on temporary children:
+create temporary table t1 (a int not null);
+create temporary table t2 (a int not null);
+insert into t1 values (1);
+insert into t2 values (2);
+create table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+--error ER_WRONG_MRG_TABLE
+select * from t3;
+drop table t3, t2, t1;
+# Forbid children mismatch in temporary:
+create table t1 (a int not null);
+create temporary table t2 (a int not null);
+insert into t1 values (1);
+insert into t2 values (2);
+create table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+--error ER_WRONG_MRG_TABLE
+select * from t3;
+drop table t3;
+create temporary table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+--error ER_WRONG_MRG_TABLE
+select * from t3;
+drop table t3, t2, t1;
+--echo # CREATE...SELECT is not implemented for MERGE tables.
+CREATE TEMPORARY TABLE t1 (c1 INT NOT NULL);
+CREATE TEMPORARY TABLE t2 (c1 INT NOT NULL);
+CREATE TABLE t3 (c1 INT NOT NULL);
+INSERT INTO t3 VALUES (3), (33);
+LOCK TABLES t3 READ;
+--error ER_WRONG_OBJECT
+CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL) ENGINE=MERGE UNION=(t1,t2)
+  INSERT_METHOD=LAST SELECT * FROM t3;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t4;
+UNLOCK TABLES;
+CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL) ENGINE=MERGE UNION=(t1,t2)
+  INSERT_METHOD=LAST;
+INSERT INTO t4 SELECT * FROM t3;
+--echo # Alter temporary MERGE table.
+ALTER TABLE t4 UNION=(t1);
+LOCK TABLES t4 WRITE;
+--echo # Alter temporary MERGE table under LOCk tables.
+ALTER TABLE t4 UNION=(t1,t2);
+UNLOCK TABLES;
+--echo # MERGE table and function.
+CREATE FUNCTION f1 () RETURNS INT RETURN (SELECT max(c1) FROM t3);
+SELECT * FROM t4 WHERE c1 < f1();
+DROP FUNCTION f1;
+DROP TABLE t4, t3, t2, t1;
 
 #
 # testing merge::records_in_range and optimizer
@@ -284,11 +337,11 @@ create table t1 (a int);
 create table t2 (a int);
 insert into t1 values (0);
 insert into t2 values (1);
---error 1093
+--error ER_WRONG_OBJECT
 create table t3 engine=merge union=(t1, t2) select * from t1;
---error 1093
+--error ER_WRONG_OBJECT
 create table t3 engine=merge union=(t1, t2) select * from t2;
---error 1093
+--error ER_WRONG_OBJECT
 create table t3 engine=merge union=(t1, t2) select (select max(a) from t2);
 drop table t1, t2;
 
@@ -403,7 +456,7 @@ CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
 SELECT * FROM t2;
 DROP TABLE t1, t2;
 CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
---error 1168
+--error ER_NO_SUCH_TABLE
 SELECT * FROM t2;
 DROP TABLE t2;
 
@@ -495,11 +548,11 @@ drop table t1;
 #             CREATE TABLE fails
 #
 CREATE TABLE tm1(a INT) ENGINE=MERGE UNION=(t1, t2);
---error 1168
+--error ER_NO_SUCH_TABLE
 SELECT * FROM tm1;
 CHECK TABLE tm1;
 CREATE TABLE t1(a INT);
---error 1168
+--error ER_NO_SUCH_TABLE
 SELECT * FROM tm1;
 CHECK TABLE tm1;
 CREATE TABLE t2(a BLOB);
@@ -526,3 +579,785 @@ CREATE TABLE IF NOT EXISTS t1 SELECT * FROM t2;
 DROP TABLE t1, t2;
 
 --echo End of 5.0 tests
+
+#
+# Bug #8306: TRUNCATE leads to index corruption 
+#
+create table t1 (c1 int, index(c1));
+create table t2 (c1 int, index(c1)) engine=merge union=(t1);
+insert into t1 values (1);
+# Close all tables.
+flush tables;
+# Open t2 and (implicitly) t1.
+select * from t2;
+# Truncate after flush works (unless another threads reopens t2 in between).
+flush tables;
+truncate table t1;
+insert into t1 values (1);
+# Close all tables.
+flush tables;
+# Open t2 and (implicitly) t1.
+select * from t2;
+# Truncate t1, wich was not recognized as open without the bugfix.
+# After fix for Bug#8306 and before fix for Bug#26379,
+# it should fail with a table-in-use error message, otherwise succeed.
+truncate table t1;
+# The insert used to fail on the crashed table.
+insert into t1 values (1);
+drop table t1,t2;
+--echo #
+--echo # Extra tests for TRUNCATE.
+--echo #
+--echo # Truncate MERGE table.
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1));
+CREATE TABLE t3 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1,t2);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t3;
+TRUNCATE TABLE t3;
+SELECT * FROM t3;
+--echo #
+--echo # Truncate child table.
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+--echo #
+--echo # Truncate MERGE table under locked tables.
+LOCK TABLE t1 WRITE, t2 WRITE, t3 WRITE;
+INSERT INTO t1 VALUES (1);
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+TRUNCATE TABLE t3;
+SELECT * FROM t3;
+--echo #
+--echo # Truncate child table under locked tables.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3;
+--echo #
+--echo # Truncate temporary MERGE table.
+CREATE TEMPORARY TABLE t1 (c1 INT, INDEX(c1));
+CREATE TEMPORARY TABLE t2 (c1 INT, INDEX(c1));
+CREATE TEMPORARY TABLE t3 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1,t2);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t3;
+TRUNCATE TABLE t3;
+SELECT * FROM t3;
+--echo #
+--echo # Truncate temporary child table.
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+--echo #
+--echo # Truncate temporary MERGE table under locked tables.
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t4 (c1 INT, INDEX(c1));
+LOCK TABLE t4 WRITE;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+TRUNCATE TABLE t3;
+SELECT * FROM t3;
+--echo #
+--echo # Truncate temporary child table under locked tables.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4;
+
+#
+# Bug#26379 - Combination of FLUSH TABLE and REPAIR TABLE corrupts a MERGE table
+# Preparation
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection default;
+#
+# Bug#26379 - Combination of FLUSH TABLE and REPAIR TABLE corrupts a MERGE table
+# Problem #1
+# A thread trying to lock a MERGE table performed busy waiting while
+# REPAIR TABLE or a similar table administration task was ongoing on one or
+# more of its MyISAM tables.
+# To allow for observability it was necessary to enter a multi-second sleep
+# in mysql_admin_table() after remove_table_from_cache(), which comes after
+# mysql_abort_lock(). The sleep faked a long running operation. One could
+# watch a high CPU load during the sleep time.
+# The problem was that mysql_abort_lock() upgrades the write lock to
+# TL_WRITE_ONLY. This lock type persisted until the final unlock at the end
+# of the administration task. The effect of TL_WRITE_ONLY is to reject any
+# attempt to lock the table. The trying thread must close the table and wait
+# until it is no longer used. Unfortunately there is no way to detect that
+# one of the MyISAM tables of a MERGE table is in use. When trying to lock
+# the MERGE table, all MyISAM tables are locked. If one fails on
+# TL_WRITE_ONLY, all locks are aborted and wait_for_tables() is entered.
+# But this doesn't see the MERGE table as used, so it seems appropriate to
+# retry a lock...
+#
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1) INSERT_METHOD= LAST;
+send REPAIR TABLE t1;
+    connection con1;
+    sleep 1; # let repair run into its sleep
+    INSERT INTO t2 VALUES (1);
+connection default;
+reap;
+DROP TABLE t1, t2;
+#
+# Bug#26379 - Combination of FLUSH TABLE and REPAIR TABLE corrupts a MERGE table
+# Problem #2
+# A thread trying to lock a MERGE table performed busy waiting until all
+# threads that did REPAIR TABLE or similar table administration tasks on
+# one or more of its MyISAM tables in LOCK TABLES segments did
+# UNLOCK TABLES.
+# The difference against problem #1 is that the busy waiting took place
+# *after* the administration task. It was terminated by UNLOCK TABLES only.
+#
+# This is the same test case as for
+# Bug#26867 - LOCK TABLES + REPAIR + merge table result in memory/cpu hogging
+#
+#
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1) INSERT_METHOD= LAST;
+LOCK TABLE t1 WRITE;
+    connection con1;
+    send INSERT INTO t2 VALUES (1);
+connection default;
+sleep 1; # Let INSERT go into thr_multi_lock().
+REPAIR TABLE t1;
+sleep 2; # con1 performs busy waiting during this sleep.
+UNLOCK TABLES;
+    connection con1;
+    reap;
+connection default;
+DROP TABLE t1, t2;
+#
+# Bug#26379 - Combination of FLUSH TABLE and REPAIR TABLE corrupts a MERGE table
+# Problem #3
+# Two FLUSH TABLES within a LOCK TABLES segment could invalidate the lock.
+# This did *not* require a MERGE table.
+# To increase reproducibility it was necessary to enter a sleep of 2 seconds
+# at the end of wait_for_tables() after unlock of LOCK_open. In 5.0 and 5.1
+# the sleep must be inserted in open_and_lock_tables() after open_tables()
+# instead. wait_for_tables() is not used in this case.
+# The problem was that FLUSH TABLES releases LOCK_open while having unlocked
+# and closed all tables. When this happened while a thread was in the loop in
+# mysql_lock_tables() right after wait_for_tables() and before retrying to
+# lock, the thread got the lock.  (Translate to similar code places in 5.0
+# and 5.1). And it did not notice that the table needed a refresh. So it
+# executed its statement on the table.
+# The first FLUSH TABLES kicked the INSERT out of thr_multi_lock() and let
+# it wait in wait_for_tables(). (open_table() in 5.0 and 5.1). The second
+# FLUSH TABLES must happen while the INSERT was on its way from
+# wait_for_tables() to the next call of thr_multi_lock(). This needed to be
+# supported by a sleep to make it repeatable.
+#
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+LOCK TABLE t1 WRITE;
+    connection con1;
+    send INSERT INTO t1 VALUES (1);
+connection default;
+sleep 1; # Let INSERT go into thr_multi_lock().
+FLUSH TABLES;
+sleep 1; # Let INSERT go through wait_for_tables() where it sleeps.
+FLUSH TABLES;
+# This should give no result. But it will with sleep(2) at the right place.
+SELECT * FROM t1;
+UNLOCK TABLES;
+    connection con1;
+    reap;
+connection default;
+DROP TABLE t1;
+#
+# Bug#26379 - Combination of FLUSH TABLE and REPAIR TABLE corrupts a MERGE table
+# Cleanup
+disconnect con1;
+disconnect con2;
+#
+--echo #
+--echo # Extra tests for Bug#26379 - Combination of FLUSH TABLE and
+--echo #                             REPAIR TABLE corrupts a MERGE table
+#
+--echo #
+--echo # CREATE ... SELECT is disabled for MERGE tables.
+--echo #
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+--error ER_OPEN_AS_READONLY
+CREATE TABLE t3 ENGINE=MRG_MYISAM INSERT_METHOD=LAST SELECT * FROM t2;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE t3;
+--error ER_WRONG_OBJECT
+CREATE TABLE t3 ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST
+  SELECT * FROM t2;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE t3;
+DROP TABLE t1, t2;
+#
+--echo #
+--echo # CREATE ... LIKE
+--echo #
+--echo # 1. Create like.
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+CREATE TABLE t3 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2)
+  INSERT_METHOD=LAST;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+CREATE TABLE t4 LIKE t3;
+SHOW CREATE TABLE t4;
+--error ER_OPEN_AS_READONLY
+INSERT INTO t4 VALUES (4);
+DROP TABLE t4;
+--echo #
+--echo # 1. Create like with locked tables.
+LOCK TABLES t3 WRITE, t2 WRITE, t1 WRITE;
+CREATE TABLE t4 LIKE t3;
+--error ER_TABLE_NOT_LOCKED
+SHOW CREATE TABLE t4;
+--error ER_TABLE_NOT_LOCKED
+INSERT INTO t4 VALUES (4);
+UNLOCK TABLES;
+SHOW CREATE TABLE t4;
+--error ER_OPEN_AS_READONLY
+INSERT INTO t4 VALUES (4);
+DROP TABLE t4;
+#
+--echo #
+--echo # Rename child.
+--echo #
+--echo # 1. Normal rename of non-MERGE table.
+CREATE TABLE t4 (c1 INT);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+RENAME TABLE t4 TO t5;
+SELECT * FROM t5 ORDER BY c1;
+RENAME TABLE t5 TO t4;
+SELECT * FROM t4 ORDER BY c1;
+DROP TABLE t4;
+--echo #
+--echo # 2. Normal rename.
+SELECT * FROM t3 ORDER BY c1;
+RENAME TABLE t2 TO t5;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t3 ORDER BY c1;
+RENAME TABLE t5 TO t2;
+SELECT * FROM t3 ORDER BY c1;
+--echo #
+--echo # 3. Normal rename with locked tables.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+SELECT * FROM t3 ORDER BY c1;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+RENAME TABLE t2 TO t5;
+SELECT * FROM t3 ORDER BY c1;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+RENAME TABLE t5 TO t2;
+SELECT * FROM t3 ORDER BY c1;
+UNLOCK TABLES;
+--echo #
+--echo # 4. Alter table rename.
+ALTER TABLE t2 RENAME TO t5;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t3 ORDER BY c1;
+ALTER TABLE t5 RENAME TO t2;
+SELECT * FROM t3 ORDER BY c1;
+--echo #
+--echo # 5. Alter table rename with locked tables.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+ALTER TABLE t2 RENAME TO t5;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t3 ORDER BY c1;
+--error ER_TABLE_NOT_LOCKED
+ALTER TABLE t5 RENAME TO t2;
+UNLOCK TABLES;
+ALTER TABLE t5 RENAME TO t2;
+SELECT * FROM t3 ORDER BY c1;
+#
+--echo #
+--echo # Rename parent.
+--echo #
+--echo # 1. Normal rename with locked tables.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+SELECT * FROM t3 ORDER BY c1;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+RENAME TABLE t3 TO t5;
+SELECT * FROM t3 ORDER BY c1;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+RENAME TABLE t5 TO t3;
+SELECT * FROM t3 ORDER BY c1;
+--echo #
+--echo # 5. Alter table rename with locked tables.
+ALTER TABLE t3 RENAME TO t5;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t5 ORDER BY c1;
+--error ER_TABLE_NOT_LOCKED
+ALTER TABLE t5 RENAME TO t3;
+UNLOCK TABLES;
+ALTER TABLE t5 RENAME TO t3;
+SELECT * FROM t3 ORDER BY c1;
+DROP TABLE t1, t2, t3;
+#
+--echo #
+--echo # Drop locked tables.
+--echo #
+--echo # 1. Drop parent.
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+  INSERT_METHOD=LAST;
+LOCK TABLES t1 WRITE, t2 WRITE;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t2;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t2;
+SELECT * FROM t1;
+UNLOCK TABLES;
+--echo # 2. Drop child.
+CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+  INSERT_METHOD=LAST;
+LOCK TABLES t1 WRITE, t2 WRITE;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t2;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+UNLOCK TABLES;
+DROP TABLE t2;
+#
+--echo #
+--echo # ALTER TABLE. Change child list.
+--echo #
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1));
+CREATE TABLE t3 (c1 INT, INDEX(c1));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+CREATE TABLE t4 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t3,t2)
+  INSERT_METHOD=LAST;
+--echo # Shrink child list.
+ALTER TABLE t4 UNION=(t3);
+SHOW CREATE TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+--echo # Extend child list.
+ALTER TABLE t4 UNION=(t3,t2);
+SHOW CREATE TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+#
+--echo #
+--echo # ALTER TABLE under LOCK TABLES. Change child list.
+--echo #
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE;
+--echo # Shrink child list.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+ALTER TABLE t4 UNION=(t3);
+--echo # Extend child list within locked tables.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+ALTER TABLE t4 UNION=(t3,t2);
+--echo # Extend child list beyond locked tables.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+ALTER TABLE t4 UNION=(t3,t2,t1);
+SHOW CREATE TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+DROP TABLE t4;
+#
+--echo #
+--echo # ALTER TABLE under LOCK TABLES. Grave change, table re-creation.
+--echo #
+CREATE TABLE t4 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1,t2,t3)
+  INSERT_METHOD=LAST;
+--echo # Lock parent first and then children.
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE, t1 WRITE;
+ALTER TABLE t4 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+ALTER TABLE t2 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+--echo # Lock children first and then parent.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE;
+ALTER TABLE t4 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+ALTER TABLE t2 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+--echo # Lock parent between children.
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+ALTER TABLE t4 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+ALTER TABLE t2 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4;
+#
+--echo #
+--echo # ALTER TABLE under LOCK TABLES. Simple change, no re-creation.
+--echo #
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+CREATE TABLE t3 (c1 INT);
+CREATE TABLE t4 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2,t3)
+  INSERT_METHOD=LAST;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+--echo # Lock parent first and then children.
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE, t1 WRITE;
+ALTER TABLE t4 ALTER COLUMN c1 SET DEFAULT 44;
+SELECT * FROM t4 ORDER BY c1;
+ALTER TABLE t2 ALTER COLUMN c1 SET DEFAULT 22;
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+--echo # Lock children first and then parent.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE;
+ALTER TABLE t4 ALTER COLUMN c1 SET DEFAULT 44;
+SELECT * FROM t4 ORDER BY c1;
+ALTER TABLE t2 ALTER COLUMN c1 SET DEFAULT 22;
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+--echo # Lock parent between children.
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+ALTER TABLE t4 ALTER COLUMN c1 SET DEFAULT 44;
+SELECT * FROM t4 ORDER BY c1;
+ALTER TABLE t2 ALTER COLUMN c1 SET DEFAULT 22;
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+#
+--echo #
+--echo # FLUSH TABLE under LOCK TABLES.
+--echo #
+--echo # Lock parent first and then children.
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE, t1 WRITE;
+FLUSH TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+FLUSH TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+FLUSH TABLES;
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+--echo # Lock children first and then parent.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE;
+FLUSH TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+FLUSH TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+FLUSH TABLES;
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+--echo # Lock parent between children.
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+FLUSH TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+FLUSH TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+FLUSH TABLES;
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+#
+--echo #
+--echo # Triggers
+--echo #
+--echo # Trigger on parent
+DELETE FROM t4 WHERE c1 = 4;
+CREATE TRIGGER t4_ai AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+SELECT * FROM t4 ORDER BY c1;
+DROP TRIGGER t4_ai;
+--echo # Trigger on parent under LOCK TABLES
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CREATE TRIGGER t4_ai AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+SELECT * FROM t4 ORDER BY c1;
+DROP TRIGGER t4_ai;
+UNLOCK TABLES;
+--echo #
+--echo # Trigger on child
+DELETE FROM t4 WHERE c1 = 4;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+INSERT INTO t3 VALUES (33);
+SELECT @a;
+SELECT * FROM t4 ORDER BY c1;
+DROP TRIGGER t3_ai;
+--echo # Trigger on child under LOCK TABLES
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+INSERT INTO t3 VALUES (33);
+SELECT @a;
+SELECT * FROM t4 ORDER BY c1;
+DELETE FROM t4 WHERE c1 = 33;
+DROP TRIGGER t3_ai;
+--echo #
+--echo # Trigger with table use on child
+DELETE FROM t4 WHERE c1 = 4;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+INSERT INTO t3 VALUES (33);
+SELECT * FROM t4 ORDER BY c1;
+DELETE FROM t4 WHERE c1 = 22;
+DELETE FROM t4 WHERE c1 = 33;
+DROP TRIGGER t3_ai;
+--echo # Trigger with table use on child under LOCK TABLES
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+INSERT INTO t3 VALUES (33);
+SELECT * FROM t4 ORDER BY c1;
+DROP TRIGGER t3_ai;
+DELETE FROM t4 WHERE c1 = 22;
+DELETE FROM t4 WHERE c1 = 33;
+UNLOCK TABLES;
+#
+--echo #
+--echo # Repair
+--echo #
+REPAIR TABLE t4;
+REPAIR TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+REPAIR TABLE t4;
+REPAIR TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+#
+--echo #
+--echo # Optimize
+--echo #
+OPTIMIZE TABLE t4;
+OPTIMIZE TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+OPTIMIZE TABLE t4;
+OPTIMIZE TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+#
+--echo #
+--echo # Checksum
+--echo #
+CHECKSUM TABLE t4;
+CHECKSUM TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CHECKSUM TABLE t4;
+CHECKSUM TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+#
+--echo #
+--echo # Insert delayed
+--echo #
+# See also Bug#26464 - insert delayed + update + merge = corruption
+# Succeeds in embedded server - is converted to normal insert
+# Fails in normal server, ps-protocol - not supported by engine
+# Fails in normal server, normal protocol - not a base table
+--error 0, ER_ILLEGAL_HA, ER_WRONG_OBJECT
+INSERT DELAYED INTO t4 VALUES(44);
+# Get rid of row in embedded server
+DELETE FROM t4 WHERE c1 = 44;
+INSERT DELAYED INTO t3 VALUES(33);
+  let $wait_cmd= SHOW STATUS LIKE 'Not_flushed_delayed_rows';
+  let $run= query_get_value($wait_cmd, Value, 1);
+  while ($run)
+  {
+    let $run= query_get_value($wait_cmd, Value, 1);
+  }
+SELECT * FROM t4 ORDER BY c1;
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+--error ER_DELAYED_INSERT_TABLE_LOCKED, ER_ILLEGAL_HA
+INSERT DELAYED INTO t4 VALUES(444);
+--error ER_DELAYED_INSERT_TABLE_LOCKED, ER_ILLEGAL_HA
+INSERT DELAYED INTO t3 VALUES(333);
+SELECT * FROM t4 ORDER BY c1;
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4;
+#
+--echo #
+--echo # Recursive inclusion of merge tables in their union clauses.
+--echo #
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+  INSERT_METHOD=LAST;
+CREATE TABLE t3 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t2,t1)
+  INSERT_METHOD=LAST;
+ALTER TABLE t2 UNION=(t3,t1);
+--error ER_ADMIN_WRONG_MRG_TABLE
+SELECT * FROM t2;
+DROP TABLE t1, t2, t3;
+
+
+#
+# Bug#25038 - Waiting TRUNCATE
+#
+# Show that truncate of child table after use of parent table works.
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM; 
+CREATE TABLE t2 (c1 INT) ENGINE= MyISAM; 
+CREATE TABLE t3 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1, t2); 
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t3;
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+DROP TABLE t1, t2, t3;
+#
+# Show that truncate of child table waits while parent table is used.
+# (test partly borrowed from count_distinct3.)
+CREATE TABLE t1 (id INTEGER, grp TINYINT, id_rev INTEGER);
+SET @rnd_max= 2147483647;
+let $1 = 10;
+while ($1)
+{
+  SET @rnd= RAND();
+  SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+  SET @id_rev= @rnd_max - @id;
+  SET @grp= CAST(127.0 * @rnd AS UNSIGNED); 
+  INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev); 
+  dec $1;
+}
+set @@read_buffer_size=2*1024*1024;
+CREATE TABLE t2 SELECT * FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+CREATE TABLE t3 (id INTEGER, grp TINYINT, id_rev INTEGER)
+  ENGINE= MRG_MYISAM UNION= (t1, t2);
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+connect (con1,localhost,root,,);
+    # As t3 contains random numbers, results are different from test to test. 
+    # That's okay, because we test only that select doesn't yield an
+    # error. Note, that --disable_result_log doesn't suppress error output.
+    --disable_result_log
+    send SELECT COUNT(DISTINCT a1.id) FROM t3 AS a1, t3 AS a2
+      WHERE a1.id = a2.id GROUP BY a2.grp;
+connection default;
+sleep 1;
+TRUNCATE TABLE t1;
+    connection con1;
+    reap;
+    --enable_result_log
+    disconnect con1;
+connection default;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+DROP TABLE t1, t2, t3;
+
+#
+# Bug#25700 - merge base tables get corrupted by optimize/analyze/repair table
+#
+# Using FLUSH TABLES before REPAIR.
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+INSERT INTO t2 VALUES (1);
+SELECT * FROM t2;
+LOCK TABLES t2 WRITE, t1 WRITE;
+FLUSH TABLES;
+REPAIR TABLE t1;
+CHECK TABLE t1;
+REPAIR TABLE t1;
+UNLOCK TABLES;
+CHECK TABLE t1 EXTENDED;
+#
+# Not using FLUSH TABLES before REPAIR.
+LOCK TABLES t2 WRITE, t1 WRITE;
+SELECT * FROM t2;
+LOCK TABLES t2 WRITE, t1 WRITE;
+REPAIR TABLE t1;
+CHECK TABLE t1;
+REPAIR TABLE t1;
+UNLOCK TABLES;
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1, t2;
+
+#
+# Bug#26377 - Deadlock with MERGE and FLUSH TABLE
+#
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+CREATE TABLE m1 ( a INT ) ENGINE=MRG_MYISAM UNION=(t1);
+# Lock t1 first. This did always work.
+LOCK TABLES t1 WRITE, m1 WRITE;
+FLUSH TABLE t1;
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+#
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+CREATE TABLE m1 ( a INT ) ENGINE=MRG_MYISAM UNION=(t1);
+# Lock m1 first. This did deadlock.
+LOCK TABLES m1 WRITE, t1 WRITE;
+FLUSH TABLE t1;
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+
+#
+# Bug#27660 - Falcon: merge table possible
+#
+# Normal MyISAM MERGE operation.
+CREATE TABLE t1 (c1 INT, c2 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT, c2 INT) ENGINE= MyISAM;
+CREATE TABLE t3 (c1 INT, c2 INT) ENGINE= MRG_MYISAM UNION(t1, t2);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+SELECT * FROM t3;
+# Try an unsupported engine.
+ALTER TABLE t1 ENGINE= MEMORY;
+INSERT INTO t1 VALUES (0, 0);
+# Before fixing, this succeeded, but (0, 0) was missing.
+--error 1168
+SELECT * FROM t3;
+DROP TABLE t1, t2, t3;
+
+#
+# Bug#30275 - Merge tables: flush tables or unlock tables causes server to crash
+#
+CREATE TABLE t1 (c1 INT, KEY(c1));
+CREATE TABLE t2 (c1 INT, KEY(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+  INSERT_METHOD=FIRST;
+LOCK TABLE t1 WRITE, t2 WRITE;
+FLUSH TABLES t2, t1;
+OPTIMIZE TABLE t1;
+FLUSH TABLES t1;
+UNLOCK TABLES;
+#
+FLUSH TABLES;
+INSERT INTO t1 VALUES (1);
+LOCK TABLE t1 WRITE, t2 WRITE;
+FLUSH TABLES t2, t1;
+OPTIMIZE TABLE t1;
+FLUSH TABLES t1;
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+
+#
+# Test derived from test program for
+# Bug#30273 - merge tables: Can't lock file (errno: 155)
+#
+CREATE TABLE t1 (ID INT) ENGINE=MYISAM;
+CREATE TABLE m1 (ID INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=FIRST;
+INSERT INTO t1 VALUES ();
+INSERT INTO m1 VALUES ();
+LOCK TABLE t1 WRITE, m1 WRITE;
+FLUSH TABLES m1, t1;
+OPTIMIZE TABLE t1;
+FLUSH TABLES m1, t1;
+UNLOCK TABLES;
+DROP TABLE t1, m1;
+
