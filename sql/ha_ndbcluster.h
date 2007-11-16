@@ -556,7 +556,6 @@ private:
 
   void check_read_before_write_removal();
   static int delete_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
-  static int delete_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
 			  const char *path,
 			  const char *db,
 			  const char *table_name);
