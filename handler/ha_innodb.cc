@@ -691,6 +691,8 @@ convert_error_code_to_mysql(
 #else
 		return(HA_ERR_RECORD_FILE_FULL);
 #endif
+	case DB_UNSUPPORTED:
+		return(HA_ERR_UNSUPPORTED);
 	}
 }
 
@@ -805,23 +807,6 @@ innobase_convert_from_id(
 
 	strconvert(thd_charset(current_thd), from,
 		   system_charset_info, to, (uint) len, &errors);
-}
-
-/**********************************************************************
-Removes the filename encoding of a table or database name.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
-extern "C"
-void
-innobase_convert_from_filename(
-/*===========================*/
-	char*		s)	/* in: identifier; out: decoded identifier */
-{
-	uint	errors;
-
-	strconvert(&my_charset_filename, s,
-		   system_charset_info, s, strlen(s), &errors);
 }
 
 /**********************************************************************
@@ -1162,7 +1147,6 @@ innobase_query_caching_of_table_permitted(
 	}
 
 	if (trx->has_search_latch) {
-		ut_print_timestamp(stderr);
 		sql_print_error("The calling thread is holding the adaptive "
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
@@ -2370,7 +2354,6 @@ ha_innobase::open(
 	ib_table = dict_table_get(norm_name, TRUE);
 
 	if (NULL == ib_table) {
-		ut_print_timestamp(stderr);
 		sql_print_error("Cannot find or open table %s from\n"
 				"the internal data dictionary of InnoDB "
 				"though the .frm file for the\n"
@@ -2394,7 +2377,6 @@ ha_innobase::open(
 	}
 
 	if (ib_table->ibd_file_missing && !thd_tablespace_op(thd)) {
-		ut_print_timestamp(stderr);
 		sql_print_error("MySQL is trying to open a table handle but "
 				"the .ibd file for\ntable %s does not exist.\n"
 				"Have you deleted the .ibd file from the "
@@ -3472,7 +3454,7 @@ no_commit:
 			/*
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB error: ALTER TABLE is holding lock"
+				"  InnoDB: ALTER TABLE is holding lock"
 				" on %lu tables!\n",
 				prebuilt->trx->mysql_n_tables_locked);
 			*/
@@ -4042,33 +4024,51 @@ convert_search_mode_to_innobase(
 	enum ha_rkey_function	find_flag)
 {
 	switch (find_flag) {
-		case HA_READ_KEY_EXACT:		return(PAGE_CUR_GE);
-			/* the above does not require the index to be UNIQUE */
-		case HA_READ_KEY_OR_NEXT:	return(PAGE_CUR_GE);
-		case HA_READ_KEY_OR_PREV:	return(PAGE_CUR_LE);
-		case HA_READ_AFTER_KEY:		return(PAGE_CUR_G);
-		case HA_READ_BEFORE_KEY:	return(PAGE_CUR_L);
-		case HA_READ_PREFIX:		return(PAGE_CUR_GE);
-		case HA_READ_PREFIX_LAST:	return(PAGE_CUR_LE);
-		case HA_READ_PREFIX_LAST_OR_PREV:return(PAGE_CUR_LE);
-		  /* In MySQL-4.0 HA_READ_PREFIX and HA_READ_PREFIX_LAST always
-		  pass a complete-field prefix of a key value as the search
-		  tuple. I.e., it is not allowed that the last field would
-		  just contain n first bytes of the full field value.
-		  MySQL uses a 'padding' trick to convert LIKE 'abc%'
-		  type queries so that it can use as a search tuple
-		  a complete-field-prefix of a key value. Thus, the InnoDB
-		  search mode PAGE_CUR_LE_OR_EXTENDS is never used.
-		  TODO: when/if MySQL starts to use also partial-field
-		  prefixes, we have to deal with stripping of spaces
-		  and comparison of non-latin1 char type fields in
-		  innobase_mysql_cmp() to get PAGE_CUR_LE_OR_EXTENDS to
-		  work correctly. */
-
-		default:			ut_error;
+	case HA_READ_KEY_EXACT:
+		/* this does not require the index to be UNIQUE */
+		return(PAGE_CUR_GE);
+	case HA_READ_KEY_OR_NEXT:
+		return(PAGE_CUR_GE);
+	case HA_READ_KEY_OR_PREV:
+		return(PAGE_CUR_LE);
+	case HA_READ_AFTER_KEY:	
+		return(PAGE_CUR_G);
+	case HA_READ_BEFORE_KEY:
+		return(PAGE_CUR_L);
+	case HA_READ_PREFIX:
+		return(PAGE_CUR_GE);
+	case HA_READ_PREFIX_LAST:
+		return(PAGE_CUR_LE);
+	case HA_READ_PREFIX_LAST_OR_PREV:
+		return(PAGE_CUR_LE);
+		/* In MySQL-4.0 HA_READ_PREFIX and HA_READ_PREFIX_LAST always
+		pass a complete-field prefix of a key value as the search
+		tuple. I.e., it is not allowed that the last field would
+		just contain n first bytes of the full field value.
+		MySQL uses a 'padding' trick to convert LIKE 'abc%'
+		type queries so that it can use as a search tuple
+		a complete-field-prefix of a key value. Thus, the InnoDB
+		search mode PAGE_CUR_LE_OR_EXTENDS is never used.
+		TODO: when/if MySQL starts to use also partial-field
+		prefixes, we have to deal with stripping of spaces
+		and comparison of non-latin1 char type fields in
+		innobase_mysql_cmp() to get PAGE_CUR_LE_OR_EXTENDS to
+		work correctly. */
+	case HA_READ_MBR_CONTAIN:
+	case HA_READ_MBR_INTERSECT:
+	case HA_READ_MBR_WITHIN:
+	case HA_READ_MBR_DISJOINT:
+	case HA_READ_MBR_EQUAL:
+		my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
+		return(PAGE_CUR_UNSUPP);
+	/* do not use "default:" in order to produce a gcc warning:
+	enumeration value '...' not handled in switch
+	(if -Wswitch or -Wall is used) */
 	}
 
-	return(0);
+	my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "this functionality");
+
+	return(PAGE_CUR_UNSUPP);
 }
 
 /*
@@ -4199,11 +4199,18 @@ ha_innobase::index_read(
 
 	last_match_mode = (uint) match_mode;
 
-	innodb_srv_conc_enter_innodb(prebuilt->trx);
+	if (mode != PAGE_CUR_UNSUPP) {
 
-	ret = row_search_for_mysql((byte*) buf, mode, prebuilt, match_mode, 0);
+		innodb_srv_conc_enter_innodb(prebuilt->trx);
 
-	innodb_srv_conc_exit_innodb(prebuilt->trx);
+		ret = row_search_for_mysql((byte*) buf, mode, prebuilt,
+					   match_mode, 0);
+
+		innodb_srv_conc_exit_innodb(prebuilt->trx);
+	} else {
+
+		ret = DB_UNSUPPORTED;
+	}
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -5614,8 +5621,16 @@ ha_innobase::records_in_range(
 	mode2 = convert_search_mode_to_innobase(max_key ? max_key->flag :
 						HA_READ_KEY_EXACT);
 
-	n_rows = btr_estimate_n_rows_in_range(index, range_start,
-						mode1, range_end, mode2);
+	if (mode1 != PAGE_CUR_UNSUPP && mode2 != PAGE_CUR_UNSUPP) {
+
+		n_rows = btr_estimate_n_rows_in_range(index, range_start,
+						      mode1, range_end,
+						      mode2);
+	} else {
+
+		n_rows = 0;
+	}
+
 	mem_heap_free(heap);
 
 	my_free(key_val_buff2, MYF(0));
@@ -5866,7 +5881,6 @@ ha_innobase::info(
 
 		for (i = 0; i < table->s->keys; i++) {
 			if (index == NULL) {
-				ut_print_timestamp(stderr);
 				sql_print_error("Table %s contains fewer "
 						"indexes inside InnoDB than "
 						"are defined in the MySQL "
@@ -5882,7 +5896,6 @@ ha_innobase::info(
 			for (j = 0; j < table->key_info[i].key_parts; j++) {
 
 				if (j + 1 > index->n_uniq) {
-					ut_print_timestamp(stderr);
 					sql_print_error(
 "Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking "
 "statistics for %lu columns. Have you mixed up .frm files from different "
@@ -5955,7 +5968,6 @@ ha_innobase::info(
 			ret = innobase_read_and_init_auto_inc(&auto_inc);
 
 			if (ret != 0) {
-				ut_print_timestamp(stderr);
 				sql_print_error("Cannot get table %s auto-inc"
 						"counter value in ::info\n",
 						ib_table->name);
@@ -6729,14 +6741,17 @@ ha_innobase::transactional_table_lock(
 
 	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB error:\n"
-"MySQL is trying to use a table handle but the .ibd file for\n"
-"table %s does not exist.\n"
-"Have you deleted the .ibd file from the database directory under\n"
-"the MySQL datadir?"
-"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
-"how you can resolve the problem.\n",
-				prebuilt->table->name);
+		fprintf(stderr,
+			"  InnoDB: MySQL is trying to use a table handle"
+			" but the .ibd file for\n"
+			"InnoDB: table %s does not exist.\n"
+			"InnoDB: Have you deleted the .ibd file"
+			" from the database directory under\n"
+			"InnoDB: the MySQL datadir?"
+			"InnoDB: See"
+			" http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
+			"InnoDB: how you can resolve the problem.\n",
+			prebuilt->table->name);
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -7348,7 +7363,8 @@ ha_innobase::innobase_read_and_init_auto_inc(
 			++auto_inc;
 			dict_table_autoinc_initialize(innodb_table, auto_inc);
 		} else {
-			fprintf(stderr, " InnoDB error (%lu): Couldn't read "
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Error: (%lu) Couldn't read "
 				"the max AUTOINC value from the index (%s).\n",
 				error, index->name);
 
@@ -7438,8 +7454,7 @@ ha_innobase::innobase_get_auto_increment(
 		and can be ignored. */
 		} else if (error != DB_DEADLOCK) {
 
-			ut_print_timestamp(stderr);
-			sql_print_error(" InnoDB Error %lu in "
+			sql_print_error("InnoDB: Error: %lu in "
 					"::innobase_get_auto_increment()",
 					error);
 		}
