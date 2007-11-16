@@ -15327,7 +15327,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	{
 	  if (tab->use_quick == 2)
 	  {
-            char buf[MAX_KEY/8+1];
+            /* 4 bits per 1 hex digit + terminating '\0' */
+            char buf[MAX_KEY / 4 + 1];
             extra.append(STRING_WITH_LEN("; Range checked for each "
                                          "record (index map: 0x"));
             extra.append(tab->keys.print(buf));
