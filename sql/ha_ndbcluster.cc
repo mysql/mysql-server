@@ -7985,7 +7985,7 @@ void ha_ndbcluster::local_close(THD *thd, bool release_metadata_flag)
     /* ndb_share reference handler free */
     DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",
                              m_share->key, m_share->use_count));
-    free_share(thd, &m_share);
+    free_share(&m_share);
   }
   m_share= 0;
   if (release_metadata_flag)
