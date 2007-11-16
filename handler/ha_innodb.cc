@@ -811,23 +811,6 @@ innobase_convert_from_id(
 }
 
 /**********************************************************************
-Removes the filename encoding of a table or database name.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
-extern "C"
-void
-innobase_convert_from_filename(
-/*===========================*/
-	char*		s)	/* in: identifier; out: decoded identifier */
-{
-	uint	errors;
-
-	strconvert(&my_charset_filename, s,
-		   system_charset_info, s, strlen(s), &errors);
-}
-
-/**********************************************************************
 Compares NUL-terminated UTF-8 strings case insensitively.
 
 NOTE that the exact prototype of this function has to be in
