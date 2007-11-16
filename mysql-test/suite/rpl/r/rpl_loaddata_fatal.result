@@ -65,7 +65,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1592
+Last_Errno	1593
 Last_Error	Fatal error: Not enough memory
 Skip_Counter	0
 Exec_Master_Log_Pos	325
@@ -83,7 +83,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1592
+Last_SQL_Errno	1593
 Last_SQL_Error	Fatal error: Not enough memory
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;

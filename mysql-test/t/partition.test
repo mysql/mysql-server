@@ -1520,4 +1520,25 @@ PARTITION BY RANGE (b) (
 show create table t1;
 drop table t1, t2;
 
+#
+# Bug #32067 Partitions: crash with timestamp column
+#  this bug occurs randomly on some UPDATE statement
+#  with the '1032: Can't find record in 't1'' error
+
+create table t1
+ (s1 timestamp on update current_timestamp, s2 int)
+ partition by key(s1) partitions 3;
+
+insert into t1 values (null,null);
+--disable_query_log
+let $cnt= 1000;
+while ($cnt)
+{
+  update t1 set s2 = 1;
+  update t1 set s2 = 2;
+  dec $cnt;
+}
+--enable_query_log
+
+drop table t1;
 --echo End of 5.1 tests

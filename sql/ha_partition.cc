@@ -2794,16 +2794,28 @@ exit:
 int ha_partition::update_row(const uchar *old_data, uchar *new_data)
 {
   uint32 new_part_id, old_part_id;
-  int error;
+  int error= 0;
   longlong func_value;
+  timestamp_auto_set_type orig_timestamp_type= table->timestamp_field_type;
   DBUG_ENTER("ha_partition::update_row");
+
+  /*
+    We need to set timestamp field once before we calculate
+    the partition. Then we disable timestamp calculations
+    inside m_file[*]->update_row() methods
+  */
+  if (orig_timestamp_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+  {
+    table->timestamp_field->set_time();
+    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+  }
 
   if ((error= get_parts_for_update(old_data, new_data, table->record[0],
                                    m_part_info, &old_part_id, &new_part_id,
                                    &func_value)))
   {
     m_part_info->err_value= func_value;
-    DBUG_RETURN(error);
+    goto exit;
   }
 
   /*
@@ -2815,23 +2827,27 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   if (new_part_id == old_part_id)
   {
     DBUG_PRINT("info", ("Update in partition %d", new_part_id));
-    DBUG_RETURN(m_file[new_part_id]->update_row(old_data, new_data));
+    error= m_file[new_part_id]->update_row(old_data, new_data);
+    goto exit;
   }
   else
   {
     DBUG_PRINT("info", ("Update from partition %d to partition %d",
 			old_part_id, new_part_id));
     if ((error= m_file[new_part_id]->write_row(new_data)))
-      DBUG_RETURN(error);
+      goto exit;
     if ((error= m_file[old_part_id]->delete_row(old_data)))
     {
 #ifdef IN_THE_FUTURE
       (void) m_file[new_part_id]->delete_last_inserted_row(new_data);
 #endif
-      DBUG_RETURN(error);
+      goto exit;
     }
   }
-  DBUG_RETURN(0);
+
+exit:
+  table->timestamp_field_type= orig_timestamp_type;
+  DBUG_RETURN(error);
 }
 
 
