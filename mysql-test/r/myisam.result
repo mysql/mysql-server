@@ -1794,6 +1794,31 @@ SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
 a
 1
 DROP TABLE t1;
+CREATE TABLE t1 (c1 INT, c2 INT, UNIQUE INDEX (c1), INDEX (c2)) ENGINE=MYISAM;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	0	#	#	#	1024	#	#	#	#	#	#	#		
+INSERT INTO t1 VALUES (1,1);
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+ALTER TABLE t1 DISABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+ALTER TABLE t1 ENABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+ALTER TABLE t1 DISABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+ALTER TABLE t1 ENABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+DROP TABLE t1;
 End of 5.0 tests
 create table t1 (a int not null, key `a` (a) key_block_size=1024);
 show create table t1;
