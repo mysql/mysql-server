@@ -142,6 +142,7 @@ void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnod
 		//printf(" %lld\n", parent->u.n.children[i]);
 		if (parent->u.n.children[i]==nodename) {
 		    // Rename the block, informing the parent of the new block
+#if 0   
 		    if (rename_p) {
 			DISKOFF newnodename = malloc_diskblock(brtnode->brt, brtnode->nodesize);
 			int r=tokulogger_log_block_rename(cachefile_logger(cachefile), cachefile_filenum(cachefile), nodename, newnodename, parent->thisnodename, i);
@@ -151,6 +152,7 @@ void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnod
 			parent->u.n.children[i] = newnodename;
 			cachetable_rename(cachefile, nodename, newnodename);
 		    }
+#endif
 		    goto ok;
 		}
 	    }
@@ -269,7 +271,7 @@ DISKOFF malloc_diskblock (BRT brt, int size) {
 static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) {
     int i;
     n->tag = TYP_BRTNODE;
-    n->brt = t;
+    //    n->brt = t;
     n->nodesize = t->h->nodesize;
     n->thisnodename = nodename;
     n->lsn.lsn = 0; // a new one can always be 0.
@@ -315,7 +317,7 @@ static void create_new_brtnode (BRT t, BRTNODE *result, int height, BRTNODE pare
     *result = n;
     assert(n->nodesize>0);
     n->parent_brtnode = parent_brtnode;
-    n->brt            = t;
+    //    n->brt            = t;
     //printf("%s:%d putting %p (%lld) parent=%p\n", __FILE__, __LINE__, n, n->thisnodename, parent_brtnode);
     r=cachetable_put(t->cf, n->thisnodename, n, brtnode_size(n),
 			  brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)t->h->nodesize);
@@ -1166,7 +1168,7 @@ static int setup_brt_root_node (BRT t, DISKOFF offset) {
 		       offset, /* the location is one nodesize offset from 0. */
 		       0);
     node->parent_brtnode=0;
-    node->brt = t;
+    //    node->brt = t;
     if (0) {
 	printf("%s:%d for tree %p node %p mdict_create--> %p\n", __FILE__, __LINE__, t, node, node->u.l.buffer);
 	printf("%s:%d put root at %lld\n", __FILE__, __LINE__, offset);
