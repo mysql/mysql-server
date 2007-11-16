@@ -147,6 +147,36 @@ static int agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
 }
 
 
+/**
+  @brief Aggregates field types from the array of items.
+
+  @param[in] items  array of items to aggregate the type from
+  @paran[in] nitems number of items in the array
+
+  @details This function aggregates field types from the array of items.
+    Found type is supposed to be used later as the result field type
+    of a multi-argument function.
+    Aggregation itself is performed by the Field::field_type_merge()
+    function.
+
+  @note The term "aggregation" is used here in the sense of inferring the
+    result type of a function from its argument types.
+
+  @return aggregated field type.
+*/
+
+enum_field_types agg_field_type(Item **items, uint nitems)
+{
+  uint i;
+  if (!nitems || items[0]->result_type() == ROW_RESULT )
+    return (enum_field_types)-1;
+  enum_field_types res= items[0]->field_type();
+  for (i= 1 ; i < nitems ; i++)
+    res= Field::field_type_merge(res, items[i]->field_type());
+  return res;
+}
+
+
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname)
 {
@@ -522,26 +552,26 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 }
 
 
-/*
-  Convert date provided in a string to the int representation.
+/**
+  @brief Convert date provided in a string to the int representation.
 
-  SYNOPSIS
-    get_date_from_str()
-    thd              Thread handle
-    str              a string to convert
-    warn_type        type of the timestamp for issuing the warning
-    warn_name        field name for issuing the warning
-    error_arg  [out] TRUE if string isn't a DATETIME or clipping occur
+  @param[in]   thd        thread handle
+  @param[in]   str        a string to convert
+  @param[in]   warn_type  type of the timestamp for issuing the warning
+  @param[in]   warn_name  field name for issuing the warning
+  @param[out]  error_arg  could not extract a DATE or DATETIME
 
-  DESCRIPTION
-    Convert date provided in the string str to the int representation.
-    if the string contains wrong date or doesn't contain it at all
-    then the warning is issued and TRUE returned in the error_arg argument.
-    The warn_type and the warn_name arguments are used as the name and the
-    type of the field when issuing the warning.
+  @details Convert date provided in the string str to the int
+    representation.  If the string contains wrong date or doesn't
+    contain it at all then a warning is issued.  The warn_type and
+    the warn_name arguments are used as the name and the type of the
+    field when issuing the warning.  If any input was discarded
+    (trailing or non-timestampy characters), was_cut will be non-zero.
+    was_type will return the type str_to_datetime() could correctly
+    extract.
 
-  RETURN
-    converted value.
+  @return
+    converted value. 0 on error and on zero-dates -- check 'failure'
 */
 
 static ulonglong
@@ -552,26 +582,33 @@ get_date_from_str(THD *thd, String *str, timestamp_type warn_type,
   int error;
   MYSQL_TIME l_time;
   enum_mysql_timestamp_type ret;
-  *error_arg= TRUE;
 
   ret= str_to_datetime(str->ptr(), str->length(), &l_time,
                        (TIME_FUZZY_DATE | MODE_INVALID_DATES |
                         (thd->variables.sql_mode &
                          (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE))),
                        &error);
-  if ((ret == MYSQL_TIMESTAMP_DATETIME || ret == MYSQL_TIMESTAMP_DATE))
+
+  if (ret == MYSQL_TIMESTAMP_DATETIME || ret == MYSQL_TIMESTAMP_DATE)
   {
-    value= TIME_to_ulonglong_datetime(&l_time);
+    /*
+      Do not return yet, we may still want to throw a "trailing garbage"
+      warning.
+    */
     *error_arg= FALSE;
+    value= TIME_to_ulonglong_datetime(&l_time);
+  }
+  else
+  {
+    *error_arg= TRUE;
+    error= 1;                                   /* force warning */
   }
 
-  if (error || *error_arg)
-  {
+  if (error > 0)
     make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  str->ptr(), str->length(),
                                  warn_type, warn_name);
-    *error_arg= TRUE;
-  }
+
   return value;
 }
 
@@ -872,6 +909,12 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     timestamp_type t_type= f_type ==
       MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME;
     value= get_date_from_str(thd, str, t_type, warn_item->name, &error);
+    /*
+      If str did not contain a valid date according to the current
+      SQL_MODE, get_date_from_str() has already thrown a warning,
+      and we don't want to throw NULL on invalid date (see 5.2.6
+      "SQL modes" in the manual), so we're done here.
+    */
   }
   /*
     Do not cache GET_USER_VAR() function as its const_item() may return TRUE
@@ -1343,7 +1386,7 @@ longlong Item_func_truth::val_int()
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
   if (!args[0]->fixed && args[0]->fix_fields(thd, args) ||
-      !cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
+      !cache && !(cache= Item_cache::get_cache(args[0])))
     return 1;
 
   cache->setup(args[0]);
@@ -1990,10 +2033,20 @@ Item_func_ifnull::fix_length_and_dec()
   agg_result_type(&hybrid_type, args, 2);
   maybe_null=args[1]->maybe_null;
   decimals= max(args[0]->decimals, args[1]->decimals);
-  max_length= (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) ?
-    (max(args[0]->max_length - args[0]->decimals,
-         args[1]->max_length - args[1]->decimals) + decimals) :
-    max(args[0]->max_length, args[1]->max_length);
+  unsigned_flag= args[0]->unsigned_flag && args[1]->unsigned_flag;
+
+  if (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) 
+  {
+    int len0= args[0]->max_length - args[0]->decimals
+      - (args[0]->unsigned_flag ? 0 : 1);
+
+    int len1= args[1]->max_length - args[1]->decimals
+      - (args[1]->unsigned_flag ? 0 : 1);
+
+    max_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1);
+  }
+  else
+    max_length= max(args[0]->max_length, args[1]->max_length);
 
   switch (hybrid_type) {
   case STRING_RESULT:
@@ -2009,9 +2062,7 @@ Item_func_ifnull::fix_length_and_dec()
   default:
     DBUG_ASSERT(0);
   }
-  cached_field_type= args[0]->field_type();
-  if (cached_field_type != args[1]->field_type())
-    cached_field_type= Item_func::field_type();
+  cached_field_type= agg_field_type(args, 2);
 }
 
 
@@ -2159,11 +2210,13 @@ Item_func_if::fix_length_and_dec()
   {
     cached_result_type= arg2_type;
     collation.set(args[2]->collation.collation);
+    cached_field_type= args[2]->field_type();
   }
   else if (null2)
   {
     cached_result_type= arg1_type;
     collation.set(args[1]->collation.collation);
+    cached_field_type= args[1]->field_type();
   }
   else
   {
@@ -2177,6 +2230,7 @@ Item_func_if::fix_length_and_dec()
     {
       collation.set(&my_charset_bin);	// Number
     }
+    cached_field_type= agg_field_type(args + 1, 2);
   }
 
   if ((cached_result_type == DECIMAL_RESULT )
@@ -2573,7 +2627,7 @@ void Item_func_case::fix_length_and_dec()
       agg_arg_charsets(collation, agg, nagg, MY_COLL_ALLOW_CONV, 1))
     return;
   
-  
+  cached_field_type= agg_field_type(agg, nagg);
   /*
     Aggregate first expression and all THEN expression types
     and collations when string comparison
@@ -2719,6 +2773,7 @@ my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value)
 
 void Item_func_coalesce::fix_length_and_dec()
 {
+  cached_field_type= agg_field_type(args, arg_count);
   agg_result_type(&hybrid_type, args, arg_count);
   switch (hybrid_type) {
   case STRING_RESULT:
@@ -4277,6 +4332,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
     if (args[1]->null_value)
     {						// Will always return NULL
       maybe_null=1;
+      fixed= 1;
       return FALSE;
     }
     int error;

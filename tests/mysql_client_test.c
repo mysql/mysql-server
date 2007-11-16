@@ -15490,7 +15490,7 @@ static void test_bug21635()
   char *query_end;
   MYSQL_RES *result;
   MYSQL_FIELD *field;
-  unsigned int field_count, i;
+  unsigned int field_count, i, j;
   int rc;
 
   DBUG_ENTER("test_bug21635");
@@ -15506,28 +15506,35 @@ static void test_bug21635()
   myquery(rc);
   rc= mysql_query(mysql, "CREATE TABLE t1 (i INT)");
   myquery(rc);
-  rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
-  myquery(rc);
-
-  rc= mysql_real_query(mysql, query, query_end - query);
-  myquery(rc);
-
-  result= mysql_use_result(mysql);
-  DIE_UNLESS(result);
-
-  field_count= mysql_field_count(mysql);
-  for (i= 0; i < field_count; ++i)
+  /*
+    We need this loop to ensure correct behavior with both constant and
+    non-constant tables.
+  */
+  for (j= 0; j < 2 ; j++)
   {
-    field= mysql_fetch_field_direct(result, i);
-    printf("%s -> %s ... ", expr[i * 2], field->name);
-    fflush(stdout);
-    DIE_UNLESS(field->db[0] == 0 && field->org_table[0] == 0 &&
-               field->table[0] == 0 && field->org_name[0] == 0);
-    DIE_UNLESS(strcmp(field->name, expr[i * 2 + 1]) == 0);
-    puts("OK");
-  }
+    rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
+    myquery(rc);
 
-  mysql_free_result(result);
+    rc= mysql_real_query(mysql, query, query_end - query);
+    myquery(rc);
+
+    result= mysql_use_result(mysql);
+    DIE_UNLESS(result);
+
+    field_count= mysql_field_count(mysql);
+    for (i= 0; i < field_count; ++i)
+    {
+      field= mysql_fetch_field_direct(result, i);
+      printf("%s -> %s ... ", expr[i * 2], field->name);
+      fflush(stdout);
+      DIE_UNLESS(field->db[0] == 0 && field->org_table[0] == 0 &&
+                 field->table[0] == 0 && field->org_name[0] == 0);
+      DIE_UNLESS(strcmp(field->name, expr[i * 2 + 1]) == 0);
+      puts("OK");
+    }
+
+    mysql_free_result(result);
+  }
   rc= mysql_query(mysql, "DROP TABLE t1");
   myquery(rc);
 
@@ -15857,6 +15864,99 @@ static void test_bug29306()
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Bug#31669 Buffer overflow in mysql_change_user()
+*/
+
+#define LARGE_BUFFER_SIZE 2048
+
+static void test_bug31669()
+{
+  int rc;
+  static char buff[LARGE_BUFFER_SIZE+1];
+#ifndef EMBEDDED_LIBRARY
+  static char user[USERNAME_LENGTH+1];
+  static char db[NAME_LEN+1];
+  static char query[LARGE_BUFFER_SIZE*2];
+#endif
+
+  DBUG_ENTER("test_bug31669");
+  myheader("test_bug31669");
+
+  rc= mysql_change_user(mysql, NULL, NULL, NULL);
+  DIE_UNLESS(rc);
+
+  rc= mysql_change_user(mysql, "", "", "");
+  DIE_UNLESS(rc);
+
+  memset(buff, 'a', sizeof(buff));
+
+  rc= mysql_change_user(mysql, buff, buff, buff);
+  DIE_UNLESS(rc);
+
+  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
+  DIE_UNLESS(!rc);
+
+#ifndef EMBEDDED_LIBRARY
+  memset(db, 'a', sizeof(db));
+  db[NAME_LEN]= 0;
+  strxmov(query, "CREATE DATABASE IF NOT EXISTS ", db, NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  memset(user, 'b', sizeof(user));
+  user[USERNAME_LENGTH]= 0;
+  memset(buff, 'c', sizeof(buff));
+  buff[LARGE_BUFFER_SIZE]= 0;
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' IDENTIFIED BY "
+                 "'", buff, "' WITH GRANT OPTION", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "FLUSH PRIVILEGES");
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user, buff, db);
+  DIE_UNLESS(!rc);
+
+  user[USERNAME_LENGTH-1]= 'a';
+  rc= mysql_change_user(mysql, user, buff, db);
+  DIE_UNLESS(rc);
+
+  user[USERNAME_LENGTH-1]= 'b';
+  buff[LARGE_BUFFER_SIZE-1]= 'd';
+  rc= mysql_change_user(mysql, user, buff, db);
+  DIE_UNLESS(rc);
+
+  buff[LARGE_BUFFER_SIZE-1]= 'c';
+  db[NAME_LEN-1]= 'e';
+  rc= mysql_change_user(mysql, user, buff, db);
+  DIE_UNLESS(rc);
+
+  db[NAME_LEN-1]= 'a';
+  rc= mysql_change_user(mysql, user, buff, db);
+  DIE_UNLESS(!rc);
+
+  rc= mysql_change_user(mysql, user + 1, buff + 1, db + 1);
+  DIE_UNLESS(rc);
+
+  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
+  DIE_UNLESS(!rc);
+
+  strxmov(query, "DROP DATABASE ", db, NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  strxmov(query, "DELETE FROM mysql.user WHERE User='", user, "'", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  DIE_UNLESS(mysql_affected_rows(mysql) == 1);
+#endif
+
+  DBUG_VOID_RETURN;
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -16149,6 +16249,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug27592", test_bug27592 },
   { "test_bug29948", test_bug29948 },
   { "test_bug29306", test_bug29306 },
+  { "test_bug31669", test_bug31669 },
   { 0, 0 }
 };
 

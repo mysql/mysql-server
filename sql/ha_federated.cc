@@ -2528,7 +2528,12 @@ int ha_federated::info(uint flag)
     status_query_string.length(0);
 
     result= mysql_store_result(mysql);
-    if (!result)
+
+    /*
+      We're going to use fields num. 4, 12 and 13 of the resultset,
+      so make sure we have these fields.
+    */
+    if (!result || (mysql_num_fields(result) < 14))
       goto error;
 
     if (!mysql_num_rows(result))
@@ -2557,9 +2562,9 @@ int ha_federated::info(uint flag)
       data_file_length= records * mean_rec_length;
 
       if (row[12] != NULL)
-        update_time= (ha_rows) my_strtoll10(row[12], (char**) 0, &error);
+        update_time= (time_t) my_strtoll10(row[12], (char**) 0, &error);
       if (row[13] != NULL)
-        check_time= (ha_rows) my_strtoll10(row[13], (char**) 0, &error);
+        check_time= (time_t) my_strtoll10(row[13], (char**) 0, &error);
     }
 
     /*

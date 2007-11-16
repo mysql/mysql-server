@@ -1168,9 +1168,7 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
     /**************************************************************
      * Attribute found - store in mapping  (AttributeId, Position)
      **************************************************************/
-    AttributeHeader & attrMap = 
-      AttributeHeader::init(attrMappingIt.data, 
-			    attrDesc.AttributeId,    // 1. Store AttrId
+    AttributeHeader attrMap(attrDesc.AttributeId,    // 1. Store AttrId
 			    0);
     
     if (attrDesc.AttributeKeyFlag) {
@@ -1199,6 +1197,7 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
 	return;
       }
     }
+    *(attrMappingIt.data) = attrMap.m_value;
 #if 0
     ndbout << "BEFORE: attrLength: " << attrLength << endl;
 #endif
