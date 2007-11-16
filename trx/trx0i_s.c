@@ -86,6 +86,15 @@ noop because it will be empty. */
 #define TEST_DO_NOT_INSERT_INTO_THE_HASH_TABLE
 #endif
 
+#define MAX_ALLOWED_FOR_STORAGE(cache)		\
+	(TRX_I_S_MEM_LIMIT			\
+	 - (cache)->mem_allocd)
+
+#define MAX_ALLOWED_FOR_ALLOC(cache)		\
+	(TRX_I_S_MEM_LIMIT			\
+	 - (cache)->mem_allocd			\
+	 - ha_storage_get_size((cache)->storage))
+
 /* Memory for each table in the intermediate buffer is allocated in
 separate chunks. These chunks are considered to be concatenated to
 represent one flat array of rows. */
@@ -131,6 +140,11 @@ struct trx_i_s_cache_struct {
 					data that can possibly not be
 					available later, when we release
 					the kernel mutex */
+	ulint		mem_allocd;	/* the amount of memory
+					allocated with mem_alloc*() */
+	ibool		is_truncated;	/* this is TRUE if the memory
+					limit was hit and thus the data
+					in the cache is truncated */
 };
 
 /* This is the intermediate buffer where data needed to fill the
@@ -192,13 +206,19 @@ table_cache_init(
 
 /***********************************************************************
 Returns an empty row from a table cache. The row is allocated if no more
-empty rows are available. The number of used rows is incremented. */
+empty rows are available. The number of used rows is incremented.
+If the memory limit is hit then NULL is returned and nothing is
+allocated. */
 static
 void*
 table_cache_create_empty_row(
 /*=========================*/
-						/* out: empty row */
-	i_s_table_cache_t*	table_cache)	/* in/out: table cache */
+						/* out: empty row, or
+						NULL if out of memory */
+	i_s_table_cache_t*	table_cache,	/* in/out: table cache */
+	trx_i_s_cache_t*	cache)		/* in/out: cache to record
+						how many bytes are
+						allocated */
 {
 	ulint	i;
 	void*	row;
@@ -253,11 +273,18 @@ table_cache_create_empty_row(
 		}
 		req_bytes = req_rows * table_cache->row_size;
 
+		if (req_bytes > MAX_ALLOWED_FOR_ALLOC(cache)) {
+
+			return(NULL);
+		}
+
 		chunk = &table_cache->chunks[i];
 
 		chunk->base = mem_alloc2(req_bytes, &got_bytes);
 
 		got_rows = got_bytes / table_cache->row_size;
+
+		cache->mem_allocd += got_bytes;
 
 #if 0
 		printf("allocating chunk %d req bytes=%lu, got bytes=%lu, "
@@ -322,13 +349,14 @@ table_cache_create_empty_row(
 }
 
 /***********************************************************************
-Fills i_s_trx_row_t object. Returns its first argument. */
+Fills i_s_trx_row_t object.
+If memory can not be allocated then FALSE is returned. */
 static
-i_s_trx_row_t*
+ibool
 fill_trx_row(
 /*=========*/
-						/* out: result object
-						that's filled */
+						/* out: FALSE if
+						allocation fails */
 	i_s_trx_row_t*		row,		/* out: result object
 						that's filled */
 	const trx_t*		trx,		/* in: transaction to
@@ -373,20 +401,27 @@ fill_trx_row(
 			       TRX_I_S_TRX_QUERY_MAX_LEN);
 			query[TRX_I_S_TRX_QUERY_MAX_LEN] = '\0';
 
-			row->trx_query = ha_storage_put(
+			row->trx_query = ha_storage_put_memlim(
 				cache->storage, query,
-				TRX_I_S_TRX_QUERY_MAX_LEN + 1);
+				TRX_I_S_TRX_QUERY_MAX_LEN + 1,
+				MAX_ALLOWED_FOR_STORAGE(cache));
 		} else {
 
-			row->trx_query = ha_storage_put_str(
-				cache->storage, *trx->mysql_query_str);
+			row->trx_query = ha_storage_put_str_memlim(
+				cache->storage, *trx->mysql_query_str,
+				MAX_ALLOWED_FOR_STORAGE(cache));
+		}
+
+		if (row->trx_query == NULL) {
+
+			return(FALSE);
 		}
 	} else {
 
 		row->trx_query = NULL;
 	}
 
-	return(row);
+	return(TRUE);
 }
 
 /***********************************************************************
@@ -449,11 +484,13 @@ put_nth_field(
 }
 
 /***********************************************************************
-Fills the "lock_data" member of i_s_locks_row_t object. */
+Fills the "lock_data" member of i_s_locks_row_t object.
+If memory can not be allocated then FALSE is returned. */
 static
-void
+ibool
 fill_lock_data(
 /*===========*/
+					/* out: FALSE if allocation fails */
 	const char**		lock_data,/* out: "lock_data" to fill */
 	const lock_t*		lock,	/* in: lock used to find the data */
 	ulint			heap_no,/* in: rec num used to find the data */
@@ -480,7 +517,7 @@ fill_lock_data(
 
 		mtr_commit(&mtr);
 
-		return;
+		return(TRUE);
 	}
 
 	page = (const page_t*) buf_block_get_frame(block);
@@ -489,12 +526,14 @@ fill_lock_data(
 
 	if (page_rec_is_infimum(rec)) {
 
-		*lock_data = ha_storage_put_str(cache->storage,
-						"infimum pseudo-record");
+		*lock_data = ha_storage_put_str_memlim(
+			cache->storage, "infimum pseudo-record",
+			MAX_ALLOWED_FOR_STORAGE(cache));
 	} else if (page_rec_is_supremum(rec)) {
 
-		*lock_data = ha_storage_put_str(cache->storage,
-						"supremum pseudo-record");
+		*lock_data = ha_storage_put_str_memlim(
+			cache->storage, "supremum pseudo-record",
+			MAX_ALLOWED_FOR_STORAGE(cache));
 	} else {
 
 		const dict_index_t*	index;
@@ -529,9 +568,9 @@ fill_lock_data(
 				i, index, rec, offsets) - 1;
 		}
 
-		*lock_data = (const char*) ha_storage_put(cache->storage,
-							  buf,
-							  buf_used + 1);
+		*lock_data = (const char*) ha_storage_put_memlim(
+			cache->storage, buf, buf_used + 1,
+			MAX_ALLOWED_FOR_STORAGE(cache));
 
 		if (UNIV_UNLIKELY(heap != NULL)) {
 
@@ -544,15 +583,23 @@ fill_lock_data(
 	}
 
 	mtr_commit(&mtr);
+
+	if (*lock_data == NULL) {
+
+		return(FALSE);
+	}
+
+	return(TRUE);
 }
 
 /***********************************************************************
-Fills i_s_locks_row_t object. Returns its first argument. */
+Fills i_s_locks_row_t object. Returns its first argument.
+If memory can not be allocated then FALSE is returned. */
 static
-i_s_locks_row_t*
+ibool
 fill_locks_row(
 /*===========*/
-				/* out: result object that's filled */
+				/* out: FALSE if allocation fails */
 	i_s_locks_row_t* row,	/* out: result object that's filled */
 	const lock_t*	lock,	/* in: lock to get data from */
 	ulint		heap_no,/* in: lock's record number
@@ -565,19 +612,37 @@ fill_locks_row(
 	row->lock_mode = lock_get_mode_str(lock);
 	row->lock_type = lock_get_type_str(lock);
 
-	row->lock_table = ha_storage_put_str(
-		cache->storage, lock_get_table_name(lock));
+	row->lock_table = ha_storage_put_str_memlim(
+		cache->storage, lock_get_table_name(lock),
+		MAX_ALLOWED_FOR_STORAGE(cache));
+
+	/* memory could not be allocated */
+	if (row->lock_table == NULL) {
+
+		return(FALSE);
+	}
 
 	switch (lock_get_type(lock)) {
 	case LOCK_REC:
-		row->lock_index = ha_storage_put_str(
-			cache->storage, lock_rec_get_index_name(lock));
+		row->lock_index = ha_storage_put_str_memlim(
+			cache->storage, lock_rec_get_index_name(lock),
+			MAX_ALLOWED_FOR_STORAGE(cache));
+
+		/* memory could not be allocated */
+		if (row->lock_index == NULL) {
+
+			return(FALSE);
+		}
 
 		row->lock_space = lock_rec_get_space_id(lock);
 		row->lock_page = lock_rec_get_page_no(lock);
 		row->lock_rec = heap_no;
 
-		fill_lock_data(&row->lock_data, lock, heap_no, cache);
+		if (!fill_lock_data(&row->lock_data, lock, heap_no, cache)) {
+
+			/* memory could not be allocated */
+			return(FALSE);
+		}
 
 		break;
 	case LOCK_TABLE:
@@ -598,7 +663,7 @@ fill_locks_row(
 
 	row->hash_chain.value = row;
 
-	return(row);
+	return(TRUE);
 }
 
 /***********************************************************************
@@ -759,7 +824,8 @@ search_innodb_locks(
 /***********************************************************************
 Adds new element to the locks cache, enlarging it if necessary.
 Returns a pointer to the added row. If the row is already present then
-no row is added and a pointer to the existing row is returned. */
+no row is added and a pointer to the existing row is returned.
+If row can not be allocated then NULL is returned. */
 static
 i_s_locks_row_t*
 add_lock_to_cache(
@@ -787,9 +853,20 @@ add_lock_to_cache(
 #endif
 
 	dst_row = (i_s_locks_row_t*)
-		table_cache_create_empty_row(&cache->innodb_locks);
+		table_cache_create_empty_row(&cache->innodb_locks, cache);
 
-	fill_locks_row(dst_row, lock, heap_no, cache);
+	/* memory could not be allocated */
+	if (dst_row == NULL) {
+
+		return(NULL);
+	}
+
+	if (!fill_locks_row(dst_row, lock, heap_no, cache)) {
+
+		/* memory could not be allocated */
+		cache->innodb_locks.rows_used--;
+		return(NULL);
+	}
 
 #ifndef TEST_DO_NOT_INSERT_INTO_THE_HASH_TABLE
 	HASH_INSERT(
@@ -812,11 +889,14 @@ add_lock_to_cache(
 }
 
 /***********************************************************************
-Adds new pair of locks to the lock waits cache. */
+Adds new pair of locks to the lock waits cache.
+If memory can not be allocated then FALSE is returned. */
 static
-void
+ibool
 add_lock_wait_to_cache(
 /*===================*/
+						/* out: FALSE if
+						allocation fails */
 	trx_i_s_cache_t*	cache,		/* in/out: cache */
 	const i_s_locks_row_t*	wait_lock_row,	/* in: pointer to the
 						relevant wait-lock
@@ -828,20 +908,32 @@ add_lock_wait_to_cache(
 	i_s_lock_waits_row_t*	dst_row;
 
 	dst_row = (i_s_lock_waits_row_t*)
-		table_cache_create_empty_row(&cache->innodb_lock_waits);
+		table_cache_create_empty_row(&cache->innodb_lock_waits,
+					     cache);
+
+	/* memory could not be allocated */
+	if (dst_row == NULL) {
+
+		return(FALSE);
+	}
 
 	fill_lock_waits_row(dst_row, wait_lock_row, waited_lock_row);
+
+	return(TRUE);
 }
 
 /***********************************************************************
 Adds transaction's relevant (important) locks to cache.
 If the transaction is waiting, then the wait lock is added to
 innodb_locks and a pointer to the added row is returned in
-wait_lock_row, otherwise wait_lock_row is set to NULL. */
+wait_lock_row, otherwise wait_lock_row is set to NULL.
+If rows can not be allocated then FALSE is returned and the value of
+wait_lock_row is undefined. */
 static
-void
+ibool
 add_trx_relevant_locks_to_cache(
 /*============================*/
+					/* out: FALSE if allocation fails */
 	trx_i_s_cache_t*	cache,	/* in/out: cache */
 	const trx_t*		trx,	/* in: transaction */
 	i_s_locks_row_t**	wait_lock_row)/* out: pointer to the
@@ -866,6 +958,12 @@ add_trx_relevant_locks_to_cache(
 			= add_lock_to_cache(cache, trx->wait_lock,
 					    wait_lock_heap_no);
 
+		/* memory could not be allocated */
+		if (*wait_lock_row == NULL) {
+
+			return(FALSE);
+		}
+
 		/* then iterate over the locks before the wait lock and
 		add the ones that are blocking it */
 
@@ -888,11 +986,21 @@ add_trx_relevant_locks_to_cache(
 						locks */
 						wait_lock_heap_no);
 
+				/* memory could not be allocated */
+				if (waited_lock_row == NULL) {
+
+					return(FALSE);
+				}
+
 				/* add the relation between both locks
 				to innodb_lock_waits */
-				add_lock_wait_to_cache(
-					cache, *wait_lock_row,
-					waited_lock_row);
+				if (!add_lock_wait_to_cache(
+						cache, *wait_lock_row,
+						waited_lock_row)) {
+
+					/* memory could not be allocated */
+					return(FALSE);
+				}
 			}
 
 			curr_lock = lock_queue_iterator_get_prev(&iter);
@@ -901,6 +1009,8 @@ add_trx_relevant_locks_to_cache(
 
 		*wait_lock_row = NULL;
 	}
+
+	return(TRUE);
 }
 
 /***********************************************************************
@@ -981,14 +1091,34 @@ fetch_data_into_cache(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		add_trx_relevant_locks_to_cache(cache, trx,
-						&wait_lock_row);
+		if (!add_trx_relevant_locks_to_cache(cache, trx,
+						     &wait_lock_row)) {
+
+			cache->is_truncated = TRUE;
+			return;
+		}
 
 		trx_row = (i_s_trx_row_t*)
-			table_cache_create_empty_row(&cache->innodb_trx);
+			table_cache_create_empty_row(&cache->innodb_trx,
+						     cache);
 
-		fill_trx_row(trx_row, trx, wait_lock_row, cache);
+		/* memory could not be allocated */
+		if (trx_row == NULL) {
+
+			cache->is_truncated = TRUE;
+			return;
+		}
+
+		if (!fill_trx_row(trx_row, trx, wait_lock_row, cache)) {
+
+			/* memory could not be allocated */
+			cache->innodb_trx.rows_used--;
+			cache->is_truncated = TRUE;
+			return;
+		}
 	}
+
+	cache->is_truncated = FALSE;
 }
 
 /***********************************************************************
@@ -1014,6 +1144,19 @@ trx_i_s_possibly_fetch_data_into_cache(
 	mutex_exit(&kernel_mutex);
 
 	return(0);
+}
+
+/***********************************************************************
+Returns TRUE if the data in the cache is truncated due to the memory
+limit posed by TRX_I_S_MEM_LIMIT. */
+
+ibool
+trx_i_s_cache_is_truncated(
+/*=======================*/
+					/* out: TRUE if truncated */
+	trx_i_s_cache_t*	cache)	/* in: cache */
+{
+	return(cache->is_truncated);
 }
 
 /***********************************************************************
@@ -1049,6 +1192,10 @@ trx_i_s_cache_init(
 
 	cache->storage = ha_storage_create(CACHE_STORAGE_INITIAL_SIZE,
 					   CACHE_STORAGE_HASH_CELLS);
+
+	cache->mem_allocd = 0;
+
+	cache->is_truncated = FALSE;
 }
 
 /***********************************************************************

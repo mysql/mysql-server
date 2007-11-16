@@ -833,14 +833,22 @@ trx_i_s_common_fill_table(
 	referenced */
 	cache = trx_i_s_cache;
 
+	/* which table we have to fill? */
+	table_name = tables->schema_table_name;
+	/* or table_name = tables->schema_table->table_name; */
+
 	/* update the cache */
 	trx_i_s_cache_start_write(cache);
 	trx_i_s_possibly_fetch_data_into_cache(cache);
 	trx_i_s_cache_end_write(cache);
 
-	/* which table we have to fill? */
-	table_name = tables->schema_table_name;
-	/* or table_name = tables->schema_table->table_name; */
+	if (trx_i_s_cache_is_truncated(cache)) {
+
+		/* XXX show warning to user if possible */
+		fprintf(stderr, "Warning: data in %s truncated due to "
+			"memory limit of %d bytes\n", table_name,
+			TRX_I_S_MEM_LIMIT);
+	}
 
 	ret = 0;
 
