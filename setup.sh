@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Prepare the MySQL source code tree for building
 # with checked-out InnoDB Subversion directory.
@@ -10,7 +10,10 @@ set -eu
 TARGETDIR=../storage/innobase
 
 # link the build scripts
-ln -sf $TARGETDIR/compile-innodb{,-debug} ../../BUILD
+BUILDSCRIPTS="compile-innodb compile-innodb-debug"
+for script in $BUILDSCRIPTS ; do
+	ln -sf $TARGETDIR/$script ../../BUILD/
+done
 
 cd ../../mysql-test/t
 ln -sf ../$TARGETDIR/mysql-test/*.test ../$TARGETDIR/mysql-test/*.opt .
