@@ -1712,6 +1712,7 @@ typedef struct st_lex : public Query_tables_list
   st_alter_tablespace *alter_tablespace_info;
   
   bool escape_used;
+  bool is_lex_started; /* If lex_start() did run. For debugging. */
 
   st_lex();
 

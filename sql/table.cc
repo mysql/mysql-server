@@ -1675,6 +1675,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                       (open_mode == OTM_OPEN)?"open":
                       ((open_mode == OTM_CREATE)?"create":"alter")));
 
+  /* Parsing of partitioning information from .frm needs thd->lex set up. */
+  DBUG_ASSERT(thd->lex->is_lex_started);
+
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
   outparam->in_use= thd;
@@ -1849,7 +1852,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                                 outparam, (open_mode != OTM_OPEN),
                                 share->default_part_db_type,
                                 &work_part_info_used);
-    outparam->part_info->is_auto_partitioned= share->auto_partitioned;
+    if (!tmp)
+      outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
     /* we should perform the fix_partition_func in either local or
        caller's arena depending on work_part_info_used value

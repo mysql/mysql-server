@@ -9946,6 +9946,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
   if (thd->store_globals())
     goto ndb_util_thread_fail;
+  lex_start(thd);
   thd->init_for_queries();
   thd->version=refresh_version;
   thd->main_security_ctx.host_or_ip= "";

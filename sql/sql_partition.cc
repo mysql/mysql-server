@@ -1858,6 +1858,20 @@ static int add_uint(File fptr, ulonglong number)
   return add_string(fptr, buff);
 }
 
+/*
+   Must escape strings in partitioned tables frm-files,
+   parsing it later with mysql_unpack_partition will fail otherwise.
+*/
+static int add_quoted_string(File fptr, const char *quotestr)
+{
+  String orgstr(quotestr, system_charset_info);
+  String escapedstr;
+  int err= add_string(fptr, "'");
+  err+= append_escaped(&escapedstr, &orgstr);
+  err+= add_string(fptr, escapedstr.c_ptr_safe());
+  return err + add_string(fptr, "'");
+}
+
 static int add_keyword_string(File fptr, const char *keyword,
                               bool should_use_quotes, 
                               const char *keystr)
@@ -1868,10 +1882,9 @@ static int add_keyword_string(File fptr, const char *keyword,
   err+= add_equal(fptr);
   err+= add_space(fptr);
   if (should_use_quotes)
-    err+= add_string(fptr, "'");
-  err+= add_string(fptr, keystr);
-  if (should_use_quotes)
-    err+= add_string(fptr, "'");
+    err+= add_quoted_string(fptr, keystr);
+  else
+    err+= add_string(fptr, keystr);
   return err + add_space(fptr);
 }
 
@@ -5021,7 +5034,10 @@ the generated partition syntax in a correct manner.
         *partition_changed= TRUE;
       }
       if (create_info->db_type == partition_hton)
-        part_info->default_engine_type= table->part_info->default_engine_type;
+      {
+        if (!part_info->default_engine_type)
+          part_info->default_engine_type= table->part_info->default_engine_type;
+      }
       else
         part_info->default_engine_type= create_info->db_type;
       if (check_native_partitioned(create_info, &is_native_partitioned,

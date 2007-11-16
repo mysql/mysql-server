@@ -4616,6 +4616,8 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
     /* This timestamp has auto-update */
     share->timestamp_field= this;
     flags|= TIMESTAMP_FLAG;
+    if (unireg_check != TIMESTAMP_DN_FIELD)
+      flags|= ON_UPDATE_NOW_FLAG;
   }
 }
 
@@ -4629,6 +4631,8 @@ Field_timestamp::Field_timestamp(bool maybe_null_arg,
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
   flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+    if (unireg_check != TIMESTAMP_DN_FIELD)
+      flags|= ON_UPDATE_NOW_FLAG;
 }
 
 

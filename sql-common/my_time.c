@@ -54,24 +54,24 @@ uint calc_days_in_year(uint year)
           366 : 365);
 }
 
-/*
-  Check datetime value for validity according to flags.
+/**
+  @brief Check datetime value for validity according to flags.
 
-  SYNOPSIS
-    check_date()
-      ltime          Date to check.
-      not_zero_date  ltime is not the zero date
-      flags          flags to check
-      was_cut        set to 2 if value was truncated.
-		     NOTE: This is not touched if value was not truncated
-  NOTES
-    Here we assume that year and month is ok !
+  @param[in]  ltime          Date to check.
+  @param[in]  not_zero_date  ltime is not the zero date
+  @param[in]  flags          flags to check
+                             (see str_to_datetime() flags in my_time.h)
+  @param[out] was_cut        set to 2 if value was invalid according to flags.
+                             (Feb 29 in non-leap etc.)  This remains unchanged
+                             if value is not invalid.
+
+  @details Here we assume that year and month is ok!
     If month is 0 we allow any date. (This only happens if we allow zero
     date parts in str_to_datetime())
     Disallow dates with zero year and non-zero month and/or day.
 
-  RETURN
-    0  ok
+  @return
+    0  OK
     1  error
 */
 
@@ -117,9 +117,9 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
                         TIME_NO_ZERO_IN_DATE	Don't allow partial dates
                         TIME_NO_ZERO_DATE	Don't allow 0000-00-00 date
                         TIME_INVALID_DATES	Allow 2000-02-31
-    was_cut             0	Value ok
+    was_cut             0	Value OK
 			1       If value was cut during conversion
-			2	Date part was within ranges but date was wrong
+			2	check_date(date,flags) considers date invalid
 
   DESCRIPTION
     At least the following formats are recogniced (based on number of digits)
@@ -1084,7 +1084,7 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to)
       flags      - flags to use in validating date, as in str_to_datetime()
       was_cut    0      Value ok
                  1      If value was cut during conversion
-                 2      Date part was within ranges but date was wrong
+                 2      check_date(date,flags) considers date invalid
 
   DESCRIPTION
     Convert a datetime value of formats YYMMDD, YYYYMMDD, YYMMDDHHMSS,
