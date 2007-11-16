@@ -1,0 +1,85 @@
+DROP TABLE IF EXISTS t1, t2;
+#
+# Bug#31663 FIELDS TERMINATED BY special character
+#
+CREATE TABLE t1 (i1 int, i2 int, c1 VARCHAR(256), c2 VARCHAR(256));
+INSERT INTO t1 VALUES (101, 202, '-r-', '=raker=');
+# FIELDS TERMINATED BY 'raker', warning:
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' FIELDS TERMINATED BY 'raker' FROM t1;
+Warnings:
+Warning	1475	First character of the FIELDS TERMINATED string is ambiguous; please use non-optional and non-empty FIELDS ENCLOSED BY
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
+101raker202raker-r-raker=raker=
+
+CREATE TABLE t2 SELECT * FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 FIELDS TERMINATED BY 'raker';
+Warnings:
+Warning	1262	Row 1 was truncated; it contained more data than there were input columns
+SELECT * FROM t2;
+i1	i2	c1	c2
+101	202	-r-	=raker=
+101	202	-r-	=
+DROP TABLE t2;
+# Only numeric fields, FIELDS TERMINATED BY 'r', no warnings:
+SELECT i1, i2 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' FIELDS TERMINATED BY 'r' FROM t1;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
+101r202
+
+CREATE TABLE t2 SELECT i1, i2 FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 FIELDS TERMINATED BY 'r';
+SELECT i1, i2 FROM t2;
+i1	i2
+101	202
+101	202
+DROP TABLE t2;
+# FIELDS TERMINATED BY '0', warning:
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' FIELDS TERMINATED BY '0' FROM t1;
+Warnings:
+Warning	1475	First character of the FIELDS TERMINATED string is ambiguous; please use non-optional and non-empty FIELDS ENCLOSED BY
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
+10102020-r-0=raker=
+
+CREATE TABLE t2 SELECT * FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 FIELDS TERMINATED BY '0';
+Warnings:
+Warning	1262	Row 1 was truncated; it contained more data than there were input columns
+SELECT * FROM t2;
+i1	i2	c1	c2
+101	202	-r-	=raker=
+1	1	2	2
+DROP TABLE t2;
+# FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0', warning:
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0' FROM t1;
+Warnings:
+Warning	1475	First character of the FIELDS TERMINATED string is ambiguous; please use non-optional and non-empty FIELDS ENCLOSED BY
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
+10102020"-r-"0"=raker="
+
+CREATE TABLE t2 SELECT * FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0';
+Warnings:
+Warning	1262	Row 1 was truncated; it contained more data than there were input columns
+SELECT * FROM t2;
+i1	i2	c1	c2
+101	202	-r-	=raker=
+1	1	2	2
+DROP TABLE t2;
+# Only string fields, FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0', no warnings:
+SELECT c1, c2 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0' FROM t1;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/bug31663.txt')
+"-r-"0"=raker="
+
+CREATE TABLE t2 SELECT c1, c2 FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0';
+SELECT c1, c2 FROM t2;
+c1	c2
+-r-	=raker=
+-r-	=raker=
+DROP TABLE t2;
+DROP TABLE t1;
+# End of 5.0 tests.

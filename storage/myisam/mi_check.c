@@ -1376,6 +1376,139 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 } /* chk_data_link */
 
 
+/**
+  @brief Drop all indexes
+
+  @param[in]    param           check parameters
+  @param[in]    info            MI_INFO handle
+  @param[in]    force           if to force drop all indexes
+
+  @return       status
+    @retval     0               OK
+    @retval     != 0            Error
+
+  @note
+    Once allocated, index blocks remain part of the key file forever.
+    When indexes are disabled, no block is freed. When enabling indexes,
+    no block is freed either. The new indexes are create from new
+    blocks. (Bug #4692)
+
+    Before recreating formerly disabled indexes, the unused blocks
+    must be freed. There are two options to do this:
+    - Follow the tree of disabled indexes, add all blocks to the
+      deleted blocks chain. Would require a lot of random I/O.
+    - Drop all blocks by clearing all index root pointers and all
+      delete chain pointers and resetting key_file_length to the end
+      of the index file header. This requires to recreate all indexes,
+      even those that may still be intact.
+    The second method is probably faster in most cases.
+
+    When disabling indexes, MySQL disables either all indexes or all
+    non-unique indexes. When MySQL [re-]enables disabled indexes
+    (T_CREATE_MISSING_KEYS), then we either have "lost" blocks in the
+    index file, or there are no non-unique indexes. In the latter case,
+    mi_repair*() would not be called as there would be no disabled
+    indexes.
+
+    If there would be more unique indexes than disabled (non-unique)
+    indexes, we could do the first method. But this is not implemented
+    yet. By now we drop and recreate all indexes when repair is called.
+
+    However, there is an exception. Sometimes MySQL disables non-unique
+    indexes when the table is empty (e.g. when copying a table in
+    mysql_alter_table()). When enabling the non-unique indexes, they
+    are still empty. So there is no index block that can be lost. This
+    optimization is implemented in this function.
+
+    Note that in normal repair (T_CREATE_MISSING_KEYS not set) we
+    recreate all enabled indexes unconditonally. We do not change the
+    key_map. Otherwise we invert the key map temporarily (outside of
+    this function) and recreate the then "seemingly" enabled indexes.
+    When we cannot use the optimization, and drop all indexes, we
+    pretend that all indexes were disabled. By the inversion, we will
+    then recrate all indexes.
+*/
+
+static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
+{
+  MYISAM_SHARE *share= info->s;
+  MI_STATE_INFO *state= &share->state;
+  uint i;
+  int error;
+  DBUG_ENTER("mi_drop_all_indexes");
+
+  /*
+    If any of the disabled indexes has a key block assigned, we must
+    drop and recreate all indexes to avoid losing index blocks.
+
+    If we want to recreate disabled indexes only _and_ all of these
+    indexes are empty, we don't need to recreate the existing indexes.
+  */
+  if (!force && (param->testflag & T_CREATE_MISSING_KEYS))
+  {
+    DBUG_PRINT("repair", ("creating missing indexes"));
+    for (i= 0; i < share->base.keys; i++)
+    {
+      DBUG_PRINT("repair", ("index #: %u  key_root: 0x%lx  active: %d",
+                            i, (long) state->key_root[i],
+                            mi_is_key_active(state->key_map, i)));
+      if ((state->key_root[i] != HA_OFFSET_ERROR) &&
+          !mi_is_key_active(state->key_map, i))
+      {
+        /*
+          This index has at least one key block and it is disabled.
+          We would lose its block(s) if would just recreate it.
+          So we need to drop and recreate all indexes.
+        */
+        DBUG_PRINT("repair", ("nonempty and disabled: recreate all"));
+        break;
+      }
+    }
+    if (i >= share->base.keys)
+    {
+      /*
+        All of the disabled indexes are empty. We can just recreate them.
+        Flush dirty blocks of this index file from key cache and remove
+        all blocks of this index file from key cache.
+      */
+      DBUG_PRINT("repair", ("all disabled are empty: create missing"));
+      error= flush_key_blocks(share->key_cache, share->kfile,
+                              FLUSH_FORCE_WRITE);
+      goto end;
+    }
+    /*
+      We do now drop all indexes and declare them disabled. With the
+      T_CREATE_MISSING_KEYS flag, mi_repair*() will recreate all
+      disabled indexes and enable them.
+    */
+    mi_clear_all_keys_active(state->key_map);
+    DBUG_PRINT("repair", ("declared all indexes disabled"));
+  }
+
+  /* Remove all key blocks of this index file from key cache. */
+  if ((error= flush_key_blocks(share->key_cache, share->kfile,
+                               FLUSH_IGNORE_CHANGED)))
+    goto end;
+
+  /* Clear index root block pointers. */
+  for (i= 0; i < share->base.keys; i++)
+    state->key_root[i]= HA_OFFSET_ERROR;
+
+  /* Clear the delete chains. */
+  for (i= 0; i < state->header.max_block_size_index; i++)
+    state->key_del[i]= HA_OFFSET_ERROR;
+
+  /* Reset index file length to end of index file header. */
+  info->state->key_file_length= share->base.keystart;
+
+  DBUG_PRINT("repair", ("dropped all indexes"));
+  /* error= 0; set by last (error= flush_key_bocks()). */
+
+ end:
+  DBUG_RETURN(error);
+}
+
+
 	/* Recover old table by reading each record and writing all keys */
 	/* Save new datafile-name in temp_filename */
 
@@ -1383,7 +1516,6 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 	      char * name, int rep_quick)
 {
   int error,got_error;
-  uint i;
   ha_rows start_records,new_header_length;
   my_off_t del;
   File new_file;
@@ -1487,25 +1619,10 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
-  /*
-    Clear all keys. Note that all key blocks allocated until now remain
-    "dead" parts of the key file. (Bug #4692)
-  */
-  for (i=0 ; i < info->s->base.keys ; i++)
-    share->state.key_root[i]= HA_OFFSET_ERROR;
-
-  /* Drop the delete chain. */
-  for (i=0 ; i < share->state.header.max_block_size_index ; i++)
-    share->state.key_del[i]=  HA_OFFSET_ERROR;
-
-  /*
-    If requested, activate (enable) all keys in key_map. In this case,
-    all indexes will be (re-)built.
-  */
+  /* This function always recreates all enabled indexes. */
   if (param->testflag & T_CREATE_MISSING_KEYS)
     mi_set_all_keys_active(share->state.key_map, share->base.keys);
-
-  info->state->key_file_length=share->base.keystart;
+  mi_drop_all_indexes(param, info, TRUE);
 
   lock_memory(param);			/* Everything is alloced */
 
@@ -2106,8 +2223,9 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   ulong   *rec_per_key_part;
   char llbuff[22];
   SORT_INFO sort_info;
-  ulonglong key_map=share->state.key_map;
+  ulonglong key_map;
   DBUG_ENTER("mi_repair_by_sort");
+  LINT_INIT(key_map);
 
   start_records=info->state->records;
   got_error=1;
@@ -2180,25 +2298,14 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   }
 
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  if (!(param->testflag & T_CREATE_MISSING_KEYS))
+
+  /* Optionally drop indexes and optionally modify the key_map. */
+  mi_drop_all_indexes(param, info, FALSE);
+  key_map= share->state.key_map;
+  if (param->testflag & T_CREATE_MISSING_KEYS)
   {
-    /*
-      Flush key cache for this file if we are calling this outside
-      myisamchk
-    */
-    flush_key_blocks(share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
-    /* Clear the pointers to the given rows */
-    for (i=0 ; i < share->base.keys ; i++)
-      share->state.key_root[i]= HA_OFFSET_ERROR;
-    for (i=0 ; i < share->state.header.max_block_size_index ; i++)
-      share->state.key_del[i]=  HA_OFFSET_ERROR;
-    info->state->key_file_length=share->base.keystart;
-  }
-  else
-  {
-    if (flush_key_blocks(share->key_cache,share->kfile, FLUSH_FORCE_WRITE))
-      goto err;
-    key_map= ~key_map;				/* Create the missing keys */
+    /* Invert the copied key_map to recreate all disabled indexes. */
+    key_map= ~key_map;
   }
 
   sort_info.info=info;
@@ -2242,6 +2349,10 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     sort_param.read_cache=param->read_cache;
     sort_param.keyinfo=share->keyinfo+sort_param.key;
     sort_param.seg=sort_param.keyinfo->seg;
+    /*
+      Skip this index if it is marked disabled in the copied
+      (and possibly inverted) key_map.
+    */
     if (! mi_is_key_active(key_map, sort_param.key))
     {
       /* Remember old statistics for key */
@@ -2249,6 +2360,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 	     (char*) (share->state.rec_per_key_part +
 		      (uint) (rec_per_key_part - param->rec_per_key_part)),
 	     sort_param.keyinfo->keysegs*sizeof(*rec_per_key_part));
+      DBUG_PRINT("repair", ("skipping seemingly disabled index #: %u",
+                            sort_param.key));
       continue;
     }
 
@@ -2329,8 +2442,11 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     if (param->testflag & T_STATISTICS)
       update_key_parts(sort_param.keyinfo, rec_per_key_part, sort_param.unique,
                        param->stats_method == MI_STATS_METHOD_IGNORE_NULLS?
-                       sort_param.notnull: NULL,(ulonglong) info->state->records);
+                       sort_param.notnull: NULL,
+                       (ulonglong) info->state->records);
+    /* Enable this index in the permanent (not the copied) key_map. */
     mi_set_key_active(share->state.key_map, sort_param.key);
+    DBUG_PRINT("repair", ("set enabled index #: %u", sort_param.key));
 
     if (sort_param.fix_datafile)
     {
@@ -2531,9 +2647,10 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   IO_CACHE new_data_cache; /* For non-quick repair. */
   IO_CACHE_SHARE io_share;
   SORT_INFO sort_info;
-  ulonglong key_map=share->state.key_map;
+  ulonglong key_map;
   pthread_attr_t thr_attr;
   DBUG_ENTER("mi_repair_parallel");
+  LINT_INIT(key_map);
 
   start_records=info->state->records;
   got_error=1;
@@ -2635,25 +2752,14 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   }
 
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  if (!(param->testflag & T_CREATE_MISSING_KEYS))
+
+  /* Optionally drop indexes and optionally modify the key_map. */
+  mi_drop_all_indexes(param, info, FALSE);
+  key_map= share->state.key_map;
+  if (param->testflag & T_CREATE_MISSING_KEYS)
   {
-    /*
-      Flush key cache for this file if we are calling this outside
-      myisamchk
-    */
-    flush_key_blocks(share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
-    /* Clear the pointers to the given rows */
-    for (i=0 ; i < share->base.keys ; i++)
-      share->state.key_root[i]= HA_OFFSET_ERROR;
-    for (i=0 ; i < share->state.header.max_block_size_index ; i++)
-      share->state.key_del[i]=  HA_OFFSET_ERROR;
-    info->state->key_file_length=share->base.keystart;
-  }
-  else
-  {
-    if (flush_key_blocks(share->key_cache,share->kfile, FLUSH_FORCE_WRITE))
-      goto err;
-    key_map= ~key_map;				/* Create the missing keys */
+    /* Invert the copied key_map to recreate all disabled indexes. */
+    key_map= ~key_map;
   }
 
   sort_info.info=info;
@@ -2709,6 +2815,10 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     sort_param[i].key=key;
     sort_param[i].keyinfo=share->keyinfo+key;
     sort_param[i].seg=sort_param[i].keyinfo->seg;
+    /*
+      Skip this index if it is marked disabled in the copied
+      (and possibly inverted) key_map.
+    */
     if (! mi_is_key_active(key_map, key))
     {
       /* Remember old statistics for key */
