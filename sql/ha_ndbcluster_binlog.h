@@ -159,17 +159,17 @@ void ndbcluster_binlog_init_handlerton();
 /*
   Initialize the binlog part of the NDB_SHARE
 */
-int ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *table);
+int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *table);
 
 bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
 bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
 
-int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
+int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                                    uint key_len,
                                    const char *db,
                                    const char *table_name,
                                    my_bool share_may_exist);
-int ndbcluster_create_event(Ndb *ndb, const NDBTAB *table,
+int ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *table,
                             const char *event_name, NDB_SHARE *share,
                             int push_warning= 0);
 int ndbcluster_create_event_ops(THD *thd,
@@ -235,10 +235,10 @@ NDB_SHARE *ndbcluster_get_share(const char *key,
 NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
 void ndbcluster_real_free_share(NDB_SHARE **share);
-int handle_trailing_share(NDB_SHARE *share, int have_lock_open= 1);
+int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open= 1);
 int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
-int ndbcluster_rename_share(NDB_SHARE *share, int have_lock_open= 1);
-int ndbcluster_undo_rename_share(NDB_SHARE *share);
+int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, int have_lock_open= 1);
+int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share);
 inline NDB_SHARE *get_share(const char *key,
                             TABLE *table,
                             bool create_if_not_exists= TRUE,
