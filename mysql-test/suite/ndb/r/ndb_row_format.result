@@ -9,7 +9,7 @@ Warnings:
 Warning	1477	Row format FIXED incompatible with dynamic attribute b
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1477	Row format FIXED incompatible with dynamic attribute b
+Warning	1478	Row format FIXED incompatible with dynamic attribute b
 ForceVarPart: 0
 INSERT INTO t1 values(0,''),(2,"**"),(4,"****"),(6,"******"),(8,"********"),(10,"**********"),(12,"************");
 Warnings:
