@@ -1013,6 +1013,12 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     goto err;                   // mysql_parse took care of the error send
 
   thd->proc_info = "Opening master dump table";
+  /*
+    Note: If this function starts to fail for MERGE tables,
+    change the next two lines to these:
+    tables.table= NULL; // was set by mysql_rm_table()
+    if (!open_n_lock_single_table(thd, &tables, TL_WRITE))
+  */
   tables.lock_type = TL_WRITE;
   if (!open_ltable(thd, &tables, TL_WRITE, 0))
   {

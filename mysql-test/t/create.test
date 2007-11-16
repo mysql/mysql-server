@@ -483,7 +483,7 @@ drop table t1,t2;
 create table t1 (a int);
 --error 1093
 create table t1 select * from t1;
---error 1093
+--error ER_WRONG_OBJECT
 create table t2 union = (t1) select * from t1;
 flush tables with read lock;
 unlock tables;

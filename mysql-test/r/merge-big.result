@@ -1,0 +1,77 @@
+drop table if exists t1,t2,t3,t4,t5,t6;
+#
+# Bug#26379 - Combination of FLUSH TABLE and REPAIR TABLE
+#             corrupts a MERGE table
+# Problem #3
+#
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+LOCK TABLE t1 WRITE;
+# connection con1
+SET SESSION debug="+d,sleep_open_and_lock_after_open";
+INSERT INTO t1 VALUES (1);
+# connection default
+# Let INSERT go into thr_multi_lock().
+# Kick INSERT out of thr_multi_lock().
+FLUSH TABLES;
+# Let INSERT go through open_tables() where it sleeps.
+# Unlock and close table and wait for con1 to close too.
+FLUSH TABLES;
+# This should give no result.
+SELECT * FROM t1;
+c1
+UNLOCK TABLES;
+# connection con1
+SET SESSION debug="-d,sleep_open_and_lock_after_open";
+# connection default
+DROP TABLE t1;
+#
+# Extra tests for Bug#26379 - Combination of FLUSH TABLE and
+#                             REPAIR TABLE corrupts a MERGE table
+#
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+CREATE TABLE t3 (c1 INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+#
+# CREATE ... SELECT
+# try to access parent from another thread.
+#
+# connection con1
+SET SESSION debug="+d,sleep_create_select_before_lock";
+CREATE TABLE t4 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2)
+INSERT_METHOD=FIRST SELECT * FROM t3;
+# connection default
+# Now try to access the parent.
+# If 3 is in table, SELECT had to wait.
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+# connection con1
+SET SESSION debug="-d,sleep_create_select_before_lock";
+# connection default
+# Cleanup for next test.
+DROP TABLE t4;
+DELETE FROM t1 WHERE c1 != 1;
+#
+# CREATE ... SELECT
+# try to access child from another thread.
+#
+# connection con1
+SET SESSION debug="+d,sleep_create_select_before_lock";
+CREATE TABLE t4 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2)
+INSERT_METHOD=FIRST SELECT * FROM t3;
+# connection default
+# Now try to access a child.
+# If 3 is in table, SELECT had to wait.
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+3
+# connection con1
+SET SESSION debug="-d,sleep_create_select_before_lock";
+# connection default
+DROP TABLE t1, t2, t3, t4;
