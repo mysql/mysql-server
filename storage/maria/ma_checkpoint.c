@@ -673,8 +673,7 @@ pthread_handler_t ma_checkpoint_background(void *arg)
                                                dfile, FLUSH_KEEP_LAZY,
                                                filter_flush_data_file_evenly,
                                                &filter_param);
-          /* note that it may just be a pinned page */
-          if (unlikely(res))
+          if (unlikely(res & PCFLUSH_ERROR))
             fprintf(stderr, "Maria engine: warning - background page flush"
                     " failed\n");
           if (filter_param.max_pages == 0) /* bunch all flushed, sleep */
@@ -696,7 +695,7 @@ pthread_handler_t ma_checkpoint_background(void *arg)
                                                dfile, FLUSH_KEEP_LAZY,
                                                filter_flush_data_file_evenly,
                                                &filter_param);
-          if (unlikely(res))
+          if (unlikely(res & PCFLUSH_ERROR))
             fprintf(stderr, "Maria engine: warning - background page flush"
                     " failed\n");
           if (filter_param.max_pages == 0) /* bunch all flushed, sleep */
@@ -1149,20 +1148,16 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       flushed, as the REDOs about it will be skipped, it will wrongly not be
       recovered. If bitmap pages had a rec_lsn it would be different.
     */
-    /**
-       @todo we ignore the error because it may be just due a pinned page;
-       we should rather fix the function below to distinguish between
-       pinned page and write error. Then we can turn the warning into an
-       error.
-    */
     if (((filter_param.is_data_file= TRUE),
-         flush_pagecache_blocks_with_filter(maria_pagecache,
-                                            &dfile, FLUSH_KEEP,
-                                            filter, &filter_param)) ||
+          (flush_pagecache_blocks_with_filter(maria_pagecache,
+                                              &dfile, FLUSH_KEEP,
+                                              filter, &filter_param) &
+            PCFLUSH_ERROR)) ||
         ((filter_param.is_data_file= FALSE),
-         flush_pagecache_blocks_with_filter(maria_pagecache,
-                                            &kfile, FLUSH_KEEP,
-                                            filter, &filter_param)))
+          (flush_pagecache_blocks_with_filter(maria_pagecache,
+                                              &kfile, FLUSH_KEEP,
+                                              filter, &filter_param) &
+           PCFLUSH_ERROR)))
       fprintf(stderr, "Maria engine: warning - checkpoint page flush"
               " failed\n"); /** @todo improve */
       /*

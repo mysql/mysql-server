@@ -3512,21 +3512,37 @@ static int cmp_sec_link(PAGECACHE_BLOCK_LINK **a, PAGECACHE_BLOCK_LINK **b)
 }
 
 
-/*
-  Flush a portion of changed blocks to disk,
-  free used blocks if requested
+/**
+  @brief Flush a portion of changed blocks to disk, free used blocks
+  if requested
+
+  @param pagecache       This page cache reference.
+  @param file            File which should be flushed
+  @param cache           Beginning of array of the block.
+  @param end             Reference to the block after last in the array.
+  @param flush_type      Type of the flush.
+  @param first_errno     Where to store first errno of the flush.
+
+
+  @return Operation status
+  @retval PCFLUSH_OK OK
+  @retval PCFLUSH_ERROR There was errors during the flush process.
+  @retval PCFLUSH_PINNED Pinned blocks was met and skipped.
+  @retval PCFLUSH_PINNED_AND_ERROR PCFLUSH_ERROR and PCFLUSH_PINNED.
 */
 
 static int flush_cached_blocks(PAGECACHE *pagecache,
                                PAGECACHE_FILE *file,
                                PAGECACHE_BLOCK_LINK **cache,
                                PAGECACHE_BLOCK_LINK **end,
-                               enum flush_type type)
+                               enum flush_type type,
+                               int *first_errno)
 {
+  int rc= PCFLUSH_OK;
   int error;
-  int last_errno= 0;
   uint count= (uint) (end-cache);
   DBUG_ENTER("flush_cached_blocks");
+  *first_errno= 0;
 
   /* Don't lock the cache during the flush */
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
@@ -3551,7 +3567,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
       PCBLOCK_INFO(block);
       /* undo the mark put by flush_pagecache_blocks_int(): */
       block->status&= ~PCBLOCK_IN_FLUSH;
-      last_errno= -1;
+      rc|= PCFLUSH_PINNED;
       unreg_request(pagecache, block, 1);
       continue;
     }
@@ -3592,8 +3608,8 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     if (error)
     {
       block->status|= PCBLOCK_ERROR;
-      if (!last_errno)
-        last_errno= errno ? errno : -1;
+      if (!*first_errno)
+        *first_errno= errno ? errno : -1;
     }
 #ifdef THREAD
     /*
@@ -3618,7 +3634,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
       unreg_request(pagecache, block, 1);
     }
   }
-  DBUG_RETURN(last_errno);
+  DBUG_RETURN(rc);
 }
 
 
@@ -3646,8 +3662,10 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
      this situation.
 
    @return Operation status
-     @retval 0      OK
-     @retval 1      Error
+   @retval PCFLUSH_OK OK
+   @retval PCFLUSH_ERROR There was errors during the flush process.
+   @retval PCFLUSH_PINNED Pinned blocks was met and skipped.
+   @retval PCFLUSH_PINNED_AND_ERROR PCFLUSH_ERROR and PCFLUSH_PINNED.
 */
 
 static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
@@ -3658,6 +3676,7 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
 {
   PAGECACHE_BLOCK_LINK *cache_buff[FLUSH_CACHE],**cache;
   int last_errno= 0;
+  int rc= PCFLUSH_OK;
   DBUG_ENTER("flush_pagecache_blocks_int");
   DBUG_PRINT("enter",("file: %d  blocks_used: %lu  blocks_changed: %lu",
               file->file, pagecache->blocks_used, pagecache->blocks_changed));
@@ -3818,8 +3837,9 @@ restart:
 		This happens only if there is not enough
 		memory for the big block
               */
-              if ((error= flush_cached_blocks(pagecache, file, cache,
-                                              end,type)))
+              if ((rc|= flush_cached_blocks(pagecache, file, cache,
+                                            end, type, &error)) &
+                  PCFLUSH_ERROR)
                 last_errno=error;
               DBUG_PRINT("info", ("restarting..."));
               /*
@@ -3853,7 +3873,8 @@ restart:
     }
     if (pos != cache)
     {
-      if ((error= flush_cached_blocks(pagecache, file, cache, pos, type)))
+      if ((rc|= flush_cached_blocks(pagecache, file, cache, pos, type,
+                                    &error)) & PCFLUSH_ERROR)
         last_errno= error;
     }
     /* Wait until list of blocks in switch is empty */
@@ -3931,8 +3952,8 @@ restart:
   if (cache != cache_buff)
     my_free((uchar*) cache, MYF(0));
   if (last_errno)
-    errno=last_errno;                /* Return first error */
-  DBUG_RETURN(last_errno != 0);
+    errno= last_errno;                /* Return first error */
+  DBUG_RETURN(rc);
 }
 
 
@@ -3949,8 +3970,10 @@ restart:
                            the block will be passed too.
 
    @return Operation status
-     @retval 0      OK
-     @retval 1      Error
+   @retval PCFLUSH_OK OK
+   @retval PCFLUSH_ERROR There was errors during the flush process.
+   @retval PCFLUSH_PINNED Pinned blocks was met and skipped.
+   @retval PCFLUSH_PINNED_AND_ERROR PCFLUSH_ERROR and PCFLUSH_PINNED.
 */
 
 int flush_pagecache_blocks_with_filter(PAGECACHE *pagecache,
