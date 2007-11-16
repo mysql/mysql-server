@@ -690,7 +690,7 @@ public:
   double val()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
-  Item *new_item() { return new Item_uint(name,max_length); }
+  Item *new_item() { return new Item_uint(name, value, max_length); }
   int save_in_field(Field *field, bool no_conversions);
   void print(String *str);
   Item_num *neg ();
