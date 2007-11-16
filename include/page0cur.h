@@ -22,6 +22,7 @@ Created 10/4/1994 Heikki Tuuri
 
 /* Page cursor search modes; the values must be in this order! */
 
+#define	PAGE_CUR_UNSUPP	0
 #define	PAGE_CUR_G	1
 #define	PAGE_CUR_GE	2
 #define	PAGE_CUR_L	3
