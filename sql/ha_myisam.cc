@@ -1412,7 +1412,7 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
   DBUG_ENTER("ha_myisam::start_bulk_insert");
   THD *thd= current_thd;
   ulong size= min(thd->variables.read_buff_size,
-                  table->s->avg_row_length*rows);
+                  (ulong) (table->s->avg_row_length*rows));
   DBUG_PRINT("info",("start_bulk_insert: rows %lu size %lu",
                      (ulong) rows, size));
 

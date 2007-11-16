@@ -715,3 +715,14 @@ a	SUM(a)
 4	4
 NULL	14
 DROP TABLE t1;
+#
+# Bug#31095: Unexpected NULL constant caused server crash.
+#
+create table t1(a int);
+insert into t1 values (1),(2),(3);
+select count(a) from t1 group by null with rollup;
+count(a)
+3
+3
+drop table t1;
+##############################################################

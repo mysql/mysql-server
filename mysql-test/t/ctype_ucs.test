@@ -548,6 +548,12 @@ select quote(name) from bug20536;
 drop table bug20536;
 
 #
+# BUG#31159 - fulltext search on ucs2 column crashes server
+#
+CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci);
+INSERT INTO t1 VALUES('abcd');
+SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
+DROP TABLE t1;
 # Bug #31615: crash after set names ucs2 collate xxx
 #
 --error 1231
@@ -662,5 +668,10 @@ select * from t1 where a=if(b<10,_ucs2 0x00C0,_ucs2 0x0062);
 --error 1267
 select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
 drop table t1;
+
+#
+# Bug#30981 CHAR(0x41 USING ucs2) doesn't add leading zero
+#
+select hex(char(0x41 using ucs2));
 
 --echo End of 5.0 tests
