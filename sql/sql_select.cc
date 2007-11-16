@@ -571,11 +571,12 @@ JOIN::prepare(Item ***rref_pointer_array,
   
 
   /*
-    Check if one one uses a not constant column with group functions
-    and no GROUP BY.
+    Check if there are references to un-aggregated columns when computing 
+    aggregate functions with implicit grouping (there is no GROUP BY).
     TODO:  Add check of calculation of GROUP functions and fields:
 	   SELECT COUNT(*)+table.col1 from table1;
   */
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
   {
     if (!group_list)
     {
@@ -588,6 +589,13 @@ JOIN::prepare(Item ***rref_pointer_array,
 	  flag|=1;
 	else if (!(flag & 2) && !item->const_during_execution())
 	  flag|=2;
+      }
+      if (having)
+      {
+        if (having->with_sum_func)
+          flag |= 1;
+        else if (!having->const_during_execution())
+          flag |= 2;
       }
       if (flag == 3)
       {
@@ -1073,10 +1081,19 @@ JOIN::optimize()
         We have found that grouping can be removed since groups correspond to
         only one row anyway, but we still have to guarantee correct result
         order. The line below effectively rewrites the query from GROUP BY
-        <fields> to ORDER BY <fields>. One exception is if skip_sort_order is
-        set (see above), then we can simply skip GROUP BY.
-      */
-      order= skip_sort_order ? 0 : group_list;
+        <fields> to ORDER BY <fields>. There are two exceptions:
+        - if skip_sort_order is set (see above), then we can simply skip
+          GROUP BY;
+        - we can only rewrite ORDER BY if the ORDER BY fields are 'compatible'
+          with the GROUP BY ones, i.e. either one is a prefix of another.
+          We only check if the ORDER BY is a prefix of GROUP BY. In this case
+          test_if_subpart() copies the ASC/DESC attributes from the original
+          ORDER BY fields.
+          If GROUP BY is a prefix of ORDER BY, then it is safe to leave
+          'order' as is.
+       */
+      if (!order || test_if_subpart(group_list, order))
+          order= skip_sort_order ? 0 : group_list;
       /*
         If we have an IGNORE INDEX FOR GROUP BY(fields) clause, this must be 
         rewritten to IGNORE INDEX FOR ORDER BY(fields).
@@ -6282,10 +6299,9 @@ make_join_readinfo(JOIN *join, ulonglong options)
       ordered. If there is a temp table the ordering is done as a last
       operation and doesn't prevent join cache usage.
     */
-    if (!ordered_set && !join->need_tmp &&
-        ((table == join->sort_by_table &&
-         (!join->order || join->skip_sort_order)) ||
-        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables)))
+    if (!ordered_set && !join->need_tmp && 
+        (table == join->sort_by_table ||
+         (join->sort_by_table == (TABLE *) 1 && i != join->const_tables)))
       ordered_set= 1;
 
     tab->sorted= sorted;
@@ -10648,6 +10664,15 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       error= (*end_select)(join, 0, 0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)
 	error= (*end_select)(join, 0, 1);
+
+      /*
+        If we don't go through evaluate_join_record(), do the counting
+        here.  join->send_records is increased on success in end_send(),
+        so we don't touch it here.
+      */
+      join->examined_rows++;
+      join->thd->row_count++;
+      DBUG_ASSERT(join->examined_rows <= 1);
     }
     else if (join->send_row_on_empty_set())
     {
@@ -15818,6 +15843,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       /* Add "rows" field to item_list. */
       if (table_list->schema_table)
       {
+        /* in_rows */
+        if (join->thd->lex->describe & DESCRIBE_EXTENDED)
+          item_list.push_back(item_null);
+        /* rows */
         item_list.push_back(item_null);
       }
       else
@@ -16196,8 +16225,21 @@ void TABLE_LIST::print(THD *thd, String *str)
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias))
     {
+      char t_alias_buff[MAX_ALIAS_NAME];
+      const char *t_alias= alias;
+
       str->append(' ');
-      append_identifier(thd, str, alias, strlen(alias));
+      if (lower_case_table_names== 1)
+      {
+        if (alias && alias[0])
+        {
+          strmov(t_alias_buff, alias);
+          my_casedn_str(files_charset_info, t_alias_buff);
+          t_alias= t_alias_buff;
+        }
+      }
+
+      append_identifier(thd, str, t_alias, strlen(t_alias));
     }
 
     if (index_hints)

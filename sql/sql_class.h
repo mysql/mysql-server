@@ -1366,9 +1366,20 @@ public:
 
   ulonglong  limit_found_rows;
   ulonglong  options;           /* Bitmap of states */
-  longlong   row_count_func;	/* For the ROW_COUNT() function */
-  ha_rows    cuted_fields,
-             sent_row_count, examined_row_count;
+  longlong   row_count_func;    /* For the ROW_COUNT() function */
+  ha_rows    cuted_fields;
+
+  /*
+    number of rows we actually sent to the client, including "synthetic"
+    rows in ROLLUP etc.
+  */
+  ha_rows    sent_row_count;
+
+  /*
+    number of rows we read, sent or not, including in create_sort_index()
+  */
+  ha_rows    examined_row_count;
+
   /*
     The set of those tables whose fields are referenced in all subqueries
     of the query.
@@ -1404,7 +1415,11 @@ public:
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
-  ulong      row_count;  // Row counter, mainly for errors and warnings
+  /*
+    Row counter, mainly for errors and warnings. Not increased in
+    create_sort_index(); may differ from examined_row_count.
+  */
+  ulong      row_count;
   pthread_t  real_id;                           /* For debugging */
   my_thread_id  thread_id;
   uint	     tmp_table, global_read_lock;
@@ -2098,12 +2113,19 @@ public:
 class select_export :public select_to_file {
   uint field_term_length;
   int field_sep_char,escape_char,line_sep_char;
+  int field_term_char; // first char of FIELDS TERMINATED BY or MAX_INT
   /*
     The is_ambiguous_field_sep field is true if a value of the field_sep_char
     field is one of the 'n', 't', 'r' etc characters
     (see the READ_INFO::unescape method and the ESCAPE_CHARS constant value).
   */
   bool is_ambiguous_field_sep;
+  /*
+     The is_ambiguous_field_term is true if field_sep_char contains the first
+     char of the FIELDS TERMINATED BY (ENCLOSED BY is empty), and items can
+     contain this character.
+  */
+  bool is_ambiguous_field_term;
   /*
     The is_unsafe_field_sep field is true if a value of the field_sep_char
     field is one of the '0'..'9', '+', '-', '.' and 'e' characters

@@ -3631,6 +3631,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     pthread_exit(0);
     DBUG_RETURN(NULL);
   }
+  lex_start(thd);
 
   thd->init_for_queries();
   thd->command= COM_DAEMON;
