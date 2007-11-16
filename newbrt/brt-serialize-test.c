@@ -42,7 +42,7 @@ void test_serialize(void) {
 
     serialize_brtnode_to(fd, sn.nodesize*20, sn.nodesize, &sn);  assert(r==0);
 
-    r = deserialize_brtnode_from(fd, nodesize*20, &dn, nodesize);
+    r = deserialize_brtnode_from(fd, nodesize*20, &dn, nodesize, 0);
     assert(r==0);
 
     assert(dn->thisnodename==nodesize*20);

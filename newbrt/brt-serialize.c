@@ -178,7 +178,8 @@ void serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
     toku_free(buf);
 }
 
-int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesize) {
+int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesize,
+                              int (*compare_fun)(DB *, const DBT *, const DBT *)) {
     TAGMALLOC(BRTNODE, result);
     struct rbuf rc;
     int i;
@@ -334,7 +335,7 @@ int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesiz
     } else {
 	int n_in_buf = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	r=pma_create(&result->u.l.buffer, default_compare_fun, nodesize);
+	r=pma_create(&result->u.l.buffer, compare_fun, nodesize);
 	if (r!=0) {
 	    if (0) { died_21: pma_free(&result->u.l.buffer); }
 	    goto died1;
