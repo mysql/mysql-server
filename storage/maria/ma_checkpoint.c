@@ -281,14 +281,14 @@ static int really_execute_checkpoint(void)
   */
 #if 0 /* purging/keeping will be an option */
   if (translog_purge(log_low_water_mark))
-    fprintf(stderr, "Maria engine: log purge failed\n"); /* not deadly */
+    ma_message_no_user(0, "log purging failed");
 #endif
 
   goto end;
 
 err:
   error= 1;
-  fprintf(stderr, "Maria engine: checkpoint failed\n"); /* TODO: improve ;) */
+  ma_message_no_user(0, "checkpoint failed");
   /* we were possibly not able to determine what pages to flush */
   pages_to_flush_before_next_checkpoint= 0;
 
@@ -674,8 +674,7 @@ pthread_handler_t ma_checkpoint_background(void *arg)
                                                filter_flush_file_evenly,
                                                &filter_param);
           if (unlikely(res & PCFLUSH_ERROR))
-            fprintf(stderr, "Maria engine: warning - background data page"
-                    " flush failed\n");
+            ma_message_no_user(0, "background data page flush failed");
           if (filter_param.max_pages == 0) /* bunch all flushed, sleep */
             break; /* and we will continue with the same file */
           dfile++; /* otherwise all this file is flushed, move to next file */
@@ -696,8 +695,7 @@ pthread_handler_t ma_checkpoint_background(void *arg)
                                                filter_flush_file_evenly,
                                                &filter_param);
           if (unlikely(res & PCFLUSH_ERROR))
-            fprintf(stderr, "Maria engine: warning - background index page"
-                    " flush failed\n");
+            ma_message_no_user(0, "background index page flush failed");
           if (filter_param.max_pages == 0) /* bunch all flushed, sleep */
             break; /* and we will continue with the same file */
           kfile++; /* otherwise all this file is flushed, move to next file */
@@ -1148,18 +1146,18 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       flushed, as the REDOs about it will be skipped, it will wrongly not be
       recovered. If bitmap pages had a rec_lsn it would be different.
     */
-    if (((filter_param.is_data_file= TRUE),
-          (flush_pagecache_blocks_with_filter(maria_pagecache,
-                                              &dfile, FLUSH_KEEP,
-                                              filter, &filter_param) &
-            PCFLUSH_ERROR)) ||
-        ((filter_param.is_data_file= FALSE),
-          (flush_pagecache_blocks_with_filter(maria_pagecache,
-                                              &kfile, FLUSH_KEEP,
-                                              filter, &filter_param) &
-           PCFLUSH_ERROR)))
-      fprintf(stderr, "Maria engine: warning - checkpoint page flush"
-              " failed\n"); /** @todo improve */
+    if ((filter_param.is_data_file= TRUE),
+        (flush_pagecache_blocks_with_filter(maria_pagecache,
+                                            &dfile, FLUSH_KEEP,
+                                            filter, &filter_param) &
+         PCFLUSH_ERROR))
+      ma_message_no_user(0, "checkpoint data page flush failed");
+    if ((filter_param.is_data_file= FALSE),
+        (flush_pagecache_blocks_with_filter(maria_pagecache,
+                                            &kfile, FLUSH_KEEP,
+                                            filter, &filter_param) &
+         PCFLUSH_ERROR))
+      ma_message_no_user(0, "checkpoint index page flush failed");
       /*
         fsyncs the fd, that's the loooong operation (e.g. max 150 fsync
         per second, so if you have touched 1000 files it's 7 seconds).

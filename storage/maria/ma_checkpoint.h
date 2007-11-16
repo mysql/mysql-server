@@ -79,3 +79,14 @@ static inline LSN lsn_read_non_atomic_32(const volatile LSN *x)
 }
 #define lsn_read_non_atomic(x) lsn_read_non_atomic_32(&x)
 #endif
+
+/**
+   prints a message from a task not connected to any user (checkpoint
+   and recovery for example).
+
+   @param  level           0 if error, ME_JUST_WARNING if warning,
+                           ME_JUST_INFO if info
+   @param  sentence        text to write
+*/
+#define ma_message_no_user(level, sentence)                               \
+  my_printf_error(HA_ERR_GENERIC, "Maria engine: %s", MYF(level), sentence)

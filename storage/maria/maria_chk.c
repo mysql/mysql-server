@@ -39,7 +39,6 @@ static char **default_argv;
 static const char *load_default_groups[]= { "maria_chk", 0 };
 static const char *set_collation_name, *opt_tmpdir;
 static CHARSET_INFO *set_collation;
-static const char *my_progname_short;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
 
@@ -93,7 +92,6 @@ int main(int argc, char **argv)
 {
   int error;
   MY_INIT(argv[0]);
-  my_progname_short= my_progname+dirname_length(my_progname);
 
   maria_chk_init(&check_param);
   check_param.opt_lock_memory= 1;		/* Lock memory if possible */

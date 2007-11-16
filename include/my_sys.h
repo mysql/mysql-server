@@ -90,6 +90,8 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define ME_COLOUR1	((1 << ME_HIGHBYTE))	/* Possibly error-colours */
 #define ME_COLOUR2	((2 << ME_HIGHBYTE))
 #define ME_COLOUR3	((3 << ME_HIGHBYTE))
+#define ME_JUST_INFO    1024    /**< not error but just info */
+#define ME_JUST_WARNING 2048    /**< not error but just warning */
 
 	/* Bits in last argument to fn_format */
 #define MY_REPLACE_DIR		1	/* replace dir in name with 'dir' */
@@ -208,6 +210,7 @@ extern int errno;			/* declare errno */
 extern char NEAR errbuff[NRERRBUFFS][ERRMSGSIZE];
 extern char *home_dir;			/* Home directory for user */
 extern const char *my_progname;		/* program-name (printed in errors) */
+extern const char *my_progname_short;	/* like above but without directory */
 extern char NEAR curr_dir[];		/* Current directory for user */
 extern int (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern int (*fatal_error_handler_hook)(uint my_err, const char *str,

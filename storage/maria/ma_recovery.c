@@ -58,7 +58,6 @@ static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
 /** @brief to avoid writing a checkpoint if recovery did nothing. */
 static my_bool checkpoint_useful;
 static ulonglong now; /**< for tracking execution time of phases */
-static char preamble[]= "Maria engine: starting recovery; ";
 uint warnings; /**< count of warnings */
 
 #define prototype_redo_exec_hook(R)                                          \
@@ -150,6 +149,11 @@ void tprint(FILE *trace_file __attribute__ ((unused)),
 }
 
 #define ALERT_USER() DBUG_ASSERT(0)
+
+static void print_preamble()
+{
+  ma_message_no_user(ME_JUST_INFO, "starting recovery");
+}
 
 
 /**
@@ -292,7 +296,10 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   if (recovery_message_printed == REC_MSG_REDO)
   {
     float phase_took= (now - old_now)/10000000.0;
-    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    /*
+      Detailed progress info goes to stderr, because ma_message_no_user()
+      cannot put several messages on one line.
+    */
     fprintf(stderr, " (%.1f seconds); ", phase_took);
   }
 
@@ -334,7 +341,6 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   if (recovery_message_printed == REC_MSG_UNDO)
   {
     float phase_took= (now - old_now)/10000000.0;
-    /** @todo RECOVERY BUG all prints to stderr should go to error log */
     fprintf(stderr, " (%.1f seconds); ", phase_took);
   }
 
@@ -350,7 +356,6 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   if (recovery_message_printed == REC_MSG_FLUSH)
   {
     float phase_took= (now - old_now)/10000000.0;
-    /** @todo RECOVERY BUG all prints to stderr should go to error log */
     fprintf(stderr, " (%.1f seconds); ", phase_took);
   }
 
@@ -381,8 +386,11 @@ end:
   *warnings_count= warnings;
   if (recovery_message_printed != REC_MSG_NONE)
   {
-    /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, "%s.\n", error ? " failed" : "done");
+    fprintf(stderr, "\n");
+    if (error)
+      ma_message_no_user(0, "recovery failed");
+    else
+      ma_message_no_user(ME_JUST_INFO, "recovery done");
   }
   /* we don't cleanly close tables if we hit some error (may corrupt them) */
   DBUG_RETURN(error);
@@ -1846,10 +1854,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   translog_destroy_scanner(&scanner);
   translog_free_record_header(&rec);
   if (recovery_message_printed == REC_MSG_REDO)
-  {
-    /** @todo RECOVERY BUG all prints to stderr should go to error log */
     fprintf(stderr, " 100%%");
-  }
   return 0;
 
 err:
@@ -1953,8 +1958,7 @@ static int run_undo_phase(uint unfinished)
     if (tracef != stdout)
     {
       if (recovery_message_printed == REC_MSG_NONE)
-        fprintf(stderr, preamble);
-      /** @todo RECOVERY BUG all prints to stderr should go to error log */
+        print_preamble();
       fprintf(stderr, "transactions to roll back:");
       recovery_message_printed= REC_MSG_UNDO;
     }
@@ -2089,7 +2093,7 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   {
     /**
        @todo RECOVERY BUG always assuming this is REDO for data file, but it
-       could soon be index file
+       could soon be index file.
     */
     uint64 file_and_page_id=
       (((uint64)all_tables[sid].org_dfile) << 32) | page;
@@ -2324,10 +2328,9 @@ static int close_all_tables(void)
   if (tracef != stdout)
   {
     if (recovery_message_printed == REC_MSG_NONE)
-      fprintf(stderr, preamble);
+      print_preamble();
     for (count= 0, list_element= maria_open_list ;
          list_element ; count++, (list_element= list_element->next))
-    /** @todo RECOVERY BUG all prints to stderr should go to error log */
       fprintf(stderr, "tables to flush:");
     recovery_message_printed= REC_MSG_FLUSH;
   }
@@ -2434,8 +2437,7 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
     return;
   if (recovery_message_printed == REC_MSG_NONE)
   {
-    /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, preamble);
+    print_preamble();
     fprintf(stderr, "recovered pages: 0%%");
     recovery_message_printed= REC_MSG_REDO;
   }

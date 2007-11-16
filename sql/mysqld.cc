@@ -2558,6 +2558,8 @@ extern "C" int my_message_sql(uint error, const char *str, myf MyFlags);
 int my_message_sql(uint error, const char *str, myf MyFlags)
 {
   THD *thd;
+  MYSQL_ERROR::enum_warning_level level;
+  sql_print_message_func func;
   DBUG_ENTER("my_message_sql");
   DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
   /*
@@ -2565,21 +2567,36 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     will be fixed
     DBUG_ASSERT(error != 0);
   */
+  if (MyFlags & ME_JUST_INFO)
+  {
+    level= MYSQL_ERROR::WARN_LEVEL_NOTE;
+    func= sql_print_information;
+  }
+  else if (MyFlags & ME_JUST_WARNING)
+  {
+    level= MYSQL_ERROR::WARN_LEVEL_WARN;
+    func= sql_print_warning;
+  }
+  else
+  {
+    level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+    func= sql_print_error;
+  }
+
   if ((thd= current_thd))
   {
     /*
       TODO: There are two exceptions mechanism (THD and sp_rcontext),
       this could be improved by having a common stack of handlers.
     */
-    if (thd->handle_error(error,
-                          MYSQL_ERROR::WARN_LEVEL_ERROR))
+    if (thd->handle_error(error, level) ||
+        (thd->spcont && thd->spcont->handle_error(error, level, thd)))
       DBUG_RETURN(0);
 
-    if (thd->spcont &&
-        thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
-    {
-      DBUG_RETURN(0);
-    }
+    if (level == MYSQL_ERROR::WARN_LEVEL_WARN)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, error, str);
+    if (level != MYSQL_ERROR::WARN_LEVEL_ERROR)
+      goto to_error_log;
 
     thd->query_error=  1; // needed to catch query errors during replication
 
@@ -2611,8 +2628,9 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       }
     }
   }
+to_error_log:
   if (!thd || MyFlags & ME_NOREFRESH)
-    sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
+    (*func)("%s: %s", my_progname_short, str); /* purecov: inspected */
   DBUG_RETURN(0);
 }
 
@@ -3262,6 +3280,9 @@ static int init_server_components()
     }
   }
 
+  /* set up the hook before initializing plugins which may use it */
+  error_handler_hook= my_message_sql;
+
   if (xid_cache_init())
   {
     sql_print_error("Out of memory");
@@ -3872,7 +3893,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     init signals & alarm
     After this we can't quit by a simple unireg_abort
   */
-  error_handler_hook= my_message_sql;
   start_signal_handler();				// Creates pidfile
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||

@@ -26,7 +26,7 @@ my_bool timed_mutexes= 0;
 
 	/* from my_init */
 char *	home_dir=0;
-const char      *my_progname=0;
+const char      *my_progname= NULL, *my_progname_short= NULL;
 char		NEAR curr_dir[FN_REFLEN]= {0},
 		NEAR home_dir_buff[FN_REFLEN]= {0};
 ulong		my_stream_opened=0,my_file_opened=0, my_tmp_file_created=0;

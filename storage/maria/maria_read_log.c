@@ -32,7 +32,6 @@ const char *default_dbug_option= "d:t:i:o,/tmp/maria_read_log.trace";
 static my_bool opt_only_display, opt_apply, opt_apply_undo, opt_silent,
   opt_check;
 static ulong opt_page_buffer_size;
-static const char *my_progname_short;
 
 int main(int argc, char **argv)
 {
@@ -40,7 +39,6 @@ int main(int argc, char **argv)
   char **default_argv;
   uint warnings_count;
   MY_INIT(argv[0]);
-  my_progname_short= my_progname+dirname_length(my_progname);
 
   load_defaults("my", load_default_groups, &argc, &argv);
   default_argv= argv;
