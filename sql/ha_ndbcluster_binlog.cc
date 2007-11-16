@@ -2751,12 +2751,13 @@ inline void slave_reset_conflict_fn(NDB_SHARE *share)
 }
 
 static int
-slave_set_resolve_fn(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index,
+slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
+                     const NDBTAB *ndbtab, uint field_index,
                      enum_conflict_fn_type type, TABLE *table)
 {
   DBUG_ENTER("slave_set_resolve_fn");
 
-  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
   const NDBCOL *c= ndbtab->getColumn(field_index);
@@ -2879,7 +2880,7 @@ static unsigned n_conflict_fns=
 sizeof(conflict_fns) / sizeof(struct st_conflict_fn_def);
 
 static int
-set_conflict_fn(NDB_SHARE *share,
+set_conflict_fn(THD *thd, NDB_SHARE *share,
                 const NDBTAB *ndbtab,
                 const NDBCOL *conflict_col,
                 char *conflict_fn,
@@ -3036,7 +3037,8 @@ set_conflict_fn(NDB_SHARE *share,
     case CFT_NDB_OLD:
       if (args[0].fieldno == (uint32)-1)
         break;
-      if (slave_set_resolve_fn(share, ndbtab, args[0].fieldno, fn.type, table))
+      if (slave_set_resolve_fn(thd, share, ndbtab, args[0].fieldno,
+                               fn.type, table))
       {
         /* wrong data type */
         snprintf(msg, msg_len,
@@ -3238,7 +3240,8 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       if (col_conflict_fn_rec_attr[1] == NULL ||
           col_conflict_fn_rec_attr[1]->isNULL())
         slave_reset_conflict_fn(share); /* no conflict_fn */
-      else if (set_conflict_fn(share, ndbtab, col_conflict_fn, ndb_conflict_fn[1],
+      else if (set_conflict_fn(thd, share, ndbtab,
+                               col_conflict_fn, ndb_conflict_fn[1],
                                tmp_buf, sizeof(tmp_buf), table))
       {
         error_str= tmp_buf;
@@ -3454,7 +3457,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
 
     /*
      */
-    ndbcluster_read_binlog_replication(current_thd, ndb, share, ndbtab,
+    ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
                                        ::server_id, NULL, TRUE);
 
     /*
