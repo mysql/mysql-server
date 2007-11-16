@@ -5658,6 +5658,8 @@ ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT
 	eng "Too high level of nesting for select"
 ER_NAME_BECOMES_EMPTY
         eng "Name '%-.64s' has become ''"
+ER_AMBIGUOUS_FIELD_TERM
+	eng "First character of the FIELDS TERMINATED string is ambiguous; please use non-optional and non-empty FIELDS ENCLOSED BY"
 ER_FOREIGN_SERVER_EXISTS
         eng "The foreign server, %s, you are trying to create already exists."
 ER_FOREIGN_SERVER_DOESNT_EXIST

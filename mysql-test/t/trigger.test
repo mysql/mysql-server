@@ -2246,3 +2246,15 @@ select * from table_25411_a;
 drop table table_25411_a;
 drop table table_25411_b;
 
+#
+# Bug #31866: MySQL Server crashes on SHOW CREATE TRIGGER statement
+#
+
+--disable-warnings
+DROP TRIGGER IF EXISTS trg;
+--enable-warnings
+
+--error ER_TRG_DOES_NOT_EXIST
+SHOW CREATE TRIGGER trg;
+
+--echo End of 5.1 tests.
