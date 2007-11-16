@@ -915,6 +915,8 @@ trx_undo_rec_get_partial_row(
 		dfield_set_data(dfield, field, len);
 
 		if (len >= UNIV_EXTERN_STORAGE_FIELD) {
+			dfield_set_len(dfield,
+				       len - UNIV_EXTERN_STORAGE_FIELD);
 			dfield_set_ext(dfield);
 			ext_cols[n_ext_cols++] = col_no;
 		}
