@@ -5044,7 +5044,10 @@ the generated partition syntax in a correct manner.
         *partition_changed= TRUE;
       }
       if (create_info->db_type == partition_hton)
-        part_info->default_engine_type= table->part_info->default_engine_type;
+      {
+        if (!part_info->default_engine_type)
+          part_info->default_engine_type= table->part_info->default_engine_type;
+      }
       else
         part_info->default_engine_type= create_info->db_type;
       if (check_native_partitioned(create_info, &is_native_partitioned,

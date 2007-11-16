@@ -681,8 +681,8 @@ my_off_t azseek (s, offset, whence)
     /* There was a zmemzero here if inbuf was null -Brian */
     while (offset > 0)  
     {
-      uInt size = AZ_BUFSIZE_WRITE;
-      if (offset < AZ_BUFSIZE_WRITE) size = (uInt)offset;
+      uInt size = AZ_BUFSIZE_READ;
+      if (offset < AZ_BUFSIZE_READ) size = (uInt)offset;
 
       size = azwrite(s, s->inbuf, size);
       if (size == 0) return -1L;
@@ -725,11 +725,11 @@ my_off_t azseek (s, offset, whence)
   }
   while (offset > 0)  {
     int error;
-    unsigned int size = AZ_BUFSIZE_READ;
-    if (offset < AZ_BUFSIZE_READ) size = (int)offset;
+    unsigned int size = AZ_BUFSIZE_WRITE;
+    if (offset < AZ_BUFSIZE_WRITE) size = (int)offset;
 
     size = azread(s, s->outbuf, size, &error);
-    if (error <= 0) return -1L;
+    if (error < 0) return -1L;
     offset -= size;
   }
   return s->out;
