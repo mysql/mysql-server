@@ -311,7 +311,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       continue;
     }
 
-    const char *password= get_field(&mem, table->field[2]);
+    const char *password= get_field(thd->mem_root, table->field[2]);
     uint password_len= password ? strlen(password) : 0;
     set_user_salt(&user, password, password_len);
     if (user.salt_len == 0 && password_len != 0)
@@ -364,7 +364,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       /* Starting from 4.0.2 we have more fields */
       if (table->s->fields >= 31)
       {
-        char *ssl_type=get_field(&mem, table->field[next_field++]);
+        char *ssl_type=get_field(thd->mem_root, table->field[next_field++]);
         if (!ssl_type)
           user.ssl_type=SSL_TYPE_NONE;
         else if (!strcmp(ssl_type, "ANY"))
@@ -378,11 +378,11 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         user.x509_issuer=  get_field(&mem, table->field[next_field++]);
         user.x509_subject= get_field(&mem, table->field[next_field++]);
 
-        char *ptr = get_field(&mem, table->field[next_field++]);
+        char *ptr = get_field(thd->mem_root, table->field[next_field++]);
         user.user_resource.questions=ptr ? atoi(ptr) : 0;
-        ptr = get_field(&mem, table->field[next_field++]);
+        ptr = get_field(thd->mem_root, table->field[next_field++]);
         user.user_resource.updates=ptr ? atoi(ptr) : 0;
-        ptr = get_field(&mem, table->field[next_field++]);
+        ptr = get_field(thd->mem_root, table->field[next_field++]);
         user.user_resource.conn_per_hour= ptr ? atoi(ptr) : 0;
         if (user.user_resource.questions || user.user_resource.updates ||
             user.user_resource.conn_per_hour)
@@ -391,7 +391,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         if (table->s->fields >= 36)
         {
           /* Starting from 5.0.3 we have max_user_connections field */
-          ptr= get_field(&mem, table->field[next_field++]);
+          ptr= get_field(thd->mem_root, table->field[next_field++]);
           user.user_resource.user_conn= ptr ? atoi(ptr) : 0;
         }
         else
@@ -3835,50 +3835,83 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
 }
 
 
-bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
-                             const char* db_name, const char *table_name,
-                             Field_iterator *fields)
+/** 
+  @brief check if a query can access a set of columns
+
+  @param  thd  the current thread
+  @param  want_access_arg  the privileges requested
+  @param  fields an iterator over the fields of a table reference.
+  @return Operation status
+    @retval 0 Success
+    @retval 1 Falure
+  @details This function walks over the columns of a table reference 
+   The columns may originate from different tables, depending on the kind of
+   table reference, e.g. join.
+   For each table it will retrieve the grant information and will use it
+   to check the required access privileges for the fields requested from it.
+*/    
+bool check_grant_all_columns(THD *thd, ulong want_access_arg, 
+                             Field_iterator_table_ref *fields)
 {
   Security_context *sctx= thd->security_ctx;
-  GRANT_TABLE *grant_table;
-  GRANT_COLUMN *grant_column;
+  ulong want_access= want_access_arg;
+  const char *table_name= NULL;
 
-  want_access &= ~grant->privilege;
-  if (!want_access)
-    return 0;				// Already checked
-  if (!grant_option)
-    goto err2;
-
-  rw_rdlock(&LOCK_grant);
-
-  /* reload table if someone has modified any grants */
-
-  if (grant->version != grant_version)
+  if (grant_option)
   {
-    grant->grant_table=
-      table_hash_search(sctx->host, sctx->ip, db_name,
-			sctx->priv_user,
-			table_name, 0);	/* purecov: inspected */
-    grant->version= grant_version;		/* purecov: inspected */
-  }
-  /* The following should always be true */
-  if (!(grant_table= grant->grant_table))
-    goto err;					/* purecov: inspected */
+    const char* db_name; 
+    GRANT_INFO *grant;
+    /* Initialized only to make gcc happy */
+    GRANT_TABLE *grant_table= NULL;
 
-  for (; !fields->end_of_fields(); fields->next())
-  {
-    const char *field_name= fields->name();
-    grant_column= column_hash_search(grant_table, field_name,
-				    (uint) strlen(field_name));
-    if (!grant_column || (~grant_column->rights & want_access))
-      goto err;
-  }
-  rw_unlock(&LOCK_grant);
-  return 0;
+    rw_rdlock(&LOCK_grant);
+
+    for (; !fields->end_of_fields(); fields->next())
+    {
+      const char *field_name= fields->name();
+
+      if (table_name != fields->table_name())
+      {
+        table_name= fields->table_name();
+        db_name= fields->db_name();
+        grant= fields->grant();
+        /* get a fresh one for each table */
+        want_access= want_access_arg & ~grant->privilege;
+        if (want_access)
+        {
+          /* reload table if someone has modified any grants */
+          if (grant->version != grant_version)
+          {
+            grant->grant_table=
+              table_hash_search(sctx->host, sctx->ip, db_name,
+                                sctx->priv_user,
+                                table_name, 0);	/* purecov: inspected */
+            grant->version= grant_version;	/* purecov: inspected */
+          }
+
+          grant_table= grant->grant_table;
+          DBUG_ASSERT (grant_table);
+        }
+      }
+
+      if (want_access)
+      {
+        GRANT_COLUMN *grant_column= 
+          column_hash_search(grant_table, field_name,
+                             (uint) strlen(field_name));
+        if (!grant_column || (~grant_column->rights & want_access))
+          goto err;
+      }
+    }
+    rw_unlock(&LOCK_grant);
+    return 0;
 
 err:
-  rw_unlock(&LOCK_grant);
-err2:
+    rw_unlock(&LOCK_grant);
+  }
+  else
+    table_name= fields->table_name();
+
   char command[128];
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
@@ -4865,6 +4898,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   byte user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   DBUG_ENTER("handle_grant_table");
+  THD *thd= current_thd;
 
   if (! table_no) // mysql.user table
   {
@@ -4932,17 +4966,18 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
           DBUG_PRINT("info",("scan error: %d", error));
           continue;
         }
-        if (! (host= get_field(&mem, host_field)))
+        if (! (host= get_field(thd->mem_root, host_field)))
           host= "";
-        if (! (user= get_field(&mem, user_field)))
+        if (! (user= get_field(thd->mem_root, user_field)))
           user= "";
 
 #ifdef EXTRA_DEBUG
         DBUG_PRINT("loop",("scan fields: '%s'@'%s' '%s' '%s' '%s'",
                            user, host,
-                           get_field(&mem, table->field[1]) /*db*/,
-                           get_field(&mem, table->field[3]) /*table*/,
-                           get_field(&mem, table->field[4]) /*column*/));
+                           get_field(thd->mem_root, table->field[1]) /*db*/,
+                           get_field(thd->mem_root, table->field[3]) /*table*/,
+                           get_field(thd->mem_root,
+                                     table->field[4]) /*column*/));
 #endif
         if (strcmp(user_str, user) ||
             my_strcasecmp(system_charset_info, host_str, host))

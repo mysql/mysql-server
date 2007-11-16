@@ -706,7 +706,8 @@ int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd)
 my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
-  char buff[512],*end=buff;
+  char buff[USERNAME_LENGTH+SCRAMBLED_PASSWORD_CHAR_LENGTH+NAME_LEN+2];
+  char *end= buff;
   int rc;
   DBUG_ENTER("mysql_change_user");
 
@@ -716,7 +717,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     passwd="";
 
   /* Store user into the buffer */
-  end=strmov(end,user)+1;
+  end= strmake(end, user, USERNAME_LENGTH) + 1;
 
   /* write scrambled password according to server capabilities */
   if (passwd[0])
@@ -736,7 +737,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   else
     *end++= '\0';                               /* empty password */
   /* Add database if needed */
-  end= strmov(end, db ? db : "") + 1;
+  end= strmake(end, db ? db : "", NAME_LEN) + 1;
 
   /* Write authentication package */
   simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (end-buff),1);
@@ -4380,6 +4381,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_NEWDATE:
     DBUG_ASSERT(param->buffer_length != 0);
     param->fetch_result= fetch_result_str;
     break;
@@ -4452,6 +4454,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_BIT:
+  case MYSQL_TYPE_NEWDATE:
     param->skip_result= skip_result_string;
     break;
   default:

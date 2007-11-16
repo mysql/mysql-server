@@ -530,7 +530,7 @@ create table t1 (
   a varchar(255),
   key a(a)
 ) character set utf8 collate utf8_czech_ci;
--- In Czech 'ch' is a single letter between 'h' and 'i'
+# In Czech 'ch' is a single letter between 'h' and 'i'
 insert into t1 values
 ('b'),('c'),('d'),('e'),('f'),('g'),('h'),('ch'),('i'),('j');
 select * from t1 where a like 'c%';

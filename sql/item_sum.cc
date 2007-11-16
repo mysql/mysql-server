@@ -905,7 +905,9 @@ bool Item_sum_distinct::setup(THD *thd)
   List<create_field> field_list;
   create_field field_def;                              /* field definition */
   DBUG_ENTER("Item_sum_distinct::setup");
-  DBUG_ASSERT(tree == 0);
+  /* It's legal to call setup() more than once when in a subquery */
+  if (tree)
+    DBUG_RETURN(FALSE);
 
   /*
     Virtual table and the tree are created anew on each re-execution of
@@ -913,7 +915,7 @@ bool Item_sum_distinct::setup(THD *thd)
     mem_root.
   */
   if (field_list.push_back(&field_def))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   null_value= maybe_null= 1;
   quick_group= 0;
@@ -925,7 +927,7 @@ bool Item_sum_distinct::setup(THD *thd)
                                args[0]->unsigned_flag);
 
   if (! (table= create_virtual_tmp_table(thd, field_list)))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   /* XXX: check that the case of CHAR(0) works OK */
   tree_key_length= table->s->reclength - table->s->null_bytes;
@@ -2443,6 +2445,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   /*
     Setup can be called twice for ROLLUP items. This is a bug.
     Please add DBUG_ASSERT(tree == 0) here when it's fixed.
+    It's legal to call setup() more than once when in a subquery
   */
   if (tree || table || tmp_table_param)
     return FALSE;
@@ -3403,7 +3406,7 @@ String* Item_func_group_concat::val_str(String* str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  if (!result.length() && tree)
+  if (no_appended && tree)
     /* Tree is used for sorting as in ORDER BY */
     tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
               left_root_right);

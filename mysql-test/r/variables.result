@@ -675,6 +675,9 @@ set @@query_prealloc_size = @test;
 select @@query_prealloc_size = @test;
 @@query_prealloc_size = @test
 1
+set global sql_mode=repeat('a',80);
+ERROR 42000: Variable 'sql_mode' can't be set to the value of 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+End of 4.1 tests
 create table t1 (a int);
 select a into @x from t1;
 Warnings:
@@ -793,6 +796,22 @@ ERROR HY000: Variable 'hostname' is a read only variable
 show variables like 'hostname';
 Variable_name	Value
 hostname	#
+SHOW VARIABLES LIKE 'log';
+Variable_name	Value
+log	ON
+SELECT @@log;
+@@log
+1
+SET GLOBAL log=0;
+ERROR HY000: Variable 'log' is a read only variable
+SHOW VARIABLES LIKE 'log_slow_queries';
+Variable_name	Value
+log_slow_queries	ON
+SELECT @@log_slow_queries;
+@@log_slow_queries
+1
+SET GLOBAL log_slow_queries=0;
+ERROR HY000: Variable 'log_slow_queries' is a read only variable
 End of 5.0 tests
 set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
