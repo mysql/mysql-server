@@ -6030,7 +6030,9 @@ find_field_in_tables(THD *thd, Item_ident *item,
   {
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, length,
                                               item->name, db, table_name, ref,
-                                              check_privileges,
+                                              (thd->lex->sql_command ==
+                                               SQLCOM_SHOW_FIELDS)
+                                              ? false : check_privileges,
                                               allow_rowid,
                                               &(item->cached_field_index),
                                               register_tree_change,
@@ -6224,7 +6226,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         if (item_field->field_name && item_field->table_name &&
 	    !my_strcasecmp(system_charset_info, item_field->field_name,
                            field_name) &&
-            !strcmp(item_field->table_name, table_name) &&
+            !my_strcasecmp(table_alias_charset, item_field->table_name, 
+                           table_name) &&
             (!db_name || (item_field->db_name &&
                           !strcmp(item_field->db_name, db_name))))
         {
