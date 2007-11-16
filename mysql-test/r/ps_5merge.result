@@ -106,7 +106,7 @@ def	test	t9	t9	c11	c11	246	9	6	Y	0	4	63
 def	test	t9	t9	c12	c12	246	10	6	Y	0	4	63
 def	test	t9	t9	c13	c13	10	10	10	Y	128	0	63
 def	test	t9	t9	c14	c14	12	19	19	Y	128	0	63
-def	test	t9	t9	c15	c15	7	19	19	N	1249	0	63
+def	test	t9	t9	c15	c15	7	19	19	N	9441	0	63
 def	test	t9	t9	c16	c16	11	8	8	Y	128	0	63
 def	test	t9	t9	c17	c17	13	4	4	Y	32864	0	63
 def	test	t9	t9	c18	c18	1	4	1	Y	32768	0	63
@@ -3128,7 +3128,7 @@ def	test	t9	t9	c11	c11	246	9	6	Y	0	4	63
 def	test	t9	t9	c12	c12	246	10	6	Y	0	4	63
 def	test	t9	t9	c13	c13	10	10	10	Y	128	0	63
 def	test	t9	t9	c14	c14	12	19	19	Y	128	0	63
-def	test	t9	t9	c15	c15	7	19	19	N	1249	0	63
+def	test	t9	t9	c15	c15	7	19	19	N	9441	0	63
 def	test	t9	t9	c16	c16	11	8	8	Y	128	0	63
 def	test	t9	t9	c17	c17	13	4	4	Y	32864	0	63
 def	test	t9	t9	c18	c18	1	4	1	Y	32768	0	63

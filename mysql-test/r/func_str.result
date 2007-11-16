@@ -722,9 +722,9 @@ Warning	1265	Data truncated for column 'format(130,10)' at row 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `bin(130)` varchar(64) NOT NULL DEFAULT '',
-  `oct(130)` varchar(64) NOT NULL DEFAULT '',
-  `conv(130,16,10)` varchar(64) NOT NULL DEFAULT '',
+  `bin(130)` varchar(64) DEFAULT NULL,
+  `oct(130)` varchar(64) DEFAULT NULL,
+  `conv(130,16,10)` varchar(64) DEFAULT NULL,
   `hex(130)` varchar(6) NOT NULL DEFAULT '',
   `char(130)` varbinary(4) NOT NULL DEFAULT '',
   `format(130,10)` varchar(4) NOT NULL DEFAULT '',
@@ -1315,6 +1315,18 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select decode('',_latin1'zxcv') AS `enc` from `test`.`t1`
+drop table t1;
+create table t1 (a bigint not null)engine=myisam;
+insert into t1 set a = 1024*1024*1024*4;
+delete from t1 order by (inet_ntoa(a)) desc limit 10;
+drop table t1;
+create table t1 (a char(36) not null)engine=myisam;
+insert ignore into t1 set a = ' ';
+insert ignore into t1 set a = ' ';
+select * from t1 order by (oct(a));
+a
+
+
 drop table t1;
 End of 4.1 tests
 create table t1 (d decimal default null);

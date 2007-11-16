@@ -214,7 +214,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 3, test.t4 has type 4
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -232,7 +232,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 3, test.t4 has type 4
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -257,7 +257,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 1 type mismatch - received type 3, test.t5 has type 4
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -275,7 +275,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 1 type mismatch - received type 3, test.t5 has type 4
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -300,7 +300,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 3, test.t6 has type 4
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -318,7 +318,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 3, test.t6 has type 4
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
