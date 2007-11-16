@@ -1688,7 +1688,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   /* ndb_share reference binlog free */
   DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                            share->key, share->use_count));
-  free_share(thd, &share, TRUE);
+  free_share(&share, TRUE);
   if (is_remote_change && share && share->state != NSS_DROPPED)
   {
     DBUG_PRINT("info", ("remote change"));
@@ -1704,7 +1704,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
       /* ndb_share reference create free */
       DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
                                share->key, share->use_count));
-      free_share(thd, &share, TRUE);
+      free_share(&share, TRUE);
       share= 0;
     }
   }
@@ -1733,7 +1733,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     /* ndb_share reference create free */
     DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
                              share->key, share->use_count));
-    free_share(thd, &share);
+    free_share(&share);
   }
   DBUG_RETURN(0);
 }
@@ -1869,7 +1869,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           {
             DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                      share->key, share->use_count));
-            free_share(thd, &share);
+            free_share(&share);
           }
         }
         // fall through
@@ -1990,7 +1990,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
                                ndb_schema_share->key,
                                ndb_schema_share->use_count));
-      free_share(thd, &ndb_schema_share);
+      free_share(&ndb_schema_share);
       ndb_schema_share= 0;
       ndb_binlog_is_ready= FALSE;
       pthread_mutex_unlock(&ndb_schema_share_mutex);
@@ -2216,9 +2216,9 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share->op->setCustomData(NULL);
             injector_ndb->dropEventOperation(share->op);
             share->op= 0;
-            free_share(thd, &share);
+            free_share(&share);
           }
-          free_share(thd, &share);
+          free_share(&share);
         }
         if (ndb_binlog_running)
         {
@@ -2231,7 +2231,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             /* ndb_share reference temporary free */
             DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                      share->key, share->use_count));
-            free_share(thd, &share);
+            free_share(&share);
             share= 0;
           }
           pthread_mutex_lock(&LOCK_open);
@@ -2389,7 +2389,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             injector_ndb->dropEventOperation(share->op);
             share->op= share->new_op;
             share->new_op= 0;
-            free_share(thd, &share);
+            free_share(&share);
           }
           (void) pthread_mutex_unlock(&share->mutex);
         }
@@ -2410,7 +2410,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             /* ndb_share reference temporary free */
             DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                      share->key, share->use_count));
-            free_share(thd, &share);
+            free_share(&share);
             share= 0;
           }
           pthread_mutex_lock(&LOCK_open);
@@ -2445,7 +2445,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         /* ndb_share reference temporary free */
         DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                  share->key, share->use_count));
-        free_share(thd, &share);
+        free_share(&share);
         share= 0;
       }
     }
@@ -3740,7 +3740,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     /* ndb_share reference ToDo free */
     DBUG_PRINT("NDB_SHARE", ("%s ToDo free  use_count: %u",
                              share->key, share->use_count));
-    free_share(thd, &share); // old event op already has reference
+    free_share(&share); // old event op already has reference
     DBUG_RETURN(0);
   }
 
@@ -4318,7 +4318,7 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
       /* ndb_share reference binlog extra free */
       DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
                                share->key, share->use_count));
-      free_share(thd, &ndb_apply_status_share);
+      free_share(&ndb_apply_status_share);
       ndb_apply_status_share= 0;
     }
     DBUG_PRINT("error", ("CLUSTER FAILURE EVENT: "
@@ -4337,7 +4337,7 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
       /* ndb_share reference binlog extra free */
       DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
                                share->key, share->use_count));
-      free_share(thd, &ndb_apply_status_share);
+      free_share(&ndb_apply_status_share);
       ndb_apply_status_share= 0;
     }
     /* ToDo: remove printout */
@@ -5479,7 +5479,7 @@ err:
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
                              ndb_apply_status_share->key,
                              ndb_apply_status_share->use_count));
-    free_share(thd, &ndb_apply_status_share);
+    free_share(&ndb_apply_status_share);
     ndb_apply_status_share= 0;
   }
   if (ndb_schema_share)
@@ -5490,7 +5490,7 @@ err:
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
                              ndb_schema_share->key,
                              ndb_schema_share->use_count));
-    free_share(thd, &ndb_schema_share);
+    free_share(&ndb_schema_share);
     ndb_schema_share= 0;
     pthread_mutex_unlock(&ndb_schema_share_mutex);
     /* end protect ndb_schema_share */
@@ -5522,7 +5522,7 @@ err:
       /* ndb_share reference binlog free */
       DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                                share->key, share->use_count));
-      free_share(thd, &share);
+      free_share(&share);
       s_ndb->dropEventOperation(op);
     }
     delete s_ndb;
@@ -5553,7 +5553,7 @@ err:
       /* ndb_share reference binlog free */
       DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                                share->key, share->use_count));
-      free_share(thd, &share);
+      free_share(&share);
       i_ndb->dropEventOperation(op);
     }
     delete i_ndb;

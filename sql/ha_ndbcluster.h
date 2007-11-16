@@ -172,7 +172,6 @@ typedef struct st_ndbcluster_share {
   char *key;
   uint key_length;
   char *new_key;
-  THD *util_lock;
   uint use_count;
   uint commit_count_lock;
   ulonglong commit_count;
