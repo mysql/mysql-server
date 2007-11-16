@@ -9,7 +9,7 @@ ifeq ($(CYGWIN),cygwin)
 else
 FPICFLAGS = -fPIC
 # valgrind is not present on cygwin
-DTOOL = valgrind --quiet --error-exitcode=1
+DTOOL = valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 
 CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) -Wshadow

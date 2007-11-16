@@ -209,8 +209,11 @@ int tokulogger_log_commit (TOKUTXN txn) {
     wbuf_txnid(&wbuf, txn->txnid64);
     int r = tokulogger_finish(txn->logger, &wbuf);
     if (r!=0) return r;
-    if (txn->parent) return 0;
-    else return tokulogger_fsync(txn->logger);
+    int result;
+    if (txn->parent) result=0;
+    else result=tokulogger_fsync(txn->logger);
+    toku_free(txn);
+    return result;
 }
 
 int tokulogger_log_checkpoint (TOKULOGGER logger, LSN *lsn) {
