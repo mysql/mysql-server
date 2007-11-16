@@ -14,6 +14,10 @@ Created July 17, 2007 Vasil Dimov
 #include "univ.i"
 #include "ut0ut.h"
 
+/* the maximum amount of memory that can be consumed by innodb_trx,
+innodb_locks and innodb_lock_waits information schema tables. */
+#define TRX_I_S_MEM_LIMIT		16777216 /* 16 MiB */
+
 /* the maximum length of a string that can be stored in
 i_s_locks_row_t::lock_data */
 #define TRX_I_S_LOCK_DATA_MAX_LEN	8192
@@ -156,6 +160,16 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*===================================*/
 					/* out: 0 - fetched, 1 - not */
 	trx_i_s_cache_t*	cache);	/* in/out: cache */
+
+/***********************************************************************
+Returns TRUE if the data in the cache is truncated due to the memory
+limit posed by TRX_I_S_MEM_LIMIT. */
+
+ibool
+trx_i_s_cache_is_truncated(
+/*=======================*/
+					/* out: TRUE if truncated */
+	trx_i_s_cache_t*	cache);	/* in: cache */
 
 /* The maximum length that may be required by lock_id_size in
 trx_i_s_create_lock_id(). "%llu:%lu:%lu:%lu" -> 84 chars */
