@@ -1,0 +1,56 @@
+set binlog_format=statement;
+reset master;
+create database testing_1;
+use testing_1;
+create table t1 (a int);
+create function sf1 (a int) returns int return a+1;
+create trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a);
+create procedure sp1 (a int) insert into t1 values(a);
+drop database testing_1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	create database testing_1
+master-bin.000001	#	Query	#	#	use `testing_1`; create table t1 (a int)
+master-bin.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` function sf1 (a int) returns int return a+1
+master-bin.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a)
+master-bin.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` procedure sp1 (a int) insert into t1 values(a)
+master-bin.000001	#	Query	#	#	drop database testing_1
+set binlog_format=mixed;
+reset master;
+create database testing_1;
+use testing_1;
+create table t1 (a int);
+create function sf1 (a int) returns int return a+1;
+create trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a);
+create procedure sp1 (a int) insert into t1 values(a);
+drop database testing_1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	create database testing_1
+master-bin.000001	#	Query	#	#	use `testing_1`; create table t1 (a int)
+master-bin.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` function sf1 (a int) returns int return a+1
+master-bin.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a)
+master-bin.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` procedure sp1 (a int) insert into t1 values(a)
+master-bin.000001	#	Query	#	#	drop database testing_1
+set binlog_format=row;
+reset master;
+create database testing_1;
+use testing_1;
+create table t1 (a int);
+create function sf1 (a int) returns int return a+1;
+create trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a);
+create procedure sp1 (a int) insert into t1 values(a);
+drop database testing_1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	create database testing_1
+master-bin.000001	#	Query	#	#	use `testing_1`; create table t1 (a int)
+master-bin.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` function sf1 (a int) returns int return a+1
+master-bin.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a)
+master-bin.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` procedure sp1 (a int) insert into t1 values(a)
+master-bin.000001	#	Query	#	#	drop database testing_1
+show databases;
+Database
+information_schema
+mysql
+test
