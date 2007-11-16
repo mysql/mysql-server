@@ -4396,11 +4396,11 @@ int ha_ndbcluster::info(uint flag)
           thd->lex->sql_command != SQLCOM_SHOW_KEYS)
       {
         /*
-          just use whatever stats we have
-          however, optimizer behaves strangely if we return 0 rows
+          just use whatever stats we have however,
+          optimizer behaves strangely if we return few rows
         */
-        if (stats.records < 1)
-          stats.records= 1;
+        if (stats.records < 2)
+          stats.records= 2;
         break;
       }
     }
@@ -9127,51 +9127,48 @@ struct ndb_table_statistics_row {
 
 int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
 {
-  struct Ndb_statistics new_stat;
-  struct Ndb_statistics *stat= NULL;
+  struct Ndb_statistics stat;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   DBUG_ENTER("ha_ndbcluster::update_stats");
-  if (m_share)
+  if (do_read_stat || !m_share)
   {
-    stat= &m_share->stat;
-  }
-  if (do_read_stat || !stat)
-  {
-    Ndb *ndb= get_ndb(thd);
+    Ndb *ndb= thd_ndb->ndb;
     if (ndb->setDatabaseName(m_dbname))
     {
       DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
     }
     if (ndb_get_table_statistics(this, TRUE, ndb, m_ndb_statistics_record,
-                                 &new_stat))
+                                 &stat))
     {
       DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
     }
-    stat= &new_stat;
     if (m_share)
     {
-      DBUG_PRINT("info", ("new_stat.commit_count: %d  "
-                          "m_share->stat.commit_count: %d",
-                          (int)new_stat.commit_count,
-                          (int)m_share->stat.commit_count));
       pthread_mutex_lock(&m_share->mutex);
-      m_share->stat= new_stat;
+      m_share->stat= stat;
       pthread_mutex_unlock(&m_share->mutex);
     }
   }
+  else
+  {
+    pthread_mutex_lock(&m_share->mutex);
+    stat= m_share->stat;
+    pthread_mutex_unlock(&m_share->mutex);
+  }
   struct Ndb_local_table_statistics *local_info= m_table_info;
   int no_uncommitted_rows_count;
-  if (get_thd_ndb(thd)->m_error || !local_info)
+  if (thd_ndb->m_error || !local_info)
     no_uncommitted_rows_count= 0;
   else
     no_uncommitted_rows_count= local_info->no_uncommitted_rows_count;
-  stats.mean_rec_length= stat->row_size;
-  stats.data_file_length= stat->fragment_memory;
-  stats.records= stat->row_count + no_uncommitted_rows_count;
+  stats.mean_rec_length= stat.row_size;
+  stats.data_file_length= stat.fragment_memory;
+  stats.records= stat.row_count + no_uncommitted_rows_count;
   DBUG_PRINT("exit", ("stats.records: %d  "
                       "stat->row_count: %d  "
                       "no_uncommitted_rows_count: %d",
                       (int)stats.records,
-                      (int)stat->row_count,
+                      (int)stat.row_count,
                       (int)no_uncommitted_rows_count));
   DBUG_RETURN(0);
 }
