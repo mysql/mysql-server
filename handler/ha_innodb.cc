@@ -3993,6 +3993,7 @@ convert_search_mode_to_innobase(
 	case HA_READ_MBR_INTERSECT:
 	case HA_READ_MBR_WITHIN:
 	case HA_READ_MBR_DISJOINT:
+	case HA_READ_MBR_EQUAL:
 		my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 		return(PAGE_CUR_UNSUPP);
 	/* do not use "default:" in order to produce a gcc warning:
