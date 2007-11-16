@@ -95,7 +95,7 @@ struct brt {
 
 /* serialization code */
 void serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
-int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesize);
+int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesize, int (*)(DB *, const DBT*, const DBT*));
 unsigned int serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
