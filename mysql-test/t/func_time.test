@@ -766,6 +766,16 @@ select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
 set lc_time_names=en_US;
 drop table t1;
 
+#
+# Bug#32180: DATE_ADD treats datetime numeric argument as DATE
+#            instead of DATETIME
+#
+
+select DATE_ADD('20071108181000', INTERVAL 1 DAY);
+select DATE_ADD(20071108181000,   INTERVAL 1 DAY);
+select DATE_ADD('20071108',       INTERVAL 1 DAY);
+select DATE_ADD(20071108,         INTERVAL 1 DAY);
+
 --echo End of 5.0 tests
 
 #
