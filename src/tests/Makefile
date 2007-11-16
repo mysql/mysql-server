@@ -9,7 +9,7 @@ LOADLIBES = -L../ -ldb
 else
 LIBEXT=so
 LOADLIBES = -L../ -ldb -Wl,-rpath,..
-TEST=valgrind --quiet --error-exitcode=1
+TEST=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 
 LIBNAME=libdb.$(LIBEXT)
