@@ -53,11 +53,16 @@ $(ALL_TESTS):
 	$(VGRIND) ./$<
 
 # For a few of the tests bdb is making valgrind unhappy.
-test_db_already_exists.bdbrun: VGRIND=
-test_db_dup.bdbrun: VGRIND=
-test_reverse_compare_fun.bdbrun: VGRIND=
-test_db_subdb.bdbrun: VGRIND=
-test_db_env_open_open_close.bdbrun:  VGRIND=
+NO_VGRIND = \
+  db_already_exists \
+  db_dup \
+  db_env_open_open_close \
+  db_remove_subdb \
+  db_subdb \
+  reverse_compare_fun \
+  # Comment to terminate list so the previous line can end with a slash
+
+$(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 
 %.bdb: %.c
 	cc  -DDIR=\"dir.$<.bdb\" -DUSE_BDB $(CFLAGS) $< -ldb -o $@
