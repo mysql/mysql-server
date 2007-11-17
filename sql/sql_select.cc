@@ -9205,9 +9205,43 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     new_field->set_derivation(item->collation.derivation);
     break;
   case DECIMAL_RESULT:
-    new_field= new Field_new_decimal(item->max_length, maybe_null, item->name,
-                                     item->decimals, item->unsigned_flag);
+  {
+    uint8 dec= item->decimals;
+    uint8 intg= ((Item_decimal *) item)->decimal_precision() - dec;
+    uint8 len= item->max_length;
+
+    /*
+      Trying to put too many digits overall in a DECIMAL(prec,dec)
+      will always throw a warning. We must limit dec to
+      DECIMAL_MAX_SCALE however to prevent an assert() later.
+    */
+
+    if (dec > 0)
+    {
+      signed int overflow;
+
+      dec= min(dec, DECIMAL_MAX_SCALE);
+
+      /*
+        If the value still overflows the field with the corrected dec,
+        we'll throw out decimals rather than integers. This is still
+        bad and of course throws a truncation warning.
+        +1: for decimal point
+      */
+
+      overflow= my_decimal_precision_to_length(intg + dec, dec,
+                                               item->unsigned_flag) - len;
+
+      if (overflow > 0)
+        dec= max(0, dec - overflow);            // too long, discard fract
+      else
+        len -= item->decimals - dec;            // corrected value fits
+    }
+
+    new_field= new Field_new_decimal(len, maybe_null, item->name,
+                                     dec, item->unsigned_flag);
     break;
+  }
   case ROW_RESULT:
   default:
     // This case should never be choosen
