@@ -6,7 +6,8 @@
 #include <db.h>
 #include <string.h>
 
-#define DIR "dir.test_db_remove_memleak"
+// DIR is defined in the Makefile
+
 DB_ENV *env;
 DB *db;
 DBT key;
@@ -22,7 +23,7 @@ int main (int argc, char *argv[]) {
     key.data = "name";
     
     r=db_env_create(&env, 0);   assert(r==0);
-    r=env->open(env, DIR, DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
+    r=env->open(env, DIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
 
     r=db_create(&db, env, 0);   assert(r==0);
     r=db->open(db, NULL, "master.db", NULL, DB_BTREE, DB_CREATE, 0666); assert(r==0);

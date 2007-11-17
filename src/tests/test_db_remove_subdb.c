@@ -6,7 +6,9 @@
 #include <db.h>
 #include <string.h>
 
-#define DIR "dir.test_db_remove_subdb"
+// DIR is defined in the Makefile
+#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
+
 DB_ENV *env;
 DB *db;
 DBT key;
@@ -22,10 +24,11 @@ int main (int argc, char *argv[]) {
     key.data = "name";
     
     r=db_env_create(&env, 0);   assert(r==0);
-    r=env->open(env, DIR, DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
+    // Note: without DB_INIT_MPOOL the BDB library will fail on db->open().
+    r=env->open(env, DIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
 
     r=db_create(&db, env, 0);   assert(r==0);
-    r=db->open(db, NULL, "master.db", "first", DB_BTREE, DB_CREATE, 0666); assert(r==0);
+    r=db->open(db, NULL, "master.db", "first", DB_BTREE, DB_CREATE, 0666); CKERR(r);
     data.size = sizeof("first.db");
     data.data = "first.db";
     db->put(db, NULL, &key, &data, 0);
