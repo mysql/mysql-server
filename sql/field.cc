@@ -6975,7 +6975,7 @@ uint32 Field_blob::max_length()
   case 3:
     return 16777215 * field_charset->mbmaxlen;
   case 4:
-    return (uint32) 4294967295U;
+    return max_field_size;
   default:
     DBUG_ASSERT(0); // we should never go here
     return 0;
