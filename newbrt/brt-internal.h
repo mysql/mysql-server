@@ -44,6 +44,7 @@ struct brtnode {
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
 	    unsigned int    childkeylens[TREE_FANOUT];
 	    unsigned int    totalchildkeylens;
+            unsigned char   pivotflags[TREE_FANOUT];
 	    DISKOFF         children[TREE_FANOUT+1];  /* unused if height==0 */   /* Note: The last element of these arrays is used only temporarily while splitting a node. */
 	    HASHTABLE       htables[TREE_FANOUT+1];
 	    unsigned int    n_bytes_in_hashtable[TREE_FANOUT+1]; /* how many bytes are in each hashtable (including overheads) */
@@ -95,7 +96,7 @@ struct brt {
 
 /* serialization code */
 void serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
-int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesize, int (*)(DB *, const DBT*, const DBT*));
+int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize, int (*bt_compare)(DB *, const DBT*, const DBT*), int (*dup_compare)(DB *, const DBT *, const DBT *));
 unsigned int serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 

@@ -31,6 +31,7 @@ static unsigned int serialize_brtnode_size_slow(BRTNODE node) {
 	size+=4; /* subtree fingerprint. */
 	for (i=0; i<node->u.n.n_children-1; i++) {
 	    size+=4;
+            size+=1; /* pivotflags */
 	    csize+=node->u.n.childkeylens[i];
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
@@ -68,7 +69,7 @@ unsigned int serialize_brtnode_size (BRTNODE node) {
     if (node->height>0) {
 	result+=4; /* n_children */
 	result+=4; /* subtree fingerpirnt */
-	result+=4*(node->u.n.n_children-1); /* key lengths */
+	result+=(4+1)*(node->u.n.n_children-1); /* key lengths + pivotflags*/
 	result+=node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
 	result+=(8+4+4)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and the subtree fingerprint. */
 	result+=node->u.n.n_bytes_in_hashtables;
@@ -122,6 +123,8 @@ void serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
 	    wbuf_int(&w, node->u.n.child_subtree_fingerprints[i]);
 	}
 	//printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
+        for (i=0; i<node->u.n.n_children-1; i++) 
+            wbuf_char(&w, node->u.n.pivotflags[i]);
 	for (i=0; i<node->u.n.n_children-1; i++) {
 	    wbuf_bytes(&w, node->u.n.childkeys[i], node->u.n.childkeylens[i]);
 	    //printf("%s:%d w.ndone=%d (childkeylen[%d]=%d\n", __FILE__, __LINE__, w.ndone, i, node->childkeylens[i]);
@@ -178,8 +181,9 @@ void serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
     toku_free(buf);
 }
 
-int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesize,
-                              int (*compare_fun)(DB *, const DBT *, const DBT *)) {
+int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize,
+                              int (*bt_compare)(DB *, const DBT *, const DBT *),
+                              int (*dup_compare)(DB *, const DBT *, const DBT *)) {
     TAGMALLOC(BRTNODE, result);
     struct rbuf rc;
     int i;
@@ -272,6 +276,8 @@ int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesiz
 	    result->u.n.child_subtree_fingerprints[i]= childfp;
 	    check_subtree_fingerprint += childfp;
 	}
+        for (i=0; i<result->u.n.n_children-1; i++) 
+            result->u.n.pivotflags[i] = rbuf_char(&rc);
 	for (i=0; i<result->u.n.n_children-1; i++) {
 	    bytevec childkeyptr;
 	    rbuf_bytes(&rc, &childkeyptr, &result->u.n.childkeylens[i]); /* Returns a pointer into the rbuf. */
@@ -335,11 +341,13 @@ int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int nodesiz
     } else {
 	int n_in_buf = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	r=pma_create(&result->u.l.buffer, compare_fun, nodesize);
+	r=pma_create(&result->u.l.buffer, bt_compare, nodesize);
 	if (r!=0) {
 	    if (0) { died_21: pma_free(&result->u.l.buffer); }
 	    goto died1;
 	}
+        pma_set_dup_mode(result->u.l.buffer, flags);
+        if (flags & DB_DUPSORT) pma_set_dup_compare(result->u.l.buffer, dup_compare);
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
 #define BRT_USE_PMA_BULK_INSERT 1
 #if BRT_USE_PMA_BULK_INSERT

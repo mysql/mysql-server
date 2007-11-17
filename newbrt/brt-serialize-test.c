@@ -29,6 +29,7 @@ void test_serialize(void) {
     sn.u.n.childkeys[0]    = hello_string = toku_strdup("hello");
     sn.u.n.childkeylens[0] = 6;
     sn.u.n.totalchildkeylens = 6;
+    sn.u.n.pivotflags[0] = 42;
     sn.u.n.children[0] = sn.nodesize*30;
     sn.u.n.children[1] = sn.nodesize*35;
     sn.u.n.child_subtree_fingerprints[0] = random();
@@ -42,7 +43,7 @@ void test_serialize(void) {
 
     serialize_brtnode_to(fd, sn.nodesize*20, sn.nodesize, &sn);  assert(r==0);
 
-    r = deserialize_brtnode_from(fd, nodesize*20, &dn, nodesize, 0);
+    r = deserialize_brtnode_from(fd, nodesize*20, &dn, 0, nodesize, 0, 0);
     assert(r==0);
 
     assert(dn->thisnodename==nodesize*20);
@@ -54,6 +55,7 @@ void test_serialize(void) {
     assert(strcmp(dn->u.n.childkeys[0], "hello")==0);
     assert(dn->u.n.childkeylens[0]==6);
     assert(dn->u.n.totalchildkeylens==6);
+    assert(dn->u.n.pivotflags[0]==42);
     assert(dn->u.n.children[0]==nodesize*30);
     assert(dn->u.n.children[1]==nodesize*35);
     {
