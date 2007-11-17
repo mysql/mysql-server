@@ -1,13 +1,17 @@
 /* try a reverse compare function to verify that the database always uses the application's
    compare function */
 
+#include <arpa/inet.h>
+#include <assert.h>
+#include <db.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <unistd.h>
 #include <string.h>
-#include <arpa/inet.h>
-#include <db.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
 DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
     memset(dbt, 0, sizeof *dbt);
@@ -41,7 +45,7 @@ int reverse_compare(DB *db __attribute__((__unused__)), const DBT *a, const DBT*
 void expect(DBC *cursor, int k, int v) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT);
-    assert(r == 0);
+    CKERR(r);
     assert(key.size == sizeof k);
     int kk;
     memcpy(&kk, key.data, key.size);
@@ -62,23 +66,25 @@ void test_reverse_compare(int n) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.reverse.compare.brt";
+    const char * const fname = DIR "/reverse.compare.db";
+
     int r;
     int i;
 
-    unlink(fname);
+    system("rm -rf " DIR);
+    mkdir(DIR, 0777);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
-    assert(r == 0);
+    CKERR(r);
     r = db->set_flags(db, 0);
-    assert(r == 0);
+    CKERR(r);
     r = db->set_pagesize(db, 4096);
-    assert(r == 0);
+    CKERR(r);
     r = db->set_bt_compare(db, reverse_compare);
-    assert(r == 0);
+    CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
-    assert(r == 0);
+    CKERR(r);
 
     /* insert n unique keys {0, 1,  n-1} */
     for (i=0; i<n; i++) {
@@ -89,22 +95,22 @@ void test_reverse_compare(int n) {
         v = i;
         dbt_init(&val, &v, sizeof v);
         r = db->put(db, null_txn, &key, &val, 0);
-        assert(r == 0);
+        CKERR(r);
     }
 
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
-    assert(r == 0);
+    CKERR(r);
     r = db_create(&db, null_env, 0);
-    assert(r == 0);
+    CKERR(r);
     r = db->set_flags(db, 0);
-    assert(r == 0);
+    CKERR(r);
     r = db->set_pagesize(db, 4096);
-    assert(r == 0);
+    CKERR(r);
     r = db->set_bt_compare(db, reverse_compare);
-    assert(r == 0);
+    CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
-    assert(r == 0);
+    CKERR(r);
 
     /* insert n unique keys {n, n+1,  2*n-1} */
     for (i=n; i<2*n; i++) {
@@ -115,23 +121,23 @@ void test_reverse_compare(int n) {
         v = i;
         dbt_init(&val, &v, sizeof v);
         r = db->put(db, null_txn, &key, &val, 0);
-        assert(r == 0);
+        CKERR(r);
     }
 
     /* verify the sort order with a cursor */
     DBC *cursor;
     r = db->cursor(db, null_txn, &cursor, 0);
-    assert(r == 0);
+    CKERR(r);
 
     //for (i=0; i<2*n; i++) 
     for (i=2*n-1; i>=0; i--)
         expect(cursor, htonl(i), i);
 
     r = cursor->c_close(cursor);
-    assert(r == 0);
+    CKERR(r);
 
     r = db->close(db, 0);
-    assert(r == 0);
+    CKERR(r);
 }
 
 int main() {
