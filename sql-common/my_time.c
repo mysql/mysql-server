@@ -1105,9 +1105,14 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
   long part1,part2;
 
   *was_cut= 0;
+  bzero((char*) time_res, sizeof(*time_res));
+  time_res->time_type=MYSQL_TIMESTAMP_DATE;
 
   if (nr == LL(0) || nr >= LL(10000101000000))
+  {
+    time_res->time_type=MYSQL_TIMESTAMP_DATETIME;
     goto ok;
+  }
   if (nr < 101)
     goto err;
   if (nr <= (YY_PART_YEAR-1)*10000L+1231L)
@@ -1131,6 +1136,9 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
   }
   if (nr < 101000000L)
     goto err;
+
+  time_res->time_type=MYSQL_TIMESTAMP_DATETIME;
+
   if (nr <= (YY_PART_YEAR-1)*LL(10000000000)+LL(1231235959))
   {
     nr= nr+LL(20000000000000);                   /* YYMMDDHHMMSS, 2000-2069 */
@@ -1144,7 +1152,6 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
  ok:
   part1=(long) (nr/LL(1000000));
   part2=(long) (nr - (longlong) part1*LL(1000000));
-  bzero((char*) time_res, sizeof(*time_res));
   time_res->year=  (int) (part1/10000L);  part1%=10000L;
   time_res->month= (int) part1 / 100;
   time_res->day=   (int) part1 % 100;
