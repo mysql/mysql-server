@@ -9219,7 +9219,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     }
 
     new_field= new Field_new_decimal(len, maybe_null, item->name,
-                                     table, dec, item->unsigned_flag);
+                                     dec, item->unsigned_flag);
     break;
   }
   case ROW_RESULT:
