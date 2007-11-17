@@ -1205,6 +1205,27 @@ SELECT 1 FROM t1 GROUP BY @b := @a, @b;
 
 DROP TABLE t1;
 
+#
+# Bug #24907: unpredictable (display) precission, if input precission
+#             increases
+#
+
+# As per 10.1.1. Overview of Numeric Types, type (new) DECIMAL has a
+# maxmimum precision of 30 places after the decimal point. Show that
+# temp field creation beyond that works and throws a truncation warning.
+# DECIMAL(37,36) should be adjusted to DECIMAL(31,30).
+CREATE TABLE t1 SELECT 0.123456789012345678901234567890123456 AS f1;
+DESC t1;
+SELECT f1 FROM t1;
+DROP TABLE t1;
+
+# too many decimal places, AND too many digits altogether (90 = 45+45).
+# should preserve integers (65 = 45+20)
+CREATE TABLE t1 SELECT 123451234512345123451234512345123451234512345.678906789067890678906789067890678906789067890 AS f1;
+DESC t1;
+SELECT f1 FROM t1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 #
