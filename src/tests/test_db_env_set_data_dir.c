@@ -2,6 +2,8 @@
 #include <assert.h>
 #include <db.h>
 
+// DIR is defined in the Makefile
+
 int main() {
     DB_ENV *dbenv;
     int r;
@@ -9,16 +11,16 @@ int main() {
     r = db_env_create(&dbenv, 0);
     assert(r == 0);
 
-    r = dbenv->set_data_dir(dbenv, ".");
+    r = dbenv->set_data_dir(dbenv, DIR);
     assert(r == 0);
 
-    r = dbenv->set_data_dir(dbenv, ".");
+    r = dbenv->set_data_dir(dbenv, DIR);
     assert(r == 0);
 
-    r = dbenv->open(dbenv, ".", DB_PRIVATE+DB_INIT_MPOOL, 0);
+    r = dbenv->open(dbenv, DIR, DB_PRIVATE+DB_INIT_MPOOL, 0);
     assert(r == 0);
 
-    r = dbenv->set_data_dir(dbenv, ".");
+    r = dbenv->set_data_dir(dbenv, DIR);
     assert(r != 0);
     
     r = dbenv->close(dbenv, 0);
