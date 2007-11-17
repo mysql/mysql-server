@@ -33,5 +33,8 @@ int main() {
     r = db->close(db, 0);
     assert(r == 0);
 
+    r = env->close(env, 0);
+    assert(r == 0);
+
     return 0;
 }

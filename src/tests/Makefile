@@ -48,15 +48,21 @@ $(ALL_TESTS):
 	echo $@
 
 %.bdbrun: %.bdb
-	./$<
+	$(VGRIND) ./$<
 %.tdbrun: %.tdb
 	$(VGRIND) ./$<
 
+# For a few of the tests bdb is making valgrind unhappy.
+test_db_already_exists.bdbrun: VGRIND=
+test_db_dup.bdbrun: VGRIND=
+test_reverse_compare_fun.bdbrun: VGRIND=
+test_db_subdb.bdbrun: VGRIND=
+test_db_env_open_open_close.bdbrun:  VGRIND=
 
 %.bdb: %.c
-	cc  -DDIR=\"dir.$<.bdb\" $(CFLAGS) $< -ldb -o $@
+	cc  -DDIR=\"dir.$<.bdb\" -DUSE_BDB $(CFLAGS) $< -ldb -o $@
 %.tdb: %.c
-	cc  -DDIR=\"dir.$<.tdb\" $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
+	cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 make_libs:
 	cd ..;make
