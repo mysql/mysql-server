@@ -1521,7 +1521,7 @@ f1
 DROP TABLE t1;
 CREATE TABLE t1 SELECT 123451234512345123451234512345123451234512345.678906789067890678906789067890678906789067890 AS f1;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value for column 'f1' at row 1
 DESC t1;
 Field	Type	Null	Key	Default	Extra
 f1	decimal(59,30)	NO		0.000000000000000000000000000000	
