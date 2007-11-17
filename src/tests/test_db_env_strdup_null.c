@@ -5,7 +5,8 @@
 #include <errno.h>
 #include <db.h>
 
-#define DIR "dir.test_db_open_notexist_reopen"
+// DIR is defined in the Makefile
+
 DB_ENV *env;
 DB *db;
 

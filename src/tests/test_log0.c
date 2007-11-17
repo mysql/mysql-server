@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <db.h>
 
-#define DIR "dir.test_log0"
+// DIR is defined in the Makefile
 
 DB_ENV *env;
 

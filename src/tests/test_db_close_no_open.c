@@ -5,7 +5,9 @@
 #include <sys/types.h>
 #include <db.h>
 
-#define DIR "dir.test_db_close_no_open"
+// DIR is defined in the Makefile
+
+#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
 DB_ENV *env;
 DB *db;
