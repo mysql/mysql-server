@@ -398,7 +398,7 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
     thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
                              MODE_INVALID_DATES;
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-    if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
+    if (!(*item)->is_null() && !(*item)->save_in_field(field, 1))
     {
       Item *tmp= new Item_int_with_ref(field->val_int(), *item,
                                        test(field->flags & UNSIGNED_FLAG));
