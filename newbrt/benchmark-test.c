@@ -31,7 +31,7 @@ void setup (void) {
     int r;
     unlink(fname);
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
-    r = open_brt(fname, 0, 1, &t, nodesize, ct, default_compare_fun); assert(r==0);
+    r = open_brt(fname, 0, 1, &t, nodesize, ct, NULL_TXN, default_compare_fun); assert(r==0);
 }
 
 void shutdown (void) {

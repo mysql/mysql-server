@@ -1237,7 +1237,7 @@ int brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const DBT*
     return 0;
 }
 
-int brt_open(BRT t, const char *fname, const char *dbname, int is_create, CACHETABLE cachetable) {
+int brt_open(BRT t, const char *fname, const char *dbname, int is_create, CACHETABLE cachetable, TOKUTXN txn __attribute__((__unused__))) {
 
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
@@ -1389,7 +1389,7 @@ error:
     return r ? r : r2;
 }
 
-int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable,
+int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable, TOKUTXN txn,
 	      int (*compare_fun)(DB*,const DBT*,const DBT*)) {
     BRT brt;
     int r;
@@ -1400,7 +1400,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
     brt_set_nodesize(brt, nodesize);
     brt_set_bt_compare(brt, compare_fun);
 
-    r = brt_open(brt, fname, dbname, is_create, cachetable);
+    r = brt_open(brt, fname, dbname, is_create, cachetable, txn);
     if (r != 0) {
         return r;
     }

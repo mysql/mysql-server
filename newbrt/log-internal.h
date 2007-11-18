@@ -23,7 +23,9 @@ enum {
     LT_DELETE                   = 'D',
     LT_INSERT_WITH_NO_OVERWRITE = 'I',
     LT_CHECKPOINT               = 'P',
-    LT_BLOCK_RENAME             = 'R'
+    LT_BLOCK_RENAME             = 'R',
+    LT_FCREATE_TMP              = 'T',
+    LT_UNLINK                   = 'U'
 };
 
 struct tokutxn {

@@ -3,7 +3,7 @@
 
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 # PROF_FLAGS = -pg
-OPTFLAGS = -O2
+# OPTFLAGS = -O2
 
 ifeq ($(CYGWIN),cygwin)
 else
@@ -35,12 +35,14 @@ REGRESSION_TESTS = \
         cachetable-test2 \
         hashtest \
         brt-test \
+	test_oexcl \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 BINS =  $(REGRESSION_TESTS) \
         benchmark-test \
         randbrt \
         randdb4 \
+        logdump \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 logdump: LDFLAGS+=-lz
@@ -48,6 +50,7 @@ logdump: LDFLAGS+=-lz
 libs: log.o
 bins: $(BINS)
 check: bins
+	$(DTOOL) ./test_oexcl
 	$(DTOOL) ./ybt-test
 	$(DTOOL) ./pma-test
 	$(DTOOL) ./cachetable-test
@@ -111,6 +114,7 @@ benchmark-test.o: brt.h ../include/db.h
 
 clean:
 	rm -rf $(REGRESSION_TESTS) $(BINS) *.o *.bb *.bbg *.da
+	rm -rf test_oexcl.c.tmp 
 
 randdb4: LOADLIBES=-ldb
 randbrt: brt.o hashtable.o cachetable.o memory.o brt-serialize.o
