@@ -1875,10 +1875,6 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 LOCK TABLES t2 WRITE, t1 WRITE;
-SELECT * FROM t2;
-c1
-1
-LOCK TABLES t2 WRITE, t1 WRITE;
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
