@@ -4307,6 +4307,12 @@ c3
 DROP TABLE t1;
 DROP TABLE t2;
 
+CREATE TABLE t1 (c1 BIGINT NOT NULL);
+INSERT INTO t1 (c1) VALUES (1);
+SELECT * FROM t1 WHERE c1 > NULL + 1;
+c1
+DROP TABLE t1;
+
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
