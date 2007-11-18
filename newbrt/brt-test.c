@@ -28,7 +28,7 @@ static void test0 (void) {
     assert(r==0);
     printf("%s:%d test0\n", __FILE__, __LINE__);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, 1024, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, 1024, ct, null_txn, default_compare_fun);
     assert(r==0);
     //printf("%s:%d test0\n", __FILE__, __LINE__);
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
@@ -50,7 +50,7 @@ static void test1 (void) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, 1024, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, 1024, ct, null_txn, default_compare_fun);
     assert(r==0);
     brt_insert(t, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), null_db, null_txn);
     {
@@ -76,7 +76,7 @@ static void test2 (int memcheck) {
     memory_check_all_free();
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, 1024, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, 1024, ct, null_txn, default_compare_fun);
     printf("%s:%d did setup\n", __FILE__, __LINE__);
     assert(r==0);
     for (i=0; i<2048; i++) {
@@ -89,7 +89,7 @@ static void test2 (int memcheck) {
 	if (0) {
 	    brt_flush(t);
 	    {
-		int n = get_n_items_malloced(); 
+		int n = get_n_items_malloced();
 		printf("%s:%d i=%d n_items_malloced=%d\n", __FILE__, __LINE__, i, n);
 		if (n!=3) print_malloced_items();
 		assert(n==3);
@@ -115,7 +115,7 @@ static void test3 (int nodesize, int count, int memcheck) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     gettimeofday(&t0, 0);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, nodesize, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, nodesize, ct, null_txn, default_compare_fun);
     assert(r==0);
     for (i=0; i<count; i++) {
 	char key[100],val[100];
@@ -146,7 +146,7 @@ static void test4 (int nodesize, int count, int memcheck) {
     memory_check=memcheck;
     memory_check_all_free();
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
-    r = open_brt(fname, 0, 1, &t, nodesize, ct, default_compare_fun); assert(r==0);
+    r = open_brt(fname, 0, 1, &t, nodesize, ct, null_txn, default_compare_fun); assert(r==0);
     for (i=0; i<count; i++) {
 	char key[100],val[100];
 	int rv = random();
@@ -178,7 +178,7 @@ static void test5 (void) {
     for (i=0; i<limit; i++) values[i]=-1;
     unlink(fname);
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);        assert(r==0);
-    r = open_brt(fname, 0, 1, &t, 1<<12, ct, default_compare_fun);   assert(r==0);
+    r = open_brt(fname, 0, 1, &t, 1<<12, ct, null_txn, default_compare_fun);   assert(r==0);
     for (i=0; i<limit/2; i++) {
 	char key[100],val[100];
 	int rk = random()%limit;
@@ -221,7 +221,7 @@ static void test_dump_empty_db (void) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, 1024, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, 1024, ct, null_txn, default_compare_fun);
     assert(r==0);
     dump_brt(t);
     r = close_brt(t);          assert(r==0);
@@ -241,8 +241,8 @@ static void test_multiple_files_of_size (int size) {
     unlink(n1);
     memory_check_all_free();
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
-    r = open_brt(n0, 0, 1, &t0, size, ct, default_compare_fun); assert(r==0);
-    r = open_brt(n1, 0, 1, &t1, size, ct, default_compare_fun); assert(r==0);
+    r = open_brt(n0, 0, 1, &t0, size, ct, null_txn, default_compare_fun); assert(r==0);
+    r = open_brt(n1, 0, 1, &t1, size, ct, null_txn, default_compare_fun); assert(r==0);
     for (i=0; i<10000; i++) {
 	char key[100],val[100];
 	DBT k,v;
@@ -265,11 +265,11 @@ static void test_multiple_files_of_size (int size) {
 
     /* Now see if the data is all there. */
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);      assert(r==0);
-    r = open_brt(n0, 0, 0, &t0, 1<<12, ct, default_compare_fun);
+    r = open_brt(n0, 0, 0, &t0, 1<<12, ct, null_txn, default_compare_fun);
     printf("%s:%d r=%d\n", __FILE__, __LINE__,r);
     assert(r==0);
-    r = open_brt(n1, 0, 0, &t1, 1<<12, ct, default_compare_fun); assert(r==0);
-    
+    r = open_brt(n1, 0, 0, &t1, 1<<12, ct, null_txn, default_compare_fun); assert(r==0);
+
     for (i=0; i<10000; i++) {
 	char key[100],val[100];
 	DBT k,actual;
@@ -310,7 +310,7 @@ static void test_named_db (void) {
     unlink(n1);
     memory_check_all_free();
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);           assert(r==0);
-    r = open_brt(n0, "db1", 1, &t0, 1<<12, ct, default_compare_fun); assert(r==0);
+    r = open_brt(n0, "db1", 1, &t0, 1<<12, ct, null_txn, default_compare_fun); assert(r==0);
 
 
     brt_insert(t0, fill_dbt(&k, "good", 5), fill_dbt(&v, "day", 4), null_db, null_txn); assert(r==0);
@@ -321,7 +321,7 @@ static void test_named_db (void) {
 
     memory_check_all_free();
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);           assert(r==0);
-    r = open_brt(n0, "db1", 0, &t0, 1<<12, ct, default_compare_fun); assert(r==0);
+    r = open_brt(n0, "db1", 0, &t0, 1<<12, ct, null_txn, default_compare_fun); assert(r==0);
 
     {
 	r = brt_lookup(t0, fill_dbt(&k, "good", 5), init_dbt(&v), 0);
@@ -329,7 +329,7 @@ static void test_named_db (void) {
 	assert(v.size==4);
 	assert(strcmp(v.data,"day")==0);
     }
-    
+
     r = close_brt(t0); assert(r==0);
     r = cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
@@ -347,8 +347,8 @@ static void test_multiple_dbs (void) {
     unlink(n1);
     memory_check_all_free();
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);        assert(r==0);
-    r = open_brt(n0, "db1", 1, &t0, 1<<12, ct, default_compare_fun); assert(r==0);
-    r = open_brt(n1, "db2", 1, &t1, 1<<12, ct, default_compare_fun); assert(r==0);
+    r = open_brt(n0, "db1", 1, &t0, 1<<12, ct, null_txn, default_compare_fun); assert(r==0);
+    r = open_brt(n1, "db2", 1, &t1, 1<<12, ct, null_txn, default_compare_fun); assert(r==0);
 
     brt_insert(t0, fill_dbt(&k, "good", 5), fill_dbt(&v, "grief", 6), null_db, null_txn); assert(r==0);
     brt_insert(t1, fill_dbt(&k, "bad",  4), fill_dbt(&v, "night", 6), null_db, null_txn); assert(r==0);
@@ -360,8 +360,8 @@ static void test_multiple_dbs (void) {
     memory_check_all_free();
 
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);        assert(r==0);
-    r = open_brt(n0, "db1", 0, &t0, 1<<12, ct, default_compare_fun); assert(r==0);
-    r = open_brt(n1, "db2", 0, &t1, 1<<12, ct, default_compare_fun); assert(r==0);
+    r = open_brt(n0, "db1", 0, &t0, 1<<12, ct, null_txn, default_compare_fun); assert(r==0);
+    r = open_brt(n1, "db2", 0, &t1, 1<<12, ct, null_txn, default_compare_fun); assert(r==0);
 
     {
 	r = brt_lookup(t0, fill_dbt(&k, "good", 5), init_dbt(&v), 0);
@@ -380,7 +380,7 @@ static void test_multiple_dbs (void) {
 	assert(v.size==6);
 	assert(strcmp(v.data,"night")==0);
     }
-    
+
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
     r = cachetable_close(&ct); assert(r==0);
@@ -403,7 +403,7 @@ static void test_multiple_dbs_many (void) {
     for (i=0; i<MANYN; i++) {
 	char dbname[20];
 	snprintf(dbname, 20, "db%d", i);
-	r = open_brt(name, dbname, 1, &trees[i], 1<<12, ct, default_compare_fun);
+	r = open_brt(name, dbname, 1, &trees[i], 1<<12, ct, null_txn, default_compare_fun);
 	assert(r==0);
     }
     for (i=0; i<MANYN; i++) {
@@ -432,7 +432,7 @@ static void test_multiple_brts_one_db_one_file (void) {
     unlink(name);
     r = brt_create_cachetable(&ct, 32, ZERO_LSN, NULL_LOGGER); assert(r==0);
     for (i=0; i<MANYN; i++) {
-	r = open_brt(name, 0, (i==0), &trees[i], 1<<12, ct, default_compare_fun);
+	r = open_brt(name, 0, (i==0), &trees[i], 1<<12, ct, null_txn, default_compare_fun);
 	assert(r==0);
     }
     for (i=0; i<MANYN; i++) {
@@ -475,7 +475,7 @@ static void  test_read_what_was_written (void) {
     memory_check_all_free();
 
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
-    r = open_brt(n, 0, 1, &brt, 1<<12, ct, default_compare_fun);  assert(r==0);
+    r = open_brt(n, 0, 1, &brt, 1<<12, ct, null_txn, default_compare_fun);  assert(r==0);
     r = close_brt(brt); assert(r==0);
     r = cachetable_close(&ct); assert(r==0);
 
@@ -483,7 +483,7 @@ static void  test_read_what_was_written (void) {
 
     /* Now see if we can read an empty tree in. */
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);     assert(r==0);
-    r = open_brt(n, 0, 0, &brt, 1<<12, ct, default_compare_fun);  assert(r==0);
+    r = open_brt(n, 0, 0, &brt, 1<<12, ct, null_txn, default_compare_fun);  assert(r==0);
 
     /* See if we can put something in it. */
     {
@@ -493,12 +493,12 @@ static void  test_read_what_was_written (void) {
 
     r = close_brt(brt); assert(r==0);
     r = cachetable_close(&ct); assert(r==0);
-    
+
     memory_check_all_free();
 
     /* Now see if we can read it in and get the value. */
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);    assert(r==0);
-    r = open_brt(n, 0, 0, &brt, 1<<12, ct, default_compare_fun); assert(r==0);
+    r = open_brt(n, 0, 0, &brt, 1<<12, ct, null_txn, default_compare_fun); assert(r==0);
 
     {
 	DBT k,v;
@@ -563,18 +563,18 @@ static void  test_read_what_was_written (void) {
 	    r=brt_lookup(brt, fill_dbt(&k, key, strlen(key)+1), init_dbt(&v), 0);
 	    if (r!=0) printf("%s:%d r=%d on key=%s\n", __FILE__, __LINE__, r, key);
 	    assert(r==0);
-	    
+	
 	}
     }
 
     r = close_brt(brt); assert(r==0);
     printf("%s:%d About to close %p\n", __FILE__, __LINE__, ct);
     r = cachetable_close(&ct); assert(r==0);
-    
+
     memory_check_all_free();
-    
+
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);    assert(r==0);
-    r = open_brt(n, 0, 0, &brt, 1<<12, ct, default_compare_fun); assert(r==0);
+    r = open_brt(n, 0, 0, &brt, 1<<12, ct, null_txn, default_compare_fun); assert(r==0);
 
     {
 	DBT k,v;
@@ -593,13 +593,13 @@ static void  test_read_what_was_written (void) {
 	    r=brt_lookup(brt, fill_dbt(&k, key, strlen(key)+1), init_dbt(&v), 0);
 	    if (r!=0) printf("%s:%d r=%d on key=%s\n", __FILE__, __LINE__, r, key);
 	    assert(r==0);
-	    
+	
 	}
     }
-    
+
     r = close_brt(brt); assert(r==0);
     r = cachetable_close(&ct); assert(r==0);
-    
+
     memory_check_all_free();
 
 
@@ -622,7 +622,7 @@ void test_cursor_last_empty(void) {
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
-    r = open_brt(n, 0, 1, &brt, 1<<12, ct, default_compare_fun);  assert(r==0);
+    r = open_brt(n, 0, 1, &brt, 1<<12, ct, null_txn, default_compare_fun);  assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     r = brt_cursor(brt, &cursor);            assert(r==0);
     init_dbt(&kbt);
@@ -654,7 +654,7 @@ void test_cursor_next (void) {
     memory_check_all_free();
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
-    r = open_brt(n, 0, 1, &brt, 1<<12, ct, default_compare_fun);  assert(r==0);
+    r = open_brt(n, 0, 1, &brt, 1<<12, ct, null_txn, default_compare_fun);  assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     r = brt_insert(brt, fill_dbt(&kbt, "hello", 6), fill_dbt(&vbt, "there", 6), null_db, null_txn);
     r = brt_insert(brt, fill_dbt(&kbt, "byebye", 7), fill_dbt(&vbt, "byenow", 7), null_db, null_txn);
@@ -690,7 +690,7 @@ void test_cursor_next (void) {
     r = cachetable_close(&ct); assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     memory_check_all_free();
-    
+
 }
 
 DB nonce_db;
@@ -734,7 +734,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     //printf("%s:%d WRONG=%d\n", __FILE__, __LINE__, wrong_p);
 
     if (0) { // ???? Why is this commented out?
-    r = open_brt(n, 0, 1, &brt, 1<<20, ct, wrong_p ? wrong_compare_fun : default_compare_fun);  assert(r==0);
+    r = open_brt(n, 0, 1, &brt, 1<<20, ct, null_txn, wrong_p ? wrong_compare_fun : default_compare_fun);  assert(r==0);
     for (i=1; i<257; i+=255) {
 	unsigned char a[4],b[4];
 	b[3] = a[0] = i&255;
@@ -761,15 +761,15 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	       ((char*)vbt.data)[0], ((char*)vbt.data)[1], ((char*)vbt.data)[2], ((char*)vbt.data)[3]);
     }
 
-    
+
     r = close_brt(brt);
     }
 
     {
 	cachetable_verify(ct);
-	r = open_brt(n, 0, 1, &brt, 1<<20, ct, wrong_p ? wrong_compare_fun : default_compare_fun);  assert(r==0);
+	r = open_brt(n, 0, 1, &brt, 1<<20, ct, null_txn, wrong_p ? wrong_compare_fun : default_compare_fun);  assert(r==0);
 	cachetable_verify(ct);
-    
+
 	for (i=0; i<N; i++) {
 	    unsigned char a[4],b[4];
 	    b[3] = a[0] = i&255;
@@ -915,7 +915,7 @@ void test_brt_cursor_first(int n, DB *db) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -957,7 +957,7 @@ void test_brt_cursor_last(int n, DB *db) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert keys 0, 1, .. (n-1) */
@@ -999,7 +999,7 @@ void test_brt_cursor_first_last(int n, DB *db) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -1019,7 +1019,7 @@ void test_brt_cursor_first_last(int n, DB *db) {
     if (n == 0) {
         assert_cursor_notfound(brt, DB_FIRST, db);
         assert_cursor_notfound(brt, DB_LAST, db);
-    } else 
+    } else
         assert_cursor_first_last(brt, 0, n-1, db);
 
     r = close_brt(brt);
@@ -1028,7 +1028,7 @@ void test_brt_cursor_first_last(int n, DB *db) {
     r = cachetable_close(&ct);
     assert(r==0);
 
-    
+
 }
 
 void test_brt_cursor_rfirst(int n, DB *db) {
@@ -1045,7 +1045,7 @@ void test_brt_cursor_rfirst(int n, DB *db) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert keys n-1, n-2, ... , 0 */
@@ -1120,7 +1120,7 @@ void test_brt_cursor_walk(int n, DB *db) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -1193,7 +1193,7 @@ void test_brt_cursor_rwalk(int n, DB *db) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -1272,7 +1272,7 @@ void test_brt_cursor_rand(int n, DB *db) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -1325,7 +1325,7 @@ void test_brt_cursor_split(int n, DB *db) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -1403,7 +1403,7 @@ void test_multiple_brt_cursors(int n, DB *db) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     int i;
@@ -1453,7 +1453,7 @@ void test_multiple_brt_cursor_walk(int n, DB *db) {
     r = brt_create_cachetable(&ct, cachesize, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     int c;
@@ -1462,7 +1462,7 @@ void test_multiple_brt_cursor_walk(int n, DB *db) {
         r = brt_cursor(brt, &cursors[c]);
         assert(r == 0);
     }
-    
+
     DBT key, val;
     int k, v;
 
@@ -1529,13 +1529,13 @@ void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     CACHETABLE ct;
     BRT brt;
     BRT_CURSOR cursor;
-    
+
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     int i;
@@ -1569,11 +1569,11 @@ void test_brt_cursor_set(int n, int cursor_op, DB *db) {
         memcpy(&vv, val.data, val.size);
         assert(vv == v);
         toku_free(val.data);
-    }   
+    }
 
     /* try to set cursor to keys not in the tree, all should fail */
     for (i=0; i<10*n; i++) {
-        if (i % 10 == 0) 
+        if (i % 10 == 0)
             continue;
         k = htonl(i);
         fill_dbt(&key, &k, sizeof k);
@@ -1606,7 +1606,7 @@ void test_brt_cursor_set_range(int n, DB *db) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     int i;
@@ -1647,7 +1647,7 @@ void test_brt_cursor_set_range(int n, DB *db) {
             assert(vv == (((v+9)/10)*10));
             toku_free(val.data);
         }
-    }   
+    }
 
     r = brt_cursor_close(cursor);
     assert(r==0);
@@ -1673,7 +1673,7 @@ void test_brt_cursor_delete(int n, DB *db) {
     error = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(error == 0);
 
-    error = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    error = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(error == 0);
 
     error = brt_cursor(brt, &cursor);
@@ -1735,12 +1735,12 @@ void test_brt_cursor_get_both(int n, DB *db) {
     error = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(error == 0);
 
-    error = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
+    error = open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare);
     assert(error == 0);
 
     error = brt_cursor(brt, &cursor);
     assert(error == 0);
-    
+
     DBT key, val;
     int k, v;
 
@@ -1789,7 +1789,7 @@ void test_brt_cursor_get_both(int n, DB *db) {
         fill_dbt(&val, &v, sizeof v);
         error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
         assert(error == 0);
-#ifdef DB_CURRENT 
+#ifdef DB_CURRENT
         init_dbt(&key); key.flags = DB_DBT_MALLOC;
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
         error = brt_cursor_get(cursor, &key, &val, DB_CURRENT, 0);
@@ -1842,13 +1842,13 @@ void test_brt_cursor(DB *db) {
         test_brt_cursor_first(n, db); memory_check_all_free();
      }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_rfirst(n, db); memory_check_all_free();        
+        test_brt_cursor_rfirst(n, db); memory_check_all_free();
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
         test_brt_cursor_walk(n, db); memory_check_all_free();
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_last(n, db); memory_check_all_free();        
+        test_brt_cursor_last(n, db); memory_check_all_free();
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
         test_brt_cursor_first_last(n, db); memory_check_all_free();
@@ -1887,7 +1887,7 @@ void test_large_kv(int bsize, int ksize, int vsize) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, bsize, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, bsize, ct, null_txn, default_compare_fun);
     assert(r==0);
 
     DBT key, val;
@@ -1934,7 +1934,7 @@ void test_brt_delete_empty() {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, 4096, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, 4096, ct, null_txn, default_compare_fun);
     assert(r==0);
 
     DBT key;
@@ -1963,7 +1963,7 @@ void test_brt_delete_present(int n) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, 4096, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, 4096, ct, null_txn, default_compare_fun);
     assert(r==0);
 
     DBT key, val;
@@ -2025,7 +2025,7 @@ void test_brt_delete_not_present(int n) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, 4096, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, 4096, ct, null_txn, default_compare_fun);
     assert(r==0);
 
     DBT key, val;
@@ -2052,7 +2052,7 @@ void test_brt_delete_not_present(int n) {
     k = htonl(n+1);
     fill_dbt(&key, &k, sizeof k);
     r = brt_delete(t, &key, 0);
-    /* the delete may be buffered or may be executed on a leaf node, so the 
+    /* the delete may be buffered or may be executed on a leaf node, so the
        return value depends */
     printf("brt_delete k=%d %d\n", k, r);
 
@@ -2072,7 +2072,7 @@ void test_brt_delete_cursor_first(int n) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, 4096, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, 4096, ct, null_txn, default_compare_fun);
     assert(r==0);
 
     DBT key, val;
@@ -2107,7 +2107,7 @@ void test_brt_delete_cursor_first(int n) {
         fill_dbt(&key, &k, sizeof k);
         r = brt_delete(t, &key, 0);
         assert(r == 0);
-        
+
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = brt_lookup(t, &key, &val, 0);
         assert(r == DB_NOTFOUND);
@@ -2147,9 +2147,9 @@ void test_brt_delete_cursor_first(int n) {
 }
 
 /* test for bug: insert cmd in a nonleaf node, delete removes the
-   insert cmd, but lookup finds the insert cmd 
+   insert cmd, but lookup finds the insert cmd
 
-   build a 2 level tree, and expect the last insertion to be 
+   build a 2 level tree, and expect the last insertion to be
    buffered. then delete and lookup. */
 
 void test_insert_delete_lookup(int n) {
@@ -2164,7 +2164,7 @@ void test_insert_delete_lookup(int n) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = open_brt(fname, 0, 1, &t, 4096, ct, default_compare_fun);
+    r = open_brt(fname, 0, 1, &t, 4096, ct, null_txn, default_compare_fun);
     assert(r==0);
 
     DBT key, val;

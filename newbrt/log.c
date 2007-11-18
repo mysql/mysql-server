@@ -58,7 +58,7 @@ int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
 	int  fnamelen = strlen(logger->directory)+50;
 	char fname[fnamelen];
 	snprintf(fname, fnamelen, "%s/log%012llu.tokulog", logger->directory, logger->next_log_file_number);
-	fprintf(stderr, "%s:%d creat(%s, ...)\n", __FILE__, __LINE__, fname);
+	//fprintf(stderr, "%s:%d creat(%s, ...)\n", __FILE__, __LINE__, fname);
 	logger->fd = creat(fname, O_EXCL | 0700);
 	if (logger->fd==-1) return errno;
 	logger->next_log_file_number++;
@@ -92,7 +92,7 @@ int tokulogger_log_close(TOKULOGGER *loggerp) {
     TOKULOGGER logger = *loggerp;
     int r = 0;
     if (logger->fd!=-1) {
-	printf("%s:%d closing log: n_in_buf=%d\n", __FILE__, __LINE__, logger->n_in_buf);
+	//printf("%s:%d closing log: n_in_buf=%d\n", __FILE__, __LINE__, logger->n_in_buf);
 	if (logger->n_in_buf>0) {
 	    r = write(logger->fd, logger->buf, logger->n_in_buf);
 	    if (r==-1) return errno;
@@ -262,6 +262,41 @@ int tokulogger_log_block_rename (TOKULOGGER logger, FILENUM fileid, DISKOFF oldd
     wbuf_int    (&wbuf, childnum);
     return tokulogger_finish(logger, &wbuf);
 }
+
+int tokulogger_log_fcreate_tmp (TOKUTXN txn, const char *fname, int mode) {
+    if (txn==0) return 0;
+    const int fnamelen = strlen(fname);
+    const int buflen = (+1 // log command
+			+4 // length of fname
+			+fnamelen
+			+4 // mode
+			+8 // crc & len
+			);
+    unsigned char buf[buflen];
+    struct wbuf wbuf;
+    wbuf_init (&wbuf, buf, buflen);
+    wbuf_char (&wbuf, LT_FCREATE_TMP);
+    wbuf_bytes(&wbuf, fname, fnamelen);
+    wbuf_int  (&wbuf, mode);
+    return tokulogger_finish(txn->logger, &wbuf);
+}
+
+int tokulogger_log_unlink (TOKUTXN txn, const char *fname) {
+    if (txn==0) return 0;
+    const int fnamelen = strlen(fname);
+    const int buflen = (+1 // log command
+			+4 // length of fname
+			+fnamelen
+			+8 // crc & len
+			);
+    unsigned char buf[buflen];
+    struct wbuf wbuf;
+    wbuf_init (&wbuf, buf, buflen);
+    wbuf_char (&wbuf, LT_UNLINK);
+    wbuf_bytes(&wbuf, fname, fnamelen);
+    return tokulogger_finish(txn->logger, &wbuf);
+};
+
 
 /*
 int brtenv_checkpoint (BRTENV env) {

@@ -86,13 +86,11 @@ int create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKU
     return 0;
 }
 
-int cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags, mode_t mode) {
+static int cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
     int r;
     CACHEFILE extant;
     struct stat statbuf;
     struct fileid fileid;
-    int fd = open(fname, flags, mode);
-    if (fd<0) return errno;
     memset(&fileid, 0, sizeof(fileid));
     r=fstat(fd, &statbuf);
     assert(r==0);
@@ -118,6 +116,12 @@ int cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags,
 	*cf = newcf;
 	return 0;
     }
+}
+
+int cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags, mode_t mode) {
+    int fd = open(fname, flags, mode);
+    if (fd<0) return errno;
+    return cachetable_openfd (cf, t, fd);
 }
 
 CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {

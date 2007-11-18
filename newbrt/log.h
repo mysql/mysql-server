@@ -16,4 +16,8 @@ int tokulogger_log_block_rename (TOKULOGGER logger, FILENUM fileid, DISKOFF oldd
 
 int tokutxn_begin (TOKUTXN /*parent*/,TOKUTXN *, TXNID txnid64, TOKULOGGER logger);
 
+int tokulogger_log_fcreate_tmp (TOKUTXN, const char */*fname*/, int /*mode*/);
+
+int tokulogger_log_unlink (TOKUTXN, const char */*fname*/);
+
 #endif

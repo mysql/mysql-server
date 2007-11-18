@@ -22,6 +22,6 @@ typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
 typedef struct tokulogger *TOKULOGGER;
 #define NULL_LOGGER ((TOKULOGGER)0)
 typedef struct tokutxn    *TOKUTXN;
-
+#define NULL_TXN ((TOKUTXN)0)
 
 #endif
