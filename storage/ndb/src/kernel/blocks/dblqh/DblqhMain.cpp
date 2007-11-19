@@ -15900,17 +15900,10 @@ void Dblqh::sendExecConf(Signal* signal)
 void Dblqh::srPhase3Comp(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(cnoOfNodes < MAX_NDB_NODES);
-  for (Uint32 i = 0; i < cnoOfNodes; i++) {
-    jam();
-    if (cnodeStatus[i] == ZNODE_UP) {
-      jam();
-      ndbrequire(cnodeData[i] < MAX_NDB_NODES);
-      BlockReference ref = calcLqhBlockRef(cnodeData[i]);
-      signal->theData[0] = cownNodeid;
-      sendSignal(ref, GSN_EXEC_SRCONF, signal, 1, JBB);
-    }//if
-  }//for
+
+  signal->theData[0] = cownNodeid;
+  NodeReceiverGroup rg(DBLQH, m_sr_nodes);
+  sendSignal(rg, GSN_EXEC_SRCONF, signal, 1, JBB);
   return;
 }//Dblqh::srPhase3Comp()
 
