@@ -486,7 +486,8 @@ int __toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname,
     db->i->open_mode = mode;
 
     r = brt_open(db->i->brt, db->i->full_fname, dbname, flags & DB_CREATE, 
-                 db->dbenv->i->cachetable, txn->i->tokutxn);
+                 db->dbenv->i->cachetable,
+		 txn ? txn->i->tokutxn : NULL_TXN);
     if (r != 0)
         goto error_cleanup;
 
