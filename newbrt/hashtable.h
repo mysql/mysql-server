@@ -18,7 +18,10 @@ int toku_hashtable_set_dups (HASHTABLE, unsigned int allow_dups);
 
 /* Return 0 if the key is found in the hashtable, -1 otherwise. */
 /* Warning: The data returned points to the internals of the hashtable.  It is set to "const" to try to prevent you from messing it up. */
-int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec*data, ITEMLEN *datalen, int *type);
+int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, ITEMLEN *datalen, int *type);
+
+/* match on key, index on duplicates */
+int toku_hash_find_idx (HASHTABLE tab, bytevec key, ITEMLEN keylen, int idx, bytevec *data, ITEMLEN *datalen, int *type);
 
 /* Insert the key/data pair into the hash table.
    If the key is not in the hash table then insert it.

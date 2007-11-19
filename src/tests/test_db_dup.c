@@ -747,6 +747,251 @@ void test_walk_empty(int n, int dup_mode) {
     assert(r == 0);
 }
 
+void test_icdi_search(int n, int dup_mode) {
+    printf("test_icdi_search:%d %d\n", n, dup_mode);
+
+    DB_ENV * const null_env = 0;
+    DB *db;
+    DB_TXN * const null_txn = 0;
+    const char * const fname = "test.dup.insert.brt";
+    int r;
+
+    unlink(fname);
+
+    /* create the dup database file */
+    r = db_create(&db, null_env, 0);
+    assert(r == 0);
+    r = db->set_flags(db, dup_mode);
+    assert(r == 0);
+    r = db->set_pagesize(db, 4096);
+    assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
+    assert(r == 0);
+
+    /* insert n duplicates */
+    int i;
+    for (i=0; i<n; i++) {
+        int k = htonl(n/2);
+        int v = htonl(i);
+        DBT key, val;
+        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
+        assert(r == 0);
+
+        r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
+        assert(r == 0);
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == htonl(0));
+        free(val.data);
+    } 
+
+    /* reopen the database to force nonleaf buffering */
+    r = db->close(db, 0);
+    assert(r == 0);
+    r = db_create(&db, null_env, 0);
+    assert(r == 0);
+    r = db->set_flags(db, dup_mode);
+    assert(r == 0);
+    r = db->set_pagesize(db, 4096);
+    assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
+    assert(r == 0);
+
+    int k = htonl(n/2);
+    DBT key;
+    r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
+    assert(r == 0);
+
+    /* insert n duplicates */
+    for (i=0; i<n; i++) {
+        int k = htonl(n/2);
+        int v = htonl(n+i);
+        DBT key, val;
+        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
+        assert(r == 0);
+
+        r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
+        assert(r == 0);
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == htonl(n));
+        free(val.data);
+    } 
+
+    DBC *cursor;
+    r = db->cursor(db, null_txn, &cursor, 0);
+    assert(r == 0);
+
+    for (i=0; i<n; i++) {
+        expect(cursor, htonl(n/2), htonl(n+i));
+    }
+
+    r = cursor->c_close(cursor);
+    assert(r == 0);
+
+    r = db->close(db, 0);
+    assert(r == 0);
+}
+
+void test_ici_search(int n, int dup_mode) {
+    printf("test_ici_search:%d %d\n", n, dup_mode);
+
+    DB_ENV * const null_env = 0;
+    DB *db;
+    DB_TXN * const null_txn = 0;
+    const char * const fname = "test.dup.insert.brt";
+    int r;
+
+    unlink(fname);
+
+    /* create the dup database file */
+    r = db_create(&db, null_env, 0);
+    assert(r == 0);
+    r = db->set_flags(db, dup_mode);
+    assert(r == 0);
+    r = db->set_pagesize(db, 4096);
+    assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
+    assert(r == 0);
+
+    /* insert n duplicates */
+    int i;
+    for (i=0; i<n; i++) {
+        int k = htonl(n/2);
+        int v = htonl(i);
+        DBT key, val;
+        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
+        assert(r == 0);
+
+        r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
+        assert(r == 0);
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == htonl(0));
+        free(val.data);
+    } 
+
+    /* reopen the database to force nonleaf buffering */
+    r = db->close(db, 0);
+    assert(r == 0);
+    r = db_create(&db, null_env, 0);
+    assert(r == 0);
+    r = db->set_flags(db, dup_mode);
+    assert(r == 0);
+    r = db->set_pagesize(db, 4096);
+    assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
+    assert(r == 0);
+
+    /* insert n duplicates */
+    for (i=0; i<n; i++) {
+        int k = htonl(n/2);
+        int v = htonl(n+i);
+        DBT key, val;
+        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
+        assert(r == 0);
+
+        r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
+        assert(r == 0);
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == htonl(0));
+        free(val.data);
+    } 
+
+    DBC *cursor;
+    r = db->cursor(db, null_txn, &cursor, 0);
+    assert(r == 0);
+
+    for (i=0; i<2*n; i++) {
+        expect(cursor, htonl(n/2), htonl(i));
+    }
+
+    r = cursor->c_close(cursor);
+    assert(r == 0);
+
+    r = db->close(db, 0);
+    assert(r == 0);
+}
+
+void db_insert(DB *db, int k, int v) {
+    DB_TXN * const null_txn = 0;
+    DBT key, val;
+    int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
+    assert(r == 0);
+}
+
+void expect_db_lookup(DB *db, int k, int v) {
+    DB_TXN * const null_txn = 0;
+    DBT key, val;
+    int r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
+    assert(r == 0);
+    int vv;
+    assert(val.size == sizeof vv);
+    memcpy(&vv, val.data, val.size);
+    assert(vv == v);
+    free(val.data);
+}
+
+void test_i0i1ci0_search(int n, int dup_mode) {
+    printf("test_i0i1ci0_search:%d %d\n", n, dup_mode);
+
+    DB_ENV * const null_env = 0;
+    DB *db;
+    DB_TXN * const null_txn = 0;
+    const char * const fname = "test.dup.insert.brt";
+    int r;
+
+    unlink(fname);
+
+    /* create the dup database file */
+    r = db_create(&db, null_env, 0);
+    assert(r == 0);
+    r = db->set_flags(db, dup_mode);
+    assert(r == 0);
+    r = db->set_pagesize(db, 4096);
+    assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
+    assert(r == 0);
+    
+    /* insert <0,0> */
+    db_insert(db, 0, 0);
+
+    /* insert n duplicates */
+    int i;
+    for (i=0; i<n; i++) {
+        int k = htonl(1);
+        int v = htonl(i);
+        db_insert(db, k, v);
+        expect_db_lookup(db, k, htonl(0));
+    } 
+
+    /* reopen the database to force nonleaf buffering */
+    r = db->close(db, 0);
+    assert(r == 0);
+    r = db_create(&db, null_env, 0);
+    assert(r == 0);
+    r = db->set_flags(db, dup_mode);
+    assert(r == 0);
+    r = db->set_pagesize(db, 4096);
+    assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
+    assert(r == 0);
+
+    /* insert <0,1> */
+    db_insert(db, 0, 1);
+
+    /* verify dup search digs deep into the tree */
+    expect_db_lookup(db, 0, 0);
+
+    r = db->close(db, 0);
+    assert(r == 0);
+}
+
 int main() {
     int i;
 
@@ -773,7 +1018,6 @@ int main() {
         test_dup_delete(i, DB_DUP + DB_DUPSORT);
     }
 
-
     /* test dup delete insert */
     for (i = 1; i <= (1<<16); i *= 2) {
         test_dup_delete_insert(i, DB_DUP);
@@ -781,6 +1025,13 @@ int main() {
         test_walk_empty(i, DB_DUP);
         test_walk_empty(i, DB_DUP + DB_DUPSORT);
         test_all_dup_delete_insert(i);
+    }
+
+    /* test dup search */
+    for (i = 1; i <= (1<<16); i *= 2) {
+         test_ici_search(i, DB_DUP);
+         test_icdi_search(i, DB_DUP);
+         test_i0i1ci0_search(i, DB_DUP);
     }
 
     return 0;

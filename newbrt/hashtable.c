@@ -87,6 +87,26 @@ static void hash_find_internal (HASHTABLE tab, unsigned int hash, const unsigned
     *prev_ptr = prev;
     *dup_ptr = 0;
 }
+
+int toku_hash_find_idx (HASHTABLE tab, bytevec key, ITEMLEN keylen, int idx, bytevec *data, ITEMLEN *datalen, int *type) {
+    HASHDUP dup, *prev;
+    hash_find_internal(tab, hash_key (key, keylen), key, keylen, &dup, &prev);
+    if (dup==0) {
+	return -1;
+    } else {
+        HASHELT he = hashelt_list_peek(&dup->kdlist);
+        int i;
+        for (i=0; i<idx; i++) {
+            he = he->next;
+            if (he == 0)
+                return -2;
+        }
+	*data = &he->keyval[he->keylen];
+	*datalen = he->vallen;
+        *type = he->type;
+	return 0;
+    }
+}
     
 int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, ITEMLEN *datalen, int *type) {
     HASHDUP dup, *prev;
@@ -94,7 +114,7 @@ int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, I
     if (dup==0) {
 	return -1;
     } else {
-        HASHELT he = dup->kdlist.head;
+        HASHELT he = hashelt_list_peek(&dup->kdlist);
 	*data = &he->keyval[he->keylen];
 	*datalen = he->vallen;
         *type = he->type;
@@ -228,7 +248,7 @@ int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytev
 	if (usei>=h->arraysize) usei=0;
 	HASHDUP dup=h->array[usei];
 	if (dup) {
-            HASHELT he = dup->kdlist.head; assert(he);
+            HASHELT he = hashelt_list_peek(&dup->kdlist); assert(he);
 	    *key = &he->keyval[0];
 	    *keylen = he->keylen;
 	    *data = &he->keyval[he->keylen];

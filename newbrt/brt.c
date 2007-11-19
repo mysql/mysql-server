@@ -1712,8 +1712,7 @@ int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKE
     *rootp=newroot_diskoff;
     brt->h->dirty=1;
     initialize_brtnode (brt, newroot, newroot_diskoff, nodea->height+1);
-    printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
-
+    // printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
     newroot->parent_brtnode=0;
     newroot->u.n.n_children=2;
     //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
@@ -1843,12 +1842,25 @@ int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, DB *db, BRTNODE paren
         int type;
 	if (toku_hash_find (node->u.n.htables[childnum], k->data, k->size, &hanswer, &hanswerlen, &type)==0) {
 	    if (type == BRT_INSERT) {
-                //printf("Found %d bytes\n", *vallen);
-                ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
-                //printf("%s:%d Returning %p\n", __FILE__, __LINE__, v->data);
-                 result = 0;
+                if ((brt->flags & DB_DUP)) {
+                    result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, db, node);
+                    if (result != 0) {
+                        ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
+                        result = 0;
+                    }
+                } else {
+                    //printf("Found %d bytes\n", *vallen);
+                    ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
+                    //printf("%s:%d Returning %p\n", __FILE__, __LINE__, v->data);
+                    result = 0;
+                }
             } else if (type == BRT_DELETE) {
-                result = DB_NOTFOUND;
+                if ((brt->flags & DB_DUP) && toku_hash_find_idx (node->u.n.htables[childnum], k->data, k->size, 1, &hanswer, &hanswerlen, &type) == 0) {
+                    assert(type == BRT_INSERT);
+                    ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
+                    result = 0;
+                } else
+                    result = DB_NOTFOUND;
             } else {
                 result = EINVAL;
             }
