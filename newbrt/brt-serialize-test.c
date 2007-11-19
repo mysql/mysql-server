@@ -41,9 +41,9 @@ void test_serialize(void) {
     r = toku_hash_insert(sn.u.n.htables[1], "x", 2, "xval", 5, BRT_NONE); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE,   "x", 2, "xval", 5);
     sn.u.n.n_bytes_in_hashtables = 3*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
 
-    serialize_brtnode_to(fd, sn.nodesize*20, sn.nodesize, &sn);  assert(r==0);
+    toku_seralize_brtnode_to(fd, sn.nodesize*20, sn.nodesize, &sn);  assert(r==0);
 
-    r = deserialize_brtnode_from(fd, nodesize*20, &dn, 0, nodesize, 0, 0);
+    r = toku_deserialize_brtnode_from(fd, nodesize*20, &dn, 0, nodesize, 0, 0);
     assert(r==0);
 
     assert(dn->thisnodename==nodesize*20);

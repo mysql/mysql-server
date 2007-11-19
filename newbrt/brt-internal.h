@@ -96,15 +96,15 @@ struct brt {
 };
 
 /* serialization code */
-void serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
-int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize, int (*bt_compare)(DB *, const DBT*, const DBT*), int (*dup_compare)(DB *, const DBT *, const DBT *));
-unsigned int serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
+void toku_seralize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
+int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize, int (*bt_compare)(DB *, const DBT*, const DBT*), int (*dup_compare)(DB *, const DBT *, const DBT *));
+unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
-void verify_counts(BRTNODE);
+void toku_verify_counts(BRTNODE);
 
-int serialize_brt_header_to (int fd, struct brt_header *h);
-int deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth);
+int toku_serialize_brt_header_to (int fd, struct brt_header *h);
+int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth);
 
 /* return the size of a tree node */
 long brtnode_size (BRTNODE node);

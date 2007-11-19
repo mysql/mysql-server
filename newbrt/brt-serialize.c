@@ -12,16 +12,16 @@
 #include <arpa/inet.h>
 
 
-const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokuleaf"
-				     8+   // checkpoint number
-				     4+   // block size
-				     4+   // data size
-				     4+   // height
-				     4+   // random for fingerprint
-				     4+   // localfingerprint
-				     4);  // crc32 at the end
+static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokuleaf"
+					    8+   // checkpoint number
+					    4+   // block size
+					    4+   // data size
+					    4+   // height
+					    4+   // random for fingerprint
+					    4+   // localfingerprint
+					    4);  // crc32 at the end
 
-static unsigned int serialize_brtnode_size_slow(BRTNODE node) {
+static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
     unsigned int size=brtnode_header_overhead;
     if (node->height>0) {
 	unsigned int hsize=0;
@@ -63,7 +63,7 @@ static unsigned int serialize_brtnode_size_slow(BRTNODE node) {
     }
 }
 
-unsigned int serialize_brtnode_size (BRTNODE node) {
+unsigned int toku_serialize_brtnode_size (BRTNODE node) {
     unsigned int result =brtnode_header_overhead;
     assert(sizeof(off_t)==8);
     if (node->height>0) {
@@ -77,7 +77,7 @@ unsigned int serialize_brtnode_size (BRTNODE node) {
 	result+=4; /* n_entries in buffer table. */
 	result+=node->u.l.n_bytes_in_buffer;
 	if (memory_check) {
-	    unsigned int slowresult = serialize_brtnode_size_slow(node);
+	    unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
 	    if (result!=slowresult) printf("%s:%d result=%d slowresult=%d\n", __FILE__, __LINE__, result, slowresult);
 	    assert(result==slowresult);
 	}
@@ -85,11 +85,11 @@ unsigned int serialize_brtnode_size (BRTNODE node) {
     return result;
 }
 
-void serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
+void toku_seralize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
     //printf("%s:%d serializing\n", __FILE__, __LINE__);
     struct wbuf w;
     int i;
-    unsigned int calculated_size = serialize_brtnode_size(node);
+    unsigned int calculated_size = toku_serialize_brtnode_size(node);
     //char buf[size];
     char *MALLOC_N(size,buf);
     assert(size>0);
@@ -181,7 +181,7 @@ void serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
     toku_free(buf);
 }
 
-int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize,
+int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize,
                               int (*bt_compare)(DB *, const DBT *, const DBT *),
                               int (*dup_compare)(DB *, const DBT *, const DBT *)) {
     TAGMALLOC(BRTNODE, result);
@@ -313,7 +313,7 @@ int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, 
                     int type;
 		    bytevec key; ITEMLEN keylen; 
 		    bytevec val; ITEMLEN vallen;
-		    verify_counts(result);
+		    toku_verify_counts(result);
                     type = rbuf_char(&rc);
 		    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
 		    rbuf_bytes(&rc, &val, &vallen);
@@ -357,7 +357,7 @@ int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, 
 	for (i=0; i<n_in_buf; i++) {
 	    bytevec key; ITEMLEN keylen; 
 	    bytevec val; ITEMLEN vallen;
-	    verify_counts(result);
+	    toku_verify_counts(result);
 	    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
             fill_dbt(&keys[i], key, keylen);
 	    rbuf_bytes(&rc, &val, &vallen);
@@ -381,7 +381,7 @@ int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, 
 	for (i=0; i<n_in_buf; i++) {
 	    bytevec key; ITEMLEN keylen; 
 	    bytevec val; ITEMLEN vallen;
-	    verify_counts(result);
+	    toku_verify_counts(result);
 	    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
 	    rbuf_bytes(&rc, &val, &vallen);
 	    {
@@ -410,11 +410,11 @@ int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, 
     //printf("%s:%d Ok got %lld n_children=%d\n", __FILE__, __LINE__, result->thisnodename, result->n_children);
     toku_free(rc.buf);
     *brtnode = result;
-    verify_counts(result);
+    toku_verify_counts(result);
     return 0;
 }
 
-void verify_counts (BRTNODE node) {
+void toku_verify_counts (BRTNODE node) {
     /*foo*/
     if (node->height==0) {
 	assert(node->u.l.buffer);
@@ -432,7 +432,7 @@ void verify_counts (BRTNODE node) {
     }
 }
     
-int serialize_brt_header_to (int fd, struct brt_header *h) {
+int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     struct wbuf w;
     int i;
     unsigned int size=0; /* I don't want to mess around calculating it exactly. */ 
@@ -472,7 +472,7 @@ int serialize_brt_header_to (int fd, struct brt_header *h) {
     return 0;
 }
 
-int deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth) {
+int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth) {
     //printf("%s:%d calling MALLOC\n", __FILE__, __LINE__);
     struct brt_header *MALLOC(h);
     struct rbuf rc;

@@ -32,7 +32,7 @@ static int brt_root_put_cmd_XY (BRT brt, BRT_CMD *md, TOKUTXN txn) {
     }
     // Now the fanout is small enough.
     // But the node could still be too large.
-    if (serialize_brtnode_size(node)>node->nodesize) {
+    if (toku_serialize_brtnode_size(node)>node->nodesize) {
 	
     }
 	
