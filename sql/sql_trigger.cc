@@ -489,8 +489,11 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   /* Under LOCK TABLES we must reopen the table to activate the trigger. */
   if (!result && thd->locked_tables)
   {
-    close_data_files_and_morph_locks(thd, table->s->db.str,
-                                     table->s->table_name.str);
+    /*
+      Must not use table->s->db.str or table->s->table_name.str here.
+      The strings are used in a loop even after the share may be freed.
+    */
+    close_data_files_and_morph_locks(thd, tables->db, tables->table_name);
     thd->in_lock_tables= 1;
     result= reopen_tables(thd, 1, 0);
     thd->in_lock_tables= 0;
