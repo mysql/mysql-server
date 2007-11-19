@@ -586,7 +586,6 @@ public:
 
     enum ExecSrStatus {
       IDLE = 0,
-      ACTIVE_REMOVE_AFTER = 1,
       ACTIVE = 2
     };
     /**
@@ -870,11 +869,6 @@ public:
      *       heard of.
      */
     Uint8 fragDistributionKey;
-    /**
-     *       The identity of the next local checkpoint this fragment
-     *       should perform.
-     */
-    Uint8 nextLcp;
    /**
      *       How many local checkpoints does the fragment contain
      */
@@ -2099,10 +2093,6 @@ private:
   void execEXEC_SRCONF(Signal* signal);
   void execREAD_PSEUDO_REQ(Signal* signal);
 
-  void build_acc(Signal*, Uint32 fragPtrI);
-  void execBUILDINDXREF(Signal*signal);
-  void execBUILDINDXCONF(Signal*signal);
-  
   void execDUMP_STATE_ORD(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
@@ -2789,7 +2779,13 @@ private:
 /*THIS VARIABLE KEEPS TRACK OF HOW MANY FRAGMENTS THAT PARTICIPATE IN        */
 /*EXECUTING THE LOG. IF ZERO WE DON'T NEED TO EXECUTE THE LOG AT ALL.        */
 /* ------------------------------------------------------------------------- */
-  UintR cnoFragmentsExecSr;
+  Uint32 cnoFragmentsExecSr;
+
+  /**
+   * This is no of sent GSN_EXEC_FRAGREQ during this log phase
+   */
+  Uint32 cnoOutstandingExecFragReq;
+
 /* ------------------------------------------------------------------------- */
 /*THIS VARIABLE KEEPS TRACK OF WHICH OF THE FIRST TWO RESTART PHASES THAT    */
 /*HAVE COMPLETED.                                                            */
@@ -2810,7 +2806,6 @@ private:
   DLFifoList<Fragrecord> c_lcp_waiting_fragments;  // StartFragReq'ed
   DLFifoList<Fragrecord> c_lcp_restoring_fragments; // Restoring as we speek
   DLFifoList<Fragrecord> c_lcp_complete_fragments;  // Restored
-  DLFifoList<Fragrecord> c_redo_complete_fragments; // Redo'ed
   
 /* ------------------------------------------------------------------------- */
 /*USED DURING SYSTEM RESTART, INDICATES THE OLDEST GCI THAT CAN BE RESTARTED */
