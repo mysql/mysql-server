@@ -7,8 +7,8 @@ LIBEXT=dylib
 VGRIND=
 TDB_LOADLIBES = -L../ -ldb
 SETTOKUENV=export DYLD_LIBRARY_PATH=..
+UNSETTOKUENV=unset DYLD_LIBRARY_PATH
 else
-SETTOKUENV=
 LIBEXT=so
 TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,..
 VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
@@ -50,7 +50,7 @@ $(ALL_TESTS):
 	echo $@
 
 %.bdbrun: %.bdb
-	$(VGRIND) ./$<
+	$(UNSETTOKUENV); $(VGRIND) ./$<
 %.tdbrun: %.tdb
 	$(SETTOKUENV); $(VGRIND) ./$<
 
@@ -67,9 +67,9 @@ NO_VGRIND = \
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 
 %.bdb: %.c
-	cc  -DDIR=\"dir.$<.bdb\" -DUSE_BDB $(CFLAGS) $< -ldb -o $@
+	$(UNSETTOKUENV); cc  -DDIR=\"dir.$<.bdb\" -DUSE_BDB $(CFLAGS) $< -ldb -o $@
 %.tdb: %.c
-	cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
+	$(SETTOKUENV); cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 make_libs:
 	cd ..;make
