@@ -37,7 +37,7 @@ void setup (void) {
 void shutdown (void) {
     int r;
     r = close_brt(t); assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
 }
 void long_long_to_array (unsigned char *a, unsigned long long l) {
     int i;
@@ -53,7 +53,7 @@ void insert (long long v) {
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
     brt_insert(t, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), 0, 0);
-    if (do_verify) cachetable_verify(ct);
+    if (do_verify) toku_cachetable_verify(ct);
 }
 
 void serial_insert_from (long long from) {

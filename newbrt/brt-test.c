@@ -34,7 +34,7 @@ static void test0 (void) {
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
     r = close_brt(t);     assert(r==0);
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
     memory_check_all_free();
 }
@@ -60,7 +60,7 @@ static void test1 (void) {
 	assert(v.size==6);
     }
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(&ct);     assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
     memory_check_all_free();
     printf("test1 ok\n");
 }
@@ -98,7 +98,7 @@ static void test2 (int memcheck) {
     }
     printf("%s:%d inserted\n", __FILE__, __LINE__);
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(&ct);     assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
     memory_check_all_free();
     printf("test2 ok\n");
 }
@@ -125,7 +125,7 @@ static void test3 (int nodesize, int count, int memcheck) {
 	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), null_db, null_txn);
     }
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(&ct);     assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
     memory_check_all_free();
     gettimeofday(&t1, 0);
     {
@@ -156,7 +156,7 @@ static void test4 (int nodesize, int count, int memcheck) {
 	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), null_db, null_txn);
     }
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(&ct);     assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
     memory_check_all_free();
     gettimeofday(&t1, 0);
     {
@@ -208,7 +208,7 @@ static void test5 (void) {
     printf("\n");
     toku_free(values);
     r = close_brt(t);          assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 }
 
@@ -225,7 +225,7 @@ static void test_dump_empty_db (void) {
     assert(r==0);
     dump_brt(t);
     r = close_brt(t);          assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 }
 
@@ -260,7 +260,7 @@ static void test_multiple_files_of_size (int size) {
 
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 
     /* Now see if the data is all there. */
@@ -288,7 +288,7 @@ static void test_multiple_files_of_size (int size) {
 
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 }
 
@@ -316,7 +316,7 @@ static void test_named_db (void) {
     brt_insert(t0, fill_dbt(&k, "good", 5), fill_dbt(&v, "day", 4), null_db, null_txn); assert(r==0);
 
     r = close_brt(t0); assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 
     memory_check_all_free();
@@ -331,7 +331,7 @@ static void test_named_db (void) {
     }
 
     r = close_brt(t0); assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 }
 
@@ -355,7 +355,7 @@ static void test_multiple_dbs (void) {
 
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
 
     memory_check_all_free();
 
@@ -383,7 +383,7 @@ static void test_multiple_dbs (void) {
 
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
 
     memory_check_all_free();
     printf("ok\n");
@@ -416,7 +416,7 @@ static void test_multiple_dbs_many (void) {
     for (i=0; i<MANYN; i++) {
 	r = close_brt(trees[i]); assert(r==0);
     }
-    r = cachetable_close(&ct);    assert(r==0);
+    r = toku_cachetable_close(&ct);    assert(r==0);
     memory_check_all_free();
 }
 
@@ -455,7 +455,7 @@ static void test_multiple_brts_one_db_one_file (void) {
     for (i=0; i<MANYN; i++) {
 	r=close_brt(trees[i]); assert(r==0);
     }
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
     printf(" ok\n");
 }
@@ -477,7 +477,7 @@ static void  test_read_what_was_written (void) {
     r = brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
     r = open_brt(n, 0, 1, &brt, 1<<12, ct, null_txn, default_compare_fun);  assert(r==0);
     r = close_brt(brt); assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
 
     memory_check_all_free();
 
@@ -492,7 +492,7 @@ static void  test_read_what_was_written (void) {
     }
 
     r = close_brt(brt); assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
 
     memory_check_all_free();
 
@@ -569,7 +569,7 @@ static void  test_read_what_was_written (void) {
 
     r = close_brt(brt); assert(r==0);
     printf("%s:%d About to close %p\n", __FILE__, __LINE__, ct);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
 
     memory_check_all_free();
 
@@ -598,7 +598,7 @@ static void  test_read_what_was_written (void) {
     }
 
     r = close_brt(brt); assert(r==0);
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
 
     memory_check_all_free();
 
@@ -637,7 +637,7 @@ void test_cursor_last_empty(void) {
     assert(r==DB_NOTFOUND);
     r = close_brt(brt);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     memory_check_all_free();
 }
@@ -687,7 +687,7 @@ void test_cursor_next (void) {
 
     r = close_brt(brt);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     memory_check_all_free();
 
@@ -766,9 +766,9 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     }
 
     {
-	cachetable_verify(ct);
+	toku_cachetable_verify(ct);
 	r = open_brt(n, 0, 1, &brt, 1<<20, ct, null_txn, wrong_p ? wrong_compare_fun : default_compare_fun);  assert(r==0);
-	cachetable_verify(ct);
+	toku_cachetable_verify(ct);
 
 	for (i=0; i<N; i++) {
 	    unsigned char a[4],b[4];
@@ -783,7 +783,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 			  ((unsigned char*)vbt.data)[0], ((unsigned char*)vbt.data)[1], ((unsigned char*)vbt.data)[2], ((unsigned char*)vbt.data)[3]);
 	    r = brt_insert(brt, &kbt, &vbt, &nonce_db, null_txn);
 	    assert(r==0);
-	    cachetable_verify(ct);
+	    toku_cachetable_verify(ct);
 	}
 	r = brt_cursor(brt, &cursor);            assert(r==0);
 	
@@ -804,12 +804,12 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	    assert(prev<this);
 	    prev=this;
 	    assert(this==(int)i);
-	    cachetable_verify(ct);
+	    toku_cachetable_verify(ct);
 	}
 
 	r = close_brt(brt);
     }
-    r = cachetable_close(&ct); assert(r==0);
+    r = toku_cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 }
 
@@ -939,7 +939,7 @@ void test_brt_cursor_first(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 }
 
@@ -981,7 +981,7 @@ void test_brt_cursor_last(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 }
 
@@ -1025,7 +1025,7 @@ void test_brt_cursor_first_last(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 
 
@@ -1070,7 +1070,7 @@ void test_brt_cursor_rfirst(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 }
 
@@ -1142,7 +1142,7 @@ void test_brt_cursor_walk(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 
 }
@@ -1215,7 +1215,7 @@ void test_brt_cursor_rwalk(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 
 }
@@ -1303,7 +1303,7 @@ void test_brt_cursor_rand(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 
 }
@@ -1385,7 +1385,7 @@ void test_brt_cursor_split(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 }
 
@@ -1420,7 +1420,7 @@ void test_multiple_brt_cursors(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 }
 
@@ -1517,7 +1517,7 @@ void test_multiple_brt_cursor_walk(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 }
 
@@ -1588,7 +1588,7 @@ void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 }
 
@@ -1655,7 +1655,7 @@ void test_brt_cursor_set_range(int n, DB *db) {
     r = close_brt(brt);
     assert(r==0);
 
-    r = cachetable_close(&ct);
+    r = toku_cachetable_close(&ct);
     assert(r==0);
 }
 
@@ -1717,7 +1717,7 @@ void test_brt_cursor_delete(int n, DB *db) {
     error = close_brt(brt);
     assert(error == 0);
 
-    error = cachetable_close(&ct);
+    error = toku_cachetable_close(&ct);
     assert(error == 0);
 }
 
@@ -1821,7 +1821,7 @@ void test_brt_cursor_get_both(int n, DB *db) {
     error = close_brt(brt);
     assert(error == 0);
 
-    error = cachetable_close(&ct);
+    error = toku_cachetable_close(&ct);
     assert(error == 0);
 }
 
@@ -1904,7 +1904,7 @@ void test_large_kv(int bsize, int ksize, int vsize) {
     toku_free(v);
 
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(&ct);     assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
 /*
@@ -1944,7 +1944,7 @@ void test_brt_delete_empty() {
     assert(r == 0);
 
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(&ct);     assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
 /*
@@ -2010,7 +2010,7 @@ void test_brt_delete_present(int n) {
     assert(r == 0);
 
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(&ct);     assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
 void test_brt_delete_not_present(int n) {
@@ -2057,7 +2057,7 @@ void test_brt_delete_not_present(int n) {
     printf("brt_delete k=%d %d\n", k, r);
 
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(&ct);     assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
 void test_brt_delete_cursor_first(int n) {
@@ -2143,7 +2143,7 @@ void test_brt_delete_cursor_first(int n) {
     assert(r == 0);
 
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(&ct);     assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
 /* test for bug: insert cmd in a nonleaf node, delete removes the
@@ -2193,7 +2193,7 @@ void test_insert_delete_lookup(int n) {
     }
 
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(&ct);     assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
 void test_brt_delete() {
