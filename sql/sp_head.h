@@ -191,10 +191,10 @@ public:
   Security_context m_security_ctx;
 
   static void *
-  operator new(size_t size);
+  operator new(size_t size) throw ();
 
   static void
-  operator delete(void *ptr, size_t size);
+  operator delete(void *ptr, size_t size) throw ();
 
   sp_head();
 
@@ -254,7 +254,7 @@ public:
   }
 
   // Resets lex in 'thd' and keeps a copy of the old one.
-  void
+  bool
   reset_lex(THD *thd);
 
   // Restores lex in 'thd' from our copy, but keeps some status from the
