@@ -12,6 +12,7 @@
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <ctype.h>
 #include <unistd.h>
 
 #include "cachetable.h"
@@ -87,6 +88,132 @@ static inline int db_env_opened(DB_ENV *env) {
     return env->i->cachetable != 0;
 }
 
+
+static int db_env_parse_config_line(DB_ENV* dbenv, char *command, char *value) {
+    int r;
+    
+    if (!strcmp(command, "set_data_dir")) {
+        r = dbenv->set_data_dir(dbenv, value);
+    }
+    else if (!strcmp(command, "set_tmp_dir")) {
+        r = dbenv->set_tmp_dir(dbenv, value);
+    }
+    else if (!strcmp(command, "set_lg_dir")) {
+        r = dbenv->set_lg_dir(dbenv, value);
+    }
+    else r = -1;
+        
+    return r;
+}
+
+static int db_env_read_config(DB_ENV *env, u_int32_t flags) {
+    const char* config_name = "DB_CONFIG";
+    char* full_name = NULL;
+    char* linebuffer = NULL;
+    int buffersize;
+    FILE* fp = NULL;
+    int r = 0;
+    int r2 = 0;
+    char* command;
+    char* value;
+    
+    full_name = construct_full_name(env->i->dir, config_name);
+    if (full_name == 0) {
+        r = ENOMEM;
+        goto cleanup;
+    }
+    if ((fp = fopen(full_name, "r")) == NULL) {
+        //Config file is optional.
+        if (errno == ENOENT) {
+            r = EXIT_SUCCESS;
+            goto cleanup;
+        }
+        r = errno;
+        goto cleanup;
+    }
+    //Read each line, applying configuration parameters.
+    //After ignoring leading white space, skip any blank lines
+    //or comments (starts with #)
+    //Command contains no white space.  Value may contain whitespace.
+    int linenumber;
+    int ch = '\0';
+    BOOL eof = FALSE;
+    char* temp;
+    char* end;
+    int index = 0;
+    
+    buffersize = 1<<10; //1KB
+    linebuffer = toku_malloc(buffersize);
+    if (!linebuffer) {
+        r = ENOMEM;
+        goto cleanup;
+    }
+    for (linenumber = 0; !eof; linenumber++) {
+        /* Read a single line. */
+        while (TRUE) {
+            if ((ch = getc(fp)) == EOF) {
+                eof = TRUE;
+                if (ferror(fp)) {
+                    /* Throw away current line and print warning. */
+                    r = errno;
+                    goto readerror;
+                }
+                break;
+            }
+            if (ch == '\n') break;
+            if (index + 1 >= buffersize) {
+                //Double the buffer.
+                buffersize *= 2;
+                linebuffer = toku_realloc(linebuffer, buffersize);
+                if (!linebuffer) {
+                    r = ENOMEM;
+                    goto cleanup;
+                }
+            }
+            linebuffer[index++] = ch;
+        }
+        linebuffer[index] = '\0';
+        end = &linebuffer[index];
+
+        /* Separate the line into command/value */
+        command = linebuffer;
+        //Strip leading spaces.
+        while (isspace(*command) && command < end) command++;
+        //Find end of command.
+        temp = command;
+        while (!isspace(*temp) && temp < end) temp++;
+        *temp++ = '\0'; //Null terminate command.
+        value = temp;
+        //Strip leading spaces.
+        while (!isspace(*value) && value < end) value++;
+        if (value < end) {
+            //Strip trailing spaces.
+            temp = end;
+            while (isspace(*(temp-1))) temp--;
+            //Null terminate value.
+            *temp = '\0';
+        }
+        //Parse the line.
+        
+        if (strlen(command) == 0 || command[0] == '#') continue; //Ignore Comments.
+        r = db_env_parse_config_line(env, command, value < end ? value : "");
+        if (r != 0) goto parseerror;
+    }
+    if (0) {
+readerror:
+        env->err(env, r, "Error reading from DB_CONFIG:%d.\n", linenumber);
+    }
+    if (0) {
+parseerror:
+        env->err(env, r, "Error parsing DB_CONFIG:%d.\n", linenumber);
+    }
+cleanup:
+    if (full_name) toku_free(full_name);
+    if (linebuffer) toku_free(linebuffer);
+    if (fp) r2 = fclose(fp);
+    return r ? r : r2;
+}
+
 int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     int r;
 
@@ -112,6 +239,11 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
         env->i->dir = NULL;
         return r;
     }
+    if ((r = db_env_read_config(env, flags)) != 0) {
+        fprintf(stderr, "FOO FOO FOO \n");
+        goto died1;
+    }
+
     env->i->open_flags = flags;
     env->i->open_mode = mode;
 
@@ -487,7 +619,7 @@ int __toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname,
 
     r = brt_open(db->i->brt, db->i->full_fname, dbname, flags & DB_CREATE, 
                  db->dbenv->i->cachetable,
-		 txn ? txn->i->tokutxn : NULL_TXN);
+		         txn ? txn->i->tokutxn : NULL_TXN);
     if (r != 0)
         goto error_cleanup;
 
@@ -516,6 +648,7 @@ int __toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t f
     int r2;
     char ffull[PATH_MAX];
 
+    //TODO: DB_ENV->set_data_dir should affect db_remove's directories.
     //TODO: Verify DB* db not yet opened
 
     if (dbname) {
