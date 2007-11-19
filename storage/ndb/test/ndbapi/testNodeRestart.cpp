@@ -1266,7 +1266,35 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step){
 
   restarter.restartOneDbNode(victim, false, true, true);
 
-  for (Uint32 i = 0; i<6; i++)
+  for (Uint32 i = 0; i<10; i++)
+  {
+    ndbout_c("Loop: %d", i);
+    if (restarter.waitNodesNoStart(&victim, 1))
+      return NDBT_FAILED;
+    
+    if (restarter.dumpStateOneNode(victim, val2, 2))
+      return NDBT_FAILED;
+    
+    if (restarter.insertErrorInNode(victim, 7191))
+      return NDBT_FAILED;
+    
+    if (restarter.startNodes(&victim, 1))
+      return NDBT_FAILED;
+
+    NdbSleep_SecSleep(3);
+  }
+
+  if (restarter.waitNodesNoStart(&victim, 1))
+    return NDBT_FAILED;
+  
+  if (restarter.restartAll(false, false, true))
+    return NDBT_FAILED;
+
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+
+  restarter.restartOneDbNode(victim, false, true, true);
+  for (Uint32 i = 0; i<1; i++)
   {
     ndbout_c("Loop: %d", i);
     if (restarter.waitNodesNoStart(&victim, 1))
@@ -1286,44 +1314,10 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step){
 
   if (restarter.waitNodesNoStart(&victim, 1))
     return NDBT_FAILED;
-
-  if (restarter.dumpStateOneNode(victim, val2, 2))
-    return NDBT_FAILED;
   
-  if (restarter.insertErrorInNode(victim, 7170))
-    return NDBT_FAILED;
-
   if (restarter.startNodes(&victim, 1))
     return NDBT_FAILED;
-
-  if (restarter.waitNodesNoStart(&victim, 1))
-    return NDBT_FAILED;
   
-  if (restarter.restartAll(false, true, true))
-    return NDBT_FAILED;
-
-  if (restarter.insertErrorInAllNodes(932))
-    return NDBT_FAILED;
-
-  if (restarter.insertErrorInNode(master, 7170))
-    return NDBT_FAILED;
-
-  if (restarter.dumpStateAllNodes(val2, 2))
-    return NDBT_FAILED;
-  
-  restarter.startNodes(&master, 1);
-  NdbSleep_MilliSleep(3000);
-  restarter.startAll();
-
-  if (restarter.waitClusterNoStart())
-    return NDBT_FAILED;
-
-  if (restarter.restartOneDbNode(victim, true, true, true))
-    return NDBT_FAILED;
-
-  if (restarter.startAll())
-    return NDBT_FAILED;
-
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
 
