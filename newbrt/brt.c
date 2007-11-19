@@ -184,7 +184,7 @@ void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnod
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (write_me) {
-	serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode->nodesize, brtnode);
+	toku_seralize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode->nodesize, brtnode);
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (!keep_me) {
@@ -196,7 +196,7 @@ void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnod
 int brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn) {
     BRT t =(BRT)extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    int r = deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, result, t->flags, t->nodesize, 
+    int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, result, t->flags, t->nodesize, 
                                      t->compare_fun, t->dup_compare);
     if (r == 0)
         *sizep = brtnode_size(*result);
@@ -211,7 +211,7 @@ void brtheader_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *head
     assert(nodename==0);
     assert(!h->dirty); // shouldn't be dirty once it is unpinned.
     if (write_me) {
-	serialize_brt_header_to(toku_cachefile_fd(cachefile), h);
+	toku_serialize_brt_header_to(toku_cachefile_fd(cachefile), h);
     }
     if (!keep_me) {
 	if (h->n_named_roots>0) {
@@ -229,7 +229,7 @@ void brtheader_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *head
 int brtheader_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **headerp_v, long *sizep __attribute__((unused)), void*extraargs __attribute__((__unused__)), LSN *written_lsn) {
     struct brt_header **h = (struct brt_header **)headerp_v;
     assert(nodename==0);
-    int r = deserialize_brtheader_from(toku_cachefile_fd(cachefile), nodename, h);
+    int r = toku_deserialize_brtheader_from(toku_cachefile_fd(cachefile), nodename, h);
     written_lsn->lsn = 0; // !!! WRONG.  This should be stored or kept redundantly or something.
     return r;
 }
@@ -412,8 +412,8 @@ int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
 
     *nodea = A;
     *nodeb = B;
-    assert(serialize_brtnode_size(A)<A->nodesize);
-    assert(serialize_brtnode_size(B)<B->nodesize);
+    assert(toku_serialize_brtnode_size(A)<A->nodesize);
+    assert(toku_serialize_brtnode_size(B)<B->nodesize);
     return 0;
 }
 
@@ -520,8 +520,8 @@ void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT
     //printf("%s:%d removing %lld\n", __FILE__, __LINE__, node->thisnodename);
     brt_update_cursors_nonleaf_split(t, node, A, B);
     delete_node(t, node);
-    assert(serialize_brtnode_size(A)<A->nodesize);
-    assert(serialize_brtnode_size(B)<B->nodesize);
+    assert(toku_serialize_brtnode_size(A)<A->nodesize);
+    assert(toku_serialize_brtnode_size(B)<B->nodesize);
 }
 
 void find_heaviest_child (BRTNODE node, int *childnum) {
@@ -557,7 +557,7 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
     assert(node->height>0); /* Not a leaf. */
     DBT *k = cmd->u.id.key;
     DBT *v = cmd->u.id.val;
-    int to_child=serialize_brtnode_size(child)+k->size+v->size+KEY_VALUE_OVERHEAD <= child->nodesize;
+    int to_child=toku_serialize_brtnode_size(child)+k->size+v->size+KEY_VALUE_OVERHEAD <= child->nodesize;
     if (brt_debug_mode) {
 	printf("%s:%d pushing %s to %s %d", __FILE__, __LINE__, (char*)k->data, to_child? "child" : "hash", childnum_of_node);
 	if (childnum_of_node+1<node->u.n.n_children) {
@@ -737,9 +737,9 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     //verify_local_fingerprint_nonleaf(childb);
     //verify_local_fingerprint_nonleaf(node);
 
-    verify_counts(node);
-    verify_counts(childa);
-    verify_counts(childb);
+    toku_verify_counts(node);
+    toku_verify_counts(childa);
+    toku_verify_counts(childb);
 
     r=toku_cachetable_unpin(t->cf, childa->thisnodename, childa->dirty, brtnode_size(childa));
     assert(r==0);
@@ -758,13 +758,13 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	assert((*nodeb)->u.n.n_children>0);
 	assert((*nodea)->u.n.children[(*nodea)->u.n.n_children-1]!=0);
 	assert((*nodeb)->u.n.children[(*nodeb)->u.n.n_children-1]!=0);
-	assert(serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
-	assert(serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
+	assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
+	assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
 	//verify_local_fingerprint_nonleaf(*nodea);
 	//verify_local_fingerprint_nonleaf(*nodeb);
     } else {
 	*did_split=0;
-	assert(serialize_brtnode_size(node)<=node->nodesize);
+	assert(toku_serialize_brtnode_size(node)<=node->nodesize);
     }
     return 0;
 }
@@ -788,7 +788,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     child=childnode_v;
     child->parent_brtnode = node;
     //verify_local_fingerprint_nonleaf(child);
-    verify_counts(child);
+    toku_verify_counts(child);
     //printf("%s:%d height=%d n_bytes_in_hashtable = {%d, %d, %d, ...}\n", __FILE__, __LINE__, child->height, child->n_bytes_in_hashtable[0], child->n_bytes_in_hashtable[1], child->n_bytes_in_hashtable[2]);
     if (child->height>0 && child->u.n.n_children>0) assert(child->u.n.children[child->u.n.n_children-1]!=0);
     if (debug) printf("%s:%d %*spush_some_brt_cmds_down to %lld\n", __FILE__, __LINE__, debug, "", child->thisnodename);
@@ -857,7 +857,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 	if (0) printf("%s:%d done random picking\n", __FILE__, __LINE__);
     }
     if (debug) printf("%s:%d %*sdone push_some_brt_cmds_down, unpinning %lld\n", __FILE__, __LINE__, debug, "", targetchild);
-    assert(serialize_brtnode_size(node)<=node->nodesize);
+    assert(toku_serialize_brtnode_size(node)<=node->nodesize);
     //verify_local_fingerprint_nonleaf(node);
     r=toku_cachetable_unpin(t->cf, targetchild, child->dirty, brtnode_size(child));
     if (r!=0) return r;
@@ -873,8 +873,8 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 /* If the buffer is too full, then push down.  Possibly the child will split.  That may make us split. */
 {
     assert(node->height>0);
-    if (debug) printf("%s:%d %*sIn maybe_push_down in_buffer=%d childkeylens=%d size=%d\n", __FILE__, __LINE__, debug, "", node->u.n.n_bytes_in_hashtables, node->u.n.totalchildkeylens, serialize_brtnode_size(node));
-    if (serialize_brtnode_size(node) > node->nodesize ) {
+    if (debug) printf("%s:%d %*sIn maybe_push_down in_buffer=%d childkeylens=%d size=%d\n", __FILE__, __LINE__, debug, "", node->u.n.n_bytes_in_hashtables, node->u.n.totalchildkeylens, toku_serialize_brtnode_size(node));
+    if (toku_serialize_brtnode_size(node) > node->nodesize ) {
 	if (debug) printf("%s:%d %*stoo full, height=%d\n", __FILE__, __LINE__, debug, "", node->height);	
 	{
 	    /* Push to a child. */
@@ -890,8 +890,8 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 	    assert(*did_split==0 || *did_split==1);
 	    if (debug) printf("%s:%d %*sdid push_some_brt_cmds_down did_split=%d\n", __FILE__, __LINE__, debug, "", *did_split);
 	    if (*did_split) {
-		assert(serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);		
-		assert(serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);		
+		assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);		
+		assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);		
 		assert((*nodea)->u.n.n_children>0);
 		assert((*nodeb)->u.n.n_children>0);
 		assert((*nodea)->u.n.children[(*nodea)->u.n.n_children-1]!=0);
@@ -899,12 +899,12 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 		//verify_local_fingerprint_nonleaf(*nodea);
 		//verify_local_fingerprint_nonleaf(*nodeb);
 	    } else {
-		assert(serialize_brtnode_size(node)<=node->nodesize);
+		assert(toku_serialize_brtnode_size(node)<=node->nodesize);
 	    }
 	}
     } else {
 	*did_split=0;
-	assert(serialize_brtnode_size(node)<=node->nodesize);
+	assert(toku_serialize_brtnode_size(node)<=node->nodesize);
     }
     //if (*did_split) {
     //	verify_local_fingerprint_nonleaf(*nodea);
@@ -938,16 +938,16 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 //	pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
 
         // If it doesn't fit, then split the leaf.
-        if (serialize_brtnode_size(node) > node->nodesize) {
+        if (toku_serialize_brtnode_size(node) > node->nodesize) {
             int r = brtleaf_split (t, node, nodea, nodeb, splitk, db);
             if (r!=0) return r;
             //printf("%s:%d splitkey=%s\n", __FILE__, __LINE__, (char*)*splitkey);
             split_count++;
             *did_split = 1;
-            verify_counts(*nodea); verify_counts(*nodeb);
+            toku_verify_counts(*nodea); toku_verify_counts(*nodeb);
             if (debug) printf("%s:%d %*snodeb->thisnodename=%lld nodeb->size=%d\n", __FILE__, __LINE__, debug, "", (*nodeb)->thisnodename, (*nodeb)->nodesize);
-            assert(serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
-            assert(serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
+            assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
+            assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
 //	    pma_verify_fingerprint((*nodea)->u.l.buffer, (*nodea)->rand4fingerprint, (*nodea)->subtree_fingerprint);
 //	    pma_verify_fingerprint((*nodeb)->u.l.buffer, (*nodeb)->rand4fingerprint, (*nodeb)->subtree_fingerprint);
         } else {
@@ -1115,7 +1115,7 @@ static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 	
 	//verify_local_fingerprint_nonleaf(node);
 	if (debug) printf("%s:%d %*sDoing hash_insert\n", __FILE__, __LINE__, debug, "");
-	verify_counts(node);
+	toku_verify_counts(node);
 	if (found) {
             if (!(t->flags & TOKU_DB_DUP)) {
                 //printf("%s:%d found and deleting\n", __FILE__, __LINE__);
@@ -1159,17 +1159,17 @@ static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
     if (r!=0) return r;
     if (debug) printf("%s:%d %*sDid maybe_push_down\n", __FILE__, __LINE__, debug, "");
     if (*did_split) {
-	assert(serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
-	assert(serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
+	assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
+	assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
 	assert((*nodea)->u.n.n_children>0);
 	assert((*nodeb)->u.n.n_children>0);
 	assert((*nodea)->u.n.children[(*nodea)->u.n.n_children-1]!=0);
 	assert((*nodeb)->u.n.children[(*nodeb)->u.n.n_children-1]!=0);
-	verify_counts(*nodea);
-	verify_counts(*nodeb);
+	toku_verify_counts(*nodea);
+	toku_verify_counts(*nodeb);
     } else {
-	assert(serialize_brtnode_size(node)<=node->nodesize);
-	verify_counts(node);
+	assert(toku_serialize_brtnode_size(node)<=node->nodesize);
+	toku_verify_counts(node);
     }
     //if (*did_split) {
     //	verify_local_fingerprint_nonleaf(*nodea);
@@ -1213,7 +1213,7 @@ static int brt_nonleaf_delete_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
 	
 	//verify_local_fingerprint_nonleaf(node);
 	if (debug) printf("%s:%d %*sDoing hash_insert\n", __FILE__, __LINE__, debug, "");
-	verify_counts(node);
+	toku_verify_counts(node);
 	while (found) {
 	    //printf("%s:%d found and deleting\n", __FILE__, __LINE__);
 	    node->local_fingerprint -= node->rand4fingerprint * toku_calccrc32_cmd(anytype, k->data, k->size, olddata, olddatalen);
@@ -1254,17 +1254,17 @@ static int brt_nonleaf_delete_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
     if (r!=0) return r;
     if (debug) printf("%s:%d %*sDid maybe_push_down\n", __FILE__, __LINE__, debug, "");
     if (*did_split) {
-	assert(serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
-	assert(serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
+	assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
+	assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
 	assert((*nodea)->u.n.n_children>0);
 	assert((*nodeb)->u.n.n_children>0);
 	assert((*nodea)->u.n.children[(*nodea)->u.n.n_children-1]!=0);
 	assert((*nodeb)->u.n.children[(*nodeb)->u.n.n_children-1]!=0);
-	verify_counts(*nodea);
-	verify_counts(*nodeb);
+	toku_verify_counts(*nodea);
+	toku_verify_counts(*nodeb);
     } else {
-	assert(serialize_brtnode_size(node)<=node->nodesize);
-	verify_counts(node);
+	assert(toku_serialize_brtnode_size(node)<=node->nodesize);
+	toku_verify_counts(node);
     }
     //if (*did_split) {
     //	verify_local_fingerprint_nonleaf(*nodea);
@@ -1397,14 +1397,14 @@ static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
     //oldcounter=tmpcounter;
     // Watch out.  If did_split then the original node is no longer allocated.
     if (*did_split) {
-	assert(serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
-	assert(serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
+	assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
+	assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
 //	if ((*nodea)->height==0) {
 //	    pma_verify_fingerprint((*nodea)->u.l.buffer, (*nodea)->rand4fingerprint, (*nodea)->subtree_fingerprint);
 //	    pma_verify_fingerprint((*nodeb)->u.l.buffer, (*nodeb)->rand4fingerprint, (*nodeb)->subtree_fingerprint);
 //	}
     } else {
-	assert(serialize_brtnode_size(node)<=node->nodesize);
+	assert(toku_serialize_brtnode_size(node)<=node->nodesize);
 //	if (node->height==0) {
 //	    pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->local_fingerprint);
 //	} else {
@@ -1447,7 +1447,7 @@ static int setup_brt_root_node (BRT t, DISKOFF offset) {
 	return r;
     }
     //printf("%s:%d created %lld\n", __FILE__, __LINE__, node->thisnodename);
-    verify_counts(node);
+    toku_verify_counts(node);
 //    verify_local_fingerprint_nonleaf(node);
     r=toku_cachetable_unpin(t->cf, node->thisnodename, node->dirty, brtnode_size(node));
     if (r!=0) {
@@ -1751,7 +1751,7 @@ int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKE
     fixup_child_fingerprint(newroot, 1, nodeb);
     r=toku_hashtable_create(&newroot->u.n.htables[0]); if (r!=0) return r;
     r=toku_hashtable_create(&newroot->u.n.htables[1]); if (r!=0) return r;
-    verify_counts(newroot);
+    toku_verify_counts(newroot);
     //verify_local_fingerprint_nonleaf(nodea);
     //verify_local_fingerprint_nonleaf(nodeb);
     r=toku_cachetable_unpin(brt->cf, nodea->thisnodename, nodea->dirty, brtnode_size(nodea)); 
