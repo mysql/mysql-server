@@ -14243,8 +14243,6 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   const StartFragReq * const startFragReq = (StartFragReq *)&signal->theData[0];
   jamEntry();
 
-  printSTART_FRAG_REQ(stdout, signal->getDataPtr(), signal->getLength(), number());
-
   tabptr.i = startFragReq->tableId;
   Uint32 fragId = startFragReq->fragId;
 
