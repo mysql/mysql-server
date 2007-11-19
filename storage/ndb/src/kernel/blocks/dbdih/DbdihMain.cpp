@@ -10069,7 +10069,7 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
   /*     WE WILL NEVER START MORE THAN FOUR FRAGMENT REPLICAS WHATEVER THE   */
   /*     DESIRED REPLICATION IS.                                             */
   /* ----------------------------------------------------------------------- */
-  ndbrequire(tabPtr.p->noOfBackups < 4);
+  ndbrequire(tabPtr.p->noOfBackups < MAX_REPLICAS);
   /* ----------------------------------------------------------------------- */
   /*     SEARCH FOR STORED REPLICAS THAT CAN BE USED TO RESTART THE SYSTEM.  */
   /* ----------------------------------------------------------------------- */
@@ -12488,7 +12488,8 @@ bool Dbdih::findLogNodes(CreateReplicaRecord* createReplica,
       return true;
     }//if
     startGci = fblStopGci + 1;
-    if (logNode >= 4) { // Why??
+    if (logNode >= MAX_LOG_EXEC)
+    {
       jam();
       break;
     }//if
@@ -12791,7 +12792,7 @@ void Dbdih::initCommonData()
 
   cnoReplicas = 1;
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_REPLICAS, &cnoReplicas);
-  if (cnoReplicas > 4)
+  if (cnoReplicas > MAX_REPLICAS)
   {
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
 	      "Only up to four replicas are supported. Check NoOfReplicas.");
@@ -14195,7 +14196,7 @@ void Dbdih::sendStartFragreq(Signal* signal,
       Uint32 start = replicaPtr.p->logStartGci[noNodes - 1];
       const Uint32 stop  = replicaPtr.p->logStopGci[noNodes - 1];
 
-      for(Uint32 i = noNodes; i < 4 && (stop - start) > 0; i++){
+      for(Uint32 i = noNodes; i < MAX_LOG_EXEC && (stop - start) > 0; i++){
 	replicaPtr.p->noLogNodes++;
 	replicaPtr.p->logStopGci[i - 1] = start;
 	
@@ -14208,7 +14209,7 @@ void Dbdih::sendStartFragreq(Signal* signal,
     
     startFragReq->noOfLogNodes = replicaPtr.p->noLogNodes;
     
-    for (Uint32 i = 0; i < 4 ; i++) {
+    for (Uint32 i = 0; i < MAX_LOG_EXEC ; i++) {
       startFragReq->lqhLogNode[i] = replicaPtr.p->logNodeId[i];
       startFragReq->startGci[i] = replicaPtr.p->logStartGci[i];
       startFragReq->lastGci[i] = replicaPtr.p->logStopGci[i];
