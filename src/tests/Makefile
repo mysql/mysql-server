@@ -1,12 +1,14 @@
 # On OSX do:
 #   make OSX=OSX
-#Note: On OSX, ld does not support -rpath, so /usr/lib/libdb.dylib must be the tokudb library.
 
 ifeq ($(OSX),OSX)
+#Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
 LIBEXT=dylib
 VGRIND=
 TDB_LOADLIBES = -L../ -ldb
+SETTOKUENV=export DYLD_LIBRARY_PATH=..
 else
+SETTOKUENV=
 LIBEXT=so
 TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,..
 VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
@@ -50,7 +52,7 @@ $(ALL_TESTS):
 %.bdbrun: %.bdb
 	$(VGRIND) ./$<
 %.tdbrun: %.tdb
-	$(VGRIND) ./$<
+	$(SETTOKUENV); $(VGRIND) ./$<
 
 # For a few of the tests bdb is making valgrind unhappy.
 NO_VGRIND = \
