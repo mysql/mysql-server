@@ -1078,4 +1078,7 @@ max-time: 300
 cmd: test_event
 args: -n Bug31701 T1
 
+max-time: 300
+cmd: testSystemRestart
+args: -n Bug22696 T1
 
