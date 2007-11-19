@@ -595,6 +595,10 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"comments", 'c', "Preserve comments. Send comments to the server."
+   " The default is --skip-comments (discard comments), enable with --comments",
+   (gptr*) &preserve_comments, (gptr*) &preserve_comments,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -755,10 +759,6 @@ static struct my_option my_long_options[] =
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     (gptr*) &show_warnings, (gptr*) &show_warnings, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
-  {"comments", 'c', "Preserve comments. Send comments to the server."
-   " Comments are discarded by default, enable with --enable-comments",
-   (gptr*) &preserve_comments, (gptr*) &preserve_comments,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
