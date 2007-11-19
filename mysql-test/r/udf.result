@@ -11,7 +11,7 @@ RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 CREATE AGGREGATE FUNCTION avgcost
 RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
 select myfunc_double();
-ERROR HY000: myfunc_double must have at least one argument
+ERROR HY000: Can't initialize function 'myfunc_double'; myfunc_double must have at least one argument
 select myfunc_double(1);
 myfunc_double(1)
 49.00
@@ -24,26 +24,26 @@ select myfunc_int();
 myfunc_int()
 0
 select lookup();
-ERROR HY000: Wrong arguments to lookup;  Use the source
+ERROR HY000: Can't initialize function 'lookup'; Wrong arguments to lookup;  Use the source
 select lookup("127.0.0.1");
 lookup("127.0.0.1")
 127.0.0.1
 select lookup(127,0,0,1);
-ERROR HY000: Wrong arguments to lookup;  Use the source
+ERROR HY000: Can't initialize function 'lookup'; Wrong arguments to lookup;  Use the source
 select lookup("localhost");
 lookup("localhost")
 127.0.0.1
 select reverse_lookup();
-ERROR HY000: Wrong number of arguments to reverse_lookup;  Use the source
+ERROR HY000: Can't initialize function 'reverse_lookup'; Wrong number of arguments to reverse_lookup;  Use the source
 select reverse_lookup("127.0.0.1");
 select reverse_lookup(127,0,0,1);
 select reverse_lookup("localhost");
 reverse_lookup("localhost")
 NULL
 select avgcost();
-ERROR HY000: wrong number of arguments: AVGCOST() requires two arguments
+ERROR HY000: Can't initialize function 'avgcost'; wrong number of arguments: AVGCOST() requires two arguments
 select avgcost(100,23.76);
-ERROR HY000: wrong argument type: AVGCOST() requires an INT and a REAL
+ERROR HY000: Can't initialize function 'avgcost'; wrong argument type: AVGCOST() requires an INT and a REAL
 create table t1(sum int, price float(24));
 insert into t1 values(100, 50.00), (100, 100.00);
 select avgcost(sum, price) from t1;

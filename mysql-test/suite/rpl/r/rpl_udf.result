@@ -182,19 +182,19 @@ CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=MyISAM;
 affected rows: 0
 INSERT INTO t1 VALUES(myfunc_int(100), myfunc_double(50.00));
 Warnings:
-Warning	1591	Statement is not safe to log in statement format.
+Warning	1592	Statement is not safe to log in statement format.
 affected rows: 1
 INSERT INTO t1 VALUES(myfunc_int(10), myfunc_double(5.00));
 Warnings:
-Warning	1591	Statement is not safe to log in statement format.
+Warning	1592	Statement is not safe to log in statement format.
 affected rows: 1
 INSERT INTO t1 VALUES(myfunc_int(200), myfunc_double(25.00));
 Warnings:
-Warning	1591	Statement is not safe to log in statement format.
+Warning	1592	Statement is not safe to log in statement format.
 affected rows: 1
 INSERT INTO t1 VALUES(myfunc_int(1), myfunc_double(500.00));
 Warnings:
-Warning	1591	Statement is not safe to log in statement format.
+Warning	1592	Statement is not safe to log in statement format.
 affected rows: 1
 SELECT * FROM t1 ORDER BY sum;
 sum	price

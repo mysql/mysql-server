@@ -37,7 +37,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -55,7 +55,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -91,7 +91,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 12, test.t1 on slave has size 12. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -109,7 +109,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 12, test.t1 on slave has size 12. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -145,7 +145,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -163,7 +163,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -200,7 +200,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 5, test.t1 has type 4
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -218,7 +218,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 5, test.t1 has type 4
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -255,7 +255,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 8, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -273,7 +273,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 8, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -309,7 +309,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 2. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -327,7 +327,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 2. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -364,7 +364,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -382,7 +382,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -419,7 +419,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 20, test.t1 on slave has size 11. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -437,7 +437,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 20, test.t1 on slave has size 11. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -505,7 +505,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -523,7 +523,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -560,7 +560,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 100. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -578,7 +578,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 100. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -614,7 +614,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 200, test.t1 on slave has size 10. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -632,7 +632,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 200, test.t1 on slave has size 10. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -668,7 +668,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 1000. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -686,7 +686,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 1000. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -723,7 +723,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1534
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 4, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -741,7 +741,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1534
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 4, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
 SELECT COUNT(*) FROM t1;
 COUNT(*)

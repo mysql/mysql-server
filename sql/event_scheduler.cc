@@ -127,6 +127,7 @@ post_init_event_thread(THD *thd)
     thd->cleanup();
     return TRUE;
   }
+  lex_start(thd);
 
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
@@ -398,6 +399,13 @@ Event_scheduler::start()
   pre_init_event_thread(new_thd);
   new_thd->system_thread= SYSTEM_THREAD_EVENT_SCHEDULER;
   new_thd->command= COM_DAEMON;
+
+  /*
+    We should run the event scheduler thread under the super-user privileges.
+    In particular, this is needed to be able to lock the mysql.event table
+    for writing when the server is running in the read-only mode.
+  */
+  new_thd->security_ctx->master_access |= SUPER_ACL;
 
   scheduler_param_value=
     (struct scheduler_param *)my_malloc(sizeof(struct scheduler_param), MYF(0));

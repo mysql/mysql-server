@@ -44,7 +44,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1589
+Last_Errno	1590
 Last_Error	The incident LOST_EVENTS occured on the master. Message: <none>
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -62,7 +62,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1589
+Last_SQL_Errno	1590
 Last_SQL_Error	The incident LOST_EVENTS occured on the master. Message: <none>
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;

@@ -575,3 +575,65 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 handler t1 close;
 handler t2 close;
 drop table t2;
+drop table if exists t1;
+create temporary table t1 (a int, b char(1), key a(a), key b(a,b));
+insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
+(5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+select a,b from t1;
+a	b
+0	a
+1	b
+2	c
+3	d
+4	e
+5	f
+6	g
+7	h
+8	i
+9	j
+handler t1 open as a1;
+handler a1 read a first;
+a	b
+0	a
+handler a1 read a next;
+a	b
+1	b
+handler a1 read a next;
+a	b
+2	c
+select a,b from t1;
+ERROR HY000: Can't reopen table: 'a1'
+handler a1 read a prev;
+a	b
+1	b
+handler a1 read a prev;
+a	b
+0	a
+handler a1 read a=(6) where b="g";
+a	b
+6	g
+handler a1 close;
+select a,b from t1;
+a	b
+0	a
+1	b
+2	c
+3	d
+4	e
+5	f
+6	g
+7	h
+8	i
+9	j
+handler t1 open as a2;
+handler a2 read a first;
+a	b
+0	a
+handler a2 read a last;
+a	b
+9	j
+handler a2 read a prev;
+a	b
+8	i
+handler a2 close;
+drop table t1;

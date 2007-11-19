@@ -525,6 +525,10 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *tables,
   - whether this open mode would work under LOCK TABLES, or inside a
   stored function or trigger.
 
+  Note that if the table can't be locked successfully this operation will
+  close it. Therefore it provides guarantee that it either opens and locks
+  table or fails without leaving any tables open.
+
   @param[in]  thd  Thread context
   @param[in]  lock_type  How to lock the table
   @param[out] table  We will store the open table here
@@ -544,7 +548,10 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   tables.init_one_table("mysql", "event", lock_type);
 
   if (simple_open_n_lock_tables(thd, &tables))
+  {
+    close_thread_tables(thd);
     DBUG_RETURN(TRUE);
+  }
 
   *table= tables.table;
   tables.table->use_all_columns();
@@ -994,6 +1001,8 @@ update_timing_fields_for_event(THD *thd,
   */
   if (thd->current_stmt_binlog_row_based)
     thd->clear_current_stmt_binlog_row_based();
+
+  DBUG_ASSERT(thd->security_ctx->master_access & SUPER_ACL);
 
   if (open_event_table(thd, TL_WRITE, &table))
     goto end;
