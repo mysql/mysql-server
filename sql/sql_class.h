@@ -2051,14 +2051,13 @@ class select_insert :public select_result_interceptor {
   ulonglong last_insert_id;
   COPY_INFO info;
   bool insert_into_view;
-  bool is_bulk_insert_mode;
   select_insert(TABLE_LIST *table_list_par,
 		TABLE *table_par, List<Item> *fields_par,
 		List<Item> *update_fields, List<Item> *update_values,
 		enum_duplicates duplic, bool ignore);
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  int prepare2(void);
+  virtual int prepare2(void);
   bool send_data(List<Item> &items);
   virtual void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
@@ -2093,6 +2092,7 @@ public:
   void send_error(uint errcode,const char *err);
   bool send_eof();
   void abort();
+  int prepare2(void) { return 0; }
 };
 
 #include <myisam.h>
