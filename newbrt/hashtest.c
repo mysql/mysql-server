@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 void verify_hash_instance (bytevec kv_v, ITEMLEN kl, bytevec dv_v, ITEMLEN dl,
 			    int N, int *data, char *saw) {
@@ -139,10 +140,122 @@ void test1(void) {
     toku_hashtable_free(&table);
 }
 
+void test_insert_nodup(int n) {
+    HASHTABLE t;
+    int r;
+
+    r = toku_hashtable_create(&t);
+    assert(r == 0);
+
+    toku_hashtable_set_dups(t, 0);
+
+    int keys[n], vals[n];
+
+    int i;
+    for (i=0; i<n; i++) {
+        keys[i] = htonl(i);
+        vals[i] = i;
+        r = toku_hash_insert(t, &keys[i], sizeof keys[i], &vals[i], sizeof vals[i], i);
+        assert(r == 0);
+    }
+
+    for (i=0; i<n; i++) {
+        bytevec data; ITEMLEN datalen; int type;
+
+        r = toku_hash_find(t, &keys[i], sizeof keys[i], &data, &datalen, &type);
+        assert(r == 0);
+        assert(datalen == sizeof vals[i]);
+        assert(type == i);
+        int vv;
+        memcpy(&vv, data, datalen);
+        assert(vv == vals[i]);
+    }
+
+    /* try to insert duplicates should fail */
+    for (i=0; i<n; i++) {
+        keys[i] = htonl(i);
+        vals[i] = i;
+        r = toku_hash_insert(t, &keys[i], sizeof keys[i], &vals[i], sizeof vals[i], i);
+        assert(r != 0);
+    }
+
+    toku_hashtable_free(&t);
+    assert(t == 0);
+}
+
+void test_insert_dup(int n, int do_delete_all) {
+    HASHTABLE t;
+    int r;
+
+    r = toku_hashtable_create(&t);
+    assert(r == 0);
+
+    toku_hashtable_set_dups(t, 1);
+
+    int keys[n], vals[n];
+    int dupkey = n + n/2;
+
+    int i;
+    for (i=0; i<n; i++) {
+        keys[i] = htonl(i);
+        vals[i] = i;
+        r = toku_hash_insert(t, &keys[i], sizeof keys[i], &vals[i], sizeof vals[i], i);
+        assert(r == 0);
+    }
+
+    for (i=0; i<n; i++) {
+        int key = htonl(dupkey);
+        int val = i;
+        r = toku_hash_insert(t, &key, sizeof key, &val, sizeof val, i);
+        assert(r == 0);
+    }
+
+    for (i=0; i<n; i++) {
+        bytevec data; ITEMLEN datalen; int type;
+
+        r = toku_hash_find(t, &keys[i], sizeof keys[i], &data, &datalen, &type);
+        assert(r == 0);
+        assert(datalen == sizeof vals[i]);
+        assert(type == i);
+        int vv;
+        memcpy(&vv, data, datalen);
+        assert(vv == vals[i]);
+    }
+
+    for (i=0; ; i++) {
+        int key = htonl(dupkey);
+        bytevec data; ITEMLEN datalen; int type;
+
+        r = toku_hash_find(t, &key, sizeof key, &data, &datalen, &type);
+        if (r != 0) break;
+            assert(datalen == sizeof vals[i]);
+        assert(type == i);
+        int vv;
+        memcpy(&vv, data, datalen);
+        assert(vv == vals[i]);
+
+        if (do_delete_all)
+            r = toku_hash_delete_all(t, &key, sizeof key);
+        else
+            r = toku_hash_delete(t, &key, sizeof key);
+        assert(r == 0);
+    }
+    if (do_delete_all)
+        assert(i == 1);
+    else
+        assert(i == n);
+
+    toku_hashtable_free(&t);
+    assert(t == 0);
+}
+
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     test_primes();
     test0();
     test1();
+    test_insert_nodup(1000);
+    test_insert_dup(1000, 0);
+    test_insert_dup(1000, 1);
     malloc_cleanup();
     return 0;
 }

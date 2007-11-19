@@ -114,6 +114,26 @@ static void fixup_child_fingerprint(BRTNODE node, int childnum_of_node, BRTNODE 
     node->dirty=1;
 }
 
+static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck, unsigned int cl, DB *db) {
+    int cmp;
+    DBT mydbt;
+    if (brt->flags & DB_DUPSORT) {
+        bytevec k; unsigned int kl;
+        bytevec d; unsigned int dl;
+        assert(cl >= sizeof dl);
+        memcpy(&dl, ck, sizeof dl); 
+        assert(cl >= dl - (sizeof dl));
+        kl = cl - dl - (sizeof dl);
+        k = ck + (sizeof dl);
+        d = ck + (sizeof dl) + kl;
+        cmp = brt->compare_fun(db, key, fill_dbt(&mydbt, k, kl));
+        if (cmp == 0 && data != 0)
+            cmp = brt->dup_compare(db, data, fill_dbt(&mydbt, d, dl));
+    } else 
+        cmp = brt->compare_fun(db, key, fill_dbt(&mydbt, ck, cl));
+    return cmp;
+}
+
 
 void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnode_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p __attribute__((__unused__))) {
     BRTNODE brtnode = brtnode_v;
@@ -299,8 +319,11 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
 	n->u.n.n_bytes_in_hashtables = 0;
     } else {
 	int r = pma_create(&n->u.l.buffer, t->compare_fun, n->nodesize);
+        assert(r==0);
+        pma_set_dup_mode(n->u.l.buffer, t->flags & (DB_DUP+DB_DUPSORT));
+        if (t->flags & DB_DUPSORT)
+            pma_set_dup_compare(n->u.l.buffer, t->dup_compare);
 	static int rcount=0;
-	assert(r==0);
 	//printf("%s:%d n PMA= %p (rcount=%d)\n", __FILE__, __LINE__, n->u.l.buffer, rcount); 
 	rcount++;
 	n->u.l.n_bytes_in_buffer = 0;
@@ -691,11 +714,19 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
         BRT_CMD brtcmd;
         brtcmd.type = type; brtcmd.u.id.key = &skd; brtcmd.u.id.val = &svd; brtcmd.u.id.db = db;
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb);
-	if (t->compare_fun(db, &skd, childsplitk)<=0) {
-	    r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, childa, &brtcmd, childnum, txn);
-	} else {
-	    r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, childb, &brtcmd, childnum+1, txn);
-	}
+        int tochildnum = childnum;
+        BRTNODE tochild = childa;
+        int cmp = brt_compare_pivot(t, &skd, &svd, childsplitk->data, childsplitk->size, db);
+        if (cmp < 0) {
+            ;
+        } else if (cmp > 0) {
+            tochildnum = childnum+1; tochild = childb;
+        } else if (t->flags & DB_DUP) {
+            if (node->u.n.pivotflags[childnum] & BRT_PIVOT_PRESENT_R) {
+                tochildnum = childnum+1; tochild = childb;
+            }
+        }
+	r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, tochild, &brtcmd, tochildnum, txn);
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb); 
 	if (r!=0) return r;
     }));
@@ -938,16 +969,59 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
         return EINVAL;
 }
 
-static unsigned int brtnode_which_child (BRTNODE node , DBT *k, BRT t, DB *db) {
+/* find the rightmost child that the key/data will be inserted */
+static unsigned int brtnode_right_child (BRTNODE node, DBT *k, DBT *data, BRT t, DB *db) {
+    assert(node->height>0);
+    int maybe = -1;  /* last pivot that matched the key */
+    int i;
+    for (i=node->u.n.n_children-2; i >= 0; i--) {
+        int cmp = brt_compare_pivot(t, k, data, node->u.n.childkeys[i], node->u.n.childkeylens[i], db);
+        if (cmp < 0) {
+            continue;
+        } else if (cmp > 0) {
+            if (maybe != -1) goto foundkeymatch;
+            return i+1;
+        } else if (t->flags & DB_DUP) {
+            if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_R)
+                return i+1;
+            if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_L)
+                return i;
+            maybe = i;
+        } else
+            maybe = i;
+    }
+
+    maybe = 0;
+  
+ foundkeymatch:
+    if (!(node->u.n.pivotflags[maybe] & BRT_PIVOT_PRESENT_L)) {
+        node->u.n.pivotflags[maybe] |= BRT_PIVOT_PRESENT_L;
+        node->dirty = 1;
+    }
+    return maybe;
+}
+
+/* find the leftmost child that may contain the key */
+static unsigned int brtnode_left_child (BRTNODE node , DBT *k, DBT *d, BRT t, DB *db) {
     int i;
     assert(node->height>0);
     for (i=0; i<node->u.n.n_children-1; i++) {
-	DBT k2;
-	if (t->compare_fun(db, k, fill_dbt(&k2, node->u.n.childkeys[i], node->u.n.childkeylens[i]))<=0) {
-	    return i;
-	}
+	int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[i], node->u.n.childkeylens[i], db);
+        if (cmp > 0) continue;
+        if (cmp < 0) return i;
+        if (t->flags & DB_DUP) {
+            if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_L)
+                return i;
+            if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_R)
+                return i+1;
+        }
+        return i;
     }
     return node->u.n.n_children-1;
+}
+
+static inline unsigned int brtnode_which_child (BRTNODE node , DBT *k, BRT t, DB *db) {
+    return brtnode_left_child(node, k, 0, t, db);
 }
 
 static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
@@ -1002,7 +1076,7 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
 
 int brt_do_push_cmd = 1;
 
-static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 				int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 				DBT *splitk,
 				int debug,
@@ -1016,7 +1090,8 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
     DBT *v = cmd->u.id.val;
     DB *db = cmd->u.id.db;
 
-    childnum = brtnode_which_child(node, k, t, db);
+    childnum = brtnode_right_child(node, k, v, t, db);
+//rfp printf("nonleaf_insert %d,%d -> %lld %d\n", htonl(*(int*)k->data), *(int*)v->data, node->thisnodename, childnum); 
 
     /* non-buffering mode when cursors are open on this child */
     if (node->u.n.n_cursors[childnum] > 0) {
@@ -1042,6 +1117,104 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 	if (debug) printf("%s:%d %*sDoing hash_insert\n", __FILE__, __LINE__, debug, "");
 	verify_counts(node);
 	if (found) {
+            if (!(t->flags & DB_DUP)) {
+                //printf("%s:%d found and deleting\n", __FILE__, __LINE__);
+                node->local_fingerprint -= node->rand4fingerprint * toku_calccrc32_cmd(anytype, k->data, k->size, olddata, olddatalen);
+                int r = toku_hash_delete(node->u.n.htables[childnum], k->data, k->size);
+                /* Be careful, olddata is now invalid because of the delete. */
+                int diff = k->size + olddatalen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
+                assert(r==0);
+                node->u.n.n_bytes_in_hashtables -= diff;
+                node->u.n.n_bytes_in_hashtable[childnum] -= diff;
+                node->dirty = 1;
+                //printf("%s:%d deleted %d bytes\n", __FILE__, __LINE__, diff);
+                found = 0;
+            }
+            
+	}
+    }
+    //verify_local_fingerprint_nonleaf(node);
+    /* if the child is in the cache table then push the cmd to it 
+       otherwise just put it into this node's buffer */
+    if (!found && brt_do_push_cmd) {
+        int r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn, childnum, 1);
+        if (r == 0) {
+	    //printf("%s:%d\n", __FILE__, __LINE__);
+            return r;
+	}
+    }
+    //verify_local_fingerprint_nonleaf(node);
+    {
+	int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
+        int r=toku_hash_insert(node->u.n.htables[childnum], k->data, k->size, v->data, v->size, type);
+	assert(r==0);
+	node->local_fingerprint += node->rand4fingerprint * toku_calccrc32_cmd(type, k->data, k->size, v->data, v->size);
+	node->u.n.n_bytes_in_hashtables += diff;
+	node->u.n.n_bytes_in_hashtable[childnum] += diff;
+        node->dirty = 1;
+    }
+    if (debug) printf("%s:%d %*sDoing maybe_push_down\n", __FILE__, __LINE__, debug, "");
+    //verify_local_fingerprint_nonleaf(node);
+    int r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, debugp1(debug), db, txn);
+    if (r!=0) return r;
+    if (debug) printf("%s:%d %*sDid maybe_push_down\n", __FILE__, __LINE__, debug, "");
+    if (*did_split) {
+	assert(serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
+	assert(serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
+	assert((*nodea)->u.n.n_children>0);
+	assert((*nodeb)->u.n.n_children>0);
+	assert((*nodea)->u.n.children[(*nodea)->u.n.n_children-1]!=0);
+	assert((*nodeb)->u.n.children[(*nodeb)->u.n.n_children-1]!=0);
+	verify_counts(*nodea);
+	verify_counts(*nodeb);
+    } else {
+	assert(serialize_brtnode_size(node)<=node->nodesize);
+	verify_counts(node);
+    }
+    //if (*did_split) {
+    //	verify_local_fingerprint_nonleaf(*nodea);
+    //	verify_local_fingerprint_nonleaf(*nodeb);
+    //} else {
+    //	verify_local_fingerprint_nonleaf(node);
+    //}
+    return 0;
+}
+
+static int brt_nonleaf_delete_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
+                                         int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
+                                         int debug, TOKUTXN txn, unsigned int childnum) {
+    //verify_local_fingerprint_nonleaf(node);
+    int found;
+
+    int type = cmd->type;
+    DBT *k = cmd->u.id.key;
+    DBT *v = cmd->u.id.val;
+    DB *db = cmd->u.id.db;
+
+    /* non-buffering mode when cursors are open on this child */
+    if (node->u.n.n_cursors[childnum] > 0) {
+        assert(node->u.n.n_bytes_in_hashtable[childnum] == 0);
+        int r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn, childnum, 0);
+	//if (*did_split) {
+	//    verify_local_fingerprint_nonleaf(*nodea);
+	//    verify_local_fingerprint_nonleaf(*nodeb);
+	//} else {
+	//    verify_local_fingerprint_nonleaf(node);
+	//}
+        return r;
+    }
+
+    //verify_local_fingerprint_nonleaf(node);
+    {
+	int anytype;
+	bytevec olddata;
+	ITEMLEN olddatalen;
+	found = !toku_hash_find(node->u.n.htables[childnum], k->data, k->size, &olddata, &olddatalen, &anytype);
+	
+	//verify_local_fingerprint_nonleaf(node);
+	if (debug) printf("%s:%d %*sDoing hash_insert\n", __FILE__, __LINE__, debug, "");
+	verify_counts(node);
+	while (found) {
 	    //printf("%s:%d found and deleting\n", __FILE__, __LINE__);
 	    node->local_fingerprint -= node->rand4fingerprint * toku_calccrc32_cmd(anytype, k->data, k->size, olddata, olddatalen);
 	    int r = toku_hash_delete(node->u.n.htables[childnum], k->data, k->size);
@@ -1052,6 +1225,7 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 	    node->u.n.n_bytes_in_hashtable[childnum] -= diff;
             node->dirty = 1;
 	    //printf("%s:%d deleted %d bytes\n", __FILE__, __LINE__, diff);
+            found = !toku_hash_find(node->u.n.htables[childnum], k->data, k->size, &olddata, &olddatalen, &anytype);
 	}
     }
     //verify_local_fingerprint_nonleaf(node);
@@ -1099,6 +1273,92 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
     //	verify_local_fingerprint_nonleaf(node);
     //}
     return 0;
+}
+
+/* delete in all subtrees starting from the left most one which contains the key */
+static int brt_nonleaf_delete_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
+                                   int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
+                                   int debug,
+                                   TOKUTXN txn) {
+    int r;
+
+    /* find all children that need a delete cmd */
+    int delchild[TREE_FANOUT], delidx = 0;
+    inline void delchild_append(int i) {
+        if (delidx == 0 || delchild[delidx-1] != i) 
+            delchild[delidx++] = i;
+    }
+    int i;
+    for (i = 0; i < node->u.n.n_children-1; i++) {
+        int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i], node->u.n.childkeylens[i], cmd->u.id.db);
+        if (cmp > 0) {
+            continue;
+        } else if (cmp < 0) {
+            delchild_append(i);
+            break;
+        } else if (t->flags & DB_DUPSORT) {
+            delchild_append(i);
+            delchild_append(i+1);
+            if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_L) {
+                node->u.n.pivotflags[i] &= ~BRT_PIVOT_PRESENT_L;
+                node->dirty = 1;
+            }
+            if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_R) {
+                node->u.n.pivotflags[i] &= ~BRT_PIVOT_PRESENT_R;
+                node->dirty = 1;
+            }
+        } else if (t->flags & DB_DUP) {
+            if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_L) {
+                delchild_append(i);
+                node->u.n.pivotflags[i] &= ~BRT_PIVOT_PRESENT_L;
+                node->dirty = 1;
+            }
+            if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_R) {
+                delchild_append(i+1);
+                node->u.n.pivotflags[i] &= ~BRT_PIVOT_PRESENT_R;
+                node->dirty = 1;
+            }
+        } else {
+            if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_L) {
+                node->u.n.pivotflags[i] &= ~BRT_PIVOT_PRESENT_L;
+                node->dirty = 1;
+            }
+            delchild_append(i);
+            break;
+        }
+    }
+
+    if (delidx == 0)
+        delchild_append(node->u.n.n_children-1);
+
+    /* issue the delete cmd to all of the children found previously */
+    for (i=0; i<delidx; i++) {
+        r = brt_nonleaf_delete_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn, delchild[i]);
+        assert(r == 0);
+    }
+
+    /* post condition: for all pk(i) == k -> assert pf(i) == 0 */
+    for (i=0; i < node->u.n.n_children-1; i++) {
+        int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i], node->u.n.childkeylens[i], cmd->u.id.db);
+
+        if (cmp == 0)
+            assert(node->u.n.pivotflags[i] == 0);
+    }
+
+    return 0;
+}
+
+static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
+				int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
+				DBT *splitk,
+				int debug,
+				TOKUTXN txn) {
+    if (cmd->type == BRT_INSERT)
+        return brt_nonleaf_insert_cmd(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn);
+    else if (cmd->type == BRT_DELETE)
+        return brt_nonleaf_delete_cmd(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn);
+    else
+        return EINVAL;
 }
 
 
@@ -1451,8 +1711,9 @@ int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKE
     assert(newroot);
     *rootp=newroot_diskoff;
     brt->h->dirty=1;
-    // printf("new_root %lld\n", newroot_diskoff);
     initialize_brtnode (brt, newroot, newroot_diskoff, nodea->height+1);
+    printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
+
     newroot->parent_brtnode=0;
     newroot->u.n.n_children=2;
     //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
@@ -1589,8 +1850,7 @@ int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, DB *db, BRTNODE paren
             } else if (type == BRT_DELETE) {
                 result = DB_NOTFOUND;
             } else {
-                assert(0);
-                result = -1; // some versions of gcc complain
+                result = EINVAL;
             }
 	    //verify_local_fingerprint_nonleaf(node);
             r = cachetable_unpin(brt->cf, off, 0, 0);
