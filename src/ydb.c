@@ -259,6 +259,7 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
 }
 
 int __toku_db_env_close(DB_ENV * env, u_int32_t flags) {
+    if (flags) return EINVAL;
     if (env->i->cachetable)
         cachetable_close(&env->i->cachetable);
     if (env->i->logger)
