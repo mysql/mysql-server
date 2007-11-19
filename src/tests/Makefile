@@ -6,7 +6,7 @@ ifeq ($(OSX),OSX)
 LIBEXT=dylib
 VGRIND=
 TDB_LOADLIBES = -L../ -ldb
-SETTOKUENV=export DYLD_LIBRARY_PATH=..
+SETTOKUENV=DYLD_LIBRARY_PATH=..
 UNSETTOKUENV=unset DYLD_LIBRARY_PATH
 else
 SETTOKUENV=true
@@ -59,15 +59,18 @@ $(ALL_TESTS):
 %.bdbrun: %.bdb
 	$(UNSETTOKUENV); $(VGRIND) ./$<
 %.tdbrun: %.tdb
-	$(SETTOKUENV); $(VGRIND) ./$<
+	$(SETTOKUENV) $(VGRIND) ./$<
 
 # For a few of the tests bdb is making valgrind unhappy.
 NO_VGRIND = \
   db_already_exists \
   db_dup \
+  db_env_open_nocreate \
   db_env_open_open_close \
+  db_open_notexist_reopen \
   db_remove_subdb \
   db_subdb \
+  rand_insert \
   reverse_compare_fun \
   # Comment to terminate list so the previous line can end with a slash
 

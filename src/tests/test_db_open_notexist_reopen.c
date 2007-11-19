@@ -10,16 +10,18 @@
 DB_ENV *env;
 DB *db;
 
+#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
+
 int main (int argc, char *argv[]) {
     int r;
     system("rm -rf " DIR);
-    r=mkdir(DIR, 0777);       assert(r==0);
-    r=db_env_create(&env, 0); assert(r==0);
-    r=env->open(env, DIR, DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
-    r=db_create(&db, env, 0); assert(r==0);
-    r=db->open(db, NULL, "doesnotexist.db", "testdb", DB_BTREE, 0, 0666); assert(r==ENOENT);
-    r=db->open(db, NULL, "doesnotexist.db", "testdb", DB_BTREE, DB_CREATE, 0666); assert(r==0);
-    r=db->close(db, 0);       assert(r==0);
-    r=env->close(env, 0);     assert(r==0);
+    r=mkdir(DIR, 0777);                                                           assert(r==0);
+    r=db_env_create(&env, 0);                                                     CKERR(r);
+    r=env->open(env, DIR, DB_INIT_MPOOL|DB_CREATE, 0777);                         CKERR(r);
+    r=db_create(&db, env, 0);                                                     CKERR(r);
+    r=db->open(db, NULL, "doesnotexist.db", "testdb", DB_BTREE, 0, 0666);         assert(r==ENOENT);
+    r=db->open(db, NULL, "doesnotexist.db", "testdb", DB_BTREE, DB_CREATE, 0666); CKERR(r);
+    r=db->close(db, 0);                                                           CKERR(r);
+    r=env->close(env, 0);                                                         CKERR(r);
     return 0;
 }
