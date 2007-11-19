@@ -116,7 +116,7 @@ extern EventLogger g_eventLogger;
 
 static
 Uint32
-prevLcpNo(Uint32 lcpNo){
+oldPrevLcpNo(Uint32 lcpNo){
   if(lcpNo == 0)
     return MAX_LCP_STORED - 1;
   return lcpNo - 1;
@@ -124,9 +124,17 @@ prevLcpNo(Uint32 lcpNo){
 
 static
 Uint32
+prevLcpNo(Uint32 lcpNo){
+  if(lcpNo == 0)
+    return MAX_LCP_USED - 1;
+  return lcpNo - 1;
+}
+
+static
+Uint32
 nextLcpNo(Uint32 lcpNo){
   lcpNo++;
-  if(lcpNo == MAX_LCP_STORED)
+  if(lcpNo == MAX_LCP_USED)
     return 0;
   return lcpNo;
 }
@@ -3094,13 +3102,12 @@ Dbdih::nr_start_fragment(Signal* signal,
 	   takeOverPtr.p->toCurrentFragid,
 	   replicaPtr.p->nextLcp);
   
-  Uint32 idx = replicaPtr.p->nextLcp;
-  for(i = 0; i<MAX_LCP_STORED; i++, idx = nextLcpNo(idx))
+  Uint32 idx = prevLcpNo(replicaPtr.p->nextLcp);
+  for(i = 0; i<MAX_LCP_USED; i++, idx = prevLcpNo(idx))
   {
     ndbout_c("scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
-      ndbrequire(replicaPtr.p->lcpId[idx] > maxLcpId);
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
       for (;j < replicaPtr.p->noCrashedReplicas; j++)
       {
@@ -3113,11 +3120,34 @@ Dbdih::nr_start_fragment(Signal* signal,
 	  maxLcpId = replicaPtr.p->lcpId[idx];
 	  maxLcpIndex = idx;
 	  restorableGCI = replicaPtr.p->replicaLastGci[j];
-	  break;
+	  goto done;
 	}
       }
     }
   }
+  
+  idx = 2; // backward compat code
+  ndbout_c("scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
+  if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
+  {
+    Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
+    for (;j < replicaPtr.p->noCrashedReplicas; j++)
+    {
+      ndbout_c("crashed replica: %d(%d) replicaLastGci: %d",
+               j, 
+               replicaPtr.p->noCrashedReplicas,
+               replicaPtr.p->replicaLastGci[j]);
+      if (replicaPtr.p->replicaLastGci[j] > stopGci)
+      {
+        maxLcpId = replicaPtr.p->lcpId[idx];
+        maxLcpIndex = idx;
+        restorableGCI = replicaPtr.p->replicaLastGci[j];
+        goto done;
+      }
+    }
+  }
+  
+done:
   
   if (maxLcpIndex == ~ (Uint32) 0)
   {
@@ -5895,7 +5925,7 @@ void Dbdih::removeNodeFromTable(Signal* signal,
           jam();
           Uint32 lcpNo = prevLcpNo(replicaPtr.p->nextLcp);
           if (replicaPtr.p->lcpStatus[lcpNo] == ZVALID && 
-              replicaPtr.p->lcpId[lcpNo] == SYSFILE->latestLCP_ID)
+              replicaPtr.p->lcpId[lcpNo] == lcpId)
           {
             jam();
             replicaPtr.p->lcpStatus[lcpNo] = ZINVALID;       
@@ -11365,7 +11395,6 @@ Dbdih::reportLcpCompletion(const LcpFragRep* lcpReport)
   replicaPtr.p->maxGciStarted[lcpNo] = maxGciStarted;
   replicaPtr.p->maxGciCompleted[lcpNo] = maxGciCompleted;
   replicaPtr.p->nextLcp = nextLcpNo(replicaPtr.p->nextLcp);
-
   ndbrequire(fragPtr.p->noLcpReplicas > 0);
   fragPtr.p->noLcpReplicas --;
   
@@ -12595,8 +12624,6 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
                        Uint32& keepGci,
                        Uint32& oldestRestorableGci)
 {
-  Uint32 nextLcpNo;
-  Uint32 lcpNo;
   for (Uint32 i = 0; i < MAX_LCP_STORED; i++) {
     jam();
     if ((fmgReplicaPtr.p->lcpStatus[i] == ZVALID) &&
@@ -12612,34 +12639,31 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   }//for
   keepGci = (Uint32)-1;
   oldestRestorableGci = 0;
-  nextLcpNo = fmgReplicaPtr.p->nextLcp;
-  lcpNo = fmgReplicaPtr.p->nextLcp;
-  do {
-    ndbrequire(lcpNo < MAX_LCP_STORED);
-    if (fmgReplicaPtr.p->lcpStatus[lcpNo] == ZVALID &&
-	fmgReplicaPtr.p->maxGciStarted[lcpNo] < c_newest_restorable_gci)
+  
+  Uint32 lastLcpNo = prevLcpNo(fmgReplicaPtr.p->nextLcp);
+  if (fmgReplicaPtr.p->lcpStatus[lastLcpNo] == ZVALID &&
+      fmgReplicaPtr.p->maxGciStarted[lastLcpNo] < c_newest_restorable_gci)
+  {
+    jam();
+    keepGci = fmgReplicaPtr.p->maxGciCompleted[lastLcpNo];
+    oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[lastLcpNo];
+  } 
+  else 
+  {
+    jam();
+    if (fmgReplicaPtr.p->createGci[0] == fmgReplicaPtr.p->initialGci) 
     {
       jam();
-      keepGci = fmgReplicaPtr.p->maxGciCompleted[lcpNo];
-      oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[lcpNo];
-      ndbrequire(((int)oldestRestorableGci) >= 0);      
-      return;
-    } else {
-      jam();
-      if (fmgReplicaPtr.p->createGci[0] == fmgReplicaPtr.p->initialGci) {
-        jam();
-	/*-------------------------------------------------------------------
-	 * WE CAN STILL RESTORE THIS REPLICA WITHOUT ANY LOCAL CHECKPOINTS BY
-	 * ONLY USING THE LOG. IF THIS IS NOT POSSIBLE THEN WE REPORT THE LAST
-	 * VALID LOCAL CHECKPOINT AS THE MINIMUM GCI RECOVERABLE.
-	 *-----------------------------------------------------------------*/
-        keepGci = fmgReplicaPtr.p->createGci[0];
-        // XXX Jonas
-        //oldestRestorableGci = fmgReplicaPtr.p->createGci[0];
-      }//if
+      /*-------------------------------------------------------------------
+       * WE CAN STILL RESTORE THIS REPLICA WITHOUT ANY LOCAL CHECKPOINTS BY
+       * ONLY USING THE LOG. IF THIS IS NOT POSSIBLE THEN WE REPORT THE LAST
+       * VALID LOCAL CHECKPOINT AS THE MINIMUM GCI RECOVERABLE.
+       *-----------------------------------------------------------------*/
+      keepGci = fmgReplicaPtr.p->createGci[0];
+      // XXX Jonas
+      //oldestRestorableGci = fmgReplicaPtr.p->createGci[0];
     }//if
-    lcpNo = prevLcpNo(lcpNo);
-  } while (lcpNo != nextLcpNo);
+  }//if
   return;
 }//Dbdih::findMinGci()
 
@@ -12651,7 +12675,7 @@ bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
   lcpNo = replicaPtr.p->nextLcp;
   const Uint32 startLcpNo = lcpNo;
   do {
-    lcpNo = prevLcpNo(lcpNo);
+    lcpNo = oldPrevLcpNo(lcpNo);
     ndbrequire(lcpNo < MAX_LCP_STORED);
     if (replicaPtr.p->lcpStatus[lcpNo] == ZVALID) {
       if (replicaPtr.p->maxGciStarted[lcpNo] < stopGci) {

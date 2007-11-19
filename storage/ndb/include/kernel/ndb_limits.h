@@ -43,6 +43,12 @@
 #define MAX_LCP_STORED 3
 
 /**
+ * Max LCP used (the reason for keeping MAX_LCP_STORED is that we
+ *   need to restore from LCP's with lcp no == 2
+ */
+#define MAX_LCP_USED 2
+
+/**
  * The maximum number of log execution rounds at system restart
  */
 #define MAX_LOG_EXEC 4
