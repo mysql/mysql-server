@@ -1,7 +1,7 @@
 /* rlprivate.h -- functions and variables global to the readline library,
 		  but not intended for use by applications. */
 
-/* Copyright (C) 1999-2004 Free Software Foundation, Inc.
+/* Copyright (C) 1999-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -30,6 +30,95 @@
 
 /*************************************************************************
  *									 *
+ * Global structs undocumented in texinfo manual and not in readline.h   *
+ *									 *
+ *************************************************************************/
+/* search types */
+#define RL_SEARCH_ISEARCH	0x01		/* incremental search */
+#define RL_SEARCH_NSEARCH	0x02		/* non-incremental search */
+#define RL_SEARCH_CSEARCH	0x04		/* intra-line char search */
+
+/* search flags */
+#define SF_REVERSE		0x01
+#define SF_FOUND		0x02
+#define SF_FAILED		0x04
+
+typedef struct  __rl_search_context
+{
+  int type;
+  int sflags;
+
+  char *search_string;
+  int search_string_index;
+  int search_string_size;
+
+  char **lines;
+  char *allocated_line;    
+  int hlen;
+  int hindex;
+
+  int save_point;
+  int save_mark;
+  int save_line;
+  int last_found_line;
+  char *prev_line_found;
+
+  UNDO_LIST *save_undo_list;
+
+  int history_pos;
+  int direction;
+
+  int lastc;
+#if defined (HANDLE_MULTIBYTE)
+  char mb[MB_LEN_MAX];
+#endif
+
+  char *sline;
+  int sline_len;
+  int sline_index;
+
+  char  *search_terminators;
+} _rl_search_cxt;
+
+/* Callback data for reading numeric arguments */
+#define NUM_SAWMINUS	0x01
+#define NUM_SAWDIGITS	0x02
+#define NUM_READONE	0x04
+
+typedef int _rl_arg_cxt;
+
+/* A context for reading key sequences longer than a single character when
+   using the callback interface. */
+#define KSEQ_DISPATCHED	0x01
+#define KSEQ_SUBSEQ	0x02
+#define KSEQ_RECURSIVE	0x04
+
+typedef struct __rl_keyseq_context
+{
+  int flags;
+  int subseq_arg;
+  int subseq_retval;		/* XXX */
+  Keymap dmap;
+
+  Keymap oldmap;
+  int okey;
+  struct __rl_keyseq_context *ocxt;
+  int childval;
+} _rl_keyseq_cxt;
+
+  /* fill in more as needed */
+/* `Generic' callback data and functions */
+typedef struct __rl_callback_generic_arg 
+{
+  int count;
+  int i1, i2;
+  /* add here as needed */
+} _rl_callback_generic_arg;
+
+typedef int _rl_callback_func_t PARAMS((_rl_callback_generic_arg *));
+
+/*************************************************************************
+ *									 *
  * Global functions undocumented in texinfo manual and not in readline.h *
  *									 *
  *************************************************************************/
@@ -53,6 +142,8 @@ extern int rl_visible_prompt_length;
 extern int readline_echoing_p;
 extern int rl_key_sequence_length;
 extern int rl_byte_oriented;
+
+extern _rl_keyseq_cxt *_rl_kscxt;
 
 /* display.c */
 extern int rl_display_fixed;
@@ -100,6 +191,16 @@ extern void readline_internal_setup PARAMS((void));
 extern char *readline_internal_teardown PARAMS((int));
 extern int readline_internal_char PARAMS((void));
 
+extern _rl_keyseq_cxt *_rl_keyseq_cxt_alloc PARAMS((void));
+extern void _rl_keyseq_cxt_dispose PARAMS((_rl_keyseq_cxt *));
+extern void _rl_keyseq_chain_dispose PARAMS((void));
+
+extern int _rl_dispatch_callback PARAMS((_rl_keyseq_cxt *));
+     
+/* callback.c */
+extern _rl_callback_generic_arg *_rl_callback_data_alloc PARAMS((int));
+extern void _rl_callback_data_dispose PARAMS((_rl_callback_generic_arg *));
+
 #endif /* READLINE_CALLBACKS */
 
 /* bind.c */
@@ -132,6 +233,15 @@ extern void _rl_insert_typein PARAMS((int));
 extern int _rl_unget_char PARAMS((int));
 extern int _rl_pushed_input_available PARAMS((void));
 
+/* isearch.c */
+extern _rl_search_cxt *_rl_scxt_alloc PARAMS((int, int));
+extern void _rl_scxt_dispose PARAMS((_rl_search_cxt *, int));
+
+extern int _rl_isearch_dispatch PARAMS((_rl_search_cxt *, int));
+extern int _rl_isearch_callback PARAMS((_rl_search_cxt *));
+
+extern int _rl_search_getchar PARAMS((_rl_search_cxt *));
+
 /* macro.c */
 extern void _rl_with_macro_input PARAMS((char *));
 extern int _rl_next_macro_key PARAMS((void));
@@ -141,7 +251,12 @@ extern void _rl_add_macro_char PARAMS((int));
 extern void _rl_kill_kbd_macro PARAMS((void));
 
 /* misc.c */
-extern int _rl_init_argument PARAMS((void));
+extern int _rl_arg_overflow PARAMS((void));
+extern void _rl_arg_init PARAMS((void));
+extern int _rl_arg_getchar PARAMS((void));
+extern int _rl_arg_callback PARAMS((_rl_arg_cxt));
+extern void _rl_reset_argument PARAMS((void));
+
 extern void _rl_start_using_history PARAMS((void));
 extern int _rl_free_saved_history_line PARAMS((void));
 extern void _rl_set_insert_mode PARAMS((int, int));
@@ -157,10 +272,14 @@ extern void _rl_init_line_state PARAMS((void));
 extern void _rl_set_the_line PARAMS((void));
 extern int _rl_dispatch PARAMS((int, Keymap));
 extern int _rl_dispatch_subseq PARAMS((int, Keymap, int));
+extern void _rl_internal_char_cleanup PARAMS((void));
 
 /* rltty.c */
 extern int _rl_disable_tty_signals PARAMS((void));
 extern int _rl_restore_tty_signals PARAMS((void));
+
+/* search.c */
+extern int _rl_nsearch_callback PARAMS((_rl_search_cxt *));
 
 /* terminal.c */
 extern void _rl_get_screen_size PARAMS((int, int));
@@ -190,6 +309,10 @@ extern int _rl_char_search_internal PARAMS((int, int, int));
 #endif
 extern int _rl_set_mark_at_pos PARAMS((int));
 
+/* undo.c */
+extern UNDO_LIST *_rl_copy_undo_entry PARAMS((UNDO_LIST *));
+extern UNDO_LIST *_rl_copy_undo_list PARAMS((UNDO_LIST *));
+
 /* util.c */
 extern int _rl_abort_internal PARAMS((void));
 extern char *_rl_strindex PARAMS((const char *, const char *));
@@ -217,6 +340,10 @@ extern void _rl_vi_done_inserting PARAMS((void));
 extern const char *_rl_possible_control_prefixes[];
 extern const char *_rl_possible_meta_prefixes[];
 
+/* callback.c */
+extern _rl_callback_func_t *_rl_callback_func;
+extern _rl_callback_generic_arg *_rl_callback_data;
+
 /* complete.c */
 extern int _rl_complete_show_all;
 extern int _rl_complete_show_unmodified;
@@ -231,10 +358,13 @@ extern int _rl_page_completions;
 extern int _rl_vis_botlin;
 extern int _rl_last_c_pos;
 extern int _rl_suppress_redisplay;
+extern int _rl_want_redisplay;
 extern char *rl_display_prompt;
 
 /* isearch.c */
 extern char *_rl_isearch_terminators;
+
+extern _rl_search_cxt *_rl_iscxt;
 
 /* macro.c */
 extern char *_rl_executing_macro;
@@ -243,6 +373,8 @@ extern char *_rl_executing_macro;
 extern int _rl_history_preserve_point;
 extern int _rl_history_saved_point;
 
+extern _rl_arg_cxt _rl_argcxt;
+
 /* readline.c */
 extern int _rl_horizontal_scroll_mode;
 extern int _rl_mark_modified_lines;
@@ -250,6 +382,7 @@ extern int _rl_bell_preference;
 extern int _rl_meta_flag;
 extern int _rl_convert_meta_chars_to_ascii;
 extern int _rl_output_meta_chars;
+extern int _rl_bind_stty_chars;
 extern char *_rl_comment_begin;
 extern unsigned char _rl_parsing_conditionalized_out;
 extern Keymap _rl_keymap;
@@ -258,6 +391,9 @@ extern FILE *_rl_out_stream;
 extern int _rl_last_command_was_kill;
 extern int _rl_eof_char;
 extern procenv_t readline_top_level;
+
+/* search.c */
+extern _rl_search_cxt *_rl_nscxt;
 
 /* terminal.c */
 extern int _rl_enable_keypad;
@@ -272,6 +408,7 @@ extern char *_rl_term_up;
 extern char *_rl_term_dc;
 extern char *_rl_term_cr;
 extern char *_rl_term_IC;
+extern char *_rl_term_forward_char;
 extern int _rl_screenheight;
 extern int _rl_screenwidth;
 extern int _rl_screenchars;
