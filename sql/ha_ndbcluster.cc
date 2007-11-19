@@ -3388,7 +3388,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   if (table_share->blob_fields > 0)
   {
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-    int res= set_blob_values(op, row - table->record[0], NULL, &blob_count);
+    int res= set_blob_values(op, row - table->record[0], table->write_set, &blob_count);
     dbug_tmp_restore_column_map(table->read_set, old_map);
     if (res != 0)
       ERR_RETURN(op->getNdbError());
