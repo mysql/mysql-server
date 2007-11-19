@@ -22,7 +22,9 @@
 
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <stdio.h>
 
@@ -53,8 +55,6 @@
 #define slashify_in_quotes "\\`\"$"
 
 typedef int _hist_search_func_t PARAMS((const char *, int));
-
-extern int rl_byte_oriented;	/* declared in mbutil.c */
 
 static char error_pointer;
 
@@ -87,14 +87,14 @@ char history_comment_char = '\0';
 
 /* The list of characters which inhibit the expansion of text if found
    immediately following history_expansion_char. */
-char *history_no_expand_chars = (char*) " \t\n\r=";
+char *history_no_expand_chars = " \t\n\r=";
 
 /* If set to a non-zero value, single quotes inhibit history expansion.
    The default is 0. */
 int history_quotes_inhibit_expansion = 0;
 
 /* Used to split words by history_tokenize_internal. */
-char *history_word_delimiters = (char*) HISTORY_WORD_DELIMITERS;
+char *history_word_delimiters = HISTORY_WORD_DELIMITERS;
 
 /* If set, this points to a function that is called to verify that a
    particular history expansion should be performed. */
@@ -203,24 +203,25 @@ get_history_event (string, caller_index, delimiting_quote)
     }
 
   /* Only a closing `?' or a newline delimit a substring search string. */
-  for (local_index = i; (c = string[i]); i++)
+  for (local_index = i; c = string[i]; i++)
+    {
 #if defined (HANDLE_MULTIBYTE)
-    if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
-      {
-	int v;
-	mbstate_t ps;
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  int v;
+	  mbstate_t ps;
 
-	memset (&ps, 0, sizeof (mbstate_t));
-	/* These produce warnings because we're passing a const string to a
-	   function that takes a non-const string. */
-	_rl_adjust_point ((char *)string, i, &ps);
-	if ((v = _rl_get_char_len ((char *)string + i, &ps)) > 1)
-	  {
-	    i += v - 1;
-	    continue;
-	  }
-      }
-    else
+	  memset (&ps, 0, sizeof (mbstate_t));
+	  /* These produce warnings because we're passing a const string to a
+	     function that takes a non-const string. */
+	  _rl_adjust_point ((char *)string, i, &ps);
+	  if ((v = _rl_get_char_len ((char *)string + i, &ps)) > 1)
+	    {
+	      i += v - 1;
+	      continue;
+	    }
+        }
+
 #endif /* HANDLE_MULTIBYTE */
       if ((!substring_okay && (whitespace (c) || c == ':' ||
 	  (history_search_delimiter_chars && member (c, history_search_delimiter_chars)) ||
@@ -228,6 +229,7 @@ get_history_event (string, caller_index, delimiting_quote)
 	  string[i] == '\n' ||
 	  (substring_okay && string[i] == '?'))
 	break;
+    }
 
   which = i - local_index;
   temp = (char *)xmalloc (1 + which);
@@ -560,12 +562,12 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 #if defined (HANDLE_MULTIBYTE)
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
 	{
-	  int chr, l;
+	  int ch, l;
 	  l = _rl_find_prev_mbchar (string, i, MB_FIND_ANY);
-	  chr = string[l];
+	  ch = string[l];
 	  /* XXX - original patch had i - 1 ???  If i == 0 it would fail. */
-	  if (i && (chr == '\'' || chr == '"'))
-	    quoted_search_delimiter = chr;
+	  if (i && (ch == '\'' || ch == '"'))
+	    quoted_search_delimiter = ch;
 	}
       else
 #endif /* HANDLE_MULTIBYTE */	  
@@ -1425,6 +1427,8 @@ history_tokenize_word (string, ind)
       if (peek == string[i] && peek != '$')
 	{
 	  if (peek == '<' && string[i + 2] == '-')
+	    i++;
+	  else if (peek == '<' && string[i + 2] == '<')
 	    i++;
 	  i += 2;
 	  return i;
