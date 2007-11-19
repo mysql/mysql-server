@@ -19,7 +19,7 @@
 # All unrecognized arguments to this script are passed to mysqld.
 
 basedir=""
-ldata=""
+ldata="@localstatedir@"
 srcdir=""
 
 args=""
@@ -31,7 +31,6 @@ force=0
 in_rpm=0
 ip_only=0
 windows=0
-source_install=0
 
 usage()
 {
@@ -48,10 +47,10 @@ Usage: $0 [OPTIONS]
   --skip-name-resolve  Use IP addresses rather than hostnames when creating
                        grant table entries.  This option can be useful if
                        your DNS does not work.
-  --srcdir=path        For internal use.  The directory under which
-                       mysql_install_db looks for support files such as the
-                       error message file and the file for popoulating the
-                       help tables.
+  --srcdir=path        The path to the MySQL source directory.  This option
+                       uses the compiled binaries and support files within the
+                       source tree, useful for if you don't want to install
+                       MySQL yet and just want to create the system tables.
   --user=user_name     The login username to use for running mysqld.  Files
                        and directories created by mysqld will be owned by this
                        user.  You must be root to use this option.  By default
@@ -121,13 +120,6 @@ parse_arguments()
         # package.
          windows=1 ;;
 
-       --source-install)
-        # This is used when you want to run mysqld directly from the
-        # source tree (for example when you are developing MySQL and
-        # only want to create the default tables but don't want to
-        # install mysqld yet.
-         source_install=1 ;;
-
       *)
         if test -n "$pick_args"
         then
@@ -155,41 +147,33 @@ find_in_basedir()
 
   file=$1; shift
 
-  base="$basedir"
-  if test -z "$base"
-  then
-    # Assume source installation if basedir is not given
-    base="."
-  fi
-
   for dir in "$@"
   do
-    if test -f "$base/$dir/$file"
+    if test -f "$basedir/$dir/$file"
     then
       if test -n "$return_dir"
       then
-        echo "$base/$dir"
+        echo "$basedir/$dir"
       else
-        echo "$base/$dir/$file"
+        echo "$basedir/$dir/$file"
       fi
       break
     fi
   done
 }
 
-missing_in_basedir()
+cannot_find_file()
 {
-  if test -z "$basedir"
-  then
-    echo "FATAL ERROR: Could not find $* inside --basedir"
-    echo
-    echo "When using --basedir you must point either into a MySQL binary"
-    echo "distribution directory or a compiled tree previously populated"
-    echo "by 'make install'"
-  else
-    echo "FATAL ERROR: Can't find $*. Please specify your installation"
-    echo "directory with the '--basedir=' option."
-  fi
+  echo
+  echo "FATAL ERROR: Could not find $*"
+  echo
+  echo "If you compiled from source, you need to run 'make install' to"
+  echo "copy the software into the correct location ready for operation."
+  echo
+  echo "If you are using a binary release, you must either be at the top"
+  echo "level of the extracted archive, or pass the --basedir option"
+  echo "pointing to that location."
+  echo
 }
 
 # Ok, let's go.  We first need to parse arguments which are required by
@@ -197,23 +181,28 @@ missing_in_basedir()
 # the command line to add any extra bits that we need.
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
-# We can now find my_print_defaults, either in the supplied --basedir
-# location or in the installed area.
-
-print_defaults=`find_in_basedir my_print_defaults bin extra`
-if test -z "$print_defaults"
+#
+# We can now find my_print_defaults.  This script supports:
+#
+#   --srcdir=path pointing to compiled source tree
+#   --basedir=path pointing to installed binary location
+#
+# or default to compiled-in locations.
+#
+if test -n "$srcdir"
 then
+  print_defaults="$srcdir/extra/my_print_defaults"
+elif test -n "$basedir"
+then
+  print_defaults=`find_in_basedir my_print_defaults bin extra`
+else
   print_defaults="@bindir@/my_print_defaults"
-  if ! test -x "$print_defaults"
-  then
-    echo "FATAL ERROR: Could not find $print_defaults"
-    echo
-    echo "If you are using a binary release, you must run this script from"
-    echo "within the directory the archive extracted into.  If you compiled"
-    echo "MySQL yourself you must run 'make install' first or use"
-    echo "use --source-install --install-dir=xxx from the top source directory"
-    exit 1
-  fi
+fi
+
+if test ! -x "$print_defaults"
+then
+  cannot_find_file "$print_defaults"
+  exit 1
 fi
 
 # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
@@ -221,63 +210,33 @@ fi
 parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
-# Path to MySQL installation directory
-if test -z "$basedir" -a "$source_install" = 0
+# Configure paths to support files
+if test -n "$srcdir"
 then
+  basedir="$srcdir"
+  bindir="$srcdir/client"
+  extra_bindir="$srcdir/extra"
+  mysqld="$srcdir/sql/mysqld"
+  mysqld_opt="--language=$srcdir/sql/share/english"
+  pkgdatadir="$srcdir/scripts"
+  scriptdir="$srcdir/scripts"
+elif test -n "$basedir"
+then
+  bindir="$basedir/bin"
+  extra_bindir="$bindir"
+  mysqld=`find_in_basedir mysqld libexec sbin bin`
+  pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql`
+  scriptdir="$basedir/scripts"
+else
   basedir="@prefix@"
   bindir="@bindir@"
   extra_bindir="$bindir"
   mysqld="@libexecdir@/mysqld"
   pkgdatadir="@pkgdatadir@"
-else
-  bindir="$basedir/bin"
-  extra_bindir="$bindir"
-  # We set up bootstrap-specific paths later, so skip this for --windows
-  if test "$windows" -eq 0
-  then
-    mysqld=`find_in_basedir mysqld libexec sbin bin`
-    if test -z "$basedir"
-    then
-      # We come here when source-install is given
-      bindir="$basedir/bin"
-      extra_bindir="$bindir"
-    fi
-    if test -x "$mysqld"
-    then
-      pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql scripts`
-      if test -z "$pkgdatadir"
-      then
-        missing_in_basedir fill_help_tables.sql
-       exit 1
-      fi
-    else
-      if test -x "./sql/mysqld"
-      then
-        # Source installation
-        mysqld="./sql/mysqld"
-        bindir="./client"
-        extra_bindir="./extra"
-        pkgdatadir="./scripts"
-        mysqld_opt="--language=./sql/share/english"
-      else
-        missing_in_basedir mysqld
-      fi
-    fi
-  fi
+  scriptdir="@scriptdir@"
 fi
 
-# Path to data directory
-if test -z "$ldata"
-then
-  ldata="@localstatedir@"
-fi
-
-# Set up paths to SQL scripts required for bootstrap and ensure they exist.
-if test -n "$srcdir"
-then
-  pkgdatadir="$srcdir/scripts"
-fi
-
+# Set up paths to SQL scripts required for bootstrap
 fill_help_tables="$pkgdatadir/fill_help_tables.sql"
 create_system_tables="$pkgdatadir/mysql_system_tables.sql"
 fill_system_tables="$pkgdatadir/mysql_system_tables_data.sql"
@@ -286,28 +245,14 @@ for f in $fill_help_tables $create_system_tables $fill_system_tables
 do
   if test ! -f "$f"
   then
-    echo "FATAL ERROR: Could not find SQL file '$f'"
+    cannot_find_file "$f"
     exit 1
   fi
 done
 
-# Set up Windows-specific paths
-if test "$windows" -eq 1
-then
-  mysqld="./sql/mysqld"
-  if test -n "$srcdir" -a -f "$srcdir/sql/share/english/errmsg.sys"
-  then
-    mysqld_opt="--language=$srcdir/sql/share/english"
-  else
-    mysqld_opt="--language=./sql/share/english"
-  fi
-fi
-
-# Make sure mysqld is available in default location (--basedir option is
-# already tested above).
 if test ! -x "$mysqld"
 then
-  echo "FATAL ERROR: 'mysqld' executable not found!"
+  cannot_find_file "$mysqld"
   exit 1
 fi
 
@@ -318,10 +263,10 @@ hostname=`@HOSTNAME@`
 if test "$windows" -eq 0 -a "$in_rpm" -eq 0 -a "$force" -eq 0
 then
   resolved=`$extra_bindir/resolveip $hostname 2>&1`
-  if [ $? -ne 0 ]
+  if test $? -ne 0
   then
     resolved=`$extra_bindir/resolveip localhost 2>&1`
-    if [ $? -ne 0 ]
+    if test $? -ne 0
     then
       echo "Neither host '$hostname' nor 'localhost' could be looked up with"
       echo "$extra_bindir/resolveip"
@@ -345,7 +290,7 @@ then
   hostname=`echo "$resolved" | awk '/ /{print $6}'`
 fi
 
-# Create database directories mysql & test
+# Create database directories
 for dir in $ldata $ldata/mysql $ldata/test
 do
   if test ! -d $dir
@@ -364,98 +309,98 @@ then
   args="$args --user=$user"
 fi
 
-# Peform the install of system tables
+# Configure mysqld command line
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
   --basedir=$basedir --datadir=$ldata --log-warnings=0 --loose-skip-innodb \
   --loose-skip-ndbcluster $args --max_allowed_packet=8M \
   --net_buffer_length=16K"
 
-# Pipe mysql_system_tables.sql to "mysqld --bootstrap"
+# Create the system and help tables by passing them to "mysqld --bootstrap"
 s_echo "Installing MySQL system tables..."
 if `(echo "use mysql;"; cat $create_system_tables $fill_system_tables) | $mysqld_install_cmd_line`
 then
   s_echo "OK"
-
-  s_echo "Filling help tables..."
-  # Pipe fill_help_tables.sql to "mysqld --bootstrap"
-  if `(echo "use mysql;"; cat $fill_help_tables) | $mysqld_install_cmd_line`
-  then
-    # Fill suceeded
-    s_echo "OK"
-  else
-    echo
-    echo "WARNING: HELP FILES ARE NOT COMPLETELY INSTALLED!"
-    echo "The \"HELP\" command might not work properly"
-    echo
-  fi
-
-  s_echo
-  s_echo "To start mysqld at boot time you have to copy"
-  s_echo "support-files/mysql.server to the right place for your system"
-  s_echo
-
-  if test "$windows" -eq 0
-  then
-    # A root password should of course also be set on Windows!
-    # The reason for not displaying these prompts here is that when
-    # executing this script with the --windows argument the script
-    # is used to generate system tables mainly used by the
-    # windows installer. And thus the password should not be set until
-    # those files has been copied to the target system
-    echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
-    echo "To do so, start the server, then issue the following commands:"
-    echo "$bindir/mysqladmin -u root password 'new-password'"
-    echo "$bindir/mysqladmin -u root -h $hostname password 'new-password'"
-    echo
-    echo "Alternatively you can run:"
-    echo "$bindir/mysql_secure_installation"
-    echo
-    echo "which will also give you the option of removing the test"
-    echo "databases and anonymous user created by default.  This is"
-    echo "strongly recommended for production servers."
-    echo
-    echo "See the manual for more instructions."
-    echo
-
-    if test "$in_rpm" -eq 0 -a "$source_install" -eq 0
-    then
-      echo "You can start the MySQL daemon with:"
-      echo "cd @prefix@ ; $bindir/mysqld_safe &"
-      echo
-      echo "You can test the MySQL daemon with mysql-test-run.pl"
-      echo "cd mysql-test ; perl mysql-test-run.pl"
-      echo
-    fi
-    echo "Please report any problems with the @scriptdir@/mysqlbug script!"
-    echo
-    echo "The latest information about MySQL is available on the web at"
-    echo "http://www.mysql.com"
-    echo "Support MySQL by buying support/licenses at http://shop.mysql.com"
-  fi
-  exit 0
 else
-  echo "Installation of system tables failed!"
   echo
-  echo "Examine the logs in $ldata for more information."
+  echo "Installation of system tables failed!  Examine the logs in"
+  echo "$ldata for more information."
+  echo
   echo "You can try to start the mysqld daemon with:"
-  echo "$mysqld --skip-grant &"
-  echo "and use the command line tool"
-  echo "$bindir/mysql to connect to the mysql"
-  echo "database and look at the grant tables:"
   echo
-  echo "shell> $bindir/mysql -u root mysql"
-  echo "mysql> show tables"
+  echo "    shell> $mysqld --skip-grant &"
   echo
-  echo "Try 'mysqld --help' if you have problems with paths. Using --log"
+  echo "and use the command line tool $bindir/mysql"
+  echo "to connect to the mysql database and look at the grant tables:"
+  echo
+  echo "    shell> $bindir/mysql -u root mysql"
+  echo "    mysql> show tables"
+  echo
+  echo "Try 'mysqld --help' if you have problems with paths.  Using --log"
   echo "gives you a log in $ldata that may be helpful."
   echo
   echo "The latest information about MySQL is available on the web at"
-  echo "http://www.mysql.com"
-  echo "Please consult the MySQL manual section: 'Problems running mysql_install_db',"
-  echo "and the manual section that describes problems on your OS."
-  echo "Another information source is the MySQL email archive."
-  echo "Please check all of the above before mailing us!"
-  echo "And if you do mail us, you MUST use the @scriptdir@/mysqlbug script!"
+  echo "http://www.mysql.com/.  Please consult the MySQL manual section"
+  echo "'Problems running mysql_install_db', and the manual section that"
+  echo "describes problems on your OS.  Another information source are the"
+  echo "MySQL email archives available at http://lists.mysql.com/."
+  echo
+  echo "Please check all of the above before mailing us!  And remember, if"
+  echo "you do mail us, you MUST use the $scriptdir/mysqlbug script!"
+  echo
   exit 1
 fi
+
+s_echo "Filling help tables..."
+if `(echo "use mysql;"; cat $fill_help_tables) | $mysqld_install_cmd_line`
+then
+  s_echo "OK"
+else
+  echo
+  echo "WARNING: HELP FILES ARE NOT COMPLETELY INSTALLED!"
+  echo "The \"HELP\" command might not work properly."
+fi
+
+# Don't output verbose information if running inside bootstrap or using
+# --srcdir for testing.
+if test "$windows" -eq 0 && test -z "$srcdir"
+then
+  s_echo
+  s_echo "To start mysqld at boot time you have to copy"
+  s_echo "support-files/mysql.server to the right place for your system"
+
+  echo
+  echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
+  echo "To do so, start the server, then issue the following commands:"
+  echo
+  echo "$bindir/mysqladmin -u root password 'new-password'"
+  echo "$bindir/mysqladmin -u root -h $hostname password 'new-password'"
+  echo
+  echo "Alternatively you can run:"
+  echo "$bindir/mysql_secure_installation"
+  echo
+  echo "which will also give you the option of removing the test"
+  echo "databases and anonymous user created by default.  This is"
+  echo "strongly recommended for production servers."
+  echo
+  echo "See the manual for more instructions."
+
+  if test "$in_rpm" -eq 0
+  then
+    echo
+    echo "You can start the MySQL daemon with:"
+    echo "cd $basedir ; $bindir/mysqld_safe &"
+    echo
+    echo "You can test the MySQL daemon with mysql-test-run.pl"
+    echo "cd $basedir/mysql-test ; perl mysql-test-run.pl"
+  fi
+
+  echo
+  echo "Please report any problems with the $scriptdir/mysqlbug script!"
+  echo
+  echo "The latest information about MySQL is available at http://www.mysql.com/"
+  echo "Support MySQL by buying support/licenses from http://shop.mysql.com/"
+  echo
+fi
+
+exit 0
