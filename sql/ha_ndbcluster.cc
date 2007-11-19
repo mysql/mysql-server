@@ -453,10 +453,9 @@ void ha_ndbcluster::set_rec_per_key()
 ha_rows ha_ndbcluster::records()
 {
   DBUG_ENTER("ha_ndbcluster::records");
-  struct Ndb_local_table_statistics *local_info= m_table_info;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
                       ((const NDBTAB *)m_table)->getTableId(),
-                      local_info->no_uncommitted_rows_count));
+                      m_table_info->no_uncommitted_rows_count));
 
   if (update_stats(table->in_use, 1) == 0)
   {
