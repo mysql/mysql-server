@@ -9,6 +9,8 @@ TDB_LOADLIBES = -L../ -ldb
 SETTOKUENV=export DYLD_LIBRARY_PATH=..
 UNSETTOKUENV=unset DYLD_LIBRARY_PATH
 else
+SETTOKUENV=true
+UNSETTOKUENV=true
 LIBEXT=so
 TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,..
 VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
