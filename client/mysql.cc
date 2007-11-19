@@ -605,6 +605,10 @@ static struct my_option my_long_options[] =
   {"column-type-info", OPT_COLUMN_TYPES, "Display column type information.",
    (uchar**) &column_types_flag, (uchar**) &column_types_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"comments", 'c', "Preserve comments. Send comments to the server."
+   " The default is --skip-comments (discard comments), enable with --comments",
+   (uchar**) &preserve_comments, (uchar**) &preserve_comments,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
    (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -774,10 +778,6 @@ static struct my_option my_long_options[] =
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     (uchar**) &show_warnings, (uchar**) &show_warnings, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
-  {"comments", 'c', "Preserve comments. Send comments to the server."
-   " Comments are discarded by default, enable with --enable-comments",
-   (uchar**) &preserve_comments, (uchar**) &preserve_comments,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
