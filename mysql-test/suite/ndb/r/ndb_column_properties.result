@@ -11,7 +11,7 @@ INITIAL_SIZE 6M
 ENGINE NDB;
 create table t1 (a int column_format DYNAMIC STORAGE DISK) TABLESPACE ts1 engine NDB;
 Warnings:
-Warning	1477	DYNAMIC column a with STORAGE DISK is not supported, column will become FIXED
+Warning	1478	DYNAMIC column a with STORAGE DISK is not supported, column will become FIXED
 select column_name, storage, format from information_schema.columns
 where table_name = "t1";
 column_name	storage	format
@@ -38,14 +38,14 @@ f CHAR(100) NOT NULL column_format FIXED,
 f1 char(100) NOT NULL column_format DYNAMIC storage DISK,
 index (b)) TABLESPACE ts1 engine NDB;
 Warnings:
-Warning	1477	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
 insert into t1 (b, b1, d,d1,f,f1) values
 (1,1,"1","1","1","1"),
 (2,2,"2","2","2","2"),
 (3,3,"3","3","3","3");
 alter table t1 change column a a int column_format FIXED;
 Warnings:
-Warning	1477	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -80,7 +80,7 @@ f	Default	Fixed
 f1	Disk	Dynamic
 alter table t1 change column a a int storage disk;
 Warnings:
-Warning	1477	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -113,7 +113,7 @@ f1 Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=DISK
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 alter table t1 change column a a int storage memory;
 Warnings:
-Warning	1477	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -146,10 +146,10 @@ f1 Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=DISK
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 alter table t1 change column b b int NOT NULL storage memory;
 Warnings:
-Warning	1477	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
 alter table t1 add column a2 int column_format FIXED;
 Warnings:
-Warning	1477	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -184,7 +184,7 @@ a2 Int NULL AT=FIXED ST=MEMORY
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 alter table t1 add column c2 VARCHAR(100) column_format DYNAMIC;
 Warnings:
-Warning	1477	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -221,7 +221,7 @@ c2 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 alter table t1 add column c3 VARCHAR(100) column_format FIXED;
 Warnings:
-Warning	1477	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -22,7 +22,7 @@ reset master;
 reset master;
 alter table t2 add column (b int);
 Warnings:
-Warning	1477	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	102	#	use `test`; alter table t2 add column (b int)

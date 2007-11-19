@@ -343,7 +343,7 @@ a	b	c	d
 9	b9	999	dd9
 alter table t1 add x int;
 Warnings:
-Warning	1477	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 select * from t1 order by a;
 a	b	c	d	x
 1	b1	111	dd1	NULL
@@ -394,7 +394,7 @@ a	b	c	d
 9	b9	999	dd9
 alter table t1 add x int;
 Warnings:
-Warning	1477	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 select * from t1 order by a;
 a	b	c	d	x
 1	b1	111	dd1	NULL
