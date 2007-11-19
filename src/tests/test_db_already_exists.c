@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <db.h>
+#include <errno.h>
 
 // DIR is defined in the Makefile
 
@@ -23,9 +24,6 @@ int main() {
     r = db_create(&db, null_env, 0);
     assert(r == 0);
 
-    r = db->set_flags(db, DB_DUP);
-    assert(r == 0);
-
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
     
@@ -37,6 +35,24 @@ int main() {
 
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
+    
+    r = db->close(db, 0);
+    assert(r == 0);
+
+    r = db_create(&db, null_env, 0);
+    assert(r == 0);
+
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_EXCL, 0666);
+    assert(r == EINVAL);
+    
+    r = db->close(db, 0);
+    assert(r == 0);
+
+    r = db_create(&db, null_env, 0);
+    assert(r == 0);
+
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE | DB_EXCL, 0666);
+    assert(r == EEXIST);
     
     r = db->close(db, 0);
     assert(r == 0);

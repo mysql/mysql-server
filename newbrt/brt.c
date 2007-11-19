@@ -1497,7 +1497,7 @@ int brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const DBT*
     return 0;
 }
 
-int brt_open(BRT t, const char *fname, const char *dbname, int is_create, CACHETABLE cachetable, TOKUTXN txn __attribute__((__unused__))) {
+int brt_open(BRT t, const char *fname, const char *dbname, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn __attribute__((__unused__))) {
 
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
@@ -1507,6 +1507,7 @@ int brt_open(BRT t, const char *fname, const char *dbname, int is_create, CACHET
 			  __FILE__, __LINE__, fname, dbname, is_create, newbrt, nodesize, cachetable));
     if (0) { died0:  assert(r); return r; }
 
+    assert(is_create || !only_create);
     if (dbname) {
 	malloced_name = toku_strdup(dbname);
 	if (malloced_name==0) {
@@ -1557,12 +1558,16 @@ int brt_open(BRT t, const char *fname, const char *dbname, int is_create, CACHET
 	} else {
 	    int i;
 	    assert(r==0);
+	    assert(dbname);
 	    assert(t->h->unnamed_root==-1);
 	    assert(t->h->n_named_roots>=0);
 	    for (i=0; i<t->h->n_named_roots; i++) {
 		if (strcmp(t->h->names[i], dbname)==0) {
-		    r = EEXIST;
-		    goto died1; /* deallocate everything. */
+		    if (only_create) {
+    		    r = EEXIST;
+    		    goto died1; /* deallocate everything. */
+    		}
+    		else goto found_it;
 		}
 	    }
 	    if ((t->h->names = toku_realloc(t->h->names, (1+t->h->n_named_roots)*sizeof(*t->h->names))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
@@ -1653,6 +1658,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
 	      int (*compare_fun)(DB*,const DBT*,const DBT*)) {
     BRT brt;
     int r;
+    int only_create = 0;
 
     r = brt_create(&brt);
     if (r != 0)
@@ -1660,7 +1666,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
     brt_set_nodesize(brt, nodesize);
     brt_set_bt_compare(brt, compare_fun);
 
-    r = brt_open(brt, fname, dbname, is_create, cachetable, txn);
+    r = brt_open(brt, fname, dbname, is_create, only_create, cachetable, txn);
     if (r != 0) {
         return r;
     }

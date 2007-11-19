@@ -39,6 +39,7 @@ void print_defines (void) {
     dodefine(DB_ARCH_LOG);
 
     dodefine(DB_CREATE);
+    dodefine(DB_EXCL);
     dodefine(DB_PRIVATE);
     dodefine(DB_RDONLY);
     dodefine(DB_RECOVER);
