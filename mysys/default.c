@@ -937,13 +937,22 @@ void print_defaults(const char *conf_file, const char **groups)
 #include <help_end.h>
 
 
+/*
+  This extra complexity is to avoid declaring 'rc' if it won't be
+  used.
+*/
+#define ADD_DIRECTORY_INTERNAL(DIR) \
+  array_append_string_unique((DIR), default_directories, \
+                             array_elements(default_directories))
+#ifdef DBUG_OFF
+#  define ADD_DIRECTORY(DIR)  (void) ADD_DIRECTORY_INTERNAL(DIR)
+#else
 #define ADD_DIRECTORY(DIR) \
   do { \
-    my_bool rc= \
-      array_append_string_unique((DIR), default_directories, \
-                                 array_elements(default_directories)); \
+    my_bool rc= ADD_DIRECTORY_INTERNAL(DIR); \
     DBUG_ASSERT(rc == FALSE);                   /* Success */ \
   } while (0)
+#endif
 
 
 #define ADD_COMMON_DIRECTORIES() \
