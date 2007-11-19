@@ -1,6 +1,6 @@
 /* complete.c -- filename completion for readline. */
 
-/* Copyright (C) 1987-2004 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -21,18 +21,12 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#if !defined(_XOPEN_SOURCE) && !defined(__FreeBSD__)
-#define _XOPEN_SOURCE 500
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
 #endif
 
-#include "config_readline.h"
-
 #include <sys/types.h>
-
-/* To get SuSE 9.3 to define wcwidth() (in wchar.h) */
-
 #include <fcntl.h>
-
 /* FreeBSD 5.3 will not declare u_int in sys/types.h, file.h needs it */
 #if defined (HAVE_SYS_FILE_H) && !defined(__FreeBSD__)
 #  include <sys/file.h>
@@ -55,7 +49,9 @@
 extern int errno;
 #endif /* !errno */
 
+#if defined (HAVE_PWD_H)
 #include <pwd.h>
+#endif
 
 #include "posixdir.h"
 #include "posixstat.h"
@@ -86,9 +82,9 @@ typedef int QSFUNC ();
 
 /* Most systems don't declare getpwent in <pwd.h> if _POSIX_SOURCE is
    defined. */
-#if !defined (HAVE_GETPW_DECLS) || defined (_POSIX_SOURCE)
+#if defined (HAVE_GETPWENT) && (!defined (HAVE_GETPW_DECLS) || defined (_POSIX_SOURCE))
 extern struct passwd *getpwent PARAMS((void));
-#endif /* !HAVE_GETPW_DECLS || _POSIX_SOURCE */
+#endif /* HAVE_GETPWENT && (!HAVE_GETPW_DECLS || _POSIX_SOURCE) */
 
 /* If non-zero, then this is the address of a function to call when
    completing a word would normally display the list of possible matches.
@@ -213,7 +209,8 @@ int rl_completion_type = 0;
 
 /* Up to this many items will be displayed in response to a
    possible-completions call.  After that, we ask the user if
-   she is sure she wants to see them all. */
+   she is sure she wants to see them all.  A negative value means
+   don't ask. */
 int rl_completion_query_items = 100;
 
 int _rl_page_completions = 1;
@@ -361,15 +358,15 @@ rl_complete (ignore, invoking_key)
 
 /* List the possible completions.  See description of rl_complete (). */
 int
-rl_possible_completions (int ignore __attribute__((unused)),
-                         int invoking_key __attribute__((unused)))
+rl_possible_completions (ignore, invoking_key)
+     int ignore, invoking_key;
 {
   return (rl_complete_internal ('?'));
 }
 
 int
-rl_insert_completions (int ignore __attribute__((unused)),
-                       int invoking_key __attribute__((unused)))
+rl_insert_completions (ignore, invoking_key)
+     int ignore, invoking_key;
 {
   return (rl_complete_internal ('*'));
 }
@@ -628,6 +625,8 @@ fnprint (to_print)
   mbstate_t ps;
   const char *end;
   size_t tlen;
+  int width, w;
+  wchar_t wc;
 
   end = to_print + strlen (to_print) + 1;
   memset (&ps, 0, sizeof (mbstate_t));
@@ -660,21 +659,28 @@ fnprint (to_print)
       else
 	{
 #if defined (HANDLE_MULTIBYTE)
-	  tlen = mbrlen (s, end - s, &ps);
+	  tlen = mbrtowc (&wc, s, end - s, &ps);
 	  if (MB_INVALIDCH (tlen))
 	    {
 	      tlen = 1;
+	      width = 1;
 	      memset (&ps, 0, sizeof (mbstate_t));
 	    }
 	  else if (MB_NULLWCH (tlen))
 	    break;
+	  else
+	    {
+	      w = wcwidth (wc);
+	      width = (w >= 0) ? w : 1;
+	    }
 	  fwrite (s, 1, tlen, rl_outstream);
 	  s += tlen;
+	  printed_len += width;
 #else
 	  putc (*s, rl_outstream);
 	  s++;
-#endif
 	  printed_len++;
+#endif
 	}
     }
 
@@ -690,7 +696,7 @@ print_filename (to_print, full_pathname)
      char *to_print, *full_pathname;
 {
   int printed_len, extension_char, slen, tlen;
-  char *s, c, *new_full_pathname;
+  char *s, c, *new_full_pathname, *dn;
 
   extension_char = 0;
   printed_len = fnprint (to_print);
@@ -715,7 +721,17 @@ print_filename (to_print, full_pathname)
 	     files in the root directory.  If we pass a null string to the
 	     bash directory completion hook, for example, it will expand it
 	     to the current directory.  We just want the `/'. */
-	  s = tilde_expand (full_pathname && *full_pathname ? full_pathname : "/");
+	  if (full_pathname == 0 || *full_pathname == 0)
+	    dn = "/";
+	  else if (full_pathname[0] != '/')
+	    dn = full_pathname;
+	  else if (full_pathname[1] == 0)
+	    dn = "//";		/* restore trailing slash to `//' */
+	  else if (full_pathname[1] == '/' && full_pathname[2] == 0)
+	    dn = "/";		/* don't turn /// into // */
+	  else
+	    dn = full_pathname;
+	  s = tilde_expand (dn);
 	  if (rl_directory_completion_hook)
 	    (*rl_directory_completion_hook) (&s);
 
@@ -723,6 +739,10 @@ print_filename (to_print, full_pathname)
 	  tlen = strlen (to_print);
 	  new_full_pathname = (char *)xmalloc (slen + tlen + 2);
 	  strcpy (new_full_pathname, s);
+	  if (s[slen - 1] == '/')
+	    slen--;
+	  else
+	    new_full_pathname[slen] = '/';
 	  new_full_pathname[slen] = '/';
 	  strcpy (new_full_pathname + slen + 1, to_print);
 
@@ -761,7 +781,10 @@ print_filename (to_print, full_pathname)
 }
 
 static char *
-rl_quote_filename (char *s, int rtype __attribute__((unused)), char *qcp)
+rl_quote_filename (s, rtype, qcp)
+     char *s;
+     int rtype;
+     char *qcp;
 {
   char *r;
 
@@ -811,14 +834,7 @@ _rl_find_completion_word (fp, dp)
 	 quote substrings for the completer.  Try to find the start
 	 of an unclosed quoted substring. */
       /* FOUND_QUOTE is set so we know what kind of quotes we found. */
-#if defined (HANDLE_MULTIBYTE)
-      for (scan = pass_next = 0; scan < end;
-		scan = ((MB_CUR_MAX == 1 || rl_byte_oriented)
-			? (scan + 1) 
-			: _rl_find_next_mbchar (rl_line_buffer, scan, 1, MB_FIND_ANY)))
-#else
-      for (scan = pass_next = 0; scan < end; scan++)
-#endif
+      for (scan = pass_next = 0; scan < end; scan = MB_NEXTCHAR (rl_line_buffer, scan, 1, MB_FIND_ANY))
 	{
 	  if (pass_next)
 	    {
@@ -868,11 +884,7 @@ _rl_find_completion_word (fp, dp)
       /* We didn't find an unclosed quoted substring upon which to do
          completion, so use the word break characters to find the
          substring on which to complete. */
-#if defined (HANDLE_MULTIBYTE)
-      while ((rl_point = _rl_find_prev_mbchar (rl_line_buffer, rl_point, MB_FIND_ANY)))
-#else
-      while (--rl_point)
-#endif
+      while (rl_point = MB_PREVCHAR (rl_line_buffer, rl_point, MB_FIND_ANY))
 	{
 	  scan = rl_line_buffer[rl_point];
 
@@ -939,7 +951,7 @@ gen_completion_matches (text, start, end, our_func, found_quote, quote_char)
      rl_compentry_func_t *our_func;
      int found_quote, quote_char;
 {
-  char **matches, *temp;
+  char **matches;
 
   rl_completion_found_quote = found_quote;
   rl_completion_quote_character = quote_char;
@@ -958,21 +970,9 @@ gen_completion_matches (text, start, end, our_func, found_quote, quote_char)
 	}
     }
 
-  /* Beware -- we're stripping the quotes here.  Do this only if we know
-     we are doing filename completion and the application has defined a
-     filename dequoting function. */
-  temp = (char *)NULL;
-
-  if (found_quote && our_func == rl_filename_completion_function &&
-      rl_filename_dequoting_function)
-    {
-      /* delete single and double quotes */
-      temp = (*rl_filename_dequoting_function) (text, quote_char);
-      text = temp;	/* not freeing text is not a memory leak */
-    }
+  /* XXX -- filename dequoting moved into rl_filename_completion_function */
 
   matches = rl_completion_matches (text, our_func);
-  FREE (temp);
   return matches;  
 }
 
@@ -1105,7 +1105,8 @@ compute_lcd_of_matches (match_list, matches, text)
 #if defined (HANDLE_MULTIBYTE)
 	    if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
 	      {
-		mbstate_t ps_back = ps1;
+		mbstate_t ps_back;
+		ps_back = ps1;
 		if (!_rl_compare_chars (match_list[i], si, &ps1, match_list[i+1], si, &ps2))
 		  break;
 		else if ((v = _rl_get_char_len (&match_list[i][si], &ps_back)) > 1)
@@ -1155,8 +1156,7 @@ compute_lcd_of_matches (match_list, matches, text)
 	      rl_completion_found_quote &&
 	      rl_filename_quoting_desired)
 	    {
-	      dtext = (*rl_filename_dequoting_function)
-		((char*) text, rl_completion_quote_character);
+	      dtext = (*rl_filename_dequoting_function) ((char *)text, rl_completion_quote_character);
 	      text = dtext;
 	    }
 
@@ -1402,7 +1402,7 @@ display_matches (matches)
 	
   /* If there are many items, then ask the user if she really wants to
      see them all. */
-  if (len >= rl_completion_query_items)
+  if (rl_completion_query_items > 0 && len >= rl_completion_query_items)
     {
       rl_crlf ();
       fprintf (rl_outstream, "Display all %d possibilities? (y or n)", len);
@@ -1539,7 +1539,7 @@ append_to_match (text, delimiter, quote_char, nontrivial_match)
 		: stat (filename, &finfo);
       if (s == 0 && S_ISDIR (finfo.st_mode))
 	{
-	  if (_rl_complete_mark_directories)
+	  if (_rl_complete_mark_directories /* && rl_completion_suppress_append == 0 */)
 	    {
 	      /* This is clumsy.  Avoid putting in a double slash if point
 		 is at the end of the line and the previous character is a
@@ -1803,7 +1803,7 @@ rl_completion_matches (text, entry_function)
   match_list = (char **)xmalloc ((match_list_size + 1) * sizeof (char *));
   match_list[1] = (char *)NULL;
 
-  while ((string = (*entry_function) (text, matches)))
+  while (string = (*entry_function) (text, matches))
     {
       if (matches + 1 == match_list_size)
 	match_list = (char **)xrealloc
@@ -1853,16 +1853,20 @@ rl_username_completion_function (text, state)
       setpwent ();
     }
 
-  while ((entry = getpwent ()))
+#if defined (HAVE_GETPWENT)
+  while (entry = getpwent ())
     {
       /* Null usernames should result in all users as possible completions. */
       if (namelen == 0 || (STREQN (username, entry->pw_name, namelen)))
 	break;
     }
+#endif
 
   if (entry == 0)
     {
+#if defined (HAVE_GETPWENT)
       endpwent ();
+#endif
       return ((char *)NULL);
     }
   else
@@ -1960,13 +1964,30 @@ rl_filename_completion_function (text, state)
       if (rl_directory_rewrite_hook)
 	(*rl_directory_rewrite_hook) (&dirname);
 
+      /* The directory completion hook should perform any necessary
+	 dequoting. */
       if (rl_directory_completion_hook && (*rl_directory_completion_hook) (&dirname))
 	{
 	  free (users_dirname);
 	  users_dirname = savestring (dirname);
 	}
-
+      else if (rl_completion_found_quote && rl_filename_dequoting_function)
+	{
+	  /* delete single and double quotes */
+	  temp = (*rl_filename_dequoting_function) (users_dirname, rl_completion_quote_character);
+	  free (users_dirname);
+	  users_dirname = temp;
+	}
       directory = opendir (dirname);
+
+      /* Now dequote a non-null filename. */
+      if (filename && *filename && rl_completion_found_quote && rl_filename_dequoting_function)
+	{
+	  /* delete single and double quotes */
+	  temp = (*rl_filename_dequoting_function) (filename, rl_completion_quote_character);
+	  free (filename);
+	  filename = temp;
+	}
       filename_len = strlen (filename);
 
       rl_filename_completion_desired = 1;
@@ -2089,7 +2110,8 @@ rl_filename_completion_function (text, state)
    hit the end of the match list, we restore the original unmatched text,
    ring the bell, and reset the counter to zero. */
 int
-rl_menu_complete (int count, int ignore __attribute__((unused)))
+rl_menu_complete (count, ignore)
+     int count, ignore;
 {
   rl_compentry_func_t *our_func;
   int matching_filenames, found_quote;
@@ -2173,9 +2195,11 @@ rl_menu_complete (int count, int ignore __attribute__((unused)))
       return (0);
     }
 
-  match_list_index = (match_list_index + count) % match_list_size;
+  match_list_index += count;
   if (match_list_index < 0)
     match_list_index += match_list_size;
+  else
+    match_list_index %= match_list_size;
 
   if (match_list_index == 0 && match_list_size > 1)
     {

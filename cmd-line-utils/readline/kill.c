@@ -21,7 +21,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <sys/types.h>
 
@@ -76,7 +78,8 @@ static int rl_yank_nth_arg_internal PARAMS((int, int, int));
 /* How to say that you only want to save a certain amount
    of kill material. */
 int
-rl_set_retained_kills (int num __attribute__((unused)))
+rl_set_retained_kills (num)
+     int num;
 {
   return 0;
 }
@@ -292,8 +295,8 @@ rl_backward_kill_line (direction, ignore)
 
 /* Kill the whole line, no matter where point is. */
 int
-rl_kill_full_line (int count __attribute__((unused)),
-                   int ignore __attribute__((unused)))
+rl_kill_full_line (count, ignore)
+     int count, ignore;
 {
   rl_begin_undo_group ();
   rl_point = 0;
@@ -310,7 +313,8 @@ rl_kill_full_line (int count __attribute__((unused)),
 /* This does what C-w does in Unix.  We can't prevent people from
    using behaviour that they expect. */
 int
-rl_unix_word_rubout (int count, int key __attribute__((unused)))
+rl_unix_word_rubout (count, key)
+     int count, key;
 {
   int orig_point;
 
@@ -342,7 +346,8 @@ rl_unix_word_rubout (int count, int key __attribute__((unused)))
 /* This deletes one filename component in a Unix pathname.  That is, it
    deletes backward to directory separator (`/') or whitespace.  */
 int
-rl_unix_filename_rubout (int count, int key __attribute__((unused)))
+rl_unix_filename_rubout (count, key)
+     int count, key;
 {
   int orig_point, c;
 
@@ -385,8 +390,8 @@ rl_unix_filename_rubout (int count, int key __attribute__((unused)))
    into the line at all, and if you aren't, then you know what you are
    doing. */
 int
-rl_unix_line_discard (int count __attribute__((unused)),
-                      int key  __attribute__((unused)))
+rl_unix_line_discard (count, key)
+     int count, key;
 {
   if (rl_point == 0)
     rl_ding ();
@@ -422,16 +427,16 @@ region_kill_internal (delete)
 
 /* Copy the text in the region to the kill ring. */
 int
-rl_copy_region_to_kill (int count __attribute__((unused)),
-                        int key  __attribute__((unused)))
+rl_copy_region_to_kill (count, ignore)
+     int count, ignore;
 {
   return (region_kill_internal (0));
 }
 
 /* Kill the text between the point and mark. */
 int
-rl_kill_region (int count __attribute__((unused)),
-                int ignore __attribute__((unused)))
+rl_kill_region (count, ignore)
+     int count, ignore;
 {
   int r, npoint;
 
@@ -495,7 +500,8 @@ rl_copy_backward_word (count, key)
   
 /* Yank back the last killed text.  This ignores arguments. */
 int
-rl_yank (int count __attribute__((unused)), int ignore __attribute__((unused)))
+rl_yank (count, ignore)
+     int count, ignore;
 {
   if (rl_kill_ring == 0)
     {
@@ -513,7 +519,8 @@ rl_yank (int count __attribute__((unused)), int ignore __attribute__((unused)))
    delete that text from the line, rotate the index down, and
    yank back some other text. */
 int
-rl_yank_pop (int count __attribute__((unused)), int key  __attribute__((unused)))
+rl_yank_pop (count, key)
+     int count, key;
 {
   int l, n;
 
@@ -575,6 +582,7 @@ rl_yank_nth_arg_internal (count, ignore, history_skip)
   if (!arg || !*arg)
     {
       rl_ding ();
+      FREE (arg);
       return -1;
     }
 
