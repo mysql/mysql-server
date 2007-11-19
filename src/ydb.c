@@ -577,6 +577,9 @@ int __toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname,
 
     int openflags = 0;
     int r;
+
+    if ((flags & DB_EXCL) && !(flags & DB_CREATE)) return EINVAL;
+
     if (db->i->full_fname)
         return -1;              /* It was already open. */
     db->i->full_fname = construct_full_name(db->dbenv->i->dir, fname);
@@ -594,17 +597,17 @@ int __toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname,
         openflags |= O_RDONLY;
     else
         openflags |= O_RDWR;
-
-    if (flags & DB_CREATE)
-        openflags |= O_CREAT;
-
+    
     {
         struct stat statbuf;
         if (stat(db->i->full_fname, &statbuf) == 0) {
             /* If the database exists at the file level, and we specified no db_name, then complain here. */
             if (dbname == 0 && (flags & DB_CREATE)) {
-                r = EEXIST;
-                goto error_cleanup;
+                if (flags & DB_EXCL) {
+                    r = EEXIST;
+                    goto error_cleanup;
+                }
+                flags &= ~DB_CREATE;
             }
         } else {
             if (!(flags & DB_CREATE)) {
@@ -613,12 +616,13 @@ int __toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname,
             }
         }
     }
+    if (flags & DB_CREATE) openflags |= O_CREAT;
 
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    r = brt_open(db->i->brt, db->i->full_fname, dbname, flags & DB_CREATE, 
-                 db->dbenv->i->cachetable,
+    r = brt_open(db->i->brt, db->i->full_fname, dbname, flags & DB_CREATE,
+                 flags & DB_EXCL, db->dbenv->i->cachetable,
 		         txn ? txn->i->tokutxn : NULL_TXN);
     if (r != 0)
         goto error_cleanup;
