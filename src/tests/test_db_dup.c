@@ -123,7 +123,10 @@ void test_insert(int n, int dup_mode) {
         return memcmp(a, b, sizeof (int));
     }
     qsort(sortvalues, n, sizeof sortvalues[0], mycmp);
-
+#if USE_BDB
+    for (i=1; i<n; i++) 
+        if (sortvalues[i-1] == sortvalues[i]) printf("dup %d\n", i);
+#endif
     /* insert n-1 unique keys {0, 1,  n-1} - {n/2} */
     for (i=0; i<n; i++) {
         if (i == n/2)
@@ -141,6 +144,18 @@ void test_insert(int n, int dup_mode) {
         int v = values[i];
         DBT key, val;
         r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
+#if USE_BDB
+        if (r != 0) {
+            void find_dup_val(int v, int m) {
+                int i;
+                printf("dup values[%d]=%d: ", m, v);
+                for (i=0; i<m; i++)
+                    if (values[i] == v) printf("%d ", i);
+                printf("\n");
+            }
+            find_dup_val(values[i], i);
+        }
+#endif
         assert(r == 0);
     } 
 
@@ -193,7 +208,7 @@ void test_insert(int n, int dup_mode) {
     assert(r == 0);
 }
 
-/* verify dup keys are buffered in order in  non-leaf nodes */
+/* verify dup keys are buffered in order in non-leaf nodes */
 void test_nonleaf_insert(int n, int dup_mode) {
     printf("test_nonleaf_insert:%d %d\n", n, dup_mode);
 
@@ -1005,40 +1020,40 @@ int main() {
     /* test flags */
     test_dup_flags(DB_DUP);
     test_dup_flags(DB_DUP + DB_DUPSORT);
-
-    /* test simple insert */
+    
+    /* nodup tests */
     for (i = 1; i <= (1<<16); i *= 2) {
         test_insert(i, 0);
-        test_insert(i, DB_DUP);
-        test_insert(i, DB_DUP + DB_DUPSORT);
-    }
-
-    /* test buffered insert */
-    for (i = 1; i <= (1<<16); i *= 2) {
         test_nonleaf_insert(i, 0);
-        test_nonleaf_insert(i, DB_DUP);
-        test_nonleaf_insert(i, DB_DUP + DB_DUPSORT);
     }
-    /* test dup delete */
+
+    /* dup tests */
     for (i = 1; i <= (1<<16); i *= 2) {
+        test_insert(i, DB_DUP);
         test_dup_delete(i, DB_DUP);
-        test_dup_delete(i, DB_DUP + DB_DUPSORT);
-    }
-
-    /* test dup delete insert */
-    for (i = 1; i <= (1<<16); i *= 2) {
+        test_nonleaf_insert(i, DB_DUP);
         test_dup_delete_insert(i, DB_DUP);
-        test_dup_delete_insert(i, DB_DUP + DB_DUPSORT);
         test_walk_empty(i, DB_DUP);
-        test_walk_empty(i, DB_DUP + DB_DUPSORT);
-        test_all_dup_delete_insert(i);
     }
 
-    /* test dup search */
+    /* dup search */
     for (i = 1; i <= (1<<16); i *= 2) {
          test_ici_search(i, DB_DUP);
          test_icdi_search(i, DB_DUP);
          test_i0i1ci0_search(i, DB_DUP);
+    }
+
+    /* dupsort tests */
+    for (i = 1; i <= (1<<16); i *= 2) {
+        test_insert(i, DB_DUP + DB_DUPSORT);
+        test_dup_delete(i, DB_DUP + DB_DUPSORT);
+        test_nonleaf_insert(i, DB_DUP + DB_DUPSORT);
+        test_dup_delete_insert(i, DB_DUP + DB_DUPSORT);
+        test_walk_empty(i, DB_DUP + DB_DUPSORT);
+    }
+
+    for (i = 1; i <= (1<<16); i *= 2) {
+        test_all_dup_delete_insert(i);
     }
 
     return 0;
