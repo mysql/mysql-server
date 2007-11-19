@@ -15,6 +15,7 @@
 #include <ctype.h>
 #include <unistd.h>
 
+#include "brt.h"
 #include "cachetable.h"
 #include "log.h"
 #include "memory.h"
@@ -699,7 +700,12 @@ int __toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *, cons
 }
 
 int __toku_db_set_flags(DB * db, u_int32_t flags) {
-    int r= brt_set_flags(db->i->brt, flags);
+    u_int32_t tflags = 0;
+    if (flags & DB_DUP)
+        tflags += TOKU_DB_DUP;
+    if (flags & DB_DUPSORT)
+        tflags += TOKU_DB_DUPSORT;
+    int r= brt_set_flags(db->i->brt, tflags);
     return r;
 }
 

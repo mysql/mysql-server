@@ -58,6 +58,7 @@ struct brtnode {
     } u;
 };
 
+/* pivot flags  (must fit in 8 bits) */
 enum {
     BRT_PIVOT_PRESENT_L = 1,
     BRT_PIVOT_PRESENT_R = 2,

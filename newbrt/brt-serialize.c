@@ -347,7 +347,7 @@ int deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, 
 	    goto died1;
 	}
         pma_set_dup_mode(result->u.l.buffer, flags);
-        if (flags & DB_DUPSORT) pma_set_dup_compare(result->u.l.buffer, dup_compare);
+        if (flags & TOKU_DB_DUPSORT) pma_set_dup_compare(result->u.l.buffer, dup_compare);
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
 #define BRT_USE_PMA_BULK_INSERT 1
 #if BRT_USE_PMA_BULK_INSERT
