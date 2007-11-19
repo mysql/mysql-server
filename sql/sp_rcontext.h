@@ -261,7 +261,7 @@ private:
   bool init_var_table(THD *thd);
   bool init_var_items();
 
-  Item_cache *create_case_expr_holder(THD *thd, Item_result result_type);
+  Item_cache *create_case_expr_holder(THD *thd, const Item *item);
 
   int set_variable(THD *thd, Field *field, Item **value);
 }; // class sp_rcontext : public Sql_alloc

@@ -1599,6 +1599,7 @@ error:
 void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 {
   m_file[0]->update_create_info(create_info);
+  create_info->data_file_name= create_info->index_file_name = NULL;
   return;
 }
 
@@ -2678,7 +2679,8 @@ int ha_partition::write_row(uchar * buf)
   uint32 part_id;
   int error;
   longlong func_value;
-  bool autoincrement_lock= false;
+  bool autoincrement_lock= FALSE;
+  my_bitmap_map *old_map;
 #ifdef NOT_NEEDED
   uchar *rec0= m_rec0;
 #endif
@@ -2705,8 +2707,17 @@ int ha_partition::write_row(uchar * buf)
       use autoincrement_lock variable to avoid unnecessary locks.
       Probably not an ideal solution.
     */
-    autoincrement_lock= true;
-    pthread_mutex_lock(&table_share->mutex);
+    if (table_share->tmp_table == NO_TMP_TABLE)
+    {
+      /*
+        Bug#30878 crash when alter table from non partitioned table
+        to partitioned.
+        Checking if tmp table then there is no need to lock,
+        and the table_share->mutex may not be initialised.
+      */
+      autoincrement_lock= TRUE;
+      pthread_mutex_lock(&table_share->mutex);
+    }
     error= update_auto_increment();
 
     /*
@@ -2715,10 +2726,10 @@ int ha_partition::write_row(uchar * buf)
       the correct partition. We must check and fail if neccessary.
     */
     if (error)
-      DBUG_RETURN(error);
+      goto exit;
   }
 
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+  old_map= dbug_tmp_use_all_columns(table, table->read_set);
 #ifdef NOT_NEEDED
   if (likely(buf == rec0))
 #endif
@@ -2783,16 +2794,28 @@ exit:
 int ha_partition::update_row(const uchar *old_data, uchar *new_data)
 {
   uint32 new_part_id, old_part_id;
-  int error;
+  int error= 0;
   longlong func_value;
+  timestamp_auto_set_type orig_timestamp_type= table->timestamp_field_type;
   DBUG_ENTER("ha_partition::update_row");
+
+  /*
+    We need to set timestamp field once before we calculate
+    the partition. Then we disable timestamp calculations
+    inside m_file[*]->update_row() methods
+  */
+  if (orig_timestamp_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+  {
+    table->timestamp_field->set_time();
+    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+  }
 
   if ((error= get_parts_for_update(old_data, new_data, table->record[0],
                                    m_part_info, &old_part_id, &new_part_id,
                                    &func_value)))
   {
     m_part_info->err_value= func_value;
-    DBUG_RETURN(error);
+    goto exit;
   }
 
   /*
@@ -2804,23 +2827,27 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   if (new_part_id == old_part_id)
   {
     DBUG_PRINT("info", ("Update in partition %d", new_part_id));
-    DBUG_RETURN(m_file[new_part_id]->update_row(old_data, new_data));
+    error= m_file[new_part_id]->update_row(old_data, new_data);
+    goto exit;
   }
   else
   {
     DBUG_PRINT("info", ("Update from partition %d to partition %d",
 			old_part_id, new_part_id));
     if ((error= m_file[new_part_id]->write_row(new_data)))
-      DBUG_RETURN(error);
+      goto exit;
     if ((error= m_file[old_part_id]->delete_row(old_data)))
     {
 #ifdef IN_THE_FUTURE
       (void) m_file[new_part_id]->delete_last_inserted_row(new_data);
 #endif
-      DBUG_RETURN(error);
+      goto exit;
     }
   }
-  DBUG_RETURN(0);
+
+exit:
+  table->timestamp_field_type= orig_timestamp_type;
+  DBUG_RETURN(error);
 }
 
 

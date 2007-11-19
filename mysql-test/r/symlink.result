@@ -99,6 +99,12 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+CREATE TABLE t1(a INT)
+DATA DIRECTORY='TEST_DIR/master-data/mysql'
+INDEX DIRECTORY='TEST_DIR/master-data/mysql';
+RENAME TABLE t1 TO user;
+ERROR HY000: Can't create/write to file 'TEST_DIR/master-data/mysql/user.MYI' (Errcode: 17)
+DROP TABLE t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

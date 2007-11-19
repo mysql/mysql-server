@@ -566,3 +566,35 @@ reap;
 connection default;
 drop table t2;
 disconnect flush;
+
+#
+# Bug#30882 Dropping a temporary table inside a stored function may cause a server crash
+#
+# Test HANDLER statements in conjunction with temporary tables. While the temporary table
+# is open by a HANDLER, no other statement can access it.
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create temporary table t1 (a int, b char(1), key a(a), key b(a,b));
+insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
+                      (5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+select a,b from t1;
+handler t1 open as a1;
+handler a1 read a first;
+handler a1 read a next;
+handler a1 read a next;
+--error ER_CANT_REOPEN_TABLE
+select a,b from t1;
+handler a1 read a prev;
+handler a1 read a prev;
+handler a1 read a=(6) where b="g";
+handler a1 close;
+select a,b from t1;
+handler t1 open as a2;
+handler a2 read a first;
+handler a2 read a last;
+handler a2 read a prev;
+handler a2 close;
+drop table t1;

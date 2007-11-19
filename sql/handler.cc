@@ -1414,6 +1414,36 @@ static const char *check_lowercase_names(handler *file, const char *path,
 }
 
 
+/**
+  An interceptor to hijack the text of the error message without
+  setting an error in the thread. We need the text to present it
+  in the form of a warning to the user.
+*/
+
+struct Ha_delete_table_error_handler: public Internal_error_handler
+{
+public:
+  virtual bool handle_error(uint sql_errno,
+                            const char *message,
+                            MYSQL_ERROR::enum_warning_level level,
+                            THD *thd);
+  char buff[MYSQL_ERRMSG_SIZE];
+};
+
+
+bool
+Ha_delete_table_error_handler::
+handle_error(uint sql_errno,
+             const char *message,
+             MYSQL_ERROR::enum_warning_level level,
+             THD *thd)
+{
+  /* Grab the error message */
+  strmake(buff, message, sizeof(buff)-1);
+  return TRUE;
+}
+
+
 /** @brief
   This should return ENOENT if the file doesn't exists.
   The .frm file will be deleted only if we return 0 or ENOENT
@@ -1442,23 +1472,11 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   {
     /*
       Because file->print_error() use my_error() to generate the error message
-      we must store the error state in thd, reset it and restore it to
-      be able to get hold of the error message.
-      (We should in the future either rewrite handler::print_error() or make
-      a nice method of this.
+      we use an internal error handler to intercept it and store the text
+      in a temporary buffer. Later the message will be presented to user
+      as a warning.
     */
-    bool query_error= thd->query_error;
-    sp_rcontext *spcont= thd->spcont;
-    SELECT_LEX *current_select= thd->lex->current_select;
-    char buff[sizeof(thd->net.last_error)];
-    char new_error[sizeof(thd->net.last_error)];
-    int last_errno= thd->net.last_errno;
-
-    strmake(buff, thd->net.last_error, sizeof(buff)-1);
-    thd->query_error= 0;
-    thd->spcont= NULL;
-    thd->lex->current_select= 0;
-    thd->net.last_error[0]= 0;
+    Ha_delete_table_error_handler ha_delete_table_error_handler;
 
     /* Fill up strucutures that print_error may need */
     dummy_share.path.str= (char*) path;
@@ -1471,16 +1489,18 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
     file->table_share= &dummy_share;
     file->table= &dummy_table;
-    file->print_error(error, 0);
-    strmake(new_error, thd->net.last_error, sizeof(buff)-1);
 
-    /* restore thd */
-    thd->query_error= query_error;
-    thd->spcont= spcont;
-    thd->lex->current_select= current_select;
-    thd->net.last_errno= last_errno;
-    strmake(thd->net.last_error, buff, sizeof(buff)-1);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, new_error);
+    thd->push_internal_handler(&ha_delete_table_error_handler);
+    file->print_error(error, 0);
+
+    thd->pop_internal_handler();
+
+    /*
+      XXX: should we convert *all* errors to warnings here?
+      What if the error is fatal?
+    */
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error,
+                ha_delete_table_error_handler.buff);
   }
   delete file;
   DBUG_RETURN(error);
@@ -2203,7 +2223,7 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_NO_SUCH_TABLE:
     my_error(ER_NO_SUCH_TABLE, MYF(0), table_share->db.str,
              table_share->table_name.str);
-    break;
+    DBUG_VOID_RETURN;
   case HA_ERR_RBR_LOGGING_FAILED:
     textno= ER_BINLOG_ROW_LOGGING_FAILED;
     break;
@@ -2522,15 +2542,56 @@ int ha_enable_transaction(THD *thd, bool on)
 int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
 {
   int error;
+  DBUG_ENTER("index_next_same");
   if (!(error=index_next(buf)))
   {
+    my_ptrdiff_t ptrdiff= buf - table->record[0];
+    uchar *save_record_0;
+    KEY *key_info;
+    KEY_PART_INFO *key_part;
+    KEY_PART_INFO *key_part_end;
+    LINT_INIT(save_record_0);
+    LINT_INIT(key_info);
+    LINT_INIT(key_part);
+    LINT_INIT(key_part_end);
+
+    /*
+      key_cmp_if_same() compares table->record[0] against 'key'.
+      In parts it uses table->record[0] directly, in parts it uses
+      field objects with their local pointers into table->record[0].
+      If 'buf' is distinct from table->record[0], we need to move
+      all record references. This is table->record[0] itself and
+      the field pointers of the fields used in this key.
+    */
+    if (ptrdiff)
+    {
+      save_record_0= table->record[0];
+      table->record[0]= buf;
+      key_info= table->key_info + active_index;
+      key_part= key_info->key_part;
+      key_part_end= key_part + key_info->key_parts;
+      for (; key_part < key_part_end; key_part++)
+      {
+        DBUG_ASSERT(key_part->field);
+        key_part->field->move_field_offset(ptrdiff);
+      }
+    }
+
     if (key_cmp_if_same(table, key, active_index, keylen))
     {
       table->status=STATUS_NOT_FOUND;
       error=HA_ERR_END_OF_FILE;
     }
+
+    /* Move back if necessary. */
+    if (ptrdiff)
+    {
+      table->record[0]= save_record_0;
+      for (key_part= key_info->key_part; key_part < key_part_end; key_part++)
+        key_part->field->move_field_offset(-ptrdiff);
+    }
   }
-  return error;
+  DBUG_RETURN(error);
 }
 
 
