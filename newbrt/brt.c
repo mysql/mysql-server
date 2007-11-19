@@ -117,7 +117,7 @@ static void fixup_child_fingerprint(BRTNODE node, int childnum_of_node, BRTNODE 
 static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck, unsigned int cl, DB *db) {
     int cmp;
     DBT mydbt;
-    if (brt->flags & DB_DUPSORT) {
+    if (brt->flags & TOKU_DB_DUPSORT) {
         bytevec k; unsigned int kl;
         bytevec d; unsigned int dl;
         assert(cl >= sizeof dl);
@@ -320,8 +320,8 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     } else {
 	int r = pma_create(&n->u.l.buffer, t->compare_fun, n->nodesize);
         assert(r==0);
-        pma_set_dup_mode(n->u.l.buffer, t->flags & (DB_DUP+DB_DUPSORT));
-        if (t->flags & DB_DUPSORT)
+        pma_set_dup_mode(n->u.l.buffer, t->flags & (TOKU_DB_DUP+TOKU_DB_DUPSORT));
+        if (t->flags & TOKU_DB_DUPSORT)
             pma_set_dup_compare(n->u.l.buffer, t->dup_compare);
 	static int rcount=0;
 	//printf("%s:%d n PMA= %p (rcount=%d)\n", __FILE__, __LINE__, n->u.l.buffer, rcount); 
@@ -721,7 +721,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
             ;
         } else if (cmp > 0) {
             tochildnum = childnum+1; tochild = childb;
-        } else if (t->flags & DB_DUP) {
+        } else if (t->flags & TOKU_DB_DUP) {
             if (node->u.n.pivotflags[childnum] & BRT_PIVOT_PRESENT_R) {
                 tochildnum = childnum+1; tochild = childb;
             }
@@ -981,7 +981,7 @@ static unsigned int brtnode_right_child (BRTNODE node, DBT *k, DBT *data, BRT t,
         } else if (cmp > 0) {
             if (maybe != -1) goto foundkeymatch;
             return i+1;
-        } else if (t->flags & DB_DUP) {
+        } else if (t->flags & TOKU_DB_DUP) {
             if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_R)
                 return i+1;
             if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_L)
@@ -1009,7 +1009,7 @@ static unsigned int brtnode_left_child (BRTNODE node , DBT *k, DBT *d, BRT t, DB
 	int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[i], node->u.n.childkeylens[i], db);
         if (cmp > 0) continue;
         if (cmp < 0) return i;
-        if (t->flags & DB_DUP) {
+        if (t->flags & TOKU_DB_DUP) {
             if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_L)
                 return i;
             if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_R)
@@ -1117,7 +1117,7 @@ static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 	if (debug) printf("%s:%d %*sDoing hash_insert\n", __FILE__, __LINE__, debug, "");
 	verify_counts(node);
 	if (found) {
-            if (!(t->flags & DB_DUP)) {
+            if (!(t->flags & TOKU_DB_DUP)) {
                 //printf("%s:%d found and deleting\n", __FILE__, __LINE__);
                 node->local_fingerprint -= node->rand4fingerprint * toku_calccrc32_cmd(anytype, k->data, k->size, olddata, olddatalen);
                 int r = toku_hash_delete(node->u.n.htables[childnum], k->data, k->size);
@@ -1296,7 +1296,7 @@ static int brt_nonleaf_delete_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
         } else if (cmp < 0) {
             delchild_append(i);
             break;
-        } else if (t->flags & DB_DUPSORT) {
+        } else if (t->flags & TOKU_DB_DUPSORT) {
             delchild_append(i);
             delchild_append(i+1);
             if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_L) {
@@ -1307,7 +1307,7 @@ static int brt_nonleaf_delete_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
                 node->u.n.pivotflags[i] &= ~BRT_PIVOT_PRESENT_R;
                 node->dirty = 1;
             }
-        } else if (t->flags & DB_DUP) {
+        } else if (t->flags & TOKU_DB_DUP) {
             if (node->u.n.pivotflags[i] & BRT_PIVOT_PRESENT_L) {
                 delchild_append(i);
                 node->u.n.pivotflags[i] &= ~BRT_PIVOT_PRESENT_L;
@@ -1848,7 +1848,7 @@ int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, DB *db, BRTNODE paren
         int type;
 	if (toku_hash_find (node->u.n.htables[childnum], k->data, k->size, &hanswer, &hanswerlen, &type)==0) {
 	    if (type == BRT_INSERT) {
-                if ((brt->flags & DB_DUP)) {
+                if ((brt->flags & TOKU_DB_DUP)) {
                     result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, db, node);
                     if (result != 0) {
                         ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
@@ -1861,7 +1861,7 @@ int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, DB *db, BRTNODE paren
                     result = 0;
                 }
             } else if (type == BRT_DELETE) {
-                if ((brt->flags & DB_DUP) && toku_hash_find_idx (node->u.n.htables[childnum], k->data, k->size, 1, &hanswer, &hanswerlen, &type) == 0) {
+                if ((brt->flags & TOKU_DB_DUP) && toku_hash_find_idx (node->u.n.htables[childnum], k->data, k->size, 1, &hanswer, &hanswerlen, &type) == 0) {
                     assert(type == BRT_INSERT);
                     ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
                     result = 0;

@@ -1180,9 +1180,9 @@ void test_pma_split(void) {
     test_pma_split_n(4); memory_check_all_free();
     test_pma_split_n(8); memory_check_all_free();
     test_pma_split_n(9);  memory_check_all_free();
-    test_pma_dup_split_n(0, DB_DUP);  memory_check_all_free();
-    test_pma_dup_split_n(1, DB_DUP);  memory_check_all_free();
-    test_pma_dup_split_n(9, DB_DUP);  memory_check_all_free();
+    test_pma_dup_split_n(0, TOKU_DB_DUP);  memory_check_all_free();
+    test_pma_dup_split_n(1, TOKU_DB_DUP);  memory_check_all_free();
+    test_pma_dup_split_n(9, TOKU_DB_DUP);  memory_check_all_free();
     test_pma_split_varkey(); memory_check_all_free();
     test_pma_split_cursor(); memory_check_all_free();
 }
@@ -2048,7 +2048,7 @@ void test_dup_key_insert(int n) {
     assert(r == 0);
     pma_verify(pma, null_db);
 
-    r = pma_set_dup_mode(pma, DB_DUP);
+    r = pma_set_dup_mode(pma, TOKU_DB_DUP);
     assert(r == 0);
 
 
@@ -2138,7 +2138,7 @@ void test_dup_key_delete(int n, int mode) {
     r = pma_set_dup_mode(pma, mode);
     assert(r == 0);
 
-    if (mode & DB_DUPSORT) {
+    if (mode & TOKU_DB_DUPSORT) {
         r = pma_set_dup_compare(pma, default_compare_fun);
         assert(r == 0);
     }
@@ -2236,7 +2236,7 @@ void test_dupsort_key_insert(int n, int dup_data) {
     assert(r == 0);
     pma_verify(pma, null_db);
 
-    r = pma_set_dup_mode(pma, DB_DUP+DB_DUPSORT);
+    r = pma_set_dup_mode(pma, TOKU_DB_DUP+TOKU_DB_DUPSORT);
     assert(r == 0);
 
     r = pma_set_dup_compare(pma, default_compare_fun);
@@ -2333,7 +2333,7 @@ void test_dup_key_lookup(int n, int mode) {
     r = pma_set_dup_mode(pma, mode);
     assert(r == 0);
 
-    if (mode & DB_DUPSORT) {
+    if (mode & TOKU_DB_DUPSORT) {
         r = pma_set_dup_compare(pma, default_compare_fun);
         assert(r == 0);
     }
@@ -2380,16 +2380,16 @@ void test_dup() {
     test_dup_key_insert(0);                              memory_check_all_free();
     test_dup_key_insert(2);                              memory_check_all_free();
     test_dup_key_insert(1000);                           memory_check_all_free();
-    test_dup_key_delete(0, DB_DUP);                      memory_check_all_free();
-    test_dup_key_delete(1000, DB_DUP);                   memory_check_all_free();
+    test_dup_key_delete(0, TOKU_DB_DUP);                 memory_check_all_free();
+    test_dup_key_delete(1000, TOKU_DB_DUP);              memory_check_all_free();
     test_dupsort_key_insert(2, 0);                       memory_check_all_free();
     test_dupsort_key_insert(1000, 0);                    memory_check_all_free();
     test_dupsort_key_insert(2, 1);                       memory_check_all_free();
     test_dupsort_key_insert(1000, 1);                    memory_check_all_free();
-    test_dup_key_delete(0, DB_DUP+DB_DUPSORT);           memory_check_all_free();
-    test_dup_key_delete(1000, DB_DUP+DB_DUPSORT);        memory_check_all_free();
-    test_dup_key_lookup(32, DB_DUP);                     memory_check_all_free();
-    test_dup_key_lookup(32, DB_DUP+DB_DUPSORT);          memory_check_all_free();
+    test_dup_key_delete(0, TOKU_DB_DUP+TOKU_DB_DUPSORT);           memory_check_all_free();
+    test_dup_key_delete(1000, TOKU_DB_DUP+TOKU_DB_DUPSORT);        memory_check_all_free();
+    test_dup_key_lookup(32, TOKU_DB_DUP);                          memory_check_all_free();
+    test_dup_key_lookup(32, TOKU_DB_DUP+TOKU_DB_DUPSORT);          memory_check_all_free();
 }
 
 void pma_tests (void) {

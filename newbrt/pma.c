@@ -622,13 +622,13 @@ int pma_set_compare(PMA pma, pma_compare_fun_t compare_fun) {
 }
 
 int pma_set_dup_mode(PMA pma, int dup_mode) {
-    assert(dup_mode == 0 || dup_mode == DB_DUP || dup_mode == (DB_DUP+DB_DUPSORT));
+    assert(dup_mode == 0 || dup_mode == TOKU_DB_DUP || dup_mode == (TOKU_DB_DUP+TOKU_DB_DUPSORT));
     pma->dup_mode = dup_mode;
     return 0;
 }
 
 int pma_set_dup_compare(PMA pma, pma_compare_fun_t dup_compare_fun) {
-    assert(pma->dup_mode & DB_DUPSORT);
+    assert(pma->dup_mode & TOKU_DB_DUPSORT);
     pma->dup_compare_fun = dup_compare_fun;
     return 0;
 }
@@ -734,7 +734,7 @@ int pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val) {
 int pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db) {
     PMA pma = c->pma;
     int here, found;
-    if (pma->dup_mode & DB_DUP) {
+    if (pma->dup_mode & TOKU_DB_DUP) {
         here = __pma_left_search(pma, key, db, 0, pma->N, &found);
     } else
         here = pmainternal_find(pma, key, db);
@@ -775,7 +775,7 @@ int pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val, DB *db) {
 int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db) {
     PMA pma = c->pma;
     int here, found;
-    if (pma->dup_mode & DB_DUP)
+    if (pma->dup_mode & TOKU_DB_DUP)
         here = __pma_left_search(pma, key, db, 0, pma->N, &found);
     else
         here = pmainternal_find(pma, key, db);
@@ -885,7 +885,7 @@ int pmainternal_make_space_at (PMA pma, int idx) {
 
 enum pma_errors pma_lookup (PMA pma, DBT *k, DBT *v, DB *db) {
     int here, found;
-    if (pma->dup_mode & DB_DUP) {
+    if (pma->dup_mode & TOKU_DB_DUP) {
         here = __pma_left_search(pma, k, db, 0, pma->N, &found);
     } else
         here = pmainternal_find(pma, k, db);
@@ -938,11 +938,11 @@ int pma_free (PMA *pmap) {
 int pma_insert (PMA pma, DBT *k, DBT *v, DB* db, TOKUTXN txn, DISKOFF diskoff, u_int32_t rand4fingerprint, u_int32_t *fingerprint) {
     int found, idx;
 
-    if (pma->dup_mode & DB_DUPSORT) {
+    if (pma->dup_mode & TOKU_DB_DUPSORT) {
         idx = __pma_dup_search(pma, k, v, db, 0, pma->N, &found);
         if (found)
             idx += 1;
-    } else if (pma->dup_mode & DB_DUP) {
+    } else if (pma->dup_mode & TOKU_DB_DUP) {
         idx = __pma_right_search(pma, k, db, 0, pma->N, &found);
         if (found)
             idx += 1;
@@ -1039,7 +1039,7 @@ int pma_delete (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_t *fingerpr
     if (!deleted_size)
         deleted_size = &my_deleted_size;
     *deleted_size = 0;
-    if (pma->dup_mode & DB_DUP) 
+    if (pma->dup_mode & TOKU_DB_DUP) 
         return pma_delete_dup(pma, k, db, rand4sem, fingerprint, deleted_size);
     else
         return pma_delete_nodup(pma, k, db, rand4sem, fingerprint, deleted_size);
@@ -1136,11 +1136,11 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     //printf("%s:%d v->size=%d\n", __FILE__, __LINE__, v->size);
     int r;
     int idx, found;
-    if (pma->dup_mode & DB_DUPSORT) {
+    if (pma->dup_mode & TOKU_DB_DUPSORT) {
         idx = __pma_dup_search(pma, k, v, db, 0, pma->N, &found);
         if (found)
             idx += 1;
-    } else if (pma->dup_mode & DB_DUP) {
+    } else if (pma->dup_mode & TOKU_DB_DUP) {
         idx = __pma_right_search(pma, k, db, 0, pma->N, &found);
         if (found)
             idx += 1;
@@ -1301,7 +1301,7 @@ static void __pma_relocate_kvpairs(PMA pma) {
 static int __pma_compare_kv(PMA pma, struct kv_pair *a, struct kv_pair *b, DB *db) {
     DBT dbta, dbtb;
     int cmp = pma->compare_fun(db, fill_dbt(&dbta, kv_pair_key(a), kv_pair_keylen(a)), fill_dbt(&dbtb, kv_pair_key(b), kv_pair_keylen(b)));
-    if (cmp == 0 && (pma->dup_mode & DB_DUPSORT)) {
+    if (cmp == 0 && (pma->dup_mode & TOKU_DB_DUPSORT)) {
         cmp = pma->dup_compare_fun(db, fill_dbt(&dbta, kv_pair_val(a), kv_pair_vallen(b)), fill_dbt(&dbtb, kv_pair_val(b), kv_pair_vallen(b)));
     }
     return cmp;
@@ -1380,7 +1380,7 @@ int pma_split(PMA origpma, unsigned int *origpma_size, DBT *splitk, DB *db,
 
     if (splitk) {
         struct kv_pair *a = pairs[spliti-1].pair;
-        if (origpma->dup_mode & DB_DUPSORT) {
+        if (origpma->dup_mode & TOKU_DB_DUPSORT) {
             int kl = kv_pair_keylen(a);
             int vl = kv_pair_vallen(a);
             splitk->size = (sizeof vl) + kl + vl;
@@ -1519,9 +1519,9 @@ void pma_verify(PMA pma, DB *db) {
             int r = pma->compare_fun(db, &kv_dbt, &nextkv_dbt);
             if (pma->dup_mode == 0)
                 assert(r < 0);
-            else if (pma->dup_mode & DB_DUP)
+            else if (pma->dup_mode & TOKU_DB_DUP)
                 assert(r <= 0);
-            if (r == 0 && (pma->dup_mode & DB_DUPSORT)) {
+            if (r == 0 && (pma->dup_mode & TOKU_DB_DUPSORT)) {
                 fill_dbt(&kv_dbt, kv_pair_val(kv), kv_pair_vallen(kv));
                 fill_dbt(&nextkv_dbt, kv_pair_val(nextkv), kv_pair_vallen(nextkv));
                 r = pma->dup_compare_fun(db, &kv_dbt, &nextkv_dbt);

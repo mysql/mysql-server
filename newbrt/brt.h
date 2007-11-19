@@ -14,6 +14,12 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int n
 
 int brt_create(BRT *);
 int brt_set_flags(BRT, int flags);
+
+enum {
+    TOKU_DB_DUP = 1,
+    TOKU_DB_DUPSORT = 2,
+};
+    
 int brt_set_nodesize(BRT, int nodesize);
 int brt_set_bt_compare(BRT, int (*bt_compare)(DB *, const DBT*, const DBT*));
 int brt_set_dup_compare(BRT, int (*dup_compare)(DB *, const DBT*, const DBT*));

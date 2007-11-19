@@ -24,7 +24,7 @@ int pma_create(PMA *, pma_compare_fun_t compare_fun, int maxsize);
 int pma_set_compare(PMA pma, pma_compare_fun_t compare_fun);
 
 /* set the duplicate mode 
-   0 -> no duplications, DB_DUP, DB_DUPSORT */
+   0 -> no duplications, TOKU_DB_DUP, TOKU_DB_DUPSORT */
 int pma_set_dup_mode(PMA pma, int mode);
 
 /* set the duplicate compare function */
