@@ -222,6 +222,14 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
         return EINVAL;
     
     if (!home) return EINVAL;
+    else {
+	// Verify that the home exists.
+	struct stat buf;
+	r = stat(home, &buf);
+	if (r!=0) return errno;
+    }
+
+
 
     if (!(flags & DB_PRIVATE)) {
         // This means that we don't have to do anything with shared memory.  
@@ -250,21 +258,26 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
         r = tokulogger_create_and_open_logger(env->i->dir, &env->i->logger);
-        assert(r == 0);
+	if (r!=0) goto died1;
+	if (0) {
+	died2:
+	    tokulogger_log_close(&env->i->logger);
+	    goto died1;
+	}
     }
 
     r = brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
-    assert(r == 0);
-
+    if (r!=0) goto died2;
     return 0;
 }
 
 int __toku_db_env_close(DB_ENV * env, u_int32_t flags) {
+    int r0=0,r1=0;
     if (flags) return EINVAL;
     if (env->i->cachetable)
-        cachetable_close(&env->i->cachetable);
+        r0=cachetable_close(&env->i->cachetable);
     if (env->i->logger)
-        tokulogger_log_close(&env->i->logger);
+        r1=tokulogger_log_close(&env->i->logger);
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
     if (env->i->tmp_dir)
@@ -274,6 +287,9 @@ int __toku_db_env_close(DB_ENV * env, u_int32_t flags) {
     toku_free(env->i->dir);
     toku_free(env->i);
     toku_free(env);
+    if (flags!=0) return EINVAL;
+    if (r0) return r0;
+    if (r1) return r1;
     return 0;
 }
 
@@ -364,7 +380,7 @@ void __toku_default_errcall(const char *errpfx, char *msg) {
     fprintf(stderr, "YDB: %s: %s", errpfx, msg);
 }
 
-int __toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
+static int __toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     DB_ENV *result = toku_malloc(sizeof(*result));
@@ -427,7 +443,7 @@ u_int32_t __toku_db_txn_id(DB_TXN * txn) {
 
 static TXNID next_txn = 0;
 
-int __toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
+static int __toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     DB_TXN *result = toku_malloc(sizeof(*result));
     if (result == 0)
         return ENOMEM;
@@ -623,9 +639,10 @@ int __toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname,
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    r = brt_open(db->i->brt, db->i->full_fname, dbname, flags & DB_CREATE,
-                 flags & DB_EXCL, db->dbenv->i->cachetable,
-		         txn ? txn->i->tokutxn : NULL_TXN);
+    r = brt_open(db->i->brt, db->i->full_fname, dbname,
+		 flags & DB_CREATE, flags & DB_EXCL,
+		 db->dbenv->i->cachetable,
+		 txn ? txn->i->tokutxn : NULL_TXN);
     if (r != 0)
         goto error_cleanup;
 
