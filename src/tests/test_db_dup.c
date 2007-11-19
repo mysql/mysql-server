@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include <db.h>
 
+#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
+
 /* verify that the dup flags are written and read from the database file correctly */ 
 void test_dup_flags(int dup_flags) {
     printf("test_dup_flags:%d\n", dup_flags);
@@ -271,7 +273,7 @@ void test_nonleaf_insert(int n, int dup_mode) {
         int v = values[i];
         DBT key, val;
         r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        CKERR(r);
     } 
 
    /* verify lookups */
