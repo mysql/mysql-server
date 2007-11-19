@@ -327,6 +327,17 @@ mach_write_to_2_little_endian(
 	byte*	dest,		/* in: where to write */
 	ulint	n);		/* in: unsigned long int to write */
 
+/*************************************************************
+Convert integral type from storage byte order (big endian) to
+host byte order. */
+UNIV_INLINE
+void
+mach_read_int_type(
+/*===============*/
+	byte*		dest,		/* out: where to write */
+	const byte*	src,		/* in: where to read from */
+	ulint		len,		/* in: length of src */
+	ibool		unsigned_type);	/* in: signed or unsigned flag */
 #ifndef UNIV_NONINL
 #include "mach0data.ic"
 #endif

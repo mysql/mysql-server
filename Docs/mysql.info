@@ -1,27 +1,4 @@
-This is mysql.info, produced by makeinfo version 4.8 from manual.texi.
 
-START-INFO-DIR-ENTRY
-* mysql: (mysql).               MySQL documentation.
-END-INFO-DIR-ENTRY
-
-
-File: mysql.info,  Node: Top,  Next: (dir),  Prev: (dir),  Up: (dir)
-
-This is an empty placeholder file for the MySQL manual.
-
-The MySQL manual is now maintained in a separate BitKeeper source tree!
-Please see `http://www.mysql.com/doc/en/Installing_source_tree.html'
-for more info on how to work with BitKeeper.
-
-This file will be replaced with the current `mysql.info' when building
-the official source distribution.
-
-You can find a specific manual for any older version of MySQL in the
-binary or source distribution for that version.
-
-
-
-Tag Table:
-Node: Top166
-
-End Tag Table
+The MySQL Reference Manual is available in various formats on
+http://dev.mysql.com/doc; if you're interested in the DocBook XML
+sources go to http://svn.mysql.com.

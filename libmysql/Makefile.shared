@@ -59,7 +59,7 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			mf_pack.lo my_messnc.lo mf_dirname.lo mf_fn_ext.lo\
 			mf_wcomp.lo typelib.lo safemalloc.lo my_alloc.lo \
 			mf_format.lo mf_path.lo mf_unixpath.lo my_fopen.lo \
-			my_symlink.lo my_fstream.lo \
+			my_symlink.lo my_fstream.lo mf_arr_appstr.lo \
 			mf_loadpath.lo my_pthread.lo my_thr_init.lo \
 			thr_mutex.lo mulalloc.lo string.lo \
                         default.lo default_modify.lo \
