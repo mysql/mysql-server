@@ -263,7 +263,7 @@ int tokulogger_log_block_rename (TOKULOGGER logger, FILENUM fileid, DISKOFF oldd
     return tokulogger_finish(logger, &wbuf);
 }
 
-int tokulogger_log_fcreate_tmp (TOKUTXN txn, const char *fname, int mode) {
+int tokulogger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     if (txn==0) return 0;
     const int fnamelen = strlen(fname);
     const int buflen = (+1 // log command
@@ -275,7 +275,7 @@ int tokulogger_log_fcreate_tmp (TOKUTXN txn, const char *fname, int mode) {
     unsigned char buf[buflen];
     struct wbuf wbuf;
     wbuf_init (&wbuf, buf, buflen);
-    wbuf_char (&wbuf, LT_FCREATE_TMP);
+    wbuf_char (&wbuf, LT_FCREATE);
     wbuf_bytes(&wbuf, fname, fnamelen);
     wbuf_int  (&wbuf, mode);
     return tokulogger_finish(txn->logger, &wbuf);

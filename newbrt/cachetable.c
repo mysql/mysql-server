@@ -65,7 +65,7 @@ struct cachefile {
     FILENUM filenum;
 };
 
-int create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER logger) {
+int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER logger) {
     TAGMALLOC(CACHETABLE, t);
     int i;
     t->n_in_table = 0;
@@ -86,7 +86,7 @@ int create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKU
     return 0;
 }
 
-static int cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
+int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
     int r;
     CACHEFILE extant;
     struct stat statbuf;
@@ -118,13 +118,13 @@ static int cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
     }
 }
 
-int cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags, mode_t mode) {
+int toku_cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags, mode_t mode) {
     int fd = open(fname, flags, mode);
     if (fd<0) return errno;
-    return cachetable_openfd (cf, t, fd);
+    return toku_cachetable_openfd (cf, t, fd);
 }
 
-CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
+static CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
     if (list==0) return 0;
     else if (list==cf) {
 	return list->next;
@@ -136,7 +136,7 @@ CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
 
 static int cachefile_flush_and_remove (CACHEFILE cf);
 
-int cachefile_close (CACHEFILE *cfp) {
+int toku_cachefile_close (CACHEFILE *cfp) {
     CACHEFILE cf = *cfp;
     assert(cf->refcount>0);
     cf->refcount--;
@@ -156,7 +156,7 @@ int cachefile_close (CACHEFILE *cfp) {
     }
 }
 
-int cachetable_assert_all_unpinned (CACHETABLE t) {
+int toku_cachetable_assert_all_unpinned (CACHETABLE t) {
     int i;
     int some_pinned=0;
     for (i=0; i<t->table_size; i++) {
@@ -172,7 +172,7 @@ int cachetable_assert_all_unpinned (CACHETABLE t) {
     return some_pinned;
 }
 
-int cachefile_count_pinned (CACHEFILE cf, int print_them) {
+int toku_cachefile_count_pinned (CACHEFILE cf, int print_them) {
     int i;
     int n_pinned=0;
     CACHETABLE t = cf->cachetable;
@@ -189,11 +189,13 @@ int cachefile_count_pinned (CACHEFILE cf, int print_them) {
     return n_pinned;
 }
 
+#if 0
 unsigned int ct_hash_longlong (unsigned long long l) {
     unsigned int r = hash_key((unsigned char*)&l, 8);
     printf("%lld --> %d --> %d\n", l, r, r%64);
     return  r;
 }
+#endif
 
 static unsigned int hashit (CACHETABLE t, CACHEKEY key) {
     return hash_key((unsigned char*)&key, sizeof(key))%t->table_size;
@@ -353,7 +355,7 @@ static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *
     return 0;
 }
 
-int cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size,
+int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size,
                    cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     {
@@ -375,7 +377,7 @@ int cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size,
     return r;
 }
 
-int cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, long *sizep,
+int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, long *sizep,
                            cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     CACHETABLE t = cachefile->cachetable;
     int tsize __attribute__((__unused__)) = t->table_size;
@@ -410,7 +412,7 @@ int cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, long 
     return 0;
 }
 
-int cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value) {
+int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value) {
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
     for (p=t->table[hashit(t,key)]; p; p=p->hash_chain) {
@@ -426,7 +428,7 @@ int cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value
 }
 
 
-int cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, int dirty, long size) {
+int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, int dirty, long size) {
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
     WHEN_TRACE_CT(printf("%s:%d unpin(%lld)", __FILE__, __LINE__, key));
@@ -450,7 +452,7 @@ int cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, int dirty, long size) {
 
 // effect:   Move an object from one key to another key.
 // requires: The object is pinned in the table
-int cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newkey) {
+int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newkey) {
   CACHETABLE t = cachefile->cachetable;
   PAIR *ptr_to_p,p;
   for (ptr_to_p = &t->table[hashit(t, oldkey)],  p = *ptr_to_p;
@@ -468,7 +470,7 @@ int cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newkey) {
   return -1;
 }
 
-int cachetable_flush (CACHETABLE t) {
+static int cachetable_flush (CACHETABLE t) {
     int i;
     for (i=0; i<t->table_size; i++) {
 	PAIR p;
@@ -478,11 +480,11 @@ int cachetable_flush (CACHETABLE t) {
     return 0;
 }
 
-void cachefile_verify (CACHEFILE cf) {
-    cachetable_verify(cf->cachetable);
+void toku_cachefile_verify (CACHEFILE cf) {
+    toku_cachetable_verify(cf->cachetable);
 }
 
-void cachetable_verify (CACHETABLE t) {
+void toku_cachetable_verify (CACHETABLE t) {
     // First clear all the verify flags by going through the hash chains
     {
 	int i;
@@ -569,7 +571,7 @@ static int cachefile_flush_and_remove (CACHEFILE cf) {
 }
 
 /* Require that it all be flushed. */
-int cachetable_close (CACHETABLE *tp) {
+int toku_cachetable_close (CACHETABLE *tp) {
     CACHETABLE t=*tp;
     int i;
     int r;
@@ -583,7 +585,7 @@ int cachetable_close (CACHETABLE *tp) {
     return 0;
 }
 
-int cachetable_remove (CACHEFILE cachefile, CACHEKEY key, int write_me) {
+int toku_cachetable_remove (CACHEFILE cachefile, CACHEKEY key, int write_me) {
     /* Removing something already present is OK. */
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
@@ -644,13 +646,13 @@ int cachefile_pread  (CACHEFILE cf, void *buf, size_t count, off_t offset) {
 }
 #endif
 
-int cachefile_fd (CACHEFILE cf) {
+int toku_cachefile_fd (CACHEFILE cf) {
     return cf->fd;
 }
 
 /* debug functions */
 
- void cachetable_print_state (CACHETABLE ct) {
+void toku_cachetable_print_state (CACHETABLE ct) {
      int i;
      for (i=0; i<ct->table_size; i++) {
          PAIR p = ct->table[i];
@@ -664,7 +666,7 @@ int cachefile_fd (CACHEFILE cf) {
      }
  }
 
-void cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr) {
+void toku_cachetable_get_state (CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr) {
     if (num_entries_ptr) 
         *num_entries_ptr = ct->n_in_table;
     if (hash_size_ptr)
@@ -675,8 +677,8 @@ void cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_pt
         *size_limit_ptr = ct->size_limit;
 }
 
-int cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
-                         int *dirty_ptr, long long *pin_ptr, long *size_ptr) {
+int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, void **value_ptr,
+				   int *dirty_ptr, long long *pin_ptr, long *size_ptr) {
     PAIR p;
     for (p = ct->table[hashit(ct, key)]; p; p = p->hash_chain) {
         if (p->key == key) {
@@ -694,7 +696,7 @@ int cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
     return 1;
 }
 
-int cachetable_checkpoint (CACHETABLE ct) {
+int toku_cachetable_checkpoint (CACHETABLE ct) {
     // Single threaded checkpoint.
     // In future: for multithreaded checkpoint we should not proceed if the previous checkpoint has not finished.
     // Requires: Everything is unpinned.  (In the multithreaded version we have to wait for things to get unpinned and then
@@ -737,10 +739,10 @@ int cachetable_checkpoint (CACHETABLE ct) {
     return 0;
 }
 
-TOKULOGGER cachefile_logger (CACHEFILE cf) {
+TOKULOGGER toku_cachefile_logger (CACHEFILE cf) {
     return cf->cachetable->logger;
 }
 
-FILENUM cachefile_filenum (CACHEFILE cf) {
+FILENUM toku_cachefile_filenum (CACHEFILE cf) {
     return cf->filenum;
 }

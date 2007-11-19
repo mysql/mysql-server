@@ -21,10 +21,10 @@ int tokulogger_find_next_unused_log_file(const char *directory, long long *resul
 enum {
     LT_COMMIT                   = 'C',
     LT_DELETE                   = 'D',
+    LT_FCREATE                  = 'F',
     LT_INSERT_WITH_NO_OVERWRITE = 'I',
     LT_CHECKPOINT               = 'P',
     LT_BLOCK_RENAME             = 'R',
-    LT_FCREATE_TMP              = 'T',
     LT_UNLINK                   = 'U'
 };
 
