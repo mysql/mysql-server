@@ -16,6 +16,11 @@ TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,..
 VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 
+ifneq ($(BDB),"")
+BDB_CPPFLAGS = -I$(BDB)/include
+BDB_LDFLAGS = -L$(BDB)/lib
+endif
+
 LIBNAME=libdb.$(LIBEXT)
 CFLAGS = -Wall -Werror -O0 -g
 
@@ -69,7 +74,7 @@ NO_VGRIND = \
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 
 %.bdb: %.c
-	$(UNSETTOKUENV); cc  -DDIR=\"dir.$<.bdb\" -DUSE_BDB $(CFLAGS) $< -ldb -o $@
+	$(UNSETTOKUENV); cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
 %.tdb: %.c
 	$(SETTOKUENV); cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
