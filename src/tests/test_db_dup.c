@@ -1035,6 +1035,7 @@ int main() {
         test_dup_delete(i, DB_DUP);
         test_nonleaf_insert(i, DB_DUP);
         test_dup_delete_insert(i, DB_DUP);
+        test_all_dup_delete_insert(i);
         test_walk_empty(i, DB_DUP);
     }
 
@@ -1045,6 +1046,7 @@ int main() {
          test_i0i1ci0_search(i, DB_DUP);
     }
 
+#if USE_TDB
     /* dupsort tests */
     for (i = 1; i <= (1<<16); i *= 2) {
         test_insert(i, DB_DUP + DB_DUPSORT);
@@ -1053,10 +1055,7 @@ int main() {
         test_dup_delete_insert(i, DB_DUP + DB_DUPSORT);
         test_walk_empty(i, DB_DUP + DB_DUPSORT);
     }
-
-    for (i = 1; i <= (1<<16); i *= 2) {
-        test_all_dup_delete_insert(i);
-    }
+#endif
 
     return 0;
 }
