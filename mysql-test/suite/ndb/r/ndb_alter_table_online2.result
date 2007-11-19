@@ -24,7 +24,7 @@ truncate ndb_show_tables_results;
 
 ALTER ONLINE TABLE t1 ADD b INT;
 Warnings:
-Warning	1477	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Check table t1 ID has not changed
@@ -50,7 +50,7 @@ update t1 set b= 0;
 
 ALTER ONLINE TABLE t1 ADD c INT;
 Warnings:
-Warning	1477	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Check table t1 ID has not changed

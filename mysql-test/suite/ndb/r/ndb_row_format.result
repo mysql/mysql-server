@@ -6,7 +6,7 @@ b VARCHAR(10) )
 ROW_FORMAT=FIXED
 ENGINE=NDB;
 Warnings:
-Warning	1477	Row format FIXED incompatible with dynamic attribute b
+Warning	1478	Row format FIXED incompatible with dynamic attribute b
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	Row format FIXED incompatible with dynamic attribute b
