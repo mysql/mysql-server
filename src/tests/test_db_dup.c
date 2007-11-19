@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <arpa/inet.h>
 #include <db.h>
 
@@ -13,7 +14,7 @@ void test_dup_flags(int dup_flags) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.dup.flags.brt";
+    const char * const fname = DIR "/" "test_dup_flags.brt";
     int r;
 
     unlink(fname);
@@ -96,7 +97,7 @@ void test_insert(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.insert.brt";
+    const char * const fname = DIR "/" "test_insert.brt";
     int r;
     int i;
 
@@ -199,7 +200,7 @@ void test_nonleaf_insert(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.nonleaf.insert.brt";
+    const char * const fname = DIR "/" "test_nonleaf_insert.brt";
     int r;
     int i;
 
@@ -314,7 +315,7 @@ void test_dup_delete(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.dup.insert.brt";
+    const char * const fname = DIR "/" "test_dup_delete.brt";
     int r;
 
     unlink(fname);
@@ -408,7 +409,7 @@ void test_dup_delete_delete(int n) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.dup.insert.brt";
+    const char * const fname = DIR "/" "test_dup_delete_delete.brt";
     int r;
 
     unlink(fname);
@@ -492,7 +493,7 @@ void test_dup_delete_insert(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.dup.insert.brt";
+    const char * const fname = DIR "/" "test_dup_delete_insert.brt";
     int r;
 
     unlink(fname);
@@ -599,7 +600,7 @@ void test_all_dup_delete_insert(int n) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.dup.insert.brt";
+    const char * const fname = DIR "/" "test_all_dup_delete_insert.brt";
     int r;
 
     unlink(fname);
@@ -678,7 +679,7 @@ void test_walk_empty(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.dup.insert.brt";
+    const char * const fname = DIR "/" "test_walk_empty.brt";
     int r;
 
     unlink(fname);
@@ -747,13 +748,14 @@ void test_walk_empty(int n, int dup_mode) {
     assert(r == 0);
 }
 
+/* insert, close, delete, insert, search */
 void test_icdi_search(int n, int dup_mode) {
     printf("test_icdi_search:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.dup.insert.brt";
+    const char * const fname = DIR "/" "test_icdi_search.brt";
     int r;
 
     unlink(fname);
@@ -835,13 +837,14 @@ void test_icdi_search(int n, int dup_mode) {
     assert(r == 0);
 }
 
+/* insert, close, insert, search */
 void test_ici_search(int n, int dup_mode) {
     printf("test_ici_search:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.dup.insert.brt";
+    const char * const fname = DIR "/" "test_ici_search.brt";
     int r;
 
     unlink(fname);
@@ -937,13 +940,14 @@ void expect_db_lookup(DB *db, int k, int v) {
     free(val.data);
 }
 
+/* insert 0, insert 1, close, insert 0, search 0 */
 void test_i0i1ci0_search(int n, int dup_mode) {
     printf("test_i0i1ci0_search:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.dup.insert.brt";
+    const char * const fname = DIR "/" "test_i0i1ci0.brt";
     int r;
 
     unlink(fname);
@@ -994,6 +998,9 @@ void test_i0i1ci0_search(int n, int dup_mode) {
 
 int main() {
     int i;
+
+    system("rm -rf " DIR);
+    mkdir(DIR, 0777);
 
     /* test flags */
     test_dup_flags(DB_DUP);
