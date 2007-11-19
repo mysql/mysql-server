@@ -1,6 +1,6 @@
 /* mbutil.c -- readline multibyte character utility functions */
 
-/* Copyright (C) 2001-2004 Free Software Foundation, Inc.
+/* Copyright (C) 2001-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -21,16 +21,11 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#ifndef _XOPEN_SOURCE
-#define _XOPEN_SOURCE 500
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
 #endif
 
-#include "config_readline.h"
-
 #include <sys/types.h>
-
-/* To get SuSE 9.3 to define wcwidth() (in wchar.h) */
-
 #include <fcntl.h>
 #include "posixjmp.h"
 
@@ -82,10 +77,12 @@ _rl_find_next_mbchar_internal (string, seed, count, find_non_zero)
      char *string;
      int seed, count, find_non_zero;
 {
-  size_t tmp = 0;
+  size_t tmp;
   mbstate_t ps;
-  int point = 0;
+  int point;
   wchar_t wc;
+
+  tmp = 0;
 
   memset(&ps, 0, sizeof (mbstate_t));
   if (seed < 0)
@@ -93,7 +90,7 @@ _rl_find_next_mbchar_internal (string, seed, count, find_non_zero)
   if (count <= 0)
     return seed;
 
-  point = seed + _rl_adjust_point(string, seed, &ps);
+  point = seed + _rl_adjust_point (string, seed, &ps);
   /* if this is true, means that seed was not pointed character
      started byte.  So correct the point and consume count */
   if (seed < point)
@@ -131,15 +128,16 @@ _rl_find_next_mbchar_internal (string, seed, count, find_non_zero)
   if (find_non_zero)
     {
       tmp = mbrtowc (&wc, string + point, strlen (string + point), &ps);
-      while (wcwidth (wc) == 0)
+      while (tmp > 0 && wcwidth (wc) == 0)
 	{
 	  point += tmp;
 	  tmp = mbrtowc (&wc, string + point, strlen (string + point), &ps);
-	  if (tmp == (size_t)(0) || tmp == (size_t)(-1) || tmp == (size_t)(-2))
+	  if (MB_NULLWCH (tmp) || MB_INVALIDCH (tmp))
 	    break;
 	}
     }
-    return point;
+
+  return point;
 }
 
 static int
@@ -317,6 +315,28 @@ _rl_is_mbchar_matched (string, seed, end, mbchar, length)
     if (string[seed + i] != mbchar[i])
       return 0;
   return 1;
+}
+
+wchar_t
+_rl_char_value (buf, ind)
+     char *buf;
+     int ind;
+{
+  size_t tmp;
+  wchar_t wc;
+  mbstate_t ps;
+  int l;
+
+  if (MB_LEN_MAX == 1 || rl_byte_oriented)
+    return ((wchar_t) buf[ind]);
+  l = strlen (buf);
+  if (ind >= l - 1)
+    return ((wchar_t) buf[ind]);
+  memset (&ps, 0, sizeof (mbstate_t));
+  tmp = mbrtowc (&wc, buf + ind, l - ind, &ps);
+  if (MB_INVALIDCH (tmp) || MB_NULLWCH (tmp))  
+    return ((wchar_t) buf[ind]);
+  return wc;
 }
 #endif /* HANDLE_MULTIBYTE */
 

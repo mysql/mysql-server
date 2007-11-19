@@ -21,7 +21,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <sys/types.h>
 
@@ -98,6 +100,8 @@ _rl_with_macro_input (string)
 int
 _rl_next_macro_key ()
 {
+  int c;
+
   if (rl_executing_macro == 0)
     return (0);
 
@@ -107,7 +111,14 @@ _rl_next_macro_key ()
       return (_rl_next_macro_key ());
     }
 
+#if defined (READLINE_CALLBACKS)
+  c = rl_executing_macro[executing_macro_index++];
+  if (RL_ISSTATE (RL_STATE_CALLBACK) && RL_ISSTATE (RL_STATE_READCMD|RL_STATE_MOREINPUT) && rl_executing_macro[executing_macro_index] == 0)
+      _rl_pop_executing_macro ();
+  return c;
+#else
   return (rl_executing_macro[executing_macro_index++]);
+#endif
 }
 
 /* Save the currently executing macro on a stack of saved macros. */
@@ -189,8 +200,8 @@ _rl_kill_kbd_macro ()
    definition to the end of the existing macro, and start by
    re-executing the existing macro. */
 int
-rl_start_kbd_macro (int ignore1 __attribute__((unused)),
-                    int ignore2 __attribute__((unused)))
+rl_start_kbd_macro (ignore1, ignore2)
+     int ignore1, ignore2;
 {
   if (RL_ISSTATE (RL_STATE_MACRODEF))
     {
@@ -214,7 +225,8 @@ rl_start_kbd_macro (int ignore1 __attribute__((unused)),
    A numeric argument says to execute the macro right now,
    that many times, counting the definition as the first time. */
 int
-rl_end_kbd_macro (int count, int ignore __attribute__((unused)))
+rl_end_kbd_macro (count, ignore)
+     int count, ignore;
 {
   if (RL_ISSTATE (RL_STATE_MACRODEF) == 0)
     {
@@ -233,7 +245,8 @@ rl_end_kbd_macro (int count, int ignore __attribute__((unused)))
 /* Execute the most recently defined keyboard macro.
    COUNT says how many times to execute it. */
 int
-rl_call_last_kbd_macro (int count, int ignore __attribute__((unused)))
+rl_call_last_kbd_macro (count, ignore)
+     int count, ignore;
 {
   if (current_macro == 0)
     _rl_abort_internal ();
