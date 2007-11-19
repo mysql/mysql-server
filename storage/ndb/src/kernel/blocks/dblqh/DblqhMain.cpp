@@ -14252,7 +14252,7 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   Uint32 noOfLogNodes = startFragReq->noOfLogNodes;
   Uint32 lcpId = startFragReq->lcpId;
 
-  ndbrequire(noOfLogNodes <= 4);
+  ndbrequire(noOfLogNodes <= MAX_LOG_EXEC);
   fragptr.p->fragStatus = Fragrecord::CRASH_RECOVERING;
   fragptr.p->srBlockref = startFragReq->userRef;
   fragptr.p->srUserptr = startFragReq->userPtr;
@@ -14590,7 +14590,7 @@ void Dblqh::execEXEC_FRAGREQ(Signal* signal)
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   ndbrequire(getFragmentrec(signal, fragId));
 
-  ndbrequire(fragptr.p->execSrNoReplicas < 4);
+  ndbrequire(fragptr.p->execSrNoReplicas < MAX_REPLICAS);
   fragptr.p->execSrBlockref[fragptr.p->execSrNoReplicas] = execFragReq->userRef;
   fragptr.p->execSrUserptr[fragptr.p->execSrNoReplicas] = execFragReq->userPtr;
   fragptr.p->execSrStartGci[fragptr.p->execSrNoReplicas] = execFragReq->startGci;
@@ -14694,7 +14694,7 @@ void Dblqh::execSrCompletedLab(Signal* signal)
    *  ALL FRAGMENTS WERE COMPLETED. THIS PHASE IS COMPLETED. IT IS NOW TIME TO
    *  START THE NEXT PHASE.
    * ----------------------------------------------------------------------- */
-  if (csrPhasesCompleted >= 4) {
+  if (csrPhasesCompleted >= MAX_LOG_EXEC) {
     jam();
     /* ----------------------------------------------------------------------
      *  THIS WAS THE LAST PHASE. WE HAVE NOW COMPLETED THE EXECUTION THE 
@@ -14862,7 +14862,7 @@ void Dblqh::srGciLimits(Signal* signal)
   while (fragptr.i != RNIL){
     jam();
     c_lcp_complete_fragments.getPtr(fragptr);
-    ndbrequire(fragptr.p->execSrNoReplicas - 1 < 4);
+    ndbrequire(fragptr.p->execSrNoReplicas - 1 < MAX_REPLICAS);
     for (Uint32 i = 0; i < fragptr.p->execSrNoReplicas; i++) {
       jam();
       if (fragptr.p->execSrStartGci[i] < logPartPtr.p->logStartGci) {
@@ -15607,7 +15607,7 @@ void Dblqh::execLogRecord(Signal* signal)
   readKey(signal);
   readAttrinfo(signal);
   initReqinfoExecSr(signal);
-  arrGuard(logPartPtr.p->execSrExecuteIndex, 4);
+  arrGuard(logPartPtr.p->execSrExecuteIndex, MAX_REPLICAS);
   BlockReference ref = fragptr.p->execSrBlockref[logPartPtr.p->execSrExecuteIndex];
   tcConnectptr.p->nextReplica = refToNode(ref);
   tcConnectptr.p->connectState = TcConnectionrec::LOG_CONNECTED;
@@ -15984,7 +15984,7 @@ void Dblqh::sendExecConf(Signal* signal)
     Uint32 next = fragptr.p->nextList;
     if (fragptr.p->execSrStatus != Fragrecord::IDLE) {
       jam();
-      ndbrequire(fragptr.p->execSrNoReplicas - 1 < 4);
+      ndbrequire(fragptr.p->execSrNoReplicas - 1 < MAX_REPLICAS);
       for (Uint32 i = 0; i < fragptr.p->execSrNoReplicas; i++) {
         jam();
         signal->theData[0] = fragptr.p->execSrUserptr[i];
@@ -16548,7 +16548,7 @@ Uint32 Dblqh::checkIfExecLog(Signal* signal)
       (table_version_major(tabptr.p->schemaVersion) == table_version_major(tcConnectptr.p->schemaVersion))) {
     if (fragptr.p->execSrStatus != Fragrecord::IDLE) {
       if (fragptr.p->execSrNoReplicas > logPartPtr.p->execSrExecuteIndex) {
-        ndbrequire((fragptr.p->execSrNoReplicas - 1) < 4);
+        ndbrequire((fragptr.p->execSrNoReplicas - 1) < MAX_REPLICAS);
         for (Uint32 i = logPartPtr.p->execSrExecuteIndex; 
 	     i < fragptr.p->execSrNoReplicas; 
 	     i++) {
