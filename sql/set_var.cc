@@ -641,8 +641,14 @@ static sys_var_const_str	sys_license(&vars, "license", STRINGIFY_ARG(LICENSE));
 /* Global variables which enable|disable logging */
 static sys_var_log_state sys_var_general_log(&vars, "general_log", &opt_log,
                                       QUERY_LOG_GENERAL);
+/* Synonym of "general_log" for consistency with SHOW VARIABLES output */
+static sys_var_log_state sys_var_log(&vars, "log", &opt_log,
+                                      QUERY_LOG_GENERAL);
 static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
                                          QUERY_LOG_SLOW);
+/* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
+static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
+                                          &opt_slow_log, QUERY_LOG_SLOW);
 sys_var_str sys_var_general_log_path(&vars, "general_log_file", sys_check_log_path,
 				     sys_update_general_log_path,
 				     sys_default_general_log_path,
@@ -678,10 +684,8 @@ static SHOW_VAR fixed_vars[]= {
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_MY_BOOL},
 #endif
-  {"log",                     (char*) &opt_log,                     SHOW_MY_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
-  {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_MY_BOOL},
   {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_MY_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
@@ -3051,7 +3055,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
     if ((error= var->check(thd)))
       goto err;
   }
-  if (!(error= test(thd->net.report_error)))
+  if (!(error= test(thd->is_error())))
   {
     it.rewind();
     while ((var= it++))

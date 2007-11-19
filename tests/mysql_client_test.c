@@ -7787,7 +7787,7 @@ static void test_explain_bug()
   verify_prepare_field(result, 5, "Extra", "EXTRA",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 20, 0);
+                       0, 0, "", 27, 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -17100,6 +17100,99 @@ static void test_bug31418()
 }
 
 
+
+/**
+  Bug#31669 Buffer overflow in mysql_change_user()
+*/
+
+#define LARGE_BUFFER_SIZE 2048
+
+static void test_bug31669()
+{
+  int rc;
+  static char buff[LARGE_BUFFER_SIZE+1];
+#ifndef EMBEDDED_LIBRARY
+  static char user[USERNAME_CHAR_LENGTH+1];
+  static char db[NAME_CHAR_LEN+1];
+  static char query[LARGE_BUFFER_SIZE*2];
+#endif
+
+  DBUG_ENTER("test_bug31669");
+  myheader("test_bug31669");
+
+  rc= mysql_change_user(mysql, NULL, NULL, NULL);
+  DIE_UNLESS(rc);
+
+  rc= mysql_change_user(mysql, "", "", "");
+  DIE_UNLESS(rc);
+
+  memset(buff, 'a', sizeof(buff));
+
+  rc= mysql_change_user(mysql, buff, buff, buff);
+  DIE_UNLESS(rc);
+
+  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
+  DIE_UNLESS(!rc);
+
+#ifndef EMBEDDED_LIBRARY
+  memset(db, 'a', sizeof(db));
+  db[NAME_CHAR_LEN]= 0;
+  strxmov(query, "CREATE DATABASE IF NOT EXISTS ", db, NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  memset(user, 'b', sizeof(user));
+  user[USERNAME_CHAR_LENGTH]= 0;
+  memset(buff, 'c', sizeof(buff));
+  buff[LARGE_BUFFER_SIZE]= 0;
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' IDENTIFIED BY "
+                 "'", buff, "' WITH GRANT OPTION", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "FLUSH PRIVILEGES");
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user, buff, db);
+  DIE_UNLESS(!rc);
+
+  user[USERNAME_CHAR_LENGTH-1]= 'a';
+  rc= mysql_change_user(mysql, user, buff, db);
+  DIE_UNLESS(rc);
+
+  user[USERNAME_CHAR_LENGTH-1]= 'b';
+  buff[LARGE_BUFFER_SIZE-1]= 'd';
+  rc= mysql_change_user(mysql, user, buff, db);
+  DIE_UNLESS(rc);
+
+  buff[LARGE_BUFFER_SIZE-1]= 'c';
+  db[NAME_CHAR_LEN-1]= 'e';
+  rc= mysql_change_user(mysql, user, buff, db);
+  DIE_UNLESS(rc);
+
+  db[NAME_CHAR_LEN-1]= 'a';
+  rc= mysql_change_user(mysql, user, buff, db);
+  DIE_UNLESS(!rc);
+
+  rc= mysql_change_user(mysql, user + 1, buff + 1, db + 1);
+  DIE_UNLESS(rc);
+
+  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
+  DIE_UNLESS(!rc);
+
+  strxmov(query, "DROP DATABASE ", db, NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  strxmov(query, "DELETE FROM mysql.user WHERE User='", user, "'", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  DIE_UNLESS(mysql_affected_rows(mysql) == 1);
+#endif
+
+  DBUG_VOID_RETURN;
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -17403,6 +17496,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug30472", test_bug30472 },
   { "test_bug20023", test_bug20023 },
   { "test_bug31418", test_bug31418 },
+  { "test_bug31669", test_bug31669 },
   { 0, 0 }
 };
 

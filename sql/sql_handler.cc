@@ -151,6 +151,14 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
     }
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
+  else if (tables->table)
+  {
+    /* Must be a temporary table */
+    TABLE *table= tables->table;
+    table->file->ha_index_or_rnd_end();
+    table->query_id= thd->query_id;
+    table->open_by_handler= 0;
+  }
 }
 
 /*
@@ -281,6 +289,12 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
       goto err;
   }
+
+  /*
+    If it's a temp table, don't reset table->query_id as the table is
+    being used by this handler. Otherwise, no meaning at all.
+  */
+  tables->table->open_by_handler= 1;
 
   if (! reopen)
     send_ok(thd);
