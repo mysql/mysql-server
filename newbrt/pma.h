@@ -19,39 +19,39 @@ typedef struct pma_cursor *PMA_CURSOR;
    return a value < 0, = 0, > 0 if a < b, a == b, a > b respectively */
 typedef int (*pma_compare_fun_t)(DB *, const DBT *a, const DBT *b);
 
-int pma_create(PMA *, pma_compare_fun_t compare_fun, int maxsize);
+int toku_pma_create(PMA *, pma_compare_fun_t compare_fun, int maxsize);
 
-int pma_set_compare(PMA pma, pma_compare_fun_t compare_fun);
+int toku_pma_set_compare(PMA pma, pma_compare_fun_t compare_fun);
 
 /* set the duplicate mode 
    0 -> no duplications, TOKU_DB_DUP, TOKU_DB_DUPSORT */
-int pma_set_dup_mode(PMA pma, int mode);
+int toku_pma_set_dup_mode(PMA pma, int mode);
 
 /* set the duplicate compare function */
-int pma_set_dup_compare(PMA pma, pma_compare_fun_t dup_compare_fun);
+int toku_pma_set_dup_compare(PMA pma, pma_compare_fun_t dup_compare_fun);
 
 /* verify the integrity of a pma */
-void pma_verify(PMA pma, DB *db);
+void toku_pma_verify(PMA pma, DB *db);
 
 /* returns 0 if OK.
  * You must have freed all the cursors, otherwise returns nonzero and does nothing. */
-int pma_free (PMA *);
+int toku_pma_free (PMA *);
 
-int  pma_n_entries (PMA);
+int  toku_pma_n_entries (PMA);
 
 /* Returns an error if the key is already present. */
 /* The values returned should not be modified.by the caller. */
 /* Any cursors should be updated. */
 /* Duplicates the key and keylen. */
-//enum pma_errors pma_insert (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
+//enum pma_errors toku_pma_insert (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 // The DB pointer is there so that the comparison function can be called.
-enum pma_errors pma_insert (PMA, DBT*, DBT*, DB*, TOKUTXN txn, DISKOFF, u_int32_t /*random for fingerprint */, u_int32_t */*fingerprint*/);
+enum pma_errors toku_pma_insert (PMA, DBT*, DBT*, DB*, TOKUTXN txn, DISKOFF, u_int32_t /*random for fingerprint */, u_int32_t */*fingerprint*/);
 /* This returns an error if the key is NOT present. */
 int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 /* This returns an error if the key is NOT present. */
-int pma_delete (PMA, DBT *, DB*, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size);
+int toku_pma_delete (PMA, DBT *, DB*, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size);
 
-int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
+int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 			   int *replaced_v_size, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
 			   DB *db, TOKUTXN txn, DISKOFF,
 			   u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/);
@@ -59,7 +59,7 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 
 /* Exposes internals of the PMA by returning a pointer to the guts.
  * Don't modify the returned data.  Don't free it. */
-enum pma_errors pma_lookup (PMA, DBT*, DBT*, DB*);
+enum pma_errors toku_pma_lookup (PMA, DBT*, DBT*, DB*);
 
 /*
  * The kv pairs in the original pma are split into 2 equal sized sets
@@ -71,7 +71,7 @@ enum pma_errors pma_lookup (PMA, DBT*, DBT*, DB*);
  * leftpma - the pma assigned keys <= pivot key
  * rightpma - the pma assigned keys > pivot key
  */
-int pma_split(PMA origpma,  unsigned int *origpma_size, DBT *splitk, DB *db,
+int toku_pma_split(PMA origpma,  unsigned int *origpma_size, DBT *splitk, DB *db,
 	      PMA leftpma,  unsigned int *leftpma_size,  u_int32_t leftrand4sum,  u_int32_t *leftfingerprint,
 	      PMA rightpma, unsigned int *rightpma_size, u_int32_t rightrand4sum, u_int32_t *rightfingerprint);
 
@@ -86,56 +86,56 @@ int pma_split(PMA origpma,  unsigned int *origpma_size, DBT *splitk, DB *db,
  * vals - an array of values
  * n_newpairs - the number of key value pairs
  */
-int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4sem, u_int32_t *fingerprint);
+int toku_pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4sem, u_int32_t *fingerprint);
 
 /* Move the cursor to the beginning or the end or to a key */
-int pma_cursor (PMA, PMA_CURSOR *);
-int pma_cursor_free (PMA_CURSOR*);
+int toku_pma_cursor (PMA, PMA_CURSOR *);
+int toku_pma_cursor_free (PMA_CURSOR*);
 
 /* get the pma that a pma cursor is bound to */
-int pma_cursor_get_pma(PMA_CURSOR c, PMA *pma);
-int pma_cursor_set_position_last (PMA_CURSOR c);
-int pma_cursor_set_position_first (PMA_CURSOR c);
-int pma_cursor_set_position_next (PMA_CURSOR c); /* Requires the cursor is init'd.  Returns DB_NOTFOUND if we fall off the end. */
-int pma_cursor_set_position_prev (PMA_CURSOR c);
+int toku_pma_cursor_get_pma(PMA_CURSOR c, PMA *pma);
+int toku_pma_cursor_set_position_last (PMA_CURSOR c);
+int toku_pma_cursor_set_position_first (PMA_CURSOR c);
+int toku_pma_cursor_set_position_next (PMA_CURSOR c); /* Requires the cursor is init'd.  Returns DB_NOTFOUND if we fall off the end. */
+int toku_pma_cursor_set_position_prev (PMA_CURSOR c);
 
 /* get the key and data under the cursor */
-int pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val);
+int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val);
 
 /* set the cursor to the matching key and value pair */
-int pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val, DB *db);
+int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val, DB *db);
 
 /* move the cursor to the kv pair matching the key */
-int pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db);
+int toku_pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db);
 
 /* set the cursor to the smallest key in the pma >= key */
-int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db);
+int toku_pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db);
 
 /* delete the key value pair under the cursor, return the size of the pair */
-int pma_cursor_delete_under(PMA_CURSOR c, int *kvsize);
+int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize);
 
-int pma_random_pick(PMA, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
+int toku_pma_random_pick(PMA, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 
-int pma_index_limit(PMA);
-int pmanode_valid(PMA,int);
-bytevec pmanode_key(PMA,int);
-ITEMLEN pmanode_keylen(PMA,int);
-bytevec pmanode_val(PMA,int);
-ITEMLEN pmanode_vallen(PMA,int);
+int toku_pma_index_limit(PMA);
+int toku_pmanode_valid(PMA,int);
+bytevec toku_pmanode_key(PMA,int);
+ITEMLEN toku_pmanode_keylen(PMA,int);
+bytevec toku_pmanode_val(PMA,int);
+ITEMLEN toku_pmanode_vallen(PMA,int);
 
-void pma_iterate (PMA, void(*)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*);
+void toku_pma_iterate (PMA, void(*)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*);
 
 #define PMA_ITERATE(table,keyvar,keylenvar,datavar,datalenvar,body) ({ \
   int __i;                                                             \
-  for (__i=0; __i<pma_index_limit(table); __i++) {		       \
-    if (pmanode_valid(table,__i)) {                                    \
-      bytevec keyvar = pmanode_key(table,__i);                         \
-      ITEMLEN keylenvar = pmanode_keylen(table,__i);                   \
-      bytevec datavar = pmanode_val(table, __i);                       \
-      ITEMLEN datalenvar = pmanode_vallen(table, __i);                 \
+  for (__i=0; __i<toku_pma_index_limit(table); __i++) {		       \
+    if (toku_pmanode_valid(table,__i)) {                                    \
+      bytevec keyvar = toku_pmanode_key(table,__i);                         \
+      ITEMLEN keylenvar = toku_pmanode_keylen(table,__i);                   \
+      bytevec datavar = toku_pmanode_val(table, __i);                       \
+      ITEMLEN datalenvar = toku_pmanode_vallen(table, __i);                 \
       body;                                                            \
 } } })
 
-void pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint);
+void toku_pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint);
 
 #endif

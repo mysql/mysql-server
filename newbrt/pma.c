@@ -137,58 +137,58 @@ static void pma_mfree_kv_pair(PMA pma __attribute__((unused)), struct kv_pair *k
 #endif
 }
 
-int pma_n_entries (PMA pma) {
+int toku_pma_n_entries (PMA pma) {
     return pma->n_pairs_present;
 }
 
-int pma_index_limit (PMA pma) {
+int toku_pma_index_limit (PMA pma) {
     return pma->N;
 }
 
-int pmanode_valid (PMA pma, int i) {
-    assert(0<=i); assert(i<pma_index_limit(pma));
+int toku_pmanode_valid (PMA pma, int i) {
+    assert(0<=i); assert(i<toku_pma_index_limit(pma));
     return kv_pair_valid(pma->pairs[i]);
 }
 
-bytevec pmanode_key (PMA pma, int i) {
+bytevec toku_pmanode_key (PMA pma, int i) {
     struct kv_pair *pair;
-    assert(0<=i); assert(i<pma_index_limit(pma));
+    assert(0<=i); assert(i<toku_pma_index_limit(pma));
     pair = pma->pairs[i];
     assert(kv_pair_valid(pair));
     return kv_pair_key(pair);
 }
 
-ITEMLEN pmanode_keylen (PMA pma, int i) {
+ITEMLEN toku_pmanode_keylen (PMA pma, int i) {
     struct kv_pair *pair;
-    assert(0<=i); assert(i<pma_index_limit(pma));
+    assert(0<=i); assert(i<toku_pma_index_limit(pma));
     pair = pma->pairs[i];
     assert(kv_pair_valid(pair));
     return kv_pair_keylen(pair);
 }
 
-bytevec pmanode_val (PMA pma, int i) {
+bytevec toku_pmanode_val (PMA pma, int i) {
     struct kv_pair *pair;
-    assert(0<=i); assert(i<pma_index_limit(pma));
+    assert(0<=i); assert(i<toku_pma_index_limit(pma));
     pair = pma->pairs[i];
     assert(kv_pair_valid(pair));
     return kv_pair_val(pair);
 }
 
-ITEMLEN pmanode_vallen (PMA pma, int i) {
+ITEMLEN toku_pmanode_vallen (PMA pma, int i) {
     struct kv_pair *pair;
-    assert(0<=i); assert(i<pma_index_limit(pma));
+    assert(0<=i); assert(i<toku_pma_index_limit(pma));
     pair = pma->pairs[i];
     assert(kv_pair_valid(pair));
     return kv_pair_vallen(pair);
 }
 
 /* Could pick the same one every time if we wanted. */
-int pma_random_pick(PMA pma, bytevec *key, ITEMLEN *keylen, bytevec *val, ITEMLEN *vallen) {
+int toku_pma_random_pick(PMA pma, bytevec *key, ITEMLEN *keylen, bytevec *val, ITEMLEN *vallen) {
 #if 1
     int i;
 
     /* For now a simple implementation where we simply start at the beginning and look. */
-    for (i=0; i<pma_index_limit(pma); i++) {
+    for (i=0; i<toku_pma_index_limit(pma); i++) {
 	struct kv_pair *pair = pma->pairs[i];
         if (kv_pair_valid(pair)) {
 	    *key = kv_pair_key(pair);
@@ -202,7 +202,7 @@ int pma_random_pick(PMA pma, bytevec *key, ITEMLEN *keylen, bytevec *val, ITEMLE
 #else
     /* Maybe we should pick a random item to remove in order to reduce the unbalancing. */
     int i;
-    int l = pma_index_limit(pma);
+    int l = toku_pma_index_limit(pma);
     int r = random()%l;
     /* For now a simple implementation where we simply start at the beginning and look. */
     for (i=0; i<l; i++) {
@@ -225,7 +225,7 @@ static int pma_count_finds=0;
 static int pma_count_divides=0;
 static int pma_count_scans=0;
 
-void pma_show_stats (void) {
+void toku_pma_show_stats (void) {
     printf("%d finds, %d divides, %d scans\n", pma_count_finds, pma_count_divides, pma_count_scans);
 }
 
@@ -354,14 +354,14 @@ static int __pma_dup_search(PMA pma, DBT *k, DBT *v, DB *db, int lo, int hi, int
 }
 
 // Return the smallest index such that no lower index contains a larger key.
-// This will be in the range 0 (inclusive) to  pma_index_limit(pma) (inclusive).
-// Thus the returned index may not be a valid index into the array if it is == pma_index_limit(pma)
+// This will be in the range 0 (inclusive) to  toku_pma_index_limit(pma) (inclusive).
+// Thus the returned index may not be a valid index into the array if it is == toku_pma_index_limit(pma)
 // For example: if the array is empty, that means we return 0.
-// For example: if the array is full of small keys, that means we return pma_index_limit(pma), which is off the end of teh array.
+// For example: if the array is full of small keys, that means we return toku_pma_index_limit(pma), which is off the end of teh array.
 // For example: if the array is full of large keys, then we return 0.
-int pmainternal_find (PMA pma, DBT *k, DB *db) {
+int toku_pmainternal_find (PMA pma, DBT *k, DB *db) {
 #if 1
-    int lo=0, hi=pma_index_limit(pma);
+    int lo=0, hi=toku_pma_index_limit(pma);
     /* lo and hi are the minimum and maximum values (inclusive) that we could possibly return. */
     pma_count_finds++;
     while (lo<hi) {
@@ -398,10 +398,10 @@ int pmainternal_find (PMA pma, DBT *k, DB *db) {
     }
     assert(0<=lo);
     assert(lo==hi);
-    assert(hi <= pma_index_limit(pma));
+    assert(hi <= toku_pma_index_limit(pma));
 #if 0
     /* If lo points at something, the something should not be smaller than key. */
-    if (lo>0 && lo < pma_index_limit(pma) && pma->pairs[lo]) {
+    if (lo>0 && lo < toku_pma_index_limit(pma) && pma->pairs[lo]) {
 	//printf("lo=%d\n", lo);
 	DBT k2;
 	assert(0 >= pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[lo]->key, pma->pairs[lo]->keylen)));
@@ -412,7 +412,7 @@ int pmainternal_find (PMA pma, DBT *k, DB *db) {
     int found, lo;
 
     lo = __pma_search(pma, k, db, 0, pma->N, &found);
-    if (lo>0 && lo < pma_index_limit(pma) && pma->pairs[lo]) {
+    if (lo>0 && lo < toku_pma_index_limit(pma) && pma->pairs[lo]) {
 	//printf("lo=%d\n", lo);
 	DBT k2;
 	assert(0 >= pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[lo]->key, pma->pairs[lo]->keylen)));
@@ -425,7 +425,7 @@ int pmainternal_find (PMA pma, DBT *k, DB *db) {
 //int max (int i, int j) { if (i<j) return j; else return i; }
 //double lg (int n) { return log((double)n)/log(2.0); }
 
-int pmainternal_printpairs (struct kv_pair *pairs[], int N) {
+int toku_pmainternal_printpairs (struct kv_pair *pairs[], int N) {
     int count=0;
     int i;
     printf("{");
@@ -441,10 +441,10 @@ int pmainternal_printpairs (struct kv_pair *pairs[], int N) {
     return count;
 }
 
-void print_pma (PMA pma) {
+void toku_print_pma (PMA pma) {
     int count;
-    printf("N=%d n_present=%d ", pma_index_limit(pma), pma->n_pairs_present);
-    count=pmainternal_printpairs(pma->pairs, pma_index_limit(pma));
+    printf("N=%d n_present=%d ", toku_pma_index_limit(pma), pma->n_pairs_present);
+    count=toku_pmainternal_printpairs(pma->pairs, toku_pma_index_limit(pma));
     printf("\n");
     assert(count==pma->n_pairs_present);
 }
@@ -476,7 +476,7 @@ static int distribute_data (struct kv_pair *destpairs[], int   dcount,
 
 /* spread the non-empty pairs around.  There are n of them.  Create an empty slot just before the IDXth
    element, and return that slot's index in the smoothed array. */
-int pmainternal_smooth_region (struct kv_pair *pairs[], int n, int idx, int base, PMA pma) {
+int toku_pmainternal_smooth_region (struct kv_pair *pairs[], int n, int idx, int base, PMA pma) {
     int i;
     int n_present=0;
     for (i=0; i<n; i++) {
@@ -532,8 +532,8 @@ int toku_lg (int n) {
 }
 
 /* Calculate densitysteps and uplgN, given N. */
-void pmainternal_calculate_parameters (PMA pma) {
-    int N = pma_index_limit(pma);
+void toku_pmainternal_calculate_parameters (PMA pma) {
+    int N = toku_pma_index_limit(pma);
     int lgN = toku_lg(N);
     int n_divisions=0;
     //printf("N=%d lgN=%d\n", N, lgN);
@@ -548,7 +548,7 @@ void pmainternal_calculate_parameters (PMA pma) {
     pma->ldt_step = (PMA_LDT_HIGH - PMA_LDT_LOW)/n_divisions;
 }
 
-int pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi) {
+int toku_pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi) {
     int n=0;
     while (lo<hi) {
 	if (kv_pair_inuse(pairs[lo])) n++;
@@ -557,7 +557,7 @@ int pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi) {
     return n;
 }
 
-int pma_create(PMA *pma, pma_compare_fun_t compare_fun, int maxsize) {
+int toku_pma_create(PMA *pma, pma_compare_fun_t compare_fun, int maxsize) {
     int error;
     TAGMALLOC(PMA, result);
     if (result==0) return -1;
@@ -612,28 +612,28 @@ static int __pma_resize_array(PMA pma, int asksize, int startz) {
     for (i=startz; i<pma->N; i++) {
         pma->pairs[i] = 0;
     }
-    pmainternal_calculate_parameters(pma);
+    toku_pmainternal_calculate_parameters(pma);
     return 0;
 }
 
-int pma_set_compare(PMA pma, pma_compare_fun_t compare_fun) {
+int toku_pma_set_compare(PMA pma, pma_compare_fun_t compare_fun) {
     pma->compare_fun = compare_fun;
     return 0;
 }
 
-int pma_set_dup_mode(PMA pma, int dup_mode) {
+int toku_pma_set_dup_mode(PMA pma, int dup_mode) {
     assert(dup_mode == 0 || dup_mode == TOKU_DB_DUP || dup_mode == (TOKU_DB_DUP+TOKU_DB_DUPSORT));
     pma->dup_mode = dup_mode;
     return 0;
 }
 
-int pma_set_dup_compare(PMA pma, pma_compare_fun_t dup_compare_fun) {
+int toku_pma_set_dup_compare(PMA pma, pma_compare_fun_t dup_compare_fun) {
     assert(pma->dup_mode & TOKU_DB_DUPSORT);
     pma->dup_compare_fun = dup_compare_fun;
     return 0;
 }
 
-int pma_cursor (PMA pma, PMA_CURSOR *cursp) {
+int toku_pma_cursor (PMA pma, PMA_CURSOR *cursp) {
     PMA_CURSOR MALLOC(curs);
     assert(curs!=0);
     if (errno!=0) return errno;
@@ -646,12 +646,12 @@ int pma_cursor (PMA pma, PMA_CURSOR *cursp) {
     return 0;
 }
 
-int pma_cursor_get_pma(PMA_CURSOR c, PMA *pmap) {
+int toku_pma_cursor_get_pma(PMA_CURSOR c, PMA *pmap) {
     *pmap = c->pma;
     return 0;
 }
 
-int pma_cursor_set_position_last (PMA_CURSOR c) {
+int toku_pma_cursor_set_position_last (PMA_CURSOR c) {
     PMA pma = c->pma;
     int result = 0;
     int old_position = c->position;
@@ -670,7 +670,7 @@ int pma_cursor_set_position_last (PMA_CURSOR c) {
     return result;
 }
 
-int pma_cursor_set_position_prev (PMA_CURSOR c) {
+int toku_pma_cursor_set_position_prev (PMA_CURSOR c) {
     PMA pma = c->pma;
     int old_position = c->position;
     c->position--;
@@ -685,7 +685,7 @@ int pma_cursor_set_position_prev (PMA_CURSOR c) {
     return DB_NOTFOUND;
 }
 
-int pma_cursor_set_position_first (PMA_CURSOR c) {
+int toku_pma_cursor_set_position_first (PMA_CURSOR c) {
     PMA pma = c->pma;
     int result = 0;
     int old_position = c->position;
@@ -704,7 +704,7 @@ int pma_cursor_set_position_first (PMA_CURSOR c) {
     return result;
 }
     
-int pma_cursor_set_position_next (PMA_CURSOR c) {
+int toku_pma_cursor_set_position_next (PMA_CURSOR c) {
     PMA pma = c->pma;
     int old_position=c->position;
     c->position++;
@@ -719,7 +719,7 @@ int pma_cursor_set_position_next (PMA_CURSOR c) {
     return DB_NOTFOUND;
 }
 
-int pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val) {
+int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val) {
     if (c->position == -1)
         return DB_NOTFOUND;
     PMA pma = c->pma;
@@ -731,14 +731,14 @@ int pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val) {
     return 0;
 }
 
-int pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db) {
+int toku_pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db) {
     PMA pma = c->pma;
     int here, found;
     if (pma->dup_mode & TOKU_DB_DUP) {
         here = __pma_left_search(pma, key, db, 0, pma->N, &found);
     } else
-        here = pmainternal_find(pma, key, db);
-    assert(0<=here ); assert(here<=pma_index_limit(pma));
+        here = toku_pmainternal_find(pma, key, db);
+    assert(0<=here ); assert(here<=toku_pma_index_limit(pma));
     int r = DB_NOTFOUND;
     if (here < pma->N) {
         DBT k2;
@@ -753,10 +753,10 @@ int pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db) {
     return r;
 }
 
-int pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val, DB *db) {
+int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val, DB *db) {
     PMA pma = c->pma;
-    int here = pmainternal_find(pma, key, db);
-    assert(0<=here ); assert(here<=pma_index_limit(pma));
+    int here = toku_pmainternal_find(pma, key, db);
+    assert(0<=here ); assert(here<=toku_pma_index_limit(pma));
     int r = DB_NOTFOUND;
     if (here < pma->N) {
         DBT k2, v2;
@@ -772,14 +772,14 @@ int pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val, DB *db) {
     return r;
 }
 
-int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db) {
+int toku_pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db) {
     PMA pma = c->pma;
     int here, found;
     if (pma->dup_mode & TOKU_DB_DUP)
         here = __pma_left_search(pma, key, db, 0, pma->N, &found);
     else
-        here = pmainternal_find(pma, key, db);
-    assert(0<=here ); assert(here<=pma_index_limit(pma));
+        here = toku_pmainternal_find(pma, key, db);
+    assert(0<=here ); assert(here<=toku_pma_index_limit(pma));
 
     /* find the first valid pair where key[here] >= key */
     int r = DB_NOTFOUND;
@@ -796,7 +796,7 @@ int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db) {
     return r;
 }
 
-int pma_cursor_delete_under(PMA_CURSOR c, int *kvsize) {
+int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize) {
     int r = DB_NOTFOUND;
     if (c->position >= 0) {
         PMA pma = c->pma;
@@ -812,7 +812,7 @@ int pma_cursor_delete_under(PMA_CURSOR c, int *kvsize) {
     return r;
 }
 
-int pma_cursor_free (PMA_CURSOR *cursp) {
+int toku_pma_cursor_free (PMA_CURSOR *cursp) {
     PMA_CURSOR curs=*cursp;
     PMA pma = curs->pma;
     list_remove(&curs->next);
@@ -829,7 +829,7 @@ int pma_cursor_free (PMA_CURSOR *cursp) {
 
 /* Make some space for a key to go at idx (the thing currently at idx should end up at to the right.) */
 /* Return the new index.  (Making space may involve moving things around, including the hole at index.) */
-int pmainternal_make_space_at (PMA pma, int idx) {
+int toku_pmainternal_make_space_at (PMA pma, int idx) {
     /* Within a range LO to HI we have a limit of how much packing we will tolerate.
      * We allow the entire array to be 50% full.
      * We allow a region of size lgN to be full.
@@ -845,23 +845,23 @@ int pmainternal_make_space_at (PMA pma, int idx) {
 	hi=idx+size/2;
 	//printf("lo=%d hi=%d\n", lo, hi);
 	if (lo<0) { hi-=lo; lo=0; }
-	else if (hi>pma_index_limit(pma)) { lo-=(hi-pma_index_limit(pma)); hi=pma_index_limit(pma); }
+	else if (hi>toku_pma_index_limit(pma)) { lo-=(hi-toku_pma_index_limit(pma)); hi=toku_pma_index_limit(pma); }
 	else { ; /* nothing */ }
 	
 	//printf("lo=%d hi=%d\n", lo, hi);
-	assert(0<=lo); assert(lo<hi); assert(hi<=pma_index_limit(pma)); assert(hi-lo==size); // separate into separate assertions so that gcov doesn't see branches not taken.
+	assert(0<=lo); assert(lo<hi); assert(hi<=toku_pma_index_limit(pma)); assert(hi-lo==size); // separate into separate assertions so that gcov doesn't see branches not taken.
 	assert(udt>0.499); assert(udt<=1);
-	if (udt<0.5001) { assert(lo==0); assert(hi==pma_index_limit(pma)); }
+	if (udt<0.5001) { assert(lo==0); assert(hi==toku_pma_index_limit(pma)); }
 	{
 	    int count = (1+ /* Don't forget space for the new guy. */
-			 pmainternal_count_region(pma->pairs, lo, hi));
+			 toku_pmainternal_count_region(pma->pairs, lo, hi));
             double density = (double) count / (double) (hi - lo);
 	    if (density <= udt) 
                 break;
-	    if (lo==0 && hi==pma_index_limit(pma)) {
+	    if (lo==0 && hi==toku_pma_index_limit(pma)) {
 		/* The array needs to be doubled in size. */
 
-		assert(size==pma_index_limit(pma));
+		assert(size==toku_pma_index_limit(pma));
 		size*=2;
 
                 // printf("pma_make_space_realloc %d to %d hi %d\n", pma->N, size, hi);
@@ -877,20 +877,20 @@ int pmainternal_make_space_at (PMA pma, int idx) {
     }
     //printf("%s:%d Smoothing from %d to %d to density %f\n", __FILE__, __LINE__, lo, hi, density);
     {
-	int new_index = pmainternal_smooth_region(pma->pairs+lo, hi-lo, idx-lo, lo, pma);
+	int new_index = toku_pmainternal_smooth_region(pma->pairs+lo, hi-lo, idx-lo, lo, pma);
 
 	return new_index+lo;
     }
 }
 
-enum pma_errors pma_lookup (PMA pma, DBT *k, DBT *v, DB *db) {
+enum pma_errors toku_pma_lookup (PMA pma, DBT *k, DBT *v, DB *db) {
     int here, found;
     if (pma->dup_mode & TOKU_DB_DUP) {
         here = __pma_left_search(pma, k, db, 0, pma->N, &found);
     } else
-        here = pmainternal_find(pma, k, db);
-    assert(0<=here ); assert(here<=pma_index_limit(pma));
-    if (here==pma_index_limit(pma)) return DB_NOTFOUND;
+        here = toku_pmainternal_find(pma, k, db);
+    assert(0<=here ); assert(here<=toku_pma_index_limit(pma));
+    if (here==toku_pma_index_limit(pma)) return DB_NOTFOUND;
     DBT k2;
     struct kv_pair *pair;
     pair = pma->pairs[here];
@@ -903,7 +903,7 @@ enum pma_errors pma_lookup (PMA pma, DBT *k, DBT *v, DB *db) {
 
 /* returns 0 if OK.
  * You must have freed all the cursors, otherwise returns nonzero and does nothing. */
-int pma_free (PMA *pmap) {
+int toku_pma_free (PMA *pmap) {
     int i;
     PMA pma=*pmap;
     if (!list_empty(&pma->cursors)) 
@@ -935,7 +935,7 @@ int pma_free (PMA *pmap) {
 
 /* Copies keylen and datalen */ 
 /* returns an error if the key is already present. */
-int pma_insert (PMA pma, DBT *k, DBT *v, DB* db, TOKUTXN txn, DISKOFF diskoff, u_int32_t rand4fingerprint, u_int32_t *fingerprint) {
+int toku_pma_insert (PMA pma, DBT *k, DBT *v, DB* db, TOKUTXN txn, DISKOFF diskoff, u_int32_t rand4fingerprint, u_int32_t *fingerprint) {
     int found, idx;
 
     if (pma->dup_mode & TOKU_DB_DUPSORT) {
@@ -947,8 +947,8 @@ int pma_insert (PMA pma, DBT *k, DBT *v, DB* db, TOKUTXN txn, DISKOFF diskoff, u
         if (found)
             idx += 1;
     } else {
-        idx = pmainternal_find(pma, k, db);
-        if (idx < pma_index_limit(pma) && pma->pairs[idx]) {
+        idx = toku_pmainternal_find(pma, k, db);
+        if (idx < toku_pma_index_limit(pma) && pma->pairs[idx]) {
             DBT k2;
             struct kv_pair *kv = kv_pair_ptr(pma->pairs[idx]);
             if (0==pma->compare_fun(db, k, fill_dbt(&k2, kv->key, kv->keylen))) {
@@ -965,7 +965,7 @@ int pma_insert (PMA pma, DBT *k, DBT *v, DB* db, TOKUTXN txn, DISKOFF diskoff, u
         }
     }
     if (kv_pair_inuse(pma->pairs[idx])) {
-        idx = pmainternal_make_space_at (pma, idx); /* returns the new idx. */
+        idx = toku_pmainternal_make_space_at (pma, idx); /* returns the new idx. */
     }
     assert(0 <= idx && idx < pma->N);
     assert(!kv_pair_inuse(pma->pairs[idx]));
@@ -1020,7 +1020,7 @@ static int pma_delete_dup (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_
 }
 
 static int pma_delete_nodup (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
-    int idx = pmainternal_find(pma, k, db);
+    int idx = toku_pmainternal_find(pma, k, db);
     struct kv_pair *kv = pma->pairs[idx];
     if (!kv_pair_valid(kv)) {
         if (0) printf("%s:%d l=%d r=%d\n", __FILE__, __LINE__, idx, DB_NOTFOUND);
@@ -1034,7 +1034,7 @@ static int pma_delete_nodup (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int3
     return BRT_OK;
 }
 
-int pma_delete (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
+int toku_pma_delete (PMA pma, DBT *k, DB *db, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
     u_int32_t my_deleted_size;
     if (!deleted_size)
         deleted_size = &my_deleted_size;
@@ -1093,7 +1093,7 @@ static void __pma_delete_at(PMA pma, int here) {
         assert(lo <= hi);
 
         /* compute the density of the region */
-        count = pmainternal_count_region(pma->pairs, lo, hi);
+        count = toku_pmainternal_count_region(pma->pairs, lo, hi);
         density = (double) count / ((double) (hi - lo));
 
         /* rebalance if the density exceeds the lower threadshold */
@@ -1129,7 +1129,7 @@ static void __pma_delete_at(PMA pma, int here) {
     toku_free(newpairs);
 }
 
-int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
+int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 			   int *replaced_v_size, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
 			   DB *db, TOKUTXN txn, DISKOFF diskoff,
 			   u_int32_t rand4fingerprint, u_int32_t *fingerprint) {
@@ -1145,9 +1145,9 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
         if (found)
             idx += 1;
     } else {
-        idx = pmainternal_find(pma, k, db);
+        idx = toku_pmainternal_find(pma, k, db);
         struct kv_pair *kv;
-        if (idx < pma_index_limit(pma) && (kv = pma->pairs[idx])) {
+        if (idx < toku_pma_index_limit(pma) && (kv = pma->pairs[idx])) {
             DBT k2;
             // printf("%s:%d\n", __FILE__, __LINE__);
             kv = kv_pair_ptr(kv);
@@ -1172,7 +1172,7 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
         }
     }
     if (kv_pair_inuse(pma->pairs[idx])) {
-        idx = pmainternal_make_space_at (pma, idx); /* returns the new idx. */
+        idx = toku_pmainternal_make_space_at (pma, idx); /* returns the new idx. */
     }
     assert(!kv_pair_inuse(pma->pairs[idx]));
     //printf("%s:%d v->size=%d\n", __FILE__, __LINE__, v->size);
@@ -1186,9 +1186,9 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     return r;
 }
 
-void pma_iterate (PMA pma, void(*f)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*v) {
+void toku_pma_iterate (PMA pma, void(*f)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*v) {
     int i;
-    for (i=0; i<pma_index_limit(pma); i++) {
+    for (i=0; i<toku_pma_index_limit(pma); i++) {
         struct kv_pair *pair = pma->pairs[i];
         if (pair) {
             f(pair->key, pair->keylen,
@@ -1307,7 +1307,7 @@ static int __pma_compare_kv(PMA pma, struct kv_pair *a, struct kv_pair *b, DB *d
     return cmp;
 }
 
-int pma_split(PMA origpma, unsigned int *origpma_size, DBT *splitk, DB *db,
+int toku_pma_split(PMA origpma, unsigned int *origpma_size, DBT *splitk, DB *db,
               PMA leftpma,  unsigned int *leftpma_size,  u_int32_t leftrand4fp,  u_int32_t *leftfingerprint,
               PMA rightpma, unsigned int *rightpma_size, u_int32_t rightrand4fp, u_int32_t *rightfingerprint) {
     int error;
@@ -1321,14 +1321,14 @@ int pma_split(PMA origpma, unsigned int *origpma_size, DBT *splitk, DB *db,
     struct list cursors;
 
     /* extract the pairs */
-    npairs = pma_n_entries(origpma);
+    npairs = toku_pma_n_entries(origpma);
     if (npairs == 0) {
         if (splitk)
             memset(splitk, 0, sizeof *splitk);
         return 0;
     }
-    assert(pma_n_entries(leftpma) == 0);
-    assert(pma_n_entries(rightpma) == 0);
+    assert(toku_pma_n_entries(leftpma) == 0);
+    assert(toku_pma_n_entries(rightpma) == 0);
 
     /* TODO move pairs to the stack */
     pairs = __pma_extract_pairs(origpma, npairs, 0, origpma->N);
@@ -1402,7 +1402,7 @@ int pma_split(PMA origpma, unsigned int *origpma_size, DBT *splitk, DB *db,
     n = spliti;
     error = __pma_resize_array(leftpma, n + n/4, 0);
     assert(error == 0);
-    distribute_data(leftpma->pairs, pma_index_limit(leftpma), &pairs[0], n, leftpma);
+    distribute_data(leftpma->pairs, toku_pma_index_limit(leftpma), &pairs[0], n, leftpma);
 #if PMA_USE_MEMPOOL
     __pma_relocate_kvpairs(leftpma);
 #endif
@@ -1413,7 +1413,7 @@ int pma_split(PMA origpma, unsigned int *origpma_size, DBT *splitk, DB *db,
     n = npairs - spliti;
     error = __pma_resize_array(rightpma, n + n/4, 0);
     assert(error == 0);
-    distribute_data(rightpma->pairs, pma_index_limit(rightpma), &pairs[spliti], n, rightpma);
+    distribute_data(rightpma->pairs, toku_pma_index_limit(rightpma), &pairs[spliti], n, rightpma);
 #if PMA_USE_MEMPOOL
     __pma_relocate_kvpairs(rightpma);
 #endif
@@ -1440,7 +1440,7 @@ static void __pma_bulk_cleanup(struct pma *pma, struct kv_pair_tag *pairs, int n
             pma_mfree_kv_pair(pma, pairs[i].pair);
 }
 
-int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4fp, u_int32_t *sum) {
+int toku_pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4fp, u_int32_t *sum) {
     struct kv_pair_tag *newpairs;
     int i;
     int error;
@@ -1450,7 +1450,7 @@ int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t ran
         return 0;
     if (!list_empty(&pma->cursors))
         return -1;
-    if (pma_n_entries(pma) > 0)
+    if (toku_pma_n_entries(pma) > 0)
         return -2;
 
     /* TODO put newpairs on the stack */
@@ -1480,7 +1480,7 @@ int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t ran
         toku_free(newpairs);
         error = -5; return error;
     }
-    distribute_data(pma->pairs, pma_index_limit(pma), newpairs, n_newpairs, pma);
+    distribute_data(pma->pairs, toku_pma_index_limit(pma), newpairs, n_newpairs, pma);
     pma->n_pairs_present = n_newpairs;
 
     toku_free(newpairs);
@@ -1493,7 +1493,7 @@ int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t ran
  * no duplications, duplicates, sorted duplicates.
  */
 
-void pma_verify(PMA pma, DB *db) {
+void toku_pma_verify(PMA pma, DB *db) {
     int i;
     struct kv_pair *kv;
     
@@ -1543,7 +1543,7 @@ void pma_verify(PMA pma, DB *db) {
 #endif
 }
 
-void pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint) {
+void toku_pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint) {
     u_int32_t actual_fingerprint=0;
     PMA_ITERATE(pma, kv, kl, dv, dl,
 		actual_fingerprint+=rand4fingerprint*toku_calccrc32_kvpair(kv,kl,dv,dl)

@@ -25,35 +25,35 @@ static void test_make_space_at (void) {
     key = "B";
     key_B = kv_pair_malloc(key, strlen(key)+1, 0, 0);
 
-    r=pma_create(&pma, toku_default_compare_fun, 0);
+    r=toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(r==0);
-    assert(pma_n_entries(pma)==0);
-    r=pmainternal_make_space_at(pma, 2);
-    assert(pma_index_limit(pma)==4);
-    assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
-    print_pma(pma);
+    assert(toku_pma_n_entries(pma)==0);
+    r=toku_pmainternal_make_space_at(pma, 2);
+    assert(toku_pma_index_limit(pma)==4);
+    assert((unsigned long)pma->pairs[toku_pma_index_limit(pma)]==0xdeadbeefL);
+    toku_print_pma(pma);
 
     pma->pairs[2] = key_A;
     pma->n_pairs_present++;
-    r=pmainternal_make_space_at(pma,2);
+    r=toku_pmainternal_make_space_at(pma,2);
     printf("Requested space at 2, got space at %d\n", r);
-    print_pma(pma);    
+    toku_print_pma(pma);    
     assert(pma->pairs[r]==0);
-    assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
+    assert((unsigned long)pma->pairs[toku_pma_index_limit(pma)]==0xdeadbeefL);
 
-    assert(pma_index_limit(pma)==4);
+    assert(toku_pma_index_limit(pma)==4);
     pma->pairs[0] = key_A;
     pma->pairs[1] = key_B;
     pma->pairs[2] = 0;
     pma->pairs[3] = 0;
     pma->n_pairs_present=2;
-    print_pma(pma);    
-    r=pmainternal_make_space_at(pma,0);
+    toku_print_pma(pma);    
+    r=toku_pmainternal_make_space_at(pma,0);
     printf("Requested space at 0, got space at %d\n", r);
-    print_pma(pma);
-    assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL); // make sure it doesn't go off the end.
+    toku_print_pma(pma);
+    assert((unsigned long)pma->pairs[toku_pma_index_limit(pma)]==0xdeadbeefL); // make sure it doesn't go off the end.
 
-    assert(pma_index_limit(pma)==8);
+    assert(toku_pma_index_limit(pma)==8);
     pma->pairs[0] = key_A; 
     pma->pairs[1] = 0;
     pma->pairs[2] = 0;
@@ -63,13 +63,13 @@ static void test_make_space_at (void) {
     pma->pairs[6] = 0;
     pma->pairs[7] = 0;
     pma->n_pairs_present=2;
-    print_pma(pma);
-    r=pmainternal_make_space_at(pma,5);
-    print_pma(pma);
+    toku_print_pma(pma);
+    r=toku_pmainternal_make_space_at(pma,5);
+    toku_print_pma(pma);
     printf("r=%d\n", r);
     {
 	int i;
-	for (i=0; i<pma_index_limit(pma); i++) {
+	for (i=0; i<toku_pma_index_limit(pma); i++) {
 	    if (pma->pairs[i]) {
 		assert(i<r);
             pma->pairs[i] = 0;
@@ -77,7 +77,7 @@ static void test_make_space_at (void) {
 	}
     }
     pma->n_pairs_present = 0;
-    r=pma_free(&pma); assert(r==0);
+    r=toku_pma_free(&pma); assert(r==0);
     assert(pma==0);
     kv_pair_free(key_A);
     kv_pair_free(key_B);
@@ -94,31 +94,31 @@ static void test_pma_find (void) {
     // All that is needed to test pma_find is N and pairs.
     pma->N = N;
     for (i=0; i<N; i++) pma->pairs[i]=0;
-    assert(pma_index_limit(pma)==N);
+    assert(toku_pma_index_limit(pma)==N);
     pma->compare_fun = toku_default_compare_fun;
-    r=pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
+    r=toku_pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
     assert(r==0);
 
     pma->pairs[5] = kv_pair_malloc("hello", 5, 0, 0);
-    assert(pma_index_limit(pma)==N);
-    r=pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
-    assert(pma_index_limit(pma)==N);
+    assert(toku_pma_index_limit(pma)==N);
+    r=toku_pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
+    assert(toku_pma_index_limit(pma)==N);
     assert(r==5);
-    r=pmainternal_find(pma, fill_dbt(&k, "there", 5), 0);
+    r=toku_pmainternal_find(pma, fill_dbt(&k, "there", 5), 0);
     assert(r==6);
-    r=pmainternal_find(pma, fill_dbt(&k, "aaa", 3), 0);
+    r=toku_pmainternal_find(pma, fill_dbt(&k, "aaa", 3), 0);
     assert(r==0);
 
     pma->pairs[N-1] = kv_pair_malloc("there", 5, 0, 0);
-    r=pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
+    r=toku_pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
     assert(r==5);
-    r=pmainternal_find(pma, fill_dbt(&k, "there", 5), 0);
+    r=toku_pmainternal_find(pma, fill_dbt(&k, "there", 5), 0);
     assert(r==N-1);
-    r=pmainternal_find(pma, fill_dbt(&k, "aaa", 3), 0);
+    r=toku_pmainternal_find(pma, fill_dbt(&k, "aaa", 3), 0);
     assert(r==0);
-    r=pmainternal_find(pma, fill_dbt(&k, "hellob", 6), 0);
+    r=toku_pmainternal_find(pma, fill_dbt(&k, "hellob", 6), 0);
     assert(r==6);
-    r=pmainternal_find(pma, fill_dbt(&k, "zzz", 3), 0);
+    r=toku_pmainternal_find(pma, fill_dbt(&k, "zzz", 3), 0);
     assert(r==N);
 
     for (i=0; i<N; i++)
@@ -156,9 +156,9 @@ void test_smooth_region_N (int N) {
 		    pairs[j] = 0;
 		}
 	    }
-	    pmainternal_printpairs(pairs, N); printf(" at %d becomes f", insertat);
-	    r = pmainternal_smooth_region(pairs, N, insertat, 0, 0);
-	    pmainternal_printpairs(pairs, N); printf(" at %d\n", r);
+	    toku_pmainternal_printpairs(pairs, N); printf(" at %d becomes f", insertat);
+	    r = toku_pmainternal_smooth_region(pairs, N, insertat, 0, 0);
+	    toku_pmainternal_printpairs(pairs, N); printf(" at %d\n", r);
 	    assert(0<=r); assert(r<N);
 	    assert(pairs[r]==0);
 	    /* Now verify that things are in the right place:
@@ -198,7 +198,7 @@ void test_smooth_region6 (void) {
     key = "B";
     pairs[1] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
 
-    int r = pmainternal_smooth_region(pairs, N, 2, 0, 0);
+    int r = toku_pmainternal_smooth_region(pairs, N, 2, 0, 0);
     printf("{ ");
     for (i=0; i<N; i++)
         printf("%s ", pairs[i] ? pairs[i]->key : "?");
@@ -218,8 +218,8 @@ static void test_smooth_region (void) {
 
 static void test_calculate_parameters (void) {
     struct pma pma;
-    pma.N=4; pmainternal_calculate_parameters(&pma); assert(pma.uplgN==2); assert(pma.udt_step==0.5);
-    pma.N=8; pmainternal_calculate_parameters(&pma); assert(pma.uplgN==4); assert(pma.udt_step==0.5);
+    pma.N=4; toku_pmainternal_calculate_parameters(&pma); assert(pma.uplgN==2); assert(pma.udt_step==0.5);
+    pma.N=8; toku_pmainternal_calculate_parameters(&pma); assert(pma.uplgN==4); assert(pma.udt_step==0.5);
     
 }
 
@@ -231,21 +231,21 @@ static void test_count_region (void) {
     
     for (i=0; i<N; i++)
         pairs[i] = 0;
-    assert(pmainternal_count_region(pairs,0,4)==0);
-    assert(pmainternal_count_region(pairs,2,4)==0);
-    assert(pmainternal_count_region(pairs,0,2)==0);
+    assert(toku_pmainternal_count_region(pairs,0,4)==0);
+    assert(toku_pmainternal_count_region(pairs,2,4)==0);
+    assert(toku_pmainternal_count_region(pairs,0,2)==0);
     key = "A";
     pairs[2] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
-    assert(pmainternal_count_region(pairs,0,4)==1);
-    assert(pmainternal_count_region(pairs,2,4)==1);
-    assert(pmainternal_count_region(pairs,0,2)==0);
-    assert(pmainternal_count_region(pairs,2,2)==0);
-    assert(pmainternal_count_region(pairs,2,3)==1);
+    assert(toku_pmainternal_count_region(pairs,0,4)==1);
+    assert(toku_pmainternal_count_region(pairs,2,4)==1);
+    assert(toku_pmainternal_count_region(pairs,0,2)==0);
+    assert(toku_pmainternal_count_region(pairs,2,2)==0);
+    assert(toku_pmainternal_count_region(pairs,2,3)==1);
     key = "B";
     pairs[3] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
     key = "a";
     pairs[0] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
-    assert(pmainternal_count_region(pairs,0,4)==3);
+    assert(toku_pmainternal_count_region(pairs,0,4)==3);
     for (i=0; i<N; i++)
         if (pairs[i])
             kv_pair_free(pairs[i]);
@@ -261,24 +261,24 @@ void add_fingerprint_and_check(u_int32_t rand4fingerprint, u_int32_t actual_fing
 static void do_insert (PMA pma, const void *key, int keylen, const void *data, int datalen, u_int32_t rand4fingerprint, u_int32_t *sum, u_int32_t *expect_fingerprint) {
     DBT k,v;
     assert(*sum==*expect_fingerprint);
-    int r = pma_insert(pma, fill_dbt(&k, key, keylen), fill_dbt(&v, data, datalen), NULL_ARGS, rand4fingerprint, sum);
+    int r = toku_pma_insert(pma, fill_dbt(&k, key, keylen), fill_dbt(&v, data, datalen), NULL_ARGS, rand4fingerprint, sum);
     assert(r==BRT_OK);
     add_fingerprint_and_check(rand4fingerprint, *sum, expect_fingerprint, key, keylen, data, datalen);
-    pma_verify_fingerprint(pma, rand4fingerprint, *sum);
+    toku_pma_verify_fingerprint(pma, rand4fingerprint, *sum);
 }
 
 static void do_delete (PMA pma, const void *key, int keylen, const void *data, int datalen, u_int32_t rand4fingerprint, u_int32_t *sum, u_int32_t *expect_fingerprint) {
     DBT k;
     assert(*sum==*expect_fingerprint);
-    int r = pma_delete(pma, fill_dbt(&k, key, keylen), 0, rand4fingerprint, sum, 0);
+    int r = toku_pma_delete(pma, fill_dbt(&k, key, keylen), 0, rand4fingerprint, sum, 0);
     assert(r==BRT_OK);
     add_fingerprint_and_check(-rand4fingerprint, *sum, expect_fingerprint, key, keylen, data, datalen); // negative rand4 means subtract.
-    pma_verify_fingerprint(pma, rand4fingerprint, *sum);
+    toku_pma_verify_fingerprint(pma, rand4fingerprint, *sum);
 }
 
 static void test_pma_random_pick (void) {
     PMA pma;
-    int r = pma_create(&pma, toku_default_compare_fun, 0);
+    int r = toku_pma_create(&pma, toku_default_compare_fun, 0);
     bytevec key,val;
     ITEMLEN keylen,vallen;
     DBT k;
@@ -287,28 +287,28 @@ static void test_pma_random_pick (void) {
     u_int32_t expect_fingerprint = 0;
 
     assert(r==0);
-    r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
+    r = toku_pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==DB_NOTFOUND);
     do_insert(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint);
-    pma_verify_fingerprint(pma, rand4fingerprint, sum);
+    toku_pma_verify_fingerprint(pma, rand4fingerprint, sum);
 
-    r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
+    r = toku_pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==0);
     assert(keylen==6); assert(vallen==6);
     assert(strcmp(key,"hello")==0);
     assert(strcmp(val,"there")==0);
-    r = pma_delete(pma, fill_dbt(&k, "nothello", 9), 0, rand4fingerprint, &sum, 0);
+    r = toku_pma_delete(pma, fill_dbt(&k, "nothello", 9), 0, rand4fingerprint, &sum, 0);
     assert(r==DB_NOTFOUND);
     assert(sum==expect_fingerprint); // didn't change because nothing was deleted.
 
     do_delete(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint);
 
-    r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
+    r = toku_pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==DB_NOTFOUND);
     
     do_insert(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint);
 
-    r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
+    r = toku_pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==0);
     assert(keylen==6); assert(vallen==6);
     assert(strcmp(key,"hello")==0);
@@ -321,7 +321,7 @@ static void test_pma_random_pick (void) {
     do_insert(pma, "aae", 4, "ethere", 7, rand4fingerprint, &sum, &expect_fingerprint);
     do_insert(pma, "aaf", 4, "fthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
     do_insert(pma, "aag", 4, "gthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
-    pma_verify_fingerprint(pma, rand4fingerprint, sum);
+    toku_pma_verify_fingerprint(pma, rand4fingerprint, sum);
     do_delete(pma, "aaa", 4, "athere", 7, rand4fingerprint, &sum, &expect_fingerprint);
     do_delete(pma, "aab", 4, "bthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
     do_delete(pma, "aac", 4, "cthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
@@ -331,13 +331,13 @@ static void test_pma_random_pick (void) {
     do_delete(pma, "aag", 4, "gthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
     do_delete(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint);
    
-    r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
+    r = toku_pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==0);
     assert(keylen==4); assert(vallen==7);
     assert(strcmp(key,"aaf")==0);
     assert(strcmp(val,"fthere")==0);
-    pma_verify_fingerprint(pma, rand4fingerprint, sum);
-    r=pma_free(&pma); assert(r==0);
+    toku_pma_verify_fingerprint(pma, rand4fingerprint, sum);
+    r=toku_pma_free(&pma); assert(r==0);
     assert(pma==0);
 }
 
@@ -351,14 +351,14 @@ static void test_find_insert (void) {
     u_int32_t expect_fingerprint = 0;
 
 
-    pma_create(&pma, toku_default_compare_fun, 0);
-    r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
+    toku_pma_create(&pma, toku_default_compare_fun, 0);
+    r=toku_pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==DB_NOTFOUND);
 
     do_insert(pma, "aaa", 3, "aaadata", 7, rand4fingerprint, &sum, &expect_fingerprint);
 
     init_dbt(&v);
-    r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
+    r=toku_pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==BRT_OK);
     assert(v.size==7);
     assert(toku_keycompare(v.data,v.size,"aaadata", 7)==0);
@@ -367,23 +367,23 @@ static void test_find_insert (void) {
     do_insert(pma, "bbb", 4, "bbbdata", 8, rand4fingerprint, &sum, &expect_fingerprint);
 
     init_dbt(&v);
-    r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
+    r=toku_pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==BRT_OK);
     assert(toku_keycompare(v.data,v.size,"aaadata", 7)==0);
 
     init_dbt(&v);
-    r=pma_lookup(pma, fill_dbt(&k, "bbb", 4), &v, 0);
+    r=toku_pma_lookup(pma, fill_dbt(&k, "bbb", 4), &v, 0);
     assert(r==BRT_OK);
     assert(toku_keycompare(v.data,v.size,"bbbdata", 8)==0);
 
-    assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
+    assert((unsigned long)pma->pairs[toku_pma_index_limit(pma)]==0xdeadbeefL);
     
     do_insert(pma, "00000", 6, "d0", 3, rand4fingerprint, &sum, &expect_fingerprint);
 
-    assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
+    assert((unsigned long)pma->pairs[toku_pma_index_limit(pma)]==0xdeadbeefL);
 
-    r=pma_free(&pma); assert(r==0); assert(pma==0);
-    pma_create(&pma, toku_default_compare_fun, 0); assert(pma!=0);
+    r=toku_pma_free(&pma); assert(r==0); assert(pma==0);
+    toku_pma_create(&pma, toku_default_compare_fun, 0); assert(pma!=0);
 
     rand4fingerprint = random();
     sum = expect_fingerprint = 0;
@@ -399,7 +399,7 @@ static void test_find_insert (void) {
 	    do_insert(pma, string, strlen(string)+1, dstring, strlen(dstring)+1,  rand4fingerprint, &sum, &expect_fingerprint);
 	}
     }
-    r=pma_free(&pma); assert(r==0); assert(pma==0);
+    r=toku_pma_free(&pma); assert(r==0); assert(pma==0);
 }
 
 static int tpi_k,tpi_v;
@@ -413,7 +413,7 @@ static void do_sum_em (bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen,
 
 static void test_pma_iterate_internal (PMA pma, int expected_k, int expected_v) {
     tpi_k=tpi_v=0;
-    pma_iterate(pma, do_sum_em, (void*)0xdeadbeefL);
+    toku_pma_iterate(pma, do_sum_em, (void*)0xdeadbeefL);
     assert(tpi_k==expected_k);
     assert(tpi_v==expected_v);
 }
@@ -426,13 +426,13 @@ static void test_pma_iterate (void) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    pma_create(&pma, toku_default_compare_fun, 0);
+    toku_pma_create(&pma, toku_default_compare_fun, 0);
     do_insert(pma, "42", 3, "-19", 4, rand4fingerprint, &sum, &expect_fingerprint);
     test_pma_iterate_internal(pma, 42, -19);
 
     do_insert(pma, "12", 3, "-100", 5, rand4fingerprint, &sum, &expect_fingerprint);
     test_pma_iterate_internal(pma, 42+12, -19-100);
-    r=pma_free(&pma); assert(r==0); assert(pma==0);
+    r=toku_pma_free(&pma); assert(r==0); assert(pma==0);
 }
 
 static void test_pma_iterate2 (void) {
@@ -449,8 +449,8 @@ static void test_pma_iterate2 (void) {
     u_int32_t sum1 = 0;
     u_int32_t expect_fingerprint1 = 0;
 
-    r=pma_create(&pma0, toku_default_compare_fun, 0); assert(r==0);
-    r=pma_create(&pma1, toku_default_compare_fun, 0); assert(r==0);
+    r=toku_pma_create(&pma0, toku_default_compare_fun, 0); assert(r==0);
+    r=toku_pma_create(&pma1, toku_default_compare_fun, 0); assert(r==0);
     do_insert(pma0, "a", 2, "aval", 5, rand4fingerprint0, &sum0, &expect_fingerprint0);
     do_insert(pma0, "b", 2, "bval", 5, rand4fingerprint0, &sum0, &expect_fingerprint0);
     do_insert(pma1, "x", 2, "xval", 5, rand4fingerprint1, &sum1, &expect_fingerprint1);
@@ -458,8 +458,8 @@ static void test_pma_iterate2 (void) {
     PMA_ITERATE(pma1,kv __attribute__((__unused__)),kl,dv __attribute__((__unused__)), dl, (n_items++,sum+=kl+dl));
     assert(sum==21);
     assert(n_items==3);
-    r=pma_free(&pma0); assert(r==0); assert(pma0==0);
-    r=pma_free(&pma1); assert(r==0); assert(pma1==0);
+    r=toku_pma_free(&pma0); assert(r==0); assert(pma0==0);
+    r=toku_pma_free(&pma1); assert(r==0); assert(pma1==0);
 }
 
 /* Check to see if we can create and kill a cursor. */
@@ -467,14 +467,14 @@ void test_pma_cursor_0 (void) {
     PMA pma;
     PMA_CURSOR c=0;
     int r;
-    r=pma_create(&pma, toku_default_compare_fun, 0); assert(r==0);
-    r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
+    r=toku_pma_create(&pma, toku_default_compare_fun, 0); assert(r==0);
+    r=toku_pma_cursor(pma, &c); assert(r==0); assert(c!=0);
     printf("%s:%d\n", __FILE__, __LINE__);
-    r=pma_free(&pma);      assert(r!=0); /* didn't deallocate the cursor. */
+    r=toku_pma_free(&pma);      assert(r!=0); /* didn't deallocate the cursor. */
     printf("%s:%d\n", __FILE__, __LINE__);
-    r=pma_cursor_free(&c); assert(r==0);
+    r=toku_pma_cursor_free(&c); assert(r==0);
     printf("%s:%d\n", __FILE__, __LINE__);
-    r=pma_free(&pma); assert(r==0); /* did deallocate the cursor. */    
+    r=toku_pma_free(&pma); assert(r==0); /* did deallocate the cursor. */    
 }
 
 /* Make sure we can free the cursors in any order.  There is a doubly linked list of cursors
@@ -485,27 +485,27 @@ void test_pma_cursor_1 (void) {
     int r;
     int order;
     for (order=0; order<6; order++) {
-	r=pma_create(&pma, toku_default_compare_fun, 0); assert(r==0);
-	r=pma_cursor(pma, &c0); assert(r==0); assert(c0!=0);
-	r=pma_cursor(pma, &c1); assert(r==0); assert(c1!=0);
-	r=pma_cursor(pma, &c2); assert(r==0); assert(c2!=0);
+	r=toku_pma_create(&pma, toku_default_compare_fun, 0); assert(r==0);
+	r=toku_pma_cursor(pma, &c0); assert(r==0); assert(c0!=0);
+	r=toku_pma_cursor(pma, &c1); assert(r==0); assert(c1!=0);
+	r=toku_pma_cursor(pma, &c2); assert(r==0); assert(c2!=0);
 
-	r=pma_free(&pma); assert(r!=0);
+	r=toku_pma_free(&pma); assert(r!=0);
 
-	if (order<2)      { r=pma_cursor_free(&c0); assert(r==0);  c0=c1; c1=c2; }
-	else if (order<4) { r=pma_cursor_free(&c1); assert(r==0);  c1=c2; }
-	else 	          { r=pma_cursor_free(&c2); assert(r==0); }
+	if (order<2)      { r=toku_pma_cursor_free(&c0); assert(r==0);  c0=c1; c1=c2; }
+	else if (order<4) { r=toku_pma_cursor_free(&c1); assert(r==0);  c1=c2; }
+	else 	          { r=toku_pma_cursor_free(&c2); assert(r==0); }
 
-	r=pma_free(&pma); assert(r!=0);
+	r=toku_pma_free(&pma); assert(r!=0);
 
-	if (order%2==0) { r=pma_cursor_free(&c0); assert(r==0);  c0=c1; }
-	else            { r=pma_cursor_free(&c1); assert(r==0); }
+	if (order%2==0) { r=toku_pma_cursor_free(&c0); assert(r==0);  c0=c1; }
+	else            { r=toku_pma_cursor_free(&c1); assert(r==0); }
 	
-	r=pma_free(&pma); assert(r!=0);
+	r=toku_pma_free(&pma); assert(r!=0);
 
-	r = pma_cursor_free(&c0); assert(r==0);
+	r = toku_pma_cursor_free(&c0); assert(r==0);
 	
-	r=pma_free(&pma); assert(r==0);
+	r=toku_pma_free(&pma); assert(r==0);
     }
 }
 
@@ -516,11 +516,11 @@ void test_pma_cursor_2 (void) {
     DBT key,val;
     init_dbt(&key); key.flags=DB_DBT_REALLOC;
     init_dbt(&val); val.flags=DB_DBT_REALLOC;
-    r=pma_create(&pma, toku_default_compare_fun, 0); assert(r==0);
-    r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
-    r=pma_cursor_set_position_last(c); assert(r==DB_NOTFOUND);
-    r=pma_cursor_free(&c); assert(r==0);
-    r=pma_free(&pma); assert(r==0);
+    r=toku_pma_create(&pma, toku_default_compare_fun, 0); assert(r==0);
+    r=toku_pma_cursor(pma, &c); assert(r==0); assert(c!=0);
+    r=toku_pma_cursor_set_position_last(c); assert(r==DB_NOTFOUND);
+    r=toku_pma_cursor_free(&c); assert(r==0);
+    r=toku_pma_free(&pma); assert(r==0);
 }
 
 void test_pma_cursor_3 (void) {
@@ -533,44 +533,44 @@ void test_pma_cursor_3 (void) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    r=pma_create(&pma, toku_default_compare_fun, 0); assert(r==0);
+    r=toku_pma_create(&pma, toku_default_compare_fun, 0); assert(r==0);
     do_insert(pma, "x",  2, "xx", 3, rand4fingerprint, &sum, &expect_fingerprint);
     do_insert(pma, "m",  2, "mm", 3, rand4fingerprint, &sum, &expect_fingerprint);
     do_insert(pma, "aa", 3, "a",  2, rand4fingerprint, &sum, &expect_fingerprint);
     init_dbt(&key); key.flags=DB_DBT_REALLOC;
     init_dbt(&val); val.flags=DB_DBT_REALLOC;
-    r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
+    r=toku_pma_cursor(pma, &c); assert(r==0); assert(c!=0);
 
-    r=pma_cursor_set_position_first(c); assert(r==0);
-    r=pma_cursor_get_current(c, &key, &val); assert(r==0);
+    r=toku_pma_cursor_set_position_first(c); assert(r==0);
+    r=toku_pma_cursor_get_current(c, &key, &val); assert(r==0);
     assert(key.size=3); assert(memcmp(key.data,"aa",3)==0);
     assert(val.size=2); assert(memcmp(val.data,"a",2)==0);
 
-    r=pma_cursor_set_position_next(c); assert(r==0);
-    r=pma_cursor_get_current(c, &key, &val); assert(r==0);
+    r=toku_pma_cursor_set_position_next(c); assert(r==0);
+    r=toku_pma_cursor_get_current(c, &key, &val); assert(r==0);
     assert(key.size=2); assert(memcmp(key.data,"m",2)==0);
     assert(val.size=3); assert(memcmp(val.data,"mm",3)==0);
     
-    r=pma_cursor_set_position_next(c); assert(r==0);
-    r=pma_cursor_get_current(c, &key, &val); assert(r==0);
+    r=toku_pma_cursor_set_position_next(c); assert(r==0);
+    r=toku_pma_cursor_get_current(c, &key, &val); assert(r==0);
     assert(key.size=2); assert(memcmp(key.data,"x",2)==0);
     assert(val.size=3); assert(memcmp(val.data,"xx",3)==0);
     
-    r=pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
+    r=toku_pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
 
     /* After an error, the cursor should still point at the same thing. */
-    r=pma_cursor_get_current(c, &key, &val); assert(r==0);
+    r=toku_pma_cursor_get_current(c, &key, &val); assert(r==0);
     assert(key.size=2); assert(memcmp(key.data,"x",2)==0);
     assert(val.size=3); assert(memcmp(val.data,"xx",3)==0);
 
 
-    r=pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
+    r=toku_pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
 
     toku_free(key.data);
     toku_free(val.data);
 
-    r=pma_cursor_free(&c); assert(r==0);
-    r=pma_free(&pma); assert(r==0);
+    r=toku_pma_cursor_free(&c); assert(r==0);
+    r=toku_pma_free(&pma); assert(r==0);
 
 }
 
@@ -580,7 +580,7 @@ void assert_cursor_val(PMA_CURSOR cursor, int v) {
 
     init_dbt(&key); key.flags = DB_DBT_MALLOC;
     init_dbt(&val); val.flags = DB_DBT_MALLOC;
-    error = pma_cursor_get_current(cursor, &key, &val);
+    error = toku_pma_cursor_get_current(cursor, &key, &val);
     assert(error == 0);
     assert( v == *(int *)val.data);
     toku_free(key.data);
@@ -599,7 +599,7 @@ void test_pma_cursor_4 (void) {
     u_int32_t expect_fingerprint = 0;
 
     printf("test_pma_cursor_4\n");
-    error = pma_create(&pma, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(error == 0);
 
     for (i=1; i<=4; i += 1) {
@@ -609,27 +609,27 @@ void test_pma_cursor_4 (void) {
         v = i;
 	do_insert(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
-    assert(pma_n_entries(pma) == 4);
-    printf("a:"); print_pma(pma);
+    assert(toku_pma_n_entries(pma) == 4);
+    printf("a:"); toku_print_pma(pma);
 
-    error = pma_cursor(pma, &cursora);
+    error = toku_pma_cursor(pma, &cursora);
     assert(error == 0);
-    error = pma_cursor_set_position_first(cursora);
+    error = toku_pma_cursor_set_position_first(cursora);
     assert(error == 0);
     assert_cursor_val(cursora, 1);
 
-    error = pma_cursor(pma, &cursorb);
+    error = toku_pma_cursor(pma, &cursorb);
     assert(error == 0);
-    error = pma_cursor_set_position_first(cursorb);
+    error = toku_pma_cursor_set_position_first(cursorb);
     assert(error == 0);
     assert_cursor_val(cursorb, 1);
-    error = pma_cursor_set_position_next(cursorb);
+    error = toku_pma_cursor_set_position_next(cursorb);
     assert(error == 0);
     assert_cursor_val(cursorb, 2);
 
-    error = pma_cursor(pma, &cursorc);
+    error = toku_pma_cursor(pma, &cursorc);
     assert(error == 0);
-    error = pma_cursor_set_position_last(cursorc);
+    error = toku_pma_cursor_set_position_last(cursorc);
     assert(error == 0);
     assert_cursor_val(cursorc, 4);
 
@@ -640,21 +640,21 @@ void test_pma_cursor_4 (void) {
         v = i;
 	do_insert(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
-    assert(pma_n_entries(pma) == 8);
-    printf("a:"); print_pma(pma);
+    assert(toku_pma_n_entries(pma) == 8);
+    printf("a:"); toku_print_pma(pma);
 
     assert_cursor_val(cursora, 1);
     assert_cursor_val(cursorb, 2);
     assert_cursor_val(cursorc, 4);
 
-    error = pma_cursor_free(&cursora);
+    error = toku_pma_cursor_free(&cursora);
     assert(error == 0);
-    error = pma_cursor_free(&cursorb);
+    error = toku_pma_cursor_free(&cursorb);
     assert(error == 0);
-    error = pma_cursor_free(&cursorc);
+    error = toku_pma_cursor_free(&cursorc);
     assert(error == 0);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -668,7 +668,7 @@ void test_pma_cursor_delete(int n) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    error = pma_create(&pma, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(error == 0);
 
     /* insert 1 -> 42 */
@@ -681,22 +681,22 @@ void test_pma_cursor_delete(int n) {
 
     /* point the cursor to the first kv */
     PMA_CURSOR cursor;
-    error = pma_cursor(pma, &cursor);
+    error = toku_pma_cursor(pma, &cursor);
     assert(error == 0);
 
     DBT cursorkey, cursorval;
     init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
     init_dbt(&cursorval); cursorval.flags = DB_DBT_MALLOC;
-    error = pma_cursor_get_current(cursor, &cursorkey, &cursorval);
+    error = toku_pma_cursor_get_current(cursor, &cursorkey, &cursorval);
     assert(error != 0);
 
-    error = pma_cursor_set_position_first(cursor);
+    error = toku_pma_cursor_set_position_first(cursor);
     assert(error == 0);
 
     int kk;
     init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
     init_dbt(&cursorval); cursorval.flags = DB_DBT_MALLOC;
-    error = pma_cursor_get_current(cursor, &cursorkey, &cursorval);
+    error = toku_pma_cursor_get_current(cursor, &cursorkey, &cursorval);
     assert(error == 0);
     assert(cursorkey.size == sizeof kk);
     kk = 0;
@@ -711,17 +711,17 @@ void test_pma_cursor_delete(int n) {
     /* cursor get should fail */
     init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
     init_dbt(&cursorval); cursorval.flags = DB_DBT_MALLOC;
-    error = pma_cursor_get_current(cursor, &cursorkey, &cursorval);
+    error = toku_pma_cursor_get_current(cursor, &cursorkey, &cursorval);
     assert(error != 0);
 
-    error = pma_cursor_set_position_next(cursor);
+    error = toku_pma_cursor_set_position_next(cursor);
     if (n <= 1)
         assert(error != 0);
     else {
         assert(error == 0);
         init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
         init_dbt(&cursorval); cursorval.flags = DB_DBT_MALLOC;
-        error = pma_cursor_get_current(cursor, &cursorkey, &cursorval);
+        error = toku_pma_cursor_get_current(cursor, &cursorkey, &cursorval);
         assert(error == 0);
         assert(cursorkey.size == sizeof kk);
         kk = 1;
@@ -730,10 +730,10 @@ void test_pma_cursor_delete(int n) {
         toku_free(cursorval.data);
     }
 
-    error = pma_cursor_free(&cursor);
+    error = toku_pma_cursor_free(&cursor);
     assert(error == 0);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -776,35 +776,35 @@ void test_pma_compare_fun (int wrong_endian_p) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    r = pma_create(&pma, wrong_endian_p ? wrong_endian_compare_fun : toku_default_compare_fun, 0); assert(r==0);
+    r = toku_pma_create(&pma, wrong_endian_p ? wrong_endian_compare_fun : toku_default_compare_fun, 0); assert(r==0);
     do_insert(pma, "10", 3, "10v", 4, rand4fingerprint, &sum, &expect_fingerprint);
     do_insert(pma, "00", 3, "00v", 4, rand4fingerprint, &sum, &expect_fingerprint);
     do_insert(pma, "01", 3, "01v", 4, rand4fingerprint, &sum, &expect_fingerprint);
     do_insert(pma, "11", 3, "11v", 4, rand4fingerprint, &sum, &expect_fingerprint);
     init_dbt(&key); key.flags=DB_DBT_REALLOC;
     init_dbt(&val); val.flags=DB_DBT_REALLOC;
-    r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
+    r=toku_pma_cursor(pma, &c); assert(r==0); assert(c!=0);
     
     for (i=0; i<4; i++) {
 	if (i==0) {
-	    r=pma_cursor_set_position_first(c); assert(r==0);
+	    r=toku_pma_cursor_set_position_first(c); assert(r==0);
 	} else {
-	    r=pma_cursor_set_position_next(c); assert(r==0);
+	    r=toku_pma_cursor_set_position_next(c); assert(r==0);
 	}
-	r=pma_cursor_get_current(c, &key, &val); assert(r==0);
+	r=toku_pma_cursor_get_current(c, &key, &val); assert(r==0);
 	//printf("Got %s, expect %s\n", (char*)key.data, expected_keys[i]);
 	assert(key.size=3); assert(memcmp(key.data,expected_keys[i],3)==0);
 	assert(val.size=4); assert(memcmp(val.data,expected_keys[i],2)==0);
 	assert(memcmp(2+(char*)val.data,"v",2)==0);
     }
 
-    r=pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
+    r=toku_pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
     
     toku_free(key.data);
     toku_free(val.data);
 
-    r=pma_cursor_free(&c); assert(r==0);
-    r=pma_free(&pma); assert(r==0);
+    r=toku_pma_cursor_free(&c); assert(r==0);
+    r=toku_pma_free(&pma); assert(r==0);
 }
 
 void test_pma_split_n(int n) {
@@ -824,11 +824,11 @@ void test_pma_split_n(int n) {
 
     printf("test_pma_split_n:%d\n", n);
 
-    error = pma_create(&pmaa, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pmaa, toku_default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmab, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pmab, toku_default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmac, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pmac, toku_default_compare_fun, 0);
     assert(error == 0);
 
     /* insert some kv pairs */
@@ -839,34 +839,34 @@ void test_pma_split_n(int n) {
         v = i;
 	do_insert(pmaa, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
 
-        pma_verify(pmaa, null_db);
+        toku_pma_verify(pmaa, null_db);
     }
 
-    printf("a:"); print_pma(pmaa);
+    printf("a:"); toku_print_pma(pmaa);
 
-    error = pma_split(pmaa, 0, 0, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
+    error = toku_pma_split(pmaa, 0, 0, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
     assert(error == 0);
-    pma_verify(pmaa, null_db);
-    pma_verify(pmab, null_db);
-    pma_verify(pmac, null_db);
-    pma_verify_fingerprint(pmab, brand, bsum);
-    pma_verify_fingerprint(pmac, crand, csum);
+    toku_pma_verify(pmaa, null_db);
+    toku_pma_verify(pmab, null_db);
+    toku_pma_verify(pmac, null_db);
+    toku_pma_verify_fingerprint(pmab, brand, bsum);
+    toku_pma_verify_fingerprint(pmac, crand, csum);
 
-    printf("a:"); print_pma(pmaa);
-    na = pma_n_entries(pmaa);
-    printf("b:"); print_pma(pmab);
-    nb = pma_n_entries(pmab);
-    printf("c:"); print_pma(pmac);
-    nc = pma_n_entries(pmac);
+    printf("a:"); toku_print_pma(pmaa);
+    na = toku_pma_n_entries(pmaa);
+    printf("b:"); toku_print_pma(pmab);
+    nb = toku_pma_n_entries(pmab);
+    printf("c:"); toku_print_pma(pmac);
+    nc = toku_pma_n_entries(pmac);
 
     assert(na == 0);
     assert(nb + nc == n);
 
-    error = pma_free(&pmaa);
+    error = toku_pma_free(&pmaa);
     assert(error == 0);
-    error = pma_free(&pmab);
+    error = toku_pma_free(&pmab);
     assert(error == 0);
-    error = pma_free(&pmac);
+    error = toku_pma_free(&pmac);
     assert(error == 0);
 }
 
@@ -887,15 +887,15 @@ void test_pma_dup_split_n(int n, int dup_mode) {
 
     printf("test_pma_dup_split_n:%d %d\n", n, dup_mode);
 
-    error = pma_create(&pmaa, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pmaa, toku_default_compare_fun, 0);
     assert(error == 0);
-    pma_set_dup_mode(pmaa, dup_mode);
-    error = pma_create(&pmab, toku_default_compare_fun, 0);
+    toku_pma_set_dup_mode(pmaa, dup_mode);
+    error = toku_pma_create(&pmab, toku_default_compare_fun, 0);
     assert(error == 0);
-    pma_set_dup_mode(pmab, dup_mode);
-    error = pma_create(&pmac, toku_default_compare_fun, 0);
+    toku_pma_set_dup_mode(pmab, dup_mode);
+    error = toku_pma_create(&pmac, toku_default_compare_fun, 0);
     assert(error == 0);
-    pma_set_dup_mode(pmac, dup_mode);
+    toku_pma_set_dup_mode(pmac, dup_mode);
 
     /* insert some kv pairs */
     int dupkey = random();
@@ -903,27 +903,27 @@ void test_pma_dup_split_n(int n, int dup_mode) {
         int v = i;
     	do_insert(pmaa, &dupkey, sizeof dupkey, &v, sizeof v, rand4sum, &sum, &expect_sum);
 
-        pma_verify(pmaa, null_db);
+        toku_pma_verify(pmaa, null_db);
     }
 
-    printf("a:"); print_pma(pmaa);
+    printf("a:"); toku_print_pma(pmaa);
 
     DBT splitk;
 
-    error = pma_split(pmaa, 0, &splitk, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
+    error = toku_pma_split(pmaa, 0, &splitk, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
     assert(error == 0);
-    pma_verify(pmaa, null_db);
-    pma_verify(pmab, null_db);
-    pma_verify(pmac, null_db);
-    pma_verify_fingerprint(pmab, brand, bsum);
-    pma_verify_fingerprint(pmac, crand, csum);
+    toku_pma_verify(pmaa, null_db);
+    toku_pma_verify(pmab, null_db);
+    toku_pma_verify(pmac, null_db);
+    toku_pma_verify_fingerprint(pmab, brand, bsum);
+    toku_pma_verify_fingerprint(pmac, crand, csum);
 
-    if (0) { printf("a:"); print_pma(pmaa); }
-    na = pma_n_entries(pmaa);
-    if (0) { printf("b:"); print_pma(pmab); }
-    nb = pma_n_entries(pmab);
-    if (0) { printf("c:"); print_pma(pmac); }
-    nc = pma_n_entries(pmac);
+    if (0) { printf("a:"); toku_print_pma(pmaa); }
+    na = toku_pma_n_entries(pmaa);
+    if (0) { printf("b:"); toku_print_pma(pmab); }
+    nb = toku_pma_n_entries(pmab);
+    if (0) { printf("c:"); toku_print_pma(pmac); }
+    nc = toku_pma_n_entries(pmac);
 
     if (na > 0) {
         int kk;
@@ -939,11 +939,11 @@ void test_pma_dup_split_n(int n, int dup_mode) {
     assert(na == 0);
     assert(nb + nc == n);
 
-    error = pma_free(&pmaa);
+    error = toku_pma_free(&pmaa);
     assert(error == 0);
-    error = pma_free(&pmab);
+    error = toku_pma_free(&pmab);
     assert(error == 0);
-    error = pma_free(&pmac);
+    error = toku_pma_free(&pmac);
     assert(error == 0);
 }
 
@@ -966,11 +966,11 @@ void test_pma_split_varkey(void) {
 
     printf("test_pma_split_varkey\n");
 
-    error = pma_create(&pmaa, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pmaa, toku_default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmab, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pmab, toku_default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmac, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pmac, toku_default_compare_fun, 0);
     assert(error == 0);
 
     /* insert some kv pairs */
@@ -980,31 +980,31 @@ void test_pma_split_varkey(void) {
     }
     n = i;
 
-    printf("a:"); print_pma(pmaa);
+    printf("a:"); toku_print_pma(pmaa);
 
-    error = pma_split(pmaa, 0, 0, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
+    error = toku_pma_split(pmaa, 0, 0, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
     assert(error == 0);
-    pma_verify(pmaa, null_db);
-    pma_verify(pmab, null_db);
-    pma_verify(pmac, null_db);
-    pma_verify_fingerprint(pmab, brand, bsum);
-    pma_verify_fingerprint(pmac, crand, csum);
+    toku_pma_verify(pmaa, null_db);
+    toku_pma_verify(pmab, null_db);
+    toku_pma_verify(pmac, null_db);
+    toku_pma_verify_fingerprint(pmab, brand, bsum);
+    toku_pma_verify_fingerprint(pmac, crand, csum);
 
-    printf("a:"); print_pma(pmaa);
-    na = pma_n_entries(pmaa);
-    printf("b:"); print_pma(pmab);
-    nb = pma_n_entries(pmab);
-    printf("c:"); print_pma(pmac);
-    nc = pma_n_entries(pmac);
+    printf("a:"); toku_print_pma(pmaa);
+    na = toku_pma_n_entries(pmaa);
+    printf("b:"); toku_print_pma(pmab);
+    nb = toku_pma_n_entries(pmab);
+    printf("c:"); toku_print_pma(pmac);
+    nc = toku_pma_n_entries(pmac);
 
     assert(na == 0);
     assert(nb + nc == n);
 
-    error = pma_free(&pmaa);
+    error = toku_pma_free(&pmaa);
     assert(error == 0);
-    error = pma_free(&pmab);
+    error = toku_pma_free(&pmab);
     assert(error == 0);
-    error = pma_free(&pmac);
+    error = toku_pma_free(&pmac);
     assert(error == 0);
 }
 
@@ -1015,7 +1015,7 @@ void print_cursor(const char *str, PMA_CURSOR cursor) {
     printf("cursor %s: ", str);
     init_dbt(&key); key.flags = DB_DBT_MALLOC;
     init_dbt(&val); val.flags = DB_DBT_MALLOC;
-    error = pma_cursor_get_current(cursor, &key, &val);
+    error = toku_pma_cursor_get_current(cursor, &key, &val);
     assert(error == 0);
     printf("%s ", (char*)key.data);
     toku_free(key.data);
@@ -1031,13 +1031,13 @@ void walk_cursor(const char *str, PMA_CURSOR cursor) {
     for (;;) {
         init_dbt(&key); key.flags = DB_DBT_MALLOC;
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        error = pma_cursor_get_current(cursor, &key, &val);
+        error = toku_pma_cursor_get_current(cursor, &key, &val);
         assert(error == 0);
         printf("%s ", (char*)key.data);
         toku_free(key.data);
         toku_free(val.data);
 
-        error = pma_cursor_set_position_next(cursor);
+        error = toku_pma_cursor_set_position_next(cursor);
         if (error != 0)
             break;
     }
@@ -1052,13 +1052,13 @@ void walk_cursor_reverse(const char *str, PMA_CURSOR cursor) {
     for (;;) {
         init_dbt(&key); key.flags = DB_DBT_MALLOC;
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        error = pma_cursor_get_current(cursor, &key, &val);
+        error = toku_pma_cursor_get_current(cursor, &key, &val);
         assert(error == 0);
         printf("%s ", (char*)key.data);
         toku_free(key.data);
         toku_free(val.data);
 
-        error = pma_cursor_set_position_prev(cursor);
+        error = toku_pma_cursor_set_position_prev(cursor);
         if (error != 0)
             break;
     }
@@ -1084,11 +1084,11 @@ void test_pma_split_cursor(void) {
 
     printf("test_pma_split_cursor\n");
 
-    error = pma_create(&pmaa, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pmaa, toku_default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmab, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pmab, toku_default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmac, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pmac, toku_default_compare_fun, 0);
     assert(error == 0);
 
     /* insert some kv pairs */
@@ -1100,49 +1100,49 @@ void test_pma_split_cursor(void) {
 
 	do_insert(pmaa, k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
-    assert(pma_n_entries(pmaa) == 16);
-    printf("a:"); print_pma(pmaa);
+    assert(toku_pma_n_entries(pmaa) == 16);
+    printf("a:"); toku_print_pma(pmaa);
 
-    error = pma_cursor(pmaa, &cursora);
+    error = toku_pma_cursor(pmaa, &cursora);
     assert(error == 0);
-    error = pma_cursor_set_position_first(cursora);
+    error = toku_pma_cursor_set_position_first(cursora);
     assert(error == 0);
     // print_cursor("cursora", cursora);
     assert_cursor_val(cursora, 1);
 
-    error = pma_cursor(pmaa, &cursorb);
+    error = toku_pma_cursor(pmaa, &cursorb);
     assert(error == 0);
-    error = pma_cursor_set_position_first(cursorb);
+    error = toku_pma_cursor_set_position_first(cursorb);
     assert(error == 0);
-    error = pma_cursor_set_position_next(cursorb);
+    error = toku_pma_cursor_set_position_next(cursorb);
     assert(error == 0);
     // print_cursor("cursorb", cursorb);
     assert_cursor_val(cursorb, 2);
 
-    error = pma_cursor(pmaa, &cursorc);
+    error = toku_pma_cursor(pmaa, &cursorc);
     assert(error == 0);
-    error = pma_cursor_set_position_last(cursorc);
+    error = toku_pma_cursor_set_position_last(cursorc);
     assert(error == 0);
     // print_cursor("cursorc", cursorc);
     assert_cursor_val(cursorc, 16);
 
-    error = pma_split(pmaa, 0, 0, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
+    error = toku_pma_split(pmaa, 0, 0, null_db, pmab, 0, brand, &bsum, pmac, 0, crand, &csum);
     assert(error == 0);
 
-    pma_verify_fingerprint(pmab, brand, bsum);
-    pma_verify_fingerprint(pmac, crand, csum);
+    toku_pma_verify_fingerprint(pmab, brand, bsum);
+    toku_pma_verify_fingerprint(pmac, crand, csum);
 
-    printf("a:"); print_pma(pmaa);
-    na = pma_n_entries(pmaa);
+    printf("a:"); toku_print_pma(pmaa);
+    na = toku_pma_n_entries(pmaa);
     assert(na == 0);
-    printf("b:"); print_pma(pmab);
-    nb = pma_n_entries(pmab);
-    printf("c:"); print_pma(pmac);
-    nc = pma_n_entries(pmac);
+    printf("b:"); toku_print_pma(pmab);
+    nb = toku_pma_n_entries(pmab);
+    printf("c:"); toku_print_pma(pmac);
+    nc = toku_pma_n_entries(pmac);
     assert(nb + nc == 16);
 
     /* cursors open, should fail */
-    error = pma_free(&pmab);
+    error = toku_pma_free(&pmab);
     assert(error != 0);
 
     /* walk cursora */
@@ -1158,18 +1158,18 @@ void test_pma_split_cursor(void) {
     walk_cursor("cursorc", cursorc);
     walk_cursor_reverse("cursorc reverse", cursorc);
 
-    error = pma_cursor_free(&cursora);
+    error = toku_pma_cursor_free(&cursora);
     assert(error == 0);
-    error = pma_cursor_free(&cursorb);
+    error = toku_pma_cursor_free(&cursorb);
     assert(error == 0);
-    error = pma_cursor_free(&cursorc);
+    error = toku_pma_cursor_free(&cursorc);
     assert(error == 0);
 
-    error = pma_free(&pmaa);
+    error = toku_pma_free(&pmaa);
     assert(error == 0);
-    error = pma_free(&pmab);
+    error = toku_pma_free(&pmab);
     assert(error == 0);
-    error = pma_free(&pmac);
+    error = toku_pma_free(&pmac);
     assert(error == 0);
 }
 
@@ -1188,7 +1188,7 @@ void test_pma_split(void) {
 }
 
 /*
- * test the pma_bulk_insert function by creating n kv pairs and bulk 
+ * test the toku_pma_bulk_insert function by creating n kv pairs and bulk 
  * inserting them into an empty pma.  verify that the pma contains all
  * of the kv pairs.
  */
@@ -1204,7 +1204,7 @@ void test_pma_bulk_insert_n(int n) {
 
     printf("test_pma_bulk_insert_n: %d\n", n);
 
-    error = pma_create(&pma, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(error == 0);
 
     /* init n kv pairs */
@@ -1236,19 +1236,19 @@ void test_pma_bulk_insert_n(int n) {
     }
 
     /* bulk insert n kv pairs */
-    error = pma_bulk_insert(pma, keys, vals, n, rand4fingerprint, &sum);
+    error = toku_pma_bulk_insert(pma, keys, vals, n, rand4fingerprint, &sum);
     assert(error == 0);
     assert(sum==expect_fingerprint);
-    pma_verify(pma, null_db);
-    pma_verify_fingerprint(pma, rand4fingerprint, sum);
+    toku_pma_verify(pma, null_db);
+    toku_pma_verify_fingerprint(pma, rand4fingerprint, sum);
 
     /* verify */
-    if (0) print_pma(pma);
-    assert(n == pma_n_entries(pma));
+    if (0) toku_print_pma(pma);
+    assert(n == toku_pma_n_entries(pma));
     for (i=0; i<n; i++) {
         DBT val;
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        error = pma_lookup(pma, &keys[i], &val, 0);
+        error = toku_pma_lookup(pma, &keys[i], &val, 0);
         assert(error == 0);
         assert(vals[i].size == val.size);
         assert(memcmp(vals[i].data, val.data, val.size) == 0);
@@ -1261,7 +1261,7 @@ void test_pma_bulk_insert_n(int n) {
         toku_free(vals[i].data);
     }
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
     
     toku_free(keys);
@@ -1287,38 +1287,38 @@ void test_pma_insert_or_replace(void) {
     u_int32_t rand4fingerprint = random();
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
-    r = pma_create(&pma, toku_default_compare_fun, 0);
+    r = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(r==0);
-    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "aaa", 4), fill_dbt(&dbtv, "zzz", 4), &n_diff, NULL_ARGS, rand4fingerprint, &sum);
+    r = toku_pma_insert_or_replace(pma, fill_dbt(&dbtk, "aaa", 4), fill_dbt(&dbtv, "zzz", 4), &n_diff, NULL_ARGS, rand4fingerprint, &sum);
     assert(r==0); assert(n_diff==-1);
     add_fingerprint_and_check(rand4fingerprint, sum, &expect_fingerprint, "aaa", 4, "zzz", 4);
 
-    r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
+    r = toku_pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==4); assert(memcmp(dbtv.data, "zzz", 4)==0);
 
-    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "ww", 3), &n_diff, NULL_ARGS, rand4fingerprint, &sum);
+    r = toku_pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "ww", 3), &n_diff, NULL_ARGS, rand4fingerprint, &sum);
     assert(r==0); assert(n_diff==-1);
     add_fingerprint_and_check(rand4fingerprint, sum, &expect_fingerprint, "bbbb", 5, "ww", 3);
 
-    r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
+    r = toku_pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==4); assert(memcmp(dbtv.data, "zzz", 4)==0);
 
-    r = pma_lookup(pma, fill_dbt(&dbtk, "bbbb", 5), init_dbt(&dbtv), 0);
+    r = toku_pma_lookup(pma, fill_dbt(&dbtk, "bbbb", 5), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==3); assert(memcmp(dbtv.data, "ww", 3)==0);
 
     // replae bbbb
-    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "xxxx", 5), &n_diff, NULL_ARGS, rand4fingerprint, &sum);
+    r = toku_pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "xxxx", 5), &n_diff, NULL_ARGS, rand4fingerprint, &sum);
     assert(r==0); assert(n_diff==3);
     expect_fingerprint -= rand4fingerprint*toku_calccrc32_kvpair("bbbb", 5, "ww", 3);
     add_fingerprint_and_check(rand4fingerprint, sum, &expect_fingerprint, "bbbb", 5, "xxxx", 5);
     
-    r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
+    r = toku_pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==4); assert(memcmp(dbtv.data, "zzz", 4)==0);
 
-    r = pma_lookup(pma, fill_dbt(&dbtk, "bbbb", 5), init_dbt(&dbtv), 0);
+    r = toku_pma_lookup(pma, fill_dbt(&dbtk, "bbbb", 5), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==5); assert(memcmp(dbtv.data, "xxxx", 3)==0);
 
-    r=pma_free(&pma);
+    r=toku_pma_free(&pma);
     assert(r==0);
 }
 
@@ -1336,7 +1336,7 @@ void test_pma_delete_shrink(int n) {
 
     printf("test_pma_delete_shrink:%d\n", n);
 
-    r = pma_create(&pma, toku_default_compare_fun, n*(8 + 11 + sizeof (int)));
+    r = toku_pma_create(&pma, toku_default_compare_fun, n*(8 + 11 + sizeof (int)));
     assert(r == 0);
 
     /* insert */
@@ -1360,7 +1360,7 @@ void test_pma_delete_shrink(int n) {
     }
     assert(pma->N == PMA_MIN_ARRAY_SIZE);
 
-    r = pma_free(&pma);
+    r = toku_pma_free(&pma);
     assert(r == 0);
 }
 
@@ -1380,7 +1380,7 @@ void test_pma_delete_random(int n) {
 
     printf("test_pma_delete_random:%d\n", n);
 
-    r = pma_create(&pma, toku_default_compare_fun, n * (8 + 11 + sizeof (int)));
+    r = toku_pma_create(&pma, toku_default_compare_fun, n * (8 + 11 + sizeof (int)));
     assert(r == 0);
 
     for (i=0; i<n; i++) {
@@ -1408,7 +1408,7 @@ void test_pma_delete_random(int n) {
     }
     assert(pma->N == PMA_MIN_ARRAY_SIZE);
 
-    r = pma_free(&pma);
+    r = toku_pma_free(&pma);
     assert(r == 0);
 }
 
@@ -1417,7 +1417,7 @@ void assert_cursor_equal(PMA_CURSOR pmacursor, int v) {
     init_dbt(&key); key.flags = DB_DBT_MALLOC;
     init_dbt(&val); val.flags = DB_DBT_MALLOC;
     int r;
-    r = pma_cursor_get_current(pmacursor, &key, &val);
+    r = toku_pma_cursor_get_current(pmacursor, &key, &val);
     assert(r == 0);
     if (0) printf("key %s\n", (char*) key.data);
     int thev;
@@ -1433,7 +1433,7 @@ void assert_cursor_nokey(PMA_CURSOR pmacursor) {
     init_dbt(&key); key.flags = DB_DBT_MALLOC;
     init_dbt(&val); val.flags = DB_DBT_MALLOC;
     int r;
-    r = pma_cursor_get_current(pmacursor, &key, &val);
+    r = toku_pma_cursor_get_current(pmacursor, &key, &val);
     assert(r != 0);
 }
 
@@ -1454,7 +1454,7 @@ void test_pma_delete_cursor(int n) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    r = pma_create(&pma, toku_default_compare_fun, 0);
+    r = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(r == 0);
 
     int i;
@@ -1469,10 +1469,10 @@ void test_pma_delete_cursor(int n) {
 
     PMA_CURSOR pmacursor;
 
-    r = pma_cursor(pma, &pmacursor);
+    r = toku_pma_cursor(pma, &pmacursor);
     assert(r == 0);
 
-    r = pma_cursor_set_position_last(pmacursor);
+    r = toku_pma_cursor_set_position_last(pmacursor);
     assert(r == 0);
 
     assert_cursor_equal(pmacursor, n-1);
@@ -1490,10 +1490,10 @@ void test_pma_delete_cursor(int n) {
     }
     assert(pma->N == PMA_MIN_ARRAY_SIZE);
 
-    r = pma_cursor_free(&pmacursor);
+    r = toku_pma_cursor_free(&pmacursor);
     assert(r == 0);
 
-    r = pma_free(&pma);
+    r = toku_pma_free(&pma);
     assert(r == 0);
 }
 
@@ -1517,12 +1517,12 @@ void test_pma_delete_insert() {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    error = pma_create(&pma, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(error == 0);
 
     PMA_CURSOR pmacursor;
 
-    error = pma_cursor(pma, &pmacursor);
+    error = toku_pma_cursor(pma, &pmacursor);
     assert(error == 0);
 
     DBT key, val;
@@ -1531,7 +1531,7 @@ void test_pma_delete_insert() {
     k = 1; v = 1;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
 
-    error = pma_cursor_set_position_first(pmacursor);
+    error = toku_pma_cursor_set_position_first(pmacursor);
     assert(error == 0);
     assert_cursor_equal(pmacursor, 1);
 
@@ -1542,17 +1542,17 @@ void test_pma_delete_insert() {
     k = 1;
     fill_dbt(&key, &k, sizeof k);
     init_dbt(&val); val.flags = DB_DBT_MALLOC;
-    error = pma_lookup(pma, &key, &val, 0);
+    error = toku_pma_lookup(pma, &key, &val, 0);
     assert(error != 0);
 
     k = 1; v = 2;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     assert_cursor_equal(pmacursor, 2);
 
-    error = pma_cursor_free(&pmacursor);
+    error = toku_pma_cursor_free(&pmacursor);
     assert(error == 0);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -1566,12 +1566,12 @@ void test_pma_double_delete() {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    error = pma_create(&pma, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(error == 0);
 
     PMA_CURSOR pmacursor;
 
-    error = pma_cursor(pma, &pmacursor);
+    error = toku_pma_cursor(pma, &pmacursor);
     assert(error == 0);
 
     DBT key;
@@ -1580,7 +1580,7 @@ void test_pma_double_delete() {
     k = 1; v = 1;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
 
-    error = pma_cursor_set_position_first(pmacursor);
+    error = toku_pma_cursor_set_position_first(pmacursor);
     assert(error == 0);
     assert_cursor_equal(pmacursor, 1);
 
@@ -1590,14 +1590,14 @@ void test_pma_double_delete() {
 
     k = 1;
     fill_dbt(&key, &k, sizeof k);
-    error = pma_delete(pma, &key, 0, rand4fingerprint, &sum, 0);
+    error = toku_pma_delete(pma, &key, 0, rand4fingerprint, &sum, 0);
     assert(error == DB_NOTFOUND);
     assert(sum == expect_fingerprint);
 
-    error = pma_cursor_free(&pmacursor);
+    error = toku_pma_cursor_free(&pmacursor);
     assert(error == 0);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -1611,7 +1611,7 @@ void test_pma_cursor_first_delete_last() {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    error = pma_create(&pma, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(error == 0);
 
     int k, v;
@@ -1622,29 +1622,29 @@ void test_pma_cursor_first_delete_last() {
         v = i;
 	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
-    assert(pma_n_entries(pma) == 2);
+    assert(toku_pma_n_entries(pma) == 2);
 
     PMA_CURSOR pmacursor;
 
-    error = pma_cursor(pma, &pmacursor);
+    error = toku_pma_cursor(pma, &pmacursor);
     assert(error == 0);
 
-    error = pma_cursor_set_position_first(pmacursor);
+    error = toku_pma_cursor_set_position_first(pmacursor);
     assert(error == 0);
 
     k = htonl(1);
     v = 1;
     do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    assert(pma_n_entries(pma) == 2);
+    assert(toku_pma_n_entries(pma) == 2);
 
-    error = pma_cursor_set_position_last(pmacursor);
+    error = toku_pma_cursor_set_position_last(pmacursor);
     assert(error == 0);
-    assert(pma_n_entries(pma) == 1);
+    assert(toku_pma_n_entries(pma) == 1);
 
-    error = pma_cursor_free(&pmacursor);
+    error = toku_pma_cursor_free(&pmacursor);
     assert(error == 0);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -1658,7 +1658,7 @@ void test_pma_cursor_last_delete_first() {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    error = pma_create(&pma, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(error == 0);
 
     int k, v;
@@ -1669,29 +1669,29 @@ void test_pma_cursor_last_delete_first() {
         v = i;
 	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
-    assert(pma_n_entries(pma) == 2);
+    assert(toku_pma_n_entries(pma) == 2);
 
     PMA_CURSOR pmacursor;
 
-    error = pma_cursor(pma, &pmacursor);
+    error = toku_pma_cursor(pma, &pmacursor);
     assert(error == 0);
 
-    error = pma_cursor_set_position_last(pmacursor);
+    error = toku_pma_cursor_set_position_last(pmacursor);
     assert(error == 0);
 
     k = htonl(2);
     v = 2;
     do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    assert(pma_n_entries(pma) == 2);
+    assert(toku_pma_n_entries(pma) == 2);
 
-    error = pma_cursor_set_position_first(pmacursor);
+    error = toku_pma_cursor_set_position_first(pmacursor);
     assert(error == 0);
-    assert(pma_n_entries(pma) == 1);
+    assert(toku_pma_n_entries(pma) == 1);
 
-    error = pma_cursor_free(&pmacursor);
+    error = toku_pma_cursor_free(&pmacursor);
     assert(error == 0);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -1714,7 +1714,7 @@ void test_pma_already_there() {
     u_int32_t rand4fingerprint = random();
     u_int32_t sum = 0;
 
-    error = pma_create(&pma, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(error == 0);
 
     DBT key, val;
@@ -1723,14 +1723,14 @@ void test_pma_already_there() {
     k = 1; v = 1;
     fill_dbt(&key, &k, sizeof k);
     fill_dbt(&val, &v, sizeof v);
-    error = pma_insert(pma, &key, &val, NULL_ARGS, rand4fingerprint, &sum);
+    error = toku_pma_insert(pma, &key, &val, NULL_ARGS, rand4fingerprint, &sum);
     assert(error == 0);
     u_int32_t savesum = sum;
-    error = pma_insert(pma, &key, &val, NULL_ARGS, rand4fingerprint, &sum);
+    error = toku_pma_insert(pma, &key, &val, NULL_ARGS, rand4fingerprint, &sum);
     assert(error == BRT_ALREADY_THERE);
     assert(sum==savesum);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -1740,7 +1740,7 @@ void test_pma_cursor_set_key() {
     int error;
     PMA pma;
 
-    error = pma_create(&pma, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(error == 0);
 
     DBT key, val;
@@ -1759,17 +1759,17 @@ void test_pma_cursor_set_key() {
     }
 
     PMA_CURSOR cursor;
-    error = pma_cursor(pma, &cursor);
+    error = toku_pma_cursor(pma, &cursor);
     assert(error == 0);
 
     for (i=0; i<n; i += 1) {
         k = htonl(i);
         fill_dbt(&key, &k, sizeof k);
-        error = pma_cursor_set_key(cursor, &key, 0);
+        error = toku_pma_cursor_set_key(cursor, &key, 0);
         if (i % 10 == 0) {
             assert(error == 0);
             init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            error = pma_cursor_get_current(cursor, &key, &val);
+            error = toku_pma_cursor_get_current(cursor, &key, &val);
             assert(error == 0);
             int vv;
             assert(val.size == sizeof vv);
@@ -1780,10 +1780,10 @@ void test_pma_cursor_set_key() {
             assert(error == DB_NOTFOUND);
     }
 
-    error = pma_cursor_free(&cursor);
+    error = toku_pma_cursor_free(&cursor);
     assert(error == 0);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -1800,7 +1800,7 @@ void test_pma_cursor_set_range() {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    error = pma_create(&pma, toku_default_compare_fun, 0);
+    error = toku_pma_create(&pma, toku_default_compare_fun, 0);
     assert(error == 0);
 
     DBT key, val;
@@ -1816,19 +1816,19 @@ void test_pma_cursor_set_range() {
     }
 
     PMA_CURSOR cursor;
-    error = pma_cursor(pma, &cursor);
+    error = toku_pma_cursor(pma, &cursor);
     assert(error == 0);
 
     for (i=0; i<100; i += 1) {
         k = htonl(i);
         fill_dbt(&key, &k, sizeof k);
-        error = pma_cursor_set_range(cursor, &key, 0);
+        error = toku_pma_cursor_set_range(cursor, &key, 0);
         if (error != 0) {
             assert(error == DB_NOTFOUND);
             assert(i > largest_key);
         } else {
             init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            error = pma_cursor_get_current(cursor, &key, &val);
+            error = toku_pma_cursor_get_current(cursor, &key, &val);
             assert(error == 0);
             int vv;
             assert(val.size == sizeof vv);
@@ -1841,10 +1841,10 @@ void test_pma_cursor_set_range() {
         }
     }
 
-    error = pma_cursor_free(&cursor);
+    error = toku_pma_cursor_free(&cursor);
     assert(error == 0);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -1860,17 +1860,17 @@ void test_pma_cursor_delete_under() {
 
     const int n = 1000;
 
-    error = pma_create(&pma, toku_default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
+    error = toku_pma_create(&pma, toku_default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
     assert(error == 0);
 
     PMA_CURSOR cursor;
-    error = pma_cursor(pma, &cursor);
+    error = toku_pma_cursor(pma, &cursor);
     assert(error == 0);
 
     int kvsize;
 
     /* delete under an uninitialized cursor should fail */
-    error = pma_cursor_delete_under(cursor, &kvsize);
+    error = toku_pma_cursor_delete_under(cursor, &kvsize);
     assert(error == DB_NOTFOUND);
 
     DBT key, val;
@@ -1886,14 +1886,14 @@ void test_pma_cursor_delete_under() {
     }
 
     for (i=0;;i++) {
-        error = pma_cursor_set_position_next(cursor);
+        error = toku_pma_cursor_set_position_next(cursor);
         if (error != 0) {
             assert(error == DB_NOTFOUND);
             break;
         } 
         init_dbt(&key); key.flags = DB_DBT_MALLOC;
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        error = pma_cursor_get_current(cursor, &key, &val);
+        error = toku_pma_cursor_get_current(cursor, &key, &val);
         assert(error == 0);
         int vv;
         assert(val.size == sizeof vv);
@@ -1903,20 +1903,20 @@ void test_pma_cursor_delete_under() {
         toku_free(val.data);
 
         /* delete under should succeed */
-        error = pma_cursor_delete_under(cursor, &kvsize);
+        error = toku_pma_cursor_delete_under(cursor, &kvsize);
         assert(error == 0);
 
         /* 2nd delete under should fail */
-        error = pma_cursor_delete_under(cursor, &kvsize);
+        error = toku_pma_cursor_delete_under(cursor, &kvsize);
         assert(error == DB_NOTFOUND);
     }
     assert(i == n);
 
-    error = pma_cursor_free(&cursor);
+    error = toku_pma_cursor_free(&cursor);
     assert(error == 0);
-    assert(pma_n_entries(pma) == 0);
+    assert(toku_pma_n_entries(pma) == 0);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -1932,11 +1932,11 @@ void test_pma_cursor_set_both() {
 
     const int n = 1000;
 
-    error = pma_create(&pma, toku_default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
+    error = toku_pma_create(&pma, toku_default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
     assert(error == 0);
 
     PMA_CURSOR cursor;
-    error = pma_cursor(pma, &cursor);
+    error = toku_pma_cursor(pma, &cursor);
     assert(error == 0);
 
     DBT key, val;
@@ -1955,7 +1955,7 @@ void test_pma_cursor_set_both() {
     k = n+1; v = 0;
     fill_dbt(&key, &k, sizeof k); 
     fill_dbt(&val, &v, sizeof v);
-    error = pma_cursor_set_both(cursor, &key, &val, 0);
+    error = toku_pma_cursor_set_both(cursor, &key, &val, 0);
     assert(error == DB_NOTFOUND);
     
     /* key match, data mismatch should fail */
@@ -1964,7 +1964,7 @@ void test_pma_cursor_set_both() {
         v = i+1;
         fill_dbt(&key, &k, sizeof k); 
         fill_dbt(&val, &v, sizeof v);
-        error = pma_cursor_set_both(cursor, &key, &val, 0);
+        error = toku_pma_cursor_set_both(cursor, &key, &val, 0);
         assert(error == DB_NOTFOUND);
     }
 
@@ -1974,12 +1974,12 @@ void test_pma_cursor_set_both() {
         v = i;
         fill_dbt(&key, &k, sizeof k); 
         fill_dbt(&val, &v, sizeof v);
-        error = pma_cursor_set_both(cursor, &key, &val, 0);
+        error = toku_pma_cursor_set_both(cursor, &key, &val, 0);
         assert(error == 0);
 
         init_dbt(&key); key.flags = DB_DBT_MALLOC;
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        error = pma_cursor_get_current(cursor, &key, &val);
+        error = toku_pma_cursor_get_current(cursor, &key, &val);
         assert(error == 0);
         int vv;
         assert(val.size == sizeof vv);
@@ -1989,10 +1989,10 @@ void test_pma_cursor_set_both() {
         toku_free(val.data);
     }
 
-    error = pma_cursor_free(&cursor);
+    error = toku_pma_cursor_free(&cursor);
     assert(error == 0);
 
-    error = pma_free(&pma);
+    error = toku_pma_free(&pma);
     assert(error == 0);
 }
 
@@ -2007,7 +2007,7 @@ void test_nodup_key_insert(int n) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    r = pma_create(&pma, toku_default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
+    r = toku_pma_create(&pma, toku_default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
     assert(r == 0);
 
     /* insert 0->0, 0->1, .. 0->n-1 */
@@ -2019,7 +2019,7 @@ void test_nodup_key_insert(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        r = pma_insert(pma, &key, &val, NULL_ARGS, rand4fingerprint, &sum);
+        r = toku_pma_insert(pma, &key, &val, NULL_ARGS, rand4fingerprint, &sum);
         if (i == 0) {
             assert(r == 0);
 	    add_fingerprint_and_check(rand4fingerprint, sum, &expect_fingerprint, &k, sizeof k, &v, sizeof v);
@@ -2029,7 +2029,7 @@ void test_nodup_key_insert(int n) {
 	}
     }
 
-    r = pma_free(&pma);
+    r = toku_pma_free(&pma);
     assert(r == 0);
 }
 
@@ -2044,11 +2044,11 @@ void test_dup_key_insert(int n) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    r = pma_create(&pma, toku_default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
+    r = toku_pma_create(&pma, toku_default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
     assert(r == 0);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
 
-    r = pma_set_dup_mode(pma, TOKU_DB_DUP);
+    r = toku_pma_set_dup_mode(pma, TOKU_DB_DUP);
     assert(r == 0);
 
 
@@ -2058,10 +2058,10 @@ void test_dup_key_insert(int n) {
     /* insert 1->1, 3->3 */
     k = htonl(1); v = 1;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
     k = htonl(3); v = 3;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
 
     int i;
     /* insert 2->0, 2->1, .. 2->n-1 */
@@ -2069,17 +2069,17 @@ void test_dup_key_insert(int n) {
         k = htonl(2);
         v = i;
 	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-        pma_verify(pma, null_db);
+        toku_pma_verify(pma, null_db);
     }
 
     /* cursor walk from key k should find values 0, 1, .. n-1 */
     PMA_CURSOR cursor;
-    r = pma_cursor(pma, &cursor);
+    r = toku_pma_cursor(pma, &cursor);
     assert(r == 0);
 
     k = htonl(2);
     fill_dbt(&key, &k, sizeof k);
-    r = pma_cursor_set_key(cursor, &key, 0);
+    r = toku_pma_cursor_set_key(cursor, &key, 0);
     if (r != 0) {
         assert(n == 0);
     } else {
@@ -2087,7 +2087,7 @@ void test_dup_key_insert(int n) {
         while (1) {
             init_dbt(&key); key.flags = DB_DBT_MALLOC;
             init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            r = pma_cursor_get_current(cursor, &key, &val);
+            r = toku_pma_cursor_get_current(cursor, &key, &val);
             assert(r == 0);
             int kk;
             assert(key.size == sizeof kk);
@@ -2106,17 +2106,17 @@ void test_dup_key_insert(int n) {
 
             i += 1;
 
-            r = pma_cursor_set_position_next(cursor);
+            r = toku_pma_cursor_set_position_next(cursor);
             if (r != 0)
                 break;
         }
         assert(i == n);
     }
 
-    r = pma_cursor_free(&cursor);
+    r = toku_pma_cursor_free(&cursor);
     assert(r == 0);
 
-    r = pma_free(&pma);
+    r = toku_pma_free(&pma);
     assert(r == 0);
 }
 
@@ -2131,15 +2131,15 @@ void test_dup_key_delete(int n, int mode) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    r = pma_create(&pma, toku_default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
+    r = toku_pma_create(&pma, toku_default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
     assert(r == 0);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
 
-    r = pma_set_dup_mode(pma, mode);
+    r = toku_pma_set_dup_mode(pma, mode);
     assert(r == 0);
 
     if (mode & TOKU_DB_DUPSORT) {
-        r = pma_set_dup_compare(pma, toku_default_compare_fun);
+        r = toku_pma_set_dup_compare(pma, toku_default_compare_fun);
         assert(r == 0);
     }
 
@@ -2149,10 +2149,10 @@ void test_dup_key_delete(int n, int mode) {
     /* insert 1->1, 3->3 */
     k = htonl(1); v = 1;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
     k = htonl(3); v = 3;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
 
     u_int32_t sum_before_all_the_duplicates = sum;
     int i;
@@ -2161,23 +2161,23 @@ void test_dup_key_delete(int n, int mode) {
         k = htonl(2);
         v = i;
 	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-        pma_verify(pma, null_db);
+        toku_pma_verify(pma, null_db);
     }
 
     k = htonl(2);
-    r = pma_delete(pma, fill_dbt(&key, &k, sizeof k), null_db, rand4fingerprint, &sum, 0);
+    r = toku_pma_delete(pma, fill_dbt(&key, &k, sizeof k), null_db, rand4fingerprint, &sum, 0);
     if (r != 0) assert(n == 0);
     expect_fingerprint = sum_before_all_the_duplicates;
     assert(sum == expect_fingerprint);
-    pma_verify(pma, null_db);
-    pma_verify_fingerprint(pma, rand4fingerprint, sum);
+    toku_pma_verify(pma, null_db);
+    toku_pma_verify_fingerprint(pma, rand4fingerprint, sum);
 
     /* cursor walk should find keys 1, 3 */
     PMA_CURSOR cursor;
-    r = pma_cursor(pma, &cursor);
+    r = toku_pma_cursor(pma, &cursor);
     assert(r == 0);
 
-    r = pma_cursor_set_position_first(cursor);
+    r = toku_pma_cursor_set_position_first(cursor);
     assert(r == 0);
 
     int kk, vv;
@@ -2185,7 +2185,7 @@ void test_dup_key_delete(int n, int mode) {
     k = htonl(1); v = 1;
     init_dbt(&key); key.flags = DB_DBT_MALLOC;
     init_dbt(&val); val.flags = DB_DBT_MALLOC;
-    r = pma_cursor_get_current(cursor, &key, &val);
+    r = toku_pma_cursor_get_current(cursor, &key, &val);
     assert(r == 0);
     assert(key.size == sizeof kk);
     memcpy(&kk, key.data, key.size);
@@ -2196,13 +2196,13 @@ void test_dup_key_delete(int n, int mode) {
     toku_free(key.data);
     toku_free(val.data);
 
-    r = pma_cursor_set_position_next(cursor);
+    r = toku_pma_cursor_set_position_next(cursor);
     assert(r == 0);
 
     k = htonl(3); v = 3;
     init_dbt(&key); key.flags = DB_DBT_MALLOC;
     init_dbt(&val); val.flags = DB_DBT_MALLOC;
-    r = pma_cursor_get_current(cursor, &key, &val);
+    r = toku_pma_cursor_get_current(cursor, &key, &val);
     assert(r == 0);
     assert(key.size == sizeof kk);
     memcpy(&kk, key.data, key.size);
@@ -2213,10 +2213,10 @@ void test_dup_key_delete(int n, int mode) {
     toku_free(key.data);
     toku_free(val.data);
 
-    r = pma_cursor_free(&cursor);
+    r = toku_pma_cursor_free(&cursor);
     assert(r == 0);
 
-    r = pma_free(&pma);
+    r = toku_pma_free(&pma);
     assert(r == 0);
 }
 
@@ -2232,14 +2232,14 @@ void test_dupsort_key_insert(int n, int dup_data) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    r = pma_create(&pma, toku_default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
+    r = toku_pma_create(&pma, toku_default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
     assert(r == 0);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
 
-    r = pma_set_dup_mode(pma, TOKU_DB_DUP+TOKU_DB_DUPSORT);
+    r = toku_pma_set_dup_mode(pma, TOKU_DB_DUP+TOKU_DB_DUPSORT);
     assert(r == 0);
 
-    r = pma_set_dup_compare(pma, toku_default_compare_fun);
+    r = toku_pma_set_dup_compare(pma, toku_default_compare_fun);
     assert(r == 0);
 
     DBT key, val;
@@ -2248,10 +2248,10 @@ void test_dupsort_key_insert(int n, int dup_data) {
     /* insert 1->1, 3->3 */
     k = htonl(1); v = 1;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
     k = htonl(3); v = 3;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
 
     k = htonl(2);
     int values[n];
@@ -2262,16 +2262,16 @@ void test_dupsort_key_insert(int n, int dup_data) {
     /* insert 2->n-i */
     for (i=0; i<n; i++) {
 	do_insert(pma, &k, sizeof k, &values[i], sizeof values[i], rand4fingerprint, &sum, &expect_fingerprint);
-        pma_verify(pma, null_db);
+        toku_pma_verify(pma, null_db);
     }
 
     /* cursor walk from key k should find values 0, 1, .. n-1 */
     PMA_CURSOR cursor;
-    r = pma_cursor(pma, &cursor);
+    r = toku_pma_cursor(pma, &cursor);
     assert(r == 0);
 
     fill_dbt(&key, &k, sizeof k);
-    r = pma_cursor_set_key(cursor, &key, 0);
+    r = toku_pma_cursor_set_key(cursor, &key, 0);
     if (r != 0) {
         assert(n == 0);
     } else {
@@ -2283,7 +2283,7 @@ void test_dupsort_key_insert(int n, int dup_data) {
         while (1) {
             init_dbt(&key); key.flags = DB_DBT_MALLOC;
             init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            r = pma_cursor_get_current(cursor, &key, &val);
+            r = toku_pma_cursor_get_current(cursor, &key, &val);
             assert(r == 0);
             int kk;
             assert(key.size == sizeof kk);
@@ -2302,17 +2302,17 @@ void test_dupsort_key_insert(int n, int dup_data) {
 
             i += 1;
 
-            r = pma_cursor_set_position_next(cursor);
+            r = toku_pma_cursor_set_position_next(cursor);
             if (r != 0)
                 break;
         }
         assert(i == n);
     }
 
-    r = pma_cursor_free(&cursor);
+    r = toku_pma_cursor_free(&cursor);
     assert(r == 0);
 
-    r = pma_free(&pma);
+    r = toku_pma_free(&pma);
     assert(r == 0);
 }
 
@@ -2326,15 +2326,15 @@ void test_dup_key_lookup(int n, int mode) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    r = pma_create(&pma, toku_default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
+    r = toku_pma_create(&pma, toku_default_compare_fun, (n + 2) * (8 + sizeof (int) + sizeof (int)));
     assert(r == 0);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
 
-    r = pma_set_dup_mode(pma, mode);
+    r = toku_pma_set_dup_mode(pma, mode);
     assert(r == 0);
 
     if (mode & TOKU_DB_DUPSORT) {
-        r = pma_set_dup_compare(pma, toku_default_compare_fun);
+        r = toku_pma_set_dup_compare(pma, toku_default_compare_fun);
         assert(r == 0);
     }
 
@@ -2344,10 +2344,10 @@ void test_dup_key_lookup(int n, int mode) {
     /* insert 1->1, 3->3 */
     k = htonl(1); v = 1;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
     k = htonl(3); v = 3;
     do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    pma_verify(pma, null_db);
+    toku_pma_verify(pma, null_db);
 
     int i;
     /* insert 2->0, 2->1, .. 2->n-1 */
@@ -2355,12 +2355,12 @@ void test_dup_key_lookup(int n, int mode) {
         k = htonl(2);
         v = htonl(i);
 	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-        pma_verify(pma, null_db);
+        toku_pma_verify(pma, null_db);
     }
 
     /* lookup should find the first insert and smallest value */
     k = htonl(2);
-    r = pma_lookup(pma, fill_dbt(&key, &k, sizeof k), fill_dbt(&val, &v, sizeof v), null_db);
+    r = toku_pma_lookup(pma, fill_dbt(&key, &k, sizeof k), fill_dbt(&val, &v, sizeof v), null_db);
     assert(r == 0);
     int kk;
     assert(key.size == sizeof k);
@@ -2371,7 +2371,7 @@ void test_dup_key_lookup(int n, int mode) {
     memcpy(&vv, val.data, val.size);
     assert(vv == 0);
 
-    r = pma_free(&pma);
+    r = toku_pma_free(&pma);
     assert(r == 0);
 }
 

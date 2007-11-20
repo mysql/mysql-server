@@ -606,7 +606,7 @@ static void  test_read_what_was_written (void) {
     printf(" ok\n");
 }
 
-extern void pma_show_stats (void);
+extern void toku_pma_show_stats (void);
 
 /* Test c_get(DB_LAST) on an empty tree */
 void test_cursor_last_empty(void) {
@@ -2249,7 +2249,7 @@ static void brt_blackbox_test (void) {
     test4(2048, 1<<15, 1);
     printf("test3 fast\n");
 
-    pma_show_stats();
+    toku_pma_show_stats();
 
     test3(1<<15, 1024, 1);
     test4(1<<15, 1024, 1);

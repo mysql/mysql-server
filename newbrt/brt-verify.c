@@ -27,7 +27,7 @@ static void verify_local_fingerprint (BRTNODE node) {
 			      }));
 	assert(fp==node->local_fingerprint);
     } else {
-	pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->local_fingerprint);
+	toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->local_fingerprint);
     }
 }
 
