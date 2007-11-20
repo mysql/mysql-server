@@ -14,6 +14,9 @@ int main (int argc, char *argv[]) {
 // BDB doesnt' actually barf on this case.
 #ifdef USE_TDB
     assert(r != 0);
+#else
+    r = db->close(db, 0);
+    assert(r == 0);    
 #endif
     r = env->close(env, 0);       
     assert(r == 0);
