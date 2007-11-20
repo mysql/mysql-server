@@ -957,4 +957,10 @@ COUNT(*)
 2
 DROP TABLE t1, t2;
 End of 5.0 tests
+create table `t1` (`col002` point)engine=myisam;
+insert into t1 values (),(),();
+select min(`col002`) from t1 union select `col002` from t1;
+min(`col002`)
+NULL
+drop table t1;
 End of 5.0 tests
