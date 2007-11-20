@@ -10,6 +10,22 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# Bug#30822: crash when COALESCE
+#
+CREATE TABLE t1 (c1 INT)
+  PARTITION BY HASH (c1)
+  PARTITIONS 15;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+ALTER TABLE t1 COALESCE PARTITION 13;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT)
+  PARTITION BY LINEAR HASH (c1)
+  PARTITIONS 5;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+ALTER TABLE t1 COALESCE PARTITION 3;
+DROP TABLE t1;
+
+#
 # More partition pruning tests, especially on interval walking
 #
 create table t1 (a int unsigned)
