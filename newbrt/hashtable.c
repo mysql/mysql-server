@@ -58,7 +58,7 @@ int toku_hashtable_create (HASHTABLE *h) {
     if (tab==0) return -1;
     tab->n_keys=0;
     tab->primeidx=0;
-    tab->arraysize=get_prime(tab->primeidx);
+    tab->arraysize=toku_get_prime(tab->primeidx);
     assert(sizeof(*tab->array)==sizeof(void*));
     tab->array = toku_calloc(tab->arraysize, sizeof(*tab->array));
     for (i=0; i<tab->arraysize; i++) tab->array[i]=0;
@@ -125,7 +125,7 @@ int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, I
 int toku_hash_rehash_everything (HASHTABLE tab, unsigned int primeindexdelta) {
     int newprimeindex = primeindexdelta+tab->primeidx;
     assert(newprimeindex>=0);
-    unsigned int newarraysize = get_prime(newprimeindex);
+    unsigned int newarraysize = toku_get_prime(newprimeindex);
     HASHDUP *newarray = toku_calloc(newarraysize, sizeof(*tab->array));
     unsigned int i;
     //printf("%s:%d newarraysize=%d\n", __FILE__, __LINE__, newarraysize);

@@ -70,7 +70,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
     int i;
     t->n_in_table = 0;
     t->primeidx = 0;
-    t->table_size = get_prime(t->primeidx);
+    t->table_size = toku_get_prime(t->primeidx);
     MALLOC_N(t->table_size, t->table);
     assert(t->table);
     t->head = t->tail = 0;
@@ -207,7 +207,7 @@ static void cachetable_rehash (CACHETABLE t, int primeindexdelta) {
     int newprimeindex = primeindexdelta+t->primeidx;
     if (newprimeindex < 0)
         return;
-    int newtable_size = get_prime(newprimeindex);
+    int newtable_size = toku_get_prime(newprimeindex);
     PAIR *newtable = toku_calloc(newtable_size, sizeof(*t->table));
     int i;
     //printf("%s:%d newtable_size=%d\n", __FILE__, __LINE__, newtable_size);
