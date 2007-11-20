@@ -14,14 +14,14 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
 #define MDICT PMA
 #define MDICT_OK PMA_OK
 #define MDICT_NOTFOUND PMA_NOTFOUND
-#define mdict_free pma_free
-#define mdict_n_entries pma_n_entries
+#define mdict_free toku_pma_free
+#define mdict_n_entries toku_pma_n_entries
 #define MDICT_ITERATE PMA_ITERATE
-#define mdict_insert pma_insert
+#define mdict_insert toku_pma_insert
 #define mdict_create pma_create
 #define mdict_delete pma_delete
-#define mdict_lookup pma_lookup
-#define mdict_random_pick pma_random_pick
+#define mdict_lookup toku_pma_lookup
+#define mdict_random_pick toku_pma_random_pick
 #define mdict_iterate pma_iterate
 
 #elif defined(USEHASH)

@@ -152,8 +152,8 @@ void toku_seralize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
 	    assert(check_local_fingerprint==node->local_fingerprint);
 	}
     } else {
-	//printf(" n_entries=%d\n", pma_n_entries(node->u.l.buffer));
-	wbuf_int(&w, pma_n_entries(node->u.l.buffer));
+	//printf(" n_entries=%d\n", toku_pma_n_entries(node->u.l.buffer));
+	wbuf_int(&w, toku_pma_n_entries(node->u.l.buffer));
 	PMA_ITERATE(node->u.l.buffer, key, keylen, data, datalen,
 		    (wbuf_bytes(&w, key, keylen),
 		     wbuf_bytes(&w, data, datalen)));
@@ -341,13 +341,13 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
     } else {
 	int n_in_buf = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	r=pma_create(&result->u.l.buffer, bt_compare, nodesize);
+	r=toku_pma_create(&result->u.l.buffer, bt_compare, nodesize);
 	if (r!=0) {
-	    if (0) { died_21: pma_free(&result->u.l.buffer); }
+	    if (0) { died_21: toku_pma_free(&result->u.l.buffer); }
 	    goto died1;
 	}
-        pma_set_dup_mode(result->u.l.buffer, flags);
-        if (flags & TOKU_DB_DUPSORT) pma_set_dup_compare(result->u.l.buffer, dup_compare);
+        toku_pma_set_dup_mode(result->u.l.buffer, flags);
+        if (flags & TOKU_DB_DUPSORT) toku_pma_set_dup_compare(result->u.l.buffer, dup_compare);
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
 #define BRT_USE_PMA_BULK_INSERT 1
 #if BRT_USE_PMA_BULK_INSERT
@@ -366,7 +366,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
         }
         if (n_in_buf > 0) {
 	    u_int32_t actual_sum = 0;
-            r = pma_bulk_insert(result->u.l.buffer, keys, vals, n_in_buf, result->rand4fingerprint, &actual_sum);
+            r = toku_pma_bulk_insert(result->u.l.buffer, keys, vals, n_in_buf, result->rand4fingerprint, &actual_sum);
             if (r!=0) goto died_21;
 	    if (actual_sum!=result->local_fingerprint) {
 		//fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);
@@ -386,7 +386,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	    rbuf_bytes(&rc, &val, &vallen);
 	    {
 		DBT k,v;
-		r = pma_insert(result->u.l.buffer, fill_dbt(&k, key, keylen), fill_dbt(&v, val, vallen), 0);
+		r = toku_pma_insert(result->u.l.buffer, fill_dbt(&k, key, keylen), fill_dbt(&v, val, vallen), 0);
 		if (r!=0) goto died_21;
 	    }
 	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;

@@ -54,7 +54,7 @@ void brtnode_free (BRTNODE *nodep) {
 	}
     } else {
 	if (node->u.l.buffer) // The buffer may have been freed already, in some cases.
-	    pma_free(&node->u.l.buffer);
+	    toku_pma_free(&node->u.l.buffer);
     }
     toku_free(node);
     *nodep=0;
@@ -138,7 +138,7 @@ static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck, unsigned 
 void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnode_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p __attribute__((__unused__))) {
     BRTNODE brtnode = brtnode_v;
 //    if ((write_me || keep_me) && (brtnode->height==0)) {
-//	pma_verify_fingerprint(brtnode->u.l.buffer, brtnode->rand4fingerprint, brtnode->subtree_fingerprint);
+//	toku_pma_verify_fingerprint(brtnode->u.l.buffer, brtnode->rand4fingerprint, brtnode->subtree_fingerprint);
 //    }
     if (0) {
 	printf("%s:%d brtnode_flush_callback %p keep_me=%d height=%d", __FILE__, __LINE__, brtnode, keep_me, brtnode->height);
@@ -320,11 +320,11 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
 	}
 	n->u.n.n_bytes_in_hashtables = 0;
     } else {
-	int r = pma_create(&n->u.l.buffer, t->compare_fun, n->nodesize);
+	int r = toku_pma_create(&n->u.l.buffer, t->compare_fun, n->nodesize);
         assert(r==0);
-        pma_set_dup_mode(n->u.l.buffer, t->flags & (TOKU_DB_DUP+TOKU_DB_DUPSORT));
+        toku_pma_set_dup_mode(n->u.l.buffer, t->flags & (TOKU_DB_DUP+TOKU_DB_DUPSORT));
         if (t->flags & TOKU_DB_DUPSORT)
-            pma_set_dup_compare(n->u.l.buffer, t->dup_compare);
+            toku_pma_set_dup_compare(n->u.l.buffer, t->dup_compare);
 	static int rcount=0;
 	//printf("%s:%d n PMA= %p (rcount=%d)\n", __FILE__, __LINE__, n->u.l.buffer, rcount); 
 	rcount++;
@@ -355,7 +355,7 @@ void delete_node (BRT t, BRTNODE node) {
     assert(node->height>=0);
     if (node->height==0) {
 	if (node->u.l.buffer) {
-	    pma_free(&node->u.l.buffer);
+	    toku_pma_free(&node->u.l.buffer);
 	}
 	node->u.l.n_bytes_in_buffer=0;
     } else {
@@ -402,7 +402,7 @@ int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
     //printf("%s:%d B is at %lld nodesize=%d\n", __FILE__, __LINE__, B->thisnodename, B->nodesize);
     assert(node->height>0 || node->u.l.buffer!=0);
     int r;
-    r = pma_split(node->u.l.buffer, &node->u.l.n_bytes_in_buffer, splitk, db, 
+    r = toku_pma_split(node->u.l.buffer, &node->u.l.n_bytes_in_buffer, splitk, db, 
 		  A->u.l.buffer, &A->u.l.n_bytes_in_buffer, A->rand4fingerprint, &A->local_fingerprint,
 		  B->u.l.buffer, &B->u.l.n_bytes_in_buffer, B->rand4fingerprint, &B->local_fingerprint);
     assert(r == 0);
@@ -921,13 +921,13 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 			     int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 			     int debug,
 			     TOKUTXN txn) {
-//    pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
+//    toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
     if  (cmd->type == BRT_INSERT) {
         DBT *k = cmd->u.id.key;
         DBT *v = cmd->u.id.val;
         DB *db = cmd->u.id.db;
         int replaced_v_size;
-        enum pma_errors pma_status = pma_insert_or_replace(node->u.l.buffer, k, v, &replaced_v_size, db, txn, node->thisnodename, node->rand4fingerprint, &node->local_fingerprint);
+        enum pma_errors pma_status = toku_pma_insert_or_replace(node->u.l.buffer, k, v, &replaced_v_size, db, txn, node->thisnodename, node->rand4fingerprint, &node->local_fingerprint);
         assert(pma_status==BRT_OK);
         //printf("replaced_v_size=%d\n", replaced_v_size);
         if (replaced_v_size>=0) {
@@ -937,7 +937,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
         }
         node->dirty = 1;
 	
-//	pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
+//	toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
 
         // If it doesn't fit, then split the leaf.
         if (toku_serialize_brtnode_size(node) > node->nodesize) {
@@ -950,8 +950,8 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
             if (debug) printf("%s:%d %*snodeb->thisnodename=%lld nodeb->size=%d\n", __FILE__, __LINE__, debug, "", (*nodeb)->thisnodename, (*nodeb)->nodesize);
             assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
             assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
-//	    pma_verify_fingerprint((*nodea)->u.l.buffer, (*nodea)->rand4fingerprint, (*nodea)->subtree_fingerprint);
-//	    pma_verify_fingerprint((*nodeb)->u.l.buffer, (*nodeb)->rand4fingerprint, (*nodeb)->subtree_fingerprint);
+//	    toku_pma_verify_fingerprint((*nodea)->u.l.buffer, (*nodea)->rand4fingerprint, (*nodea)->subtree_fingerprint);
+//	    toku_pma_verify_fingerprint((*nodeb)->u.l.buffer, (*nodeb)->rand4fingerprint, (*nodeb)->subtree_fingerprint);
         } else {
             *did_split = 0;
         }
@@ -959,7 +959,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 
     } else if (cmd->type == BRT_DELETE) {
         u_int32_t delta;
-        int r = pma_delete(node->u.l.buffer, cmd->u.id.key, cmd->u.id.db, node->rand4fingerprint, &node->local_fingerprint, &delta);
+        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, cmd->u.id.db, node->rand4fingerprint, &node->local_fingerprint, &delta);
         if (r == BRT_OK) {
             node->u.l.n_bytes_in_buffer -= delta;
             node->dirty = 1;
@@ -1387,7 +1387,7 @@ static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
     int r;
     //counter++; tmpcounter=counter;
     if (node->height==0) {
-//	pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
+//	toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
 	r = brt_leaf_put_cmd(t, node, cmd,
 				did_split, nodea, nodeb, splitk,
 				debug, txn);
@@ -1402,13 +1402,13 @@ static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 	assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
 	assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
 //	if ((*nodea)->height==0) {
-//	    pma_verify_fingerprint((*nodea)->u.l.buffer, (*nodea)->rand4fingerprint, (*nodea)->subtree_fingerprint);
-//	    pma_verify_fingerprint((*nodeb)->u.l.buffer, (*nodeb)->rand4fingerprint, (*nodeb)->subtree_fingerprint);
+//	    toku_pma_verify_fingerprint((*nodea)->u.l.buffer, (*nodea)->rand4fingerprint, (*nodea)->subtree_fingerprint);
+//	    toku_pma_verify_fingerprint((*nodeb)->u.l.buffer, (*nodeb)->rand4fingerprint, (*nodeb)->subtree_fingerprint);
 //	}
     } else {
 	assert(toku_serialize_brtnode_size(node)<=node->nodesize);
 //	if (node->height==0) {
-//	    pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->local_fingerprint);
+//	    toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->local_fingerprint);
 //	} else {
 //	    verify_local_fingerprint_nonleaf(node);
 //	}
@@ -1852,7 +1852,7 @@ int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, DB *db, BRTNODE paren
     node->parent_brtnode = parent_brtnode;
 
     if (node->height==0) {
-	result = pma_lookup(node->u.l.buffer, k, v, db);
+	result = toku_pma_lookup(node->u.l.buffer, k, v, db);
 	//printf("%s:%d looked up something, got answerlen=%d\n", __FILE__, __LINE__, answerlen);
 	//verify_local_fingerprint_nonleaf(node);
 	r = toku_cachetable_unpin(brt->cf, off, 0, 0);
@@ -2219,7 +2219,7 @@ void brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE le
     if (cursor->path[cursor->path_len-1] == oldnode) {
         assert(left->height == 0 && right->height == 0);
 
-        r = pma_cursor_get_pma(cursor->pmacurs, &pma);
+        r = toku_pma_cursor_get_pma(cursor->pmacurs, &pma);
         assert(r == 0);
         if (pma == left->u.l.buffer)
             newnode = left;
@@ -2357,7 +2357,7 @@ int brt_cursor_close (BRT_CURSOR curs) {
 	curs->next->prev = curs->prev;
     }
     if (curs->pmacurs) {
-	int r2=pma_cursor_free(&curs->pmacurs);
+	int r2=toku_pma_cursor_free(&curs->pmacurs);
 	if (r==0) r=r2;
     }
     toku_free(curs);
@@ -2431,13 +2431,13 @@ int brtcurs_set_position_last (BRT_CURSOR cursor, DISKOFF off, DBT *key, DB *db,
         cursor->path_len--;
         goto died0;
     } else {
-	r=pma_cursor(node->u.l.buffer, &cursor->pmacurs);
+	r=toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs);
 	if (r!=0) {
-	    if (0) { died10: pma_cursor_free(&cursor->pmacurs); }
+	    if (0) { died10: toku_pma_cursor_free(&cursor->pmacurs); }
 	    cursor->path_len--;
 	    goto died0;
 	}
-	r=pma_cursor_set_position_last(cursor->pmacurs);
+	r=toku_pma_cursor_set_position_last(cursor->pmacurs);
 	if (r!=0) goto died10; /* we'll deallocate this cursor, and unpin this node, and go back up. */
 	return 0;
     }
@@ -2494,13 +2494,13 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, DISKOFF off, DBT *key, DB *db
         cursor->path_len--;
         goto died0;
     } else {
-	r=pma_cursor(node->u.l.buffer, &cursor->pmacurs);
+	r=toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs);
 	if (r!=0) {
-	    if (0) { died10: pma_cursor_free(&cursor->pmacurs); }
+	    if (0) { died10: toku_pma_cursor_free(&cursor->pmacurs); }
 	    cursor->path_len--;
 	    goto died0;
 	}
-	r=pma_cursor_set_position_first(cursor->pmacurs);
+	r=toku_pma_cursor_set_position_first(cursor->pmacurs);
 	if (r!=0) goto died10; /* we'll deallocate this cursor, and unpin this node, and go back up. */
 	return 0;
     }
@@ -2555,12 +2555,12 @@ int brtcurs_set_position_next2(BRT_CURSOR cursor, DBT *key, DB *db, TOKUTXN txn)
 
 /* requires that the cursor is initialized. */
 int brtcurs_set_position_next (BRT_CURSOR cursor, DBT *key, DB *db, TOKUTXN txn) {
-    int r = pma_cursor_set_position_next(cursor->pmacurs);
+    int r = toku_pma_cursor_set_position_next(cursor->pmacurs);
     if (r==DB_NOTFOUND) {
 	/* We fell off the end of the pma. */
 	if (cursor->path_len==1) return DB_NOTFOUND;
         /* Part of the trickyness is we need to leave the cursor pointing at the current (possibly deleted) value if there is no next value. */
-        r = pma_cursor_free(&cursor->pmacurs);
+        r = toku_pma_cursor_free(&cursor->pmacurs);
         assert(r == 0);
         return brtcurs_set_position_next2(cursor, key, db, txn);
     }
@@ -2615,11 +2615,11 @@ int brtcurs_set_position_prev2(BRT_CURSOR cursor, DBT *key, DB *db, TOKUTXN txn)
 }
 
 int brtcurs_set_position_prev (BRT_CURSOR cursor, DBT *key, DB *db, TOKUTXN txn) {
-    int r = pma_cursor_set_position_prev(cursor->pmacurs);
+    int r = toku_pma_cursor_set_position_prev(cursor->pmacurs);
     if (r==DB_NOTFOUND) {
 	if (cursor->path_len==1) 
             return DB_NOTFOUND;
-        r = pma_cursor_free(&cursor->pmacurs);
+        r = toku_pma_cursor_free(&cursor->pmacurs);
         assert(r == 0);
         return brtcurs_set_position_prev2(cursor, key, db, txn);
     }
@@ -2663,18 +2663,18 @@ int brtcurs_set_key(BRT_CURSOR cursor, DISKOFF off, DBT *key, DBT *val, int flag
     } else {
         cursor->path_len += 1;
         cursor->path[cursor->path_len-1] = node;
-        r = pma_cursor(node->u.l.buffer, &cursor->pmacurs);
+        r = toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs);
         if (r == 0) {
             if (flag == DB_SET)
-                r = pma_cursor_set_key(cursor->pmacurs, key, db);
+                r = toku_pma_cursor_set_key(cursor->pmacurs, key, db);
             else if (flag == DB_GET_BOTH)
-                r = pma_cursor_set_both(cursor->pmacurs, key, val, db);
+                r = toku_pma_cursor_set_both(cursor->pmacurs, key, val, db);
             else {
                 assert(0);
                 r = DB_NOTFOUND;
             }
             if (r != 0) {
-                int rr = pma_cursor_free(&cursor->pmacurs);
+                int rr = toku_pma_cursor_free(&cursor->pmacurs);
                 assert(rr == 0);
             }
         }
@@ -2734,11 +2734,11 @@ int brtcurs_set_range(BRT_CURSOR cursor, DISKOFF off, DBT *key, DB *db, TOKUTXN 
     } else {
         cursor->path_len += 1;
         cursor->path[cursor->path_len-1] = node;
-        r = pma_cursor(node->u.l.buffer, &cursor->pmacurs);
+        r = toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs);
         if (r == 0) {
-            r = pma_cursor_set_range(cursor->pmacurs, key, db);
+            r = toku_pma_cursor_set_range(cursor->pmacurs, key, db);
             if (r != 0) {
-                int rr = pma_cursor_free(&cursor->pmacurs);
+                int rr = toku_pma_cursor_free(&cursor->pmacurs);
                 assert(rr == 0);
             }
         }
@@ -2764,7 +2764,7 @@ static int unpin_cursor (BRT_CURSOR cursor) {
 	if (r==0) r=r2;
     }
     if (cursor->pmacurs) {
-        r = pma_cursor_free(&cursor->pmacurs);
+        r = toku_pma_cursor_free(&cursor->pmacurs);
         assert(r == 0);
     }
     cursor->path_len=0;
@@ -2812,7 +2812,7 @@ int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, DB *db, TO
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
         r=brtcurs_set_position_last(cursor, *rootp, kbt, db, txn, null_brtnode); if (r!=0) goto died0;
-        r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+        r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_FIRST:
@@ -2820,21 +2820,21 @@ int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, DB *db, TO
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
         r=brtcurs_set_position_first(cursor, *rootp, kbt, db, txn, null_brtnode); if (r!=0) goto died0;
-        r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+        r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_NEXT:
 	if (cursor->path_len<=0)
 	    goto do_db_first;
 	r=brtcurs_set_position_next(cursor, kbt, db, txn); if (r!=0) goto died0;
-	r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
+	r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_PREV:
         if (cursor->path_len<= 0)
             goto do_db_last;
         r = brtcurs_set_position_prev(cursor, kbt, db, txn); if (r!=0) goto died0;
-        r = pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
+        r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
         if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_SET:
@@ -2842,7 +2842,7 @@ int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, DB *db, TO
         assert(r == 0);
         r = brtcurs_set_key(cursor, *rootp, kbt, vbt, DB_SET, db, txn, null_brtnode);
         if (r != 0) goto died0;
-        r = pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+        r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
         if (r != 0) goto died0;
         break;
     case DB_GET_BOTH:
@@ -2856,7 +2856,7 @@ int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, DB *db, TO
         assert(r == 0);
         r = brtcurs_set_range(cursor, *rootp, kbt, db, txn, null_brtnode);
         if (r != 0) goto died0;
-        r = pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+        r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
         if (r != 0) goto died0;
         break;
     default:
@@ -2876,7 +2876,7 @@ int brt_cursor_delete(BRT_CURSOR cursor, int flags __attribute__((__unused__))) 
         BRTNODE node = cursor->path[cursor->path_len-1];
         assert(node->height == 0);
         int kvsize;
-        r = pma_cursor_delete_under(cursor->pmacurs, &kvsize);
+        r = toku_pma_cursor_delete_under(cursor->pmacurs, &kvsize);
         if (r == 0) {
             node->u.l.n_bytes_in_buffer -= KEY_VALUE_OVERHEAD + kvsize;
             node->dirty = 1;
