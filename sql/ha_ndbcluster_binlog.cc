@@ -18,14 +18,15 @@
 #include "sql_show.h"
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
+#include "ha_ndbcluster_connection.h"
 
 #ifdef HAVE_NDB_BINLOG
 #include "rpl_injector.h"
 #include "rpl_filter.h"
 #include "slave.h"
 #include "ha_ndbcluster_binlog.h"
-#include "NdbDictionary.hpp"
-#include "ndb_cluster_connection.hpp"
+#include <ndbapi/NdbDictionary.hpp>
+#include <ndbapi/ndb_cluster_connection.hpp>
 #include <util/NdbAutoPtr.hpp>
 
 #ifdef ndb_dynamite
@@ -148,39 +149,6 @@ static TABLE_LIST binlog_tables;
 /*
   Helper functions
 */
-
-static ulonglong get_latest_trans_gci()
-{
-  unsigned i;
-  ulonglong val= *g_ndb_cluster_connection->get_latest_trans_gci();
-  for (i= 1; i < g_ndb_cluster_connection_pool_alloc; i++)
-  {
-    ulonglong tmp= *g_ndb_cluster_connection_pool[i]->get_latest_trans_gci();
-    if (tmp > val)
-      val= tmp;
-  }
-  return val;
-}
-
-static void set_latest_trans_gci(ulonglong val)
-{
-  unsigned i;
-  for (i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
-  {
-    *g_ndb_cluster_connection_pool[i]->get_latest_trans_gci()= val;
-  }
-}
-
-static int has_node_id(uint id)
-{
-  unsigned i;
-  for (i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
-  {
-    if (id == g_ndb_cluster_connection_pool[i]->node_id())
-      return 1;
-  }
-  return 0;
-}
 
 #ifndef DBUG_OFF
 /* purecov: begin deadcode */
@@ -495,7 +463,7 @@ static void ndbcluster_binlog_wait(THD *thd)
   {
     DBUG_ENTER("ndbcluster_binlog_wait");
     const char *save_info= thd ? thd->proc_info : 0;
-    ulonglong wait_epoch= get_latest_trans_gci();
+    ulonglong wait_epoch= ndb_get_latest_trans_gci();
     int count= 30;
     if (thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
@@ -1648,7 +1616,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   const char *tabname= table_share->table_name.str;
   const char *dbname= table_share->db.str;
   bool do_close_cached_tables= FALSE;
-  bool is_remote_change= !has_node_id(pOp->getReqNodeId());
+  bool is_remote_change= !ndb_has_node_id(pOp->getReqNodeId());
 
   if (pOp->getEventType() == NDBEVENT::TE_ALTER)
   {
@@ -5017,7 +4985,7 @@ restart:
                         (uint)(ndb_latest_handled_binlog_epoch),
                         (uint)(schema_gci >> 32),
                         (uint)(schema_gci));
-        set_latest_trans_gci(0);
+        ndb_set_latest_trans_gci(0);
         ndb_latest_handled_binlog_epoch= 0;
         ndb_latest_applied_binlog_epoch= 0;
         ndb_latest_received_binlog_epoch= 0;
@@ -5052,7 +5020,7 @@ restart:
   do_ndbcluster_binlog_close_connection= BCCC_running;
   for ( ; !((ndbcluster_binlog_terminating ||
              do_ndbcluster_binlog_close_connection) &&
-            ndb_latest_handled_binlog_epoch >= get_latest_trans_gci()) &&
+            ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci()) &&
           do_ndbcluster_binlog_close_connection != BCCC_restart; )
   {
 #ifndef DBUG_OFF
@@ -5064,8 +5032,8 @@ restart:
                           do_ndbcluster_binlog_close_connection,
                           (uint)(ndb_latest_handled_binlog_epoch >> 32),
                           (uint)(ndb_latest_handled_binlog_epoch),
-                          (uint)(get_latest_trans_gci() >> 32),
-                          (uint)(get_latest_trans_gci())));
+                          (uint)(ndb_get_latest_trans_gci() >> 32),
+                          (uint)(ndb_get_latest_trans_gci())));
     }
 #endif
 #ifdef RUN_NDB_BINLOG_TIMER
@@ -5117,7 +5085,7 @@ restart:
 
     if ((ndbcluster_binlog_terminating ||
          do_ndbcluster_binlog_close_connection) &&
-        (ndb_latest_handled_binlog_epoch >= get_latest_trans_gci() ||
+        (ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci() ||
          !ndb_binlog_running))
       break; /* Shutting down server */
 
@@ -5167,12 +5135,12 @@ restart:
           {
             DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
             do_ndbcluster_binlog_close_connection= BCCC_restart;
-            if (ndb_latest_received_binlog_epoch < get_latest_trans_gci() && ndb_binlog_running)
+            if (ndb_latest_received_binlog_epoch < ndb_get_latest_trans_gci() && ndb_binlog_running)
             {
               sql_print_error("NDB Binlog: latest transaction in epoch %u/%u not in binlog "
                               "as latest received epoch is %u/%u",
-                              (uint)(get_latest_trans_gci() >> 32),
-                              (uint)(get_latest_trans_gci()),
+                              (uint)(ndb_get_latest_trans_gci() >> 32),
+                              (uint)(ndb_get_latest_trans_gci()),
                               (uint)(ndb_latest_received_binlog_epoch >> 32),
                               (uint)(ndb_latest_received_binlog_epoch));
             }
@@ -5392,11 +5360,11 @@ restart:
             {
               DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
               do_ndbcluster_binlog_close_connection= BCCC_restart;
-              if (ndb_latest_received_binlog_epoch < get_latest_trans_gci() && ndb_binlog_running)
+              if (ndb_latest_received_binlog_epoch < ndb_get_latest_trans_gci() && ndb_binlog_running)
               {
                 sql_print_error("NDB Binlog: latest transaction in epoch %lu not in binlog "
                                 "as latest received epoch is %lu",
-                                (ulong) get_latest_trans_gci(),
+                                (ulong) ndb_get_latest_trans_gci(),
                                 (ulong) ndb_latest_received_binlog_epoch);
               }
             }
@@ -5604,7 +5572,7 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
                "latest_handled_binlog_epoch=%s, "
                "latest_applied_binlog_epoch=%s",
                llstr(ndb_latest_epoch, buff1),
-               llstr(get_latest_trans_gci(), buff2),
+               llstr(ndb_get_latest_trans_gci(), buff2),
                llstr(ndb_latest_received_binlog_epoch, buff3),
                llstr(ndb_latest_handled_binlog_epoch, buff4),
                llstr(ndb_latest_applied_binlog_epoch, buff5));
