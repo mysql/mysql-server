@@ -1941,7 +1941,7 @@ int brt_delete(BRT brt, DBT *key, DB *db) {
     return r;
 }
 
-int verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse, BRTNODE parent_brtnode);
+int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse, BRTNODE parent_brtnode);
 
 int dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, BRTNODE parent_brtnode) {
     int result=0;
@@ -1953,7 +1953,7 @@ int dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN lole
     printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
     node->parent_brtnode = parent_brtnode;
-    result=verify_brtnode(brt, off, lorange, lolen, hirange, hilen, 0, parent_brtnode);
+    result=toku_verify_brtnode(brt, off, lorange, lolen, hirange, hilen, 0, parent_brtnode);
     printf("%*sNode=%p\n", depth, "", node);
     if (node->height>0) {
 	printf("%*sNode %lld nodesize=%d height=%d n_children=%d  n_bytes_in_hashtables=%d keyrange=%s %s\n",

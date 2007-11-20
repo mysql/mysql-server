@@ -53,7 +53,7 @@ static void verify_parent_fingerprint (BRTNODE node) {
     }
 }
 
-int verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse, BRTNODE parent_brtnode) {
+int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse, BRTNODE parent_brtnode) {
     int result=0;
     BRTNODE node;
     void *node_v;
@@ -106,7 +106,7 @@ int verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, byteve
 		if (hirange) assert(toku_keycompare(node->u.n.childkeys[i-1], node->u.n.childkeylens[i-1], hirange, hilen)<=0);
 	    }
 	    if (recurse) {
-		result|=verify_brtnode(brt, node->u.n.children[i],
+		result|=toku_verify_brtnode(brt, node->u.n.children[i],
 				       (i==0) ? lorange : node->u.n.childkeys[i-1],
 				       (i==0) ? lolen   : node->u.n.childkeylens[i-1],
 				       (i==node->u.n.n_children-1) ? hirange : node->u.n.childkeys[i],
@@ -120,7 +120,7 @@ int verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, byteve
     return result;
 }
 
-int verify_brt (BRT brt) {
+int toku_verify_brt (BRT brt) {
     int r;
     CACHEKEY *rootp;
     if ((r = toku_read_and_pin_brt_header(brt->cf, &brt->h))) {
@@ -128,7 +128,7 @@ int verify_brt (BRT brt) {
 	return r;
     }
     rootp = toku_calculate_root_offset_pointer(brt);
-    if ((r=verify_brtnode(brt, *rootp, 0, 0, 0, 0, 1, null_brtnode))) goto died0;
+    if ((r=toku_verify_brtnode(brt, *rootp, 0, 0, 0, 0, 1, null_brtnode))) goto died0;
     if ((r = toku_unpin_brt_header(brt))!=0) return r;
     return 0;
 }
