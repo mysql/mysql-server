@@ -267,7 +267,7 @@ int hashtable_find_last(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *dat
     ITEMLEN best_kl, best_dl;
     HASHTABLE_ITERATE(h, this_k, this_kl, this_d, this_dl,
 		      ({
-			  if (best_k==0 || keycompare(best_k, best_kl, this_k, this_kl)<0) {
+			  if (best_k==0 || toku_keycompare(best_k, best_kl, this_k, this_kl)<0) {
 			      best_k  = this_k;
 			      best_kl = this_kl;
 			      best_d  = this_d;

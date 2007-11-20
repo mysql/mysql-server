@@ -259,13 +259,15 @@ typedef struct kvpair {
     unsigned int vallen;
 } *KVPAIR;
 
+#if 0
 int kvpair_compare (const void *av, const void *bv) {
     const KVPAIR a = (const KVPAIR)av;
     const KVPAIR b = (const KVPAIR)bv;
-    int r = keycompare(a->key, a->keylen, b->key, b->keylen);
+    int r = toku_keycompare(a->key, a->keylen, b->key, b->keylen);
     //printf("keycompare(%s,\n           %s)-->%d\n", a->key, b->key, r);
     return r;
 }
+#endif
 
 /* Forgot to handle the case where there is something in the freelist. */
 static DISKOFF malloc_diskblock_header_is_in_memory (BRT brt, int size) {
@@ -1471,8 +1473,8 @@ int brt_create(BRT *brt_ptr) {
     memset(brt, 0, sizeof *brt);
     brt->flags = 0;
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
-    brt->compare_fun = default_compare_fun;
-    brt->dup_compare = default_compare_fun;
+    brt->compare_fun = toku_default_compare_fun;
+    brt->dup_compare = toku_default_compare_fun;
     *brt_ptr = brt;
     return 0;
 }

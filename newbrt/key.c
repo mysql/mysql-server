@@ -3,7 +3,7 @@
 #include <string.h>
 
 #if 0
-int keycompare (bytevec key1b, ITEMLEN key1len, bytevec key2b, ITEMLEN key2len) {
+int toku_keycompare (bytevec key1b, ITEMLEN key1len, bytevec key2b, ITEMLEN key2len) {
     const unsigned char *key1 = key1b;
     const unsigned char *key2 = key2b;
     while (key1len > 0 && key2len > 0) {
@@ -20,7 +20,7 @@ int keycompare (bytevec key1b, ITEMLEN key1len, bytevec key2b, ITEMLEN key2len) 
 }
 
 #elif 0
-int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
+int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     if (key1len==key2len) {
 	return memcmp(key1,key2,key1len);
     } else if (key1len<key2len) {
@@ -28,12 +28,12 @@ int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
 	if (r<=0) return -1; /* If the keys are the same up to 1's length, then return -1, since key1 is shorter than key2. */
 	else return 1;
     } else {
-	return -keycompare(key2,key2len,key1,key1len);
+	return -toku_keycompare(key2,key2len,key1,key1len);
     }
 }
 #elif 0
 
-int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
+int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     if (key1len==key2len) {
 	return memcmp(key1,key2,key1len);
     } else if (key1len<key2len) {
@@ -48,7 +48,7 @@ int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
 }
 #elif 0
 /* This one looks tighter, but it does use memcmp... */
-int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
+int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     int comparelen = key1len<key2len ? key1len : key2len;
     const unsigned char *k1;
     const unsigned char *k2;
@@ -63,7 +63,7 @@ int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
 }
 #else
 /* unroll that one four times */
-int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
+int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     int comparelen = key1len<key2len ? key1len : key2len;
     const unsigned char *k1;
     const unsigned char *k2;
@@ -87,18 +87,18 @@ int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
 
 #endif
 
-void test_keycompare (void) {
-    assert(keycompare("a",1, "a",1)==0);
-    assert(keycompare("aa",2, "a",1)>0);
-    assert(keycompare("a",1, "aa",2)<0);
-    assert(keycompare("b",1, "aa",2)>0);
-    assert(keycompare("aa",2, "b",1)<0);
-    assert(keycompare("aaaba",5, "aaaba",5)==0);
-    assert(keycompare("aaaba",5, "aaaaa",5)>0);
-    assert(keycompare("aaaaa",5, "aaaba",5)<0);
-    assert(keycompare("aaaaa",3, "aaaba",3)==0);
+void toku_test_keycompare (void) {
+    assert(toku_keycompare("a",1, "a",1)==0);
+    assert(toku_keycompare("aa",2, "a",1)>0);
+    assert(toku_keycompare("a",1, "aa",2)<0);
+    assert(toku_keycompare("b",1, "aa",2)>0);
+    assert(toku_keycompare("aa",2, "b",1)<0);
+    assert(toku_keycompare("aaaba",5, "aaaba",5)==0);
+    assert(toku_keycompare("aaaba",5, "aaaaa",5)>0);
+    assert(toku_keycompare("aaaaa",5, "aaaba",5)<0);
+    assert(toku_keycompare("aaaaa",3, "aaaba",3)==0);
 }
 
-int default_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
-    return keycompare(a->data, a->size, b->data, b->size);
+int toku_default_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
+    return toku_keycompare(a->data, a->size, b->data, b->size);
 }

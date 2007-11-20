@@ -136,8 +136,6 @@ void pma_iterate (PMA, void(*)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*);
       body;                                                            \
 } } })
 
-int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
-
 void pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint);
 
 #endif

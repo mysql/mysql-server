@@ -99,7 +99,7 @@ struct brt {
 void toku_seralize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
 int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize, int (*bt_compare)(DB *, const DBT*, const DBT*), int (*dup_compare)(DB *, const DBT *, const DBT *));
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
-int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
+int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
 void toku_verify_counts(BRTNODE);
 
