@@ -21,7 +21,6 @@
 /* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
 
 #undef HAVE_PSTACK				/* No stacktrace */
-#undef HAVE_DLOPEN				/* No udf functions */
 #undef HAVE_OPENSSL
 #undef HAVE_SMEM				/* No shared memory */
 #undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
