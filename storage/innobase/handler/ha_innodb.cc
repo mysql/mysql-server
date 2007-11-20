@@ -679,6 +679,9 @@ convert_error_code_to_mysql(
 		return(HA_ERR_RECORD_FILE_FULL);
 #endif
 
+	} else if (error == DB_UNSUPPORTED) {
+
+		return(HA_ERR_UNSUPPORTED);
     	} else {
     		return(-1);			// Unknown error
     	}
@@ -799,23 +802,6 @@ innobase_convert_from_id(
 
 	strconvert(thd_charset(current_thd), from,
 		   system_charset_info, to, (uint) len, &errors);
-}
-
-/**********************************************************************
-Removes the filename encoding of a table or database name.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
-extern "C"
-void
-innobase_convert_from_filename(
-/*===========================*/
-	char*		s)	/* in: identifier; out: decoded identifier */
-{
-	uint	errors;
-
-	strconvert(&my_charset_filename, s,
-		   system_charset_info, s, strlen(s), &errors);
 }
 
 /**********************************************************************
@@ -3962,33 +3948,51 @@ convert_search_mode_to_innobase(
 	enum ha_rkey_function	find_flag)
 {
 	switch (find_flag) {
-		case HA_READ_KEY_EXACT:		return(PAGE_CUR_GE);
-			/* the above does not require the index to be UNIQUE */
-		case HA_READ_KEY_OR_NEXT:	return(PAGE_CUR_GE);
-		case HA_READ_KEY_OR_PREV:	return(PAGE_CUR_LE);
-		case HA_READ_AFTER_KEY:		return(PAGE_CUR_G);
-		case HA_READ_BEFORE_KEY:	return(PAGE_CUR_L);
-		case HA_READ_PREFIX:		return(PAGE_CUR_GE);
-		case HA_READ_PREFIX_LAST:	return(PAGE_CUR_LE);
-		case HA_READ_PREFIX_LAST_OR_PREV:return(PAGE_CUR_LE);
-		  /* In MySQL-4.0 HA_READ_PREFIX and HA_READ_PREFIX_LAST always
-		  pass a complete-field prefix of a key value as the search
-		  tuple. I.e., it is not allowed that the last field would
-		  just contain n first bytes of the full field value.
-		  MySQL uses a 'padding' trick to convert LIKE 'abc%'
-		  type queries so that it can use as a search tuple
-		  a complete-field-prefix of a key value. Thus, the InnoDB
-		  search mode PAGE_CUR_LE_OR_EXTENDS is never used.
-		  TODO: when/if MySQL starts to use also partial-field
-		  prefixes, we have to deal with stripping of spaces
-		  and comparison of non-latin1 char type fields in
-		  innobase_mysql_cmp() to get PAGE_CUR_LE_OR_EXTENDS to
-		  work correctly. */
-
-		default:			assert(0);
+	case HA_READ_KEY_EXACT:
+		/* this does not require the index to be UNIQUE */
+		return(PAGE_CUR_GE);
+	case HA_READ_KEY_OR_NEXT:
+		return(PAGE_CUR_GE);
+	case HA_READ_KEY_OR_PREV:
+		return(PAGE_CUR_LE);
+	case HA_READ_AFTER_KEY:	
+		return(PAGE_CUR_G);
+	case HA_READ_BEFORE_KEY:
+		return(PAGE_CUR_L);
+	case HA_READ_PREFIX:
+		return(PAGE_CUR_GE);
+	case HA_READ_PREFIX_LAST:
+		return(PAGE_CUR_LE);
+	case HA_READ_PREFIX_LAST_OR_PREV:
+		return(PAGE_CUR_LE);
+		/* In MySQL-4.0 HA_READ_PREFIX and HA_READ_PREFIX_LAST always
+		pass a complete-field prefix of a key value as the search
+		tuple. I.e., it is not allowed that the last field would
+		just contain n first bytes of the full field value.
+		MySQL uses a 'padding' trick to convert LIKE 'abc%'
+		type queries so that it can use as a search tuple
+		a complete-field-prefix of a key value. Thus, the InnoDB
+		search mode PAGE_CUR_LE_OR_EXTENDS is never used.
+		TODO: when/if MySQL starts to use also partial-field
+		prefixes, we have to deal with stripping of spaces
+		and comparison of non-latin1 char type fields in
+		innobase_mysql_cmp() to get PAGE_CUR_LE_OR_EXTENDS to
+		work correctly. */
+	case HA_READ_MBR_CONTAIN:
+	case HA_READ_MBR_INTERSECT:
+	case HA_READ_MBR_WITHIN:
+	case HA_READ_MBR_DISJOINT:
+	case HA_READ_MBR_EQUAL:
+		my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
+		return(PAGE_CUR_UNSUPP);
+	/* do not use "default:" in order to produce a gcc warning:
+	enumeration value '...' not handled in switch
+	(if -Wswitch or -Wall is used) */
 	}
 
-	return(0);
+	my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "this functionality");
+
+	return(PAGE_CUR_UNSUPP);
 }
 
 /*
@@ -4116,11 +4120,18 @@ ha_innobase::index_read(
 
 	last_match_mode = (uint) match_mode;
 
-	innodb_srv_conc_enter_innodb(prebuilt->trx);
+	if (mode != PAGE_CUR_UNSUPP) {
 
-	ret = row_search_for_mysql((byte*) buf, mode, prebuilt, match_mode, 0);
+		innodb_srv_conc_enter_innodb(prebuilt->trx);
 
-	innodb_srv_conc_exit_innodb(prebuilt->trx);
+		ret = row_search_for_mysql((byte*) buf, mode, prebuilt,
+					   match_mode, 0);
+
+		innodb_srv_conc_exit_innodb(prebuilt->trx);
+	} else {
+
+		ret = DB_UNSUPPORTED;
+	}
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -5470,8 +5481,16 @@ ha_innobase::records_in_range(
 	mode2 = convert_search_mode_to_innobase(max_key ? max_key->flag :
 						HA_READ_KEY_EXACT);
 
-	n_rows = btr_estimate_n_rows_in_range(index, range_start,
-						mode1, range_end, mode2);
+	if (mode1 != PAGE_CUR_UNSUPP && mode2 != PAGE_CUR_UNSUPP) {
+
+		n_rows = btr_estimate_n_rows_in_range(index, range_start,
+						      mode1, range_end,
+						      mode2);
+	} else {
+
+		n_rows = 0;
+	}
+
 	dtuple_free_for_mysql(heap1);
 	dtuple_free_for_mysql(heap2);
 
