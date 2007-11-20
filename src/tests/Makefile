@@ -49,12 +49,15 @@ check.bdb: $(RUN_BDB_TESTS)
 check.tdb: $(RUN_TDB_TESTS)
 
 # Need these rule so that Make knows about all the file names
-.PHONY: %.bdbrun %.tdbrun
+.PHONY: %.bdbrun %.tdbrun %.run
 $(RUN_ALL_TESTS):
 $(ALL_TESTS):
 
 %.foo:
 	echo $@
+
+%.run: %.bdbrun %.tdbrun
+	
 
 %.bdbrun: %.bdb
 	$(UNSETTOKUENV); $(VGRIND) ./$<
