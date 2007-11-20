@@ -66,6 +66,7 @@ struct __toku_db_env_internal {
     char *errpfx;
     char *dir;                  /* A malloc'd copy of the directory. */
     char *tmp_dir;
+    char *lg_dir;
     char *data_dir;
     //void (*noticecall)(DB_ENV *, db_notices);
     long cachetable_size;
@@ -141,7 +142,7 @@ static int db_env_read_config(DB_ENV *env, u_int32_t flags) {
     BOOL eof = FALSE;
     char* temp;
     char* end;
-    int index = 0;
+    int index;
     
     buffersize = 1<<10; //1KB
     linebuffer = toku_malloc(buffersize);
@@ -149,9 +150,9 @@ static int db_env_read_config(DB_ENV *env, u_int32_t flags) {
         r = ENOMEM;
         goto cleanup;
     }
-    for (linenumber = 0; !eof; linenumber++) {
+    for (linenumber = 1; !eof; linenumber++) {
         /* Read a single line. */
-        while (TRUE) {
+        for (index = 0; TRUE; index++) {
             if ((ch = getc(fp)) == EOF) {
                 eof = TRUE;
                 if (ferror(fp)) {
@@ -171,7 +172,7 @@ static int db_env_read_config(DB_ENV *env, u_int32_t flags) {
                     goto cleanup;
                 }
             }
-            linebuffer[index++] = ch;
+            linebuffer[index] = ch;
         }
         linebuffer[index] = '\0';
         end = &linebuffer[index];
@@ -186,7 +187,7 @@ static int db_env_read_config(DB_ENV *env, u_int32_t flags) {
         *temp++ = '\0'; //Null terminate command.
         value = temp;
         //Strip leading spaces.
-        while (!isspace(*value) && value < end) value++;
+        while (isspace(*value) && value < end) value++;
         if (value < end) {
             //Strip trailing spaces.
             temp = end;
@@ -195,7 +196,6 @@ static int db_env_read_config(DB_ENV *env, u_int32_t flags) {
             *temp = '\0';
         }
         //Parse the line.
-        
         if (strlen(command) == 0 || command[0] == '#') continue; //Ignore Comments.
         r = db_env_parse_config_line(env, command, value < end ? value : "");
         if (r != 0) goto parseerror;
@@ -257,7 +257,11 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
     env->i->open_mode = mode;
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
-        r = tokulogger_create_and_open_logger(env->i->dir, &env->i->logger);
+        char* full_dir = NULL;
+        if (env->i->lg_dir) full_dir = construct_full_name(env->i->dir, env->i->lg_dir);
+        r = tokulogger_create_and_open_logger(
+            full_dir ? full_dir : env->i->dir, &env->i->logger);
+        if (full_dir) toku_free(full_dir);
 	if (r!=0) goto died1;
 	if (0) {
 	died2:
@@ -280,6 +284,8 @@ int __toku_db_env_close(DB_ENV * env, u_int32_t flags) {
         r1=tokulogger_log_close(&env->i->logger);
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
+    if (env->i->lg_dir)
+        toku_free(env->i->lg_dir);
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
     if (env->i->errpfx)
@@ -337,7 +343,12 @@ int __toku_db_env_set_lg_bsize(DB_ENV * env, u_int32_t bsize) {
 }
 
 int __toku_db_env_set_lg_dir(DB_ENV * env, const char *dir) {
-    return 1;
+    if (db_env_opened(env)) return EINVAL;
+
+    if (env->i->lg_dir) toku_free(env->i->lg_dir);
+    if (dir) env->i->lg_dir = toku_strdup(dir);
+    else env->i->lg_dir = NULL;
+    return 0;
 }
 
 int __toku_db_env_set_lg_max(DB_ENV * env, u_int32_t lg_max) {
