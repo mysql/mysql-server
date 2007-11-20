@@ -1,8 +1,8 @@
 ################################################################################
-# include/partition_trigg2.inc                                                 #
+# inc/partition_trigg2.inc                                                     #
 #                                                                              #
 # Purpose:                                                                     #
-#   Auxiliary script, only useful when sourced by include/partition_check.inc. #
+#   Auxiliary script, only useful when sourced by inc/partition_check.inc.     #
 #   The trigger uses new values (--> event UPDATE, INSERT only)                #
 #                                                                              #
 # 1. Create a trigger                                                          #
@@ -11,7 +11,7 @@
 # 4. Revert the modifications                                                  #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
@@ -27,7 +27,7 @@ BEGIN
 END|
 delimiter ;|
 eval $statement;
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
   --disable_query_log

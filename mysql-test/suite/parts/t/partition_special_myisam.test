@@ -18,7 +18,7 @@
 #       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
 #       THE SOURCED FILES ONLY.
 #
-# Please read the README at the end of include/partition.pre before changing
+# Please read the README at the end of inc/partition.pre before changing
 # any of the variables.
 #
 
@@ -43,7 +43,3 @@ let $engine= 'MyISAM';
 --source suite/parts/inc/partition_key_8col.inc
 --source suite/parts/inc/partition_key_16col.inc
 --source suite/parts/inc/partition_key_32col.inc
-# --source inc/partition_key_4col.inc
-# --source inc/partition_key_8col.inc
-# --source inc/partition_key_16col.inc
-# --source inc/partition_key_32col.inc

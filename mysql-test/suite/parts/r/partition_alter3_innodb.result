@@ -2,11 +2,6 @@ SET @max_row = 20;
 SET @@session.storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------
-# There are several testcases disabled because of the open bugs
-# #15890
-#------------------------------------------------------------------------
-
-#------------------------------------------------------------------------
 #  0. Setting of auxiliary variables + Creation of an auxiliary tables
 #     needed in many testcases
 #------------------------------------------------------------------------
@@ -318,7 +313,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 ALTER TABLE t1 REMOVE PARTITIONING;
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
@@ -597,7 +592,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 ALTER TABLE t1 REMOVE PARTITIONING;
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist

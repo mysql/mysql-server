@@ -1,12 +1,12 @@
 ################################################################################
-# include/partition_cleanup.inc                                                #
+# inc/partition_cleanup.inc                                                    #
 #                                                                              #
 # Purpose:                                                                     #
 #   Removal of the objects created by the t/partition_<feature>_<engine>.test  #
 #   scripts.                                                                   #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
