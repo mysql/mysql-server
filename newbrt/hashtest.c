@@ -250,7 +250,7 @@ void test_insert_dup(int n, int do_delete_all) {
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
-    test_primes();
+    toku_test_primes();
     test0();
     test1();
     test_insert_nodup(1000);
