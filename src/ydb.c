@@ -275,7 +275,7 @@ int __toku_db_env_close(DB_ENV * env, u_int32_t flags) {
     int r0=0,r1=0;
     if (flags) return EINVAL;
     if (env->i->cachetable)
-        r0=cachetable_close(&env->i->cachetable);
+        r0=toku_cachetable_close(&env->i->cachetable);
     if (env->i->logger)
         r1=tokulogger_log_close(&env->i->logger);
     if (env->i->data_dir)
@@ -736,7 +736,7 @@ int __toku_db_stat(DB * db, void *v, u_int32_t flags) {
     abort();
 }
 
-extern int default_compare_fun(DB * db, const DBT * a, const DBT * b);
+extern int toku_default_compare_fun(DB * db, const DBT * a, const DBT * b);
 
 int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
