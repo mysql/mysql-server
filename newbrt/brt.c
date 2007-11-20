@@ -1557,6 +1557,9 @@ int brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbn
 	    }
 	    t->h->dirty=1;
             t->h->flags = t->flags;
+            /* These flags do not need to match. */
+            t->h->flags &= ~DB_CREATE;
+            t->h->flags &= ~DB_EXCL;
 	    t->h->nodesize=t->nodesize;
 	    t->h->freelist=-1;
 	    t->h->unused_memory=2*t->nodesize;
