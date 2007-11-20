@@ -267,6 +267,8 @@ int tokulogger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     if (txn==0) return 0;
     const int fnamelen = strlen(fname);
     const int buflen = (+1 // log command
+			+8 // lsn
+			+8 // txnid
 			+4 // length of fname
 			+fnamelen
 			+4 // mode
@@ -276,6 +278,9 @@ int tokulogger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     struct wbuf wbuf;
     wbuf_init (&wbuf, buf, buflen);
     wbuf_char (&wbuf, LT_FCREATE);
+    wbuf_lsn    (&wbuf, txn->logger->lsn);
+    txn->logger->lsn.lsn++;
+    wbuf_txnid(&wbuf, txn->txnid64);
     wbuf_bytes(&wbuf, fname, fnamelen);
     wbuf_int  (&wbuf, mode);
     return tokulogger_finish(txn->logger, &wbuf);

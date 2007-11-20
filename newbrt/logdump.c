@@ -58,12 +58,16 @@ void transcribe_diskoff (void) {
     printf(" diskoff=%lld", value);
 }    
 
-
 void transcribe_crc32 (void) {
     u_int32_t oldcrc=crc;
     u_int32_t l = get_uint32();
     printf(" crc=%08x", l);
     assert(l==oldcrc);
+}
+
+void transcribe_mode (void) {
+    u_int32_t value = get_uint32();
+    printf(" mode=0%o", value);
 }
 
 void transcribe_len (void) {
@@ -127,6 +131,17 @@ int main (int argc, char *argv[]) {
 	    printf("\n");
 	    break;
 
+	case LT_FCREATE:
+	    printf("FCREATE:");
+	    transcribe_lsn();
+	    transcribe_txnid();
+	    transcribe_key_or_data("fname");
+	    transcribe_mode();
+	    transcribe_crc32();
+	    transcribe_len();
+	    printf("\n");
+	    break;
+
 	case LT_COMMIT:
 	    printf("COMMIT:");
 	    transcribe_lsn();
@@ -137,7 +152,7 @@ int main (int argc, char *argv[]) {
 	    break;
 
 	default:
-	    printf("Huh?");
+	    fprintf(stderr, "Huh?, found command %c\n", cmd);
 	    assert(0);
 	}
     }
