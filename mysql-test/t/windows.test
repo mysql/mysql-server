@@ -36,6 +36,9 @@ EXPLAIN SELECT * FROM t1 WHERE b =  (SELECT max(2));
 
 --echo End of 5.0 tests.
 
+--disable_warnings
+drop procedure if exists proc_1;
+--enable_warnings
 #
 # Bug #20665: All commands supported in Stored Procedures should work in
 # Prepared Statements
