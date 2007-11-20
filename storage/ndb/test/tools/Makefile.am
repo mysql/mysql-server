@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency
+ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect
 
 # transproxy 
 
@@ -35,6 +35,7 @@ ndb_cpcc_SOURCES = cpcc.cpp
 listen_event_SOURCES = listen.cpp
 eventlog_SOURCES = log_listner.cpp
 rep_latency_SOURCES = rep_latency.cpp
+ndb_connect_SOURCES = connect.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am
