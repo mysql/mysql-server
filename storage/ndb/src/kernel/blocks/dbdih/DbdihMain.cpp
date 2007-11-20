@@ -11154,6 +11154,12 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   Uint32 started = lcpReport->maxGciStarted;
   Uint32 completed = lcpReport->maxGciCompleted;
 
+  if (started > c_lcpState.lcpStopGcp)
+  {
+    jam();
+    c_lcpState.lcpStopGcp = started;
+  }
+
   if(tableDone){
     jam();
 
@@ -11692,7 +11698,12 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   signal->theData[0] = NDB_LE_LocalCheckpointCompleted; //Event type
   signal->theData[1] = SYSFILE->latestLCP_ID;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-  c_lcpState.lcpStopGcp = c_newest_restorable_gci;
+
+  if (c_newest_restorable_gci > c_lcpState.lcpStopGcp)
+  {
+    jam();
+    c_lcpState.lcpStopGcp = c_newest_restorable_gci;
+  }
   
   /**
    * Start checking for next LCP
@@ -12639,31 +12650,24 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   }//for
   keepGci = (Uint32)-1;
   oldestRestorableGci = 0;
-  
   Uint32 lastLcpNo = prevLcpNo(fmgReplicaPtr.p->nextLcp);
-  if (fmgReplicaPtr.p->lcpStatus[lastLcpNo] == ZVALID &&
-      fmgReplicaPtr.p->maxGciStarted[lastLcpNo] < c_newest_restorable_gci)
+  if (fmgReplicaPtr.p->lcpStatus[lastLcpNo] == ZVALID)
   {
     jam();
     keepGci = fmgReplicaPtr.p->maxGciCompleted[lastLcpNo];
     oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[lastLcpNo];
+    ndbassert(fmgReplicaPtr.p->maxGciStarted[lcpNo] <c_newest_restorable_gci);
   } 
   else 
   {
     jam();
-    if (fmgReplicaPtr.p->createGci[0] == fmgReplicaPtr.p->initialGci) 
+    if (fmgReplicaPtr.p->createGci[0] == fmgReplicaPtr.p->initialGci)
     {
-      jam();
-      /*-------------------------------------------------------------------
-       * WE CAN STILL RESTORE THIS REPLICA WITHOUT ANY LOCAL CHECKPOINTS BY
-       * ONLY USING THE LOG. IF THIS IS NOT POSSIBLE THEN WE REPORT THE LAST
-       * VALID LOCAL CHECKPOINT AS THE MINIMUM GCI RECOVERABLE.
-       *-----------------------------------------------------------------*/
       keepGci = fmgReplicaPtr.p->createGci[0];
       // XXX Jonas
       //oldestRestorableGci = fmgReplicaPtr.p->createGci[0];
-    }//if
-  }//if
+    }
+  }
   return;
 }//Dbdih::findMinGci()
 
