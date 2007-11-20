@@ -1,5 +1,5 @@
 ################################################################################
-# include/partition_rectory.inc                                                #
+# inc/partition_directory.inc                                                  #
 #                                                                              #
 # Purpose:                                                                     #
 #   Create and check partitioned tables                                        #
@@ -9,7 +9,7 @@
 #   do                                                                         #
 #     1. Create the partitioned table                                          #
 #     2  Insert the content of the table t0_template into t1                   #
-#     3. Execute include/partition_check.inc                                   #
+#     3. Execute inc/partition_check.inc                                       #
 #     4. Drop the table t1                                                     #
 #   done                                                                       #
 #------------------------------------------------------------------------------#
@@ -49,7 +49,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -86,7 +85,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -122,7 +120,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -153,7 +150,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -181,7 +177,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -212,7 +207,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -256,7 +250,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 

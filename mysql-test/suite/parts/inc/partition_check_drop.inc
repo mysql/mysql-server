@@ -1,5 +1,5 @@
 ################################################################################
-# include/partition_check_drop.inc                                             #
+# inc/partition_check_drop.inc                                                 #
 #                                                                              #
 # Purpose:                                                                     #
 #   Check that a drop table removes all files belonging to this table.         #
@@ -9,7 +9,7 @@
 #   This routine is only useful for the partition_<feature>_<engine> tests.    #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-05-12                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
@@ -52,7 +52,7 @@ if ($found_garbage)
    if ($ls)
    {
       --echo # Attention: There are unused files.
-      --echo #            Either the DROP TABLE or a preceeding ALTER TABLE
+      --echo #            Either the DROP TABLE or a preceding ALTER TABLE
       --echo #            <alter partitioning> worked incomplete.
       --echo # We found:
       # Print the list of files into the protocol
