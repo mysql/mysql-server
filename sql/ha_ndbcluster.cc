@@ -36,6 +36,7 @@
 
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_tables.h"
+#include "ha_ndbcluster_connection.h"
 
 #include <mysql/plugin.h>
 
@@ -45,11 +46,7 @@
 #endif
 
 // options from from mysqld.cc
-extern my_bool opt_ndb_optimized_node_selection;
-extern const char *opt_ndbcluster_connectstring;
 extern ulong opt_ndb_cache_check_time;
-extern ulong opt_ndb_wait_connected;
-extern ulong opt_ndb_cluster_connection_pool;
 
 // ndb interface initialization/cleanup
 #ifdef  __cplusplus
@@ -132,12 +129,8 @@ static uint ndbcluster_alter_partition_flags()
 static int ndbcluster_inited= 0;
 int ndbcluster_terminating= 0;
 
-static Ndb* g_ndb= NULL;
-Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
-Ndb_cluster_connection **g_ndb_cluster_connection_pool= NULL;
-ulong g_ndb_cluster_connection_pool_alloc= 0;
-ulong g_ndb_cluster_connection_pool_pos= 0;
-pthread_mutex_t g_ndb_cluster_connection_pool_mutex;
+extern Ndb* g_ndb;
+
 uchar g_node_id_map[max_ndb_nodes];
 
 // Handler synchronization
@@ -338,14 +331,7 @@ uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
 
 Thd_ndb::Thd_ndb()
 {
-  pthread_mutex_lock(&g_ndb_cluster_connection_pool_mutex);
-  connection=
-    g_ndb_cluster_connection_pool[g_ndb_cluster_connection_pool_pos];
-  g_ndb_cluster_connection_pool_pos++;
-  if (g_ndb_cluster_connection_pool_pos ==
-      g_ndb_cluster_connection_pool_alloc)
-    g_ndb_cluster_connection_pool_pos= 0;
-  pthread_mutex_unlock(&g_ndb_cluster_connection_pool_mutex);
+  connection= ndb_get_cluster_connection();
   ndb= new Ndb(connection, "");
   lock_count= 0;
   start_stmt_count= 0;
@@ -3343,12 +3329,17 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     intact.
     This means that we now suffer from BUG#22045... :-/
   */
-
+  const MY_BITMAP *user_cols_written_bitmap;
+  
   if (m_use_write)
   {
     const NdbRecord *key_rec;
     const uchar *key_row;
     uchar *mask;
+
+    /* Using write, the only user-visible cols we write are in the write_set */
+    user_cols_written_bitmap= table->write_set;
+
     if (table_share->primary_key == MAX_KEY || m_user_defined_partitioning)
     {
       mask= copy_column_set(table->write_set);
@@ -3374,7 +3365,11 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
                           m_ndb_record, (char *)row, mask);
   }
   else
+  {
+    /* Using insert, we write all user visible columns */
+    user_cols_written_bitmap= NULL;
     op= trans->insertTuple(m_ndb_record, (char *)row);
+  }
   if (!(op))
     ERR_RETURN(trans->getNdbError());
 
@@ -3387,7 +3382,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   if (table_share->blob_fields > 0)
   {
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-    int res= set_blob_values(op, row - table->record[0], NULL, &blob_count);
+    /* Set Blob values for all columns updated by the operation */
+    int res= set_blob_values(op, row - table->record[0], user_cols_written_bitmap, &blob_count);
     dbug_tmp_restore_column_map(table->read_set, old_map);
     if (res != 0)
       ERR_RETURN(op->getNdbError());
@@ -7777,7 +7773,6 @@ extern pthread_mutex_t LOCK_plugin;
 
 static int ndbcluster_init(void *p)
 {
-  int res;
   DBUG_ENTER("ndbcluster_init");
 
   if (ndbcluster_inited)
@@ -7827,161 +7822,10 @@ static int ndbcluster_init(void *p)
   // Initialize ndb interface
   ndb_init_internal();
 
-  // Set connectstring if specified
-  if (opt_ndbcluster_connectstring != 0)
-    DBUG_PRINT("connectstring", ("%s", opt_ndbcluster_connectstring));     
-  if ((g_ndb_cluster_connection=
-       new Ndb_cluster_connection(opt_ndbcluster_connectstring)) == 0)
-  {
-    sql_print_error("NDB: failed to allocate global "
-                    "ndb cluster connection object");
-    DBUG_PRINT("error",("Ndb_cluster_connection(%s)",
-                        opt_ndbcluster_connectstring));
-    my_errno= HA_ERR_OUT_OF_MEM;
+  /* allocate connection resources and connect to cluster */
+  if (ndbcluster_connect(connect_callback))
     goto ndbcluster_init_error;
-  }
-  {
-    char buf[128];
-    my_snprintf(buf, sizeof(buf), "mysqld --server-id=%lu", server_id);
-    g_ndb_cluster_connection->set_name(buf);
-  }
-  g_ndb_cluster_connection->set_optimized_node_selection
-    (opt_ndb_optimized_node_selection);
 
-  // Create a Ndb object to open the connection  to NDB
-  if ( (g_ndb= new Ndb(g_ndb_cluster_connection, "sys")) == 0 )
-  {
-    sql_print_error("NDB: failed to allocate global ndb object");
-    DBUG_PRINT("error", ("failed to create global ndb object"));
-    my_errno= HA_ERR_OUT_OF_MEM;
-    goto ndbcluster_init_error;
-  }
-  if (g_ndb->init() != 0)
-  {
-    ERR_PRINT (g_ndb->getNdbError());
-    goto ndbcluster_init_error;
-  }
-
-  /* Connect to management server */
-
-  struct timeval end_time;
-  gettimeofday(&end_time, 0);
-  end_time.tv_sec+= opt_ndb_wait_connected;
-
-  while ((res= g_ndb_cluster_connection->connect(0,0,0)) == 1)
-  {
-    struct timeval now_time;
-    gettimeofday(&now_time, 0);
-    if (now_time.tv_sec > end_time.tv_sec ||
-        (now_time.tv_sec == end_time.tv_sec &&
-         now_time.tv_usec >= end_time.tv_usec))
-      break;
-    sleep(1);
-  }
-
-  {
-    g_ndb_cluster_connection_pool_alloc= opt_ndb_cluster_connection_pool;
-    g_ndb_cluster_connection_pool= (Ndb_cluster_connection**)
-      my_malloc(g_ndb_cluster_connection_pool_alloc *
-                sizeof(Ndb_cluster_connection*),
-                MYF(MY_WME | MY_ZEROFILL));
-    pthread_mutex_init(&g_ndb_cluster_connection_pool_mutex,
-                       MY_MUTEX_INIT_FAST);
-    g_ndb_cluster_connection_pool[0]= g_ndb_cluster_connection;
-    for (unsigned i= 1; i < g_ndb_cluster_connection_pool_alloc; i++)
-    {
-      if ((g_ndb_cluster_connection_pool[i]=
-           new Ndb_cluster_connection(opt_ndbcluster_connectstring,
-                                      g_ndb_cluster_connection)) == 0)
-      {
-        sql_print_error("NDB[%u]: failed to allocate cluster connect object",
-                        i);
-        DBUG_PRINT("error",("Ndb_cluster_connection[%u](%s)",
-                            i, opt_ndbcluster_connectstring));
-        goto ndbcluster_init_error;
-      }
-      {
-        char buf[128];
-        my_snprintf(buf, sizeof(buf), "mysqld --server-id=%lu (connection %u)",
-                    server_id, i+1);
-        g_ndb_cluster_connection_pool[i]->set_name(buf);
-      }
-      g_ndb_cluster_connection_pool[i]->set_optimized_node_selection
-        (opt_ndb_optimized_node_selection);
-    }
-  }
-
-  if (res == 0)
-  {
-    connect_callback();
-    for (unsigned i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
-    {
-      if (g_ndb_cluster_connection_pool[i]->node_id() == 0)
-      {
-        // not connected to mgmd yet, try again
-        g_ndb_cluster_connection_pool[i]->connect(0,0,0);
-        if (g_ndb_cluster_connection_pool[i]->node_id() == 0)
-        {
-          sql_print_warning("NDB[%u]: starting connect thread", i);
-          g_ndb_cluster_connection_pool[i]->start_connect_thread();
-          continue;
-        }
-      }
-      DBUG_PRINT("info",
-                 ("NDBCLUSTER storage engine (%u) at %s on port %d", i,
-                  g_ndb_cluster_connection_pool[i]->get_connected_host(),
-                  g_ndb_cluster_connection_pool[i]->get_connected_port()));
-
-      struct timeval now_time;
-      gettimeofday(&now_time, 0);
-      ulong wait_until_ready_time = (end_time.tv_sec > now_time.tv_sec) ?
-        end_time.tv_sec - now_time.tv_sec : 1;
-      res= g_ndb_cluster_connection_pool[i]->
-        wait_until_ready(wait_until_ready_time,3);
-      if (res == 0)
-      {
-        sql_print_information("NDB[%u]: all storage nodes connected", i);
-      }
-      else if (res > 0)
-      {
-        sql_print_information("NDB[%u]: some storage nodes connected", i);
-      }
-      else if (res < 0)
-      {
-        sql_print_information("NDB[%u]: no storage nodes connected (timed out)", i);
-      }
-    }
-  } 
-  else if (res == 1)
-  {
-    for (unsigned i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
-    {
-      if (g_ndb_cluster_connection_pool[i]->
-          start_connect_thread(i == 0 ? connect_callback :  NULL)) 
-      {
-        sql_print_error("NDB[%u]: failed to start connect thread", i);
-        DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
-        goto ndbcluster_init_error;
-      }
-    }
-#ifndef DBUG_OFF
-    {
-      char buf[1024];
-      DBUG_PRINT("info",
-                 ("NDBCLUSTER storage engine not started, "
-                  "will connect using %s",
-                  g_ndb_cluster_connection->
-                  get_connectstring(buf,sizeof(buf))));
-    }
-#endif
-  }
-  else
-  {
-    DBUG_ASSERT(res == -1);
-    DBUG_PRINT("error", ("permanent error"));
-    goto ndbcluster_init_error;
-  }
-  
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
                    (hash_get_key) ndbcluster_get_key,0,0);
 #ifdef HAVE_NDB_BINLOG
@@ -8027,28 +7871,8 @@ static int ndbcluster_init(void *p)
   DBUG_RETURN(FALSE);
 
 ndbcluster_init_error:
-  if (g_ndb)
-    delete g_ndb;
-  g_ndb= NULL;
-  {
-    if (g_ndb_cluster_connection_pool)
-    {
-      /* first in pool is the main one, wait with release */
-      for (unsigned i= 1; i < g_ndb_cluster_connection_pool_alloc; i++)
-      {
-        if (g_ndb_cluster_connection_pool[i])
-          delete g_ndb_cluster_connection_pool[i];
-      }
-      my_free((uchar*) g_ndb_cluster_connection_pool, MYF(MY_ALLOW_ZERO_PTR));
-      pthread_mutex_destroy(&g_ndb_cluster_connection_pool_mutex);
-      g_ndb_cluster_connection_pool= 0;
-    }
-    g_ndb_cluster_connection_pool_alloc= 0;
-    g_ndb_cluster_connection_pool_pos= 0;
-  }
-  if (g_ndb_cluster_connection)
-    delete g_ndb_cluster_connection;
-  g_ndb_cluster_connection= NULL;
+  /* disconnect from cluster and free connection resources */
+  ndbcluster_disconnect();
   ndbcluster_hton->state= SHOW_OPTION_DISABLED;               // If we couldn't use handler
 
   pthread_mutex_lock(&LOCK_plugin);
@@ -8107,27 +7931,8 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
                 (leaked == 1)?"has":"have");
     }
 #endif
-    delete g_ndb;
-    g_ndb= NULL;
   }
-  {
-    if (g_ndb_cluster_connection_pool)
-    {
-      /* first in pool is the main one, wait with release */
-      for (unsigned i= 1; i < g_ndb_cluster_connection_pool_alloc; i++)
-      {
-        if (g_ndb_cluster_connection_pool[i])
-          delete g_ndb_cluster_connection_pool[i];
-      }
-      my_free((uchar*) g_ndb_cluster_connection_pool, MYF(MY_ALLOW_ZERO_PTR));
-      pthread_mutex_destroy(&g_ndb_cluster_connection_pool_mutex);
-      g_ndb_cluster_connection_pool= 0;
-    }
-    g_ndb_cluster_connection_pool_alloc= 0;
-    g_ndb_cluster_connection_pool_pos= 0;
-  }
-  delete g_ndb_cluster_connection;
-  g_ndb_cluster_connection= NULL;
+  ndbcluster_disconnect();
 
   // cleanup ndb interface
   ndb_end_internal();
