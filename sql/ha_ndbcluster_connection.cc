@@ -25,7 +25,6 @@
 #include "ha_ndbcluster_connection.h"
 
 /* options from from mysqld.cc */
-extern my_bool opt_ndb_optimized_node_selection;
 extern const char *opt_ndbcluster_connectstring;
 extern ulong opt_ndb_wait_connected;
 extern ulong opt_ndb_cluster_connection_pool;
