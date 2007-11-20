@@ -572,3 +572,24 @@ select count(*) from t1;
 count(*)
 0
 drop table t1;
+create table t1(
+a int,
+blob_nn blob not null,
+text_nn text not null,
+blob_nl blob,
+text_nl text,
+primary key(a)
+) engine=ndb;
+insert into t1(a) values (1);
+Warnings:
+Warning	1364	Field 'blob_nn' doesn't have a default value
+Warning	1364	Field 'text_nn' doesn't have a default value
+insert into t1(a, text_nl) values (2, 'MySQL Cluster NDB');
+Warnings:
+Warning	1364	Field 'blob_nn' doesn't have a default value
+Warning	1364	Field 'text_nn' doesn't have a default value
+select a, length(blob_nn), length(text_nn), blob_nl, text_nl from t1 order by a;
+a	length(blob_nn)	length(text_nn)	blob_nl	text_nl
+1	0	0	NULL	NULL
+2	0	0	NULL	MySQL Cluster NDB
+drop table t1;

@@ -1518,9 +1518,9 @@ void PollGuard::unlock_and_signal()
     if (t_signal_cond_waiter)
       t_signal_cond_waiter->set_poll_owner(true);
   }
-  m_tp->unlock_mutex();
   if (t_signal_cond_waiter)
     t_signal_cond_waiter->cond_signal();
+  m_tp->unlock_mutex();
   m_locked=false;
 }
 
