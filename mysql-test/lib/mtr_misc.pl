@@ -280,4 +280,33 @@ sub mtr_cmp_opts ($$) {
   return 0;                             # They are the same
 }
 
+#
+# Compare two arrays and put all unequal elements into a new one
+#
+sub mtr_diff_opts ($$) {
+  my $l1= shift;
+  my $l2= shift;
+  my $f;
+  my $l= [];
+  foreach my $e1 (@$l1) 
+  {    
+    $f= undef;
+    foreach my $e2 (@$l2) 
+    {
+      $f= 1 unless ($e1 ne $e2);
+    }
+    push(@$l, $e1) unless (defined $f);
+  }
+  foreach my $e2 (@$l2) 
+  {
+    $f= undef;
+    foreach my $e1 (@$l1) 
+    {
+      $f= 1 unless ($e1 ne $e2);
+    }
+    push(@$l, $e2) unless (defined $f);
+  }
+  return $l;
+}
+
 1;

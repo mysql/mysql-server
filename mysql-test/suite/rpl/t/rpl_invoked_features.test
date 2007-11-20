@@ -202,10 +202,10 @@ SET GLOBAL EVENT_SCHEDULER = off;
 # Check original objects
 --echo
 SHOW TABLES LIKE 't%';
-SELECT table_name FROM information_schema.views WHERE table_schema='test';
-SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
-SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test';
-SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
+SELECT table_name FROM information_schema.views WHERE table_schema='test' ORDER BY table_name;
+SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test' ORDER BY trigger_name;
+SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test' ORDER BY routine_name;
+SELECT event_name, status FROM information_schema.events WHERE event_schema='test' ORDER BY event_name;
 
 # Check original data
 --echo
@@ -229,10 +229,10 @@ SELECT a,b FROM v11 ORDER BY a;
 # Check replicated objects
 --echo
 SHOW TABLES LIKE 't%';
-SELECT table_name FROM information_schema.views WHERE table_schema='test';
-SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
-SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test';
-SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
+SELECT table_name FROM information_schema.views WHERE table_schema='test' ORDER BY table_name;
+SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test' ORDER BY trigger_name;
+SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test' ORDER BY routine_name;
+SELECT event_name, status FROM information_schema.events WHERE event_schema='test' ORDER BY event_name;
 
 # Check replicated data
 --echo
