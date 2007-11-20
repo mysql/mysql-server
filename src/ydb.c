@@ -239,7 +239,7 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
 
     if (env->i->dir)
         toku_free(env->i->dir);
-    env->i->dir = strdup(home);
+    env->i->dir = toku_strdup(home);
     if (env->i->dir == 0) 
         return ENOMEM;
     if (0) {
@@ -319,7 +319,7 @@ int __toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
         return EINVAL;
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
-    env->i->data_dir = strdup(dir);
+    env->i->data_dir = toku_strdup(dir);
     return env->i->data_dir ? 0 : ENOMEM;
 }
 
@@ -330,7 +330,7 @@ void __toku_db_env_set_errcall(DB_ENV * env, void (*errcall) (const char *, char
 void __toku_db_env_set_errpfx(DB_ENV * env, const char *errpfx) {
     if (env->i->errpfx)
         toku_free(env->i->errpfx);
-    env->i->errpfx = strdup(errpfx ? errpfx : "");
+    env->i->errpfx = toku_strdup(errpfx ? errpfx : "");
 }
 
 int __toku_db_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
@@ -371,7 +371,7 @@ int __toku_db_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
     if (!tmp_dir) return EINVAL;
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
-    env->i->tmp_dir = strdup(tmp_dir);
+    env->i->tmp_dir = toku_strdup(tmp_dir);
     return env->i->tmp_dir ? 0 : ENOMEM;
 }
 
@@ -428,7 +428,7 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     memset(result->i, 0, sizeof *result->i);
     result->i->ref_count = 1;
     result->i->errcall = __toku_default_errcall;
-    result->i->errpfx = strdup("");
+    result->i->errpfx = toku_strdup("");
 
     *envp = result;
     return 0;
@@ -617,7 +617,7 @@ int __toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname,
         goto error_cleanup;
     }
     // printf("Full name = %s\n", db->i->full_fname);
-    db->i->database_name = strdup(dbname ? dbname : "");
+    db->i->database_name = toku_strdup(dbname ? dbname : "");
     if (db->i->database_name == 0) {
         r = ENOMEM;
         goto error_cleanup;
