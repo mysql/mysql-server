@@ -43,7 +43,7 @@ void brt_flush (BRT); /* fsync and clear the caches. */
 int brt_create_cachetable(CACHETABLE *t, long cachesize, LSN initial_lsn, TOKULOGGER);
 
 extern int brt_debug_mode;
-int verify_brt (BRT brt);
+int toku_verify_brt (BRT brt);
 
 int show_brt_blocknumbers(BRT);
 

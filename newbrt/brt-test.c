@@ -252,11 +252,11 @@ static void test_multiple_files_of_size (int size) {
 	snprintf(val, 100, "Val%d", i);
 	brt_insert(t1, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), null_db, null_txn);
     }
-    //verify_brt(t0);
+    //toku_verify_brt(t0);
     //dump_brt(t0);
     //dump_brt(t1);
-    verify_brt(t0);
-    verify_brt(t1);
+    toku_verify_brt(t0);
+    toku_verify_brt(t1);
 
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
@@ -508,7 +508,7 @@ static void  test_read_what_was_written (void) {
 	assert(strcmp(v.data,"there")==0);
     }
 
-    assert(verify_brt(brt)==0);
+    assert(toku_verify_brt(brt)==0);
 
     /* Now put a bunch (NVALS) of things in. */
     {
@@ -519,12 +519,12 @@ static void  test_read_what_was_written (void) {
 	    snprintf(key, 100, "key%d", i);
 	    snprintf(val, 100, "val%d", i);
 	    if (i<600) {
-		int verify_result=verify_brt(brt);;
+		int verify_result=toku_verify_brt(brt);;
 		assert(verify_result==0);
 	    }
 	    brt_insert(brt, fill_dbt(&k, key, strlen(key)+1), fill_dbt(&v, val, strlen(val)+1), null_db, null_txn);
 	    if (i<600) {
-		int verify_result=verify_brt(brt);
+		int verify_result=toku_verify_brt(brt);
 		if (verify_result) {
 		    dump_brt(brt);
 		    assert(0);
@@ -549,7 +549,7 @@ static void  test_read_what_was_written (void) {
     printf("Now read them out\n");
 
     //show_brt_blocknumbers(brt);
-    verify_brt(brt);
+    toku_verify_brt(brt);
     //dump_brt(brt);
 
     /* See if we can read them all out again. */
