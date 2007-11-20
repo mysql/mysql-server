@@ -3343,7 +3343,7 @@ sub do_before_run_mysqltest($)
           mtr_add_arg($args, "--port=$server->{'port'}");
           mtr_add_arg($args, "--socket=$server->{'path_sock'}");   
 
-          mtr_run($exe_mysql, $args, "$glob_mysql_test_dir/include/set_binlog_format_".$tinfo->{"binlog_format"}.".inc", "", "", "", {});
+          mtr_run($exe_mysql, $args, "include/set_binlog_format_".$tinfo->{"binlog_format"}.".inc", "", "", "");
 
         }
       }
