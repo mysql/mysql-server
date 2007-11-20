@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1, t2;
 create table t1 (a int unsigned)
 partition by range (a)
 (partition pnull values less than (0),
@@ -709,3 +709,23 @@ WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p407,p408,p409,p507,p508,p509	ALL	NULL	NULL	NULL	NULL	18	Using where
 DROP TABLE t1;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t2 (
+defid int(10) unsigned NOT NULL,
+day int(10) unsigned NOT NULL,
+count int(10) unsigned NOT NULL,
+filler char(200),
+KEY (defid,day)
+) 
+PARTITION BY RANGE (day) (
+PARTITION p7 VALUES LESS THAN (20070401) , 
+PARTITION p8 VALUES LESS THAN (20070501));
+insert into t2 select 20, 20070311, 1, 'filler' from t1 A, t1 B;
+insert into t2 select 20, 20070411, 1, 'filler' from t1 A, t1 B;
+insert into t2 values(52, 20070321, 123, 'filler') ;
+insert into t2 values(52, 20070322, 456, 'filler') ;
+select sum(count) from t2 ch where ch.defid in (50,52) and ch.day between 20070320 and 20070401 group by defid;
+sum(count)
+579
+drop table t1, t2;
