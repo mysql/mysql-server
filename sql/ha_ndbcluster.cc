@@ -3642,12 +3642,17 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     intact.
     This means that we now suffer from BUG#22045... :-/
   */
-
+  const MY_BITMAP *user_cols_written_bitmap;
+  
   if (m_use_write)
   {
     const NdbRecord *key_rec;
     const uchar *key_row;
     uchar *mask;
+
+    /* Using write, the only user-visible cols we write are in the write_set */
+    user_cols_written_bitmap= table->write_set;
+
     if (table_share->primary_key == MAX_KEY || m_user_defined_partitioning)
     {
       mask= copy_column_set(table->write_set);
@@ -3673,7 +3678,11 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
                           m_ndb_record, (char *)row, mask);
   }
   else
+  {
+    /* Using insert, we write all user visible columns */
+    user_cols_written_bitmap= NULL;
     op= trans->insertTuple(m_ndb_record, (char *)row);
+  }
   if (!(op))
     ERR_RETURN(trans->getNdbError());
 
@@ -3686,7 +3695,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   if (table_share->blob_fields > 0)
   {
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-    int res= set_blob_values(op, row - table->record[0], NULL, &blob_count);
+    /* Set Blob values for all columns updated by the operation */
+    int res= set_blob_values(op, row - table->record[0], user_cols_written_bitmap, &blob_count);
     dbug_tmp_restore_column_map(table->read_set, old_map);
     if (res != 0)
       ERR_RETURN(op->getNdbError());
