@@ -65,6 +65,7 @@ int get_part_for_delete(const uchar *buf, const uchar *rec0,
 void prune_partition_set(const TABLE *table, part_id_range *part_spec);
 bool check_partition_info(partition_info *part_info,handlerton **eng_type,
                           TABLE *table, handler *file, HA_CREATE_INFO *info);
+void set_linear_hash_mask(partition_info *part_info, uint no_parts);
 bool fix_partition_func(THD *thd, TABLE *table, bool create_table_ind);
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
