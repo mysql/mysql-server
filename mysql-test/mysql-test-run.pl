@@ -792,20 +792,23 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Find out type of logging that are being used
   # --------------------------------------------------------------------------
-  # NOTE if the default binlog format is changed, this has to be changed
-  $used_binlog_format= "statement";
   if (!$opt_extern && $mysql_version_id >= 50100 )
   {
-    $used_binlog_format= "mixed"; # Default value for binlog format
-
     foreach my $arg ( @opt_extra_mysqld_opt )
     {
       if ( $arg =~ /binlog[-_]format=(\S+)/ )
       {
-	$used_binlog_format= $1;
+      	$used_binlog_format= $1;
       }
     }
-    mtr_report("Using binlog format '$used_binlog_format'");
+    if (defined $used_binlog_format) 
+    {
+      mtr_report("Using binlog format '$used_binlog_format'");
+    }
+    else
+    {
+      mtr_report("Using dynamic switching of binlog format");
+    }
   }
 
 
@@ -3304,6 +3307,7 @@ sub run_testcase_check_skip_test($)
 sub do_before_run_mysqltest($)
 {
   my $tinfo= shift;
+  my $args;
 
   # Remove old files produced by mysqltest
   my $base_file= mtr_match_extension($tinfo->{'result_file'},
@@ -3323,6 +3327,26 @@ sub do_before_run_mysqltest($)
       # Set environment variable NDB_STATUS_OK to YES
       # if script decided to run mysqltest cluster _is_ installed ok
       $ENV{'NDB_STATUS_OK'} = "YES";
+    }
+    if (defined $tinfo->{"binlog_format"} and  $mysql_version_id > 50100 ) 
+    {
+      foreach my $server ((@$master,@$slave)) 
+      {
+        if ($server->{'pid'})
+        {
+
+          mtr_init_args(\$args);
+
+          mtr_add_arg($args, "--no-defaults");
+  
+          mtr_add_arg($args, "--user=root");
+          mtr_add_arg($args, "--port=$server->{'port'}");
+          mtr_add_arg($args, "--socket=$server->{'path_sock'}");   
+
+          mtr_run($exe_mysql, $args, "$glob_mysql_test_dir/include/set_binlog_format_".$tinfo->{"binlog_format"}.".inc", "", "", "", {});
+
+        }
+      }
     }
   }
 }
@@ -4218,10 +4242,19 @@ sub run_testcase_need_master_restart($)
   elsif (! mtr_same_opts($master->[0]->{'start_opts'},
                          $tinfo->{'master_opt'}) )
   {
-    $do_restart= 1;
-    mtr_verbose("Restart master: running with different options '" .
-	       join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
-		join(" ", @{$master->[0]->{'start_opts'}}) . "'" );
+    # Chech that diff is binlog format only
+    my $diff_opts= mtr_diff_opts($master->[0]->{'start_opts'},$tinfo->{'master_opt'});
+    if (scalar(@$diff_opts) eq 2) 
+    {
+      $do_restart= 1 unless ($diff_opts->[0] =~/^--binlog-format=/ and $diff_opts->[1] =~/^--binlog-format=/);
+    }
+    else
+    {
+      $do_restart= 1;
+      mtr_verbose("Restart master: running with different options '" .
+	         join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
+	  	join(" ", @{$master->[0]->{'start_opts'}}) . "'" );
+    }
   }
   elsif( ! $master->[0]->{'pid'} )
   {
