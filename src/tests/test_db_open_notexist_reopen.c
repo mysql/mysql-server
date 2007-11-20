@@ -17,7 +17,7 @@ int main (int argc, char *argv[]) {
     system("rm -rf " DIR);
     r=mkdir(DIR, 0777);                                                           assert(r==0);
     r=db_env_create(&env, 0);                                                     CKERR(r);
-    r=env->open(env, DIR, DB_INIT_MPOOL|DB_CREATE, 0777);                         CKERR(r);
+    r=env->open(env, DIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, 0777);                         CKERR(r);
     r=db_create(&db, env, 0);                                                     CKERR(r);
     r=db->open(db, NULL, "doesnotexist.db", "testdb", DB_BTREE, 0, 0666);         assert(r==ENOENT);
     r=db->open(db, NULL, "doesnotexist.db", "testdb", DB_BTREE, DB_CREATE, 0666); CKERR(r);
