@@ -51,8 +51,9 @@ CREATE TABLE t1 (
   `data` varchar(100),
   PRIMARY KEY  (`id`)
  ) ENGINE=MyISAM;
-
+--disable_warnings
 INSERT INTO t1(data) VALUES(SESSION_USER());
+--enable_warnings
 save_master_pos;
 connection slave;
 sync_with_master;

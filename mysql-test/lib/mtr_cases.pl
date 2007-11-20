@@ -367,6 +367,7 @@ sub collect_one_suite($$)
   # ----------------------------------------------------------------------
   if ($combinations && $begin_index <= $#{@$cases}) 
   { 
+    my $prepared = {};
     my $end_index = $#{@$cases};
     my $is_copy;
     # Keep original master/slave options
@@ -397,7 +398,7 @@ sub collect_one_suite($$)
             @$new_arr = @{$orig_opts[$idx]{$param}};
             $copied_test->{$param} = $new_arr;
           }
-          elsif ($param =~ /(comment|combinations)/) 
+          elsif ($param =~ /combinations/) 
           {
             $copied_test->{$param} = '';
           }
@@ -415,18 +416,29 @@ sub collect_one_suite($$)
           if ($comb_opt =~ /^--binlog-format=.+$/) 
           {
             my @opt_pairs = split(/=/, $comb_opt);
-            if ($test->{'binlog_format'} =~ /^$opt_pairs[1]$/ || $test->{'binlog_format'} eq '') 
+            if (defined $::used_binlog_format) 
             {
-              $test->{'skip'} = 0;
-              $test->{'comment'} = '';
+              if ($test->{'binlog_format'} ne $::used_binlog_format) 
+              {
+                $test->{'skip'} = 1;
+                $test->{'comment'} = "Requiring binlog format ".join(' or ', @{$test->{'sup_binlog_formats'}});
+              } 
             }
             else
             {
-              $test->{'skip'} = 1;
-              $test->{'comment'} = "Requiring binlog format '$test->{'binlog_format'}'";;
-            } 
+              foreach my $binlog_format (@{$test->{'sup_binlog_formats'}}) 
+              {
+                $test->{'binlog_format'}= $binlog_format if ($binlog_format eq $opt_pairs[1]);
+              }
+              if (defined $prepared->{$test->{'name'}.'|'.$test->{'binlog_format'}} and $test->{'skip'} ne 1 )
+              {
+                $test->{'skip'} = 1;
+                $test->{'comment'} = "Test for binlog format '$test->{'binlog_format'}' already executed";
+              }
+            }
           }
         }
+        $prepared->{$test->{'name'}.'|'.$test->{'binlog_format'}}= 1;
         $test->{'combination'} = $comb_set;
       } 
       $is_copy = 1;
@@ -523,6 +535,7 @@ sub collect_one_test_case($$$$$$$$$) {
   $tinfo->{'master_opt'}= [];
   $tinfo->{'slave_opt'}=  [];
   $tinfo->{'slave_mi'}=   [];
+
 
   # Add suite opts
   foreach my $opt ( @$suite_opts )
@@ -737,14 +750,43 @@ sub collect_one_test_case($$$$$$$$$) {
       return;
     }
 
-    if ( defined $tinfo->{'binlog_format'} and
-	 ! ( $tinfo->{'binlog_format'} eq $::used_binlog_format ) )
+    # Replication test needs an adjustment of binlog format
+    if ($tinfo->{'name'} =~ /^rpl/) 
     {
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Requiring binlog format '$tinfo->{'binlog_format'}'";
-      return;
+      # Set default binlog format priority
+      if ($tinfo->{'name'} =~ /^rpl/ and !defined $tinfo->{'sup_binlog_formats'}) 
+      {
+        if ($::mysql_version_id >= 50100) 
+        {          
+          $tinfo->{'sup_binlog_formats'} = ["mixed", "row", "statement"];          
+        }
+        else
+        {
+          $tinfo->{'sup_binlog_formats'} = ["statement", "row"];
+        }
+      }
+      # Check that a test supports binlog format defined via --binlog-format
+      if (defined $::used_binlog_format)
+      {
+        # Try to find a supported binlog formats
+        foreach my $binlog_format (@{$tinfo->{'sup_binlog_formats'}}) 
+        {
+           $tinfo->{'binlog_format'}= $binlog_format unless ($binlog_format ne $::used_binlog_format);
+        }
+        # Skip a test because 
+        if (!defined $tinfo->{'binlog_format'}) 
+        {
+          $tinfo->{'skip'}= 1;
+          $tinfo->{'comment'}= "Requiring binlog format ".join(' or ', @{$tinfo->{'sup_binlog_formats'}});
+          return;
+        }
+      }
+      else
+      {
+        $tinfo->{'binlog_format'}= $tinfo->{'sup_binlog_formats'}->[0];
+      }
     }
-
+ 
     if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
     {
       $tinfo->{'skip'}= 1;
@@ -824,10 +866,13 @@ sub collect_one_test_case($$$$$$$$$) {
 our @tags=
 (
  ["include/have_innodb.inc", "innodb_test", 1],
- ["include/have_binlog_format_row.inc", "binlog_format", "row"],
+ ["include/have_binlog_format_row.inc", "sup_binlog_formats", ["row"]],
  ["include/have_log_bin.inc", "need_binlog", 1],
- ["include/have_binlog_format_statement.inc", "binlog_format", "statement"],
- ["include/have_binlog_format_mixed.inc", "binlog_format", "mixed"],
+ ["include/have_binlog_format_statement.inc", "sup_binlog_formats", ["statement"]],
+ ["include/have_binlog_format_mixed.inc", "sup_binlog_formats", ["mixed"]],
+ ["include/have_binlog_format_mixed_or_row.inc", "sup_binlog_formats", ["mixed","row"]],
+ ["include/have_binlog_format_mixed_or_statement.inc", "sup_binlog_formats", ["mixed","statement"]],
+ ["include/have_binlog_format_row_or_statement.inc", "sup_binlog_formats", ["row","statement"]],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
@@ -853,8 +898,8 @@ sub mtr_options_from_test_file($$) {
     {
       if ( index($line, $tag->[0]) >= 0 )
       {
-	# Tag matched, assign value to "tinfo"
-	$tinfo->{"$tag->[1]"}= $tag->[2];
+    	  # Tag matched, assign value to "tinfo"
+        $tinfo->{"$tag->[1]"}= $tag->[2];
       }
     }
 
