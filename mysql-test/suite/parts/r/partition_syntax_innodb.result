@@ -2,11 +2,6 @@ SET @max_row = 20;
 SET @@session.storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------
-# There are several testcases disabled because of the open bugs
-# #15890
-#------------------------------------------------------------------------
-
-#------------------------------------------------------------------------
 #  0. Setting of auxiliary variables + Creation of an auxiliary tables
 #     needed in many testcases
 #------------------------------------------------------------------------
@@ -1058,6 +1053,29 @@ f_char1 CHAR(20),
 f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
+PARTITION BY HASH(f_int1) PARTITIONS 1.6;
+ERROR 42000: Only integers allowed as number here near '1.6' at line 8
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
+SUBPARTITIONS 1.6
+(PARTITION part1 VALUES LESS THAN (10),
+PARTITION part2 VALUES LESS THAN (2147483646));
+ERROR 42000: Only integers allowed as number here near '1.6
+(PARTITION part1 VALUES LESS THAN (10),
+PARTITION part2 VALUES LESS THAN (21' at line 9
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
 PARTITION BY HASH(f_int1) PARTITIONS 999999999999999999999999999999.999999999999999999999999999999;
 ERROR 42000: Only integers allowed as number here near '999999999999999999999999999999.999999999999999999999999999999' at line 8
 CREATE TABLE t1 (
@@ -1127,6 +1145,29 @@ f_char1 CHAR(20),
 f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
+PARTITION BY HASH(f_int1) PARTITIONS 0.2E+1;
+ERROR 42000: Only integers allowed as number here near '0.2E+1' at line 8
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
+SUBPARTITIONS 0.2E+1
+(PARTITION part1 VALUES LESS THAN (10),
+PARTITION part2 VALUES LESS THAN (2147483646));
+ERROR 42000: Only integers allowed as number here near '0.2E+1
+(PARTITION part1 VALUES LESS THAN (10),
+PARTITION part2 VALUES LESS THAN ' at line 9
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
 PARTITION BY HASH(f_int1) PARTITIONS -2.0E+0;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2.0E+0' at line 8
 CREATE TABLE t1 (
@@ -1141,6 +1182,29 @@ SUBPARTITIONS -2.0E+0
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2.0E+0
+(PARTITION part1 VALUES LESS THAN (10),
+PARTITION part2 VALUES LESS THAN' at line 9
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY HASH(f_int1) PARTITIONS 0.16E+1;
+ERROR 42000: Only integers allowed as number here near '0.16E+1' at line 8
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
+SUBPARTITIONS 0.16E+1
+(PARTITION part1 VALUES LESS THAN (10),
+PARTITION part2 VALUES LESS THAN (2147483646));
+ERROR 42000: Only integers allowed as number here near '0.16E+1
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN' at line 9
 CREATE TABLE t1 (
@@ -1166,6 +1230,52 @@ PARTITION part2 VALUES LESS THAN (2147483646));
 ERROR 42000: Only integers allowed as number here near '0.0E+300
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THA' at line 9
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY HASH(f_int1) PARTITIONS 1E+300;
+ERROR 42000: Only integers allowed as number here near '1E+300' at line 8
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
+SUBPARTITIONS 1E+300
+(PARTITION part1 VALUES LESS THAN (10),
+PARTITION part2 VALUES LESS THAN (2147483646));
+ERROR 42000: Only integers allowed as number here near '1E+300
+(PARTITION part1 VALUES LESS THAN (10),
+PARTITION part2 VALUES LESS THAN ' at line 9
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY HASH(f_int1) PARTITIONS 1E-300;
+ERROR 42000: Only integers allowed as number here near '1E-300' at line 8
+CREATE TABLE t1 (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+)
+PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
+SUBPARTITIONS 1E-300
+(PARTITION part1 VALUES LESS THAN (10),
+PARTITION part2 VALUES LESS THAN (2147483646));
+ERROR 42000: Only integers allowed as number here near '1E-300
+(PARTITION part1 VALUES LESS THAN (10),
+PARTITION part2 VALUES LESS THAN ' at line 9
 # 4.2.4 partition/subpartition numbers STRING notation
 CREATE TABLE t1 (
 f_int1 INTEGER,
