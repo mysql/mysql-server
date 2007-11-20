@@ -89,6 +89,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
 int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
     int r;
     CACHEFILE extant;
+    FILENUM max_filenum_in_use={0};
     struct stat statbuf;
     struct fileid fileid;
     memset(&fileid, 0, sizeof(fileid));
@@ -97,6 +98,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
     fileid.st_dev = statbuf.st_dev;
     fileid.st_ino = statbuf.st_ino;
     for (extant = t->cachefiles; extant; extant=extant->next) {
+	if (max_filenum_in_use.fileid<extant->filenum.fileid) max_filenum_in_use=extant->filenum;
 	if (memcmp(&extant->fileid, &fileid, sizeof(fileid))==0) {
 	    r = close(fd);
             assert(r == 0);
@@ -107,6 +109,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
     }
     {
 	CACHEFILE MALLOC(newcf);
+	newcf->filenum.fileid = 1+max_filenum_in_use.fileid;
 	newcf->next = t->cachefiles;
 	newcf->refcount = 1;
 	newcf->fd = fd;

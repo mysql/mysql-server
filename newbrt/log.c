@@ -286,6 +286,32 @@ int tokulogger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     return tokulogger_finish(txn->logger, &wbuf);
 }
 
+/* fopen isn't really an action.  It's just for bookkeeping.  We need to know the filename that goes with a filenum. */
+int tokulogger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
+    if (txn==0) return 0;
+    const int fnamelen = strlen(fname);
+    const int buflen = (+1 // log command
+			+8 // lsn
+			+8 // txnid
+			+4 // length of fname
+			+fnamelen
+			+4 // filenum len
+			+8 // crc & len
+			);
+    unsigned char buf[buflen];
+    struct wbuf wbuf;
+    wbuf_init (&wbuf, buf, buflen);
+    wbuf_char (&wbuf, LT_FOPEN);
+    wbuf_lsn    (&wbuf, txn->logger->lsn);
+    txn->logger->lsn.lsn++;
+    wbuf_txnid(&wbuf, txn->txnid64);
+    wbuf_bytes(&wbuf, fname, fnamelen);
+    wbuf_filenum(&wbuf, filenum);
+    return tokulogger_finish(txn->logger, &wbuf);
+    
+}
+
+
 int tokulogger_log_unlink (TOKUTXN txn, const char *fname) {
     if (txn==0) return 0;
     const int fnamelen = strlen(fname);

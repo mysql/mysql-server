@@ -23,6 +23,7 @@ enum {
     LT_DELETE                   = 'D',
     LT_FCREATE                  = 'F',
     LT_INSERT_WITH_NO_OVERWRITE = 'I',
+    LT_FOPEN                    = 'O',
     LT_CHECKPOINT               = 'P',
     LT_BLOCK_RENAME             = 'R',
     LT_UNLINK                   = 'U'

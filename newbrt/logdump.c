@@ -70,12 +70,18 @@ void transcribe_mode (void) {
     printf(" mode=0%o", value);
 }
 
+void transcribe_filenum(void) {
+    u_int32_t value = get_uint32();
+    printf(" filenum=%d", value);
+}
+
 void transcribe_len (void) {
     u_int32_t l = get_uint32();
     printf(" len=%d", l);
     if (l!=actual_len) printf(" actual_len=%d", actual_len);
     assert(l==actual_len);
 }
+
 
 void transcribe_key_or_data (char *what) {
     u_int32_t l = get_uint32();
@@ -142,6 +148,17 @@ int main (int argc, char *argv[]) {
 	    printf("\n");
 	    break;
 
+	case LT_FOPEN:
+	    printf("FOPEN:");
+	    transcribe_lsn();
+	    transcribe_txnid();
+	    transcribe_key_or_data("fname");
+	    transcribe_filenum();
+	    transcribe_crc32();
+	    transcribe_len();
+	    printf("\n");
+	    break;
+	    
 	case LT_COMMIT:
 	    printf("COMMIT:");
 	    transcribe_lsn();
@@ -152,7 +169,7 @@ int main (int argc, char *argv[]) {
 	    break;
 
 	default:
-	    fprintf(stderr, "Huh?, found command %c\n", cmd);
+	    fprintf(stderr, "Huh?, found command '%c'\n", cmd);
 	    assert(0);
 	}
     }

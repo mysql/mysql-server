@@ -650,7 +650,7 @@ int __toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname,
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    r = brt_open(db->i->brt, db->i->full_fname, dbname,
+    r = brt_open(db->i->brt, db->i->full_fname, fname, dbname,
 		 flags & DB_CREATE, flags & DB_EXCL,
 		 db->dbenv->i->cachetable,
 		 txn ? txn->i->tokutxn : NULL_TXN);
