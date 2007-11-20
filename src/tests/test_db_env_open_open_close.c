@@ -23,13 +23,7 @@ int main() {
     assert(r == 0);
 
     r = dbenv->open(dbenv, DIR, DB_INIT_MPOOL|DB_PRIVATE, 0666);
-#if defined(USE_TDB)
     assert(r != 0);
-#elif defined(USE_BDB)
-    assert(r == 0);
-#else
-#error huh?
-#endif
 
     r = dbenv->close(dbenv, 0);
     assert(r == 0);

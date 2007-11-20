@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
+
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
 // DIR is defined in the Makefile
@@ -19,22 +20,23 @@ int main() {
     r = db_env_create(&dbenv, 0);
     assert(r == 0);
 
-    r = dbenv->set_data_dir(dbenv, DIR);
+    r = dbenv->set_lg_dir(dbenv, ".");
     assert(r == 0);
 
-    r = dbenv->set_data_dir(dbenv, DIR);
+    r = dbenv->set_lg_dir(dbenv, ".");
     assert(r == 0);
-
-    r = dbenv->open(dbenv, DIR, DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL, 0);
+    
+    r = dbenv->open(dbenv, DIR, DB_INIT_LOG|DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL, 0);
     CKERR(r);
 
 #ifdef USE_TDB
-    // According to the BDB man page, you may not call set_data_dir after doing the open.
+    // According to the BDB man page, you may not call set_lg_dir after doing the open.
     // Some versions of BDB don't actually check this or complain
-    r = dbenv->set_data_dir(dbenv, "foo" DIR);
+    r = dbenv->set_lg_dir(dbenv, ".");
     assert(r == EINVAL);
 #endif
     
+
     r = dbenv->close(dbenv, 0);
     assert(r == 0);
 

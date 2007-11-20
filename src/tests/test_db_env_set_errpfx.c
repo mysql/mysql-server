@@ -17,12 +17,12 @@ int main() {
     r = db_env_create(&dbenv, 0);
     assert(r == 0);
 
-    dbenv->set_errpfx(dbenv, "houdy partners: ");
+    dbenv->set_errpfx(dbenv, "houdy partners");
 
     r = dbenv->open(dbenv, DIR, DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL, 0);
     assert(r == 0);
 
-    dbenv->set_errpfx(dbenv, "houdy partners: ");
+    dbenv->set_errpfx(dbenv, "houdy partners");
 
     r = dbenv->close(dbenv, 0);
     assert(r == 0);
