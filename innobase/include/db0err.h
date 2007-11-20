@@ -57,6 +57,18 @@ Created 5/24/1996 Heikki Tuuri
 					buffer pool (for big transactions,
 					InnoDB stores the lock structs in the
 					buffer pool) */
+#define DB_FOREIGN_DUPLICATE_KEY 46	/* foreign key constraints
+					activated by the operation would
+					lead to a duplicate key in some
+					table */
+#define DB_TOO_MANY_CONCURRENT_TRXS 47	/* when InnoDB runs out of the
+					preconfigured undo slots, this can
+					only happen when there are too many
+					concurrent transactions */
+#define DB_UNSUPPORTED		48	/* when InnoDB sees any artefact or
+					a feature that it can't recoginize or
+					work with e.g., FT indexes created by
+					a later version of the engine. */
 
 /* The following are partial failure codes */
 #define DB_FAIL 		1000

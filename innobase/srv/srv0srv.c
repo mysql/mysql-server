@@ -1881,12 +1881,6 @@ loop:
 
 	os_thread_sleep(1000000);
 
-	/* In case mutex_exit is not a memory barrier, it is
-	theoretically possible some threads are left waiting though
-	the semaphore is already released. Wake up those threads: */
-	
-	sync_arr_wake_threads_if_sema_free();
-
 	current_time = time(NULL);
 
 	time_elapsed = difftime(current_time, last_monitor_time);
@@ -2083,9 +2077,15 @@ loop:
 		srv_refresh_innodb_monitor_stats();
 	}
 
+	/* In case mutex_exit is not a memory barrier, it is
+	theoretically possible some threads are left waiting though
+	the semaphore is already released. Wake up those threads: */
+	
+	sync_arr_wake_threads_if_sema_free();
+
 	if (sync_array_print_long_waits()) {
 		fatal_cnt++;
-		if (fatal_cnt > 5) {
+		if (fatal_cnt > 10) {
 
 			fprintf(stderr,
 "InnoDB: Error: semaphore wait has lasted > %lu seconds\n"
@@ -2103,7 +2103,7 @@ loop:
 
 	fflush(stderr);
 
-	os_thread_sleep(2000000);
+	os_thread_sleep(1000000);
 
 	if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
 
