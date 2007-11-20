@@ -28,6 +28,9 @@ int main() {
     r = db_create(&db, null_env, 0);                                         CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);    CKERR(r);
     r = db->close(db, 0);                                                    CKERR(r);
+    r = db_create(&db, null_env, 0);                                         CKERR(r);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);            CKERR(r);
+    r = db->close(db, 0);                                                    CKERR(r);
 
     r = db_create(&db, null_env, 0);                                         CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_EXCL, 0666);
