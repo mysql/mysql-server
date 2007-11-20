@@ -40,7 +40,6 @@ static const char *set_collation_name, *opt_tmpdir;
 static CHARSET_INFO *set_collation;
 static long opt_myisam_block_size;
 static long opt_key_cache_block_size;
-static const char *my_progname_short;
 static int stopwords_inited= 0;
 static MY_TMPDIR myisamchk_tmpdir;
 
@@ -85,7 +84,6 @@ int main(int argc, char **argv)
 {
   int error;
   MY_INIT(argv[0]);
-  my_progname_short= my_progname+dirname_length(my_progname);
 
   myisamchk_init(&check_param);
   check_param.opt_lock_memory=1;		/* Lock memory if possible */

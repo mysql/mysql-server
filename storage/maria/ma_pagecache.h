@@ -246,6 +246,20 @@ extern void pagecache_unpin(PAGECACHE *pagecache,
 extern void pagecache_unpin_by_link(PAGECACHE *pagecache,
                                     PAGECACHE_BLOCK_LINK *link,
                                     LSN lsn);
+
+
+/* Results of flush operation (bit field in fact) */
+
+/* The flush is done. */
+#define PCFLUSH_OK 0
+/* There was errors during the flush process. */
+#define PCFLUSH_ERROR 1
+/* Pinned blocks was met and skipped. */
+#define PCFLUSH_PINNED 2
+/* PCFLUSH_ERROR and PCFLUSH_PINNED. */
+#define PCFLUSH_PINNED_AND_ERROR (PCFLUSH_ERROR|PCFLUSH_PINNED)
+
+
 #define flush_pagecache_blocks(A,B,C)                   \
   flush_pagecache_blocks_with_filter(A,B,C,NULL,NULL)
 extern int flush_pagecache_blocks_with_filter(PAGECACHE *keycache,

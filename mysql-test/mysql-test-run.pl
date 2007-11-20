@@ -4885,12 +4885,7 @@ sub gdb_arguments {
   {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end\n" .
-	       "run");
+	       "set args $str\n");
   }
 
   if ( $opt_manual_gdb )
@@ -4950,11 +4945,7 @@ sub ddd_arguments {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
 	       "file $$exe\n" .
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end");
+	       "set args $str\n");
   }
 
   if ( $opt_manual_ddd )

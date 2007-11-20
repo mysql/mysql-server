@@ -66,21 +66,21 @@ struct st_filter_param
 }; /**< information to determine which dirty pages should be flushed */
 
 static enum pagecache_flush_filter_result
-filter_flush_data_file_medium(enum pagecache_page_type type,
-                              pgcache_page_no_t page,
-                              LSN rec_lsn, void *arg);
+filter_flush_file_medium(enum pagecache_page_type type,
+                         pgcache_page_no_t page,
+                         LSN rec_lsn, void *arg);
 static enum pagecache_flush_filter_result
-filter_flush_data_file_full(enum pagecache_page_type type,
-                            pgcache_page_no_t page,
-                            LSN rec_lsn, void *arg);
+filter_flush_file_full(enum pagecache_page_type type,
+                       pgcache_page_no_t page,
+                       LSN rec_lsn, void *arg);
 static enum pagecache_flush_filter_result
-filter_flush_data_file_indirect(enum pagecache_page_type type,
-                                pgcache_page_no_t page,
-                                LSN rec_lsn, void *arg);
+filter_flush_file_indirect(enum pagecache_page_type type,
+                           pgcache_page_no_t page,
+                           LSN rec_lsn, void *arg);
 static enum pagecache_flush_filter_result
-filter_flush_data_file_evenly(enum pagecache_page_type type,
-                              pgcache_page_no_t pageno,
-                              LSN rec_lsn, void *arg);
+filter_flush_file_evenly(enum pagecache_page_type type,
+                         pgcache_page_no_t pageno,
+                         LSN rec_lsn, void *arg);
 static int really_execute_checkpoint(void);
 pthread_handler_t ma_checkpoint_background(void *arg);
 static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon);
@@ -280,14 +280,14 @@ static int really_execute_checkpoint(void)
   */
 #if 0 /* purging/keeping will be an option */
   if (translog_purge(log_low_water_mark))
-    fprintf(stderr, "Maria engine: log purge failed\n"); /* not deadly */
+    ma_message_no_user(0, "log purging failed");
 #endif
 
   goto end;
 
 err:
   error= 1;
-  fprintf(stderr, "Maria engine: checkpoint failed\n"); /* TODO: improve ;) */
+  ma_message_no_user(0, "checkpoint failed");
   /* we were possibly not able to determine what pages to flush */
   pages_to_flush_before_next_checkpoint= 0;
 
@@ -459,9 +459,9 @@ void ma_checkpoint_end(void)
 */
 
 static enum pagecache_flush_filter_result
-filter_flush_data_file_medium(enum pagecache_page_type type,
-                              pgcache_page_no_t pageno,
-                              LSN rec_lsn, void *arg)
+filter_flush_file_medium(enum pagecache_page_type type,
+                         pgcache_page_no_t pageno,
+                         LSN rec_lsn, void *arg)
 {
   struct st_filter_param *param= (struct st_filter_param *)arg;
   return ((type == PAGECACHE_LSN_PAGE) &&
@@ -483,10 +483,10 @@ filter_flush_data_file_medium(enum pagecache_page_type type,
 */
 
 static enum pagecache_flush_filter_result
-filter_flush_data_file_full(enum pagecache_page_type type,
-                            pgcache_page_no_t pageno,
-                            LSN rec_lsn __attribute__ ((unused)),
-                            void *arg)
+filter_flush_file_full(enum pagecache_page_type type,
+                       pgcache_page_no_t pageno,
+                       LSN rec_lsn __attribute__ ((unused)),
+                       void *arg)
 {
   struct st_filter_param *param= (struct st_filter_param *)arg;
   return (type == PAGECACHE_LSN_PAGE) ||
@@ -507,11 +507,11 @@ filter_flush_data_file_full(enum pagecache_page_type type,
 */
 
 static enum pagecache_flush_filter_result
-filter_flush_data_file_indirect(enum pagecache_page_type type
-                                __attribute__ ((unused)),
-                                pgcache_page_no_t pageno,
-                                LSN rec_lsn __attribute__ ((unused)),
-                                void *arg)
+filter_flush_file_indirect(enum pagecache_page_type type
+                           __attribute__ ((unused)),
+                           pgcache_page_no_t pageno,
+                           LSN rec_lsn __attribute__ ((unused)),
+                           void *arg)
 {
   struct st_filter_param *param= (struct st_filter_param *)arg;
   return
@@ -523,11 +523,11 @@ filter_flush_data_file_indirect(enum pagecache_page_type type
 /**
    @brief dirty-page filtering criteria for background flushing thread.
 
-   We flush data pages which have been dirty since the previous checkpoint
-   (this is the two-checkpoint rule: the REDO phase will not have to start
-   from earlier than the next-to-last checkpoint), and all dirty bitmap
-   pages. But we flush no more than a certain number of pages (to have an
-   even flushing, no write burst).
+   We flush data/index pages which have been dirty since the previous
+   checkpoint (this is the two-checkpoint rule: the REDO phase will not have
+   to start from earlier than the next-to-last checkpoint), and no
+   bitmap pages. But we flush no more than a certain number of pages (to have
+   an even flushing, no write burst).
 
    @param  type                Page's type
    @param  pageno              Page's number
@@ -536,9 +536,9 @@ filter_flush_data_file_indirect(enum pagecache_page_type type
 */
 
 static enum pagecache_flush_filter_result
-filter_flush_data_file_evenly(enum pagecache_page_type type,
-                              pgcache_page_no_t pageno __attribute__ ((unused)),
-                              LSN rec_lsn, void *arg)
+filter_flush_file_evenly(enum pagecache_page_type type,
+                         pgcache_page_no_t pageno __attribute__ ((unused)),
+                         LSN rec_lsn, void *arg)
 {
   struct st_filter_param *param= (struct st_filter_param *)arg;
   if (unlikely(param->max_pages == 0)) /* all flushed already */
@@ -670,12 +670,10 @@ pthread_handler_t ma_checkpoint_background(void *arg)
           int res=
             flush_pagecache_blocks_with_filter(maria_pagecache,
                                                dfile, FLUSH_KEEP_LAZY,
-                                               filter_flush_data_file_evenly,
+                                               filter_flush_file_evenly,
                                                &filter_param);
-          /* note that it may just be a pinned page */
-          if (unlikely(res))
-            fprintf(stderr, "Maria engine: warning - background page flush"
-                    " failed\n");
+          if (unlikely(res & PCFLUSH_ERROR))
+            ma_message_no_user(0, "background data page flush failed");
           if (filter_param.max_pages == 0) /* bunch all flushed, sleep */
             break; /* and we will continue with the same file */
           dfile++; /* otherwise all this file is flushed, move to next file */
@@ -692,12 +690,11 @@ pthread_handler_t ma_checkpoint_background(void *arg)
         {
           int res=
             flush_pagecache_blocks_with_filter(maria_pagecache,
-                                               dfile, FLUSH_KEEP_LAZY,
-                                               filter_flush_data_file_evenly,
+                                               kfile, FLUSH_KEEP_LAZY,
+                                               filter_flush_file_evenly,
                                                &filter_param);
-          if (unlikely(res))
-            fprintf(stderr, "Maria engine: warning - background page flush"
-                    " failed\n");
+          if (unlikely(res & PCFLUSH_ERROR))
+            ma_message_no_user(0, "background index page flush failed");
           if (filter_param.max_pages == 0) /* bunch all flushed, sleep */
             break; /* and we will continue with the same file */
           kfile++; /* otherwise all this file is flushed, move to next file */
@@ -854,13 +851,13 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   switch(checkpoint_in_progress)
   {
   case CHECKPOINT_MEDIUM:
-    filter= &filter_flush_data_file_medium;
+    filter= &filter_flush_file_medium;
     break;
   case CHECKPOINT_FULL:
-    filter= &filter_flush_data_file_full;
+    filter= &filter_flush_file_full;
     break;
   case CHECKPOINT_INDIRECT:
-    filter= &filter_flush_data_file_indirect;
+    filter= &filter_flush_file_indirect;
     break;
   default:
     DBUG_ASSERT(0);
@@ -1148,22 +1145,18 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       flushed, as the REDOs about it will be skipped, it will wrongly not be
       recovered. If bitmap pages had a rec_lsn it would be different.
     */
-    /**
-       @todo we ignore the error because it may be just due a pinned page;
-       we should rather fix the function below to distinguish between
-       pinned page and write error. Then we can turn the warning into an
-       error.
-    */
-    if (((filter_param.is_data_file= TRUE),
-         flush_pagecache_blocks_with_filter(maria_pagecache,
+    if ((filter_param.is_data_file= TRUE),
+        (flush_pagecache_blocks_with_filter(maria_pagecache,
                                             &dfile, FLUSH_KEEP,
-                                            filter, &filter_param)) ||
-        ((filter_param.is_data_file= FALSE),
-         flush_pagecache_blocks_with_filter(maria_pagecache,
+                                            filter, &filter_param) &
+         PCFLUSH_ERROR))
+      ma_message_no_user(0, "checkpoint data page flush failed");
+    if ((filter_param.is_data_file= FALSE),
+        (flush_pagecache_blocks_with_filter(maria_pagecache,
                                             &kfile, FLUSH_KEEP,
-                                            filter, &filter_param)))
-      fprintf(stderr, "Maria engine: warning - checkpoint page flush"
-              " failed\n"); /** @todo improve */
+                                            filter, &filter_param) &
+         PCFLUSH_ERROR))
+      ma_message_no_user(0, "checkpoint index page flush failed");
       /*
         fsyncs the fd, that's the loooong operation (e.g. max 150 fsync
         per second, so if you have touched 1000 files it's 7 seconds).
