@@ -1499,7 +1499,7 @@ int brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const DBT*
     return 0;
 }
 
-int brt_open(BRT t, const char *fname, const char *dbname, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn) {
+int brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn) {
 
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
@@ -1533,9 +1533,10 @@ int brt_open(BRT t, const char *fname, const char *dbname, int is_create, int on
 		t->database_name=0;
 		goto died0a;
 	    }
-	    tokulogger_log_fcreate(txn, fname, 0777);
+	    tokulogger_log_fcreate(txn, fname_in_env, 0777);
 	}
 	r=toku_cachetable_openfd(&t->cf, cachetable, fd);
+	tokulogger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
     }
     if (r!=0) {
 	if (0) { died1: toku_cachefile_close(&t->cf); }
@@ -1673,6 +1674,7 @@ error:
     return r ? r : r2;
 }
 
+// This one has no env
 int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable, TOKUTXN txn,
 	      int (*compare_fun)(DB*,const DBT*,const DBT*)) {
     BRT brt;
@@ -1685,7 +1687,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
     brt_set_nodesize(brt, nodesize);
     brt_set_bt_compare(brt, compare_fun);
 
-    r = brt_open(brt, fname, dbname, is_create, only_create, cachetable, txn);
+    r = brt_open(brt, fname, fname, dbname, is_create, only_create, cachetable, txn);
     if (r != 0) {
         return r;
     }

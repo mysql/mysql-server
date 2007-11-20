@@ -24,7 +24,7 @@ int brt_set_nodesize(BRT, int nodesize);
 int brt_set_bt_compare(BRT, int (*bt_compare)(DB *, const DBT*, const DBT*));
 int brt_set_dup_compare(BRT, int (*dup_compare)(DB *, const DBT*, const DBT*));
 int brt_set_cachetable(BRT, CACHETABLE);
-int brt_open(BRT, const char *fname, const char *dbname, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn);
+int brt_open(BRT, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn);
 int brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
 int brt_insert (BRT, DBT *, DBT *, DB*, TOKUTXN);

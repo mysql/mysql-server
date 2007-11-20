@@ -18,6 +18,8 @@ int tokutxn_begin (TOKUTXN /*parent*/,TOKUTXN *, TXNID txnid64, TOKULOGGER logge
 
 int tokulogger_log_fcreate (TOKUTXN, const char */*fname*/, int /*mode*/);
 
+int tokulogger_log_fopen (TOKUTXN, const char * /*fname*/, FILENUM filenum);
+
 int tokulogger_log_unlink (TOKUTXN, const char */*fname*/);
 
 #endif
