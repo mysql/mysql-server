@@ -1182,7 +1182,10 @@ static my_bool _ma_get_prev_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
 
 /*
-  @brief Get last key from key-page
+  @brief Get last key from key-page before 'endpos'
+
+  @note
+   endpos may be either end of buffer or start of a key
 
   @return
   @retval pointer to where key starts
@@ -1506,7 +1509,7 @@ _ma_calc_static_key_length(MARIA_KEYDEF *keyinfo,uint nod_flag,
                            const uchar *key, MARIA_KEY_PARAM *s_temp)
 {
   s_temp->key= key;
-  return (int) (s_temp->totlength=keyinfo->keylength+nod_flag);
+  return (int) (s_temp->move_length= keyinfo->keylength + nod_flag);
 }
 
 /* Variable length key */
@@ -1519,26 +1522,28 @@ _ma_calc_var_key_length(MARIA_KEYDEF *keyinfo,uint nod_flag,
                         const uchar *key, MARIA_KEY_PARAM *s_temp)
 {
   s_temp->key= key;
-  return (int) (s_temp->totlength= _ma_keylength(keyinfo,key)+nod_flag);
+  return (int) (s_temp->move_length= _ma_keylength(keyinfo,key)+nod_flag);
 }
 
-/*
-  length of key with a variable length first segment which is prefix
-  compressed (maria_chk reports 'packed + stripped')
+/**
+   @brief Calc length needed to store prefixed compressed keys
 
-  Keys are compressed the following way:
+  @info
+    Variable length first segment which is prefix compressed
+    (maria_chk reports 'packed + stripped')
 
-  If the max length of first key segment <= 127 bytes the prefix is
-  1 uchar else it's 2 byte
+    Keys are compressed the following way:
 
-  prefix byte(s) The high bit is set if this is a prefix for the prev key
-  length         Packed length if the previous was a prefix byte
-  [length]       data bytes ('length' bytes)
-  next-key-seg   Next key segments
+    If the max length of first key segment <= 127 bytes the prefix is
+    1 uchar else it's 2 byte
 
-  If the first segment can have NULL:
-  The length is 0 for NULLS and 1+length for not null columns.
+    prefix byte(s) The high bit is set if this is a prefix for the prev key
+    length         Packed length if the previous was a prefix byte
+    [length]       data bytes ('length' bytes)
+    next-key-seg   Next key segments
 
+    If the first segment can have NULL:
+    The length is 0 for NULLS and 1+length for not null columns.
 */
 
 int
@@ -1589,7 +1594,7 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
       s_temp->key_length= 0;
       s_temp->totlength= key_length-1+diff_flag;
       s_temp->next_key_pos= 0;                   /* No next key */
-      return (s_temp->totlength);
+      return (s_temp->move_length= s_temp->totlength);
     }
     s_temp->store_not_null=1;
     key_length--;                               /* We don't store NULL */
@@ -1744,7 +1749,7 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
             s_temp->n_ref_length=s_temp->n_length=  org_key_length;
             length+=           org_key_length;
           }
-          return (int) length;
+          return (s_temp->move_length= (int) length);
         }
 
         ref_length=n_length;
@@ -1757,7 +1762,8 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
           s_temp->part_of_prev_key=     0;
           s_temp->prev_length=          ref_length;
           s_temp->n_ref_length= s_temp->n_length= n_length+ref_length;
-          return (int) length+ref_length-next_length_pack;
+          return s_temp->move_length= ((int) length+ref_length-
+                                       next_length_pack);
         }
         if (ref_length+pack_marker > new_ref_length)
         {
@@ -1768,7 +1774,7 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
           s_temp->n_ref_length=s_temp->n_length=n_length + s_temp->prev_length;
           s_temp->prev_key+=        new_pack_length;
           length-= (next_length_pack - get_pack_length(s_temp->n_length));
-          return (int) length + s_temp->prev_length;
+          return s_temp->move_length= ((int) length + s_temp->prev_length);
         }
       }
       else
@@ -1803,7 +1809,7 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
         if (!(tmp_length=(uint) (key-start)))
         {                                       /* Key can't be re-packed */
           s_temp->next_key_pos=0;
-          return length;
+          return (s_temp->move_length= length);
         }
         ref_length+=tmp_length;
         n_length-=tmp_length;
@@ -1821,7 +1827,7 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
       }
     }
   }
-  return length;
+  return (s_temp->move_length= length);
 }
 
 
@@ -1884,8 +1890,9 @@ int _ma_calc_bin_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
       s_temp->n_ref_length= ref_length;
       s_temp->prev_length=  next_length-ref_length;
       s_temp->prev_key+=    ref_length;
-      return (int) (length+ s_temp->prev_length - next_length_pack +
-                    get_pack_length(ref_length));
+      return s_temp->move_length= ((int) (length+ s_temp->prev_length -
+                                          next_length_pack +
+                                          get_pack_length(ref_length)));
     }
     /* Check how many characters are identical to next key */
     key= s_temp->key+next_length;
@@ -1893,14 +1900,15 @@ int _ma_calc_bin_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
     if ((ref_length= (uint) (key - s_temp->key)-1) == next_length)
     {
       s_temp->next_key_pos=0;
-      return length;                            /* can't pack next key */
+      return (s_temp->move_length= length);  /* Can't pack next key */
     }
     s_temp->prev_length=0;
     s_temp->n_ref_length=ref_length;
-    return (int) (length-(ref_length - next_length) - next_length_pack +
-                  get_pack_length(ref_length));
+    return s_temp->move_length= (int) (length-(ref_length - next_length) -
+                                       next_length_pack +
+                                       get_pack_length(ref_length));
   }
-  return (int) length;
+  return (s_temp->move_length= (int) length);
 }
 
 
@@ -1914,8 +1922,8 @@ void _ma_store_static_key(MARIA_KEYDEF *keyinfo __attribute__((unused)),
                           register uchar *key_pos,
                           register MARIA_KEY_PARAM *s_temp)
 {
-  memcpy(key_pos, s_temp->key,(size_t) s_temp->totlength);
-  s_temp->changed_length= s_temp->totlength;
+  memcpy(key_pos, s_temp->key,(size_t) s_temp->move_length);
+  s_temp->changed_length= s_temp->move_length;
 }
 
 

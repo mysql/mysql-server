@@ -880,15 +880,6 @@ int main(int argc, char *argv[])
 	goto err;
       }
       opt_delete++;
-#if TO_BE_REMOVED
-      /
-      /*
-        179 is ok, 180 causes a difference between runtime and log-applying.
-        This is now fixed (we zero the last directory entry during
-        log-applying, just to eliminate this irrelevant difference).
-      */
-      if (opt_delete==180) goto end;
-#endif
     }
     else
       found_parts++;

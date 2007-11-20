@@ -337,7 +337,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   if (translog_flush(translog_get_horizon()))
   {
-    fprintf(stderr, "Can't flush up to horizon\n", (ulong) i);
+    fprintf(stderr, "Can't flush up to horizon\n");
     translog_destroy();
     ok(0, "flush");
     exit(1);

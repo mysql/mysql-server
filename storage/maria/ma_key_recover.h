@@ -21,13 +21,47 @@
   called).
 */
 
+/* Struct for clr_end */
+
+struct st_msg_to_write_hook_for_clr_end
+{
+  LSN previous_undo_lsn;
+  enum translog_record_type undone_record_type;
+  ha_checksum checksum_delta;
+  void *extra_msg;
+};
+
+struct st_msg_to_write_hook_for_undo_key
+{
+  my_off_t *root;
+  my_off_t value;
+};
+
+
 /* Function definitions for some redo functions */
 
 my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
                       enum translog_record_type undo_type,
                       my_bool store_checksum, ha_checksum checksum,
-                      LSN *res_lsn);
+                      LSN *res_lsn, void *extra_msg);
+my_bool write_hook_for_clr_end(enum translog_record_type type,
+                               TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
+                               void *hook_arg);
+extern my_bool write_hook_for_undo_key(enum translog_record_type type,
+                                       TRN *trn, MARIA_HA *tbl_info,
+                                       LSN *lsn, void *hook_arg);
 void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
+
+my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
+                       uchar *buff, uint changed_length,
+                       int move_length);
+my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
+                       uchar *buff, uint org_length,
+                       uint new_length);
+my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
+                    uint buff_length, uchar *key_pos,
+                    uint changed_length, int move_length,
+                    my_bool handle_overflow);
 
 uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
                                    const uchar *header, uint length);

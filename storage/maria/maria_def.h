@@ -29,7 +29,9 @@
 #include "ma_control_file.h"
 
 /* For testing recovery */
+#ifndef DBUG_OFF
 #define IDENTICAL_PAGES_AFTER_RECOVERY 1
+#endif
 /* Do extra sanity checking */
 #define SANITY_CHECKS 1
 
@@ -718,17 +720,18 @@ extern int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 extern int _ma_ck_real_write_btree(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                                    uchar *key, uint key_length,
                                    MARIA_RECORD_POS *root, uint comp_flag);
-extern int _ma_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                          uchar *key, uchar *buff, uchar *key_buff,
-                          my_bool insert_last);
+extern int _ma_split_page(register MARIA_HA *info,
+                          register MARIA_KEYDEF *keyinfo,
+                          uchar *key, my_off_t split_page, uchar *split_buff,
+                          uint org_split_length,
+                          uchar *inserted_key_pos, uint changed_length,
+                          int move_length,
+                          uchar *key_buff, my_bool insert_last_key);
 extern uchar *_ma_find_half_pos(MARIA_HA *info, uint nod_flag,
                                 MARIA_KEYDEF *keyinfo,
                                 uchar *page, uchar *key,
                                 uint *return_key_length,
                                 uchar ** after_key);
-extern my_bool write_hook_for_undo_key(enum translog_record_type type,
-                                       TRN *trn, MARIA_HA *tbl_info,
-                                       LSN *lsn, void *hook_arg);
 extern int _ma_calc_static_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
                                       uchar *key_pos, uchar *org_key,
                                       uchar *key_buff, const uchar *key,
@@ -911,21 +914,6 @@ typedef struct st_maria_block_info
 #define READ_BUFFER_INIT	(1024L*256L-MALLOC_OVERHEAD)
 #define SORT_BUFFER_INIT	(2048L*1024L-MALLOC_OVERHEAD)
 #define MIN_SORT_BUFFER		(4096-MALLOC_OVERHEAD)
-
-/* Struct for clr_end */
-
-struct st_msg_to_write_hook_for_clr_end
-{
-  LSN previous_undo_lsn;
-  enum translog_record_type undone_record_type;
-  ha_checksum checksum_delta;
-};
-
-struct st_msg_to_write_hook_for_undo_key
-{
-  my_off_t *root;
-  my_off_t value;
-};
 
 #define fast_ma_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _ma_writeinfo((INFO),0)
 #define fast_ma_readinfo(INFO) ((INFO)->lock_type == F_UNLCK) && _ma_readinfo((INFO),F_RDLCK,1)

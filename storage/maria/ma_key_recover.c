@@ -24,7 +24,7 @@
   Some helper functions used both by key page loggin and block page loggin
 ****************************************************************************/
 
-/*
+/**
   @brief Unpin all pinned pages
 
   @fn _ma_unpin_all_pages()
@@ -50,7 +50,7 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
   DBUG_PRINT("info", ("undo_lsn: %lu", (ulong) undo_lsn));
 
   if (!info->s->now_transactional)
-    undo_lsn= LSN_IMPOSSIBLE; /* don't try to set a LSN on pages */
+    DBUG_ASSERT(undo_lsn == LSN_IMPOSSIBLE || maria_in_recovery);
 
   while (pinned_page-- != page_link)
   {
@@ -70,7 +70,7 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
 my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
                       enum translog_record_type undo_type,
                       my_bool store_checksum, ha_checksum checksum,
-                      LSN *res_lsn)
+                      LSN *res_lsn, void *extra_msg)
 {
   uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
                  PAGE_STORE_SIZE + DIRPOS_STORE_SIZE +
@@ -86,11 +86,16 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
                  undo_type);
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
     sizeof(log_data) - HA_CHECKSUM_STORE_SIZE;
+
+  /* Extra_msg is handled in write_hook_for_clr_end() */
   msg.undone_record_type= undo_type;
   msg.previous_undo_lsn=  undo_lsn;
+  msg.extra_msg= extra_msg;
+  msg.checksum_delta= 0;
 
   if (store_checksum)
   {
+    msg.checksum_delta= checksum;
     ha_checksum_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE +
                       CLR_TYPE_STORE_SIZE, checksum);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
@@ -103,6 +108,293 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
                              TRANSLOG_INTERNAL_PARTS + 1, log_array,
                              log_data + LSN_STORE_SIZE, &msg);
   DBUG_RETURN(res);
+}
+
+
+/**
+   @brief Sets transaction's undo_lsn, first_undo_lsn if needed
+
+   @return Operation status, always 0 (success)
+*/
+
+my_bool write_hook_for_clr_end(enum translog_record_type type
+                               __attribute__ ((unused)),
+                               TRN *trn, MARIA_HA *tbl_info
+                               __attribute__ ((unused)),
+                               LSN *lsn __attribute__ ((unused)),
+                               void *hook_arg)
+{
+  MARIA_SHARE *share= tbl_info->s;
+  struct st_msg_to_write_hook_for_clr_end *msg=
+    (struct st_msg_to_write_hook_for_clr_end *)hook_arg;
+  DBUG_ASSERT(trn->trid != 0);
+  trn->undo_lsn= msg->previous_undo_lsn;
+
+  switch (msg->undone_record_type) {
+  case LOGREC_UNDO_ROW_DELETE:
+    share->state.state.records++;
+    share->state.state.checksum+= msg->checksum_delta;
+    break;
+  case LOGREC_UNDO_ROW_INSERT:
+    share->state.state.records--;
+    share->state.state.checksum+= msg->checksum_delta;
+    break;
+  case LOGREC_UNDO_ROW_UPDATE:
+    share->state.state.checksum+= msg->checksum_delta;
+    break;
+  case LOGREC_UNDO_KEY_INSERT:
+  case LOGREC_UNDO_KEY_DELETE:
+  {
+    /* Update key root */
+    struct st_msg_to_write_hook_for_undo_key *extra_msg=
+      (struct st_msg_to_write_hook_for_undo_key *) msg->extra_msg;
+    *extra_msg->root= extra_msg->value;
+    break;
+  }
+  default:
+    DBUG_ASSERT(0);
+  }
+  if (trn->undo_lsn == LSN_IMPOSSIBLE) /* has fully rolled back */
+    trn->first_undo_lsn= LSN_WITH_FLAGS_TO_FLAGS(trn->first_undo_lsn);
+  return 0;
+}
+
+
+/**
+  @brief write hook for undo key insert
+*/
+
+my_bool write_hook_for_undo_key(enum translog_record_type type,
+                                TRN *trn, MARIA_HA *tbl_info,
+                                LSN *lsn, void *hook_arg)
+{
+  struct st_msg_to_write_hook_for_undo_key *msg=
+    (struct st_msg_to_write_hook_for_undo_key *) hook_arg;
+
+  *msg->root= msg->value;
+  _ma_fast_unlock_key_del(tbl_info);
+  return write_hook_for_undo(type, trn, tbl_info, lsn, 0);
+}
+
+
+/*****************************************************************************
+  Functions for logging of key page changes
+*****************************************************************************/
+
+/**
+   @brief
+   Write log entry for page that has got data added or deleted at start of page
+*/
+
+my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
+                       uchar *buff, uint changed_length,
+                       int move_length)
+{
+  uint translog_parts;
+  LSN lsn;
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 7], *log_pos;
+  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  DBUG_ENTER("_ma_log_prefix");
+  DBUG_PRINT("enter", ("page: %lu  changed_length: %u  move_length: %d",
+                        (ulong) page, changed_length, move_length));
+
+  page/= info->s->block_size;
+  log_pos= log_data + FILEID_STORE_SIZE;
+  page_store(log_pos, page);
+  log_pos+= PAGE_STORE_SIZE;
+
+  if (move_length < 0)
+  {
+    /* Delete prefix */
+    log_pos[0]= KEY_OP_DEL_PREFIX;
+    int2store(log_pos+1, -move_length);
+    log_pos+= 3;
+    translog_parts= 1;
+    if (changed_length)
+    {
+      /*
+        We don't need a KEY_OP_OFFSET as KEY_OP_DEL_PREFIX has an implicit
+        offset
+      */
+      log_pos[0]= KEY_OP_CHANGE;
+      int2store(log_pos+1, changed_length);
+      log_pos+= 3;
+    }
+  }
+  else
+  {
+    /* Add prefix */
+    DBUG_ASSERT(changed_length >0 && (int) changed_length >= move_length);
+    log_pos[0]= KEY_OP_ADD_PREFIX;
+    int2store(log_pos+1, move_length);
+    int2store(log_pos+3, changed_length);
+    log_pos+= 5;
+  }
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
+                                                         log_data);
+  if (changed_length)
+  {
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    ((char*) buff +
+                                                    info->s->keypage_header);
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= changed_length;
+    translog_parts= 2;
+  }
+
+  DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
+                                    info->trn, info,
+                                    log_array[TRANSLOG_INTERNAL_PARTS +
+                                              0].length + changed_length,
+                                    TRANSLOG_INTERNAL_PARTS + translog_parts,
+                                    log_array, log_data, NULL));
+}
+
+
+/**
+   @brief
+   Write log entry for page that has got data added or deleted at end of page
+*/
+
+my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
+                       uchar *buff, uint org_length, uint new_length)
+{
+  LSN lsn;
+  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 10], *log_pos;
+  int diff;
+  uint translog_parts, extra_length;
+  DBUG_ENTER("_ma_log_suffix");
+  DBUG_PRINT("enter", ("page: %lu  org_length: %u  new_length: %u",
+                       (ulong) page, org_length, new_length));
+
+  page/= info->s->block_size;
+
+  log_pos= log_data + FILEID_STORE_SIZE;
+  page_store(log_pos, page);
+  log_pos+= PAGE_STORE_SIZE;
+
+  if ((diff= (int) (new_length - org_length)) < 0)
+  {
+    log_pos[0]= KEY_OP_DEL_SUFFIX;
+    int2store(log_pos+1, -diff);
+    log_pos+= 3;
+    translog_parts= 1;
+    extra_length= 0;
+  }
+  else
+  {
+    log_pos[0]= KEY_OP_ADD_SUFFIX;
+    int2store(log_pos+1, diff);
+    log_pos+= 3;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=   (char*) buff + org_length;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= (uint) diff;
+    translog_parts= 2;
+    extra_length= (uint) diff;
+  }
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
+                                                         log_data);
+
+  DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
+                                    info->trn, info,
+                                    log_array[TRANSLOG_INTERNAL_PARTS +
+                                              0].length + extra_length,
+                                    TRANSLOG_INTERNAL_PARTS + translog_parts,
+                                    log_array, log_data, NULL));
+}
+
+
+/**
+   @brief Log that a key was added to the page
+
+   @note
+     If handle_overflow is set, then we have to protect against
+     logging changes that is outside of the page.
+     This may happen during underflow() handling where the buffer
+     in memory temporary contains more data than block_size
+*/
+
+my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
+                    uint buff_length, uchar *key_pos,
+                    uint changed_length, int move_length,
+                    my_bool handle_overflow __attribute__ ((unused)))
+{
+  LSN lsn;
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3+ 3 + 3 + 3], *log_pos;
+  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  uint offset= (uint) (key_pos - buff);
+  uint page_length= info->s->block_size - KEYPAGE_CHECKSUM_SIZE;
+  DBUG_ENTER("_ma_log_add");
+  DBUG_PRINT("enter", ("page: %lu  page_length: %u  changed_length: %u  "
+                       "move_length: %d",
+                       (ulong) page, buff_length, changed_length,
+                       move_length));
+  DBUG_ASSERT(info->s->now_transactional);
+
+  /*
+    Write REDO entry that contains the logical operations we need
+    to do the page
+  */
+  log_pos= log_data + FILEID_STORE_SIZE;
+  page/= info->s->block_size;
+  page_store(log_pos, page);
+  log_pos+= PAGE_STORE_SIZE;
+
+  if (buff_length + move_length > page_length)
+  {
+    /*
+      Overflow. Cut either key or data from page end so that key fits
+      The code that splits the too big page will ignore logging any
+      data over page_length
+    */
+    DBUG_ASSERT(handle_overflow);
+    if (offset + changed_length > page_length)
+    {
+      changed_length= page_length - offset;
+      move_length= 0;
+    }
+    else
+    {
+      uint diff= buff_length + move_length - page_length;
+      log_pos[0]= KEY_OP_DEL_SUFFIX;
+      int2store(log_pos+1, diff);
+      log_pos+= 3;
+      buff_length= page_length - move_length;
+    }
+  }
+
+  if (offset == buff_length)
+    log_pos[0]= KEY_OP_ADD_SUFFIX;
+  else
+  {
+    log_pos[0]= KEY_OP_OFFSET;
+    int2store(log_pos+1, offset);
+    log_pos+= 3;
+    if (move_length)
+    {
+      log_pos[0]= KEY_OP_SHIFT;
+      int2store(log_pos+1, move_length);
+      log_pos+= 3;
+    }
+    log_pos[0]= KEY_OP_CHANGE;
+  }
+  int2store(log_pos+1, changed_length);
+  log_pos+= 3;
+
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
+                                                         log_data);
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key_pos;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].length= changed_length;
+
+  if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
+                            info->trn, info,
+                            log_array[TRANSLOG_INTERNAL_PARTS +
+                                      0].length + changed_length,
+                            TRANSLOG_INTERNAL_PARTS + 2, log_array,
+                            log_data, NULL))
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
 }
 
 
@@ -136,6 +428,8 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
   uint result;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_apply_redo_index_new_page");
+  DBUG_PRINT("enter", ("root_page: %lu  free_page: %lu",
+                       (ulong) root_page, (ulong) free_page));
 
   /* Set header to point at key data */
 
@@ -156,7 +450,8 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
   file_size= (my_off_t) (root_page + 1) * share->block_size;
 
   /* If root page */
-  if (page_type_flag)
+  if (page_type_flag &&
+      cmp_translog_addr(lsn, share->state.is_of_horizon) >= 0)
     share->state.key_root[key_nr]= file_size - share->block_size;
 
   if (file_size > info->state->key_file_length)
@@ -164,8 +459,8 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
     info->state->key_file_length= file_size;
     buff= info->keyread_buff;
     info->keyread_buff_used= 1;
-    unlock_method= PAGECACHE_LOCK_LEFT_UNLOCKED;
-    unpin_method=  PAGECACHE_PIN_LEFT_UNPINNED;
+    unlock_method= PAGECACHE_LOCK_WRITE;
+    unpin_method=  PAGECACHE_PIN;
   }
   else
   {
@@ -183,24 +478,32 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
       result= 0;
       goto err;
     }
-    unlock_method= PAGECACHE_LOCK_WRITE_UNLOCK;
-    unpin_method=  PAGECACHE_UNPIN;
+    unlock_method= PAGECACHE_LOCK_LEFT_WRITELOCKED;
+    unpin_method=  PAGECACHE_PIN_LEFT_PINNED;
   }
 
   /* Write modified page */
-  lsn_store(buff, lsn);
   memcpy(buff + LSN_STORE_SIZE, header, length);
   bzero(buff + LSN_STORE_SIZE + length,
         share->block_size - LSN_STORE_SIZE - KEYPAGE_CHECKSUM_SIZE - length);
   bfill(buff + share->block_size - KEYPAGE_CHECKSUM_SIZE,
         KEYPAGE_CHECKSUM_SIZE, (uchar) 255);
-  if (pagecache_write(share->pagecache,
+
+  result= 0;
+  if (unlock_method == PAGECACHE_LOCK_WRITE &&
+      pagecache_write(share->pagecache,
                       &share->kfile, root_page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
                       unlock_method, unpin_method,
-                      PAGECACHE_WRITE_DELAY, 0))
-    DBUG_RETURN(my_errno);
-  DBUG_RETURN(0);
+                      PAGECACHE_WRITE_DELAY, &page_link.link,
+                      LSN_IMPOSSIBLE))
+    result= 1;
+
+  /* Mark page to be unlocked and written at _ma_unpin_all_pages() */
+  page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+  page_link.changed= 1;
+  push_dynamic(&info->pinned_pages, (void*) &page_link);
+  DBUG_RETURN(result);
 
 err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
@@ -234,14 +537,16 @@ uint _ma_apply_redo_index_free_page(MARIA_HA *info,
   uchar *buff;
   int result;
   DBUG_ENTER("_ma_apply_redo_index_free_page");
+  DBUG_PRINT("enter", ("page: %lu  free_page: %lu",
+                       (ulong) page, (ulong) free_page));
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_OPTIMIZED_KEYS |
                           STATE_NOT_SORTED_PAGES);
 
-  old_link= share->state.key_del;
-  share->state.key_del=  ((free_page != IMPOSSIBLE_PAGE_NO) ?
-                          (my_off_t) free_page * share->block_size :
-                          HA_OFFSET_ERROR);
+  share->state.key_del= (my_off_t) page * share->block_size;
+  old_link=  ((free_page != IMPOSSIBLE_PAGE_NO) ?
+              (my_off_t) free_page * share->block_size :
+              HA_OFFSET_ERROR);
   if (!(buff= pagecache_read(share->pagecache, &info->s->kfile,
                              page, 0, 0,
                              PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
@@ -256,20 +561,24 @@ uint _ma_apply_redo_index_free_page(MARIA_HA *info,
     result= 0;
     goto err;
   }
-  /* Write modified page */
-  lsn_store(buff, lsn);
+  /* Free page */
   bzero(buff + LSN_STORE_SIZE, share->keypage_header - LSN_STORE_SIZE);
   _ma_store_keynr(info, buff, (uchar) MARIA_DELETE_KEY_NR);
   mi_sizestore(buff + share->keypage_header, old_link);
   share->state.changed|= STATE_NOT_SORTED_PAGES;
 
-  if (pagecache_write(share->pagecache,
-                      &info->s->kfile, page, 0,
-                      buff, PAGECACHE_PLAIN_PAGE,
-                      PAGECACHE_LOCK_WRITE_UNLOCK,
-                      PAGECACHE_UNPIN,
-                      PAGECACHE_WRITE_DELAY, 0))
-    DBUG_RETURN(my_errno);
+#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
+  {
+    bzero(buff + share->keypage_header + 8,
+          share->block_size - share->keypage_header - 8 -
+          KEYPAGE_CHECKSUM_SIZE);
+  }
+#endif
+
+  /* Mark page to be unlocked and written at _ma_unpin_all_pages() */
+  page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+  page_link.changed= 1;
+  push_dynamic(&info->pinned_pages, (void*) &page_link);
   DBUG_RETURN(0);
 
 err:
@@ -303,7 +612,7 @@ err:
    KEY_OP_DEL_PREFIX 2 length             Bytes to be deleted at page start
    KEY_OP_ADD_SUFFIX 2 length, data       Add data to end of page
    KEY_OP_DEL_SUFFIX 2 length             Reduce page length with this
-
+				          Sets position to start of page
    @return Operation status
      @retval 0      OK
      @retval 1      Error
@@ -322,6 +631,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   int result;
   uint org_page_length;
   DBUG_ENTER("_ma_apply_redo_index");
+  DBUG_PRINT("enter", ("page: %lu", (ulong) page));
 
   /* Set header to point at key data */
   header+= PAGE_STORE_SIZE;
@@ -344,6 +654,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   _ma_get_used_and_nod(info, buff, page_length, nod_flag);
   keypage_header= share->keypage_header;
   org_page_length= page_length;
+  DBUG_PRINT("info", ("page_length: %u", page_length));
 
   /* Apply modifications to page */
   do
@@ -358,7 +669,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     {
       int length= sint2korr(header);
       header+= 2;
-      DBUG_ASSERT(page_offset != 0 && page_offset < page_length &&
+      DBUG_ASSERT(page_offset != 0 && page_offset <= page_length &&
                   page_length + length < share->block_size);
 
       if (length < 0)
@@ -382,14 +693,14 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     case KEY_OP_ADD_PREFIX:
     {
       uint insert_length= uint2korr(header);
-      uint change_length= uint2korr(header+2);
-      DBUG_ASSERT(insert_length <= change_length &&
-                  page_length + change_length <= share->block_size);
+      uint changed_length= uint2korr(header+2);
+      DBUG_ASSERT(insert_length <= changed_length &&
+                  page_length + changed_length <= share->block_size);
 
       bmove_upp(buff + page_length + insert_length, buff + page_length,
                 page_length - keypage_header);
-      memcpy(buff + keypage_header, header + 4 , change_length);
-      header+= 4 + change_length;
+      memcpy(buff + keypage_header, header + 4 , changed_length);
+      header+= 4 + changed_length;
       page_length+= insert_length;
       break;
     }
@@ -402,6 +713,8 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       bmove(buff + keypage_header, buff + keypage_header +
             length, page_length - keypage_header - length);
       page_length-= length;
+
+      page_offset= keypage_header;              /* Prepare for change */
       break;
     }
     case KEY_OP_ADD_SUFFIX:
@@ -432,7 +745,6 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   DBUG_ASSERT(header == header_end);
 
   /* Write modified page */
-  lsn_store(buff, lsn);
   _ma_store_page_used(info, buff, page_length, nod_flag);
 
   /*
@@ -442,12 +754,19 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   if (page_length < org_page_length)
     bzero(buff + page_length, org_page_length-page_length);
 
+  result= 0;
   if (pagecache_write(share->pagecache,
                       &info->s->kfile, page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
-                      PAGECACHE_LOCK_WRITE_UNLOCK, PAGECACHE_UNPIN,
-                      PAGECACHE_WRITE_DELAY, 0))
-    DBUG_RETURN(my_errno);
+                      PAGECACHE_LOCK_LEFT_WRITELOCKED,
+                      PAGECACHE_PIN_LEFT_PINNED,
+                      PAGECACHE_WRITE_DELAY, 0, LSN_IMPOSSIBLE))
+    result= 1;
+
+  /* Mark page to be unlocked and written at _ma_unpin_all_pages() */
+  page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+  page_link.changed= 1;
+  push_dynamic(&info->pinned_pages, (void*) &page_link);
   DBUG_RETURN(0);
 
 err:
@@ -463,7 +782,6 @@ err:
   Undo of key block changes
 ****************************************************************************/
 
-
 /**
    @brief Undo of insert of key (ie, delete the inserted key)
 */
@@ -476,6 +794,8 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
   uint keynr;
   uchar key[HA_MAX_KEY_BUFF];
   MARIA_SHARE *share= info->s;
+  my_off_t new_root;
+  struct st_msg_to_write_hook_for_undo_key msg;
   DBUG_ENTER("_ma_apply_undo_key_insert");
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_OPTIMIZED_KEYS |
@@ -484,15 +804,20 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
   length-= KEY_NR_STORE_SIZE;
 
   /* We have to copy key as _ma_ck_real_delete() may change it */
-  memcpy(key, header+ KEY_NR_STORE_SIZE, length);
+  memcpy(key, header + KEY_NR_STORE_SIZE, length);
+  DBUG_DUMP("key", key, length);
 
-  res= _ma_ck_real_delete(info, share->keyinfo+keynr, key, length,
-                          &share->state.key_root[keynr]);
+  new_root= share->state.key_root[keynr];
+  res= _ma_ck_real_delete(info, share->keyinfo+keynr, key,
+                          length - info->s->rec_reflength, &new_root);
 
-  if (_ma_write_clr(info, undo_lsn, LOGREC_UNDO_KEY_INSERT, 1, 0, &lsn))
+  msg.root= &share->state.key_root[keynr];
+  msg.value= new_root;
+
+  if (_ma_write_clr(info, undo_lsn, LOGREC_UNDO_KEY_INSERT, 1, 0, &lsn,
+                    (void*) &msg))
     res= 1;
 
-  _ma_fast_unlock_key_del(info);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
@@ -510,6 +835,8 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
   uint keynr;
   uchar key[HA_MAX_KEY_BUFF];
   MARIA_SHARE *share= info->s;
+  my_off_t new_root;
+  struct st_msg_to_write_hook_for_undo_key msg;
   DBUG_ENTER("_ma_apply_undo_key_delete");
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_OPTIMIZED_KEYS |
@@ -517,17 +844,22 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
   keynr= key_nr_korr(header);
   length-= KEY_NR_STORE_SIZE;
 
-  /* We have to copy key as _ma_ck_real_delete() may change it */
-  memcpy(key, header+ KEY_NR_STORE_SIZE, length);
+  /* We have to copy key as _ma_ck_real_write_btree() may change it */
+  memcpy(key, header + KEY_NR_STORE_SIZE, length);
+  DBUG_DUMP("key", key, length);
 
-  res= _ma_ck_real_write_btree(info, share->keyinfo+keynr, key, length,
-                               &share->state.key_root[keynr],
+  new_root= share->state.key_root[keynr];
+  res= _ma_ck_real_write_btree(info, share->keyinfo+keynr, key,
+                               length - info->s->rec_reflength,
+                               &new_root,
                                share->keyinfo[keynr].write_comp_flag);
 
-  if (_ma_write_clr(info, undo_lsn, LOGREC_UNDO_KEY_DELETE, 1, 0, &lsn))
+  msg.root= &share->state.key_root[keynr];
+  msg.value= new_root;
+  if (_ma_write_clr(info, undo_lsn, LOGREC_UNDO_KEY_DELETE, 1, 0, &lsn,
+                    (void*) &msg))
     res= 1;
 
-  _ma_fast_unlock_key_del(info);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
@@ -537,7 +869,7 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
   Handle some local variables
 ****************************************************************************/
 
-/*
+/**
   @brief lock key_del for other threads usage
 
   @fn     _ma_lock_key_del()
@@ -573,13 +905,14 @@ my_bool _ma_lock_key_del(MARIA_HA *info, my_bool insert_at_end)
 #endif
     info->used_key_del= 1;
     share->used_key_del= 1;
+    share->current_key_del= share->state.key_del;
     pthread_mutex_unlock(&share->intern_lock);
   }
   return 0;
 }
 
 
-/*
+/**
   @brief copy changes to key_del and unlock it
 */
 

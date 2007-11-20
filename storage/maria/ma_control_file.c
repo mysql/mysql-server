@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2007 MySQL AB & Guilhem Bichot & Michael Widenius
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,31 +16,79 @@
 /*
   WL#3234 Maria control file
   First version written by Guilhem Bichot on 2006-04-27.
-  Does not compile yet.
 */
 
 #include "maria_def.h"
 
-/* Here is the implementation of this module */
-
 /*
-  a control file contains 3 objects: magic string, LSN of last checkpoint,
-  number of last log.
+  A control file contains the following objects:
+
+Start of create time variables (at start of file):
+  - Magic string (including version number of Maria control file)
+  - Uuid
+  - Size of create time part
+  - Size of dynamic part
+  - Maria block size
+.....  Here we can add new variables without changing format
+  - Checksum of create time part (last of block)
+
+Start of changeable part:
+  - Checksum of changeable part
+  - LSN of last checkpoint
+  - Number of last log file
+.....  Here we can add new variables without changing format
+
+The idea is that one can add new variables to the control file and still
+use it with old program versions. If one needs to do an incompatible change
+one should increment the control file version number.
 */
 
-/* total size should be < sector size for atomic write operation */
-#define CONTROL_FILE_MAGIC_STRING "\xfe\xfe\xc\1MACF"
-#define CONTROL_FILE_MAGIC_STRING_OFFSET 0
-#define CONTROL_FILE_MAGIC_STRING_SIZE (sizeof(CONTROL_FILE_MAGIC_STRING)-1)
-#define CONTROL_FILE_UUID_OFFSET (CONTROL_FILE_MAGIC_STRING_OFFSET + CONTROL_FILE_MAGIC_STRING_SIZE)
-#define CONTROL_FILE_UUID_SIZE MY_UUID_SIZE
-#define CONTROL_FILE_CHECKSUM_OFFSET (CONTROL_FILE_UUID_OFFSET + CONTROL_FILE_UUID_SIZE)
-#define CONTROL_FILE_CHECKSUM_SIZE 4
-#define CONTROL_FILE_LSN_OFFSET (CONTROL_FILE_CHECKSUM_OFFSET + CONTROL_FILE_CHECKSUM_SIZE)
-#define CONTROL_FILE_LSN_SIZE LSN_STORE_SIZE
-#define CONTROL_FILE_FILENO_OFFSET (CONTROL_FILE_LSN_OFFSET + CONTROL_FILE_LSN_SIZE)
-#define CONTROL_FILE_FILENO_SIZE 4
-#define CONTROL_FILE_SIZE (CONTROL_FILE_FILENO_OFFSET + CONTROL_FILE_FILENO_SIZE)
+/* Total size should be < sector size for atomic write operation */
+#define CF_MAX_SIZE 512
+#define CF_MIN_SIZE (CF_BLOCKSIZE_OFFSET + CF_BLOCKSIZE_SIZE + \
+                     CF_CHECKSUM_SIZE * 2 + CF_LSN_SIZE + CF_FILENO_SIZE)
+
+/* Create time variables */
+#define CF_MAGIC_STRING "\xfe\xfe\xc"
+#define CF_MAGIC_STRING_OFFSET 0
+#define CF_MAGIC_STRING_SIZE   (sizeof(CF_MAGIC_STRING)-1)
+#define CF_VERSION_OFFSET      (CF_MAGIC_STRING_OFFSET + CF_MAGIC_STRING_SIZE)
+#define CF_VERSION_SIZE        1
+#define CF_UUID_OFFSET         (CF_VERSION_OFFSET + CF_VERSION_SIZE)
+#define CF_UUID_SIZE           MY_UUID_SIZE
+#define CF_CREATE_TIME_SIZE_OFFSET  (CF_UUID_OFFSET + CF_UUID_SIZE)
+#define CF_SIZE_SIZE           2
+#define CF_CHANGEABLE_SIZE_OFFSET   (CF_CREATE_TIME_SIZE_OFFSET + CF_SIZE_SIZE)
+#define CF_BLOCKSIZE_OFFSET    (CF_CHANGEABLE_SIZE_OFFSET + CF_SIZE_SIZE)
+#define CF_BLOCKSIZE_SIZE      2
+
+#define CF_CREATE_TIME_TOTAL_SIZE (CF_BLOCKSIZE_OFFSET + CF_BLOCKSIZE_SIZE + \
+                                   CF_CHECKSUM_SIZE)
+
+/*
+  Start of the part that changes during execution
+  This is stored at offset uint2korr(file[CF_CHANGEABLE_SIZE])
+*/
+#define CF_CHECKSUM_OFFSET 0
+#define CF_CHECKSUM_SIZE 4
+#define CF_LSN_OFFSET (CF_CHECKSUM_OFFSET + CF_CHECKSUM_SIZE)
+#define CF_LSN_SIZE LSN_STORE_SIZE
+#define CF_FILENO_OFFSET (CF_LSN_OFFSET + CF_LSN_SIZE)
+#define CF_FILENO_SIZE 4
+
+#define CF_CHANGEABLE_TOTAL_SIZE (CF_FILENO_OFFSET + CF_FILENO_SIZE)
+
+/*
+  The following values should not be changed, except when changing version
+  number of the maria control file. These are the minimum sizes of the
+  parts the code can handle.
+*/
+
+#define CF_MIN_CREATE_TIME_TOTAL_SIZE \
+(CF_BLOCKSIZE_OFFSET + CF_BLOCKSIZE_SIZE + CF_CHECKSUM_SIZE)
+#define CF_MIN_CHANGEABLE_TOTAL_SIZE \
+(CF_FILENO_OFFSET + CF_FILENO_SIZE)
+
 
 /* This module owns these two vars. */
 /**
@@ -66,6 +114,77 @@ my_bool maria_in_recovery= FALSE;
 */
 static int control_file_fd= -1;
 
+static uint cf_create_time_size;
+static uint cf_changeable_size;
+
+/**
+   @brief Create Maria control file
+*/
+
+static CONTROL_FILE_ERROR create_control_file(const char *name,
+                                              int open_flags)
+{
+  uint32 sum;
+  uchar buffer[CF_CREATE_TIME_TOTAL_SIZE];
+  DBUG_ENTER("maria_create_control_file");
+
+  /* in a recovery, we expect to find a control file */
+  if (maria_in_recovery)
+    DBUG_RETURN(CONTROL_FILE_MISSING);
+  if ((control_file_fd= my_create(name, 0,
+                                  open_flags,
+                                  MYF(MY_SYNC_DIR | MY_WME))) < 0)
+    DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
+
+  /* Reset variables, as we are creating the file */
+  cf_create_time_size= CF_CREATE_TIME_TOTAL_SIZE;
+  cf_changeable_size=  CF_CHANGEABLE_TOTAL_SIZE;
+
+  /* Create unique uuid for the control file */
+  my_uuid_init((ulong) &buffer, (ulong) &maria_uuid);
+  my_uuid(maria_uuid);
+
+  /* Prepare and write the file header */
+  memcpy(buffer, CF_MAGIC_STRING, CF_MAGIC_STRING_SIZE);
+  buffer[CF_VERSION_OFFSET]= CONTROL_FILE_VERSION;
+  memcpy(buffer + CF_UUID_OFFSET, maria_uuid, CF_UUID_SIZE);
+  int2store(buffer + CF_CREATE_TIME_SIZE_OFFSET, cf_create_time_size);
+  int2store(buffer + CF_CHANGEABLE_SIZE_OFFSET, cf_changeable_size);
+
+  /* Write create time variables */
+  int2store(buffer + CF_BLOCKSIZE_OFFSET, maria_block_size);
+
+  /* Store checksum for create time parts */
+  sum= (uint32) my_checksum(0, buffer, cf_create_time_size -
+                            CF_CHECKSUM_SIZE);
+  int4store(buffer + cf_create_time_size - CF_CHECKSUM_SIZE, sum);
+
+  if (my_pwrite(control_file_fd, buffer, cf_create_time_size,
+                0, MYF(MY_FNABP |  MY_WME)))
+    DBUG_RETURN(1);
+
+  /*
+    To be safer we should make sure that there are no logs or data/index
+    files around (indeed it could be that the control file alone was deleted
+    or not restored, and we should not go on with life at this point).
+
+    TODO: For now we trust (this is alpha version), but for beta if would
+    be great to verify.
+
+    We could have a tool which can rebuild the control file, by reading the
+    directory of logs, finding the newest log, reading it to find last
+    checkpoint... Slow but can save your db. For this to be possible, we
+    must always write to the control file right after writing the checkpoint
+    log record, and do nothing in between (i.e. the checkpoint must be
+    usable as soon as it has been written to the log).
+  */
+
+  /* init the file with these "undefined" values */
+  DBUG_RETURN(ma_control_file_write_and_force(LSN_IMPOSSIBLE,
+                                              FILENO_IMPOSSIBLE,
+                                              CONTROL_FILE_UPDATE_ALL));
+}
+
 /*
   @brief Initialize control file subsystem
 
@@ -75,12 +194,8 @@ static int control_file_fd= -1;
   Called at engine's start.
 
   @note
-  The format of the control file is:
-  4 bytes: magic string
-  4 bytes: checksum of the following bytes
-  4 bytes: number of log where last checkpoint is
-  4 bytes: offset in log where last checkpoint is
-  4 bytes: number of last log
+    The format of the control file is defined in the comments and defines
+    at the start of this file.
 
   @note If in recovery, file is not created
 
@@ -88,13 +203,14 @@ static int control_file_fd= -1;
     @retval 0      OK
     @retval 1      Error (in which case the file is left closed)
 */
+
 CONTROL_FILE_ERROR ma_control_file_create_or_open()
 {
-  char buffer[CONTROL_FILE_SIZE];
-  char name[FN_REFLEN];
+  uchar buffer[CF_MAX_SIZE];
+  char name[FN_REFLEN], errmsg_buff[256];
   const char *errmsg;
   MY_STAT stat_buff;
-  my_bool create_file;
+  uint new_cf_create_time_size, new_cf_changeable_size, new_block_size;
   int open_flags= O_BINARY | /*O_DIRECT |*/ O_RDWR;
   int error= CONTROL_FILE_UNKNOWN_ERROR;
   DBUG_ENTER("ma_control_file_create_or_open");
@@ -104,8 +220,8 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     "*store" and "*korr" calls in this file, and can even create backward
     compatibility problems. Beware!
   */
-  DBUG_ASSERT(CONTROL_FILE_LSN_SIZE == (3+4));
-  DBUG_ASSERT(CONTROL_FILE_FILENO_SIZE == 4);
+  DBUG_ASSERT(CF_LSN_SIZE == (3+4));
+  DBUG_ASSERT(CF_FILENO_SIZE == 4);
 
   if (control_file_fd >= 0) /* already open */
     DBUG_RETURN(0);
@@ -114,43 +230,8 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
                 maria_data_root, "", MYF(MY_WME)) == NullS)
     DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
 
-  create_file= test(my_access(name,F_OK));
-
-  if (create_file)
-  {
-    /* in a recovery, we expect to find a control file */
-    if (maria_in_recovery)
-      DBUG_RETURN(CONTROL_FILE_MISSING);
-    if ((control_file_fd= my_create(name, 0,
-                                    open_flags,
-                                    MYF(MY_SYNC_DIR | MY_WME))) < 0)
-      DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
-
-    /* Create unique uuid for the control file */
-    my_uuid_init((ulong) &buffer, (ulong) &maria_uuid);
-    my_uuid(maria_uuid);
-
-    /*
-      To be safer we should make sure that there are no logs or data/index
-      files around (indeed it could be that the control file alone was deleted
-      or not restored, and we should not go on with life at this point).
-
-      TODO: For now we trust (this is alpha version), but for beta if would
-      be great to verify.
-
-      We could have a tool which can rebuild the control file, by reading the
-      directory of logs, finding the newest log, reading it to find last
-      checkpoint... Slow but can save your db. For this to be possible, we
-      must always write to the control file right after writing the checkpoint
-      log record, and do nothing in between (i.e. the checkpoint must be
-      usable as soon as it has been written to the log).
-    */
-
-    /* init the file with these "undefined" values */
-    DBUG_RETURN(ma_control_file_write_and_force(LSN_IMPOSSIBLE,
-                                                FILENO_IMPOSSIBLE,
-                                                CONTROL_FILE_UPDATE_ALL));
-  }
+  if (my_access(name,F_OK))
+    DBUG_RETURN(create_control_file(name, open_flags));
 
   /* Otherwise, file exists */
 
@@ -166,7 +247,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     goto err;
   }
 
-  if ((uint)stat_buff.st_size < CONTROL_FILE_SIZE)
+  if ((uint) stat_buff.st_size < CF_MIN_SIZE)
   {
     /*
       Given that normally we write only a sector and it's atomic, the only
@@ -179,49 +260,89 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
       disk/filesystem has a problem.
       So let's be rigid.
     */
-    /*
-      TODO: store a message "too small file" somewhere, so that it goes to
-      MySQL's error log at startup.
-    */
     error= CONTROL_FILE_TOO_SMALL;
-    errmsg= "File size to small";
+    errmsg= "Size of control file is smaller than expected";
     goto err;
   }
 
-  if ((uint)stat_buff.st_size > CONTROL_FILE_SIZE)
+  /* Check if control file is unexpectedly big */
+  if ((uint)stat_buff.st_size > CF_MAX_SIZE)
   {
-    /* TODO: store "too big file" message */
     error= CONTROL_FILE_TOO_BIG;
     errmsg= "File size bigger than expected";
     goto err;
   }
 
-  if (my_read(control_file_fd, buffer, CONTROL_FILE_SIZE, MYF(MY_FNABP)))
+  if (my_read(control_file_fd, buffer, stat_buff.st_size, MYF(MY_FNABP)))
   {
     errmsg= "Can't read file";
     goto err;
   }
-  if (memcmp(buffer + CONTROL_FILE_MAGIC_STRING_OFFSET,
-             CONTROL_FILE_MAGIC_STRING, CONTROL_FILE_MAGIC_STRING_SIZE))
+
+  if (memcmp(buffer + CF_MAGIC_STRING_OFFSET,
+             CF_MAGIC_STRING, CF_MAGIC_STRING_SIZE))
   {
-    /* TODO: store message "bad magic string" somewhere */
     error= CONTROL_FILE_BAD_MAGIC_STRING;
-    errmsg= "Missing valid id at start of file";
+    errmsg= "Missing valid id at start of file. File is not a valid maria control file";
     goto err;
   }
-  memcpy(maria_uuid, buffer + CONTROL_FILE_UUID_OFFSET,
-         CONTROL_FILE_UUID_SIZE);
 
-  if (my_checksum(0, buffer + CONTROL_FILE_LSN_OFFSET,
-                  CONTROL_FILE_SIZE - CONTROL_FILE_LSN_OFFSET) !=
-      uint4korr(buffer + CONTROL_FILE_CHECKSUM_OFFSET))
+  if (buffer[CF_VERSION_OFFSET] > CONTROL_FILE_VERSION)
+  {
+    error= CONTROL_FILE_BAD_VERSION;
+    sprintf(errmsg_buff, "File is from a future maria system: %d. Current version is: %d",
+            (int) buffer[CF_VERSION_OFFSET], CONTROL_FILE_VERSION);
+    errmsg= errmsg_buff;
+    goto err;
+  }
+
+  new_cf_create_time_size= uint2korr(buffer + CF_CREATE_TIME_SIZE_OFFSET);
+  new_cf_changeable_size=  uint2korr(buffer + CF_CHANGEABLE_SIZE_OFFSET);
+
+  if (new_cf_create_time_size < CF_MIN_CREATE_TIME_TOTAL_SIZE ||
+      new_cf_changeable_size <  CF_MIN_CHANGEABLE_TOTAL_SIZE ||
+      new_cf_create_time_size + new_cf_changeable_size !=
+      stat_buff.st_size)
+  {
+    error= CONTROL_FILE_INCONSISTENT_INFORMATION;
+    errmsg= "Sizes stored in control file are inconsistent";
+    goto err;
+  }
+
+  new_block_size= uint2korr(buffer + CF_BLOCKSIZE_OFFSET);
+  if (new_block_size != maria_block_size)
+  {
+    error= CONTROL_FILE_WRONG_BLOCKSIZE;
+    sprintf(errmsg_buff,
+            "Block size in control file (%u) is different than given maria_block_size: %u",
+            new_block_size, (uint) maria_block_size);
+    errmsg= errmsg_buff;
+    goto err;
+  }
+
+  if (my_checksum(0, buffer, new_cf_create_time_size - CF_CHECKSUM_SIZE) !=
+      uint4korr(buffer + new_cf_create_time_size - CF_CHECKSUM_SIZE))
+  {
+    error= CONTROL_FILE_BAD_HEAD_CHECKSUM;
+    errmsg= "Fixed part checksum mismatch";
+    goto err;
+  }
+
+  if (my_checksum(0, buffer + new_cf_create_time_size + CF_CHECKSUM_SIZE,
+                  new_cf_changeable_size - CF_CHECKSUM_SIZE) !=
+      uint4korr(buffer + new_cf_create_time_size))
   {
     error= CONTROL_FILE_BAD_CHECKSUM;
-    errmsg= "Checksum missmatch";
+    errmsg= "Changeable part (end of control file) checksum missmatch";
     goto err;
   }
-  last_checkpoint_lsn= lsn_korr(buffer + CONTROL_FILE_LSN_OFFSET);
-  last_logno= uint4korr(buffer + CONTROL_FILE_FILENO_OFFSET);
+
+  memcpy(maria_uuid, buffer + CF_UUID_OFFSET, CF_UUID_SIZE);
+  cf_create_time_size= new_cf_create_time_size;
+  cf_changeable_size=  new_cf_changeable_size;
+  last_checkpoint_lsn= lsn_korr(buffer + new_cf_create_time_size +
+                                CF_LSN_OFFSET);
+  last_logno= uint4korr(buffer + new_cf_create_time_size + CF_FILENO_OFFSET);
 
   DBUG_RETURN(0);
 
@@ -247,12 +368,12 @@ err:
     checkpoint_lsn       LSN of last checkpoint
     logno                last log file number
     objs_to_write        which of the arguments should be used as new values
-                         (for example, CONTROL_FILE_UPDATE_ONLY_LSN will not
+                         (for example, CF_UPDATE_ONLY_LSN will not
                          write the logno argument to the control file and will
                          not update the last_logno global variable); can be:
-                         CONTROL_FILE_UPDATE_ALL
-                         CONTROL_FILE_UPDATE_ONLY_LSN
-                         CONTROL_FILE_UPDATE_ONLY_LOGNO.
+                         CF_UPDATE_ALL
+                         CF_UPDATE_ONLY_LSN
+                         CF_UPDATE_ONLY_LOGNO.
 
   NOTE
     We always want to do one single my_pwrite() here to be as atomic as
@@ -266,8 +387,9 @@ err:
 int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
                                     uint objs_to_write)
 {
-  char buffer[CONTROL_FILE_SIZE];
+  char buffer[CF_MAX_SIZE];
   my_bool update_checkpoint_lsn= FALSE, update_logno= FALSE;
+  uint32 sum;
   DBUG_ENTER("ma_control_file_write_and_force");
 
   DBUG_ASSERT(control_file_fd >= 0); /* must be open */
@@ -275,11 +397,6 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
   if (maria_multi_threaded)
     translog_lock_assert_owner();
 #endif
-
-  memcpy(buffer + CONTROL_FILE_MAGIC_STRING_OFFSET,
-         CONTROL_FILE_MAGIC_STRING, CONTROL_FILE_MAGIC_STRING_SIZE);
-  memcpy(buffer + CONTROL_FILE_UUID_OFFSET, maria_uuid,
-         CONTROL_FILE_UUID_SIZE);
 
   if (objs_to_write == CONTROL_FILE_UPDATE_ONLY_LSN)
     update_checkpoint_lsn= TRUE;
@@ -291,24 +408,31 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
     DBUG_ASSERT(0);
 
   if (update_checkpoint_lsn)
-    lsn_store(buffer + CONTROL_FILE_LSN_OFFSET, checkpoint_lsn);
+    lsn_store(buffer + CF_LSN_OFFSET, checkpoint_lsn);
   else /* store old value == change nothing */
-    lsn_store(buffer + CONTROL_FILE_LSN_OFFSET, last_checkpoint_lsn);
+    lsn_store(buffer + CF_LSN_OFFSET, last_checkpoint_lsn);
 
   if (update_logno)
-    int4store(buffer + CONTROL_FILE_FILENO_OFFSET, logno);
+    int4store(buffer + CF_FILENO_OFFSET, logno);
   else
-    int4store(buffer + CONTROL_FILE_FILENO_OFFSET, last_logno);
+    int4store(buffer + CF_FILENO_OFFSET, last_logno);
 
-  {
-    uint32 sum= (uint32)
-      my_checksum(0, buffer + CONTROL_FILE_LSN_OFFSET,
-                  CONTROL_FILE_SIZE - CONTROL_FILE_LSN_OFFSET);
-    int4store(buffer + CONTROL_FILE_CHECKSUM_OFFSET, sum);
-  }
+  /*
+    Clear unknown part of changeable part.
+    Other option would be to remember the original values in the file
+    and copy them here, but this should be safer.
+   */
+  bzero(buffer + CF_CHANGEABLE_TOTAL_SIZE,
+        cf_changeable_size - CF_CHANGEABLE_TOTAL_SIZE);
 
-  if (my_pwrite(control_file_fd, buffer, sizeof(buffer),
-                0, MYF(MY_FNABP |  MY_WME)) ||
+  /* Checksum is stored first */
+  compile_time_assert(CF_CHECKSUM_OFFSET == 0);
+  sum= my_checksum(0, buffer + CF_CHECKSUM_SIZE,
+                   cf_changeable_size - CF_CHECKSUM_SIZE);
+  int4store(buffer, sum);
+
+  if (my_pwrite(control_file_fd, buffer, cf_changeable_size,
+                cf_create_time_size, MYF(MY_FNABP |  MY_WME)) ||
       my_sync(control_file_fd, MYF(MY_WME)))
     DBUG_RETURN(1);
 

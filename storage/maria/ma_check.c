@@ -305,7 +305,7 @@ static int check_k_link(HA_CHECK *param, register MARIA_HA *info,
                                &info->s->kfile, next_link/block_size,
                                DFLT_INIT_HITS,
                                (uchar*) info->buff,
-                               PAGECACHE_PLAIN_PAGE,
+                               PAGECACHE_READ_UNKNOWN_PAGE,
                                PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
     {
       /* purecov: begin tested */
@@ -595,7 +595,7 @@ do_stat:
       puts("");
   }
   if (param->key_file_blocks != info->state->key_file_length &&
-      param->keys_in_use != ~(ulonglong) 0)
+      share->state.key_map == ~(ulonglong) 0)
     _ma_check_print_warning(param, "Some data are unreferenced in keyfile");
   if (found_keys != full_text_keys)
     param->record_checksum=old_record_checksum-init_checksum;	/* Remove delete links */
@@ -2123,8 +2123,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
     info->s->state.dellink= HA_OFFSET_ERROR;
     info->rec_cache.file= new_file;
     if (share->data_file_type == BLOCK_RECORD ||
-        ((param->testflag & T_UNPACK) &&
-         share->state.header.org_data_file_type == BLOCK_RECORD))
+        (param->testflag & T_UNPACK))
     {
       MARIA_HA *new_info;
       /*
@@ -2152,6 +2151,10 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
       if (_ma_initialize_data_file(sort_info.new_info->s, new_file))
         goto err;
       block_record= 1;
+
+      /* Use new virtual functions for key generation */
+      info->s->keypos_to_recpos= new_info->s->keypos_to_recpos;
+      info->s->recpos_to_keypos= new_info->s->recpos_to_keypos;
     }
   }
 
@@ -2901,8 +2904,8 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
 
-  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA, FLUSH_FORCE_WRITE,
-                            FLUSH_KEEP))
+  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                            FLUSH_FORCE_WRITE, FLUSH_IGNORE_CHANGED))
     goto err;
 
   if (!(sort_info.key_block=
@@ -3328,8 +3331,8 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
 
-  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA, FLUSH_FORCE_WRITE,
-                            FLUSH_KEEP))
+  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                            FLUSH_FORCE_WRITE, FLUSH_IGNORE_CHANGED))
     goto err;
 
   /*
@@ -5502,12 +5505,19 @@ set_data_file_type(MARIA_SORT_INFO *sort_info, MARIA_SHARE *share)
 
 static void restore_data_file_type(MARIA_SHARE *share)
 {
+  MARIA_SHARE tmp_share;
   share->options&= ~HA_OPTION_COMPRESS_RECORD;
   mi_int2store(share->state.header.options,share->options);
   share->state.header.data_file_type=
     share->state.header.org_data_file_type;
   share->data_file_type= share->state.header.data_file_type;
   share->pack.header_length= 0;
+
+  /* Use new virtual functions for key generation */
+  tmp_share= *share;
+  _ma_setup_functions(&tmp_share);
+  share->keypos_to_recpos= tmp_share.keypos_to_recpos;
+  share->recpos_to_keypos= tmp_share.recpos_to_keypos;
 }
 
 

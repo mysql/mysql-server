@@ -13,8 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Remove a row from a MARIA table */
-
 #include "ma_fulltext.h"
 #include "ma_rt_index.h"
 #include "trnman.h"
@@ -25,19 +23,21 @@ static int d_search(MARIA_HA *info,MARIA_KEYDEF *keyinfo,uint comp_flag,
                     my_off_t page, uchar *anc_buff,
                     MARIA_PINNED_PAGE *anc_page_link);
 static int del(MARIA_HA *info,MARIA_KEYDEF *keyinfo, uchar *key,
-               uchar *anc_buff, my_off_t leaf_page, uchar *leaf_buff,
-               MARIA_PINNED_PAGE *leaf_page_link, uchar *keypos,
-	       my_off_t next_block, uchar *ret_key);
-static int underflow(MARIA_HA *info,MARIA_KEYDEF *keyinfo,uchar *anc_buff,
-		     my_off_t leaf_page,uchar *leaf_buff,
+               my_off_t anc_page, uchar *anc_buff, my_off_t leaf_page,
+               uchar *leaf_buff, MARIA_PINNED_PAGE *leaf_page_link,
+               uchar *keypos, my_off_t next_block, uchar *ret_key);
+static int underflow(MARIA_HA *info,MARIA_KEYDEF *keyinfo,
+                     my_off_t anc_page, uchar *anc_buff,
+		     my_off_t leaf_page, uchar *leaf_buff,
                      MARIA_PINNED_PAGE *leaf_page_link, uchar *keypos);
 static uint remove_key(MARIA_KEYDEF *keyinfo,uint nod_flag,uchar *keypos,
 		       uchar *lastkey,uchar *page_end,
 		       my_off_t *next_block, MARIA_KEY_PARAM *s_temp);
 static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
-                              uchar *key_pos, uint move_length,
-                              uint change_length);
+                              uchar *key_pos, uint changed_length,
+                              uint move_length);
 
+/* @breif Remove a row from a MARIA table */
 
 int maria_delete(MARIA_HA *info,const uchar *record)
 {
@@ -48,8 +48,7 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   MARIA_SHARE *share=info->s;
   DBUG_ENTER("maria_delete");
 
-	/* Test if record is in datafile */
-
+  /* Test if record is in datafile */
   DBUG_EXECUTE_IF("maria_pretend_crashed_table_on_usage",
                   maria_print_error(share, HA_ERR_CRASHED);
                   DBUG_RETURN(my_errno= HA_ERR_CRASHED););
@@ -157,7 +156,14 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
   int res;
   LSN lsn= LSN_IMPOSSIBLE;
   my_off_t new_root= info->s->state.key_root[keynr];
+  uchar key_buff[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_ma_ck_delete");
+
+  if (info->s->now_transactional)
+  {
+    /* Save original value as the key may change */
+    memcpy(key_buff, key, key_length + info->s->rec_reflength);
+  }
 
   res= _ma_ck_real_delete(info, info->s->keyinfo+keynr, key, key_length,
                           &new_root);
@@ -184,9 +190,10 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
       log_type= LOGREC_UNDO_KEY_DELETE_WITH_ROOT;
     }
 
+    key_length+= info->s->rec_reflength;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char*) key;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) key_buff;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= key_length;
 
     msg.root= &info->s->state.key_root[keynr];
@@ -278,16 +285,16 @@ err:
 } /* _ma_ck_real_delete */
 
 
-/*
-  @brief Remove key below key root
+/**
+   @brief Remove key below key root
 
-  @param key  Key to delete.  Will contain new key if block was enlarged
+   @param key  Key to delete.  Will contain new key if block was enlarged
 
-  @return
-  @retval 0   ok (anc_page is not changed)
-  @retval 1   If data on page is too small;  In this case anc_buff is not saved
-  @retval 2   If data on page is too big
-  @retval -1  On errors
+   @return
+   @retval 0   ok (anc_page is not changed)
+   @retval 1   If data on page is too small; In this case anc_buff is not saved
+   @retval 2   If data on page is too big
+   @retval -1  On errors
 */
 
 static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
@@ -421,14 +428,15 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   else
   {						/* Found key */
     uint tmp;
-    length= _ma_get_page_used(info, anc_buff);
-    if (!(tmp= remove_key(keyinfo,nod_flag,keypos,lastkey,anc_buff+length,
+    uint anc_buff_length= _ma_get_page_used(info, anc_buff);
+    if (!(tmp= remove_key(keyinfo,nod_flag,keypos,lastkey,
+                          anc_buff + anc_buff_length,
                           &next_block, &s_temp)))
       goto err;
 
     anc_page_link->changed= 1;
-    length-= tmp;
-    _ma_store_page_used(info, anc_buff, length, nod_flag);
+    anc_buff_length-= tmp;
+    _ma_store_page_used(info, anc_buff, anc_buff_length, nod_flag);
 
     /*
       Log initial changes on pages
@@ -437,14 +445,14 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     */
     if (info->s->now_transactional &&
         _ma_log_delete(info, anc_page, anc_buff, s_temp.key_pos,
-                       s_temp.move_length, s_temp.changed_length))
+                       s_temp.changed_length, s_temp.move_length))
       DBUG_RETURN(-1);
 
     if (!nod_flag)
     {						/* On leaf page */
-      if (test(length <= (info->quick_mode ?
-                          MARIA_MIN_KEYBLOCK_LENGTH :
-                          (uint) keyinfo->underflow_block_length)))
+      if (test(anc_buff_length <= (info->quick_mode ?
+                                   MARIA_MIN_KEYBLOCK_LENGTH :
+                                   (uint) keyinfo->underflow_block_length)))
       {
         /* Page will be written by caller if we return 1 */
         DBUG_RETURN(1);
@@ -456,15 +464,16 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       DBUG_RETURN(0);
     }
     save_flag=1;                         /* Mark that anc_buff is changed */
-    ret_value= del(info, keyinfo, key, anc_buff, leaf_page, leaf_buff,
-                   leaf_page_link, keypos, next_block, lastkey);
+    ret_value= del(info, keyinfo, key, anc_page, anc_buff,
+                   leaf_page, leaf_buff, leaf_page_link,
+                   keypos, next_block, lastkey);
   }
   if (ret_value >0)
   {
     save_flag=1;
     if (ret_value == 1)
-      ret_value= underflow(info, keyinfo, anc_buff, leaf_page, leaf_buff,
-                           leaf_page_link, keypos);
+      ret_value= underflow(info, keyinfo, anc_page, anc_buff,
+                           leaf_page, leaf_buff, leaf_page_link, keypos);
     else
     {				/* This happens only with packed keys */
       DBUG_PRINT("test",("Enlarging of key when deleting"));
@@ -478,8 +487,12 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   if (ret_value == 0 && _ma_get_page_used(info, anc_buff) >
       (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
   {
+    /* parent buffer got too big ; We have to split the page */
     save_flag=1;
-    ret_value= _ma_split_page(info,keyinfo,key,anc_buff,lastkey,0) | 2;
+    ret_value= _ma_split_page(info, keyinfo, key, anc_page, anc_buff,
+                              (uint) (keyinfo->block_length -
+                                      KEYPAGE_CHECKSUM_SIZE),
+                              (uchar*) 0, 0, 0, lastkey, 0) | 2;
   }
   if (save_flag && ret_value != 1)
   {
@@ -503,17 +516,39 @@ err:
 } /* d_search */
 
 
-/* Remove a key that has a page-reference */
+/**
+   @brief Remove a key that has a page-reference
 
-static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-               uchar *key, uchar *anc_buff, my_off_t leaf_page,
-               uchar *leaf_buff, MARIA_PINNED_PAGE *leaf_page_link,
-	       uchar *keypos,		/* Pos to where deleted key was */
-	       my_off_t next_block,
-	       uchar *ret_key)		/* key before keypos in anc_buff */
+   @param info		 Maria handler
+   @param key		 Buffer for key to be inserted at upper level
+   @param anc_page	 Page address for page where deleted key was
+   @param anc_buff       Page buffer (nod) where deleted key was
+   @param leaf_page      Page address for nod before the deleted key
+   @param leaf_buff      Buffer for leaf_page
+   @param leaf_buff_link Pinned page link for leaf_buff
+   @param keypos         Pos to where deleted key was on anc_buff
+   @param next_block	 Page adress for nod after deleted key
+   @param ret_key	 Key before keypos in anc_buff
+
+   @notes
+     leaf_buff is written to disk
+     anc_buff  is not updated on disk. Caller should do this
+
+   @return
+   @retval < 0   Error
+   @retval 0     OK
+   @retval 1     key contains key to upper level (from balance page)
+   @retval 2     key contains key to upper level (from split space)
+*/
+
+static int del(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+               uchar *key, my_off_t anc_page, uchar *anc_buff,
+               my_off_t leaf_page, uchar *leaf_buff,
+               MARIA_PINNED_PAGE *leaf_page_link,
+	       uchar *keypos, my_off_t next_block, uchar *ret_key)
 {
   int ret_value,length;
-  uint a_length, nod_flag, used_length, tmp;
+  uint a_length, nod_flag, leaf_length, tmp;
   my_off_t next_page;
   uchar keybuff[HA_MAX_KEY_BUFF],*endpos,*next_buff,*key_start, *prev_key;
   MARIA_SHARE *share=info->s;
@@ -523,10 +558,10 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx", (long) leaf_page,
 		      (ulong) keypos));
 
-  _ma_get_used_and_nod(info, leaf_buff, used_length, nod_flag);
-  DBUG_DUMP("leaf_buff", leaf_buff, used_length);
+  _ma_get_used_and_nod(info, leaf_buff, leaf_length, nod_flag);
+  DBUG_DUMP("leaf_buff", leaf_buff, leaf_length);
 
-  endpos= leaf_buff + used_length;
+  endpos= leaf_buff + leaf_length;
   if (!(key_start= _ma_get_last_key(info,keyinfo,leaf_buff,keybuff,endpos,
 				   &tmp)))
     DBUG_RETURN(-1);
@@ -543,21 +578,26 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     else
     {
       DBUG_DUMP("next_page", next_buff, _ma_get_page_used(info, next_buff));
-      if ((ret_value= del(info,keyinfo,key,anc_buff, next_page, next_buff,
-                          next_page_link, keypos, next_block, ret_key)) >0)
+      if ((ret_value= del(info, keyinfo, key, anc_page, anc_buff, next_page,
+                          next_buff, next_page_link, keypos, next_block,
+                          ret_key)) >0)
       {
         /* Get new length after key was deleted */
 	endpos=leaf_buff+_ma_get_page_used(info, leaf_buff);
 	if (ret_value == 1)
 	{
-	  ret_value= underflow(info, keyinfo, leaf_buff, next_page,
+	  ret_value= underflow(info, keyinfo, leaf_page, leaf_buff, next_page,
                                next_buff, next_page_link, endpos);
 	  if (ret_value == 0 &&
               _ma_get_page_used(info, leaf_buff) >
               (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
 	  {
-	    ret_value= (_ma_split_page(info,keyinfo,key,leaf_buff,ret_key,0) |
-                        2);
+	    ret_value= (_ma_split_page(info, keyinfo, key,
+                                       leaf_page, leaf_buff,
+                                       (uint) (keyinfo->block_length -
+                                               KEYPAGE_CHECKSUM_SIZE),
+                                       (uchar*) 0, 0, 0,
+                                       ret_key, 0) | 2);
 	  }
 	}
 	else
@@ -582,8 +622,14 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   }
 
 	/* Remove last key from leaf page */
-  leaf_page_link->changed= 1;
   _ma_store_page_used(info, leaf_buff, key_start-leaf_buff, nod_flag);
+
+  if (info->s->now_transactional &&
+      _ma_log_suffix(info, leaf_page, leaf_buff, leaf_length,
+                     (uint) (key_start - leaf_buff)))
+    goto err;
+
+  leaf_page_link->changed= 1;
   if (_ma_write_keypage(info, keyinfo, leaf_page,
                         PAGECACHE_LOCK_LEFT_WRITELOCKED, DFLT_INIT_HITS,
                         leaf_buff))
@@ -607,12 +653,19 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   else
     bmove(keypos,keypos-length, (int) (endpos-keypos)+length);
   (*keyinfo->store_key)(keyinfo,keypos,&s_temp);
+  key_start= keypos;
+
   /* Save pointer to next leaf */
   if (!(*keyinfo->get_key)(keyinfo,share->base.key_reflength,&keypos,ret_key))
     goto err;
   _ma_kpointer(info,keypos - share->base.key_reflength,next_block);
   _ma_store_page_used(info, anc_buff, a_length + length,
                       share->base.key_reflength);
+
+  if (info->s->now_transactional &&
+      _ma_log_add(info, anc_page, anc_buff, a_length + length,
+                  key_start, s_temp.changed_length, s_temp.move_length, 1))
+    goto err;
 
   DBUG_RETURN(_ma_get_page_used(info, leaf_buff) <=
               (info->quick_mode ? MARIA_MIN_KEYBLOCK_LENGTH :
@@ -622,25 +675,44 @@ err:
 } /* del */
 
 
-	/* Balances adjacent pages if underflow occours */
+/**
+   @brief Balances adjacent pages if underflow occours
+
+   @fn    underflow()
+   @param anc_buff        Anchestor page data
+   @param leaf_page       Page number of leaf page
+   @param leaf_buff       Leaf page (page that underflowed)
+   @param leaf_page_link  Pointer to pin information about leaf page
+   @param keypos          Position after current key in anc_buff
+
+   @note
+     This function writes redo entries for all changes
+     Caller must save anc_buff
+
+   @return
+   @retval  0  ok
+   @retval  1  ok, but anc_buff did underflow
+   @retval -1  error
+ */
 
 static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-		     uchar *anc_buff,
-		     my_off_t leaf_page,/* Ancestor page and underflow page */
-		     uchar *leaf_buff,
+		     my_off_t anc_page, uchar *anc_buff,
+		     my_off_t leaf_page, uchar *leaf_buff,
                      MARIA_PINNED_PAGE *leaf_page_link,
-		     uchar *keypos)	/* Position to pos after key */
+		     uchar *keypos)
 {
   int t_length;
-  uint length,anc_length,buff_length,leaf_length,p_length,s_length,nod_flag,
-       key_reflength,key_length;
+  uint length,anc_length,buff_length,leaf_length,p_length,s_length,nod_flag;
+  uint next_buff_length, new_buff_length, key_reflength, key_length;
+  uint unchanged_leaf_length, new_leaf_length;
   my_off_t next_page;
   uchar anc_key[HA_MAX_KEY_BUFF],leaf_key[HA_MAX_KEY_BUFF];
-  uchar *buff,*endpos,*next_keypos,*anc_pos,*half_pos,*temp_pos,*prev_key;
-  uchar *after_key;
-  MARIA_KEY_PARAM s_temp;
+  uchar *buff,*endpos,*next_keypos,*anc_pos,*half_pos,*prev_key;
+  uchar *after_key, *anc_end_pos;
+  MARIA_KEY_PARAM key_deleted, key_inserted;
   MARIA_SHARE *share=info->s;
   MARIA_PINNED_PAGE *next_page_link;
+  my_bool first_key;
   DBUG_ENTER("underflow");
   DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx",(long) leaf_page,
 		      (ulong) keypos));
@@ -657,10 +729,12 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   key_reflength=share->base.key_reflength;
   if (info->s->keyinfo+info->lastinx == keyinfo)
     info->page_changed=1;
+  first_key= keypos == anc_buff + info->s->keypage_header + key_reflength;
 
   if ((keypos < anc_buff + anc_length && (info->state->records & 1)) ||
-      keypos == anc_buff + info->s->keypage_header + key_reflength)
-  {					/* Use page right of anc-page */
+      first_key)
+  {
+    /* Use page right of anc-page */
     DBUG_PRINT("test",("use right page"));
 
     if (keyinfo->flag & HA_BINARY_PACK_KEY)
@@ -681,8 +755,8 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     if (!_ma_fetch_keypage(info,keyinfo, next_page, PAGECACHE_LOCK_WRITE,
                            DFLT_INIT_HITS, buff, 0, &next_page_link))
       goto err;
-    buff_length= _ma_get_page_used(info, buff);
-    DBUG_DUMP("next",buff,buff_length);
+    next_buff_length= _ma_get_page_used(info, buff);
+    DBUG_DUMP("next", buff, next_buff_length);
 
     /* find keys to make a big key-page */
     bmove(next_keypos-key_reflength, buff + info->s->keypage_header,
@@ -696,67 +770,97 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     prev_key=(leaf_length == p_length ? (uchar*) 0 : leaf_key);
     t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,buff+p_length,
 				  prev_key, prev_key,
-				  anc_key, &s_temp);
-    length=buff_length-p_length;
+				  anc_key, &key_inserted);
+    length= next_buff_length - p_length;
     endpos=buff+length+leaf_length+t_length;
     /* buff will always be larger than before !*/
-    bmove_upp(endpos, buff+buff_length,length);
+    bmove_upp(endpos, buff + next_buff_length, length);
     memcpy(buff, leaf_buff,(size_t) leaf_length);
-    (*keyinfo->store_key)(keyinfo,buff+leaf_length,&s_temp);
-    buff_length=(uint) (endpos-buff);
+    (*keyinfo->store_key)(keyinfo, buff+leaf_length, &key_inserted);
+    buff_length= (uint) (endpos-buff);
     _ma_store_page_used(info, buff, buff_length, nod_flag);
 
     /* remove key from anc_buff */
-
     if (!(s_length=remove_key(keyinfo,key_reflength,keypos,anc_key,
-                              anc_buff+anc_length,(my_off_t *) 0, &s_temp)))
+                              anc_buff+anc_length,(my_off_t *) 0,
+                              &key_deleted)))
       goto err;
 
     anc_length-=s_length;
     _ma_store_page_used(info, anc_buff, anc_length, key_reflength);
 
     if (buff_length <= (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
-    {						/* Keys in one page */
-      memcpy(leaf_buff,buff,(size_t) buff_length);
+    {
+      /* All keys fitted into one page */
       next_page_link->changed= 1;
       if (_ma_dispose(info, next_page, 0))
        goto err;
+
+      memcpy(leaf_buff, buff, (size_t) buff_length);
+
+      if (info->s->now_transactional)
+      {
+        /* Log changes to parent page */
+        if (_ma_log_delete(info, anc_page, anc_buff, key_deleted.key_pos,
+                           key_deleted.changed_length,
+                           key_deleted.move_length))
+          goto err;
+        /*
+          Log changes to leaf page. Data for leaf page is in buff
+          which contains original leaf_buff, parting key and next_buff
+        */
+        if (_ma_log_suffix(info, leaf_page, leaf_buff,
+                           leaf_length, buff_length))
+          goto err;
+      }
     }
     else
-    {						/* Page is full */
-      endpos=anc_buff+anc_length;
-      DBUG_PRINT("test",("anc_buff: 0x%lx  endpos: 0x%lx",
-                         (long) anc_buff, (long) endpos));
-      if (keypos != anc_buff + info->s->keypage_header + key_reflength &&
+    {
+      /*
+        Balancing didn't free a page, so we have to split 'buff' into two
+        pages:
+        - Find key in middle of buffer
+        - Store everything before key in 'leaf_buff'
+        - Pack key into anc_buff at position of deleted key
+          Note that anc_buff may overflow! (is handled by caller)
+        - Store remaining keys in next_page (buff)
+      */
+      MARIA_KEY_PARAM anc_key_inserted;
+
+      anc_end_pos= anc_buff + anc_length;
+      DBUG_PRINT("test",("anc_buff: 0x%lx  anc_end_pos: 0x%lx",
+                         (long) anc_buff, (long) anc_end_pos));
+      if (!first_key &&
 	  !_ma_get_last_key(info,keyinfo,anc_buff,anc_key,keypos,&length))
 	goto err;
       if (!(half_pos= _ma_find_half_pos(info, nod_flag, keyinfo, buff,
                                         leaf_key, &key_length, &after_key)))
 	goto err;
-      length=(uint) (half_pos-buff);
-      memcpy(leaf_buff,buff,(size_t) length);
-      _ma_store_page_used(info, leaf_buff, length, nod_flag);
+      new_leaf_length= (uint) (half_pos-buff);
+      memcpy(leaf_buff, buff, (size_t) new_leaf_length);
+      _ma_store_page_used(info, leaf_buff, new_leaf_length, nod_flag);
 
       /* Correct new keypointer to leaf_page */
       half_pos=after_key;
       _ma_kpointer(info,leaf_key+key_length,next_page);
+
       /* Save key in anc_buff */
-      prev_key=(keypos == anc_buff + info->s->keypage_header + key_reflength ?
-                (uchar*) 0 : anc_key),
+      prev_key= (first_key  ? (uchar*) 0 : anc_key);
       t_length=(*keyinfo->pack_key)(keyinfo,key_reflength,
-				    (keypos == endpos ? (uchar*) 0 :
+				    (keypos == anc_end_pos ? (uchar*) 0 :
 				     keypos),
 				    prev_key, prev_key,
-				    leaf_key, &s_temp);
+				    leaf_key, &anc_key_inserted);
       if (t_length >= 0)
-	bmove_upp(endpos+t_length, endpos, (uint) (endpos-keypos));
+	bmove_upp(anc_end_pos+t_length, anc_end_pos,
+                  (uint) (anc_end_pos - keypos));
       else
-	bmove(keypos,keypos-t_length,(uint) (endpos-keypos)+t_length);
-      (*keyinfo->store_key)(keyinfo,keypos,&s_temp);
+	bmove(keypos,keypos-t_length,(uint) (anc_end_pos-keypos)+t_length);
+      (*keyinfo->store_key)(keyinfo,keypos, &anc_key_inserted);
       anc_length+= t_length;
       _ma_store_page_used(info, anc_buff, anc_length, key_reflength);
 
-	/* Store key first in new page */
+      /* Store key first in new page */
       if (nod_flag)
 	bmove(buff+info->s->keypage_header, half_pos-nod_flag,
               (size_t) nod_flag);
@@ -764,19 +868,73 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 	goto err;
       t_length=(int) (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar*) 0,
 					  (uchar*) 0, (uchar*) 0,
-					  leaf_key, &s_temp);
+					  leaf_key, &key_inserted);
       /* t_length will always be > 0 for a new page !*/
-      length=(uint) ((buff+_ma_get_page_used(info, buff))-half_pos);
+      length= (uint) ((buff + buff_length) - half_pos);
       bmove(buff+p_length+t_length, half_pos, (size_t) length);
-      (*keyinfo->store_key)(keyinfo,buff+p_length,&s_temp);
-      _ma_store_page_used(info, buff, length + t_length + p_length, nod_flag);
+      (*keyinfo->store_key)(keyinfo,buff+p_length, &key_inserted);
+      new_buff_length= length + t_length + p_length;
+      _ma_store_page_used(info, buff, new_buff_length, nod_flag);
 
+      if (info->s->now_transactional)
+      {
+        /*
+          Log changes to parent page
+          This has one key deleted from it and one key inserted to it at
+          keypos
+
+          ma_log_add ensures that we don't log changes that is outside of
+          key block size, as the REDO code can't handle that
+        */
+        if (_ma_log_add(info, anc_page, anc_buff, anc_length,
+                        keypos,
+                        anc_key_inserted.move_length +
+                        min(anc_key_inserted.changed_length -
+                            anc_key_inserted.move_length,
+                            key_deleted.changed_length),
+                        anc_key_inserted.move_length -
+                        key_deleted.move_length, 1))
+          goto err;
+
+        /*
+          Log changes to leaf page.
+          This contains original data with new data added at end
+        */
+        DBUG_ASSERT(leaf_length <= new_leaf_length);
+        if (_ma_log_suffix(info, leaf_page, leaf_buff, leaf_length,
+                           new_leaf_length))
+          goto err;
+        /*
+          Log changes to next page
+
+          This contains original data with some prefix data deleted and
+          some compressed data at start possible extended
+
+          Data in buff was originally:
+          org_leaf_buff     [leaf_length]
+          separator_key     [buff_key_inserted.move_length]
+          next_key_changes  [buff_key_inserted.changed_length -move_length]
+          next_page_data    [next_buff_length - p_length -
+                            (buff_key_inserted.changed_length -move_length)]
+
+          After changes it's now:
+          unpacked_key      [key_inserted.changed_length]
+          next_suffix       [next_buff_length - key_inserted.changed_length]
+
+        */
+        DBUG_ASSERT(new_buff_length <= next_buff_length);
+        if (_ma_log_prefix(info, next_page, buff,
+                           key_inserted.changed_length,
+                           (int) (new_buff_length - next_buff_length)))
+          goto err;
+      }
       next_page_link->changed= 1;
       if (_ma_write_keypage(info, keyinfo, next_page,
                             PAGECACHE_LOCK_LEFT_WRITELOCKED, DFLT_INIT_HITS,
                             buff))
 	goto err;
     }
+
     leaf_page_link->changed= 1;
     if (_ma_write_keypage(info, keyinfo, leaf_page,
                           PAGECACHE_LOCK_LEFT_WRITELOCKED, DFLT_INIT_HITS,
@@ -796,7 +954,7 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                          DFLT_INIT_HITS, buff, 0, &next_page_link))
     goto err;
   buff_length= _ma_get_page_used(info, buff);
-  endpos=buff+buff_length;
+  endpos= buff + buff_length;
   DBUG_DUMP("prev",buff,buff_length);
 
   /* find keys to make a big key-page */
@@ -815,59 +973,96 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 				(leaf_length == p_length ?
                                  (uchar*) 0 : leaf_buff+p_length),
 				prev_key, prev_key,
-				anc_key, &s_temp);
+				anc_key, &key_inserted);
   if (t_length >= 0)
     bmove(endpos+t_length, leaf_buff+p_length,
           (size_t) (leaf_length-p_length));
   else						/* We gained space */
     bmove(endpos,leaf_buff+((int) p_length-t_length),
 	  (size_t) (leaf_length-p_length+t_length));
+  (*keyinfo->store_key)(keyinfo,endpos, &key_inserted);
 
-  (*keyinfo->store_key)(keyinfo,endpos,&s_temp);
-  buff_length=buff_length+leaf_length-p_length+t_length;
-  _ma_store_page_used(info, buff, buff_length, nod_flag);
+  /* Remember for logging how many bytes of leaf_buff that are not changed */
+  DBUG_ASSERT((int) key_inserted.changed_length >= key_inserted.move_length);
+  unchanged_leaf_length= leaf_length - (key_inserted.changed_length -
+                                        key_inserted.move_length);
+
+  new_buff_length= buff_length + leaf_length - p_length + t_length;
+  _ma_store_page_used(info, buff, new_buff_length, nod_flag);
 
   /* remove key from anc_buff */
   if (!(s_length= remove_key(keyinfo,key_reflength,keypos,anc_key,
-                             anc_buff+anc_length,(my_off_t *) 0, &s_temp)))
+                             anc_buff+anc_length,(my_off_t *) 0,
+                             &key_deleted)))
     goto err;
 
   anc_length-=s_length;
   _ma_store_page_used(info, anc_buff, anc_length, key_reflength);
 
-  if (buff_length <= (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
-  {						/* Keys in one page */
+  if (new_buff_length <= (uint) (keyinfo->block_length -
+                                 KEYPAGE_CHECKSUM_SIZE))
+  {
+    /* All keys fitted into one page */
     leaf_page_link->changed= 1;
     if (_ma_dispose(info, leaf_page, 0))
       goto err;
+
+    if (info->s->now_transactional)
+    {
+      /* Log changes to parent page */
+      if (_ma_log_delete(info, anc_page, anc_buff, key_deleted.key_pos,
+                         key_deleted.changed_length, key_deleted.move_length))
+
+        goto err;
+      /*
+        Log changes to next page. Data for leaf page is in buff
+        that contains original leaf_buff, parting key and next_buff
+      */
+      if (_ma_log_suffix(info, next_page, buff,
+                         buff_length, new_buff_length))
+        goto err;
+    }
   }
   else
-  {						/* Page is full */
-    if (keypos == anc_buff+ info->s->keypage_header + key_reflength)
-      anc_pos=0;				/* First key */
+  {
+    /*
+      Balancing didn't free a page, so we have to split 'buff' into two
+      pages
+      - Find key in middle of buffer (buff)
+      - Pack key at half_buff into anc_buff at position of deleted key
+        Note that anc_buff may overflow! (is handled by caller)
+      - Move everything after middlekey to 'leaf_buff'
+      - Shorten buff at 'endpos'
+    */
+    MARIA_KEY_PARAM anc_key_inserted;
+
+    if (first_key)
+      anc_pos= 0;				/* First key */
     else if (!_ma_get_last_key(info,keyinfo,anc_buff,anc_pos=anc_key,keypos,
 			       &length))
       goto err;
-    endpos= _ma_find_half_pos(info, nod_flag, keyinfo, buff, leaf_key,
-                              &key_length, &half_pos);
-    if (!endpos)
+    if (!(endpos= _ma_find_half_pos(info, nod_flag, keyinfo, buff, leaf_key,
+                                    &key_length, &half_pos)))
       goto err;
+
+    /* Correct new keypointer to leaf_page */
     _ma_kpointer(info,leaf_key+key_length,leaf_page);
+
     /* Save key in anc_buff */
     DBUG_DUMP("anc_buff",anc_buff,anc_length);
     DBUG_DUMP("key_to_anc",leaf_key,key_length);
-
-    temp_pos=anc_buff+anc_length;
+    anc_end_pos= anc_buff + anc_length;
     t_length=(*keyinfo->pack_key)(keyinfo,key_reflength,
-				  keypos == temp_pos ? (uchar*) 0
+				  keypos == anc_end_pos ? (uchar*) 0
 				  : keypos,
 				  anc_pos, anc_pos,
-				  leaf_key,&s_temp);
-    if (t_length > 0)
-      bmove_upp(temp_pos+t_length, temp_pos, (uint) (temp_pos-keypos));
+				  leaf_key, &anc_key_inserted);
+    if (t_length >= 0)
+      bmove_upp(anc_end_pos+t_length, anc_end_pos,
+                (uint) (anc_end_pos-keypos));
     else
-      bmove(keypos,keypos-t_length,(uint) (temp_pos-keypos)+t_length);
-    (*keyinfo->store_key)(keyinfo,keypos,&s_temp);
+      bmove(keypos,keypos-t_length,(uint) (anc_end_pos-keypos)+t_length);
+    (*keyinfo->store_key)(keyinfo,keypos, &anc_key_inserted);
     anc_length+= t_length;
     _ma_store_page_used(info, anc_buff, anc_length, key_reflength);
 
@@ -879,20 +1074,63 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       goto err;
     DBUG_DUMP("key_to_leaf",leaf_key,length);
     t_length=(*keyinfo->pack_key)(keyinfo,nod_flag, (uchar*) 0,
-				  (uchar*) 0, (uchar*) 0, leaf_key, &s_temp);
-    length=(uint) ((buff+buff_length)-half_pos);
+				  (uchar*) 0, (uchar*) 0, leaf_key,
+                                  &key_inserted);
+    /* t_length will always be > 0 for a new page !*/
+    length= (uint) ((buff + new_buff_length) - half_pos);
     DBUG_PRINT("info",("t_length: %d  length: %d",t_length,(int) length));
-    bmove(leaf_buff+p_length+t_length,half_pos,
-	  (size_t) length);
-    (*keyinfo->store_key)(keyinfo,leaf_buff+p_length,&s_temp);
-    _ma_store_page_used(info, leaf_buff, length + t_length + p_length,
-                        nod_flag);
+    bmove(leaf_buff+p_length+t_length, half_pos, (size_t) length);
+    (*keyinfo->store_key)(keyinfo,leaf_buff+p_length, &key_inserted);
+    new_leaf_length= length + t_length + p_length;
+    _ma_store_page_used(info, leaf_buff, new_leaf_length, nod_flag);
+    new_buff_length= (uint) (endpos - buff);
+    _ma_store_page_used(info, buff, new_buff_length, nod_flag);
+
+    if (info->s->now_transactional)
+    {
+      /*
+        Log changes to parent page
+        This has one key deleted from it and one key inserted to it at
+        keypos
+
+        ma_log_add() ensures that we don't log changes that is outside of
+        key block size, as the REDO code can't handle that
+      */
+      if (_ma_log_add(info, anc_page, anc_buff, anc_length,
+                      keypos,
+                      anc_key_inserted.move_length +
+                      min(anc_key_inserted.changed_length -
+                          anc_key_inserted.move_length,
+                          key_deleted.changed_length),
+                      anc_key_inserted.move_length -
+                      key_deleted.move_length, 1))
+        goto err;
+
+      /*
+        Log changes to leaf page.
+        This contains original data with new data added first
+      */
+      DBUG_ASSERT(leaf_length <= new_leaf_length);
+      if (_ma_log_prefix(info, leaf_page, leaf_buff,
+                         new_leaf_length - unchanged_leaf_length,
+                         (int) (new_leaf_length - leaf_length)))
+        goto err;
+      /*
+        Log changes to next page
+        This contains original data with some suffix data deleted
+
+      */
+      DBUG_ASSERT(new_buff_length <= buff_length);
+      if (_ma_log_suffix(info, next_page, buff,
+                         buff_length, new_buff_length))
+        goto err;
+    }
+
     leaf_page_link->changed= 1;
     if (_ma_write_keypage(info, keyinfo, leaf_page,
                           PAGECACHE_LOCK_LEFT_WRITELOCKED, DFLT_INIT_HITS,
                           leaf_buff))
       goto err;
-    _ma_store_page_used(info, buff, (uint) (endpos - buff),nod_flag);
   }
   next_page_link->changed= 1;
   if (_ma_write_keypage(info, keyinfo, next_page,
@@ -906,7 +1144,7 @@ err:
 } /* underflow */
 
 
-/*
+/**
   @brief Remove a key from page
 
   @fn remove_key()
@@ -1067,13 +1305,22 @@ static uint remove_key(MARIA_KEYDEF *keyinfo, uint nod_flag,
   Logging of redos
 ****************************************************************************/
 
-/*
-  @brief log entry where some parts are deleted and some things are changed
+/**
+   @brief log entry where some parts are deleted and some things are changed
+
+   @fn _ma_log_delete()
+   @param info		  Maria handler
+   @param page	          Pageaddress for changed page
+   @param buff		  Page buffer
+   @param key_pos         Start of change area
+   @param changed_length  How many bytes where changed at key_pos
+   @param move_length     How many bytes where deleted at key_pos
+
 */
 
 static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
-                              uchar *key_pos, uint move_length,
-                              uint change_length)
+                              uchar *key_pos, uint changed_length,
+                              uint move_length)
 {
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 9], *log_pos;
@@ -1081,6 +1328,8 @@ static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
   uint translog_parts;
   uint offset= (uint) (key_pos - buff);
   DBUG_ENTER("_ma_log_delete");
+  DBUG_PRINT("enter", ("page: %lu  changed_length: %u  move_length: %d",
+                       (ulong) page, changed_length, move_length));
   DBUG_ASSERT(info->s->now_transactional && move_length);
 
   /* Store address of new root page */
@@ -1093,14 +1342,14 @@ static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
   int2store(log_pos+4, -(int) move_length);
   log_pos+= 6;
   translog_parts= 1;
-  if (change_length)
+  if (changed_length)
   {
     log_pos[0]= KEY_OP_CHANGE;
-    int2store(log_pos+1, change_length);
+    int2store(log_pos+1, changed_length);
     log_pos+= 3;
     translog_parts= 2;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    buff + offset;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= change_length;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= changed_length;
   }
 
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
@@ -1109,7 +1358,7 @@ static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
                             info->trn, info,
                             log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
-                            change_length,
+                            changed_length,
                             TRANSLOG_INTERNAL_PARTS + translog_parts,
                             log_array, log_data, NULL))
     DBUG_RETURN(1);

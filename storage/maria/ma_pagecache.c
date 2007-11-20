@@ -405,8 +405,7 @@ static my_bool info_check_lock(PAGECACHE_BLOCK_LINK *block,
     (PAGECACHE_LOCK_INFO *) info_find((PAGECACHE_PIN_INFO *) block->lock_list,
                                       thread);
   DBUG_ENTER("info_check_lock");
-  switch(lock)
-  {
+  switch(lock) {
   case PAGECACHE_LOCK_LEFT_UNLOCKED:
     if (pin != PAGECACHE_PIN_LEFT_UNPINNED ||
         info)
@@ -1199,7 +1198,7 @@ static inline void link_to_changed_list(PAGECACHE *pagecache,
     none
 
   NOTES.
-    The LRU chain is represented by a curcular list of block structures.
+    The LRU chain is represented by a circular list of block structures.
     The list is double-linked of the type (**prev,*next) type.
     The LRU chain is divided into two parts - hot and warm.
     There are two pointers to access the last blocks of these two
@@ -1268,7 +1267,7 @@ static void link_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block,
   }
 #else /* THREAD */
   KEYCACHE_DBUG_ASSERT(! (!hot && pagecache->waiting_for_block.last_thread));
-      /* Condition not transformed using DeMorgan, to keep the text identical */
+  /* Condition not transformed using DeMorgan, to keep the text identical */
 #endif /* THREAD */
   ptr_ins= hot ? &pagecache->used_ins : &pagecache->used_last;
   ins= *ptr_ins;
@@ -2730,10 +2729,10 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
                               LSN lsn, my_bool was_changed)
 {
   DBUG_ENTER("pagecache_unlock_by_link");
-  DBUG_PRINT("enter", ("block: 0x%lx fd: %u  page: %lu  %s  %s",
+  DBUG_PRINT("enter", ("block: 0x%lx fd: %u  page: %lu  changed: %d  %s  %s",
                        (ulong) block,
                        (uint) block->hash_link->file.file,
-                       (ulong) block->hash_link->pageno,
+                       (ulong) block->hash_link->pageno, was_changed,
                        page_cache_page_lock_str[lock],
                        page_cache_page_pin_str[pin]));
   /*
@@ -2799,7 +2798,6 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
                         (ulong) block));
 
   }
-    pagecache_set_block_rec_lsn(block, first_REDO_LSN_for_page);
 
   if (make_lock_and_pin(pagecache, block, lock, pin, 0))
     DBUG_ASSERT(0);                           /* should not happend */
@@ -4245,6 +4243,11 @@ static void test_key_cache(PAGECACHE *pagecache __attribute__((unused)),
   /* TODO */
 }
 #endif
+
+uchar *pagecache_block_link_to_buffer(PAGECACHE_BLOCK_LINK *block)
+{
+  return block->buffer;
+}
 
 #if defined(PAGECACHE_TIMEOUT)
 

@@ -1529,7 +1529,8 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+    share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                            STATE_NOT_OPTIMIZED_ROWS);
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
   _ma_unpin_all_pages(info, rec->lsn);
@@ -1569,6 +1570,9 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
 
 prototype_redo_exec_hook(UNDO_KEY_INSERT)
 {
+  MARIA_HA *info;
+  if (!(info= get_MARIA_HA_from_UNDO_record(rec)))
+    return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   _ma_unpin_all_pages(info, rec->lsn);
   return 0;
@@ -1577,6 +1581,9 @@ prototype_redo_exec_hook(UNDO_KEY_INSERT)
 
 prototype_redo_exec_hook(UNDO_KEY_DELETE)
 {
+  MARIA_HA *info;
+  if (!(info= get_MARIA_HA_from_UNDO_record(rec)))
+    return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   _ma_unpin_all_pages(info, rec->lsn);
   return 0;
@@ -1595,9 +1602,9 @@ prototype_redo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT)
   {
     uint key_nr;
     my_off_t page;
-    page=  page_korr(rec->header +  LSN_STORE_SIZE + FILEID_STORE_SIZE);
-    key_nr= key_nr_korr(rec->header + LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                        PAGE_STORE_SIZE);
+    key_nr= key_nr_korr(rec->header + LSN_STORE_SIZE + FILEID_STORE_SIZE);
+    page=  page_korr(rec->header +  LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                     KEY_NR_STORE_SIZE);
     share->state.key_root[key_nr]= (page == IMPOSSIBLE_PAGE_NO ?
                                     HA_OFFSET_ERROR :
                                     page * share->block_size);
@@ -1653,6 +1660,7 @@ prototype_redo_exec_hook(CLR_END)
   LSN previous_undo_lsn;
   enum translog_record_type undone_record_type;
   const LOG_DESC *log_desc;
+  my_bool row_entry= 0;
 
   if (info == NULL)
     return 0;
@@ -1668,7 +1676,25 @@ prototype_redo_exec_hook(CLR_END)
   if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
     tprint(tracef, "   state older than record, updating rows' count\n");
-    if (share->calc_checksum)
+    switch (undone_record_type) {
+    case LOGREC_UNDO_ROW_DELETE:
+      row_entry= 1;
+      share->state.state.records++;
+      break;
+    case LOGREC_UNDO_ROW_INSERT:
+      share->state.state.records--;
+      row_entry= 1;
+      break;
+    case LOGREC_UNDO_ROW_UPDATE:
+      row_entry= 1;
+      break;
+    case LOGREC_UNDO_KEY_INSERT:
+    case LOGREC_UNDO_KEY_DELETE:
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
+    if (row_entry && share->calc_checksum)
     {
       uchar buff[HA_CHECKSUM_STORE_SIZE];
       if (translog_read_record(rec->lsn, LSN_STORE_SIZE + FILEID_STORE_SIZE +
@@ -1680,21 +1706,10 @@ prototype_redo_exec_hook(CLR_END)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    switch (undone_record_type) {
-    case LOGREC_UNDO_ROW_DELETE:
-      share->state.state.records++;
-      break;
-    case LOGREC_UNDO_ROW_INSERT:
-      share->state.state.records--;
-      break;
-    case LOGREC_UNDO_ROW_UPDATE:
-      break;
-    default:
-      DBUG_ASSERT(0);
-    }
     share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   }
-  tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
+  if (row_entry)
+    tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
   _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }
@@ -2356,19 +2371,22 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   pgcache_page_no_t page;
   MARIA_HA *info;
   char llbuf[22];
+  my_bool index_page_redo_entry= 0;
 
   print_redo_phase_progress(rec->lsn);
   sid= fileid_korr(rec->header);
   page= page_korr(rec->header + FILEID_STORE_SIZE);
-  switch(rec->type) {
+  switch (rec->type) {
     /* not all REDO records have a page: */
+  case LOGREC_REDO_INDEX_NEW_PAGE:
+  case LOGREC_REDO_INDEX:
+  case LOGREC_REDO_INDEX_FREE_PAGE:
+    index_page_redo_entry= 1;
+    /* Fall trough*/
   case LOGREC_REDO_INSERT_ROW_HEAD:
   case LOGREC_REDO_INSERT_ROW_TAIL:
   case LOGREC_REDO_PURGE_ROW_HEAD:
   case LOGREC_REDO_PURGE_ROW_TAIL:
-  case LOGREC_REDO_INDEX_NEW_PAGE:
-  case LOGREC_REDO_INDEX:
-  case LOGREC_REDO_INDEX_FREE_PAGE:
     llstr(page, llbuf);
     tprint(tracef, "   For page %s of table of short id %u", llbuf, sid);
     break;
@@ -2407,12 +2425,9 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   DBUG_ASSERT(info->s->last_version != 0);
   if (cmp_translog_addr(rec->lsn, checkpoint_start) < 0)
   {
-    /**
-       @todo RECOVERY BUG always assuming this is REDO for data file, but it
-       could soon be index file
-    */
     uint64 file_and_page_id=
-      (((uint64)all_tables[sid].org_dfile) << 32) | page;
+      (((uint64) (index_page_redo_entry ? all_tables[sid].org_kfile :
+                  all_tables[sid].org_dfile)) << 32) | page;
     struct st_dirty_page *dirty_page= (struct st_dirty_page *)
       hash_search(&all_dirty_pages,
                   (uchar *)&file_and_page_id, sizeof(file_and_page_id));

@@ -77,16 +77,15 @@ let $mms_purpose=comparison;
 let $mms_compare_physically=$mms_compare_physically_save;
 while ($mms_table_to_use)
 {
-  # Todo: remove this REPAIR when we have index recovery working.
-  # It is a quick repair, so that it will fail if data file is corrupted.
-  --echo * rebuilding index (until we have recovery of index)
-  eval repair table t$mms_table_to_use quick;
+  eval check table t$mms_table_to_use extended;
   --echo * testing that checksum after recovery is as expected
   let $new_checksum=`CHECKSUM TABLE t$mms_table_to_use`;
   let $old_checksum=`CHECKSUM TABLE mysqltest_for_$mms_purpose.t$mms_table_to_use`;
   # the $ text variables above are of the form "db.tablename\tchecksum",
   # as db differs, we use substring().
-  eval select if(substring("$new_checksum",instr("$new_checksum",".t1")) = substring("$old_checksum",instr("$old_checksum",".t1")),"ok","failure");
+  --disable_query_log
+  eval select if(substring("$new_checksum",instr("$new_checksum",".t1")) = substring("$old_checksum",instr("$old_checksum",".t1")),"ok","failure") as "Checksum-check";
+  --enable_query_log
   # this script may compare physically or do nothing
   -- source include/maria_make_snapshot.inc
   dec $mms_table_to_use;

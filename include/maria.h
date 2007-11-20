@@ -306,6 +306,8 @@ extern int maria_delete_all_rows(MARIA_HA *info);
 extern uint maria_get_pointer_length(ulonglong file_length, uint def);
 extern int maria_commit(MARIA_HA *info);
 extern int maria_begin(MARIA_HA *info);
+extern void maria_disable_logging(MARIA_HA *info);
+extern void maria_enable_logging(MARIA_HA *info);
 
 /* this is used to pass to mysql_mariachk_table */
 

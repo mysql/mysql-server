@@ -115,7 +115,7 @@ run_tests()
   $maria_path/maria_chk$suffix -sm test2
   $maria_path/ma_test2$suffix $silent -m10000 -e4096 -K $row_type
   $maria_path/maria_chk$suffix -sm test2
-  $maria_path/ma_test2$suffix $silent -m10000 -e8192 -K $row_type
+  $maria_path/ma_test2$suffix $silent -m10000 -e8192 -K $row_type -P
   $maria_path/maria_chk$suffix -sm test2
   $maria_path/ma_test2$suffix $silent -m10000 -e16384 -E16384 -K -L $row_type
   $maria_path/maria_chk$suffix -sm test2
@@ -232,16 +232,16 @@ $maria_path/maria_chk$suffix -ssm test2
 #
 # Some timing tests
 #
-time $maria_path/ma_test2$suffix $silent
-time $maria_path/ma_test2$suffix $silent -S
-time $maria_path/ma_test2$suffix $silent -M
-time $maria_path/ma_test2$suffix $silent -B
-time $maria_path/ma_test2$suffix $silent -L
-time $maria_path/ma_test2$suffix $silent -K
-time $maria_path/ma_test2$suffix $silent -K -B
-time $maria_path/ma_test2$suffix $silent -L -B
-time $maria_path/ma_test2$suffix $silent -L -K -B
-time $maria_path/ma_test2$suffix $silent -L -K -W -B
-time $maria_path/ma_test2$suffix $silent -L -K -W -B -S
-time $maria_path/ma_test2$suffix $silent -L -K -W -B -M
-time $maria_path/ma_test2$suffix $silent -D -K -W -B -S
+#time $maria_path/ma_test2$suffix $silent
+#time $maria_path/ma_test2$suffix $silent -S
+#time $maria_path/ma_test2$suffix $silent -M
+#time $maria_path/ma_test2$suffix $silent -B
+#time $maria_path/ma_test2$suffix $silent -L
+#time $maria_path/ma_test2$suffix $silent -K
+#time $maria_path/ma_test2$suffix $silent -K -B
+#time $maria_path/ma_test2$suffix $silent -L -B
+#time $maria_path/ma_test2$suffix $silent -L -K -B
+#time $maria_path/ma_test2$suffix $silent -L -K -W -B
+#time $maria_path/ma_test2$suffix $silent -L -K -W -B -S
+#time $maria_path/ma_test2$suffix $silent -L -K -W -B -M
+#time $maria_path/ma_test2$suffix $silent -D -K -W -B -S

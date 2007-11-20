@@ -269,6 +269,7 @@ extern my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                          LEX_STRING *str,
                                                          LSN *min_lsn);
 extern int reset_pagecache_counters(const char *name, PAGECACHE *pagecache);
+extern uchar *pagecache_block_link_to_buffer(PAGECACHE_BLOCK_LINK *block);
 
 
 /* Functions to handle multiple key caches */

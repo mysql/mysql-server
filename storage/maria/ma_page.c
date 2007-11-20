@@ -122,6 +122,7 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 #ifdef IDENTICAL_PAGES_AFTER_RECOVERY
   {
     uint length= _ma_get_page_used(info, buff);
+    DBUG_ASSERT(length <= block_size - KEYPAGE_CHECKSUM_SIZE);
     bzero(buff + length, block_size - length);
   }
 #endif
@@ -186,13 +187,14 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
 
   (void) _ma_lock_key_del(info, 0);
 
-  old_link= share->state.key_del;
-  share->state.key_del= pos;
+  old_link= share->current_key_del;
+  share->current_key_del= pos;
   page_no= pos / block_size;
   bzero(buff, share->keypage_header);
   _ma_store_keynr(info, buff, (uchar) MARIA_DELETE_KEY_NR);
   mi_sizestore(buff + share->keypage_header, old_link);
   share->state.changed|= STATE_NOT_SORTED_PAGES;
+
   if (info->s->now_transactional)
   {
     LSN lsn;
@@ -238,6 +240,14 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
 			   LSN_IMPOSSIBLE,
                            0, share->keypage_header+8, 0, 0))
     result= 1;
+
+#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
+  {
+    uchar *page_buff= pagecache_block_link_to_buffer(page_link.link);
+    bzero(page_buff + share->keypage_header + 8,
+          block_size - share->keypage_header - 8 - KEYPAGE_CHECKSUM_SIZE);
+  }
+#endif
 
   if (page_not_read)
   {
@@ -295,7 +305,7 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
       TODO: replace PAGECACHE_PLAIN_PAGE with PAGECACHE_LSN_PAGE when
       LSN on the pages will be implemented
     */
-    pos= info->s->state.key_del;                /* Protected */
+    pos= share->current_key_del;                /* Protected */
     DBUG_ASSERT(share->pagecache->block_size == block_size);
     if (!(buff= pagecache_read(share->pagecache,
                                &share->kfile, pos / block_size, level,
@@ -312,7 +322,7 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
     (*page_link)->unlock=     PAGECACHE_LOCK_WRITE_UNLOCK;
     (*page_link)->write_lock= PAGECACHE_LOCK_WRITE;
     (*page_link)->changed= 0;
-    push_dynamic(&info->pinned_pages, (void*) &page_link);
+    push_dynamic(&info->pinned_pages, (void*) *page_link);
     *page_link= dynamic_element(&info->pinned_pages,
                                 info->pinned_pages.elements-1,
                                 MARIA_PINNED_PAGE *);

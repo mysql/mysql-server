@@ -15,13 +15,11 @@ set global maria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * copied t1 back for feeding_recovery
 * recovery happens
-* rebuilding index (until we have recovery of index)
-repair table t1 quick;
+check table t1 extended;
 Table	Op	Msg_type	Msg_text
-mysqltest.t1	repair	status	OK
+mysqltest.t1	check	status	OK
 * testing that checksum after recovery is as expected
-select if(substring("mysqltest.t1	488070860",instr("mysqltest.t1	488070860",".t1")) = substring("mysqltest_for_comparison.t1	488070860",instr("mysqltest_for_comparison.t1	488070860",".t1")),"ok","failure");
-if(substring("mysqltest.t1	488070860",instr("mysqltest.t1	488070860",".t1")) = substring("mysqltest_for_comparison.t1	488070860",instr("mysqltest_for_comparison.t1	488070860",".t1")),"ok","failure")
+Checksum-check
 ok
 * compared t1 to old version
 use mysqltest;
@@ -39,13 +37,11 @@ SET SESSION debug="+d,maria_crash";
 set global maria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
-* rebuilding index (until we have recovery of index)
-repair table t1 quick;
+check table t1 extended;
 Table	Op	Msg_type	Msg_text
-mysqltest.t1	repair	status	OK
+mysqltest.t1	check	status	OK
 * testing that checksum after recovery is as expected
-select if(substring("mysqltest.t1	976141720",instr("mysqltest.t1	976141720",".t1")) = substring("mysqltest_for_comparison.t1	976141720",instr("mysqltest_for_comparison.t1	976141720",".t1")),"ok","failure");
-if(substring("mysqltest.t1	976141720",instr("mysqltest.t1	976141720",".t1")) = substring("mysqltest_for_comparison.t1	976141720",instr("mysqltest_for_comparison.t1	976141720",".t1")),"ok","failure")
+Checksum-check
 ok
 use mysqltest;
 select * from t1;
@@ -62,13 +58,11 @@ SET SESSION debug="+d,maria_flush_whole_page_cache,maria_crash";
 set global maria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
-* rebuilding index (until we have recovery of index)
-repair table t1 quick;
+check table t1 extended;
 Table	Op	Msg_type	Msg_text
-mysqltest.t1	repair	status	OK
+mysqltest.t1	check	status	OK
 * testing that checksum after recovery is as expected
-select if(substring("mysqltest.t1	1464212580",instr("mysqltest.t1	1464212580",".t1")) = substring("mysqltest_for_comparison.t1	1464212580",instr("mysqltest_for_comparison.t1	1464212580",".t1")),"ok","failure");
-if(substring("mysqltest.t1	1464212580",instr("mysqltest.t1	1464212580",".t1")) = substring("mysqltest_for_comparison.t1	1464212580",instr("mysqltest_for_comparison.t1	1464212580",".t1")),"ok","failure")
+Checksum-check
 ok
 use mysqltest;
 select * from t1;
@@ -86,13 +80,11 @@ SET SESSION debug="+d,maria_flush_states,maria_flush_whole_log,maria_crash";
 set global maria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
-* rebuilding index (until we have recovery of index)
-repair table t1 quick;
+check table t1 extended;
 Table	Op	Msg_type	Msg_text
-mysqltest.t1	repair	status	OK
+mysqltest.t1	check	status	OK
 * testing that checksum after recovery is as expected
-select if(substring("mysqltest.t1	1952283440",instr("mysqltest.t1	1952283440",".t1")) = substring("mysqltest_for_comparison.t1	1952283440",instr("mysqltest_for_comparison.t1	1952283440",".t1")),"ok","failure");
-if(substring("mysqltest.t1	1952283440",instr("mysqltest.t1	1952283440",".t1")) = substring("mysqltest_for_comparison.t1	1952283440",instr("mysqltest_for_comparison.t1	1952283440",".t1")),"ok","failure")
+Checksum-check
 ok
 use mysqltest;
 select * from t1;
@@ -111,13 +103,11 @@ SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
 set global maria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
-* rebuilding index (until we have recovery of index)
-repair table t1 quick;
+check table t1 extended;
 Table	Op	Msg_type	Msg_text
-mysqltest.t1	repair	status	OK
+mysqltest.t1	check	status	OK
 * testing that checksum after recovery is as expected
-select if(substring("mysqltest.t1	2440354300",instr("mysqltest.t1	2440354300",".t1")) = substring("mysqltest_for_comparison.t1	2440354300",instr("mysqltest_for_comparison.t1	2440354300",".t1")),"ok","failure");
-if(substring("mysqltest.t1	2440354300",instr("mysqltest.t1	2440354300",".t1")) = substring("mysqltest_for_comparison.t1	2440354300",instr("mysqltest_for_comparison.t1	2440354300",".t1")),"ok","failure")
+Checksum-check
 ok
 use mysqltest;
 select * from t1;
@@ -149,13 +139,11 @@ set global maria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
 * copied t1 back for feeding_recovery
 * recovery happens
-* rebuilding index (until we have recovery of index)
-repair table t1 quick;
+check table t1 extended;
 Table	Op	Msg_type	Msg_text
-mysqltest.t1	repair	status	OK
+mysqltest.t1	check	status	OK
 * testing that checksum after recovery is as expected
-select if(substring("mysqltest.t1	3472399915",instr("mysqltest.t1	3472399915",".t1")) = substring("mysqltest_for_comparison.t1	3472399915",instr("mysqltest_for_comparison.t1	3472399915",".t1")),"ok","failure");
-if(substring("mysqltest.t1	3472399915",instr("mysqltest.t1	3472399915",".t1")) = substring("mysqltest_for_comparison.t1	3472399915",instr("mysqltest_for_comparison.t1	3472399915",".t1")),"ok","failure")
+Checksum-check
 ok
 use mysqltest;
 SELECT LENGTH(b) FROM t1 WHERE i=3;

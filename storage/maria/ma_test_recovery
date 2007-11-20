@@ -87,9 +87,6 @@ apply_log()
 
 (
 
-# this message is to remember about the problem with -b (see @todo below)
-echo "!!!!!!!! REMEMBER to FIX this BLOB issue !!!!!!!"
-
 echo "Testing the REDO PHASE ALONE"
 # runs a program inserting/deleting rows, then moves the resulting table
 # elsewhere; applies the log and checks that the data file is
@@ -111,10 +108,12 @@ do
   mv $table.MAI $tmp/$table-good.MAI
   apply_log "shouldnotchangelog"
   cmp $table.MAD $tmp/$table-good.MAD
+  cmp $table.MAI $tmp/$table-good.MAI
   check_table_is_same
   echo "testing idempotency"
   apply_log "shouldnotchangelog"
   cmp $table.MAD $tmp/$table-good.MAD
+  cmp $table.MAI $tmp/$table-good.MAI
   check_table_is_same
   shift
 done
@@ -157,6 +156,12 @@ do
     echo "TEST WITH $prog $abort_run_args$test_undo (additional aborted work)"
     $maria_path/$prog $abort_run_args$test_undo
     cp $table.MAD $tmp/$table.MAD.before_undo
+
+    # We have to copy and restore logs, as running maria_read_log will
+    # change the maria_control_file
+    rm -f $tmp/maria_log.* $tmp/maria_log_control
+    cp $maria_path/maria_log* $tmp
+
     if [ $test_undo -lt 3 ]
         then
         apply_log "shouldchangelog" # should undo aborted work
@@ -179,19 +184,9 @@ do
     check_table_is_same
     echo "testing applying of CLRs to recreate table"
     rm $table.MA?
-    apply_log "shouldnotchangelog"
-    # the cmp below fails with ma_test1+blobs! @todo RECOVERY BUG why?
-    # It is probably serious; REDOs shouldn't place rows in different
-    # positions from what the run-time code did. Indeed it may lead to
-    # more or less free space...
-    # Execution of UNDO re-inserted rows at different positions than
-    # originally. This generated REDOs which do not insert at the same
-    # positions as the execution of UNDOs, but at the same positions
-    # as before the row was originally deleted.
-    if [ "$blobs" == "" ]
-        then
-        cmp $table.MAD $tmp/$table.MAD.after_undo
-    fi
+    cp $tmp/maria_log* $maria_path
+    apply_log "dontknow"
+    cmp $table.MAD $tmp/$table.MAD.after_undo
     check_table_is_same
     shift 3
   done
@@ -213,5 +208,3 @@ if [ "$diff_failed" == "1" ]
     exit 1
     fi
 echo "ALL RECOVERY TESTS OK"
-# this message is to remember about the problem with -b (see @todo above)
-echo "!!!!!!!! BUT REMEMBER to FIX this BLOB issue !!!!!!!"

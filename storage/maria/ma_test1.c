@@ -97,7 +97,7 @@ int main(int argc,char *argv[])
 static int run_test(const char *filename)
 {
   MARIA_HA *file;
-  int i,j,error,deleted,rec_length,uniques=0;
+  int i,j= 0,error,deleted,rec_length,uniques=0;
   uint offset_to_key;
   ha_rows found,row_count;
   uchar record[MAX_REC_LENGTH],key[MAX_REC_LENGTH],read_record[MAX_REC_LENGTH];
@@ -275,7 +275,7 @@ static int run_test(const char *filename)
     {
       if (!silent)
 	printf("- Checking unique constraint\n");
-      create_record(record,j);
+      create_record(record,j);                  /* Check last created row */
       if (!maria_write(file,record) || my_errno != HA_ERR_FOUND_DUPP_UNIQUE)
       {
 	printf("unique check failed\n");

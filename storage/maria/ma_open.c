@@ -117,7 +117,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
 		       &info.blobs,sizeof(MARIA_BLOB)*share->base.blobs,
 		       &info.buff,(share->base.max_key_block_length*2+
 				   share->base.max_key_length),
-		       &info.lastkey,share->base.max_key_length*3+1,
+		       &info.lastkey,share->base.max_key_length*2+1,
 		       &info.first_mbr_key, share->base.max_key_length,
 		       &info.maria_rtree_recursion_state,
                        share->have_rtree ? 1024 : 0,
@@ -304,8 +304,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     }
     share->mode=open_mode;
     errpos= 1;
-    if (my_read(kfile,share->state.header.file_version, head_length,
-		MYF(MY_NABP)))
+    if (my_pread(kfile,share->state.header.file_version, head_length, 0,
+                 MYF(MY_NABP)))
     {
       my_errno= HA_ERR_NOT_A_TABLE;
       goto err;
@@ -355,11 +355,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       goto err;
     }
     end_pos=disk_cache+info_length;
-    errpos= 2;
-
-    VOID(my_seek(kfile,0L,MY_SEEK_SET,MYF(0)));
     errpos= 3;
-    if (my_read(kfile,disk_cache,info_length,MYF(MY_NABP)))
+    if (my_pread(kfile, disk_cache, info_length, 0L, MYF(MY_NABP)))
     {
       my_errno=HA_ERR_CRASHED;
       goto err;
@@ -418,8 +415,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       goto err;
     }
     /*
-      If page cache is not initialized, then assume we will create it
-      after the table is opened!
+      If page cache is not initialized, then assume we will create the
+      page_cache after the table is opened!
+      This is only used by maria_check to allow it to check/repair tables
+      with different block sizes.
     */
     if (share->base.block_size != maria_block_size &&
         share_buff.pagecache->inited != 0)
@@ -1226,7 +1225,6 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 
    @param  file            file to read from
    @param  state           state which will be filled
-   @param  pRead           if true, use my_pread(), otherwise my_read()
 */
 
 uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state)

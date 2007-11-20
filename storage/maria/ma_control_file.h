@@ -22,6 +22,12 @@
 #define _ma_control_file_h
 
 #define CONTROL_FILE_BASE_NAME "maria_log_control"
+/*
+  Major version for control file. Should only be changed when doing
+  big changes that made the new control file incompatible with all
+  older versions of Maria.
+*/
+#define CONTROL_FILE_VERSION   1
 
 /* Here is the interface of this module */
 
@@ -43,8 +49,12 @@ typedef enum enum_control_file_error {
   CONTROL_FILE_TOO_SMALL,
   CONTROL_FILE_TOO_BIG,
   CONTROL_FILE_BAD_MAGIC_STRING,
+  CONTROL_FILE_BAD_VERSION,
   CONTROL_FILE_BAD_CHECKSUM,
+  CONTROL_FILE_BAD_HEAD_CHECKSUM,
   CONTROL_FILE_MISSING,
+  CONTROL_FILE_INCONSISTENT_INFORMATION,
+  CONTROL_FILE_WRONG_BLOCKSIZE,
   CONTROL_FILE_UNKNOWN_ERROR /* any other error */
 } CONTROL_FILE_ERROR;
 

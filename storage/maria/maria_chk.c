@@ -1007,6 +1007,9 @@ static int maria_chk(HA_CHECK *param, char *filename)
 
   if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
   {
+    /* Mark table as not transactional to avoid logging */
+    maria_disable_logging(info);
+
     if (param->testflag & T_REP_ANY)
     {
       ulonglong tmp=share->state.key_map;
@@ -1181,6 +1184,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
                                     ((param->testflag & T_SORT_RECORDS) ?
                                      UPDATE_SORT : 0)));
   info->update&= ~HA_STATE_CHANGED;
+  maria_enable_logging(info);
   maria_lock_database(info, F_UNLCK);
 
 end2:

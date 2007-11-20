@@ -60,6 +60,7 @@ static int test_start_stop();
 static int test_2_open_and_2_close();
 static int test_bad_magic_string();
 static int test_bad_checksum();
+static int test_bad_hchecksum();
 static int test_bad_size();
 
 /* Utility */
@@ -85,7 +86,7 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   maria_data_root= ".";
 
-  plan(9);
+  plan(10);
 
   diag("Unit tests for control file");
 
@@ -106,6 +107,7 @@ int main(int argc,char *argv[])
      "test of two open and two close (strange call sequence)");
   ok(0 == test_bad_magic_string(), "test of bad magic string");
   ok(0 == test_bad_checksum(), "test of bad checksum");
+  ok(0 == test_bad_hchecksum(), "test of bad hchecksum");
   ok(0 == test_bad_size(), "test of too small/big file");
 
   return exit_status();
@@ -264,18 +266,18 @@ static int test_binary_content()
     future change/breakage.
   */
 
-  char buffer[23];
+  char buffer[43];
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
-  RET_ERR_UNLESS(my_read(fd, buffer, 23, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_read(fd, buffer, 43, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
-  i= uint3korr(buffer+12);
+  i= uint3korr(buffer + 32 );
   RET_ERR_UNLESS(i == LSN_FILE_NO(last_checkpoint_lsn));
-  i= uint4korr(buffer+15);
+  i= uint4korr(buffer + 35);
   RET_ERR_UNLESS(i == LSN_OFFSET(last_checkpoint_lsn));
-  i= uint4korr(buffer+19);
+  i= uint4korr(buffer + 39);
   RET_ERR_UNLESS(i == last_logno);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
@@ -342,15 +344,42 @@ static int test_bad_checksum()
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
-  RET_ERR_UNLESS(my_pread(fd, buffer, 1, 8, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pread(fd, buffer, 1, 28, MYF(MY_FNABP |  MY_WME)) == 0);
   buffer[0]+= 3; /* mangle checksum */
-  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 8, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 28, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
   RET_ERR_UNLESS(ma_control_file_create_or_open(TRUE) ==
                  CONTROL_FILE_BAD_CHECKSUM);
   /* Restore checksum */
   buffer[0]-= 3;
-  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 4, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 28, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
+
+  return 0;
+}
+
+
+static int test_bad_hchecksum()
+{
+  char buffer[4];
+  int fd;
+
+  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(close_file() == 0);
+
+  /* Corrupt checksum */
+  RET_ERR_UNLESS((fd= my_open(file_name,
+                          O_BINARY | O_RDWR,
+                          MYF(MY_WME))) >= 0);
+  RET_ERR_UNLESS(my_pread(fd, buffer, 1, 24, MYF(MY_FNABP |  MY_WME)) == 0);
+  buffer[0]+= 3; /* mangle checksum */
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 24, MYF(MY_FNABP |  MY_WME)) == 0);
+  /* Check that control file module sees the problem */
+  RET_ERR_UNLESS(ma_control_file_create_or_open(TRUE) ==
+                 CONTROL_FILE_BAD_HEAD_CHECKSUM);
+  /* Restore checksum */
+  buffer[0]-= 3;
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 24, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
 
   return 0;
@@ -359,7 +388,7 @@ static int test_bad_checksum()
 
 static int test_bad_size()
 {
-  char buffer[]="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  char buffer[]="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
   int fd;
 
   /* A too short file */
@@ -371,7 +400,7 @@ static int test_bad_size()
   /* Check that control file module sees the problem */
   RET_ERR_UNLESS(ma_control_file_create_or_open(TRUE) ==
                  CONTROL_FILE_TOO_SMALL);
-  RET_ERR_UNLESS(my_write(fd, buffer, 30, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_write(fd, buffer, 50, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
   RET_ERR_UNLESS(ma_control_file_create_or_open(TRUE) == CONTROL_FILE_TOO_BIG);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
