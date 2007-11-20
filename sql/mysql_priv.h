@@ -679,7 +679,7 @@ extern my_decimal decimal_zero;
 void free_items(Item *item);
 void cleanup_items(Item *item);
 class THD;
-void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
+void close_thread_tables(THD *thd);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
