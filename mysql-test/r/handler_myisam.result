@@ -637,3 +637,94 @@ a	b
 8	i
 handler a2 close;
 drop table t1;
+drop table if exists t1,t2;
+create table t1 (a int);
+handler t1 open as t1_alias;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+flush tables;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias close;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias read first;
+a
+drop table t1;
+handler t1_alias read next;
+ERROR 42S02: Unknown table 't1_alias' in HANDLER
+create table t1 (a int);
+create temporary table t2 (a int, key(a));
+handler t1 open as a1;
+handler t2 open as a2;
+handler a2 read a first;
+a
+drop table t1, t2;
+handler a2 read a next;
+ERROR 42S02: Unknown table 'a2' in HANDLER
+handler a1 close;
+ERROR 42S02: Unknown table 'a1' in HANDLER
+create table t1 (a int, key(a));
+create table t2 like t1;
+handler t1 open as a1;
+handler t2 open as a2;
+handler a1 read a first;
+a
+handler a2 read a first;
+a
+alter table t1 add b int;
+handler a1 close;
+ERROR 42S02: Unknown table 'a1' in HANDLER
+handler a2 close;
+drop table t1, t2;
+create table t1 (a int, key(a));
+handler t1 open as a1;
+handler a1 read a first;
+a
+rename table t1 to t2;
+handler a1 read a first;
+ERROR 42S02: Unknown table 'a1' in HANDLER
+drop table t2;
+create table t1 (a int, key(a));
+create table t2 like t1;
+handler t1 open as a1;
+handler t2 open as a2;
+handler a1 read a first;
+a
+handler a2 read a first;
+a
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	Table is already up to date
+handler a1 close;
+ERROR 42S02: Unknown table 'a1' in HANDLER
+handler a2 close;
+drop table t1, t2;
+create table t1 (a int, b char(1), key a(a), key b(a,b));
+insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
+(5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+handler t1 open;
+handler t1 read a first;
+a	b
+0	a
+handler t1 read a next;
+a	b
+1	b
+flush tables;
+handler t1 read a next;
+a	b
+0	a
+handler t1 read a next;
+a	b
+1	b
+flush tables with read lock;
+handler t1 read a next;
+a	b
+0	a
+unlock tables;
+drop table t1;
+handler t1 read a next;
+ERROR 42S02: Unknown table 't1' in HANDLER
