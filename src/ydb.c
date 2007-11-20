@@ -28,10 +28,27 @@ struct __toku_db_txn_internal {
 
 static char *construct_full_name(const char *dir, const char *fname);
     
+struct __toku_db_env_internal {
+    int ref_count;
+    u_int32_t open_flags;
+    int open_mode;
+    void (*errcall) (const char *, char *);
+    char *errpfx;
+    char *dir;                  /* A malloc'd copy of the directory. */
+    char *tmp_dir;
+    char *lg_dir;
+    char *data_dir;
+    //void (*noticecall)(DB_ENV *, db_notices);
+    long cachetable_size;
+    CACHETABLE cachetable;
+    TOKULOGGER logger;
+};
+
 void __toku_db_env_err(const DB_ENV * env __attribute__ ((__unused__)), int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(stderr, "YDB Error %d:", error);
+    if (env->i->errpfx && env->i->errpfx[0] != '\0') fprintf(stderr, "%s: ", env->i->errpfx);
+    fprintf(stderr, "YDB Error %d: ", error);
     vfprintf(stderr, fmt, ap);
     va_end(ap);
 }
@@ -57,22 +74,6 @@ static void print_flags(u_int32_t flags) {
         fprintf(stderr, "  flags 0x%x not accounted for", flags & ~gotit);
     fprintf(stderr, "\n");
 }
-
-struct __toku_db_env_internal {
-    int ref_count;
-    u_int32_t open_flags;
-    int open_mode;
-    void (*errcall) (const char *, char *);
-    char *errpfx;
-    char *dir;                  /* A malloc'd copy of the directory. */
-    char *tmp_dir;
-    char *lg_dir;
-    char *data_dir;
-    //void (*noticecall)(DB_ENV *, db_notices);
-    long cachetable_size;
-    CACHETABLE cachetable;
-    TOKULOGGER logger;
-};
 
 /* TODO make these thread safe */
 
@@ -346,7 +347,10 @@ int __toku_db_env_set_lg_dir(DB_ENV * env, const char *dir) {
     if (db_env_opened(env)) return EINVAL;
 
     if (env->i->lg_dir) toku_free(env->i->lg_dir);
-    if (dir) env->i->lg_dir = toku_strdup(dir);
+    if (dir) {
+        env->i->lg_dir = toku_strdup(dir);
+        if (!env->i->lg_dir) return ENOMEM;
+    }
     else env->i->lg_dir = NULL;
     return 0;
 }
@@ -368,6 +372,7 @@ int __toku_db_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
 //}
 
 int __toku_db_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
+    if (db_env_opened(env)) return EINVAL;
     if (!tmp_dir) return EINVAL;
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
