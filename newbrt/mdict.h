@@ -6,7 +6,7 @@
 //#define USEPMA
 #define USEHASH
 
-int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
+int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
 #ifdef USEPMA
 

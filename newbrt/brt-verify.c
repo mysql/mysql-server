@@ -91,8 +91,8 @@ int verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, byteve
                                   unsigned int datalen __attribute__((__unused__)),
                                   int type __attribute__((__unused__)),
 				  void *ignore __attribute__((__unused__))) {
-		    if (thislorange) assert(keycompare(thislorange,thislolen,key,keylen)<0);
-		    if (thishirange && keycompare(key,keylen,thishirange,thishilen)>0) {
+		    if (thislorange) assert(toku_keycompare(thislorange,thislolen,key,keylen)<0);
+		    if (thishirange && toku_keycompare(key,keylen,thishirange,thishilen)>0) {
 			printf("%s:%d in buffer %d key %s is bigger than %s\n", __FILE__, __LINE__, i, (char*)key, (char*)thishirange);
 			result=1;
 		    }
@@ -102,8 +102,8 @@ int verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, byteve
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
 	    if (i>0) {
-		if (lorange) assert(keycompare(lorange,lolen, node->u.n.childkeys[i-1], node->u.n.childkeylens[i-1])<0);
-		if (hirange) assert(keycompare(node->u.n.childkeys[i-1], node->u.n.childkeylens[i-1], hirange, hilen)<=0);
+		if (lorange) assert(toku_keycompare(lorange,lolen, node->u.n.childkeys[i-1], node->u.n.childkeylens[i-1])<0);
+		if (hirange) assert(toku_keycompare(node->u.n.childkeys[i-1], node->u.n.childkeylens[i-1], hirange, hilen)<=0);
 	    }
 	    if (recurse) {
 		result|=verify_brtnode(brt, node->u.n.children[i],
