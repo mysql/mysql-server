@@ -279,7 +279,7 @@ uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
 */
 
 
-typedef struct st_global_ddl_log
+struct st_global_ddl_log
 {
   /*
     We need to adjust buffer size to be able to handle downgrades/upgrades
@@ -297,10 +297,12 @@ typedef struct st_global_ddl_log
   uint name_len;
   uint io_size;
   bool inited;
+  bool do_release;
   bool recovery_phase;
-} GLOBAL_DDL_LOG;
+  st_global_ddl_log() : inited(false), do_release(false) {}
+};
 
-GLOBAL_DDL_LOG global_ddl_log;
+st_global_ddl_log global_ddl_log;
 
 pthread_mutex_t LOCK_gdl;
 
@@ -460,6 +462,7 @@ static uint read_ddl_log_header()
   global_ddl_log.first_used= NULL;
   global_ddl_log.num_entries= 0;
   VOID(pthread_mutex_init(&LOCK_gdl, MY_MUTEX_INIT_FAST));
+  global_ddl_log.do_release= true;
   DBUG_RETURN(entry_no);
 }
 
@@ -1150,6 +1153,9 @@ void release_ddl_log()
   DDL_LOG_MEMORY_ENTRY *used_list= global_ddl_log.first_used;
   DBUG_ENTER("release_ddl_log");
 
+  if (!global_ddl_log.do_release)
+    DBUG_VOID_RETURN;
+
   pthread_mutex_lock(&LOCK_gdl);
   while (used_list)
   {
@@ -1167,6 +1173,7 @@ void release_ddl_log()
   global_ddl_log.inited= 0;
   pthread_mutex_unlock(&LOCK_gdl);
   VOID(pthread_mutex_destroy(&LOCK_gdl));
+  global_ddl_log.do_release= false;
   DBUG_VOID_RETURN;
 }
 
