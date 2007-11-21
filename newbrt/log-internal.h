@@ -1,8 +1,8 @@
-#include "yerror.h"
 #include <stdio.h>
-#include "log.h"
 #include <sys/types.h>
 
+#include "yerror.h"
+#include "log.h"
 
 #define LOGGER_BUF_SIZE (1<<24)
 struct tokulogger {
