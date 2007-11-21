@@ -1,12 +1,13 @@
 /* Dump the log from stdin to stdout. */
 #include <stdio.h>
-#include "brttypes.h"
-#include "log-internal.h"
 #include <sys/types.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <zlib.h>
 #include <assert.h>
+
+#include "brttypes.h"
+#include "log-internal.h"
 
 
 u_int32_t crc=0;
@@ -189,6 +190,21 @@ int main (int argc, char *argv[]) {
 	    transcribe_txnid();
 	    transcribe_filenum();
 	    transcribe_header();
+	    transcribe_crc32();
+	    transcribe_len();
+	    printf("\n");
+	    goto next;
+
+	case LT_NEWBRTNODE:
+	    printf("NEWBRTNODE:");
+	    transcribe_lsn();
+	    transcribe_txnid();
+	    transcribe_filenum();
+	    transcribe_diskoff();
+	    printf(" height=%d", get_uint32());
+	    printf(" nodesize=%d", get_uint32());
+	    printf(" is_dup_sort=%d", get_char());
+	    printf(" rand=%u", get_uint32());
 	    transcribe_crc32();
 	    transcribe_len();
 	    printf("\n");

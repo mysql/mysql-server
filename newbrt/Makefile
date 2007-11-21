@@ -46,6 +46,7 @@ BINS =  $(REGRESSION_TESTS) \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 logdump: LDFLAGS+=-lz
+logdump: log-internal.h brttypes.h yerror.h log.h kv-pair.h
 
 libs: log.o
 bins: $(BINS)
