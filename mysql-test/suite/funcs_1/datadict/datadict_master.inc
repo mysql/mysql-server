@@ -188,7 +188,7 @@ select s.catalog_name, s.schema_name, s.default_character_set_name,
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 select * from columns;
 select * from character_sets;
-select sum(id) from collations;
+select sum(id) from collations where collation_name <> 'utf8_general_cs';
 select collation_name, character_set_name into @x,@y
   from collation_character_set_applicability limit 1;
   select @x, @y;
@@ -1649,13 +1649,14 @@ connect (u_6_401017, localhost, u_6_401017, , test);
 
 use information_schema;
 
-select * from collation_character_set_applicability;
+select * from collation_character_set_applicability
+where collation_name <> 'utf8_general_cs';
 select * from schemata;
 select table_name from tables;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 select table_name, column_name, column_type from columns;
 select character_set_name from character_sets;
-select collation_name from collations;
+select collation_name from collations where collation_name <> 'utf8_general_cs';
 select routine_name, routine_type from routines;
 select table_name, index_name from statistics;
 select table_name from views;
@@ -1915,7 +1916,7 @@ let $message= Testcase 3.2.3.2:;
 #                    the USAGE privilege.
 ################################################################################
 
-SELECT * FROM collations;
+SELECT * FROM collations where collation_name <> 'utf8_general_cs';
 # -------------------------------------------------------------------------------------------------------
 
 let $message= Testcase 3.2.3.3:;
@@ -1962,7 +1963,8 @@ let $message= Testcase 3.2.4.2:;
 #                    and update with expected results afterwards.
 ################################################################################
 
-SELECT * FROM collation_character_set_applicability;
+SELECT * FROM collation_character_set_applicability
+where collation_name <> 'utf8_general_cs';
 # -------------------------------------------------------------------------------------------------------
 
 let $message= Testcase 3.2.4.3:;
