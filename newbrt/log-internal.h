@@ -18,10 +18,11 @@ struct tokulogger {
 
 int tokulogger_find_next_unused_log_file(const char *directory, long long *result);
 
-enum {
+enum lt_command {
     LT_COMMIT                   = 'C',
     LT_DELETE                   = 'D',
     LT_FCREATE                  = 'F',
+    LT_FHEADER                  = 'H',
     LT_INSERT_WITH_NO_OVERWRITE = 'I',
     LT_FOPEN                    = 'O',
     LT_CHECKPOINT               = 'P',

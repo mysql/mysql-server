@@ -1,7 +1,4 @@
 #include <unistd.h>
-#include "log-internal.h"
-#include "wbuf.h"
-#include "memory.h"
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -10,6 +7,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+
+#include "brt-internal.h"
+#include "log-internal.h"
+#include "wbuf.h"
+#include "memory.h"
 #include "../src/ydb-internal.h"
 
 int tokulogger_find_next_unused_log_file(const char *directory, long long *result) {
@@ -328,6 +330,32 @@ int tokulogger_log_unlink (TOKUTXN txn, const char *fname) {
     return tokulogger_finish(txn->logger, &wbuf);
 };
 
+int tokulogger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
+    if (txn==0) return 0;
+    int subsize=toku_serialize_brt_header_size(h);
+    int buflen = (1+
+		  + 8 // lsn
+		  + 8 // txnid
+		  + 4 // filenum
+		  + subsize
+		  + 8 // crc & len
+		  );
+    unsigned char *buf=toku_malloc(buflen); // alloc on heap because it might be big
+    int r;
+    if (buf==0) return errno;
+    struct wbuf wbuf;
+    wbuf_init(&wbuf, buf, buflen);
+    wbuf_char(&wbuf, LT_FHEADER);
+    wbuf_lsn    (&wbuf, txn->logger->lsn);
+    txn->logger->lsn.lsn++;
+    wbuf_txnid(&wbuf, txn->txnid64);
+    wbuf_filenum(&wbuf, filenum);
+    r=toku_serialize_brt_header_to_wbuf(&wbuf, h);
+    if (r!=0) return r;
+    r=tokulogger_finish(txn->logger, &wbuf);
+    toku_free(buf);
+    return r;
+}
 
 /*
 int brtenv_checkpoint (BRTENV env) {
