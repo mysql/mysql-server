@@ -1224,8 +1224,7 @@ static void make_empty_page(MARIA_HA *info, uchar *buff, uint page_type)
     The code does not assume the block is zeroed.
   */
   if (page_type != BLOB_PAGE)
-    bzero(buff+ PAGE_HEADER_SIZE, block_size - PAGE_HEADER_SIZE -
-          DIR_ENTRY_SIZE - PAGE_SUFFIX_SIZE);
+    bzero(buff+ PAGE_HEADER_SIZE, block_size - PAGE_HEADER_SIZE);
 #endif
   buff[PAGE_TYPE_OFFSET]= (uchar) page_type;
   buff[DIR_COUNT_OFFSET]= 1;
@@ -1388,6 +1387,7 @@ static my_bool write_tail(MARIA_HA *info,
 
   memcpy(row_pos.data, row_part, length);
 
+  if (share->now_transactional)
   {
     /* Log changes in tail block */
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
@@ -1541,7 +1541,7 @@ static my_bool write_full_pages(MARIA_HA *info,
 #ifdef IDENTICAL_PAGES_AFTER_RECOVERY
     if (copy_length != data_size)
       bzero(buff + block_size - PAGE_SUFFIX_SIZE - (data_size - copy_length),
-            (data_size - copy_length));
+            (data_size - copy_length) + PAGE_SUFFIX_SIZE);
 #endif
 
     if (!(info->s->options & HA_OPTION_PAGE_CHECKSUM))
@@ -1558,7 +1558,7 @@ static my_bool write_full_pages(MARIA_HA *info,
                         0, info->trn->rec_lsn))
       DBUG_RETURN(1);
     page++;
-    block->used= BLOCKUSED_USED;
+    DBUG_ASSERT(block->used & BLOCKUSED_USED);
   }
   DBUG_RETURN(0);
 }
@@ -2560,6 +2560,9 @@ static my_bool write_block_record(MARIA_HA *info,
       }
     }
   }
+  /* Release not used space in used pages */
+  if (_ma_bitmap_release_unused(info, bitmap_blocks))
+    goto disk_err;
   _ma_unpin_all_pages(info, lsn);
 
   if (tmp_data_used)
@@ -2595,9 +2598,6 @@ static my_bool write_block_record(MARIA_HA *info,
       goto disk_err;
     block+= block->sub_blocks;
   }
-  /* Release not used space in used pages */
-  if (_ma_bitmap_release_unused(info, bitmap_blocks))
-    goto disk_err;
 
   _ma_finalize_row(info);
   DBUG_RETURN(0);

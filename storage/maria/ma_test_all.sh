@@ -113,12 +113,16 @@ run_tests()
   $maria_path/maria_chk$suffix -sm test2
   $maria_path/ma_test2$suffix $silent -D -B -c $row_type
   $maria_path/maria_chk$suffix -sm test2
+  rm -f maria_log_control maria_log.*
   $maria_path/ma_test2$suffix $silent -m10000 -e4096 -K $row_type
   $maria_path/maria_chk$suffix -sm test2
+  rm -f maria_log_control maria_log.*
   $maria_path/ma_test2$suffix $silent -m10000 -e8192 -K $row_type -P
   $maria_path/maria_chk$suffix -sm test2
+  rm -f maria_log_control maria_log.*
   $maria_path/ma_test2$suffix $silent -m10000 -e16384 -E16384 -K -L $row_type
   $maria_path/maria_chk$suffix -sm test2
+  rm -f maria_log_control maria_log.*
   $maria_path/ma_test2$suffix $silent -c -b65000 $row_type
   $maria_path/maria_chk$suffix -se test2
 }

@@ -72,8 +72,7 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
                       my_bool store_checksum, ha_checksum checksum,
                       LSN *res_lsn, void *extra_msg)
 {
-  uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                 PAGE_STORE_SIZE + DIRPOS_STORE_SIZE +
+  uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE + CLR_TYPE_STORE_SIZE +
                  HA_CHECKSUM_STORE_SIZE];
   LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
   struct st_msg_to_write_hook_for_clr_end msg;

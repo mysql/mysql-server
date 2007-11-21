@@ -5185,11 +5185,7 @@ my_bool translog_write_record(LSN *lsn,
   if (tbl_info)
   {
     MARIA_SHARE *share= tbl_info->s;
-    if (!share->now_transactional)
-    {
-      DBUG_PRINT("info", ("It is not transactional table"));
-      DBUG_RETURN(0);
-    }
+    DBUG_ASSERT(share->now_transactional);
     if (unlikely(share->id == 0))
     {
       /*
