@@ -636,7 +636,17 @@ trx_undo_page_report_modify(
 				field = rec_get_nth_field(rec, offsets, pos,
 							  &flen);
 
-				ptr += mach_write_compressed(ptr, flen);
+				if (rec_offs_nth_extern(offsets, pos)) {
+					/* If a field has external
+					storage, we add to flen the flag */
+
+					ptr += mach_write_compressed(
+						ptr, flen
+						+ UNIV_EXTERN_STORAGE_FIELD);
+				} else {
+					ptr += mach_write_compressed(
+						ptr, flen);
+				}
 
 				if (flen != UNIV_SQL_NULL) {
 					if (trx_undo_left(undo_page, ptr)
@@ -914,7 +924,8 @@ trx_undo_rec_get_partial_row(
 
 		dfield_set_data(dfield, field, len);
 
-		if (len >= UNIV_EXTERN_STORAGE_FIELD) {
+		if (len != UNIV_SQL_NULL
+		    && len >= UNIV_EXTERN_STORAGE_FIELD) {
 			dfield_set_len(dfield,
 				       len - UNIV_EXTERN_STORAGE_FIELD);
 			dfield_set_ext(dfield);
