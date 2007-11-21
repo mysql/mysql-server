@@ -353,3 +353,14 @@ select @a:=f4, count(f4) from t1 group by 1 desc;
 2.6	1
 1.6	4
 drop table t1;
+create table t1(a int);
+insert into t1 values(5),(4),(4),(3),(2),(2),(2),(1);
+set @rownum := 0;
+set @rank := 0;
+set @prev_score := NULL;
+select @rownum := @rownum + 1 as row,
+@rank := IF(@prev_score!=a, @rownum, @rank) as rank,
+@prev_score := a as score
+from t1 order by score desc;
+drop table t1;
+End of 5.1 tests

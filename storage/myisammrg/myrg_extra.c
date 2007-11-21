@@ -29,6 +29,8 @@ int myrg_extra(MYRG_INFO *info,enum ha_extra_function function,
   DBUG_ENTER("myrg_extra");
   DBUG_PRINT("info",("function: %lu", (ulong) function));
 
+  if (!info->children_attached)
+    DBUG_RETURN(1);
   if (function == HA_EXTRA_CACHE)
   {
     info->cache_in_use=1;
@@ -73,6 +75,8 @@ int myrg_reset(MYRG_INFO *info)
   MYRG_TABLE *file;
   DBUG_ENTER("myrg_reset");
 
+  if (!info->children_attached)
+    DBUG_RETURN(1);
   info->cache_in_use=0;
   info->current_table=0;
   info->last_used_table= info->open_tables;
