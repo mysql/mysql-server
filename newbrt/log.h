@@ -24,4 +24,6 @@ int tokulogger_log_unlink (TOKUTXN, const char */*fname*/);
 
 int tokulogger_log_header (TOKUTXN, FILENUM, struct brt_header *);
 
+int tokulogger_log_newbrtnode (TOKUTXN txn, FILENUM filenum, DISKOFF offset, u_int32_t height, u_int32_t nodesize, char is_dup_sort_mode, u_int32_t rand4fingerprint);
+
 #endif

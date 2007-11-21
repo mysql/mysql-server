@@ -357,6 +357,35 @@ int tokulogger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
     return r;
 }
 
+int tokulogger_log_newbrtnode (TOKUTXN txn, FILENUM filenum, DISKOFF offset, u_int32_t height, u_int32_t nodesize, char is_dup_sort_mode, u_int32_t rand4fingerprint) {
+    if (txn==0) return 0;
+    int buflen=(1+
+		+ 8 // lsn
+		+ 8 // txnid
+		+ 4 // filenum
+		+ 8 // diskoff
+		+ 4 // height
+		+ 4 // nodesize
+		+ 1 // is_dup_sort_mode
+		+ 4 // rand4fingerprint
+		+ 8 // crc & len
+		);
+    unsigned char buf[buflen];
+    struct wbuf wbuf;
+    wbuf_init (&wbuf, buf, buflen);
+    wbuf_char(&wbuf, LT_NEWBRTNODE);
+    wbuf_lsn    (&wbuf, txn->logger->lsn);
+    txn->logger->lsn.lsn++;
+    wbuf_txnid(&wbuf, txn->txnid64);
+    wbuf_filenum(&wbuf, filenum);
+    wbuf_diskoff(&wbuf, offset);
+    wbuf_int(&wbuf, height);
+    wbuf_int(&wbuf, nodesize);
+    wbuf_char(&wbuf, is_dup_sort_mode);
+    wbuf_int(&wbuf, rand4fingerprint);
+    return tokulogger_finish(txn->logger, &wbuf);
+}
+
 /*
 int brtenv_checkpoint (BRTENV env) {
     init the checkpointing lock
