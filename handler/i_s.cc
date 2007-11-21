@@ -370,7 +370,7 @@ struct st_mysql_plugin	i_s_innodb_trx =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "innodb_trx"),
+	STRUCT_FLD(name, "INNODB_TRX"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -616,7 +616,7 @@ struct st_mysql_plugin	i_s_innodb_locks =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "innodb_locks"),
+	STRUCT_FLD(name, "INNODB_LOCKS"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -766,7 +766,7 @@ struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "innodb_lock_waits"),
+	STRUCT_FLD(name, "INNODB_LOCK_WAITS"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -1106,7 +1106,7 @@ struct st_mysql_plugin	i_s_innodb_zip =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "innodb_zip"),
+	STRUCT_FLD(name, "INNODB_ZIP"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -1155,7 +1155,7 @@ struct st_mysql_plugin	i_s_innodb_zip_reset =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "innodb_zip_reset"),
+	STRUCT_FLD(name, "INNODB_ZIP_RESET"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
