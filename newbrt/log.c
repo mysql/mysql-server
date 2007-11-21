@@ -18,9 +18,9 @@ int tokulogger_find_next_unused_log_file(const char *directory, long long *resul
     DIR *d=opendir(directory);
     long long max=-1;
     struct dirent *de;
-    if (d==0) return *result = errno;
+    if (d==0) return errno;
     while ((de=readdir(d))) {
-	if (de==0) return *result = -errno;
+	if (de==0) return errno;
 	long long thisl;
 	int r = sscanf(de->d_name, "log%llu.tokulog", &thisl);
 	if (r==1 && thisl>max) max=thisl;
@@ -39,7 +39,7 @@ int tokulogger_create_and_open_logger (const char *directory, TOKULOGGER *result
     if (r!=0) {
     died0:
 	toku_free(result);
-	return nexti;
+	return r;
     }
     result->directory = toku_strdup(directory);
     if (result->directory==0) goto died0;
