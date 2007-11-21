@@ -1,3 +1,5 @@
+--echo ---- Partitioning and varbinary data type
+
 --disable_query_log
 # DATA DIRECTORY
 eval SET @data_dir = 'DATA DIRECTORY =

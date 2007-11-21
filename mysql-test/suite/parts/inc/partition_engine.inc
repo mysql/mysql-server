@@ -1,5 +1,5 @@
 ################################################################################
-# include/partition_engine.inc                                                 #
+# inc/partition_engine.inc                                                     #
 #                                                                              #
 # Purpose:                                                                     #
 #   Tests around Create/Alter partitioned tables and storage engine settings   #
@@ -17,7 +17,7 @@
 #    storage engine to use.                                                    #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
@@ -45,7 +45,6 @@ $column_list
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 #
 --echo #------------------------------------------------------------------------
@@ -62,7 +61,6 @@ PARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 eval CREATE TABLE t1 (
 $column_list
@@ -79,7 +77,6 @@ SUBPARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 #
 --echo #------------------------------------------------------------------------
@@ -96,7 +93,6 @@ PARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 eval CREATE TABLE t1 (
 $column_list
@@ -108,7 +104,6 @@ PARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 eval CREATE TABLE t1 (
 $column_list
@@ -125,7 +120,6 @@ SUBPARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 eval CREATE TABLE t1 (
 $column_list
@@ -142,7 +136,6 @@ SUBPARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 #
 --echo #------------------------------------------------------------------------
@@ -164,7 +157,6 @@ SUBPARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 eval CREATE TABLE t1 (
 $column_list
@@ -181,7 +173,6 @@ SUBPARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 #
 --echo #------------------------------------------------------------------------
@@ -199,7 +190,6 @@ PARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 eval CREATE TABLE t1 (
 $column_list
@@ -216,7 +206,6 @@ SUBPARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --echo # 6.2 Storage engine assignment after partition name + after
 --echo #     subpartition name
@@ -236,7 +225,6 @@ SUBPARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 
 --echo #------------------------------------------------------------------------
@@ -252,7 +240,6 @@ PARTITION BY HASH(f_int1) ( PARTITION part1 ENGINE = $engine);
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 # Bug#15966 Partitions: crash if session default engine <> engine used in create table
 eval CREATE TABLE t1 (
@@ -266,6 +253,5 @@ SUBPARTITION BY HASH(f_int1)
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 eval SET SESSION storage_engine=$engine;

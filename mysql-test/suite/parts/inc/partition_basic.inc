@@ -1,12 +1,12 @@
 ################################################################################
-# include/partition_basic.inc                                                  #
+# inc/partition_basic.inc                                                      #
 #                                                                              #
 # Purpose:                                                                     #
 #   Basic tests around create partitioned table with/without PRIMARY KEY and   #
 #   /or UNIQUE INDEX                                                           #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
@@ -29,7 +29,6 @@
 --echo #  1.1 The partitioning function contains one column.
 let $unique= ;
 --source suite/parts/inc/partition_methods1.inc
-# --source include/partition_methods1.inc
 #
    --echo # 1.1.1 with DATA DIECTORY/INDEX DIRECTORY
    #
@@ -50,16 +49,13 @@ let $unique= ;
 
    let $with_directories= 1;
    --source suite/parts/inc/partition_methods1.inc
-   # --source include/partition_methods1.inc
    --source suite/parts/inc/partition_directory.inc
-   # --source include/partition_methods1.inc
    let $with_directories= 0;
    --enable_query_log
    #
 --echo #  1.2 The partitioning function contains two columns.
 let $unique= ;
 --source suite/parts/inc/partition_methods2.inc
-# --source include/partition_methods2.inc
 #
 --echo #------------------------------------------------------------------------
 --echo #  2   Tables with PRIMARY KEY and/or UNIQUE INDEXes
@@ -72,12 +68,10 @@ if ($more_pk_ui_tests)
       --echo #  2.1 PRIMARY KEY consisting of one column
       let $unique= , PRIMARY KEY(f_int1);
       --source suite/parts/inc/partition_methods1.inc
-      # --source include/partition_methods1.inc
    }
    --echo #  2.2 UNIQUE INDEX consisting of one column
    let $unique= , UNIQUE INDEX uidx1 (f_int1);
    --source suite/parts/inc/partition_methods1.inc
-   # --source include/partition_methods1.inc
 
    --echo # 2.2.1 with DATA DIECTORY/INDEX DIRECTORY
    #
@@ -98,7 +92,6 @@ if ($more_pk_ui_tests)
 
    let $with_directories= TRUE;
    --source suite/parts/inc/partition_methods1.inc
-   # --source include/partition_methods1.inc
    let $with_directories= FALSE;
    --enable_query_log
    #
@@ -107,19 +100,15 @@ if ($more_pk_ui_tests)
       --echo #  2.3 PRIMARY KEY consisting of two columns
       let $unique= , PRIMARY KEY(f_int1,f_int2);
       --source suite/parts/inc/partition_methods1.inc
-      # --source include/partition_methods1.inc
       let $unique= , PRIMARY KEY(f_int2,f_int1);
       --source suite/parts/inc/partition_methods1.inc
-      # --source include/partition_methods1.inc
    }
    #
    --echo #  2.4 UNIQUE INDEX consisting of two columns
    let $unique= , UNIQUE INDEX uidx1 (f_int1,f_int2);
    --source suite/parts/inc/partition_methods1.inc
-   # --source include/partition_methods1.inc
    let $unique= , UNIQUE INDEX uidx1 (f_int2,f_int1);
    --source suite/parts/inc/partition_methods1.inc
-   # --source include/partition_methods1.inc
    #
 }
 --echo #  2.5 PRIMARY KEY + UNIQUE INDEX consisting of two columns
@@ -127,14 +116,11 @@ if ($do_pk_tests)
 {
    let $unique= , UNIQUE INDEX uidx1 (f_int1,f_int2), PRIMARY KEY(f_int2,f_int1);
    --source suite/parts/inc/partition_methods1.inc
-   # --source include/partition_methods1.inc
    let $unique= , UNIQUE INDEX uidx1 (f_int2,f_int1), PRIMARY KEY(f_int1,f_int2);
    --source suite/parts/inc/partition_methods1.inc
-   # --source include/partition_methods1.inc
 }
 let $unique= , UNIQUE INDEX uidx1 (f_int1,f_int2), UNIQUE INDEX uidx2 (f_int2,f_int1);
 --source suite/parts/inc/partition_methods1.inc
-# --source include/partition_methods1.inc
 
 --echo #------------------------------------------------------------------------
 --echo #  3   Tables with PRIMARY KEY and/or UNIQUE INDEXes
@@ -148,20 +134,16 @@ if ($more_pk_ui_tests)
       --echo #  3.1 PRIMARY KEY consisting of two columns
       let $unique= , PRIMARY KEY(f_int1,f_int2);
       --source suite/parts/inc/partition_methods2.inc
-      # --source include/partition_methods2.inc
 
       let $unique= , PRIMARY KEY(f_int2,f_int1);
       --source suite/parts/inc/partition_methods2.inc
-      # --source include/partition_methods2.inc
    }
    #
    --echo #  3.2 UNIQUE INDEX consisting of two columns
    let $unique= , UNIQUE INDEX uidx1 (f_int1,f_int2);
    --source suite/parts/inc/partition_methods2.inc
-   # --source include/partition_methods2.inc
    let $unique= , UNIQUE INDEX uidx1 (f_int2,f_int1);
    --source suite/parts/inc/partition_methods2.inc
-   # --source include/partition_methods2.inc
 }
 #
 --echo #  3.3 PRIMARY KEY and UNIQUE INDEX consisting of two columns
@@ -169,11 +151,8 @@ if ($do_pk_tests)
 {
    let $unique= , UNIQUE INDEX uidx1 (f_int1,f_int2), PRIMARY KEY(f_int2,f_int1);
    --source suite/parts/inc/partition_methods2.inc
-   # --source include/partition_methods2.inc
    let $unique= , UNIQUE INDEX uidx1 (f_int2,f_int1), PRIMARY KEY(f_int1,f_int2);
    --source suite/parts/inc/partition_methods2.inc
-   # --source include/partition_methods2.inc
 }
 let $unique= , UNIQUE INDEX uidx1 (f_int1,f_int2), UNIQUE INDEX uidx2 (f_int2,f_int1);
 --source suite/parts/inc/partition_methods2.inc
-# --source include/partition_methods2.inc
