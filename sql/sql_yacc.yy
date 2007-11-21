@@ -3921,7 +3921,7 @@ analyze:
            lex->no_write_to_binlog= $2;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type
+	table_list
 	{}
 	;
 
@@ -3966,7 +3966,7 @@ optimize:
            lex->no_write_to_binlog= $2;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type
+	table_list
 	{}
 	;
 
