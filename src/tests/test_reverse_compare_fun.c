@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
+#include "test.h"
 
 DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
     memset(dbt, 0, sizeof *dbt);
@@ -61,7 +61,7 @@ void expect(DBC *cursor, int k, int v) {
 }
 
 void test_reverse_compare(int n) {
-    printf("test_reverse_compare:%d\n", n);
+    if (verbose) printf("test_reverse_compare:%d\n", n);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -140,7 +140,9 @@ void test_reverse_compare(int n) {
     CKERR(r);
 }
 
-int main() {
+int main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
+
     int i;
 
     for (i = 1; i <= (1<<16); i *= 2) {

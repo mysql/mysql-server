@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <db.h>
 
+#include "test.h"
+
 DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
     memset(dbt, 0, sizeof *dbt);
     dbt->data = data;
@@ -21,7 +23,7 @@ DBT *dbt_init_malloc(DBT *dbt) {
 }
 
 void test_rand_insert(int n, int dup_mode) {
-    printf("test_rand_insert:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_rand_insert:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -89,7 +91,9 @@ void test_rand_insert(int n, int dup_mode) {
     assert(r == 0);
 }
 
-int main() {
+int main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
+
     int i;
     for (i = 1; i <= (1<<16); i *= 2) {
         test_rand_insert(i, 0);
