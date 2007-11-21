@@ -473,8 +473,7 @@ delete from t1;
 select * from t2;
 a	b	c	d	e
 drop table t2,t4,t3,t1;
-create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) 
-engine = innodb default charset=utf8;
+create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb default charset=utf8;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
 commit;
 alter table t1 add unique index (b);
@@ -590,8 +589,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) 
-engine = innodb default charset=ucs2;
+create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb default charset=ucs2;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
 commit;
 alter table t1 add unique index (b);
