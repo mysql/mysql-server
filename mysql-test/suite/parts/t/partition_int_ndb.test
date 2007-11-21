@@ -18,7 +18,7 @@
 #       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
 #       THE SOURCED FILES ONLY.
 #
-# Please read the README at the end of include/partition.pre before changing
+# Please read the README at the end of inc/partition.pre before changing
 # any of the variables.
 #
 
@@ -45,8 +45,3 @@ let $engine= 'NDB';
 --source suite/parts/inc/partition_int.inc
 --source suite/parts/inc/partition_mediumint.inc
 --source suite/parts/inc/partition_bigint.inc
-# --source inc/partition_tinyint.inc
-# --source inc/partition_samllint.inc
-# --source inc/partition_int.inc
-# --source inc/partition_mediumint.inc
-# --source inc/partition_bigint.inc

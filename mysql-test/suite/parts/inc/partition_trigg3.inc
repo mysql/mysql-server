@@ -1,8 +1,8 @@
-###############################################################################
-# include/partition_trigg3.inc                                                 #
+################################################################################
+# inc/partition_trigg3.inc                                                     #
 #                                                                              #
 # Purpose:                                                                     #
-#   Auxiliary script, only useful when sourced by include/partition_check.inc. #
+#   Auxiliary script, only useful when sourced by inc/partition_check.inc.     #
 #   The trigger uses new values (--> event UPDATE, INSERT only)                #
 #                                                                              #
 # 1. Create a trigger                                                          #
@@ -11,22 +11,12 @@
 # 4. Revert the modifications                                                  #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
 # Change:                                                                      #
 ################################################################################
-
-# include/partition_trigg3.inc
-#
-# Auxiliary script, only useful when sourced by include/partition_check.inc.
-#
-# 1. Create a trigger
-# 2. Execute a statement, which activates the trigger
-# 3. Check the results of the trigger activity
-# 4. Revert the modifications
-#
 
 delimiter |;
 # Original version of the trigger
@@ -55,20 +45,12 @@ END|
 delimiter ;|
 # Additional statements because of Bug(limitation)#17704
 SET @counter = 1;
-if ($fixed_bug18730)
-{
 # Bug#18730 Partitions: NDB, crash on SELECT MIN(<unique column>)
 SELECT MAX(f_int1), MIN(f_int2) INTO @my_max1,@my_min2 FROM t1;
-}
-if (!$fixed_bug18730)
-{
-# Bug#18730 Partitions: NDB, crash on SELECT MIN(<unique column>)
-SELECT @max_row, 1 INTO @my_max1,@my_min2;
-}
 # Additional statements end
 eval $statement;
 DROP TRIGGER trg_3;
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
   --disable_query_log

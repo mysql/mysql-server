@@ -1,10 +1,11 @@
 ################################################################################
-# include/partition_20.inc                                                     #
+# inc/partition_20.inc                                                         #
 #                                                                              #
 # Purpose:                                                                     #
-#   Auxiliary script, only useful when sourced by include/partition_check.inc. #
+#   Auxiliary script, only useful when sourced by                              #
+#   suite/parts/inc/partition_check.inc.                                       #
 #                                                                              #
-# 1. Check if the preceeding statement caused that the expected number of      #
+# 1. Check if the preceding statement caused that the expected number of       #
 #    records was                                                               #
 #    - inserted                                                                #
 #    - updated or deleted+inserted                                             #
@@ -17,19 +18,13 @@
 #    must be set before sourcing this routine.                                 #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
 # Change:                                                                      #
 ################################################################################
 
-# include/partition_20.inc
-#
-# Auxiliary script, only useful when sourced by include/partition_check.inc.
-#
-
-# Check of preceeding statement via Select
 if ($no_debug)
 {
   --disable_query_log

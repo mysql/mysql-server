@@ -1,11 +1,11 @@
 ################################################################################
-# include/partition_syntax_2.inc                                               #
+# inc/partition_syntax_2.inc                                                   #
 #                                                                              #
 # Purpose:                                                                     #
-#   Auxiliary script, only useful when sourced by include/partition_syntax.inc.#
+#   Auxiliary script, only useful when sourced by inc/partition_syntax.inc.    #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-05-11                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
@@ -35,11 +35,7 @@ if (`SELECT @@session.storage_engine IN('ndbcluster')`)
    )
    $partition_scheme;
    eval $insert_all;
-   if ($fixed_bug18735)
-   {
    --source suite/parts/inc/partition_check.inc
-   # --source include/partition_check.inc
-   }
    DROP TABLE t1;
    eval CREATE TABLE t1 (
    $column_list,
@@ -47,10 +43,6 @@ if (`SELECT @@session.storage_engine IN('ndbcluster')`)
    )
    $partition_scheme;
    eval $insert_all;
-   if ($fixed_bug18735)
-   {
    --source suite/parts/inc/partition_check.inc
-   # --source include/partition_check.inc
-   }
    DROP TABLE t1;
 }

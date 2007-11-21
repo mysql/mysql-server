@@ -2207,14 +2207,10 @@ com_go(String *buffer,char *line __attribute__((unused)))
   }
 #endif
 
-  if (error)
-  {
-    executing_query= 0;
-    buffer->length(0); // Remove query on error
-    return error;
-  }
-  error=0;
   buffer->length(0);
+
+  if (error)
+    goto end;
 
   do
   {
@@ -2222,18 +2218,15 @@ com_go(String *buffer,char *line __attribute__((unused)))
     {
       if (!(result=mysql_use_result(&mysql)) && mysql_field_count(&mysql))
       {
-        executing_query= 0;
-        return put_error(&mysql);
+        error= put_error(&mysql);
+        goto end;
       }
     }
     else
     {
       error= mysql_store_result_for_lazy(&result);
       if (error)
-      {
-        executing_query= 0;
-        return error;
-      }
+        goto end;
     }
 
     if (verbose >= 3 || !opt_silent)
@@ -2310,12 +2303,10 @@ com_go(String *buffer,char *line __attribute__((unused)))
   if (err >= 1)
     error= put_error(&mysql);
 
+end:
+
   if (show_warnings == 1 && warnings >= 1) /* Show warnings if any */
-  {
-    init_pager();
     print_warnings();
-    end_pager();
-  }
 
   if (!error && !status.batch && 
       (mysql.server_status & SERVER_STATUS_DB_DROPPED))
@@ -2740,6 +2731,9 @@ static void print_warnings()
   MYSQL_RES    *result;
   MYSQL_ROW    cur;
   my_ulonglong num_rows;
+  
+  /* Save current error before calling "show warnings" */
+  uint error= mysql_errno(&mysql);
 
   /* Get the warnings */
   query= "show warnings";
@@ -2748,16 +2742,28 @@ static void print_warnings()
 
   /* Bail out when no warnings */
   if (!(num_rows= mysql_num_rows(result)))
-  {
-    mysql_free_result(result);
-    return;
-  }
+    goto end;
+
+  cur= mysql_fetch_row(result);
+
+  /*
+    Don't print a duplicate of the current error.  It is possible for SHOW
+    WARNINGS to return multiple errors with the same code, but different
+    messages.  To be safe, skip printing the duplicate only if it is the only
+    warning.
+  */
+  if (!cur || num_rows == 1 && error == (uint) strtoul(cur[1], NULL, 10))
+    goto end;
 
   /* Print the warnings */
-  while ((cur= mysql_fetch_row(result)))
+  init_pager();
+  do
   {
     tee_fprintf(PAGER, "%s (Code %s): %s\n", cur[0], cur[1], cur[2]);
-  }
+  } while ((cur= mysql_fetch_row(result)));
+  end_pager();
+
+end:
   mysql_free_result(result);
 }
 

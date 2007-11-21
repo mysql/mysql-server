@@ -234,7 +234,6 @@ subpartition by hash($sqlfunc) subpartitions 5
 	let $t5=t5;
 	let $t6=t6;
 	--source suite/parts/inc/part_supported_sql_funcs_delete.inc
-	# --source include/part_supported_sql_funcs_delete.inc
 
 	let $t1=t11;
 	let $t2=t22;
@@ -243,7 +242,6 @@ subpartition by hash($sqlfunc) subpartitions 5
 	let $t5=t55;
 	let $t6=t66;
 	--source suite/parts/inc/part_supported_sql_funcs_delete.inc
-	# --source include/part_supported_sql_funcs_delete.inc
         --echo -------------------------
         --echo ---- some alter table end
         --echo -------------------------
