@@ -367,3 +367,12 @@ select count(a) from t1 group by null with rollup;
 drop table t1;
 --echo ##############################################################
 
+#
+# Bug #32558: group by null-returning expression with rollup causes crash
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(0);
+SELECT 1 FROM t1 GROUP BY (DATE(NULL)) WITH ROLLUP;
+DROP TABLE t1;
+
+--echo End of 5.0 tests
