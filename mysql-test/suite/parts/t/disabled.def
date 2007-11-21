@@ -12,9 +12,7 @@ partition_value_ndb            : cannot create t1
 partition_basic_ndb            : cannot create t1
 partition_alter1_ndb           : timeout. Needs too much time.
 partition_alter2_ndb           : cannot create t1
-partition_char_innodb          : crash. Bug? More investigations
 partition_sessions             : needs system_3_init.inc
 partition_engine_ndb           : cannot create t1
 part_supported_sql_func_ndb    : cannot create t1
 rpl_ndb_dd_partitions          : cannot create t1
-partition_float_innodb         : Bug#30583 Partition on DOUBLE key + INNODB + count(*) == crash

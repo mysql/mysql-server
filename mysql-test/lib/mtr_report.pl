@@ -338,7 +338,7 @@ sub mtr_report_stats ($) {
 
                 # test case for Bug#bug29807 copies a stray frm into database
                 /InnoDB: Error: table `test`.`bug29807` does not exist in the InnoDB internal/ or
-                /Cannot find table test\/bug29807 from the internal data dictionary/ or
+                /Cannot find or open table test\/bug29807 from/ or
 
                 # innodb foreign key tests that fail in ALTER or RENAME produce this
                 /InnoDB: Error: in ALTER TABLE `test`.`t[12]`/ or

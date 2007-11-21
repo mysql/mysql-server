@@ -84,16 +84,6 @@ innobase_convert_from_id(
 	ulint		len);	/* in: length of 'to', in bytes;
 				should be at least 3 * strlen(to) + 1 */
 /**********************************************************************
-Removes the filename encoding of a table or database name.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-extern
-void
-innobase_convert_from_filename(
-/*===========================*/
-	char*		s);	/* in: identifier; out: decoded identifier */
-/**********************************************************************
 Compares NUL-terminated UTF-8 strings case insensitively.
 
 NOTE: the prototype of this function is copied from ha_innodb.cc! If you change

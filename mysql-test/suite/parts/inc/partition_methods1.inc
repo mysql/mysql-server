@@ -1,5 +1,5 @@
 ################################################################################
-# include/partition_methods1.inc                                               #
+# inc/partition_methods1.inc                                                   #
 #                                                                              #
 # Purpose:                                                                     #
 #   Create and check partitioned tables                                        #
@@ -11,7 +11,7 @@
 #   do                                                                         #
 #     1. Create the partitioned table                                          #
 #     2  Insert the content of the table t0_template into t1                   #
-#     3. Execute include/partition_check.inc                                   #
+#     3. Execute inc/partition_check.inc                                       #
 #     4. Drop the table t1                                                     #
 #   done                                                                       #
 #                                                                              #
@@ -21,14 +21,14 @@
 #   has to be set before sourcing this routine.                                #
 #   Example:                                                                   #
 #          let $unique= , UNIQUE INDEX uidx1 (f_int1);                         #
-#          include/partition_method1s.inc                                      #
+#          inc/partition_method1s.inc                                          #
 #                                                                              #
-# Attention: The routine include/partition_methods2.inc is very similar        #
+# Attention: The routine inc/partition_methods2.inc is very similar            #
 #            to this one. So if something has to be changed here it            #
 #            might be necessary to do it also there                            #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author: HH                                                            #
 # Change Date:   2006-05-12                                                    #
@@ -66,7 +66,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -107,7 +106,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -143,7 +141,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -180,7 +177,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -212,7 +208,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -247,7 +242,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -299,7 +293,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
@@ -329,7 +322,6 @@ $partitioning;
 --enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
-# --source include/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 let $with_directories= FALSE;

@@ -1,5 +1,5 @@
 ################################################################################
-# include/partition_check_read1.inc                                             #
+# inc/partition_check_read1.inc                                                #
 #                                                                              #
 # Purpose:                                                                     #
 #   Read rows from table t1 in different ways                                  #
@@ -10,7 +10,7 @@
 # must be set before sourcing this routine.                                    #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-04-11                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
