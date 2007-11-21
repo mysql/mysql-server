@@ -235,4 +235,45 @@ drop table t1;
 drop function f1;
 drop function f2;
 drop procedure p1;
+create table t2 (b BIT(7));
+create procedure sp_bug26199(bitvalue BIT(7))
+begin
+insert into t2 set b = bitvalue;
+end //
+create function sf_bug26199(b BIT(7)) returns int
+begin
+insert into t2 values(b);
+return 0;
+end//
+call   sp_bug26199(b'1110');
+call   sp_bug26199('\0');
+select sf_bug26199(b'1111111');
+sf_bug26199(b'1111111')
+0
+select sf_bug26199(b'101111111');
+sf_bug26199(b'101111111')
+0
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+select sf_bug26199('\'');
+sf_bug26199('\'')
+0
+select hex(b) from t2;
+hex(b)
+E
+0
+7F
+7F
+27
+select hex(b) from t2;
+hex(b)
+E
+0
+7F
+7F
+27
+drop table t2;
+drop procedure sp_bug26199;
+drop function sf_bug26199;
 SET GLOBAL log_bin_trust_function_creators = 0;
+end of the tests

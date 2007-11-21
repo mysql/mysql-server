@@ -31,31 +31,34 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   switch (type(col)) {
   case MYSQL_TYPE_NEWDECIMAL:
     length= my_decimal_get_binary_size(m_field_metadata[col] >> 8, 
-             m_field_metadata[col] - ((m_field_metadata[col] >> 8) << 8));
+                                       m_field_metadata[col] & 0xff);
     break;
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_FLOAT:
   case MYSQL_TYPE_DOUBLE:
     length= m_field_metadata[col];
     break;
+  /*
+    The cases for SET and ENUM are include for completeness, however
+    both are mapped to type MYSQL_TYPE_STRING and their real types
+    are encoded in the field metadata.
+  */
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_STRING:
   {
-    if (((m_field_metadata[col] & 0xff00) == (MYSQL_TYPE_SET << 8)) ||
-        ((m_field_metadata[col] & 0xff00) == (MYSQL_TYPE_ENUM << 8)))
+    uchar type= m_field_metadata[col] >> 8U;
+    if ((type == MYSQL_TYPE_SET) || (type == MYSQL_TYPE_ENUM))
       length= m_field_metadata[col] & 0x00ff;
     else
     {
-      length= m_field_metadata[col] & 0x00ff;
-      DBUG_ASSERT(length > 0);
-      if (length > 255)
-      {
-        DBUG_ASSERT(uint2korr(master_data) > 0);
-        length= uint2korr(master_data) + 2;
-      }
-      else
-        length= (uint) *master_data + 1;
+      /*
+        We are reading the actual size from the master_data record
+        because this field has the actual lengh stored in the first
+        byte.
+      */
+      length= (uint) *master_data + 1;
+      DBUG_ASSERT(length != 0);
     }
     break;
   }
@@ -95,6 +98,13 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
     break;
   case MYSQL_TYPE_BIT:
   {
+    /*
+      Decode the size of the bit field from the master.
+        from_len is the length in bytes from the master
+        from_bit_len is the number of extra bits stored in the master record
+      If from_bit_len is not 0, add 1 to the length to account for accurate
+      number of bytes needed.
+    */
     uint from_len= (m_field_metadata[col] >> 8U) & 0x00ff;
     uint from_bit_len= m_field_metadata[col] & 0x00ff;
     DBUG_ASSERT(from_bit_len <= 7);
@@ -136,7 +146,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
       length= *master_data;
       break;
     case 2:
-      length= sint2korr(master_data);
+      length= uint2korr(master_data);
       break;
     case 3:
       length= uint3korr(master_data);

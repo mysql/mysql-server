@@ -380,7 +380,8 @@ select
 @a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%"	@a not like "%#%error_code=%error_code=%"
 1	1
 drop table t1, t2;
-create table tt (a int unique);
+set @@session.binlog_format=statement;
+create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
 reset master;
 show master status;
@@ -399,18 +400,18 @@ count(*)
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	515		
-show binlog events from 106;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
-master-bin.000001	#	Query	1	#	use `test`; insert into ti values (1)
-master-bin.000001	#	Query	1	#	use `test`; insert into ti values (2)
-master-bin.000001	#	Query	1	#	use `test`; insert into tt select * from ti
-master-bin.000001	#	Query	1	#	use `test`; ROLLBACK
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into ti values (1)
+master-bin.000001	#	Query	#	#	use `test`; insert into ti values (2)
+master-bin.000001	#	Query	#	#	use `test`; insert into tt select * from ti
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*) from ti /* zero */;
 count(*)
 0
 insert into ti select * from tt;
-select * from ti /* that is what slave would miss - a bug */;
+select * from ti /* that is what slave would miss - bug#28960 */;
 a
 1
 2
@@ -431,13 +432,13 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	589		
-show binlog events from 106;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
-master-bin.000001	#	Query	1	#	use `test`; insert into ti values (1)
-master-bin.000001	#	Query	1	#	use `test`; insert into ti values (2) /* to make the dup error in the following */
-master-bin.000001	#	Query	1	#	use `test`; insert into tt select * from ti /* one affected and error */
-master-bin.000001	#	Query	1	#	use `test`; ROLLBACK
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into ti values (1)
+master-bin.000001	#	Query	#	#	use `test`; insert into ti values (2) /* to make the dup error in the following */
+master-bin.000001	#	Query	#	#	use `test`; insert into tt select * from ti /* one affected and error */
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -446,7 +447,7 @@ select * from tt /* that is what otherwise slave missed - the bug */;
 a
 1
 2
-drop table ti,tt;
+drop table ti;
 drop function if exists bug27417;
 drop table if exists t1,t2;
 CREATE TABLE t1 (a int NOT NULL auto_increment primary key) ENGINE=MyISAM;
@@ -463,6 +464,10 @@ insert into t2 select bug27417(2);
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Intvar	#	#	INSERT_ID=3
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (bug27417(2))
 select count(*) from t1 /* must be 3 */;
 count(*)
 3
@@ -474,6 +479,10 @@ delete from t2 where a=bug27417(3);
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Intvar	#	#	INSERT_ID=4
+master-bin.000001	#	Query	#	#	use `test`; delete from t2 where a=bug27417(3)
 select count(*) from t1 /* must be 5 */;
 count(*)
 5
@@ -482,6 +491,134 @@ affected rows: 0
 select count(*) from t1 /* must be 7 */;
 count(*)
 7
-drop function bug27417;
 drop table t1,t2;
+CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM;
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique) ENGINE=MyISAM;
+CREATE TABLE t4 (a int, PRIMARY KEY (a), b int unique) ENGINE=Innodb;
+CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+insert into t2 values (1);
+reset master;
+insert into t2 values (bug27417(1));
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Intvar	#	#	INSERT_ID=1
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (bug27417(1))
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+select count(*) from t1 /* must be 1 */;
+count(*)
+1
+delete from t1;
+delete from t2;
+insert into t2 values (2);
+reset master;
+insert into t2 select bug27417(1) union select bug27417(2);
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Intvar	#	#	INSERT_ID=2
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 select bug27417(1) union select bug27417(2)
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+select count(*) from t1 /* must be 2 */;
+count(*)
+2
+delete from t1;
+insert into t3 values (1,1),(2,3),(3,4);
+reset master;
+update t3 set b=b+bug27417(1);
+ERROR 23000: Duplicate entry '4' for key 'b'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Intvar	#	#	INSERT_ID=4
+master-bin.000001	#	Query	#	#	use `test`; update t3 set b=b+bug27417(1)
+select count(*) from t1 /* must be 2 */;
+count(*)
+2
+delete from t3;
+delete from t4;
+insert into t3 values (1,1);
+insert into t4 values (1,1),(2,2);
+reset master;
+UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Intvar	#	#	INSERT_ID=6
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+select count(*) from t1 /* must be 4 */;
+count(*)
+4
+delete from t1;
+delete from t3;
+delete from t4;
+insert into t3 values (1,1),(2,2);
+insert into t4 values (1,1),(2,2);
+reset master;
+UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+select count(*) from t1 /* must be 1 */;
+count(*)
+1
+drop table t4;
+delete from t1;
+delete from t2;
+delete from t3;
+insert into t2 values (1);
+insert into t3 values (1,1);
+create trigger trg_del before delete on t2 for each row 
+insert into t3 values (bug27417(1), 2);
+reset master;
+delete from t2;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Intvar	#	#	INSERT_ID=9
+master-bin.000001	#	Query	#	#	use `test`; delete from t2
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+select count(*) from t1 /* must be 1 */;
+count(*)
+1
+drop trigger trg_del;
+delete from t1;
+delete from t2;
+delete from t5;
+create trigger trg_del_t2 after  delete on t2 for each row
+insert into t1 values (1);
+insert into t2 values (2),(3);
+insert into t5 values (1),(2);
+reset master;
+delete t2.* from t2,t5 where t2.a=t5.a + 1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; delete t2.* from t2,t5 where t2.a=t5.a + 1
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+select count(*) from t1 /* must be 1 */;
+count(*)
+1
+delete from t1;
+create table t4 (a int default 0, b int primary key) engine=innodb;
+insert into t4 values (0, 17);
+reset master;
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
+ERROR 23000: Duplicate entry '17' for key 'PRIMARY'
+select * from t4;
+a	b
+0	17
+select count(*) from t1 /* must be 2 */;
+count(*)
+2
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Intvar	#	#	INSERT_ID=10
+master-bin.000001	#	Begin_load_query	#	#	;file_id=1;block_len=12
+master-bin.000001	#	Intvar	#	#	INSERT_ID=10
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2) ;file_id=1
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+drop trigger trg_del_t2;
+drop table t1,t2,t3,t4,t5;
+drop function bug27417;
+set @@session.binlog_format=@@global.binlog_format;
 end of tests
