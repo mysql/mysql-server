@@ -576,32 +576,6 @@ select count(*) from t1 where a is null;
 drop table t1;
 
 #
-# Bug #8306: TRUNCATE leads to index corruption 
-#
-create table t1 (c1 int, index(c1));
-create table t2 (c1 int, index(c1)) engine=merge union=(t1);
-insert into t1 values (1);
-# Close all tables.
-flush tables;
-# Open t2 and (implicitly) t1.
-select * from t2;
-# Truncate after flush works (unless another threads reopens t2 in between).
-flush tables;
-truncate table t1;
-insert into t1 values (1);
-# Close all tables.
-flush tables;
-# Open t2 and (implicitly) t1.
-select * from t2;
-# Truncate t1, wich was not recognized as open without the bugfix.
-# Now, it should fail with a table-in-use error message.
---error 1105
-truncate table t1;
-# The insert used to fail on the crashed table.
-insert into t1 values (1);
-drop table t1,t2;
-
-#
 # bug9188 - Corruption Can't open file: 'table.MYI' (errno: 145)
 #
 create table t1 (c1 int, c2 varchar(4) not null default '',
@@ -1170,6 +1144,12 @@ SHOW TABLE STATUS LIKE 't1';
 #--exec ls -log var/master-data/test/t1.MYI
 #--exec myisamchk -dvv var/master-data/test/t1.MYI
 #--exec myisamchk -iev var/master-data/test/t1.MYI
+--echo # Enable keys with parallel repair
+SET @@myisam_repair_threads=2;
+ALTER TABLE t1 DISABLE KEYS;
+ALTER TABLE t1 ENABLE KEYS;
+SET @@myisam_repair_threads=1;
+CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
 
 --echo End of 5.0 tests
