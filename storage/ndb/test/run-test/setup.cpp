@@ -904,7 +904,7 @@ pr_check_proc(Properties& props, proc_rule_ctx& ctx, int)
       if (!proc.m_options.m_loaded.get(name, &val))
       {
 	ok = false;
-	g_logger.warning("Missing paramter: %s for %s",
+	g_logger.warning("Missing parameter: %s for %s",
 			 name, proc.m_proc.m_cwd.c_str());
       }
       else if (proc.m_options.m_generated.get(name, &val))
@@ -912,7 +912,7 @@ pr_check_proc(Properties& props, proc_rule_ctx& ctx, int)
 	if (setup == 0)
 	{
 	  ok = false;
-	  g_logger.warning("Missing paramter: %s for %s",
+	  g_logger.warning("Missing parameter: %s for %s",
 			   name, proc.m_proc.m_cwd.c_str());
 	}
 	else
