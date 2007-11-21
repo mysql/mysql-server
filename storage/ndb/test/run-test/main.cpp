@@ -65,7 +65,6 @@ const char * g_prefix = 0;
 const char * g_clusters = 0;
 BaseString g_replicate;
 const char *save_file = 0;
-char *save_extra_file = 0;
 const char *save_group_suffix = 0;
 const char * g_dummy;
 char * g_env_path = 0;
@@ -429,13 +428,12 @@ parse_args(int argc, char** argv)
   int ret = load_defaults(mycnf.c_str(), groups, &argc, &argv);
   
   save_file = my_defaults_file;
-  save_extra_file = my_defaults_extra_file;
   save_group_suffix = my_defaults_group_suffix;
 
-  if (save_extra_file)
+  if (my_defaults_extra_file)
   {
     g_logger.error("--defaults-extra-file(%s) is not supported...",
-		   save_extra_file);
+		   my_defaults_extra_file);
     return false;
   }
   
