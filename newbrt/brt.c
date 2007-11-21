@@ -184,7 +184,7 @@ void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnod
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (write_me) {
-	toku_seralize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode->nodesize, brtnode);
+	toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode->nodesize, brtnode);
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (!keep_me) {
@@ -1576,8 +1576,9 @@ int brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbn
 		t->h->names=0;
 		t->h->roots=0;
 	    }
-	    if ((r=setup_brt_root_node(t, t->nodesize))!=0) { if (dbname) goto died5; else goto died2;	}
-	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, brtheader_flush_callback, brtheader_fetch_callback, 0))) {  if (dbname) goto died5; else goto died2; }
+	    if ((r=setup_brt_root_node(t, t->nodesize))!=0) { died6: if (dbname) goto died5; else goto died2;	}
+	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, brtheader_flush_callback, brtheader_fetch_callback, 0))) { goto died6; }
+	    if ((r=tokulogger_log_header(txn, toku_cachefile_filenum(t->cf), t->h)))                               { goto died6; }
 	} else {
 	    int i;
 	    assert(r==0);

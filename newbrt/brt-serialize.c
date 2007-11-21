@@ -85,7 +85,7 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
     return result;
 }
 
-void toku_seralize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
+void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
     //printf("%s:%d serializing\n", __FILE__, __LINE__);
     struct wbuf w;
     int i;
@@ -432,44 +432,56 @@ void toku_verify_counts (BRTNODE node) {
     }
 }
     
-int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
-    struct wbuf w;
-    int i;
-    unsigned int size=0; /* I don't want to mess around calculating it exactly. */ 
-    size += 4+4+4+8+8+4; /* this size, flags, the tree's nodesize, freelist, unused_memory, nnamed_rootse. */
+int toku_serialize_brt_header_size (struct brt_header *h) {
+    unsigned int size = 4+4+4+8+8+4; /* this size, flags, the tree's nodesize, freelist, unused_memory, named_roots. */
     if (h->n_named_roots<0) {
 	size+=8;
     } else {
+	int i;
 	for (i=0; i<h->n_named_roots; i++) {
 	    size+=12 + 1 + strlen(h->names[i]);
 	}
     }
-    wbuf_init(&w, toku_malloc(size), size);
-    wbuf_int    (&w, size);
-    wbuf_int    (&w, h->flags);
-    wbuf_int    (&w, h->nodesize);
-    wbuf_diskoff(&w, h->freelist);
-    wbuf_diskoff(&w, h->unused_memory);
-    wbuf_int    (&w, h->n_named_roots);
+    return size;
+}
+
+int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) {
+    unsigned int size = toku_serialize_brt_header_size (h); // !!! seems silly to recompute the size when the caller knew it.  Do we really need the size?
+    wbuf_int    (wbuf, size);
+    wbuf_int    (wbuf, h->flags);
+    wbuf_int    (wbuf, h->nodesize);
+    wbuf_diskoff(wbuf, h->freelist);
+    wbuf_diskoff(wbuf, h->unused_memory);
+    wbuf_int    (wbuf, h->n_named_roots);
     if (h->n_named_roots>0) {
+	int i;
 	for (i=0; i<h->n_named_roots; i++) {
 	    char *s = h->names[i];
 	    unsigned int l = 1+strlen(s);
-	    wbuf_diskoff(&w, h->roots[i]);
-	    wbuf_bytes  (&w,  s, l);
+	    wbuf_diskoff(wbuf, h->roots[i]);
+	    wbuf_bytes  (wbuf,  s, l);
 	    assert(l>0 && s[l-1]==0);
 	}
     } else {
-	wbuf_diskoff(&w, h->unnamed_root);
+	wbuf_diskoff(wbuf, h->unnamed_root);
     }
+    assert(wbuf->ndone<=wbuf->size);
+    return 0;
+}
+
+int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
+    struct wbuf w;
+    unsigned int size = toku_serialize_brt_header_size (h);
+    wbuf_init(&w, toku_malloc(size), size);
+    int r=toku_serialize_brt_header_to_wbuf(&w, h);
     assert(w.ndone==size);
     {
-	ssize_t r = pwrite(fd, w.buf, w.ndone, 0);
-	if (r<0) perror("pwrite");
-	assert((size_t)r==w.ndone);
+	ssize_t nwrote = pwrite(fd, w.buf, w.ndone, 0);
+	if (nwrote<0) perror("pwrite");
+	assert((size_t)nwrote==w.ndone);
     }
     toku_free(w.buf);
-    return 0;
+    return r;
 }
 
 int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth) {

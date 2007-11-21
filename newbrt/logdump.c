@@ -110,7 +110,7 @@ int main (int argc, char *argv[]) {
     for (i=0;
 	 i!=count && (crc=0,actual_len=0,cmd=get_char())!=EOF;
 	 i++) {
-	switch (cmd) {
+	switch ((enum lt_command)cmd) {
 	case LT_INSERT_WITH_NO_OVERWRITE:
 	    printf("INSERT_WITH_NO_OVERWRITE:");
 	    transcribe_lsn();
@@ -122,7 +122,7 @@ int main (int argc, char *argv[]) {
 	    transcribe_crc32();
 	    transcribe_len();
 	    printf("\n");
-	    break;
+	    goto next;
     
 	case LT_DELETE:
 	    printf("DELETE:");
@@ -135,7 +135,7 @@ int main (int argc, char *argv[]) {
 	    transcribe_crc32();
 	    transcribe_len();
 	    printf("\n");
-	    break;
+	    goto next;
 
 	case LT_FCREATE:
 	    printf("FCREATE:");
@@ -146,7 +146,7 @@ int main (int argc, char *argv[]) {
 	    transcribe_crc32();
 	    transcribe_len();
 	    printf("\n");
-	    break;
+	    goto next;
 
 	case LT_FOPEN:
 	    printf("FOPEN:");
@@ -157,7 +157,7 @@ int main (int argc, char *argv[]) {
 	    transcribe_crc32();
 	    transcribe_len();
 	    printf("\n");
-	    break;
+	    goto next;
 	    
 	case LT_COMMIT:
 	    printf("COMMIT:");
@@ -166,12 +166,20 @@ int main (int argc, char *argv[]) {
 	    transcribe_crc32();
 	    transcribe_len();
 	    printf("\n");
-	    break;
+	    goto next;
 
-	default:
-	    fprintf(stderr, "Huh?, found command '%c'\n", cmd);
-	    assert(0);
+	case LT_UNLINK:
+	case LT_BLOCK_RENAME:
+	case LT_CHECKPOINT:
+	case LT_FHEADER:
+	    fprintf(stderr, "Cannot handle this command yet: '%c'\n", cmd);
+	    break;
 	}
+	/* The default is to fall out the bottom.  That way we can get a compiler warning if we forget one of the enums, but we can also
+	 * get a runtime warning if the actual value isn't one of the enums. */
+	fprintf(stderr, "Huh?, found command '%c'\n", cmd);
+	assert(0);
+    next: ; /*nothing*/
     }
     return 0;
 }

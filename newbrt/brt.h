@@ -4,12 +4,11 @@
 // This must be first to make the 64-bit file mode work right in Linux
 #define _FILE_OFFSET_BITS 64
 #include "brttypes.h"
-
 #include "ybt.h"
 #include "../include/db.h"
 #include "cachetable.h"
 #include "log.h"
-typedef struct brt *BRT;
+
 int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*));
 
 int brt_create(BRT *);

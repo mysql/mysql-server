@@ -96,14 +96,16 @@ struct brt {
 };
 
 /* serialization code */
-void toku_seralize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
+void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
 int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize, int (*bt_compare)(DB *, const DBT*, const DBT*), int (*dup_compare)(DB *, const DBT *, const DBT *));
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
 void toku_verify_counts(BRTNODE);
 
+int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
+int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h);
 int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth);
 
 /* return the size of a tree node */

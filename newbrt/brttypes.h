@@ -3,6 +3,11 @@
 #include <sys/types.h>
 #define _XOPEN_SOURCE 500
 #define _FILE_OFFSET_BITS 64
+
+typedef struct brt *BRT;
+struct brt_header;
+struct wbuf;
+
 typedef unsigned int ITEMLEN;
 typedef const void *bytevec;
 //typedef const void *bytevec;

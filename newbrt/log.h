@@ -12,14 +12,16 @@ int tokulogger_log_phys_add_or_delete_in_leaf    (DB *db, TOKUTXN txn, DISKOFF d
 
 int tokulogger_log_commit (TOKUTXN txn);
 
-int tokulogger_log_block_rename (TOKULOGGER logger, FILENUM fileid, DISKOFF olddiskoff, DISKOFF newdiskoff, DISKOFF parentdiskoff, int childnum);
+int tokulogger_log_block_rename (TOKULOGGER /*logger*/, FILENUM /*fileid*/, DISKOFF /*olddiskoff*/, DISKOFF /*newdiskoff*/, DISKOFF /*parentdiskoff*/, int /*childnum*/);
 
-int tokutxn_begin (TOKUTXN /*parent*/,TOKUTXN *, TXNID txnid64, TOKULOGGER logger);
+int tokutxn_begin (TOKUTXN /*parent*/,TOKUTXN *, TXNID /*txnid64*/, TOKULOGGER /*logger*/);
 
 int tokulogger_log_fcreate (TOKUTXN, const char */*fname*/, int /*mode*/);
 
-int tokulogger_log_fopen (TOKUTXN, const char * /*fname*/, FILENUM filenum);
+int tokulogger_log_fopen (TOKUTXN, const char * /*fname*/, FILENUM);
 
 int tokulogger_log_unlink (TOKUTXN, const char */*fname*/);
+
+int tokulogger_log_header (TOKUTXN, FILENUM, struct brt_header *);
 
 #endif
