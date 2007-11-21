@@ -933,12 +933,15 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   {
     value= item->val_int();
     *is_null= item->null_value;
+    enum_field_types f_type= item->field_type();
     /*
       Item_date_add_interval may return MYSQL_TYPE_STRING as the result
       field type. To detect that the DATE value has been returned we
-      compare it with 1000000L - any DATE value should be less than it.
+      compare it with 100000000L - any DATE value should be less than it.
+      Don't shift cached DATETIME values up for the second time.
     */
-    if (item->field_type() == MYSQL_TYPE_DATE || value < 100000000L)
+    if (f_type == MYSQL_TYPE_DATE ||
+        (f_type != MYSQL_TYPE_DATETIME && value < 100000000L))
       value*= 1000000L;
   }
   else
@@ -975,7 +978,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
-    Item_cache_int *cache= new Item_cache_int();
+    Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
     cache->store(item, value);
