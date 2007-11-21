@@ -1522,7 +1522,7 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
-    tprint(tracef, "   state older than record, updating rows' count\n");
+    tprint(tracef, "   state older than record\n");
     share->state.state.records--;
     if (share->calc_checksum)
     {
@@ -1683,7 +1683,7 @@ prototype_redo_exec_hook(CLR_END)
          log_desc->name, LSN_IN_PARTS(previous_undo_lsn));
   if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
-    tprint(tracef, "   state older than record, updating rows' count\n");
+    tprint(tracef, "   state older than record\n");
     switch (undone_record_type) {
     case LOGREC_UNDO_ROW_DELETE:
       row_entry= 1;
