@@ -187,7 +187,13 @@ enum ha_extra_function {
     Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
   */
-  HA_EXTRA_INSERT_WITH_UPDATE
+  HA_EXTRA_INSERT_WITH_UPDATE,
+  /*
+    Orders MERGE handler to attach or detach its child tables. Used at
+    begin and end of a statement.
+  */
+  HA_EXTRA_ATTACH_CHILDREN,
+  HA_EXTRA_DETACH_CHILDREN
 };
 
 	/* The following is parameter to ha_panic() */
