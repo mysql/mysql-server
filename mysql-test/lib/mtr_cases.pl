@@ -229,24 +229,27 @@ sub collect_one_suite($$)
   my $testdir= "$suitedir/t";
   my $resdir=  "$suitedir/r";
 
-  if (!@::opt_combination) 
+  if (!defined $::opt_record and !defined $::opt_skip_combination)
   {
-    # Read combinations file
-    if ( open(COMB,$combination_file) )
+    if (!@::opt_combination) 
     {
-      while (<COMB>)
+      # Read combinations file
+      if ( open(COMB,$combination_file) )
       {
-        chomp;
-        s/\ +/ /g;
-        push (@$combinations, $_) unless ($_ eq '');
+        while (<COMB>)
+        {
+          chomp;
+          s/\ +/ /g;
+          push (@$combinations, $_) unless ($_ eq '');
+        }
+        close COMB;
       }
-      close COMB;
     }
-  }
-  else
-  {
-    # take the combination from command-line
-    @$combinations = @::opt_combination;
+    else
+    {
+      # take the combination from command-line
+      @$combinations = @::opt_combination;
+    }
   }
   # Remember last element position
   my $begin_index = $#{@$cases} + 1;
