@@ -86,7 +86,6 @@ bool Prelock_error_handler::safely_trapped_errors()
   @defgroup Data_Dictionary Data Dictionary
   @{
 */
-
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 static HASH table_def_cache;
@@ -3502,7 +3501,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     temporary mem_root for new .frm parsing.
     TODO: variables for size
   */
-  init_alloc_root(&new_frm_mem, 8024, 8024);
+  init_sql_alloc(&new_frm_mem, 8024, 8024);
 
   thd->current_tablenr= 0;
  restart:
