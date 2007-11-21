@@ -23,6 +23,7 @@ extern "C" {
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
 #include "buf0buddy.h" /* for i_s_zip */
 #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
+#include "ha_prototypes.h" /* for innobase_convert_name() */
 }
 
 static const char plugin_author[] = "Innobase Oy";
@@ -513,8 +514,7 @@ fill_innodb_locks_from_cache(
 /*=========================*/
 					/* out: 0 on success */
 	trx_i_s_cache_t*	cache,	/* in: cache to read from */
-	THD*			thd,	/* in: used to call
-					schema_table_store_record() */
+	THD*			thd,	/* in: MySQL client connection */
 	TABLE*			table)	/* in/out: fill this table */
 {
 	Field**	fields;
@@ -532,6 +532,10 @@ fill_innodb_locks_from_cache(
 	for (i = 0; i < rows_num; i++) {
 
 		i_s_locks_row_t*	row;
+		/* 2 * NAME_LEN for database and table name,
+		and some slack for the #mysql50# prefix and quotes */
+		char			buf[3 * NAME_LEN];
+		const char*		bufend;
 
 		row = (i_s_locks_row_t*)
 			trx_i_s_cache_get_nth_row(
@@ -554,12 +558,20 @@ fill_innodb_locks_from_cache(
 				      row->lock_type));
 
 		/* lock_table */
-		OK(field_store_string(fields[IDX_LOCK_TABLE],
-				      row->lock_table));
+		bufend = innobase_convert_name(buf, sizeof buf,
+					       row->lock_table,
+					       strlen(row->lock_table),
+					       thd, TRUE);
+		OK(fields[IDX_LOCK_TABLE]->store(buf, bufend - buf,
+						 system_charset_info));
 
 		/* lock_index */
-		OK(field_store_string(fields[IDX_LOCK_INDEX],
-				      row->lock_index));
+		bufend = innobase_convert_name(buf, sizeof buf,
+					       row->lock_index,
+					       strlen(row->lock_index),
+					       thd, FALSE);
+		OK(fields[IDX_LOCK_INDEX]->store(buf, bufend - buf,
+						 system_charset_info));
 
 		/* lock_space */
 		OK(field_store_ulint(fields[IDX_LOCK_SPACE],
