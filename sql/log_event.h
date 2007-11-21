@@ -18,8 +18,10 @@
   @{
 
   @file
-
-  Binary log event definitions.
+  
+  @brief Binary log event definitions.  This includes generic code
+  common to all types of log events, as well as specific code for each
+  type of log event.
 */
 
 
@@ -35,6 +37,23 @@
 #ifndef MYSQL_CLIENT
 #include "rpl_record.h"
 #include "rpl_reporting.h"
+#endif
+
+/**
+   Either assert or return an error.
+
+   In debug build, the condition will be checked, but in non-debug
+   builds, the error code given will be returned instead.
+
+   @param COND   Condition to check
+   @param ERRNO  Error number to return in non-debug builds
+*/
+#ifdef DBUG_OFF
+#define ASSERT_OR_RETURN_ERROR(COND, ERRNO) \
+  do { if (!(COND)) return ERRNO; } while (0)
+#else
+#define ASSERT_OR_RETURN_ERROR(COND, ERRNO) \
+  DBUG_ASSERT(COND)
 #endif
 
 #define LOG_READ_EOF    -1
@@ -394,15 +413,19 @@ struct sql_ex_info
 
 #define LOG_EVENT_BINLOG_IN_USE_F       0x1
 
-/*
-   If the query depends on the thread (for example: TEMPORARY TABLE).
-   Currently this is used by mysqlbinlog to know it must print
-   SET @@PSEUDO_THREAD_ID=xx; before the query (it would not hurt to print it
-   for every query but this would be slow).
+/**
+  @def LOG_EVENT_THREAD_SPECIFIC_F
+
+  If the query depends on the thread (for example: TEMPORARY TABLE).
+  Currently this is used by mysqlbinlog to know it must print
+  SET @@PSEUDO_THREAD_ID=xx; before the query (it would not hurt to print it
+  for every query but this would be slow).
 */
 #define LOG_EVENT_THREAD_SPECIFIC_F 0x4
 
-/*
+/**
+  @def LOG_EVENT_SUPPRESS_USE_F
+
   Suppress the generation of 'USE' statements before the actual
   statement. This flag should be set for any events that does not need
   the current database set to function correctly. Most notable cases
@@ -421,23 +444,26 @@ struct sql_ex_info
  */
 #define LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F 0x10
 
-/*
-   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must be
-   written to the binlog. OPTIONS_WRITTEN_TO_BINLOG could be written
-   into the Format_description_log_event, so that if later we don't want
-   to replicate a variable we did replicate, or the contrary, it's
-   doable. But it should not be too hard to decide once for all of what
-   we replicate and what we don't, among the fixed 32 bits of
-   thd->options.
-   I (Guilhem) have read through every option's usage, and it looks like
-   OPTION_AUTO_IS_NULL and OPTION_NO_FOREIGN_KEYS are the only ones
-   which alter how the query modifies the table. It's good to replicate
-   OPTION_RELAXED_UNIQUE_CHECKS too because otherwise, the slave may
-   insert data slower than the master, in InnoDB.
-   OPTION_BIG_SELECTS is not needed (the slave thread runs with
-   max_join_size=HA_POS_ERROR) and OPTION_BIG_TABLES is not needed
-   either, as the manual says (because a too big in-memory temp table is
-   automatically written to disk).
+/**
+  @def OPTIONS_WRITTEN_TO_BIN_LOG
+
+  OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must
+  be written to the binlog. OPTIONS_WRITTEN_TO_BIN_LOG could be
+  written into the Format_description_log_event, so that if later we
+  don't want to replicate a variable we did replicate, or the
+  contrary, it's doable. But it should not be too hard to decide once
+  for all of what we replicate and what we don't, among the fixed 32
+  bits of thd->options.
+
+  I (Guilhem) have read through every option's usage, and it looks
+  like OPTION_AUTO_IS_NULL and OPTION_NO_FOREIGN_KEYS are the only
+  ones which alter how the query modifies the table. It's good to
+  replicate OPTION_RELAXED_UNIQUE_CHECKS too because otherwise, the
+  slave may insert data slower than the master, in InnoDB.
+  OPTION_BIG_SELECTS is not needed (the slave thread runs with
+  max_join_size=HA_POS_ERROR) and OPTION_BIG_TABLES is not needed
+  either, as the manual says (because a too big in-memory temp table
+  is automatically written to disk).
 */
 #define OPTIONS_WRITTEN_TO_BIN_LOG \
   (OPTION_AUTO_IS_NULL | OPTION_NO_FOREIGN_KEY_CHECKS |  \
@@ -452,6 +478,11 @@ struct sql_ex_info
 #endif
 #undef EXPECTED_OPTIONS         /* You shouldn't use this one */
 
+/**
+  @enum Log_event_type
+
+  Enumeration type for the different types of log events.
+*/
 enum Log_event_type
 {
   /*
@@ -612,13 +643,90 @@ typedef struct st_print_event_info
 #endif
 
 
-/*****************************************************************************
-
-  Log_event class
+/**
+  @class Log_event
 
   This is the abstract base class for binary log events.
+  
+  @section Log_event_binary_format Binary Format
 
- ****************************************************************************/
+  Any Log_event saved on disk consists of the following three
+  components.
+
+  @li Common-Header
+  @li Post-Header
+  @li Body
+
+  The Common-Header, documented below, always has the same form and
+  length within one version of MySQL.  Each event type specifies a
+  form and length of the Post-Header common to all events of the type.
+  The Body may be of different form and length even for different
+  events of the same type.  The binary formats of Post-Header and Body
+  are documented separately in each subclass.  The binary format of
+  Common-Header is as follows.
+
+  <table>
+  <caption>Common-Header</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format<br/></th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>timestamp</td>
+    <td>4 byte unsigned integer</td>
+    <td>The number of seconds since 1970.
+    </td>
+  </tr>
+
+  <tr>
+    <td>type</td>
+    <td>1 byte enumeration</td>
+    <td>See enum #Log_event_type.</td>
+  </tr>
+
+  <tr>
+    <td>master_id</td>
+    <td>4 byte integer</td>
+    <td>Server ID of the server that created the event.</td>
+  </tr>
+
+  <tr>
+    <td>total_size</td>
+    <td>4 byte integer</td>
+    <td>The total size of this event, in bytes.  In other words, this
+    is the sum of the sizes of Common-Header, Post-Header, and Body.
+    </td>
+  </tr>
+
+  <tr>
+    <td>master_position</td>
+    <td>4 byte integer</td>
+    <td>The position of the next event in the master binary log, in
+    bytes from the beginning of the file.
+    </td>
+  </tr>
+
+  <tr>
+    <td>flags</td>
+    <td>2 byte bitfield</td>
+    <td>See Log_event::flags.</td>
+  </tr>
+  </table>
+
+  Summing up the numbers above, we see that the total size of the
+  common header is 19 bytes.
+
+  @subsection Log_event_endianness_and_string_formats Endianness and String Formats
+
+  All numbers, whether they are 16-, 32-, or 64-bit, are stored in
+  little endian, i.e., the least significant byte first.
+
+  Strings are stored in various formats.  The format of each string is
+  documented separately.
+*/
 class Log_event
 {
 public:
@@ -692,8 +800,8 @@ public:
   */
   uint32 server_id;
 
-  /*
-    Some 16 flags. Look above for LOG_EVENT_TIME_F,
+  /**
+    Some 16 flags. See the definitions above for LOG_EVENT_TIME_F,
     LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
     LOG_EVENT_SUPPRESS_USE_F for notes.
   */
@@ -871,6 +979,25 @@ public:
 protected:
 
   /**
+     Helper function to ignore an event w.r.t. the slave skip counter.
+
+     This function can be used inside do_shall_skip() for functions
+     that cannot end a group. If the slave skip counter is 1 when
+     seeing such an event, the event shall be ignored, the counter
+     left intact, and processing continue with the next event.
+
+     A typical usage is:
+     @code
+     enum_skip_reason do_shall_skip(Relay_log_info *rli) {
+       return continue_group(rli);
+     }
+     @endcode
+
+     @return Skip reason
+   */
+  enum_skip_reason continue_group(Relay_log_info *rli);
+
+  /**
     Primitive to apply an event to the database.
 
     This is where the change to the database is made.
@@ -950,6 +1077,7 @@ protected:
 #endif
 };
 
+
 /*
    One class for each type of event.
    Two constructors for each class:
@@ -963,13 +1091,332 @@ protected:
    mysqlbinlog. This constructor must be format-tolerant.
 */
 
-/*****************************************************************************
+/**
+  @class Query_log_event
+   
+  Logs SQL queries.
 
-  Query Log Event class
+  @section Query_log_event_binary_format Binary format
 
-  Logs SQL queries
+  The Post-Header has five components:
 
- ****************************************************************************/
+  <table>
+  <caption>Post-Header for Query_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Size<br/></th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>slave_proxy_id</td>
+    <td>4 byte unsigned integer</td>
+    <td>An integer identifying the client thread, which is unique on
+    the server.  (Note, however, that two threads on different servers
+    may have the same slave_proxy_id.)  This is used when a client
+    thread creates a temporary table.  Temporary tables are local to
+    the client, and the slave_proxy_id is used to distinguish
+    temporary tables belonging to different clients.
+    </td>
+  </tr>
+
+  <tr>
+    <td>exec_time</td>
+    <td>4 byte integer</td>
+    <td>???TODO</td>
+  </tr>
+
+  <tr>
+    <td>db_len</td>
+    <td>1 byte integer</td>
+    <td>The length of the name of the currently selected
+    database.
+    </td>
+  </tr>
+
+  <tr>
+    <td>error_code</td>
+    <td>2 byte integer</td>
+    <td>Error code generated by the master.  If the master fails, the
+    slave will fail with the same error code, except for the error
+    codes ER_DB_CREATE_EXISTS==1007 and ER_DB_DROP_EXISTS==1008.
+    </td>
+  </tr>
+
+  <tr>
+    <td>status_vars_len</td>
+    <td>2 byte integer</td>
+    <td>The length of the status_vars block of the Body, in bytes. See
+    <a href="#query_log_event_status_vars">below</a>.
+    </td>
+  </tr>
+
+  <tr>
+    <td>Post-Header-For-Derived</td>
+    <td>0 bytes</td>
+    <td>This field is only written by the subclass
+    Execute_load_query_log_event.  In this base class, it takes 0
+    bytes.  See separate documentation for
+    Execute_load_query_log_event.
+    </td>
+  </tr>
+  </table>
+
+  The Body has the following components:
+
+  <table>
+  <caption>Body for Query_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Size<br/></th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td><a name="query_log_event_status_vars" /> status_vars</td>
+    <td>variable length</td>
+    <td>Zero or more status variables.  Each status variable consists
+    of one byte identifying the variable stored, followed by the value
+    of the variable.  The possible variables are listed separately in
+    the table below.  MySQL always writes events in the order defined
+    below; however, it is capable of reading them in any order.
+    </td>
+  </tr>
+
+  <tr>
+    <td>db</td>
+    <td>db_len+1</td>
+    <td>The currently selected database, as a null-terminated string.
+
+    (The trailing zero is redundant since the length is already known;
+    it is db_len from Post-Header.)
+    </td>
+  </tr>
+
+  <tr>
+    <td>query</td>
+    <td>variable length string without trailing zero, extending to the
+    end of the event (determined by the length field of the
+    Common-Header)
+    </td>
+    <td>The SQL query.</td>
+  </tr>
+  </table>
+
+  The following table lists the status variables that may appear in
+  the status_vars field.
+
+  <table>
+  <caption>Status variables for Query_log_event</caption>
+
+  <tr>
+    <th>Status variable</th>
+    <th>1-byte identifier</th>
+    <th>Size<br/></th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>flags2</td>
+    <td>Q_FLAGS2_CODE == 0</td>
+    <td>4 byte bitfield</td>
+    <td>The flags in thd->options, binary AND-ed with
+    OPTIONS_WRITTEN_TO_BIN_LOG.  The thd->options bitfield contains
+    options for SELECT.  OPTIONS_WRITTEN identifies those options that
+    need to be written to the binlog (not all do).  Specifically,
+    OPTIONS_WRITTEN_TO_BIN_LOG equals (OPTION_AUTO_IS_NULL |
+    OPTION_NO_FOREIGN_KEY_CHECKS | OPTION_RELAXED_UNIQUE_CHECKS |
+    OPTION_NOT_AUTOCOMMIT), or 0x0c084000 in hex.
+
+    These flags correspond to the SQL variables SQL_AUTO_IS_NULL,
+    FOREIGN_KEY_CHECKS, UNIQUE_CHECKS, and AUTOCOMMIT, documented in
+    the "SET Syntax" section of the MySQL Manual.
+
+    This field is always written to the binlog in version >= 5.0, and
+    never written in version < 5.0.
+    </td>
+  </tr>
+
+  <tr>
+    <td>sql_mode</td>
+    <td>Q_SQL_MODE_CODE == 1</td>
+    <td>8 byte integer</td>
+    <td>The sql_mode variable.  See the section "SQL Modes" in the
+    MySQL manual, and see mysql_priv.h for a list of the possible
+    flags. Currently (2007-10-04), the following flags are available:
+    <pre>
+    MODE_REAL_AS_FLOAT==0x1
+    MODE_PIPES_AS_CONCAT==0x2
+    MODE_ANSI_QUOTES==0x4
+    MODE_IGNORE_SPACE==0x8
+    MODE_NOT_USED==0x10
+    MODE_ONLY_FULL_GROUP_BY==0x20
+    MODE_NO_UNSIGNED_SUBTRACTION==0x40
+    MODE_NO_DIR_IN_CREATE==0x80
+    MODE_POSTGRESQL==0x100
+    MODE_ORACLE==0x200
+    MODE_MSSQL==0x400
+    MODE_DB2==0x800
+    MODE_MAXDB==0x1000
+    MODE_NO_KEY_OPTIONS==0x2000
+    MODE_NO_TABLE_OPTIONS==0x4000
+    MODE_NO_FIELD_OPTIONS==0x8000
+    MODE_MYSQL323==0x10000
+    MODE_MYSQL323==0x20000
+    MODE_MYSQL40==0x40000
+    MODE_ANSI==0x80000
+    MODE_NO_AUTO_VALUE_ON_ZERO==0x100000
+    MODE_NO_BACKSLASH_ESCAPES==0x200000
+    MODE_STRICT_TRANS_TABLES==0x400000
+    MODE_STRICT_ALL_TABLES==0x800000
+    MODE_NO_ZERO_IN_DATE==0x1000000
+    MODE_NO_ZERO_DATE==0x2000000
+    MODE_INVALID_DATES==0x4000000
+    MODE_ERROR_FOR_DIVISION_BY_ZERO==0x8000000
+    MODE_TRADITIONAL==0x10000000
+    MODE_NO_AUTO_CREATE_USER==0x20000000
+    MODE_HIGH_NOT_PRECEDENCE==0x40000000
+    MODE_PAD_CHAR_TO_FULL_LENGTH==0x80000000
+    </pre>
+    All these flags are replicated from the server.  However, all
+    flags except MODE_NO_DIR_IN_CREATE are honored by the slave; the
+    slave always preserves its old value of MODE_NO_DIR_IN_CREATE.
+    For a rationale, see comment in Query_log_event::do_apply_event in
+    log_event.cc.
+
+    This field is always written to the binlog.
+    </td>
+  </tr>
+
+  <tr>
+    <td>catalog</td>
+    <td>Q_CATALOG_NZ_CODE == 6</td>
+    <td>Variable-length string: the length in bytes (1 byte) followed
+    by the characters (at most 255 bytes)
+    </td>
+    <td>Stores the client's current catalog.  Every database belongs
+    to a catalog, the same way that every table belongs to a
+    database.  Currently, there is only one catalog, 'std'.
+
+    This field is written if the length of the catalog is > 0;
+    otherwise it is not written.
+    </td>
+  </tr>
+
+  <tr>
+    <td>auto_increment</td>
+    <td>Q_AUTO_INCREMENT == 3</td>
+    <td>two 2 byte unsigned integers, totally 2+2=4 bytes</td>
+
+    <td>The two variables auto_increment_increment and
+    auto_increment_offset, in that order.  For more information, see
+    "System variables" in the MySQL manual.
+
+    This field is written if auto_increment>1; otherwise it is not
+    written.
+    </td>
+  </tr>
+
+  <tr>
+    <td>charset</td>
+    <td>Q_CHARSET_CODE == 4</td>
+    <td>three 2-byte unsigned integers (i.e., 6 bytes)</td>
+    <td>The three variables character_set_client,
+    collation_connection, and collation_server, in that order.
+    `character_set_client' is a code identifying the character set and
+    collation used by the client to encode the query.
+    `collation_connection' identifies the character set and collation
+    that the master converts the query to when it receives it; this is
+    useful when comparing literal strings. `collation_server' is the
+    default character set and collation used when a new database is
+    created.
+
+    See also "Connection Character Sets and Collations" in the MySQL
+    5.1 manual.
+
+    All three variables are codes identifying a (character set,
+    collation) pair.  To see which codes map to which pairs, run the
+    query "SELECT id, character_set_name, collation_name FROM
+    COLLATIONS".
+
+    Cf. Q_CHARSET_DATABASE_NUMBER below.
+
+    This field is always written.
+    </td>
+  </tr>
+
+  <tr>
+    <td>time_zone</td>
+    <td>Q_TIME_ZONE_CODE == 5</td>
+    <td>Variable-length string: the length in bytes (1 byte) followed
+    by the characters (at most 255 bytes).
+    <td>The time_zone of the master.
+
+    See also "System Variables" and "MySQL Server Time Zone Support"
+    in the MySQL manual.
+
+    This field is written if the length of the time zone string is >
+    0; otherwise, it is not written.
+    </td>
+  </tr>
+
+  <tr>
+    <td>lc_time_names_number</td>
+    <td>Q_LC_TIME_NAMES_CODE == 7</td>
+    <td>2 byte integer</td>
+    <td>A code identifying a table of month and day names.  The
+    mapping from codes to languages is defined in sql_locale.cc.
+
+    This field is written if it is != 0, i.e., if the locale is not
+    en_US.
+    </td>
+  </tr>
+
+  <tr>
+    <td>charset_database_number</td>
+    <td>Q_CHARSET_DATABASE_NUMBER == 8</td>
+    <td>2 byte integer</td>
+
+    <td>The value of the collation_database system variable (in the
+    source code stored in thd->variables.collation_database), which
+    holds the code for a (character set, collation) pair as described
+    above (see Q_CHARSET_CODE).
+
+    `collation_database' was used in old versions (???WHEN).  Its
+    value was loaded when issuing a "use db" command and could be
+    changed by issuing a "SET collation_database=xxx" command.  It
+    used to affect the "LOAD DATA INFILE" and "CREATE TABLE" commands.
+
+    In newer versions, "CREATE TABLE" has been changed to take the
+    character set from the database of the created table, rather than
+    the database of the current database.  This makes a difference
+    when creating a table in another database than the current one.
+    "LOAD DATA INFILE" has not yet changed to do this, but there are
+    plans to eventually do it, and to make collation_database
+    read-only.
+
+    This field is written if it is not 0.
+    </td>
+  </tr>
+  </table>
+
+  @subsection Query_log_event_notes_on_previous_versions Notes on Previous Versions
+
+  @li Status vars were introduced in version 5.0.  To read earlier
+  versions correctly, check the length of the Post-Header.
+
+  @li The status variable Q_CATALOG_CODE == 2 existed in MySQL 5.0.x,
+  where 0<=x<=3.  It was identical to Q_CATALOG_CODE, except that the
+  string had a trailing '\0'.  The '\0' was removed in 5.0.4 since it
+  was redundant (the string length is stored before the string).  The
+  Q_CATALOG_CODE will never be written by a new master, but can still
+  be understood by a new slave.
+
+  @li See Q_CHARSET_DATABASE_NUMBER in the table above.
+
+*/
 class Query_log_event: public Log_event
 {
 protected:
@@ -1027,7 +1474,7 @@ public:
   /*
     'flags2' is a second set of flags (on top of those in Log_event), for
     session variables. These are thd->options which is & against a mask
-    (OPTIONS_WRITTEN_TO_BINLOG).
+    (OPTIONS_WRITTEN_TO_BIN_LOG).
     flags2_inited helps make a difference between flags2==0 (3.23 or 4.x
     master, we don't know flags2, so use the slave server's global options) and
     flags2==0 (5.0 master, we know this has a meaning of flags all down which
@@ -1086,6 +1533,7 @@ public:
 
 public:        /* !!! Public in this patch to allow old usage */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_update_pos(Relay_log_info *rli);
 
@@ -1096,13 +1544,16 @@ public:        /* !!! Public in this patch to allow old usage */
 };
 
 
-/*****************************************************************************
+/**
+  @class Muted_query_log_event
 
-  Muted Query Log Event class
+  Pretends to log SQL queries, but doesn't actually do so.
 
-  Pretends to Log SQL queries, but doesn't actually do so.
+  @section Muted_query_log_event_binary_format Binary Format
 
- ****************************************************************************/
+  This log event is not stored, and thus the binary format is 0 bytes
+  long.  Note that not even the Common-Header is stored.
+*/
 class Muted_query_log_event: public Query_log_event
 {
 public:
@@ -1119,14 +1570,54 @@ public:
 
 #ifdef HAVE_REPLICATION
 
-/*****************************************************************************
+/**
+  @class Slave_log_event
 
-  Slave Log Event class
   Note that this class is currently not used at all; no code writes a
-  Slave_log_event (though some code in repl_failsafe.cc reads Slave_log_event).
-  So it's not a problem if this code is not maintained.
+  Slave_log_event (though some code in repl_failsafe.cc reads
+  Slave_log_event).  So it's not a problem if this code is not
+  maintained.
 
- ****************************************************************************/
+  @section Slave_log_event_binary_format Binary Format
+
+  This event type has no Post-Header. The Body has the following
+  four components.
+
+  <table>
+  <caption>Body for Slave_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Size<br/></th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>master_pos</td>
+    <td>8 byte integer</td>
+    <td>???TODO
+    </td>
+  </tr>
+
+  <tr>
+    <td>master_port</td>
+    <td>2 byte integer</td>
+    <td>???TODO</td>
+  </tr>
+
+  <tr>
+    <td>master_host</td>
+    <td>null-terminated string</td>
+    <td>???TODO</td>
+  </tr>
+
+  <tr>
+    <td>master_log</td>
+    <td>null-terminated string</td>
+    <td>???TODO</td>
+  </tr>
+  </table>
+*/
 class Slave_log_event: public Log_event
 {
 protected:
@@ -1165,11 +1656,202 @@ private:
 #endif /* HAVE_REPLICATION */
 
 
-/*****************************************************************************
+/**
+  @class Load_log_event
 
-  Load Log Event class
+  This log event corresponds to a "LOAD DATA INFILE" SQL query on the
+  following form:
 
- ****************************************************************************/
+  @verbatim
+   (1)    USE db;
+   (2)    LOAD DATA [LOCAL] INFILE 'file_name'
+   (3)    [REPLACE | IGNORE]
+   (4)    INTO TABLE 'table_name'
+   (5)    [FIELDS
+   (6)      [TERMINATED BY 'field_term']
+   (7)      [[OPTIONALLY] ENCLOSED BY 'enclosed']
+   (8)      [ESCAPED BY 'escaped']
+   (9)    ]
+  (10)    [LINES
+  (11)      [TERMINATED BY 'line_term']
+  (12)      [LINES STARTING BY 'line_start']
+  (13)    ]
+  (14)    [IGNORE skip_lines LINES]
+  (15)    (field_1, field_2, ..., field_n)@endverbatim
+
+  @section Load_log_event_binary_format Binary Format
+
+  The Post-Header consists of the following six components.
+
+  <table>
+  <caption>Post-Header for Load_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Size<br/></th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>slave_proxy_id</td>
+    <td>4 byte unsigned integer</td>
+    <td>An integer identifying the client thread, which is unique on
+    the server.  (Note, however, that the same slave_proxy_id may
+    appear on different servers.)  This is used when a client thread
+    creates a temporary table.  Temporary tables are local to the
+    client, and the slave_proxy_id is used to distinguish temporary
+    tables belonging to different clients.
+    </td>
+  </tr>
+
+  <tr>
+    <td>exec_time</td>
+    <td>4 byte unsigned integer</td>
+    <td>???TODO</td>
+  </tr>
+
+  <tr>
+    <td>skip_lines</td>
+    <td>4 byte unsigned integer</td>
+    <td>The number on line (14) above, if present, or 0 if line (14)
+    is left out.
+    </td>
+  </tr>
+
+  <tr>
+    <td>table_name_len</td>
+    <td>1 byte unsigned integer</td>
+    <td>The length of 'table_name' on line (4) above.</td>
+  </tr>
+
+  <tr>
+    <td>db_len</td>
+    <td>1 byte unsigned integer</td>
+    <td>The length of 'db' on line (1) above.</td>
+  </tr>
+
+  <tr>
+    <td>num_fields</td>
+    <td>4 byte unsigned integer</td>
+    <td>The number n of fields on line (15) above.</td>
+  </tr>
+  </table>    
+
+  The Body contains the following components.
+
+  <table>
+  <caption>Body of Load_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Size<br/></th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>sql_ex</td>
+    <td>variable length</td>
+
+    <td>Describes the part of the query on lines (3) and
+    (5)&ndash;(13) above.  More precisely, it stores the five strings
+    (on lines) field_term (6), enclosed (7), escaped (8), line_term
+    (11), and line_start (12); as well as a bitfield indicating the
+    presence of the keywords REPLACE (3), IGNORE (3), and OPTIONALLY
+    (7).
+
+    The data is stored in one of two formats, called "old" and "new".
+    The type field of Common-Header determines which of these two
+    formats is used: type LOAD_EVENT means that the old format is
+    used, and type NEW_LOAD_EVENT means that the new format is used.
+    When MySQL writes a Load_log_event, it uses the new format if at
+    least one of the five strings is two or more bytes long.
+    Otherwise (i.e., if all strings are 0 or 1 bytes long), the old
+    format is used.
+
+    The new and old format differ in the way the five strings are
+    stored.
+
+    <ul>
+    <li> In the new format, the strings are stored in the order
+    field_term, enclosed, escaped, line_term, line_start. Each string
+    consists of a length (1 byte), followed by a sequence of
+    characters (0-255 bytes).  Finally, a boolean combination of the
+    following flags is stored in 1 byte: REPLACE_FLAG==0x4,
+    IGNORE_FLAG==0x8, and OPT_ENCLOSED_FLAG==0x2.  If a flag is set,
+    it indicates the presence of the corresponding keyword in the SQL
+    query.
+
+    <li> In the old format, we know that each string has length 0 or
+    1.  Therefore, only the first byte of each string is stored.  The
+    order of the strings is the same as in the new format.  These five
+    bytes are followed by the same 1-byte bitfield as in the new
+    format.  Finally, a 1 byte bitfield called empty_flags is stored.
+    The low 5 bits of empty_flags indicate which of the five strings
+    have length 0.  For each of the following flags that is set, the
+    corresponding string has length 0; for the flags that are not set,
+    the string has length 1: FIELD_TERM_EMPTY==0x1,
+    ENCLOSED_EMPTY==0x2, LINE_TERM_EMPTY==0x4, LINE_START_EMPTY==0x8,
+    ESCAPED_EMPTY==0x10.
+    </ul>
+
+    Thus, the size of the new format is 6 bytes + the sum of the sizes
+    of the five strings.  The size of the old format is always 7
+    bytes.
+    </td>
+  </tr>
+
+  <tr>
+    <td>field_lens</td>
+    <td>num_fields 1-byte unsigned integers</td>
+    <td>An array of num_fields integers representing the length of
+    each field in the query.  (num_fields is from the Post-Header).
+    </td>
+  </tr>
+
+  <tr>
+    <td>fields</td>
+    <td>num_fields null-terminated strings</td>
+    <td>An array of num_fields null-terminated strings, each
+    representing a field in the query.  (The trailing zero is
+    redundant, since the length are stored in the num_fields array.)
+    The total length of all strings equals to the sum of all
+    field_lens, plus num_fields bytes for all the trailing zeros.
+    </td>
+  </tr>
+
+  <tr>
+    <td>table_name</td>
+    <td>null-terminated string of length table_len+1 bytes</td>
+    <td>The 'table_name' from the query, as a null-terminated string.
+    (The trailing zero is actually redundant since the table_len is
+    known from Post-Header.)
+    </td>
+  </tr>
+
+  <tr>
+    <td>db</td>
+    <td>null-terminated string of length db_len+1 bytes</td>
+    <td>The 'db' from the query, as a null-terminated string.
+    (The trailing zero is actually redundant since the db_len is known
+    from Post-Header.)
+    </td>
+  </tr>
+
+  <tr>
+    <td>file_name</td>
+    <td>variable length string without trailing zero, extending to the
+    end of the event (determined by the length field of the
+    Common-Header)
+    </td>
+    <td>The 'file_name' from the query.
+    </td>
+  </tr>
+
+  </table>
+
+  @subsection Load_log_event_notes_on_previous_versions Notes on Previous Versions
+
+*/
 class Load_log_event: public Log_event
 {
 private:
@@ -1276,9 +1958,8 @@ public:        /* !!! Public in this patch to allow old usage */
 
 extern char server_version[SERVER_VERSION_LENGTH];
 
-/*****************************************************************************
-
-  Start Log Event_v3 class
+/**
+  @class Start_log_event_v3
 
   Start_log_event_v3 is the Start_log_event of binlog format 3 (MySQL 3.23 and
   4.x).
@@ -1288,8 +1969,8 @@ extern char server_version[SERVER_VERSION_LENGTH];
   MySQL 5.0 whenever it starts sending a new binlog if the requested position
   is >4 (otherwise if ==4 the event will be sent naturally).
 
- ****************************************************************************/
-
+  @section Start_log_event_v3_binary_format Binary Format
+*/
 class Start_log_event_v3: public Log_event
 {
 public:
@@ -1372,10 +2053,14 @@ protected:
 };
 
 
-/*
-   For binlog version 4.
-   This event is saved by threads which read it, as they need it for future
-   use (to decode the ordinary events).
+/**
+  @class Format_description_log_event
+
+  For binlog version 4.
+  This event is saved by threads which read it, as they need it for future
+  use (to decode the ordinary events).
+
+  @section Format_description_log_event_binary_format Binary Format
 */
 
 class Format_description_log_event: public Start_log_event_v3
@@ -1429,13 +2114,41 @@ protected:
 };
 
 
-/*****************************************************************************
+/**
+  @class Intvar_log_event
 
-  Intvar Log Event class
+  Logs special variables related to auto_increment values.
 
-  Logs special variables such as auto_increment values
+  @section Intvar_log_event_binary_format Binary Format
 
- ****************************************************************************/
+  The Post-Header has two components:
+
+  <table>
+  <caption>Post-Header for Intvar_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Size<br/></th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>Type</td>
+    <td>1 byte enumeration</td>
+    <td>One byte identifying the type of variable stored.  Currently,
+    two identifiers are supported:  LAST_INSERT_ID_EVENT==1 and
+    INSERT_ID_EVENT==2.
+    </td>
+  </tr>
+
+  <tr>
+    <td>value</td>
+    <td>8 byte unsigned integer</td>
+    <td>The value of the variable.</td>
+  </tr>
+
+  </table>
+*/
 
 class Intvar_log_event: public Log_event
 {
@@ -1474,16 +2187,24 @@ private:
 };
 
 
-/*****************************************************************************
-
-  Rand Log Event class
+/**
+  @class Rand_log_event
 
   Logs random seed used by the next RAND(), and by PASSWORD() in 4.1.0.
   4.1.1 does not need it (it's repeatable again) so this event needn't be
   written in 4.1.1 for PASSWORD() (but the fact that it is written is just a
   waste, it does not cause bugs).
 
- ****************************************************************************/
+  @section Rand_log_event_binary_format Binary Format  
+  This event type has no Post-Header. The Body of this event type has
+  two components:
+
+  @li seed1 (8 bytes): 64 bit random seed1.
+  @li seed2 (8 bytes): 64 bit random seed2.
+
+  The state of the random number generation consists of 128 bits,
+  which are stored internally as two 64-bit numbers.
+*/
 
 class Rand_log_event: public Log_event
 {
@@ -1520,14 +2241,14 @@ private:
 #endif
 };
 
-/*****************************************************************************
-
-  Xid Log Event class
+/**
+  @class Xid_log_event
 
   Logs xid of the transaction-to-be-committed in the 2pc protocol.
   Has no meaning in replication, slaves ignore it.
 
- ****************************************************************************/
+  @section Xid_log_event_binary_format Binary Format  
+*/
 #ifdef MYSQL_CLIENT
 typedef ulonglong my_xid; // this line is the same as in handler.h
 #endif
@@ -1559,17 +2280,18 @@ class Xid_log_event: public Log_event
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
+  enum_skip_reason do_shall_skip(Relay_log_info *rli);
 #endif
 };
 
-/*****************************************************************************
-
-  User var Log Event class
+/**
+  @class User_var_log_event
 
   Every time a query uses the value of a user variable, a User_var_log_event is
   written before the Query_log_event, to set the user variable.
 
- ****************************************************************************/
+  @section User_var_log_event_binary_format Binary Format  
+*/
 
 class User_var_log_event: public Log_event
 {
@@ -1611,11 +2333,14 @@ private:
 };
 
 
-/*****************************************************************************
+/**
+  @class Stop_log_event
 
-  Stop Log Event class
+  @section Stop_log_event_binary_format Binary Format
 
- ****************************************************************************/
+  The Post-Header and Body for this event type are empty; it only has
+  the Common-Header.
+*/
 class Stop_log_event: public Log_event
 {
 public:
@@ -1651,13 +2376,54 @@ private:
 #endif
 };
 
-/*****************************************************************************
-
-  Rotate Log Event class
+/**
+  @class Rotate_log_event
 
   This will be deprecated when we move to using sequence ids.
 
- ****************************************************************************/
+  @section Rotate_log_event_binary_format Binary Format
+
+  The Post-Header has one component:
+
+  <table>
+  <caption>Post-Header for Rotate_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Size<br/></th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>pos</td>
+    <td>8 byte integer</td>
+    <td>???TODO</td>
+  </tr>
+
+  </table>
+
+  The Body has one component:
+
+  <table>
+  <caption>Body for Rotate_log_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Size<br/></th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>new_log_ident</td>
+    <td>variable length string without trailing zero, extending to the
+    end of the event (determined by the length field of the
+    Common-Header)
+    </td>
+    <td>???TODO</td>
+  </tr>
+
+  </table>
+*/
 
 class Rotate_log_event: public Log_event
 {
@@ -1704,9 +2470,11 @@ private:
 
 /* the classes below are for the new LOAD DATA INFILE logging */
 
-/*****************************************************************************
-  Create File Log Event class
- ****************************************************************************/
+/**
+  @class Create_file_log_event
+
+  @section Create_file_log_event_binary_format Binary Format
+*/
 
 class Create_file_log_event: public Load_log_event
 {
@@ -1775,11 +2543,11 @@ private:
 };
 
 
-/*****************************************************************************
+/**
+  @class Append_block_log_event
 
-  Append Block Log Event class
-
- ****************************************************************************/
+  @section Append_block_log_event_binary_format Binary Format
+*/
 
 class Append_block_log_event: public Log_event
 {
@@ -1830,11 +2598,11 @@ private:
 };
 
 
-/*****************************************************************************
+/**
+  @class Delete_file_log_event
 
-  Delete File Log Event class
-
- ****************************************************************************/
+  @section Delete_file_log_event_binary_format Binary Format
+*/
 
 class Delete_file_log_event: public Log_event
 {
@@ -1871,11 +2639,11 @@ private:
 };
 
 
-/*****************************************************************************
+/**
+  @class Execute_load_log_event
 
-  Execute Load Log Event class
-
- ****************************************************************************/
+  @section Delete_file_log_event_binary_format Binary Format
+*/
 
 class Execute_load_log_event: public Log_event
 {
@@ -1911,15 +2679,15 @@ private:
 };
 
 
-/***************************************************************************
-
-  Begin load query Log Event class
+/**
+  @class Begin_load_query_log_event
 
   Event for the first block of file to be loaded, its only difference from
   Append_block event is that this event creates or truncates existing file
   before writing data.
 
-****************************************************************************/
+  @section Begin_load_query_log_event_binary_format Binary Format
+*/
 class Begin_load_query_log_event: public Append_block_log_event
 {
 public:
@@ -1937,6 +2705,10 @@ public:
                              *description_event);
   ~Begin_load_query_log_event() {}
   Log_event_type get_type_code() { return BEGIN_LOAD_QUERY_EVENT; }
+private:
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
+#endif
 };
 
 
@@ -1946,15 +2718,15 @@ public:
 enum enum_load_dup_handling { LOAD_DUP_ERROR= 0, LOAD_DUP_IGNORE,
                               LOAD_DUP_REPLACE };
 
-/****************************************************************************
-
-  Execute load query Log Event class
+/**
+  @class Execute_load_query_log_event
 
   Event responsible for LOAD DATA execution, it similar to Query_log_event
   but before executing the query it substitutes original filename in LOAD DATA
   query with name of temporary file.
 
-****************************************************************************/
+  @section Execute_load_query_log_event_binary_format Binary Format
+*/
 class Execute_load_query_log_event: public Query_log_event
 {
 public:
@@ -1972,10 +2744,12 @@ public:
 
 #ifndef MYSQL_CLIENT
   Execute_load_query_log_event(THD* thd, const char* query_arg,
-                       ulong query_length, uint fn_pos_start_arg,
-                       uint fn_pos_end_arg,
-                       enum_load_dup_handling dup_handling_arg,
-                       bool using_trans, bool suppress_use);
+                               ulong query_length, uint fn_pos_start_arg,
+                               uint fn_pos_end_arg,
+                               enum_load_dup_handling dup_handling_arg,
+                               bool using_trans, bool suppress_use,
+                               THD::killed_state
+                               killed_err_arg= THD::KILLED_NO_VALUE);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -2006,6 +2780,11 @@ private:
 
 
 #ifdef MYSQL_CLIENT
+/**
+  @class Unknown_log_event
+
+  @section Unknown_log_event_binary_format Binary Format
+*/
 class Unknown_log_event: public Log_event
 {
 public:
@@ -2026,14 +2805,14 @@ public:
 #endif
 char *str_to_hex(char *to, const char *from, uint len);
 
-/*****************************************************************************
-
-  Table map log event class
+/**
+  @class Table_map_log_event
 
   Create a mapping from a (database name, table name) couple to a table
   identifier (an integer number).
 
- ****************************************************************************/
+  @section Table_map_log_event_binary_format Binary Format
+*/
 class Table_map_log_event : public Log_event
 {
 public:
@@ -2143,9 +2922,8 @@ private:
 };
 
 
-/*****************************************************************************
-
- Row level log event class.
+/**
+  @class Rows_log_event
 
  Common base class for all row-containing log events.
 
@@ -2155,7 +2933,8 @@ private:
    - Write data header and data body to an IO_CACHE.
    - Provide an interface for adding an individual row to the event.
 
- ****************************************************************************/
+  @section Rows_log_event_binary_format Binary Format
+*/
 
 
 class Rows_log_event : public Log_event
@@ -2300,7 +3079,7 @@ protected:
   uchar    *m_rows_cur;		/* One-after the end of the data */
   uchar    *m_rows_end;		/* One-after the end of the allocated space */
 
-  flag_set m_flags;	  /* Flags for row-level events */
+  flag_set m_flags;		/* Flags for row-level events */
 
   /* helper functions */
 
@@ -2316,8 +3095,11 @@ protected:
   int unpack_current_row(const Relay_log_info *const rli)
   { 
     DBUG_ASSERT(m_table);
-    return ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols, 
-                        &m_curr_row_end, &m_master_reclength);
+    ASSERT_OR_RETURN_ERROR(m_curr_row < m_rows_end, HA_ERR_CORRUPT_EVENT);
+    int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
+                                   &m_curr_row_end, &m_master_reclength);
+    ASSERT_OR_RETURN_ERROR(m_curr_row_end <= m_rows_end, HA_ERR_CORRUPT_EVENT);
+    return result;
   }
 #endif
 
@@ -2383,15 +3165,15 @@ private:
   friend class Old_rows_log_event;
 };
 
-/*****************************************************************************
-
-  Write row log event class
+/**
+  @class Write_rows_log_event
 
   Log row insertions and updates. The event contain several
   insert/update rows for a table. Note that each event contains only
   rows for one table.
 
- ****************************************************************************/
+  @section Write_rows_log_event_binary_format Binary Format
+*/
 class Write_rows_log_event : public Rows_log_event
 {
 public:
@@ -2438,9 +3220,8 @@ private:
 };
 
 
-/*****************************************************************************
-
-  Update rows log event class
+/**
+  @class Update_rows_log_event
 
   Log row updates with a before image. The event contain several
   update rows for a table. Note that each event contains only rows for
@@ -2449,7 +3230,8 @@ private:
   Also note that the row data consists of pairs of row data: one row
   for the old data and one row for the new data.
 
- ****************************************************************************/
+  @section Update_rows_log_event_binary_format Binary Format
+*/
 class Update_rows_log_event : public Rows_log_event
 {
 public:
@@ -2511,9 +3293,8 @@ protected:
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
 };
 
-/*****************************************************************************
-
-  Delete rows log event class.
+/**
+  @class Delete_rows_log_event
 
   Log row deletions. The event contain several delete rows for a
   table. Note that each event contains only rows for one table.
@@ -2530,7 +3311,8 @@ protected:
     Row_reader
       Extract the rows from the event.
 
- ****************************************************************************/
+  @section Delete_rows_log_event_binary_format Binary Format
+*/
 class Delete_rows_log_event : public Rows_log_event
 {
 public:
@@ -2580,6 +3362,8 @@ protected:
 #include "log_event_old.h"
 
 /**
+  @class Incident_log_event
+
    Class representing an incident, an occurance out of the ordinary,
    that happened on the master.
 
@@ -2591,7 +3375,7 @@ protected:
    <caption>Incident event format</caption>
    <tr>
      <th>Symbol</th>
-     <th>Size<br>(bytes)</th>
+     <th>Size<br/>(bytes)</th>
      <th>Description</th>
    </tr>
    <tr>
@@ -2610,7 +3394,9 @@ protected:
      <td>The message, if present. Not null terminated.</td>
    </tr>
    </table>
- */
+
+  @section Delete_rows_log_event_binary_format Binary Format
+*/
 class Incident_log_event : public Log_event {
 public:
 #ifndef MYSQL_CLIENT

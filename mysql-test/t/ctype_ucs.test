@@ -659,6 +659,9 @@ select * from t1 where a=if(b<10,_ucs2 0x00C0,_ucs2 0x0062);
 select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
 drop table t1;
 
+set collation_connection=ucs2_general_ci;
+--source include/ctype_regex.inc
+set names latin1;
 #
 # Bug#30981 CHAR(0x41 USING ucs2) doesn't add leading zero
 #

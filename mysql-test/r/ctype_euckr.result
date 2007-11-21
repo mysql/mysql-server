@@ -178,3 +178,44 @@ hex(a)
 A2E6
 FEF7
 DROP TABLE t1;
+create table t1 (s1 varchar(5) character set euckr);
+insert into t1 values (0xA141);
+insert into t1 values (0xA15A);
+insert into t1 values (0xA161);
+insert into t1 values (0xA17A);
+insert into t1 values (0xA181);
+insert into t1 values (0xA1FE);
+insert into t1 values (0xA140);
+Warnings:
+Warning	1366	Incorrect string value: '\xA1@' for column 's1' at row 1
+insert into t1 values (0xA15B);
+Warnings:
+Warning	1366	Incorrect string value: '\xA1[' for column 's1' at row 1
+insert into t1 values (0xA160);
+Warnings:
+Warning	1366	Incorrect string value: '\xA1`' for column 's1' at row 1
+insert into t1 values (0xA17B);
+Warnings:
+Warning	1366	Incorrect string value: '\xA1{' for column 's1' at row 1
+insert into t1 values (0xA180);
+Warnings:
+Warning	1366	Incorrect string value: '\xA1\x80' for column 's1' at row 1
+insert into t1 values (0xA1FF);
+Warnings:
+Warning	1366	Incorrect string value: '\xA1\xFF' for column 's1' at row 1
+select hex(s1), hex(convert(s1 using utf8)) from t1 order by binary s1;
+hex(s1)	hex(convert(s1 using utf8))
+	
+	
+	
+	
+	
+	
+A141	ECA2A5
+A15A	ECA381
+A161	ECA382
+A17A	ECA3A5
+A181	ECA3A6
+A1FE	EFBFA2
+drop table t1;
+End of 5.0 tests

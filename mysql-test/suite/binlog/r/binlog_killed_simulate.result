@@ -1,0 +1,33 @@
+drop table if exists t1,t2;
+create table t1  (a int) engine=MyISAM;
+insert into t1 set a=1;
+reset master;
+update t1 set a=2 /* will be "killed" after work has been done */;
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null
+1
+select 1 /* must return 1 as query completed before got killed*/;
+1
+1
+create table t2 (a int, b int) ENGINE=MyISAM;
+reset master;
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t2 /* will be "killed" in the middle */;
+ERROR 70100: Query execution was interrupted
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Begin_load_query	#	#	;file_id=1;block_len=12
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/rpl_loaddata.dat' into table t2 /* will be "killed" in the middle */ ;file_id=1
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null
+1
+select 0 /* must return 0 to mean the killed query is in */;
+0
+0
+drop table t1,t2;
+end of the tests

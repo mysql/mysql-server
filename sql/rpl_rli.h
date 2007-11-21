@@ -366,6 +366,18 @@ public:
   }
 
   /**
+     Get the value of a replication state flag.
+
+     @param flag Flag to get value of
+
+     @return @c true if the flag was set, @c false otherwise.
+   */
+  bool get_flag(enum_state_flag flag)
+  {
+    return m_flags & (1UL << flag);
+  }
+
+  /**
      Clear the value of a replication state flag.
 
      @param flag Flag to clear

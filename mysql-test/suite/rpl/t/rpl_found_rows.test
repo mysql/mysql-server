@@ -1,0 +1,256 @@
+source include/master-slave.inc;
+
+# It is not possible to replicate FOUND_ROWS() using statement-based
+# replication, but there is a workaround that stores the result of
+# FOUND_ROWS() into a user variable and then replicates this instead.
+
+# The purpose of this test case is to test that the workaround
+# function properly even when inside stored programs (i.e., stored
+# routines and triggers).
+
+--echo ==== 0. Setting it all up ====
+
+SET BINLOG_FORMAT=STATEMENT;
+
+--echo **** On Master ****
+connection master;
+CREATE TABLE t1 (a INT);
+CREATE TABLE logtbl (sect INT, test INT, count INT);
+
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t1 SELECT 2*a+3 FROM t1;
+INSERT INTO t1 SELECT 2*a+3 FROM t1;
+INSERT INTO t1 SELECT 2*a+3 FROM t1;
+INSERT INTO t1 SELECT 2*a+3 FROM t1;
+INSERT INTO t1 SELECT 2*a+3 FROM t1;
+INSERT INTO t1 SELECT 2*a+3 FROM t1;
+
+--echo #### 1. Using statement mode ####
+
+--echo ==== 1.1. Simple test ====
+
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
+
+# Instead of
+#   INSERT INTO logtbl VALUES(1, 1, FOUND_ROWS());
+# we write
+SELECT FOUND_ROWS() INTO @a;
+INSERT INTO logtbl VALUES(1,1,@a);
+
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a < 5 ORDER BY a LIMIT 1;
+# Instead of
+#   INSERT INTO logtbl VALUES(1, 2, FOUND_ROWS());
+# we write
+SELECT FOUND_ROWS() INTO @a;
+INSERT INTO logtbl VALUES(1,2,@a);
+
+SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
+
+--echo ==== 1.2. Stored procedure ====
+
+# Here we do both the calculation and the logging. We also do it twice
+# to make sure that there are no limitations on how many times it can
+# be used.
+
+--echo **** On Master ****
+connection master;
+--delimiter $$
+CREATE PROCEDURE calc_and_log(sect INT, test INT) BEGIN
+  DECLARE cnt INT;
+  SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a < 5 ORDER BY a LIMIT 1;
+  SELECT FOUND_ROWS() INTO cnt;
+  INSERT INTO logtbl VALUES(sect,test,cnt);
+  SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
+  SELECT FOUND_ROWS() INTO cnt;
+  INSERT INTO logtbl VALUES(sect,test+1,cnt);
+END $$
+--delimiter ;
+
+CALL calc_and_log(2,1);
+
+--delimiter $$
+CREATE PROCEDURE just_log(sect INT, test INT, found_rows INT) BEGIN
+  INSERT INTO logtbl VALUES (sect,test,found_rows);
+END $$
+--delimiter ;
+
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
+SELECT FOUND_ROWS() INTO @found_rows;
+CALL just_log(2,3,@found_rows);
+
+SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
+
+--echo ==== 1.3. Stored functions ====
+--echo **** On Master ****
+connection master;
+--delimiter $$
+CREATE FUNCTION log_rows(sect INT, test INT, found_rows INT)
+  RETURNS INT
+BEGIN
+  INSERT INTO logtbl VALUES(sect,test,found_rows);
+  RETURN found_rows;
+END $$
+--delimiter ;
+
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
+SELECT FOUND_ROWS() INTO @found_rows;
+SELECT log_rows(3,1,@found_rows), log_rows(3,2,@found_rows);
+
+SELECT * FROM logtbl WHERE sect = 3 ORDER BY sect,test;
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT * FROM logtbl WHERE sect = 3 ORDER BY sect,test;
+
+--echo ==== 1.9. Cleanup ====
+--echo **** On Master ****
+connection master;
+DELETE FROM logtbl;
+DROP PROCEDURE just_log;
+DROP PROCEDURE calc_and_log;
+DROP FUNCTION log_rows;
+sync_slave_with_master;
+
+source include/reset_master_and_slave.inc;
+
+--echo #### 2. Using mixed mode ####
+
+--echo ==== 2.1. Checking a procedure ====
+
+--echo **** On Master ****
+connection master;
+SET BINLOG_FORMAT=MIXED;
+
+# We will now check some stuff that will not work in statement-based
+# replication, but which should cause the binary log to switch to
+# row-based logging.
+
+--delimiter $$
+CREATE PROCEDURE just_log(sect INT, test INT) BEGIN
+  INSERT INTO logtbl VALUES (sect,test,FOUND_ROWS());
+END $$
+--delimiter ;
+sync_slave_with_master;
+
+--echo **** On Master 1 ****
+connection master1;
+SET BINLOG_FORMAT=MIXED;
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
+CALL just_log(1,1);
+
+--echo **** On Master ****
+connection master;
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
+CALL just_log(1,2);
+
+--echo **** On Master 1 ****
+
+connection master1;
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a < 5 ORDER BY a LIMIT 1;
+CALL just_log(1,3);
+sync_slave_with_master;
+
+--echo **** On Master ****
+connection master;
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
+CALL just_log(1,4);
+sync_slave_with_master;
+
+connection master;
+SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
+
+--echo ==== 2.1. Checking a stored function ====
+--echo **** On Master ****
+connection master;
+--delimiter $$
+CREATE FUNCTION log_rows(sect INT, test INT)
+  RETURNS INT
+BEGIN
+  DECLARE found_rows INT;
+  SELECT FOUND_ROWS() INTO found_rows;
+  INSERT INTO logtbl VALUES(sect,test,found_rows);
+  RETURN found_rows;
+END $$
+--delimiter ;
+
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a < 5 ORDER BY a LIMIT 1;
+SELECT log_rows(2,1), log_rows(2,2);
+
+CREATE TABLE t2 (a INT, b INT);
+
+# Trying with referencing FOUND_ROWS() directly in the trigger.
+
+--delimiter $$
+CREATE TRIGGER t2_tr BEFORE INSERT ON t2 FOR EACH ROW
+BEGIN
+  INSERT INTO logtbl VALUES (NEW.a, NEW.b, FOUND_ROWS());
+END $$
+--delimiter ;
+
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a < 5 ORDER BY a LIMIT 1;
+INSERT INTO t2 VALUES (2,3), (2,4);
+
+# Referencing FOUND_ROWS() indirectly.
+
+DROP TRIGGER t2_tr;
+
+--delimiter $$
+CREATE TRIGGER t2_tr BEFORE INSERT ON t2 FOR EACH ROW
+BEGIN
+  DECLARE dummy INT;
+  SELECT log_rows(NEW.a, NEW.b) INTO dummy;
+END $$
+--delimiter ;
+
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
+INSERT INTO t2 VALUES (2,5), (2,6);
+
+# Putting FOUND_ROWS() even lower in the call chain.
+
+connection master;
+DROP TRIGGER t2_tr;
+
+--delimiter $$
+CREATE PROCEDURE log_me_inner(sect INT, test INT)
+BEGIN
+  DECLARE dummy INT;
+  SELECT log_rows(sect, test) INTO dummy;
+  SELECT log_rows(sect, test+1) INTO dummy;
+END $$
+
+CREATE PROCEDURE log_me(sect INT, test INT)
+BEGIN
+  CALL log_me_inner(sect,test);
+END $$
+--delimiter ;
+
+--delimiter $$
+CREATE TRIGGER t2_tr BEFORE INSERT ON t2 FOR EACH ROW
+BEGIN
+  CALL log_me(NEW.a, NEW.b);
+END $$
+--delimiter ;
+
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
+INSERT INTO t2 VALUES (2,5), (2,6);
+
+SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
+sync_slave_with_master;
+SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
+
+connection master;
+DROP TABLE t1, logtbl;
+DROP PROCEDURE just_log;
+DROP PROCEDURE log_me;
+DROP PROCEDURE log_me_inner;
+DROP FUNCTION log_rows;
+sync_slave_with_master;
+

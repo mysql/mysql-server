@@ -883,6 +883,13 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication. The flag will be reset at the end of the
+    statement.
+  */
+  thd->clear_current_stmt_binlog_row_based();
+
   length= build_table_filename(path, sizeof(path), db, "", "", 0);
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
   del_dbopt(path);				// Remove dboption hash entry
