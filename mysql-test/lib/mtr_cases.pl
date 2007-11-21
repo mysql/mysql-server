@@ -218,14 +218,13 @@ sub collect_one_suite($$)
   my $combinations = [];
 
   my $suitedir= "$::glob_mysql_test_dir"; # Default
-  my $combination_file= "$::glob_mysql_test_dir/$combination_file";
   if ( $suite ne "main" )
   {
     $suitedir= mtr_path_exists("$suitedir/suite/$suite",
 			       "$suitedir/$suite");
     mtr_verbose("suitedir: $suitedir");
-    $combination_file= "$suitedir/$combination_file";
   }
+  my $combination_file= "$suitedir/$combination_file";
 
   my $testdir= "$suitedir/t";
   my $resdir=  "$suitedir/r";
