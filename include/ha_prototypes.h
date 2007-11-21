@@ -25,17 +25,20 @@ innobase_convert_string(
 	uint*		errors);
 
 /*********************************************************************
-Display an SQL identifier. */
+Convert a table or index name to the MySQL system_charset_info (UTF-8)
+and quote it if needed. */
 
-void
-innobase_print_identifier(
-/*======================*/
-	FILE*		f,	/* in: output stream */
-	trx_t*		trx,	/* in: transaction */
-	ibool		table_id,/* in: TRUE=print a table name,
-				FALSE=print other identifier */
-	const char*	name,	/* in: name to print */
-	ulint		namelen);/* in: length of name */
+char*
+innobase_convert_name(
+/*==================*/
+				/* out: pointer to the end of buf */
+	char*		buf,	/* out: buffer for converted identifier */
+	ulint		buflen,	/* in: length of buf, in bytes */
+	const char*	id,	/* in: identifier to convert */
+	ulint		idlen,	/* in: length of id, in bytes */
+	void*		thd,	/* in: MySQL connection thread, or NULL */
+	ibool		table_id);/* in: TRUE=id is a table or database name;
+				FALSE=id is an index name */
 
 /**********************************************************************
 Returns true if the thread is the replication thread on the slave
