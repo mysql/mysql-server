@@ -82,3 +82,4 @@ mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-
 # Wrong compiler warnings
 #
 .* : .*no matching operator delete found; memory will not be freed if initialization throws an exception.*
+ctype-simple.c : .*unary minus operator applied to unsigned type, result still unsigned.*
