@@ -558,7 +558,7 @@ fill_innodb_locks_from_cache(
 				      row->lock_type));
 
 		/* lock_table */
-		bufend = innobase_convert_name(buf, sizeof buf,
+		bufend = innobase_convert_name(buf, sizeof(buf),
 					       row->lock_table,
 					       strlen(row->lock_table),
 					       thd, TRUE);
@@ -566,7 +566,7 @@ fill_innodb_locks_from_cache(
 						 system_charset_info));
 
 		/* lock_index */
-		bufend = innobase_convert_name(buf, sizeof buf,
+		bufend = innobase_convert_name(buf, sizeof(buf),
 					       row->lock_index,
 					       strlen(row->lock_index),
 					       thd, FALSE);
