@@ -532,9 +532,14 @@ fill_innodb_locks_from_cache(
 	for (i = 0; i < rows_num; i++) {
 
 		i_s_locks_row_t*	row;
-		/* 2 * NAME_LEN for database and table name,
-		and some slack for the #mysql50# prefix and quotes */
-		char			buf[3 * NAME_LEN];
+
+		/* in the worst case name contains only quotes and thus
+		the result is two times longer:
+		2 * NAME_LEN for database name
+		2 * NAME_LEN for table name
+		1 for the separating dot (.)
+		9 for the #mysql50# prefix */
+		char			buf[4 * NAME_LEN + 1 + 9];
 		const char*		bufend;
 
 		row = (i_s_locks_row_t*)
