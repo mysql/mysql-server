@@ -240,6 +240,10 @@ let $c= `select $a=$b`;
 --echo $c
 drop table t1;
 
+echo shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql;
+error 1;
+exec $MYSQL_BINLOG $MYSQL_TEST_DIR/std_data/corrupt-relay-bin.000624 > $MYSQLTEST_VARDIR/tmp/bug31793.sql;
+
 --echo End of 5.0 tests
 
 #

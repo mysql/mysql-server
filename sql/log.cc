@@ -2158,13 +2158,9 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 {
   if (!log_name || !log_name[0])
   {
-    /*
-      TODO: The following should be using fn_format();  We just need to
-      first change fn_format() to cut the file name if it's too long.
-    */
-    strmake(buff, pidfile_name, FN_REFLEN - 5);
-    strmov(fn_ext(buff), suffix);
-    return (const char *)buff;
+    strmake(buff, pidfile_name, FN_REFLEN - strlen(suffix) - 1);
+    return (const char *)
+      fn_format(buff, buff, "", suffix, MYF(MY_REPLACE_EXT|MY_REPLACE_DIR));
   }
   // get rid of extension if the log is binary to avoid problems
   if (strip_ext)
@@ -3569,9 +3565,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 	(!binlog_filter->db_ok(local_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
-      DBUG_PRINT("info",("OPTION_BIN_LOG is %s, db_ok('%s') == %d",
-                         (thd->options & OPTION_BIN_LOG) ? "set" : "clear",
-                         local_db, binlog_filter->db_ok(local_db)));
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */

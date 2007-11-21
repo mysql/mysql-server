@@ -215,11 +215,36 @@ sync_slave_with_master;
 --echo --- on slave ---
 SELECT * FROM t8 ORDER BY a;
 
-#
-# Test conflicting operations when changing in a table referenced by a
-# foreign key.  We'll reuse the above table and just add a table that
-# references it.
-#
+# BUG#31552: Replication breaks when deleting rows from out-of-sync
+#            table without PK
+
+--echo **** Test for BUG#31552 ****
+
+--echo **** On Master ****
+# Clean up t1 so that we can use it.
+connection master;
+DELETE FROM t1;
+sync_slave_with_master;
+
+# Just to get a clean binary log
+source include/reset_master_and_slave.inc;
+
+--echo **** On Master ****
+connection master;
+INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
+--echo **** On Master ****
+sync_slave_with_master;
+DELETE FROM t1 WHERE C1 = 'L';
+
+connection master;
+DELETE FROM t1;
+query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
+sync_slave_with_master;
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 
 #
 # cleanup
@@ -227,3 +252,4 @@ SELECT * FROM t8 ORDER BY a;
 
 connection master;
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
+sync_slave_with_master;

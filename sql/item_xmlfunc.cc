@@ -2612,35 +2612,27 @@ typedef struct
   uint level;
   String *pxml;         // parsed XML
   uint pos[MAX_LEVEL];  // Tag position stack
+  uint parent;          // Offset of the parent of the current node
 } MY_XML_USER_DATA;
 
 
-/*
-  Find the parent node
-
-  SYNOPSYS
-    Find the parent node, i.e. a tag or attrubute node on the given level.
-
-  RETURN
-    1 - success
-    0 - failure
-*/
-static uint xml_parent_tag(MY_XML_NODE *items, uint nitems, uint level)
+static bool
+append_node(String *str, MY_XML_NODE *node)
 {
-  if (!nitems)
-    return 0;
-
-  MY_XML_NODE *p, *last= &items[nitems-1];
-  for (p= last; p >= items; p--)
-  {
-    if (p->level == level &&
-        (p->type == MY_XML_NODE_TAG ||
-         p->type == MY_XML_NODE_ATTR))
-    {
-      return p - items;
-    }
-  } 
-  return 0;
+  /*
+   If "str" doesn't have space for a new node,
+   it will allocate two times more space that it has had so far.
+   (2*len+512) is a heuristic value,
+   which gave the best performance during tests.
+   The ideas behind this formula are:
+   - It allows to have a very small number of reallocs:
+     about 10 reallocs on a 1Mb-long XML value.
+   - At the same time, it avoids excessive memory use.
+  */
+  if (str->reserve(sizeof(MY_XML_NODE), 2 * str->length() + 512))
+    return TRUE;
+  str->q_append((const char*) node, sizeof(MY_XML_NODE));
+  return FALSE;
 }
 
 
@@ -2662,19 +2654,17 @@ extern "C" int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len);
 int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
-  MY_XML_NODE *nodes= (MY_XML_NODE*) data->pxml->ptr();
   uint numnodes= data->pxml->length() / sizeof(MY_XML_NODE);
-  uint parent= xml_parent_tag(nodes, numnodes, data->level - 1);
   MY_XML_NODE node;
 
+  node.parent= data->parent; // Set parent for the new node to old parent
+  data->parent= numnodes;    // Remember current node as new parent
   data->pos[data->level]= numnodes;
   node.level= data->level++;
   node.type= st->current_node_type; // TAG or ATTR
   node.beg= attr;
   node.end= attr + len;
-  node.parent= parent;
-  data->pxml->append((const char*) &node, sizeof(MY_XML_NODE));
-  return MY_XML_OK;
+  return append_node(data->pxml, &node) ? MY_XML_ERROR : MY_XML_OK;
 }
 
 
@@ -2695,18 +2685,14 @@ extern "C" int xml_value(MY_XML_PARSER *st,const char *attr, size_t len);
 int xml_value(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
-  MY_XML_NODE *nodes= (MY_XML_NODE*) data->pxml->ptr();
-  uint numnodes= data->pxml->length() / sizeof(MY_XML_NODE);
-  uint parent= xml_parent_tag(nodes, numnodes, data->level - 1);
   MY_XML_NODE node;
   
+  node.parent= data->parent; // Set parent for the new text node to old parent
   node.level= data->level;
   node.type= MY_XML_NODE_TEXT;
   node.beg= attr;
   node.end= attr + len;
-  node.parent= parent;
-  data->pxml->append((const char*) &node, sizeof(MY_XML_NODE));
-  return MY_XML_OK;
+  return append_node(data->pxml, &node) ? MY_XML_ERROR : MY_XML_OK;
 }
 
 
@@ -2731,6 +2717,7 @@ int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len)
   data->level--;
 
   MY_XML_NODE *nodes= (MY_XML_NODE*) data->pxml->ptr();
+  data->parent= nodes[data->parent].parent;
   nodes+= data->pos[data->level];
   nodes->tagend= st->cur;
 
@@ -2761,6 +2748,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
   p.flags= MY_XML_FLAG_RELATIVE_NAMES | MY_XML_FLAG_SKIP_TEXT_NORMALIZATION;
   user_data.level= 0;
   user_data.pxml= parsed_xml_buf;
+  user_data.parent= 0;
   my_xml_set_enter_handler(&p, xml_enter);
   my_xml_set_value_handler(&p, xml_value);
   my_xml_set_leave_handler(&p, xml_leave);
