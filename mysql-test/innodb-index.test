@@ -156,61 +156,11 @@ select * from t2;
 
 drop table t2,t4,t3,t1;
 
-create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) 
-engine = innodb default charset=utf8;
-insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
-commit;
---error ER_DUP_ENTRY
-alter table t1 add unique index (b);
-insert into t1 values(8,9,'fff','fff');
-select * from t1;
-show create table t1;
-alter table t1 add index (b);
-insert into t1 values(10,10,'kkk','iii');
-select * from t1;
-select * from t1 force index(b) order by b;
-explain select * from t1 force index(b) order by b;
-show create table t1;
-alter table t1 add unique index (c), add index (d);
-insert into t1 values(11,11,'aaa','mmm');
-select * from t1;
-select * from t1 force index(b) order by b;
-select * from t1 force index(c) order by c;
-select * from t1 force index(d) order by d;
-explain select * from t1 force index(b) order by b;
-explain select * from t1 force index(c) order by c;
-explain select * from t1 force index(d) order by d;
-show create table t1;
-check table t1;
-drop table t1;
+-- let charset = utf8
+-- source include/innodb-index.inc
 
-create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) 
-engine = innodb default charset=ucs2;
-insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
-commit;
---error ER_DUP_ENTRY
-alter table t1 add unique index (b);
-insert into t1 values(8,9,'fff','fff');
-select * from t1;
-show create table t1;
-alter table t1 add index (b);
-insert into t1 values(10,10,'kkk','iii');
-select * from t1;
-select * from t1 force index(b) order by b;
-explain select * from t1 force index(b) order by b;
-show create table t1;
-alter table t1 add unique index (c), add index (d);
-insert into t1 values(11,11,'aaa','mmm');
-select * from t1;
-select * from t1 force index(b) order by b;
-select * from t1 force index(c) order by c;
-select * from t1 force index(d) order by d;
-explain select * from t1 force index(b) order by b;
-explain select * from t1 force index(c) order by c;
-explain select * from t1 force index(d) order by d;
-show create table t1;
-check table t1;
-drop table t1;
+-- let charset = ucs2
+-- source include/innodb-index.inc
 
 create table t1(a int not null, b int) engine = innodb;
 insert into t1 values (1,1),(1,1),(1,1),(1,1);
