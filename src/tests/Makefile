@@ -6,7 +6,7 @@ ifeq ($(OSX),OSX)
 LIBEXT=dylib
 VGRIND=
 TDB_LOADLIBES = -L../ -ldb
-SETTOKUENV=DYLD_LIBRARY_PATH=..
+SETTOKUENV=export DYLD_LIBRARY_PATH=..
 UNSETTOKUENV=unset DYLD_LIBRARY_PATH
 else
 SETTOKUENV=true
@@ -45,6 +45,7 @@ foo:
 
 .PHONY: check check.bdb check.tdb
 check: check.bdb check.tdb
+	@ echo ok
 check.bdb: $(RUN_BDB_TESTS)
 check.tdb: $(RUN_TDB_TESTS)
 
@@ -53,16 +54,13 @@ check.tdb: $(RUN_TDB_TESTS)
 $(RUN_ALL_TESTS):
 $(ALL_TESTS):
 
-%.foo:
-	echo $@
-
 %.run: %.bdbrun %.tdbrun
-	
 
+# The @ sign makes the make quiet.  If there is an error there is enough info to tell what test failed.
 %.bdbrun: %.bdb
-	$(UNSETTOKUENV); $(VGRIND) ./$<
+	@ $(UNSETTOKUENV); $(VGRIND) ./$<
 %.tdbrun: %.tdb
-	$(SETTOKUENV) $(VGRIND) ./$<
+	@ $(SETTOKUENV); $(VGRIND) ./$<
 
 # For a few of the tests bdb is making valgrind unhappy.
 NO_VGRIND = \
