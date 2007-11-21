@@ -1427,7 +1427,7 @@ int brt_create_cachetable(CACHETABLE *ct, long cachesize, LSN initial_lsn, TOKUL
     return toku_create_cachetable(ct, cachesize, initial_lsn, logger);
 }
 
-static int setup_brt_root_node (BRT t, DISKOFF offset) {
+static int setup_brt_root_node (BRT t, DISKOFF offset, TOKUTXN txn) {
     int r;
     TAGMALLOC(BRTNODE, node);
     assert(node);
@@ -1451,6 +1451,7 @@ static int setup_brt_root_node (BRT t, DISKOFF offset) {
     //printf("%s:%d created %lld\n", __FILE__, __LINE__, node->thisnodename);
     toku_verify_counts(node);
 //    verify_local_fingerprint_nonleaf(node);
+    tokulogger_log_newbrtnode(txn, toku_cachefile_filenum(t->cf), offset, 0, t->h->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, node->rand4fingerprint);
     r=toku_cachetable_unpin(t->cf, node->thisnodename, node->dirty, brtnode_size(node));
     if (r!=0) {
 	toku_free(node);
@@ -1576,9 +1577,9 @@ int brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbn
 		t->h->names=0;
 		t->h->roots=0;
 	    }
-	    if ((r=setup_brt_root_node(t, t->nodesize))!=0) { died6: if (dbname) goto died5; else goto died2;	}
-	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, brtheader_flush_callback, brtheader_fetch_callback, 0))) { goto died6; }
 	    if ((r=tokulogger_log_header(txn, toku_cachefile_filenum(t->cf), t->h)))                               { goto died6; }
+	    if ((r=setup_brt_root_node(t, t->nodesize, txn))!=0) { died6: if (dbname) goto died5; else goto died2;	}
+	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, brtheader_flush_callback, brtheader_fetch_callback, 0))) { goto died6; }
 	} else {
 	    int i;
 	    assert(r==0);
@@ -1601,7 +1602,7 @@ int brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbn
 	    //printf("%s:%d t=%p\n", __FILE__, __LINE__, t);
 	    t->h->roots[t->h->n_named_roots-1] = malloc_diskblock_header_is_in_memory(t, t->h->nodesize);
 	    t->h->dirty = 1;
-	    if ((r=setup_brt_root_node(t, t->h->roots[t->h->n_named_roots-1]))!=0) goto died1;
+	    if ((r=setup_brt_root_node(t, t->h->roots[t->h->n_named_roots-1], txn))!=0) goto died1;
 	}
     } else {
 	if ((r = toku_read_and_pin_brt_header(t->cf, &t->h))!=0) goto died1;

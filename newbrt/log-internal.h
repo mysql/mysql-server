@@ -24,6 +24,7 @@ enum lt_command {
     LT_FCREATE                  = 'F',
     LT_FHEADER                  = 'H',
     LT_INSERT_WITH_NO_OVERWRITE = 'I',
+    LT_NEWBRTNODE               = 'N',
     LT_FOPEN                    = 'O',
     LT_CHECKPOINT               = 'P',
     LT_BLOCK_RENAME             = 'R',
