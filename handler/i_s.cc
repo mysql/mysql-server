@@ -566,12 +566,19 @@ fill_innodb_locks_from_cache(
 						 system_charset_info));
 
 		/* lock_index */
-		bufend = innobase_convert_name(buf, sizeof(buf),
-					       row->lock_index,
-					       strlen(row->lock_index),
-					       thd, FALSE);
-		OK(fields[IDX_LOCK_INDEX]->store(buf, bufend - buf,
-						 system_charset_info));
+		if (row->lock_index != NULL) {
+
+			bufend = innobase_convert_name(buf, sizeof(buf),
+						       row->lock_index,
+						       strlen(row->lock_index),
+						       thd, FALSE);
+			OK(fields[IDX_LOCK_INDEX]->store(buf, bufend - buf,
+							 system_charset_info));
+			fields[IDX_LOCK_INDEX]->set_notnull();
+		} else {
+
+			fields[IDX_LOCK_INDEX]->set_null();
+		}
 
 		/* lock_space */
 		OK(field_store_ulint(fields[IDX_LOCK_SPACE],
