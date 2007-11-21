@@ -543,4 +543,12 @@ select updatexml(NULL, NULL, 1), updatexml(1, NULL, NULL),
        updatexml(NULL, 1, NULL);
 select updatexml(NULL, NULL, NULL);
 
+#
+# Bug #32557: order by updatexml causes assertion in filesort
+#
+CREATE TABLE t1(a INT NOT NULL);
+INSERT INTO t1 VALUES (0), (0);
+SELECT 1 FROM t1 ORDER BY(UPDATEXML(a, '1', '1'));
+DROP TABLE t1;
+
 --echo End of 5.1 tests
