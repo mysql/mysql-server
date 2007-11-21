@@ -99,6 +99,21 @@ void transcribe_key_or_data (char *what) {
     printf("\"");
 }
 	
+void transcribe_header (void) {
+    printf(" {size=%d", get_uint32());
+    printf(" flags=%d", get_uint32());
+    printf(" nodesize=%d", get_uint32());
+    printf(" freelist=%lld", get_uint64());
+    printf(" unused_memory=%lld",get_uint64());
+    int n_roots=get_uint32();
+    printf(" n_named_roots=%d", n_roots);
+    if (n_roots>0) {
+	abort();
+    } else {
+	printf(" root=%lld", get_uint64());
+    }
+    printf("}");
+}
 
 int main (int argc, char *argv[]) {
     int cmd;
@@ -168,10 +183,20 @@ int main (int argc, char *argv[]) {
 	    printf("\n");
 	    goto next;
 
+	case LT_FHEADER:
+	    printf("HEADER:");
+	    transcribe_lsn();
+	    transcribe_txnid();
+	    transcribe_filenum();
+	    transcribe_header();
+	    transcribe_crc32();
+	    transcribe_len();
+	    printf("\n");
+	    goto next;
+
 	case LT_UNLINK:
 	case LT_BLOCK_RENAME:
 	case LT_CHECKPOINT:
-	case LT_FHEADER:
 	    fprintf(stderr, "Cannot handle this command yet: '%c'\n", cmd);
 	    break;
 	}
