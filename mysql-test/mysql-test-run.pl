@@ -165,6 +165,7 @@ our $opt_small_bench= 0;
 our $opt_big_test= 0;
 
 our @opt_combination;
+our $opt_skip_combination;
 
 our @opt_extra_mysqld_opt;
 
@@ -532,6 +533,7 @@ sub command_line_setup () {
              'skip-test=s'              => \$opt_skip_test,
              'big-test'                 => \$opt_big_test,
              'combination=s'            => \@opt_combination,
+             'skip-combination'         => \$opt_skip_combination,
 
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
@@ -5179,6 +5181,7 @@ Options to control what test suites or cases to run
                         checked from test cases.
   combination="ARG1 .. ARG2" Specify a set of "mysqld" arguments for one 
                         combination. 
+  skip-combination      Skip any combination options and combinations files
 
 Options that specify ports
 
