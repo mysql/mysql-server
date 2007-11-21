@@ -1251,7 +1251,7 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     m_width(tbl_arg ? tbl_arg->s->fields : 1),
     m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0) 
 #ifdef HAVE_REPLICATION
-    ,m_key(NULL), m_curr_row(NULL), m_curr_row_end(NULL)
+    , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
 #endif
 {
 
@@ -1304,7 +1304,7 @@ Old_rows_log_event::Old_rows_log_event(const char *buf, uint event_len,
 #endif
     m_table_id(0), m_rows_buf(0), m_rows_cur(0), m_rows_end(0)
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-    ,m_key(NULL), m_curr_row(NULL), m_curr_row_end(NULL)
+    , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
 #endif
 {
   DBUG_ENTER("Old_rows_log_event::Old_Rows_log_event(const char*,...)");
@@ -1555,7 +1555,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     {
       if (!need_reopen)
       {
-        if (thd->query_error || thd->is_fatal_error)
+        if (thd->is_slave_error || thd->is_fatal_error)
         {
           /*
             Error reporting borrowed from Query_log_event with many excessive
@@ -1599,7 +1599,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       uint tables_count= rli->tables_to_lock_count;
       if ((error= open_tables(thd, &tables, &tables_count, 0)))
       {
-        if (thd->query_error || thd->is_fatal_error)
+        if (thd->is_slave_error || thd->is_fatal_error)
         {
           /*
             Error reporting borrowed from Query_log_event with many excessive
@@ -1610,7 +1610,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
                       "Error '%s' on reopening tables",
                       (actual_error ? thd->net.last_error :
                        "unexpected success or fatal error"));
-          thd->query_error= 1;
+          thd->is_slave_error= 1;
         }
         const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
         DBUG_RETURN(error);
@@ -1633,7 +1633,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
         {
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
-          thd->query_error= 1;
+          thd->is_slave_error= 1;
           const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
@@ -1765,7 +1765,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
                     "Error in %s event: row application failed. %s",
                     get_type_str(),
                     thd->net.last_error ? thd->net.last_error : "");
-	thd->query_error= 1;
+       thd->is_slave_error= 1;
 	break;
       }
 
@@ -1831,7 +1831,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     thd->reset_current_stmt_binlog_row_based();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
-    thd->query_error= 1;
+    thd->is_slave_error= 1;
     DBUG_RETURN(error);
   }
 
