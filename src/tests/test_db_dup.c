@@ -7,11 +7,11 @@
 #include <arpa/inet.h>
 #include <db.h>
 
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
+#include "test.h"
 
 /* verify that the dup flags are written and read from the database file correctly */ 
 void test_dup_flags(int dup_flags) {
-    printf("test_dup_flags:%d\n", dup_flags);
+    if (verbose) printf("test_dup_flags:%d\n", dup_flags);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -94,7 +94,7 @@ void expect(DBC *cursor, int k, int v) {
 
 /* verify that key insertions are stored in insert order */
 void test_insert(int n, int dup_mode) {
-    printf("test_insert:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_insert:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -212,7 +212,7 @@ void test_insert(int n, int dup_mode) {
 
 /* verify dup keys are buffered in order in non-leaf nodes */
 void test_nonleaf_insert(int n, int dup_mode) {
-    printf("test_nonleaf_insert:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_nonleaf_insert:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -327,7 +327,7 @@ void test_nonleaf_insert(int n, int dup_mode) {
 
 /* verify dup keys delete */
 void test_dup_delete(int n, int dup_mode) {
-    printf("test_dup_delete:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_dup_delete:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -421,7 +421,7 @@ void test_dup_delete(int n, int dup_mode) {
 }
 
 void test_dup_delete_delete(int n) {
-    printf("test_dup_delete_delete:%d\n", n);
+    if (verbose) printf("test_dup_delete_delete:%d\n", n);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -505,7 +505,7 @@ void test_dup_delete_delete(int n) {
 }
 
 void test_dup_delete_insert(int n, int dup_mode) {
-    printf("test_dup_delete_insert:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_dup_delete_insert:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -612,7 +612,7 @@ void test_dup_delete_insert(int n, int dup_mode) {
 }
 
 void test_all_dup_delete_insert(int n) {
-    printf("test_all_dup_delete_insert:%d\n", n);
+    if (verbose) printf("test_all_dup_delete_insert:%d\n", n);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -691,7 +691,7 @@ void test_all_dup_delete_insert(int n) {
 }
 
 void test_walk_empty(int n, int dup_mode) {
-    printf("test_walk_empty:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_walk_empty:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -767,7 +767,7 @@ void test_walk_empty(int n, int dup_mode) {
 
 /* insert, close, delete, insert, search */
 void test_icdi_search(int n, int dup_mode) {
-    printf("test_icdi_search:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_icdi_search:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -856,7 +856,7 @@ void test_icdi_search(int n, int dup_mode) {
 
 /* insert, close, insert, search */
 void test_ici_search(int n, int dup_mode) {
-    printf("test_ici_search:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_ici_search:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -959,7 +959,7 @@ void expect_db_lookup(DB *db, int k, int v) {
 
 /* insert 0, insert 1, close, insert 0, search 0 */
 void test_i0i1ci0_search(int n, int dup_mode) {
-    printf("test_i0i1ci0_search:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_i0i1ci0_search:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -1013,8 +1013,11 @@ void test_i0i1ci0_search(int n, int dup_mode) {
     assert(r == 0);
 }
 
-int main() {
+int main(int argc, const char *argv[]) {
     int i;
+
+    parse_args(argc, argv);
+  
 
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
