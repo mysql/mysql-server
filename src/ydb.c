@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include "brt.h"
+#include "brt-internal.h"
 #include "cachetable.h"
 #include "log.h"
 #include "memory.h"
