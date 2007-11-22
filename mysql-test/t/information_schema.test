@@ -1143,6 +1143,7 @@ END$$
 
 DELIMITER ;$$
 
+let $wait_timeout= 300;
 let $wait_condition=select count(*) = 0 from information_schema.events where event_name='event_status';
 --source include/wait_condition.inc
 
