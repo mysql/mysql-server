@@ -133,6 +133,37 @@ disconnect con3;
 connection default;
 drop table t1, t2;
 
+#
+# Bug#32528 Global read lock with a low priority write lock causes a server crash
+#
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+set session low_priority_updates=1;
+
+create table t1 (a int);
+create table t2 (b int);
+
+lock tables t1 write;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+flush tables with read lock;
+unlock tables;
+
+lock tables t1 read, t2 write;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+flush tables with read lock;
+unlock tables;
+
+lock tables t1 read;
+flush tables with read lock;
+unlock tables;
+
+drop table t1, t2;
+
+set session low_priority_updates=default;
+
 --echo End of 5.0 tests
 
 #
