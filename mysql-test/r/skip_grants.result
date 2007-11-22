@@ -77,3 +77,10 @@ ERROR HY000: Can't initialize function 'a'; UDFs are unavailable with the --skip
 DROP FUNCTION a;
 ERROR 42000: FUNCTION test.a does not exist
 End of 5.0 tests
+#
+# Bug#29817 Queries with UDF fail with non-descriptive error
+# if mysql.proc is missing
+#
+select no_such_function(1);
+ERROR 42000: FUNCTION test.no_such_function does not exist
+End of 5.1 tests
