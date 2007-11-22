@@ -4148,9 +4148,8 @@ select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
 select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
 select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
 select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1
-)group by b limit 1)group by b limit 1)group by b limit 1
+select sum(a) from t1 where a> ( select sum(a) from t1
+)group by b limit 1)group by b limit 1
 )group by b limit 1)group by b limit 1)group by b limit 1
 )group by b limit 1)group by b limit 1)group by b limit 1
 )group by b limit 1)group by b limit 1)group by b limit 1) 
@@ -4191,9 +4190,8 @@ select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
 select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
 select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
 select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1
-)group by b limit 1)group by b limit 1)group by b limit 1
+select sum(a) from t1 where a> ( select sum(a) from t1 
+)group by b limit 1)group by b limit 1
 )group by b limit 1)group by b limit 1)group by b limit 1
 )group by b limit 1)group by b limit 1)group by b limit 1
 )group by b limit 1)group by b limit 1)group by b limit 1) 
@@ -4210,9 +4208,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 9	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
 10	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
 11	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-12	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-13	SUBQUERY	t1	range	a	a	5	NULL	1	Using where; Using temporary; Using filesort
-14	SUBQUERY	t1	index	NULL	a	5	NULL	9	Using index
+12	SUBQUERY	t1	range	a	a	5	NULL	1	Using where; Using temporary; Using filesort
+13	SUBQUERY	t1	index	NULL	a	5	NULL	9	Using index
 explain select sum(a),a from t1 where a> (
 select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
 select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
