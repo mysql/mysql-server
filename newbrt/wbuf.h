@@ -113,4 +113,15 @@ static inline void wbuf_FILENUM (struct wbuf *w, FILENUM fileid) {
     wbuf_int(w, fileid.fileid);
 }
 
+static inline void wbuf_LOGGEDBRTHEADER (struct wbuf *w, LOGGEDBRTHEADER h) {
+    wbuf_int(w, h.size);
+    wbuf_int(w, h.flags);
+    wbuf_int(w, h.nodesize);
+    wbuf_DISKOFF(w, h.freelist);
+    wbuf_DISKOFF(w, h.unused_memory);
+    wbuf_int(w, h.n_named_roots);
+    assert(h.n_named_roots==0);
+    wbuf_DISKOFF(w, h.root);
+}
+
 #endif

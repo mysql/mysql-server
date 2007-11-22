@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>
 
@@ -59,3 +60,7 @@ static inline int toku_logsizeof_BYTESTRING (BYTESTRING bs) {
     return 4+bs.len;
 }
 
+static inline int toku_logsizeof_LOGGEDBRTHEADER (LOGGEDBRTHEADER bs) {
+    assert(bs.n_named_roots=0);
+    return 4+4+4+8+8+4+8;
+}
