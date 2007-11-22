@@ -162,6 +162,7 @@ void generate_logprint (void) {
     DO_LOGTYPES(lt, ({
 			fprintf(cf, "    case LT_%s: \n", lt->name);
 			// We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
+			fprintf(cf, "        fprintf(outf, \"%%s:\", \"%s\");\n", lt->name); 
 			fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &crc, &len);     if (r!=0) return r;\n", "LSN");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &crc, &len);     if (r!=0) return r;\n", ft->type, ft->name));
@@ -172,6 +173,7 @@ void generate_logprint (void) {
 			fprintf(cf, "        fprintf(outf, \" len=%%d\", len_in_file);\n");
 			fprintf(cf, "        if (len_in_file!=len) fprintf(outf, \" actual_len=%%d\", len);\n");
 			fprintf(cf, "        if (len_in_file!=len || crc_in_file!=crc) return DB_BADFORMAT;\n");
+			fprintf(cf, "        fprintf(outf, \"\\n\");\n");
 			fprintf(cf, "        return 0;;\n\n");
 		    }));
     fprintf(cf, "    }\n");
