@@ -78,6 +78,10 @@ struct brt_header {
     unsigned int flags;
 };
 
+enum brt_header_flags {
+    TOKU_DB_DUP = 1,
+    TOKU_DB_DUPSORT = 2,
+};
 
 struct brt {
     CACHEFILE cf;

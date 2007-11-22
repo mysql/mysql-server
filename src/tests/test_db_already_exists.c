@@ -22,7 +22,7 @@ int main() {
     r=chdir(DIR);       assert(r==0);
 
     r = db_create(&db, null_env, 0);                                         CKERR(r);
-    r = db->set_flags(db, DB_DUP);                                           CKERR(r);
+    //    r = db->set_flags(db, DB_DUP);                                           CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);    CKERR(r);
     r = db->close(db, 0);                                                    CKERR(r);
     r = db_create(&db, null_env, 0);                                         CKERR(r);
