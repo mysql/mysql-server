@@ -3000,9 +3000,8 @@ select sum(a),a from t1 where a> (
   select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
   select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
   select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-  select sum(a) from t1
-  )group by b limit 1)group by b limit 1)group by b limit 1
+  select sum(a) from t1 where a> ( select sum(a) from t1
+  )group by b limit 1)group by b limit 1
   )group by b limit 1)group by b limit 1)group by b limit 1
   )group by b limit 1)group by b limit 1)group by b limit 1
   )group by b limit 1)group by b limit 1)group by b limit 1) 
@@ -3044,9 +3043,8 @@ explain select sum(a),a from t1 where a> (
   select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
   select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
   select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-  select sum(a) from t1
-  )group by b limit 1)group by b limit 1)group by b limit 1
+  select sum(a) from t1 where a> ( select sum(a) from t1 
+  )group by b limit 1)group by b limit 1
   )group by b limit 1)group by b limit 1)group by b limit 1
   )group by b limit 1)group by b limit 1)group by b limit 1
   )group by b limit 1)group by b limit 1)group by b limit 1) 
