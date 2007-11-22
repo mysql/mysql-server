@@ -678,9 +678,7 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
-  mysql_ha_flush(this, (TABLE_LIST*) 0,
-                 MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL, FALSE);
-  hash_free(&handler_tables_hash);
+  mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
   close_temporary_tables(this);
@@ -818,7 +816,20 @@ void THD::awake(THD::killed_state state_to_set)
     if (!slave_thread)
       thread_scheduler.post_kill_notification(this);
 #ifdef SIGNAL_WITH_VIO_CLOSE
-    close_active_vio();
+    if (this != current_thd)
+    {
+      /*
+        In addition to a signal, let's close the socket of the thread that
+        is being killed. This is to make sure it does not block if the
+        signal is lost. This needs to be done only on platforms where
+        signals are not a reliable interruption mechanism.
+
+        If we're killing ourselves, we know that we're not blocked, so this
+        hack is not used.
+      */
+
+      close_active_vio();
+    }
 #endif    
   }
   if (mysys_var)
