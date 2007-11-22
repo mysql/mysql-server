@@ -89,19 +89,27 @@ static void wbuf_ulonglong (struct wbuf *w, unsigned long long ull) {
     wbuf_int(w, ull&0xFFFFFFFF);
 }
 
-static void wbuf_diskoff (struct wbuf *w, DISKOFF off) {
+static inline void wbuf_BYTESTRING (struct wbuf *w, BYTESTRING v) {
+    wbuf_bytes(w, v->data, v->len);
+}
+
+static inline void wbuf_u_int32_t (struct wbuf *w, u_int32_t v) {
+    wbuf_int(w, v);
+}
+
+static inline void wbuf_DISKOFF (struct wbuf *w, DISKOFF off) {
     wbuf_ulonglong(w, off);
 }
 
-static inline void wbuf_txnid (struct wbuf *w, TXNID tid) {
+static inline void wbuf_TXNID (struct wbuf *w, TXNID tid) {
     wbuf_ulonglong(w, tid);
 }
 
-static inline void wbuf_lsn (struct wbuf *w, LSN lsn) {
+static inline void wbuf_LSN (struct wbuf *w, LSN lsn) {
     wbuf_ulonglong(w, lsn.lsn);
 }
 
-static inline void wbuf_filenum (struct wbuf *w, FILENUM fileid) {
+static inline void wbuf_FILENUM (struct wbuf *w, FILENUM fileid) {
     wbuf_int(w, fileid.fileid);
 }
 

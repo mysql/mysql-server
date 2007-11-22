@@ -98,11 +98,11 @@ void generate_log_writer (void) {
 				  fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 			fprintf(hf, ");\n");
 			fprintf(cf, ") {\n");
-			fprintf(cf, "  const int buflen= (1 // log command\n");
-			fprintf(cf, "                     +8 // lsn\n");
+			fprintf(cf, "  const unsigned int buflen= (1 // log command\n");
+			fprintf(cf, "                              +8 // lsn\n");
 			DO_FIELDS(ft, lt,
-				  fprintf(cf, "                     +toku_logsizeof_%s(%s)\n", ft->type, ft->name));
-			fprintf(cf, "                     +8 // crc + len\n");
+				  fprintf(cf, "                              +toku_logsizeof_%s(%s)\n", ft->type, ft->name));
+			fprintf(cf, "                              +8 // crc + len\n");
 			fprintf(cf, "                     );\n");
 			fprintf(cf, "  struct wbuf wbuf;\n");
 			fprintf(cf, "  char *buf = toku_malloc(buflen);\n");
@@ -133,14 +133,15 @@ void generate_log_reader (void) {
 			fprintf2(cf, hf, "int tokulog_fread_%s (FILE *infile, struct logtype_%s *data, char cmd)", lt->name, lt->name);
 			fprintf(hf, ";\n");
 			fprintf(cf, " {\n");
-			fprintf(cf, "  int r=0, actual_len=1;\n");
+			fprintf(cf, "  int r=0;\n");
+			fprintf(cf, "  u_int32_t actual_len=1;\n");
 			fprintf(cf, "  u_int32_t crc = toku_crc32(0, &cmd, 1);\n");
 			fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, &crc, &actual_len); if (r!=0) return r;\n", "LSN", "lsn");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, &crc, &actual_len); if (r!=0) return r;\n", ft->type, ft->name));
 			fprintf(cf, "  u_int32_t crc_in_file, len_in_file;\n");
-			fprintf(cf, "  r=toku_fread_u_int32_t(infile, &crc_in_file);  actual_len+=4;   if (r!=0) return r;\n");
-			fprintf(cf, "  r=toku_fread_u_int32_t(infile, &len_in_file);  actual_len+=4;   if (r!=0) return r;\n");
+			fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &crc_in_file);  actual_len+=4;   if (r!=0) return r;\n");
+			fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &len_in_file);  actual_len+=4;   if (r!=0) return r;\n");
 			fprintf(cf, "  if (crc_in_file!=crc || len_in_file!=actual_len) return DB_BADFORMAT;\n");
 			fprintf(cf, "  return 0;\n");
 			fprintf(cf, "}\n\n");
@@ -162,10 +163,10 @@ void generate_logprint (void) {
 			fprintf(cf, "        r = toku_logprint_%-16s(outf, f, &crc, &len);     if (r!=0) return r;\n", "LSN");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "        r = toku_logprint_%-16s(outf, f, &crc, &len);     if (r!=0) return r;\n", ft->type));
-			fprintf(cf, "        r = toku_fread_u_int32_t          (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
+			fprintf(cf, "        r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
 			fprintf(cf, "        fprintf(outf, \" crc=%%d\", crc_in_file);\n");
 			fprintf(cf, "        if (crc_in_file!=crc) fprintf(outf, \" actual_crc=%%d\", crc);\n");
-			fprintf(cf, "        r = toku_fread_u_int32_t          (f, &len_in_file); len+=4; if (r!=0) return r;\n");
+			fprintf(cf, "        r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
 			fprintf(cf, "        fprintf(outf, \" len=%%d\", len_in_file);\n");
 			fprintf(cf, "        if (len_in_file!=len) fprintf(outf, \" actual_len=%%d\", len);\n");
 			fprintf(cf, "        if (len_in_file!=len || crc_in_file!=crc) return DB_BADFORMAT;\n");

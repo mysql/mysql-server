@@ -160,10 +160,10 @@ int tokulogger_log_brt_insert_with_no_overwrite (TOKULOGGER logger,
     struct wbuf wbuf;
     wbuf_init(&wbuf, buf, buflen) ;
     wbuf_char(&wbuf, LT_INSERT_WITH_NO_OVERWRITE);
-    wbuf_lsn (&wbuf, logger->lsn); logger->lsn.lsn++;
-    wbuf_txnid(&wbuf, txnid);
-    wbuf_filenum(&wbuf, fileid);
-    wbuf_diskoff(&wbuf, diskoff);
+    wbuf_LSN (&wbuf, logger->lsn); logger->lsn.lsn++;
+    wbuf_TXNID(&wbuf, txnid);
+    wbuf_FILENUM(&wbuf, fileid);
+    wbuf_DISKOFF(&wbuf, diskoff);
     wbuf_bytes(&wbuf, key, keylen);
     wbuf_bytes(&wbuf, val, vallen);
     return tokulogger_finish (logger, &wbuf);
@@ -186,11 +186,11 @@ int tokulogger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, DISKOFF disk
     struct wbuf wbuf;
     wbuf_init(&wbuf, buf, buflen) ;
     wbuf_char(&wbuf, is_add ? LT_INSERT_WITH_NO_OVERWRITE : LT_DELETE);
-    wbuf_lsn (&wbuf, txn->logger->lsn);
+    wbuf_LSN (&wbuf, txn->logger->lsn);
     txn->logger->lsn.lsn++;
-    wbuf_txnid(&wbuf, txn->txnid64);
-    wbuf_filenum(&wbuf, db->i->fileid);
-    wbuf_diskoff(&wbuf, diskoff);
+    wbuf_TXNID(&wbuf, txn->txnid64);
+    wbuf_FILENUM(&wbuf, db->i->fileid);
+    wbuf_DISKOFF(&wbuf, diskoff);
     wbuf_bytes(&wbuf, kv_pair_key_const(pair), keylen);
     wbuf_bytes(&wbuf, kv_pair_val_const(pair), vallen);
     return tokulogger_finish(txn->logger, &wbuf);
@@ -206,9 +206,9 @@ int tokulogger_log_commit (TOKUTXN txn) {
     unsigned char buf[buflen];
     wbuf_init(&wbuf, buf, buflen);
     wbuf_char(&wbuf, LT_COMMIT);
-    wbuf_lsn (&wbuf, txn->logger->lsn);
+    wbuf_LSN (&wbuf, txn->logger->lsn);
     txn->logger->lsn.lsn++;
-    wbuf_txnid(&wbuf, txn->txnid64);
+    wbuf_TXNID(&wbuf, txn->txnid64);
     int r = tokulogger_finish(txn->logger, &wbuf);
     if (r!=0) return r;
     int result;
@@ -224,7 +224,7 @@ int tokulogger_log_checkpoint (TOKULOGGER logger, LSN *lsn) {
     unsigned char buf[buflen];
     wbuf_init(&wbuf, buf, buflen);
     wbuf_char(&wbuf, LT_CHECKPOINT);
-    wbuf_lsn (&wbuf, logger->lsn);
+    wbuf_LSN (&wbuf, logger->lsn);
     *lsn = logger->lsn;
     logger->lsn.lsn++;
     return tokulogger_log_bytes(logger, wbuf.ndone, wbuf.buf);
@@ -255,12 +255,12 @@ int tokulogger_log_block_rename (TOKULOGGER logger, FILENUM fileid, DISKOFF oldd
     struct wbuf wbuf;
     wbuf_init   (&wbuf, buf, buflen) ;
     wbuf_char   (&wbuf, LT_BLOCK_RENAME);
-    wbuf_lsn    (&wbuf, logger->lsn);
+    wbuf_LSN    (&wbuf, logger->lsn);
     logger->lsn.lsn++;
-    wbuf_filenum(&wbuf, fileid);
-    wbuf_diskoff(&wbuf, olddiskoff);
-    wbuf_diskoff(&wbuf, newdiskoff);
-    wbuf_diskoff(&wbuf, parentdiskoff);
+    wbuf_FILENUM(&wbuf, fileid);
+    wbuf_DISKOFF(&wbuf, olddiskoff);
+    wbuf_DISKOFF(&wbuf, newdiskoff);
+    wbuf_DISKOFF(&wbuf, parentdiskoff);
     wbuf_int    (&wbuf, childnum);
     return tokulogger_finish(logger, &wbuf);
 }
@@ -280,9 +280,9 @@ int tokulogger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     struct wbuf wbuf;
     wbuf_init (&wbuf, buf, buflen);
     wbuf_char (&wbuf, LT_FCREATE);
-    wbuf_lsn    (&wbuf, txn->logger->lsn);
+    wbuf_LSN    (&wbuf, txn->logger->lsn);
     txn->logger->lsn.lsn++;
-    wbuf_txnid(&wbuf, txn->txnid64);
+    wbuf_TXNID(&wbuf, txn->txnid64);
     wbuf_bytes(&wbuf, fname, fnamelen);
     wbuf_int  (&wbuf, mode);
     return tokulogger_finish(txn->logger, &wbuf);
@@ -304,11 +304,11 @@ int tokulogger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
     struct wbuf wbuf;
     wbuf_init (&wbuf, buf, buflen);
     wbuf_char (&wbuf, LT_FOPEN);
-    wbuf_lsn    (&wbuf, txn->logger->lsn);
+    wbuf_LSN    (&wbuf, txn->logger->lsn);
     txn->logger->lsn.lsn++;
-    wbuf_txnid(&wbuf, txn->txnid64);
+    wbuf_TXNID(&wbuf, txn->txnid64);
     wbuf_bytes(&wbuf, fname, fnamelen);
-    wbuf_filenum(&wbuf, filenum);
+    wbuf_FILENUM(&wbuf, filenum);
     return tokulogger_finish(txn->logger, &wbuf);
     
 }
@@ -346,10 +346,10 @@ int tokulogger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
     struct wbuf wbuf;
     wbuf_init(&wbuf, buf, buflen);
     wbuf_char(&wbuf, LT_FHEADER);
-    wbuf_lsn    (&wbuf, txn->logger->lsn);
+    wbuf_LSN    (&wbuf, txn->logger->lsn);
     txn->logger->lsn.lsn++;
-    wbuf_txnid(&wbuf, txn->txnid64);
-    wbuf_filenum(&wbuf, filenum);
+    wbuf_TXNID(&wbuf, txn->txnid64);
+    wbuf_FILENUM(&wbuf, filenum);
     r=toku_serialize_brt_header_to_wbuf(&wbuf, h);
     if (r!=0) return r;
     r=tokulogger_finish(txn->logger, &wbuf);
@@ -374,11 +374,11 @@ int tokulogger_log_newbrtnode (TOKUTXN txn, FILENUM filenum, DISKOFF offset, u_i
     struct wbuf wbuf;
     wbuf_init (&wbuf, buf, buflen);
     wbuf_char(&wbuf, LT_NEWBRTNODE);
-    wbuf_lsn    (&wbuf, txn->logger->lsn);
+    wbuf_LSN    (&wbuf, txn->logger->lsn);
     txn->logger->lsn.lsn++;
-    wbuf_txnid(&wbuf, txn->txnid64);
-    wbuf_filenum(&wbuf, filenum);
-    wbuf_diskoff(&wbuf, offset);
+    wbuf_TXNID(&wbuf, txn->txnid64);
+    wbuf_FILENUM(&wbuf, filenum);
+    wbuf_DISKOFF(&wbuf, offset);
     wbuf_int(&wbuf, height);
     wbuf_int(&wbuf, nodesize);
     wbuf_char(&wbuf, is_dup_sort_mode);

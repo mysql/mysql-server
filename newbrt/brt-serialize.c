@@ -130,7 +130,7 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	    //printf("%s:%d w.ndone=%d (childkeylen[%d]=%d\n", __FILE__, __LINE__, w.ndone, i, node->childkeylens[i]);
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
-	    wbuf_diskoff(&w, node->u.n.children[i]);
+	    wbuf_DISKOFF(&w, node->u.n.children[i]);
 	    //printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
 	}
 
@@ -450,20 +450,20 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
     wbuf_int    (wbuf, size);
     wbuf_int    (wbuf, h->flags);
     wbuf_int    (wbuf, h->nodesize);
-    wbuf_diskoff(wbuf, h->freelist);
-    wbuf_diskoff(wbuf, h->unused_memory);
+    wbuf_DISKOFF(wbuf, h->freelist);
+    wbuf_DISKOFF(wbuf, h->unused_memory);
     wbuf_int    (wbuf, h->n_named_roots);
     if (h->n_named_roots>0) {
 	int i;
 	for (i=0; i<h->n_named_roots; i++) {
 	    char *s = h->names[i];
 	    unsigned int l = 1+strlen(s);
-	    wbuf_diskoff(wbuf, h->roots[i]);
+	    wbuf_DISKOFF(wbuf, h->roots[i]);
 	    wbuf_bytes  (wbuf,  s, l);
 	    assert(l>0 && s[l-1]==0);
 	}
     } else {
-	wbuf_diskoff(wbuf, h->unnamed_root);
+	wbuf_DISKOFF(wbuf, h->unnamed_root);
     }
     assert(wbuf->ndone<=wbuf->size);
     return 0;
