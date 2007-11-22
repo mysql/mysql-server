@@ -126,7 +126,8 @@ dict_col_get_clust_pos(
 	ulint	i;
 
 	ut_ad(col);
-	ut_ad(clust_index && clust_index->type & DICT_CLUSTERED);
+	ut_ad(clust_index);
+	ut_ad(dict_index_is_clust(clust_index));
 
 	for (i = 0; i < clust_index->n_def; i++) {
 		const dict_field_t*	field = &clust_index->fields[i];
