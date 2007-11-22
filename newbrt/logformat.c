@@ -6,9 +6,12 @@
  *   The struct definitions.
  *   The Latex documentation.
  */
-#include <stdio.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 typedef struct field {
     char *type;
@@ -29,7 +32,7 @@ struct logtype {
 const struct logtype logtypes[] = {
     {"fcreate", 'F', FA{{"TXNID",      "txnid"},
 			{"BYTESTRING", "fname"},
-			{"uint32",     "mode"},
+			{"u_int32_t",  "mode"},
 			NULLFIELD}},
     {"delete", 'D', FA{{"FILENUM", "filenum"},
 		       {"DISKOFF", "diskoff"},
@@ -65,7 +68,7 @@ FILE *hf=0, *cf=0;
 
 void generate_lt_enum (void) {
     int count=0;
-    fprintf(hf, "enum lt_command {");
+    fprintf(hf, "enum lt_cmd {");
     DO_LOGTYPES(lt,
 		({
 		    if (count!=0) fprintf(hf, ",");
@@ -82,17 +85,15 @@ void generate_log_struct (void) {
 		    fprintf(hf, "  %-16s lsn;\n", "LSN");
 		    DO_FIELDS(ft, lt,
 			      fprintf(hf, "  %-16s %s;\n", ft->type, ft->name));
-		    fprintf(hf, "  %-16s crc;\n", "u_int_32");
-		    fprintf(hf, "  %-16s len;\n", "u_int_32");
+		    fprintf(hf, "  %-16s crc;\n", "u_int32_t");
+		    fprintf(hf, "  %-16s len;\n", "u_int32_t");
 		    fprintf(hf, "};\n");
 		}));
 }
 
 void generate_log_writer (void) {
-    FILE *f = fopen("log_write.c", "w");
-    assert(f!=0);
     DO_LOGTYPES(lt, ({
-			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN lsn", lt->name);
+			fprintf2(cf, hf, "int toku_log_%s (TOKUTXN txn, LSN lsn", lt->name);
 			DO_FIELDS(ft, lt,
 				  fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 			fprintf(hf, ");\n");
@@ -104,29 +105,27 @@ void generate_log_writer (void) {
 			fprintf(cf, "                     +8 // crc + len\n");
 			fprintf(cf, "                     );\n");
 			fprintf(cf, "  struct wbuf wbuf;\n");
-			fprintf(cf, "  const char *buf = toku_malloc(buflen);\n");
+			fprintf(cf, "  char *buf = toku_malloc(buflen);\n");
 			fprintf(cf, "  if (buf==0) return errno;\n");
-			fprintf(cf, "  wbuf_init(&wbuf, buf, buflen)\n");
+			fprintf(cf, "  wbuf_init(&wbuf, buf, buflen);\n");
 			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", lt->command);
-			fprintf(cf, "  wbuf_lsn(&wbuf, lsn);\n");
+			fprintf(cf, "  wbuf_LSN(&wbuf, lsn);\n");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "  wbuf_%s(&wbuf, %s);\n", ft->type, ft->name));
-			fprintf(cf, "  int r= tokulogger_finish(logger, &wbuf);\n");
-			fprintf(cf, "  assert(buf.ndone==buflen);\n");
+			fprintf(cf, "  int r= tokulogger_finish(txn->logger, &wbuf);\n");
+			fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
 			fprintf(cf, "  toku_free(buf);\n");
 			if (lt->command=='C') {
 			    fprintf(cf, "  if (r!=0) return r;\n");
 			    fprintf(cf, "  // commit has some extra work to do.\n");
 			    fprintf(cf, "  if (txn->parent) return 0; // don't fsync if there is a parent.\n");
-			    fprintf(cf, "  else return tokulogger_fsync(logger);\n");
+			    fprintf(cf, "  else return tokulogger_fsync(txn->logger);\n");
 			} else {
 			    fprintf(cf, "  return r;\n");
 			}
 			fprintf(cf, "}\n\n");
 		    }));
 
-    int r=fclose(f);
-    assert(r==0);
 }
 
 void generate_log_reader (void) {
@@ -140,8 +139,8 @@ void generate_log_reader (void) {
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, &crc, &actual_len); if (r!=0) return r;\n", ft->type, ft->name));
 			fprintf(cf, "  u_int32_t crc_in_file, len_in_file;\n");
-			fprintf(cf, "  r=toku_fread_uint32(infile, &crc_in_file);  actual_len+=4;   if (r!=0) return r;\n");
-			fprintf(cf, "  r=toku_fread_uint32(infile, &len_in_file);  actual_len+=4;   if (r!=0) return r;\n");
+			fprintf(cf, "  r=toku_fread_u_int32_t(infile, &crc_in_file);  actual_len+=4;   if (r!=0) return r;\n");
+			fprintf(cf, "  r=toku_fread_u_int32_t(infile, &len_in_file);  actual_len+=4;   if (r!=0) return r;\n");
 			fprintf(cf, "  if (crc_in_file!=crc || len_in_file!=actual_len) return DB_BADFORMAT;\n");
 			fprintf(cf, "  return 0;\n");
 			fprintf(cf, "}\n\n");
@@ -155,20 +154,20 @@ void generate_logprint (void) {
     fprintf(cf, "    if (cmd==EOF) return EOF;\n");
     fprintf(cf, "    u_int32_t len_in_file, len=1;\n");
     fprintf(cf, "    char charcmd = cmd;\n");
-    fprintf(cf, "    u_int32_t crc_in_file, crc = toku_crc32(0, &char_cmd, 1);\n");
-    fprintf(cf, "    switch ((enum lt_command)cmd) {\n");
+    fprintf(cf, "    u_int32_t crc_in_file, crc = toku_crc32(0, &charcmd, 1);\n");
+    fprintf(cf, "    switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, ({
 			fprintf(cf, "    case LT_%s: \n", lt->name);
 			// We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
-			fprintf(cf, "        r = toku_logprint_LSN(outf, f, &crc, &len);   if (r!=0) return r;\n");
+			fprintf(cf, "        r = toku_logprint_%-16s(outf, f, &crc, &len);     if (r!=0) return r;\n", "LSN");
 			DO_FIELDS(ft, lt,
-				  fprintf(cf, "        r = toku_logprint_%s(outf, f, &crc, &len); if (r!=0) return r;\n", ft->type));
-			fprintf(cf, "        r = toku_fread_uint32(infile, &crc_in_file); len+=4; if (r!=0) return r;\n");
+				  fprintf(cf, "        r = toku_logprint_%-16s(outf, f, &crc, &len);     if (r!=0) return r;\n", ft->type));
+			fprintf(cf, "        r = toku_fread_u_int32_t          (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
 			fprintf(cf, "        fprintf(outf, \" crc=%%d\", crc_in_file);\n");
-			fprintf(cf, "        if (crc_in_file!=crc) fprintf(\" actual_crc=%%d\", actual_crc);\n");
-			fprintf(cf, "        r = toku_fread_uint32(infile, &len_in_file); len+=4; if (r!=0) return r;\n");
+			fprintf(cf, "        if (crc_in_file!=crc) fprintf(outf, \" actual_crc=%%d\", crc);\n");
+			fprintf(cf, "        r = toku_fread_u_int32_t          (f, &len_in_file); len+=4; if (r!=0) return r;\n");
 			fprintf(cf, "        fprintf(outf, \" len=%%d\", len_in_file);\n");
-			fprintf(cf, "        if (len_in_file!=len) fprintf(\" actual_len=%%d\", actual_len);\n");
+			fprintf(cf, "        if (len_in_file!=len) fprintf(outf, \" actual_len=%%d\", len);\n");
 			fprintf(cf, "        if (len_in_file!=len || crc_in_file!=crc) return DB_BADFORMAT;\n");
 			fprintf(cf, "        return 0;;\n\n");
 		    }));
@@ -178,12 +177,20 @@ void generate_logprint (void) {
     fprintf(cf, "}\n\n");
 }
 
+const char *codepath = "log_code.c";
+const char *headerpath = "log_header.h";
 int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__unused__))) {
-    cf = fopen("log_code.c", "w");      assert(cf!=0);
-    hf = fopen("log_header.h", "w");     assert(hf!=0);
+    unlink(codepath);
+    unlink(headerpath);
+    cf = fopen(codepath, "w");      assert(cf!=0);
+    hf = fopen(headerpath, "w");     assert(hf!=0);
+    fprintf2(cf, hf, "/* Do not edit this file.  This code generated by logformat.c.  Copyright 2007 Tokutek.    */\n");
     fprintf(cf, "#include <stdio.h>\n");
     fprintf(hf, "#include \"brt-internal.h\"\n");
     fprintf(cf, "#include \"log_header.h\"\n");
+    fprintf(cf, "#include \"wbuf.h\"\n");
+    fprintf(cf, "#include \"log-internal.h\"\n");
+    generate_lt_enum();
     generate_log_struct();
     generate_log_writer();
     generate_log_reader();
@@ -193,6 +200,9 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
 	assert(r==0);
 	r=fclose(cf);
 	assert(r==0);
+	// Make it tougher to modify by mistake
+	chmod(codepath, S_IRUSR|S_IRGRP|S_IROTH);
+	chmod(headerpath, S_IRUSR|S_IRGRP|S_IROTH);
     }
     return 0;
 }

@@ -36,3 +36,5 @@ struct tokutxn {
     TOKULOGGER logger;
     TOKUTXN    parent;
 };
+
+int tokulogger_finish (TOKULOGGER logger, struct wbuf *wbuf);

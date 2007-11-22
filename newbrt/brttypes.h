@@ -15,6 +15,11 @@ typedef const void *bytevec;
 typedef long long DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
 typedef long long TXNID;
 
+typedef struct {
+    int len;
+    char *data;
+} BYTESTRING;
+
 /* Make the LSN be a struct instead of an integer so that we get better type checking. */
 typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 #define ZERO_LSN ((LSN){0})
