@@ -27,6 +27,10 @@ struct logtype {
 // In the fields, don't mention the command, the LSN, the CRC or the trailing LEN.
 
 const struct logtype logtypes[] = {
+    {"fcreate", 'F', FA{{"TXNID",      "txnid"},
+			{"BYTESTRING", "fname"},
+			{"uint32",     "mode"},
+			NULLFIELD}},
     {"delete", 'D', FA{{"FILENUM", "filenum"},
 		       {"DISKOFF", "diskoff"},
 		       {"BYTESTRING", "key"},
@@ -145,40 +149,41 @@ void generate_log_reader (void) {
 }
 
 void generate_logprint (void) {
-    fprintf(cf, "int logprint(FILE *outf, FILE *f, int n_records_limit) {\n");
-    fprintf(cf, "  int i, cmd, r;\n");
-    fprintf(cf, "  for (i=0; i!=count && (cmd=fgetc(f))!=EOF; i++) {\n");
-    fprintf(cf, "     u_int32_t len_in_file, len=1;\n");
-    fprintf(cf, "     char charcmd = cmd;\n");
-    fprintf(cf, "     u_int32_t crc_in_file, crc = toku_crc32(0, &char_cmd, 1);\n");
-    fprintf(cf, "     switch ((enum lt_command)cmd) {\n");
+    fprintf(cf, "int toku_logprint_one_record(FILE *outf, FILE *f) {\n");
+    fprintf(cf, "    int cmd, r;\n");
+    fprintf(cf, "    cmd=fgetc(f);\n");
+    fprintf(cf, "    if (cmd==EOF) return EOF;\n");
+    fprintf(cf, "    u_int32_t len_in_file, len=1;\n");
+    fprintf(cf, "    char charcmd = cmd;\n");
+    fprintf(cf, "    u_int32_t crc_in_file, crc = toku_crc32(0, &char_cmd, 1);\n");
+    fprintf(cf, "    switch ((enum lt_command)cmd) {\n");
     DO_LOGTYPES(lt, ({
-			fprintf(cf, "     case LT_%s: \n", lt->name);
+			fprintf(cf, "    case LT_%s: \n", lt->name);
 			// We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
-			fprintf(cf, "       r = toku_logprint_LSN(outf, f, &crc, &len);   if (r!=0) return r;\n");
+			fprintf(cf, "        r = toku_logprint_LSN(outf, f, &crc, &len);   if (r!=0) return r;\n");
 			DO_FIELDS(ft, lt,
-				  fprintf(cf, "       r = toku_logprint_%s(outf, f, &crc, &len); if (r!=0) return r;\n", ft->type));
-			fprintf(cf, "       r = toku_fread_uint32(infile, &crc_in_file); len+=4; if (r!=0) return r;\n");
-			fprintf(cf, "       fprintf(outf, \" crc=%%d\", crc_in_file);\n");
-			fprintf(cf, "       if (crc_in_file!=crc) fprintf(\" actual_crc=%%d\", actual_crc);\n");
-			fprintf(cf, "       r = toku_fread_uint32(infile, &len_in_file); len+=4; if (r!=0) return r;\n");
-			fprintf(cf, "       fprintf(outf, \" len=%%d\", len_in_file);\n");
-			fprintf(cf, "       if (len_in_file!=len) fprintf(\" actual_len=%%d\", actual_len);\n");
-			fprintf(cf, "       if (len_in_file!=len || crc_in_file!=crc) return DB_BADFORMAT;\n");
-			fprintf(cf, "       goto next;\n\n");
+				  fprintf(cf, "        r = toku_logprint_%s(outf, f, &crc, &len); if (r!=0) return r;\n", ft->type));
+			fprintf(cf, "        r = toku_fread_uint32(infile, &crc_in_file); len+=4; if (r!=0) return r;\n");
+			fprintf(cf, "        fprintf(outf, \" crc=%%d\", crc_in_file);\n");
+			fprintf(cf, "        if (crc_in_file!=crc) fprintf(\" actual_crc=%%d\", actual_crc);\n");
+			fprintf(cf, "        r = toku_fread_uint32(infile, &len_in_file); len+=4; if (r!=0) return r;\n");
+			fprintf(cf, "        fprintf(outf, \" len=%%d\", len_in_file);\n");
+			fprintf(cf, "        if (len_in_file!=len) fprintf(\" actual_len=%%d\", actual_len);\n");
+			fprintf(cf, "        if (len_in_file!=len || crc_in_file!=crc) return DB_BADFORMAT;\n");
+			fprintf(cf, "        return 0;;\n\n");
 		    }));
     fprintf(cf, "    }\n");
     fprintf(cf, "    fprintf(outf, \"Unknown command %%d ('%%c')\", cmd, cmd);\n");
     fprintf(cf, "    return DB_BADFORMAT;\n");
-    fprintf(cf, "  next: ;\n");
-    fprintf(cf, "  }\n");
-    fprintf(cf, "  return 0;\n");
     fprintf(cf, "}\n\n");
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__unused__))) {
     cf = fopen("log_code.c", "w");      assert(cf!=0);
     hf = fopen("log_header.h", "w");     assert(hf!=0);
+    fprintf(cf, "#include <stdio.h>\n");
+    fprintf(hf, "#include \"brt-internal.h\"\n");
+    fprintf(cf, "#include \"log_header.h\"\n");
     generate_log_struct();
     generate_log_writer();
     generate_log_reader();
