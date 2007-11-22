@@ -127,7 +127,7 @@ static void die(const char *file, int line, const char *expr)
   fflush(stdout);
   fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
   fflush(stderr);
-  abort();
+  exit(1);
 }
 
 
