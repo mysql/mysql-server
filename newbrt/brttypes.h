@@ -18,7 +18,7 @@ typedef long long TXNID;
 typedef struct {
     int len;
     char *data;
-} BYTESTRING;
+} *BYTESTRING;
 
 /* Make the LSN be a struct instead of an integer so that we get better type checking. */
 typedef struct __toku_lsn { u_int64_t lsn; } LSN;
