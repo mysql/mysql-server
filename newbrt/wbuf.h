@@ -90,7 +90,7 @@ static void wbuf_ulonglong (struct wbuf *w, unsigned long long ull) {
 }
 
 static inline void wbuf_BYTESTRING (struct wbuf *w, BYTESTRING v) {
-    wbuf_bytes(w, v->data, v->len);
+    wbuf_bytes(w, v.data, v.len);
 }
 
 static inline void wbuf_u_int32_t (struct wbuf *w, u_int32_t v) {

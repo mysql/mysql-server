@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
@@ -394,3 +395,140 @@ int brtenv_checkpoint (BRTENV env) {
     return -1;
 }
 */
+
+int toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {
+    int vi=fgetc(f);
+    if (vi==EOF) return -1;
+    u_int8_t vc=vi;
+    *v = vc;
+    return 0;
+}
+
+int toku_fread_u_int8_t (FILE *f, u_int8_t *v, u_int32_t *crc, u_int32_t *len) {
+    int vi=fgetc(f);
+    if (vi==EOF) return -1;
+    u_int8_t vc=vi;
+    (*crc) = toku_crc32(*crc, &vc, 1);
+    (*len)++;
+    *v = vc;
+    return 0;
+}
+
+int toku_fread_u_int32_t_nocrclen (FILE *f, u_int32_t *v) {
+    u_int8_t c0,c1,c2,c3;
+    int r;
+    r = toku_fread_u_int8_t_nocrclen (f, &c0); if (r!=0) return r;
+    r = toku_fread_u_int8_t_nocrclen (f, &c1); if (r!=0) return r;
+    r = toku_fread_u_int8_t_nocrclen (f, &c2); if (r!=0) return r;
+    r = toku_fread_u_int8_t_nocrclen (f, &c3); if (r!=0) return r;
+    *v = ((c0<<24)|
+	  (c1<<16)|
+	  (c2<< 8)|
+	  (c3<<0));
+    return 0;
+}
+int toku_fread_u_int32_t (FILE *f, u_int32_t *v, u_int32_t *crc, u_int32_t *len) {
+    u_int8_t c0,c1,c2,c3;
+    int r;
+    r = toku_fread_u_int8_t (f, &c0, crc, len); if(r!=0) return r;
+    r = toku_fread_u_int8_t (f, &c1, crc, len); if(r!=0) return r;
+    r = toku_fread_u_int8_t (f, &c2, crc, len); if(r!=0) return r;
+    r = toku_fread_u_int8_t (f, &c3, crc, len); if(r!=0) return r;
+    *v = ((c0<<24)|
+	  (c1<<16)|
+	  (c2<< 8)|
+	  (c3<<0));
+    return 0;
+}
+
+int toku_fread_u_int64_t (FILE *f, u_int64_t *v, u_int32_t *crc, u_int32_t *len) {
+    u_int32_t v1,v2;
+    int r;
+    r=toku_fread_u_int32_t(f, &v1, crc, len);    if (r!=0) return r;
+    r=toku_fread_u_int32_t(f, &v2, crc, len);    if (r!=0) return r;
+    *v = (((u_int64_t)v1)<<32 ) | ((u_int64_t)v2);
+    return 0;
+}
+int toku_fread_LSN     (FILE *f, LSN *lsn, u_int32_t *crc, u_int32_t *len) {
+    return toku_fread_u_int64_t (f, &lsn->lsn, crc, len);
+}
+int toku_fread_FILENUM (FILE *f, FILENUM *filenum, u_int32_t *crc, u_int32_t *len) {
+    return toku_fread_u_int32_t (f, &filenum->fileid, crc, len);
+}
+int toku_fread_DISKOFF (FILE *f, DISKOFF *diskoff, u_int32_t *crc, u_int32_t *len) {
+    int r = toku_fread_u_int64_t (f, (u_int64_t*)diskoff, crc, len); // sign conversion will be OK.
+    return r;
+}
+int toku_fread_TXNID   (FILE *f, TXNID *txnid, u_int32_t *crc, u_int32_t *len) {
+    return toku_fread_u_int64_t (f, txnid, crc, len);
+}
+// fills in the bs with malloced data.
+int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, u_int32_t *crc, u_int32_t *len) {
+    int r=toku_fread_u_int32_t(f, (u_int32_t*)&bs->len, crc, len);
+    if (r!=0) return r;
+    bs->data = toku_malloc(bs->len);
+    int i;
+    for (i=0; i<bs->len; i++) {
+	r=toku_fread_u_int8_t(f, (u_int8_t*)&bs->data[i], crc, len);
+	if (r!=0) {
+	    toku_free(bs->data);
+	    bs->data=0;
+	    return r;
+	}
+    }
+    return 0;
+}
+
+int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+    LSN v;
+    int r = toku_fread_LSN(inf, &v, crc, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s=%lld", fieldname, v.lsn);
+    return 0;
+}
+int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+    TXNID v;
+    int r = toku_fread_TXNID(inf, &v, crc, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s=%lld", fieldname, v);
+    return 0;
+}
+int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+    u_int32_t v;
+    int r = toku_fread_u_int32_t(inf, &v, crc, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s=%d", fieldname, v);
+    return 0;
+    
+}
+int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+    BYTESTRING bs;
+    int r = toku_fread_BYTESTRING(inf, &bs, crc, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s={len=%d data=\"", fieldname, bs.len);
+    int i;
+    for (i=0; i<bs.len; i++) {
+	switch (bs.data[i]) {
+	case '"':  fprintf(outf, "\\\""); break;
+	case '\\': fprintf(outf, "\\\\"); break;
+	case '\n': fprintf(outf, "\\n");  break;
+	default:
+	    if (isprint(bs.data[i])) fprintf(outf, "%c", bs.data[i]);
+	    else fprintf(outf, "\\0%03o", bs.data[i]);
+	}
+    }
+    toku_free(bs.data);
+    return 0;
+}
+int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+    return toku_logprint_u_int32_t(outf, inf, fieldname, crc, len);
+    
+}
+int toku_logprint_DISKOFF (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+    DISKOFF v;
+    int r = toku_fread_DISKOFF(inf, &v, crc, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s=%lld", fieldname, v);
+    return 0;
+}
+int toku_logprint_MODE_T (FILE *outf, FILE *inf, u_int32_t *crc, u_int32_t *len); 

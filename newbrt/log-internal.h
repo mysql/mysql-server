@@ -56,6 +56,6 @@ static inline int toku_logsizeof_TXNID (TXNID txnid __attribute__((__unused__)))
 }
 
 static inline int toku_logsizeof_BYTESTRING (BYTESTRING bs) {
-    return 4+bs->len;
+    return 4+bs.len;
 }
 

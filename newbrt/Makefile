@@ -47,6 +47,7 @@ BINS =  $(REGRESSION_TESTS) \
 
 logdump: LDFLAGS+=-lz
 logdump: log-internal.h brttypes.h yerror.h log.h kv-pair.h
+logdump: log_code.o memory.o log.o brt-serialize.o hashtable.o pma.o ybt.o fingerprint.o mempool.o primes.o
 
 log_code.o: log_header.h
 log_code.c log_header.h: logformat
