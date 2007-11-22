@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-EXTRA_DIST =		mysql.info INSTALL-BINARY
+EXTRA_DIST =		mysql.info INSTALL-BINARY @extra_docs@
 
 # make sure that "make install" installs the info page, too
 # automake only seems to take care of this automatically,
