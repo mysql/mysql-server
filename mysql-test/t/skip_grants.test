@@ -122,7 +122,6 @@ select count(*) from information_schema.COLUMN_PRIVILEGES;
 select count(*) from information_schema.SCHEMA_PRIVILEGES;
 select count(*) from information_schema.TABLE_PRIVILEGES;
 select count(*) from information_schema.USER_PRIVILEGES;
-
 #
 # Bug #32020: loading udfs while --skip-grant-tables is enabled causes out of 
 #             memory errors
@@ -134,3 +133,12 @@ CREATE FUNCTION a RETURNS STRING SONAME '';
 DROP FUNCTION a;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug#29817 Queries with UDF fail with non-descriptive error
+--echo # if mysql.proc is missing
+--echo #
+--error ER_SP_DOES_NOT_EXIST
+select no_such_function(1);
+
+--echo End of 5.1 tests
