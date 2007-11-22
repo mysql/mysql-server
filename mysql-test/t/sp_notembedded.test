@@ -45,27 +45,9 @@ call bug4902_2()|
 call bug4902_2()|
 drop procedure bug4902_2|
 
-
-# Disable until bug#17244 is fixed
---disable_parsing
 #
-# BUG#5278: Stored procedure packets out of order if SET PASSWORD.
+# BUG#3583: query cache doesn't work for stored procedures
 #
---disable_warnings
-drop function if exists bug5278|
---enable_warnings
-create function bug5278 () returns char
-begin
-  SET PASSWORD FOR 'bob'@'%.loc.gov' = PASSWORD('newpass');
-  return 'okay';
-end|
-
---error 1133
-select bug5278()|
---error 1133
-select bug5278()|
-drop function bug5278|
---enable_parsing
 
 --disable_warnings
 drop table if exists t1|
@@ -74,9 +56,6 @@ create table t1 (
 	id   char(16) not null default '',
         data int not null
 )|
-#
-# BUG#3583: query cache doesn't work for stored procedures
-#
 --disable_warnings
 drop procedure if exists bug3583|
 --enable_warnings
