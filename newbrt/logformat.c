@@ -149,7 +149,9 @@ void generate_log_reader (void) {
 }
 
 void generate_logprint (void) {
-    fprintf(cf, "int toku_logprint_one_record(FILE *outf, FILE *f) {\n");
+    fprintf2(cf, hf, "int toku_logprint_one_record(FILE *outf, FILE *f)");
+    fprintf(hf, ";\n");
+    fprintf(cf, " {\n");
     fprintf(cf, "    int cmd, r;\n");
     fprintf(cf, "    cmd=fgetc(f);\n");
     fprintf(cf, "    if (cmd==EOF) return EOF;\n");

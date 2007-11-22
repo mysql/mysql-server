@@ -8,7 +8,7 @@
 
 #include "brttypes.h"
 #include "log-internal.h"
-
+#include "log_header.h"
 
 u_int32_t crc=0;
 u_int32_t actual_len=0;
@@ -17,7 +17,7 @@ int get_char(void) {
     int v = getchar();
     if (v==EOF) return v;
     unsigned char c = v;
-    crc=crc32(crc, &c, 1);
+    crc=toku_crc32(crc, &c, 1);
     actual_len++;
     return v;
 }
@@ -116,6 +116,25 @@ void transcribe_header (void) {
     printf("}");
 }
 
+#if 1
+int main (int argc, char *argv[]) {
+    int count=-1;
+    int i;
+    if (argc>1) {
+	count = atoi(argv[1]);
+    }
+    for (i=0; i!=count; i++) {
+	int r = toku_logprint_one_record(stdout, stdin);
+	if (r!=0) {
+	    fflush(stdout);
+	    fprintf(stderr, "Problem in log err=%d\n", r);
+	    exit(1);
+	}
+    }
+    return 0;
+}
+
+#else
 int main (int argc, char *argv[]) {
     int cmd;
     int count=-1;
@@ -224,4 +243,4 @@ int main (int argc, char *argv[]) {
     }
     return 0;
 }
-
+#endif
