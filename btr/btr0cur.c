@@ -3687,6 +3687,7 @@ btr_store_big_rec_extern_fields(
 	space_id = buf_block_get_space(rec_block);
 	zip_size = buf_block_get_zip_size(rec_block);
 	rec_page_no = buf_block_get_page_no(rec_block);
+	ut_a(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		int	err;
@@ -4112,6 +4113,7 @@ btr_free_externally_stored_field(
 		if (ext_zip_size) {
 			/* Note that page_zip will be NULL
 			in row_purge_upd_exist_or_extern(). */
+			ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_ZBLOB);
 			next_page_no = mach_read_from_4(page + FIL_PAGE_NEXT);
 
 			btr_page_free_low(index, ext_block, 0, &mtr);
@@ -4138,6 +4140,7 @@ btr_free_externally_stored_field(
 			ulint	part_len	= btr_blob_get_part_len(
 				page + FIL_PAGE_DATA);
 
+			ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_BLOB);
 			ut_a(!page_zip);
 			ut_a(extern_len >= part_len);
 
