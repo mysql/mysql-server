@@ -56,16 +56,20 @@ int nt_share_delete(const char *name, myf MyFlags)
   ulong cnt;
   DBUG_ENTER("nt_share_delete");
   DBUG_PRINT("my",("name %s MyFlags %d", name, MyFlags));
-  
+
   for (cnt= GetTickCount(); cnt; cnt--)
   {
     sprintf(buf, "%s.%08X.deleted", name, cnt);
     if (MoveFile(name, buf))
       break;
-      
+
     if ((errno= GetLastError()) == ERROR_ALREADY_EXISTS)
       continue;
-      
+
+    /* This happened during tests with MERGE tables. */
+    if (errno == ERROR_ACCESS_DENIED)
+      continue;
+
     DBUG_PRINT("warning", ("Failed to rename %s to %s, errno: %d",
                            name, buf, errno));
     break;
