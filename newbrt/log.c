@@ -479,6 +479,19 @@ int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, u_int32_t *crc, u_int32_t *l
     return 0;
 }
 
+int toku_fread_LOGGEDBRTHEADER(FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_int32_t *len) {
+    int r;
+    r = toku_fread_u_int32_t(f, &v->size,          crc, len); if (r!=0) return r;
+    r = toku_fread_u_int32_t(f, &v->flags,         crc, len); if (r!=0) return r;
+    r = toku_fread_u_int32_t(f, &v->nodesize,      crc, len); if (r!=0) return r;
+    r = toku_fread_DISKOFF  (f, &v->freelist,      crc, len); if (r!=0) return r;
+    r = toku_fread_DISKOFF  (f, &v->unused_memory, crc, len); if (r!=0) return r;
+    r = toku_fread_u_int32_t(f, &v->n_named_roots, crc, len); if (r!=0) return r;
+    assert(v->n_named_roots==0);
+    r = toku_fread_DISKOFF  (f, &v->root,          crc, len); if (r!=0) return r;
+    return 0;
+}
+
 int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
     LSN v;
     int r = toku_fread_LSN(inf, &v, crc, len);
@@ -531,4 +544,11 @@ int toku_logprint_DISKOFF (FILE *outf, FILE *inf, const char *fieldname, u_int32
     fprintf(outf, " %s=%lld", fieldname, v);
     return 0;
 }
-int toku_logprint_MODE_T (FILE *outf, FILE *inf, u_int32_t *crc, u_int32_t *len); 
+int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+    LOGGEDBRTHEADER v;
+    int r = toku_fread_LOGGEDBRTHEADER(inf, &v, crc, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s={size=%d flags=%d nodesize=%d freelist=%lld unused_memory=%lld n_named_roots=%d", fieldname, v.size, v.flags, v.nodesize, v.freelist, v.unused_memory, v.n_named_roots);
+    return 0;
+    
+}

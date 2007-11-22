@@ -30,16 +30,25 @@ struct logtype {
 // In the fields, don't mention the command, the LSN, the CRC or the trailing LEN.
 
 const struct logtype logtypes[] = {
-    {"fcreate", 'F', FA{{"TXNID",      "txnid"},
-			{"BYTESTRING", "fname"},
-			{"u_int32_t",  "mode"},
-			NULLFIELD}},
+    {"commit", 'C', FA{{"TXNID", "txnid"},NULLFIELD}},
     {"delete", 'D', FA{{"FILENUM", "filenum"},
 		       {"DISKOFF", "diskoff"},
 		       {"BYTESTRING", "key"},
 		       {"BYTESTRING", "data"},
 		       NULLFIELD}},
-    {"commit", 'C', FA{{"TXNID", "txnid"},NULLFIELD}},
+    {"fcreate", 'F', FA{{"TXNID",      "txnid"},
+			{"BYTESTRING", "fname"},
+			{"u_int32_t",  "mode"},
+			NULLFIELD}},
+    {"fheader", 'H', FA{{"TXNID",      "txnid"},
+			{"FILENUM",    "filenum"},
+			{"LOGGEDBRTHEADER",  "header"},
+			NULLFIELD}},
+    {"fopen",   'O', FA{{"TXNID",      "txnid"},
+			{"BYTESTRING", "fname"},
+			{"FILENUM",    "filenum"},
+			NULLFIELD}},
+    
     {0,0,FA{NULLFIELD}}
 };
     

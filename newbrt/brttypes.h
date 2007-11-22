@@ -34,4 +34,15 @@ typedef struct tokulogger *TOKULOGGER;
 typedef struct tokutxn    *TOKUTXN;
 #define NULL_TXN ((TOKUTXN)0)
 
+// The data that appears in the log to encode a brtheader. */
+typedef struct loggedbrtheader {
+    u_int32_t size;
+    u_int32_t flags;
+    u_int32_t nodesize;
+    DISKOFF   freelist;
+    DISKOFF   unused_memory;
+    u_int32_t n_named_roots;
+    DISKOFF   root;
+} LOGGEDBRTHEADER; 
+
 #endif
