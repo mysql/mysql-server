@@ -133,7 +133,7 @@ int tokulogger_fsync (TOKULOGGER logger) {
     return 0;
 }
 
-static int tokulogger_finish (TOKULOGGER logger, struct wbuf *wbuf) {
+int tokulogger_finish (TOKULOGGER logger, struct wbuf *wbuf) {
     wbuf_int(wbuf, toku_crc32(0, wbuf->buf, wbuf->ndone));
     wbuf_int(wbuf, 4+wbuf->ndone);
     return tokulogger_log_bytes(logger, wbuf->ndone, wbuf->buf);

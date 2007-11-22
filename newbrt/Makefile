@@ -48,6 +48,10 @@ BINS =  $(REGRESSION_TESTS) \
 logdump: LDFLAGS+=-lz
 logdump: log-internal.h brttypes.h yerror.h log.h kv-pair.h
 
+log_code.o: log_header.h
+log_code.c log_header.h: logformat
+	./logformat
+
 libs: log.o
 bins: $(BINS)
 check: bins
