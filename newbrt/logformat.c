@@ -160,9 +160,9 @@ void generate_logprint (void) {
     DO_LOGTYPES(lt, ({
 			fprintf(cf, "    case LT_%s: \n", lt->name);
 			// We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
-			fprintf(cf, "        r = toku_logprint_%-16s(outf, f, &crc, &len);     if (r!=0) return r;\n", "LSN");
+			fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &crc, &len);     if (r!=0) return r;\n", "LSN");
 			DO_FIELDS(ft, lt,
-				  fprintf(cf, "        r = toku_logprint_%-16s(outf, f, &crc, &len);     if (r!=0) return r;\n", ft->type));
+				  fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &crc, &len);     if (r!=0) return r;\n", ft->type, ft->name));
 			fprintf(cf, "        r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
 			fprintf(cf, "        fprintf(outf, \" crc=%%d\", crc_in_file);\n");
 			fprintf(cf, "        if (crc_in_file!=crc) fprintf(outf, \" actual_crc=%%d\", crc);\n");
