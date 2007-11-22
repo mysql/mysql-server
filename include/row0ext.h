@@ -21,7 +21,8 @@ row_ext_create(
 /*===========*/
 				/* out,own: column prefix cache */
 	ulint		n_ext,	/* in: number of externally stored columns */
-	const ulint*	ext,	/* in: col_no's of externally stored columns */
+	const ulint*	ext,	/* in: col_no's of externally stored columns
+				in the clustered index record */
 	ulint		zip_size,/* compressed page size, or 0 */
 	mem_heap_t*	heap);	/* in: heap where created */
 
@@ -48,7 +49,8 @@ row_ext_lookup(
 				/* out: column prefix, or NULL if
 				the column is not stored externally */
 	row_ext_t*	ext,	/* in/out: column prefix cache */
-	ulint		col,	/* in: column number */
+	ulint		col,	/* in: column number
+				in the clustered index record */
 	const byte*	field,	/* in: locally stored part of the column */
 	ulint		f_len,	/* in: length of field, in bytes */
 	ulint*		len);	/* out: length of prefix, in bytes,
