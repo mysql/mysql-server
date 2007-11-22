@@ -1582,8 +1582,8 @@ sp_name:
             if ($$)
 	      $$->init_qname(YYTHD);
 	  }
-	;
-
+	;              
+               
 sp_a_chistics:
 	  /* Empty */ {}
 	| sp_a_chistics sp_chistic {}
@@ -1811,7 +1811,8 @@ sp_decl:
           {
             LEX *lex= Lex;
 
-            lex->sphead->reset_lex(YYTHD);
+            if (lex->sphead->reset_lex(YYTHD))
+              MYSQL_YYABORT;
             lex->spcont->declare_var_boundary($2);
           }
           type
@@ -1819,6 +1820,10 @@ sp_decl:
           {
             LEX *lex= Lex;
             sp_pcontext *pctx= lex->spcont;
+            if (pctx == 0)
+            {
+              MYSQL_YYABORT;
+            }
             uint num_vars= pctx->context_var_count();
             enum enum_field_types var_type= (enum enum_field_types) $4;
             Item *dflt_value_item= $5;
@@ -1904,12 +1909,15 @@ sp_decl:
 	    {
 	      i= new sp_instr_hreturn(sp->instructions(), ctx,
 	                              ctx->current_var_count());
+              if (i == NULL )
+                MYSQL_YYABORT;
 	      sp->add_instr(i);
 	    }
 	    else
 	    {  /* EXIT or UNDO handler, just jump to the end of the block */
 	      i= new sp_instr_hreturn(sp->instructions(), ctx, 0);
-
+              if (i == NULL)
+                MYSQL_YYABORT;
 	      sp->add_instr(i);
 	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
 	    }
@@ -1937,7 +1945,9 @@ sp_decl:
 	    }
             i= new sp_instr_cpush(sp->instructions(), ctx, $5,
                                   ctx->current_cursor_count());
-	    sp->add_instr(i);
+	    if ( i==NULL )
+              MYSQL_YYABORT;
+            sp->add_instr(i);
 	    ctx->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
 	    $$.curs= 1;
@@ -1946,7 +1956,8 @@ sp_decl:
 
 sp_cursor_stmt:
 	  {
-	    Lex->sphead->reset_lex(YYTHD);
+	    if(Lex->sphead->reset_lex(YYTHD))
+              MYSQL_YYABORT;
 
 	    /* We use statement here just be able to get a better
 	       error message. Using 'select' works too, but will then
@@ -2112,7 +2123,8 @@ sp_proc_stmt:
 	    LEX *lex= thd->lex;
             Lex_input_stream *lip= thd->m_lip;
 
-	    lex->sphead->reset_lex(thd);
+	    if (lex->sphead->reset_lex(thd))
+              MYSQL_YYABORT;
 	    lex->sphead->m_tmp_query= lip->tok_start;
 	  }
 	  statement
@@ -2137,9 +2149,10 @@ sp_proc_stmt:
                         lex->var_list.is_empty());
             if (lex->sql_command != SQLCOM_SET_OPTION)
 	    {
-              sp_instr_stmt *i=new sp_instr_stmt(sp->instructions(),
+              sp_instr_stmt *i= new sp_instr_stmt(sp->instructions(),
                                                  lex->spcont, lex);
-
+              if (i == NULL)
+                MYSQL_YYABORT;
               /*
                 Extract the query statement from the tokenizer.  The
                 end is either lex->ptr, if there was no lookahead,
@@ -2157,7 +2170,10 @@ sp_proc_stmt:
 	    sp->restore_lex(thd);
           }
           | RETURN_SYM 
-          { Lex->sphead->reset_lex(YYTHD); }
+          {
+            if(Lex->sphead->reset_lex(YYTHD))
+               MYSQL_YYABORT;
+          }
           expr
 	  {
 	    LEX *lex= Lex;
@@ -2174,6 +2190,8 @@ sp_proc_stmt:
 
 	      i= new sp_instr_freturn(sp->instructions(), lex->spcont, $3,
                                       sp->m_return_field_def.sql_type, lex);
+              if (i == NULL)
+                MYSQL_YYABORT;
 	      sp->add_instr(i);
 	      sp->m_flags|= sp_head::HAS_RETURN;
 	    }
@@ -2216,12 +2234,23 @@ sp_proc_stmt:
 	      uint n;
 
 	      n= ctx->diff_handlers(lab->ctx, TRUE);  /* Exclusive the dest. */
+
 	      if (n)
-	        sp->add_instr(new sp_instr_hpop(ip++, ctx, n));
+              {
+                sp_instr_hpop *hpop= new sp_instr_hpop(ip++, ctx, n);
+                if (hpop == NULL)
+                  MYSQL_YYABORT;
+	        sp->add_instr(hpop);
+              }
 	      n= ctx->diff_cursors(lab->ctx, TRUE);  /* Exclusive the dest. */
 	      if (n)
-	        sp->add_instr(new sp_instr_cpop(ip++, ctx, n));
+              {
+                sp_instr_cpop *cpop= new sp_instr_cpop(ip++, ctx, n);
+	        sp->add_instr(cpop);
+              }
 	      i= new sp_instr_jump(ip, ctx);
+              if (i == NULL)
+                MYSQL_YYABORT;
 	      sp->push_backpatch(i, lab);  /* Jumping forward */
               sp->add_instr(i);
 	    }
@@ -2246,11 +2275,19 @@ sp_proc_stmt:
 
 	      n= ctx->diff_handlers(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
-	        sp->add_instr(new sp_instr_hpop(ip++, ctx, n));
+              {
+                sp_instr_hpop *hpop= new sp_instr_hpop(ip++, ctx, n);
+	        sp->add_instr(hpop);
+              }
 	      n= ctx->diff_cursors(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
-	        sp->add_instr(new sp_instr_cpop(ip++, ctx, n));
+              {
+                sp_instr_cpop *cpop= new sp_instr_cpop(ip++, ctx, n);
+	        sp->add_instr(cpop);
+              }
 	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
+              if (i == NULL)
+                MYSQL_YYABORT;
               sp->add_instr(i);
 	    }
 	  }
@@ -2267,6 +2304,8 @@ sp_proc_stmt:
 	      MYSQL_YYABORT;
 	    }
 	    i= new sp_instr_copen(sp->instructions(), lex->spcont, offset);
+            if (i == NULL)
+              MYSQL_YYABORT;
 	    sp->add_instr(i);
 	  }
 	| FETCH_SYM sp_opt_fetch_noise ident INTO
@@ -2282,6 +2321,8 @@ sp_proc_stmt:
 	      MYSQL_YYABORT;
 	    }
 	    i= new sp_instr_cfetch(sp->instructions(), lex->spcont, offset);
+            if (i == NULL)
+              MYSQL_YYABORT;
 	    sp->add_instr(i);
 	  }
 	  sp_fetch_list
@@ -2299,6 +2340,8 @@ sp_proc_stmt:
 	      MYSQL_YYABORT;
 	    }
 	    i= new sp_instr_cclose(sp->instructions(), lex->spcont,  offset);
+            if (i == NULL)
+              MYSQL_YYABORT;
 	    sp->add_instr(i);
 	  }
 	;
@@ -2354,7 +2397,10 @@ sp_fetch_list:
 	;
 
 sp_if:
-          { Lex->sphead->reset_lex(YYTHD); }
+          {
+            if (Lex->sphead->reset_lex(YYTHD))
+              MYSQL_YYABORT;
+          }
           expr THEN_SYM
 	  {
 	    LEX *lex= Lex;
@@ -2363,7 +2409,8 @@ sp_if:
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, ctx,
                                                                $2, lex);
-
+            if (i == NULL)
+              MYSQL_YYABORT;
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
             sp->add_cont_backpatch(i);
             sp->add_instr(i);
@@ -2375,7 +2422,8 @@ sp_if:
 	    sp_pcontext *ctx= Lex->spcont;
 	    uint ip= sp->instructions();
 	    sp_instr_jump *i = new sp_instr_jump(ip, ctx);
-
+            if (i == NULL)
+              MYSQL_YYABORT;
 	    sp->add_instr(i);
 	    sp->backpatch(ctx->pop_label());
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
@@ -2404,7 +2452,8 @@ simple_case_stmt:
           {
             LEX *lex= Lex;
             case_stmt_action_case(lex);
-            lex->sphead->reset_lex(YYTHD); /* For expr $3 */
+            if (lex->sphead->reset_lex(YYTHD))
+              MYSQL_YYABORT; /* For expr $3 */
           }
           expr
           {
@@ -2453,7 +2502,8 @@ searched_when_clause_list:
 simple_when_clause:
           WHEN_SYM
           {
-            Lex->sphead->reset_lex(YYTHD); /* For expr $3 */
+            if (Lex->sphead->reset_lex(YYTHD))
+              MYSQL_YYABORT; /* For expr $3 */
           }
           expr
           {
@@ -2474,7 +2524,8 @@ simple_when_clause:
 searched_when_clause:
           WHEN_SYM
           {
-            Lex->sphead->reset_lex(YYTHD); /* For expr $3 */
+            if (Lex->sphead->reset_lex(YYTHD))
+              MYSQL_YYABORT; /* For expr $3 */
           }
           expr
           {
@@ -2498,6 +2549,8 @@ else_clause_opt:
             uint ip= sp->instructions();
             sp_instr_error *i= new sp_instr_error(ip, lex->spcont,
                                                   ER_SP_CASE_NOT_FOUND);
+            if (i == NULL)
+              MYSQL_YYABORT;
             sp->add_instr(i);
           }
         | ELSE sp_proc_stmts1
@@ -2567,11 +2620,21 @@ sp_unlabeled_control:
 
   	    sp->backpatch(ctx->last_label());	/* We always have a label */
 	    if ($3.hndlrs)
-	      sp->add_instr(new sp_instr_hpop(sp->instructions(), ctx,
-					      $3.hndlrs));
+            {
+              sp_instr_hpop *hpop= new sp_instr_hpop(sp->instructions(), ctx,
+                                                     $3.hndlrs);
+              if (hpop == NULL)
+                MYSQL_YYABORT;
+	      sp->add_instr(hpop);
+            }
 	    if ($3.curs)
-	      sp->add_instr(new sp_instr_cpop(sp->instructions(), ctx,
-					      $3.curs));
+            {
+              sp_instr_cpop *cpop= new sp_instr_cpop(sp->instructions(), ctx,
+                                                     $3.curs);
+              if (cpop == NULL)
+                MYSQL_YYABORT;
+	      sp->add_instr(cpop);
+            }
 	    lex->spcont= ctx->pop_context();
 	  }
 	| LOOP_SYM
@@ -2581,11 +2644,15 @@ sp_unlabeled_control:
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
 	    sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
-
+            if (i == NULL)
+              MYSQL_YYABORT;
 	    lex->sphead->add_instr(i);
 	  }
         | WHILE_SYM 
-          { Lex->sphead->reset_lex(YYTHD); }
+          {
+            if (Lex->sphead->reset_lex(YYTHD))
+              MYSQL_YYABORT;
+          }
           expr DO_SYM
 	  {
 	    LEX *lex= Lex;
@@ -2593,7 +2660,8 @@ sp_unlabeled_control:
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
 							       $3, lex);
-
+            if (i == NULL)
+              MYSQL_YYABORT;
 	    /* Jumping forward */
 	    sp->push_backpatch(i, lex->spcont->last_label());
             sp->new_cont_backpatch(i);
@@ -2606,12 +2674,16 @@ sp_unlabeled_control:
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
 	    sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
-
+            if (i == NULL)
+              MYSQL_YYABORT;
 	    lex->sphead->add_instr(i);
             lex->sphead->do_cont_backpatch();
 	  }
         | REPEAT_SYM sp_proc_stmts1 UNTIL_SYM 
-          { Lex->sphead->reset_lex(YYTHD); }
+          {
+            if (Lex->sphead->reset_lex(YYTHD))
+              MYSQL_YYABORT;
+          }
           expr END REPEAT_SYM
 	  {
 	    LEX *lex= Lex;
@@ -2620,6 +2692,8 @@ sp_unlabeled_control:
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
                                                                $5, lab->ip,
                                                                lex);
+            if (i == NULL)
+              MYSQL_YYABORT;
             lex->sphead->add_instr(i);
             lex->sphead->restore_lex(YYTHD);
             /* We can shortcut the cont_backpatch here */
@@ -4149,6 +4223,8 @@ select_init2:
 	select_part2
         {
 	  LEX *lex= Lex;
+          if (lex == NULL)
+            MYSQL_YYABORT;
           SELECT_LEX * sel= lex->current_select;
           if (lex->current_select->set_braces(0))
 	  {
@@ -4508,6 +4584,8 @@ predicate:
             $7->push_front($5);
             $7->push_front($1);
             Item_func_in *item = new (YYTHD->mem_root) Item_func_in(*$7);
+            if (item == NULL)
+              MYSQL_YYABORT;
             item->negate();
             $$= item;
           }
@@ -4968,7 +5046,8 @@ simple_expr:
 	  {
 	    LEX *lex= Lex;
 	    sp_name *name= new sp_name($1, $3, true);
-
+            if (name == NULL)
+              MYSQL_YYABORT;
 	    name->init_qname(YYTHD);
 	    sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
 	    if ($5)
@@ -5105,8 +5184,9 @@ simple_expr:
                 as a last choice. This later can lead to ER_SP_DOES_NOT_EXIST.
               */
               sp_name *name= new sp_name(db, $1, false);
-              if (name)
-                name->init_qname(thd);
+              if (name == NULL)
+                MYSQL_YYABORT;
+              name->init_qname(thd);
 
               sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
               if ($4)
@@ -8360,7 +8440,8 @@ option_type_value:
 
               QQ: May be we should simply prohibit group assignments in SP?
             */
-            Lex->sphead->reset_lex(thd);
+            if (Lex->sphead->reset_lex(thd))
+              MYSQL_YYABORT;
             lex= thd->lex;
 
             /* Set new LEX as if we at start of set rule. */
@@ -8525,6 +8606,8 @@ sys_option_value:
               it= spv->dflt;
             else
               it= new Item_null();
+            if (it == NULL)
+              MYSQL_YYABORT;
             sp_set= new sp_instr_set(lex->sphead->instructions(), ctx,
                                      spv->offset, it, spv->type, lex, TRUE);
             lex->sphead->add_instr(sp_set);
@@ -9900,6 +9983,8 @@ sp_tail:
 
 	  /* Order is important here: new - reset - init */
 	  sp= new sp_head();
+          if (sp == NULL)
+            MYSQL_YYABORT;
 	  sp->reset_thd_mem_root(YYTHD);
 	  sp->init(lex);
 	  sp->m_type= TYPE_ENUM_PROCEDURE;

@@ -2659,7 +2659,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
   last_errno(0),
   flags((uint) IS_IN_USE)
 {
-  init_alloc_root(&main_mem_root, thd_arg->variables.query_alloc_block_size,
+  init_sql_alloc(&main_mem_root, thd_arg->variables.query_alloc_block_size,
                   thd_arg->variables.query_prealloc_size);
   *last_error= '\0';
 }
