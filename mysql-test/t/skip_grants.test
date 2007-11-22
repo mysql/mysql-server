@@ -122,3 +122,9 @@ select count(*) from information_schema.COLUMN_PRIVILEGES;
 select count(*) from information_schema.SCHEMA_PRIVILEGES;
 select count(*) from information_schema.TABLE_PRIVILEGES;
 select count(*) from information_schema.USER_PRIVILEGES;
+--echo #
+--echo # Bug#29817 Queries with UDF fail with non-descriptive error
+--echo # if mysql.proc is missing
+--echo #
+--error ER_SP_DOES_NOT_EXIST
+select no_such_function(1);
