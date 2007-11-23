@@ -493,7 +493,7 @@ int toku_fread_LOGGEDBRTHEADER(FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_in
     r = toku_fread_DISKOFF  (f, &v->freelist,      crc, len); if (r!=0) return r;
     r = toku_fread_DISKOFF  (f, &v->unused_memory, crc, len); if (r!=0) return r;
     r = toku_fread_u_int32_t(f, &v->n_named_roots, crc, len); if (r!=0) return r;
-    assert(v->n_named_roots==0);
+    assert((signed)v->n_named_roots==-1);
     r = toku_fread_DISKOFF  (f, &v->root,          crc, len); if (r!=0) return r;
     return 0;
 }
