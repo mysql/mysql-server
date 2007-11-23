@@ -32,7 +32,9 @@ SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
 -- error 1108
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
+-- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
+-- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
 SELECT (SELECT 1,2,3) = ROW(1,2,3);
 SELECT (SELECT 1,2,3) = ROW(1,2,1);
@@ -1346,17 +1348,20 @@ drop table t1,t2;
 CREATE TABLE t1 ( a int, b int );
 CREATE TABLE t2 ( c int, d int );
 INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
-SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
-INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+SELECT a AS abc, b FROM t1 outr WHERE b = 
+  (SELECT MIN(b) FROM t1 WHERE a=outr.a);
+INSERT INTO t2 SELECT a AS abc, b FROM t1 outr WHERE b = 
+  (SELECT MIN(b) FROM t1 WHERE a=outr.a);
 select * from t2;
-CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+CREATE TABLE t3 SELECT a AS abc, b FROM t1 outr WHERE b = 
+  (SELECT MIN(b) FROM t1 WHERE a=outr.a);
 select * from t3;
-prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 outr WHERE b = (SELECT MIN(b) FROM t1 WHERE a=outr.a);";
 execute stmt1;
 deallocate prepare stmt1;
 select * from t2;
 drop table t3;
-prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 outr WHERE b = (SELECT MIN(b) FROM t1 WHERE a=outr.a);";
 execute stmt1;
 select * from t3;
 deallocate prepare stmt1;
@@ -1529,7 +1534,9 @@ INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,680
 INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');
 INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','Micronesia/Caribbean',16.00,0,0,NULL,0.00,NULL,'United States Minor Outlying Islands','Dependent Territory of the US','George W. Bush',NULL,'UM');
 /*!40000 ALTER TABLE t1 ENABLE KEYS */;
-SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 WHERE Continent = c AND Population < 200);
+SELECT DISTINCT Continent AS c FROM t1 outr WHERE 
+  Code <> SOME ( SELECT Code FROM t1 WHERE Continent = outr.Continent AND 
+  Population < 200);
 drop table t1;
 
 #
@@ -3162,5 +3169,36 @@ SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 
 DROP TABLE t1,t2;
+
+#
+# Bug #32400: Complex SELECT query returns correct result only on some
+# occasions
+#
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (2,4);
+
+--error ER_BAD_FIELD_ERROR
+EXPLAIN 
+SELECT a AS out_a, MIN(b) FROM t1
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = out_a)
+GROUP BY a;
+
+--error ER_BAD_FIELD_ERROR
+SELECT a AS out_a, MIN(b) FROM t1
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = out_a)
+GROUP BY a;
+
+EXPLAIN 
+SELECT a AS out_a, MIN(b) FROM t1 t1_outer
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = t1_outer.a)
+GROUP BY a;
+
+SELECT a AS out_a, MIN(b) FROM t1 t1_outer
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = t1_outer.a)
+GROUP BY a;
+
+DROP TABLE t1;
+
 
 --echo End of 5.0 tests.

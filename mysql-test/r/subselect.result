@@ -77,10 +77,9 @@ ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
 ERROR HY000: Incorrect parameters to procedure 'ANALYSE'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
-a
+ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
-a
-1
+ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT (SELECT 1,2,3) = ROW(1,2,3);
 (SELECT 1,2,3) = ROW(1,2,3)
 1
@@ -2304,24 +2303,27 @@ drop table t1,t2;
 CREATE TABLE t1 ( a int, b int );
 CREATE TABLE t2 ( c int, d int );
 INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
-SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+SELECT a AS abc, b FROM t1 outr WHERE b = 
+(SELECT MIN(b) FROM t1 WHERE a=outr.a);
 abc	b
 1	2
 2	3
 3	4
-INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+INSERT INTO t2 SELECT a AS abc, b FROM t1 outr WHERE b = 
+(SELECT MIN(b) FROM t1 WHERE a=outr.a);
 select * from t2;
 c	d
 1	2
 2	3
 3	4
-CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+CREATE TABLE t3 SELECT a AS abc, b FROM t1 outr WHERE b = 
+(SELECT MIN(b) FROM t1 WHERE a=outr.a);
 select * from t3;
 abc	b
 1	2
 2	3
 3	4
-prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 outr WHERE b = (SELECT MIN(b) FROM t1 WHERE a=outr.a);";
 execute stmt1;
 deallocate prepare stmt1;
 select * from t2;
@@ -2333,7 +2335,7 @@ c	d
 2	3
 3	4
 drop table t3;
-prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 outr WHERE b = (SELECT MIN(b) FROM t1 WHERE a=outr.a);";
 execute stmt1;
 select * from t3;
 abc	b
@@ -2515,7 +2517,9 @@ INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,680
 INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');
 INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','Micronesia/Caribbean',16.00,0,0,NULL,0.00,NULL,'United States Minor Outlying Islands','Dependent Territory of the US','George W. Bush',NULL,'UM');
 /*!40000 ALTER TABLE t1 ENABLE KEYS */;
-SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 WHERE Continent = c AND Population < 200);
+SELECT DISTINCT Continent AS c FROM t1 outr WHERE 
+Code <> SOME ( SELECT Code FROM t1 WHERE Continent = outr.Continent AND 
+Population < 200);
 c
 Oceania
 drop table t1;
@@ -4331,4 +4335,29 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 a	b
 DROP TABLE t1,t2;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (2,4);
+EXPLAIN 
+SELECT a AS out_a, MIN(b) FROM t1
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = out_a)
+GROUP BY a;
+ERROR 42S22: Unknown column 'out_a' in 'where clause'
+SELECT a AS out_a, MIN(b) FROM t1
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = out_a)
+GROUP BY a;
+ERROR 42S22: Unknown column 'out_a' in 'where clause'
+EXPLAIN 
+SELECT a AS out_a, MIN(b) FROM t1 t1_outer
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = t1_outer.a)
+GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_outer	ALL	NULL	NULL	NULL	NULL	4	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+SELECT a AS out_a, MIN(b) FROM t1 t1_outer
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = t1_outer.a)
+GROUP BY a;
+out_a	MIN(b)
+1	2
+2	4
+DROP TABLE t1;
 End of 5.0 tests.
