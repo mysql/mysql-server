@@ -141,33 +141,23 @@ void read_and_print_magic (void) {
     }
 }
 
-#if 1
-int main (int argc, char *argv[]) {
-    int count=-1;
+static void newmain (int count) {
     int i;
-    if (argc>1) {
-	count = atoi(argv[1]);
-    }
     read_and_print_magic();
     for (i=0; i!=count; i++) {
 	int r = toku_logprint_one_record(stdout, stdin);
+	if (r==EOF) break;
 	if (r!=0) {
 	    fflush(stdout);
 	    fprintf(stderr, "Problem in log err=%d\n", r);
 	    exit(1);
 	}
     }
-    return 0;
 }
 
-#else
-int main (int argc, char *argv[]) {
+static void oldmain (int count) {
     int cmd;
-    int count=-1;
     int i;
-    if (argc>1) {
-	count = atoi(argv[1]);
-    }
     read_and_print_magic();
     for (i=0;
 	 i!=count && (crc=0,actual_len=0,cmd=get_char())!=EOF;
@@ -268,6 +258,21 @@ int main (int argc, char *argv[]) {
 	assert(0);
     next: ; /*nothing*/
     }
+}
+
+int main (int argc, char *argv[]) {
+    int count=-1;
+    int oldcode=0;
+    while (argc>1) {
+	if (strcmp(argv[1], "--oldcode")==0) {
+	    oldcode=1;
+	} else {
+	    count = atoi(argv[1]);
+	}
+	argc--; argv++;
+    }
+    if (oldcode) oldmain(count);
+    else newmain(count);
     return 0;
 }
-#endif
+

@@ -93,6 +93,10 @@ static inline void wbuf_BYTESTRING (struct wbuf *w, BYTESTRING v) {
     wbuf_bytes(w, v.data, v.len);
 }
 
+static inline void wbuf_u_int8_t (struct wbuf *w, u_int8_t v) {
+    wbuf_char(w, v);
+}
+
 static inline void wbuf_u_int32_t (struct wbuf *w, u_int32_t v) {
     wbuf_int(w, v);
 }

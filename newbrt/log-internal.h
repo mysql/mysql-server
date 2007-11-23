@@ -40,6 +40,10 @@ struct tokutxn {
 
 int tokulogger_finish (TOKULOGGER logger, struct wbuf *wbuf);
 
+static inline int toku_logsizeof_u_int8_t (u_int32_t v __attribute__((__unused__))) {
+    return 1;
+}
+
 static inline int toku_logsizeof_u_int32_t (u_int32_t v __attribute__((__unused__))) {
     return 4;
 }
