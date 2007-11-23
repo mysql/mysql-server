@@ -31,6 +31,8 @@
 #include <ndbapi_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
+#define NDB_DEFAULT_AUTO_PREFETCH 32
+
 
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
@@ -590,7 +592,8 @@ private:
                              void *tab);
   int set_range_data(void *tab, partition_info* part_info);
   int set_list_data(void *tab, partition_info* part_info);
-  int ndb_pk_update_row(const uchar *old_data, uchar *new_data,
+  int ndb_pk_update_row(THD *thd, 
+                        const uchar *old_data, uchar *new_data,
                         uint32 old_part_id);
   int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 part_id);
   int ordered_index_scan(const key_range *start_key,
@@ -622,6 +625,7 @@ private:
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
+  int set_auto_inc(THD *thd, Field *field);
   int next_result(uchar *buf); 
   int close_scan();
   void unpack_record(uchar *dst_row, const uchar *src_row);
