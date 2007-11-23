@@ -10575,6 +10575,8 @@ void Dblqh::nextScanConfCopyLab(Signal* signal)
   
   tcConP->m_use_rowid = true;
   tcConP->m_row_id = scanptr.p->m_row_id;
+
+  scanptr.p->m_curr_batch_size_rows++;
   
   if (signal->getLength() == 7)
   {
@@ -10708,8 +10710,7 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
   c_scanRecordPool.getPtr(scanptr);
   ScanRecord* scanP = scanptr.p;
 
-  Uint32 rows = scanP->m_curr_batch_size_rows;
-  Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanP, rows, false);
+  Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanP, 0, false);
   ndbassert(accOpPtr != (Uint32)-1);
   c_acc->execACCKEY_ORD(signal, accOpPtr);
   
@@ -10763,6 +10764,7 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
 // scanning.
 /*---------------------------------------------------------------------------*/
   UintR TnoOfWords = readLength + len;
+  scanP->m_curr_batch_size_bytes += 4 * TnoOfWords;
   TnoOfWords = TnoOfWords + MAGIC_CONSTANT;
   TnoOfWords = TnoOfWords + (TnoOfWords >> 2);
 
@@ -11092,6 +11094,8 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal)
       conf->startingNodeId = scanptr.p->scanNodeId;
       conf->tableId = tcConnectptr.p->tableref;
       conf->fragId = tcConnectptr.p->fragmentid;
+      conf->rows_lo = scanptr.p->m_curr_batch_size_rows;
+      conf->bytes_lo = scanptr.p->m_curr_batch_size_bytes;
       sendSignal(tcConnectptr.p->clientBlockref, GSN_COPY_FRAGCONF, signal,
 		 CopyFragConf::SignalLength, JBB);
     }//if

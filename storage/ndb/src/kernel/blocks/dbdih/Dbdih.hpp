@@ -376,7 +376,10 @@ public:
     /* -------------------------------------------------------------------- */
     /*    The last local checkpoint id started or queued on this replica.   */
     /* -------------------------------------------------------------------- */
-    Uint32 lcpIdStarted;   // Started or queued
+    union {
+      Uint32 lcpIdStarted;   // Started or queued
+      Uint32 m_restorable_gci;
+    };
 
     /* -------------------------------------------------------------------- */
     /* THIS VARIABLE SPECIFIES WHAT THE STATUS OF THE LOCAL CHECKPOINT IS.IT*/
