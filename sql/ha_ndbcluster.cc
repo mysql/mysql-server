@@ -2130,7 +2130,8 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
   Update primary key or part id by doing delete insert
 */
 
-int ha_ndbcluster::ndb_pk_update_row(const uchar *old_data, uchar *new_data,
+int ha_ndbcluster::ndb_pk_update_row(THD *thd,
+                                     const uchar *old_data, uchar *new_data,
                                      uint32 old_part_id)
 {
   NdbTransaction *trans= m_thd_ndb->trans;
@@ -2209,6 +2210,17 @@ delete_tuple:
   // Insert new row
   DBUG_PRINT("info", ("delete succeded"));
   bool batched_update= (m_active_cursor != 0);
+  /*
+    If we are updating a primary key with auto_increment
+    then we need to update the auto_increment counter
+  */
+  if (table->found_next_number_field &&
+      bitmap_is_set(table->write_set, 
+                    table->found_next_number_field->field_index) &&
+      (error= set_auto_inc(thd, table->found_next_number_field)))
+  {
+    DBUG_RETURN(error);
+  }
   error= ndb_write_row(new_data, TRUE, batched_update);
   if (error)
   {
@@ -3146,6 +3158,29 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   DBUG_RETURN(next_result(buf));
 }
 
+int
+ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
+{
+  DBUG_ENTER("ha_ndbcluster::set_auto_inc");
+  Ndb *ndb= get_ndb(thd);
+  bool read_bit= bitmap_is_set(table->read_set, field->field_index);
+  bitmap_set_bit(table->read_set, field->field_index);
+  Uint64 next_val= (Uint64) field->val_int() + 1;
+  if (!read_bit)
+    bitmap_clear_bit(table->read_set, field->field_index);
+#ifndef DBUG_OFF
+  char buff[22];
+  DBUG_PRINT("info", 
+             ("Trying to set next auto increment value to %s",
+              llstr(next_val, buff)));
+#endif
+  Ndb_tuple_id_range_guard g(m_share);
+  if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
+      == -1)
+    ERR_RETURN(ndb->getNdbError());
+  DBUG_RETURN(0);
+}
+
 inline void
 ha_ndbcluster::eventSetAnyValue(THD *thd, NdbOperation *op)
 {
@@ -3411,18 +3446,11 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
   if ((has_auto_increment) && (m_skip_auto_increment))
   {
-    Ndb *ndb= get_ndb(thd);
-    Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
-#ifndef DBUG_OFF
-    char buff[22];
-    DBUG_PRINT("info", 
-               ("Trying to set next auto increment value to %s",
-                llstr(next_val, buff)));
-#endif
-    Ndb_tuple_id_range_guard g(m_share);
-    if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
-        == -1)
-      ERR_RETURN(ndb->getNdbError());
+    int ret_val;
+    if ((ret_val= set_auto_inc(thd, table->next_number_field)))
+    {
+      DBUG_RETURN(ret_val);
+    }
   }
   m_skip_auto_increment= TRUE;
 
@@ -3522,9 +3550,19 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
    */  
   if (pk_update || old_part_id != new_part_id)
   {
-    DBUG_RETURN(ndb_pk_update_row(old_data, new_data, old_part_id));
+    DBUG_RETURN(ndb_pk_update_row(thd, old_data, new_data, old_part_id));
   }
-
+  /*
+    If we are updating a unique key with auto_increment
+    then we need to update the auto_increment counter
+   */
+  if (table->found_next_number_field &&
+      bitmap_is_set(table->write_set, 
+		    table->found_next_number_field->field_index) &&
+      (error= set_auto_inc(thd, table->found_next_number_field)))
+  {
+    DBUG_RETURN(error);
+  }
   /*
     Set only non-primary-key attributes.
     We already checked that any primary key attribute in write_set has no
@@ -4872,9 +4910,11 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb)
   DBUG_ENTER("ha_ndbcluster::init_handler_for_statement");
   // store thread specific data first to set the right context
   m_force_send=          thd->variables.ndb_force_send;
-  m_autoincrement_prefetch= 
-    (ha_rows) thd->variables.ndb_autoincrement_prefetch_sz;
-
+  m_autoincrement_prefetch=
+    (thd->variables.ndb_autoincrement_prefetch_sz > 
+     NDB_DEFAULT_AUTO_PREFETCH) ?
+    (ha_rows) thd->variables.ndb_autoincrement_prefetch_sz
+    : (ha_rows) NDB_DEFAULT_AUTO_PREFETCH;
   m_thd_ndb= thd_ndb;
   DBUG_ASSERT(m_thd_ndb->trans);
   // Start of transaction
@@ -6670,8 +6710,9 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                                        ulonglong *first_value,
                                        ulonglong *nb_reserved_values)
 {
-  int cache_size;
+  uint cache_size;
   Uint64 auto_value;
+  THD *thd= current_thd;
   DBUG_ENTER("get_auto_increment");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
   Ndb *ndb= get_ndb(table->in_use);
@@ -6681,11 +6722,14 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
     /* We guessed too low */
     m_rows_to_insert+= m_autoincrement_prefetch;
   }
-  cache_size= 
-    (int) ((m_rows_to_insert - m_rows_inserted < m_autoincrement_prefetch) ?
-           m_rows_to_insert - m_rows_inserted :
-           ((m_rows_to_insert > m_autoincrement_prefetch) ?
-            m_rows_to_insert : m_autoincrement_prefetch));
+  uint remaining= m_rows_to_insert - m_rows_inserted;
+  uint min_prefetch= 
+    (remaining < thd->variables.ndb_autoincrement_prefetch_sz) ?
+    thd->variables.ndb_autoincrement_prefetch_sz
+    : remaining;
+  cache_size= ((remaining < m_autoincrement_prefetch) ?
+	       min_prefetch
+	       : remaining);
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
   int retry_sleep= 30; /* 30 milliseconds, transaction */
   for (;;)
@@ -6777,7 +6821,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_ndb_statistics_record(0),
   m_dupkey((uint) -1),
   m_force_send(TRUE),
-  m_autoincrement_prefetch((ha_rows) 32),
+  m_autoincrement_prefetch((ha_rows) NDB_DEFAULT_AUTO_PREFETCH),
   m_transaction_on(TRUE),
   m_cond(NULL),
   m_multi_cursor(NULL)
