@@ -122,3 +122,16 @@ disconnect addconroot2;
 connection default;
 
 --echo End of 5.0 tests
+
+#
+# Bug#30152 MySQLD crash duing alter table causes DROP DATABASE to FAIL due to temp file
+#
+create database mysql_test;
+create table mysql_test.t1(f1 int);
+create table mysql_test.`#sql-347f_7` (f1 int);
+create table mysql_test.`#sql-347f_8` (f1 int);
+drop table mysql_test.`#sql-347f_8`;
+copy_file $MYSQLTEST_VARDIR/master-data/mysql_test/t1.frm $MYSQLTEST_VARDIR/master-data/mysql_test/#sql-347f_6.frm;
+drop database mysql_test;
+
+--echo End of 5.1 tests
