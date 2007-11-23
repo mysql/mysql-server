@@ -2162,7 +2162,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   if (!keys_to_use.is_clear_all())
   {
 #ifndef EMBEDDED_LIBRARY                      // Avoid compiler warning
-    char buff[STACK_BUFF_ALLOC];
+    uchar buff[STACK_BUFF_ALLOC];
 #endif
     MEM_ROOT alloc;
     SEL_TREE *tree= NULL;
