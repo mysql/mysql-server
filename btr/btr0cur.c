@@ -1860,7 +1860,7 @@ any_extern:
 	ut_a(!n_ext);
 
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-						     FALSE, NULL);
+						     FALSE, NULL, heap);
 	old_rec_size = rec_offs_size(offsets);
 	new_rec_size = rec_get_converted_size(index, new_entry, 0);
 
@@ -2131,7 +2131,7 @@ btr_cur_pessimistic_update(
 	rec_offs_make_valid(rec, index, offsets);
 
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-						     FALSE, *heap);
+						     FALSE, *heap, *heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
