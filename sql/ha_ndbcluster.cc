@@ -2130,7 +2130,8 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
   Update primary key or part id by doing delete insert
 */
 
-int ha_ndbcluster::ndb_pk_update_row(const uchar *old_data, uchar *new_data,
+int ha_ndbcluster::ndb_pk_update_row(THD *thd,
+                                     const uchar *old_data, uchar *new_data,
                                      uint32 old_part_id)
 {
   NdbTransaction *trans= m_thd_ndb->trans;
@@ -2209,6 +2210,17 @@ delete_tuple:
   // Insert new row
   DBUG_PRINT("info", ("delete succeded"));
   bool batched_update= (m_active_cursor != 0);
+  /*
+    If we are updating a primary key with auto_increment
+    then we need to update the auto_increment counter
+  */
+  if (table->found_next_number_field &&
+      bitmap_is_set(table->write_set, 
+                    table->found_next_number_field->field_index) &&
+      (error= set_auto_inc(thd, table->found_next_number_field)))
+  {
+    DBUG_RETURN(error);
+  }
   error= ndb_write_row(new_data, TRUE, batched_update);
   if (error)
   {
@@ -3147,10 +3159,10 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 }
 
 int
-ha_ndbcluster::set_auto_inc(Field *field)
+ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
 {
   DBUG_ENTER("ha_ndbcluster::set_auto_inc");
- Ndb *ndb= get_ndb();
+  Ndb *ndb= get_ndb(thd);
   bool read_bit= bitmap_is_set(table->read_set, field->field_index);
   bitmap_set_bit(table->read_set, field->field_index);
   Uint64 next_val= (Uint64) field->val_int() + 1;
@@ -3434,9 +3446,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
   if ((has_auto_increment) && (m_skip_auto_increment))
   {
-    Ndb *ndb= get_ndb(thd);
     int ret_val;
-    if ((ret_val= set_auto_inc(table->next_number_field)))
+    if ((ret_val= set_auto_inc(thd, table->next_number_field)))
     {
       DBUG_RETURN(ret_val);
     }
@@ -3539,7 +3550,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
    */  
   if (pk_update || old_part_id != new_part_id)
   {
-    DBUG_RETURN(ndb_pk_update_row(old_data, new_data, old_part_id));
+    DBUG_RETURN(ndb_pk_update_row(thd, old_data, new_data, old_part_id));
   }
   /*
     If we are updating a unique key with auto_increment
@@ -3548,7 +3559,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   if (table->found_next_number_field &&
       bitmap_is_set(table->write_set, 
 		    table->found_next_number_field->field_index) &&
-      (error= set_auto_inc(table->found_next_number_field)))
+      (error= set_auto_inc(thd, table->found_next_number_field)))
   {
     DBUG_RETURN(error);
   }
