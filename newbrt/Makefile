@@ -50,7 +50,8 @@ logdump: log-internal.h brttypes.h yerror.h log.h kv-pair.h
 logdump: log_code.o memory.o log.o brt-serialize.o hashtable.o pma.o ybt.o fingerprint.o mempool.o primes.o
 
 recover: LDFLAGS+=-lz
-recover: log_code.o memory.o log.o brt-serialize.o hashtable.o pma.o ybt.o fingerprint.o mempool.o primes.o
+recover.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h
+recover: log_code.o memory.o log.o brt-serialize.o hashtable.o pma.o ybt.o fingerprint.o mempool.o primes.o cachetable.o brt.o brt-verify.o key.o
 
 log_code.o: log_header.h
 log_code.c log_header.h: logformat

@@ -116,6 +116,13 @@ void generate_log_struct (void) {
     fprintf(hf, "};\n");
 }
 
+void generate_dispatch (void) {
+    fprintf(hf, "#define logtype_dispatch(s, funprefix) ({ switch(s.cmd) {\\\n");
+    DO_LOGTYPES(lt, fprintf(hf, "  case LT_%s: funprefix ## %s (&s.u.%s); break;\\\n", lt->name, lt->name, lt->name));
+    fprintf(hf, " }})\n");
+}
+		
+
 void generate_log_writer (void) {
     DO_LOGTYPES(lt, ({
 			fprintf2(cf, hf, "int toku_log_%s (TOKUTXN txn", lt->name);
@@ -237,6 +244,7 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     fprintf(cf, "#include \"log-internal.h\"\n");
     generate_lt_enum();
     generate_log_struct();
+    generate_dispatch();
     generate_log_writer();
     generate_log_reader();
     generate_logprint();

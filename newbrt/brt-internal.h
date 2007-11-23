@@ -201,8 +201,8 @@ struct brtenv {
 //    SPINLOCK  checkpointing;
 };
 
-extern cachetable_flush_func_t brtnode_flush_callback;
-extern cachetable_fetch_func_t brtnode_fetch_callback;
+extern cachetable_flush_func_t brtnode_flush_callback, brtheader_flush_callback;
+extern cachetable_fetch_func_t brtnode_fetch_callback, brtheader_fetch_callback;
 extern int toku_read_and_pin_brt_header (CACHEFILE cf, struct brt_header **header);
 extern int toku_unpin_brt_header (BRT brt);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt);
