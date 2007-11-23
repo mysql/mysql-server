@@ -934,7 +934,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 					= dfield_get_data(dfield);
 				ibool		fetch_ext
 					= dfield_is_ext(dfield)
-					&& len < field->prefix_len
+					&& len < (ulint) field->prefix_len
 					+ BTR_EXTERN_FIELD_REF_SIZE;
 
 				if (fetch_ext) {
@@ -1044,10 +1044,12 @@ row_upd_index_replace_new_col_vals(
 					= dfield_get_len(dfield);
 				const char*	data
 					= dfield_get_data(dfield);
+				ibool		fetch_ext
+					= dfield_is_ext(dfield)
+					&& len < (ulint) field->prefix_len
+					+ BTR_EXTERN_FIELD_REF_SIZE;
 
-				if (dfield_is_ext(dfield)
-				    && len < field->prefix_len
-				    + BTR_EXTERN_FIELD_REF_SIZE) {
+				if (fetch_ext) {
 					ulint	l
 						= len;
 					ulint	zip_size
