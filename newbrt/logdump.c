@@ -117,35 +117,13 @@ void transcribe_header (void) {
     printf("}");
 }
 
-void read_and_print_magic (void) {
-    {
-	char magic[8];
-	int r=fread(magic, 1, 8, stdin);
-	if (r!=8) {
-	    fprintf(stderr, "Couldn't read the magic\n");
-	    exit(1);
-	}
-	if (memcmp(magic, "tokulogg", 8)!=0) {
-	    fprintf(stderr, "Magic is wrong.\n");
-	    exit(1);
-	}
-    }
-    {
-	int version;
-    	int r=fread(&version, 1, 4, stdin);
-	if (r!=4) {
-	    fprintf(stderr, "Couldn't read the version\n");
-	    exit(1);
-	}
-	printf("tokulog v.%d\n", ntohl(version));
-    }
-}
-
 static void newmain (int count) {
     int i;
-    read_and_print_magic();
+    u_int32_t version;
+    int r = read_and_print_logmagic(stdin, &version);
+    assert(r==0);
     for (i=0; i!=count; i++) {
-	int r = toku_logprint_one_record(stdout, stdin);
+	r = toku_logprint_one_record(stdout, stdin);
 	if (r==EOF) break;
 	if (r!=0) {
 	    fflush(stdout);
@@ -158,7 +136,9 @@ static void newmain (int count) {
 static void oldmain (int count) {
     int cmd;
     int i;
-    read_and_print_magic();
+    u_int32_t version;
+    int r = read_and_print_logmagic(stdin, &version);
+    assert(r==0);
     for (i=0;
 	 i!=count && (crc=0,actual_len=0,cmd=get_char())!=EOF;
 	 i++) {

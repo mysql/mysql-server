@@ -18,6 +18,7 @@ struct tokulogger {
 };
 
 int tokulogger_find_next_unused_log_file(const char *directory, long long *result);
+int tokulogger_find_logfiles (const char *directory, int *n_resultsp, char ***resultp);
 
 enum lt_command {
     LT_COMMIT                   = 'C',

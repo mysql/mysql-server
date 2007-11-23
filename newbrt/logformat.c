@@ -108,6 +108,12 @@ void generate_log_struct (void) {
 		    fprintf(hf, "  %-16s len;\n", "u_int32_t");
 		    fprintf(hf, "};\n");
 		}));
+    fprintf(hf, "struct log_entry {\n");
+    fprintf(hf, "  enum lt_cmd cmd;\n");
+    fprintf(hf, "  union {\n");
+    DO_LOGTYPES(lt, fprintf(hf,"    struct logtype_%s %s;\n", lt->name, lt->name));
+    fprintf(hf, "  } u;\n");
+    fprintf(hf, "};\n");
 }
 
 void generate_log_writer (void) {
@@ -166,6 +172,20 @@ void generate_log_reader (void) {
 			fprintf(cf, "  return 0;\n");
 			fprintf(cf, "}\n\n");
 		    }));
+    fprintf2(cf, hf, "int tokulog_fread (FILE *infile, struct log_entry *le)");
+    fprintf(hf, ";\n");
+    fprintf(cf, " {\n");
+    fprintf(cf, "  int cmd=fgetc(infile);\n");
+    fprintf(cf, "  if (cmd==EOF) return EOF;\n");
+    fprintf(cf, "  le->cmd=cmd;\n");
+    fprintf(cf, "  switch ((enum lt_cmd)cmd) {\n");
+    DO_LOGTYPES(lt, ({
+			fprintf(cf, "  case LT_%s:\n", lt->name);
+			fprintf(cf, "    return tokulog_fread_%s (infile, &le->u.%s, cmd);\n", lt->name, lt->name);
+		    }));
+    fprintf(cf, "  };\n");
+    fprintf(cf, "  return DB_BADFORMAT;\n"); // Should read past the record using the len field.
+    fprintf(cf, "}\n\n");
 }
 
 void generate_logprint (void) {
