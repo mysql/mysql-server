@@ -349,7 +349,7 @@ sub collect_one_suite($)
   {
     my @combinations;
     my $combination_file= "$suitedir/combinations";
-    print "combination_file: $combination_file\n";
+    #print "combination_file: $combination_file\n";
     if (@::opt_combinations)
     {
       # take the combination from command-line
