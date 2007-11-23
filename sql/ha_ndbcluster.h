@@ -31,6 +31,8 @@
 #include <ndbapi_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
+#define NDB_DEFAULT_AUTO_PREFETCH 32
+
 
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
@@ -544,6 +546,7 @@ private:
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
+  int set_auto_inc(Field *field);
   int next_result(uchar *buf); 
   int close_scan();
   void unpack_record(uchar *dst_row, const uchar *src_row);
