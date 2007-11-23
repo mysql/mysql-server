@@ -57,6 +57,7 @@ dist-hook:
 	-$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.opt $(distdir)/extra/binlog_tests
 	-$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.opt $(distdir)/extra/rpl_tests
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(distdir)/include
+	$(INSTALL_DATA) $(srcdir)/include/*.sql $(distdir)/include
 	$(INSTALL_DATA) $(srcdir)/include/*.test $(distdir)/include
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
 	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(distdir)/std_data
@@ -103,6 +104,7 @@ install-data-local:
 	-$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.opt $(DESTDIR)$(testdir)/extra/binlog_tests
 	-$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.opt $(DESTDIR)$(testdir)/extra/rpl_tests
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(DESTDIR)$(testdir)/include
+	$(INSTALL_DATA) $(srcdir)/include/*.sql $(DESTDIR)$(testdir)/include
 	$(INSTALL_DATA) $(srcdir)/include/*.test $(DESTDIR)$(testdir)/include
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.*001 $(DESTDIR)$(testdir)/std_data
