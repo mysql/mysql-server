@@ -2155,10 +2155,10 @@ com_go(String *buffer,char *line __attribute__((unused)))
 {
   char		buff[200], time_buff[32], *pos;
   MYSQL_RES	*result;
-  ulong		timer, warnings;
+  ulong         timer;
+  ulong         warnings= 1; /* Pre-initialize. See Bug #32661. */
   uint		error= 0;
   int           err= 0;
-  LINT_INIT(warnings);
 
   interrupted_query= 0;
   if (!status.batch)
