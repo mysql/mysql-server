@@ -1589,3 +1589,12 @@ SELECT * FROM t1 ORDER BY a;
 --enable_result_log
 
 DROP TABLE t1;
+
+#
+# BUG#31833 -  ORDER BY leads to wrong result when ARCHIVE, BLOB and table
+#              cache is full
+#
+CREATE TABLE t1(a INT NOT NULL AUTO_INCREMENT, b BLOB, KEY(a)) ENGINE=archive;
+INSERT INTO t1 VALUES (NULL, NULL),(NULL, NULL);
+FLUSH TABLE t1;
+SELECT * FROM t1 ORDER BY a;
