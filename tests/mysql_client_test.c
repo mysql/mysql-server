@@ -9552,7 +9552,7 @@ static void test_subqueries_ref()
 {
   MYSQL_STMT *stmt;
   int rc, i;
-  const char *query= "SELECT a as ccc from t1 where a+1=(SELECT 1+ccc from t1 where ccc+1=a+1 and a=1)";
+  const char *query= "SELECT a as ccc from t1 outr where a+1=(SELECT 1+outr.a from t1 where outr.a+1=a+1 and a=1)";
 
   myheader("test_subqueries_ref");
 
