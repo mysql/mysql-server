@@ -2158,6 +2158,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   ulong		timer, warnings;
   uint		error= 0;
   int           err= 0;
+  LINT_INIT(warnings);
 
   interrupted_query= 0;
   if (!status.batch)
