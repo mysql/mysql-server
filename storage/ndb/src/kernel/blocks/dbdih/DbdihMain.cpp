@@ -10253,8 +10253,22 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   }//if
 
   c_lcpState.m_start_time = c_current_time;
-  setLcpActiveStatusStart(signal);
 
+  Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+  Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 0 };
+  ndbrequire(mutex.lock(c, false));
+}
+
+void
+Dbdih::lcpFragmentMutex_locked(Signal* signal, 
+                               Uint32 senderData, 
+                               Uint32 retVal)
+{
+  jamEntry();
+  ndbrequire(retVal == 0);
+  
+  setLcpActiveStatusStart(signal);
+  
   signal->theData[0] = DihContinueB::ZCALCULATE_KEEP_GCI;
   signal->theData[1] = 0;  /* TABLE ID = 0          */
   signal->theData[2] = 0;  /* FRAGMENT ID = 0       */
@@ -10340,19 +10354,6 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
   signal->theData[3] = c_lcpState.oldestRestorableGci;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
 
-  Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
-  Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 0 };
-  ndbrequire(mutex.lock(c, false));
-}
-
-void
-Dbdih::lcpFragmentMutex_locked(Signal* signal, 
-                               Uint32 senderData, 
-                               Uint32 retVal)
-{
-  jamEntry();
-  ndbrequire(retVal == 0);
-
   /***************************************************************************/
   // Report the event that a local checkpoint has started.
   /***************************************************************************/
@@ -10387,7 +10388,6 @@ Dbdih::lcpFragmentMutex_locked(Signal* signal,
    *   but this function has been move "up" in the flow
    *   to just before calcKeepGci
    */
-  checkStartTakeOver(signal);
   setNodeRestartInfoBits();
 
   c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
@@ -12309,7 +12309,7 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
     jam();
     keepGci = fmgReplicaPtr.p->maxGciCompleted[lastLcpNo];
     oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[lastLcpNo];
-    ndbassert(fmgReplicaPtr.p->maxGciStarted[lcpNo] <c_newest_restorable_gci);
+    ndbassert(fmgReplicaPtr.p->maxGciStarted[lastLcpNo] <c_newest_restorable_gci);
   } 
   else 
   {

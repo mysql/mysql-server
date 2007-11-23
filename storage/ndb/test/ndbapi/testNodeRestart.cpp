@@ -189,11 +189,39 @@ err:
   return NDBT_OK;
 }
 
+int runDeleteInsertUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  int i = 0;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) 
+  {
+    g_info << i << ": ";    
+    if (utilTrans.clearTable(GETNDB(step),  records) != 0){
+      result = NDBT_FAILED;
+      break;
+    }
+    if (hugoTrans.loadTable(GETNDB(step), records, 1) != 0){
+      result = NDBT_FAILED;
+      break;
+    }
+    i++;
+  }
+
+  return result;
+}
+
 int runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int records = ctx->getNumRecords();
   int parallelism = ctx->getProperty("Parallelism", 1);
   int abort = ctx->getProperty("AbortProb", (Uint32)0);
+  int check = ctx->getProperty("ScanUpdateNoRowCountCheck", (Uint32)0);
+  
+  if (check)
+    records = 0;
+  
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped() == false) {
@@ -2012,6 +2040,100 @@ runBug32160(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runPnr(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+  bool lcp = ctx->getProperty("LCP", (unsigned)0);
+  
+  if (res.getNumDbNodes() < 4)
+  {
+    return NDBT_OK;
+  }
+  
+  for (int i = 0; i<loops && ctx->isTestStopped() == false; i++)
+  {
+    if (lcp)
+    {
+      int lcpdump = DumpStateOrd::DihMinTimeBetweenLCP;
+      res.dumpStateAllNodes(&lcpdump, 1);
+    }
+
+     int nodes[2];
+    nodes[0] = res.getNode(NdbRestarter::NS_RANDOM);
+    nodes[1] = res.getRandomNodeOtherNodeGroup(nodes[0], rand());
+    
+    ndbout_c("restarting %u %u", nodes[0], nodes[1]);
+    
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    res.dumpStateOneNode(nodes[0], val2, 2);
+    res.dumpStateOneNode(nodes[1], val2, 2);
+    
+    int kill[] = { 9999, 1000, 3000 };
+    res.dumpStateOneNode(nodes[0], kill, 3);
+    res.dumpStateOneNode(nodes[1], kill, 3);
+    
+    if (res.waitNodesNoStart(nodes, 2))
+      return NDBT_FAILED;
+    
+    if (res.startNodes(nodes, 2))
+      return NDBT_FAILED;
+
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+  
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int
+runCreateBigTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbDictionary::Table tab = *ctx->getTab();
+  BaseString tmp;
+  tmp.assfmt("_%s", tab.getName());
+  tab.setName(tmp.c_str());
+  
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+  int res = pDict->createTable(tab);
+  if (res)
+  {
+    return NDBT_FAILED;
+  }
+
+  const NdbDictionary::Table* pTab = pDict->getTable(tmp.c_str());
+  if (pTab == 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  int bytes = tab.getRowSizeInBytes();
+  int size = 50*1024*1024; // 50Mb
+  int rows = size / bytes;
+
+  if (rows > 1000000)
+    rows = 1000000;
+
+  ndbout_c("Loading %u rows into %s", rows, tmp.c_str());
+  HugoTransactions hugoTrans(*pTab);
+  hugoTrans.loadTable(GETNDB(step), rows);
+  return NDBT_OK;
+}
+
+int
+runDropBigTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbDictionary::Table tab = *ctx->getTab();
+  BaseString tmp;
+  tmp.assfmt("_%s", tab.getName());
+  GETNDB(step)->getDictionary()->dropTable(tmp.c_str());
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -2392,6 +2514,29 @@ TESTCASE("GCP", ""){
 }
 TESTCASE("Bug32160", ""){
   INITIALIZER(runBug32160);
+}
+TESTCASE("pnr", "Parallel node restart")
+{
+  TC_PROPERTY("ScanUpdateNoRowCountCheck", 1);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runCreateBigTable);
+  STEP(runScanUpdateUntilStopped);
+  STEP(runDeleteInsertUntilStopped);
+  STEP(runPnr);
+  FINALIZER(runClearTable);
+  FINALIZER(runDropBigTable);
+}
+TESTCASE("pnr_lcp", "Parallel node restart")
+{
+  TC_PROPERTY("LCP", 1);
+  TC_PROPERTY("ScanUpdateNoRowCountCheck", 1);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runCreateBigTable);
+  STEP(runScanUpdateUntilStopped);
+  STEP(runDeleteInsertUntilStopped);
+  STEP(runPnr);
+  FINALIZER(runClearTable);
+  FINALIZER(runDropBigTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
