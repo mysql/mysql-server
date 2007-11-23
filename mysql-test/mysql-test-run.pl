@@ -52,6 +52,9 @@
 # "perl -d:Trace mysql-test-run.pl"
 #
 
+
+use lib "lib/";
+
 $Devel::Trace::TRACE= 0;       # Don't trace boring init stuff
 
 #require 5.6.1;
