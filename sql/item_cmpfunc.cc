@@ -1694,26 +1694,29 @@ bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const
 
 void Item_func_interval::fix_length_and_dec()
 {
+  uint rows= row->cols();
+  
   use_decimal_comparison= ((row->element_index(0)->result_type() ==
                             DECIMAL_RESULT) ||
                            (row->element_index(0)->result_type() ==
                             INT_RESULT));
-  if (row->cols() > 8)
+  if (rows > 8)
   {
-    bool consts=1;
+    bool not_null_consts= TRUE;
 
-    for (uint i=1 ; consts && i < row->cols() ; i++)
+    for (uint i= 1; not_null_consts && i < rows; i++)
     {
-      consts&= row->element_index(i)->const_item();
+      Item *el= row->element_index(i);
+      not_null_consts&= el->const_item() & !el->is_null();
     }
 
-    if (consts &&
+    if (not_null_consts &&
         (intervals=
-          (interval_range*) sql_alloc(sizeof(interval_range)*(row->cols()-1))))
+          (interval_range*) sql_alloc(sizeof(interval_range) * (rows - 1))))
     {
       if (use_decimal_comparison)
       {
-        for (uint i=1 ; i < row->cols(); i++)
+        for (uint i= 1; i < rows; i++)
         {
           Item *el= row->element_index(i);
           interval_range *range= intervals + (i-1);
@@ -1738,7 +1741,7 @@ void Item_func_interval::fix_length_and_dec()
       }
       else
       {
-        for (uint i=1 ; i < row->cols(); i++)
+        for (uint i= 1; i < rows; i++)
         {
           intervals[i-1].dbl= row->element_index(i)->val_real();
         }
@@ -1829,12 +1832,22 @@ longlong Item_func_interval::val_int()
         ((el->result_type() == DECIMAL_RESULT) ||
          (el->result_type() == INT_RESULT)))
     {
-      my_decimal e_dec_buf, *e_dec= row->element_index(i)->val_decimal(&e_dec_buf);
+      my_decimal e_dec_buf, *e_dec= el->val_decimal(&e_dec_buf);
+      /* Skip NULL ranges. */
+      if (el->null_value)
+        continue;
       if (my_decimal_cmp(e_dec, dec) > 0)
-        return i-1;
+        return i - 1;
     }
-    else if (row->element_index(i)->val_real() > value)
-      return i-1;
+    else 
+    {
+      double val= el->val_real();
+      /* Skip NULL ranges. */
+      if (el->null_value)
+        continue;
+      if (val > value)
+        return i - 1;
+    }
   }
   return i-1;
 }
