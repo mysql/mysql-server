@@ -3339,6 +3339,7 @@ Dbdih::nr_start_fragment(Signal* signal,
   Uint32 maxLcpId = 0;
   Uint32 maxLcpIndex = ~0;
   
+  Uint32 gci = 0;
   Uint32 restorableGCI = takeOverPtr.p->restorableGci;
   
   ndbout_c("tab: %d frag: %d replicaP->nextLcp: %d",
@@ -3363,6 +3364,7 @@ Dbdih::nr_start_fragment(Signal* signal,
 	{
 	  maxLcpId = replicaPtr.p->lcpId[idx];
 	  maxLcpIndex = idx;
+          gci = replicaPtr.p->replicaLastGci[j];
 	  goto done;
 	}
       }
@@ -3384,7 +3386,7 @@ Dbdih::nr_start_fragment(Signal* signal,
       {
         maxLcpId = replicaPtr.p->lcpId[idx];
         maxLcpIndex = idx;
-        restorableGCI = replicaPtr.p->replicaLastGci[j];
+        gci = replicaPtr.p->replicaLastGci[j];
         goto done;
       }
     }
@@ -3394,6 +3396,8 @@ done:
   
   if (maxLcpIndex == ~ (Uint32) 0)
   {
+    ndbassert(gci == 0);
+    replicaPtr.p->m_restorable_gci = gci;
     ndbout_c("Didnt find any LCP for node: %d tab: %d frag: %d",
 	     takeOverPtr.p->toStartingNode,
 	     takeOverPtr.p->toCurrentTabref,
@@ -3413,6 +3417,8 @@ done:
   }
   else
   {
+    ndbassert(gci == restorableGCI);
+    replicaPtr.p->m_restorable_gci = gci;
     ndbout_c("Found LCP: %d(%d) maxGciStarted: %d maxGciCompleted: %d restorable: %d(%d) newestRestorableGCI: %d",
 	     maxLcpId,
 	     maxLcpIndex,
@@ -3433,7 +3439,7 @@ done:
     req->noOfLogNodes = 1;
     req->lqhLogNode[0] = takeOverPtr.p->toStartingNode;
     req->startGci[0] = replicaPtr.p->maxGciCompleted[maxLcpIndex];
-    req->lastGci[0] = restorableGCI;
+    req->lastGci[0] = gci;
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
   }
@@ -3749,6 +3755,13 @@ Dbdih::toStartCopyFrag(Signal* signal, TakeOverRecordPtr takeOverPtr)
 
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, fragId, fragPtr);
+
+  ReplicaRecordPtr replicaPtr;
+  findReplica(replicaPtr, fragPtr.p, getOwnNodeId(), true);
+  
+  Uint32 gci = replicaPtr.p->m_restorable_gci;
+  replicaPtr.p->m_restorable_gci = 0; // used in union...
+  
   BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toCopyNode);
   CopyFragReq * const copyFragReq = (CopyFragReq *)&signal->theData[0];
   copyFragReq->userPtr = takeOverPtr.i;
@@ -3758,7 +3771,7 @@ Dbdih::toStartCopyFrag(Signal* signal, TakeOverRecordPtr takeOverPtr)
   copyFragReq->nodeId = takeOverPtr.p->toStartingNode;
   copyFragReq->schemaVersion = tabPtr.p->schemaVersion;
   copyFragReq->distributionKey = fragPtr.p->distributionKey;
-  copyFragReq->gci = takeOverPtr.p->restorableGci;
+  copyFragReq->gci = gci;
   Uint32 len = copyFragReq->nodeCount = 
     extractNodeInfo(fragPtr.p, 
                     copyFragReq->nodeList);
@@ -3867,6 +3880,9 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, conf->userPtr);
 
+  Uint32 rows_lo = conf->rows_lo;
+  Uint32 bytes_lo = conf->bytes_lo;
+
   ndbrequire(conf->tableId == takeOverPtr.p->toCurrentTabref);
   ndbrequire(conf->fragId == takeOverPtr.p->toCurrentFragid);
   ndbrequire(conf->startingNodeId == takeOverPtr.p->toStartingNode);
@@ -3891,6 +3907,16 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
              CopyActiveReq::SignalLength, JBB);
   
   takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_COPY_ACTIVE;
+
+  signal->theData[0] = NDB_LE_NR_CopyFragDone;
+  signal->theData[1] = getOwnNodeId();
+  signal->theData[2] = takeOverPtr.p->toCurrentTabref;
+  signal->theData[3] = takeOverPtr.p->toCurrentFragid;
+  signal->theData[4] = rows_lo;
+  signal->theData[5] = 0;
+  signal->theData[6] = bytes_lo;
+  signal->theData[7] = 0;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 8, JBB);
 }//Dbdih::execCOPY_FRAGCONF()
 
 void Dbdih::execCOPY_ACTIVECONF(Signal* signal) 
