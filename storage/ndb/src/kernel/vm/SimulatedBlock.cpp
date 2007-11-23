@@ -96,7 +96,8 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   count = 5;
   BaseString::snprintf(buf, 255, "%s.ActiveMutexes", getBlockName(blockNumber));
   if(!p->get(buf, &count))
-    p->get("ActiveMutexes", &count);
+    if (!this->getParam("ActiveMutexes", &count))
+      p->get("ActiveMutexes", &count);
   c_mutexMgr.setSize(count);
   
   c_counterMgr.setSize(5);

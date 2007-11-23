@@ -60,6 +60,7 @@
 #include <signaldata/DictObjOp.hpp>
 #include <signaldata/DropFilegroupImpl.hpp>
 #include <SLList.hpp>
+#include <LockQueue.hpp>
 
 #ifdef DBDICT_C
 // Debug Macros
@@ -69,7 +70,6 @@
 /*--------------------------------------------------------------*/
 #define ZPACK_TABLE_INTO_PAGES 0
 #define ZSEND_GET_TAB_RESPONSE 3
-#define ZDICT_LOCK_POLL 4
 
 
 /*--------------------------------------------------------------*/
@@ -1059,46 +1059,6 @@ private:
   /* ----------------------------------------------------------------------- */
   // State variables
   /* ----------------------------------------------------------------------- */
-  
-#ifndef ndb_dbdict_log_block_state
-  enum BlockState {
-    BS_IDLE = 0,
-    BS_CREATE_TAB = 1,
-    BS_BUSY = 2,
-    BS_NODE_FAILURE = 3,
-    BS_NODE_RESTART = 4
-  };
-#else // quick hack to log changes
-  enum {
-    BS_IDLE = 0,
-    BS_CREATE_TAB = 1,
-    BS_BUSY = 2,
-    BS_NODE_FAILURE = 3,
-    BS_NODE_RESTART = 4
-  };
-  struct BlockState;
-  friend struct BlockState;
-  struct BlockState {
-    BlockState() :
-      m_value(BS_IDLE) {
-    }
-    BlockState(int value) :
-      m_value(value) {
-    }
-    operator int() const {
-      return m_value;
-    }
-    BlockState& operator=(const BlockState& bs) {
-      Dbdict* dict = (Dbdict*)globalData.getBlock(DBDICT);
-      dict->infoEvent("DICT: bs %d->%d", m_value, bs.m_value);
-      globalSignalLoggers.log(DBDICT, "bs %d->%d", m_value, bs.m_value);
-      m_value = bs.m_value;
-      return *this;
-    }
-    int m_value;
-  };
-#endif
-  BlockState c_blockState;
 
   struct PackTable {
     
@@ -2072,73 +2032,6 @@ private:
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
 
-  /*
-   * Master DICT can be locked in 2 mutually exclusive ways:
-   *
-   * 1) for schema ops, via operation records
-   * 2) against schema ops, via a lock queue
-   *
-   * Current use of 2) is by a starting node, to prevent schema ops
-   * until started.  The ops are refused (BlockState != BS_IDLE),
-   * not queued.
-   *
-   * Master failure is not handled, in node start case the starting
-   * node will crash too anyway.  Use lock table in future..
-   *
-   * The lock queue is "serial" but other behaviour is possible
-   * by checking lock types e.g. to allow parallel node starts.
-   *
-   * Checking release of last op record is not convenient with
-   * current structure (5.0).  Instead we poll via continueB.
-   *
-   * XXX only table ops check BlockState
-   */
-  struct DictLockType;
-  friend struct DictLockType;
-
-  struct DictLockType {
-    DictLockReq::LockType lockType;
-    BlockState blockState;
-    const char* text;
-  };
-
-  struct DictLockRecord;
-  friend struct DictLockRecord;
-
-  struct DictLockRecord {
-    DictLockReq req;
-    const DictLockType* lt;
-    bool locked;
-  union {
-    Uint32 nextPool;
-    Uint32 nextList;
-    };
-    Uint32 prevList;
-  };
-
-  typedef Ptr<DictLockRecord> DictLockPtr;
-  ArrayPool<DictLockRecord> c_dictLockPool;
-  DLFifoList<DictLockRecord> c_dictLockQueue;
-  bool c_dictLockPoll;
-
-  static const DictLockType* getDictLockType(Uint32 lockType);
-  void sendDictLockInfoEvent(Uint32 pollCount);
-  void sendDictLockInfoEvent(DictLockPtr lockPtr, const char* text);
-
-  // check if any schema op exists (conflicting with dict lock)
-  bool hasDictLockSchemaOp();
-
-  void checkDictLockQueue(Signal* signal, bool poll);
-  void sendDictLockConf(Signal* signal, DictLockPtr lockPtr);
-  void sendDictLockRef(Signal* signal, DictLockReq req, Uint32 errorCode);
-
-  // control polling i.e. continueB loop
-  void setDictLockPoll(Signal* signal, bool on, Uint32 pollCount);
-
-  // NF handling
-  void removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes);
-
-
   // Statement blocks
 
   /* ------------------------------------------------------------ */
@@ -2668,6 +2561,37 @@ public:
   void drop_undofile_commit_complete(Signal* signal, SchemaOp*);
   
   int checkSingleUserMode(Uint32 senderRef);
+
+  
+  /**
+   * Dict lock queue does currently uniformly handle
+   *
+   * - starting node
+   * - schema op
+   *
+   * The impl. is based on DbUtil lock's (LockQueue)
+   *
+   * It would be very nice to use this *fully*
+   * But instead of introducing extra break in schema-op
+   *   a lock queue in instantiated in Dict, for easy trylock-handling
+   */
+  struct DictLockType;
+  friend struct DictLockType;
+  
+  struct DictLockType {
+    DictLockReq::LockType lockType;
+    const char* text;
+  };
+  static const DictLockType* getDictLockType(Uint32 lockType);
+  void sendDictLockInfoEvent(Signal*, const UtilLockReq*, const char* text);
+  void removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes);
+
+
+  Uint32 dict_lock_trylock(const DictLockReq* req);
+  Uint32 dict_lock_unlock(Signal* signal, const DictLockReq* req);
+  
+  LockQueue::Pool m_dict_lock_pool;
+  LockQueue m_dict_lock;
 };
 
 inline bool

@@ -96,6 +96,7 @@ class SimulatedBlock {
   friend class Lgman;
   friend class Logfile_client;
   friend struct Pool_context;
+  friend class LockQueue;
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
@@ -480,7 +481,6 @@ public:
     struct ActiveMutex {
       Uint32 m_gsn; // state
       Uint32 m_mutexId;
-      Uint32 m_mutexKey;
       Callback m_callback;
       union {
 	Uint32 nextPool;
@@ -497,8 +497,7 @@ public:
     
     void create(Signal*, ActiveMutexPtr&);
     void destroy(Signal*, ActiveMutexPtr&);
-    void lock(Signal*, ActiveMutexPtr&);
-    void trylock(Signal*, ActiveMutexPtr&);
+    void lock(Signal*, ActiveMutexPtr&, Uint32 flags);
     void unlock(Signal*, ActiveMutexPtr&);
     
   private:
@@ -523,6 +522,7 @@ public:
   MutexManager c_mutexMgr;
 
   void ignoreMutexUnlockCallback(Signal* signal, Uint32 ptrI, Uint32 retVal);
+  virtual bool getParam(const char * param, Uint32 * retVal) { return false;}
 
   SafeCounterManager c_counterMgr;
 private:

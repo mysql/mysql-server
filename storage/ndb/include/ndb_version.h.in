@@ -160,5 +160,15 @@ ndb_check_prep_copy_frag_version(Uint32 version)
   return 0;
 }
 
+#define NDBD_PNR NDB_MAKE_VERSION(6,3,7)
+
+static 
+inline
+int
+ndb_pnr(Uint32 version)
+{
+  return version >= NDBD_PNR;
+}
+
 #endif
  

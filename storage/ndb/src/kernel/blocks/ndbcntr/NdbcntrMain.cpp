@@ -640,7 +640,15 @@ Ndbcntr::execCNTR_START_REP(Signal* signal){
   for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
     sendSignal(ALL_BLOCKS[i].Ref, GSN_NODE_START_REP, signal, 1, JBB);
   }
-  
+}
+
+void
+Ndbcntr::execSTART_PERMREP(Signal* signal)
+{
+  Uint32 nodeId = signal->theData[0];
+  c_startedNodes.set(nodeId);
+  c_start.m_starting.clear(nodeId);
+
   if(!c_start.m_starting.isclear()){
     jam();
     return;
