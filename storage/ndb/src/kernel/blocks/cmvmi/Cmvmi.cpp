@@ -457,9 +457,10 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
 //  Uint32 noOfNodes = closeCom->noOfNodes;
   
   jamEntry();
-  for (unsigned i = 0; i < MAX_NODES; i++){
-    if(NodeBitmask::get(closeCom->theNodes, i)){
-    
+  for (unsigned i = 0; i < MAX_NODES; i++)
+  {
+    if(NodeBitmask::get(closeCom->theNodes, i))
+    {
       jam();
 
       //-----------------------------------------------------
@@ -473,7 +474,9 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
       globalTransporterRegistry.do_disconnect(i);
     }
   }
-  if (failNo != 0) {
+
+  if (failNo != 0) 
+  {
     jam();
     signal->theData[0] = userRef;
     signal->theData[1] = failNo;
@@ -492,13 +495,21 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
   jamEntry();
 
   const Uint32 len = signal->getLength();
-  if(len == 2){
-
+  if(len == 2)
+  {
 #ifdef ERROR_INSERT
     if (! ((ERROR_INSERTED(9000) || ERROR_INSERTED(9002)) 
 	   && c_error_9000_nodes_mask.get(tStartingNode)))
 #endif
     {
+      if (globalData.theStartLevel != NodeState::SL_STARTED &&
+          (getNodeInfo(tStartingNode).m_type != NodeInfo::DB &&
+           getNodeInfo(tStartingNode).m_type != NodeInfo::MGM))
+      {
+        jam();
+        goto done;
+      }
+
       globalTransporterRegistry.do_connect(tStartingNode);
       globalTransporterRegistry.setIOState(tStartingNode, HaltIO);
       
@@ -511,9 +522,11 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
       //-----------------------------------------------------
     }
   } else {
-    for(unsigned int i = 1; i < MAX_NODES; i++ ) {
+    for(unsigned int i = 1; i < MAX_NODES; i++ ) 
+    {
       jam();
-      if (i != getOwnNodeId() && getNodeInfo(i).m_type == tData2){
+      if (i != getOwnNodeId() && getNodeInfo(i).m_type == tData2)
+      {
 	jam();
 
 #ifdef ERROR_INSERT
@@ -532,6 +545,7 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
     }
   }
   
+done:  
   if (userRef != 0) {
     jam(); 
     signal->theData[0] = tStartingNode;
@@ -573,24 +587,10 @@ void Cmvmi::execDISCONNECT_REP(Signal *signal)
   setNodeInfo(hostId).m_connectCount++;
   const NodeInfo::NodeType type = getNodeInfo(hostId).getType();
   ndbrequire(type != NodeInfo::INVALID);
-  
-  if(type == NodeInfo::DB || globalData.theStartLevel == NodeState::SL_STARTED){
-    jam();
-    DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
-    rep->nodeId = hostId;
-    rep->err = errNo;
-    sendSignal(QMGR_REF, GSN_DISCONNECT_REP, signal, 
-	       DisconnectRep::SignalLength, JBA);
-  } else if((globalData.theStartLevel == NodeState::SL_CMVMI ||
-	     globalData.theStartLevel == NodeState::SL_STARTING)
-	    && type == NodeInfo::MGM) {
-    /**
-     * Someone disconnected during cmvmi period
-     */
-    jam();
-    globalTransporterRegistry.do_connect(hostId);
-  }
 
+  sendSignal(QMGR_REF, GSN_DISCONNECT_REP, signal, 
+             DisconnectRep::SignalLength, JBA);
+  
   cancelSubscription(hostId);
 
   signal->theData[0] = NDB_LE_Disconnected;
@@ -624,6 +624,8 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
      */
     if(type == NodeInfo::MGM){
       jam();
+      signal->theData[0] = hostId;
+      sendSignal(QMGR_REF, GSN_CONNECT_REP, signal, 1, JBA);
     } else {
       /**
        * Dont allow api nodes to connect
@@ -839,6 +841,8 @@ Cmvmi::execSTART_ORD(Signal* signal) {
         }
       }
     }
+
+    EXECUTE_DIRECT(QMGR, GSN_START_ORD, signal, 1);
     return ;
   }
   
@@ -866,9 +870,6 @@ Cmvmi::execSTART_ORD(Signal* signal) {
      *
      * Do Restart
      */
-
-    globalScheduler.clear();
-    globalTimeQueue.clear();
     
     // Disconnect all nodes as part of the system restart. 
     // We need to ensure that we are starting up
