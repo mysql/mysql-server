@@ -33,6 +33,33 @@ int tokulogger_find_next_unused_log_file(const char *directory, long long *resul
     return r;
 }
 
+int tokulogger_find_logfiles (const char *directory, int *n_resultsp, char ***resultp) {
+    int result_limit=1;
+    int n_results=0;
+    char **MALLOC_N(result_limit, result);
+    struct dirent *de;
+    DIR *d=opendir(directory);
+    if (d==0) return errno;
+    int dirnamelen = strlen(directory);
+    while ((de=readdir(d))) {
+	if (de==0) return errno;
+	long long thisl;
+	int r = sscanf(de->d_name, "log%llu.tokulog", &thisl);
+	if (r!=1) continue; // Skip over non-log files.
+	if (n_results>=result_limit) {
+	    result_limit*=2;
+	    result = toku_realloc(result, result_limit*sizeof(*result));
+	}
+	int fnamelen = dirnamelen + strlen(de->d_name) + 2; // One for the slash and one for the trailing NUL.
+	char *fname = toku_malloc(fnamelen);
+	snprintf(fname, fnamelen, "%s/%s", directory, de->d_name);
+	result[n_results++] = fname;
+    }
+    *n_resultsp = n_results;
+    *resultp    = result;
+    return 0;
+}
+
 int tokulogger_create_and_open_logger (const char *directory, TOKULOGGER *resultp) {
     TAGMALLOC(TOKULOGGER, result);
     if (result==0) return -1;
@@ -555,4 +582,27 @@ int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname,
     fprintf(outf, " %s={size=%d flags=%d nodesize=%d freelist=%lld unused_memory=%lld n_named_roots=%d", fieldname, v.size, v.flags, v.nodesize, v.freelist, v.unused_memory, v.n_named_roots);
     return 0;
     
+}
+
+int read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
+    {
+	char magic[8];
+	int r=fread(magic, 1, 8, f);
+	if (r!=8) {
+	    return DB_BADFORMAT;
+	}
+	if (memcmp(magic, "tokulogg", 8)!=0) {
+	    return DB_BADFORMAT;
+	}
+    }
+    {
+	int version;
+    	int r=fread(&version, 1, 4, f);
+	if (r!=4) {
+	    return DB_BADFORMAT;
+	}
+	printf("tokulog v.%d\n", ntohl(version));
+	*versionp=ntohl(version);
+    }
+    return 0;
 }

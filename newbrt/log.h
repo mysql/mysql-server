@@ -49,4 +49,6 @@ int toku_logprint_u_int8_t        (FILE *outf, FILE *inf, const char *fieldname,
 int toku_logprint_u_int32_t       (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len); 
 int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len); 
 
+int read_and_print_logmagic (FILE *f, u_int32_t *version);
+
 #endif
