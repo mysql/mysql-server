@@ -22,8 +22,11 @@ use File::Basename;
 use IO::File();
 use strict;
 
+use lib "lib/";
+use My::Config;
+
 sub collect_test_cases ($);
-sub collect_one_suite ($$);
+sub collect_one_suite ($);
 sub collect_one_test_case ($$$$$$$$$);
 
 sub mtr_options_from_test_file($$);
@@ -63,7 +66,7 @@ sub collect_test_cases ($) {
 
   foreach my $suite (split(",", $suites))
   {
-    collect_one_suite($suite, $cases);
+    push(@$cases, collect_one_suite($suite));
   }
 
 
@@ -207,15 +210,12 @@ sub split_testname {
 }
 
 
-sub collect_one_suite($$)
+sub collect_one_suite($)
 {
   my $suite= shift;  # Test suite name
-  my $cases= shift;  # List of test cases
+  my @cases;  # Array of hash
 
   mtr_verbose("Collecting: $suite");
-
-  my $combination_file=  "combinations";
-  my $combinations = [];
 
   my $suitedir= "$::glob_mysql_test_dir"; # Default
   if ( $suite ne "main" )
@@ -224,35 +224,9 @@ sub collect_one_suite($$)
 			       "$suitedir/$suite");
     mtr_verbose("suitedir: $suitedir");
   }
-  my $combination_file= "$suitedir/$combination_file";
 
   my $testdir= "$suitedir/t";
   my $resdir=  "$suitedir/r";
-
-  if (!defined $::opt_record and !defined $::opt_skip_combination)
-  {
-    if (!@::opt_combination) 
-    {
-      # Read combinations file
-      if ( open(COMB,$combination_file) )
-      {
-        while (<COMB>)
-        {
-          chomp;
-          s/\ +/ /g;
-          push (@$combinations, $_) unless ($_ eq '');
-        }
-        close COMB;
-      }
-    }
-    else
-    {
-      # take the combination from command-line
-      @$combinations = @::opt_combination;
-    }
-  }
-  # Remember last element position
-  my $begin_index = $#{@$cases} + 1;
 
   # ----------------------------------------------------------------------
   # Build a hash of disabled testcases for this suite
@@ -328,7 +302,7 @@ sub collect_one_suite($$)
       }
 
       collect_one_test_case($testdir,$resdir,$suite,$tname,
-                            "$tname.$extension",$cases,\%disabled,
+                            "$tname.$extension",\@cases,\%disabled,
 			    $component_id,$suite_opts);
     }
   }
@@ -358,97 +332,154 @@ sub collect_one_suite($$)
       next if ($do_test and not $tname =~ /$do_test/o);
 
       collect_one_test_case($testdir,$resdir,$suite,$tname,
-                            $elem,$cases,\%disabled,$component_id,
+                            $elem,\@cases,\%disabled,$component_id,
 			    $suite_opts);
     }
     closedir TESTDIR;
   }
 
+
+  #  Return empty list if no testcases found
+  return if (@cases == 0);
+
   # ----------------------------------------------------------------------
-  # Proccess combinations only if new tests were added
+  # Read combinations for this suite and build testcases x combinations
+  # if any combinations exists
   # ----------------------------------------------------------------------
-  if ($combinations && $begin_index <= $#{@$cases}) 
-  { 
-    my $prepared = {};
-    my $end_index = $#{@$cases};
-    my $is_copy;
-    # Keep original master/slave options
-    my @orig_opts;
-    for (my $idx = $begin_index; $idx <= $end_index; $idx++) 
+  if ( ! $::opt_skip_combination )
+  {
+    my @combinations;
+    my $combination_file= "$suitedir/combinations";
+    print "combination_file: $combination_file\n";
+    if (@::opt_combinations)
     {
-      foreach my $param (('master_opt','slave_opt','slave_mi')) 
-      {
-        @{$orig_opts[$idx]{$param}} = @{$cases->[$idx]->{$param}};        
+      # take the combination from command-line
+      mtr_verbose("Take the combination from command line");
+      foreach my $combination (@::opt_combinations) {
+	my $comb= {};
+	$comb->{name}= $combination;
+	push(@{$comb->{comb_opt}}, $combination);
+	push(@combinations, $comb);
       }
     }
-    my $comb_index = 1;
-    # Copy original test cases 
-    foreach my $comb_set (@$combinations)
-    {  
-      for (my $idx = $begin_index; $idx <= $end_index; $idx++) 
+    elsif (-f $combination_file )
+    {
+      # Read combinations file in my.cnf format
+      mtr_verbose("Read combinations file");
+      my $config= My::Config->new($combination_file);
+
+      foreach my $group ($config->groups()) {
+	my $comb= {};
+	$comb->{name}= $group->name();
+        foreach my $option ( $group->options() ) {
+	  push(@{$comb->{comb_opt}}, $option->name()."=".$option->value());
+	}
+	push(@combinations, $comb);
+      }
+    }
+
+    if (@combinations)
+    {
+      print " - adding combinations\n";
+      #print_testcases(@cases);
+
+      my @new_cases;
+      foreach my $comb (@combinations)
       {
-        my $test = $cases->[$idx];
-        my $copied_test = {};
-        foreach my $param (keys %{$test}) 
-        {
-          # Scalar. Copy as is.
-          $copied_test->{$param} = $test->{$param};
-          # Array. Copy reference instead itself
-          if ($param =~ /(master_opt|slave_opt|slave_mi)/) 
-          {
-            my $new_arr = [];
-            @$new_arr = @{$orig_opts[$idx]{$param}};
-            $copied_test->{$param} = $new_arr;
-          }
-          elsif ($param =~ /combinations/) 
-          {
-            $copied_test->{$param} = '';
-          }
-        }
-        if ($is_copy) 
-        {
-          push(@$cases, $copied_test);
-          $test = $cases->[$#{@$cases}];
-        }
-        foreach my $comb_opt (split(/ /,$comb_set)) 
-        {
-          push(@{$test->{'master_opt'}},$comb_opt);
-          push(@{$test->{'slave_opt'}},$comb_opt);
-          # Enable rpl if added option is --binlog-format and test case supports that
-          if ($comb_opt =~ /^--binlog-format=.+$/) 
-          {
-            my @opt_pairs = split(/=/, $comb_opt);
-            if (defined $::used_binlog_format) 
-            {
-              if ($test->{'binlog_format'} ne $::used_binlog_format) 
-              {
-                $test->{'skip'} = 1;
-                $test->{'comment'} = "Requiring binlog format ".join(' or ', @{$test->{'sup_binlog_formats'}});
-              } 
-            }
-            else
-            {
-              foreach my $binlog_format (@{$test->{'sup_binlog_formats'}}) 
-              {
-                $test->{'binlog_format'}= $binlog_format if ($binlog_format eq $opt_pairs[1]);
-              }
-              if (defined $prepared->{$test->{'name'}.'|'.$test->{'binlog_format'}} and $test->{'skip'} ne 1 )
-              {
-                $test->{'skip'} = 1;
-                $test->{'comment'} = "Test for binlog format '$test->{'binlog_format'}' already executed";
-              }
-            }
-          }
-        }
-        $prepared->{$test->{'name'}.'|'.$test->{'binlog_format'}}= 1;
-        $test->{'combination'} = $comb_set;
-      } 
-      $is_copy = 1;
-      $comb_index++;
-    }    
+	foreach my $test (@cases)
+	{
+	  #print $test->{name}, " ", $comb, "\n";
+	  my $new_test= {};
+
+	  while (my ($key, $value) = each(%$test)) {
+	    if (ref $value eq "ARRAY") {
+	      push(@{$new_test->{$key}}, @$value);
+	    } else {
+	      $new_test->{$key}= $value;
+	    }
+	  }
+
+	  # Append the combination options to master_opt and slave_opt
+	  push(@{$new_test->{master_opt}}, @{$comb->{comb_opt}});
+	  push(@{$new_test->{slave_opt}}, @{$comb->{comb_opt}});
+
+	  # Add combination name shrt name
+	  $new_test->{combination}= $comb->{name};
+
+	  # Add the new test to new test cases list
+	  push(@new_cases, $new_test);
+	}
+      }
+      #print_testcases(@new_cases);
+      @cases= @new_cases;
+      #print_testcases(@cases);
+    }
   }
 
-  return $cases;
+  optimize_cases(\@cases);
+  #print_testcases(@cases);
+
+  return @cases;
+}
+
+
+#
+# Loop through all test cases
+# - optimize which test to run by skipping unnecessary ones
+# - update settings if necessary
+#
+sub optimize_cases {
+  my ($cases)= @_;
+
+  foreach my $tinfo ( @$cases )
+  {
+    # Replication test needs an adjustment of binlog format
+    if (mtr_match_prefix($tinfo->{'name'}, "rpl"))
+    {
+
+      # =======================================================
+      # Get binlog-format used by this test from master_opt
+      # =======================================================
+      my $test_binlog_format;
+      foreach my $opt ( @{$tinfo->{master_opt}} ) {
+	$test_binlog_format= $test_binlog_format ||
+	  mtr_match_prefix($opt, "--binlog-format=");
+      }
+      # print $tinfo->{name}." uses ".$test_binlog_format."\n";
+
+      # =======================================================
+      # If a special binlog format was selected with
+      # --mysqld=--binlog-format=x, skip all test with different
+      # binlog-format
+      # =======================================================
+      if (defined $::used_binlog_format and
+	  $::used_binlog_format ne $test_binlog_format)
+      {
+	$tinfo->{'skip'}= 1;
+	$tinfo->{'comment'}= "Requires --binlog-format='$test_binlog_format'";
+	next;
+      }
+
+      # =======================================================
+      # Check that testcase supports the designated binlog-format
+      # =======================================================
+      if ($test_binlog_format and defined $tinfo->{'sup_binlog_formats'} )
+      {
+	my $supported=
+	  grep { $_ eq $test_binlog_format } @{$tinfo->{'sup_binlog_formats'}};
+	if ( !$supported )
+	{
+	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'comment'}=
+	    "Doesn't support --binlog-format='$test_binlog_format'";
+	  next;
+	}
+      }
+
+      # Save binlog format for dynamic switching
+      $tinfo->{binlog_format}= $test_binlog_format;
+    }
+  }
 }
 
 
@@ -752,43 +783,6 @@ sub collect_one_test_case($$$$$$$$$) {
       return;
     }
 
-    # Replication test needs an adjustment of binlog format
-    if ($tinfo->{'name'} =~ /^rpl/) 
-    {
-      # Set default binlog format priority
-      if ($tinfo->{'name'} =~ /^rpl/ and !defined $tinfo->{'sup_binlog_formats'}) 
-      {
-        if ($::mysql_version_id >= 50100) 
-        {          
-          $tinfo->{'sup_binlog_formats'} = ["mixed", "row", "statement"];          
-        }
-        else
-        {
-          $tinfo->{'sup_binlog_formats'} = ["statement", "row"];
-        }
-      }
-      # Check that a test supports binlog format defined via --binlog-format
-      if (defined $::used_binlog_format)
-      {
-        # Try to find a supported binlog formats
-        foreach my $binlog_format (@{$tinfo->{'sup_binlog_formats'}}) 
-        {
-           $tinfo->{'binlog_format'}= $binlog_format unless ($binlog_format ne $::used_binlog_format);
-        }
-        # Skip a test because 
-        if (!defined $tinfo->{'binlog_format'}) 
-        {
-          $tinfo->{'skip'}= 1;
-          $tinfo->{'comment'}= "Requiring binlog format ".join(' or ', @{$tinfo->{'sup_binlog_formats'}});
-          return;
-        }
-      }
-      else
-      {
-        $tinfo->{'binlog_format'}= $tinfo->{'sup_binlog_formats'}->[0];
-      }
-    }
- 
     if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
     {
       $tinfo->{'skip'}= 1;
@@ -870,11 +864,15 @@ our @tags=
  ["include/have_innodb.inc", "innodb_test", 1],
  ["include/have_binlog_format_row.inc", "sup_binlog_formats", ["row"]],
  ["include/have_log_bin.inc", "need_binlog", 1],
- ["include/have_binlog_format_statement.inc", "sup_binlog_formats", ["statement"]],
+ ["include/have_binlog_format_statement.inc",
+  "sup_binlog_formats", ["statement"]],
  ["include/have_binlog_format_mixed.inc", "sup_binlog_formats", ["mixed"]],
- ["include/have_binlog_format_mixed_or_row.inc", "sup_binlog_formats", ["mixed","row"]],
- ["include/have_binlog_format_mixed_or_statement.inc", "sup_binlog_formats", ["mixed","statement"]],
- ["include/have_binlog_format_row_or_statement.inc", "sup_binlog_formats", ["row","statement"]],
+ ["include/have_binlog_format_mixed_or_row.inc",
+  "sup_binlog_formats", ["mixed","row"]],
+ ["include/have_binlog_format_mixed_or_statement.inc",
+  "sup_binlog_formats", ["mixed","statement"]],
+ ["include/have_binlog_format_row_or_statement.inc",
+  "sup_binlog_formats", ["row","statement"]],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
@@ -922,8 +920,29 @@ sub mtr_options_from_test_file($$) {
 	mtr_options_from_test_file($tinfo, $sourced_file);
       }
     }
-
   }
 }
+
+
+sub print_testcases {
+  my (@cases)= @_;
+
+  print "=" x 60, "\n";
+  foreach my $test (@cases){
+    print "[", $test->{name}, "]", "\n";
+    while ((my ($key, $value)) = each(%$test)) {
+      print " ", $key, "=";
+      if (ref $value eq "ARRAY") {
+	print join(", ", @$value);
+      } else {
+	print $value;
+      }
+      print "\n";
+    }
+    print "\n";
+  }
+  print "=" x 60, "\n";
+}
+
 
 1;
