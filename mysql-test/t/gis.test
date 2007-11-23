@@ -632,6 +632,15 @@ SELECT 1;
 
 -- source include/gis_keys.inc
 
+#
+# Bug #31155 gis types in union'd select cause crash
+#
+
+create table `t1` (`col002` point)engine=myisam;
+insert into t1 values (),(),();
+select min(`col002`) from t1 union select `col002` from t1;
+drop table t1;
+
 --echo End of 5.0 tests
 
 
