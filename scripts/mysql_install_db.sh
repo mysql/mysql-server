@@ -189,12 +189,12 @@ parse_arguments PICK-ARGS-FROM-ARGV "$@"
 #
 # or default to compiled-in locations.
 #
-if test -n "$srcdir"
-then
-  print_defaults="$srcdir/extra/my_print_defaults"
-elif test -n "$basedir"
+if test -n "$basedir"
 then
   print_defaults=`find_in_basedir my_print_defaults bin extra`
+elif test -n "$srcdir" 
+then
+  print_defaults="$srcdir/extra/my_print_defaults"
 else
   print_defaults="@bindir@/my_print_defaults"
 fi
@@ -211,22 +211,19 @@ parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 # Configure paths to support files
-if test -n "$srcdir"
+if test -n "$basedir"
+then
+  bindir="$basedir/bin"
+  extra_bindir="$bindir"
+  mysqld=`find_in_basedir mysqld libexec sbin bin sql`
+  pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql`
+  scriptdir="$basedir/scripts"
+elif test -n "$srcdir"
 then
   basedir="$srcdir"
   bindir="$srcdir/client"
   extra_bindir="$srcdir/extra"
   mysqld="$srcdir/sql/mysqld"
-  mysqld_opt="--language=$srcdir/sql/share/english"
-  pkgdatadir="$srcdir/scripts"
-  scriptdir="$srcdir/scripts"
-elif test -n "$basedir"
-then
-  bindir="$basedir/bin"
-  extra_bindir="$bindir"
-  mysqld=`find_in_basedir mysqld libexec sbin bin`
-  pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql`
-  scriptdir="$basedir/scripts"
 else
   basedir="@prefix@"
   bindir="@bindir@"
@@ -234,6 +231,13 @@ else
   mysqld="@libexecdir@/mysqld"
   pkgdatadir="@pkgdatadir@"
   scriptdir="@scriptdir@"
+fi
+
+if test -n "$srcdir"
+then
+  mysqld_opt="--language=$srcdir/sql/share/english"
+  pkgdatadir="$srcdir/scripts"
+  scriptdir="$srcdir/scripts"
 fi
 
 # Set up paths to SQL scripts required for bootstrap
