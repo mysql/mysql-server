@@ -172,6 +172,8 @@ private:
   void execNODE_FAILREP(Signal* signal);
   void execSYSTEM_ERROR(Signal* signal);
 
+  void execSTART_PERMREP(Signal*);
+
   // Received signals
   void execDUMP_STATE_ORD(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);

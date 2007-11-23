@@ -23,7 +23,6 @@
 
 #include <signaldata/BlockCommitOrd.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
-#include <signaldata/CreateFrag.hpp>
 #include <signaldata/CopyActive.hpp>
 #include <signaldata/CopyFrag.hpp>
 #include <signaldata/CopyGCIReq.hpp>
@@ -34,7 +33,6 @@
 #include <signaldata/DihSwitchReplica.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/EmptyLcp.hpp>
-#include <signaldata/EndTo.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/GCP.hpp>
 #include <signaldata/HotSpareRep.hpp>
@@ -48,15 +46,15 @@
 #include <signaldata/StartMe.hpp>
 #include <signaldata/StartPerm.hpp>
 #include <signaldata/StartRec.hpp>
-#include <signaldata/StartTo.hpp>
 #include <signaldata/StopPerm.hpp>
 #include <signaldata/StopMe.hpp>
 #include <signaldata/TestOrd.hpp>
-#include <signaldata/UpdateTo.hpp>
 #include <signaldata/WaitGCP.hpp>
 #include <signaldata/DihStartTab.hpp>
 #include <signaldata/LCP.hpp>
 #include <signaldata/SystemError.hpp>
+
+#include <signaldata/TakeOver.hpp>
 
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTab.hpp>
@@ -82,14 +80,6 @@ extern EventLogger g_eventLogger;
     return; \
   } \
 
-#define RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverIndex, regTOPtr) \
-  regTOPtr.i = takeOverIndex; \
-  ptrCheckGuard(regTOPtr, MAX_NDB_NODES, takeOverRecord); \
-  if (checkToInterrupted(regTOPtr)) { \
-    jam(); \
-    return; \
-  } \
-
 #define receiveLoopMacro(sigName, receiveNodeId)\
 {                                                \
   c_##sigName##_Counter.clearWaitingFor(receiveNodeId); \
@@ -99,7 +89,7 @@ extern EventLogger g_eventLogger;
   }                                              \
 }
 
-#define sendLoopMacro(sigName, signalRoutine)  \
+#define sendLoopMacro(sigName, signalRoutine, extra)                    \
 {                                                                       \
   c_##sigName##_Counter.clearWaitingFor();                              \
   NodeRecordPtr specNodePtr;                                            \
@@ -108,7 +98,7 @@ extern EventLogger g_eventLogger;
     jam();                                                              \
     ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);              \
     c_##sigName##_Counter.setWaitingFor(specNodePtr.i);                 \
-    signalRoutine(signal, specNodePtr.i);                               \
+    signalRoutine(signal, specNodePtr.i, extra);                        \
     specNodePtr.i = specNodePtr.p->nextNode;                            \
   } while (specNodePtr.i != RNIL);                                      \
 }
@@ -132,11 +122,11 @@ nextLcpNo(Uint32 lcpNo){
 
 #define gth(x, y) ndbrequire(((int)x)>((int)y))
 
-void Dbdih::nullRoutine(Signal* signal, Uint32 nodeId)
+void Dbdih::nullRoutine(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
 }//Dbdih::nullRoutine()
 
-void Dbdih::sendCOPY_GCIREQ(Signal* signal, Uint32 nodeId) 
+void Dbdih::sendCOPY_GCIREQ(Signal* signal, Uint32 nodeId, Uint32 extra) 
 {
   ndbrequire(c_copyGCIMaster.m_copyReason != CopyGCIReq::IDLE);
   
@@ -164,26 +154,21 @@ void Dbdih::sendCOPY_GCIREQ(Signal* signal, Uint32 nodeId)
 }//Dbdih::sendCOPY_GCIREQ()
 
 
-void Dbdih::sendDIH_SWITCH_REPLICA_REQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendDIH_SWITCH_REPLICA_REQ(Signal* signal, Uint32 nodeId, 
+                                       Uint32 extra)
 {
   const BlockReference ref    = calcDihBlockRef(nodeId);
   sendSignal(ref, GSN_DIH_SWITCH_REPLICA_REQ, signal, 
              DihSwitchReplicaReq::SignalLength, JBB);
 }//Dbdih::sendDIH_SWITCH_REPLICA_REQ()
 
-void Dbdih::sendEMPTY_LCP_REQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendEMPTY_LCP_REQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference ref = calcLqhBlockRef(nodeId);
   sendSignal(ref, GSN_EMPTY_LCP_REQ, signal, EmptyLcpReq::SignalLength, JBB);
 }//Dbdih::sendEMPTY_LCPREQ()
 
-void Dbdih::sendEND_TOREQ(Signal* signal, Uint32 nodeId)
-{
-  BlockReference ref = calcDihBlockRef(nodeId);
-  sendSignal(ref, GSN_END_TOREQ, signal, EndToReq::SignalLength, JBB);
-}//Dbdih::sendEND_TOREQ()
-
-void Dbdih::sendGCP_COMMIT(Signal* signal, Uint32 nodeId)
+void Dbdih::sendGCP_COMMIT(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference ref = calcDihBlockRef(nodeId);
   GCPCommit *req = (GCPCommit*)signal->getDataPtrSend();
@@ -195,7 +180,7 @@ void Dbdih::sendGCP_COMMIT(Signal* signal, Uint32 nodeId)
   ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
 }//Dbdih::sendGCP_COMMIT()
 
-void Dbdih::sendGCP_PREPARE(Signal* signal, Uint32 nodeId)
+void Dbdih::sendGCP_PREPARE(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference ref = calcDihBlockRef(nodeId);
   GCPPrepare *req = (GCPPrepare*)signal->getDataPtrSend();
@@ -207,7 +192,7 @@ void Dbdih::sendGCP_PREPARE(Signal* signal, Uint32 nodeId)
   ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
 }//Dbdih::sendGCP_PREPARE()
 
-void Dbdih::sendGCP_SAVEREQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendGCP_SAVEREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   GCPSaveReq * const saveReq = (GCPSaveReq*)&signal->theData[0];
   BlockReference ref = calcDihBlockRef(nodeId);
@@ -217,7 +202,7 @@ void Dbdih::sendGCP_SAVEREQ(Signal* signal, Uint32 nodeId)
   sendSignal(ref, GSN_GCP_SAVEREQ, signal, GCPSaveReq::SignalLength, JBB);
 }//Dbdih::sendGCP_SAVEREQ()
 
-void Dbdih::sendINCL_NODEREQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendINCL_NODEREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference nodeDihRef = calcDihBlockRef(nodeId);
   signal->theData[0] = reference();
@@ -229,25 +214,25 @@ void Dbdih::sendINCL_NODEREQ(Signal* signal, Uint32 nodeId)
   sendSignal(nodeDihRef, GSN_INCL_NODEREQ, signal, 6, JBA);
 }//Dbdih::sendINCL_NODEREQ()
 
-void Dbdih::sendMASTER_GCPREQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendMASTER_GCPREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference ref = calcDihBlockRef(nodeId);
   sendSignal(ref, GSN_MASTER_GCPREQ, signal, MasterGCPReq::SignalLength, JBB);
 }//Dbdih::sendMASTER_GCPREQ()
 
-void Dbdih::sendMASTER_LCPREQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendMASTER_LCPREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference ref = calcDihBlockRef(nodeId);
   sendSignal(ref, GSN_MASTER_LCPREQ, signal, MasterLCPReq::SignalLength, JBB);
 }//Dbdih::sendMASTER_LCPREQ()
 
-void Dbdih::sendSTART_INFOREQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendSTART_INFOREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   const BlockReference ref = calcDihBlockRef(nodeId);
   sendSignal(ref, GSN_START_INFOREQ, signal, StartInfoReq::SignalLength, JBB);
 }//sendSTART_INFOREQ()
 
-void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   StartRecReq * const req = (StartRecReq*)&signal->theData[0];
   BlockReference ref = calcLqhBlockRef(nodeId);
@@ -256,6 +241,7 @@ void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId)
   req->keepGci = SYSFILE->keepGCI;
   req->lastCompletedGci = SYSFILE->lastCompletedGCI[nodeId];
   req->newestGci = SYSFILE->newestRestorableGCI;
+  req->senderData = extra;
   sendSignal(ref, GSN_START_RECREQ, signal, StartRecReq::SignalLength, JBB);
 
   signal->theData[0] = NDB_LE_StartREDOLog;
@@ -266,13 +252,13 @@ void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId)
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
 }//Dbdih::sendSTART_RECREQ()
 
-void Dbdih::sendSTART_TOREQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendSTART_TOREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference ref = calcDihBlockRef(nodeId);
   sendSignal(ref, GSN_START_TOREQ, signal, StartToReq::SignalLength, JBB);
 }//Dbdih::sendSTART_TOREQ()
 
-void Dbdih::sendSTOP_ME_REQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendSTOP_ME_REQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   if (nodeId != getOwnNodeId()) {
     jam();
@@ -281,7 +267,7 @@ void Dbdih::sendSTOP_ME_REQ(Signal* signal, Uint32 nodeId)
   }//if
 }//Dbdih::sendSTOP_ME_REQ()
 
-void Dbdih::sendTC_CLOPSIZEREQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendTC_CLOPSIZEREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference ref = calcTcBlockRef(nodeId);
   signal->theData[0] = nodeId;
@@ -289,7 +275,7 @@ void Dbdih::sendTC_CLOPSIZEREQ(Signal* signal, Uint32 nodeId)
   sendSignal(ref, GSN_TC_CLOPSIZEREQ, signal, 2, JBB);
 }//Dbdih::sendTC_CLOPSIZEREQ()
 
-void Dbdih::sendTCGETOPSIZEREQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendTCGETOPSIZEREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   BlockReference ref = calcTcBlockRef(nodeId);
   signal->theData[0] = nodeId;
@@ -297,7 +283,7 @@ void Dbdih::sendTCGETOPSIZEREQ(Signal* signal, Uint32 nodeId)
   sendSignal(ref, GSN_TCGETOPSIZEREQ, signal, 2, JBB);
 }//Dbdih::sendTCGETOPSIZEREQ()
 
-void Dbdih::sendUPDATE_TOREQ(Signal* signal, Uint32 nodeId)
+void Dbdih::sendUPDATE_TOREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   const BlockReference ref = calcDihBlockRef(nodeId);
   sendSignal(ref, GSN_UPDATE_TOREQ, signal, UpdateToReq::SignalLength, JBB);
@@ -496,8 +482,8 @@ void Dbdih::execCONTINUEB(Signal* signal)
       return;
     }
 #endif
-
-    sendLoopMacro(COPY_GCIREQ, sendCOPY_GCIREQ);
+    
+    sendLoopMacro(COPY_GCIREQ, sendCOPY_GCIREQ, RNIL);
     return;
   }
     break;
@@ -528,20 +514,6 @@ void Dbdih::execCONTINUEB(Signal* signal)
       copyNodeLab(signal, tableId);
       return;
     }
-  case DihContinueB::ZSTART_TAKE_OVER:
-    {
-      jam();
-      Uint32 takeOverPtrI = signal->theData[1];
-      Uint32 startNode = signal->theData[2];
-      Uint32 toNode = signal->theData[3];
-      startTakeOver(signal, takeOverPtrI, startNode, toNode);
-      return;
-      break;
-    }
-  case DihContinueB::ZCHECK_START_TAKE_OVER:
-    jam();
-    checkStartTakeOver(signal);
-    break;
   case DihContinueB::ZTO_START_COPY_FRAG:
     {
       jam();
@@ -579,13 +551,6 @@ void Dbdih::execCONTINUEB(Signal* signal)
       switchReplica(signal, nodeId, tableId, fragNo);
       return;
     }
-  case DihContinueB::ZSEND_START_TO:
-    {
-      jam();
-      Uint32 takeOverPtrI = signal->theData[1];
-      sendStartTo(signal, takeOverPtrI);
-      return;
-    }
   case DihContinueB::ZSEND_ADD_FRAG:
     {
       jam();
@@ -593,28 +558,20 @@ void Dbdih::execCONTINUEB(Signal* signal)
       toCopyFragLab(signal, takeOverPtrI);
       return;
     }
+  case DihContinueB::ZSEND_START_TO:
+    {
+      jam();
+      Ptr<TakeOverRecord> takeOverPtr;
+      c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+      sendStartTo(signal, takeOverPtr);
+      return;
+    }
   case DihContinueB::ZSEND_UPDATE_TO:
     {
       jam();
-      Uint32 takeOverPtrI = signal->theData[1];
-      Uint32 updateState = signal->theData[4];
-      sendUpdateTo(signal, takeOverPtrI, updateState);
-      return;
-    }
-  case DihContinueB::ZSEND_END_TO:
-    {
-      jam();
-      Uint32 takeOverPtrI = signal->theData[1];
-      sendEndTo(signal, takeOverPtrI);
-      return;
-    }
-  case DihContinueB::ZSEND_CREATE_FRAG:
-    {
-      jam();
-      Uint32 takeOverPtrI = signal->theData[1];
-      Uint32 storedType = signal->theData[2];
-      Uint32 startGci = signal->theData[3];
-      sendCreateFragReq(signal, startGci, storedType, takeOverPtrI);
+      Ptr<TakeOverRecord> takeOverPtr;
+      c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+      sendUpdateTo(signal, takeOverPtr);
       return;
     }
   case DihContinueB::WAIT_DROP_TAB_WRITING_TO_FILE:{
@@ -635,9 +592,14 @@ void Dbdih::execCONTINUEB(Signal* signal)
   case DihContinueB::ZTO_START_FRAGMENTS:
   {
     TakeOverRecordPtr takeOverPtr;
-    takeOverPtr.i = signal->theData[1];
-    ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
+    c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
     nr_start_fragments(signal, takeOverPtr);
+    return;
+  }
+  case DihContinueB::ZCOPY_NODE_WAIT_CREATE_FRAG:
+  {
+    jam();
+    lcpBlockedLab(signal, true, signal->theData[1]);
     return;
   }
   }//switch
@@ -1504,11 +1466,6 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       if (isMaster()) {
 	jam();
 	systemRestartTakeOverLab(signal);
-	if (anyActiveTakeOver())
-	{
-	  jam();
-	  return;
-	}
       }
       ndbsttorry10Lab(signal, __LINE__);
       return;
@@ -1561,9 +1518,16 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     case NodeState::ST_NODE_RESTART:
     case NodeState::ST_INITIAL_NODE_RESTART:
       jam();
-      signal->theData[0] = cownNodeId;
-      signal->theData[1] = reference();
-      sendSignal(cmasterdihref, GSN_START_COPYREQ, signal, 2, JBB);
+      {
+        StartCopyReq* req = (StartCopyReq*)signal->getDataPtrSend();
+        req->startingNodeId = getOwnNodeId();
+        req->senderRef = reference();
+        req->senderData = RNIL;
+        req->flags = StartCopyReq::WAIT_LCP;
+        req->startingNodeId = getOwnNodeId();
+        sendSignal(reference(), GSN_START_COPYREQ, signal, 
+                   StartCopyReq::SignalLength, JBB);
+      }
       return;
     }
     ndbrequire(false);
@@ -1629,8 +1593,13 @@ Dbdih::createMutexes(Signal * signal, Uint32 count){
     mutex.create(c);
     return;
   }
-  }    
-
+  case 2:{
+    Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+    mutex.create(c);
+    return;
+  }
+  }
+  
   signal->theData[0] = reference();
   sendSignal(cntrlblockref, GSN_READ_NODESREQ, signal, 1, JBB);
 }
@@ -1644,10 +1613,17 @@ Dbdih::createMutex_done(Signal* signal, Uint32 senderData, Uint32 retVal){
   case 0:{
     Mutex mutex(signal, c_mutexMgr, c_startLcpMutexHandle);
     mutex.release();
+    break;
   }
   case 1:{
     Mutex mutex(signal, c_mutexMgr, c_switchPrimaryMutexHandle);
     mutex.release();
+    break;
+  }
+  case 2:{
+    Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+    mutex.release();
+    break;
   }
   }    
   
@@ -1928,6 +1904,7 @@ void Dbdih::execSTART_PERMREF(Signal* signal)
 	      buf);
     ndbrequire(false);
   }
+
   /*------------------------------------------------------------------------*/
   // Some node process in another node involving our node was still active. We
   // will recover from this by crashing here. 
@@ -2063,7 +2040,7 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
   r->startingNodeId = nodeId;
   r->typeStart = typeStart;
   r->systemFailureNo = cfailurenr;
-  sendLoopMacro(START_INFOREQ, sendSTART_INFOREQ);
+  sendLoopMacro(START_INFOREQ, sendSTART_INFOREQ, RNIL);
 }//Dbdih::execSTART_PERMREQ()
 
 void Dbdih::execSTART_INFOREF(Signal* signal)
@@ -2106,7 +2083,7 @@ void Dbdih::startInfoReply(Signal* signal, Uint32 nodeId)
     conf->systemFailureNo = cfailurenr;
     conf->microGCP = m_micro_gcp.m_enabled;
     sendSignal(calcDihBlockRef(c_nodeStartMaster.startNode), 
-	       GSN_START_PERMCONF, signal, StartPermConf::SignalLength, JBB);
+               GSN_START_PERMCONF, signal, StartPermConf::SignalLength, JBB);
     c_nodeStartMaster.m_outstandingGsn = GSN_START_PERMCONF;
   } else {
     jam();
@@ -2137,27 +2114,44 @@ void Dbdih::execSTART_MEREQ(Signal* signal)
   ndbrequire(c_nodeStartMaster.startNode == Tnodeid);
   ndbrequire(getNodeStatus(Tnodeid) == NodeRecord::STARTING);
   
-  c_nodeStartMaster.blockLcp = true;
-  if ((c_lcpState.lcpStatus != LCP_STATUS_IDLE) &&
-      (c_lcpState.lcpStatus != LCP_TCGET)) {
-    jam();
-    /*-----------------------------------------------------------------------*/
-    // WE WILL NOT ALLOW A NODE RESTART TO COME IN WHEN A LOCAL CHECKPOINT IS
-    // ONGOING. IT WOULD COMPLICATE THE LCP PROTOCOL TOO MUCH. WE WILL ADD THIS
-    // LATER.
-    /*-----------------------------------------------------------------------*/
-    return;
-  }//if
-  lcpBlockedLab(signal);
+  Callback c = { safe_cast(&Dbdih::lcpBlockedLab), 
+                 c_nodeStartMaster.startNode };
+  Mutex mutex(signal, c_mutexMgr, c_nodeStartMaster.m_fragmentInfoMutex);
+  mutex.lock(c, true, true);
 }//Dbdih::nodeRestartStartRecConfLab()
 
-void Dbdih::lcpBlockedLab(Signal* signal) 
+void Dbdih::lcpBlockedLab(Signal* signal, Uint32 nodeId, Uint32 retVal)
 {
+  jamEntry();
+  if (c_nodeStartMaster.startNode != nodeId)
+  {
+    jam();
+    if (retVal == 0 || retVal == UtilLockRef::InLockQueue)
+    {
+      infoEvent("Releasing table/fragment info lock for node %u", nodeId);
+      
+      Mutex mutex(signal, c_mutexMgr, c_nodeStartMaster.m_fragmentInfoMutex);
+      mutex.unlock();
+      return;
+    }
+    return;
+  }
+
+  if (retVal == UtilLockRef::InLockQueue)
+  {
+    jam();
+    infoEvent("Node %u enqueued is waiting to copy table/fragment info",
+              c_nodeStartMaster.startNode);
+    return;
+  }
+
+  ndbrequire(retVal == 0); // Mutex error
   ndbrequire(getNodeStatus(c_nodeStartMaster.startNode)==NodeRecord::STARTING);
   /*------------------------------------------------------------------------*/
   // NOW WE HAVE COPIED ALL INFORMATION IN DICT WE ARE NOW READY TO COPY ALL
   // INFORMATION IN DIH TO THE NEW NODE.
   /*------------------------------------------------------------------------*/
+
   c_nodeStartMaster.wait = 10;
   signal->theData[0] = DihContinueB::ZCOPY_NODE;
   signal->theData[1] = 0;
@@ -2210,7 +2204,7 @@ void Dbdih::gcpBlockedLab(Signal* signal)
   // NOW IT IS TIME TO INFORM ALL OTHER NODES IN THE CLUSTER OF THE STARTED
   // NODE SUCH THAT THEY ALSO INCLUDE THE NODE IN THE NODE LISTS AND SO FORTH.
   /*------------------------------------------------------------------------*/
-  sendLoopMacro(INCL_NODEREQ, sendINCL_NODEREQ);
+  sendLoopMacro(INCL_NODEREQ, sendINCL_NODEREQ, RNIL);
   /*-------------------------------------------------------------------------*/
   // We also need to send to the starting node to ensure he is aware of the
   // global checkpoint id and the correct state. We do not wait for any reply
@@ -2227,7 +2221,7 @@ void Dbdih::gcpBlockedLab(Signal* signal)
     c_INCL_NODEREQ_Counter.setWaitingFor(c_nodeStartMaster.startNode);
   }
   
-  sendINCL_NODEREQ(signal, c_nodeStartMaster.startNode);
+  sendINCL_NODEREQ(signal, c_nodeStartMaster.startNode, RNIL);
 }//Dbdih::gcpBlockedLab()
 
 /*---------------------------------------------------------------------------*/
@@ -2302,6 +2296,9 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
 
   signal->theData[0] = reference();
   sendSignal(reference(), GSN_UNBLO_DICTCONF, signal, 1, JBB);
+
+  Mutex mutex(signal, c_mutexMgr, c_nodeStartMaster.m_fragmentInfoMutex);
+  mutex.unlock();
 }//Dbdih::execINCL_NODECONF()
 
 void Dbdih::execUNBLO_DICTCONF(Signal* signal) 
@@ -2328,7 +2325,7 @@ void Dbdih::execUNBLO_DICTCONF(Signal* signal)
   const int noOfSignals = ((Sysfile::SYSFILE_SIZE32 + (wordPerSignal - 1)) /
                            wordPerSignal);
   
-  startMe->startingNodeId = c_nodeStartMaster.startNode;
+  Uint32 nodeId = startMe->startingNodeId = c_nodeStartMaster.startNode;
   startMe->startWord = 0;
   
   const Uint32 ref = calcDihBlockRef(c_nodeStartMaster.startNode);
@@ -2344,34 +2341,103 @@ void Dbdih::execUNBLO_DICTCONF(Signal* signal)
     startMe->startWord += wordPerSignal;
   }//for
   c_nodeStartMaster.m_outstandingGsn = GSN_START_MECONF;
+  nodeResetStart(signal);
+
+  /**
+   * Allow next node to start...
+   */
+  signal->theData[0] = nodeId;
+  sendSignal(NDBCNTR_REF, GSN_START_PERMREP, signal, 1, JBB);
 }//Dbdih::execUNBLO_DICTCONF()
 
 /*---------------------------------------------------------------------------*/
 /*                    NODE RESTART COPY REQUEST                              */
 /*---------------------------------------------------------------------------*/
 // A NODE RESTART HAS REACHED ITS FINAL PHASE WHEN THE DATA IS TO BE COPIED
-// TO THE NODE. START_COPYREQ IS EXECUTED BY THE MASTER NODE.
+// TO THE NODE. START_COPYREQ IS EXECUTED BY THE STARTING NODE.
 /*---------------------------------------------------------------------------*/
 void Dbdih::execSTART_COPYREQ(Signal* signal) 
 {
   jamEntry();
-  Uint32 startNodeId = signal->theData[0];
-  //BlockReference startingRef = signal->theData[1];
-  ndbrequire(c_nodeStartMaster.startNode == startNodeId);
+  StartCopyReq req = *(StartCopyReq*)signal->getDataPtr();
+
   /*-------------------------------------------------------------------------*/
   // REPORT Copy process of node restart is now about to start up.
   /*-------------------------------------------------------------------------*/
   signal->theData[0] = NDB_LE_NR_CopyFragsStarted;
-  signal->theData[1] = startNodeId;
+  signal->theData[1] = req.startingNodeId;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
   CRASH_INSERTION(7131);
-  nodeRestartTakeOver(signal, startNodeId);
-  //  BlockReference ref = calcQmgrBlockRef(startNodeId);
-  //  signal->theData[0] = cownNodeId;
-  // Remove comments as soon as I open up the Qmgr block
-  // TODO_RONM
-  //  sendSignal(ref, GSN_ALLOW_NODE_CRASHORD, signal, 1, JBB);
+
+  Uint32 startNodeId = req.startingNodeId;
+  switch (getNodeActiveStatus(startNodeId)) {
+  case Sysfile::NS_Active:
+  case Sysfile::NS_ActiveMissed_1:
+  case Sysfile::NS_ActiveMissed_2:
+  case Sysfile::NS_NotActive_NotTakenOver:
+    jam();
+    /*-----------------------------------------------------------------------*/
+    // AN ACTIVE NODE HAS BEEN STARTED. THE ACTIVE NODE MUST THEN GET ALL DATA
+    // IT HAD BEFORE ITS CRASH. WE START THE TAKE OVER IMMEDIATELY. 
+    // SINCE WE ARE AN ACTIVE NODE WE WILL TAKE OVER OUR OWN NODE THAT 
+    // PREVIOUSLY CRASHED.
+    /*-----------------------------------------------------------------------*/
+    startTakeOver(signal, startNodeId, startNodeId, &req);
+    break;
+  case Sysfile::NS_TakeOver:{
+    jam();
+    /*--------------------------------------------------------------------
+     * We were in the process of taking over but it was not completed.
+     * We will complete it now instead.
+     *--------------------------------------------------------------------*/
+    Uint32 takeOverNode = Sysfile::getTakeOverNode(startNodeId, 
+						   SYSFILE->takeOver);
+    if(takeOverNode == 0){
+      jam();
+      warningEvent("Bug in take-over code restarting");
+      takeOverNode = startNodeId;
+    }
+
+    startTakeOver(signal, startNodeId, takeOverNode, &req);
+    break;
+  }
+  case Sysfile::NS_HotSpare:{
+    jam();
+    /*-----------------------------------------------------------------------*/
+    // WHEN STARTING UP A HOT SPARE WE WILL CHECK IF ANY NODE NEEDS TO TAKEN 
+    // OVER. IF SO THEN WE WILL START THE TAKE OVER.
+    /*-----------------------------------------------------------------------*/
+      bool takeOverStarted = false;
+      NodeRecordPtr nodePtr;
+      for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
+	jam();
+	ptrAss(nodePtr, nodeRecord);
+	if (nodePtr.p->activeStatus == Sysfile::NS_NotActive_NotTakenOver) {
+	  jam();
+	  takeOverStarted = true;
+	  startTakeOver(signal, startNodeId, nodePtr.i, &req);
+	}//if
+      }//for
+      if (!takeOverStarted) {
+	jam();
+	/*-------------------------------------------------------------------*/
+	// NO TAKE OVER WAS NEEDED AT THE MOMENT WE START-UP AND WAIT UNTIL A 
+	// TAKE OVER IS NEEDED.
+	/*-------------------------------------------------------------------*/
+        StartCopyConf* conf = (StartCopyConf*)signal->getDataPtrSend();
+        conf->startingNodeId = startNodeId;
+        conf->senderData = req.senderData;
+        conf->senderRef = reference();
+	sendSignal(req.senderRef, GSN_START_COPYCONF, signal, 
+                   StartCopyConf::SignalLength, JBB);
+      }//if
+      break;
+  }
+  default:
+    ndbrequire(false);
+    break;
+  }//switch
 }//Dbdih::execSTART_COPYREQ()
 
 /*---------------------------------------------------------------------------*/
@@ -2434,7 +2500,8 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   if (nodeId == getOwnNodeId() && ERROR_INSERTED(7165))
   {
     CLEAR_ERROR_INSERT_VALUE;
-    sendSignalWithDelay(reference(), GSN_INCL_NODEREQ, signal, 5000, signal->getLength());
+    sendSignalWithDelay(reference(), GSN_INCL_NODEREQ, signal, 5000, 
+                        signal->getLength());
     return;
   }
   
@@ -2548,6 +2615,11 @@ void
 Dbdih::systemRestartTakeOverLab(Signal* signal) 
 {
   NodeRecordPtr nodePtr;
+  StartCopyReq req;
+  req.senderData = RNIL;
+  req.senderRef = reference();
+  req.flags = 0;
+
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
     ptrAss(nodePtr, nodeRecord);
@@ -2574,7 +2646,7 @@ Dbdih::systemRestartTakeOverLab(Signal* signal)
         Uint32 ThotSpareNode = findHotSpare();
         if (ThotSpareNode != RNIL) {
           jam();
-          startTakeOver(signal, RNIL, ThotSpareNode, nodePtr.i);
+          startTakeOver(signal, ThotSpareNode, nodePtr.i, &req);
         }//if
       } else if(nodePtr.p->activeStatus == Sysfile::NS_NotActive_NotTakenOver){
         jam();
@@ -2584,7 +2656,7 @@ Dbdih::systemRestartTakeOverLab(Signal* signal)
 	/*-------------------------------------------------------------------*/
 	infoEvent("Take over of node %d started", 
 		  nodePtr.i);
-	startTakeOver(signal, RNIL, nodePtr.i, nodePtr.i);
+	startTakeOver(signal, nodePtr.i, nodePtr.i, &req);
       }//if
       break;
     case Sysfile::NS_TakeOver:
@@ -2601,7 +2673,7 @@ Dbdih::systemRestartTakeOverLab(Signal* signal)
 	  warningEvent("Bug in take-over code restarting");
 	  takeOverNode = nodePtr.i;
 	}
-        startTakeOver(signal, RNIL, nodePtr.i, takeOverNode);
+        startTakeOver(signal, nodePtr.i, takeOverNode, &req);
       } else {
         jam();
 	/**-------------------------------------------------------------------
@@ -2633,240 +2705,6 @@ Dbdih::systemRestartTakeOverLab(Signal* signal)
   /*-------------------------------------------------------------------------*/
 }//Dbdih::systemRestartTakeOverLab()
 
-/*---------------------------------------------------------------------------*/
-// This subroutine is called as part of node restart in the master node.
-/*---------------------------------------------------------------------------*/
-void Dbdih::nodeRestartTakeOver(Signal* signal, Uint32 startNodeId)
-{
-  switch (getNodeActiveStatus(startNodeId)) {
-  case Sysfile::NS_Active:
-  case Sysfile::NS_ActiveMissed_1:
-  case Sysfile::NS_ActiveMissed_2:
-    jam();
-    /*-----------------------------------------------------------------------*/
-    // AN ACTIVE NODE HAS BEEN STARTED. THE ACTIVE NODE MUST THEN GET ALL DATA
-    // IT HAD BEFORE ITS CRASH. WE START THE TAKE OVER IMMEDIATELY. 
-    // SINCE WE ARE AN ACTIVE NODE WE WILL TAKE OVER OUR OWN NODE THAT 
-    // PREVIOUSLY CRASHED.
-    /*-----------------------------------------------------------------------*/
-    startTakeOver(signal, RNIL, startNodeId, startNodeId);
-    break;
-  case Sysfile::NS_HotSpare:{
-    jam();
-    /*-----------------------------------------------------------------------*/
-    // WHEN STARTING UP A HOT SPARE WE WILL CHECK IF ANY NODE NEEDS TO TAKEN 
-    // OVER. IF SO THEN WE WILL START THE TAKE OVER.
-    /*-----------------------------------------------------------------------*/
-      bool takeOverStarted = false;
-      NodeRecordPtr nodePtr;
-      for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-	jam();
-	ptrAss(nodePtr, nodeRecord);
-	if (nodePtr.p->activeStatus == Sysfile::NS_NotActive_NotTakenOver) {
-	  jam();
-	  takeOverStarted = true;
-	  startTakeOver(signal, RNIL, startNodeId, nodePtr.i);
-	}//if
-      }//for
-      if (!takeOverStarted) {
-	jam();
-	/*-------------------------------------------------------------------*/
-	// NO TAKE OVER WAS NEEDED AT THE MOMENT WE START-UP AND WAIT UNTIL A 
-	// TAKE OVER IS NEEDED.
-	/*-------------------------------------------------------------------*/
-	BlockReference ref = calcDihBlockRef(startNodeId);
-	signal->theData[0] = startNodeId;
-	sendSignal(ref, GSN_START_COPYCONF, signal, 1, JBB);
-      }//if
-      break;
-  }
-  case Sysfile::NS_NotActive_NotTakenOver:
-    jam();
-    /*-----------------------------------------------------------------------*/
-    // ALL DATA IN THE NODE IS LOST BUT WE HAVE NOT TAKEN OVER YET. WE WILL
-    // TAKE OVER OUR OWN NODE
-    /*-----------------------------------------------------------------------*/
-    startTakeOver(signal, RNIL, startNodeId, startNodeId);
-    break;
-  case Sysfile::NS_TakeOver:{
-    jam();
-    /*--------------------------------------------------------------------
-     * We were in the process of taking over but it was not completed.
-     * We will complete it now instead.
-     *--------------------------------------------------------------------*/
-    Uint32 takeOverNode = Sysfile::getTakeOverNode(startNodeId, 
-						   SYSFILE->takeOver);
-    if(takeOverNode == 0){
-      jam();
-      warningEvent("Bug in take-over code restarting");
-      takeOverNode = startNodeId;
-    }
-
-    startTakeOver(signal, RNIL, startNodeId, takeOverNode);
-    break;
-  }
-  default:
-    ndbrequire(false);
-    break;
-  }//switch
-  nodeResetStart(signal);
-}//Dbdih::nodeRestartTakeOver()
-
-/*************************************************************************/
-// Ths routine is called when starting a local checkpoint.
-/*************************************************************************/
-void Dbdih::checkStartTakeOver(Signal* signal) 
-{
-  NodeRecordPtr csoNodeptr;
-  Uint32 tcsoHotSpareNode;
-  Uint32 tcsoTakeOverNode;
-  if (isMaster()) {
-    /*-----------------------------------------------------------------*/
-    /*       WE WILL ONLY START TAKE OVER IF WE ARE MASTER.            */
-    /*-----------------------------------------------------------------*/
-    /*       WE WILL ONLY START THE  TAKE OVER IF THERE WERE A NEED OF */
-    /*       A TAKE OVER.                                              */
-    /*-----------------------------------------------------------------*/
-    /*       WE CAN ONLY PERFORM THE TAKE OVER IF WE HAVE A HOT SPARE  */
-    /*       AVAILABLE.                                                */
-    /*-----------------------------------------------------------------*/
-    tcsoTakeOverNode = 0;
-    tcsoHotSpareNode = 0;
-    for (csoNodeptr.i = 1; csoNodeptr.i < MAX_NDB_NODES; csoNodeptr.i++) {
-      ptrAss(csoNodeptr, nodeRecord);
-      if (csoNodeptr.p->activeStatus == Sysfile::NS_NotActive_NotTakenOver) {
-        jam();
-        tcsoTakeOverNode = csoNodeptr.i;
-      } else {
-        jam();
-        if (csoNodeptr.p->activeStatus == Sysfile::NS_HotSpare) {
-          jam();
-          tcsoHotSpareNode = csoNodeptr.i;
-        }//if
-      }//if
-    }//for
-    if ((tcsoTakeOverNode != 0) &&
-        (tcsoHotSpareNode != 0)) {
-      jam();
-      startTakeOver(signal, RNIL, tcsoHotSpareNode, tcsoTakeOverNode);
-    }//if
-  }//if
-}//Dbdih::checkStartTakeOver()
-
-/*****************************************************************************/
-/***********     NODE ADDING  MODULE                             *************/
-/***********     CODE TO HANDLE TAKE OVER                        *************/
-/*****************************************************************************/
-// A take over can be initiated by a number of things:
-// 1) A node restart, usually the node takes over itself but can also take
-//    over somebody else if its own data was already taken over
-// 2) At system restart it is necessary to use the take over code to recover
-//    nodes which had too old checkpoints to be restorable by the usual
-//    restoration from disk.
-// 3) When a node has missed too many local checkpoints and is decided by the
-//    master to be taken over by a hot spare node that sits around waiting
-//    for this to happen.
-//
-// To support multiple node failures efficiently the code is written such that
-// only one take over can handle transitions in state but during a copy 
-// fragment other take over's can perform state transitions.
-/*****************************************************************************/
-void Dbdih::startTakeOver(Signal* signal,
-                          Uint32 takeOverPtrI,
-                          Uint32 startNode,
-                          Uint32 nodeTakenOver)
-{
-  NodeRecordPtr toNodePtr;
-  NodeGroupRecordPtr NGPtr;
-  toNodePtr.i = nodeTakenOver;
-  ptrCheckGuard(toNodePtr, MAX_NDB_NODES, nodeRecord);
-  NGPtr.i = toNodePtr.p->nodeGroup;
-  ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
-  TakeOverRecordPtr takeOverPtr;
-  if (takeOverPtrI == RNIL) {
-    jam();
-    setAllowNodeStart(startNode, false);
-    seizeTakeOver(takeOverPtr);
-    if (startNode == c_nodeStartMaster.startNode) {
-      jam();
-      takeOverPtr.p->toNodeRestart = true;
-    }//if
-    takeOverPtr.p->toStartingNode = startNode;
-    takeOverPtr.p->toFailedNode = nodeTakenOver;
-  } else {
-    jam();
-    RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
-    ndbrequire(takeOverPtr.p->toStartingNode == startNode);
-    ndbrequire(takeOverPtr.p->toFailedNode == nodeTakenOver);
-    ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::TO_WAIT_START_TAKE_OVER);
-  }//if
-  if ((NGPtr.p->activeTakeOver) || (ERROR_INSERTED(7157))) {
-    jam();
-    /**------------------------------------------------------------------------
-     * A take over is already active in this node group. We only allow one 
-     * take over per node group. Otherwise we will overload the node group and 
-     * also we will require much more checks when starting up copying of 
-     * fragments. The parallelism for take over is mainly to ensure that we 
-     * can handle take over efficiently in large systems with 4 nodes and above
-     * A typical case is a 8 node system executing on two 8-cpu boxes. 
-     * A box crash in one of the boxes will mean 4 nodes crashes. 
-     * We want to be able to restart those four nodes to some 
-     * extent in parallel.
-     * 
-     * We will wait for a few seconds and then try again.
-     */
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_WAIT_START_TAKE_OVER;
-    signal->theData[0] = DihContinueB::ZSTART_TAKE_OVER;
-    signal->theData[1] = takeOverPtr.i;
-    signal->theData[2] = startNode;
-    signal->theData[3] = nodeTakenOver;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 5000, 4);
-    return;
-  }//if
-  NGPtr.p->activeTakeOver = true;
-  if (startNode == nodeTakenOver) {
-    jam();
-    switch (getNodeActiveStatus(nodeTakenOver)) {
-    case Sysfile::NS_Active:
-    case Sysfile::NS_ActiveMissed_1:
-    case Sysfile::NS_ActiveMissed_2:
-      jam();
-      break;
-    case Sysfile::NS_NotActive_NotTakenOver:
-    case Sysfile::NS_TakeOver:
-      jam();
-      setNodeActiveStatus(nodeTakenOver, Sysfile::NS_TakeOver);
-      break;
-    default:
-      ndbrequire(false);
-    }//switch
-  } else {
-    jam();
-    setNodeActiveStatus(nodeTakenOver, Sysfile::NS_HotSpare);
-    setNodeActiveStatus(startNode, Sysfile::NS_TakeOver);
-    changeNodeGroups(startNode, nodeTakenOver);
-  }//if
-  setNodeRestartInfoBits();
-  /* ---------------------------------------------------------------------- */
-  /*  WE SET THE RESTART INFORMATION TO INDICATE THAT WE ARE ABOUT TO TAKE  */
-  /*  OVER THE FAILED NODE. WE SET THIS INFORMATION AND WAIT UNTIL THE      */
-  /*  GLOBAL CHECKPOINT HAS WRITTEN THE RESTART INFORMATION.                */
-  /* ---------------------------------------------------------------------- */
-  Sysfile::setTakeOverNode(takeOverPtr.p->toFailedNode, SYSFILE->takeOver,
-			   startNode);
-  takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_START_COPY;
-
-  if (getNodeState().getSystemRestartInProgress())
-  {
-    jam();
-    checkToCopy();
-    checkToCopyCompleted(signal);
-    return;
-  }
-
-  m_micro_gcp.m_master.m_start_time = m_gcp_save.m_master.m_start_time = 0;
-}//Dbdih::startTakeOver()
-
 void Dbdih::changeNodeGroups(Uint32 startNode, Uint32 nodeTakenOver)
 {
   NodeRecordPtr startNodePtr;
@@ -2896,137 +2734,543 @@ void Dbdih::changeNodeGroups(Uint32 startNode, Uint32 nodeTakenOver)
   toNodePtr.p->nodeGroup = ZNIL;
 }//Dbdih::changeNodeGroups()
 
-void Dbdih::checkToCopy()
-{
-  TakeOverRecordPtr takeOverPtr;
-  for (takeOverPtr.i = 0;takeOverPtr.i < MAX_NDB_NODES; takeOverPtr.i++) {
-    ptrAss(takeOverPtr, takeOverRecord);
-    /*----------------------------------------------------------------------*/
-    // TAKE OVER HANDLING WRITES RESTART INFORMATION THROUGH 
-    // THE GLOBAL CHECKPOINT
-    // PROTOCOL. WE CHECK HERE BEFORE STARTING A WRITE OF THE RESTART 
-    // INFORMATION.
-    /*-----------------------------------------------------------------------*/
-    if (takeOverPtr.p->toMasterStatus == TakeOverRecord::TO_START_COPY) {
-      jam();
-      takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_START_COPY_ONGOING;
-    } else if (takeOverPtr.p->toMasterStatus == TakeOverRecord::TO_END_COPY) {
-      jam();
-      takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_END_COPY_ONGOING;
-    }//if
-  }//for
-}//Dbdih::checkToCopy()
-
-void Dbdih::checkToCopyCompleted(Signal* signal)
-{
-  /* ------------------------------------------------------------------------*/
-  /*     WE CHECK HERE IF THE WRITING OF TAKE OVER INFORMATION ALSO HAS BEEN */
-  /*     COMPLETED.                                                          */
-  /* ------------------------------------------------------------------------*/
-  TakeOverRecordPtr toPtr;
-  for (toPtr.i = 0; toPtr.i < MAX_NDB_NODES; toPtr.i++) {
-    ptrAss(toPtr, takeOverRecord);
-    if (toPtr.p->toMasterStatus == TakeOverRecord::TO_START_COPY_ONGOING){
-      jam();
-      sendStartTo(signal, toPtr.i);
-    } else if (toPtr.p->toMasterStatus == TakeOverRecord::TO_END_COPY_ONGOING){
-      jam();
-      sendEndTo(signal, toPtr.i);
-    } else {
-      jam();
-    }//if
-  }//for
-}//Dbdih::checkToCopyCompleted()
-
-bool Dbdih::checkToInterrupted(TakeOverRecordPtr& takeOverPtr)
-{
-  if (checkNodeAlive(takeOverPtr.p->toStartingNode)) {
-    jam();
-    return false;
-  } else {
-    jam();
-    endTakeOver(takeOverPtr.i);
-    return true;
-  }//if
-}//Dbdih::checkToInterrupted()
-
-void Dbdih::sendStartTo(Signal* signal, Uint32 takeOverPtrI)
-{
-  TakeOverRecordPtr takeOverPtr;
-  CRASH_INSERTION(7155);
-  RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
-  if ((c_startToLock != RNIL) || (ERROR_INSERTED(7158))) {
-    jam();
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_WAIT_START;
-    signal->theData[0] = DihContinueB::ZSEND_START_TO;
-    signal->theData[1] = takeOverPtrI;
-    signal->theData[2] = takeOverPtr.p->toStartingNode;
-    signal->theData[3] = takeOverPtr.p->toFailedNode;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 30, 4);
-    return;
-  }//if
-  c_startToLock = takeOverPtrI;
-
-  takeOverPtr.p->toMasterStatus = TakeOverRecord::STARTING;
-  StartToReq * const req = (StartToReq *)&signal->theData[0];
-  req->userPtr = takeOverPtr.i;
-  req->userRef = reference();
-  req->startingNodeId = takeOverPtr.p->toStartingNode;
-  req->nodeTakenOver = takeOverPtr.p->toFailedNode;
-  req->nodeRestart = takeOverPtr.p->toNodeRestart;
-  sendLoopMacro(START_TOREQ, sendSTART_TOREQ);
-}//Dbdih::sendStartTo()
-
 void Dbdih::execSTART_TOREQ(Signal* signal) 
 {
-  TakeOverRecordPtr takeOverPtr;
   jamEntry();
-  const StartToReq * const req = (StartToReq *)&signal->theData[0];
-  takeOverPtr.i = req->userPtr;
-  BlockReference ref = req->userRef;
-  Uint32 startingNode = req->startingNodeId;
-
+  StartToReq req = *(StartToReq *)&signal->theData[0];
+  
   CRASH_INSERTION(7133);
-  RETURN_IF_NODE_NOT_ALIVE(req->startingNodeId);
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-  allocateTakeOver(takeOverPtr);
-  initStartTakeOver(req, takeOverPtr);
-  
-  StartToConf * const conf = (StartToConf *)&signal->theData[0];
-  conf->userPtr = takeOverPtr.i;
-  conf->sendingNodeId = cownNodeId;
-  conf->startingNodeId = startingNode;
-  sendSignal(ref, GSN_START_TOCONF, signal, StartToConf::SignalLength, JBB);
-}//Dbdih::execSTART_TOREQ()
 
-void Dbdih::execSTART_TOCONF(Signal* signal) 
-{
-  TakeOverRecordPtr takeOverPtr;
-  jamEntry();
-  const StartToConf * const conf = (StartToConf *)&signal->theData[0];
-
-  CRASH_INSERTION(7147);
-
-  RETURN_IF_NODE_NOT_ALIVE(conf->startingNodeId);
-  
-  takeOverPtr.i = conf->userPtr;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-  ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::STARTING);
-  ndbrequire(takeOverPtr.p->toStartingNode == conf->startingNodeId);
-  receiveLoopMacro(START_TOREQ, conf->sendingNodeId);
-  CRASH_INSERTION(7134);
-  c_startToLock = RNIL;
-
-  if (takeOverPtr.p->toNodeRestart)
+  if (ndb_pnr(getNodeInfo(refToNode(req.senderRef)).m_version))
   {
     jam();
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::STARTING_LOCAL_FRAGMENTS;
-    nr_start_fragments(signal, takeOverPtr);
+    TakeOverRecordPtr takeOverPtr;
+    
+    c_activeTakeOverList.seize(takeOverPtr);
+    takeOverPtr.p->toStartingNode = req.startingNodeId;
+    takeOverPtr.p->m_senderRef = req.senderRef;
+    takeOverPtr.p->m_senderData = req.senderData;
+    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MASTER_IDLE;
+    takeOverPtr.p->toStartTime = c_current_time;
+  }
+  
+  StartToConf * conf = (StartToConf *)&signal->theData[0];
+  conf->senderData = req.senderData;
+  conf->sendingNodeId = cownNodeId;
+  conf->startingNodeId = req.startingNodeId;
+  sendSignal(req.senderRef, GSN_START_TOCONF, 
+             signal, StartToConf::SignalLength, JBB);
+}//Dbdih::execSTART_TOREQ()
+
+void Dbdih::execUPDATE_TOREQ(Signal* signal)
+{
+  jamEntry();
+  UpdateToReq req = *(UpdateToReq *)&signal->theData[0];
+
+  Uint32 errCode;
+  Uint32 extra;
+  if (ndb_pnr(getNodeInfo(refToNode(req.senderRef)).m_version))
+  {
+    jam();
+    /**
+     * 
+     */
+    TakeOverRecordPtr takeOverPtr;
+    if (findTakeOver(takeOverPtr, req.startingNodeId) == false)
+    {
+      errCode = UpdateToRef::UnknownTakeOver;
+      extra = RNIL;
+      goto ref;
+    }
+    
+    takeOverPtr.p->toCopyNode = req.copyNodeId;
+    takeOverPtr.p->toCurrentTabref = req.tableId;
+    takeOverPtr.p->toCurrentFragid = req.fragmentNo;
+
+    NodeRecordPtr nodePtr;
+    NodeGroupRecordPtr NGPtr;
+    nodePtr.i = req.copyNodeId;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    NGPtr.i = nodePtr.p->nodeGroup;
+    ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+    
+    Mutex mutex(signal, c_mutexMgr, takeOverPtr.p->m_fragmentInfoMutex);
+    Callback c = { safe_cast(&Dbdih::updateToReq_fragmentMutex_locked), 
+                   takeOverPtr.i };
+    
+    switch(req.requestType){
+    case UpdateToReq::BEFORE_STORED:
+      jam();
+
+      if (NGPtr.p->activeTakeOver == 0)
+      {
+        jam();
+        NGPtr.p->activeTakeOver = req.startingNodeId;
+      }
+      else
+      {
+        jam();
+        errCode = UpdateToRef::CopyFragInProgress;
+        extra = NGPtr.p->activeTakeOver;
+        goto ref;
+      }
+
+      takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MUTEX_BEFORE_STORED;
+      mutex.lock(c, false, true);
+      return;
+    case UpdateToReq::AFTER_STORED:
+    {
+      jam();
+      mutex.unlock();
+      takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_AFTER_STORED;
+      // Send conf
+      break; 
+    }
+    case UpdateToReq::BEFORE_COMMIT_STORED:
+      jam();
+      takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MUTEX_BEFORE_COMMIT;
+      mutex.lock(c, false, true);
+      return;
+    case UpdateToReq::AFTER_COMMIT_STORED:
+    {
+      jam();
+      mutex.unlock();
+      
+      Mutex mutex2(signal, c_mutexMgr, 
+                   takeOverPtr.p->m_switchPrimaryMutexHandle);
+      mutex2.unlock();
+      takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MASTER_IDLE;      
+      break; // send conf
+    }
+    }
+  }
+  else
+  {
+    CRASH_INSERTION(7154);
+    RETURN_IF_NODE_NOT_ALIVE(req.startingNodeId);
+  }
+  
+  {
+    UpdateToConf * conf = (UpdateToConf *)&signal->theData[0];
+    conf->senderData = req.senderData;
+    conf->sendingNodeId = cownNodeId;
+    conf->startingNodeId = req.startingNodeId;
+    sendSignal(req.senderRef, GSN_UPDATE_TOCONF, signal, 
+               UpdateToConf::SignalLength, JBB);
+  }
+  return;
+
+ref:
+  ndbassert(false);
+  UpdateToRef* ref = (UpdateToRef*)signal->getDataPtrSend();
+  ref->senderData = req.senderData;
+  ref->senderRef = reference();
+  ref->errorCode = errCode;
+  ref->extra = extra;
+  sendSignal(req.senderRef, GSN_UPDATE_TOREF, signal,
+             UpdateToRef::SignalLength, JBB);
+}
+
+void
+Dbdih::updateToReq_fragmentMutex_locked(Signal * signal, 
+                                        Uint32 toPtrI, Uint32 retVal)
+{
+  jamEntry();
+  TakeOverRecordPtr takeOverPtr;
+  c_takeOverPool.getPtr(takeOverPtr, toPtrI);
+  
+  Uint32 nodeId = takeOverPtr.p->toStartingNode;
+
+  if (retVal == UtilLockRef::InLockQueue)
+  {
+    jam();
+    infoEvent("Node %u waiting to continue copying table %u fragment: %u (%s)",
+              nodeId,
+              takeOverPtr.p->toCurrentTabref,
+              takeOverPtr.p->toCurrentFragid,
+              takeOverPtr.p->toMasterStatus == TakeOverRecord::TO_MUTEX_BEFORE_STORED ? "STORED" : "COMMIT");
     return;
   }
 
-  startNextCopyFragment(signal, takeOverPtr.i);
-}//Dbdih::execSTART_TOCONF()
+  Uint32 errCode;
+  Uint32 extra;
+  
+  NodeRecordPtr nodePtr;
+  nodePtr.i = nodeId;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+  if (unlikely(nodePtr.p->nodeStatus != NodeRecord::ALIVE))
+  {
+    jam();
+    /**
+     * Node died while we waited for lock...
+     */
+    goto abort_takeover;
+  }
+
+  switch(takeOverPtr.p->toMasterStatus){
+  case TakeOverRecord::TO_MUTEX_BEFORE_STORED:
+  {
+    jam();
+    // send conf
+    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MUTEX_BEFORE_LOCKED;
+    break; 
+  }
+  case TakeOverRecord::TO_MUTEX_BEFORE_COMMIT:
+  {
+    jam();
+
+    NodeRecordPtr nodePtr;
+    NodeGroupRecordPtr NGPtr;
+    nodePtr.i = takeOverPtr.p->toCopyNode;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    NGPtr.i = nodePtr.p->nodeGroup;
+    ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+    
+    if (NGPtr.p->activeTakeOver != nodeId)
+    {
+      ndbassert(false);
+      errCode = UpdateToRef::InvalidRequest;
+      extra = NGPtr.p->activeTakeOver;
+      goto ref;
+    }
+    NGPtr.p->activeTakeOver = 0;
+    Mutex mutex(signal, c_mutexMgr, 
+                takeOverPtr.p->m_switchPrimaryMutexHandle);
+    Callback c = { safe_cast(&Dbdih::switchPrimaryMutex_locked), 
+                   takeOverPtr.i };
+    ndbrequire(mutex.lock(c));
+    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MUTEX_SWITCH_REPLICA;
+    return;
+    break;
+  }
+  default:
+    jamLine(takeOverPtr.p->toMasterStatus);
+    ndbrequire(false);
+  }
+  
+  {
+    UpdateToConf * conf = (UpdateToConf *)&signal->theData[0];
+    conf->senderData = takeOverPtr.p->m_senderData;
+    conf->sendingNodeId = cownNodeId;
+    conf->startingNodeId = takeOverPtr.p->toStartingNode;
+    sendSignal(takeOverPtr.p->m_senderRef, GSN_UPDATE_TOCONF, signal, 
+               UpdateToConf::SignalLength, JBB);
+  }
+  return;
+
+ref:
+  {
+    Mutex mutex(signal, c_mutexMgr, takeOverPtr.p->m_fragmentInfoMutex);
+    mutex.unlock();
+    
+    UpdateToRef* ref = (UpdateToRef*)signal->getDataPtrSend();
+    ref->senderData = takeOverPtr.p->m_senderData;
+    ref->senderRef = reference();
+    ref->errorCode = errCode;
+    ref->extra = extra;
+    sendSignal(takeOverPtr.p->m_senderRef, GSN_UPDATE_TOREF, signal,
+               UpdateToRef::SignalLength, JBB);
+    return;
+  }
+  
+abort_takeover:
+  ndbrequire(false);
+  
+}
+
+void
+Dbdih::switchPrimaryMutex_locked(Signal* signal, Uint32 toPtrI, Uint32 retVal)
+{
+  jamEntry();
+  ndbrequire(retVal == 0);
+  
+  TakeOverRecordPtr takeOverPtr;
+  c_takeOverPool.getPtr(takeOverPtr, toPtrI);
+
+  UpdateToConf * conf = (UpdateToConf *)&signal->theData[0];
+  conf->senderData = takeOverPtr.p->m_senderData;
+  conf->sendingNodeId = cownNodeId;
+  conf->startingNodeId = takeOverPtr.p->toStartingNode;
+  sendSignal(takeOverPtr.p->m_senderRef, GSN_UPDATE_TOCONF, signal, 
+             UpdateToConf::SignalLength, JBB);
+}
+
+void
+Dbdih::switchPrimaryMutex_unlocked(Signal* signal, Uint32 toPtrI, Uint32 retVal)
+{
+  jamEntry();
+  ndbrequire(retVal == 0);
+  
+  TakeOverRecordPtr takeOverPtr;
+  c_takeOverPool.getPtr(takeOverPtr, toPtrI);
+
+  UpdateToConf * conf = (UpdateToConf *)&signal->theData[0];
+  conf->senderData = takeOverPtr.p->m_senderData;
+  conf->sendingNodeId = cownNodeId;
+  conf->startingNodeId = takeOverPtr.p->toStartingNode;
+  sendSignal(takeOverPtr.p->m_senderRef, GSN_UPDATE_TOCONF, signal, 
+             UpdateToConf::SignalLength, JBB);
+}
+
+static 
+void 
+add_lcp_counter(Uint32 * counter, Uint32 add)
+{
+  Uint64 tmp = * counter;
+  tmp += add;
+  if (tmp > 0xFFFFFFFF)
+    tmp = 0xFFFFFFFF;
+  * counter = tmp;
+}
+
+void
+Dbdih::check_force_lcp(Ptr<TakeOverRecord> takeOverPtr)
+{
+  Uint64 duration = c_current_time - takeOverPtr.p->toStartTime;
+  Uint64 lcp_time = c_lcpState.m_lcp_time;
+
+  Ptr<TakeOverRecord> tmp;
+  for (c_activeTakeOverList.first(tmp); !tmp.isNull(); 
+       c_activeTakeOverList.next(tmp))
+  {
+    jam();
+    if (tmp.p->toMasterStatus != TakeOverRecord::TO_WAIT_LCP)
+    {
+      jam();
+      
+      Uint64 elapsed = c_current_time - tmp.p->toStartTime;
+      if (elapsed >= duration)
+      {
+        jam();
+        /**
+         * This has spent more...than our took...
+         *   expect it to finish soon...
+         *   i.e dont force LCP
+         */
+        infoEvent("Node %u not forcing LCP start(1 %llu >= %llu), wait on %u",
+                  takeOverPtr.p->toStartingNode,
+                  elapsed, duration,
+                  tmp.p->toStartingNode);
+        return;
+      }
+
+      Uint64 left = duration - elapsed;
+      if (left < lcp_time)
+      {
+        jam();
+        /**
+         * This has less than one lcp left...
+         *   dont force LCP
+         */
+        infoEvent("Node %u not forcing LCP start(2 %llu < %llu), wait on %u",
+                  takeOverPtr.p->toStartingNode,
+                  left, lcp_time,
+                  tmp.p->toStartingNode);
+        return;
+      }
+    }
+  }
+  add_lcp_counter(&c_lcpState.ctimer, (1 << c_lcpState.clcpDelay));  
+}
+
+void Dbdih::execEND_TOREQ(Signal* signal)
+{
+  jamEntry();
+  EndToReq req = *(EndToReq *)&signal->theData[0];
+
+  CRASH_INSERTION(7144);
+  
+  Uint32 nodeId = refToNode(req.senderRef);
+  TakeOverRecordPtr takeOverPtr;
+  ndbrequire(findTakeOver(takeOverPtr, nodeId));
+
+  if (ndb_pnr(getNodeInfo(nodeId).m_version))
+  {
+    jam();
+    /**
+     * 
+     */
+    NodeRecordPtr nodePtr;
+    nodePtr.i = nodeId;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+
+    if (req.flags & StartCopyReq::WAIT_LCP)
+    {
+      jam();
+
+      /**
+       * Wait for LCP
+       */
+      nodePtr.p->copyCompleted = 2;
+      takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_WAIT_LCP;
+
+      check_force_lcp(takeOverPtr);
+      return;
+    }
+    nodePtr.p->copyCompleted = 1;
+  }
+  
+  releaseTakeOver(takeOverPtr);
+  EndToConf * conf = (EndToConf *)&signal->theData[0];
+  conf->senderData = req.senderData;
+  conf->sendingNodeId = cownNodeId;
+  conf->startingNodeId = req.startingNodeId;
+  sendSignal(req.senderRef, GSN_END_TOCONF, signal, 
+             EndToConf::SignalLength, JBB);
+}//Dbdih::execEND_TOREQ()
+
+/* --------------------------------------------------------------------------*/
+/*       AN ORDER TO START OR COMMIT THE REPLICA CREATION ARRIVED FROM THE   */
+/*       MASTER.                                                             */
+/* --------------------------------------------------------------------------*/
+void Dbdih::execCREATE_FRAGREQ(Signal* signal) 
+{
+  jamEntry();
+  CreateFragReq * const req = (CreateFragReq *)&signal->theData[0];
+
+  Uint32 senderData = req->senderData;
+  Uint32 senderRef = req->senderRef;
+
+  TabRecordPtr tabPtr;
+  tabPtr.i = req->tableId;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+  Uint32 fragId = req->fragId;
+  Uint32 tdestNodeid = req->startingNodeId;
+  //Uint32 tsourceNodeid = req->copyNodeId;
+  Uint32 startGci = req->startGci;
+  Uint32 replicaType = req->replicaType;
+  Uint32 tFailedNodeId = req->failedNodeId;
+
+  FragmentstorePtr fragPtr;
+  getFragstore(tabPtr.p, fragId, fragPtr);
+  RETURN_IF_NODE_NOT_ALIVE(tdestNodeid);
+  ReplicaRecordPtr frReplicaPtr;
+  findReplica(frReplicaPtr, fragPtr.p, tFailedNodeId, true);
+  if (frReplicaPtr.i == RNIL)
+  {
+    dump_replica_info(fragPtr.p);
+  }
+  ndbrequire(frReplicaPtr.i != RNIL);
+  
+  switch (replicaType) {
+  case CreateFragReq::STORED:
+    jam();
+    CRASH_INSERTION(7138);
+    /* ----------------------------------------------------------------------*/
+    /*  HERE WE ARE INSERTING THE NEW BACKUP NODE IN THE EXECUTION OF ALL    */
+    /*  OPERATIONS. FROM HERE ON ALL OPERATIONS ON THIS FRAGMENT WILL INCLUDE*/
+    /*  USE OF THE NEW REPLICA.                                              */
+    /* --------------------------------------------------------------------- */
+    insertBackup(fragPtr, tdestNodeid);
+    
+    fragPtr.p->distributionKey++;
+    fragPtr.p->distributionKey &= 255;
+    break;
+  case CreateFragReq::COMMIT_STORED:
+    jam();
+    CRASH_INSERTION(7139);
+    /* ----------------------------------------------------------------------*/
+    /*  HERE WE ARE MOVING THE REPLICA TO THE STORED SECTION SINCE IT IS NOW */
+    /*  FULLY LOADED WITH ALL DATA NEEDED.                                   */
+    // We also update the order of the replicas here so that if the new 
+    // replica is the desired primary we insert it as primary.
+    /* ----------------------------------------------------------------------*/
+    removeOldStoredReplica(fragPtr, frReplicaPtr);
+    linkStoredReplica(fragPtr, frReplicaPtr);
+    updateNodeInfo(fragPtr);
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }//switch
+
+  /* ------------------------------------------------------------------------*/
+  /*       THE NEW NODE OF THIS REPLICA IS THE STARTING NODE.                */
+  /* ------------------------------------------------------------------------*/
+  if (tFailedNodeId != tdestNodeid)
+  {
+    jam();
+    /**
+     * This is a Hot-spare or move partition
+     */
+    
+    /*  IF WE ARE STARTING A TAKE OVER NODE WE MUST INVALIDATE ALL LCP'S.   */
+    /*  OTHERWISE WE WILL TRY TO START LCP'S THAT DO NOT EXIST.             */
+    /* ---------------------------------------------------------------------*/
+    frReplicaPtr.p->procNode = tdestNodeid;
+    frReplicaPtr.p->noCrashedReplicas = 0;
+    frReplicaPtr.p->createGci[0] = startGci;
+    frReplicaPtr.p->replicaLastGci[0] = (Uint32)-1;
+    for (Uint32 i = 0; i < MAX_LCP_STORED; i++) 
+    {
+      frReplicaPtr.p->lcpStatus[i] = ZINVALID;
+    }
+  } 
+  else 
+  {
+    jam();
+    const Uint32 noCrashed = frReplicaPtr.p->noCrashedReplicas;
+    arrGuard(noCrashed, 8);
+    frReplicaPtr.p->createGci[noCrashed] = startGci;
+    frReplicaPtr.p->replicaLastGci[noCrashed] = (Uint32)-1;
+  }
+
+  CreateFragConf * const conf = (CreateFragConf *)&signal->theData[0];
+  conf->senderData = senderData;
+  conf->tableId = tabPtr.i;
+  conf->fragId = fragId;
+  conf->sendingNodeId = cownNodeId;
+  conf->startingNodeId = tdestNodeid;
+  conf->failedNodeId = tFailedNodeId;
+  sendSignal(senderRef, GSN_CREATE_FRAGCONF, signal,
+             CreateFragConf::SignalLength, JBB);
+}//Dbdih::execCREATE_FRAGREQ()
+
+/*****************************************************************************/
+/***********     NODE ADDING  MODULE                             *************/
+/***********     CODE TO HANDLE TAKE OVER                        *************/
+/*****************************************************************************/
+// A take over can be initiated by a number of things:
+// 1) A node restart, usually the node takes over itself but can also take
+//    over somebody else if its own data was already taken over
+// 2) At system restart it is necessary to use the take over code to recover
+//    nodes which had too old checkpoints to be restorable by the usual
+//    restoration from disk.
+// 3) When a node has missed too many local checkpoints and is decided by the
+//    master to be taken over by a hot spare node that sits around waiting
+//    for this to happen.
+//
+// To support multiple node failures efficiently the code is written such that
+// only one take over can handle transitions in state but during a copy 
+// fragment other take over's can perform state transitions.
+/*****************************************************************************/
+void Dbdih::startTakeOver(Signal* signal,
+                          Uint32 startNode,
+                          Uint32 nodeTakenOver,
+                          const StartCopyReq* req)
+{
+  jam();
+
+  TakeOverRecordPtr takeOverPtr;
+  ndbrequire(c_activeTakeOverList.seize(takeOverPtr));
+  takeOverPtr.p->restorableGci = SYSFILE->lastCompletedGCI[startNode];
+  takeOverPtr.p->toStartingNode = startNode;
+  takeOverPtr.p->toFailedNode = nodeTakenOver;
+  takeOverPtr.p->toCurrentTabref = 0;
+  takeOverPtr.p->toCurrentFragid = 0;
+
+  if (req)
+  {
+    jam();
+    takeOverPtr.p->m_flags = req->flags;
+    takeOverPtr.p->m_senderData = req->senderData;
+    takeOverPtr.p->m_senderRef = req->senderRef;
+  }
+
+  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_START_FRAGMENTS;
+  nr_start_fragments(signal, takeOverPtr);
+}//Dbdih::startTakeOver()
 
 void
 Dbdih::nr_start_fragments(Signal* signal, 
@@ -3088,7 +3332,7 @@ Dbdih::nr_start_fragment(Signal* signal,
   Uint32 maxLcpId = 0;
   Uint32 maxLcpIndex = ~0;
   
-  Uint32 restorableGCI = 0;
+  Uint32 restorableGCI = takeOverPtr.p->restorableGci;
   
   ndbout_c("tab: %d frag: %d replicaP->nextLcp: %d",
 	   takeOverPtr.p->toCurrentTabref,
@@ -3113,7 +3357,6 @@ Dbdih::nr_start_fragment(Signal* signal,
 	{
 	  maxLcpId = replicaPtr.p->lcpId[idx];
 	  maxLcpIndex = idx;
-	  restorableGCI = replicaPtr.p->replicaLastGci[j];
 	  break;
 	}
       }
@@ -3126,7 +3369,7 @@ Dbdih::nr_start_fragment(Signal* signal,
 	     takeOverPtr.p->toStartingNode,
 	     takeOverPtr.p->toCurrentTabref,
 	     takeOverPtr.p->toCurrentFragid);
-    replicaPtr.p->lcpIdStarted = 0;
+
     BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
     StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
     req->userPtr = 0;
@@ -3150,7 +3393,6 @@ Dbdih::nr_start_fragment(Signal* signal,
 	     SYSFILE->lastCompletedGCI[takeOverPtr.p->toStartingNode],
 	     SYSFILE->newestRestorableGCI);
 
-    replicaPtr.p->lcpIdStarted = restorableGCI;
     BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
     StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
     req->userPtr = 0;
@@ -3173,29 +3415,63 @@ Dbdih::nr_run_redo(Signal* signal, TakeOverRecordPtr takeOverPtr)
 {
   takeOverPtr.p->toCurrentTabref = 0;
   takeOverPtr.p->toCurrentFragid = 0;
-  sendSTART_RECREQ(signal, takeOverPtr.p->toStartingNode);
+  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_RUN_REDO;
+  sendSTART_RECREQ(signal, takeOverPtr.p->toStartingNode, takeOverPtr.i);
 }
 
-void Dbdih::initStartTakeOver(const StartToReq * req, 
-			      TakeOverRecordPtr takeOverPtr)
+void
+Dbdih::sendStartTo(Signal* signal, TakeOverRecordPtr takeOverPtr)
 {
-  takeOverPtr.p->toCurrentTabref = 0;
-  takeOverPtr.p->toCurrentFragid = 0;
-  takeOverPtr.p->toStartingNode = req->startingNodeId;
-  takeOverPtr.p->toFailedNode = req->nodeTakenOver;
-  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SLAVE_STARTED;
-  takeOverPtr.p->toCopyNode = RNIL;
-  takeOverPtr.p->toCurrentReplica = RNIL;
-  takeOverPtr.p->toNodeRestart = req->nodeRestart;
-}//Dbdih::initStartTakeOver()
+  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_START_TO;
+  
+  StartToReq* req = (StartToReq*)signal->getDataPtrSend();
+  req->senderData = takeOverPtr.i;
+  req->senderRef = reference();
+  req->startingNodeId = takeOverPtr.p->toStartingNode;
+  sendSignal(cmasterdihref, GSN_START_TOREQ, 
+             signal, StartToReq::SignalLength, JBB);
+}
+
+void
+Dbdih::execSTART_TOREF(Signal* signal)
+{
+  jamEntry();
+
+  StartToRef* ref = (StartToRef*)signal->getDataPtr();
+  Uint32 errCode = ref->errorCode;
+
+  TakeOverRecordPtr takeOverPtr;
+  c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
+  
+  signal->theData[0] = DihContinueB::ZSEND_START_TO;
+  signal->theData[1] = takeOverPtr.i;
+  
+  sendSignalWithDelay(reference(), GSN_CONTINUEB,
+                      signal, 5000, 2);
+}
+
+void
+Dbdih::execSTART_TOCONF(Signal* signal)
+{
+  jamEntry();
+  StartToConf * conf = (StartToConf*)signal->getDataPtr();
+
+  TakeOverRecordPtr takeOverPtr;
+  c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
+
+  /**
+   * We are now allowed to start copying
+   */
+  startNextCopyFragment(signal, takeOverPtr.i);
+}
 
 void Dbdih::startNextCopyFragment(Signal* signal, Uint32 takeOverPtrI)
 {
   TabRecordPtr tabPtr;
   TakeOverRecordPtr takeOverPtr;
+  c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI);
+
   Uint32 loopCount;
-  RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
-  takeOverPtr.p->toMasterStatus = TakeOverRecord::SELECTING_NEXT;
   loopCount = 0;
   if (ERROR_INSERTED(7159)) {
     loopCount = 100;
@@ -3205,7 +3481,7 @@ void Dbdih::startNextCopyFragment(Signal* signal, Uint32 takeOverPtrI)
     if (tabPtr.i >= ctabFileSize) {
       jam();
       CRASH_INSERTION(7136);
-      sendUpdateTo(signal, takeOverPtr.i, UpdateToReq::TO_COPY_COMPLETED);
+      toCopyCompletedLab(signal, takeOverPtr);
       return;
     }//if
     ptrAss(tabPtr, tabRecord);
@@ -3268,44 +3544,34 @@ void Dbdih::toCopyFragLab(Signal* signal,
                           Uint32 takeOverPtrI) 
 {
   TakeOverRecordPtr takeOverPtr;
-  RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
+  c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI);
 
   /**
    * Inform starting node that TakeOver is about to start
    */
-  Uint32 nodeId = takeOverPtr.p->toStartingNode;
-
-  Uint32 version = getNodeInfo(nodeId).m_version;
-  if (ndb_check_prep_copy_frag_version(version))
-  {
-    jam();
-    TabRecordPtr tabPtr;
-    tabPtr.i = takeOverPtr.p->toCurrentTabref;
-    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-
-    FragmentstorePtr fragPtr;
-    getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
-    Uint32 nodes[MAX_REPLICAS];
-    extractNodeInfo(fragPtr.p, nodes);
-    
-    PrepareCopyFragReq* req= (PrepareCopyFragReq*)signal->getDataPtrSend();
-    req->senderRef = reference();
-    req->senderData = takeOverPtrI;
-    req->tableId = takeOverPtr.p->toCurrentTabref;
-    req->fragId = takeOverPtr.p->toCurrentFragid;
-    req->copyNodeId = nodes[0]; // Src
-    req->startingNodeId = takeOverPtr.p->toStartingNode; // Dst
-    Uint32 ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
-    
-    sendSignal(ref, GSN_PREPARE_COPY_FRAG_REQ, signal, 
-	       PrepareCopyFragReq::SignalLength, JBB);
-    
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::PREPARE_COPY;
-    return;
-  }
-
-  takeOverPtr.p->maxPage = RNIL;
-  toStartCopyFrag(signal, takeOverPtr);
+  TabRecordPtr tabPtr;
+  tabPtr.i = takeOverPtr.p->toCurrentTabref;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  
+  FragmentstorePtr fragPtr;
+  getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
+  Uint32 nodes[MAX_REPLICAS];
+  extractNodeInfo(fragPtr.p, nodes);
+  takeOverPtr.p->toCopyNode = nodes[0];
+  
+  PrepareCopyFragReq* req= (PrepareCopyFragReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = takeOverPtrI;
+  req->tableId = takeOverPtr.p->toCurrentTabref;
+  req->fragId = takeOverPtr.p->toCurrentFragid;
+  req->copyNodeId = takeOverPtr.p->toCopyNode;
+  req->startingNodeId = takeOverPtr.p->toStartingNode; // Dst
+  Uint32 ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
+  
+  sendSignal(ref, GSN_PREPARE_COPY_FRAG_REQ, signal, 
+             PrepareCopyFragReq::SignalLength, JBB);
+  
+  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_PREPARE_COPY;
 }
 
 void
@@ -3315,9 +3581,9 @@ Dbdih::execPREPARE_COPY_FRAG_REF(Signal* signal)
   PrepareCopyFragRef ref = *(PrepareCopyFragRef*)signal->getDataPtr();
 
   TakeOverRecordPtr takeOverPtr;
-  RETURN_IF_TAKE_OVER_INTERRUPTED(ref.senderData, takeOverPtr);
+  c_takeOverPool.getPtr(takeOverPtr, ref.senderData);
 
-  ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::PREPARE_COPY);
+  ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_PREPARE_COPY);
   
   /**
    * Treat this as copy frag ref
@@ -3329,118 +3595,170 @@ Dbdih::execPREPARE_COPY_FRAG_REF(Signal* signal)
   cfref->tableId = ref.tableId;
   cfref->fragId = ref.fragId;
   cfref->sendingNodeId = ref.copyNodeId;
-  takeOverPtr.p->toMasterStatus = TakeOverRecord::COPY_FRAG;
+  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_COPY_FRAG;
   execCOPY_FRAGREF(signal);
 }
 
 void
 Dbdih::execPREPARE_COPY_FRAG_CONF(Signal* signal)
 {
+  jamEntry();
   PrepareCopyFragConf conf = *(PrepareCopyFragConf*)signal->getDataPtr();
 
   TakeOverRecordPtr takeOverPtr;
-  RETURN_IF_TAKE_OVER_INTERRUPTED(conf.senderData, takeOverPtr);
+  c_takeOverPool.getPtr(takeOverPtr, conf.senderData);
 
   Uint32 version = getNodeInfo(refToNode(conf.senderRef)).m_version;
-  if (ndb_check_prep_copy_frag_version(version) >= 2)
-  {
+  ndbrequire(ndb_check_prep_copy_frag_version(version) >= 2);
+  takeOverPtr.p->maxPage = conf.maxPageNo;
+
+  /**
+   * We need to lock fragment info...in order to later run CREATE_FRAG_REQ
+   */
+  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_UPDATE_BEFORE_STORED;
+  sendUpdateTo(signal, takeOverPtr);
+}
+
+void
+Dbdih::sendUpdateTo(Signal* signal, TakeOverRecordPtr takeOverPtr)
+{
+  UpdateToReq* req = (UpdateToReq*)signal->getDataPtrSend();
+  req->senderData = takeOverPtr.i;
+  req->senderRef = reference();
+  req->startingNodeId = takeOverPtr.p->toStartingNode;
+  req->copyNodeId = takeOverPtr.p->toCopyNode;
+  req->tableId = takeOverPtr.p->toCurrentTabref;
+  req->fragmentNo = takeOverPtr.p->toCurrentFragid;
+  switch(takeOverPtr.p->toSlaveStatus){
+  case TakeOverRecord::TO_UPDATE_BEFORE_STORED:
     jam();
-    takeOverPtr.p->maxPage = conf.maxPageNo;
-  }
-  else
-  {
+    req->requestType = UpdateToReq::BEFORE_STORED;
+    break;
+  case TakeOverRecord::TO_UPDATE_AFTER_STORED:
+    req->requestType = UpdateToReq::AFTER_STORED;
+    break;
+  case TakeOverRecord::TO_UPDATE_BEFORE_COMMIT:
     jam();
-    takeOverPtr.p->maxPage = RNIL;
+    req->requestType = UpdateToReq::BEFORE_COMMIT_STORED;
+    break;
+  case TakeOverRecord::TO_UPDATE_AFTER_COMMIT:
+    jam();
+    req->requestType = UpdateToReq::AFTER_COMMIT_STORED;
+    break;
+  default:
+    jamLine(takeOverPtr.p->toSlaveStatus);
+    ndbrequire(false);
   }
-  toStartCopyFrag(signal, takeOverPtr);
+  sendSignal(cmasterdihref, GSN_UPDATE_TOREQ, 
+             signal, UpdateToReq::SignalLength, JBB);
+}
+
+void
+Dbdih::execUPDATE_TOREF(Signal* signal)
+{
+  jamEntry();
+  UpdateToRef* ref = (UpdateToRef*)signal->getDataPtr();
+  Uint32 errCode = ref->errorCode;
+
+  ndbassert(false);
+
+  TakeOverRecordPtr takeOverPtr;
+  c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
+
+  signal->theData[0] = DihContinueB::ZSEND_UPDATE_TO;
+  signal->theData[1] = takeOverPtr.i;
+  
+  sendSignalWithDelay(reference(), GSN_CONTINUEB,
+                      signal, 5000, 2);
+}
+
+void
+Dbdih::execUPDATE_TOCONF(Signal* signal)
+{
+  jamEntry();
+
+  UpdateToConf* conf = (UpdateToConf*)signal->getDataPtr();
+
+  TakeOverRecordPtr takeOverPtr;
+  c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
+  
+  switch(takeOverPtr.p->toSlaveStatus){
+  case TakeOverRecord::TO_UPDATE_BEFORE_STORED:
+    jam();
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_CREATE_FRAG_STORED;
+    sendCreateFragReq(signal, 0, CreateFragReq::STORED, takeOverPtr.i);
+    return;
+  case TakeOverRecord::TO_UPDATE_AFTER_STORED:
+    jam();
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_COPY_FRAG;
+    toStartCopyFrag(signal, takeOverPtr);
+    return;
+  case TakeOverRecord::TO_UPDATE_BEFORE_COMMIT:
+    jam();
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_CREATE_FRAG_COMMIT;
+    sendCreateFragReq(signal, takeOverPtr.p->startGci, 
+                      CreateFragReq::COMMIT_STORED, takeOverPtr.i);
+    return;
+  case TakeOverRecord::TO_UPDATE_AFTER_COMMIT:
+    jam();
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SELECTING_NEXT;
+    startNextCopyFragment(signal, takeOverPtr.i);
+    return;
+  default:
+    ndbrequire(false);
+  }
 }
 
 void
 Dbdih::toStartCopyFrag(Signal* signal, TakeOverRecordPtr takeOverPtr)
 {
-  CreateReplicaRecordPtr createReplicaPtr;
-  createReplicaPtr.i = 0;
-  ptrAss(createReplicaPtr, createReplicaRecord);
-
-  ReplicaRecordPtr replicaPtr;
-  replicaPtr.i = takeOverPtr.p->toCurrentReplica;
-  ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
-
   TabRecordPtr tabPtr;
   tabPtr.i = takeOverPtr.p->toCurrentTabref;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-  /* ----------------------------------------------------------------------- */
-  /* WE HAVE FOUND A REPLICA THAT NEEDS TAKE OVER. WE WILL START THIS TAKE   */
-  /* OVER BY ADDING THE FRAGMENT WHEREAFTER WE WILL ORDER THE PRIMARY        */
-  /* REPLICA TO COPY ITS CONTENT TO THE NEW STARTING REPLICA.                */
-  /* THIS OPERATION IS A SINGLE USER OPERATION UNTIL WE HAVE SENT            */
-  /* COPY_FRAGREQ. AFTER SENDING COPY_FRAGREQ WE ARE READY TO START A NEW    */
-  /* FRAGMENT REPLICA. WE WILL NOT IMPLEMENT THIS IN THE FIRST PHASE.        */
-  /* ----------------------------------------------------------------------- */
-  cnoOfCreateReplicas = 1;
-  createReplicaPtr.p->hotSpareUse = true;
-  createReplicaPtr.p->dataNodeId = takeOverPtr.p->toStartingNode;
 
-  prepareSendCreateFragReq(signal, takeOverPtr.i);
-}//Dbdih::toStartCopy()
+  Uint32 fragId = takeOverPtr.p->toCurrentFragid;
 
-void Dbdih::prepareSendCreateFragReq(Signal* signal, Uint32 takeOverPtrI)
-{
-  TakeOverRecordPtr takeOverPtr;
-  RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
-
-  TabRecordPtr tabPtr;
-  tabPtr.i = takeOverPtr.p->toCurrentTabref;
-  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   FragmentstorePtr fragPtr;
-
-  getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
-  Uint32 nodes[MAX_REPLICAS];
-  extractNodeInfo(fragPtr.p, nodes);
-  takeOverPtr.p->toCopyNode = nodes[0];
-  sendCreateFragReq(signal, 0, CreateFragReq::STORED, takeOverPtr.i);
-}//Dbdih::prepareSendCreateFragReq()
+  getFragstore(tabPtr.p, fragId, fragPtr);
+  BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toCopyNode);
+  CopyFragReq * const copyFragReq = (CopyFragReq *)&signal->theData[0];
+  copyFragReq->userPtr = takeOverPtr.i;
+  copyFragReq->userRef = reference();
+  copyFragReq->tableId = tabPtr.i;
+  copyFragReq->fragId = fragId;
+  copyFragReq->nodeId = takeOverPtr.p->toStartingNode;
+  copyFragReq->schemaVersion = tabPtr.p->schemaVersion;
+  copyFragReq->distributionKey = fragPtr.p->distributionKey;
+  copyFragReq->gci = takeOverPtr.p->restorableGci;
+  Uint32 len = copyFragReq->nodeCount = 
+    extractNodeInfo(fragPtr.p, 
+                    copyFragReq->nodeList);
+  copyFragReq->nodeList[len] = takeOverPtr.p->maxPage;
+  sendSignal(ref, GSN_COPY_FRAGREQ, signal, 
+             CopyFragReq::SignalLength + len, JBB);
+}//Dbdih::toStartCopy()
 
 void Dbdih::sendCreateFragReq(Signal* signal,
                               Uint32 startGci,
                               Uint32 replicaType,
                               Uint32 takeOverPtrI) 
 {
-  TakeOverRecordPtr takeOverPtr;
-  RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
-  if ((c_createFragmentLock != RNIL) ||
-      ((ERROR_INSERTED(7161))&&(replicaType == CreateFragReq::STORED)) ||
-      ((ERROR_INSERTED(7162))&&(replicaType == CreateFragReq::COMMIT_STORED))){
-    if (replicaType == CreateFragReq::STORED) {
-      jam();
-      takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_WAIT_PREPARE_CREATE;
-    } else {
-      ndbrequire(replicaType == CreateFragReq::COMMIT_STORED);
-      jam();
-      takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_WAIT_COMMIT_CREATE;
-    }//if
-    signal->theData[0] = DihContinueB::ZSEND_CREATE_FRAG;
-    signal->theData[1] = takeOverPtr.i;
-    signal->theData[2] = replicaType;
-    signal->theData[3] = startGci;
-    signal->theData[4] = takeOverPtr.p->toStartingNode;
-    signal->theData[5] = takeOverPtr.p->toFailedNode;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 50, 6);
-    return;
-  }//if
-  c_createFragmentLock = takeOverPtr.i;
-  sendLoopMacro(CREATE_FRAGREQ, nullRoutine);
-
+  Ptr<TakeOverRecord> takeOverPtr;
+  c_takeOverPool.getPtr(takeOverPtr, takeOverPtrI);
+  
+  sendLoopMacro(CREATE_FRAGREQ, nullRoutine, RNIL);
+  
   CreateFragReq * const req = (CreateFragReq *)&signal->theData[0];
-  req->userPtr = takeOverPtr.i;
-  req->userRef = reference();
+  req->senderData = takeOverPtr.i;
+  req->senderRef = reference();
   req->tableId = takeOverPtr.p->toCurrentTabref;
   req->fragId = takeOverPtr.p->toCurrentFragid;
   req->startingNodeId = takeOverPtr.p->toStartingNode;
   req->copyNodeId = takeOverPtr.p->toCopyNode;
+  req->failedNodeId = takeOverPtr.p->toFailedNode;
   req->startGci = startGci;
   req->replicaType = replicaType;
-
+  
   NodeRecordPtr nodePtr;
   nodePtr.i = cfirstAliveNode;
   do {
@@ -3450,200 +3768,34 @@ void Dbdih::sendCreateFragReq(Signal* signal,
 	       CreateFragReq::SignalLength, JBB);
     nodePtr.i = nodePtr.p->nextNode;
   } while (nodePtr.i != RNIL);
-
-  if (replicaType == CreateFragReq::STORED) {
-    jam();
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::PREPARE_CREATE;
-  } else {
-    ndbrequire(replicaType == CreateFragReq::COMMIT_STORED);
-    jam();
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::COMMIT_CREATE;
-  }
 }//Dbdih::sendCreateFragReq()
-
-/* --------------------------------------------------------------------------*/
-/*       AN ORDER TO START OR COMMIT THE REPLICA CREATION ARRIVED FROM THE   */
-/*       MASTER.                                                             */
-/* --------------------------------------------------------------------------*/
-void Dbdih::execCREATE_FRAGREQ(Signal* signal) 
-{
-  jamEntry();
-  CreateFragReq * const req = (CreateFragReq *)&signal->theData[0];
-
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = req->userPtr;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-
-  BlockReference retRef = req->userRef;
-
-  TabRecordPtr tabPtr;
-  tabPtr.i = req->tableId;
-  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-
-  Uint32 fragId = req->fragId;
-  Uint32 tdestNodeid = req->startingNodeId;
-  Uint32 tsourceNodeid = req->copyNodeId;
-  Uint32 startGci = req->startGci;
-  Uint32 replicaType = req->replicaType;
-
-  FragmentstorePtr fragPtr;
-  getFragstore(tabPtr.p, fragId, fragPtr);
-  RETURN_IF_NODE_NOT_ALIVE(tdestNodeid);
-  ReplicaRecordPtr frReplicaPtr;
-  findToReplica(takeOverPtr.p, replicaType, fragPtr, frReplicaPtr);
-  ndbrequire(frReplicaPtr.i != RNIL);
-
-  switch (replicaType) {
-  case CreateFragReq::STORED:
-    jam();
-    CRASH_INSERTION(7138);
-    /* ----------------------------------------------------------------------*/
-    /*  HERE WE ARE INSERTING THE NEW BACKUP NODE IN THE EXECUTION OF ALL    */
-    /*  OPERATIONS. FROM HERE ON ALL OPERATIONS ON THIS FRAGMENT WILL INCLUDE*/
-    /*  USE OF THE NEW REPLICA.                                              */
-    /* --------------------------------------------------------------------- */
-    insertBackup(fragPtr, tdestNodeid);
-    takeOverPtr.p->toCopyNode = tsourceNodeid;
-    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SLAVE_CREATE_PREPARE;
-    
-    fragPtr.p->distributionKey++;
-    fragPtr.p->distributionKey &= 255;
-    break;
-  case CreateFragReq::COMMIT_STORED:
-    jam();
-    CRASH_INSERTION(7139);
-    /* ----------------------------------------------------------------------*/
-    /*  HERE WE ARE MOVING THE REPLICA TO THE STORED SECTION SINCE IT IS NOW */
-    /*  FULLY LOADED WITH ALL DATA NEEDED.                                   */
-    // We also update the order of the replicas here so that if the new 
-    // replica is the desired primary we insert it as primary.
-    /* ----------------------------------------------------------------------*/
-    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SLAVE_CREATE_COMMIT;
-    removeOldStoredReplica(fragPtr, frReplicaPtr);
-    linkStoredReplica(fragPtr, frReplicaPtr);
-    updateNodeInfo(fragPtr);
-    break;
-  default:
-    ndbrequire(false);
-    break;
-  }//switch
-
-  /* ------------------------------------------------------------------------*/
-  /*       THE NEW NODE OF THIS REPLICA IS THE STARTING NODE.                */
-  /* ------------------------------------------------------------------------*/
-  if (frReplicaPtr.p->procNode != takeOverPtr.p->toStartingNode) {
-    jam();
-    /* ---------------------------------------------------------------------*/
-    /*  IF WE ARE STARTING A TAKE OVER NODE WE MUST INVALIDATE ALL LCP'S.   */
-    /*  OTHERWISE WE WILL TRY TO START LCP'S THAT DO NOT EXIST.             */
-    /* ---------------------------------------------------------------------*/
-    frReplicaPtr.p->procNode = takeOverPtr.p->toStartingNode;
-    frReplicaPtr.p->noCrashedReplicas = 0;
-    frReplicaPtr.p->createGci[0] = startGci;
-    ndbrequire(startGci != 0xF1F1F1F1);
-    frReplicaPtr.p->replicaLastGci[0] = (Uint32)-1;
-    for (Uint32 i = 0; i < MAX_LCP_STORED; i++) {
-      frReplicaPtr.p->lcpStatus[i] = ZINVALID;
-    }//for
-  } else {
-    jam();
-    const Uint32 noCrashed = frReplicaPtr.p->noCrashedReplicas;
-    arrGuard(noCrashed, 8);
-    frReplicaPtr.p->createGci[noCrashed] = startGci;
-    ndbrequire(startGci != 0xF1F1F1F1);
-    frReplicaPtr.p->replicaLastGci[noCrashed] = (Uint32)-1;
-  }//if
-  takeOverPtr.p->toCurrentTabref = tabPtr.i;
-  takeOverPtr.p->toCurrentFragid = fragId;
-  CreateFragConf * const conf = (CreateFragConf *)&signal->theData[0];
-  conf->userPtr = takeOverPtr.i;
-  conf->tableId = tabPtr.i;
-  conf->fragId = fragId;
-  conf->sendingNodeId = cownNodeId;
-  conf->startingNodeId = tdestNodeid;
-  sendSignal(retRef, GSN_CREATE_FRAGCONF, signal,
-             CreateFragConf::SignalLength, JBB);
-}//Dbdih::execCREATE_FRAGREQ()
 
 void Dbdih::execCREATE_FRAGCONF(Signal* signal) 
 {
   jamEntry();
   CRASH_INSERTION(7148);
-  const CreateFragConf * const conf = (CreateFragConf *)&signal->theData[0];
-  Uint32 fragId = conf->fragId;
-
-  RETURN_IF_NODE_NOT_ALIVE(conf->startingNodeId);
-
-  TabRecordPtr tabPtr;
-  tabPtr.i = conf->tableId;
-  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-
+  CreateFragConf * conf = (CreateFragConf *)&signal->theData[0];
+  
   TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = conf->userPtr;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
+  c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
 
-  ndbrequire(tabPtr.i == takeOverPtr.p->toCurrentTabref);
-  ndbrequire(fragId == takeOverPtr.p->toCurrentFragid);
   receiveLoopMacro(CREATE_FRAGREQ, conf->sendingNodeId);
-  c_createFragmentLock = RNIL;
-
-  if (takeOverPtr.p->toMasterStatus == TakeOverRecord::PREPARE_CREATE) {
+  
+  switch(takeOverPtr.p->toSlaveStatus){
+  case TakeOverRecord::TO_CREATE_FRAG_STORED:
     jam();
-    CRASH_INSERTION(7140);
-    /* --------------------------------------------------------------------- */
-    /*   ALL NODES HAVE PREPARED THE INTRODUCTION OF THIS NEW NODE AND IT IS */
-    /*   ALREADY IN USE. WE CAN NOW START COPYING THE FRAGMENT.              */
-    /*---------------------------------------------------------------------- */
-    FragmentstorePtr fragPtr;
-    getFragstore(tabPtr.p, fragId, fragPtr);
-    Uint32 gci = 0;
-    if (takeOverPtr.p->toNodeRestart)
-    {
-      ReplicaRecordPtr replicaPtr;
-      findReplica(replicaPtr, fragPtr.p, takeOverPtr.p->toStartingNode, true);
-      gci = replicaPtr.p->lcpIdStarted;
-      replicaPtr.p->lcpIdStarted = 0;
-    }
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::COPY_FRAG;
-    BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toCopyNode);
-    CopyFragReq * const copyFragReq = (CopyFragReq *)&signal->theData[0];
-    copyFragReq->userPtr = takeOverPtr.i;
-    copyFragReq->userRef = reference();
-    copyFragReq->tableId = tabPtr.i;
-    copyFragReq->fragId = fragId;
-    copyFragReq->nodeId = takeOverPtr.p->toStartingNode;
-    copyFragReq->schemaVersion = tabPtr.p->schemaVersion;
-    copyFragReq->distributionKey = fragPtr.p->distributionKey;
-    copyFragReq->gci = gci;
-    Uint32 len = copyFragReq->nodeCount = 
-      extractNodeInfo(fragPtr.p, 
-                      copyFragReq->nodeList);
-    copyFragReq->nodeList[len] = takeOverPtr.p->maxPage;
-    sendSignal(ref, GSN_COPY_FRAGREQ, signal, 
-               CopyFragReq::SignalLength + len, JBB);
-  } else {
-    ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::COMMIT_CREATE);
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_UPDATE_AFTER_STORED;
+    break;
+  case TakeOverRecord::TO_CREATE_FRAG_COMMIT:
     jam();
-    CRASH_INSERTION(7141);
-    /* --------------------------------------------------------------------- */
-    // REPORT that copy of fragment has been completed.
-    /* --------------------------------------------------------------------- */
-    signal->theData[0] = NDB_LE_NR_CopyFragDone;
-    signal->theData[1] = takeOverPtr.p->toStartingNode;
-    signal->theData[2] = tabPtr.i;
-    signal->theData[3] = takeOverPtr.p->toCurrentFragid;
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
-    /* --------------------------------------------------------------------- */
-    /*   WE HAVE NOW CREATED THIS NEW REPLICA AND WE ARE READY TO TAKE THE   */
-    /*   THE NEXT REPLICA.                                                   */
-    /* --------------------------------------------------------------------- */
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_UPDATE_AFTER_COMMIT;
+    break;
+  default:
+    jamLine(takeOverPtr.p->toSlaveStatus);
+    ndbrequire(false);
+  }
 
-    Mutex mutex(signal, c_mutexMgr, takeOverPtr.p->m_switchPrimaryMutexHandle);
-    mutex.unlock(); // ignore result
-
-    takeOverPtr.p->toCurrentFragid++;
-    startNextCopyFragment(signal, takeOverPtr.i);
-  }//if
+  sendUpdateTo(signal, takeOverPtr);
 }//Dbdih::execCREATE_FRAGCONF()
 
 void Dbdih::execCOPY_FRAGREF(Signal* signal) 
@@ -3655,14 +3807,13 @@ void Dbdih::execCOPY_FRAGREF(Signal* signal)
   Uint32 errorCode = ref->errorCode;
 
   TakeOverRecordPtr takeOverPtr;
-  RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
   ndbrequire(errorCode != ZNODE_FAILURE_ERROR);
   ndbrequire(ref->tableId == takeOverPtr.p->toCurrentTabref);
   ndbrequire(ref->fragId == takeOverPtr.p->toCurrentFragid);
   ndbrequire(ref->startingNodeId == takeOverPtr.p->toStartingNode);
   ndbrequire(ref->sendingNodeId == takeOverPtr.p->toCopyNode);
-  ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::COPY_FRAG);
-  endTakeOver(takeOverPtrI);
+  ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_COPY_FRAG);
+
   //--------------------------------------------------------------------------
   // For some reason we did not succeed in copying a fragment. We treat this
   // as a serious failure and crash the starting node.
@@ -3685,123 +3836,20 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   CRASH_INSERTION(7142);
 
   TakeOverRecordPtr takeOverPtr;
-  Uint32 takeOverPtrI = conf->userPtr;
-  RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
+  c_takeOverPool.getPtr(takeOverPtr, conf->userPtr);
 
   ndbrequire(conf->tableId == takeOverPtr.p->toCurrentTabref);
   ndbrequire(conf->fragId == takeOverPtr.p->toCurrentFragid);
   ndbrequire(conf->startingNodeId == takeOverPtr.p->toStartingNode);
   ndbrequire(conf->sendingNodeId == takeOverPtr.p->toCopyNode);
-  ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::COPY_FRAG);
-  sendUpdateTo(signal, takeOverPtr.i, 
-	       (Uint32)UpdateToReq::TO_COPY_FRAG_COMPLETED);
-}//Dbdih::execCOPY_FRAGCONF()
+  ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_COPY_FRAG);
 
-void Dbdih::sendUpdateTo(Signal* signal, 
-			 Uint32 takeOverPtrI, Uint32 updateState)
-{
-  TakeOverRecordPtr takeOverPtr;
-  RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
-  if ((c_updateToLock != RNIL) || 
-      ((ERROR_INSERTED(7163)) && 
-       (updateState == UpdateToReq::TO_COPY_FRAG_COMPLETED)) ||
-      ((ERROR_INSERTED(7169)) && 
-       (updateState == UpdateToReq::TO_COPY_COMPLETED))) {
-    jam();
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_WAIT_UPDATE_TO;
-    signal->theData[0] = DihContinueB::ZSEND_UPDATE_TO;
-    signal->theData[1] = takeOverPtrI;
-    signal->theData[2] = takeOverPtr.p->toStartingNode;
-    signal->theData[3] = takeOverPtr.p->toFailedNode;
-    signal->theData[4] = updateState;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 30, 5);
-    return;
-  }//if
-  c_updateToLock = takeOverPtrI;
-  if (updateState == UpdateToReq::TO_COPY_FRAG_COMPLETED) {
-    jam();
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_UPDATE_TO;
-  } else {
-    jam();
-    ndbrequire(updateState == UpdateToReq::TO_COPY_COMPLETED);
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_COPY_COMPLETED;
-  }//if
-
-  UpdateToReq * const req = (UpdateToReq *)&signal->theData[0];
-  req->userPtr = takeOverPtr.i;
-  req->userRef = reference();
-  req->updateState = (UpdateToReq::UpdateState)updateState;
-  req->startingNodeId = takeOverPtr.p->toStartingNode;
-  req->tableId = takeOverPtr.p->toCurrentTabref;
-  req->fragmentNo = takeOverPtr.p->toCurrentFragid;
-  sendLoopMacro(UPDATE_TOREQ, sendUPDATE_TOREQ);
-}//Dbdih::sendUpdateTo()
-
-void Dbdih::execUPDATE_TOREQ(Signal* signal)
-{
-  jamEntry();
-  const UpdateToReq * const req = (UpdateToReq *)&signal->theData[0];
-  BlockReference ref = req->userRef;
-  ndbrequire(cmasterdihref == ref);
-
-  CRASH_INSERTION(7154);
-  RETURN_IF_NODE_NOT_ALIVE(req->startingNodeId);
-
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = req->userPtr;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-
-  ndbrequire(req->startingNodeId == takeOverPtr.p->toStartingNode);
-  if (req->updateState == UpdateToReq::TO_COPY_FRAG_COMPLETED) {
-    jam();
-    ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_SLAVE_CREATE_PREPARE);
-    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SLAVE_COPY_FRAG_COMPLETED;
-    takeOverPtr.p->toCurrentTabref = req->tableId;
-    takeOverPtr.p->toCurrentFragid = req->fragmentNo;
-  } else {
-    jam();
-    ndbrequire(req->updateState == UpdateToReq::TO_COPY_COMPLETED);
-    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SLAVE_COPY_COMPLETED;
-    setNodeCopyCompleted(takeOverPtr.p->toStartingNode, true);
-  }//if
-
-
-  UpdateToConf * const conf = (UpdateToConf *)&signal->theData[0];
-  conf->userPtr = takeOverPtr.i;
-  conf->sendingNodeId = cownNodeId;
-  conf->startingNodeId = takeOverPtr.p->toStartingNode;
-  sendSignal(ref, GSN_UPDATE_TOCONF, signal, UpdateToConf::SignalLength, JBB);
-}//Dbdih::execUPDATE_TOREQ()
-
-void Dbdih::execUPDATE_TOCONF(Signal* signal)
-{
-  const UpdateToConf * const conf = (UpdateToConf *)&signal->theData[0];
-  CRASH_INSERTION(7152);
-
-  RETURN_IF_NODE_NOT_ALIVE(conf->startingNodeId);
-
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = conf->userPtr;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-
-  receiveLoopMacro(UPDATE_TOREQ, conf->sendingNodeId);
-  CRASH_INSERTION(7153);
-  c_updateToLock = RNIL;
-
-  if (takeOverPtr.p->toMasterStatus == TakeOverRecord::TO_COPY_COMPLETED) {
-    jam();
-    toCopyCompletedLab(signal, takeOverPtr);
-    return;
-  } else {
-    ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::TO_UPDATE_TO);
-  }//if
   TabRecordPtr tabPtr;
   tabPtr.i = takeOverPtr.p->toCurrentTabref;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
-  takeOverPtr.p->toMasterStatus = TakeOverRecord::COPY_ACTIVE;
   BlockReference lqhRef = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
   CopyActiveReq * const req = (CopyActiveReq *)&signal->theData[0];
   req->userPtr = takeOverPtr.i;
@@ -3809,10 +3857,12 @@ void Dbdih::execUPDATE_TOCONF(Signal* signal)
   req->tableId = takeOverPtr.p->toCurrentTabref;
   req->fragId = takeOverPtr.p->toCurrentFragid;
   req->distributionKey = fragPtr.p->distributionKey;
-
+  
   sendSignal(lqhRef, GSN_COPY_ACTIVEREQ, signal,
              CopyActiveReq::SignalLength, JBB);
-}//Dbdih::execUPDATE_TOCONF()
+  
+  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_COPY_ACTIVE;
+}//Dbdih::execCOPY_FRAGCONF()
 
 void Dbdih::execCOPY_ACTIVECONF(Signal* signal) 
 {
@@ -3821,48 +3871,18 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
   CRASH_INSERTION(7143);
 
   TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = conf->userPtr;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
+  c_takeOverPool.getPtr(takeOverPtr, conf->userPtr);
 
   ndbrequire(conf->tableId == takeOverPtr.p->toCurrentTabref);
   ndbrequire(conf->fragId == takeOverPtr.p->toCurrentFragid);
   ndbrequire(checkNodeAlive(conf->startingNodeId));
-  ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::COPY_ACTIVE);
+  ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_COPY_ACTIVE);
 
   takeOverPtr.p->startGci = conf->startGci;
-  takeOverPtr.p->toMasterStatus = TakeOverRecord::LOCK_MUTEX;
-  
-  Mutex mutex(signal, c_mutexMgr, takeOverPtr.p->m_switchPrimaryMutexHandle);
-  Callback c = { safe_cast(&Dbdih::switchPrimaryMutex_locked), takeOverPtr.i };
-  ndbrequire(mutex.lock(c));
+  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_UPDATE_BEFORE_COMMIT;
+
+  sendUpdateTo(signal, takeOverPtr);
 }//Dbdih::execCOPY_ACTIVECONF()
-
-void
-Dbdih::switchPrimaryMutex_locked(Signal* signal, Uint32 toPtrI, Uint32 retVal){
-  jamEntry();
-  ndbrequire(retVal == 0);
-
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = toPtrI;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-
-  ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::LOCK_MUTEX);
-  
-  if (!checkNodeAlive((takeOverPtr.p->toStartingNode))) {
-    // We have mutex
-    Mutex mutex(signal, c_mutexMgr, takeOverPtr.p->m_switchPrimaryMutexHandle);
-    mutex.unlock(); // Ignore result
-    
-    c_createFragmentLock = RNIL;
-    c_CREATE_FRAGREQ_Counter.clearWaitingFor();
-    endTakeOver(takeOverPtr.i);
-    return;
-  }
-  
-  takeOverPtr.p->toMasterStatus = TakeOverRecord::COMMIT_CREATE;
-  sendCreateFragReq(signal, takeOverPtr.p->startGci, 
-		    CreateFragReq::COMMIT_STORED, takeOverPtr.i);
-}
 
 void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
 {
@@ -3870,216 +3890,51 @@ void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
   signal->theData[1] = takeOverPtr.p->toStartingNode;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
-  if (getNodeState().getSystemRestartInProgress())
-  {
-    jam();
-    infoEvent("Take over of node %d complete", takeOverPtr.p->toStartingNode);
-    setNodeActiveStatus(takeOverPtr.p->toStartingNode, Sysfile::NS_Active);
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::WAIT_LCP;
-    takeOverCompleted(takeOverPtr.p->toStartingNode);
-    checkToCopy();
-    checkToCopyCompleted(signal);
-    return;
-  }
-  
-  c_lcpState.immediateLcpStart = true;
-  takeOverPtr.p->toMasterStatus = TakeOverRecord::WAIT_LCP;
-  
-  /*-----------------------------------------------------------------------*/
-  /* NOW WE CAN ALLOW THE NEW NODE TO PARTICIPATE IN LOCAL CHECKPOINTS.    */
-  /* WHEN THE FIRST LOCAL CHECKPOINT IS READY WE DECLARE THE TAKE OVER AS  */
-  /* COMPLETED. SINCE LOCAL CHECKPOINTS HAVE BEEN BLOCKED DURING THE COPY  */
-  /* PROCESS WE MUST ALSO START A NEW LOCAL CHECKPOINT PROCESS BY ENSURING */
-  /* THAT IT LOOKS LIKE IT IS TIME FOR A NEW LOCAL CHECKPOINT AND BY       */
-  /* UNBLOCKING THE LOCAL CHECKPOINT AGAIN.                                */
-  /* --------------------------------------------------------------------- */
+  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_END_TO;
+  EndToReq* req = (EndToReq*)signal->getDataPtrSend();
+  req->senderData = takeOverPtr.i;
+  req->senderRef = reference();
+  req->flags = takeOverPtr.p->m_flags;
+  sendSignal(cmasterdihref, GSN_END_TOREQ,
+             signal, EndToReq::SignalLength, JBB);
 }//Dbdih::toCopyCompletedLab()
 
-void Dbdih::sendEndTo(Signal* signal, Uint32 takeOverPtrI)
-{
-  TakeOverRecordPtr takeOverPtr;
-  CRASH_INSERTION(7156);
-  RETURN_IF_TAKE_OVER_INTERRUPTED(takeOverPtrI, takeOverPtr);
-  if ((c_endToLock != RNIL) || (ERROR_INSERTED(7164))) {
-    jam();
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_WAIT_ENDING;
-    signal->theData[0] = DihContinueB::ZSEND_END_TO;
-    signal->theData[1] = takeOverPtrI;
-    signal->theData[2] = takeOverPtr.p->toStartingNode;
-    signal->theData[3] = takeOverPtr.p->toFailedNode;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 30, 4);
-    return;
-  }//if
-  c_endToLock = takeOverPtr.i;
-  takeOverPtr.p->toMasterStatus = TakeOverRecord::ENDING;
-  EndToReq * const req = (EndToReq *)&signal->theData[0];
-  req->userPtr = takeOverPtr.i;
-  req->userRef = reference();
-  req->startingNodeId = takeOverPtr.p->toStartingNode;
-  sendLoopMacro(END_TOREQ, sendEND_TOREQ);
-}//Dbdih::sendStartTo()
-
-void Dbdih::execEND_TOREQ(Signal* signal)
+void
+Dbdih::execEND_TOREF(Signal* signal)
 {
   jamEntry();
-  const EndToReq * const req = (EndToReq *)&signal->theData[0];
-  BlockReference ref = req->userRef;
-  Uint32 startingNodeId = req->startingNodeId;
-
-  CRASH_INSERTION(7144);
-  RETURN_IF_NODE_NOT_ALIVE(startingNodeId);
-
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = req->userPtr;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-
-  ndbrequire(startingNodeId == takeOverPtr.p->toStartingNode);
-  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SLAVE_IDLE;
+  EndToRef* ref = (EndToRef*)signal->getDataPtr();
   
-  if (!isMaster()) {
-    jam();
-    endTakeOver(takeOverPtr.i);
-  }//if
+  TakeOverRecordPtr takeOverPtr;
+  c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
 
-  EndToConf * const conf = (EndToConf *)&signal->theData[0];
-  conf->userPtr = takeOverPtr.i;
-  conf->sendingNodeId = cownNodeId;
-  conf->startingNodeId = startingNodeId;
-  sendSignal(ref, GSN_END_TOCONF, signal, EndToConf::SignalLength, JBB);
-}//Dbdih::execEND_TOREQ()
+  ndbrequire(false);
+}
 
-void Dbdih::execEND_TOCONF(Signal* signal) 
+void
+Dbdih::execEND_TOCONF(Signal* signal)
 {
-  const EndToConf * const conf = (EndToConf *)&signal->theData[0];
   jamEntry();
-
-  const Uint32 nodeId = conf->startingNodeId;
-  CRASH_INSERTION(7145);
-
-  RETURN_IF_NODE_NOT_ALIVE(nodeId);
-
+  EndToConf* conf = (EndToConf*)signal->getDataPtr();
+  
   TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = conf->userPtr;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
+  c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
+  
+  Uint32 senderData = takeOverPtr.p->m_senderData;
+  Uint32 senderRef = takeOverPtr.p->m_senderRef;
+  Uint32 nodeId = takeOverPtr.p->toStartingNode;
 
-  ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::ENDING);
-  ndbrequire(nodeId == takeOverPtr.p->toStartingNode);
+  releaseTakeOver(takeOverPtr);
+  
+  StartCopyConf* ret = (StartCopyConf*)signal->getDataPtrSend();
+  ret->startingNodeId = nodeId;
+  ret->senderData = senderData;
+  ret->senderRef = reference();
+  sendSignal(senderRef, GSN_START_COPYCONF, signal, 
+             StartCopyConf::SignalLength, JBB);
+}
 
-  receiveLoopMacro(END_TOREQ, conf->sendingNodeId);
-  CRASH_INSERTION(7146);
-  c_endToLock = RNIL;
-
-  /* -----------------------------------------------------------------------*/
-  /*  WE HAVE FINALLY COMPLETED THE TAKE OVER. WE RESET THE STATUS AND CHECK*/
-  /*  IF ANY MORE TAKE OVERS ARE NEEDED AT THE MOMENT.                      */
-  /*  FIRST WE CHECK IF A RESTART IS ONGOING. IN THAT CASE WE RESTART PHASE */
-  /*  4 AND CHECK IF ANY MORE TAKE OVERS ARE NEEDED BEFORE WE START NDB     */
-  /*  CLUSTER. THIS CAN ONLY HAPPEN IN A SYSTEM RESTART.                    */
-  /* ---------------------------------------------------------------------- */
-  if (takeOverPtr.p->toNodeRestart) {
-    jam();
-    /* ----------------------------------------------------------------------*/
-    /* THE TAKE OVER NODE WAS A STARTING NODE. WE WILL SEND START_COPYCONF   */
-    /* TO THE STARTING NODE SUCH THAT THE NODE CAN COMPLETE THE START-UP.    */
-    /* --------------------------------------------------------------------- */
-    BlockReference ref = calcDihBlockRef(takeOverPtr.p->toStartingNode);
-    signal->theData[0] = takeOverPtr.p->toStartingNode;
-    sendSignal(ref, GSN_START_COPYCONF, signal, 1,JBB);
-  }//if
-  endTakeOver(takeOverPtr.i);
-
-  if (cstartPhase == ZNDB_SPH4) {
-    jam();
-    if (anyActiveTakeOver()) {
-      jam();
-      return;
-    }//if
-    ndbsttorry10Lab(signal, __LINE__);
-    return;
-  }//if
-  checkStartTakeOver(signal);
-}//Dbdih::execEND_TOCONF()
-
-void Dbdih::allocateTakeOver(TakeOverRecordPtr& takeOverPtr)
-{
-  if (isMaster()) {
-    jam();
-    //--------------------------------------------
-    // Master already seized the take over record.
-    //--------------------------------------------
-    return;
-  }//if
-  if (takeOverPtr.i == cfirstfreeTakeOver) {
-    jam();
-    seizeTakeOver(takeOverPtr);
-  } else {
-    TakeOverRecordPtr nextTakeOverptr;
-    TakeOverRecordPtr prevTakeOverptr;
-    nextTakeOverptr.i = takeOverPtr.p->nextTakeOver;
-    prevTakeOverptr.i = takeOverPtr.p->prevTakeOver;
-    if (prevTakeOverptr.i != RNIL) {
-      jam();
-      ptrCheckGuard(prevTakeOverptr, MAX_NDB_NODES, takeOverRecord);
-      prevTakeOverptr.p->nextTakeOver = nextTakeOverptr.i;
-    }//if
-    if (nextTakeOverptr.i != RNIL) {
-      jam();
-      ptrCheckGuard(nextTakeOverptr, MAX_NDB_NODES, takeOverRecord);
-      nextTakeOverptr.p->prevTakeOver = prevTakeOverptr.i;
-    }//if
-  }//if
-}//Dbdih::allocateTakeOver()
-
-void Dbdih::seizeTakeOver(TakeOverRecordPtr& takeOverPtr)
-{
-  TakeOverRecordPtr nextTakeOverptr;
-  ndbrequire(cfirstfreeTakeOver != RNIL);
-  takeOverPtr.i = cfirstfreeTakeOver;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-  cfirstfreeTakeOver = takeOverPtr.p->nextTakeOver;
-  nextTakeOverptr.i = takeOverPtr.p->nextTakeOver;
-  if (nextTakeOverptr.i != RNIL) {
-    jam();
-    ptrCheckGuard(nextTakeOverptr, MAX_NDB_NODES, takeOverRecord);
-    nextTakeOverptr.p->prevTakeOver = RNIL;
-  }//if
-  takeOverPtr.p->nextTakeOver = RNIL;
-  takeOverPtr.p->prevTakeOver = RNIL;
-}//Dbdih::seizeTakeOver()
-
-void Dbdih::endTakeOver(Uint32 takeOverPtrI)
-{
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = takeOverPtrI;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-
-  if ((takeOverPtr.p->toMasterStatus != TakeOverRecord::IDLE) &&
-      (takeOverPtr.p->toMasterStatus != TakeOverRecord::TO_WAIT_START_TAKE_OVER)) {
-    jam();
-    NodeGroupRecordPtr NGPtr;
-    NodeRecordPtr nodePtr;
-    nodePtr.i = takeOverPtr.p->toStartingNode;
-    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    NGPtr.i = nodePtr.p->nodeGroup;
-    ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
-    NGPtr.p->activeTakeOver = false;
-  }//if
-  setAllowNodeStart(takeOverPtr.p->toStartingNode, true);
-  initTakeOver(takeOverPtr);
-  releaseTakeOver(takeOverPtrI);
-}//Dbdih::endTakeOver()
-
-void Dbdih::releaseTakeOver(Uint32 takeOverPtrI)
-{
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = takeOverPtrI;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-
-  takeOverPtr.p->nextTakeOver = cfirstfreeTakeOver;
-  cfirstfreeTakeOver = takeOverPtr.i;
-}//Dbdih::releaseTakeOver()
-
-void Dbdih::initTakeOver(TakeOverRecordPtr takeOverPtr)
+void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr)
 {
   takeOverPtr.p->toCopyNode = RNIL;
   takeOverPtr.p->toCurrentFragid = RNIL;
@@ -4087,25 +3942,13 @@ void Dbdih::initTakeOver(TakeOverRecordPtr takeOverPtr)
   takeOverPtr.p->toCurrentTabref = RNIL;
   takeOverPtr.p->toFailedNode = RNIL;
   takeOverPtr.p->toStartingNode = RNIL;
-  takeOverPtr.p->prevTakeOver = RNIL;
-  takeOverPtr.p->nextTakeOver = RNIL;
-  takeOverPtr.p->toNodeRestart = false;
-  takeOverPtr.p->toMasterStatus = TakeOverRecord::IDLE;
+  takeOverPtr.p->toStartTime = 0;
   takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SLAVE_IDLE;
-}//Dbdih::initTakeOver()
+  takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MASTER_IDLE;
+  
+  c_activeTakeOverList.release(takeOverPtr);
+}//Dbdih::releaseTakeOver()
 
-bool Dbdih::anyActiveTakeOver()
-{
-  TakeOverRecordPtr takeOverPtr;
-  for (takeOverPtr.i = 0; takeOverPtr.i < MAX_NDB_NODES; takeOverPtr.i++) {
-    ptrAss(takeOverPtr, takeOverRecord);
-    if (takeOverPtr.p->toMasterStatus != TakeOverRecord::IDLE) {
-      jam();
-      return true;
-    }//if
-  }//for
-  return false;
-}//Dbdih::anyActiveTakeOver()
 
 /*****************************************************************************/
 /* ------------------------------------------------------------------------- */
@@ -4450,7 +4293,6 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     NodeRecordPtr failedNodePtr;
     failedNodePtr.i = failedNodes[i];
     ptrCheckGuard(failedNodePtr, MAX_NDB_NODES, nodeRecord);
-    Uint32 activeTakeOverPtr = findTakeOver(failedNodes[i]);
     if (oldMasterRef == reference()) {
       /*-------------------------------------------------------*/
       // Functions that need to be called only for master nodes.
@@ -4458,9 +4300,14 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
       checkCopyTab(signal, failedNodePtr);
       checkStopPermMaster(signal, failedNodePtr);
       checkWaitGCPMaster(signal, failedNodes[i]);
-      checkTakeOverInMasterAllNodeFailure(signal, failedNodePtr);
-      checkTakeOverInMasterCopyNodeFailure(signal, failedNodePtr.i);
-      checkTakeOverInMasterStartNodeFailure(signal, activeTakeOverPtr);
+
+      {
+        Ptr<TakeOverRecord> takeOverPtr;
+        if (findTakeOver(takeOverPtr, failedNodePtr.i))
+        {
+          handleTakeOver(signal, takeOverPtr);
+        }
+      }
       checkGcpOutstanding(signal, failedNodePtr.i);
     } else {
       jam();
@@ -4470,17 +4317,6 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
       /*-----------------------------------------------------------*/
       checkStopPermProxy(signal, failedNodes[i]);
       checkWaitGCPProxy(signal, failedNodes[i]);
-      if (isMaster()) {
-	/*-----------------------------------------------------------*/
-	// We take over as master since old master has failed
-	/*-----------------------------------------------------------*/
-        handleTakeOverNewMaster(signal, activeTakeOverPtr);
-      } else {
-	/*-----------------------------------------------------------*/
-	// We are not master and will not become master.
-	/*-----------------------------------------------------------*/
-        checkTakeOverInNonMasterStartNodeFailure(signal, activeTakeOverPtr);
-      }//if
     }//if
     /*--------------------------------------------------*/
     // Functions that need to be called for all nodes.
@@ -4597,284 +4433,82 @@ void Dbdih::checkStopPermProxy(Signal* signal, NodeId failedNodeId)
 }//Dbdih::checkStopPermProxy()
 
 void 
-Dbdih::checkTakeOverInMasterAllNodeFailure(Signal* signal, 
-					   NodeRecordPtr failedNodePtr)
+Dbdih::handleTakeOver(Signal* signal, TakeOverRecordPtr takeOverPtr)
 {
-  //------------------------------------------------------------------------
-  // This code is used to handle the failure of "all" nodes during the 
-  // take over when "all" nodes are informed about state changes in 
-  // the take over protocol.
-  //--------------------------------------------------------------------------
-  if (c_START_TOREQ_Counter.isWaitingFor(failedNodePtr.i)){
+  jam();
+  switch(takeOverPtr.p->toMasterStatus){
+  case TakeOverRecord::TO_MASTER_IDLE:
     jam();
-    StartToConf * const conf = (StartToConf *)&signal->theData[0];
-    conf->userPtr = c_startToLock;
-    conf->sendingNodeId = failedNodePtr.i;
-    conf->startingNodeId = getStartNode(c_startToLock);
-    sendSignal(reference(), GSN_START_TOCONF, signal, 
-	       StartToConf::SignalLength, JBB);
-  }//if
-  if (c_CREATE_FRAGREQ_Counter.isWaitingFor(failedNodePtr.i)){
+    releaseTakeOver(takeOverPtr);
+    return;
+  case TakeOverRecord::TO_MUTEX_BEFORE_STORED:
     jam();
-    CreateFragConf * const conf = (CreateFragConf *)&signal->theData[0];
-    TakeOverRecordPtr takeOverPtr;
-    takeOverPtr.i = c_createFragmentLock;
-    ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-    conf->userPtr = takeOverPtr.i;
-    conf->tableId = takeOverPtr.p->toCurrentTabref;
-    conf->fragId = takeOverPtr.p->toCurrentFragid;
-    conf->sendingNodeId = failedNodePtr.i;
-    conf->startingNodeId = takeOverPtr.p->toStartingNode;
-    sendSignal(reference(), GSN_CREATE_FRAGCONF, signal,
-               CreateFragConf::SignalLength, JBB);
-  }//if
-  if (c_UPDATE_TOREQ_Counter.isWaitingFor(failedNodePtr.i)){
+    /**
+     * Waiting for lock...
+     *   do nothing...will be detected when lock is acquired
+     */
+    return;
+  case TakeOverRecord::TO_MUTEX_BEFORE_LOCKED:
     jam();
-    UpdateToConf * const conf = (UpdateToConf *)&signal->theData[0];
-    conf->userPtr = c_updateToLock;
-    conf->sendingNodeId = failedNodePtr.i;
-    conf->startingNodeId = getStartNode(c_updateToLock);
-    sendSignal(reference(), GSN_UPDATE_TOCONF, signal, 
-	       UpdateToConf::SignalLength, JBB);
-  }//if
-  
-  if (c_END_TOREQ_Counter.isWaitingFor(failedNodePtr.i)){
+    /**
+     * Has lock...and NGPtr reservation...
+     *   run updateToReq_fragmentMutex_locked which will abort as case above
+     */
+    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MUTEX_BEFORE_STORED;
+    updateToReq_fragmentMutex_locked(signal, takeOverPtr.i, 0);
+    return;
+  case TakeOverRecord::TO_AFTER_STORED:{
     jam();
-    EndToConf * const conf = (EndToConf *)&signal->theData[0];
-    conf->userPtr = c_endToLock;
-    conf->sendingNodeId = failedNodePtr.i;
-    conf->startingNodeId = getStartNode(c_endToLock);
-    sendSignal(reference(), GSN_END_TOCONF, signal, 
-	       EndToConf::SignalLength, JBB);
-  }//if
-}//Dbdih::checkTakeOverInMasterAllNodeFailure()
-
-void Dbdih::checkTakeOverInMasterCopyNodeFailure(Signal* signal, 
-						 Uint32 failedNodeId)
-{
-  //---------------------------------------------------------------------------
-  // This code is used to handle failure of the copying node during a take over
-  //---------------------------------------------------------------------------
-  TakeOverRecordPtr takeOverPtr;
-  for (Uint32 i = 0; i < MAX_NDB_NODES; i++) {
-    jam();
-    takeOverPtr.i = i;
-    ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-    if ((takeOverPtr.p->toMasterStatus == TakeOverRecord::COPY_FRAG) &&
-        (takeOverPtr.p->toCopyNode == failedNodeId)) {
+    /**
+     * No lock...but NGPtr reservation...remove NGPtr reservation
+     */
+    NodeRecordPtr nodePtr;
+    NodeGroupRecordPtr NGPtr;
+    nodePtr.i = takeOverPtr.p->toCopyNode;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    NGPtr.i = nodePtr.p->nodeGroup;
+    ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+    
+    ndbassert(NGPtr.p->activeTakeOver == takeOverPtr.p->toStartingNode);
+    if (NGPtr.p->activeTakeOver == takeOverPtr.p->toStartingNode)
+    {
       jam();
-      /**
-       * The copying node failed but the system is still operational. 
-       * We restart the copy process by selecting a new copy node. 
-       * We do not need to add a fragment however since it is already added. 
-       * We start again from the prepare create fragment phase.
-       */
-      prepareSendCreateFragReq(signal, takeOverPtr.i);
-    }//if
-  }//for
-}//Dbdih::checkTakeOverInMasterCopyNodeFailure()
-
-void Dbdih::checkTakeOverInMasterStartNodeFailure(Signal* signal, 
-						  Uint32 takeOverPtrI)
-{
-  jam();
-  ndbout_c("checkTakeOverInMasterStartNodeFailure %x",
-	   takeOverPtrI);
-  if (takeOverPtrI == RNIL) {
-    jam();
-    return;
-  }
-  //-----------------------------------------------------------------------
-  // We are the master and the starting node has failed during a take over.
-  // We need to handle this failure in different ways depending on the state.
-  //-----------------------------------------------------------------------
-
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = takeOverPtrI;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-
-  ndbout_c("takeOverPtr.p->toMasterStatus: %x", 
-	   takeOverPtr.p->toMasterStatus);
-  
-  bool ok = false;
-  switch (takeOverPtr.p->toMasterStatus) {
-  case TakeOverRecord::IDLE:
-    //-----------------------------------------------------------------------
-    // The state cannot be idle when it has a starting node.
-    //-----------------------------------------------------------------------
-    ndbrequire(false);
-    break;
-  case TakeOverRecord::TO_WAIT_START_TAKE_OVER:
-    jam();
-  case TakeOverRecord::TO_START_COPY:
-    jam();
-  case TakeOverRecord::TO_START_COPY_ONGOING:
-    jam();
-  case TakeOverRecord::TO_WAIT_START:
-    jam();
-  case TakeOverRecord::TO_WAIT_PREPARE_CREATE:
-    jam();
-  case TakeOverRecord::TO_WAIT_UPDATE_TO:
-    jam();
-  case TakeOverRecord::TO_WAIT_COMMIT_CREATE:
-    jam();
-  case TakeOverRecord::TO_END_COPY:
-    jam();
-  case TakeOverRecord::TO_END_COPY_ONGOING:
-    jam();
-  case TakeOverRecord::TO_WAIT_ENDING:
-    jam();
-    //-----------------------------------------------------------------------
-    // We will not do anything since an internal signal process is outstanding.
-    // When the signal arrives the take over will be released.
-    //-----------------------------------------------------------------------
-    ok = true;
-    break;
-  case TakeOverRecord::STARTING:
-    jam();
-    ok = true;
-    c_startToLock = RNIL;
-    c_START_TOREQ_Counter.clearWaitingFor();
-    endTakeOver(takeOverPtr.i);
-    break;
-  case TakeOverRecord::TO_UPDATE_TO:
-    jam();
-    ok = true;
-    c_updateToLock = RNIL;
-    c_UPDATE_TOREQ_Counter.clearWaitingFor();
-    endTakeOver(takeOverPtr.i);
-    break;
-  case TakeOverRecord::ENDING:
-    jam();
-    ok = true;
-    c_endToLock = RNIL;
-    c_END_TOREQ_Counter.clearWaitingFor();
-    endTakeOver(takeOverPtr.i);
-    break;
-  case TakeOverRecord::COMMIT_CREATE:
-    ok = true;
-    jam();
-    {// We have mutex
-      Mutex m(signal, c_mutexMgr, takeOverPtr.p->m_switchPrimaryMutexHandle);
-      m.unlock(); // Ignore result
+      NGPtr.p->activeTakeOver = 0;
     }
-    // Fall through
-  case TakeOverRecord::PREPARE_CREATE:
-    ok = true;
-    jam();
-    c_createFragmentLock = RNIL;
-    c_CREATE_FRAGREQ_Counter.clearWaitingFor();
-    endTakeOver(takeOverPtr.i);
-    break;
-  case TakeOverRecord::LOCK_MUTEX:
-    ok = true;
-    jam();
-    // Lock mutex will return and do endTakeOver
-    break;
-    
-    //-----------------------------------------------------------------------
-    // Signals are outstanding to external nodes. These signals carry the node
-    // id of the starting node and will not use the take over record if the
-    // starting node has failed.
-    //-----------------------------------------------------------------------
-  case TakeOverRecord::COPY_FRAG:
-    ok = true;
-    jam();
-    //-----------------------------------------------------------------------
-    // The copying node will discover the problem. We will receive either
-    // COPY_FRAGREQ or COPY_FRAGCONF and then we can release the take over
-    // record and end the process. If the copying node should also die then
-    // we will try to send prepare create fragment and will then discover
-    // that the starting node has failed.
-    //-----------------------------------------------------------------------
-    break;
-  case TakeOverRecord::PREPARE_COPY:
-    ok = true;
-    jam();
-    /**
-     * We're waiting for the starting node...which just died...
-     *  endTakeOver
-     */
-    endTakeOver(takeOverPtr.i);
-    break;
-  case TakeOverRecord::COPY_ACTIVE:
-    ok = true;
-    jam();
-    //-----------------------------------------------------------------------
-    // In this we are waiting for a signal from the starting node. Thus we
-    // can release the take over record and end the process.
-    //-----------------------------------------------------------------------
-    endTakeOver(takeOverPtr.i);
-    break;
-  case TakeOverRecord::WAIT_LCP:
-    ok = true;
-    jam();
-    //-----------------------------------------------------------------------
-    //-----------------------------------------------------------------------
-    endTakeOver(takeOverPtr.i);
-    break;
-
-  case TakeOverRecord::STARTING_LOCAL_FRAGMENTS:
-    ok = true;
-    jam();
-    endTakeOver(takeOverPtr.i);
-    break;
-    
-    /**
-     * The following are states that it should not be possible to "be" in
-     */
-  case TakeOverRecord::SELECTING_NEXT:
-    jam();
-  case TakeOverRecord::TO_COPY_COMPLETED:
-    jam();
-    ndbrequire(false);
-  }
-  if(!ok){
-    jamLine(takeOverPtr.p->toSlaveStatus);
-    ndbrequire(ok);
-  }
-}//Dbdih::checkTakeOverInMasterStartNodeFailure()
-
-void Dbdih::checkTakeOverInNonMasterStartNodeFailure(Signal* signal, 
-						     Uint32 takeOverPtrI)
-{
-  jam();
-  if (takeOverPtrI == RNIL) {
-    jam();
+    releaseTakeOver(takeOverPtr);
     return;
   }
-  //-----------------------------------------------------------------------
-  // We are not master and not taking over as master. A take over was ongoing
-  // but the starting node has now failed. Handle it according to the state
-  // of the take over.
-  //-----------------------------------------------------------------------
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = takeOverPtrI;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-  bool ok = false;
-  switch (takeOverPtr.p->toSlaveStatus) {
-  case TakeOverRecord::TO_SLAVE_IDLE:
-    ndbrequire(false);
-    break;
-  case TakeOverRecord::TO_SLAVE_STARTED:
+  case TakeOverRecord::TO_MUTEX_BEFORE_COMMIT:
     jam();
-  case TakeOverRecord::TO_SLAVE_CREATE_PREPARE:
+    /**
+     * Waiting for lock...
+     *   do nothing...will be detected when lock is acquired
+     */
+    return;
+  case TakeOverRecord::TO_MUTEX_SWITCH_REPLICA:
     jam();
-  case TakeOverRecord::TO_SLAVE_COPY_FRAG_COMPLETED:
+    /**
+     * Waiting for lock...
+     *   do nothing...will be detected when lock is acquired
+     */
+    return;
+  case TakeOverRecord::TO_WAIT_LCP:{
     jam();
-  case TakeOverRecord::TO_SLAVE_CREATE_COMMIT:
-    jam();
-  case TakeOverRecord::TO_SLAVE_COPY_COMPLETED:
-    jam();
-    ok = true;
-    endTakeOver(takeOverPtr.i);
-    break;
-  }//switch
-  if(!ok){
-    jamLine(takeOverPtr.p->toSlaveStatus);
-    ndbrequire(ok);
+    /**
+     * Waiting for LCP
+     */
+    NodeRecordPtr nodePtr;
+    nodePtr.i = takeOverPtr.p->toStartingNode;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);    
+    nodePtr.p->copyCompleted = 0;
+    releaseTakeOver(takeOverPtr);
+    return;
   }
-}//Dbdih::checkTakeOverInNonMasterStartNodeFailure()
+  default:
+    jamLine(takeOverPtr.p->toMasterStatus);
+    ndbrequire(false);
+  }
+}
 
 void Dbdih::failedNodeSynchHandling(Signal* signal, 
 				    NodeRecordPtr failedNodePtr)
@@ -4951,28 +4585,22 @@ void Dbdih::failedNodeSynchHandling(Signal* signal,
   }//if
 }//Dbdih::failedNodeSynchHandling()
 
-Uint32 Dbdih::findTakeOver(Uint32 failedNodeId)
+bool
+Dbdih::findTakeOver(Ptr<TakeOverRecord> & ptr, Uint32 failedNodeId)
 {
-  for (Uint32 i = 0; i < MAX_NDB_NODES; i++) {
+  for (c_activeTakeOverList.first(ptr); !ptr.isNull(); 
+       c_activeTakeOverList.next(ptr))
+  {
     jam();
-    TakeOverRecordPtr takeOverPtr;
-    takeOverPtr.i = i;
-    ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-    if (takeOverPtr.p->toStartingNode == failedNodeId) {
+    if (ptr.p->toStartingNode == failedNodeId)
+    {
       jam();
-      return i;
-    }//if
-  }//for
-  return RNIL;
+      return true;
+    }
+  }
+  ptr.setNull();
+  return false;
 }//Dbdih::findTakeOver()
-
-Uint32 Dbdih::getStartNode(Uint32 takeOverPtrI)
-{
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = takeOverPtrI;
-  ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-  return takeOverPtr.p->toStartingNode;
-}//Dbdih::getStartNode()
 
 void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
 {
@@ -5169,7 +4797,7 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
 
     EmptyLcpReq* req = (EmptyLcpReq*)signal->getDataPtrSend();
     req->senderRef = reference();
-    sendLoopMacro(EMPTY_LCP_REQ, sendEMPTY_LCP_REQ);
+    sendLoopMacro(EMPTY_LCP_REQ, sendEMPTY_LCP_REQ, RNIL);
     ndbrequire(!c_EMPTY_LCP_REQ_Counter.done());
   } else {
     /**
@@ -5214,7 +4842,7 @@ void Dbdih::startGcpMasterTakeOver(Signal* signal, Uint32 oldMasterId){
   MasterGCPReq * const req = (MasterGCPReq *)&signal->theData[0];  
   req->masterRef = reference();
   req->failedNodeId = oldMasterId;
-  sendLoopMacro(MASTER_GCPREQ, sendMASTER_GCPREQ);
+  sendLoopMacro(MASTER_GCPREQ, sendMASTER_GCPREQ, RNIL);
   cgcpMasterTakeOverState = GMTOS_INITIAL;
 
   signal->theData[0] = NDB_LE_GCP_TakeoverStarted;
@@ -5222,55 +4850,6 @@ void Dbdih::startGcpMasterTakeOver(Signal* signal, Uint32 oldMasterId){
 
   setLocalNodefailHandling(signal, oldMasterId, NF_GCP_TAKE_OVER);
 }//Dbdih::handleNewMaster()
-
-void Dbdih::handleTakeOverNewMaster(Signal* signal, Uint32 takeOverPtrI)
-{
-  jam();
-  if (takeOverPtrI != RNIL) {
-    jam();
-    TakeOverRecordPtr takeOverPtr;
-    takeOverPtr.i = takeOverPtrI;
-    ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-    bool ok = false;
-    switch (takeOverPtr.p->toSlaveStatus) {
-    case TakeOverRecord::TO_SLAVE_IDLE:
-      ndbrequire(false);
-      break;
-    case TakeOverRecord::TO_SLAVE_STARTED:
-      jam();
-    case TakeOverRecord::TO_SLAVE_CREATE_PREPARE:
-      jam();
-    case TakeOverRecord::TO_SLAVE_COPY_FRAG_COMPLETED:
-      jam();
-    case TakeOverRecord::TO_SLAVE_CREATE_COMMIT:
-      jam();
-      ok = true;
-      infoEvent("Unhandled MasterTO of TO slaveStatus=%d killing node %d",
-		takeOverPtr.p->toSlaveStatus,
-		takeOverPtr.p->toStartingNode);
-      takeOverPtr.p->toMasterStatus = TakeOverRecord::COPY_ACTIVE;
-      
-      {
-	BlockReference cntrRef = calcNdbCntrBlockRef(takeOverPtr.p->toStartingNode);
-	SystemError * const sysErr = (SystemError*)&signal->theData[0];
-	sysErr->errorCode = SystemError::CopyFragRefError;
-	sysErr->errorRef = reference();
-	sysErr->data[0] = 0;
-	sysErr->data[1] = __LINE__;
-	sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal, 
-		   SystemError::SignalLength, JBB);
-      }
-      break;
-    case TakeOverRecord::TO_SLAVE_COPY_COMPLETED:
-      ok = true;
-      jam();
-      takeOverPtr.p->toMasterStatus = TakeOverRecord::WAIT_LCP;
-      break;
-    }
-    ndbrequire(ok);
-    endTakeOver(takeOverPtr.i);
-  }//if
-}//Dbdih::handleTakeOverNewMaster()
 
 void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
 {
@@ -5586,7 +5165,7 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
     /**
      * Restart GCP_PREPARE
      */
-    sendLoopMacro(GCP_PREPARE, sendGCP_PREPARE);
+    sendLoopMacro(GCP_PREPARE, sendGCP_PREPARE, RNIL);
     break;
   }
   case MicroGcp::M_GCP_COMMIT:
@@ -5597,7 +5176,7 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
     /**
      * Restart GCP_COMMIT
      */
-    sendLoopMacro(GCP_COMMIT, sendGCP_COMMIT);
+    sendLoopMacro(GCP_COMMIT, sendGCP_COMMIT, RNIL);
     break;
   }
   case MicroGcp::M_GCP_COMMITTED:
@@ -5633,7 +5212,7 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
       /**
        * Restart GCP_SAVE_REQ
        */
-      sendLoopMacro(GCP_SAVEREQ, sendGCP_SAVEREQ);
+      sendLoopMacro(GCP_SAVEREQ, sendGCP_SAVEREQ, RNIL);
       break;
     }
     case GcpSave::GCP_SAVE_CONF:
@@ -6006,7 +5585,7 @@ void Dbdih::removeNodeFromTable(Signal* signal,
      * The removal on the failed node made the LCP complete
      */
     tabPtr.p->tabLcpStatus = TabRecord::TLS_WRITING_TO_FILE;
-    checkLcpAllTablesDoneInLqh();
+    checkLcpAllTablesDoneInLqh(__LINE__);
   }
 }
   
@@ -6149,11 +5728,13 @@ Dbdih::checkEmptyLcpComplete(Signal *signal){
       sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
     }
     
+    c_current_time = NdbTick_CurrentMillisecond();
+    c_lcpState.m_start_time = c_current_time;
     c_lcpMasterTakeOverState.set(LMTOS_INITIAL, __LINE__);
     MasterLCPReq * const req = (MasterLCPReq *)&signal->theData[0];
     req->masterRef = reference();
     req->failedNodeId = c_lcpMasterTakeOverState.failedNodeId;
-    sendLoopMacro(MASTER_LCPREQ, sendMASTER_LCPREQ);
+    sendLoopMacro(MASTER_LCPREQ, sendMASTER_LCPREQ, RNIL);
 
   } else {
     sendMASTER_LCPCONF(signal);
@@ -6610,6 +6191,14 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
 #endif
     
       c_lcpState.keepGci = SYSFILE->keepGCI;
+
+      /**
+       * We need to reaquire the mutex...
+       */
+      Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+      Callback c = 
+        { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked), 0 };
+      ndbrequire(mutex.lock(c, false));
       startLcpRoundLoopLab(signal, 0, 0);
       break;
     }
@@ -6623,6 +6212,15 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       // collection phase.
       /* ------------------------------------------------------------------- */
       ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE);
+
+      /**
+       * We need to reaquire the mutex...
+       */
+      Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+      Callback c = 
+        { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked), 0 };
+      ndbrequire(mutex.lock(c, false));
+      
       startLcpRoundLoopLab(signal, 0, 0);
       break;
     }
@@ -6821,31 +6419,6 @@ void Dbdih::nodeFailCompletedCheckLab(Signal* signal,
   signal->theData[0] = failedNodePtr.i;
   sendSignal(QMGR_REF, GSN_NDB_FAILCONF, signal, 1, JBB);
   
-  if (isMaster()) {
-    jam();
-    /* --------------------------------------------------------------------- */
-    /*   IF WE ARE MASTER WE MUST CHECK IF COPY FRAGMENT WAS INTERRUPTED     */
-    /*   BY THE FAILED NODES.                                                */
-    /* --------------------------------------------------------------------- */
-    TakeOverRecordPtr takeOverPtr;
-    takeOverPtr.i = 0;
-    ptrAss(takeOverPtr, takeOverRecord);
-    if ((takeOverPtr.p->toMasterStatus == TakeOverRecord::COPY_FRAG) &&
-        (failedNodePtr.i == takeOverPtr.p->toCopyNode)) {
-      jam();
-#ifdef VM_TRACE
-      ndbrequire("Tell jonas" == 0);
-#endif
-      /*------------------------------------------------------------------*/
-      /*       WE ARE CURRENTLY IN THE PROCESS OF COPYING A FRAGMENT. WE  */
-      /*       WILL CHECK IF THE COPY NODE HAVE FAILED.                   */
-      /*------------------------------------------------------------------*/
-      takeOverPtr.p->toMasterStatus = TakeOverRecord::SELECTING_NEXT;
-      startNextCopyFragment(signal, takeOverPtr.i);
-      return;
-    }//if
-    checkStartTakeOver(signal);
-  }//if
   return;
 }//Dbdih::nodeFailCompletedCheckLab()
 
@@ -8058,6 +7631,8 @@ Dbdih::execUPGRADE_PROTOCOL_ORD(Signal* signal)
 void
 Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime) 
 {
+  Uint64 now = c_current_time = NdbTick_CurrentMillisecond();
+  
   if (c_nodeStartMaster.blockGcp == true &&
       m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE)
   {
@@ -8085,8 +7660,6 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
     return;
   }//if
 
-  Uint64 now = NdbTick_CurrentMillisecond();
-  
   Uint32 delayMicro = m_micro_gcp.m_enabled ? 
     m_micro_gcp.m_master.m_time_between_gcp : 
     m_gcp_save.m_master.m_time_between_gcp;
@@ -8158,7 +7731,7 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
   }
 #endif
 
-  sendLoopMacro(GCP_PREPARE, sendGCP_PREPARE);
+  sendLoopMacro(GCP_PREPARE, sendGCP_PREPARE, RNIL);
 }//Dbdih::startGcpLab()
 
 void Dbdih::execGCP_PREPARECONF(Signal* signal)
@@ -8201,7 +7774,7 @@ void Dbdih::gcpcommitreqLab(Signal* signal)
   }
 #endif
 
-  sendLoopMacro(GCP_COMMIT, sendGCP_COMMIT);
+  sendLoopMacro(GCP_COMMIT, sendGCP_COMMIT, RNIL);
   return;
 }//Dbdih::gcpcommitreqLab()
 
@@ -8230,7 +7803,7 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
 #ifdef ERROR_INSERT
     if (ERROR_INSERTED(7190))
     {
-      sendToRandomNodes("GCP_COMPLETE_REP", signal, 0, 0,
+      sendToRandomNodes("GCP_COMPLETE_REP", signal, 0, 0, RNIL,
                         DBDIH,
                         GSN_SUB_GCP_COMPLETE_REP,
                         SubGcpCompleteRep::SignalLength,
@@ -8307,7 +7880,7 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   }
 #endif
   
-  sendLoopMacro(GCP_SAVEREQ, sendGCP_SAVEREQ);
+  sendLoopMacro(GCP_SAVEREQ, sendGCP_SAVEREQ, RNIL);
   return;
 }//Dbdih::execGCP_NODEFINISH()
 
@@ -8424,7 +7997,6 @@ void Dbdih::GCP_SAVEhandling(Signal* signal, Uint32 nodeId)
   /*-------------------------------------------------------------------------*/
 
   CRASH_INSERTION(7003);
-  checkToCopy();
   /**------------------------------------------------------------------------
    * SET NEW RECOVERABLE GCI. ALSO RESET RESTART COUNTER TO ZERO. 
    * THIS INDICATES THAT THE SYSTEM HAS BEEN RECOVERED AND SURVIVED AT 
@@ -8928,7 +8500,7 @@ void Dbdih::copyGciLab(Signal* signal, CopyGCIReq::CopyReason reason)
   }
 #endif
 
-  sendLoopMacro(COPY_GCIREQ, sendCOPY_GCIREQ);
+  sendLoopMacro(COPY_GCIREQ, sendCOPY_GCIREQ, RNIL);
 
 }//Dbdih::copyGciLab()
 
@@ -8970,7 +8542,6 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
   {
     ok = true;
     jam();
-    checkToCopyCompleted(signal);
 
     /************************************************************************/
     // Report the event that a global checkpoint has completed.
@@ -9958,61 +9529,73 @@ Dbdih::dump_replica_info()
     for(Uint32 fid = 0; fid<tabPtr.p->totalfragments; fid++)
     {
       getFragstore(tabPtr.p, fid, fragPtr);
-      ndbout_c("tab: %d frag: %d gci: %d\n  -- storedReplicas:", 
+      ndbout_c("tab: %d frag: %d gci: %d\n", 
 	       tabPtr.i, fid, SYSFILE->newestRestorableGCI);
       
-      Uint32 i;
-      ReplicaRecordPtr replicaPtr;
-      replicaPtr.i = fragPtr.p->storedReplicas;
-      for(; replicaPtr.i != RNIL; replicaPtr.i = replicaPtr.p->nextReplica)
-      {
-	ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
-	ndbout_c("  node: %d initialGci: %d nextLcp: %d noCrashedReplicas: %d",
-		 replicaPtr.p->procNode,
-		 replicaPtr.p->initialGci,
-		 replicaPtr.p->nextLcp,
-		 replicaPtr.p->noCrashedReplicas);
-	for(i = 0; i<MAX_LCP_STORED; i++)
-	{
-	  ndbout_c("    i: %d %s : lcpId: %d maxGci Completed: %d Started: %d",
-		   i, 
-		   (replicaPtr.p->lcpStatus[i] == ZVALID ?"VALID":"INVALID"),
-		   replicaPtr.p->lcpId[i],
-		   replicaPtr.p->maxGciCompleted[i],
-		   replicaPtr.p->maxGciStarted[i]);
-	}
-	
-	for (i = 0; i < 8; i++)
-	{
-	  ndbout_c("    crashed replica: %d replicaLastGci: %d createGci: %d",
-		   i, 
-		   replicaPtr.p->replicaLastGci[i],
-		   replicaPtr.p->createGci[i]);
-	}
-      }
-      ndbout_c("  -- oldStoredReplicas");
-      replicaPtr.i = fragPtr.p->oldStoredReplicas;
-      for(; replicaPtr.i != RNIL; replicaPtr.i = replicaPtr.p->nextReplica)
-      {
-	ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
-	for(i = 0; i<MAX_LCP_STORED; i++)
-	{
-	  ndbout_c("    i: %d %s : lcpId: %d maxGci Completed: %d Started: %d",
-		   i, 
-		   (replicaPtr.p->lcpStatus[i] == ZVALID ?"VALID":"INVALID"),
-		   replicaPtr.p->lcpId[i],
-		   replicaPtr.p->maxGciCompleted[i],
-		   replicaPtr.p->maxGciStarted[i]);
-	}
-	
-	for (i = 0; i < 8; i++)
-	{
-	  ndbout_c("    crashed replica: %d replicaLastGci: %d createGci: %d",
-		   i, 
-		   replicaPtr.p->replicaLastGci[i],
-		   replicaPtr.p->createGci[i]);
-	}
-      }
+      dump_replica_info(fragPtr.p);
+    }
+  }
+}
+
+void
+Dbdih::dump_replica_info(const Fragmentstore* fragPtrP)
+{
+  ndbout_c("  -- storedReplicas: ");
+  Uint32 i;
+  ReplicaRecordPtr replicaPtr;
+  replicaPtr.i = fragPtrP->storedReplicas;
+  for(; replicaPtr.i != RNIL; replicaPtr.i = replicaPtr.p->nextReplica)
+  {
+    ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+    ndbout_c("  node: %d initialGci: %d nextLcp: %d noCrashedReplicas: %d",
+             replicaPtr.p->procNode,
+             replicaPtr.p->initialGci,
+             replicaPtr.p->nextLcp,
+             replicaPtr.p->noCrashedReplicas);
+    for(i = 0; i<MAX_LCP_STORED; i++)
+    {
+      ndbout_c("    i: %d %s : lcpId: %d maxGci Completed: %d Started: %d",
+               i, 
+               (replicaPtr.p->lcpStatus[i] == ZVALID ?"VALID":"INVALID"),
+               replicaPtr.p->lcpId[i],
+               replicaPtr.p->maxGciCompleted[i],
+               replicaPtr.p->maxGciStarted[i]);
+    }
+    
+    for (i = 0; i < 8; i++)
+    {
+      ndbout_c("    crashed replica: %d replicaLastGci: %d createGci: %d",
+               i, 
+               replicaPtr.p->replicaLastGci[i],
+               replicaPtr.p->createGci[i]);
+    }
+  }
+  ndbout_c("  -- oldStoredReplicas");
+  replicaPtr.i = fragPtrP->oldStoredReplicas;
+  for(; replicaPtr.i != RNIL; replicaPtr.i = replicaPtr.p->nextReplica)
+  {
+    ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+    ndbout_c("  node: %d initialGci: %d nextLcp: %d noCrashedReplicas: %d",
+             replicaPtr.p->procNode,
+             replicaPtr.p->initialGci,
+             replicaPtr.p->nextLcp,
+             replicaPtr.p->noCrashedReplicas);
+    for(i = 0; i<MAX_LCP_STORED; i++)
+    {
+      ndbout_c("    i: %d %s : lcpId: %d maxGci Completed: %d Started: %d",
+               i, 
+               (replicaPtr.p->lcpStatus[i] == ZVALID ?"VALID":"INVALID"),
+               replicaPtr.p->lcpId[i],
+               replicaPtr.p->maxGciCompleted[i],
+               replicaPtr.p->maxGciStarted[i]);
+    }
+    
+    for (i = 0; i < 8; i++)
+    {
+      ndbout_c("    crashed replica: %d replicaLastGci: %d createGci: %d",
+               i, 
+               replicaPtr.p->replicaLastGci[i],
+               replicaPtr.p->createGci[i]);
     }
   }
 }
@@ -10147,7 +9730,7 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
 /*****************************************************************************/
 void Dbdih::completeRestartLab(Signal* signal) 
 {
-  sendLoopMacro(START_RECREQ, sendSTART_RECREQ);
+  sendLoopMacro(START_RECREQ, sendSTART_RECREQ, RNIL);
 }//completeRestartLab()
 
 /* ------------------------------------------------------------------------- */
@@ -10163,18 +9746,19 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
 {
   jamEntry();
   Uint32 senderNodeId = signal->theData[0];
-  ndbrequire(isMaster());
-  if (getNodeState().startLevel >= NodeState::SL_STARTED){
-    /* --------------------------------------------------------------------- */
-    // Since our node is already up and running this must be a node restart.
-    // This means that we should be the master node, 
-    // otherwise we have a problem.
-    /* --------------------------------------------------------------------- */
-    jam();
-    ndbout_c("startNextCopyFragment");
-    startNextCopyFragment(signal, findTakeOver(senderNodeId));
-    return;
-  } else {
+  Uint32 senderData = signal->theData[1];
+
+  if (senderData != RNIL)
+  {
+    /**
+     * This is node restart
+     */
+    Ptr<TakeOverRecord> takeOverPtr;
+    c_takeOverPool.getPtr(takeOverPtr, senderData);
+    sendStartTo(signal, takeOverPtr);
+  }
+  else
+  {
     /* --------------------------------------------------------------------- */
     // This was the system restart case. We set the state indicating that the
     // node has completed restoration of all fragments.
@@ -10539,7 +10123,7 @@ void Dbdih::checkTcCounterLab(Signal* signal)
     ndbrequire(false);
     return;
   }//if
-  c_lcpState.ctimer += 32;
+  add_lcp_counter(&c_lcpState.ctimer, 32);
   if ((c_nodeStartMaster.blockLcp == true) ||
       (c_lcpState.lcpStopGcp >= c_newest_restorable_gci)) {
     jam();
@@ -10557,7 +10141,7 @@ void Dbdih::checkTcCounterLab(Signal* signal)
   c_lcpState.setLcpStatus(LCP_TCGET, __LINE__);
   
   c_lcpState.ctcCounter = c_lcpState.ctimer;
-  sendLoopMacro(TCGETOPSIZEREQ, sendTCGETOPSIZEREQ);
+  sendLoopMacro(TCGETOPSIZEREQ, sendTCGETOPSIZEREQ, RNIL);
 }//Dbdih::checkTcCounterLab()
 
 void Dbdih::checkLcpStart(Signal* signal, Uint32 lineNo)
@@ -10580,7 +10164,7 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
 {
   jamEntry();
   Uint32 senderNodeId = signal->theData[0];
-  c_lcpState.ctcCounter += signal->theData[1];
+  add_lcp_counter(&c_lcpState.ctcCounter, signal->theData[1]);
   
   receiveLoopMacro(TCGETOPSIZEREQ, senderNodeId);
 
@@ -10639,6 +10223,8 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
     return;
   }//if
+
+  c_lcpState.m_start_time = c_current_time;
 
   signal->theData[0] = DihContinueB::ZCALCULATE_KEEP_GCI;
   signal->theData[1] = 0;  /* TABLE ID = 0          */
@@ -10719,14 +10305,28 @@ void Dbdih::calculateKeepGciLab(Signal* signal, Uint32 tableId, Uint32 fragId)
 /* ------------------------------------------------------------------------- */
 void Dbdih::storeNewLcpIdLab(Signal* signal) 
 {
-  /***************************************************************************/
-  // Report the event that a local checkpoint has started.
-  /***************************************************************************/
   signal->theData[0] = NDB_LE_LocalCheckpointStarted; //Event type
   signal->theData[1] = SYSFILE->latestLCP_ID + 1;
   signal->theData[2] = c_lcpState.keepGci;
   signal->theData[3] = c_lcpState.oldestRestorableGci;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
+
+  Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+  Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 0 };
+  ndbrequire(mutex.lock(c, false));
+}
+
+void
+Dbdih::lcpFragmentMutex_locked(Signal* signal, 
+                               Uint32 senderData, 
+                               Uint32 retVal)
+{
+  jamEntry();
+  ndbrequire(retVal == 0);
+
+  /***************************************************************************/
+  // Report the event that a local checkpoint has started.
+  /***************************************************************************/
   
   signal->setTrace(TestOrd::TraceLocalCheckpoint);
 
@@ -10781,10 +10381,16 @@ Dbdih::startLcpMutex_locked(Signal* signal, Uint32 senderData, Uint32 retVal){
   req->lcpId = SYSFILE->latestLCP_ID;
   req->participatingLQH = c_lcpState.m_participatingLQH;
   req->participatingDIH = c_lcpState.m_participatingDIH;
-  sendLoopMacro(START_LCP_REQ, sendSTART_LCP_REQ);
+  sendLoopMacro(START_LCP_REQ, sendSTART_LCP_REQ, RNIL);
+  
+  char buf0[100], buf1[100];
+  infoEvent("SLR: %s %s", 
+            c_lcpState.m_participatingDIH.getText(buf0),
+            c_lcpState.m_participatingLQH.getText(buf1));
 }
+
 void
-Dbdih::sendSTART_LCP_REQ(Signal* signal, Uint32 nodeId){
+Dbdih::sendSTART_LCP_REQ(Signal* signal, Uint32 nodeId, Uint32 extra){
   BlockReference ref = calcDihBlockRef(nodeId);
   sendSignal(ref, GSN_START_LCP_REQ, signal, StartLcpReq::SignalLength, JBB);
 }
@@ -10811,7 +10417,7 @@ Dbdih::startLcpMutex_unlocked(Signal* signal, Uint32 data, Uint32 retVal){
   
   CRASH_INSERTION(7014);
   c_lcpState.setLcpStatus(LCP_TC_CLOPSIZE, __LINE__);
-  sendLoopMacro(TC_CLOPSIZEREQ, sendTC_CLOPSIZEREQ);
+  sendLoopMacro(TC_CLOPSIZEREQ, sendTC_CLOPSIZEREQ, RNIL);
 }
 
 void Dbdih::execTC_CLOPSIZECONF(Signal* signal) {
@@ -10830,6 +10436,14 @@ void Dbdih::execTC_CLOPSIZECONF(Signal* signal) {
   c_lcpState.setLcpStatus(LCP_START_LCP_ROUND, __LINE__);
   startLcpRoundLoopLab(signal, 0, 0);
 }//Dbdih::execTC_CLOPSIZECONF()
+
+void
+Dbdih::master_lcp_fragmentMutex_locked(Signal* signal, 
+                                       Uint32 data, Uint32 retVal)
+{
+  jamEntry();
+  ndbrequire(retVal == 0);
+}
 
 void Dbdih::startLcpRoundLoopLab(Signal* signal, 
 				 Uint32 startTableId, Uint32 startFragId) 
@@ -11136,7 +10750,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
       signal->theData[1] = tabPtr.i;
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
       
-      checkLcpAllTablesDoneInLqh();
+      checkLcpAllTablesDoneInLqh(__LINE__);
     }
   }
 
@@ -11209,7 +10823,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
 }
 
 bool
-Dbdih::checkLcpAllTablesDoneInLqh(){
+Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line){
   TabRecordPtr tabPtr;
 
   /**
@@ -11231,7 +10845,7 @@ Dbdih::checkLcpAllTablesDoneInLqh(){
   CRASH_INSERTION2(7026, isMaster());
   CRASH_INSERTION2(7017, !isMaster());
   
-  c_lcpState.setLcpStatus(LCP_TAB_COMPLETED, __LINE__);
+  c_lcpState.setLcpStatus(LCP_TAB_COMPLETED, line);
 
   if (ERROR_INSERTED(7194))
   {
@@ -11618,7 +11232,42 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   signal->setTrace(0);
 
   c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
-  setLcpActiveStatusEnd();
+
+  if (isMaster())
+  {
+    /**
+     * Check for any "completed" TO
+     */
+    TakeOverRecordPtr takeOverPtr;
+    for (c_activeTakeOverList.first(takeOverPtr); !takeOverPtr.isNull();
+         c_activeTakeOverList.next(takeOverPtr))
+    {
+      jam();
+      Ptr<NodeRecord> nodePtr;
+      nodePtr.i = takeOverPtr.p->toStartingNode;
+      if (takeOverPtr.p->toMasterStatus == TakeOverRecord::TO_WAIT_LCP)
+      {
+        jam();
+        if (c_lcpState.m_participatingLQH.get(nodePtr.i))
+        {
+          jam();
+          ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);   
+          ndbrequire(nodePtr.p->copyCompleted == 2);
+
+          EndToConf * conf = (EndToConf *)signal->getDataPtrSend();
+          conf->senderData = takeOverPtr.p->m_senderData;
+          conf->sendingNodeId = cownNodeId;
+          conf->startingNodeId = nodePtr.i;
+          sendSignal(takeOverPtr.p->m_senderRef, GSN_END_TOCONF, signal, 
+                     EndToConf::SignalLength, JBB);
+          
+          releaseTakeOver(takeOverPtr);
+        }
+      }
+    }
+  }
+  
+  setLcpActiveStatusEnd(signal);
   Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
 
   if(!isMaster()){
@@ -11663,6 +11312,11 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
    * Start checking for next LCP
    */
   checkLcpStart(signal, __LINE__);
+
+  Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+  mutex.unlock();
+
+  c_lcpState.m_lcp_time = c_current_time - c_lcpState.m_start_time;
   
   if (cwaitLcpSr == true) {
     jam();
@@ -11671,9 +11325,10 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
     return;
   }//if
   
+  
   if (c_nodeStartMaster.blockLcp == true) {
     jam();
-    lcpBlockedLab(signal);
+    lcpBlockedLab(signal, false, c_nodeStartMaster.startNode);
     return;
   }//if
   return;
@@ -12073,7 +11728,6 @@ dolocal:
   ndbout_c("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
 	   c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
   ndbout_c("c_EMPTY_LCP_REQ_Counter = %s",c_EMPTY_LCP_REQ_Counter.getText());
-  ndbout_c("c_END_TOREQ_Counter = %s", c_END_TOREQ_Counter.getText());
   ndbout_c("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
   ndbout_c("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
   ndbout_c("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
@@ -12085,13 +11739,11 @@ dolocal:
   ndbout_c("c_START_INFOREQ_Counter = %s", 
 	   c_START_INFOREQ_Counter.getText());
   ndbout_c("c_START_RECREQ_Counter = %s", c_START_RECREQ_Counter.getText());
-  ndbout_c("c_START_TOREQ_Counter = %s", c_START_TOREQ_Counter.getText());
   ndbout_c("c_STOP_ME_REQ_Counter = %s", c_STOP_ME_REQ_Counter.getText());
   ndbout_c("c_TC_CLOPSIZEREQ_Counter = %s", 
 	   c_TC_CLOPSIZEREQ_Counter.getText());
   ndbout_c("c_TCGETOPSIZEREQ_Counter = %s", 
 	   c_TCGETOPSIZEREQ_Counter.getText());
-  ndbout_c("c_UPDATE_TOREQ_Counter = %s", c_UPDATE_TOREQ_Counter.getText());
 
   jam();
   SystemError * const sysErr = (SystemError*)&signal->theData[0];
@@ -12662,53 +12314,10 @@ bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
   return false;
 }//Dbdih::findStartGci()
 
-/**************************************************************************/
-/* ---------------------------------------------------------------------- */
-/*       FIND A TAKE OVER REPLICA WHICH IS TO BE STARTED OR COMMITTED WHEN*/
-/*       TAKING OVER A FAILED NODE.                                       */
-/* ---------------------------------------------------------------------- */
-/*************************************************************************/
-void Dbdih::findToReplica(TakeOverRecord* regTakeOver,
-                          Uint32 replicaType,
-                          FragmentstorePtr fragPtr,
-                          ReplicaRecordPtr& ftrReplicaPtr)
-{
-  switch (replicaType) {
-  case CreateFragReq::STORED:
-  case CreateFragReq::COMMIT_STORED:
-    /* ----------------------------------------------------------------------*/
-    /* HERE WE SEARCH FOR STORED REPLICAS. THE REPLICA MUST BE STORED IN THE */
-    /* SECTION FOR OLD STORED REPLICAS SINCE WE HAVE NOT TAKEN OVER YET.     */
-    /* ----------------------------------------------------------------------*/
-    ftrReplicaPtr.i = fragPtr.p->oldStoredReplicas;
-    while (ftrReplicaPtr.i != RNIL) {
-      ptrCheckGuard(ftrReplicaPtr, creplicaFileSize, replicaRecord);
-      if (ftrReplicaPtr.p->procNode == regTakeOver->toStartingNode) {
-        jam();
-        return;
-      } else {
-        if (ftrReplicaPtr.p->procNode == regTakeOver->toFailedNode) {
-          jam();
-          return;
-        } else {
-          jam();
-          ftrReplicaPtr.i = ftrReplicaPtr.p->nextReplica;
-        }//if
-      }//if
-    }//while
-    break;
-  default:
-    ndbrequire(false);
-    break;
-  }//switch
-}//Dbdih::findToReplica()
-
 void Dbdih::initCommonData()
 {
   c_blockCommit = false;
   c_blockCommitNo = 0;
-  c_createFragmentLock = RNIL;
-  c_endToLock = RNIL;
   cfailurenr = 1;
   cfirstAliveNode = RNIL;
   cfirstDeadNode = RNIL;
@@ -12749,10 +12358,8 @@ void Dbdih::initCommonData()
   crestartInfoFile[0] = RNIL;
   crestartInfoFile[1] = RNIL;
   cstartPhase = 0;
-  c_startToLock = RNIL;
   cstarttype = (Uint32)-1;
   csystemnodes = 0;
-  c_updateToLock = RNIL;
   c_newest_restorable_gci = 0;
   cverifyQueueCounter = 0;
   cwaitLcpSr = false;
@@ -13163,15 +12770,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
     }
   case 9:
     {
-      TakeOverRecordPtr takeOverPtr;
       jam();
-      cfirstfreeTakeOver = RNIL;
-      for (takeOverPtr.i = 0; takeOverPtr.i < MAX_NDB_NODES; takeOverPtr.i++) {
-	ptrAss(takeOverPtr, takeOverRecord);
-	initTakeOver(takeOverPtr);
-	releaseTakeOver(takeOverPtr.i);
-      }//for
-
       ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
       conf->senderData = retData;
@@ -13776,19 +13375,14 @@ void Dbdih::readReplicas(RWFragment* rf, FragmentstorePtr fragPtr)
   fragPtr.p->noOldStoredReplicas = 0;
   Uint32 replicaIndex = 0;
   ndbrequire(noStoredReplicas + noOldStoredReplicas <= MAX_REPLICAS);
-  for (i = 0; i < noStoredReplicas; i++) {
+  for (i = 0; i < noStoredReplicas; i++) 
+  {
     seizeReplicaRec(newReplicaPtr);
     readReplica(rf, newReplicaPtr);
-    if (checkNodeAlive(newReplicaPtr.p->procNode)) {
-      jam();
-      ndbrequire(replicaIndex < MAX_REPLICAS);
-      fragPtr.p->activeNodes[replicaIndex] = newReplicaPtr.p->procNode;
-      replicaIndex++;
-      linkStoredReplica(fragPtr, newReplicaPtr);
-    } else {
-      jam();
-      linkOldStoredReplica(fragPtr, newReplicaPtr);
-    }//if
+    ndbrequire(replicaIndex < MAX_REPLICAS);
+    fragPtr.p->activeNodes[replicaIndex] = newReplicaPtr.p->procNode;
+    replicaIndex++;
+    linkStoredReplica(fragPtr, newReplicaPtr);
   }//for
   fragPtr.p->fragReplicas = noStoredReplicas;
   for (i = 0; i < noOldStoredReplicas; i++) {
@@ -14263,86 +13857,6 @@ void Dbdih::setInitialActiveStatus()
 }//Dbdih::setInitialActiveStatus()
 
 /*************************************************************************/
-/*       SET LCP ACTIVE STATUS AT THE END OF A LOCAL CHECKPOINT.        */
-/*************************************************************************/
-void Dbdih::setLcpActiveStatusEnd()
-{
-  NodeRecordPtr nodePtr;
-
-  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-    jam();
-    ptrAss(nodePtr, nodeRecord);
-    if (c_lcpState.m_participatingLQH.get(nodePtr.i)){
-      switch (nodePtr.p->activeStatus) {
-      case Sysfile::NS_Active:
-      case Sysfile::NS_ActiveMissed_1:
-      case Sysfile::NS_ActiveMissed_2:
-        jam();
-	/*-------------------------------------------------------------------*/
-	/* THE NODE PARTICIPATED IN THIS CHECKPOINT. 
-	 * WE CAN SET ITS STATUS TO ACTIVE */
-	/*-------------------------------------------------------------------*/
-        nodePtr.p->activeStatus = Sysfile::NS_Active;
-        takeOverCompleted(nodePtr.i);
-        break;
-      case Sysfile::NS_TakeOver:
-        jam();
-	/*-------------------------------------------------------------------*/
-	/* THE NODE HAS COMPLETED A CHECKPOINT AFTER TAKE OVER. WE CAN NOW   */
-	/* SET ITS STATUS TO ACTIVE. WE CAN ALSO COMPLETE THE TAKE OVER      */
-	/* AND ALSO WE CLEAR THE TAKE OVER NODE IN THE RESTART INFO.         */
-	/*-------------------------------------------------------------------*/
-        nodePtr.p->activeStatus = Sysfile::NS_Active;
-        takeOverCompleted(nodePtr.i);
-        break;
-      default:
-        ndbrequire(false);
-        return;
-        break;
-      }//switch
-    }//if
-  }//for
-
-  if(getNodeState().getNodeRestartInProgress()){
-    jam();
-    if(c_lcpState.m_participatingLQH.get(getOwnNodeId())){
-      nodePtr.i = getOwnNodeId();
-      ptrAss(nodePtr, nodeRecord);
-      ndbrequire(nodePtr.p->activeStatus == Sysfile::NS_Active);
-      g_eventLogger.info("NR: setLcpActiveStatusEnd - m_participatingLQH");
-    } else {
-      g_eventLogger.info("NR: setLcpActiveStatusEnd - !m_participatingLQH");
-    }
-  }
-  
-  c_lcpState.m_participatingDIH.clear();
-  c_lcpState.m_participatingLQH.clear();
-  if (isMaster()) {
-    jam();
-    setNodeRestartInfoBits();
-  }//if
-}//Dbdih::setLcpActiveStatusEnd()
-
-void Dbdih::takeOverCompleted(Uint32 aNodeId)
-{
-  TakeOverRecordPtr takeOverPtr;
-  takeOverPtr.i = findTakeOver(aNodeId);
-  if (takeOverPtr.i != RNIL) {
-    jam();
-    ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-    if (takeOverPtr.p->toMasterStatus != TakeOverRecord::WAIT_LCP) {
-      jam();
-      ndbrequire(!isMaster());
-      return;
-    }//if
-    ndbrequire(isMaster());
-    Sysfile::setTakeOverNode(aNodeId, SYSFILE->takeOver, 0);
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_END_COPY;
-    m_micro_gcp.m_master.m_start_time = m_gcp_save.m_master.m_start_time = 0;
-  }//if
-}//Dbdih::takeOverCompleted()
-
-/*************************************************************************/
 /*       SET LCP ACTIVE STATUS BEFORE STARTING A LOCAL CHECKPOINT.       */
 /*************************************************************************/
 void Dbdih::setLcpActiveStatusStart(Signal* signal) 
@@ -14364,121 +13878,69 @@ void Dbdih::setLcpActiveStatusStart(Signal* signal)
 		nodePtr.p->m_inclDihLcp);
     }
 #endif
-    if(nodePtr.p->nodeStatus == NodeRecord::ALIVE && nodePtr.p->m_inclDihLcp){
+    if(nodePtr.p->nodeStatus == NodeRecord::ALIVE)
+    {
       jam();
-      c_lcpState.m_participatingDIH.set(nodePtr.i);
-    }
-
-    if ((nodePtr.p->nodeStatus == NodeRecord::ALIVE) &&
-	(nodePtr.p->copyCompleted)) {
-      switch (nodePtr.p->activeStatus) {
-      case Sysfile::NS_Active:
+      if (nodePtr.p->m_inclDihLcp)
+      {
         jam();
-	/*-------------------------------------------------------------------*/
-	// The normal case. Starting a LCP for a started node which hasn't
-	// missed the previous LCP.
-	/*-------------------------------------------------------------------*/
-	c_lcpState.m_participatingLQH.set(nodePtr.i);
-        break;
-      case Sysfile::NS_ActiveMissed_1:
-        jam();
-	/*-------------------------------------------------------------------*/
-	// The node is starting up and is participating in a local checkpoint
-	// as the final phase of the start-up. We can still use the checkpoints
-	// on the node after a system restart.
-	/*-------------------------------------------------------------------*/
-	c_lcpState.m_participatingLQH.set(nodePtr.i);
-        break;
-      case Sysfile::NS_ActiveMissed_2:
-        jam();
-	/*-------------------------------------------------------------------*/
-	// The node is starting up and is participating in a local checkpoint
-	// as the final phase of the start-up. We have missed so 
-	// many checkpoints that we no longer can use this node to 
-	// recreate fragments from disk.
-	// It must be taken over with the copy fragment process after a system
-	// crash. We indicate this by setting the active status to TAKE_OVER.
-	/*-------------------------------------------------------------------*/
-	c_lcpState.m_participatingLQH.set(nodePtr.i);
-        nodePtr.p->activeStatus = Sysfile::NS_TakeOver;
-        //break; // Fall through
-      case Sysfile::NS_TakeOver:{
-        TakeOverRecordPtr takeOverPtr;
-        jam();
-	/*-------------------------------------------------------------------*/
-	/*      THIS NODE IS CURRENTLY TAKING OVER A FAILED NODE.            */
-	/*-------------------------------------------------------------------*/
-        takeOverPtr.i = findTakeOver(nodePtr.i);
-        if (takeOverPtr.i != RNIL) {
-          jam();
-          ptrCheckGuard(takeOverPtr, MAX_NDB_NODES, takeOverRecord);
-          if (takeOverPtr.p->toMasterStatus == TakeOverRecord::WAIT_LCP) {
-            jam();
-	    /*---------------------------------------------------------------
-	     * ALL THE INFORMATION HAVE BEEN REPLICATED TO THE NEW 
-	     * NODE AND WE ARE ONLY WAITING FOR A LOCAL CHECKPOINT TO BE 
-	     * PERFORMED ON THE NODE TO SET ITS STATUS TO ACTIVE.   
-	     */
-	    infoEvent("Node %d is WAIT_LCP including in LCP", nodePtr.i);
-	    c_lcpState.m_participatingLQH.set(nodePtr.i);
-          }//if
-        }//if
-        break;
+        c_lcpState.m_participatingDIH.set(nodePtr.i);
       }
-      default:
+
+      if (nodePtr.p->copyCompleted)
+      {
         jam();
-        /*empty*/;
-        break;
-      }//switch
-    } else {
-      switch (nodePtr.p->activeStatus) {
-      case Sysfile::NS_Active:
+	c_lcpState.m_participatingLQH.set(nodePtr.i);        
+      }
+      else
+      {
         jam();
         nodePtr.p->activeStatus = Sysfile::NS_ActiveMissed_1;
-        break;
-      case Sysfile::NS_ActiveMissed_1:
-        jam();
-        nodePtr.p->activeStatus = Sysfile::NS_ActiveMissed_2;
-        break;
-      case Sysfile::NS_ActiveMissed_2:
-        jam();
-        CRASH_INSERTION(7192);
-        if ((nodePtr.p->nodeStatus == NodeRecord::ALIVE) &&
-            (!nodePtr.p->copyCompleted)) {
-          jam();
-	  /*-----------------------------------------------------------------*/
-	  // The node is currently starting up and has not completed the 
-	  // copy phase.
-	  // It will thus be in the TAKE_OVER state.
-	  /*-----------------------------------------------------------------*/
-          ndbrequire(findTakeOver(nodePtr.i) != RNIL);
-          nodePtr.p->activeStatus = Sysfile::NS_TakeOver;
-        } else {
-          jam();
-	  /*-----------------------------------------------------------------*/
-	  /* THE NODE IS ACTIVE AND HAS NOT COMPLETED ANY OF THE LAST 3 
-	   * CHECKPOINTS */
-	  /* WE MUST TAKE IT OUT OF ACTION AND START A NEW NODE TO TAKE OVER.*/
-	  /*-----------------------------------------------------------------*/
-          nodePtr.p->activeStatus = Sysfile::NS_NotActive_NotTakenOver;
-        }//if
-        break;
-      case Sysfile::NS_TakeOver:
-	jam();
-	break;
-      default:
-        jam();
-        /*empty*/;
-        break;
-      }//switch
-    }//if
-  }//for
+      }
+    }
+    else if (nodePtr.p->activeStatus != Sysfile::NS_NotDefined)
+    {
+      jam();
+      nodePtr.p->activeStatus = Sysfile::NS_ActiveMissed_1;
+    }
+  }
+  
   if (isMaster()) {
     jam();
-    checkStartTakeOver(signal);
     setNodeRestartInfoBits();
   }//if
 }//Dbdih::setLcpActiveStatusStart()
+
+/*************************************************************************/
+/*       SET LCP ACTIVE STATUS AT THE END OF A LOCAL CHECKPOINT.        */
+/*************************************************************************/
+void Dbdih::setLcpActiveStatusEnd(Signal* signal)
+{
+  NodeRecordPtr nodePtr;
+
+  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
+    jam();
+    ptrAss(nodePtr, nodeRecord);
+    if (c_lcpState.m_participatingLQH.get(nodePtr.i))
+    {
+      jam();
+      nodePtr.p->copyCompleted = 1;
+      nodePtr.p->activeStatus = Sysfile::NS_Active;
+    }
+    else if (nodePtr.p->activeStatus != Sysfile::NS_NotDefined)
+    {
+      jam();
+      nodePtr.p->activeStatus = Sysfile::NS_ActiveMissed_1;
+    }
+  }
+  
+  c_lcpState.m_participatingDIH.clear();
+  c_lcpState.m_participatingLQH.clear();
+  if (isMaster()) {
+    jam();
+    setNodeRestartInfoBits();
+  }//if
+}//Dbdih::setLcpActiveStatusEnd()
 
 /*************************************************************************/
 /* SET NODE ACTIVE STATUS AT SYSTEM RESTART AND WHEN UPDATED BY MASTER   */
@@ -14623,23 +14085,6 @@ void Dbdih::sendHOT_SPAREREP(Signal* signal)
   sendSignal(DBDICT_REF, GSN_HOT_SPAREREP,
              signal, HotSpareRep::SignalLength, JBB);
 }//Dbdih::sendHOT_SPAREREP()
-
-/*************************************************************************/
-/*       SET LCP ACTIVE STATUS FOR ALL NODES BASED ON THE INFORMATION IN */
-/*       THE RESTART INFORMATION.                                        */
-/*************************************************************************/
-#if 0
-void Dbdih::setNodeLcpActiveStatus()
-{
-  c_lcpState.m_lcpActiveStatus.clear();
-  for (Uint32 i = 1; i < MAX_NDB_NODES; i++) {
-    if (NdbNodeBitmask::get(SYSFILE->lcpActive, i)) {
-      jam();
-      c_lcpState.m_lcpActiveStatus.set(i);
-    }//if
-  }//for
-}//Dbdih::setNodeLcpActiveStatus()
-#endif
 
 /*************************************************************************/
 /* SET THE RESTART INFO BITS BASED ON THE NODES ACTIVE STATUS.           */
@@ -14995,7 +14440,6 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
 	      c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
     infoEvent("c_EMPTY_LCP_REQ_Counter = %s",c_EMPTY_LCP_REQ_Counter.getText());
-    infoEvent("c_END_TOREQ_Counter = %s", c_END_TOREQ_Counter.getText());
     infoEvent("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
     infoEvent("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
     infoEvent("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
@@ -15007,13 +14451,11 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("c_START_INFOREQ_Counter = %s", 
 	      c_START_INFOREQ_Counter.getText());
     infoEvent("c_START_RECREQ_Counter = %s", c_START_RECREQ_Counter.getText());
-    infoEvent("c_START_TOREQ_Counter = %s", c_START_TOREQ_Counter.getText());
     infoEvent("c_STOP_ME_REQ_Counter = %s", c_STOP_ME_REQ_Counter.getText());
     infoEvent("c_TC_CLOPSIZEREQ_Counter = %s", 
 	      c_TC_CLOPSIZEREQ_Counter.getText());
     infoEvent("c_TCGETOPSIZEREQ_Counter = %s", 
 	      c_TCGETOPSIZEREQ_Counter.getText());
-    infoEvent("c_UPDATE_TOREQ_Counter = %s", c_UPDATE_TOREQ_Counter.getText());
   }
 
   if(signal->theData[0] == 7012){
@@ -15161,7 +14603,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     EXECUTE_DIRECT(DBTUP, GSN_DUMP_STATE_ORD, signal, 2);
     
     // Start immediate LCP
-    c_lcpState.ctimer += (1 << c_lcpState.clcpDelay);
+    add_lcp_counter(&c_lcpState.ctimer, (1 << c_lcpState.clcpDelay));
     return;
   }
 
@@ -15197,7 +14639,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   }
 
   if(arg == DumpStateOrd::DihStartLcpImmediately){
-    c_lcpState.ctimer += (1 << c_lcpState.clcpDelay);
+    add_lcp_counter(&c_lcpState.ctimer, (1 << c_lcpState.clcpDelay));
     return;
   }
 
@@ -15276,6 +14718,44 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 7901)
     globalData.gcp_timer_limit = signal->theData[1];
 #endif
+
+  if (arg == 7023)
+  {
+    /**
+     * Dump all active TakeOver
+     */
+    Ptr<TakeOverRecord> ptr;
+    ptr.i = signal->theData[1];
+    if (signal->getLength() == 1)
+    {
+      infoEvent("Starting dump all active take-over");
+      c_activeTakeOverList.first(ptr);
+    }
+
+    if (ptr.i == RNIL)
+    {
+      infoEvent("Dump all active take-over done");
+      return;
+    }
+
+    c_activeTakeOverList.getPtr(ptr);
+    infoEvent("TakeOverPtr(%u) starting: %u flags: 0x%x ref: 0x%x, data: %u",
+              ptr.i,
+              ptr.p->toStartingNode,
+              ptr.p->m_flags,
+              ptr.p->m_senderRef,
+              ptr.p->m_senderData);
+    infoEvent("slaveState: %u masterState: %u",
+              ptr.p->toSlaveStatus, ptr.p->toMasterStatus);
+    infoEvent("restorableGci: %u startGci: %u tab: %u frag: %u src: %u max: %u",
+              ptr.p->restorableGci, ptr.p->startGci, 
+              ptr.p->toCurrentTabref, ptr.p->toCurrentFragid,
+              ptr.p->toCopyNode, ptr.p->maxPage);
+    
+    c_activeTakeOverList.next(ptr);
+    signal->theData[0] = arg;
+    signal->theData[1] = ptr.i;
+  }
 }//Dbdih::execDUMP_STATE_ORD()
 
 void
@@ -15387,7 +14867,7 @@ Dbdih::execPREP_DROP_TAB_REQ(Signal* signal){
       /**
        * First check if all fragments are done
        */
-      if(checkLcpAllTablesDoneInLqh()){
+      if(checkLcpAllTablesDoneInLqh(__LINE__)){
 	jam();
 	
 	g_eventLogger.info("This is the last table");
@@ -15875,7 +15355,7 @@ Dbdih::switchReplica(Signal* signal,
     c_switchReplicas.fragNo = fragNo;
     c_switchReplicas.nodeId = nodeId;
 
-    sendLoopMacro(DIH_SWITCH_REPLICA_REQ, sendDIH_SWITCH_REPLICA_REQ);
+    sendLoopMacro(DIH_SWITCH_REPLICA_REQ, sendDIH_SWITCH_REPLICA_REQ, RNIL);
     return;
   }//for
 
@@ -15924,7 +15404,7 @@ void Dbdih::execSTOP_ME_REQ(Signal* signal)
   req->senderData = senderData;
   req->senderRef  = reference();
 
-  sendLoopMacro(STOP_ME_REQ, sendSTOP_ME_REQ);
+  sendLoopMacro(STOP_ME_REQ, sendSTOP_ME_REQ, RNIL);
 
   /**
    * Send conf to self
@@ -16227,14 +15707,6 @@ void Dbdih::setAllowNodeStart(Uint32 nodeId, bool newState)
   nodePtr.p->allowNodeStart = newState;
 }//Dbdih::setAllowNodeStart()
 
-void Dbdih::setNodeCopyCompleted(Uint32 nodeId, bool newState)
-{
-  NodeRecordPtr nodePtr;
-  nodePtr.i = nodeId;
-  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-  nodePtr.p->copyCompleted = newState;
-}//Dbdih::setNodeCopyCompleted()
-
 bool Dbdih::getAllowNodeStart(Uint32 nodeId)
 {
   NodeRecordPtr nodePtr;
@@ -16242,14 +15714,6 @@ bool Dbdih::getAllowNodeStart(Uint32 nodeId)
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
   return nodePtr.p->allowNodeStart;
 }//Dbdih::getAllowNodeStart()
-
-bool Dbdih::getNodeCopyCompleted(Uint32 nodeId)
-{
-  NodeRecordPtr nodePtr;
-  nodePtr.i = nodeId;
-  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-  return nodePtr.p->copyCompleted;
-}//Dbdih::getNodeCopyCompleted()
 
 bool Dbdih::checkNodeAlive(Uint32 nodeId)
 {
@@ -16326,24 +15790,24 @@ Dbdih::sendDictLockReq(Signal* signal, Uint32 lockType, Callback c)
 
     if (masterVersion < NDBD_DICT_LOCK_VERSION_5 ||
         masterVersion < NDBD_DICT_LOCK_VERSION_5_1 &&
-          get_major == 5 && get_minor == 1 ||
+        get_major == 5 && get_minor == 1 ||
         ERROR_INSERTED(7176)) {
       jam();
 
       infoEvent("DIH: detect upgrade: master node %u old version %u.%u.%u",
-        (unsigned int)cmasterNodeId, get_major, get_minor, get_build);
+                (unsigned int)cmasterNodeId, get_major, get_minor, get_build);
 
       DictLockConf* conf = (DictLockConf*)&signal->theData[0];
       conf->userPtr = lockPtr.i;
       conf->lockType = lockType;
       conf->lockPtr = ZNIL;
-
+      
       sendSignal(reference(), GSN_DICT_LOCK_CONF, signal,
-          DictLockConf::SignalLength, JBB);
+                 DictLockConf::SignalLength, JBB);
       return;
     }
   }
-
+  
   BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
   sendSignal(dictMasterRef, GSN_DICT_LOCK_REQ, signal,
       DictLockReq::SignalLength, JBB);
@@ -16405,15 +15869,15 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
 
     if (masterVersion < NDBD_DICT_LOCK_VERSION_5 ||
         masterVersion < NDBD_DICT_LOCK_VERSION_5_1 &&
-          get_major == 5 && get_minor == 1 ||
+        get_major == 5 && get_minor == 1 ||
         ERROR_INSERTED(7176)) {
       return;
     }
   }
-
+  
   BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
   sendSignal(dictMasterRef, GSN_DICT_UNLOCK_ORD, signal,
-      DictUnlockOrd::SignalLength, JBB);
+             DictUnlockOrd::SignalLength, JBB);
 }
 
 #ifdef ERROR_INSERT
@@ -16422,6 +15886,7 @@ Dbdih::sendToRandomNodes(const char * msg,
                          Signal* signal,
                          SignalCounter* counter,
                          SendFunction fun,
+                         Uint32 extra,
                          Uint32 block,
                          Uint32 gsn,
                          Uint32 len,
@@ -16479,7 +15944,7 @@ do_send:
     {
       if (fun)
       {
-        (this->*fun)(signal, nodePtr.i);
+        (this->*fun)(signal, nodePtr.i, extra);
       }
       else
       {
