@@ -23,7 +23,7 @@ benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
 EXTRA_SCRIPTS = 	mysql-test-run-shell.sh install_test_db.sh \
 			valgrind.supp $(PRESCRIPTS)
-EXTRA_DIST = 		$(EXTRA_SCRIPTS) suite
+EXTRA_DIST = 		$(EXTRA_SCRIPTS) suite lib
 GENSCRIPTS =		mysql-test-run-shell install_test_db mtr mysql-test-run
 PRESCRIPTS =		mysql-test-run.pl mysql-stress-test.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
