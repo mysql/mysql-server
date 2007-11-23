@@ -512,6 +512,19 @@ int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, u_int32_t
     fprintf(outf, " %s=%lld", fieldname, v);
     return 0;
 }
+
+int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+    u_int8_t v;
+    int r = toku_fread_u_int8_t(inf, &v, crc, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s=%d", fieldname, v);
+    if (v=='\'') fprintf(outf, "('\'')");
+    else if (isprint(v)) fprintf(outf, "('%c')", v);
+    else {}/*nothing*/
+    return 0;
+    
+}
+
 int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
     u_int32_t v;
     int r = toku_fread_u_int32_t(inf, &v, crc, len);
