@@ -20,4 +20,3 @@ binlog_multi_engine      : Bug#32663 binlog_multi_engine.test fails randomly
 events                   : Bug#32664 events.test fails randomly
 events_scheduling        : Bug#29830 Test case 'events_scheduling' fails on Mac OS X and Windows
 lowercase_table3         : Bug#32667 lowercase_table3.test reports to error log
-rpl_row_charset_innodb   : Bug#32668 rpl_row_charset_innodb.test fails
