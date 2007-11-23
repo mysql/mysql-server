@@ -346,7 +346,10 @@ sub mtr_report_stats ($) {
 
                 # BUG#29839 - lowercase_table3.test: Cannot find table test/T1
                 #             from the internal data dictiona
-                /Cannot find table test\/BUG29839 from the internal data dictionary/
+                /Cannot find table test\/BUG29839 from the internal data dictionary/ or
+                # BUG#32080 - Excessive warnings on Solaris: setrlimit could not
+                #             change the size of core files
+                /setrlimit could not change the size of core files to 'infinity'/
 	       )
             {
               next;                       # Skip these lines
