@@ -167,7 +167,8 @@ inline
 int
 ndb_pnr(Uint32 version)
 {
-  return version >= NDBD_PNR;
+  return 
+    version == NDB_VERSION_D || version >= NDBD_PNR;
 }
 
 #endif

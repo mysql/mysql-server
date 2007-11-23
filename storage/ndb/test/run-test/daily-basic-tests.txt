@@ -1082,3 +1082,11 @@ max-time: 300
 cmd: testSystemRestart
 args: -n Bug22696 T1
 
+max-time: 600
+cmd: testNodeRestart
+args: -n pnr --nologging T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n pnr_lcp T1
+
