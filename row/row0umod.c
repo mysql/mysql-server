@@ -638,7 +638,8 @@ row_undo_mod_upd_exist_sec(
 			'abc' -> 'aBc'. */
 
 			row_upd_index_replace_new_col_vals(entry, index,
-							   node->update, NULL);
+							   node->update,
+							   NULL, heap);
 			err = row_undo_mod_del_unmark_sec_and_undo_update(
 				BTR_MODIFY_LEAF, thr, index, entry);
 			if (err == DB_FAIL) {
