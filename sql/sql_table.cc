@@ -1248,6 +1248,10 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   char shadow_path[FN_REFLEN+1];
   char shadow_frm_name[FN_REFLEN+1];
   char frm_name[FN_REFLEN+1];
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  char *part_syntax_buf;
+  uint syntax_len;
+#endif
   DBUG_ENTER("mysql_write_frm");
 
   /*
@@ -1271,12 +1275,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     {
       partition_info *part_info= lpt->table->part_info;
-      char *part_syntax_buf;
-      uint syntax_len;
-
       if (part_info)
       {
-        TABLE_SHARE *share= lpt->table->s;
         if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                          &syntax_len,
                                                          TRUE, TRUE)))
@@ -1284,16 +1284,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           DBUG_RETURN(TRUE);
         }
         part_info->part_info_string= part_syntax_buf;
-        share->partition_info_len= part_info->part_info_len= syntax_len;
-        if (share->partition_info_buffer_size < syntax_len + 1)
-        {
-          share->partition_info_buffer_size= syntax_len+1;
-          if (!(share->partition_info=
-                  (char*) alloc_root(&share->mem_root, syntax_len+1)))
-            DBUG_RETURN(TRUE);
-
-        }
-        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
+        part_info->part_info_len= syntax_len;
       }
     }
 #endif
@@ -1371,7 +1362,40 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 #endif
     {
       error= 1;
+      goto err;
     }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    if (part_info)
+    {
+      TABLE_SHARE *share= lpt->table->s;
+      char *tmp_part_syntax_str;
+      if (!(part_syntax_buf= generate_partition_syntax(part_info,
+                                                       &syntax_len,
+                                                       TRUE, TRUE)))
+      {
+        error= 1;
+        goto err;
+      }
+      if (share->partition_info_buffer_size < syntax_len + 1)
+      {
+        share->partition_info_buffer_size= syntax_len+1;
+        if (!(tmp_part_syntax_str= (char*) strmake_root(&share->mem_root,
+                                                        part_syntax_buf,
+                                                        syntax_len)))
+        {
+          error= 1;
+          goto err;
+        }
+        share->partition_info= tmp_part_syntax_str;
+      }
+      else
+        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
+      share->partition_info_len= part_info->part_info_len= syntax_len;
+      part_info->part_info_string= part_syntax_buf;
+    }
+#endif
+
+err:
     VOID(pthread_mutex_unlock(&LOCK_open));
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos);
