@@ -1663,8 +1663,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
       alias= (lower_case_table_names == 2) ? table->alias : table->table_name;
       /* remove .frm file and engine files */
-      path_length= build_table_filename(path, sizeof(path),
-                                        db, alias, reg_ext, 0);
+      path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext,
+                                        table->internal_tmp_table ?
+                                        FN_IS_TMP : 0);
     }
     if (drop_temporary ||
         (table_type == NULL &&        

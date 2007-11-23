@@ -1111,6 +1111,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       VOID(filename_to_tablename(file->name, table_list->table_name,
                                  strlen(file->name) + 1));
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
+      table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
       /* Link into list */
       (*tot_list_next)= table_list;
       tot_list_next= &table_list->next_local;
