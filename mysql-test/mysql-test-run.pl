@@ -164,7 +164,7 @@ our $opt_bench= 0;
 our $opt_small_bench= 0;
 our $opt_big_test= 0;
 
-our @opt_combination;
+our @opt_combinations;
 our $opt_skip_combination;
 
 our @opt_extra_mysqld_opt;
@@ -532,7 +532,7 @@ sub command_line_setup () {
              'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
              'big-test'                 => \$opt_big_test,
-             'combination=s'            => \@opt_combination,
+             'combination=s'            => \@opt_combinations,
              'skip-combination'         => \$opt_skip_combination,
 
              # Specify ports
@@ -928,6 +928,10 @@ sub command_line_setup () {
     mtr_error("Will not run in record mode without a specific test case");
   }
 
+  if ( $opt_record )
+  {
+    $opt_skip_combination = 1;
+  }
 
   # --------------------------------------------------------------------------
   # ps protcol flag
@@ -3330,24 +3334,26 @@ sub do_before_run_mysqltest($)
       # if script decided to run mysqltest cluster _is_ installed ok
       $ENV{'NDB_STATUS_OK'} = "YES";
     }
-    if (defined $tinfo->{"binlog_format"} and  $mysql_version_id > 50100 ) 
+    if (defined $tinfo->{binlog_format} and  $mysql_version_id > 50100 )
     {
-      foreach my $server ((@$master,@$slave)) 
+      # Dynamically switch binlog format of
+      # master, slave is always restarted
+      foreach my $server ( @$master )
       {
-        if ($server->{'pid'})
-        {
+        next unless ($server->{'pid'});
 
-          mtr_init_args(\$args);
+	mtr_init_args(\$args);
+	mtr_add_arg($args, "--no-defaults");
+	mtr_add_arg($args, "--user=root");
+	mtr_add_arg($args, "--port=$server->{'port'}");
+	mtr_add_arg($args, "--socket=$server->{'path_sock'}");
 
-          mtr_add_arg($args, "--no-defaults");
-  
-          mtr_add_arg($args, "--user=root");
-          mtr_add_arg($args, "--port=$server->{'port'}");
-          mtr_add_arg($args, "--socket=$server->{'path_sock'}");   
-
-          mtr_run($exe_mysql, $args, "include/set_binlog_format_".$tinfo->{"binlog_format"}.".inc", "", "", "");
-
-        }
+	my $sql= "include/set_binlog_format_".$tinfo->{binlog_format}.".sql";
+	mtr_verbose("Setting binlog format:", $tinfo->{binlog_format});
+	if (mtr_run($exe_mysql, $args, $sql, "", "", "") != 0)
+	{
+	  mtr_error("Failed to switch binlog format");
+	}
       }
     }
   }
@@ -5179,8 +5185,8 @@ Options to control what test suites or cases to run
   skip-im               Don't start IM, and skip the IM test cases
   big-test              Set the environment variable BIG_TEST, which can be
                         checked from test cases.
-  combination="ARG1 .. ARG2" Specify a set of "mysqld" arguments for one 
-                        combination. 
+  combination="ARG1 .. ARG2" Specify a set of "mysqld" arguments for one
+                        combination.
   skip-combination      Skip any combination options and combinations files
 
 Options that specify ports
