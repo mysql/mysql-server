@@ -444,7 +444,7 @@ int __toku_db_txn_commit(DB_TXN * txn, u_int32_t flags) {
     //notef("flags=%d\n", flags);
     if (!txn)
         return -1;
-    int r = tokulogger_log_commit(txn->i->tokutxn);
+    int r = tokulogger_commit(txn->i->tokutxn);
     if (r != 0)
         return r;
     if (txn->i)

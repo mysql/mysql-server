@@ -112,7 +112,7 @@ void generate_log_struct (void) {
 
 void generate_log_writer (void) {
     DO_LOGTYPES(lt, ({
-			fprintf2(cf, hf, "int toku_log_%s (TOKUTXN txn, LSN lsn", lt->name);
+			fprintf2(cf, hf, "int toku_log_%s (TOKUTXN txn", lt->name);
 			DO_FIELDS(ft, lt,
 				  fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 			fprintf(hf, ");\n");
@@ -128,7 +128,8 @@ void generate_log_writer (void) {
 			fprintf(cf, "  if (buf==0) return errno;\n");
 			fprintf(cf, "  wbuf_init(&wbuf, buf, buflen);\n");
 			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", lt->command);
-			fprintf(cf, "  wbuf_LSN(&wbuf, lsn);\n");
+			fprintf(cf, "  wbuf_LSN(&wbuf, txn->logger->lsn);\n");
+			fprintf(cf, "  txn->logger->lsn.lsn++;;\n");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "  wbuf_%s(&wbuf, %s);\n", ft->type, ft->name));
 			fprintf(cf, "  int r= tokulogger_finish(txn->logger, &wbuf);\n");
