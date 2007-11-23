@@ -1,4 +1,5 @@
 /* Dump the log from stdin to stdout. */
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <ctype.h>
@@ -116,6 +117,30 @@ void transcribe_header (void) {
     printf("}");
 }
 
+void read_and_print_magic (void) {
+    {
+	char magic[8];
+	int r=fread(magic, 1, 8, stdin);
+	if (r!=8) {
+	    fprintf(stderr, "Couldn't read the magic\n");
+	    exit(1);
+	}
+	if (memcmp(magic, "tokulogg", 8)!=0) {
+	    fprintf(stderr, "Magic is wrong.\n");
+	    exit(1);
+	}
+    }
+    {
+	int version;
+    	int r=fread(&version, 1, 4, stdin);
+	if (r!=4) {
+	    fprintf(stderr, "Couldn't read the version\n");
+	    exit(1);
+	}
+	printf("tokulog v.%d\n", ntohl(version));
+    }
+}
+
 #if 1
 int main (int argc, char *argv[]) {
     int count=-1;
@@ -123,6 +148,7 @@ int main (int argc, char *argv[]) {
     if (argc>1) {
 	count = atoi(argv[1]);
     }
+    read_and_print_magic();
     for (i=0; i!=count; i++) {
 	int r = toku_logprint_one_record(stdout, stdin);
 	if (r!=0) {
@@ -142,6 +168,7 @@ int main (int argc, char *argv[]) {
     if (argc>1) {
 	count = atoi(argv[1]);
     }
+    read_and_print_magic();
     for (i=0;
 	 i!=count && (crc=0,actual_len=0,cmd=get_char())!=EOF;
 	 i++) {
