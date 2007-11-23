@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -54,6 +55,8 @@ int tokulogger_create_and_open_logger (const char *directory, TOKULOGGER *result
     return tokulogger_log_bytes(result, 0, "");
 }
 
+int log_format_version=0;
+
 int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
     int r;
     //fprintf(stderr, "%s:%d logging %d bytes\n", __FILE__, __LINE__, nbytes);
@@ -65,6 +68,9 @@ int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
 	logger->fd = creat(fname, O_EXCL | 0700);
 	if (logger->fd==-1) return errno;
 	logger->next_log_file_number++;
+	int version_l = htonl(log_format_version);
+	r = write(logger->fd, "tokulogg", 8); if (r!=8) return errno;
+	r = write(logger->fd, &version_l, 4); if (r!=4) return errno;
     }
     if (logger->n_in_buf + nbytes > LOGGER_BUF_SIZE) {
 	struct iovec v[2];
