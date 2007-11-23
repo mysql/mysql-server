@@ -13759,6 +13759,14 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
     jam();
     readReplicaPtr.p->lcpStatus[trraLcp] = ZINVALID;
   }//if
+
+  if (readReplicaPtr.p->nextLcp >= MAX_LCP_USED)
+  {
+    jam();
+    infoEvent("Updating nextLcp from %u to %u", readReplicaPtr.p->nextLcp, 0);
+    readReplicaPtr.p->nextLcp = 0;
+  }
+
   /* ---------------------------------------------------------------------- */
   /*       WE ALSO HAVE TO INVALIDATE ANY LOCAL CHECKPOINTS THAT HAVE BEEN  */
   /*       INVALIDATED BY MOVING BACK THE RESTART GCI.                      */
