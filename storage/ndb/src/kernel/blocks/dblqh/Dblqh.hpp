@@ -2785,6 +2785,8 @@ private:
 /*SHOULD START HAVE BEEN RECEIVED.                                           */
 /* ------------------------------------------------------------------------- */
   Uint8 cstartRecReq;
+  Uint32 cstartRecReqData;
+
 /* ------------------------------------------------------------------------- */
 /*THIS VARIABLE KEEPS TRACK OF HOW MANY FRAGMENTS THAT PARTICIPATE IN        */
 /*EXECUTING THE LOG. IF ZERO WE DON'T NEED TO EXECUTE THE LOG AT ALL.        */

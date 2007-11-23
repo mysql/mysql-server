@@ -451,6 +451,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
       ndbrequire(c_redo_complete_fragments.isEmpty());
       StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
       conf->startingNodeId = getOwnNodeId();
+      conf->senderData = cstartRecReqData;
       sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
 		 StartRecConf::SignalLength, JBB);
       return;
@@ -5333,7 +5334,8 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   }
   else
   {
-    ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT);
+    if (fragptr.p->m_copy_started_state != Fragrecord::AC_IGNORED)
+      ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT);
   }
   
   UintR TreadLenAiInd = (regTcPtr->readlenAi == 0 ? 0 : 1);
@@ -14431,6 +14433,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   crestartOldestGci = req->keepGci;
   crestartNewestGci = req->lastCompletedGci;
   cnewestGci = req->newestGci;
+  cstartRecReqData = req->senderData;
 
   ndbrequire(req->receivingNodeId == cownNodeid);
 
@@ -14507,6 +14510,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
 
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
+    conf->senderData = cstartRecReqData;
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
 	       StartRecConf::SignalLength, JBB);
     return;
@@ -16389,6 +16393,7 @@ void Dblqh::srFourthComp(Signal* signal)
     cstartRecReq = 2;
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
+    conf->senderData = cstartRecReqData;
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
 		 StartRecConf::SignalLength, JBB);
   } else {
