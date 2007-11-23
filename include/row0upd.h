@@ -195,9 +195,14 @@ row_upd_index_replace_new_col_vals_index_pos(
 				/* in: if TRUE, limit the replacement to
 				ordering fields of index; note that this
 				does not work for non-clustered indexes. */
-	mem_heap_t*	heap);	/* in: memory heap to which we allocate and
+	mem_heap_t*	heap,	/* in: memory heap to which we allocate and
 				copy the new values, set this as NULL if you
 				do not want allocation */
+	mem_heap_t*	ext_heap);/* in: memory heap where to allocate
+				column prefixes of externally stored
+				columns, may be NULL if the index
+				record does not contain externally
+				stored columns or column prefixes */
 /***************************************************************
 Replaces the new column values stored in the update vector to the index entry
 given. */
@@ -211,9 +216,14 @@ row_upd_index_replace_new_col_vals(
 	const upd_t*	update,	/* in: an update vector built for the
 				CLUSTERED index so that the field number in
 				an upd_field is the clustered index position */
-	mem_heap_t*	heap);	/* in: memory heap to which we allocate and
+	mem_heap_t*	heap,	/* in: memory heap to which we allocate and
 				copy the new values, set this as NULL if you
 				do not want allocation */
+	mem_heap_t*	ext_heap);/* in: memory heap where to allocate
+				column prefixes of externally stored
+				columns, may be NULL if the index
+				record does not contain externally
+				stored columns or column prefixes */
 /***************************************************************
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
