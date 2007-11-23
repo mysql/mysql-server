@@ -15,6 +15,7 @@
 #include "wbuf.h"
 #include "memory.h"
 #include "../src/ydb-internal.h"
+#include "log_header.h"
 
 int tokulogger_find_next_unused_log_file(const char *directory, long long *result) {
     DIR *d=opendir(directory);
@@ -203,26 +204,10 @@ int tokulogger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, DISKOFF disk
     return tokulogger_finish(txn->logger, &wbuf);
 }
 
-int tokulogger_log_commit (TOKUTXN txn) {
-    struct wbuf wbuf;
-    const int buflen = (1 // log command
-			+8 // lsn
-			+8 // txnid
-			+8 // crc & len
-			);
-    unsigned char buf[buflen];
-    wbuf_init(&wbuf, buf, buflen);
-    wbuf_char(&wbuf, LT_COMMIT);
-    wbuf_LSN (&wbuf, txn->logger->lsn);
-    txn->logger->lsn.lsn++;
-    wbuf_TXNID(&wbuf, txn->txnid64);
-    int r = tokulogger_finish(txn->logger, &wbuf);
-    if (r!=0) return r;
-    int result;
-    if (txn->parent) result=0;
-    else result=tokulogger_fsync(txn->logger);
+int tokulogger_commit (TOKUTXN txn) {
+    int r = toku_log_commit(txn, txn->txnid64);
     toku_free(txn);
-    return result;
+    return r;
 }
 
 int tokulogger_log_checkpoint (TOKULOGGER logger, LSN *lsn) {

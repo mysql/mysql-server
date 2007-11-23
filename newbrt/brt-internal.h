@@ -1,3 +1,5 @@
+#ifndef BRT_INTERNAL_H
+#define BRT_INTERNAL_H
 #include "cachetable.h"
 #include "hashtable.h"
 #include "pma.h"
@@ -210,3 +212,4 @@ static const BRTNODE null_brtnode=0;
 extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
 extern u_int32_t toku_calccrc32_cmd (int type, const void *key, int keylen, const void *val, int vallen);
 extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD *cmd);
+#endif
