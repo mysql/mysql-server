@@ -662,6 +662,16 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     return;
   }
 
+  if (!ndb_pnr(startingVersion))
+  {
+    jam();
+    infoEvent("Connection from node %u refused as it's not does not support "
+              "parallel node recovery",
+              addNodePtr.i);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
+    return;
+  }
+
   if (check_start_type(start_type, c_start.m_start_type))
   {
     jam();
@@ -891,7 +901,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
 			 "incompatible version own=0x%x other=0x%x, "
 			 " shutting down", 
 			 NDB_VERSION, cmRegConf->presidentVersion);
-    systemErrorLab(signal, __LINE__, buf);
+    progError(__LINE__, NDBD_EXIT_UNSUPPORTED_VERSION, buf);  
     return;
   }
 
@@ -1136,9 +1146,9 @@ void Qmgr::execCM_REGREF(Signal* signal)
   switch (TrefuseReason) {
   case CmRegRef::ZINCOMPATIBLE_VERSION:
     jam();
-    systemErrorLab(signal, __LINE__, 
-		   "incompatible version, "
-		   "connection refused by running ndb node");
+    progError(__LINE__, NDBD_EXIT_UNSUPPORTED_VERSION, 
+              "incompatible version, "
+              "connection refused by running ndb node");
   case CmRegRef::ZINCOMPATIBLE_START_TYPE:
     jam();
     BaseString::snprintf(buf, sizeof(buf),
