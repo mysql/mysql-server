@@ -60,6 +60,7 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_API_START_REP, &Ndbcntr::execAPI_START_REP, true);
   addRecSignal(GSN_NODE_FAILREP, &Ndbcntr::execNODE_FAILREP);
   addRecSignal(GSN_SYSTEM_ERROR , &Ndbcntr::execSYSTEM_ERROR);
+  addRecSignal(GSN_START_PERMREP, &Ndbcntr::execSTART_PERMREP);
   
   // Received signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Ndbcntr::execDUMP_STATE_ORD);
