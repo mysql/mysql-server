@@ -85,3 +85,8 @@ select 1;
 1
 unlock tables;
 End of 5.0 tests
+create database mysql_test;
+create table mysql_test.t1(f1 int);
+create table mysql_test.`#sql-347f_7` (f1 int);
+drop database mysql_test;
+End of 5.1 tests
