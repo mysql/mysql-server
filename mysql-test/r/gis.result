@@ -958,6 +958,12 @@ COUNT(*)
 2
 DROP TABLE t1, t2;
 End of 5.0 tests
+create table `t1` (`col002` point)engine=myisam;
+insert into t1 values (),(),();
+select min(`col002`) from t1 union select `col002` from t1;
+min(`col002`)
+NULL
+drop table t1;
 End of 5.0 tests
 create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
 create view v1 as select * from t1;
