@@ -15,3 +15,4 @@ concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random 
 ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Double Whopper
 
 federated_transactions   : Bug#29523 Transactions do not work
+ndb_dd_backuprestore     : Bug#32659 ndb_dd_backuprestore.test fails randomly
