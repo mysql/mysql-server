@@ -29,6 +29,8 @@ struct logtype {
 
 // In the fields, don't mention the command, the LSN, the CRC or the trailing LEN.
 
+int logformat_version_number = 0;
+
 const struct logtype logtypes[] = {
     {"commit", 'C', FA{{"TXNID", "txnid"},NULLFIELD}},
     {"delete", 'D', FA{{"FILENUM", "filenum"},
