@@ -22,7 +22,6 @@ use File::Basename;
 use IO::File();
 use strict;
 
-use lib "lib/";
 use My::Config;
 
 sub collect_test_cases ($);
