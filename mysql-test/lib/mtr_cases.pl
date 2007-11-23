@@ -432,6 +432,9 @@ sub optimize_cases {
 
   foreach my $tinfo ( @$cases )
   {
+    # Skip processing if already marked as skipped
+    next if $tinfo->{skip};
+
     # Replication test needs an adjustment of binlog format
     if (mtr_match_prefix($tinfo->{'name'}, "rpl"))
     {
@@ -452,6 +455,7 @@ sub optimize_cases {
       # binlog-format
       # =======================================================
       if (defined $::used_binlog_format and
+	  $test_binlog_format and
 	  $::used_binlog_format ne $test_binlog_format)
       {
 	$tinfo->{'skip'}= 1;
