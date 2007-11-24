@@ -285,50 +285,18 @@ int tokulogger_log_block_rename (TOKULOGGER logger, FILENUM fileid, DISKOFF oldd
 }
 
 int tokulogger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
-    if (txn==0) return 0;
-    const int fnamelen = strlen(fname);
-    const int buflen = (+1 // log command
-			+8 // lsn
-			+8 // txnid
-			+4 // length of fname
-			+fnamelen
-			+4 // mode
-			+8 // crc & len
-			);
-    unsigned char buf[buflen];
-    struct wbuf wbuf;
-    wbuf_init (&wbuf, buf, buflen);
-    wbuf_char (&wbuf, LT_FCREATE);
-    wbuf_LSN    (&wbuf, txn->logger->lsn);
-    txn->logger->lsn.lsn++;
-    wbuf_TXNID(&wbuf, txn->txnid64);
-    wbuf_bytes(&wbuf, fname, fnamelen);
-    wbuf_int  (&wbuf, mode);
-    return tokulogger_finish(txn->logger, &wbuf);
+    BYTESTRING bs;
+    bs.len = strlen(fname);
+    bs.data = (char*)fname;
+    return toku_log_fcreate (txn, toku_txn_get_txnid(txn), bs, mode);
 }
 
 /* fopen isn't really an action.  It's just for bookkeeping.  We need to know the filename that goes with a filenum. */
 int tokulogger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
-    if (txn==0) return 0;
-    const int fnamelen = strlen(fname);
-    const int buflen = (+1 // log command
-			+8 // lsn
-			+8 // txnid
-			+4 // length of fname
-			+fnamelen
-			+4 // filenum len
-			+8 // crc & len
-			);
-    unsigned char buf[buflen];
-    struct wbuf wbuf;
-    wbuf_init (&wbuf, buf, buflen);
-    wbuf_char (&wbuf, LT_FOPEN);
-    wbuf_LSN    (&wbuf, txn->logger->lsn);
-    txn->logger->lsn.lsn++;
-    wbuf_TXNID(&wbuf, txn->txnid64);
-    wbuf_bytes(&wbuf, fname, fnamelen);
-    wbuf_FILENUM(&wbuf, filenum);
-    return tokulogger_finish(txn->logger, &wbuf);
+    BYTESTRING bs;
+    bs.len = strlen(fname);
+    bs.data = (char*)fname;
+    return toku_log_fopen (txn,toku_txn_get_txnid(txn), bs, filenum);
     
 }
 
@@ -375,7 +343,8 @@ int tokulogger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
 #else
     if (txn==0) return 0;
     int subsize=toku_serialize_brt_header_size(h);
-    int buflen = (1+
+    int buflen = (4   // firstlen
+		  + 1 //cmd
 		  + 8 // lsn
 		  + 8 // txnid
 		  + 4 // filenum
@@ -387,6 +356,7 @@ int tokulogger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
     if (buf==0) return errno;
     struct wbuf wbuf;
     wbuf_init(&wbuf, buf, buflen);
+    wbuf_int (&wbuf, buflen);
     wbuf_char(&wbuf, LT_FHEADER);
     wbuf_LSN    (&wbuf, txn->logger->lsn);
     txn->logger->lsn.lsn++;
@@ -556,6 +526,7 @@ int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, u_in
 	    else fprintf(outf, "\\0%03o", bs.data[i]);
 	}
     }
+    fprintf(outf, "\"");
     toku_free(bs.data);
     return 0;
 }
