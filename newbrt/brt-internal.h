@@ -28,7 +28,8 @@ struct brtnode {
     //    BRT          brt;       // The containing BRT     
     unsigned int nodesize;
     DISKOFF thisnodename;   // The size of the node allocated on disk.  Not all is necessarily in use.
-    LSN     lsn;            // Need the LSN as of the most recent modification.
+    LSN     disk_lsn;       // The LSN as of the most recent version on disk.
+    LSN     log_lsn;        // The LSN as of the most recent log write. 
     int     layout_version; // What version of the data structure?
     BRTNODE parent_brtnode; /* Invariant: The parent of an in-memory node must be in main memory.  This is so we can find and update the down pointer when we change the diskoff of a node. */
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */

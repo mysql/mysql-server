@@ -94,7 +94,7 @@ brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o he
 log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
 brt-test.o brt.o: brt.h ../include/db.h hashtable.h pma.h brttypes.h cachetable.h
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
-brt.o: $(BRT_INTERNAL_H_INCLUDES)
+brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
 mdict.o: pma.h
 hashtable.o: hashtable.h brttypes.h memory.h key.h yerror.h ../include/db.h hashfun.h
 memory.o: memory.h

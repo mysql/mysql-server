@@ -99,7 +99,8 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     if (node->height==0) wbuf_literal_bytes(&w, "leaf", 4);
     else wbuf_literal_bytes(&w, "node", 4);
     wbuf_int(&w, node->layout_version);
-    wbuf_ulonglong(&w, node->lsn.lsn);
+    fprintf(stderr, "%s:%d lsn at file write = %llu\n", __FILE__, __LINE__, node->log_lsn.lsn);
+    wbuf_ulonglong(&w, node->log_lsn.lsn);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_int(&w, calculated_size);
     wbuf_int(&w, node->height);
@@ -241,7 +242,8 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	r=DB_BADFORMAT;
 	goto died1;
     }
-    result->lsn.lsn = rbuf_ulonglong(&rc);
+    result->disk_lsn.lsn = rbuf_ulonglong(&rc);
+    result->log_lsn = result->disk_lsn;
     {
 	unsigned int stored_size = rbuf_int(&rc);
 	if (stored_size!=datasize) { r=DB_BADFORMAT; goto died1; }

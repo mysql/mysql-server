@@ -124,8 +124,15 @@ static inline void wbuf_LOGGEDBRTHEADER (struct wbuf *w, LOGGEDBRTHEADER h) {
     wbuf_DISKOFF(w, h.freelist);
     wbuf_DISKOFF(w, h.unused_memory);
     wbuf_int(w, h.n_named_roots);
-    assert(h.n_named_roots==0);
-    wbuf_DISKOFF(w, h.root);
+    if ((signed)h.n_named_roots==-1) {
+	wbuf_DISKOFF(w, h.u.one.root);
+    } else {
+	unsigned int i;
+	for (i=0; i<h.n_named_roots; i++) {
+	    wbuf_DISKOFF(w, h.u.many.roots[i]);
+	    wbuf_bytes  (w, h.u.many.names[i], 1+strlen(h.u.many.names[i]));
+	}
+    }
 }
 
 #endif

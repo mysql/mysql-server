@@ -24,6 +24,7 @@
 
 #include "brt-internal.h"
 #include "key.h"
+#include "log_header.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -135,7 +136,7 @@ static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck, unsigned 
 }
 
 
-void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnode_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p __attribute__((__unused__))) {
+void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnode_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn __attribute__((__unused__)) , BOOL rename_p __attribute__((__unused__))) {
     BRTNODE brtnode = brtnode_v;
 //    if ((write_me || keep_me) && (brtnode->height==0)) {
 //	toku_pma_verify_fingerprint(brtnode->u.l.buffer, brtnode->rand4fingerprint, brtnode->subtree_fingerprint);
@@ -145,7 +146,7 @@ void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnod
 	if (brtnode->height==0) printf(" pma=%p", brtnode->u.l.buffer);
 	printf("\n");
     }
-    if (modified_lsn.lsn > brtnode->lsn.lsn) brtnode->lsn=modified_lsn;
+    //if (modified_lsn.lsn > brtnode->lsn.lsn) brtnode->lsn=modified_lsn;
     fix_up_parent_pointers_of_children_now_that_parent_is_gone(cachefile, brtnode);
     assert(brtnode->thisnodename==nodename);
     {
@@ -200,7 +201,7 @@ int brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **brtnod
                                      t->compare_fun, t->dup_compare);
     if (r == 0)
         *sizep = brtnode_size(*result);
-    *written_lsn = (*result)->lsn;
+    *written_lsn = (*result)->disk_lsn;
     //(*result)->parent_brtnode = 0; /* Don't know it right now. */
     //printf("%s:%d installed %p (offset=%lld)\n", __FILE__, __LINE__, *result, nodename);
     return r;
@@ -297,7 +298,8 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     //    n->brt = t;
     n->nodesize = t->h->nodesize;
     n->thisnodename = nodename;
-    n->lsn.lsn = 0; // a new one can always be 0.
+    n->disk_lsn.lsn = 0; // a new one can always be 0.
+    n->log_lsn = n->disk_lsn;
     n->layout_version = 0;
     n->height       = height;
     n->rand4fingerprint = random();
@@ -1451,7 +1453,11 @@ static int setup_brt_root_node (BRT t, DISKOFF offset, TOKUTXN txn) {
     //printf("%s:%d created %lld\n", __FILE__, __LINE__, node->thisnodename);
     toku_verify_counts(node);
 //    verify_local_fingerprint_nonleaf(node);
-    tokulogger_log_newbrtnode(txn, toku_cachefile_filenum(t->cf), offset, 0, t->h->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, node->rand4fingerprint);
+    toku_log_newbrtnode(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), offset, 0, t->h->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, node->rand4fingerprint);
+    if (txn) {
+	node->log_lsn = toku_txn_get_last_lsn(txn);
+	fprintf(stderr, "%s:%d last lsn=%llu\n", __FILE__, __LINE__, node->log_lsn.lsn);
+    }
     r=toku_cachetable_unpin(t->cf, node->thisnodename, node->dirty, brtnode_size(node));
     if (r!=0) {
 	toku_free(node);

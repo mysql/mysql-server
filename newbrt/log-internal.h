@@ -37,6 +37,7 @@ struct tokutxn {
     u_int64_t txnid64;
     TOKULOGGER logger;
     TOKUTXN    parent;
+    LSN        last_lsn; /* Everytime anything is logged, update the LSN.  (We need to atomically record the LSN along with writing into the log.) */
 };
 
 int tokulogger_finish (TOKULOGGER logger, struct wbuf *wbuf);

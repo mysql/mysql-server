@@ -42,7 +42,15 @@ typedef struct loggedbrtheader {
     DISKOFF   freelist;
     DISKOFF   unused_memory;
     u_int32_t n_named_roots;
-    DISKOFF   root;
+    union {
+	struct {
+	    char **names;
+	    DISKOFF *roots;
+	} many;
+	struct {
+	    DISKOFF   root;
+	} one;
+    } u;
 } LOGGEDBRTHEADER; 
 
 #endif
