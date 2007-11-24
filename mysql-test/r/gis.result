@@ -766,6 +766,14 @@ geomdatawkb	longblob	YES		NULL
 drop table t1;
 drop table t2;
 drop table t3;
+create table t1(col1 geometry default null,col15 geometrycollection not
+null,spatial index(col15),index(col1(15)))engine=myisam;
+insert into t1 set col15 = GeomFromText('POINT(6 5)');
+insert into t1 set col15 = GeomFromText('POINT(6 5)');
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
 End of 4.1 tests
 create table t1 (s1 geometry not null,s2 char(100));
 create trigger t1_bu before update on t1 for each row set new.s1 = null;
