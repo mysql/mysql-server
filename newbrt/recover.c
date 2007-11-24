@@ -62,7 +62,11 @@ static void toku_recover_fheader (struct logtype_fheader *c) {
     h->freelist = c->header.freelist;
     h->unused_memory = c->header.unused_memory;
     h->n_named_roots = c->header.n_named_roots;
-    h->unnamed_root  = c->header.root;
+    if ((signed)c->header.n_named_roots==-1) {
+	h->unnamed_root = c->header.u.one.root;
+    } else {
+	assert(0);
+    }
     toku_cachetable_put(cf, 0, h, 0, brtheader_flush_callback, brtheader_fetch_callback, 0);
 }
 
@@ -73,7 +77,7 @@ static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     TAGMALLOC(BRTNODE, n);
     n->nodesize     = c->nodesize;
     n->thisnodename = c->diskoff;
-    n->lsn          = c->lsn;
+    n->log_lsn = n->disk_lsn  = c->lsn;
     n->layout_version = 0;
     n->parent_brtnode = 0;
     n->height         = c->height;

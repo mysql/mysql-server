@@ -77,11 +77,19 @@ void transcribe_filenum(void) {
     printf(" filenum=%d", value);
 }
 
+u_int32_t len1;
+void transcribe_len1 (void) {
+    len1 = get_uint32();
+    //printf(" len=%d", len1);
+}
+
+
 void transcribe_len (void) {
     u_int32_t l = get_uint32();
     printf(" len=%d", l);
     if (l!=actual_len) printf(" actual_len=%d", actual_len);
     assert(l==actual_len);
+    assert(len1==actual_len);
 }
 
 
@@ -139,12 +147,15 @@ static void oldmain (int count) {
     u_int32_t version;
     int r = read_and_print_logmagic(stdin, &version);
     assert(r==0);
-    for (i=0;
-	 i!=count && (crc=0,actual_len=0,cmd=get_char())!=EOF;
-	 i++) {
+    for (i=0; i!=count; i++) {
+	actual_len=0;
+	crc=0; 
+	transcribe_len1();
+	if ((cmd=get_char())==EOF) break;
 	switch ((enum lt_command)cmd) {
 	case LT_INSERT_WITH_NO_OVERWRITE:
 	    printf("INSERT_WITH_NO_OVERWRITE:");
+	    transcribe_len1();
 	    transcribe_lsn();
 	    transcribe_txnid();
 	    transcribe_fileid();
