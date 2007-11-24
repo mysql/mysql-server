@@ -742,7 +742,7 @@ select geomfromtext(col9,col89) as a from t1;
 a
 NULL
 DROP TABLE t1;
-create table t1(col1 geometry not null,col15 geometrycollection not
+create table t1(col1 geometry default null,col15 geometrycollection not
 null,spatial index(col15),index(col1(15)))engine=myisam;
 insert into t1 set col15 = GeomFromText('POINT(6 5)');
 insert into t1 set col15 = GeomFromText('POINT(6 5)');
