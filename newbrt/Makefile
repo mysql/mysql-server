@@ -42,12 +42,12 @@ BINS =  $(REGRESSION_TESTS) \
         benchmark-test \
         randbrt \
         randdb4 \
-        logdump \
+        tdb_logprint \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
-logdump: LDFLAGS+=-lz
-logdump: log-internal.h brttypes.h yerror.h log.h kv-pair.h
-logdump: log_code.o memory.o log.o brt-serialize.o hashtable.o pma.o ybt.o fingerprint.o mempool.o primes.o
+tdb_logprint: LDFLAGS+=-lz
+tdb_logprint: log-internal.h brttypes.h yerror.h log.h kv-pair.h
+tdb_logprint: log_code.o memory.o log.o brt-serialize.o hashtable.o pma.o ybt.o fingerprint.o mempool.o primes.o
 
 recover: LDFLAGS+=-lz
 recover.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h
