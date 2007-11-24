@@ -439,6 +439,17 @@ INSERT INTO `t1` VALUES ('','0000-00-00');
 select geomfromtext(col9,col89) as a from t1;
 DROP TABLE t1;
 
+#
+# Bug #30284 spatial key corruption 
+#
+
+create table t1(col1 geometry not null,col15 geometrycollection not
+null,spatial index(col15),index(col1(15)))engine=myisam;
+insert into t1 set col15 = GeomFromText('POINT(6 5)');
+insert into t1 set col15 = GeomFromText('POINT(6 5)');
+check table t1 extended;
+drop table t1;
+
 --echo End of 4.1 tests
 
 #
