@@ -99,7 +99,6 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     if (node->height==0) wbuf_literal_bytes(&w, "leaf", 4);
     else wbuf_literal_bytes(&w, "node", 4);
     wbuf_int(&w, node->layout_version);
-    fprintf(stderr, "%s:%d lsn at file write = %llu\n", __FILE__, __LINE__, node->log_lsn.lsn);
     wbuf_ulonglong(&w, node->log_lsn.lsn);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_int(&w, calculated_size);
