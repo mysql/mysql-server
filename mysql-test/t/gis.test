@@ -471,6 +471,17 @@ drop table t1;
 drop table t2;
 drop table t3;
 
+#
+# Bug #30284 spatial key corruption 
+#
+
+create table t1(col1 geometry default null,col15 geometrycollection not
+null,spatial index(col15),index(col1(15)))engine=myisam;
+insert into t1 set col15 = GeomFromText('POINT(6 5)');
+insert into t1 set col15 = GeomFromText('POINT(6 5)');
+check table t1 extended;
+drop table t1;
+
 --echo End of 4.1 tests
 
 #
