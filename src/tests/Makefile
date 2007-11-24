@@ -1,6 +1,11 @@
 # On OSX do:
 #   make OSX=OSX
 
+# For verbose output do
+#   make VERBOSE=1
+# For very verbose output do 
+#   make VERBOSE=2
+
 ifeq ($(OSX),OSX)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
 LIBEXT=dylib
@@ -21,6 +26,8 @@ BDB_CPPFLAGS = -I$(BDB)/include
 BDB_LDFLAGS = -L$(BDB)/lib
 endif
 
+# VERBOSE=true
+
 LIBNAME=libdb.$(LIBEXT)
 CFLAGS = -Wall -Werror -O0 -g
 
@@ -36,6 +43,7 @@ ALL_TESTS = $(TDB_TESTS) $(BDB_TESTS)
 RUN_TDB_TESTS = $(patsubst %.tdb,%.tdbrun,$(TDB_TESTS))
 RUN_BDB_TESTS = $(patsubst %.bdb,%.bdbrun,$(BDB_TESTS))
 RUN_ALL_TESTS = $(RUN_TDB_TESTS) $(RUN_BDB_TESTS)
+
 
 all: make_libs $(ALL_TESTS)
 
@@ -56,12 +64,23 @@ $(ALL_TESTS):
 
 %.run: %.bdbrun %.tdbrun
 
+ifeq ($(VERBOSE),2)
+VERBVERBOSE=-v
+endif
+
 # The @ sign makes the make quiet.  If there is an error there is enough info to tell what test failed.
 %.bdbrun: %.bdb
+ifdef VERBOSE
+	$(UNSETTOKUENV); $(VGRIND) ./$< $(VERBVERBOSE)
+else
 	@ $(UNSETTOKUENV); $(VGRIND) ./$<
+endif
 %.tdbrun: %.tdb
+ifdef VERBOSE
+	$(SETTOKUENV); $(VGRIND) ./$< $(VERBVERBOSE)
+else
 	@ $(SETTOKUENV); $(VGRIND) ./$<
-
+endif
 # For a few of the tests bdb is making valgrind unhappy.
 NO_VGRIND = \
   db_already_exists \
