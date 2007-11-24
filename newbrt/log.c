@@ -57,7 +57,7 @@ int tokulogger_find_logfiles (const char *directory, int *n_resultsp, char ***re
     }
     *n_resultsp = n_results;
     *resultp    = result;
-    return 0;
+    return closedir(d);
 }
 
 int tokulogger_create_and_open_logger (const char *directory, TOKULOGGER *resultp) {
@@ -350,6 +350,29 @@ int tokulogger_log_unlink (TOKUTXN txn, const char *fname) {
 };
 
 int tokulogger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
+#if 0
+    LOGGEDBRTHEADER lh;
+    lh.size = toku_serialize_brt_header_size(h);
+    lh.flags = h->flags;
+    lh.nodesize = h->nodesize;
+    lh.freelist = h->freelist;
+    lh.unused_memory = h->unused_memory;
+    lh.n_named_roots = h->n_named_roots;
+    if (h->n_named_roots==-1) {
+	lh.u.one.root = h->unnamed_root;
+    } else {
+	int i;
+	MALLOC_N(h->n_named_roots, lh.u.many.names);
+	MALLOC_N(h->n_named_roots, lh.u.many.roots);
+	for (i=0; i<h->n_named_roots; i++) {
+	    lh.u.many.names[i]=toku_strdup(h->names[i]);
+	    lh.u.many.roots[i]=h->roots[i];
+	}
+    }
+    r = toku_log_fheader(txn, toku_txn_get_txnid(txn), filenum, lh);
+    toku_free(all_that_stuff);
+    return r;
+#else
     if (txn==0) return 0;
     int subsize=toku_serialize_brt_header_size(h);
     int buflen = (1+
@@ -374,35 +397,7 @@ int tokulogger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
     r=tokulogger_finish(txn->logger, &wbuf);
     toku_free(buf);
     return r;
-}
-
-int tokulogger_log_newbrtnode (TOKUTXN txn, FILENUM filenum, DISKOFF offset, u_int32_t height, u_int32_t nodesize, char is_dup_sort_mode, u_int32_t rand4fingerprint) {
-    if (txn==0) return 0;
-    int buflen=(1+
-		+ 8 // lsn
-		+ 8 // txnid
-		+ 4 // filenum
-		+ 8 // diskoff
-		+ 4 // height
-		+ 4 // nodesize
-		+ 1 // is_dup_sort_mode
-		+ 4 // rand4fingerprint
-		+ 8 // crc & len
-		);
-    unsigned char buf[buflen];
-    struct wbuf wbuf;
-    wbuf_init (&wbuf, buf, buflen);
-    wbuf_char(&wbuf, LT_NEWBRTNODE);
-    wbuf_LSN    (&wbuf, txn->logger->lsn);
-    txn->logger->lsn.lsn++;
-    wbuf_TXNID(&wbuf, txn->txnid64);
-    wbuf_FILENUM(&wbuf, filenum);
-    wbuf_DISKOFF(&wbuf, offset);
-    wbuf_int(&wbuf, height);
-    wbuf_int(&wbuf, nodesize);
-    wbuf_char(&wbuf, is_dup_sort_mode);
-    wbuf_int(&wbuf, rand4fingerprint);
-    return tokulogger_finish(txn->logger, &wbuf);
+#endif
 }
 
 /*
@@ -506,7 +501,7 @@ int toku_fread_LOGGEDBRTHEADER(FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_in
     r = toku_fread_DISKOFF  (f, &v->unused_memory, crc, len); if (r!=0) return r;
     r = toku_fread_u_int32_t(f, &v->n_named_roots, crc, len); if (r!=0) return r;
     assert((signed)v->n_named_roots==-1);
-    r = toku_fread_DISKOFF  (f, &v->root,          crc, len); if (r!=0) return r;
+    r = toku_fread_DISKOFF  (f, &v->u.one.root,     crc, len); if (r!=0) return r;
     return 0;
 }
 
@@ -605,4 +600,13 @@ int read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
 	*versionp=ntohl(version);
     }
     return 0;
+}
+
+TXNID toku_txn_get_txnid (TOKUTXN txn) {
+    if (txn==0) return 0;
+    else return txn->txnid64;
+}
+
+LSN toku_txn_get_last_lsn (TOKUTXN txn) {
+    return txn->last_lsn;
 }

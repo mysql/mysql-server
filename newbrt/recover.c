@@ -49,6 +49,7 @@ static void toku_recover_fcreate (struct logtype_fcreate *c) {
     int fd = creat(fname, c->mode);
     assert(fd>=0);
     toku_free(fname);
+    toku_free(c->fname.data);
 }
 static void toku_recover_fheader (struct logtype_fheader *c) {
     CACHEFILE cf = find_cachefile(c->filenum);
@@ -113,6 +114,8 @@ static void toku_recover_fopen (struct logtype_fopen *c) {
     }
     cf_pairs[n_cf_pairs-1].filenum = c->filenum;
     cf_pairs[n_cf_pairs-1].cf      = cf;
+    toku_free(fname);
+    toku_free(c->fname.data);
 }
 
 int main (int argc, char *argv[]) {
@@ -152,6 +155,7 @@ int main (int argc, char *argv[]) {
 	r = toku_cachefile_close(&cf_pairs[i].cf);
 	assert(r==0);
     }
+    toku_free(cf_pairs);
     r = toku_cachetable_close(&ct);
     assert(r==0);
     for (i=0; i<n_logfiles; i++) {

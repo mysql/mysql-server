@@ -51,4 +51,7 @@ int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname,
 
 int read_and_print_logmagic (FILE *f, u_int32_t *version);
 
+TXNID toku_txn_get_txnid (TOKUTXN);
+LSN   toku_txn_get_last_lsn (TOKUTXN);
+
 #endif

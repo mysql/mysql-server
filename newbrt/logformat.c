@@ -130,6 +130,7 @@ void generate_log_writer (void) {
 				  fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 			fprintf(hf, ");\n");
 			fprintf(cf, ") {\n");
+			fprintf(cf, "  if (txn==0) return 0;\n");
 			fprintf(cf, "  const unsigned int buflen= (1 // log command\n");
 			fprintf(cf, "                              +8 // lsn\n");
 			DO_FIELDS(ft, lt,
@@ -142,7 +143,8 @@ void generate_log_writer (void) {
 			fprintf(cf, "  wbuf_init(&wbuf, buf, buflen);\n");
 			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", lt->command);
 			fprintf(cf, "  wbuf_LSN(&wbuf, txn->logger->lsn);\n");
-			fprintf(cf, "  txn->logger->lsn.lsn++;;\n");
+			fprintf(cf, "  txn->last_lsn = txn->logger->lsn;\n");
+			fprintf(cf, "  txn->logger->lsn.lsn++;\n");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "  wbuf_%s(&wbuf, %s);\n", ft->type, ft->name));
 			fprintf(cf, "  int r= tokulogger_finish(txn->logger, &wbuf);\n");

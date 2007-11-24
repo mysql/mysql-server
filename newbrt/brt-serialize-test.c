@@ -20,7 +20,8 @@ void test_serialize(void) {
     char *hello_string;
     sn.nodesize = nodesize;
     sn.thisnodename = sn.nodesize*20;
-    sn.lsn.lsn = 123456;
+    sn.disk_lsn.lsn = 789;
+    sn.log_lsn.lsn  = 123456;
     sn.layout_version = 0;
     sn.height = 1;
     sn.rand4fingerprint = randval;
@@ -47,7 +48,7 @@ void test_serialize(void) {
     assert(r==0);
 
     assert(dn->thisnodename==nodesize*20);
-    assert(dn->lsn.lsn==123456);
+    assert(dn->disk_lsn.lsn==123456);
     assert(dn->layout_version ==0);
     assert(dn->height == 1);
     assert(dn->rand4fingerprint==randval);
