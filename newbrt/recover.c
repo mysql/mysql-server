@@ -121,6 +121,9 @@ static void toku_recover_fopen (struct logtype_fopen *c) {
     toku_free(fname);
     toku_free(c->fname.data);
 }
+static void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
+    c=c;
+}
 
 int main (int argc, char *argv[]) {
     const char *dir;
