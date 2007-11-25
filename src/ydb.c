@@ -556,7 +556,18 @@ int __toku_db_del(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, u_i
 
 int __toku_db_get(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, DBT * data, u_int32_t flags) {
     assert(flags == 0);
-    int r = brt_lookup(db->i->brt, key, data, db);
+    int r;
+    int brtflags;
+    brt_get_flags(db->i->brt, &brtflags);
+    if (brtflags & TOKU_DB_DUPSORT) {
+        DBC *dbc;
+        r = db->cursor(db, txn, &dbc, 0);
+        if (r == 0) {
+            r = dbc->c_get(dbc, key, data, DB_SET);
+            dbc->c_close(dbc);
+        }
+    } else
+        r = brt_lookup(db->i->brt, key, data, db);
     return r;
 }
 
