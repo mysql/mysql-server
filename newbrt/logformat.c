@@ -62,7 +62,8 @@ const struct logtype logtypes[] = {
 			     {"FILENUM",    "filenum"},
 			     {"DISKOFF",    "diskoff"},
 			     {"BYTESTRING", "key"},
-			     {"BYTESTRING", "data"}}},
+			     {"BYTESTRING", "data"},
+                             NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
     
