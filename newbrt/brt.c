@@ -1491,6 +1491,11 @@ int brt_set_flags(BRT brt, int flags) {
     return 0;
 }
 
+int brt_get_flags(BRT brt, int *flags) {
+    *flags = brt->flags;
+    return 0;
+}
+
 int brt_set_nodesize(BRT brt, int nodesize) {
     brt->nodesize = nodesize;
     return 0;
