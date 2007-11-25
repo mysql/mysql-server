@@ -79,6 +79,8 @@ void fprintf2 (FILE *f1, FILE *f2, const char *format, ...) {
     int r;
     va_start(ap, format);
     r=vfprintf(f1, format, ap); assert(r>=0);
+    va_end(ap);
+    va_start(ap, format);
     r=vfprintf(f2, format, ap); assert(r>=0);
     va_end(ap);
 }
