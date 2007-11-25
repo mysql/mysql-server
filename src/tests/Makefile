@@ -52,7 +52,7 @@ foo:
 	echo ALL_TESTS: $(ALL_TESTS)
 
 .PHONY: check check.bdb check.tdb
-check: check.bdb check.tdb
+check: check.bdb check.tdb check.recover
 	@ echo ok
 check.bdb: $(RUN_BDB_TESTS)
 check.tdb: $(RUN_TDB_TESTS)
@@ -100,6 +100,16 @@ $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 	$(UNSETTOKUENV); cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
 %.tdb: %.c
 	$(SETTOKUENV); cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
+
+.PHONY: %.recover
+check.recover: logtest2.recover
+logtest2.recover: test_log2.tdb
+	cd ../../newbrt;make recover
+	./test_log2.tdb
+	rm -rf dir.test_log2.c.tdb.recover
+	mkdir dir.test_log2.c.tdb.recover
+	cd  dir.test_log2.c.tdb.recover;../../../newbrt/recover ../dir.test_log2.c.tdb
+	diff dir.test_log2.c.tdb/foo.db dir.test_log2.c.tdb.recover/foo.db
 
 make_libs:
 	cd ..;make
