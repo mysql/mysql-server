@@ -52,7 +52,7 @@ foo:
 	echo ALL_TESTS: $(ALL_TESTS)
 
 .PHONY: check check.bdb check.tdb
-check: check.bdb check.tdb check.recover
+check: check.bdb check.tdb all.recover
 	@ echo ok
 check.bdb: $(RUN_BDB_TESTS)
 check.tdb: $(RUN_TDB_TESTS)
@@ -102,14 +102,14 @@ $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 	$(SETTOKUENV); cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover
-check.recover: logtest2.recover
-logtest2.recover: test_log2.tdb
+all.recover: test_log2.recover test_log3.recover
+%.recover: %.tdb
 	cd ../../newbrt;make recover
-	./test_log2.tdb
-	rm -rf dir.test_log2.c.tdb.recover
-	mkdir dir.test_log2.c.tdb.recover
-	cd  dir.test_log2.c.tdb.recover;../../../newbrt/recover ../dir.test_log2.c.tdb
-	diff dir.test_log2.c.tdb/foo.db dir.test_log2.c.tdb.recover/foo.db
+	./$<
+	rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
+	mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
+	cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover;../../../newbrt/recover ../dir.$(patsubst %.tdb,%.c.tdb,$<)
+	diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db
 
 make_libs:
 	cd ..;make
