@@ -58,7 +58,11 @@ const struct logtype logtypes[] = {
 			{"BYTESTRING", "fname"},
 			{"FILENUM",    "filenum"},
 			NULLFIELD}},
-    
+    {"insertinleaf", 'I', FA{{"TXNID",      "txnid"},
+			     {"FILENUM",    "filenum"},
+			     {"DISKOFF",    "diskoff"},
+			     {"BYTESTRING", "key"},
+			     {"BYTESTRING", "data"}}},
     {0,0,FA{NULLFIELD}}
 };
     

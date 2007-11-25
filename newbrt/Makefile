@@ -24,7 +24,7 @@ endif
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 
 
-default: bins libs
+default: bins libs recover tdb_logprint
 # Put these one-per-line so that if we insert a new one the svn diff can understand it better.
 # Also keep them sorted.
 REGRESSION_TESTS = \
