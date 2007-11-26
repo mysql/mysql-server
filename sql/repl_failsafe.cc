@@ -922,7 +922,7 @@ bool load_master_data(THD* thd)
 			     0, (SLAVE_IO | SLAVE_SQL)))
           my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
 	strmake(active_mi->master_log_name, row[0],
-		sizeof(active_mi->master_log_name));
+		sizeof(active_mi->master_log_name) -1);
 	active_mi->master_log_pos= my_strtoll10(row[1], (char**) 0, &error_2);
         /* at least in recent versions, the condition below should be false */
 	if (active_mi->master_log_pos < BIN_LOG_HEADER_SIZE)

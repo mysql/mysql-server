@@ -1752,7 +1752,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 					    &not_used));
     if (error_len)
     {
-      strmake(buff, error, min(sizeof(buff), error_len));
+      strmake(buff, error, min(sizeof(buff) - 1, error_len));
       goto err;
     }
   }
