@@ -19,7 +19,7 @@ typedef struct pma_cursor *PMA_CURSOR;
    return a value < 0, = 0, > 0 if a < b, a == b, a > b respectively */
 typedef int (*pma_compare_fun_t)(DB *, const DBT *a, const DBT *b);
 
-int toku_pma_create(PMA *, pma_compare_fun_t compare_fun, int maxsize);
+int toku_pma_create(PMA *, pma_compare_fun_t compare_fun, DB *, FILENUM filenum, int maxsize);
 
 int toku_pma_set_compare(PMA pma, pma_compare_fun_t compare_fun);
 
@@ -31,7 +31,7 @@ int toku_pma_set_dup_mode(PMA pma, int mode);
 int toku_pma_set_dup_compare(PMA pma, pma_compare_fun_t dup_compare_fun);
 
 /* verify the integrity of a pma */
-void toku_pma_verify(PMA pma, DB *db);
+void toku_pma_verify(PMA pma);
 
 /* returns 0 if OK.
  * You must have freed all the cursors, otherwise returns nonzero and does nothing. */
@@ -45,21 +45,21 @@ int  toku_pma_n_entries (PMA);
 /* Duplicates the key and keylen. */
 //enum pma_errors toku_pma_insert (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 // The DB pointer is there so that the comparison function can be called.
-enum pma_errors toku_pma_insert (PMA, DBT*, DBT*, DB*, TOKUTXN txn, DISKOFF, u_int32_t /*random for fingerprint */, u_int32_t */*fingerprint*/);
+enum pma_errors toku_pma_insert (PMA, DBT*, DBT*, TOKUTXN txn, DISKOFF, u_int32_t /*random for fingerprint */, u_int32_t */*fingerprint*/);
 /* This returns an error if the key is NOT present. */
 int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 /* This returns an error if the key is NOT present. */
-int toku_pma_delete (PMA, DBT *, DB*, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size);
+int toku_pma_delete (PMA, DBT *, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size);
 
 int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 			   int *replaced_v_size, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
-			   DB *db, TOKUTXN txn, DISKOFF,
+			   TOKUTXN txn, DISKOFF,
 			   u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/);
 
 
 /* Exposes internals of the PMA by returning a pointer to the guts.
  * Don't modify the returned data.  Don't free it. */
-enum pma_errors toku_pma_lookup (PMA, DBT*, DBT*, DB*);
+enum pma_errors toku_pma_lookup (PMA, DBT*, DBT*);
 
 /*
  * The kv pairs in the original pma are split into 2 equal sized sets
@@ -71,7 +71,7 @@ enum pma_errors toku_pma_lookup (PMA, DBT*, DBT*, DB*);
  * leftpma - the pma assigned keys <= pivot key
  * rightpma - the pma assigned keys > pivot key
  */
-int toku_pma_split(PMA origpma,  unsigned int *origpma_size, DBT *splitk, DB *db,
+int toku_pma_split(PMA origpma,  unsigned int *origpma_size, DBT *splitk,
 	      PMA leftpma,  unsigned int *leftpma_size,  u_int32_t leftrand4sum,  u_int32_t *leftfingerprint,
 	      PMA rightpma, unsigned int *rightpma_size, u_int32_t rightrand4sum, u_int32_t *rightfingerprint);
 
@@ -103,13 +103,13 @@ int toku_pma_cursor_set_position_prev (PMA_CURSOR c);
 int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val);
 
 /* set the cursor to the matching key and value pair */
-int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val, DB *db);
+int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val);
 
 /* move the cursor to the kv pair matching the key */
-int toku_pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db);
+int toku_pma_cursor_set_key(PMA_CURSOR c, DBT *key);
 
 /* set the cursor to the smallest key in the pma >= key */
-int toku_pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db);
+int toku_pma_cursor_set_range(PMA_CURSOR c, DBT *key);
 
 /* delete the key value pair under the cursor, return the size of the pair */
 int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize);

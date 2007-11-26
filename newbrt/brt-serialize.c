@@ -182,8 +182,9 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 }
 
 int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize,
-                              int (*bt_compare)(DB *, const DBT *, const DBT *),
-                              int (*dup_compare)(DB *, const DBT *, const DBT *)) {
+				   int (*bt_compare)(DB *, const DBT *, const DBT *),
+				   int (*dup_compare)(DB *, const DBT *, const DBT *),
+				   DB *db, FILENUM filenum) {
     TAGMALLOC(BRTNODE, result);
     struct rbuf rc;
     int i;
@@ -342,7 +343,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
     } else {
 	int n_in_buf = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	r=toku_pma_create(&result->u.l.buffer, bt_compare, nodesize);
+	r=toku_pma_create(&result->u.l.buffer, bt_compare, db, filenum, nodesize);
 	if (r!=0) {
 	    if (0) { died_21: toku_pma_free(&result->u.l.buffer); }
 	    goto died1;

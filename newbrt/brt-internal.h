@@ -98,13 +98,14 @@ struct brt {
     unsigned int flags;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
     int (*dup_compare)(DB*,const DBT*,const DBT*);
+    DB *db;           // To pass to the compare fun
 
     void *skey,*sval; /* Used for DBT return values. */
 };
 
 /* serialization code */
 void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
-int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize, int (*bt_compare)(DB *, const DBT*, const DBT*), int (*dup_compare)(DB *, const DBT *, const DBT *));
+int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize, int (*bt_compare)(DB *, const DBT*, const DBT*), int (*dup_compare)(DB *, const DBT *, const DBT *), DB *db, FILENUM filenum);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
@@ -189,7 +190,6 @@ struct brt_cmd {
         struct brt_cmd_insert_delete {
             DBT *key;
             DBT *val;
-            DB *db;
         } id;
     } u;
 };
@@ -213,4 +213,5 @@ static const BRTNODE null_brtnode=0;
 extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
 extern u_int32_t toku_calccrc32_cmd (int type, const void *key, int keylen, const void *val, int vallen);
 extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD *cmd);
+
 #endif

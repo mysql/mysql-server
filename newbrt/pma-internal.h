@@ -26,6 +26,8 @@ struct pma {
     struct list cursors;
     pma_compare_fun_t compare_fun;
     pma_compare_fun_t dup_compare_fun;
+    DB *db;            /* Passed to the compare functions. */
+    FILENUM filenum;   /* Passed to logging. */
     void *skey, *sval; /* used in dbts */
     struct mempool kvspace;
 };
@@ -35,7 +37,7 @@ void toku_pmainternal_calculate_parameters (PMA pma);
 int toku_pmainternal_smooth_region (struct kv_pair *pairs[], int n, int idx, int base, PMA pma);
 int toku_pmainternal_printpairs (struct kv_pair *pairs[], int N);
 int toku_pmainternal_make_space_at (PMA pma, int idx);
-int toku_pmainternal_find (PMA pma, DBT *, DB*); // The DB is so the comparison fuction can be called.
+int toku_pmainternal_find (PMA pma, DBT *); // The DB is so the comparison fuction can be called.
 void toku_print_pma (PMA pma); /* useful for debugging, so keep the name short. I.e., not pmainternal_print_pma() */
 
 /* density thresholds */

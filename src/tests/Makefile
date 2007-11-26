@@ -91,6 +91,10 @@ NO_VGRIND = \
   db_open_notexist_reopen \
   db_remove_subdb \
   db_subdb \
+  dup_delete \
+  dup_flags \
+  dup_insert \
+  dup_search \
   rand_insert \
   reverse_compare_fun \
   # Comment to terminate list so the previous line can end with a slash
