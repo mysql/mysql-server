@@ -6291,24 +6291,23 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 }
 
 
-/*
-  Reload/resets privileges and the different caches.
+/**
+  @brief Reload/resets privileges and the different caches.
 
-  SYNOPSIS
-    reload_acl_and_cache()
-    thd			Thread handler (can be NULL!)
-    options             What should be reset/reloaded (tables, privileges,
-    slave...)
-    tables              Tables to flush (if any)
-    write_to_binlog     Depending on 'options', it may be very bad to write the
-                        query to the binlog (e.g. FLUSH SLAVE); this is a
-                        pointer where reload_acl_and_cache() will put 0 if
-                        it thinks we really should not write to the binlog.
-                        Otherwise it will put 1.
+  @param thd Thread handler (can be NULL!)
+  @param options What should be reset/reloaded (tables, privileges, slave...)
+  @param tables Tables to flush (if any)
+  @param write_to_binlog True if we can write to the binlog.
+               
+  @note Depending on 'options', it may be very bad to write the
+    query to the binlog (e.g. FLUSH SLAVE); this is a
+    pointer where reload_acl_and_cache() will put 0 if
+    it thinks we really should not write to the binlog.
+    Otherwise it will put 1.
 
-  RETURN
-    0	 ok
-    !=0  error.  thd->killed or thd->is_error() is set
+  @return Error status code
+    @retval 0 Ok
+    @retval !=0  Error; thd->killed is set or thd->is_error() is true
 */
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
