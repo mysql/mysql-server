@@ -1,14 +1,15 @@
 #include <arpa/inet.h>
 #include <ctype.h>
-#include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <unistd.h>
 
 #include "brt-internal.h"
 #include "log-internal.h"
@@ -488,14 +489,14 @@ int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *
     LSN v;
     int r = toku_fread_LSN(inf, &v, crc, len);
     if (r!=0) return r;
-    fprintf(outf, " %s=%lld", fieldname, v.lsn);
+    fprintf(outf, " %s=%" PRId64, fieldname, v.lsn);
     return 0;
 }
 int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
     TXNID v;
     int r = toku_fread_TXNID(inf, &v, crc, len);
     if (r!=0) return r;
-    fprintf(outf, " %s=%lld", fieldname, v);
+    fprintf(outf, " %s=%" PRId64, fieldname, v);
     return 0;
 }
 

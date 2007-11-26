@@ -22,16 +22,17 @@
  *     
  */
 
+#include <assert.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "brt-internal.h"
 #include "key.h"
 #include "log_header.h"
-
-#include <stdlib.h>
-#include <assert.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <errno.h>
 
 extern long long n_items_malloced;
 
@@ -1456,7 +1457,7 @@ static int setup_brt_root_node (BRT t, DISKOFF offset, TOKUTXN txn) {
     toku_log_newbrtnode(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), offset, 0, t->h->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, node->rand4fingerprint);
     if (txn) {
 	node->log_lsn = toku_txn_get_last_lsn(txn);
-	fprintf(stderr, "%s:%d last lsn=%llu\n", __FILE__, __LINE__, node->log_lsn.lsn);
+	fprintf(stderr, "%s:%d last lsn=%" PRId64 "\n", __FILE__, __LINE__, node->log_lsn.lsn);
     }
     r=toku_cachetable_unpin(t->cf, node->thisnodename, node->dirty, brtnode_size(node));
     if (r!=0) {
