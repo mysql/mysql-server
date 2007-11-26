@@ -365,7 +365,7 @@ sub collect_one_suite($$)
   # ----------------------------------------------------------------------
   # Proccess combinations only if new tests were added
   # ----------------------------------------------------------------------
-  if ($combinations && $begin_index <= $#{@$cases}) 
+  if (0 and $combinations && $begin_index <= $#{@$cases}) 
   { 
     my $end_index = $#{@$cases};
     my $is_copy;
