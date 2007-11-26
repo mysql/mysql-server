@@ -769,6 +769,8 @@ extern int toku_default_compare_fun(DB * db, const DBT * a, const DBT * b);
 int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
 
+    if (flags) return EINVAL;
+
     /* if the env already exists then add a ref to it
        otherwise create one */
     if (env) {
