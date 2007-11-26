@@ -12,5 +12,3 @@
 
 rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK on master
 rpl_stm_extraColmaster_ndb : WL#3915 : Statement-based replication not supported in ndb. Enable test when supported.
-rpl_extraColmaster_innodb : 2007-11-26 mats Disabled because it shows warnings that cannot be supressed
-rpl_extraColmaster_myisam : 2007-11-26 mats Disabled because it shows warnings that cannot be supressed
