@@ -63,6 +63,7 @@ $(RUN_ALL_TESTS):
 $(ALL_TESTS):
 
 %.run: %.bdbrun %.tdbrun
+	@ echo ok
 
 ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
