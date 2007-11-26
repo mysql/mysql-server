@@ -405,7 +405,7 @@ CACHEKEY test_size_flush_key;
 
 void test_size_flush_callback(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
     if (test_size_debug) printf("test_size_flush %p %lld %p %ld %d %d\n", f, key, value, size, do_write, keep);
-    assert(write != 0);
+    assert(do_write != 0);
     test_size_flush_key = key;
 }
 
