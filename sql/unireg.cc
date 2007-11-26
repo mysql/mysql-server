@@ -140,6 +140,9 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   strmake((char*) forminfo+47,create_info->comment ? create_info->comment : "",
 	  60);
   forminfo[46]=(uchar) strlen((char*)forminfo+47);	// Length of comment
+#ifdef EXTRA_DEBUG
+  memset((char*) forminfo+47 + forminfo[46], 0, 61 - forminfo[46]);
+#endif
 
   if (my_pwrite(file,(byte*) fileinfo,64,0L,MYF_RW) ||
       my_pwrite(file,(byte*) keybuff,key_info_length,
