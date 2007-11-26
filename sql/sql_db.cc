@@ -1387,7 +1387,7 @@ static void backup_current_db_name(THD *thd,
   }
   else
   {
-    strmake(saved_db_name->str, thd->db, saved_db_name->length);
+    strmake(saved_db_name->str, thd->db, saved_db_name->length - 1);
     saved_db_name->length= thd->db_length;
   }
 }
