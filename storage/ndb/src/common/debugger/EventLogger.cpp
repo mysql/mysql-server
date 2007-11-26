@@ -489,7 +489,7 @@ void getTextNR_CopyFragDone(QQQQ) {
   Uint32 rows = theData[4] + (Uint64(theData[5]) << 32);
   Uint64 bytes = theData[6] + (Uint64(theData[7]) << 32);
   BaseString::snprintf(m_text, m_text_len, 
-		       "Table ID = %u, fragment ID = %u have been copied "
+		       "Table ID = %u, fragment ID = %u have been synced "
 		       "to Node %u rows: %llu bytes: %llu ", 
 		       theData[2], 
 		       theData[3], 
