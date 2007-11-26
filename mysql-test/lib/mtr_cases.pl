@@ -483,9 +483,8 @@ sub optimize_cases {
       # Use dynamic switching of binlog-format if mtr started
       # w/o --mysqld=--binlog-format=xxx and combinations.
       # =======================================================
-      if (!defined $tinfo->{'combination'} and 
-          $tinfo->{'skip'} ne 1 and 
-          !defined $::used_binlog_format) 
+      if (!defined $tinfo->{'combination'} and
+          !defined $::used_binlog_format)
       {
         $test_binlog_format= $tinfo->{'sup_binlog_formats'}->[0];
       }
