@@ -314,6 +314,7 @@ mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
   --basedir=$basedir --datadir=$ldata --log-warnings=0 --loose-skip-innodb \
   --loose-skip-ndbcluster $args --max_allowed_packet=8M \
+  --default-storage-engine=myisam \
   --net_buffer_length=16K"
 
 # Create the system and help tables by passing them to "mysqld --bootstrap"
