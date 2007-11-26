@@ -10261,7 +10261,8 @@ Next_select_func setup_end_select_func(JOIN *join)
   /* Set up select_end */
   if (table)
   {
-    if (table->group && tmp_tbl->sum_func_count)
+    if (table->group && tmp_tbl->sum_func_count && 
+        !tmp_tbl->precomputed_group_by)
     {
       if (table->s->keys)
       {
