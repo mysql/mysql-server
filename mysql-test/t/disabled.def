@@ -15,15 +15,9 @@ concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random 
 ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Double Whopper
 
 federated_transactions   : Bug#29523 Transactions do not work
-ndb_dd_backuprestore     : Bug#32659 ndb_dd_backuprestore.test fails randomly
-binlog_multi_engine      : Bug#32663 binlog_multi_engine.test fails randomly
 events                   : Bug#32664 events.test fails randomly
 events_scheduling        : Bug#29830 Test case 'events_scheduling' fails on Mac OS X and Windows
 lowercase_table3         : Bug#32667 lowercase_table3.test reports to error log
-rpl_log              : Bug#32653: rpl_log.test fails randomly
-rpl_view             : Bug#32654: rpl_view.test fails randomly
-ndb_backup_print     : Bug#32357: ndb_backup_print test fails sometimes in pushbuild
 kill                 : Bug#29149: Test "kill" fails on Windows
 grant3               : Bug#32723: grant3.test fails
 innodb_mysql         : Bug#32724: innodb_mysql.test fails randomly
-rpl_ndb_multi        : Bug#30751: rpl_ndb_multi missing row in output
