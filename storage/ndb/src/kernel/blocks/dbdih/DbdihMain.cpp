@@ -3402,6 +3402,7 @@ done:
   
   if (maxLcpIndex == ~ (Uint32) 0)
   {
+    jam();
     ndbassert(gci == 0);
     replicaPtr.p->m_restorable_gci = gci;
     ndbout_c("Didnt find any LCP for node: %d tab: %d frag: %d",
@@ -3423,6 +3424,18 @@ done:
   }
   else
   {
+    jam();
+    if (gci != restorableGCI)
+    {
+      Ptr<TabRecord> tabPtr;
+      tabPtr.i = takeOverPtr.p->toCurrentTabref;
+      ptrAss(tabPtr, tabRecord);
+
+      FragmentstorePtr fragPtr;
+      getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
+      
+      dump_replica_info(fragPtr.p);
+    }
     ndbassert(gci == restorableGCI);
     replicaPtr.p->m_restorable_gci = gci;
     ndbout_c("Found LCP: %d(%d) maxGciStarted: %d maxGciCompleted: %d restorable: %d(%d) newestRestorableGCI: %d",
