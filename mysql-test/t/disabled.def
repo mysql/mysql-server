@@ -22,3 +22,4 @@ events_scheduling        : Bug#29830 Test case 'events_scheduling' fails on Mac 
 lowercase_table3         : Bug#32667 lowercase_table3.test reports to error log
 rpl_log              : Bug#32653: rpl_log.test fails randomly
 rpl_view             : Bug#32654: rpl_view.test fails randomly
+ndb_backup_print     : Bug#32357: ndb_backup_print test fails sometimes in pushbuild
