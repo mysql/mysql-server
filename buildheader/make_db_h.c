@@ -59,6 +59,8 @@ void print_defines (void) {
     dodefine(DB_INIT_LOG);
     dodefine(DB_INIT_MPOOL);
     dodefine(DB_INIT_TXN);
+    dodefine(DB_USE_ENVIRON);
+    dodefine(DB_USE_ENVIRON_ROOT);
 
     dodefine(DB_KEYEMPTY);
     dodefine(DB_KEYEXIST);

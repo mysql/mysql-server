@@ -9,9 +9,9 @@ extern "C" {
 #endif
 #define DB_VERSION_MAJOR 4
 #define DB_VERSION_MINOR 1
-#define DB_VERSION_PATCH 24
+#define DB_VERSION_PATCH 25
 #ifndef _TOKUDB_WRAP_H
-#define DB_VERSION_STRING "Tokutek: TokuDB 4.1.24"
+#define DB_VERSION_STRING "Tokutek: TokuDB 4.1.25"
 #else
 #define DB_VERSION_STRING_ydb "Tokutek: TokuDB (wrapped bdb)"
 #endif
@@ -56,6 +56,8 @@ typedef enum {
 #define DB_INIT_LOG 8192
 #define DB_INIT_MPOOL 16384
 #define DB_INIT_TXN 32768
+#define DB_USE_ENVIRON 512
+#define DB_USE_ENVIRON_ROOT 1024
 #define DB_KEYEMPTY -30998
 #define DB_KEYEXIST -30997
 #define DB_LOCK_DEADLOCK -30996
