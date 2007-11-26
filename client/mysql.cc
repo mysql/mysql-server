@@ -2166,7 +2166,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 {
   char		buff[200], time_buff[32], *pos;
   MYSQL_RES	*result;
-  ulong		timer, warnings;
+  ulong		timer, warnings= 0;
   uint		error= 0;
   int           err= 0;
 
@@ -2316,7 +2316,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
 
 end:
 
-  if (show_warnings == 1 && warnings >= 1) /* Show warnings if any */
+ /* Show warnings if any or error occured */
+  if (show_warnings == 1 && (warnings >= 1 || error))
     print_warnings();
 
   if (!error && !status.batch && 
