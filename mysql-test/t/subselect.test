@@ -2455,12 +2455,16 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (i INT);
 
 (SELECT i FROM t1) UNION (SELECT i FROM t1);
+#TODO:not supported
+--error ER_PARSE_ERROR
 SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS 
   (
    (SELECT i FROM t1) UNION 
    (SELECT i FROM t1)
   );
 
+#TODO:not supported
+--error ER_PARSE_ERROR
 SELECT * FROM t1 
 WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
 
@@ -2468,7 +2472,9 @@ WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
 --error 1064
 explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
   from t1;
-#supported
+
+#TODO:not supported
+--error ER_PARSE_ERROR
 explain select * from t1 where not exists 
   ((select t11.i from t1 t11) union (select t12.i from t1 t12));
 
@@ -3199,6 +3205,29 @@ WHERE b > (SELECT MIN(b) FROM t1 WHERE a = t1_outer.a)
 GROUP BY a;
 
 DROP TABLE t1;
+
+#
+# Bug #32036: EXISTS within a WHERE clause with a UNION crashes MySQL 5.122
+#
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1),(2);
+
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
+EXPLAIN EXTENDED
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
+
+
+#TODO:not supported
+--error ER_PARSE_ERROR
+EXPLAIN EXTENDED
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a) UNION 
+                               (SELECT 1 FROM t2 WHERE t1.a = t2.a));
+
+DROP TABLE t1,t2;
 
 
 --echo End of 5.0 tests.
