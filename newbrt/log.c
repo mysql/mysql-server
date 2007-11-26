@@ -210,8 +210,8 @@ int tokulogger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, DISKOFF disk
     if (is_add) {
 	BYTESTRING key  = { pair->keylen, (char*)kv_pair_key_const(pair) };
 	BYTESTRING data = { pair->vallen, (char*)kv_pair_val_const(pair) };
-	printf("Logging insertinleaf\n");
-	return toku_log_insertinleaf (txn, txn->txnid64, db->i->fileid, diskoff, key, data);
+	//printf("Logging insertinleaf\n");
+	return toku_log_insertinleaf (txn, toku_txn_get_txnid(txn), db->i->fileid, diskoff, key, data);
     }
     assert(0);
     if (txn==0) return 0;
