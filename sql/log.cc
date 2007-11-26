@@ -966,7 +966,7 @@ void MYSQL_LOG::make_log_name(char* buf, const char* log_ident)
   if (dir_len > FN_REFLEN)
     dir_len=FN_REFLEN-1;
   strnmov(buf, log_file_name, dir_len);
-  strmake(buf+dir_len, log_ident, FN_REFLEN - dir_len);
+  strmake(buf+dir_len, log_ident, FN_REFLEN - dir_len -1);
 }
 
 
