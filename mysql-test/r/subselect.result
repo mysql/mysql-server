@@ -3558,22 +3558,19 @@ SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS
 (SELECT i FROM t1) UNION 
 (SELECT i FROM t1)
 );
-i
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION 
+(SELECT i FROM t1)
+)' at line 3
 SELECT * FROM t1 
 WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
-i
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT i FROM t1)))' at line 2
 explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
 from t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union (select t12.i from t1 t12))
 from t1' at line 1
 explain select * from t1 where not exists 
 ((select t11.i from t1 t11) union (select t12.i from t1 t12));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-4	UNION	t12	system	NULL	NULL	NULL	NULL	0	const row not found
-NULL	UNION RESULT	<union2,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union (select t12.i from t1 t12))' at line 2
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(250), b INT auto_increment, PRIMARY KEY (b));
 insert into t1 (a) values (FLOOR(rand() * 100));
@@ -4150,4 +4147,26 @@ SELECT ((a1,a2) IN (SELECT * FROM t2 WHERE b2 > 0)) IS NULL FROM t1;
 0
 0
 DROP TABLE t1, t2;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1),(2);
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
+2
+2
+2
+EXPLAIN EXTENDED
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	select 2 AS `2` from `test`.`t1` where exists(select 1 AS `1` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`))
+EXPLAIN EXTENDED
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a) UNION 
+(SELECT 1 FROM t2 WHERE t1.a = t2.a));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION 
+(SELECT 1 FROM t2 WHERE t1.a = t2.a))' at line 2
+DROP TABLE t1,t2;
 End of 5.0 tests.
