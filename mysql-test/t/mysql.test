@@ -312,7 +312,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug29323.sql;
 
 # This should fail, with warnings as well
 --error 1
---exec $MYSQL --show-warnings test -e "create table t2 (id int) engine=nonexistent"
+--exec $MYSQL --show-warnings test -e "create table t2 (id int) engine=nonexistent2"
 
 drop tables t1, t2;
 
