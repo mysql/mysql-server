@@ -3091,7 +3091,7 @@ Dbdih::nr_start_fragment(Signal* signal,
 			 TakeOverRecordPtr takeOverPtr,
 			 ReplicaRecordPtr replicaPtr)
 {
-  Uint32 i, j = 0;
+  Uint32 i;
   Uint32 maxLcpId = 0;
   Uint32 maxLcpIndex = ~0;
   
@@ -3102,14 +3102,16 @@ Dbdih::nr_start_fragment(Signal* signal,
 	   takeOverPtr.p->toCurrentFragid,
 	   replicaPtr.p->nextLcp);
   
+  Int32 j = replicaPtr.p->noCrashedReplicas - 1;
   Uint32 idx = prevLcpNo(replicaPtr.p->nextLcp);
   for(i = 0; i<MAX_LCP_USED; i++, idx = prevLcpNo(idx))
   {
-    ndbout_c("scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
+    printf("scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
-      for (;j < replicaPtr.p->noCrashedReplicas; j++)
+      ndbout_c(" %u", stopGci);
+      for (; j>= 0; j--)
       {
 	ndbout_c("crashed replica: %d(%d) replicaLastGci: %d",
 		 j, 
@@ -3124,14 +3126,18 @@ Dbdih::nr_start_fragment(Signal* signal,
 	}
       }
     }
+    else
+    {
+      ndbout_c("");
+    }
   }
   
   idx = 2; // backward compat code
-  ndbout_c("scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
+  ndbout_c("- scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
   if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
   {
     Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
-    for (;j < replicaPtr.p->noCrashedReplicas; j++)
+    for (;j >= 0; j--)
     {
       ndbout_c("crashed replica: %d(%d) replicaLastGci: %d",
                j, 
