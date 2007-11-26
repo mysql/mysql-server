@@ -4741,10 +4741,13 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     about this call). We pass this along to all underlying MyISAM handlers
     and ignore it for the rest.
 
-  HA_EXTRA_PREPARE_FOR_DELETE:
+  HA_EXTRA_PREPARE_FOR_DROP:
     Only used by MyISAM, called in preparation for a DROP TABLE.
     It's used mostly by Windows that cannot handle dropping an open file.
     On other platforms it has the same effect as HA_EXTRA_FORCE_REOPEN.
+
+  HA_EXTRA_PREPARE_FOR_RENAME:
+    Informs the handler we are about to attempt a rename of the table.
 
   HA_EXTRA_READCHECK:
   HA_EXTRA_NO_READCHECK:
@@ -4880,14 +4883,15 @@ int ha_partition::extra(enum ha_extra_function operation)
   }
 
   /* Category 3), used by MyISAM handlers */
-  case HA_EXTRA_PREPARE_FOR_DELETE:
-    DBUG_RETURN(prepare_for_delete());
+  case HA_EXTRA_PREPARE_FOR_RENAME:
+    DBUG_RETURN(prepare_for_rename());
     break;
   case HA_EXTRA_NORMAL:
   case HA_EXTRA_QUICK:
   case HA_EXTRA_NO_READCHECK:
   case HA_EXTRA_PREPARE_FOR_UPDATE:
   case HA_EXTRA_FORCE_REOPEN:
+  case HA_EXTRA_PREPARE_FOR_DROP:
   case HA_EXTRA_FLUSH_CACHE:
   {
     if (m_myisam)
@@ -5046,24 +5050,24 @@ void ha_partition::prepare_extra_cache(uint cachesize)
     0                     Success
 */
 
-int ha_partition::prepare_for_delete()
+int ha_partition::prepare_for_rename()
 {
   int result= 0, tmp;
   handler **file;
-  DBUG_ENTER("ha_partition::prepare_for_delete()");
+  DBUG_ENTER("ha_partition::prepare_for_rename()");
   
   if (m_new_file != NULL)
   {
     for (file= m_new_file; *file; file++)
-      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_DELETE)))
+      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_RENAME)))
         result= tmp;      
     for (file= m_reorged_file; *file; file++)
-      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_DELETE)))
+      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_RENAME)))
         result= tmp;   
     DBUG_RETURN(result);   
   }
   
-  DBUG_RETURN(loop_extra(HA_EXTRA_PREPARE_FOR_DELETE));
+  DBUG_RETURN(loop_extra(HA_EXTRA_PREPARE_FOR_RENAME));
 }
 
 /*
