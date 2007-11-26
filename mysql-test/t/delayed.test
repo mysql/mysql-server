@@ -103,13 +103,13 @@ DROP TABLE t1;
 # Bug#20627 - INSERT DELAYED does not honour auto_increment_* variables
 #
 SET @bug20627_old_auto_increment_offset=
-                @@auto_increment_offset= 2;
+                @@auto_increment_offset;
 SET @bug20627_old_auto_increment_increment=
-                @@auto_increment_increment= 3;
+                @@auto_increment_increment;
 SET @bug20627_old_session_auto_increment_offset=
-                @@session.auto_increment_offset= 4;
+                @@session.auto_increment_offset;
 SET @bug20627_old_session_auto_increment_increment=
-                @@session.auto_increment_increment= 5;
+                @@session.auto_increment_increment;
 SET @@auto_increment_offset= 2;
 SET @@auto_increment_increment= 3;
 SET @@session.auto_increment_offset= 4;
@@ -151,13 +151,13 @@ SET             @@session.auto_increment_increment=
 # Bug#20830 - INSERT DELAYED does not honour SET INSERT_ID
 #
 SET @bug20830_old_auto_increment_offset=
-                @@auto_increment_offset= 2;
+                @@auto_increment_offset;
 SET @bug20830_old_auto_increment_increment=
-                @@auto_increment_increment= 3;
+                @@auto_increment_increment;
 SET @bug20830_old_session_auto_increment_offset=
-                @@session.auto_increment_offset= 4;
+                @@session.auto_increment_offset;
 SET @bug20830_old_session_auto_increment_increment=
-                @@session.auto_increment_increment= 5;
+                @@session.auto_increment_increment;
 SET @@auto_increment_offset= 2;
 SET @@auto_increment_increment= 3;
 SET @@session.auto_increment_offset= 4;
