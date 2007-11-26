@@ -1,11 +1,12 @@
 /* Dump the log from stdin to stdout. */
 #include <arpa/inet.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <zlib.h>
 #include <assert.h>
+#include <ctype.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <zlib.h>
 
 #include "brttypes.h"
 #include "log-internal.h"
@@ -113,14 +114,14 @@ void transcribe_header (void) {
     printf(" {size=%d", get_uint32());
     printf(" flags=%d", get_uint32());
     printf(" nodesize=%d", get_uint32());
-    printf(" freelist=%lld", get_uint64());
-    printf(" unused_memory=%lld",get_uint64());
+    printf(" freelist=%" PRId64, get_uint64());
+    printf(" unused_memory=%" PRId64,get_uint64());
     int n_roots=get_uint32();
     printf(" n_named_roots=%d", n_roots);
     if (n_roots>0) {
 	abort();
     } else {
-	printf(" root=%lld", get_uint64());
+	printf(" root=%" PRId64, get_uint64());
     }
     printf("}");
 }
