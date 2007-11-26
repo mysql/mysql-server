@@ -85,7 +85,7 @@ BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h hashtable.h pma.h brt.h br
 key.o: brttypes.h key.h
 pma-test.o: $(BRT_INTERNAL_H_INCLUDES) pma-internal.h pma.h list.h mempool.h
 pma-test: pma.o memory.o key.o ybt.o log.o mempool.o fingerprint.o brt-serialize.o hashtable.o primes.o log_code.o
-pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../include/db.h
+pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../include/db.h log_header.h
 ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o
 ybt-test.o: ybt.h ../include/db.h

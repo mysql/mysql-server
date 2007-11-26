@@ -208,14 +208,8 @@ int tokulogger_log_brt_insert_with_no_overwrite (TOKULOGGER logger,
 }
 
 int tokulogger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, DISKOFF diskoff, int is_add, const struct kv_pair *pair) {
+    assert(is_add==0);
     if (txn==0) return 0;
-    if (is_add) {
-	BYTESTRING key  = { pair->keylen, (char*)kv_pair_key_const(pair) };
-	BYTESTRING data = { pair->vallen, (char*)kv_pair_val_const(pair) };
-	//printf("Logging insertinleaf\n");
-	return toku_log_insertinleaf (txn, toku_txn_get_txnid(txn), db->i->fileid, diskoff, key, data);
-    }
-    assert(0);
     assert(db);
     int keylen = pair->keylen;
     int vallen = pair->vallen;

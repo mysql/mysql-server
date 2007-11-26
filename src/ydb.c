@@ -515,7 +515,7 @@ struct __toku_dbc_internal {
 };
 
 int __toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
-    int r = brt_cursor_get(c->i->c, key, data, flag, c->i->db, c->i->txn ? c->i->txn->i->tokutxn : 0);
+    int r = brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
     return r;
 }
 
@@ -550,7 +550,7 @@ int __toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
 }
 
 int __toku_db_del(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, u_int32_t flags __attribute((unused))) {
-    int r = brt_delete(db->i->brt, key, db);
+    int r = brt_delete(db->i->brt, key);
     return r;
 }
 
@@ -567,7 +567,7 @@ int __toku_db_get(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, DBT
             dbc->c_close(dbc);
         }
     } else
-        r = brt_lookup(db->i->brt, key, data, db);
+        r = brt_lookup(db->i->brt, key, data);
     return r;
 }
 
@@ -689,7 +689,7 @@ error_cleanup:
 }
 
 int __toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
-    int r = brt_insert(db->i->brt, key, data, db, txn ? txn->i->tokutxn : 0);
+    int r = brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
     //printf("%s:%d %d=__toku_db_put(...)\n", __FILE__, __LINE__, r);
     return r;
 }

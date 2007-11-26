@@ -21,6 +21,8 @@ struct cf_pair {
 } *cf_pairs;
 int n_cf_pairs=0, max_cf_pairs=0;
 
+DB * const null_db=0;
+
 CACHEFILE find_cachefile (FILENUM fnum) {
     int i;
     for (i=0; i<n_cf_pairs; i++) {
@@ -86,7 +88,7 @@ static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     n->local_fingerprint = 0; // nothing there yet
     n->dirty = 1;
     if (c->height==0) {
-	r=toku_pma_create(&n->u.l.buffer, toku_default_compare_fun, c->nodesize);
+	r=toku_pma_create(&n->u.l.buffer, dont_call_this_compare_fun, null_db, c->filenum, c->nodesize);
 	assert(r==0);
 	n->u.l.n_bytes_in_buffer=0;
     } else {

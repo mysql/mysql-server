@@ -9,7 +9,7 @@
 #include "cachetable.h"
 #include "log.h"
 
-int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*));
+int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 
 int brt_create(BRT *);
 int brt_set_flags(BRT, int flags);
@@ -21,9 +21,9 @@ int brt_set_cachetable(BRT, CACHETABLE);
 int brt_open(BRT, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn);
 int brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
-int brt_insert (BRT, DBT *, DBT *, DB*, TOKUTXN);
-int brt_lookup (BRT brt, DBT *k, DBT *v, DB*db);
-int brt_delete (BRT brt, DBT *k, DB *db);
+int brt_insert (BRT, DBT *, DBT *, TOKUTXN);
+int brt_lookup (BRT brt, DBT *k, DBT *v);
+int brt_delete (BRT brt, DBT *k);
 int close_brt (BRT);
 int dump_brt (BRT brt);
 void brt_fsync (BRT); /* fsync, but don't clear the caches. */
@@ -43,7 +43,7 @@ int show_brt_blocknumbers(BRT);
 
 typedef struct brt_cursor *BRT_CURSOR;
 int brt_cursor (BRT, BRT_CURSOR*);
-int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, DB *db, TOKUTXN);
+int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, TOKUTXN);
 int brt_cursor_delete(BRT_CURSOR cursor, int flags);
 int brt_cursor_close (BRT_CURSOR curs);
 
