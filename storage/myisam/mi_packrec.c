@@ -564,7 +564,7 @@ static void fill_quick_table(uint16 *table, uint bits, uint max_bits,
   */
   value|= (max_bits - bits) << 8 | IS_CHAR;
 
-  for (end= table + (uint) (((uint) 1 << bits)); table < end; table++)
+  for (end= table + ((my_ptrdiff_t) 1 << bits); table < end; table++)
   {
     *table= (uint16) value;
   }
