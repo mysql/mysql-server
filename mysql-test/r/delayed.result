@@ -73,13 +73,13 @@ a
 13
 DROP TABLE t1;
 SET @bug20627_old_auto_increment_offset=
-@@auto_increment_offset= 2;
+@@auto_increment_offset;
 SET @bug20627_old_auto_increment_increment=
-@@auto_increment_increment= 3;
+@@auto_increment_increment;
 SET @bug20627_old_session_auto_increment_offset=
-@@session.auto_increment_offset= 4;
+@@session.auto_increment_offset;
 SET @bug20627_old_session_auto_increment_increment=
-@@session.auto_increment_increment= 5;
+@@session.auto_increment_increment;
 SET @@auto_increment_offset= 2;
 SET @@auto_increment_increment= 3;
 SET @@session.auto_increment_offset= 4;
@@ -116,13 +116,13 @@ SET             @@session.auto_increment_offset=
 SET             @@session.auto_increment_increment=
 @bug20627_old_session_auto_increment_increment;
 SET @bug20830_old_auto_increment_offset=
-@@auto_increment_offset= 2;
+@@auto_increment_offset;
 SET @bug20830_old_auto_increment_increment=
-@@auto_increment_increment= 3;
+@@auto_increment_increment;
 SET @bug20830_old_session_auto_increment_offset=
-@@session.auto_increment_offset= 4;
+@@session.auto_increment_offset;
 SET @bug20830_old_session_auto_increment_increment=
-@@session.auto_increment_increment= 5;
+@@session.auto_increment_increment;
 SET @@auto_increment_offset= 2;
 SET @@auto_increment_increment= 3;
 SET @@session.auto_increment_offset= 4;
