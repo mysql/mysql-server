@@ -705,7 +705,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!head[32])				// New frm file in 3.23
   {
     share->avg_row_length= uint4korr(head+34);
-    share->transactional= (ha_choice) head[39];
+    share->transactional= (ha_choice) (head[39] & 3);
+    share->page_checksum= (ha_choice) ((head[39] >> 2) & 3);
     share->row_type= (row_type) head[40];
     share->table_charset= get_charset((uint) head[38],MYF(0));
     share->null_field_first= 1;
@@ -2435,7 +2436,9 @@ File create_frm(THD *thd, const char *name, const char *db,
     int2store(fileinfo+16,reclength);
     int4store(fileinfo+18,create_info->max_rows);
     int4store(fileinfo+22,create_info->min_rows);
+    /* fileinfo[26] is set in mysql_create_frm() */
     fileinfo[27]=2;				// Use long pack-fields
+    /* fileinfo[28 & 29] is set to key_info_length in mysql_create_frm() */
     create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
     int2store(fileinfo+30,create_info->table_options);
     fileinfo[32]=0;				// No filename anymore
@@ -2443,9 +2446,10 @@ File create_frm(THD *thd, const char *name, const char *db,
     int4store(fileinfo+34,create_info->avg_row_length);
     fileinfo[38]= (create_info->default_table_charset ?
 		   create_info->default_table_charset->number : 0);
-    fileinfo[39]= (uchar) create_info->transactional;
+    fileinfo[39]= (uchar) ((uint) create_info->transactional |
+                           ((uint) create_info->page_checksum << 2));
     fileinfo[40]= (uchar) create_info->row_type;
-    /* Next few bytes were for RAID support */
+    /* Next few bytes where for RAID support */
     fileinfo[41]= 0;
     fileinfo[42]= 0;
     fileinfo[43]= 0;

@@ -1008,7 +1008,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
         /* Calculate pos, end_pos, and max_length for variable length fields. */
 	if (count->field_type == FIELD_BLOB)
 	{
-	  uint field_length=count->field_length -mi_portable_sizeof_char_ptr;
+	  uint field_length=count->field_length -portable_sizeof_char_ptr;
 	  ulong blob_length= _mi_calc_blob_length(field_length, start_pos);
 	  memcpy_fixed((char*) &pos,  start_pos+field_length,sizeof(char*));
 	  end_pos=pos+blob_length;
@@ -2650,7 +2650,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	case FIELD_BLOB:
 	{
 	  ulong blob_length=_mi_calc_blob_length(field_length-
-						 mi_portable_sizeof_char_ptr,
+						 portable_sizeof_char_ptr,
 						 start_pos);
           /* Empty blobs are encoded with a single 1 bit. */
 	  if (!blob_length)
@@ -2667,7 +2667,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
             DBUG_PRINT("fields", ("FIELD_BLOB %lu bytes, bits: %2u",
                                   blob_length, count->length_bits));
 	    write_bits(blob_length,count->length_bits);
-	    memcpy_fixed(&blob,end_pos-mi_portable_sizeof_char_ptr,
+	    memcpy_fixed(&blob,end_pos-portable_sizeof_char_ptr,
 			 sizeof(char*));
 	    blob_end=blob+blob_length;
             /* Encode the blob bytes. */
