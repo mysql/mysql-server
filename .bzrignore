@@ -1845,6 +1845,7 @@ scripts/make_binary_distribution
 scripts/make_sharedlib_distribution
 scripts/make_win_binary_distribution
 scripts/make_win_src_distribution
+scripts/make_win_src_distribution_old
 scripts/msql2mysql
 scripts/mysql_config
 scripts/mysql_convert_table_format
