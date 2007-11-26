@@ -525,4 +525,26 @@ CREATE TABLE t2 (c1 INT) ENGINE=MERGE UNION=(t1) INSERT_METHOD=FIRST;
 CREATE TABLE IF NOT EXISTS t1 SELECT * FROM t2;
 DROP TABLE t1, t2;
 
+#
+# Bug #28837: MyISAM storage engine error (134) doing delete with self-join
+#
+
+CREATE TABLE t1 (id INT NOT NULL, ref INT NOT NULL, INDEX (id)) ENGINE=MyISAM;
+CREATE TABLE t2 LIKE t1;
+
+INSERT INTO t2 (id, ref) VALUES (1,3), (2,1), (3,2), (4,5), (4,4);
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t2;
+
+CREATE TABLE t3 (id INT NOT NULL, ref INT NOT NULL, INDEX (id)) ENGINE=MERGE
+                                                                UNION(t1);
+
+SELECT * FROM t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref;
+SELECT * FROM t3;
+DELETE FROM a USING t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref;
+SELECT * FROM t3;
+
+DROP TABLE t1, t2, t3;
+
+
 --echo End of 5.0 tests

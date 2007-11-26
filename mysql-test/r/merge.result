@@ -884,4 +884,41 @@ CREATE TABLE t2 (c1 INT) ENGINE=MERGE UNION=(t1) INSERT_METHOD=FIRST;
 CREATE TABLE IF NOT EXISTS t1 SELECT * FROM t2;
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 DROP TABLE t1, t2;
+CREATE TABLE t1 (id INT NOT NULL, ref INT NOT NULL, INDEX (id)) ENGINE=MyISAM;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 (id, ref) VALUES (1,3), (2,1), (3,2), (4,5), (4,4);
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t2;
+CREATE TABLE t3 (id INT NOT NULL, ref INT NOT NULL, INDEX (id)) ENGINE=MERGE
+UNION(t1);
+SELECT * FROM t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref;
+id	ref	ref
+4	4	5
+4	4	5
+4	4	5
+4	4	5
+SELECT * FROM t3;
+id	ref
+1	3
+2	1
+3	2
+4	5
+4	4
+1	3
+2	1
+3	2
+4	5
+4	4
+DELETE FROM a USING t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref;
+SELECT * FROM t3;
+id	ref
+1	3
+2	1
+3	2
+4	5
+1	3
+2	1
+3	2
+4	5
+DROP TABLE t1, t2, t3;
 End of 5.0 tests

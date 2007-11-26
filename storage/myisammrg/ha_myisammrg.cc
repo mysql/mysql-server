@@ -271,8 +271,12 @@ int ha_myisammrg::index_next_same(uchar * buf,
                                   const uchar *key __attribute__((unused)),
                                   uint length __attribute__((unused)))
 {
+  int error;
   ha_statistic_increment(&SSV::ha_read_next_count);
-  int error=myrg_rnext_same(file,buf);
+  do
+  {
+    error= myrg_rnext_same(file,buf);
+  } while (error == HA_ERR_RECORD_DELETED);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
