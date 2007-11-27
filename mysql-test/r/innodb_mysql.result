@@ -389,6 +389,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 name	dept
 DROP TABLE t1;
+drop table if exists t1;
 show variables like 'innodb_rollback_on_timeout';
 Variable_name	Value
 innodb_rollback_on_timeout	OFF
@@ -451,6 +452,7 @@ tes	1234
 drop table test;
 set global query_cache_type=@save_qcache_type;
 set global query_cache_size=@save_qcache_size;
+drop table if exists t1;
 show variables like 'innodb_rollback_on_timeout';
 Variable_name	Value
 innodb_rollback_on_timeout	OFF
@@ -775,6 +777,7 @@ EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using filesort
 DROP TABLE t1;
+drop table if exists t1;
 show variables like 'innodb_rollback_on_timeout';
 Variable_name	Value
 innodb_rollback_on_timeout	OFF
