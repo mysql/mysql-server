@@ -3739,13 +3739,12 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
-
+  pthread_mutex_unlock(&LOCK_user_locks);
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
-  pthread_mutex_unlock(&LOCK_user_locks);
   pthread_cond_destroy(&cond);
 
   return test(!error); 		// Return 1 killed
