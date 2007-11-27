@@ -20,3 +20,4 @@ grant_cache          : Bug#32651: grant_cache.test fails
 rpl_log              : Bug#32653: rpl_log.test fails randomly
 rpl_view             : Bug#32654: rpl_view.test fails randomly
 ndb_backup_print     : Bug#32357: ndb_backup_print test fails sometimes in pushbuild
+rpl_log_pos          : Bug#8693 Test 'rpl_log_pos' fails sometimes
