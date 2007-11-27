@@ -95,7 +95,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     int i;
-    for (i = 1; i <= (1<<16); i *= 2) {
+    for (i = 1; i <= (1<<16); i += 1) {
         test_rand_insert(i, 0);
     }
 
