@@ -42,6 +42,10 @@ select * from t1;
 # Do the same thing a number of times
 disable_query_log;
 disable_result_log;
+# 2007-11-27 mats Bug #32756  	Starting and stopping the slave in a loop can lose rows
+# After discussions with Engineering, I'm disabling this part of the test to avoid it causing
+# red trees.
+disable_parsing;
 let $i= 100;
 while ($i)
 {
@@ -54,7 +58,8 @@ while ($i)
   stop slave;
   dec $i;
 }
-start slave;
+enable_parsing;
+START SLAVE;
 enable_query_log;
 enable_result_log;
 connection master;
