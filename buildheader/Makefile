@@ -70,7 +70,7 @@ check32: sample_offsets_local
 	diff sample_offsets_local.h sample_offsets_32.h
 
 clean:
-	rm sample_offsets_mysql sample_offsets
+	rm -f sample_offsets_mysql sample_offsets sample_offsets_?_? *.o make_db_h_?_?
 install: db.h_$(BDB)
 	cp db.h_$(BDB) ../include/db.h
 

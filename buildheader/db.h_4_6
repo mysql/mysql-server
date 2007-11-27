@@ -40,6 +40,7 @@ typedef enum {
 #define DB_ARCH_ABS 1
 #define DB_ARCH_LOG 4
 #define DB_CREATE 1
+#define DB_EXCL 16384
 #define DB_PRIVATE 8388608
 #define DB_RDONLY 32
 #define DB_RECOVER 64
@@ -55,6 +56,8 @@ typedef enum {
 #define DB_INIT_LOG 262144
 #define DB_INIT_MPOOL 524288
 #define DB_INIT_TXN 2097152
+#define DB_USE_ENVIRON 16384
+#define DB_USE_ENVIRON_ROOT 32768
 #define DB_KEYEMPTY -30997
 #define DB_KEYEXIST -30996
 #define DB_LOCK_DEADLOCK -30995
