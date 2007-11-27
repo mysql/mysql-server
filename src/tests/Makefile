@@ -6,6 +6,12 @@
 # For very verbose output do 
 #   make VERBOSE=2
 
+ifndef BDB
+BDB = /usr
+endif
+BDB_CPPFLAGS = -I$(BDB)/include
+BDB_LDFLAGS = -L$(BDB)/lib
+
 ifeq ($(OSX),OSX)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
 LIBEXT=dylib
@@ -17,13 +23,9 @@ else
 SETTOKUENV=true
 UNSETTOKUENV=true
 LIBEXT=so
+BDB_LDFLAGS += -L$(BDB)/lib -ldb -Wl,-rpath,$(BDB)/lib
 TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,..
 VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
-endif
-
-ifneq ($(BDB),"")
-BDB_CPPFLAGS = -I$(BDB)/include
-BDB_LDFLAGS = -L$(BDB)/lib
 endif
 
 # VERBOSE=true
