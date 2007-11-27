@@ -119,20 +119,16 @@ static void fixup_child_fingerprint(BRTNODE node, int childnum_of_node, BRTNODE 
 static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck, unsigned int cl) {
     int cmp;
     DBT mydbt;
+    struct kv_pair *kv = (struct kv_pair *) ck;
     if (brt->flags & TOKU_DB_DUPSORT) {
-        bytevec k; unsigned int kl;
-        bytevec d; unsigned int dl;
-        assert(cl >= sizeof dl);
-        memcpy(&dl, ck, sizeof dl); 
-        assert(cl >= dl - (sizeof dl));
-        kl = cl - dl - (sizeof dl);
-        k = ck + (sizeof dl);
-        d = ck + (sizeof dl) + kl;
-        cmp = brt->compare_fun(brt->db, key, fill_dbt(&mydbt, k, kl));
+        assert(kv_pair_keylen(kv) + kv_pair_vallen(kv) == cl);
+        cmp = brt->compare_fun(brt->db, key, fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
         if (cmp == 0 && data != 0)
-            cmp = brt->dup_compare(brt->db, data, fill_dbt(&mydbt, d, dl));
-    } else 
-        cmp = brt->compare_fun(brt->db, key, fill_dbt(&mydbt, ck, cl));
+            cmp = brt->dup_compare(brt->db, data, fill_dbt(&mydbt, kv_pair_val(kv), kv_pair_vallen(kv)));
+    } else {
+        assert(kv_pair_keylen(kv) == cl);
+        cmp = brt->compare_fun(brt->db, key, fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
+    }
     return cmp;
 }
 
@@ -694,7 +690,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	node->u.n.childkeylens[cnum] = node->u.n.childkeylens[cnum-1];
         node->u.n.pivotflags[cnum] = node->u.n.pivotflags[cnum-1];
     }
-    node->u.n.childkeys[childnum]= (char*)childsplitk->data;
+    node->u.n.childkeys[childnum]= (void*)childsplitk->data;
     node->u.n.childkeylens[childnum]= childsplitk->size;
     node->u.n.pivotflags[childnum] = childsplitk->flags;
     node->u.n.totalchildkeylens += childsplitk->size;

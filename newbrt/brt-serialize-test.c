@@ -28,7 +28,8 @@ void test_serialize(void) {
     sn.rand4fingerprint = randval;
     sn.local_fingerprint = 0;
     sn.u.n.n_children = 2;
-    sn.u.n.childkeys[0]    = hello_string = toku_strdup("hello");
+    hello_string = toku_strdup("hello");
+    sn.u.n.childkeys[0] = kv_pair_malloc(hello_string, 6, 0, 0); 
     sn.u.n.childkeylens[0] = 6;
     sn.u.n.totalchildkeylens = 6;
     sn.u.n.pivotflags[0] = 42;
@@ -54,7 +55,7 @@ void test_serialize(void) {
     assert(dn->height == 1);
     assert(dn->rand4fingerprint==randval);
     assert(dn->u.n.n_children==2);
-    assert(strcmp(dn->u.n.childkeys[0], "hello")==0);
+    assert(strcmp(kv_pair_key(dn->u.n.childkeys[0]), "hello")==0);
     assert(dn->u.n.childkeylens[0]==6);
     assert(dn->u.n.totalchildkeylens==6);
     assert(dn->u.n.pivotflags[0]==42);
@@ -89,6 +90,7 @@ void test_serialize(void) {
     }
     brtnode_free(&dn);
 
+    kv_pair_free(sn.u.n.childkeys[0]);
     toku_free(hello_string);
     toku_hashtable_free(&sn.u.n.htables[0]);
     toku_hashtable_free(&sn.u.n.htables[1]);

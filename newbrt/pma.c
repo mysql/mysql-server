@@ -69,6 +69,32 @@ static int __pma_compare_kv(PMA pma, struct kv_pair *a, struct kv_pair *b);
 
 /**************************** end of static functions forward declarations. *********************/
 
+/* use the low bit in the kv_pair pointer to indicate an inuse pair that is deleted */
+
+static inline int kv_pair_inuse(struct kv_pair *pair) {
+    return pair != 0;
+}
+
+static inline int kv_pair_deleted(struct kv_pair *pair) {
+    return ((long) pair & 1) != 0;
+}
+
+static inline int kv_pair_valid(struct kv_pair *pair) {
+    return kv_pair_inuse(pair) && !kv_pair_deleted(pair);
+}
+
+static inline struct kv_pair *kv_pair_set_deleted(struct kv_pair *pair) {
+    return (struct kv_pair *) ((long) pair | 1);
+}
+
+static inline struct kv_pair *kv_pair_ptr(struct kv_pair *pair) {
+    return (struct kv_pair *) ((long) pair & ~1);
+}
+
+struct kv_pair_tag {
+    struct kv_pair *pair;
+    int oldtag, newtag;
+};
 
 #ifndef PMA_USE_MEMPOOL
 #define PMA_USE_MEMPOOL 1
@@ -1394,16 +1420,11 @@ int toku_pma_split(PMA origpma, unsigned int *origpma_size, DBT *splitk,
     if (splitk) {
         struct kv_pair *a = pairs[spliti-1].pair;
         if (origpma->dup_mode & TOKU_DB_DUPSORT) {
-            int kl = kv_pair_keylen(a);
-            int vl = kv_pair_vallen(a);
-            splitk->size = (sizeof vl) + kl + vl;
-            splitk->data = toku_malloc(splitk->size);
-            memcpy(splitk->data, &vl, sizeof vl);
-            memcpy(splitk->data + (sizeof vl), kv_pair_key(a), kl);
-            memcpy(splitk->data + (sizeof vl) + kl, kv_pair_val(a), vl);
+            splitk->data = kv_pair_malloc(kv_pair_key(a), kv_pair_keylen(a), kv_pair_val(a), kv_pair_vallen(a));
+            splitk->size = kv_pair_keylen(a) + kv_pair_vallen(a);
         } else {
+            splitk->data = kv_pair_malloc(kv_pair_key(a), kv_pair_keylen(a), 0, 0);
             splitk->size = kv_pair_keylen(a);
-            splitk->data = memdup(kv_pair_key(a), splitk->size);
         }
         splitk->flags = BRT_PIVOT_PRESENT_L;
         if (spliti < npairs && __pma_compare_kv(origpma, a, pairs[spliti].pair) == 0) {

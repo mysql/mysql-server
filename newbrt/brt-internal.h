@@ -41,7 +41,7 @@ struct brtnode {
 	    // Don't actually store the subree fingerprint in the in-memory data structure.
 	    int             n_children;  /* if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced. */
 	    u_int32_t       child_subtree_fingerprints[TREE_FANOUT+1];
-	    bytevec         childkeys[TREE_FANOUT];   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
+	    struct kv_pair *childkeys[TREE_FANOUT];   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
 							 Note: It is possible that Child 1's keys are == to child 0's key's, so it is
 							 not necessarily true that child 1's keys are > childkeys[0].
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
