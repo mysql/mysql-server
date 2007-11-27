@@ -1297,4 +1297,14 @@ create table t1
 partition by key(s1) partitions 3;
 insert into t1 values (null,null);
 drop table t1;
+CREATE TABLE t1(a int)
+PARTITION BY RANGE (a) (
+PARTITION p1 VALUES LESS THAN (10),
+PARTITION p2 VALUES LESS THAN (20)
+);
+ALTER TABLE t1 OPTIMIZE PARTITION p1 EXTENDED;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTENDED' at line 1
+ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTENDED' at line 1
+DROP TABLE t1;
 End of 5.1 tests
