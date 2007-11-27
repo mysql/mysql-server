@@ -7,8 +7,10 @@
  *   The Latex documentation.
  */
 #include <assert.h>
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -16,9 +18,10 @@
 typedef struct field {
     char *type;
     char *name;
+    char *format; // optional format string
 } F;
 
-#define NULLFIELD {0,0}
+#define NULLFIELD {0,0,0}
 #define FA (F[])
 
 struct logtype {
@@ -32,38 +35,38 @@ struct logtype {
 int logformat_version_number = 0;
 
 const struct logtype logtypes[] = {
-    {"commit", 'C', FA{{"TXNID", "txnid"},NULLFIELD}},
-    {"delete", 'D', FA{{"FILENUM", "filenum"},
-		       {"DISKOFF", "diskoff"},
-		       {"BYTESTRING", "key"},
-		       {"BYTESTRING", "data"},
+    {"commit", 'C', FA{{"TXNID", "txnid", 0},NULLFIELD}},
+    {"delete", 'D', FA{{"FILENUM", "filenum", 0},
+		       {"DISKOFF", "diskoff", 0},
+		       {"BYTESTRING", "key", 0},
+		       {"BYTESTRING", "data", 0},
 		       NULLFIELD}},
-    {"fcreate", 'F', FA{{"TXNID",      "txnid"},
-			{"BYTESTRING", "fname"},
-			{"u_int32_t",  "mode"},
+    {"fcreate", 'F', FA{{"TXNID",      "txnid", 0},
+			{"BYTESTRING", "fname", 0},
+			{"u_int32_t",  "mode",  "0%o"},
 			NULLFIELD}},
-    {"fheader", 'H',    FA{{"TXNID",      "txnid"},
-			   {"FILENUM",    "filenum"},
-			   {"LOGGEDBRTHEADER",  "header"},
+    {"fheader", 'H',    FA{{"TXNID",      "txnid", 0},
+			   {"FILENUM",    "filenum", 0},
+			   {"LOGGEDBRTHEADER",  "header", 0},
 			   NULLFIELD}},
-    {"newbrtnode", 'N', FA{{"TXNID",   "txnid"},
-			   {"FILENUM", "filenum"},
-			   {"DISKOFF", "diskoff"},
-			   {"u_int32_t", "height"},
-			   {"u_int32_t", "nodesize"},
-			   {"u_int8_t", "is_dup_sort"},
-			   {"u_int32_t", "rand4fingerprint"},
+    {"newbrtnode", 'N', FA{{"TXNID",   "txnid", 0},
+			   {"FILENUM", "filenum", 0},
+			   {"DISKOFF", "diskoff", 0},
+			   {"u_int32_t", "height", 0},
+			   {"u_int32_t", "nodesize", 0},
+			   {"u_int8_t", "is_dup_sort", 0},
+			   {"u_int32_t", "rand4fingerprint", 0},
 			   NULLFIELD}},
-    {"fopen",   'O', FA{{"TXNID",      "txnid"},
-			{"BYTESTRING", "fname"},
-			{"FILENUM",    "filenum"},
+    {"fopen",   'O', FA{{"TXNID",      "txnid", 0},
+			{"BYTESTRING", "fname", 0},
+			{"FILENUM",    "filenum", 0},
 			NULLFIELD}},
-    {"insertinleaf", 'I', FA{{"TXNID",      "txnid"},
-			     {"FILENUM",    "filenum"},
-			     {"DISKOFF",    "diskoff"},
-			     {"u_int32_t",  "pmaidx"},
-			     {"BYTESTRING", "key"},
-			     {"BYTESTRING", "data"},
+    {"insertinleaf", 'I', FA{{"TXNID",      "txnid", 0},
+			     {"FILENUM",    "filenum", 0},
+			     {"DISKOFF",    "diskoff", 0},
+			     {"u_int32_t",  "pmaidx", 0},
+			     {"BYTESTRING", "key", 0},
+			     {"BYTESTRING", "data", 0},
                              NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
@@ -212,6 +215,7 @@ void generate_log_reader (void) {
 }
 
 void generate_logprint (void) {
+    unsigned maxnamelen=0;
     fprintf2(cf, hf, "int toku_logprint_one_record(FILE *outf, FILE *f)");
     fprintf(hf, ";\n");
     fprintf(cf, " {\n");
@@ -226,13 +230,21 @@ void generate_logprint (void) {
     fprintf(cf, "    char charcmd = cmd;\n");
     fprintf(cf, "    crc = toku_crc32(crc, &charcmd, 1);\n");
     fprintf(cf, "    switch ((enum lt_cmd)cmd) {\n");
+    DO_LOGTYPES(lt, ({ if (strlen(lt->name)>maxnamelen) maxnamelen=strlen(lt->name); }));
     DO_LOGTYPES(lt, ({
 			fprintf(cf, "    case LT_%s: \n", lt->name);
 			// We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
-			fprintf(cf, "        fprintf(outf, \"%%s:\", \"%s\");\n", lt->name); 
-			fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &crc, &len);     if (r!=0) return r;\n", "LSN");
+			fprintf(cf, "        fprintf(outf, \"%%-%ds \", \"%s\");\n", maxnamelen, lt->name);
+			if (isprint(lt->command)) fprintf(cf,"        fprintf(outf, \" '%c':\");\n", lt->command);
+			else                      fprintf(cf,"        fprintf(outf, \"0%03o:\");\n", lt->command);
+			fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &crc, &len, 0);     if (r!=0) return r;\n", "LSN");
 			DO_FIELDS(ft, lt,
-				  fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &crc, &len);     if (r!=0) return r;\n", ft->type, ft->name));
+				  ({
+				      fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &crc, &len,", ft->type, ft->name);
+				      if (ft->format) fprintf(cf, "\"%s\"", ft->format);
+				      else            fprintf(cf, "0");
+				      fprintf(cf, "); if (r!=0) return r;\n");
+				  }));
 			fprintf(cf, "        r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
 			fprintf(cf, "        fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
 			fprintf(cf, "        if (crc_in_file!=crc) fprintf(outf, \" actual_crc=%%08x\", crc);\n");

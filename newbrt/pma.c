@@ -1563,3 +1563,13 @@ void toku_pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t
 		);
     assert(actual_fingerprint==fingerprint);
 }
+
+// If the index is wrong or there is a value already, return nonzero
+// There should be no cursors, but if there were they wouldn't need to be updated.
+int toku_pma_set_at_index (PMA pma, int idx, DBT *key, DBT *value) {
+    if (idx<0 || idx>=pma->N) return -1;
+    if (kv_pair_inuse(pma->pairs[idx])) return -1;
+    pma->pairs[idx] = pma_malloc_kv_pair(pma, key->data, key->size, value->data, value->size);
+    pma->n_pairs_present++;
+    return 0;
+}
