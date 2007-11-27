@@ -25,8 +25,8 @@ typedef struct brtnode *BRTNODE;
 /* Internal nodes. */
 struct brtnode {
     enum typ_tag tag;
-    //    BRT          brt;       // The containing BRT     
     unsigned int nodesize;
+    unsigned int flags;
     DISKOFF thisnodename;   // The size of the node allocated on disk.  Not all is necessarily in use.
     LSN     disk_lsn;       // The LSN as of the most recent version on disk.
     LSN     log_lsn;        // The LSN as of the most recent log write. 

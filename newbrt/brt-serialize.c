@@ -16,6 +16,7 @@ static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokulea
 					    8+   // checkpoint number
 					    4+   // block size
 					    4+   // data size
+					    4+   // flags
 					    4+   // height
 					    4+   // random for fingerprint
 					    4+   // localfingerprint
@@ -102,6 +103,7 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     wbuf_ulonglong(&w, node->log_lsn.lsn);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_int(&w, calculated_size);
+    wbuf_int(&w, node->flags);
     wbuf_int(&w, node->height);
     //printf("%s:%d %lld rand=%08x sum=%08x height=%d\n", __FILE__, __LINE__, node->thisnodename, node->rand4fingerprint, node->subtree_fingerprint, node->height);
     wbuf_int(&w, node->rand4fingerprint);
@@ -126,7 +128,15 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
         for (i=0; i<node->u.n.n_children-1; i++) 
             wbuf_char(&w, node->u.n.pivotflags[i]);
 	for (i=0; i<node->u.n.n_children-1; i++) {
-	    wbuf_bytes(&w, node->u.n.childkeys[i], node->u.n.childkeylens[i]);
+            if (node->flags & TOKU_DB_DUPSORT) {
+                int keylen = node->u.n.childkeylens[i];
+                int datalen;
+                memcpy(&datalen, node->u.n.childkeys[i], sizeof datalen);
+                keylen = keylen - 4 - datalen;
+                wbuf_bytes(&w, node->u.n.childkeys[i] + 4, keylen);
+                wbuf_bytes(&w, node->u.n.childkeys[i] + 4 + keylen, datalen);
+            } else
+                wbuf_bytes(&w, node->u.n.childkeys[i], node->u.n.childkeylens[i]);
 	    //printf("%s:%d w.ndone=%d (childkeylen[%d]=%d\n", __FILE__, __LINE__, w.ndone, i, node->childkeylens[i]);
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
@@ -250,6 +260,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
     }
     result->nodesize = nodesize; // How to compute the nodesize?
     result->thisnodename = off;
+    result->flags = rbuf_int(&rc); assert(result->flags == (unsigned int) flags);
     result->height = rbuf_int(&rc);
     result->rand4fingerprint = rbuf_int(&rc);
     result->local_fingerprint = rbuf_int(&rc);
@@ -281,10 +292,24 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
         for (i=0; i<result->u.n.n_children-1; i++) 
             result->u.n.pivotflags[i] = rbuf_char(&rc);
 	for (i=0; i<result->u.n.n_children-1; i++) {
-	    bytevec childkeyptr;
-	    rbuf_bytes(&rc, &childkeyptr, &result->u.n.childkeylens[i]); /* Returns a pointer into the rbuf. */
+            if (result->flags & TOKU_DB_DUPSORT) {
+                bytevec keyptr, dataptr;
+                unsigned int keylen, datalen;
+                rbuf_bytes(&rc, &keyptr, &keylen);
+                rbuf_bytes(&rc, &dataptr, &datalen);
+                result->u.n.childkeylens[i] = keylen + datalen + 4;
+                void *vp = toku_malloc(result->u.n.childkeylens[i]);
+                result->u.n.childkeys[i] = vp;
+                memcpy(vp, &datalen, sizeof datalen);
+                memcpy(vp + 4, keyptr, keylen);
+                memcpy(vp + 4 + keylen, dataptr, datalen);
+            } else {
+                bytevec childkeyptr;
+                rbuf_bytes(&rc, &childkeyptr, &result->u.n.childkeylens[i]); /* Returns a pointer into the rbuf. */
 	    result->u.n.childkeys[i] = memdup(childkeyptr, result->u.n.childkeylens[i]);
-	    //printf(" key %d length=%d data=%s\n", i, result->childkeylens[i], result->childkeys[i]);
+	    
+            }
+            //printf(" key %d length=%d data=%s\n", i, result->childkeylens[i], result->childkeys[i]);
 	    result->u.n.totalchildkeylens+=result->u.n.childkeylens[i];
 	}
 	for (i=0; i<result->u.n.n_children; i++) {

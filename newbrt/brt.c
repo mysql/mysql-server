@@ -296,8 +296,8 @@ DISKOFF malloc_diskblock (BRT brt, int size) {
 static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) {
     int i;
     n->tag = TYP_BRTNODE;
-    //    n->brt = t;
     n->nodesize = t->h->nodesize;
+    n->flags = t->h->flags;
     n->thisnodename = nodename;
     n->disk_lsn.lsn = 0; // a new one can always be 0.
     n->log_lsn = n->disk_lsn;
