@@ -106,6 +106,7 @@ void sample_db_offsets (void) {
     /* Do these in alphabetical order. */
     field_counter=0;
     STRUCT_SETUP(DB, app_private,    "void *%s");
+    STRUCT_SETUP(DB, associate,      "int (*%s) (DB*, DB_TXN*, DB*, int(*)(DB*, const DBT*, const DBT*, DBT*), u_int32_t)");
     STRUCT_SETUP(DB, close,          "int (*%s) (DB*, u_int32_t)");
     STRUCT_SETUP(DB, cursor,         "int (*%s) (DB *, DB_TXN *, DBC **, u_int32_t)");
     STRUCT_SETUP(DB, dbenv,          "DB_ENV *%s");
