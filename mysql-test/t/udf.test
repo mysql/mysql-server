@@ -415,4 +415,25 @@ DROP PROCEDURE check_const_len_sp;
 DROP TRIGGER check_const_len_trigger;
 DROP TABLE const_len_bug;
 
+
+#
+# Bug #30355: Incorrect ordering of UDF results
+#
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION sequence RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (4),(3),(2),(1);
+INSERT INTO t2 SELECT * FROM t1;
+
+SELECT sequence() AS seq, a FROM t1 ORDER BY seq ASC;
+SELECT sequence() AS seq, a FROM t1 ORDER BY seq DESC;
+
+SELECT * FROM t1 WHERE a = sequence();
+SELECT * FROM t2 WHERE a = sequence();
+
+DROP FUNCTION sequence;
+DROP TABLE t1,t2;
+
 --echo End of 5.0 tests.

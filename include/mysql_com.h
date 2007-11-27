@@ -405,6 +405,10 @@ typedef struct st_udf_init
   my_bool const_item;
   void *extension;
 } UDF_INIT;
+/* 
+  TODO: add a notion for determinism of the UDF. 
+  See Item_udf_func::update_used_tables ()
+*/
 
   /* Constants when using compression */
 #define NET_HEADER_SIZE 4		/* standard header size */
