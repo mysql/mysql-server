@@ -250,6 +250,9 @@ public:
   Field *field;
   char *min_value,*max_value;			// Pointer to range
 
+  /*
+    eq_tree() requires that left == right == 0 if the type is MAYBE_KEY.
+   */
   SEL_ARG *left,*right;   /* R-B tree children */
   SEL_ARG *next,*prev;    /* Links for bi-directional interval list */
   SEL_ARG *parent;        /* R-B tree parent */
@@ -265,7 +268,7 @@ public:
   SEL_ARG(Field *field, uint8 part, char *min_value, char *max_value,
 	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag);
   SEL_ARG(enum Type type_arg)
-    :min_flag(0),elements(1),use_count(1),left(0),next_key_part(0),
+    :min_flag(0),elements(1),use_count(1),left(0),right(0),next_key_part(0),
     color(BLACK), type(type_arg)
   {}
   inline bool is_same(SEL_ARG *arg)
