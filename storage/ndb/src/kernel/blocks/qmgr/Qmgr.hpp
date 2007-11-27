@@ -266,6 +266,8 @@ private:
   void execALLOC_NODEID_CONF(Signal *);
   void execALLOC_NODEID_REF(Signal *);
   void completeAllocNodeIdReq(Signal *);
+  
+  void execSTART_ORD(Signal*);
 
   // Arbitration signals
   void execARBIT_CFG(Signal* signal);
@@ -284,6 +286,7 @@ private:
   void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
   Uint32 check_startup(Signal* signal);
 
+  void api_failed(Signal* signal, Uint32 aFailedNode);
   void node_failed(Signal* signal, Uint16 aFailedNode);
   void checkStartInterface(Signal* signal);
   void failReport(Signal* signal,

@@ -1548,6 +1548,38 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int runBug22696(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  Uint32 loops = ctx->getNumLoops();
+  Uint32 rows = ctx->getNumRecords();
+  NdbRestarter restarter;
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  Uint32 i = 0;
+  while(i<=loops && result != NDBT_FAILED)
+  {
+    for (Uint32 j = 0; j<10 && result != NDBT_FAILED; j++)
+      CHECK(hugoTrans.scanUpdateRecords(pNdb, rows) == 0);
+    
+    CHECK(restarter.restartAll(false, true, i > 0 ? true : false) == 0);
+    CHECK(restarter.waitClusterNoStart() == 0);
+    CHECK(restarter.insertErrorInAllNodes(7072) == 0);
+    CHECK(restarter.startAll() == 0);
+    CHECK(restarter.waitClusterStarted() == 0);
+
+    i++;
+    if (i < loops)
+    {
+      NdbSleep_SecSleep(5); // Wait for a few gcp
+    }
+  }
+  
+  ctx->stopTest();  
+  return result;
+}
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -1810,6 +1842,13 @@ TESTCASE("Bug28770",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runBug28770);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug22696", "")
+{
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBug22696);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testSystemRestart);

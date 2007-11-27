@@ -6979,7 +6979,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                                          (MODE_STRICT_TRANS_TABLES |
                                           MODE_STRICT_ALL_TABLES));
 
-  from->file->info(HA_STATUS_VARIABLE);
+  from->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   to->file->ha_start_bulk_insert(from->file->stats.records);
 
   save_sql_mode= thd->variables.sql_mode;
