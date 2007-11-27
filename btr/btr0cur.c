@@ -68,6 +68,11 @@ this many index pages */
 /*--------------------------------------*/
 #define BTR_BLOB_HDR_SIZE		8
 
+/* A BLOB field reference full of zero, for use in assertions and tests.
+Initially, BLOB field references are set to zero, in
+dtuple_convert_big_rec(). */
+const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
+
 /***********************************************************************
 Marks all extern fields in a record as owned by the record. This function
 should be called if the delete mark of a record is removed: a not delete
@@ -4527,6 +4532,8 @@ btr_copy_externally_stored_field_prefix(
 
 	memcpy(buf, data, local_len);
 	data += local_len;
+
+	ut_a(memcmp(data, field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
 
 	space_id = mach_read_from_4(data + BTR_EXTERN_SPACE_ID);
 

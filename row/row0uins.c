@@ -283,7 +283,7 @@ row_undo_ins(
 
 		entry = row_build_index_entry(node->row, node->ext,
 					      node->index, node->heap);
-
+		ut_a(entry);
 		err = row_undo_ins_remove_sec(node->index, entry);
 
 		if (err != DB_SUCCESS) {

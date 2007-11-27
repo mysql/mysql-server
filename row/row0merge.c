@@ -281,6 +281,7 @@ row_merge_buf_add(
 			byte*	buf = row_ext_lookup(ext, col_no,
 						     field_data, len, &len);
 			if (UNIV_LIKELY_NULL(buf)) {
+				ut_a(buf != field_ref_zero);
 				if (i < dict_index_get_n_unique(index)) {
 					dfield_set_data(field, buf, len);
 				} else {
@@ -292,6 +293,7 @@ row_merge_buf_add(
 			byte*	buf = row_ext_lookup(ext, col_no,
 						     field_data, len, &len);
 			if (UNIV_LIKELY_NULL(buf)) {
+				ut_a(buf != field_ref_zero);
 				dfield_set_data(field, buf, len);
 			}
 		}
