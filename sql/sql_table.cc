@@ -1521,6 +1521,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       built_query.append("DROP TABLE ");
   }
 
+  mysql_ha_rm_tables(thd, tables);
+
   pthread_mutex_lock(&LOCK_open);
 
   /*
@@ -1562,8 +1564,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     handlerton *table_type;
     enum legacy_db_type frm_db_type;
 
-    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, 1);
-
     error= drop_temporary_table(thd, table);
 
     switch (error) {
@@ -1572,13 +1572,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       tmp_table_deleted= 1;
       continue;
     case -1:
-      // table already in use
-      /*
-        XXX: This branch should never be taken outside of SF, trigger or
-             prelocked mode.
-
-        DBUG_ASSERT(thd->in_sub_stmt);
-      */
+      DBUG_ASSERT(thd->in_sub_stmt);
       error= 1;
       goto err_with_placeholders;
     default:
@@ -4025,7 +4019,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL, FALSE);
+  mysql_ha_rm_tables(thd, tables);
+
   for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
@@ -5766,8 +5761,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   build_table_filename(reg_path, sizeof(reg_path), db, table_name, reg_ext, 0);
   build_table_filename(path, sizeof(path), db, table_name, "", 0);
 
-
-  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL, FALSE);
+  mysql_ha_rm_tables(thd, table_list);
 
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)

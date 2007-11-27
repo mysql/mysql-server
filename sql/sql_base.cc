@@ -87,7 +87,6 @@ bool Prelock_error_handler::safely_trapped_errors()
   @defgroup Data_Dictionary Data Dictionary
   @{
 */
-
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 static HASH table_def_cache;
@@ -929,8 +928,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info="Flushing tables";
 
     close_old_data_files(thd,thd->open_tables,1,1);
-    mysql_ha_flush(thd, tables, MYSQL_HA_REOPEN_ON_USAGE | MYSQL_HA_FLUSH_ALL,
-                   TRUE);
+    mysql_ha_flush(thd);
+
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info",
@@ -2516,7 +2515,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     deadlock may occur.
   */
   if (thd->handler_tables)
-    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
+    mysql_ha_flush(thd);
 
   /*
     Actually try to find the table in the open_cache.
@@ -3136,7 +3135,7 @@ bool wait_for_tables(THD *thd)
   {
     thd->some_tables_deleted=0;
     close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
-    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
+    mysql_ha_flush(thd);
     if (!table_is_used(thd->open_tables,1))
       break;
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -3554,7 +3553,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     temporary mem_root for new .frm parsing.
     TODO: variables for size
   */
-  init_alloc_root(&new_frm_mem, 8024, 8024);
+  init_sql_alloc(&new_frm_mem, 8024, 8024);
 
   thd->current_tablenr= 0;
  restart:
