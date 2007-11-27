@@ -78,7 +78,6 @@ EXPORTS
 	mysql_next_result
 	mysql_num_fields
 	mysql_num_rows
-	mysql_odbc_escape_string
 	mysql_options
 	mysql_ping
 	mysql_query
