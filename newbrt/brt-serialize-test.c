@@ -19,6 +19,7 @@ void test_serialize(void) {
     //    source_brt.fd=fd;
     char *hello_string;
     sn.nodesize = nodesize;
+    sn.flags = 0x11223344;
     sn.thisnodename = sn.nodesize*20;
     sn.disk_lsn.lsn = 789;
     sn.log_lsn.lsn  = 123456;
@@ -44,7 +45,7 @@ void test_serialize(void) {
 
     toku_serialize_brtnode_to(fd, sn.nodesize*20, sn.nodesize, &sn);  assert(r==0);
 
-    r = toku_deserialize_brtnode_from(fd, nodesize*20, &dn, 0, nodesize, 0, 0, 0, (FILENUM){0});
+    r = toku_deserialize_brtnode_from(fd, nodesize*20, &dn, sn.flags, nodesize, 0, 0, 0, (FILENUM){0});
     assert(r==0);
 
     assert(dn->thisnodename==nodesize*20);
