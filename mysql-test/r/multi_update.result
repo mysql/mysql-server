@@ -545,7 +545,7 @@ a	b
 4	4
 show master status /* there must be the UPDATE query event */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	189		
+master-bin.000001	260		
 delete from t1;
 delete from t2;
 insert into t1 values (1,2),(3,4),(4,4);
@@ -555,6 +555,26 @@ UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 ERROR 23000: Duplicate entry '4' for key 1
 show master status /* there must be the UPDATE query event */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	204		
+master-bin.000001	275		
 drop table t1, t2;
+drop table if exists t1, t2, t3;
+CREATE TABLE t1 (a int, PRIMARY KEY (a));
+CREATE TABLE t2 (a int, PRIMARY KEY (a));
+CREATE TABLE t3 (a int, PRIMARY KEY (a)) ENGINE=MyISAM;
+create trigger trg_del_t3 before  delete on t3 for each row insert into t1 values (1);
+insert into t2 values (1),(2);
+insert into t3 values (1),(2);
+reset master;
+delete t3.* from t2,t3 where t2.a=t3.a;
+ERROR 23000: Duplicate entry '1' for key 1
+select count(*) from t1 /* must be 1 */;
+count(*)
+1
+select count(*) from t3 /* must be 1 */;
+count(*)
+1
+show binlog events from 98;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	98	Query	1	#	use `test`; delete t3.* from t2,t3 where t2.a=t3.a
+drop table t1, t2, t3;
 end of tests

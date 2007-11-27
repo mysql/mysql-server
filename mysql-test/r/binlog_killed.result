@@ -9,4 +9,48 @@ insert into t2 values (null, null), (null, get_lock("a", 10));
 select @result /* must be zero either way */;
 @result
 0
+select RELEASE_LOCK("a");
+RELEASE_LOCK("a")
+1
+delete from t1;
+delete from t2;
+insert into t1 values (1,1),(2,2);
+begin;
+update t1 set b=11 where a=2;
+begin;
+update t1 set b=b+10;
+kill query ID;
+rollback;
+rollback;
+select * from t1  order by a /* must be the same as before (1,1),(2,2) */;
+a	b
+1	1
+2	2
+begin;
+delete from t1 where a=2;
+begin;
+delete from t1 where a=2;
+kill query ID;
+rollback;
+rollback;
+select * from t1 order by a /* must be the same as before (1,1),(2,2) */;
+a	b
+1	1
+2	2
+drop table if exists t4;
+create table t4 (a int, b int) engine=innodb;
+insert into t4 values (3, 3);
+begin;
+insert into t1 values (3, 3);
+begin;
+insert into t1 select * from t4 for update;
+kill query ID;
+rollback;
+rollback;
+select * from t1 /* must be the same as before (1,1),(2,2) */;
+a	b
+1	1
+2	2
+drop table t4;
 drop table t1,t2,t3;
+end of the tests
