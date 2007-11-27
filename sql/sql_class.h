@@ -159,7 +159,13 @@ typedef struct st_log_info
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   pthread_mutex_t lock;
-  st_log_info():fatal(0) { pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);}
+  st_log_info()
+    : index_file_offset(0), index_file_start_offset(0),
+      pos(0), fatal(0)
+  {
+    log_file_name[0] = '\0';
+    pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);
+  }
   ~st_log_info() { pthread_mutex_destroy(&lock);}
 } LOG_INFO;
 
@@ -2372,6 +2378,11 @@ class multi_delete :public select_result_interceptor
   /* True if at least one table we delete from is not transactional */
   bool normal_tables;
   bool delete_while_scanning;
+  /*
+     error handling (rollback and binlogging) can happen in send_eof()
+     so that afterward send_error() needs to find out that.
+  */
+  bool error_handled;
 
 public:
   multi_delete(TABLE_LIST *dt, uint num_of_tables);
@@ -2407,6 +2418,11 @@ class multi_update :public select_result_interceptor
   /* True if the update operation has made a change in a transactional table */
   bool transactional_tables;
   bool ignore;
+  /* 
+     error handling (rollback and binlogging) can happen in send_eof()
+     so that afterward send_error() needs to find out that.
+  */
+  bool error_handled;
 
 public:
   multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
