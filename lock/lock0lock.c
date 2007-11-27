@@ -1576,7 +1576,7 @@ lock_rec_find_similar_on_page(
 /*************************************************************************
 Checks if some transaction has an implicit x-lock on a record in a secondary
 index. */
-
+static
 trx_t*
 lock_sec_rec_some_has_impl_off_kernel(
 /*==================================*/
