@@ -52,18 +52,6 @@ lock_sys_create(
 /*============*/
 	ulint	n_cells);	/* in: number of slots in lock hash table */
 /*************************************************************************
-Checks if some transaction has an implicit x-lock on a record in a secondary
-index. */
-
-trx_t*
-lock_sec_rec_some_has_impl_off_kernel(
-/*==================================*/
-				/* out: transaction which has the x-lock, or
-				NULL */
-	const rec_t*	rec,	/* in: user record */
-	dict_index_t*	index,	/* in: secondary index */
-	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
-/*************************************************************************
 Checks if some transaction has an implicit x-lock on a record in a clustered
 index. */
 UNIV_INLINE
