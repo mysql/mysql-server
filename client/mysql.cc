@@ -1092,6 +1092,17 @@ static int read_and_execute(bool interactive)
     if (!interactive)
     {
       line=batch_readline(status.line_buff);
+      /*
+        Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
+        Editors like "notepad" put this marker in
+        the very beginning of a text file when
+        you save the file using "Unicode UTF-8" format.
+      */
+      if (!line_number &&
+           (uchar) line[0] == 0xEF &&
+           (uchar) line[1] == 0xBB &&
+           (uchar) line[2] == 0xBF)
+        line+= 3;
       line_number++;
       if (!glob_buffer.length())
 	status.query_start_line=line_number;
@@ -2155,8 +2166,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 {
   char		buff[200], time_buff[32], *pos;
   MYSQL_RES	*result;
-  ulong         timer;
-  ulong         warnings= 1; /* Pre-initialize. See Bug #32661. */
+  ulong		timer, warnings= 0;
   uint		error= 0;
   int           err= 0;
 
@@ -2306,7 +2316,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
 
 end:
 
-  if (show_warnings == 1 && warnings >= 1) /* Show warnings if any */
+ /* Show warnings if any or error occured */
+  if (show_warnings == 1 && (warnings >= 1 || error))
     print_warnings();
 
   if (!error && !status.batch && 

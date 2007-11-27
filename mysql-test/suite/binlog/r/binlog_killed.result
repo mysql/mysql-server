@@ -9,4 +9,135 @@ insert into t2 values (null, null), (null, get_lock("a", 10));
 select @result /* must be zero either way */;
 @result
 0
+select RELEASE_LOCK("a");
+RELEASE_LOCK("a")
+1
+delete from t1;
+delete from t2;
+insert into t1 values (1,1),(2,2);
+begin;
+update t1 set b=11 where a=2;
+begin;
+update t1 set b=b+10;
+kill query ID;
+rollback;
+rollback;
+select * from t1  order by a /* must be the same as before (1,1),(2,2) */;
+a	b
+1	1
+2	2
+begin;
+delete from t1 where a=2;
+begin;
+delete from t1 where a=2;
+kill query ID;
+rollback;
+rollback;
+select * from t1 order by a /* must be the same as before (1,1),(2,2) */;
+a	b
+1	1
+2	2
+drop table if exists t4;
+create table t4 (a int, b int) engine=innodb;
+insert into t4 values (3, 3);
+begin;
+insert into t1 values (3, 3);
+begin;
+insert into t1 select * from t4 for update;
+kill query ID;
+rollback;
+rollback;
+select * from t1 /* must be the same as before (1,1),(2,2) */;
+a	b
+1	1
+2	2
+drop table t4;
+create table t4 (a int, b int) ENGINE=MyISAM /* for killing update and delete */;
+create function bug27563(n int) 
+RETURNS int(11)
+DETERMINISTIC
+begin
+if @b > 0 then
+select get_lock("a", 20)  into @a;
+else 
+set @b= 1;
+end if;
+return n;
+end|
+delete from t4;
+insert into t4 values (1,1), (1,1);
+reset master;
+select get_lock("a", 20);
+get_lock("a", 20)
+1
+set @b= 0;
+update t4 set b=b + bug27563(b);
+select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+count(*)
+1
+kill query ID;
+ERROR 70100: Query execution was interrupted
+select * from t4 order by b /* must be (1,1), (1,2) */;
+a	b
+1	1
+1	2
+select @b  /* must be 1 at the end of a stmt calling bug27563() */;
+@b
+1
+must have the update query event more to FD
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	User var	#	#	@`b`=0
+master-bin.000001	#	Query	#	#	use `test`; update t4 set b=b + bug27563(b)
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null
+1
+select 0 /* must return 0 to mean the killed query is in */;
+0
+0
+select RELEASE_LOCK("a");
+RELEASE_LOCK("a")
+1
+delete from t4;
+insert into t4 values (1,1), (2,2);
+reset master;
+select get_lock("a", 20);
+get_lock("a", 20)
+1
+set @b= 0;
+delete from t4 where b=bug27563(1) or b=bug27563(2);
+select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+count(*)
+1
+kill query ID;
+ERROR 70100: Query execution was interrupted
+select count(*) from t4 /* must be 1 */;
+count(*)
+1
+select @b  /* must be 1 at the end of a stmt calling bug27563() */;
+@b
+1
+must have the delete query event more to FD
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	User var	#	#	@`b`=0
+master-bin.000001	#	Query	#	#	use `test`; delete from t4 where b=bug27563(1) or b=bug27563(2)
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null
+1
+select 0 /* must return 0 to mean the killed query is in */;
+0
+0
+select RELEASE_LOCK("a");
+RELEASE_LOCK("a")
+1
+drop table t4;
+drop function bug27563;
 drop table t1,t2,t3;
+end of the tests

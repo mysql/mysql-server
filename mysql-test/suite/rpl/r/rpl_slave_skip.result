@@ -142,3 +142,211 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 **** On Master ****
 DROP TABLE t1, t2;
+SET SESSION BINLOG_FORMAT=ROW;
+SET AUTOCOMMIT=0;
+CREATE TABLE t1 (a INT, b VARCHAR(20)) ENGINE=myisam;
+CREATE TABLE t2 (a INT, b VARCHAR(20)) ENGINE=myisam;
+CREATE TABLE t3 (a INT, b VARCHAR(20)) ENGINE=myisam;
+INSERT INTO t1 VALUES (1,'master/slave');
+INSERT INTO t2 VALUES (1,'master/slave');
+INSERT INTO t3 VALUES (1,'master/slave');
+CREATE TRIGGER tr1 AFTER UPDATE on t1 FOR EACH ROW
+BEGIN
+INSERT INTO t2 VALUES (NEW.a,NEW.b);
+DELETE FROM t2 WHERE a < NEW.a;
+END|
+CREATE TRIGGER tr2 AFTER INSERT on t2 FOR EACH ROW
+BEGIN
+UPDATE t3 SET a =2, b = 'master only';
+END|
+**** On Slave ****
+STOP SLAVE;
+**** On Master ****
+UPDATE t1 SET a = 2, b = 'master only' WHERE a = 1;
+DROP TRIGGER tr1;
+DROP TRIGGER tr2;
+INSERT INTO t1 VALUES (3,'master/slave');
+INSERT INTO t2 VALUES (3,'master/slave');
+INSERT INTO t3 VALUES (3,'master/slave');
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+SELECT * FROM t2 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+SELECT * FROM t3 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+*** On Slave ***
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	master/slave
+3	master/slave
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	master/slave
+3	master/slave
+SELECT * FROM t3 ORDER BY a;
+a	b
+1	master/slave
+3	master/slave
+DROP TABLE t1, t2, t3;
+**** Case 2: Row binlog format and transactional tables ****
+*** On Master ***
+CREATE TABLE t4 (a INT, b VARCHAR(20)) ENGINE=innodb;
+CREATE TABLE t5 (a INT, b VARCHAR(20)) ENGINE=innodb;
+CREATE TABLE t6 (a INT, b VARCHAR(20)) ENGINE=innodb;
+**** On Slave ****
+STOP SLAVE;
+*** On Master ***
+BEGIN;
+INSERT INTO t4 VALUES (2, 'master only');
+INSERT INTO t5 VALUES (2, 'master only');
+INSERT INTO t6 VALUES (2, 'master only');
+COMMIT;
+BEGIN;
+INSERT INTO t4 VALUES (3, 'master/slave');
+INSERT INTO t5 VALUES (3, 'master/slave');
+INSERT INTO t6 VALUES (3, 'master/slave');
+COMMIT;
+SELECT * FROM t4 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+SELECT * FROM t5 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+SELECT * FROM t6 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+*** On Slave ***
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+SELECT * FROM t4 ORDER BY a;
+a	b
+3	master/slave
+SELECT * FROM t5 ORDER BY a;
+a	b
+3	master/slave
+SELECT * FROM t6 ORDER BY a;
+a	b
+3	master/slave
+**** On Slave ****
+STOP SLAVE;
+*** On Master ***
+BEGIN;
+INSERT INTO t4 VALUES (6, 'master only');
+INSERT INTO t5 VALUES (6, 'master only');
+INSERT INTO t6 VALUES (6, 'master only');
+COMMIT;
+BEGIN;
+INSERT INTO t4 VALUES (7, 'master only');
+INSERT INTO t5 VALUES (7, 'master only');
+INSERT INTO t6 VALUES (7, 'master only');
+COMMIT;
+SELECT * FROM t4 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+6	master only
+7	master only
+SELECT * FROM t5 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+6	master only
+7	master only
+SELECT * FROM t6 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+6	master only
+7	master only
+*** On Slave ***
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=10;
+START SLAVE;
+SELECT * FROM t4 ORDER BY a;
+a	b
+3	master/slave
+SELECT * FROM t5 ORDER BY a;
+a	b
+3	master/slave
+SELECT * FROM t6 ORDER BY a;
+a	b
+3	master/slave
+STOP SLAVE;
+SET AUTOCOMMIT=0;
+INSERT INTO t4 VALUES (4, 'master only');
+INSERT INTO t5 VALUES (4, 'master only');
+INSERT INTO t6 VALUES (4, 'master only');
+COMMIT;
+INSERT INTO t4 VALUES (5, 'master/slave');
+INSERT INTO t5 VALUES (5, 'master/slave');
+INSERT INTO t6 VALUES (5, 'master/slave');
+COMMIT;
+SELECT * FROM t4 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+4	master only
+5	master/slave
+6	master only
+7	master only
+SELECT * FROM t5 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+4	master only
+5	master/slave
+6	master only
+7	master only
+SELECT * FROM t6 ORDER BY a;
+a	b
+2	master only
+3	master/slave
+4	master only
+5	master/slave
+6	master only
+7	master only
+*** On Slave ***
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+SELECT * FROM t4 ORDER BY a;
+a	b
+3	master/slave
+5	master/slave
+SELECT * FROM t5 ORDER BY a;
+a	b
+3	master/slave
+5	master/slave
+SELECT * FROM t6 ORDER BY a;
+a	b
+3	master/slave
+5	master/slave
+DROP TABLE t4, t5, t6;
+**** Case 3: Statement logging format and LOAD DATA with non-transactional table ****
+*** On Master ***
+CREATE TABLE t10 (a INT, b VARCHAR(20)) ENGINE=myisam;
+*** On Slave ***
+STOP SLAVE;
+*** On Master ***
+SET SESSION BINLOG_FORMAT=STATEMENT;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/rpl_bug28618.dat' INTO TABLE t10 FIELDS TERMINATED BY '|';
+SELECT * FROM t10 ORDER BY a;
+a	b
+1	master only
+2	master only
+3	master only
+*** On Slave ***
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+SELECT * FROM t10 ORDER BY a;
+a	b
+DROP TABLE t10;
