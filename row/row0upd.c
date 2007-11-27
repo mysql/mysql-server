@@ -1380,6 +1380,7 @@ row_upd_sec_index_entry(
 
 	/* Build old index entry */
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
+	ut_a(entry);
 
 	log_free_check();
 	mtr_start(&mtr);
@@ -1559,6 +1560,7 @@ row_upd_clust_rec_by_insert(
 	node->state = UPD_NODE_INSERT_CLUSTERED;
 
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
+	ut_a(entry);
 
 	row_upd_index_replace_new_col_vals(entry, index, node->update,
 					   NULL, heap);

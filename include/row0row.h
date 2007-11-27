@@ -59,7 +59,10 @@ dtuple_t*
 row_build_index_entry(
 /*==================*/
 				/* out: index entry which should be
-				inserted or purged */
+				inserted or purged, or NULL if the
+				externally stored columns in the
+				clustered index record are unavailable
+				and ext != NULL */
 	const dtuple_t*	row,	/* in: row which should be
 				inserted or purged */
 	row_ext_t*	ext,	/* in: externally stored column prefixes,

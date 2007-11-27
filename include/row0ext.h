@@ -35,7 +35,9 @@ byte*
 row_ext_lookup_ith(
 /*===============*/
 				/* out: column prefix, or NULL if
-				the column is not stored externally */
+				the column is not stored externally,
+				or pointer to field_ref_zero
+				if the BLOB pointer is unset */
 	row_ext_t*	ext,	/* in/out: column prefix cache */
 	ulint		i,	/* in: ith element of ext */
 	const byte*	field,	/* in: locally stored part of the column */
@@ -49,7 +51,9 @@ byte*
 row_ext_lookup(
 /*===========*/
 				/* out: column prefix, or NULL if
-				the column is not stored externally */
+				the column is not stored externally,
+				or pointer to field_ref_zero
+				if the BLOB pointer is unset */
 	row_ext_t*	ext,	/* in/out: column prefix cache */
 	ulint		col,	/* in: column number in the InnoDB
 				table object, as reported by

@@ -340,7 +340,7 @@ row_purge_del_mark(
 		entry = row_build_index_entry(node->row,
 					      node->ext,
 					      index, heap);
-
+		ut_a(entry);
 		row_purge_remove_sec_if_poss(node, index, entry);
 
 		node->index = dict_table_get_next_index(node->index);
@@ -387,7 +387,7 @@ row_purge_upd_exist_or_extern(
 			/* Build the older version of the index entry */
 			entry = row_build_index_entry(node->row, node->ext,
 						      index, heap);
-
+			ut_a(entry);
 			row_purge_remove_sec_if_poss(node, index, entry);
 		}
 

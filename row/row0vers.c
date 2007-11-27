@@ -167,6 +167,14 @@ row_vers_impl_x_locked_off_kernel(
 					prev_version, clust_offsets,
 					&ext, heap);
 			entry = row_build_index_entry(row, ext, index, heap);
+			/* entry may be NULL if a record was inserted
+			in place of a deleted record, and the BLOB
+			pointers of the new record were not
+			initialized yet.  But in that case,
+			prev_version should be NULL.
+
+			We will play it safe and avoid dereferencing
+			entry when it is NULL, later in this function. */
 		}
 
 		mutex_enter(&kernel_mutex);
@@ -201,7 +209,7 @@ row_vers_impl_x_locked_off_kernel(
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
-		if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
+		if (entry && 0 == cmp_dtuple_rec(entry, rec, offsets)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
 			prev_version */
@@ -337,13 +345,28 @@ row_vers_old_has_index_entry(
 				rec, clust_offsets, &ext, heap);
 		entry = row_build_index_entry(row, ext, index, heap);
 
+		/* If entry == NULL, the record contains unset BLOB
+		pointers.  This must be a freshly inserted record.  If
+		this is called from
+		row_purge_remove_sec_if_poss_low(), the thread will
+		hold latches on the clustered index and the secondary
+		index.  Because the insert works in three steps:
+
+			(1) insert the record to clustered index
+			(2) store the BLOBs and update BLOB pointers
+			(3) insert records to secondary indexes
+
+		the purge thread can safely ignore freshly inserted
+		records and delete the secondary index record.  The
+		thread that inserted the new record will be inserting
+		the secondary index records. */
+
 		/* NOTE that we cannot do the comparison as binary
 		fields because the row is maybe being modified so that
-		the clustered index record has already been updated
-		to a different binary value in a char field, but the
+		the clustered index record has already been updated to
+		a different binary value in a char field, but the
 		collation identifies the old and new value anyway! */
-
-		if (!dtuple_coll_cmp(ientry, entry)) {
+		if (entry && !dtuple_coll_cmp(ientry, entry)) {
 
 			mem_heap_free(heap);
 
@@ -380,13 +403,19 @@ row_vers_old_has_index_entry(
 					&ext, heap);
 			entry = row_build_index_entry(row, ext, index, heap);
 
+			/* If entry == NULL, the record contains unset
+			BLOB pointers.  This must be a freshly
+			inserted record that we can safely ignore.
+			For the justification, see the comments after
+			the previous row_build_index_entry() call. */
+
 			/* NOTE that we cannot do the comparison as binary
 			fields because maybe the secondary index record has
 			already been updated to a different binary value in
 			a char field, but the collation identifies the old
 			and new value anyway! */
 
-			if (!dtuple_coll_cmp(ientry, entry)) {
+			if (entry && !dtuple_coll_cmp(ientry, entry)) {
 
 				mem_heap_free(heap);
 
