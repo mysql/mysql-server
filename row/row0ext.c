@@ -20,7 +20,9 @@ Looks up and caches a column prefix of an externally stored column. */
 byte*
 row_ext_lookup_low(
 /*===============*/
-				/* out: column prefix */
+				/* out: column prefix, or
+				pointer to field_ref_zero
+				if the BLOB pointer is unset */
 	row_ext_t*	ext,	/* in/out: column prefix cache */
 	ulint		i,	/* in: index of ext->ext[] */
 	const byte*	field,	/* in: locally stored part of the column */
@@ -31,6 +33,15 @@ row_ext_lookup_low(
 	byte*	buf	= ext->buf + i * REC_MAX_INDEX_COL_LEN;
 
 	ut_ad(i < ext->n_ext);
+	ut_a(f_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	if (UNIV_UNLIKELY(!memcmp(field_ref_zero,
+				  field + f_len - BTR_EXTERN_FIELD_REF_SIZE,
+				  BTR_EXTERN_FIELD_REF_SIZE))) {
+		/* The BLOB pointer is not set: we cannot fetch it */
+		*len = 0;
+		return((byte*) field_ref_zero);
+	}
 
 	*len = ext->len[i] = btr_copy_externally_stored_field_prefix(
 		buf,
