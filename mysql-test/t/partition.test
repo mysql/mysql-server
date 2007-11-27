@@ -1541,4 +1541,19 @@ while ($cnt)
 --enable_query_log
 
 drop table t1;
+
+#
+# Bug #30495: optimize table t1,t2,t3 extended errors
+#
+CREATE TABLE t1(a int)
+PARTITION BY RANGE (a) (
+  PARTITION p1 VALUES LESS THAN (10),
+  PARTITION p2 VALUES LESS THAN (20)
+);
+--error 1064
+ALTER TABLE t1 OPTIMIZE PARTITION p1 EXTENDED;
+--error 1064
+ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
+DROP TABLE t1;
+
 --echo End of 5.1 tests
