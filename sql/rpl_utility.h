@@ -99,7 +99,7 @@ public:
           /*
             These types store a single byte.
           */
-          m_field_metadata[i]= (uchar)field_metadata[index];
+          m_field_metadata[i]= field_metadata[index];
           index++;
           break;
         }
@@ -107,14 +107,14 @@ public:
         case MYSQL_TYPE_ENUM:
         case MYSQL_TYPE_STRING:
         {
-          short int x= field_metadata[index++] << 8U; // real_type
-          x = x + field_metadata[index++];            // pack or field length
+          uint16 x= field_metadata[index++] << 8U; // real_type
+          x+= field_metadata[index++];            // pack or field length
           m_field_metadata[i]= x;
           break;
         }
         case MYSQL_TYPE_BIT:
         {
-          short int x= field_metadata[index++]; 
+          uint16 x= field_metadata[index++]; 
           x = x + (field_metadata[index++] << 8U);
           m_field_metadata[i]= x;
           break;
@@ -125,14 +125,14 @@ public:
             These types store two bytes.
           */
           char *ptr= (char *)&field_metadata[index];
-          m_field_metadata[i]= sint2korr(ptr);
+          m_field_metadata[i]= uint2korr(ptr);
           index= index + 2;
           break;
         }
         case MYSQL_TYPE_NEWDECIMAL:
         {
-          short int x= field_metadata[index++] << 8U; // precision
-          x = x + field_metadata[index++];            // decimals
+          uint16 x= field_metadata[index++] << 8U; // precision
+          x+= field_metadata[index++];            // decimals
           m_field_metadata[i]= x;
           break;
         }

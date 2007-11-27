@@ -837,59 +837,58 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     transactional_table= table->file->has_transactions();
 
-    if ((changed= (info.copied || info.deleted || info.updated)) ||
-        was_insert_delayed)
+    if ((changed= (info.copied || info.deleted || info.updated)))
     {
       /*
         Invalidate the table in the query cache if something changed.
         For the transactional algorithm to work the invalidation must be
         before binlog writing and ha_autocommit_or_rollback
       */
-      if (changed)
-        query_cache_invalidate3(thd, table_list, 1);
-      if (error <= 0 || !transactional_table)
+      query_cache_invalidate3(thd, table_list, 1);
+    }
+    if (changed && error <= 0 || thd->transaction.stmt.modified_non_trans_table
+	|| was_insert_delayed)
+    {
+      if (mysql_bin_log.is_open())
       {
-        if (mysql_bin_log.is_open())
+	if (error <= 0)
         {
-          if (error <= 0)
-          {
-            /*
-              [Guilhem wrote] Temporary errors may have filled
-              thd->net.last_error/errno.  For example if there has
-              been a disk full error when writing the row, and it was
-              MyISAM, then thd->net.last_error/errno will be set to
-              "disk full"... and the my_pwrite() will wait until free
-              space appears, and so when it finishes then the
-              write_row() was entirely successful
-            */
-            /* todo: consider removing */
-            thd->clear_error();
-          }
-          /* bug#22725:
+	  /*
+	    [Guilhem wrote] Temporary errors may have filled
+	    thd->net.last_error/errno.  For example if there has
+	    been a disk full error when writing the row, and it was
+	    MyISAM, then thd->net.last_error/errno will be set to
+	    "disk full"... and the my_pwrite() will wait until free
+	    space appears, and so when it finishes then the
+	    write_row() was entirely successful
+	  */
+	  /* todo: consider removing */
+	  thd->clear_error();
+	}
+	/* bug#22725:
 
-          A query which per-row-loop can not be interrupted with
-          KILLED, like INSERT, and that does not invoke stored
-          routines can be binlogged with neglecting the KILLED error.
-          
-          If there was no error (error == zero) until after the end of
-          inserting loop the KILLED flag that appeared later can be
-          disregarded since previously possible invocation of stored
-          routines did not result in any error due to the KILLED.  In
-          such case the flag is ignored for constructing binlog event.
-          */
-          DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
-          if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                                thd->query, thd->query_length,
-                                transactional_table, FALSE,
-                                (error>0) ? thd->killed : THD::NOT_KILLED) &&
-              transactional_table)
-          {
-            error=1;
-          }
-        }
-        if (thd->transaction.stmt.modified_non_trans_table)
-          thd->transaction.all.modified_non_trans_table= TRUE;
+	A query which per-row-loop can not be interrupted with
+	KILLED, like INSERT, and that does not invoke stored
+	routines can be binlogged with neglecting the KILLED error.
+        
+	If there was no error (error == zero) until after the end of
+	inserting loop the KILLED flag that appeared later can be
+	disregarded since previously possible invocation of stored
+	routines did not result in any error due to the KILLED.  In
+	such case the flag is ignored for constructing binlog event.
+	*/
+	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
+	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+			      thd->query, thd->query_length,
+			      transactional_table, FALSE,
+			      (error>0) ? thd->killed : THD::NOT_KILLED) &&
+	    transactional_table)
+        {
+	  error=1;
+	}
       }
+      if (thd->transaction.stmt.modified_non_trans_table)
+	thd->transaction.all.modified_non_trans_table= TRUE;
     }
     DBUG_ASSERT(transactional_table || !changed || 
                 thd->transaction.stmt.modified_non_trans_table);
@@ -3104,6 +3103,7 @@ bool select_insert::send_eof()
   bool const trans_table= table->file->has_transactions();
   ulonglong id;
   bool changed;
+  THD::killed_state killed_status= thd->killed;
   DBUG_ENTER("select_insert::send_eof");
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
@@ -3138,7 +3138,7 @@ bool select_insert::send_eof()
       thd->clear_error();
     thd->binlog_query(THD::ROW_QUERY_TYPE,
                       thd->query, thd->query_length,
-                      trans_table, FALSE);
+                      trans_table, FALSE, killed_status);
   }
   /*
     We will call ha_autocommit_or_rollback() also for
@@ -3190,6 +3190,7 @@ void select_insert::abort() {
    */
   if (table)
   {
+    bool changed, transactional_table;
     /*
       If we are not in prelocked mode, we end the bulk insert started
       before.
@@ -3211,20 +3212,20 @@ void select_insert::abort() {
       If table creation failed, the number of rows modified will also be
       zero, so no check for that is made.
     */
-    if (info.copied || info.deleted || info.updated)
+    changed= (info.copied || info.deleted || info.updated);
+    transactional_table= table->file->has_transactions();
+    if (thd->transaction.stmt.modified_non_trans_table)
     {
-      DBUG_ASSERT(table != NULL);
-      if (!table->file->has_transactions())
-      {
         if (mysql_bin_log.is_open())
           thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
-                            table->file->has_transactions(), FALSE);
-        if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table &&
-            !can_rollback_data())
+                            transactional_table, FALSE);
+        if (!thd->current_stmt_binlog_row_based && !can_rollback_data())
           thd->transaction.all.modified_non_trans_table= TRUE;
-        query_cache_invalidate3(thd, table, 1);
-      }
+	if (changed)
+	  query_cache_invalidate3(thd, table, 1);
     }
+    DBUG_ASSERT(transactional_table || !changed ||
+		thd->transaction.stmt.modified_non_trans_table);
     table->file->ha_release_auto_increment();
   }
 

@@ -1,0 +1,69 @@
+-- source include/have_debug.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
+#
+# bug#27571 asynchronous setting mysql_$query()'s local error and 
+#           Query_log_event::error_code
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+#
+#  Checking that killing upon successful row-loop does not affect binlogging
+#
+
+create table t1  (a int) engine=MyISAM;
+insert into t1 set a=1;
+reset master;
+
+update t1 set a=2 /* will be "killed" after work has been done */;
+
+# a proof the query is binlogged with no error
+#todo: introduce a suite private macro that provides numeric values
+#      for some constants like the offset of the first real event
+#      that is different between severs versions.
+--exec $MYSQL_BINLOG --start-position=106 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select
+(@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+let $error_code= `select @a like "%#%error_code=0%" /* must return 1 */`;
+eval select $error_code /* must return 1 as query completed before got killed*/;
+
+# cleanup for the sub-case
+system rm $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog;
+
+
+#
+#  Checking that killing inside of row-loop for LOAD DATA into
+#  non-transactional table affects binlogging
+#
+
+create table t2 (a int, b int) ENGINE=MyISAM;
+reset master;
+--error ER_QUERY_INTERRUPTED
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t2 /* will be "killed" in the middle */;
+
+
+# a proof the query is binlogged with an error
+
+source include/show_binlog_events.inc;
+
+--exec $MYSQL_BINLOG --start-position=98 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select
+(@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+let $error_code= `select @a like "%#%error_code=0%" /* must return 0*/`;
+eval select $error_code /* must return 0 to mean the killed query is in */;
+
+# cleanup for the sub-case
+system rm $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog;
+
+
+drop table t1,t2;
+
+--echo end of the tests

@@ -6750,6 +6750,7 @@ function_call_keyword:
         | CURRENT_USER optional_braces
           {
             $$= new (YYTHD->mem_root) Item_func_current_user(Lex->current_context());
+            Lex->set_stmt_unsafe();
             Lex->safe_to_cache_query= 0;
           }
         | DATE_SYM '(' expr ')'
@@ -6795,6 +6796,7 @@ function_call_keyword:
         | USER '(' ')'
           {
             $$= new (YYTHD->mem_root) Item_func_user();
+            Lex->set_stmt_unsafe();
             Lex->safe_to_cache_query=0;
           }
         | YEAR_SYM '(' expr ')'
