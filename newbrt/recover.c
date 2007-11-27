@@ -18,19 +18,22 @@ CACHETABLE ct;
 struct cf_pair {
     FILENUM filenum;
     CACHEFILE cf;
+    BRT       brt;
 } *cf_pairs;
 int n_cf_pairs=0, max_cf_pairs=0;
 
 DB * const null_db=0;
 
-CACHEFILE find_cachefile (FILENUM fnum) {
+int find_cachefile (FILENUM fnum, CACHEFILE *cf, BRT *brt) {
     int i;
     for (i=0; i<n_cf_pairs; i++) {
 	if (fnum.fileid==cf_pairs[i].filenum.fileid) {
-	    return cf_pairs[i].cf;
+	    *cf = cf_pairs[i].cf;
+	    *brt = cf_pairs[i].brt;
+	    return 0;
 	}
     }
-    return 0;
+    return 1;
 }
 
 static char *fixup_fname(BYTESTRING *f) {
@@ -54,8 +57,10 @@ static void toku_recover_fcreate (struct logtype_fcreate *c) {
     toku_free(c->fname.data);
 }
 static void toku_recover_fheader (struct logtype_fheader *c) {
-    CACHEFILE cf = find_cachefile(c->filenum);
-    assert(cf);
+    CACHEFILE cf;
+    BRT brt;
+    int r = find_cachefile(c->filenum, &cf, &brt);
+    assert(r==0);
     struct brt_header *MALLOC(h);
     assert(h);
     h->dirty=0;
@@ -74,8 +79,10 @@ static void toku_recover_fheader (struct logtype_fheader *c) {
 
 static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     int r;
-    CACHEFILE cf = find_cachefile(c->filenum);
-    assert(cf);
+    CACHEFILE cf;
+    BRT brt;
+    r = find_cachefile(c->filenum, &cf, &brt);
+    assert(r==0);
     TAGMALLOC(BRTNODE, n);
     n->nodesize     = c->nodesize;
     n->thisnodename = c->diskoff;
@@ -124,7 +131,20 @@ static void toku_recover_fopen (struct logtype_fopen *c) {
     toku_free(c->fname.data);
 }
 static void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
-    c=c;
+    CACHEFILE cf;
+    BRT brt;
+    int r = find_cachefile(c->filenum, &cf, &brt);
+    assert(r==0);
+    void *node_v;
+    r = toku_cachetable_get_and_pin(cf, c->diskoff, &node_v, NULL, brtnode_flush_callback, brtnode_fetch_callback, brt);
+    assert(r==0);
+    BRTNODE node = node_v;
+    assert(node->height==0);
+    DBT key,data;
+    r = toku_pma_set_at_index(node->u.l.buffer, c->pmaidx, fill_dbt(&key, c->key.data, c->key.len), fill_dbt(&data, c->data.data, c->data.len));
+    node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
+    node->u.l.n_bytes_in_buffer += KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
+    assert(r==0);
 }
 
 int main (int argc, char *argv[]) {

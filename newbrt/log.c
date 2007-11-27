@@ -479,14 +479,14 @@ int toku_fread_LOGGEDBRTHEADER(FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_in
     return 0;
 }
 
-int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
     LSN v;
     int r = toku_fread_LSN(inf, &v, crc, len);
     if (r!=0) return r;
     fprintf(outf, " %s=%" PRId64, fieldname, v.lsn);
     return 0;
 }
-int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
     TXNID v;
     int r = toku_fread_TXNID(inf, &v, crc, len);
     if (r!=0) return r;
@@ -494,27 +494,29 @@ int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, u_int32_t
     return 0;
 }
 
-int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format) {
     u_int8_t v;
     int r = toku_fread_u_int8_t(inf, &v, crc, len);
     if (r!=0) return r;
     fprintf(outf, " %s=%d", fieldname, v);
-    if (v=='\'') fprintf(outf, "('\'')");
+    if (format) fprintf(outf, format, v);
+    else if (v=='\'') fprintf(outf, "('\'')");
     else if (isprint(v)) fprintf(outf, "('%c')", v);
     else {}/*nothing*/
     return 0;
     
 }
 
-int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format) {
     u_int32_t v;
     int r = toku_fread_u_int32_t(inf, &v, crc, len);
     if (r!=0) return r;
-    fprintf(outf, " %s=%d", fieldname, v);
+    fprintf(outf, " %s=", fieldname);
+    fprintf(outf, format ? format : "%d", v);
     return 0;
     
 }
-int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
     BYTESTRING bs;
     int r = toku_fread_BYTESTRING(inf, &bs, crc, len);
     if (r!=0) return r;
@@ -527,25 +529,25 @@ int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, u_in
 	case '\n': fprintf(outf, "\\n");  break;
 	default:
 	    if (isprint(bs.data[i])) fprintf(outf, "%c", bs.data[i]);
-	    else fprintf(outf, "\\0%03o", bs.data[i]);
+	    else fprintf(outf, "\\%03o", bs.data[i]);
 	}
     }
-    fprintf(outf, "\"");
+    fprintf(outf, "\"}");
     toku_free(bs.data);
     return 0;
 }
-int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
-    return toku_logprint_u_int32_t(outf, inf, fieldname, crc, len);
+int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format) {
+    return toku_logprint_u_int32_t(outf, inf, fieldname, crc, len, format);
     
 }
-int toku_logprint_DISKOFF (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+int toku_logprint_DISKOFF (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
     DISKOFF v;
     int r = toku_fread_DISKOFF(inf, &v, crc, len);
     if (r!=0) return r;
     fprintf(outf, " %s=%lld", fieldname, v);
     return 0;
 }
-int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len) {
+int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
     LOGGEDBRTHEADER v;
     int r = toku_fread_LOGGEDBRTHEADER(inf, &v, crc, len);
     if (r!=0) return r;

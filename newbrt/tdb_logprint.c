@@ -142,129 +142,18 @@ static void newmain (int count) {
     }
 }
 
-static void oldmain (int count) {
-    int cmd;
-    int i;
-    u_int32_t version;
-    int r = read_and_print_logmagic(stdin, &version);
-    assert(r==0);
-    for (i=0; i!=count; i++) {
-	actual_len=0;
-	crc=0; 
-	transcribe_len1();
-	if ((cmd=get_char())==EOF) break;
-	switch ((enum lt_command)cmd) {
-	case LT_INSERT_WITH_NO_OVERWRITE:
-	    printf("INSERT_WITH_NO_OVERWRITE:");
-	    transcribe_len1();
-	    transcribe_lsn();
-	    transcribe_txnid();
-	    transcribe_fileid();
-	    transcribe_diskoff();
-	    transcribe_key_or_data("key");
-	    transcribe_key_or_data("data");
-	    transcribe_crc32();
-	    transcribe_len();
-	    printf("\n");
-	    goto next;
-    
-	case LT_DELETE:
-	    printf("DELETE:");
-	    transcribe_lsn();
-	    transcribe_txnid();
-	    transcribe_fileid();
-	    transcribe_diskoff();
-	    transcribe_key_or_data("key");
-	    transcribe_key_or_data("data");
-	    transcribe_crc32();
-	    transcribe_len();
-	    printf("\n");
-	    goto next;
-
-	case LT_FCREATE:
-	    printf("FCREATE:");
-	    transcribe_lsn();
-	    transcribe_txnid();
-	    transcribe_key_or_data("fname");
-	    transcribe_mode();
-	    transcribe_crc32();
-	    transcribe_len();
-	    printf("\n");
-	    goto next;
-
-	case LT_FOPEN:
-	    printf("FOPEN:");
-	    transcribe_lsn();
-	    transcribe_txnid();
-	    transcribe_key_or_data("fname");
-	    transcribe_filenum();
-	    transcribe_crc32();
-	    transcribe_len();
-	    printf("\n");
-	    goto next;
-	    
-	case LT_COMMIT:
-	    printf("COMMIT:");
-	    transcribe_lsn();
-	    transcribe_txnid();
-	    transcribe_crc32();
-	    transcribe_len();
-	    printf("\n");
-	    goto next;
-
-	case LT_FHEADER:
-	    printf("HEADER:");
-	    transcribe_lsn();
-	    transcribe_txnid();
-	    transcribe_filenum();
-	    transcribe_header();
-	    transcribe_crc32();
-	    transcribe_len();
-	    printf("\n");
-	    goto next;
-
-	case LT_NEWBRTNODE:
-	    printf("NEWBRTNODE:");
-	    transcribe_lsn();
-	    transcribe_txnid();
-	    transcribe_filenum();
-	    transcribe_diskoff();
-	    printf(" height=%d", get_uint32());
-	    printf(" nodesize=%d", get_uint32());
-	    printf(" is_dup_sort=%d", get_char());
-	    printf(" rand=%u", get_uint32());
-	    transcribe_crc32();
-	    transcribe_len();
-	    printf("\n");
-	    goto next;
-
-	case LT_UNLINK:
-	case LT_BLOCK_RENAME:
-	case LT_CHECKPOINT:
-	    fprintf(stderr, "Cannot handle this command yet: '%c'\n", cmd);
-	    break;
-	}
-	/* The default is to fall out the bottom.  That way we can get a compiler warning if we forget one of the enums, but we can also
-	 * get a runtime warning if the actual value isn't one of the enums. */
-	fprintf(stderr, "Huh?, found command '%c'\n", cmd);
-	assert(0);
-    next: ; /*nothing*/
-    }
-}
-
 int main (int argc, char *argv[]) {
     int count=-1;
-    int oldcode=0;
     while (argc>1) {
 	if (strcmp(argv[1], "--oldcode")==0) {
-	    oldcode=1;
+	    fprintf(stderr,"Old code no longer works.\n");
+	    exit(1);
 	} else {
 	    count = atoi(argv[1]);
 	}
 	argc--; argv++;
     }
-    if (oldcode) oldmain(count);
-    else newmain(count);
+    newmain(count);
     return 0;
 }
 

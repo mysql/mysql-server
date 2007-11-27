@@ -785,7 +785,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     DISKOFF targetchild = node->u.n.children[childnum]; 
     assert(targetchild>=0 && targetchild<t->h->unused_memory); // This assertion could fail in a concurrent setting since another process might have bumped unused memory.
     r = toku_cachetable_get_and_pin(t->cf, targetchild, &childnode_v, NULL, 
-			       brtnode_flush_callback, brtnode_fetch_callback, t);
+				    brtnode_flush_callback, brtnode_fetch_callback, t);
     if (r!=0) return r;
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, childnode_v);
     child=childnode_v;

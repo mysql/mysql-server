@@ -381,7 +381,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size
 }
 
 int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, long *sizep,
-                           cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
+				cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     CACHETABLE t = cachefile->cachetable;
     int tsize __attribute__((__unused__)) = t->table_size;
     PAIR p;
