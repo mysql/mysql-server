@@ -186,6 +186,13 @@ select * from t1 where a = 'b' and a != 'b';
 drop table t1;
 
 #
+# Testing regexp
+#
+set collation_connection=utf8_general_ci;
+--source include/ctype_regex.inc
+set names utf8;
+
+#
 # Bug #3928 regexp [[:>:]] and UTF-8
 #
 set names utf8;
