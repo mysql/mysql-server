@@ -26,8 +26,8 @@ insert into t1 values (1,10,1),(2,9,1),(3,8,1),(4,7,1),(5,6,1),(6,5,2),(7,4,2),(
 # These ones should use optimisation
 
 --echo
---echo # expected result 3 roundtrips
---echo # 1 - info call
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
 --echo # 1 - read the row
 --echo # 0 - update the row (deferred to commit)
 --echo # 1 - update + commit the transaction
@@ -39,8 +39,8 @@ update t1 set c = 111, b = 20 where a = 1;
 select * from t1 where a = 1 order by a;
 
 --echo
---echo # expected result 2 roundtrips
---echo # 1 - info call
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
 --echo # 0 - read the rows (1 with read before)
 --echo # 0 - delete the row (deferred to commit)
 --echo # 1 - delete + commit the transaction
@@ -52,8 +52,8 @@ delete from t1 where a = 1;
 select * from t1 where a = 1 order by a;
 
 --echo
---echo # expected result 3 roundtrips
---echo # 1 - info call
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
 --echo # 1 - read the rows
 --echo # 0 - update the row (deferred to commit)
 --echo # 1 - update + commit the transaction
@@ -65,8 +65,8 @@ update t1 set c = 12, b = 19 where b = 2;
 select * from t1 where b = 2 order by a;
 
 --echo
---echo # expected result 2 roundtrips
---echo # 1 - info call
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
 --echo # 0 - read the rows (1 with read before)
 --echo # 0 - delete the row (deferred to commit)
 --echo # 1 - delete and commit the transaction
@@ -78,8 +78,8 @@ delete from t1 where b = 19;
 select * from t1 where b = 19 order by a;
 
 --echo
---echo # expected result 4 roundtrips
---echo # 1 - info call
+--echo # expected result 3 roundtrips
+--echo # 0 - info call
 --echo # 2 - read the rows
 --echo # 0 - update the rows (deferred to commit)
 --echo # 1 - update + commit the transaction
@@ -91,8 +91,8 @@ update t1 set c = 22 where a = 10 or a >= 10;
 select * from t1 order by a;
 
 --echo
---echo # expected result 2 roundtrips
---echo # 1 - info call
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
 --echo # 0 - read the rows (1 with read before)
 --echo # 0 - update the rows (2 if no bulk update + 1 deferred to commit)
 --echo # 1 - update + commit the transaction
@@ -104,8 +104,8 @@ update t1 set c = 23 where a in (8,10);
 select * from t1 order by a;
 
 --echo
---echo # expected result 5 roundtrips
---echo # 1 - info call
+--echo # expected result 4 roundtrips
+--echo # 0 - info call
 --echo # 3 - read the rows
 --echo # 0 - update the rows (executed during read)
 --echo # 1 - commit the transaction
@@ -119,8 +119,8 @@ select * from t1 order by a;
 # These ones should not use optimisation
 
 --echo
---echo # expected result 6 roundtrips
---echo # 1 - info call
+--echo # expected result 5 roundtrips
+--echo # 0 - info call
 --echo # 2 - read the rows
 --echo # 2 - pk read in rnd_pos
 --echo # 0 - update the rows (deferred to commit)
@@ -133,8 +133,8 @@ update t1 set c = 11 where a = 3 or b = 7;
 select * from t1 where a = 3 or b = 7 order by a;
 
 --echo
---echo # expected result 6 roundtrips
---echo # 1 - info call
+--echo # expected result 5 roundtrips
+--echo # 0 - info call
 --echo # 1 - read the rows
 --echo # 1 - read the row _again_ in complemented read
 --echo # 1 - delete the row (pk update)
@@ -148,8 +148,8 @@ update t1 set a = 13, b = 20 where a = 3;
 select * from t1 where a = 13 order by a;
 
 --echo
---echo # expected result 6 roundtrips
---echo # 1 - info call
+--echo # expected result 5 roundtrips
+--echo # 0 - info call
 --echo # 1 - read the rows
 --echo # 1 - read the row _again_ in complemented read
 --echo # 1 - delete the row (pk update)
@@ -178,8 +178,8 @@ update t1 set c = 12, b = 29 where a = 5 and b = 6;
 select * from t1 where b = 19 order by a;
 
 --echo
---echo # expected result 3 roundtrips
---echo # 1 - info call
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
 --echo # 1 - read the rows
 --echo # 0 - delete the rows (no row found)
 --echo # 1 - commit the transaction

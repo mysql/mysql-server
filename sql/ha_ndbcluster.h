@@ -31,6 +31,8 @@
 #include <ndbapi_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
+#define NDB_DEFAULT_AUTO_PREFETCH 32
+
 
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
@@ -154,6 +156,16 @@ typedef struct st_ndbcluster_conflict_fn_share {
   uint32 m_count;
 } NDB_CONFLICT_FN_SHARE;
 
+/*
+  Stats that can be retrieved from ndb
+*/
+struct Ndb_statistics {
+  Uint64 row_count;
+  Uint64 commit_count;
+  Uint64 row_size;
+  Uint64 fragment_memory;
+};
+
 typedef struct st_ndbcluster_share {
   NDB_SHARE_STATE state;
   MEM_ROOT mem_root;
@@ -162,13 +174,13 @@ typedef struct st_ndbcluster_share {
   char *key;
   uint key_length;
   char *new_key;
-  THD *util_lock;
   uint use_count;
   uint commit_count_lock;
   ulonglong commit_count;
   char *db;
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
+  struct Ndb_statistics stat;
 #ifdef HAVE_NDB_BINLOG
   uint32 connect_count;
   uint32 flags;
@@ -330,6 +342,9 @@ class ha_ndbcluster: public handler
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   void local_close(THD *thd, bool release_metadata);
+
+  int optimize(THD* thd, HA_CHECK_OPT* check_opt);
+  int analyze(THD* thd, HA_CHECK_OPT* check_opt);
 
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
@@ -535,24 +550,26 @@ private:
                                     const uchar **key_row,
                                     const uchar *record,
                                     bool use_active_index);
-  friend int ndbcluster_drop_database_impl(const char *path);
+  friend int ndbcluster_drop_database_impl(THD *thd, const char *path);
   friend int ndb_handle_schema_change(THD *thd, 
                                       Ndb *ndb, NdbEventOperation *pOp,
                                       NDB_SHARE *share);
 
   void check_read_before_write_removal();
-  static int delete_table(ha_ndbcluster *h, Ndb *ndb,
+  static int delete_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
 			  const char *path,
 			  const char *db,
 			  const char *table_name);
-  int create_ndb_index(const char *name, KEY *key_info, bool unique);
-  int create_ordered_index(const char *name, KEY *key_info);
-  int create_unique_index(const char *name, KEY *key_info);
-  int create_index(const char *name, KEY *key_info, 
+  int add_index_impl(THD *thd, TABLE *table_arg,
+                     KEY *key_info, uint num_of_keys);
+  int create_ndb_index(THD *thd, const char *name, KEY *key_info, bool unique);
+  int create_ordered_index(THD *thd, const char *name, KEY *key_info);
+  int create_unique_index(THD *thd, const char *name, KEY *key_info);
+  int create_index(THD *thd, const char *name, KEY *key_info, 
                    NDB_INDEX_TYPE idx_type, uint idx_no);
 // Index list management
-  int create_indexes(Ndb *ndb, TABLE *tab);
-  int open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error);
+  int create_indexes(THD *thd, Ndb *ndb, TABLE *tab);
+  int open_indexes(THD *thd, Ndb *ndb, TABLE *tab, bool ignore_error);
   void renumber_indexes(Ndb *ndb, TABLE *tab);
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
@@ -561,7 +578,7 @@ private:
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict,
                            KEY *key_info, uint index_no);
-  int get_metadata(const char* path);
+  int get_metadata(THD *thd, const char* path);
   void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
@@ -575,7 +592,8 @@ private:
                              void *tab);
   int set_range_data(void *tab, partition_info* part_info);
   int set_list_data(void *tab, partition_info* part_info);
-  int ndb_pk_update_row(const uchar *old_data, uchar *new_data,
+  int ndb_pk_update_row(THD *thd, 
+                        const uchar *old_data, uchar *new_data,
                         uint32 old_part_id);
   int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 part_id);
   int ordered_index_scan(const key_range *start_key,
@@ -607,6 +625,7 @@ private:
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
+  int set_auto_inc(THD *thd, Field *field);
   int next_result(uchar *buf); 
   int close_scan();
   void unpack_record(uchar *dst_row, const uchar *src_row);
@@ -677,7 +696,7 @@ private:
 
   int write_ndb_file(const char *name);
 
-  int check_ndb_connection(THD* thd= current_thd);
+  int check_ndb_connection(THD* thd);
 
   void set_rec_per_key();
   int records_update();
@@ -808,7 +827,6 @@ private:
   uint32 m_blobs_buffer_size;
   uint m_dupkey;
   // set from thread variables at external lock
-  bool m_ha_not_exact_count;
   ha_rows m_autoincrement_prefetch;
 
   ha_ndbcluster_cond *m_cond;
@@ -823,7 +841,9 @@ private:
   KEY_MULTI_RANGE *m_multi_range_defined_end;
   const NdbOperation *m_current_multi_operation;
   NdbIndexScanOperation *m_multi_cursor;
-  Ndb *get_ndb();
+  Ndb *get_ndb(THD *thd);
+
+  int update_stats(THD *thd, bool do_read_stat);
 };
 
 extern SHOW_VAR ndb_status_variables[];

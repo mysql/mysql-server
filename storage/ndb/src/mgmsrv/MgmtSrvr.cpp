@@ -119,7 +119,11 @@ operator<<(NdbOut& out, const LogLevel & ll)
 void
 MgmtSrvr::logLevelThreadRun() 
 {
-  while (!_isStopThread) {
+  while (!_isStopThread) 
+  {
+    Vector<NodeId> failed_started_nodes;
+    Vector<EventSubscribeReq> failed_log_level_requests;
+
     /**
      * Handle started nodes
      */
@@ -144,14 +148,15 @@ MgmtSrvr::logLevelThreadRun()
         m_started_nodes.unlock();
 
         if (setEventReportingLevelImpl(node, req))
-	{
-	  ndbout_c("setEventReportingLevelImpl(%d): failed", node);
-	}
-	
-        SetLogLevelOrd ord;
-        ord = m_nodeLogLevel[node];
-        setNodeLogLevelImpl(node, ord);
-
+        {
+          failed_started_nodes.push_back(node);
+        }
+        else
+        {
+          SetLogLevelOrd ord;
+          ord = m_nodeLogLevel[node];
+          setNodeLogLevelImpl(node, ord);
+        }
         m_started_nodes.lock();
       }
     }
@@ -166,17 +171,20 @@ MgmtSrvr::logLevelThreadRun()
 
       if(req.blockRef == 0)
       {
-	req.blockRef = _ownReference;
-	if (setEventReportingLevelImpl(0, req))
-	{
-	  ndbout_c("setEventReportingLevelImpl: failed 2!");
-	}
+        req.blockRef = _ownReference;
+        if (setEventReportingLevelImpl(0, req))
+        {
+          failed_log_level_requests.push_back(req);
+        }
       } 
       else 
       {
         SetLogLevelOrd ord;
         ord = req;
-	setNodeLogLevelImpl(req.blockRef, ord);
+        if (setNodeLogLevelImpl(req.blockRef, ord))
+        {
+          failed_log_level_requests.push_back(req);
+        }
       }
       m_log_level_requests.lock();
     }      
@@ -185,7 +193,28 @@ MgmtSrvr::logLevelThreadRun()
     if(!ERROR_INSERTED(10000))
       m_event_listner.check_listeners();
 
-    NdbSleep_MilliSleep(_logLevelThreadSleep);  
+    Uint32 sleeptime = _logLevelThreadSleep;
+    if (failed_started_nodes.size())
+    {
+      m_started_nodes.lock();
+      for (Uint32 i = 0; i<failed_started_nodes.size(); i++)
+        m_started_nodes.push_back(failed_started_nodes[i], false);
+      m_started_nodes.unlock();
+      failed_started_nodes.clear();
+      sleeptime = 100;
+    }
+
+    if (failed_log_level_requests.size())
+    {
+      m_log_level_requests.lock();
+      for (Uint32 i = 0; i<failed_log_level_requests.size(); i++)
+        m_log_level_requests.push_back(failed_log_level_requests[i], false);
+      m_log_level_requests.unlock();
+      failed_log_level_requests.clear();
+      sleeptime = 100;
+    }
+
+    NdbSleep_MilliSleep(sleeptime);
   }
 }
 
@@ -1551,7 +1580,6 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
 {
   SignalSender ss(theFacade);
   NdbNodeBitmask nodes;
-  int retries = 30;
   nodes.clear();
   while (1)
   {
@@ -1588,18 +1616,8 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
           continue;
         }
         // api_reg_conf not recevied yet, need to retry
-        break;
+        return SEND_OR_RECEIVE_FAILED;
       }
-    }
-    if (nodeId <= max)
-    {
-      if (--retries)
-      {
-        ss.unlock();
-        NdbSleep_MilliSleep(100);  
-        continue;
-      }
-      return SEND_OR_RECEIVE_FAILED;
     }
 
     if (nodeId_arg == 0)
@@ -1623,6 +1641,10 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
         continue; // node is not connected, skip
       if (ss.sendSignal(nodeId, &ssig) == SEND_OK)
         nodes.set(nodeId);
+      else if (max == nodeId)
+      {
+        return SEND_OR_RECEIVE_FAILED;
+      }
     }
     break;
   }
@@ -3004,8 +3026,8 @@ int MgmtSrvr::connect_to_self(const char * bindaddress)
   return 0;
 }
 
-
-
+template class Vector<unsigned short>;
 template class MutexVector<unsigned short>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
+template class Vector<EventSubscribeReq>;
 template class MutexVector<EventSubscribeReq>;
