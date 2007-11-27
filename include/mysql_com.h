@@ -393,6 +393,10 @@ typedef struct st_udf_init
   char	  *ptr;				/* free pointer for function data */
   my_bool const_item;			/* 0 if result is independent of arguments */
 } UDF_INIT;
+/* 
+  TODO: add a notion for determinism of the UDF. 
+  See Item_udf_func::update_used_tables ()
+*/
 
   /* Constants when using compression */
 #define NET_HEADER_SIZE 4		/* standard header size */
