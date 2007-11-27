@@ -1,5 +1,17 @@
 drop table if exists t1;
-create table t1 (s1 char(64),s2 char(64));
+set names latin1;
+drop table if exists t1;
+create table t1 as
+select repeat(' ', 64) as s1, repeat(' ',64) as s2
+union
+select null, null;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `s1` varchar(64) DEFAULT NULL,
+  `s2` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');
 insert into t1 values('gheis','^[^a-dXYZ]+$');
