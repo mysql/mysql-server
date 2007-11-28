@@ -1707,10 +1707,9 @@ trx_print(
 }
 
 /***********************************************************************
-Compares the "weight" (or size) of two transactions. The weight of one
-transaction is estimated as the number of altered rows + the number of
-locked rows. Transactions that have edited non-transactional tables are
-considered heavier than ones that have not. */
+Compares the "weight" (or size) of two transactions. Transactions that
+have edited non-transactional tables are considered heavier than ones
+that have not. */
 
 int
 trx_weight_cmp(
@@ -1754,9 +1753,6 @@ trx_weight_cmp(
 		ut_conv_dulint_to_longlong(b->undo_no),
 		UT_LIST_GET_LEN(b->trx_locks));
 #endif
-
-#define TRX_WEIGHT(t)	\
-	ut_dulint_add((t)->undo_no, UT_LIST_GET_LEN((t)->trx_locks))
 
 	return(ut_dulint_cmp(TRX_WEIGHT(a), TRX_WEIGHT(b)));
 }
