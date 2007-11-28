@@ -748,6 +748,17 @@ int toku_pma_cursor_set_position_next (PMA_CURSOR c) {
     return DB_NOTFOUND;
 }
 
+int toku_pma_cursor_get_current_data(PMA_CURSOR c, DBT *data) {
+    if (c->position == -1)
+        return DB_NOTFOUND;
+    PMA pma = c->pma;
+    struct kv_pair *pair = pma->pairs[c->position];
+    if (!kv_pair_valid(pair)) 
+        return BRT_KEYEMPTY;
+    ybt_set_value(data, kv_pair_val(pair), kv_pair_vallen(pair), &c->sval);
+    return 0;
+}
+
 int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val) {
     if (c->position == -1)
         return DB_NOTFOUND;
@@ -755,8 +766,8 @@ int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val) {
     struct kv_pair *pair = pma->pairs[c->position];
     if (!kv_pair_valid(pair)) 
         return BRT_KEYEMPTY;
-    ybt_set_value(key, pair->key, pair->keylen, &c->skey);
-    ybt_set_value(val, pair->key + pair->keylen, pair->vallen, &c->sval);
+    ybt_set_value(key, kv_pair_key(pair), kv_pair_keylen(pair), &c->skey);
+    ybt_set_value(val, kv_pair_val(pair), kv_pair_vallen(pair), &c->sval);
     return 0;
 }
 

@@ -101,6 +101,9 @@ int toku_pma_cursor_set_position_prev (PMA_CURSOR c);
 
 /* get the key and data under the cursor */
 int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val);
+int toku_pma_cursor_get_current_key(PMA_CURSOR c, DBT *key);
+int toku_pma_cursor_get_current_data(PMA_CURSOR c, DBT *val);
+
 
 /* set the cursor to the matching key and value pair */
 int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val);

@@ -2848,7 +2848,7 @@ int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUTXN tx
         assert(r == 0);
         r = brtcurs_set_key(cursor, *rootp, kbt, vbt, DB_SET, txn, null_brtnode);
         if (r != 0) goto died0;
-        r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+        r = toku_pma_cursor_get_current_data(cursor->pmacurs, vbt);
         if (r != 0) goto died0;
         break;
     case DB_GET_BOTH:
