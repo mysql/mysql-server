@@ -58,7 +58,7 @@
 #include "Filename.hpp"
 
 // Use this define if you want printouts from AsyncFile class
-#define DEBUG_ASYNCFILE
+//#define DEBUG_ASYNCFILE
 
 #ifdef DEBUG_ASYNCFILE
 #include <NdbOut.hpp>
