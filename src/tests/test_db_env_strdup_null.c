@@ -18,7 +18,6 @@ int main (int argc, char *argv[]) {
 // None of this stuff works with BDB.  TDB does more error checking.
 #ifdef USE_TDB
     r=env->set_data_dir(env, NULL);             assert(r==EINVAL);
-    r=env->open(env, NULL, DB_PRIVATE, 0777);   assert(r==EINVAL);
     r=env->open(env, DIR, DB_PRIVATE, 0777);    assert(r==0);
     env->set_errpfx(env, NULL);                 assert(1); //Did not crash.
     r=env->set_tmp_dir(env, NULL);              assert(r==EINVAL);
