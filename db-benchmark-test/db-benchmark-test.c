@@ -199,6 +199,8 @@ void print_usage (const char *argv0) {
     fprintf(stderr, "    -x              do transactions (one transaction per iteration) (default: no transactions at all)\n");
     fprintf(stderr, "    --keysize KEYSIZE sets the key size (default 8)\n");
     fprintf(stderr, "    --valsize VALSIZE sets the value size (default 8)\n");
+    fprintf(stderr, "    --cachesize CACHESIZE set the database cache size\n");
+    fprintf(stderr, "    --pagesize PAGESIZE sets the database page size\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld iterations of %d items per iteration)\n", default_n_items/ITEMS_TO_INSERT_PER_ITERATION, ITEMS_TO_INSERT_PER_ITERATION);
 }
 
