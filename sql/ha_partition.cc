@@ -3413,14 +3413,17 @@ int ha_partition::index_init(uint inx, bool sorted)
   */
   if (m_lock_type == F_WRLCK)
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
-  else if (sorted && m_table_flags & HA_PARTIAL_COLUMN_READ)
+  else if (sorted)
   {
     /*
-      An ordered scan is requested and necessary fields aren't in read_set.
-      This may happen e.g. with SELECT COUNT(*) FROM t1. We must ensure
-      that all fields of current key are included into read_set, as
-      partitioning requires them for sorting
-      (see ha_partition::handle_ordered_index_scan).
+      An ordered scan is requested. We must make sure all fields of the 
+      used index are in the read set, as partitioning requires them for
+      sorting (see ha_partition::handle_ordered_index_scan).
+
+      The SQL layer may request an ordered index scan without having index
+      fields in the read set when
+       - it needs to do an ordered scan over an index prefix.
+       - it evaluates ORDER BY with SELECT COUNT(*) FROM t1.
 
       TODO: handle COUNT(*) queries via unordered scan.
     */
