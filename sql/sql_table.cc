@@ -1558,9 +1558,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   /* Don't give warnings for not found errors, as we already generate notes */
   thd->no_warnings_for_error= 1;
 
-  /* Remove the tables from the HANDLER list, if they are in it. */
-  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL, 1);
-
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
