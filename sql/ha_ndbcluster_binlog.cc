@@ -241,18 +241,22 @@ static void dbug_print_table(const char *info, TABLE *table)
 static void run_query(THD *thd, char *buf, char *end,
                       const int *no_print_error, my_bool disable_binlog)
 {
-  ulong save_query_length= thd->query_length;
-  char *save_query= thd->query;
-  ulong save_thread_id= thd->variables.pseudo_thread_id;
+  ulong save_thd_query_length= thd->query_length;
+  char *save_thd_query= thd->query;
+  struct system_variables save_thd_variables= thd->variables;
+  struct system_status_var save_thd_status_var= thd->status_var;
+  THD_TRANS save_thd_transaction_all= thd->transaction.all;
+  THD_TRANS save_thd_transaction_stmt= thd->transaction.stmt;
   ulonglong save_thd_options= thd->options;
   DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->options));
-  NET save_net= thd->net;
+  NET save_thd_net= thd->net;
   const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
   thd->query_length= end - buf;
   thd->query= buf;
   thd->variables.pseudo_thread_id= thread_id;
+  thd->transaction.stmt.modified_non_trans_table= FALSE;
   if (disable_binlog)
     thd->options&= ~OPTION_BIN_LOG;
     
@@ -275,10 +279,13 @@ static void run_query(THD *thd, char *buf, char *end,
   }
 
   thd->options= save_thd_options;
-  thd->query_length= save_query_length;
-  thd->query= save_query;
-  thd->variables.pseudo_thread_id= save_thread_id;
-  thd->net= save_net;
+  thd->query_length= save_thd_query_length;
+  thd->query= save_thd_query;
+  thd->variables= save_thd_variables;
+  thd->status_var= save_thd_status_var;
+  thd->transaction.all= save_thd_transaction_all;
+  thd->transaction.stmt= save_thd_transaction_stmt;
+  thd->net= save_thd_net;
 
   if (thd == injector_thd)
   {
@@ -777,8 +784,9 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                    " end_pos BIGINT UNSIGNED NOT NULL, "
                    " PRIMARY KEY USING HASH (server_id) ) ENGINE=NDB");
 
-  const int no_print_error[4]= {ER_TABLE_EXISTS_ERROR,
+  const int no_print_error[5]= {ER_TABLE_EXISTS_ERROR,
                                 701,
+                                702,
                                 4009,
                                 0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
@@ -837,8 +845,9 @@ static int ndbcluster_create_schema_table(THD *thd)
                    " type INT UNSIGNED NOT NULL,"
                    " PRIMARY KEY USING HASH (db,name) ) ENGINE=NDB");
 
-  const int no_print_error[4]= {ER_TABLE_EXISTS_ERROR,
+  const int no_print_error[5]= {ER_TABLE_EXISTS_ERROR,
                                 701,
+                                702,
                                 4009,
                                 0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
@@ -3587,6 +3596,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   Thd_ndb *thd_ndb=0;
   int ndb_update_ndb_binlog_index= 1;
   injector *inj= injector::instance();
+  uint incident_id= 0;
 
 #ifdef RUN_NDB_BINLOG_TIMER
   Timer main_timer;
@@ -3693,18 +3703,64 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_mutex_unlock(&injector_mutex);
   pthread_cond_signal(&injector_cond);
 
+  /*
+    wait for mysql server to start (so that the binlog is started
+    and thus can receive the first GAP event)
+  */
+  pthread_mutex_lock(&LOCK_server_started);
+  while (!mysqld_server_started)
+  {
+    struct timespec abstime;
+    set_timespec(abstime, 1);
+    pthread_cond_timedwait(&COND_server_started, &LOCK_server_started,
+                           &abstime);
+    if (ndbcluster_terminating)
+    {
+      pthread_mutex_unlock(&LOCK_server_started);
+      pthread_mutex_lock(&LOCK_ndb_util_thread);
+      goto err;
+    }
+  }
+  pthread_mutex_unlock(&LOCK_server_started);
 restart:
   /*
     Main NDB Injector loop
   */
+  while (ndb_binlog_running)
   {
     /*
-      Always insert a GAP event as we cannot know what has happened in the cluster
-      while not being connected.
+      check if it is the first log, if so we do not insert a GAP event
+      as there is really no log to have a GAP in
     */
-    LEX_STRING const msg= { C_STRING_WITH_LEN("Cluster connect") };
-    inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg);
+    if (incident_id == 0)
+    {
+      LOG_INFO log_info;
+      mysql_bin_log.get_current_log(&log_info);
+      int len=  strlen(log_info.log_file_name);
+      uint no= 0;
+      if ((sscanf(log_info.log_file_name + len - 6, "%u", &no) == 1) &&
+          no == 1)
+      {
+        /* this is the fist log, so skip GAP event */
+        break;
+      }
+    }
+
+    /*
+      Always insert a GAP event as we cannot know what has happened
+      in the cluster while not being connected.
+    */
+    LEX_STRING const msg[2]=
+      {
+        { C_STRING_WITH_LEN("mysqld startup")    },
+        { C_STRING_WITH_LEN("cluster disconnect")}
+      };
+    IF_DBUG(int error=)
+      inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg[incident_id]);
+    DBUG_ASSERT(!error);
+    break;
   }
+  incident_id= 1;
   {
     thd->proc_info= "Waiting for ndbcluster to start";
 
