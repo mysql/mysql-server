@@ -946,54 +946,6 @@ buf_page_peek(
 }
 
 /************************************************************************
-Tries to get the page, but if file io is required, releases all latches
-in mtr down to the given savepoint. If io is required, this function
-retrieves the page to buffer buf_pool, but does not bufferfix it or latch
-it. */
-UNIV_INLINE
-buf_block_t*
-buf_page_get_release_on_io(
-/*=======================*/
-				/* out: pointer to the block, or NULL
-				if not in buffer buf_pool */
-	ulint	space,		/* in: space id */
-	ulint	zip_size,	/* in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	offset,		/* in: offset of the page within space
-				in units of a page */
-	buf_block_t* guess,	/* in: guessed block or NULL */
-	ulint	rw_latch,	/* in: RW_X_LATCH, RW_S_LATCH,
-				or RW_NO_LATCH */
-	ulint	savepoint,	/* in: mtr savepoint */
-	mtr_t*	mtr)		/* in: mtr */
-{
-	buf_block_t*	block;
-
-	block = buf_page_get_gen(space, zip_size, offset, rw_latch, guess,
-				 BUF_GET_IF_IN_POOL,
-				 __FILE__, __LINE__,
-				 mtr);
-	if (block != NULL) {
-
-		return(block);
-	}
-
-	/* The page was not in the buffer buf_pool: release the latches
-	down to the savepoint */
-
-	mtr_rollback_to_savepoint(mtr, savepoint);
-
-	buf_page_get(space, zip_size, offset, RW_S_LATCH, mtr);
-
-	/* When we get here, the page is in buffer, but we release
-	the latches again down to the savepoint, before returning */
-
-	mtr_rollback_to_savepoint(mtr, savepoint);
-
-	return(NULL);
-}
-
-/************************************************************************
 Releases a compressed-only page acquired with buf_page_get_zip(). */
 UNIV_INLINE
 void
