@@ -4,15 +4,18 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <string.h>
 
 // DIR is defined in the Makefile
 
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
-int main() {
+int main(int argc, char** argv) {
     DB_ENV *dbenv;
     int r;
-
+    int verbose = 0;
+    if (argc == 2 && !strcmp(argv[1], "-v")) verbose = 1;
+    
     system("rm -rf " DIR);
     r=mkdir(DIR, 0777); assert(r==0);
 
@@ -26,7 +29,7 @@ int main() {
 #ifdef USE_TDB
     assert(r != 0);
 #else
-    printf("test_db_env_open_open_close.bdb skipped.  (BDB apparently does not follow the spec).\n");
+    if (verbose) printf("test_db_env_open_open_close.bdb skipped.  (BDB apparently does not follow the spec).\n");
     assert(r==0);
 #endif    
 
