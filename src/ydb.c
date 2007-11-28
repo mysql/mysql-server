@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #include "brt.h"
 #include "brt-internal.h"
@@ -222,10 +223,22 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
 
     if (db_env_opened(env))
         return EINVAL;
+
+    if ((flags & DB_USE_ENVIRON) && (flags & DB_USE_ENVIRON_ROOT)) return EINVAL;
     
-    if (!home) return EINVAL;
-    else {
+
+    if (home) {
+        if ((flags & DB_USE_ENVIRON) || (flags & DB_USE_ENVIRON_ROOT)) return EINVAL;
+    }
+    else if ((flags & DB_USE_ENVIRON) ||
+             ((flags & DB_USE_ENVIRON_ROOT) && geteuid() == 0)) {
+        home = getenv("DB_HOME");
+        if (!home) return EINVAL;
+    }
+    else home = ".";
+
 	// Verify that the home exists.
+	{
 	struct stat buf;
 	r = stat(home, &buf);
 	if (r!=0) return errno;
@@ -250,11 +263,8 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
         env->i->dir = NULL;
         return r;
     }
-    if ((r = db_env_read_config(env, flags)) != 0) {
-        fprintf(stderr, "FOO FOO FOO \n");
-        goto died1;
-    }
-
+    if ((r = db_env_read_config(env, flags)) != 0) goto died1;
+    
     env->i->open_flags = flags;
     env->i->open_mode = mode;
 
