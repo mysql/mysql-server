@@ -44,7 +44,9 @@
   { bits-=(bit+1); break; } \
   pos+= *pos
 
-/* Size in uint16 of a Huffman tree for uchar compression of 256 uchar values. */
+/*
+  Size in uint16 of a Huffman tree for uchar compression of 256 uchar values
+*/
 #define OFFSET_TABLE_SIZE 512
 
 static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
@@ -245,7 +247,8 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
   length=(uint) (elements*2+trees*(1 << maria_quick_table_bits));
   if (!(share->decode_tables=(uint16*)
 	my_malloc((length+OFFSET_TABLE_SIZE)*sizeof(uint16)+
-		  (uint) (share->pack.header_length - sizeof(header)),
+		  (uint) (share->pack.header_length - sizeof(header)) +
+                  share->base.extra_rec_buff_size,
 		  MYF(MY_WME | MY_ZEROFILL))))
     goto err1;
   tmp_buff=share->decode_tables+length;
@@ -255,6 +258,11 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
 	      (uint) (share->pack.header_length-sizeof(header)),
 	      MYF(MY_NABP)))
     goto err2;
+#ifdef HAVE_purify
+  /* Zero bytes accessed by fill_buffer */
+  bzero(disk_cache + (share->pack.header_length-sizeof(header)),
+        share->base.extra_rec_buff_size);
+#endif
 
   huff_tree_bits=max_bit(trees ? trees-1 : 0);
   init_bit_buffer(&bit_buff, disk_cache,

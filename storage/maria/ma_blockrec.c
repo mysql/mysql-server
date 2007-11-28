@@ -456,6 +456,7 @@ my_bool _ma_once_end_block_record(MARIA_SHARE *share)
 my_bool _ma_init_block_record(MARIA_HA *info)
 {
   MARIA_ROW *row= &info->cur_row, *new_row= &info->new_row;
+  uint default_extents;
   DBUG_ENTER("_ma_init_block_record");
 
   if (!my_multi_malloc(MY_WME,
@@ -490,17 +491,27 @@ my_bool _ma_init_block_record(MARIA_HA *info)
   /* Skip over bytes used to store length of field length for logging */
   row->field_lengths+= 2;
   new_row->field_lengths+= 2;
+
+  /* Reserve some initial space to avoid mallocs during execution */
+  default_extents= (ELEMENTS_RESERVED_FOR_MAIN_PART + 1 +
+                    (AVERAGE_BLOB_SIZE /
+                     FULL_PAGE_SIZE(info->s->block_size) /
+                     BLOB_SEGMENT_MIN_SIZE));
+
   if (my_init_dynamic_array(&info->bitmap_blocks,
-                            sizeof(MARIA_BITMAP_BLOCK),
-                            ELEMENTS_RESERVED_FOR_MAIN_PART, 16))
+                            sizeof(MARIA_BITMAP_BLOCK), default_extents,
+                            64))
     goto err;
+  if (!(info->cur_row.extents= my_malloc(default_extents * ROW_EXTENT_SIZE,
+                                         MYF(MY_WME))))
+    goto err;
+
   row->base_length= new_row->base_length= info->s->base_length;
 
   /*
     We need to reserve 'EXTRA_LENGTH_FIELDS' number of parts in
     null_field_lengths to allow splitting of rows in 'find_where_to_split_row'
   */
-
   row->null_field_lengths+= EXTRA_LENGTH_FIELDS;
   new_row->null_field_lengths+= EXTRA_LENGTH_FIELDS;
 
@@ -3697,7 +3708,7 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
        column < end_column; column++)
   {
     uint column_length= column->length;
-    if (data >= end_of_data &&
+    if (data + column_length > end_of_data &&
         !(data= read_next_extent(info, &extent, &end_of_data)))
       goto err;
     memcpy(record + column->offset, data, column_length);
@@ -3731,7 +3742,7 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
     case FIELD_NORMAL:                          /* Fixed length field */
     case FIELD_SKIP_PRESPACE:
     case FIELD_SKIP_ZERO:                       /* Fixed length field */
-      if (data >= end_of_data &&
+      if (data + column->length > end_of_data &&
           !(data= read_next_extent(info, &extent, &end_of_data)))
         goto err;
       memcpy(field_pos, data, column->length);
@@ -4991,6 +5002,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   MARIA_PINNED_PAGE page_link;
   enum pagecache_page_lock unlock_method;
   enum pagecache_page_pin unpin_method;
+  my_off_t end_of_page;
   DBUG_ENTER("_ma_apply_redo_insert_row_head_or_tail");
 
   page=  page_korr(header);
@@ -5000,8 +5012,12 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                        (ulong) ma_recordpos(page, rownr),
                        (ulong) page, rownr, (uint) data_length));
 
-  if (((page + 1) * info->s->block_size) > info->state->data_file_length)
+  end_of_page= (page + 1) * info->s->block_size;
+  if (end_of_page > info->state->data_file_length)
   {
+    DBUG_PRINT("info", ("Enlarging data file from %lu to %lu",
+                        (ulong) info->state->data_file_length,
+                        (ulong) end_of_page));
     /*
       New page at end of file. Note that the test above is also positive if
       data_file_length is not a multiple of block_size (system crashed while
@@ -5153,11 +5169,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     case we extended the file. We could not do it earlier: bitmap code tests
     data_file_length to know if it has to create a new page or not.
   */
-  {
-    my_off_t end_of_page= (page + 1) * info->s->block_size;
-    set_if_bigger(info->state->data_file_length, end_of_page);
-  }
-
+  set_if_bigger(info->state->data_file_length, end_of_page);
   DBUG_RETURN(result);
 
 err:

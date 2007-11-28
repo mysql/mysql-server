@@ -73,7 +73,8 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
                       LSN *res_lsn, void *extra_msg)
 {
   uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE + CLR_TYPE_STORE_SIZE +
-                 HA_CHECKSUM_STORE_SIZE];
+                 HA_CHECKSUM_STORE_SIZE+ KEY_NR_STORE_SIZE + PAGE_STORE_SIZE];
+  uchar *log_pos;
   LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
   struct st_msg_to_write_hook_for_clr_end msg;
   my_bool res;
@@ -81,10 +82,8 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
 
   /* undo_lsn must be first for compression to work */
   lsn_store(log_data, undo_lsn);
-  clr_type_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE,
-                 undo_type);
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
-    sizeof(log_data) - HA_CHECKSUM_STORE_SIZE;
+  clr_type_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE, undo_type);
+  log_pos= log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE + CLR_TYPE_STORE_SIZE;
 
   /* Extra_msg is handled in write_hook_for_clr_end() */
   msg.undone_record_type= undo_type;
@@ -95,11 +94,24 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
   if (store_checksum)
   {
     msg.checksum_delta= checksum;
-    ha_checksum_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                      CLR_TYPE_STORE_SIZE, checksum);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+    ha_checksum_store(log_pos, checksum);
+    log_pos+= HA_CHECKSUM_STORE_SIZE;
   }
+  else if (undo_type == LOGREC_UNDO_KEY_INSERT_WITH_ROOT ||
+           undo_type == LOGREC_UNDO_KEY_DELETE_WITH_ROOT)
+  {
+    /* Key root changed. Store new key root */
+    struct st_msg_to_write_hook_for_undo_key *undo_msg= extra_msg;
+    ulonglong page;
+    key_nr_store(log_pos, undo_msg->keynr);
+    page= (undo_msg->value == HA_OFFSET_ERROR ? IMPOSSIBLE_PAGE_NO :
+           undo_msg->value / info->s->block_size);
+    page_store(log_pos + KEY_NR_STORE_SIZE, page);
+    log_pos+= KEY_NR_STORE_SIZE + PAGE_STORE_SIZE;
+  }
+
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
 
   res= translog_write_record(res_lsn, LOGREC_CLR_END,
                              info->trn, info, log_array[TRANSLOG_INTERNAL_PARTS
@@ -141,8 +153,8 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
   case LOGREC_UNDO_ROW_UPDATE:
     share->state.state.checksum+= msg->checksum_delta;
     break;
-  case LOGREC_UNDO_KEY_INSERT:
-  case LOGREC_UNDO_KEY_DELETE:
+  case LOGREC_UNDO_KEY_INSERT_WITH_ROOT:
+  case LOGREC_UNDO_KEY_DELETE_WITH_ROOT:
   {
     /* Update key root */
     struct st_msg_to_write_hook_for_undo_key *extra_msg=
@@ -150,6 +162,9 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
     *extra_msg->root= extra_msg->value;
     break;
   }
+  case LOGREC_UNDO_KEY_INSERT:
+  case LOGREC_UNDO_KEY_DELETE:
+    break;
   default:
     DBUG_ASSERT(0);
   }
@@ -812,9 +827,11 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
 
   msg.root= &share->state.key_root[keynr];
   msg.value= new_root;
+  msg.keynr= keynr;
 
-  if (_ma_write_clr(info, undo_lsn, LOGREC_UNDO_KEY_INSERT, 1, 0, &lsn,
-                    (void*) &msg))
+  if (_ma_write_clr(info, undo_lsn, *msg.root == msg.value ?
+                    LOGREC_UNDO_KEY_INSERT : LOGREC_UNDO_KEY_INSERT_WITH_ROOT,
+                    0, 0, &lsn, (void*) &msg))
     res= 1;
 
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
@@ -855,7 +872,11 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
 
   msg.root= &share->state.key_root[keynr];
   msg.value= new_root;
-  if (_ma_write_clr(info, undo_lsn, LOGREC_UNDO_KEY_DELETE, 1, 0, &lsn,
+  msg.keynr= keynr;
+  if (_ma_write_clr(info, undo_lsn,
+                    *msg.root == msg.value ?
+                    LOGREC_UNDO_KEY_DELETE : LOGREC_UNDO_KEY_DELETE_WITH_ROOT,
+                    0, 0, &lsn,
                     (void*) &msg))
     res= 1;
 

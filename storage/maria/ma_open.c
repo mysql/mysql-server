@@ -613,7 +613,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                          share->base.null_bytes +
                          share->base.pack_bytes +
                          test(share->options & HA_OPTION_CHECKSUM));
-    share->keypage_header= ((share->base.born_transactional ? LSN_STORE_SIZE :
+    share->keypage_header= ((share->base.born_transactional ?
+                             LSN_STORE_SIZE + TRANSID_SIZE :
                              0) + KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE +
                             KEYPAGE_USED_SIZE);
 
@@ -671,6 +672,11 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         (ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER) + MARIA_SPLIT_LENGTH +
          MARIA_REC_BUFF_OFFSET);
       share->base.default_rec_buff_size+= share->base.extra_rec_buff_size;
+    }
+    if (share->data_file_type == COMPRESSED_RECORD)
+    {
+      /* Need some extra bytes for decode_bytes */
+      share->base.extra_rec_buff_size= 7;
     }
     disk_pos_assert(disk_pos + share->base.fields *MARIA_COLUMNDEF_SIZE,
                     end_pos);
@@ -1042,6 +1048,9 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
 uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
 {
   uint res;
+  if (share->options & HA_OPTION_READ_ONLY_DATA)
+    return 0;
+
   if (pWrite & 4)
     pthread_mutex_lock(&share->intern_lock);
   else if (maria_multi_threaded)
@@ -1091,7 +1100,7 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   uchar *ptr=buff;
   uint	i, keys= (uint) state->header.keys;
   size_t res;
-  DBUG_ENTER("_ma_state_info_write");
+  DBUG_ENTER("_ma_state_info_write_sub");
 
   memcpy_fixed(ptr,&state->header,sizeof(state->header));
   ptr+=sizeof(state->header);

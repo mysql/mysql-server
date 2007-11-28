@@ -625,7 +625,7 @@ t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
 alter table t1 enable keys;
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	a	1	a	A	1000	NULL	NULL	YES	BTREE	
 alter table t1 engine=heap;
 alter table t1 disable keys;
 Warnings:
@@ -1957,12 +1957,12 @@ create table t2 like t1;
 insert into t2 select * from t1;
 analyze table t2;
 Table	Op	Msg_type	Msg_text
-test.t2	analyze	status	OK
+test.t2	analyze	status	Table is already up to date
 delete from t2;
 insert into t2 select * from t1;
 analyze table t2;
 Table	Op	Msg_type	Msg_text
-test.t2	analyze	status	OK
+test.t2	analyze	status	Table is already up to date
 drop table t1,t2;
 create table t1 (a bigint auto_increment, primary key(a), b char(255), c varchar(20000));
 update t1 set b=repeat('a',100) where a between 1 and 100;

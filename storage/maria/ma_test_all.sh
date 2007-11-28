@@ -169,6 +169,11 @@ run_pack_tests()
   $maria_path/maria_chk$suffix -rus test1
   $maria_path/maria_chk$suffix -es test1
   
+  $maria_path/ma_test1$suffix $silent --checksum $row_type
+  $maria_path/maria_pack$suffix --force -s test1
+  $maria_path/maria_chk$suffix -rus --safe-recover test1
+  $maria_path/maria_chk$suffix -es test1
+
   $maria_path/ma_test1$suffix $silent --checksum -S $row_type
   $maria_path/maria_chk$suffix -se test1
   $maria_path/maria_chk$suffix -ros test1
@@ -184,10 +189,10 @@ run_pack_tests()
   $maria_path/ma_test2$suffix $silent -c -d1 $row_type
   $maria_path/maria_chk$suffix -s --parallel-recover test2
   $maria_path/maria_chk$suffix -se test2
-  $maria_path/maria_chk$suffix -s --parallel-recover --unpack test2
+  $maria_path/maria_chk$suffix -s --unpack --parallel-recover test2
   $maria_path/maria_chk$suffix -se test2
   $maria_path/maria_pack$suffix --force -s test1
-  $maria_path/maria_chk$suffix -s --parallel-recover --unpack test2
+  $maria_path/maria_chk$suffix -s --unpack --parallel-recover test2
   $maria_path/maria_chk$suffix -se test2
 }
 
@@ -232,6 +237,30 @@ $maria_path/maria_chk$suffix -ssm test2
 # Test that removing tables and applying the log leads to identical tables
 #
 /bin/sh $maria_path/ma_test_recovery
+
+#
+# Extra tests that has caused failures in the past
+#
+
+# Problem with re-executing CLR's
+rm -f maria_log.* maria_log_control
+ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1
+cp maria_log_control tmp
+maria_read_log -a -s
+maria_chk -s -e test2
+cp tmp/maria_log_control .
+rm test2.MA?
+maria_read_log -a -s
+maria_chk -s -e test2
+
+# Problem with re-executing CLR's
+rm -f maria_log.* maria_log_control
+ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1
+maria_read_log -a -s
+maria_chk -s -e test2
+rm test2.MA?
+maria_read_log -a -s
+maria_chk -e -s test2
 
 #
 # Some timing tests

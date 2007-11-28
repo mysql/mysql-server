@@ -110,7 +110,9 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
   uchar **sort_keys;
   IO_CACHE tempfile, tempfile_for_exceptions;
   DBUG_ENTER("_ma_create_index_by_sort");
-  DBUG_PRINT("enter",("sort_length: %d", info->key_length));
+  DBUG_PRINT("enter",("sort_buff_size: %lu  sort_length: %d  max_records: %lu",
+                      (ulong) sortbuff_size, info->key_length,
+                      (ulong) info->sort_info->max_records));
 
   if (info->keyinfo->flag & HA_VAR_LENGTH_KEY)
   {

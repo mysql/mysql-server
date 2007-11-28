@@ -124,9 +124,6 @@
 #include "maria_def.h"
 #include "ma_blockrec.h"
 
-/* Number of pages to store blob parts */
-#define BLOB_SEGMENT_MIN_SIZE 128
-
 #define FULL_HEAD_PAGE 4
 #define FULL_TAIL_PAGE 7
 
@@ -187,7 +184,6 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
     return 1;
 
   bitmap->file.file= file;
-  bitmap->changed= 0;
   bitmap->block_size= share->block_size;
   /* Size needs to be alligned on 6 */
   aligned_bit_blocks= (share->block_size - PAGE_SUFFIX_SIZE) / 6;
@@ -212,18 +208,8 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
 
   pthread_mutex_init(&share->bitmap.bitmap_lock, MY_MUTEX_INIT_SLOW);
 
-  /*
-    We can't read a page yet, as in some case we don't have an active
-    page cache yet.
-    Pretend we have a dummy, full and not changed bitmap page in memory.
- */
+  _ma_bitmap_reset_cache(share);
 
-  bitmap->page= ~(ulonglong) 0;
-  bitmap->used_size= bitmap->total_size;
-  bfill(bitmap->map, share->block_size, 255);
-#ifndef DBUG_OFF
-  memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
-#endif
   if (share->state.first_bitmap_with_space == ~(ulonglong) 0)
   {
     /* Start scanning for free space from start of file */
@@ -309,6 +295,41 @@ void _ma_bitmap_delete_all(MARIA_SHARE *share)
     bitmap->changed= 1;
     bitmap->page= 0;
     bitmap->used_size= bitmap->total_size;
+  }
+}
+
+
+/**
+   @brief Reset bitmap caches
+
+   @fn    _ma_bitmap_reset_cache()
+   @param share		Maria share
+
+   @notes
+   This is called after we have swapped file descriptors and we want
+   bitmap to forget all cached information
+*/
+
+void _ma_bitmap_reset_cache(MARIA_SHARE *share)
+{
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+
+  if (bitmap->map)                              /* If using bitmap */
+  {
+    /* Forget changes in current bitmap page */
+    bitmap->changed= 0;
+
+    /*
+      We can't read a page yet, as in some case we don't have an active
+      page cache yet.
+      Pretend we have a dummy, full and not changed bitmap page in memory.
+    */
+    bitmap->page= ~(ulonglong) 0;
+    bitmap->used_size= bitmap->total_size;
+    bfill(bitmap->map, share->block_size, 255);
+#ifndef DBUG_OFF
+    memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
+#endif
   }
 }
 
@@ -1630,7 +1651,7 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
 {
   MARIA_SHARE *share= info->s;
   my_bool res= 1;
-  uint full_page_size, position;
+  uint position;
   uint head_length, row_length, rest_length, extents_length;
   ulonglong bitmap_page;
   DBUG_ENTER("_ma_bitmap_find_new_place");
@@ -1670,9 +1691,8 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
   /* The first segment size is stored in 'row_length' */
   row_length= find_where_to_split_row(share, row, extents_length, free_size);
 
-  full_page_size= FULL_PAGE_SIZE(share->block_size);
   position= 0;
-  if (head_length - row_length <= full_page_size)
+  if (head_length - row_length < MAX_TAIL_SIZE(share->block_size))
     position= ELEMENTS_RESERVED_FOR_MAIN_PART -2;    /* Only head and tail */
   use_head(info, page, row_length, position);
   rest_length= head_length - row_length;

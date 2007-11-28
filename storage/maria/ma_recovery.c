@@ -1147,7 +1147,7 @@ static int new_table(uint16 sid, const char *name,
     tprint(tracef, ", has wrong state.key_file_length (fixing it)");
     share->state.state.key_file_length= kfile_len;
   }
-  if ((dfile_len % share->block_size) > 0)
+  if ((dfile_len % share->block_size) || (kfile_len % share->block_size))
   {
     tprint(tracef, ", has too short last page\n");
     /* Recovery will fix this, no error */
@@ -1669,9 +1669,10 @@ prototype_redo_exec_hook(CLR_END)
   enum translog_record_type undone_record_type;
   const LOG_DESC *log_desc;
   my_bool row_entry= 0;
+  DBUG_ENTER("exec_REDO_LOGREC_CLR_END");
 
   if (info == NULL)
-    return 0;
+    DBUG_RETURN(0);
   share= info->s;
   previous_undo_lsn= lsn_korr(rec->header);
   undone_record_type=
@@ -1699,6 +1700,28 @@ prototype_redo_exec_hook(CLR_END)
     case LOGREC_UNDO_KEY_INSERT:
     case LOGREC_UNDO_KEY_DELETE:
       break;
+    case LOGREC_UNDO_KEY_INSERT_WITH_ROOT:
+    case LOGREC_UNDO_KEY_DELETE_WITH_ROOT:
+    {
+      uint key_nr;
+      my_off_t page;
+      uchar buff[KEY_NR_STORE_SIZE + PAGE_STORE_SIZE];
+      if (translog_read_record(rec->lsn, LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                               CLR_TYPE_STORE_SIZE,
+                               KEY_NR_STORE_SIZE + PAGE_STORE_SIZE,
+                               buff, NULL) !=
+          KEY_NR_STORE_SIZE + PAGE_STORE_SIZE)
+      {
+        tprint(tracef, "Failed to read record\n");
+        DBUG_RETURN(1);
+      }
+      key_nr= key_nr_korr(buff);
+      page=  page_korr(buff + KEY_NR_STORE_SIZE);
+      share->state.key_root[key_nr]= (page == IMPOSSIBLE_PAGE_NO ?
+                                      HA_OFFSET_ERROR :
+                                      page * share->block_size);
+      break;
+    }
     default:
       DBUG_ASSERT(0);
     }
@@ -1710,7 +1733,7 @@ prototype_redo_exec_hook(CLR_END)
                                buff, NULL) != HA_CHECKSUM_STORE_SIZE)
       {
         tprint(tracef, "Failed to read record\n");
-        return 1;
+        DBUG_RETURN(1);
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
@@ -1719,7 +1742,7 @@ prototype_redo_exec_hook(CLR_END)
   if (row_entry)
     tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
   _ma_unpin_all_pages(info, rec->lsn);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 

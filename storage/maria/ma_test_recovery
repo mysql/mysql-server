@@ -24,14 +24,7 @@ check_table_is_same()
 
     $maria_path/maria_chk -dvv $table | grep -v "Creation time:" > $tmp/maria_chk_message.txt 2>&1
 
-    # save the index file (because we want to test idempotency afterwards)
-    cp $table.MAI tmp/
-    # In the repair below it's good to use -q because it will die on any
-    # incorrectness of the data file if UNDO was badly applied.
-    # QQ: Remove the following line when we also can recover the index file
-    $maria_path/maria_chk -s -rq $table
-
-    $maria_path/maria_chk -s -e $table
+    $maria_path/maria_chk -s -e --read-only $table
     checksum2=`$maria_path/maria_chk -dss $table`
     if test "$checksum" != "$checksum2"
         then
@@ -47,7 +40,6 @@ check_table_is_same()
         cat $tmp/maria_chk_diff.txt
         echo "========DIFF END======="
     fi
-    mv tmp/$table.MAI .
 }
 
 apply_log()
