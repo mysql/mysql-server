@@ -193,7 +193,7 @@ CREATE TABLE t1 (c1 INT KEY) ENGINE=NDB;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 ALTER TABLE t1 ADD c2 INT;
 Warnings:
-Warning	1477	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 SELECT * FROM t1 ORDER BY c1;
 c1	c2
 1	NULL

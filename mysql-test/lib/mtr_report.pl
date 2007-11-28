@@ -352,7 +352,7 @@ sub mtr_report_stats ($) {
                 /Cannot find table test\/BUG29839 from the internal data dictionary/ or
 
                 # rpl_ndb_basic expects this error
-                /Slave: Got error 146 during COMMIT Error_code: 1180/
+                /Slave: Got error 146 during COMMIT Error_code: 1180/ or
 
 		# rpl_extrColmaster_*.test, the slave thread produces warnings
 		# when it get updates to a table that has more columns on the
