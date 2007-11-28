@@ -45,7 +45,7 @@ struct __toku_db_env_internal {
     TOKULOGGER logger;
 };
 
-void __toku_db_env_err(const DB_ENV * env __attribute__ ((__unused__)), int error, const char *fmt, ...) {
+static void toku_db_env_err(const DB_ENV * env __attribute__ ((__unused__)), int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     if (env->i->errpfx && env->i->errpfx[0] != '\0') fprintf(stderr, "%s: ", env->i->errpfx);
@@ -217,7 +217,7 @@ cleanup:
     return r ? r : r2;
 }
 
-int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
+static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     int r;
 
     if (db_env_opened(env))
@@ -283,7 +283,7 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
     return 0;
 }
 
-int __toku_db_env_close(DB_ENV * env, u_int32_t flags) {
+static int toku_db_env_close(DB_ENV * env, u_int32_t flags) {
     int r0=0,r1=0;
     if (flags) return EINVAL;
     if (env->i->cachetable)
@@ -307,22 +307,22 @@ int __toku_db_env_close(DB_ENV * env, u_int32_t flags) {
     return 0;
 }
 
-int __toku_db_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
+static int toku_db_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
     *list = NULL;
     return 0;
 }
 
-int __toku_db_env_log_flush(DB_ENV * env, const DB_LSN * lsn) {
+static int toku_db_env_log_flush(DB_ENV * env, const DB_LSN * lsn) {
     barf();
     return 1;
 }
 
-int __toku_db_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
+static int toku_db_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
     env->i->cachetable_size = ((long) gbytes << 30) + bytes;
     return 0;
 }
 
-int __toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
+static int toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
     if (db_env_opened(env) || !dir)
         return EINVAL;
     if (env->i->data_dir)
@@ -331,26 +331,26 @@ int __toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
     return env->i->data_dir ? 0 : ENOMEM;
 }
 
-void __toku_db_env_set_errcall(DB_ENV * env, void (*errcall) (const char *, char *)) {
+static void toku_db_env_set_errcall(DB_ENV * env, void (*errcall) (const char *, char *)) {
     env->i->errcall = errcall;
 }
 
-void __toku_db_env_set_errpfx(DB_ENV * env, const char *errpfx) {
+static void toku_db_env_set_errpfx(DB_ENV * env, const char *errpfx) {
     if (env->i->errpfx)
         toku_free(env->i->errpfx);
     env->i->errpfx = toku_strdup(errpfx ? errpfx : "");
 }
 
-int __toku_db_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
+static int toku_db_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
     assert(flags == 0);
     return 1;
 }
 
-int __toku_db_env_set_lg_bsize(DB_ENV * env, u_int32_t bsize) {
+static int toku_db_env_set_lg_bsize(DB_ENV * env, u_int32_t bsize) {
     return 1;
 }
 
-int __toku_db_env_set_lg_dir(DB_ENV * env, const char *dir) {
+static int toku_db_env_set_lg_dir(DB_ENV * env, const char *dir) {
     if (db_env_opened(env)) return EINVAL;
 
     if (env->i->lg_dir) toku_free(env->i->lg_dir);
@@ -362,15 +362,15 @@ int __toku_db_env_set_lg_dir(DB_ENV * env, const char *dir) {
     return 0;
 }
 
-int __toku_db_env_set_lg_max(DB_ENV * env, u_int32_t lg_max) {
+static int toku_db_env_set_lg_max(DB_ENV * env, u_int32_t lg_max) {
     return 1;
 }
 
-int __toku_db_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
+static int toku_db_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
     return 1;
 }
 
-int __toku_db_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
+static int toku_db_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
     return 0;
 }
 
@@ -378,7 +378,7 @@ int __toku_db_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
 //    env->i->noticecall = noticecall;
 //}
 
-int __toku_db_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
+static int toku_db_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
     if (db_env_opened(env)) return EINVAL;
     if (!tmp_dir) return EINVAL;
     if (env->i->tmp_dir)
@@ -387,15 +387,15 @@ int __toku_db_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
     return env->i->tmp_dir ? 0 : ENOMEM;
 }
 
-int __toku_db_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
+static int toku_db_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
     return 1;
 }
 
-int __toku_db_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte, u_int32_t min, u_int32_t flags) {
+static int toku_db_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte, u_int32_t min, u_int32_t flags) {
     return 0;
 }
 
-int __toku_db_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {
+static int toku_db_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {
     return 1;
 }
 
@@ -403,34 +403,34 @@ void toku_default_errcall(const char *errpfx, char *msg) {
     fprintf(stderr, "YDB: %s: %s", errpfx, msg);
 }
 
-static int __toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
+static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     DB_ENV *MALLOC(result);
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
-    result->err = __toku_db_env_err;
-    result->open = __toku_db_env_open;
-    result->close = __toku_db_env_close;
-    result->txn_checkpoint = __toku_db_env_txn_checkpoint;
-    result->log_flush = __toku_db_env_log_flush;
-    result->set_errcall = __toku_db_env_set_errcall;
-    result->set_errpfx = __toku_db_env_set_errpfx;
-    //result->set_noticecall = __toku_db_env_set_noticecall;
-    result->set_flags = __toku_db_env_set_flags;
-    result->set_data_dir = __toku_db_env_set_data_dir;
-    result->set_tmp_dir = __toku_db_env_set_tmp_dir;
-    result->set_verbose = __toku_db_env_set_verbose;
-    result->set_lg_bsize = __toku_db_env_set_lg_bsize;
-    result->set_lg_dir = __toku_db_env_set_lg_dir;
-    result->set_lg_max = __toku_db_env_set_lg_max;
-    result->set_cachesize = __toku_db_env_set_cachesize;
-    result->set_lk_detect = __toku_db_env_set_lk_detect;
-    result->set_lk_max = __toku_db_env_set_lk_max;
-    result->log_archive = __toku_db_env_log_archive;
-    result->txn_stat = __toku_db_env_txn_stat;
-    result->txn_begin = __toku_txn_begin;
+    result->err = toku_db_env_err;
+    result->open = toku_db_env_open;
+    result->close = toku_db_env_close;
+    result->txn_checkpoint = toku_db_env_txn_checkpoint;
+    result->log_flush = toku_db_env_log_flush;
+    result->set_errcall = toku_db_env_set_errcall;
+    result->set_errpfx = toku_db_env_set_errpfx;
+    //result->set_noticecall = toku_db_env_set_noticecall;
+    result->set_flags = toku_db_env_set_flags;
+    result->set_data_dir = toku_db_env_set_data_dir;
+    result->set_tmp_dir = toku_db_env_set_tmp_dir;
+    result->set_verbose = toku_db_env_set_verbose;
+    result->set_lg_bsize = toku_db_env_set_lg_bsize;
+    result->set_lg_dir = toku_db_env_set_lg_dir;
+    result->set_lg_max = toku_db_env_set_lg_max;
+    result->set_cachesize = toku_db_env_set_cachesize;
+    result->set_lk_detect = toku_db_env_set_lk_detect;
+    result->set_lk_max = toku_db_env_set_lk_max;
+    result->log_archive = toku_db_env_log_archive;
+    result->txn_stat = toku_db_env_txn_stat;
+    result->txn_begin = toku_txn_begin;
 
     MALLOC(result->i);
     if (result->i == 0) {
@@ -446,7 +446,7 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     return 0;
 }
 
-int __toku_db_txn_commit(DB_TXN * txn, u_int32_t flags) {
+int toku_db_txn_commit(DB_TXN * txn, u_int32_t flags) {
     //notef("flags=%d\n", flags);
     if (!txn)
         return -1;
@@ -466,13 +466,13 @@ static u_int32_t toku_db_txn_id(DB_TXN * txn) {
 
 static TXNID next_txn = 0;
 
-static int __toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
+static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     DB_TXN *MALLOC(result);
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
     //notef("parent=%p flags=0x%x\n", stxn, flags);
-    result->commit = __toku_db_txn_commit;
+    result->commit = toku_db_txn_commit;
     result->id = toku_db_txn_id;
     MALLOC(result->i);
     assert(result->i);
@@ -501,7 +501,7 @@ int log_compare(const DB_LSN * a, const DB_LSN * b) {
     abort();
 }
 
-int __toku_db_close(DB * db, u_int32_t flags) {
+static int toku_db_close(DB * db, u_int32_t flags) {
     int r = close_brt(db->i->brt);
     if (r != 0)
         return r;
@@ -532,19 +532,19 @@ static int toku_c_close(DBC * c) {
     return r;
 }
 
-int __toku_c_del(DBC * c, u_int32_t flags) {
+static int toku_c_del(DBC * c, u_int32_t flags) {
     int r = brt_cursor_delete(c->i->c, flags);
     return r;
 }
 
-int __toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
+static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
     DBC *MALLOC(result);
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
     result->c_get = toku_c_get;
     result->c_close = toku_c_close;
-    result->c_del = __toku_c_del;
+    result->c_del = toku_c_del;
     MALLOC(result->i);
     assert(result->i);
     result->i->db = db;
@@ -555,12 +555,12 @@ int __toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
     return 0;
 }
 
-int __toku_db_del(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, u_int32_t flags __attribute((unused))) {
+static int toku_db_del(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, u_int32_t flags __attribute((unused))) {
     int r = brt_delete(db->i->brt, key);
     return r;
 }
 
-int __toku_db_get(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, DBT * data, u_int32_t flags) {
+static int toku_db_get(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, DBT * data, u_int32_t flags) {
     assert(flags == 0);
     int r;
     int brtflags;
@@ -577,7 +577,7 @@ int __toku_db_get(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, DBT
     return r;
 }
 
-int __toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr, u_int32_t flags) {
+static int toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr, u_int32_t flags) {
     barf();
     abort();
 }
@@ -624,7 +624,7 @@ static char *construct_full_name(const char *dir, const char *fname) {
 //  have to inherit mode bits and so forth from the first file that was created.
 // Other problems may ensue (who is responsible for deleting the file?  That's not so bad actually.)
 // This suggests that we really need to put the multiple databases into one file.
-int __toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
+int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     // Warning.  Should check arguments.  Should check return codes on malloc and open and so forth.
 
     int openflags = 0;
@@ -694,13 +694,13 @@ error_cleanup:
     return r;
 }
 
-int __toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
+int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r = brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
     //printf("%s:%d %d=__toku_db_put(...)\n", __FILE__, __LINE__, r);
     return r;
 }
 
-int __toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
+int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
     int r;
     int r2;
     char ffull[PATH_MAX];
@@ -729,7 +729,7 @@ cleanup:
     return r ? r : r2;
 }
 
-int __toku_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
+int toku_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
     char afull[PATH_MAX], cfull[PATH_MAX];
     int r;
     assert(nameb == 0);
@@ -740,17 +740,17 @@ int __toku_db_rename(DB * db, const char *namea, const char *nameb, const char *
     return rename(afull, cfull);
 }
 
-int __toku_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
+int toku_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
     int r = brt_set_bt_compare(db->i->brt, bt_compare);
     return r;
 }
 
-int __toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *, const DBT *)) {
+int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *, const DBT *)) {
     int r = brt_set_dup_compare(db->i->brt, dup_compare);
     return r;
 }
 
-int __toku_db_set_flags(DB * db, u_int32_t flags) {
+int toku_db_set_flags(DB * db, u_int32_t flags) {
     u_int32_t tflags = 0;
     if (flags & DB_DUP)
         tflags += TOKU_DB_DUP;
@@ -760,12 +760,12 @@ int __toku_db_set_flags(DB * db, u_int32_t flags) {
     return r;
 }
 
-int __toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
+int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
     int r = brt_set_nodesize(db->i->brt, pagesize);
     return r;
 }
 
-int __toku_db_stat(DB * db, void *v, u_int32_t flags) {
+int toku_db_stat(DB * db, void *v, u_int32_t flags) {
     barf();
     abort();
 }
@@ -802,20 +802,20 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     }
     memset(result, 0, sizeof *result);
     result->dbenv = env;
-    result->close = __toku_db_close;
-    result->cursor = __toku_db_cursor;
-    result->del = __toku_db_del;
-    result->get = __toku_db_get;
-    result->key_range = __toku_db_key_range;
-    result->open = __toku_db_open;
-    result->put = __toku_db_put;
-    result->remove = __toku_db_remove;
-    result->rename = __toku_db_rename;
-    result->set_bt_compare = __toku_db_set_bt_compare;
-    result->set_dup_compare = __toku_db_set_dup_compare;
-    result->set_pagesize = __toku_db_set_pagesize;
-    result->set_flags = __toku_db_set_flags;
-    result->stat = __toku_db_stat;
+    result->close = toku_db_close;
+    result->cursor = toku_db_cursor;
+    result->del = toku_db_del;
+    result->get = toku_db_get;
+    result->key_range = toku_db_key_range;
+    result->open = toku_db_open;
+    result->put = toku_db_put;
+    result->remove = toku_db_remove;
+    result->rename = toku_db_rename;
+    result->set_bt_compare = toku_db_set_bt_compare;
+    result->set_dup_compare = toku_db_set_dup_compare;
+    result->set_pagesize = toku_db_set_pagesize;
+    result->set_flags = toku_db_set_flags;
+    result->stat = toku_db_stat;
     MALLOC(result->i);
     if (result->i == 0) {
         toku_free(result);
