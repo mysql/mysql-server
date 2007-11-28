@@ -1226,3 +1226,22 @@ drop user юзер_юзер@localhost;
 grant select on test.* to очень_длинный_юзер@localhost;
 ERROR HY000: String 'очень_длинный_юзер' is too long for user name (should be no longer than 16)
 set names default;
+FLUSH PRIVILEGES without procs_priv table.
+RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
+FLUSH PRIVILEGES;
+Warnings:
+Error	1146	Table 'mysql.procs_priv' doesn't exist
+Error	1548	Cannot load from mysql.mysql.procs_priv. The table is probably corrupted
+Assigning privileges without procs_priv table.
+CREATE DATABASE mysqltest1;
+CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
+SELECT 1;
+GRANT EXECUTE ON FUNCTION mysqltest1.test TO mysqltest_1@localhost;
+ERROR 42S02: Table 'mysql.procs_priv' doesn't exist
+GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
+CALL mysqltest1.test();
+1
+1
+DROP DATABASE mysqltest1;
+RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
+FLUSH PRIVILEGES;
