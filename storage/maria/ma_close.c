@@ -86,8 +86,7 @@ int maria_close(register MARIA_HA *info)
         may be using the file at this point
         IF using --external-locking, which does not apply to Maria.
       */
-      if (share->mode != O_RDONLY &&
-          ((share->changed && share->base.born_transactional) ||
+      if (((share->changed && share->base.born_transactional) ||
            maria_is_crashed(info)))
       {
         /*

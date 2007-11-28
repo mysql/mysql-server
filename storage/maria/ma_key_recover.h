@@ -35,6 +35,7 @@ struct st_msg_to_write_hook_for_undo_key
 {
   my_off_t *root;
   my_off_t value;
+  uint keynr;
 };
 
 

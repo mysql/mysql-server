@@ -118,7 +118,7 @@ typedef struct st_maria_state_info
 #define MARIA_STATE_KEYBLOCK_SIZE  8
 #define MARIA_STATE_KEYSEG_SIZE	12
 #define MARIA_STATE_EXTRA_SIZE (MARIA_MAX_KEY*MARIA_STATE_KEY_SIZE + MARIA_MAX_KEY*HA_MAX_KEY_SEG*MARIA_STATE_KEYSEG_SIZE)
-#define MARIA_KEYDEF_SIZE		(2+ 5*2)
+#define MARIA_KEYDEF_SIZE	(2+ 5*2)
 #define MARIA_UNIQUEDEF_SIZE	(2+1+1)
 #define HA_KEYSEG_SIZE		(6+ 2*2 + 4*2)
 #define MARIA_COLUMNDEF_SIZE	(6+2+2+2+2+2+1+1)
@@ -507,6 +507,7 @@ struct st_maria_handler
 
 #define USE_WHOLE_KEY	65535         /* Use whole key in _search() */
 #define F_EXTRA_LCK	-1
+#define TRANSID_SIZE		6
 
 /* bits in opt_flag */
 #define MEMMAP_USED	32
@@ -540,7 +541,8 @@ struct st_maria_handler
 #define KEYPAGE_FLAG_SIZE  1
 #define KEYPAGE_CHECKSUM_SIZE 4
 #define MAX_KEYPAGE_HEADER_SIZE (LSN_STORE_SIZE + KEYPAGE_USED_SIZE + \
-                                 KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE)
+                                 KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE + \
+                                 TRANSID_SIZE)
 
 #define _ma_get_page_used(info,x) \
   (((uint) mi_uint2korr(x + (info)->s->keypage_header - KEYPAGE_USED_SIZE)) & \
@@ -560,6 +562,11 @@ struct st_maria_handler
 }
 #define _ma_store_keynr(info, x, nr) x[(info)->s->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE]= nr
 #define _ma_get_keynr(info, x) ((uchar) x[(info)->s->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE])
+#define _ma_store_transid(buff, transid) \
+  int6store((buff) + LSN_STORE_SIZE, (transid))
+#define _ma_korr_transid(buff) \
+  uint6korr((buff) + LSN_STORE_SIZE)
+
 #define maria_mark_crashed(x) do{(x)->s->state.changed|= STATE_CRASHED; \
     DBUG_PRINT("error", ("Marked table crashed"));                      \
   }while(0)

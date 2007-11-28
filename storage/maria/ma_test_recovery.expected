@@ -47,40 +47,40 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N --testflag=2 --test-undo=2 (additional aborted work)
@@ -117,40 +117,40 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N --testflag=2 --test-undo=3 (additional aborted work)
@@ -187,40 +187,40 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                81920  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                81920  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                81920  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=1 (additional aborted work)
@@ -257,40 +257,40 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=2 (additional aborted work)
@@ -327,40 +327,40 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=3 (additional aborted work)
@@ -397,11 +397,11 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
 > Datafile length:               122880  Keyfile length:                 212992
@@ -410,27 +410,27 @@ testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N  -H1 --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N  -H1 --testflag=2 --test-undo=1 (additional aborted work)
@@ -467,40 +467,40 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N  -H1 --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N  -H1 --testflag=2 --test-undo=2 (additional aborted work)
@@ -537,37 +537,37 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:                90112  Keyfile length:                 204800
+> Datafile length:               114688  Keyfile length:                 204800
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
 > Datafile length:                90112  Keyfile length:                 204800
@@ -607,11 +607,11 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
 > Datafile length:                81920  Keyfile length:                 204800
@@ -620,11 +620,11 @@ testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
 > Datafile length:                81920  Keyfile length:                 204800
@@ -633,11 +633,11 @@ testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
 > Datafile length:                81920  Keyfile length:                 204800
@@ -677,40 +677,40 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b -H1 --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b -H1 --testflag=2 --test-undo=2 (additional aborted work)
@@ -747,11 +747,11 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
 > Datafile length:               122880  Keyfile length:                 212992
@@ -760,11 +760,11 @@ testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
 > Datafile length:               122880  Keyfile length:                 212992
@@ -773,11 +773,11 @@ testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
 > Datafile length:               122880  Keyfile length:                 212992
@@ -817,11 +817,11 @@ Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
 > Datafile length:               122880  Keyfile length:                 212992
@@ -830,25 +830,25 @@ testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
-7c7
+6c6
 < Status:              checked,analyzed,optimized keys,sorted index pages
 ---
 > Status:              changed
-12c12
+11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               122880  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======

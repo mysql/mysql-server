@@ -370,7 +370,7 @@ typedef struct st_maria_sort_param
   ulonglong unique[HA_MAX_KEY_SEG+1];
   ulonglong notnull[HA_MAX_KEY_SEG+1];
 
-  MARIA_RECORD_POS pos,max_pos,filepos,start_recpos;
+  MARIA_RECORD_POS pos,max_pos,filepos,start_recpos, current_filepos;
   uint key, key_length,real_key_length,sortbuff_size;
   uint maxbuffers, keys, find_length, sort_keys_length;
   my_bool fix_datafile, master;
@@ -392,18 +392,16 @@ typedef struct st_maria_sort_param
 /* functions in maria_check */
 void maria_chk_init(HA_CHECK *param);
 int maria_chk_status(HA_CHECK *param, MARIA_HA *info);
-int maria_chk_del(HA_CHECK *param, register MARIA_HA *info, uint test_flag);
+int maria_chk_del(HA_CHECK *param, MARIA_HA *info, uint test_flag);
 int maria_chk_size(HA_CHECK *param, MARIA_HA *info);
 int maria_chk_key(HA_CHECK *param, MARIA_HA *info);
 int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, int extend);
-int maria_repair(HA_CHECK *param, register MARIA_HA *info,
-		 char * name, int rep_quick);
-int maria_sort_index(HA_CHECK *param, register MARIA_HA *info,
-		     char * name);
-int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
-			 const char *name, int rep_quick);
+int maria_repair(HA_CHECK *param, MARIA_HA *info, char * name, uint rep_quick);
+int maria_sort_index(HA_CHECK *param, MARIA_HA *info, char * name);
+int maria_repair_by_sort(HA_CHECK *param, MARIA_HA *info,
+			 const char *name, uint rep_quick);
 int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
-			  const char *name, int rep_quick);
+			  const char *name, uint rep_quick);
 int maria_change_to_newfile(const char *filename, const char *old_ext,
                             const char *new_ext, myf myflags);
 void maria_lock_memory(HA_CHECK *param);

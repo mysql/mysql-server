@@ -490,6 +490,13 @@ static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT=
  NULL, write_hook_for_undo_key, NULL, 1,
  "undo_key_insert", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
+/* This will never be in the log, only in the clr */
+static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT_WITH_ROOT=
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ LSN_STORE_SIZE + FILEID_STORE_SIZE + KEY_NR_STORE_SIZE + PAGE_STORE_SIZE,
+ NULL, write_hook_for_undo_key, NULL, 1,
+ "undo_key_insert_with_root", LOGREC_LAST_IN_GROUP, NULL, NULL};
+
 static LOG_DESC INIT_LOGREC_UNDO_KEY_DELETE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + KEY_NR_STORE_SIZE,
@@ -605,6 +612,8 @@ static void loghandler_init()
     INIT_LOGREC_UNDO_ROW_UPDATE;
   log_record_type_descriptor[LOGREC_UNDO_KEY_INSERT]=
     INIT_LOGREC_UNDO_KEY_INSERT;
+  log_record_type_descriptor[LOGREC_UNDO_KEY_INSERT_WITH_ROOT]=
+    INIT_LOGREC_UNDO_KEY_INSERT_WITH_ROOT;
   log_record_type_descriptor[LOGREC_UNDO_KEY_DELETE]=
     INIT_LOGREC_UNDO_KEY_DELETE;
   log_record_type_descriptor[LOGREC_UNDO_KEY_DELETE_WITH_ROOT]=

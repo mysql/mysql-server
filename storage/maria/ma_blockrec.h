@@ -29,8 +29,8 @@
                                  PAGE_SUFFIX_SIZE)
 #define BLOCK_RECORD_POINTER_SIZE	6
 
-#define FULL_PAGE_SIZE(block_size) ((block_size) - LSN_SIZE - PAGE_TYPE_SIZE - \
-                                    PAGE_SUFFIX_SIZE)
+#define FULL_PAGE_SIZE(block_size) ((block_size) - LSN_SIZE - \
+                                    PAGE_TYPE_SIZE - PAGE_SUFFIX_SIZE)
 
 #define ROW_EXTENT_PAGE_SIZE	5
 #define ROW_EXTENT_COUNT_SIZE   2
@@ -40,12 +40,16 @@
 #define TAIL_BIT		0x8000	/* Bit in page_count to signify tail */
 /* Number of extents reserved MARIA_BITMAP_BLOCKS to store head part */
 #define ELEMENTS_RESERVED_FOR_MAIN_PART 4
+/* This is just used to prealloc a dynamic array */
+#define AVERAGE_BLOB_SIZE      1024L*1024L
+/* Number of pages to store continuous blob parts */
+#define BLOB_SEGMENT_MIN_SIZE 128
+
 /* Fields before 'row->null_field_lengths' used by find_where_to_split_row */
 #define EXTRA_LENGTH_FIELDS		3
 
 /* Size for the different parts in the row header (and head page) */
 #define FLAG_SIZE		1
-#define TRANSID_SIZE		6
 #define VERPTR_SIZE		7
 #define DIR_ENTRY_SIZE		4
 #define FIELD_OFFSET_SIZE	2      /* size of pointers to field starts */
@@ -167,6 +171,7 @@ my_bool _ma_compare_block_record(register MARIA_HA *info,
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
 my_bool _ma_bitmap_end(MARIA_SHARE *share);
 my_bool _ma_flush_bitmap(MARIA_SHARE *share);
+void _ma_bitmap_reset_cache(MARIA_SHARE *share);
 my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
                               MARIA_BITMAP_BLOCKS *result_blocks);
 my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks);

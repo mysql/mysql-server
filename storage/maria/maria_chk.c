@@ -135,7 +135,7 @@ int main(int argc, char **argv)
   {					/* Only if descript */
     char buff[22],buff2[22];
     if (!(check_param.testflag & T_SILENT) || check_param.testflag & T_INFO)
-      puts("\n---------\n");
+      puts("\n---------");
     printf("\nTotal of all %d MARIA-files:\nData records: %9s   Deleted blocks: %9s\n",check_param.total_files,llstr(check_param.total_records,buff),
 	   llstr(check_param.total_deleted,buff2));
   }
@@ -624,9 +624,13 @@ get_one_option(int optid,
     break;
   case 'u':
     if (argument == disabled_my_option)
-      check_param.testflag&= ~(T_UNPACK | T_REP_BY_SORT);
+      check_param.testflag&= ~T_UNPACK;
     else
-      check_param.testflag|= T_UNPACK | T_REP_BY_SORT;
+    {
+      check_param.testflag|= T_UNPACK;
+      if (!(check_param.testflag & T_REP_ANY))
+        check_param.testflag|= T_REP_BY_SORT;
+    }
     break;
   case 'v':				/* Verbose */
     if (argument == disabled_my_option)
@@ -802,13 +806,13 @@ static int maria_chk(HA_CHECK *param, char *filename)
   datafile=0;
   param->isam_file_name=filename;		/* For error messages */
   if (!(info=maria_open(filename,
-		     (param->testflag & (T_DESCRIPT | T_READONLY)) ?
-		     O_RDONLY : O_RDWR,
-		     HA_OPEN_FOR_REPAIR |
-		     ((param->testflag & T_WAIT_FOREVER) ?
-		      HA_OPEN_WAIT_IF_LOCKED :
-		      (param->testflag & T_DESCRIPT) ?
-		      HA_OPEN_IGNORE_IF_LOCKED : HA_OPEN_ABORT_IF_LOCKED))))
+                        (param->testflag & (T_DESCRIPT | T_READONLY)) ?
+                        O_RDONLY : O_RDWR,
+                        HA_OPEN_FOR_REPAIR |
+                        ((param->testflag & T_WAIT_FOREVER) ?
+                         HA_OPEN_WAIT_IF_LOCKED :
+                         (param->testflag & T_DESCRIPT) ?
+                         HA_OPEN_IGNORE_IF_LOCKED : HA_OPEN_ABORT_IF_LOCKED))))
   {
     /* Avoid twice printing of isam file name */
     param->error_printed=1;
@@ -852,7 +856,6 @@ static int maria_chk(HA_CHECK *param, char *filename)
     DBUG_RETURN(1);
   }
   share=info->s;
-  share->options&= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
   share->tot_locks-= share->r_locks;
   share->r_locks=0;
   maria_block_size= share->base.block_size;
@@ -871,10 +874,10 @@ static int maria_chk(HA_CHECK *param, char *filename)
       goto end2;
     }
     /* We can't do parallell repair with BLOCK_RECORD yet */
-    if (param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL))
+    if (param->testflag & T_REP_PARALLEL)
     {
-      param->testflag&= ~(T_REP_BY_SORT | T_REP_PARALLEL);
-      param->testflag|= T_REP;
+      param->testflag&= ~T_REP_PARALLEL;
+      param->testflag|= T_REP_BY_SORT;
     }
   }
 
@@ -1255,7 +1258,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     DBUG_VOID_RETURN;
   }
 
-  printf("\nMARIA file:          %s\n",name);
+  printf("MARIA file:          %s\n",name);
   printf("Record format:       %s\n", record_formats[share->data_file_type]);
   printf("Crashsafe:           %s\n",
          share->base.born_transactional ? "yes" : "no");

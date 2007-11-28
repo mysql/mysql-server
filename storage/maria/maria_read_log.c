@@ -29,7 +29,7 @@ const char *default_dbug_option= "d:t:i:O,\\maria_read_log.trace";
 const char *default_dbug_option= "d:t:i:o,/tmp/maria_read_log.trace";
 #endif
 #endif /* DBUG_OFF */
-static my_bool opt_only_display, opt_apply, opt_apply_undo, opt_silent,
+static my_bool opt_display_only, opt_apply, opt_apply_undo, opt_silent,
   opt_check;
 static ulong opt_page_buffer_size;
 
@@ -84,8 +84,8 @@ int main(int argc, char **argv)
     goto err;
   }
 
-  if (opt_only_display)
-    printf("You are using --only-display, NOTHING will be written to disk\n");
+  if (opt_display_only)
+    printf("You are using --display-only, NOTHING will be written to disk\n");
 
   /* LSN could be also --start-from-lsn=# */
   lsn= translog_first_lsn_in_log();
@@ -138,7 +138,7 @@ static struct my_option my_long_options[] =
    (uchar **) &opt_apply, (uchar **) &opt_apply, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
-   "if --only-display, check if record is fully readable (for debugging)",
+   "if --display-only, check if record is fully readable (for debugging)",
    (uchar **) &opt_check, (uchar **) &opt_check, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
@@ -147,8 +147,8 @@ static struct my_option my_long_options[] =
 #endif
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"only-display", 'o', "display brief info read from records' header",
-   (uchar **) &opt_only_display, (uchar **) &opt_only_display, 0, GET_BOOL,
+  {"display-only", 'o', "display brief info read from records' header",
+   (uchar **) &opt_display_only, (uchar **) &opt_display_only, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
   { "page_buffer_size", 'P', "",
     (uchar**) &opt_page_buffer_size, (uchar**) &opt_page_buffer_size, 0,
@@ -225,7 +225,7 @@ static void get_options(int *argc,char ***argv)
   if (!opt_apply)
     opt_apply_undo= FALSE;
 
-  if ((opt_only_display + opt_apply) != 1)
+  if ((opt_display_only + opt_apply) != 1)
   {
     usage();
     exit(1);
