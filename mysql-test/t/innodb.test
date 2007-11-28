@@ -327,39 +327,6 @@ select * from t2;
 drop table t1,t2;
 
 #
-# Search on unique key
-#
-
-CREATE TABLE t1 (
-  id int(11) NOT NULL auto_increment,
-  ggid varchar(32) binary DEFAULT '' NOT NULL,
-  email varchar(64) DEFAULT '' NOT NULL,
-  passwd varchar(32) binary DEFAULT '' NOT NULL,
-  PRIMARY KEY (id),
-  UNIQUE ggid (ggid)
-) ENGINE=innodb;
-
-insert into t1 (ggid,passwd) values ('test1','xxx');
-insert into t1 (ggid,passwd) values ('test2','yyy');
--- error ER_DUP_ENTRY
-insert into t1 (ggid,passwd) values ('test2','this will fail');
--- error ER_DUP_ENTRY
-insert into t1 (ggid,id) values ('this will fail',1);
-
-select * from t1 where ggid='test1';
-select * from t1 where passwd='xxx';
-select * from t1 where id=2;
-
-replace into t1 (ggid,id) values ('this will work',1);
-replace into t1 (ggid,passwd) values ('test2','this will work');
--- error ER_DUP_ENTRY
-update t1 set id=100,ggid='test2' where id=1;
-select * from t1;
-select * from t1 where id=1;
-select * from t1 where id=999;
-drop table t1;
-
-#
 # ORDER BY on not primary key
 #
 
@@ -752,6 +719,38 @@ UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
 select * from t1;
 select * from t2;
 drop table t1,t2;
+
+#
+# Bug #29136  	erred multi-delete on trans table does not rollback 
+#
+
+# prepare
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+CREATE TABLE t1 (a int, PRIMARY KEY (a));
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+create trigger trg_del_t2 after  delete on t2 for each row
+       insert into t1 values (1);
+insert into t1 values (1);
+insert into t2 values (1),(2);
+
+
+# exec cases A, B - see multi_update.test
+
+# A. send_error() w/o send_eof() branch
+
+--error ER_DUP_ENTRY
+delete t2 from t2;
+
+# check
+
+select count(*) from t2 /* must be 2 as restored after rollback caused by the error */;
+
+# cleanup bug#29136
+
+drop table t1, t2;
+
 
 #
 # Testing of IFNULL
@@ -2322,6 +2321,67 @@ CREATE TABLE t1 (
 	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
 	) ENGINE = InnoDB;
+
+#
+# Bug #31860 InnoDB assumes AUTOINC values can only be positive.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(
+	id BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY
+	) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(-10);
+SELECT * FROM t1;
+#
+# NOTE: The server really needs to be restarted at this point
+# for the test to be useful.  
+#
+# Without the fix InnoDB would trip over an assertion here.
+INSERT INTO t1 VALUES(NULL);
+# The next value should be 1 and not -9 or a -ve number
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# 
+# Bug #21409 Incorrect result returned when in READ-COMMITTED with
+# query_cache ON
+#
+CONNECT (c1,localhost,root,,);
+CONNECT (c2,localhost,root,,);
+CONNECTION c1;
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
+CREATE TABLE t2 LIKE t1;
+SELECT * FROM t2;
+CONNECTION c2;
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+INSERT INTO t1 VALUES (1);
+COMMIT;
+CONNECTION c1;
+SELECT * FROM t1 WHERE a=1;
+DISCONNECT c1;
+DISCONNECT c2;
+CONNECT (c1,localhost,root,,);
+CONNECT (c2,localhost,root,,);
+CONNECTION c1;
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+SELECT * FROM t2;
+CONNECTION c2;
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+INSERT INTO t1 VALUES (2);
+COMMIT;
+CONNECTION c1;
+# The result set below should be the same for both selects
+SELECT * FROM t1 WHERE a=2;
+SELECT * FROM t1 WHERE a=2;
+DROP TABLE t1;
+DROP TABLE t2;
+DISCONNECT c1;
+DISCONNECT c2;
 
 #######################################################################
 #                                                                     #

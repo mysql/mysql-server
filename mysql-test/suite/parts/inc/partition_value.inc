@@ -1,11 +1,11 @@
 ################################################################################
-# include/partition_value.inc                                                  #
+# inc/partition_value.inc                                                      #
 #                                                                              #
 # Purpose:                                                                     #
 #   Tests around "exotic" values calculated by the partitioning function       #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-04-11                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #

@@ -1394,20 +1394,85 @@ int Field::store(const char *to, uint length, CHARSET_INFO *cs,
 
 
 /**
+   Pack the field into a format suitable for storage and transfer.
+
+   To implement packing functionality, only the virtual function
+   should be overridden. The other functions are just convenience
+   functions and hence should not be overridden.
+
+   The value of <code>low_byte_first</code> is dependent on how the
+   packed data is going to be used: for local use, e.g., temporary
+   store on disk or in memory, use the native format since that is
+   faster. For data that is going to be transfered to other machines
+   (e.g., when writing data to the binary log), data should always be
+   stored in little-endian format.
+
+   @note The default method for packing fields just copy the raw bytes
+   of the record into the destination, but never more than
+   <code>max_length</code> characters.
+
+   @param to
+   Pointer to memory area where representation of field should be put.
+
+   @param from
+   Pointer to memory area where record representation of field is
+   stored.
+
+   @param max_length
+   Maximum length of the field, as given in the column definition. For
+   example, for <code>CHAR(1000)</code>, the <code>max_length</code>
+   is 1000. This information is sometimes needed to decide how to pack
+   the data.
+
+   @param low_byte_first
+   @c TRUE if integers should be stored little-endian, @c FALSE if
+   native format should be used. Note that for little-endian machines,
+   the value of this flag is a moot point since the native format is
+   little-endian.
+*/
+uchar *
+Field::pack(uchar *to, const uchar *from, uint max_length,
+            bool low_byte_first __attribute__((unused)))
+{
+  uint32 length= pack_length();
+  set_if_smaller(length, max_length);
+  memcpy(to, from, length);
+  return to+length;
+}
+
+/**
    Unpack a field from row data.
 
-   This method is used to unpack a field from a master whose size 
-   of the field is less than that of the slave.
-  
+   This method is used to unpack a field from a master whose size of
+   the field is less than that of the slave.
+
+   The <code>param_data</code> parameter is a two-byte integer (stored
+   in the least significant 16 bits of the unsigned integer) usually
+   consisting of two parts: the real type in the most significant byte
+   and a original pack length in the least significant byte.
+
+   The exact layout of the <code>param_data</code> field is given by
+   the <code>Table_map_log_event::save_field_metadata()</code>.
+
+   This is the default method for unpacking a field. It just copies
+   the memory block in byte order (of original pack length bytes or
+   length of field, whichever is smaller).
+
    @param   to         Destination of the data
    @param   from       Source of the data
-   @param   param_data Pack length of the field data
+   @param   param_data Real type and original pack length of the field
+                       data
+
+   @param low_byte_first
+   If this flag is @c true, all composite entities (e.g., lengths)
+   should be unpacked in little-endian format; otherwise, the entities
+   are unpacked in native order.
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field::unpack(uchar* to,
-                           const uchar *from, 
-                           uint param_data)
+const uchar *
+Field::unpack(uchar* to, const uchar *from, uint param_data,
+              bool low_byte_first __attribute__((unused)))
 {
   uint length=pack_length();
   int from_type= 0;
@@ -1420,19 +1485,18 @@ const uchar *Field::unpack(uchar* to,
     from_type= (param_data & 0xff00) >> 8U;  // real_type.
     param_data= param_data & 0x00ff;        // length.
   }
+
+  if ((param_data == 0) ||
+      (length == param_data) ||
+      (from_type != real_type()))
+  {
+    memcpy(to, from, length);
+    return from+length;
+  }
+
   uint len= (param_data && (param_data < length)) ?
             param_data : length;
-  /*
-    If the length is the same, use old unpack method.
-    If the param_data is 0, use the old unpack method.
-      This is possible if the table map was generated from a down-level
-      master or if the data was not available on the master.
-    If the real_types are not the same, use the old unpack method.
-  */
-  if ((length == param_data) ||
-      (param_data == 0) ||
-      (from_type != real_type()))
-    return(unpack(to, from));
+
   memcpy(to, from, param_data > length ? length : len);
   return from+len;
 }
@@ -2814,10 +2878,15 @@ uint Field_new_decimal::is_equal(Create_field *new_field)
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_new_decimal::unpack(uchar* to, 
-                                       const uchar *from, 
-                                       uint param_data)
+const uchar *
+Field_new_decimal::unpack(uchar* to,
+                          const uchar *from,
+                          uint param_data,
+                          bool low_byte_first)
 {
+  if (param_data == 0)
+    return Field::unpack(to, from, param_data, low_byte_first);
+
   uint from_precision= (param_data & 0xff00) >> 8U;
   uint from_decimal= param_data & 0x00ff;
   uint length=pack_length();
@@ -3958,6 +4027,49 @@ void Field_longlong::sql_type(String &res) const
   add_zerofill_and_unsigned(res);
 }
 
+
+/*
+  Floating-point numbers
+ */
+
+uchar *
+Field_real::pack(uchar *to, const uchar *from,
+                 uint max_length, bool low_byte_first)
+{
+  DBUG_ENTER("Field_real::pack");
+  DBUG_ASSERT(max_length >= pack_length());
+  DBUG_PRINT("debug", ("pack_length(): %u", pack_length()));
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first != table->s->db_low_byte_first)
+  {
+    const uchar *dptr= from + pack_length();
+    while (dptr-- > from)
+      *to++ = *dptr;
+    DBUG_RETURN(to);
+  }
+  else
+#endif
+    DBUG_RETURN(Field::pack(to, from, max_length, low_byte_first));
+}
+
+const uchar *
+Field_real::unpack(uchar *to, const uchar *from,
+                   uint param_data, bool low_byte_first)
+{
+  DBUG_ENTER("Field_real::unpack");
+  DBUG_PRINT("debug", ("pack_length(): %u", pack_length()));
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first != table->s->db_low_byte_first)
+  {
+    const uchar *dptr= from + pack_length();
+    while (dptr-- > from)
+      *to++ = *dptr;
+    DBUG_RETURN(from + pack_length());
+  }
+  else
+#endif
+    DBUG_RETURN(Field::unpack(to, from, param_data, low_byte_first));
+}
 
 /****************************************************************************
   single precision float
@@ -6367,6 +6479,11 @@ int Field_longstr::store_decimal(const my_decimal *d)
   return store(str.ptr(), str.length(), str.charset());
 }
 
+uint32 Field_longstr::max_data_length() const
+{
+  return field_length + (field_length > 255 ? 2 : 1);
+}
+
 
 double Field_string::val_real(void)
 {
@@ -6511,7 +6628,9 @@ void Field_string::sql_type(String &res) const
 }
 
 
-uchar *Field_string::pack(uchar *to, const uchar *from, uint max_length)
+uchar *Field_string::pack(uchar *to, const uchar *from,
+                          uint max_length,
+                          bool low_byte_first __attribute__((unused)))
 {
   uint length=      min(field_length,max_length);
   uint local_char_length= max_length/field_charset->mbmaxlen;
@@ -6519,11 +6638,15 @@ uchar *Field_string::pack(uchar *to, const uchar *from, uint max_length)
     local_char_length= my_charpos(field_charset, from, from+length,
                                   local_char_length);
   set_if_smaller(length, local_char_length);
-  while (length && from[length-1] == ' ')
+  while (length && from[length-1] == field_charset->pad_char)
     length--;
+
+  // Length always stored little-endian
   *to++= (uchar) length;
   if (field_length > 255)
     *to++= (uchar) (length >> 8);
+
+  // Store the actual bytes of the string
   memcpy(to, from, length);
   return to+length;
 }
@@ -6545,34 +6668,27 @@ uchar *Field_string::pack(uchar *to, const uchar *from, uint max_length)
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_string::unpack(uchar *to,
-                                  const uchar *from,
-                                  uint param_data)
+const uchar *
+Field_string::unpack(uchar *to,
+                     const uchar *from,
+                     uint param_data,
+                     bool low_byte_first __attribute__((unused)))
 {
-  uint from_len= param_data & 0x00ff;                 // length.
-  uint length= 0;
-  uint f_length;
-  f_length= (from_len < field_length) ? from_len : field_length;
-  DBUG_ASSERT(f_length <= 255);
-  length= (uint) *from++;
-  bitmap_set_bit(table->write_set,field_index);
-  store((const char *)from, length, system_charset_info);
-  return from+length;
-}
-
-
-const uchar *Field_string::unpack(uchar *to, const uchar *from)
-{
+  uint from_length=
+    param_data ? min(param_data & 0x00ff, field_length) : field_length;
   uint length;
-  if (field_length > 255)
+
+  if (from_length > 255)
   {
     length= uint2korr(from);
     from+= 2;
   }
   else
     length= (uint) *from++;
-  memcpy(to, from, (int) length);
-  bfill(to+length, field_length - length, ' ');
+
+  memcpy(to, from, length);
+  // Pad the string with the pad character of the fields charset
+  bfill(to + length, field_length - length, field_charset->pad_char);
   return from+length;
 }
 
@@ -6762,6 +6878,7 @@ const uint Field_varstring::MAX_SIZE= UINT_MAX16;
 int Field_varstring::do_save_field_metadata(uchar *metadata_ptr)
 {
   char *ptr= (char *)metadata_ptr;
+  DBUG_ASSERT(field_length <= 65535);
   int2store(ptr, field_length);
   return 2;
 }
@@ -6994,22 +7111,30 @@ uint32 Field_varstring::used_length()
   Here the number of length bytes are depending on the given max_length
 */
 
-uchar *Field_varstring::pack(uchar *to, const uchar *from, uint max_length)
+uchar *Field_varstring::pack(uchar *to, const uchar *from,
+                             uint max_length,
+                             bool low_byte_first __attribute__((unused)))
 {
   uint length= length_bytes == 1 ? (uint) *from : uint2korr(from);
   set_if_smaller(max_length, field_length);
   if (length > max_length)
     length=max_length;
-  *to++= (char) (length & 255);
+
+  /* Length always stored little-endian */
+  *to++= length & 0xFF;
   if (max_length > 255)
-    *to++= (char) (length >> 8);
-  if (length)
+    *to++= (length >> 8) & 0xFF;
+
+  /* Store bytes of string */
+  if (length > 0)
     memcpy(to, from+length_bytes, length);
   return to+length;
 }
 
 
-uchar *Field_varstring::pack_key(uchar *to, const uchar *key, uint max_length)
+uchar *
+Field_varstring::pack_key(uchar *to, const uchar *key, uint max_length,
+                          bool low_byte_first __attribute__((unused)))
 {
   uint length=  length_bytes == 1 ? (uint) *key : uint2korr(key);
   uint local_char_length= ((field_charset->mbmaxlen > 1) ?
@@ -7048,8 +7173,9 @@ uchar *Field_varstring::pack_key(uchar *to, const uchar *key, uint max_length)
     Pointer to end of 'key' (To the next key part if multi-segment key)
 */
 
-const uchar *Field_varstring::unpack_key(uchar *to, const uchar *key,
-                                         uint max_length)
+const uchar *
+Field_varstring::unpack_key(uchar *to, const uchar *key, uint max_length,
+                            bool low_byte_first __attribute__((unused)))
 {
   /* get length of the blob key */
   uint32 length= *key++;
@@ -7078,8 +7204,9 @@ const uchar *Field_varstring::unpack_key(uchar *to, const uchar *key,
     end of key storage
 */
 
-uchar *Field_varstring::pack_key_from_key_image(uchar *to, const uchar *from,
-                                                uint max_length)
+uchar *
+Field_varstring::pack_key_from_key_image(uchar *to, const uchar *from, uint max_length,
+                                         bool low_byte_first __attribute__((unused)))
 {
   /* Key length is always stored as 2 bytes */
   uint length= uint2korr(from);
@@ -7099,6 +7226,9 @@ uchar *Field_varstring::pack_key_from_key_image(uchar *to, const uchar *from,
 
    This method is used to unpack a varstring field from a master
    whose size of the field is less than that of the slave.
+
+   @note
+   The string length is always packed little-endian.
   
    @param   to         Destination of the data
    @param   from       Source of the data
@@ -7106,9 +7236,10 @@ uchar *Field_varstring::pack_key_from_key_image(uchar *to, const uchar *from,
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_varstring::unpack(uchar *to, 
-                                     const uchar *from,
-                                     uint param_data)
+const uchar *
+Field_varstring::unpack(uchar *to, const uchar *from,
+                        uint param_data,
+                        bool low_byte_first __attribute__((unused)))
 {
   uint length;
   uint l_bytes= (param_data && (param_data < field_length)) ? 
@@ -7120,28 +7251,7 @@ const uchar *Field_varstring::unpack(uchar *to,
     if (length_bytes == 2)
       to[1]= 0;
   }
-  else
-  {
-    length= uint2korr(from);
-    to[0]= *from++;
-    to[1]= *from++;
-  }
-  if (length)
-    memcpy(to+ length_bytes, from, length);
-  return from+length;
-}
-
-
-/*
-  unpack field packed with Field_varstring::pack()
-*/
-
-const uchar *Field_varstring::unpack(uchar *to, const uchar *from)
-{
-  uint length;
-  if (length_bytes == 1)
-    length= (uint) (*to= *from++);
-  else
+  else /* l_bytes == 2 */
   {
     length= uint2korr(from);
     to[0]= *from++;
@@ -7390,9 +7500,9 @@ void Field_blob::store_length(uchar *i_ptr,
 }
 
 
-uint32 Field_blob::get_length(const uchar *pos, bool low_byte_first)
+uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg, bool low_byte_first)
 {
-  switch (packlength) {
+  switch (packlength_arg) {
   case 1:
     return (uint32) pos[0];
   case 2:
@@ -7823,26 +7933,37 @@ void Field_blob::sql_type(String &res) const
   }
 }
 
-
-uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length)
+uchar *Field_blob::pack(uchar *to, const uchar *from,
+                        uint max_length, bool low_byte_first)
 {
+  DBUG_ENTER("Field_blob::pack");
+  DBUG_PRINT("enter", ("to: 0x%lx; from: 0x%lx;"
+                       " max_length: %u; low_byte_first: %d",
+                       (ulong) to, (ulong) from,
+                       max_length, low_byte_first));
+  DBUG_DUMP("record", from, table->s->reclength);
   uchar *save= ptr;
   ptr= (uchar*) from;
   uint32 length=get_length();			// Length of from string
-  if (length > max_length)
-  {
-    length=max_length;
-    store_length(to,packlength,length,TRUE);
-  }
-  else
-    memcpy(to,from,packlength);			// Copy length
-  if (length)
+
+  /*
+    Store max length, which will occupy packlength bytes. If the max
+    length given is smaller than the actual length of the blob, we
+    just store the initial bytes of the blob.
+  */
+  store_length(to, packlength, min(length, max_length), low_byte_first);
+
+  /*
+    Store the actual blob data, which will occupy 'length' bytes.
+   */
+  if (length > 0)
   {
     get_ptr((uchar**) &from);
     memcpy(to+packlength, from,length);
   }
   ptr=save;					// Restore org row pointer
-  return to+packlength+length;
+  DBUG_DUMP("packed", to, packlength + length);
+  DBUG_RETURN(to+packlength+length);
 }
 
 
@@ -7857,28 +7978,30 @@ uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length)
 
    @param   to         Destination of the data
    @param   from       Source of the data
-   @param   param_data not used
+   @param   param_data @c TRUE if base types should be stored in little-
+                       endian format, @c FALSE if native format should
+                       be used.
 
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *Field_blob::unpack(uchar *to, 
                                 const uchar *from,
-                                uint param_data)
+                                uint param_data,
+                                bool low_byte_first)
 {
-  return unpack(to, from);
-}
-
-
-const uchar *Field_blob::unpack(uchar *to, const uchar *from)
-{
-  uint32 length=get_length(from);
-  memcpy(to,from,packlength);
-  from+=packlength;
-  if (length)
-    memcpy_fixed(to+packlength, &from, sizeof(from));
-  else
-    bzero(to+packlength,sizeof(from));
-  return from+length;
+  DBUG_ENTER("Field_blob::unpack");
+  DBUG_PRINT("enter", ("to: 0x%lx; from: 0x%lx;"
+                       " param_data: %u; low_byte_first: %d",
+                       (ulong) to, (ulong) from, param_data, low_byte_first));
+  uint const master_packlength=
+    param_data > 0 ? param_data & 0xFF : packlength;
+  uint32 const length= get_length(from, master_packlength, low_byte_first);
+  DBUG_DUMP("packed", from, length + master_packlength);
+  bitmap_set_bit(table->write_set, field_index);
+  store(reinterpret_cast<const char*>(from) + master_packlength,
+        length, field_charset);
+  DBUG_DUMP("record", to, table->s->reclength);
+  DBUG_RETURN(from + master_packlength + length);
 }
 
 /* Keys for blobs are like keys on varchars */
@@ -7928,7 +8051,9 @@ int Field_blob::pack_cmp(const uchar *b, uint key_length_arg,
 
 /* Create a packed key that will be used for storage from a MySQL row */
 
-uchar *Field_blob::pack_key(uchar *to, const uchar *from, uint max_length)
+uchar *
+Field_blob::pack_key(uchar *to, const uchar *from, uint max_length,
+                     bool low_byte_first __attribute__((unused)))
 {
   uchar *save= ptr;
   ptr= (uchar*) from;
@@ -7973,8 +8098,9 @@ uchar *Field_blob::pack_key(uchar *to, const uchar *from, uint max_length)
     Pointer into 'from' past the last byte copied from packed key.
 */
 
-const uchar *Field_blob::unpack_key(uchar *to, const uchar *from,
-                                    uint max_length)
+const uchar *
+Field_blob::unpack_key(uchar *to, const uchar *from, uint max_length,
+                       bool low_byte_first __attribute__((unused)))
 {
   /* get length of the blob key */
   uint32 length= *from++;
@@ -7997,8 +8123,9 @@ const uchar *Field_blob::unpack_key(uchar *to, const uchar *from,
 
 /* Create a packed key that will be used for storage from a MySQL key */
 
-uchar *Field_blob::pack_key_from_key_image(uchar *to, const uchar *from,
-                                           uint max_length)
+uchar *
+Field_blob::pack_key_from_key_image(uchar *to, const uchar *from, uint max_length,
+                                    bool low_byte_first __attribute__((unused)))
 {
   uint length=uint2korr(from);
   if (length > max_length)
@@ -8945,9 +9072,11 @@ void Field_bit::sql_type(String &res) const
 }
 
 
-uchar *Field_bit::pack(uchar *to, const uchar *from, uint max_length)
+uchar *
+Field_bit::pack(uchar *to, const uchar *from, uint max_length,
+                bool low_byte_first __attribute__((unused)))
 {
-  DBUG_ASSERT(max_length);
+  DBUG_ASSERT(max_length > 0);
   uint length;
   if (bit_len > 0)
   {
@@ -8982,28 +9111,44 @@ uchar *Field_bit::pack(uchar *to, const uchar *from, uint max_length)
 /**
    Unpack a bit field from row data.
 
-   This method is used to unpack a bit field from a master whose size 
+   This method is used to unpack a bit field from a master whose size
    of the field is less than that of the slave.
-  
+
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Bit length (upper) and length (lower) values
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_bit::unpack(uchar *to,
-                               const uchar *from,
-                               uint param_data)
+const uchar *
+Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
+                  bool low_byte_first __attribute__((unused)))
 {
   uint const from_len= (param_data >> 8U) & 0x00ff;
   uint const from_bit_len= param_data & 0x00ff;
   /*
-    If the master and slave have the same sizes, then use the old
-    unpack() method.
+    If the parameter data is zero (i.e., undefined), or if the master
+    and slave have the same sizes, then use the old unpack() method.
   */
-  if ((from_bit_len == bit_len) &&
-      (from_len == bytes_in_rec)) 
-    return(unpack(to, from));
+  if (param_data == 0 ||
+      (from_bit_len == bit_len) && (from_len == bytes_in_rec))
+  {
+    if (bit_len > 0)
+    {
+      /*
+        set_rec_bits is a macro, don't put the post-increment in the
+        argument since that might cause strange side-effects.
+
+        For the choice of the second argument, see the explanation for
+        Field_bit::pack().
+      */
+      set_rec_bits(*from, bit_ptr + (to - ptr), bit_ofs, bit_len);
+      from++;
+    }
+    memcpy(to, from, bytes_in_rec);
+    return from + bytes_in_rec;
+  }
+
   /*
     We are converting a smaller bit field to a larger one here.
     To do that, we first need to construct a raw value for the original
@@ -9028,25 +9173,6 @@ const uchar *Field_bit::unpack(uchar *to,
   store(value, new_len, system_charset_info);
   my_afree(value);
   return from + len;
-}
-
-
-const uchar *Field_bit::unpack(uchar *to, const uchar *from)
-{
-  if (bit_len > 0)
-  {
-    /*
-      set_rec_bits is a macro, don't put the post-increment in the
-      argument since that might cause strange side-effects.
-
-      For the choice of the second argument, see the explanation for
-      Field_bit::pack().
-    */
-    set_rec_bits(*from, bit_ptr + (to - ptr), bit_ofs, bit_len);
-    from++;
-  }
-  memcpy(to, from, bytes_in_rec);
-  return from + bytes_in_rec;
 }
 
 

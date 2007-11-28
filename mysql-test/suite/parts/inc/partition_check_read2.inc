@@ -1,12 +1,12 @@
 ################################################################################
-# include/partition_check_read2.inc                                            #
+# inc/partition_check_read2.inc                                                #
 #                                                                              #
 # Purpose:                                                                     #
 #   Read rows from table t1 in different ways                                  #
 #   This routine is only useful for the partition_<feature>_<engine> tests.    #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-04-11                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #

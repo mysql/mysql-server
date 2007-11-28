@@ -18,7 +18,7 @@
 #       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
 #       THE SOURCED FILES ONLY.
 #
-# Please read the README at the end of include/partition.pre before changing
+# Please read the README at the end of inc/partition.pre before changing
 # any of the variables.
 #
 
@@ -35,8 +35,8 @@ let $debug= 0;
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
-let $engine= 'InnoDB';
 --source include/have_innodb.inc
+let $engine= 'InnoDB';
 
 ##### max rows to be inserted
 let $maxrows=1024;
@@ -48,8 +48,3 @@ let $maxrows=1024;
 --source suite/parts/inc/partition_time.inc
 --source suite/parts/inc/partition_datetime.inc
 --source suite/parts/inc/partition_year.inc
-# --source inc/partition_timestamp.inc
-# --source inc/partition_date.inc
-# --source inc/partition_time.inc
-# --source inc/partition_datetime.inc
-# --source inc/partition_year.inc

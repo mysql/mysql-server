@@ -11,7 +11,5 @@
 ##############################################################################
 
 rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK on master
-rpl_invoked_features     : BUG#29020 2007-06-21 Lars Non-deterministic test case
-rpl_auto_increment_11932   : Bug#29809 2007-07-16 ingo Slave SQL errors in warnings file
-rpl_extraColmaster_innodb  : BUG#30854 : Tables name show as binary in slave err msg on                             vm-win2003-64-b and Solaris
-rpl_extraColmaster_myisam  : BUG#30854
+rpl_stm_extraColmaster_ndb : WL#3915 : Statement-based replication not supported in ndb. Enable test when supported.
+rpl_innodb_bug28430      : Bug #32247 2007-11-27 mats Test reports wrong value of "AUTO_INCREMENT" (on a partitioned InnoDB table)

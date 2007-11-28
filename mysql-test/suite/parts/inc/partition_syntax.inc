@@ -1,11 +1,11 @@
 ################################################################################
-# include/partition_syntax.inc                                                 #
+# inc/partition_syntax.inc                                                     #
 #                                                                              #
 # Purpose:                                                                     #
 #   Tests around Create partitioned tables syntax                              #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
@@ -107,17 +107,13 @@ let $unique_index= UNIQUE INDEX (f_int2);
 #----------- PARTITION BY HASH
 let $partition_scheme= PARTITION BY HASH(f_int1) PARTITIONS 2;
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 let $partition_scheme= PARTITION BY HASH(f_int1 + f_int2) PARTITIONS 2;
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 #----------- PARTITION BY KEY
 let $partition_scheme= PARTITION BY KEY(f_int1) PARTITIONS 2;
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 let $partition_scheme= PARTITION BY KEY(f_int1,f_int2) PARTITIONS 2;
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 #----------- PARTITION BY LIST
 let $partition_scheme= PARTITION BY LIST(MOD(f_int1,3))
    (PARTITION partN VALUES IN (NULL),
@@ -125,25 +121,21 @@ let $partition_scheme= PARTITION BY LIST(MOD(f_int1,3))
     PARTITION part1 VALUES IN (1),
     PARTITION part2 VALUES IN (2));
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 let $partition_scheme= PARTITION BY LIST(MOD(f_int1 + f_int2,3))
    (PARTITION partN VALUES IN (NULL),
     PARTITION part0 VALUES IN (0),
     PARTITION part1 VALUES IN (1),
     PARTITION part2 VALUES IN (2));
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 #----------- PARTITION BY RANGE
 let $partition_scheme= PARTITION BY RANGE(f_int1)
    (PARTITION part1 VALUES LESS THAN (1),
     PARTITION part2 VALUES LESS THAN (2147483646));
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 let $partition_scheme= PARTITION BY RANGE(f_int1 + f_int2)
    (PARTITION part1 VALUES LESS THAN (1),
     PARTITION part2 VALUES LESS THAN (2147483646));
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 
 #
 --echo #------------------------------------------------------------------------
@@ -200,14 +192,12 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 3
    (PARTITION part1 VALUES LESS THAN (1),
     PARTITION part2 VALUES LESS THAN (2147483646));
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 #----------- PARTITION BY RANGE -- SUBPARTITION BY KEY
 let $partition_scheme= PARTITION BY RANGE(f_int2)
 SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 3
    (PARTITION part1 VALUES LESS THAN (1),
     PARTITION part2 VALUES LESS THAN (2147483646));
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 #----------- PARTITION BY LIST -- SUBPARTITION BY HASH
 let $partition_scheme= PARTITION BY LIST(MOD(f_int2,3))
 SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
@@ -216,7 +206,6 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
     PARTITION part1 VALUES IN (1),
     PARTITION part2 VALUES IN (2));
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 #----------- PARTITION BY LIST -- SUBPARTITION BY KEY
 let $partition_scheme= PARTITION BY LIST(MOD(f_int2,3))
 SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 2
@@ -225,7 +214,6 @@ SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 2
     PARTITION part1 VALUES IN (1),
     PARTITION part2 VALUES IN (2));
 --source suite/parts/inc/partition_syntax_2.inc
-# --source include/partition_syntax_2.inc
 
 --echo
 --echo #========================================================================
@@ -359,7 +347,6 @@ PARTITION BY LIST(MOD(f_int1,2))
 ( PARTITION part1 VALUES IN (NULL),
   PARTITION part3 VALUES IN (1));
 --source suite/parts/inc/partition_layout_check1.inc
-# --source include/partition_layout_check1.inc
 DROP TABLE t1;
 --echo #  3.5.3 Reveal that IN (...NULL) is not mapped to IN(0)
 # Bug#15447: Partitions: NULL is treated as zero
@@ -372,7 +359,6 @@ PARTITION BY LIST(MOD(f_int1,2))
   PARTITION part2 VALUES IN (0),
   PARTITION part3 VALUES IN (1));
 --source suite/parts/inc/partition_layout_check1.inc
-# --source include/partition_layout_check1.inc
 DROP TABLE t1;
 
 # FIXME Implement some non integer constant tests
@@ -395,7 +381,6 @@ $column_list
 )
 PARTITION BY HASH(f_int1);
 --source suite/parts/inc/partition_layout_check1.inc
-# --source include/partition_layout_check1.inc
 DROP TABLE t1;
 --echo # 4.1.2 no partition number, named partitions
 eval CREATE TABLE t1 (
@@ -403,7 +388,6 @@ $column_list
 )
 PARTITION BY HASH(f_int1) (PARTITION part1, PARTITION part2);
 --source suite/parts/inc/partition_layout_check1.inc
-# --source include/partition_layout_check1.inc
 DROP TABLE t1;
 # Attention: Several combinations are impossible
 #           If subpartitioning exists
@@ -470,7 +454,6 @@ eval $part01 $column_list $part02 $part1_Y $part2_N $part3_Y ;
 eval $part01 $column_list $part02 $part1_Y $part2_Y $part3_N ;
 eval $part01 $column_list $part02 $part1_Y $part2_Y $part3_Y ;
 --source suite/parts/inc/partition_layout_check1.inc
-# --source include/partition_layout_check1.inc
 DROP TABLE t1;
 
 --echo #------------------------------------------------------------------------
@@ -480,163 +463,119 @@ DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 --echo # 4.2.1 partition/subpartition numbers INTEGER notation
-# ML: "positive/negative" is my private judgement. It need no to correspond
-#     with the server response.
+# mleich: "positive/negative" is my private judgement. It need not to
+#     correspond with the server response.
 # (positive) number = 2
 let $part_number= 2;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (positive) special case number = 1
 let $part_number= 1;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) 0 is non sense
 let $part_number= 0;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) -1 is non sense
 let $part_number= -1;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) 1000000 is too huge
 let $part_number= 1000000;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 
 --echo # 4.2.2 partition/subpartition numbers DECIMAL notation
 # (positive) number = 2.0
 let $part_number= 2.0;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) -2.0 is non sense
 let $part_number= -2.0;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) case number = 0.0 is non sense
 let $part_number= 0.0;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
-if ($fixed_bug15890)
-{
 # Bug#15890 Partitions: Strange interpretation of partition number
 # (negative) number = 1.6 is non sense
 let $part_number= 1.6;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
-}
 # (negative) number is too huge
 let $part_number= 999999999999999999999999999999.999999999999999999999999999999;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) number is nearly zero
 let $part_number= 0.000000000000000000000000000001;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 
 --echo # 4.2.3 partition/subpartition numbers FLOAT notation
 ##### FLOAT notation
 # (positive) number = 2.0E+0
 let $part_number= 2.0E+0;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
-if ($fixed_bug15890)
-{
 # Bug#15890 Partitions: Strange interpretation of partition number
 # (positive) number = 0.2E+1
 let $part_number= 0.2E+1;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
-}
 # (negative) -2.0E+0 is non sense
 let $part_number= -2.0E+0;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
-if ($fixed_bug15890)
-{
 # Bug#15890 Partitions: Strange interpretation of partition number
 # (negative) 0.16E+1 is non sense
 let $part_number= 0.16E+1;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
-}
 # (negative) 0.0E+300 is zero
 let $part_number= 0.0E+300;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
-if ($fixed_bug15890)
-{
 # Bug#15890 Partitions: Strange interpretation of partition number
 # (negative) 1E+300 is too huge
 let $part_number= 1E+300;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) 1E-300 is nearly zero
 let $part_number= 1E-300;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
-}
 
 --echo # 4.2.4 partition/subpartition numbers STRING notation
 ##### STRING notation
 # (negative?) case number = '2'
 let $part_number= '2';
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative?) case number = '2.0'
 let $part_number= '2.0';
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative?) case number = '0.2E+1'
 let $part_number= '0.2E+1';
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) Strings starts with digit, but 'A' follows
 let $part_number= '2A';
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) Strings starts with 'A', but digit follows
 let $part_number= 'A2';
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) empty string
 let $part_number= '';
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) string without any digits
 let $part_number= 'GARBAGE';
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 
 --echo # 4.2.5 partition/subpartition numbers other notations
 # (negative) Strings starts with digit, but 'A' follows
 let $part_number= 2A;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) Strings starts with 'A', but digit follows
 let $part_number= A2;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) string without any digits
 let $part_number= GARBAGE;
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 
 # (negative?) double quotes
 let $part_number= "2";
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) Strings starts with digit, but 'A' follows
 let $part_number= "2A";
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) Strings starts with 'A', but digit follows
 let $part_number= "A2";
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 # (negative) string without any digits
 let $part_number= "GARBAGE";
 --source suite/parts/inc/partition_syntax_1.inc
-# --source include/partition_syntax_1.inc
 
 --echo # 4.2.6 (negative) partition/subpartition numbers per @variables
 SET @aux = 5;
@@ -665,7 +604,6 @@ $column_list
 )
 PARTITION BY HASH(f_int1) PARTITIONS 2 ( PARTITION part1, PARTITION part2 ) ;
 --source suite/parts/inc/partition_layout_check1.inc
-# --source include/partition_layout_check1.inc
 DROP TABLE t1;
 eval CREATE TABLE t1 (
 $column_list
@@ -678,7 +616,6 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
     (SUBPARTITION subpart21, SUBPARTITION subpart22)
 );
 --source suite/parts/inc/partition_layout_check1.inc
-# --source include/partition_layout_check1.inc
 DROP TABLE t1;
 --echo # 4.3.2 (positive) number of partition/subpartition ,
 --echo #                  0 (= no) named partition/subpartition

@@ -410,7 +410,7 @@ binary data';
    select * from t2 order by f1;
    select * from t3 order by f1;
    select * from t4 order by f1;
-   select * from t31 order by f1;
+   select * from t31 order by f3;
    
 connection master;
 --echo

@@ -415,9 +415,11 @@ enum ha_base_keytype {
 #define HA_ERR_RECORD_IS_THE_SAME 169    /* row not actually updated : 
                                             new values same as the old values */
 
-#define HA_ERR_LOGGING_IMPOSSIBLE 170 /* It is not possible to log this
-                                         statement */
-#define HA_ERR_LAST              170 /*Copy last error nr.*/
+#define HA_ERR_LOGGING_IMPOSSIBLE 170    /* It is not possible to log this
+                                            statement */
+#define HA_ERR_CORRUPT_EVENT      171    /* The event was corrupt, leading to
+                                            illegal data being read */
+#define HA_ERR_LAST              171     /*Copy last error nr.*/
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 

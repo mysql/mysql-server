@@ -6,7 +6,7 @@
 #        NDB branch                                                            #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
@@ -18,7 +18,7 @@
 #       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
 #       THE SOURCED FILES ONLY.
 #
-# Please read the README at the end of include/partition.pre before changing
+# Please read the README at the end of inc/partition.pre before changing
 # any of the variables.
 #
 
@@ -47,8 +47,8 @@ let $more_pk_ui_tests= 0;
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
-let $engine= 'ndbcluster';
 --source include/have_ndb.inc
+let $engine= 'ndbcluster';
 
 ##### Execute the test of "table" files
 # NDB has no files per PK, UI, ...
@@ -67,7 +67,6 @@ let $MAX_VALUE= (2147483646);
 
 # Generate the prerequisites ($variables, @variables, tables) needed
 --source suite/parts/inc/partition.pre
-# --source inc/partition.pre
 
 ##### Workarounds for known open engine specific bugs
 # Bug#18735: Partitions: NDB, UNIQUE INDEX, UPDATE, strange server response
@@ -76,7 +75,6 @@ let $fixed_bug18735= 0;
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
 --source suite/parts/inc/partition_syntax.inc
-# --source inc/partition_syntax.inc
 
 #------------------------------------------------------------------------------#
 # Execute storage engine specific tests
@@ -84,4 +82,3 @@ let $fixed_bug18735= 0;
 #------------------------------------------------------------------------------#
 # Cleanup
 --source suite/parts/inc/partition_cleanup.inc
-# --source inc/partition_cleanup.inc

@@ -2941,7 +2941,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.collation_connection=  default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
 
   if (!(character_set_filesystem= 
         get_charset_by_csname(character_set_filesystem_name,

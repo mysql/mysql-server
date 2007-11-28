@@ -1,0 +1,46 @@
+-- source include/not_embedded.inc
+-- source include/have_innodb.inc
+
+# basic tests of semi-consistent reads
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+set session transaction isolation level read committed;
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2),(3),(4),(5),(6),(7);
+set autocommit=0;
+# this should lock the entire table
+select * from t1 where a=3 lock in share mode;
+connection b;
+set session transaction isolation level read committed;
+set autocommit=0;
+-- error ER_LOCK_WAIT_TIMEOUT
+update t1 set a=10 where a=5;
+connection a;
+commit;
+connection b;
+update t1 set a=10 where a=5;
+connection a;
+-- error ER_LOCK_WAIT_TIMEOUT
+select * from t1 where a=2 for update;
+# this should lock the records (1),(2)
+select * from t1 where a=2 limit 1 for update;
+connection b;
+update t1 set a=11 where a=6;
+-- error ER_LOCK_WAIT_TIMEOUT
+update t1 set a=12 where a=2;
+-- error ER_LOCK_WAIT_TIMEOUT
+update t1 set a=13 where a=1;
+connection a;
+commit;
+connection b;
+update t1 set a=14 where a=1;
+commit;
+connection a;
+select * from t1;
+drop table t1;
+
+connection default;
+disconnect a;
+disconnect b;

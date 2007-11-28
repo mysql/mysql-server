@@ -853,7 +853,7 @@ size_t my_long10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
   {
     if (val < 0)
     {
-      val= -val;
+      val= -(unsigned long int)val;
       *dst++= '-';
       len--;
       sign= 1;
@@ -890,7 +890,7 @@ size_t my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
   {
     if (val < 0)
     {
-      val = -val;
+      val = -(ulonglong)val;
       *dst++= '-';
       len--;
       sign= 1;
