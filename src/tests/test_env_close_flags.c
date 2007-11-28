@@ -20,7 +20,13 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     system("rm -rf " DIR);
     r=mkdir(DIR, 0777);        assert(r==0);
     r=db_env_create(&env, 0);  assert(r==0);
-    r=env->close   (env, 1);  assert(r==EINVAL);
+    r=env->close   (env, 1);  
+    //BDB does not check this.
+#ifdef USE_TDB    
+    assert(r==EINVAL);
+#else
+    assert(r==0);
+#endif
     system("rm -rf " DIR); 
     r=mkdir(DIR, 0777);        assert(r==0);
 
@@ -33,6 +39,12 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
 
     r=db_env_create(&env, 0);  assert(r==0);
     r=env->open(env, DIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, 0777); CKERR(r);
-    r=env->close   (env, 1);  assert(r==EINVAL);
+    r=env->close   (env, 1);
+    //BDB does not check this.
+#ifdef USE_TDB    
+    assert(r==EINVAL);
+#else
+    assert(r==0);
+#endif
     return 0;
 }
