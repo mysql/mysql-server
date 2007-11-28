@@ -1,3 +1,5 @@
+--echo ---- Partitioning and binary data type
+
 --disable_query_log
 # DATA DIRECTORY
 eval SET @data_dir = 'DATA DIRECTORY =
@@ -43,6 +45,9 @@ select count(*) from t2;
 select hex(a) from t2;
 drop table t2;
 
+# mleich: Several partitioning functions are no more allowed.
+if (0)
+{
 eval create table t3 (a binary(255) not null, primary key(a)) engine=$engine 
 partition by range (ascii(a)) subpartition by key (a) subpartitions 4 (
 partition pa16 values less than (16),
@@ -66,6 +71,7 @@ select count(*) from t3;
 select hex(a) from t3;
 drop table t3;
 
+
 eval create table t4 (a binary(255) not null, primary key(a)) engine=$engine 
 partition by list (ascii(a)) subpartition by key (a) subpartitions 4 (
 partition pa16 values in (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16),
@@ -86,6 +92,9 @@ eval insert into t4 values (repeat(char(ascii('a')+$letter),$count+54));
 dec $count;
 inc $letter;
 }
+
 select count(*) from t4;
 select hex(a) from t4;
 drop table t4;
+}
+# End of tests with disallowed partitioning functions.

@@ -1,7 +1,7 @@
 /* readline.c -- a general facility for reading lines of input
    with emacs style editing and completion. */
 
-/* Copyright (C) 1987-2002 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -22,7 +22,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <sys/types.h>
 #include "posixstat.h"
@@ -47,6 +49,11 @@
 
 #include <stdio.h>
 #include "posixjmp.h"
+#include <errno.h>
+
+#if !defined (errno)
+extern int errno;
+#endif /* !errno */
 
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
@@ -66,11 +73,11 @@
 #include "xmalloc.h"
 
 #ifndef RL_LIBRARY_VERSION
-#  define RL_LIBRARY_VERSION "5.0"
+#  define RL_LIBRARY_VERSION "5.1"
 #endif
 
 #ifndef RL_READLINE_VERSION
-#  define RL_READLINE_VERSION	0x0500
+#  define RL_READLINE_VERSION	0x0501
 #endif
 
 extern void _rl_free_history_entry PARAMS((HIST_ENTRY *));
@@ -83,9 +90,10 @@ static void bind_arrow_keys_internal PARAMS((Keymap));
 static void bind_arrow_keys PARAMS((void));
 
 static void readline_default_bindings PARAMS((void));
-#ifdef NOT_USED
 static void reset_default_bindings PARAMS((void));
-#endif
+
+static int _rl_subseq_result PARAMS((int, Keymap, int, int));
+static int _rl_subseq_getchar PARAMS((int));
 
 /* **************************************************************** */
 /*								    */
@@ -103,6 +111,7 @@ int rl_gnu_readline_p = 1;
 /* A pointer to the keymap that is currently in use.
    By default, it is the standard emacs keymap. */
 Keymap _rl_keymap = emacs_standard_keymap;
+
 
 /* The current style of editing. */
 int rl_editing_mode = emacs_mode;
@@ -219,6 +228,9 @@ char *_rl_comment_begin;
 /* Keymap holding the function currently being executed. */
 Keymap rl_executing_keymap;
 
+/* Keymap we're currently using to dispatch. */
+Keymap _rl_dispatching_keymap;
+
 /* Non-zero means to erase entire line, including prompt, on empty input lines. */
 int rl_erase_empty_line = 0;
 
@@ -229,6 +241,9 @@ int rl_num_chars_to_read;
 /* Line buffer and maintenence. */
 char *rl_line_buffer = (char *)NULL;
 int rl_line_buffer_len = 0;
+
+/* Key sequence `contexts' */
+_rl_keyseq_cxt *_rl_kscxt = 0;
 
 /* Forward declarations used by the display, termcap, and history code. */
 
@@ -251,6 +266,10 @@ int _rl_convert_meta_chars_to_ascii = 1;
    rather than as a meta-prefixed escape sequence. */
 int _rl_output_meta_chars = 0;
 
+/* Non-zero means to look at the termios special characters and bind
+   them to equivalent readline functions at startup. */
+int _rl_bind_stty_chars = 1;
+
 /* **************************************************************** */
 /*								    */
 /*			Top Level Functions			    */
@@ -268,6 +287,7 @@ rl_set_prompt (prompt)
 {
   FREE (rl_prompt);
   rl_prompt = prompt ? savestring (prompt) : (char *)NULL;
+  rl_display_prompt = rl_prompt ? rl_prompt : "";
 
   rl_visible_prompt_length = rl_expand_prompt (rl_prompt);
   return 0;
@@ -291,14 +311,16 @@ readline (prompt)
   rl_set_prompt (prompt);
 
   rl_initialize ();
-  (*rl_prep_term_function) (_rl_meta_flag);
+  if (rl_prep_term_function)
+    (*rl_prep_term_function) (_rl_meta_flag);
 
 #if defined (HANDLE_SIGNALS)
   rl_set_signals ();
 #endif
 
   value = readline_internal ();
-  (*rl_deprep_term_function) ();
+  if (rl_deprep_term_function)
+    (*rl_deprep_term_function) ();
 
 #if defined (HANDLE_SIGNALS)
   rl_clear_signals ();
@@ -388,6 +410,36 @@ readline_internal_teardown (eof)
   return (eof ? (char *)NULL : savestring (the_line));
 }
 
+void
+_rl_internal_char_cleanup ()
+{
+#if defined (VI_MODE)
+  /* In vi mode, when you exit insert mode, the cursor moves back
+     over the previous character.  We explicitly check for that here. */
+  if (rl_editing_mode == vi_mode && _rl_keymap == vi_movement_keymap)
+    rl_vi_check ();
+#endif /* VI_MODE */
+
+  if (rl_num_chars_to_read && rl_end >= rl_num_chars_to_read)
+    {
+      (*rl_redisplay_function) ();
+      _rl_want_redisplay = 0;
+      rl_newline (1, '\n');
+    }
+
+  if (rl_done == 0)
+    {
+      (*rl_redisplay_function) ();
+      _rl_want_redisplay = 0;
+    }
+
+  /* If the application writer has told us to erase the entire line if
+     the only character typed was something bound to rl_newline, do so. */
+  if (rl_erase_empty_line && rl_done && rl_last_func == rl_newline &&
+      rl_point == 0 && rl_end == 0)
+    _rl_erase_entire_line ();
+}
+
 STATIC_CALLBACK int
 #if defined (READLINE_CALLBACKS)
 readline_internal_char ()
@@ -410,18 +462,41 @@ readline_internal_charloop ()
       code = setjmp (readline_top_level);
 
       if (code)
-	(*rl_redisplay_function) ();
+	{
+	  (*rl_redisplay_function) ();
+	  _rl_want_redisplay = 0;
+	  /* If we get here, we're not being called from something dispatched
+	     from _rl_callback_read_char(), which sets up its own value of
+	     readline_top_level (saving and restoring the old, of course), so
+	     we can just return here. */
+	  if (RL_ISSTATE (RL_STATE_CALLBACK))
+	    return (0);
+	}
 
       if (rl_pending_input == 0)
 	{
 	  /* Then initialize the argument and number of keys read. */
-	  _rl_init_argument ();
+	  _rl_reset_argument ();
 	  rl_key_sequence_length = 0;
 	}
 
       RL_SETSTATE(RL_STATE_READCMD);
       c = rl_read_key ();
       RL_UNSETSTATE(RL_STATE_READCMD);
+
+      /* look at input.c:rl_getc() for the circumstances under which this will
+	 be returned; punt immediately on read error without converting it to
+	 a newline. */
+      if (c == READERR)
+	{
+#if defined (READLINE_CALLBACKS)
+	  RL_SETSTATE(RL_STATE_DONE);
+	  return (rl_done = 1);
+#else
+	  eof_found = 1;
+	  break;
+#endif
+	}
 
       /* EOF typed to a non-blank line is a <NL>. */
       if (c == EOF && rl_end)
@@ -449,27 +524,7 @@ readline_internal_charloop ()
       if (rl_pending_input == 0 && lk == _rl_last_command_was_kill)
 	_rl_last_command_was_kill = 0;
 
-#if defined (VI_MODE)
-      /* In vi mode, when you exit insert mode, the cursor moves back
-	 over the previous character.  We explicitly check for that here. */
-      if (rl_editing_mode == vi_mode && _rl_keymap == vi_movement_keymap)
-	rl_vi_check ();
-#endif /* VI_MODE */
-
-      if (rl_num_chars_to_read && rl_end >= rl_num_chars_to_read)
-        {
-          (*rl_redisplay_function) ();
-          rl_newline (1, '\n');
-        }
-
-      if (rl_done == 0)
-	(*rl_redisplay_function) ();
-
-      /* If the application writer has told us to erase the entire line if
-	  the only character typed was something bound to rl_newline, do so. */
-      if (rl_erase_empty_line && rl_done && rl_last_func == rl_newline &&
-	  rl_point == 0 && rl_end == 0)
-	_rl_erase_entire_line ();
+      _rl_internal_char_cleanup ();
 
 #if defined (READLINE_CALLBACKS)
       return 0;
@@ -519,6 +574,107 @@ _rl_set_the_line ()
   the_line = rl_line_buffer;
 }
 
+#if defined (READLINE_CALLBACKS)
+_rl_keyseq_cxt *
+_rl_keyseq_cxt_alloc ()
+{
+  _rl_keyseq_cxt *cxt;
+
+  cxt = (_rl_keyseq_cxt *)xmalloc (sizeof (_rl_keyseq_cxt));
+
+  cxt->flags = cxt->subseq_arg = cxt->subseq_retval = 0;
+
+  cxt->okey = 0;
+  cxt->ocxt = _rl_kscxt;
+  cxt->childval = 42;		/* sentinel value */
+
+  return cxt;
+}
+
+void
+_rl_keyseq_cxt_dispose (cxt)
+    _rl_keyseq_cxt *cxt;
+{
+  free (cxt);
+}
+
+void
+_rl_keyseq_chain_dispose ()
+{
+  _rl_keyseq_cxt *cxt;
+
+  while (_rl_kscxt)
+    {
+      cxt = _rl_kscxt;
+      _rl_kscxt = _rl_kscxt->ocxt;
+      _rl_keyseq_cxt_dispose (cxt);
+    }
+}
+#endif
+
+static int
+_rl_subseq_getchar (key)
+     int key;
+{
+  int k;
+
+  if (key == ESC)
+    RL_SETSTATE(RL_STATE_METANEXT);
+  RL_SETSTATE(RL_STATE_MOREINPUT);
+  k = rl_read_key ();
+  RL_UNSETSTATE(RL_STATE_MOREINPUT);
+  if (key == ESC)
+    RL_UNSETSTATE(RL_STATE_METANEXT);
+
+  return k;
+}
+
+#if defined (READLINE_CALLBACKS)
+int
+_rl_dispatch_callback (cxt)
+     _rl_keyseq_cxt *cxt;
+{
+  int nkey, r;
+
+  /* For now */
+#if 1
+  /* The first time this context is used, we want to read input and dispatch
+     on it.  When traversing the chain of contexts back `up', we want to use
+     the value from the next context down.  We're simulating recursion using
+     a chain of contexts. */
+  if ((cxt->flags & KSEQ_DISPATCHED) == 0)
+    {
+      nkey = _rl_subseq_getchar (cxt->okey);
+      r = _rl_dispatch_subseq (nkey, cxt->dmap, cxt->subseq_arg);
+      cxt->flags |= KSEQ_DISPATCHED;
+    }
+  else
+    r = cxt->childval;
+#else
+  r = _rl_dispatch_subseq (nkey, cxt->dmap, cxt->subseq_arg);
+#endif
+
+  /* For now */
+  r = _rl_subseq_result (r, cxt->oldmap, cxt->okey, (cxt->flags & KSEQ_SUBSEQ));
+
+  if (r == 0)			/* success! */
+    {
+      _rl_keyseq_chain_dispose ();
+      RL_UNSETSTATE (RL_STATE_MULTIKEY);
+      return r;
+    }
+
+  if (r != -3)			/* magic value that says we added to the chain */
+    _rl_kscxt = cxt->ocxt;
+  if (_rl_kscxt)
+    _rl_kscxt->childval = r;
+  if (r != -3)
+    _rl_keyseq_cxt_dispose (cxt);
+
+  return r;
+}
+#endif /* READLINE_CALLBACKS */
+  
 /* Do the command associated with KEY in MAP.
    If the associated command is really a keymap, then read
    another key, and dispatch into that map. */
@@ -527,6 +683,7 @@ _rl_dispatch (key, map)
      register int key;
      Keymap map;
 {
+  _rl_dispatching_keymap = map;
   return _rl_dispatch_subseq (key, map, 0);
 }
 
@@ -539,6 +696,9 @@ _rl_dispatch_subseq (key, map, got_subseq)
   int r, newkey;
   char *macro;
   rl_command_func_t *func;
+#if defined (READLINE_CALLBACKS)
+  _rl_keyseq_cxt *cxt;
+#endif
 
   if (META_CHAR (key) && _rl_convert_meta_chars_to_ascii)
     {
@@ -572,13 +732,9 @@ _rl_dispatch_subseq (key, map, got_subseq)
 
 	  rl_executing_keymap = map;
 
-#if 0
-	  _rl_suppress_redisplay = (map[key].function == rl_insert) && _rl_input_available ();
-#endif
-
 	  rl_dispatching = 1;
 	  RL_SETSTATE(RL_STATE_DISPATCHING);
-	  r = (*map[key].function)(rl_numeric_arg * rl_arg_sign, key);
+	  (*map[key].function)(rl_numeric_arg * rl_arg_sign, key);
 	  RL_UNSETSTATE(RL_STATE_DISPATCHING);
 	  rl_dispatching = 0;
 
@@ -607,6 +763,10 @@ _rl_dispatch_subseq (key, map, got_subseq)
 	}
       else
 	{
+#if defined (READLINE_CALLBACKS)
+	  RL_UNSETSTATE (RL_STATE_MULTIKEY);
+	  _rl_keyseq_chain_dispose ();
+#endif
 	  _rl_abort_internal ();
 	  return -1;
 	}
@@ -628,58 +788,43 @@ _rl_dispatch_subseq (key, map, got_subseq)
 #endif
 
 	  rl_key_sequence_length++;
+	  _rl_dispatching_keymap = FUNCTION_TO_KEYMAP (map, key);
 
-	  if (key == ESC)
-	    RL_SETSTATE(RL_STATE_METANEXT);
-	  RL_SETSTATE(RL_STATE_MOREINPUT);
-	  newkey = rl_read_key ();
-	  RL_UNSETSTATE(RL_STATE_MOREINPUT);
-	  if (key == ESC)
-	    RL_UNSETSTATE(RL_STATE_METANEXT);
+	  /* Allocate new context here.  Use linked contexts (linked through
+	     cxt->ocxt) to simulate recursion */
+#if defined (READLINE_CALLBACKS)
+	  if (RL_ISSTATE (RL_STATE_CALLBACK))
+	    {
+	      /* Return 0 only the first time, to indicate success to
+		 _rl_callback_read_char.  The rest of the time, we're called
+		 from _rl_dispatch_callback, so we return 3 to indicate
+		 special handling is necessary. */
+	      r = RL_ISSTATE (RL_STATE_MULTIKEY) ? -3 : 0;
+	      cxt = _rl_keyseq_cxt_alloc ();
 
+	      if (got_subseq)
+		cxt->flags |= KSEQ_SUBSEQ;
+	      cxt->okey = key;
+	      cxt->oldmap = map;
+	      cxt->dmap = _rl_dispatching_keymap;
+	      cxt->subseq_arg = got_subseq || cxt->dmap[ANYOTHERKEY].function;
+
+	      RL_SETSTATE (RL_STATE_MULTIKEY);
+	      _rl_kscxt = cxt;
+
+	      return r;		/* don't indicate immediate success */
+	    }
+#endif
+
+	  newkey = _rl_subseq_getchar (key);
 	  if (newkey < 0)
 	    {
 	      _rl_abort_internal ();
 	      return -1;
 	    }
 
-	  r = _rl_dispatch_subseq (newkey, FUNCTION_TO_KEYMAP (map, key), got_subseq || map[ANYOTHERKEY].function);
-
-	  if (r == -2)
-	    /* We didn't match anything, and the keymap we're indexed into
-	       shadowed a function previously bound to that prefix.  Call
-	       the function.  The recursive call to _rl_dispatch_subseq has
-	       already taken care of pushing any necessary input back onto
-	       the input queue with _rl_unget_char. */
-	    {
-#if 0
-	      r = _rl_dispatch (ANYOTHERKEY, FUNCTION_TO_KEYMAP (map, key));
-#else
-	      /* XXX - experimental code -- might never be executed.  Save
-		 for later. */
-	      Keymap m = FUNCTION_TO_KEYMAP (map, key);
-	      int type = m[ANYOTHERKEY].type;
-	      func = m[ANYOTHERKEY].function;
-	      if (type == ISFUNC && func == rl_do_lowercase_version)
-		r = _rl_dispatch (_rl_to_lower (key), map);
-	      else
-		r = _rl_dispatch (ANYOTHERKEY, m);
-#endif
-	    }
-	  else if (r && map[ANYOTHERKEY].function)
-	    {
-	      /* We didn't match (r is probably -1), so return something to
-		 tell the caller that it should try ANYOTHERKEY for an
-		 overridden function. */
-	      _rl_unget_char (key);
-	      return -2;
-	    }
-	  else if (r && got_subseq)
-	    {
-	      /* OK, back up the chain. */
-	      _rl_unget_char (key);
-	      return -1;
-	    }
+	  r = _rl_dispatch_subseq (newkey, _rl_dispatching_keymap, got_subseq || map[ANYOTHERKEY].function);
+	  return _rl_subseq_result (r, map, key, got_subseq);
 	}
       else
 	{
@@ -703,7 +848,67 @@ _rl_dispatch_subseq (key, map, got_subseq)
       _rl_vi_textmod_command (key))
     _rl_vi_set_last (key, rl_numeric_arg, rl_arg_sign);
 #endif
+
   return (r);
+}
+
+static int
+_rl_subseq_result (r, map, key, got_subseq)
+     int r;
+     Keymap map;
+     int key, got_subseq;
+{
+  Keymap m;
+  int type, nt;
+  rl_command_func_t *func, *nf;
+  
+  if (r == -2)
+    /* We didn't match anything, and the keymap we're indexed into
+       shadowed a function previously bound to that prefix.  Call
+       the function.  The recursive call to _rl_dispatch_subseq has
+       already taken care of pushing any necessary input back onto
+       the input queue with _rl_unget_char. */
+    {
+      m = _rl_dispatching_keymap;
+      type = m[ANYOTHERKEY].type;
+      func = m[ANYOTHERKEY].function;
+      if (type == ISFUNC && func == rl_do_lowercase_version)
+	r = _rl_dispatch (_rl_to_lower (key), map);
+      else if (type == ISFUNC && func == rl_insert)
+	{
+	  /* If the function that was shadowed was self-insert, we
+	     somehow need a keymap with map[key].func == self-insert.
+	     Let's use this one. */
+	  nt = m[key].type;
+	  nf = m[key].function;
+
+	  m[key].type = type;
+	  m[key].function = func;
+	  r = _rl_dispatch (key, m);
+	  m[key].type = nt;
+	  m[key].function = nf;
+	}
+      else
+	r = _rl_dispatch (ANYOTHERKEY, m);
+    }
+  else if (r && map[ANYOTHERKEY].function)
+    {
+      /* We didn't match (r is probably -1), so return something to
+	 tell the caller that it should try ANYOTHERKEY for an
+	 overridden function. */
+      _rl_unget_char (key);
+      _rl_dispatching_keymap = map;
+      return -2;
+    }
+  else if (r && got_subseq)
+    {
+      /* OK, back up the chain. */
+      _rl_unget_char (key);
+      _rl_dispatching_keymap = map;
+      return -1;
+    }
+
+  return r;
 }
 
 /* **************************************************************** */
@@ -863,19 +1068,21 @@ readline_initialize_everything ()
 static void
 readline_default_bindings ()
 {
-  rl_tty_set_default_bindings (_rl_keymap);
+  if (_rl_bind_stty_chars)
+    rl_tty_set_default_bindings (_rl_keymap);
 }
 
 /* Reset the default bindings for the terminal special characters we're
    interested in back to rl_insert and read the new ones. */
-#ifdef NOT_USED
 static void
 reset_default_bindings ()
 {
-  rl_tty_unset_default_bindings (_rl_keymap);
-  rl_tty_set_default_bindings (_rl_keymap);
+  if (_rl_bind_stty_chars)
+    {
+      rl_tty_unset_default_bindings (_rl_keymap);
+      rl_tty_set_default_bindings (_rl_keymap);
+    }
 }
-#endif
 
 /* Bind some common arrow key sequences in MAP. */
 static void
@@ -907,6 +1114,13 @@ bind_arrow_keys_internal (map)
   rl_bind_keyseq_if_unbound ("\033OD", rl_backward_char);
   rl_bind_keyseq_if_unbound ("\033OH", rl_beg_of_line);
   rl_bind_keyseq_if_unbound ("\033OF", rl_end_of_line);
+
+#if defined (__MINGW32__)
+  rl_bind_keyseq_if_unbound ("\340H", rl_get_previous_history);
+  rl_bind_keyseq_if_unbound ("\340P", rl_get_next_history);
+  rl_bind_keyseq_if_unbound ("\340M", rl_forward_char);
+  rl_bind_keyseq_if_unbound ("\340K", rl_backward_char);
+#endif
 
   _rl_keymap = xkeymap;
 }

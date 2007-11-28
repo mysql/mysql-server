@@ -1,5 +1,5 @@
 ################################################################################
-# include/partition_alter1.inc                                                 #
+# inc/partition_alter1.inc                                                     #
 #                                                                              #
 # Purpose:                                                                     #
 #   Execute ALTER ... OPTIMIZE/CHECK/REBUID/ANALYZE statements (maintenance)   #
@@ -22,19 +22,15 @@
 --echo #  1.1 ALTER ... ANALYZE PARTITION part_1;
 let $alter= ALTER TABLE t1 ANALYZE PARTITION part_1;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  1.2 ALTER ... ANALYZE PARTITION part_1,part_2;
 let $alter= ALTER TABLE t1 ANALYZE PARTITION part_1,part_2;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  1.3 ALTER ... ANALYZE PARTITION part_1,part_2,part_5,part_6,part_10;
 let $alter= ALTER TABLE t1 ANALYZE PARTITION part_1,part_2,part_5,part_6,part_10;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  1.4 ALTER ... ANALYZE PARTITION part_1,part_1,part_1;
 let $alter= ALTER TABLE t1 ANALYZE PARTITION part_1,part_1,part_1;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 
 --echo #------------------------------------------------------------------------
 --echo #  2   ALTER ... CHECK PARTITION
@@ -42,19 +38,15 @@ let $alter= ALTER TABLE t1 ANALYZE PARTITION part_1,part_1,part_1;
 --echo #  2.1 ALTER ... CHECK PARTITION part_1;
 let $alter= ALTER TABLE t1 CHECK PARTITION part_1;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  2.2 ALTER ... CHECK PARTITION part_1,part_2;
 let $alter= ALTER TABLE t1 CHECK PARTITION part_1,part_2;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  2.3 ALTER ... CHECK PARTITION part_1,part_2,part_5,part_6,part_10;
 let $alter= ALTER TABLE t1 CHECK PARTITION part_1,part_2,part_5,part_6,part_10;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  2.4 ALTER ... CHECK PARTITION part_1,part_1,part_1;
 let $alter= ALTER TABLE t1 CHECK PARTITION part_1,part_1,part_1;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 
 --echo #------------------------------------------------------------------------
 --echo #  3   ALTER ... OPTIMIZE PARTITION
@@ -62,19 +54,15 @@ let $alter= ALTER TABLE t1 CHECK PARTITION part_1,part_1,part_1;
 --echo #  3.1 ALTER ... OPTIMIZE PARTITION part_1;
 let $alter= ALTER TABLE t1 OPTIMIZE PARTITION part_1;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  3.2 ALTER ... OPTIMIZE PARTITION part_1,part_2;
 let $alter= ALTER TABLE t1 OPTIMIZE PARTITION part_1,part_2;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  3.3 ALTER ... OPTIMIZE PARTITION part_1,part_2,part_5,part_6,part_10;
 let $alter= ALTER TABLE t1 OPTIMIZE PARTITION part_1,part_2,part_5,part_6,part_10;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  3.4 ALTER ... OPTIMIZE PARTITION part_1,part_1,part_1;
 let $alter= ALTER TABLE t1 OPTIMIZE PARTITION part_1,part_1,part_1;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 
 --echo #------------------------------------------------------------------------
 --echo #  4   ALTER ... REBUILD PARTITION
@@ -82,19 +70,15 @@ let $alter= ALTER TABLE t1 OPTIMIZE PARTITION part_1,part_1,part_1;
 --echo #  4.1 ALTER ... REBUILD PARTITION part_1;
 let $alter= ALTER TABLE t1 REBUILD PARTITION part_1;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  4.2 ALTER ... REBUILD PARTITION part_1,part_2;
 let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_2;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  4.3 ALTER ... REBUILD PARTITION part_1,part_2,part_5,part_6,part_10;
 let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_2,part_5,part_6,part_10;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  4.4 ALTER ... REBUILD PARTITION part_1,part_1,part_1;
 let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_1,part_1;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 
 --echo #------------------------------------------------------------------------
 --echo #  5   ALTER ... REPAIR PARTITION
@@ -102,19 +86,15 @@ let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_1,part_1;
 --echo #  5.1 ALTER ... REBUILD PARTITION part_1;
 let $alter= ALTER TABLE t1 REBUILD PARTITION part_1;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  5.2 ALTER ... REBUILD PARTITION part_1,part_2;
 let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_2;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  5.3 ALTER ... REBUILD PARTITION part_1,part_2,part_5,part_6,part_10;
 let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_2,part_5,part_6,part_10;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 --echo #  5.4 ALTER ... REBUILD PARTITION part_1,part_1,part_1;
 let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_1,part_1;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 
 --echo #------------------------------------------------------------------------
 --echo #  6   ALTER ... REMOVE PARTITIONING
@@ -122,5 +102,4 @@ let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_1,part_1;
 --echo #  6.1 ALTER ... REMOVE PARTITIONING;
 let $alter= ALTER TABLE t1 REMOVE PARTITIONING;
 --source suite/parts/inc/partition_alter_41.inc
-# --source include/partition_alter_41.inc
 

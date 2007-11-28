@@ -29,7 +29,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_
 				errors.c hash.c list.c md5.c mf_brkhant.c mf_cache.c mf_dirname.c mf_fn_ext.c
 				mf_format.c mf_getdate.c mf_iocache.c mf_iocache2.c mf_keycache.c 
 				mf_keycaches.c mf_loadpath.c mf_pack.c mf_path.c mf_qsort.c mf_qsort2.c
-				mf_radix.c mf_same.c mf_sort.c mf_soundex.c mf_strip.c mf_tempdir.c
+				mf_radix.c mf_same.c mf_sort.c mf_soundex.c mf_strip.c mf_arr_appstr.c mf_tempdir.c
 				mf_tempfile.c mf_unixpath.c mf_wcomp.c mf_wfile.c mulalloc.c my_access.c
 				my_aes.c my_alarm.c my_alloc.c my_append.c my_bit.c my_bitmap.c my_chsize.c
 				my_clock.c my_compress.c my_conio.c my_copy.c my_crc32.c my_create.c my_delete.c

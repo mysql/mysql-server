@@ -1,10 +1,10 @@
-# include/partition_12.inc
+# inc/partition_12.inc
 #
 # Do some basic things on a table, if the SQL command executed just before
 # sourcing this file was successful.
 #
 
---source include/partition_layout.inc
+--source suite/parts/inc/partition_layout.inc
 
 ####### Variations with multiple records
    #      (mass) Insert max_row_div2 + 1 records
@@ -42,20 +42,14 @@ eval UPDATE t1 SET f1 = $max_row + 2, f2 = 'ZZZZZZZ'
      WHERE  f1 = 0 AND f2 = '#######';
 #      Select
 eval SELECT COUNT(*) = 1 AS my_value FROM t1 WHERE f1 = $max_row + 2 AND f2 = 'ZZZZZZZ';
-if ($fixed_bug15968)
-{
 # Bug #15968: Partitions: crash when INSERT with f1 = -1 into PARTITION BY HASH(f1)
 eval UPDATE t1 SET f1 = 0 - 1, f2 = 'ZZZZZZZ'
      WHERE  f1 = $max_row + 1 AND f2 = '#######';
 #      Select
 SELECT COUNT(*) AS my_value FROM t1 WHERE f1 = 0 - 1 AND f2 = 'ZZZZZZZ';
-}
 #      Delete
 eval DELETE FROM t1 WHERE f1 = $max_row + 2 AND f2 = 'ZZZZZZZ';
-if ($fixed_bug15968)
-{
 DELETE FROM t1 WHERE f1 = 0 - 1 AND f2 = 'ZZZZZZZ';
-}
 #      Select
 SELECT COUNT(*) = 0 AS my_value FROM t1 WHERE f2 = 'ZZZZZZZ';
 

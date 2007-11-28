@@ -164,6 +164,8 @@ our $opt_bench= 0;
 our $opt_small_bench= 0;
 our $opt_big_test= 0;
 
+our @opt_combination;
+
 our @opt_extra_mysqld_opt;
 
 our $opt_compress;
@@ -529,6 +531,7 @@ sub command_line_setup () {
              'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
              'big-test'                 => \$opt_big_test,
+             'combination=s'            => \@opt_combination,
 
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
@@ -5150,6 +5153,8 @@ Options to control what test suites or cases to run
   skip-im               Don't start IM, and skip the IM test cases
   big-test              Set the environment variable BIG_TEST, which can be
                         checked from test cases.
+  combination="ARG1 .. ARG2" Specify a set of "mysqld" arguments for one 
+                        combination. 
 
 Options that specify ports
 

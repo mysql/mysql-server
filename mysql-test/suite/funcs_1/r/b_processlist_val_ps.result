@@ -45,21 +45,21 @@ SELECT ID INTO @my_proclist_id FROM INFORMATION_SCHEMA.PROCESSLIST;
 ----- switch to connection default (user = root) -----
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	ddicttestuser1	localhost	information_schema	Sleep	0		NULL
+<ID>	ddicttestuser1	localhost	information_schema	Sleep	1		NULL
 <ID>	root	localhost	information_schema	Execute	0	preparing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 <ID>	root	localhost	information_schema	Query	0	NULL	SHOW FULL PROCESSLIST
-<ID>	ddicttestuser1	localhost	information_schema	Sleep	0		NULL
+<ID>	ddicttestuser1	localhost	information_schema	Sleep	1		NULL
 # Sleep some time
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	ddicttestuser1	localhost	information_schema	Sleep	1		NULL
+<ID>	ddicttestuser1	localhost	information_schema	Sleep	2		NULL
 <ID>	root	localhost	information_schema	Execute	0	preparing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 <ID>	root	localhost	information_schema	Query	0	NULL	SHOW FULL PROCESSLIST
-<ID>	ddicttestuser1	localhost	information_schema	Sleep	1		NULL
+<ID>	ddicttestuser1	localhost	information_schema	Sleep	2		NULL
 SELECT ID = @my_proclist_id + 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE USER = 'ddicttestuser1';
 ID = @my_proclist_id + 1

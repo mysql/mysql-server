@@ -7,6 +7,8 @@ to the machine format.
 Created 11/28/1995 Heikki Tuuri
 ***********************************************************************/
 
+#include "ut0mem.h"
+
 /***********************************************************
 The following function is used to store data in one byte. */
 UNIV_INLINE
@@ -688,4 +690,39 @@ mach_write_to_2_little_endian(
 	dest++;
 
 	*dest = (byte)(n & 0xFFUL);
+}
+
+/*************************************************************
+Convert integral type from storage byte order (big endian) to
+host byte order. */
+UNIV_INLINE
+void
+mach_read_int_type(
+/*===============*/
+	byte*		dest,		/* out: where to write */
+	const byte*	src,		/* in: where to read from */
+	ulint		len,		/* in: length of src */
+	ibool		unsigned_type)	/* in: signed or unsigned flag */
+{
+#ifdef WORDS_BIGENDIAN
+	memcpy(dest, src, len);
+
+	if (!unsigned_type) {
+		dest[0] ^= 128;
+	}
+#else
+	byte*		ptr;
+
+	/* Convert integer data from Innobase to a little-endian format,
+	sign bit restored to normal. */
+
+	for (ptr = dest + len; ptr != dest; ++src) {
+		--ptr;
+		*ptr = *src;
+	}
+
+	if (!unsigned_type) {
+		dest[len - 1] ^= 128;
+	}
+#endif
 }

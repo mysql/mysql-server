@@ -18,6 +18,7 @@ Created 5/11/1994 Heikki Tuuri
 
 #include "ut0sort.h"
 #include "trx0trx.h"
+#include "ha_prototypes.h"
 
 ibool	ut_always_false	= FALSE;
 
@@ -69,22 +70,6 @@ ut_gettimeofday(
 #else
 #define	ut_gettimeofday		gettimeofday
 #endif
-
-#ifndef UNIV_HOTBACKUP
-/*********************************************************************
-Display an SQL identifier.
-This definition must match the one in sql/ha_innodb.cc! */
-extern
-void
-innobase_print_identifier(
-/*======================*/
-	FILE*		f,	/* in: output stream */
-	trx_t*		trx,	/* in: transaction */
-	ibool		table_id,/* in: TRUE=print a table name,
-				FALSE=print other identifier */
-	const char*	name,	/* in: name to print */
-	ulint		namelen);/* in: length of name */
-#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
@@ -360,6 +345,8 @@ ut_print_buf(
 	const byte*	data;
 	ulint		i;
 
+	UNIV_MEM_ASSERT_RW(buf, len);
+
 	fprintf(file, " len %lu; hex ", len);
 
 	for (data = (const byte*)buf, i = 0; i < len; i++) {
@@ -474,17 +461,20 @@ ut_print_namel(
 #ifdef UNIV_HOTBACKUP
 	fwrite(name, 1, namelen, f);
 #else
-	char*	slash = memchr(name, '/', namelen);
+	if (table_id) {
+		char*	slash = memchr(name, '/', namelen);
+		if (!slash) {
 
-	if (UNIV_LIKELY_NULL(slash)) {
+			goto no_db_name;
+		}
+
 		/* Print the database name and table name separately. */
-		ut_ad(table_id);
-
 		innobase_print_identifier(f, trx, TRUE, name, slash - name);
 		putc('.', f);
 		innobase_print_identifier(f, trx, TRUE, slash + 1,
 					  namelen - (slash - name) - 1);
 	} else {
+no_db_name:
 		innobase_print_identifier(f, trx, table_id, name, namelen);
 	}
 #endif
@@ -515,3 +505,44 @@ ut_copy_file(
 		}
 	} while (len > 0);
 }
+
+/**************************************************************************
+snprintf(). */
+
+#ifdef __WIN__
+#include <stdarg.h>
+int
+ut_snprintf(
+				/* out: number of characters that would
+				have been printed if the size were
+				unlimited, not including the terminating
+				'\0'. */
+	char*		str,	/* out: string */
+	size_t		size,	/* in: str size */
+	const char*	fmt,	/* in: format */
+	...)			/* in: format values */
+{
+	int	res;
+	va_list	ap1;
+	va_list	ap2;
+
+	va_start(ap1, fmt);
+	va_start(ap2, fmt);
+
+	res = _vscprintf(fmt, ap1);
+	ut_a(res != -1);
+
+	if (size > 0) {
+		_vsnprintf(str, size, fmt, ap2);
+
+		if ((size_t) res >= size) {
+			str[size - 1] = '\0';
+		}
+	}
+
+	va_end(ap1);
+	va_end(ap2);
+
+	return(res);
+}
+#endif /* __WIN__ */

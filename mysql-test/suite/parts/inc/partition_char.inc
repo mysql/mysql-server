@@ -1,3 +1,5 @@
+--echo ---- Partitioning and char data type
+
 --disable_query_log
 # DATA DIRECTORY
 eval SET @data_dir = 'DATA DIRECTORY =
@@ -42,6 +44,7 @@ select count(*) from t2;
 select * from t2;
 drop table t2;
 
+# mleich: Several partitioning functions are no more allowed.
 if (0)
 {
 eval create table t3 (a char(255) not null, primary key(a)) engine=$engine 
@@ -91,5 +94,4 @@ select count(*) from t4;
 select a from t4;
 drop table t4;
 }
-#if (0)
-
+# End of tests with disallowed partitioning functions.

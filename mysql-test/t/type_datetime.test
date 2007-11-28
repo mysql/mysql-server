@@ -155,13 +155,13 @@ set @@sql_mode='ansi,traditional';
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 insert into t1 set dt='2007-03-23 13:49:38',da=dt;
 # Test error handling
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ('2007-03-32','2007-03-23 13:49:38');
 select * from t1;
 drop table t1;
---error 1067
+--error ER_INVALID_DEFAULT
 create table t1 (da date default '1962-03-32 23:33:34', dt datetime default '1962-03-03');
---error 1067
+--error ER_INVALID_DEFAULT
 create table t1 (t time default '916:00:00 a');
 set @@sql_mode= @org_mode;
 
@@ -169,6 +169,19 @@ set @@sql_mode= @org_mode;
 #
 # Bug#27590: Wrong DATE/DATETIME comparison.  
 #
+## The following sub test will fail (difference to expected result) if the
+## select curdate() < now(), f1 < now(), cast(f1 as date) < now() from t1;
+## runs exact at midnight ('00:00:00').
+## ( Bug#29290 type_datetime.test failure in 5.1 )
+## Therefore we sleep a bit if we are too close to midnight.
+## The complete test itself needs around 1 second.
+## Therefore a time_distance to midnight of 5 seconds should be sufficient.
+if (`SELECT CURTIME() > SEC_TO_TIME(24 * 3600 - 5)`)
+{
+   # We are here when CURTIME() is between '23:59:56' and '23:59:59'.
+   # So a sleep time of 5 seconds brings us between '00:00:01' and '00:00:04'.
+   --real_sleep 5
+}
 create table t1 (f1 date, f2 datetime, f3 timestamp);
 insert into t1(f1) values(curdate());
 select curdate() < now(), f1 < now(), cast(f1 as date) < now() from t1;

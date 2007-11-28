@@ -14,7 +14,7 @@ let $index_directory = `select @indx_dir`;
 drop table if exists t1;
 --enable_warnings
 
---error 1439
+--error ER_TOO_BIG_DISPLAYWIDTH
 eval create table t1 (a bit(65), primary key (a)) engine=$engine partition by key (a);
 
 eval create table t1 (a bit(0), primary key (a)) engine=$engine partition by key (a);
