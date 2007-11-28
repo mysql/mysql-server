@@ -1587,10 +1587,10 @@ int brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbn
 	    for (i=0; i<t->h->n_named_roots; i++) {
 		if (strcmp(t->h->names[i], dbname)==0) {
 		    if (only_create) {
-    		    r = EEXIST;
-    		    goto died1; /* deallocate everything. */
-    		}
-    		else goto found_it;
+			r = EEXIST;
+			goto died1; /* deallocate everything. */
+		    }
+		    else goto found_it;
 		}
 	    }
 	    if ((t->h->names = toku_realloc(t->h->names, (1+t->h->n_named_roots)*sizeof(*t->h->names))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
