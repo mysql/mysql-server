@@ -54,7 +54,7 @@ dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
 	mkdir -p $(distdir)/win
 	scripts/mysql_install_db --no-defaults --windows \
-		--basedir=$(top_builddir) \
+		--builddir=$(top_builddir) \
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
 
