@@ -72,7 +72,7 @@ long brtnode_size(BRTNODE node) {
     return size;
 }
 
-void fix_up_parent_pointers_of_children (BRT t, BRTNODE node) {
+static void fix_up_parent_pointers_of_children (BRT t, BRTNODE node) {
     int i;
     assert(node->height>0);
     for (i=0; i<node->u.n.n_children; i++) {
@@ -87,7 +87,7 @@ void fix_up_parent_pointers_of_children (BRT t, BRTNODE node) {
     }
 }
 
-void fix_up_parent_pointers_of_children_now_that_parent_is_gone (CACHEFILE cf, BRTNODE node) {
+static void fix_up_parent_pointers_of_children_now_that_parent_is_gone (CACHEFILE cf, BRTNODE node) {
     int i;
     if (node->height==0) return;
     for (i=0; i<node->u.n.n_children; i++) {
@@ -525,7 +525,7 @@ void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT
     assert(toku_serialize_brtnode_size(B)<B->nodesize);
 }
 
-void find_heaviest_child (BRTNODE node, int *childnum) {
+static void find_heaviest_child (BRTNODE node, int *childnum) {
     int max_child = 0;
     int max_weight = node->u.n.n_bytes_in_hashtable[0];
     int i;
@@ -628,7 +628,7 @@ static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum
     return 0;
 }
 
-int split_count=0;
+static int split_count=0;
 
 /* NODE is a node with a child.
  * childnum was split into two nodes childa, and childb.
@@ -863,7 +863,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     return 0;
 }
 
-int debugp1 (int debug) {
+static int debugp1 (int debug) {
     return debug ? debug+1 : 0;
 }
 
@@ -1070,7 +1070,7 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
     return r;
 }
 
-int brt_do_push_cmd = 1;
+int toku_brt_do_push_cmd = 1;
 
 static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 				int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
@@ -1131,7 +1131,7 @@ static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
     //verify_local_fingerprint_nonleaf(node);
     /* if the child is in the cache table then push the cmd to it 
        otherwise just put it into this node's buffer */
-    if (!found && brt_do_push_cmd) {
+    if (!found && toku_brt_do_push_cmd) {
         int r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn, childnum, 1);
         if (r == 0) {
 	    //printf("%s:%d\n", __FILE__, __LINE__);
@@ -1225,7 +1225,7 @@ static int brt_nonleaf_delete_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
     //verify_local_fingerprint_nonleaf(node);
     /* if the child is in the cache table then push the cmd to it 
        otherwise just put it into this node's buffer */
-    if (brt_do_push_cmd) {
+    if (toku_brt_do_push_cmd) {
         int r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn, childnum, 1);
         if (r == 0) {
 	    //printf("%s:%d\n", __FILE__, __LINE__);
@@ -2014,7 +2014,7 @@ int dump_brt (BRT brt) {
     return 0;
 }
 
-int show_brtnode_blocknumbers (BRT brt, DISKOFF off, BRTNODE parent_brtnode) {
+static int show_brtnode_blocknumbers (BRT brt, DISKOFF off, BRTNODE parent_brtnode) {
     BRTNODE node;
     void *node_v;
     int i,r;
@@ -2037,6 +2037,7 @@ int show_brtnode_blocknumbers (BRT brt, DISKOFF off, BRTNODE parent_brtnode) {
     return r;
 }
 
+#if 0
 int show_brt_blocknumbers (BRT brt) {
     int r;
     CACHEKEY *rootp;
@@ -2051,6 +2052,7 @@ int show_brt_blocknumbers (BRT brt) {
     if ((r = toku_unpin_brt_header(brt))!=0) return r;
     return 0;
 }
+#endif
 
 int brt_flush_debug = 0;
 
@@ -2135,7 +2137,7 @@ void brt_node_remove_cursor(BRTNODE node, int childnum, BRT_CURSOR cursor __attr
     }
 }
 
-int brt_update_debug = 0;
+static int brt_update_debug = 0;
 
 void brt_update_cursors_new_root(BRT t, BRTNODE newroot, BRTNODE left, BRTNODE right) {
     BRT_CURSOR cursor;
