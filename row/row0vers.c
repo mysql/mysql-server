@@ -171,10 +171,8 @@ row_vers_impl_x_locked_off_kernel(
 			in place of a deleted record, and the BLOB
 			pointers of the new record were not
 			initialized yet.  But in that case,
-			prev_version should be NULL.
-
-			We will play it safe and avoid dereferencing
-			entry when it is NULL, later in this function. */
+			prev_version should be NULL. */
+			ut_a(entry);
 		}
 
 		mutex_enter(&kernel_mutex);
@@ -209,7 +207,7 @@ row_vers_impl_x_locked_off_kernel(
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
-		if (entry && 0 == cmp_dtuple_rec(entry, rec, offsets)) {
+		if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
 			prev_version */
