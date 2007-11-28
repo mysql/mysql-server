@@ -188,27 +188,6 @@ buf_page_optimistic_get_func(
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
-Tries to get the page, but if file io is required, releases all latches
-in mtr down to the given savepoint. If io is required, this function
-retrieves the page to buffer buf_pool, but does not bufferfix it or latch
-it. */
-UNIV_INLINE
-buf_block_t*
-buf_page_get_release_on_io(
-/*=======================*/
-				/* out: pointer to the block, or NULL
-				if not in buffer buf_pool */
-	ulint	space,		/* in: space id */
-	ulint	zip_size,	/* in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	offset,		/* in: offset of the page within space
-				in units of a page */
-	buf_block_t* guess,	/* in: guessed frame or NULL */
-	ulint	rw_latch,	/* in: RW_X_LATCH, RW_S_LATCH,
-				or RW_NO_LATCH */
-	ulint	savepoint,	/* in: mtr savepoint */
-	mtr_t*	mtr);		/* in: mtr */
-/************************************************************************
 This is used to get access to a known database page, when no waiting can be
 done. */
 

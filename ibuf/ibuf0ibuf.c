@@ -1322,7 +1322,11 @@ ibuf_build_entry_from_ibuf_rec(
 		ibuf_dummy_index_add_col(index, dfield_get_type(field), len);
 	}
 
-	/* Fix an ut_ad() failure in page_zip_write_rec(). */
+	/* Prevent an ut_ad() failure in page_zip_write_rec() by
+	adding system columns to the dummy table pointed to by the
+	dummy secondary index.  The insert buffer is only used for
+	secondary indexes, whose records never contain any system
+	columns, such as DB_TRX_ID. */
 	ut_d(dict_table_add_system_columns(index->table, index->table->heap));
 
 	*pindex = index;
