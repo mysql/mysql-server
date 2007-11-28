@@ -225,17 +225,14 @@ int __toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode
         return EINVAL;
 
     if ((flags & DB_USE_ENVIRON) && (flags & DB_USE_ENVIRON_ROOT)) return EINVAL;
-    
 
     if (home) {
         if ((flags & DB_USE_ENVIRON) || (flags & DB_USE_ENVIRON_ROOT)) return EINVAL;
     }
     else if ((flags & DB_USE_ENVIRON) ||
-             ((flags & DB_USE_ENVIRON_ROOT) && geteuid() == 0)) {
-        home = getenv("DB_HOME");
-        if (!home) return EINVAL;
-    }
-    else home = ".";
+             ((flags & DB_USE_ENVIRON_ROOT) && geteuid() == 0)) home = getenv("DB_HOME");
+
+    if (!home) home = ".";
 
 	// Verify that the home exists.
 	{
