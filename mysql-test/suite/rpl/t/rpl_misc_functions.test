@@ -109,6 +109,7 @@ DROP TABLE t1, t1_slave;
 DROP PROCEDURE test_replication_sp1;
 DROP PROCEDURE test_replication_sp2;
 DROP FUNCTION test_replication_sf;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/rpl_misc_functions.outfile
 --sync_slave_with_master
 
 
