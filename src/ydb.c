@@ -1,8 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
 #include <assert.h>
-#include <brt.h>
-#include "ydb-internal.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -16,7 +14,8 @@
 #include <unistd.h>
 #include <libgen.h>
 
-#include "brt.h"
+#include "ydb-internal.h"
+
 #include "brt-internal.h"
 #include "cachetable.h"
 #include "log.h"
@@ -400,14 +399,14 @@ int __toku_db_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) 
     return 1;
 }
 
-void __toku_default_errcall(const char *errpfx, char *msg) {
+void toku_default_errcall(const char *errpfx, char *msg) {
     fprintf(stderr, "YDB: %s: %s", errpfx, msg);
 }
 
 static int __toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 int db_env_create(DB_ENV ** envp, u_int32_t flags) {
-    DB_ENV *result = toku_malloc(sizeof(*result));
+    DB_ENV *MALLOC(result);
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
@@ -433,14 +432,14 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->txn_stat = __toku_db_env_txn_stat;
     result->txn_begin = __toku_txn_begin;
 
-    result->i = toku_malloc(sizeof(*result->i));
+    MALLOC(result->i);
     if (result->i == 0) {
         toku_free(result);
         return ENOMEM;
     }
     memset(result->i, 0, sizeof *result->i);
     result->i->ref_count = 1;
-    result->i->errcall = __toku_default_errcall;
+    result->i->errcall = toku_default_errcall;
     result->i->errpfx = toku_strdup("");
 
     *envp = result;
@@ -460,7 +459,7 @@ int __toku_db_txn_commit(DB_TXN * txn, u_int32_t flags) {
     return 0;
 }
 
-u_int32_t __toku_db_txn_id(DB_TXN * txn) {
+static u_int32_t toku_db_txn_id(DB_TXN * txn) {
     barf();
     abort();
 }
@@ -468,14 +467,14 @@ u_int32_t __toku_db_txn_id(DB_TXN * txn) {
 static TXNID next_txn = 0;
 
 static int __toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
-    DB_TXN *result = toku_malloc(sizeof(*result));
+    DB_TXN *MALLOC(result);
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
     //notef("parent=%p flags=0x%x\n", stxn, flags);
     result->commit = __toku_db_txn_commit;
-    result->id = __toku_db_txn_id;
-    result->i = toku_malloc(sizeof(*result->i));
+    result->id = toku_db_txn_id;
+    MALLOC(result->i);
     assert(result->i);
     result->i->parent = stxn;
     int r = tokutxn_begin(stxn ? stxn->i->tokutxn : 0, &result->i->tokutxn, next_txn++, env->i->logger);
@@ -485,8 +484,8 @@ static int __toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_
     return 0;
 }
 
-int __toku_txn_abort(DB_TXN * txn) {
-    fprintf(stderr, "__toku_txn_abort(%p)\n", txn);
+static int toku_txn_abort(DB_TXN * txn) {
+    fprintf(stderr, "toku_txn_abort(%p)\n", txn);
     abort();
 }
 
@@ -521,12 +520,12 @@ struct __toku_dbc_internal {
     DB_TXN *txn;
 };
 
-int __toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
+static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
     int r = brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
     return r;
 }
 
-int __toku_c_close(DBC * c) {
+static int toku_c_close(DBC * c) {
     int r = brt_cursor_close(c->i->c);
     toku_free(c->i);
     toku_free(c);
@@ -539,14 +538,14 @@ int __toku_c_del(DBC * c, u_int32_t flags) {
 }
 
 int __toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
-    DBC *result = toku_malloc(sizeof(*result));
+    DBC *MALLOC(result);
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
-    result->c_get = __toku_c_get;
-    result->c_close = __toku_c_close;
+    result->c_get = toku_c_get;
+    result->c_close = toku_c_close;
     result->c_del = __toku_c_del;
-    result->i = toku_malloc(sizeof(*result->i));
+    MALLOC(result->i);
     assert(result->i);
     result->i->db = db;
     result->i->txn = txn;
@@ -796,7 +795,7 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         assert(db_env_opened(env));
     }
     
-    DB *result = toku_malloc(sizeof(*result));
+    DB *MALLOC(result);
     if (result == 0) {
         db_env_unref(env);
         return ENOMEM;
@@ -817,7 +816,7 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->set_pagesize = __toku_db_set_pagesize;
     result->set_flags = __toku_db_set_flags;
     result->stat = __toku_db_stat;
-    result->i = toku_malloc(sizeof(*result->i));
+    MALLOC(result->i);
     if (result->i == 0) {
         toku_free(result);
         db_env_unref(env);
@@ -832,6 +831,9 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->i->open_flags = 0;
     result->i->open_mode = 0;
     result->i->brt = 0;
+    list_init(&result->i->associated);
+    result->i->primary = 0;
+    result->i->associate_callback = 0;
     r = brt_create(&result->i->brt);
     if (r != 0) {
         toku_free(result->i);

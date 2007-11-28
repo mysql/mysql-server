@@ -163,7 +163,7 @@ int main (int argc, char *argv[]) {
 	FILE *f = fopen(logfiles[i], "r");
 	struct log_entry le;
 	u_int32_t version;
-	r=read_and_print_logmagic(f, &version);
+	r=toku_read_and_print_logmagic(f, &version);
 	assert(r==0 && version==0);
 	while ((r = tokulog_fread(f, &le))==0) {
 	    printf("Got cmd %c\n", le.cmd);
