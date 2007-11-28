@@ -1,11 +1,13 @@
-BDB=/usr/local/BerkeleyDB.4.1
-BDB_DUMP=$(BDB)/bin/db_dump
-BDB_LOAD=$(BDB)/bin/db_load
+ifndef BDBDIR
+BDBDIR=/usr/local/BerkeleyDB.4.1
+endif
+BDB_DUMP=$(BDBDIR)/bin/db_dump
+BDB_LOAD=$(BDBDIR)/bin/db_load
 
-CPPFLAGS = -I$(BDB)/include
+CPPFLAGS = -I$(BDBDIR)/include
 CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g
-LDFLAGS = -L$(BDB)/lib -ldb -lpthread -Wl,-rpath,$(BDB)/lib
-# LDFLAGS = -L$(BDB)/lib -ldb -lpthread
+LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread -Wl,-rpath,$(BDBDIR)/lib
+# LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread
 STATIC_LDFLAGS = -static -L../lib -ldb -lz
 
 UTILS=            \
