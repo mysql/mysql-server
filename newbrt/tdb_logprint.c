@@ -129,7 +129,7 @@ void transcribe_header (void) {
 static void newmain (int count) {
     int i;
     u_int32_t version;
-    int r = read_and_print_logmagic(stdin, &version);
+    int r = toku_read_and_print_logmagic(stdin, &version);
     assert(r==0);
     for (i=0; i!=count; i++) {
 	r = toku_logprint_one_record(stdout, stdin);

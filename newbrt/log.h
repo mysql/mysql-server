@@ -49,7 +49,7 @@ int toku_logprint_u_int8_t        (FILE *outf, FILE *inf, const char *fieldname,
 int toku_logprint_u_int32_t       (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
 int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
 
-int read_and_print_logmagic (FILE *f, u_int32_t *version);
+int toku_read_and_print_logmagic (FILE *f, u_int32_t *version);
 
 TXNID toku_txn_get_txnid (TOKUTXN);
 LSN   toku_txn_get_last_lsn (TOKUTXN);

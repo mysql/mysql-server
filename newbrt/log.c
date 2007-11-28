@@ -84,7 +84,7 @@ int tokulogger_create_and_open_logger (const char *directory, TOKULOGGER *result
     return tokulogger_log_bytes(result, 0, "");
 }
 
-int log_format_version=0;
+static int log_format_version=0;
 
 int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
     int r;
@@ -556,7 +556,7 @@ int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname,
     
 }
 
-int read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
+int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
     {
 	char magic[8];
 	int r=fread(magic, 1, 8, f);
