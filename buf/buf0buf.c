@@ -1671,6 +1671,11 @@ buf_block_is_uncompressed(
 
 	ut_ad(mutex_own(&buf_pool->mutex));
 
+	if (UNIV_UNLIKELY(ut_align_offset(block, sizeof *block) != 0)) {
+		/* The pointer should be aligned. */
+		return(FALSE);
+	}
+
 	while (chunk < echunk) {
 		if (block >= chunk->blocks
 		    && block < chunk->blocks + chunk->size) {
@@ -1726,11 +1731,13 @@ loop:
 	mutex_enter_fast(&(buf_pool->mutex));
 
 	if (block) {
-		/* If this is a compressed page descriptor that
+		/* If the guess is a compressed page descriptor that
 		has been allocated by buf_buddy_alloc(), it may have
 		been invalidated by buf_buddy_relocate().  In that
-		case,  block could point to something that happens to
-		contain the expected bits in block->page. */
+		case, block could point to something that happens to
+		contain the expected bits in block->page.  Similarly,
+		the guess may be pointing to a buffer pool chunk that
+		has been released when resizing the buffer pool. */
 
 		if (!buf_block_is_uncompressed(block)
 		    || offset != block->page.offset
