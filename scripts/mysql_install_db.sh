@@ -19,6 +19,7 @@
 # All unrecognized arguments to this script are passed to mysqld.
 
 basedir=""
+builddir=""
 ldata="@localstatedir@"
 srcdir=""
 
@@ -37,6 +38,9 @@ usage()
   cat <<EOF
 Usage: $0 [OPTIONS]
   --basedir=path       The path to the MySQL installation directory.
+  --builddir=path      If using --srcdir with out-of-directory builds, you
+                       will need to set this to the location of the build
+                       directory where built files reside.
   --datadir=path       The path to the MySQL data directory.
   --force              Causes mysql_install_db to run even if DNS does not
                        work.  In that case, grant table entries that normally
@@ -95,6 +99,7 @@ parse_arguments()
     case "$arg" in
       --force) force=1 ;;
       --basedir=*) basedir=`parse_arg "$arg"` ;;
+      --builddir=*) builddir=`parse_arg "$arg"` ;;
       --srcdir=*)  srcdir=`parse_arg "$arg"` ;;
       --ldata=*|--datadir=*) ldata=`parse_arg "$arg"` ;;
       --user=*)
@@ -189,12 +194,21 @@ parse_arguments PICK-ARGS-FROM-ARGV "$@"
 #
 # or default to compiled-in locations.
 #
-if test -n "$basedir"
+if test -n "$srcdir" && test -n "$basedir"
+then
+  echo "ERROR: Specify either --basedir or --srcdir, not both."
+  exit 1
+fi
+if test -n "$srcdir"
+then
+  if test -z "$builddir"
+  then
+    builddir="$srcdir"
+  fi
+  print_defaults="$builddir/extra/my_print_defaults"
+elif test -n "$basedir"
 then
   print_defaults=`find_in_basedir my_print_defaults bin extra`
-elif test -n "$srcdir" 
-then
-  print_defaults="$srcdir/extra/my_print_defaults"
 else
   print_defaults="@bindir@/my_print_defaults"
 fi
@@ -211,19 +225,22 @@ parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 # Configure paths to support files
-if test -n "$basedir"
+if test -n "$srcdir"
+then
+  basedir="$builddir"
+  bindir="$basedir/client"
+  extra_bindir="$basedir/extra"
+  mysqld="$basedir/sql/mysqld"
+  mysqld_opt="--language=$srcdir/sql/share/english"
+  pkgdatadir="$srcdir/scripts"
+  scriptdir="$srcdir/scripts"
+elif test -n "$basedir"
 then
   bindir="$basedir/bin"
   extra_bindir="$bindir"
-  mysqld=`find_in_basedir mysqld libexec sbin bin sql`
+  mysqld=`find_in_basedir mysqld libexec sbin bin`
   pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql`
   scriptdir="$basedir/scripts"
-elif test -n "$srcdir"
-then
-  basedir="$srcdir"
-  bindir="$srcdir/client"
-  extra_bindir="$srcdir/extra"
-  mysqld="$srcdir/sql/mysqld"
 else
   basedir="@prefix@"
   bindir="@bindir@"
@@ -231,13 +248,6 @@ else
   mysqld="@libexecdir@/mysqld"
   pkgdatadir="@pkgdatadir@"
   scriptdir="@scriptdir@"
-fi
-
-if test -n "$srcdir"
-then
-  mysqld_opt="--language=$srcdir/sql/share/english"
-  pkgdatadir="$srcdir/scripts"
-  scriptdir="$srcdir/scripts"
 fi
 
 # Set up paths to SQL scripts required for bootstrap
@@ -318,7 +328,6 @@ mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
   --basedir=$basedir --datadir=$ldata --log-warnings=0 --loose-skip-innodb \
   --loose-skip-ndbcluster $args --max_allowed_packet=8M \
-  --default-storage-engine=myisam \
   --net_buffer_length=16K"
 
 # Create the system and help tables by passing them to "mysqld --bootstrap"
