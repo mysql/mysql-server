@@ -1231,7 +1231,7 @@ RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
 FLUSH PRIVILEGES;
 Warnings:
 Error	1146	Table 'mysql.procs_priv' doesn't exist
-Error	1547	Cannot load from mysql.mysql.procs_priv. The table is probably corrupted
+Error	1548	Cannot load from mysql.mysql.procs_priv. The table is probably corrupted
 Assigning privileges without procs_priv table.
 CREATE DATABASE mysqltest1;
 CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
