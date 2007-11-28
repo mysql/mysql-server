@@ -2390,6 +2390,7 @@ Suma::execSUB_START_REQ(Signal* signal){
     
   {
     jam();
+    c_subscriberPool.release(subbPtr);
     sendSubStartRef(signal, SubStartRef::PartiallyConnected);
     return;
   }
