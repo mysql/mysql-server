@@ -326,6 +326,7 @@ flush logs;
 drop table t1;
 1
 drop table t1;
+shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql
 End of 5.0 tests
 flush logs;
 BUG#31611: Security risk with BINLOG statement

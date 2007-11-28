@@ -194,3 +194,13 @@ SET SQL_MODE=DEFAULT;
 DROP TABLE t1,t2;
 
 --echo End of 5.0 tests
+
+#
+# Bug#32021: Using Date 000-00-01 in WHERE causes wrong result
+#
+create table t1 (a date, primary key (a))engine=memory;
+insert into t1 values ('0000-01-01'), ('0000-00-01'), ('0001-01-01');
+select * from t1 where a between '0000-00-01' and '0000-00-02';
+drop table t1;
+
+--echo End of 5.1 tests

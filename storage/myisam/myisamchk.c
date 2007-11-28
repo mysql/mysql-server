@@ -1536,8 +1536,8 @@ static int mi_sort_records(MI_CHECK *param,
     mi_check_print_error(param,"Not enough memory for key block");
     goto err;
   }
-  if (!(sort_param.record=(uchar*) my_malloc((uint) share->base.pack_reclength,
-					   MYF(0))))
+
+  if (!mi_alloc_rec_buff(info, -1, &sort_param.record))
   {
     mi_check_print_error(param,"Not enough memory for record");
     goto err;
@@ -1632,7 +1632,8 @@ err:
   {
     my_afree((uchar*) temp_buff);
   }
-  my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.record),
+          MYF(MY_ALLOW_ZERO_PTR));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   VOID(end_io_cache(&info->rec_cache));
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));

@@ -223,3 +223,38 @@ connection master;
 drop table t1,t2;
 
 sync_slave_with_master;
+
+#
+# BUG#31702: Missing row on slave causes assertion failure under
+# row-based replication 
+#
+
+disable_query_log;
+source include/master-slave-reset.inc;
+enable_query_log;
+
+--echo **** On Master ****
+connection master;
+SET SESSION BINLOG_FORMAT=ROW;
+CREATE TABLE t1 (a INT PRIMARY KEY, b SET('master','slave'));
+INSERT INTO t1 VALUES (1,'master,slave'), (2,'master,slave');
+--echo **** On Slave ****
+sync_slave_with_master;
+UPDATE t1 SET a = 5, b = 'slave' WHERE a = 1;
+SELECT * FROM t1 ORDER BY a;
+--echo **** On Master ****
+connection master;
+UPDATE t1 SET a = 5, b = 'master' WHERE a = 1;
+SELECT * FROM t1 ORDER BY a;
+--echo **** On Slave ****
+sync_slave_with_master;
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--echo **** On Master ****
+connection master;
+DROP TABLE t1;
