@@ -1671,7 +1671,7 @@ buf_block_is_uncompressed(
 
 	ut_ad(mutex_own(&buf_pool->mutex));
 
-	if (UNIV_UNLIKELY(ut_align_offset(block, sizeof *block) != 0)) {
+	if (UNIV_UNLIKELY((((ulint) block) % sizeof *block) != 0)) {
 		/* The pointer should be aligned. */
 		return(FALSE);
 	}
