@@ -470,6 +470,46 @@ end:
 }
 
 
+/**
+  @brief Check access privs for a MERGE table and fix children lock types.
+
+  @param[in]        thd         thread handle
+  @param[in]        db          database name
+  @param[in,out]    table_list  list of child tables (merge_list)
+                                lock_type and optionally db set per table
+
+  @return           status
+    @retval         0           OK
+    @retval         != 0        Error
+
+  @detail
+    This function is used for write access to MERGE tables only
+    (CREATE TABLE, ALTER TABLE ... UNION=(...)). Set TL_WRITE for
+    every child. Set 'db' for every child if not present.
+*/
+
+static bool check_merge_table_access(THD *thd, char *db,
+                                     TABLE_LIST *table_list)
+{
+  int error= 0;
+
+  if (table_list)
+  {
+    /* Check that all tables use the current database */
+    TABLE_LIST *tlist;
+
+    for (tlist= table_list; tlist; tlist= tlist->next_local)
+    {
+      if (!tlist->db || !tlist->db[0])
+        tlist->db= db; /* purecov: inspected */
+    }
+    error= check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                              table_list,0);
+  }
+  return error;
+}
+
+
 /* This works because items are allocated with sql_alloc() */
 
 void free_items(Item *item)
@@ -2080,7 +2120,16 @@ mysql_execute_command(THD *thd)
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     pthread_mutex_lock(&LOCK_active_mi);
-    res = show_master_info(thd,active_mi);
+    if (active_mi != NULL)
+    {
+      res = show_master_info(thd, active_mi);
+    }
+    else
+    {
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "the master info structure does not exist");
+      send_ok(thd);
+    }
     pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
@@ -2253,6 +2302,19 @@ mysql_execute_command(THD *thd)
 
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
+
+      /*
+        Disable non-empty MERGE tables with CREATE...SELECT. Too
+        complicated. See Bug #26379. Empty MERGE tables are read-only
+        and don't allow CREATE...SELECT anyway.
+      */
+      if (create_info.used_fields & HA_CREATE_USED_UNION)
+      {
+        my_error(ER_WRONG_OBJECT, MYF(0), create_table->db,
+                 create_table->table_name, "BASE TABLE");
+        res= 1;
+        goto end_with_restore_list;
+      }
 
       if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
       {
@@ -2935,6 +2997,13 @@ end_with_restore_list:
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                         OPTION_SETUP_TABLES_DONE,
 			del_result, unit, select_lex);
+      res|= thd->net.report_error;
+      if (unlikely(res))
+      {
+        /* If we had a another error reported earlier then this will be ignored */
+        del_result->send_error(ER_UNKNOWN_ERROR, "Execution of the query failed");
+        del_result->abort();
+      }
       delete del_result;
     }
     else
@@ -5091,26 +5160,6 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
   }
   DBUG_PRINT("exit",("no matching access rights"));
   DBUG_RETURN(1);
-}
-
-
-bool check_merge_table_access(THD *thd, char *db,
-			      TABLE_LIST *table_list)
-{
-  int error=0;
-  if (table_list)
-  {
-    /* Check that all tables use the current database */
-    TABLE_LIST *tmp;
-    for (tmp= table_list; tmp; tmp= tmp->next_local)
-    {
-      if (!tmp->db || !tmp->db[0])
-	tmp->db=db;
-    }
-    error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-			     table_list,0);
-  }
-  return error;
 }
 
 

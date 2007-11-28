@@ -1,0 +1,3 @@
+--loose-debug="+d,all_errors_are_temporary_errors" --slave-transaction-retries=2
+
+

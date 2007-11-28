@@ -373,6 +373,16 @@ select * from t1 where a = 4;
 drop table t1;
 
 #
+# Bug#22351 - handler::index_next_same() call to key_cmp_if_same()
+#             uses the wrong buffer
+#
+CREATE TABLE t1 (c1 INT, c2 INT, PRIMARY KEY USING BTREE (c1,c2)) ENGINE=MEMORY
+  PARTITION BY KEY(c2,c1) PARTITIONS 4;
+INSERT INTO t1 VALUES (0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
+SELECT * FROM t1 WHERE c1 = 4;
+DROP TABLE t1;
+
+#
 # Bug #13438: Engine clause in PARTITION clause causes crash
 #
 CREATE TABLE t1 (a int)
@@ -1531,4 +1541,19 @@ while ($cnt)
 --enable_query_log
 
 drop table t1;
+
+#
+# Bug #30495: optimize table t1,t2,t3 extended errors
+#
+CREATE TABLE t1(a int)
+PARTITION BY RANGE (a) (
+  PARTITION p1 VALUES LESS THAN (10),
+  PARTITION p2 VALUES LESS THAN (20)
+);
+--error 1064
+ALTER TABLE t1 OPTIMIZE PARTITION p1 EXTENDED;
+--error 1064
+ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

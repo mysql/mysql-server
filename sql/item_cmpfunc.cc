@@ -933,12 +933,15 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   {
     value= item->val_int();
     *is_null= item->null_value;
+    enum_field_types f_type= item->field_type();
     /*
       Item_date_add_interval may return MYSQL_TYPE_STRING as the result
       field type. To detect that the DATE value has been returned we
-      compare it with 1000000L - any DATE value should be less than it.
+      compare it with 100000000L - any DATE value should be less than it.
+      Don't shift cached DATETIME values up for the second time.
     */
-    if (item->field_type() == MYSQL_TYPE_DATE || value < 100000000L)
+    if (f_type == MYSQL_TYPE_DATE ||
+        (f_type != MYSQL_TYPE_DATETIME && value < 100000000L))
       value*= 1000000L;
   }
   else
@@ -975,7 +978,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
-    Item_cache_int *cache= new Item_cache_int();
+    Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
     cache->store(item, value);
@@ -1691,26 +1694,29 @@ bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const
 
 void Item_func_interval::fix_length_and_dec()
 {
+  uint rows= row->cols();
+  
   use_decimal_comparison= ((row->element_index(0)->result_type() ==
                             DECIMAL_RESULT) ||
                            (row->element_index(0)->result_type() ==
                             INT_RESULT));
-  if (row->cols() > 8)
+  if (rows > 8)
   {
-    bool consts=1;
+    bool not_null_consts= TRUE;
 
-    for (uint i=1 ; consts && i < row->cols() ; i++)
+    for (uint i= 1; not_null_consts && i < rows; i++)
     {
-      consts&= row->element_index(i)->const_item();
+      Item *el= row->element_index(i);
+      not_null_consts&= el->const_item() & !el->is_null();
     }
 
-    if (consts &&
+    if (not_null_consts &&
         (intervals=
-          (interval_range*) sql_alloc(sizeof(interval_range)*(row->cols()-1))))
+          (interval_range*) sql_alloc(sizeof(interval_range) * (rows - 1))))
     {
       if (use_decimal_comparison)
       {
-        for (uint i=1 ; i < row->cols(); i++)
+        for (uint i= 1; i < rows; i++)
         {
           Item *el= row->element_index(i);
           interval_range *range= intervals + (i-1);
@@ -1735,7 +1741,7 @@ void Item_func_interval::fix_length_and_dec()
       }
       else
       {
-        for (uint i=1 ; i < row->cols(); i++)
+        for (uint i= 1; i < rows; i++)
         {
           intervals[i-1].dbl= row->element_index(i)->val_real();
         }
@@ -1826,12 +1832,22 @@ longlong Item_func_interval::val_int()
         ((el->result_type() == DECIMAL_RESULT) ||
          (el->result_type() == INT_RESULT)))
     {
-      my_decimal e_dec_buf, *e_dec= row->element_index(i)->val_decimal(&e_dec_buf);
+      my_decimal e_dec_buf, *e_dec= el->val_decimal(&e_dec_buf);
+      /* Skip NULL ranges. */
+      if (el->null_value)
+        continue;
       if (my_decimal_cmp(e_dec, dec) > 0)
-        return i-1;
+        return i - 1;
     }
-    else if (row->element_index(i)->val_real() > value)
-      return i-1;
+    else 
+    {
+      double val= el->val_real();
+      /* Skip NULL ranges. */
+      if (el->null_value)
+        continue;
+      if (val > value)
+        return i - 1;
+    }
   }
   return i-1;
 }
@@ -4394,6 +4410,51 @@ void Item_func_like::cleanup()
 #ifdef USE_REGEX
 
 bool
+Item_func_regex::regcomp(bool send_error)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String tmp(buff,sizeof(buff),&my_charset_bin);
+  String *res= args[1]->val_str(&tmp);
+  int error;
+
+  if (args[1]->null_value)
+    return TRUE;
+
+  if (regex_compiled)
+  {
+    if (!stringcmp(res, &prev_regexp))
+      return FALSE;
+    prev_regexp.copy(*res);
+    my_regfree(&preg);
+    regex_compiled= 0;
+  }
+
+  if (cmp_collation.collation != regex_lib_charset)
+  {
+    /* Convert UCS2 strings to UTF8 */
+    uint dummy_errors;
+    if (conv.copy(res->ptr(), res->length(), res->charset(),
+                  regex_lib_charset, &dummy_errors))
+      return TRUE;
+    res= &conv;
+  }
+
+  if ((error= my_regcomp(&preg, res->c_ptr_safe(),
+                         regex_lib_flags, regex_lib_charset)))
+  {
+    if (send_error)
+    {
+      (void) my_regerror(error, &preg, buff, sizeof(buff));
+      my_error(ER_REGEXP_ERROR, MYF(0), buff);
+    }
+    return TRUE;
+  }
+  regex_compiled= 1;
+  return FALSE;
+}
+
+
+bool
 Item_func_regex::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
@@ -4409,35 +4470,34 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
   if (agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1))
     return TRUE;
 
+  regex_lib_flags= (cmp_collation.collation->state &
+                    (MY_CS_BINSORT | MY_CS_CSSORT)) ?
+                   REG_EXTENDED | REG_NOSUB :
+                   REG_EXTENDED | REG_NOSUB | REG_ICASE;
+  /*
+    If the case of UCS2 and other non-ASCII character sets,
+    we will convert patterns and strings to UTF8.
+  */
+  regex_lib_charset= (cmp_collation.collation->mbminlen > 1) ?
+                     &my_charset_utf8_general_ci :
+                     cmp_collation.collation;
+
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   not_null_tables_cache= (args[0]->not_null_tables() |
 			  args[1]->not_null_tables());
   const_item_cache=args[0]->const_item() && args[1]->const_item();
   if (!regex_compiled && args[1]->const_item())
   {
-    char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),&my_charset_bin);
-    String *res=args[1]->val_str(&tmp);
     if (args[1]->null_value)
     {						// Will always return NULL
       maybe_null=1;
       fixed= 1;
       return FALSE;
     }
-    int error;
-    if ((error= my_regcomp(&preg,res->c_ptr(),
-                           ((cmp_collation.collation->state &
-                             (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                            REG_EXTENDED | REG_NOSUB :
-                            REG_EXTENDED | REG_NOSUB | REG_ICASE),
-                           cmp_collation.collation)))
-    {
-      (void) my_regerror(error,&preg,buff,sizeof(buff));
-      my_error(ER_REGEXP_ERROR, MYF(0), buff);
+    if (regcomp(TRUE))
       return TRUE;
-    }
-    regex_compiled=regex_is_const=1;
-    maybe_null=args[0]->maybe_null;
+    regex_is_const= 1;
+    maybe_null= args[0]->maybe_null;
   }
   else
     maybe_null=1;
@@ -4450,47 +4510,25 @@ longlong Item_func_regex::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
-  String *res, tmp(buff,sizeof(buff),&my_charset_bin);
+  String tmp(buff,sizeof(buff),&my_charset_bin);
+  String *res= args[0]->val_str(&tmp);
 
-  res=args[0]->val_str(&tmp);
-  if (args[0]->null_value)
-  {
-    null_value=1;
+  if ((null_value= (args[0]->null_value ||
+                    (!regex_is_const && regcomp(FALSE)))))
     return 0;
-  }
-  if (!regex_is_const)
-  {
-    char buff2[MAX_FIELD_WIDTH];
-    String *res2, tmp2(buff2,sizeof(buff2),&my_charset_bin);
 
-    res2= args[1]->val_str(&tmp2);
-    if (args[1]->null_value)
+  if (cmp_collation.collation != regex_lib_charset)
+  {
+    /* Convert UCS2 strings to UTF8 */
+    uint dummy_errors;
+    if (conv.copy(res->ptr(), res->length(), res->charset(),
+                  regex_lib_charset, &dummy_errors))
     {
-      null_value=1;
+      null_value= 1;
       return 0;
     }
-    if (!regex_compiled || stringcmp(res2,&prev_regexp))
-    {
-      prev_regexp.copy(*res2);
-      if (regex_compiled)
-      {
-	my_regfree(&preg);
-	regex_compiled=0;
-      }
-      if (my_regcomp(&preg,res2->c_ptr_safe(),
-                     ((cmp_collation.collation->state &
-                       (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                      REG_EXTENDED | REG_NOSUB :
-                      REG_EXTENDED | REG_NOSUB | REG_ICASE),
-                     cmp_collation.collation))
-      {
-	null_value=1;
-	return 0;
-      }
-      regex_compiled=1;
-    }
+    res= &conv;
   }
-  null_value=0;
   return my_regexec(&preg,res->c_ptr_safe(),0,(my_regmatch_t*) 0,0) ? 0 : 1;
 }
 

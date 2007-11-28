@@ -1,3 +1,4 @@
+drop table if exists t1;
 show variables like 'innodb_rollback_on_timeout';
 Variable_name	Value
 innodb_rollback_on_timeout	ON

@@ -396,6 +396,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
   my_bool can_deadlock= test(data->owner->info->n_cursors);
+  DBUG_ENTER("wait_for_lock");
 
   if (!in_wait_list)
   {
@@ -431,13 +432,21 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
       if the predicate is true.
     */
     if (data->cond == 0)
-      break;
-    if (rc == ETIMEDOUT || rc == ETIME)
     {
-      result= THR_LOCK_WAIT_TIMEOUT;
+      DBUG_PRINT("thr_lock", ("lock granted/aborted"));
       break;
     }
+    if (rc == ETIMEDOUT || rc == ETIME)
+    {
+      /* purecov: begin inspected */
+      DBUG_PRINT("thr_lock", ("lock timed out"));
+      result= THR_LOCK_WAIT_TIMEOUT;
+      break;
+      /* purecov: end */
+    }
   }
+  DBUG_PRINT("thr_lock", ("aborted: %d  in_wait_list: %d",
+                          thread_var->abort, in_wait_list));
 
   if (data->cond || data->type == TL_UNLOCK)
   {
@@ -453,6 +462,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
     }
     else
     {
+      DBUG_PRINT("thr_lock", ("lock aborted"));
       check_locks(data->lock, "aborted wait_for_lock", 0);
     }
   }
@@ -471,7 +481,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_mutex= 0;
   thread_var->current_cond=  0;
   pthread_mutex_unlock(&thread_var->mutex);
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -509,7 +519,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
 	   and the read lock is not TL_READ_NO_INSERT
       */
 
-      DBUG_PRINT("lock",("write locked by thread: 0x%lx",
+      DBUG_PRINT("lock",("write locked 1 by thread: 0x%lx",
 			 lock->write.data->owner->info->thread_id));
       if (thr_lock_owner_equal(data->owner, lock->write.data->owner) ||
 	  (lock->write.data->type <= TL_WRITE_DELAYED &&
@@ -598,10 +608,14 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
     {
       if (lock->write.data->type == TL_WRITE_ONLY)
       {
-	/* We are not allowed to get a lock in this case */
-	data->type=TL_UNLOCK;
-        result= THR_LOCK_ABORTED;               /* Can't wait for this one */
-	goto end;
+        /* Allow lock owner to bypass TL_WRITE_ONLY. */
+        if (!thr_lock_owner_equal(data->owner, lock->write.data->owner))
+        {
+          /* We are not allowed to get a lock in this case */
+          data->type=TL_UNLOCK;
+          result= THR_LOCK_ABORTED;               /* Can't wait for this one */
+          goto end;
+        }
       }
 
       /*
@@ -631,10 +645,8 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
 	statistic_increment(locks_immediate,&THR_LOCK_lock);
 	goto end;
       }
-      /* purecov: begin inspected */
-      DBUG_PRINT("lock",("write locked by thread: 0x%lx",
+      DBUG_PRINT("lock",("write locked 2 by thread: 0x%lx",
 			 lock->write.data->owner->info->thread_id));
-      /* purecov: end */
     }
     else
     {
@@ -669,7 +681,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
 	  goto end;
 	}
       }
-      DBUG_PRINT("lock",("write locked by thread: 0x%lx  type: %d",
+      DBUG_PRINT("lock",("write locked 3 by thread: 0x%lx  type: %d",
 			 lock->read.data->owner->info->thread_id, data->type));
     }
     wait_queue= &lock->write_wait;
@@ -683,6 +695,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
   lock_owner= lock->read.data ? lock->read.data : lock->write.data;
   if (lock_owner && lock_owner->owner->info == owner->info)
   {
+    DBUG_PRINT("lock",("deadlock"));
     result= THR_LOCK_DEADLOCK;
     goto end;
   }
