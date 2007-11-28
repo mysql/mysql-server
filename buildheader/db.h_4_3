@@ -7,6 +7,7 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
+#define TOKUDB 1
 #define DB_VERSION_MAJOR 4
 #define DB_VERSION_MINOR 3
 #define DB_VERSION_PATCH 29
@@ -63,6 +64,7 @@ typedef enum {
 #define DB_LOCK_DEADLOCK -30995
 #define DB_NOTFOUND -30989
 #define DB_BADFORMAT -30500
+#define DB_DELETE_ANY 65536
 #define DB_FIRST 9
 #define DB_GET_BOTH 10
 #define DB_LAST 17
@@ -144,14 +146,16 @@ struct __toku_db {
   void* __toku_dummy0[3];
   void *app_private; /* 32-bit offset=16 size=4, 64=bit offset=32 size=8 */
   DB_ENV *dbenv; /* 32-bit offset=20 size=4, 64=bit offset=40 size=8 */
-  void* __toku_dummy1[38];
+  void* __toku_dummy1[37];
   char __toku_dummy2[96];
+  int (*associate) (DB*, DB_TXN*, DB*, int(*)(DB*, const DBT*, const DBT*, DBT*), u_int32_t); /* 32-bit offset=268 size=4, 64=bit offset=440 size=8 */
   int (*close) (DB*, u_int32_t); /* 32-bit offset=272 size=4, 64=bit offset=448 size=8 */
   int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t); /* 32-bit offset=276 size=4, 64=bit offset=456 size=8 */
   int (*del) (DB *, DB_TXN *, DBT *, u_int32_t); /* 32-bit offset=280 size=4, 64=bit offset=464 size=8 */
   void* __toku_dummy3[4];
   int (*get) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t); /* 32-bit offset=300 size=4, 64=bit offset=504 size=8 */
-  void* __toku_dummy4[15];
+  int (*pget) (DB *, DB_TXN *, DBT *, DBT *, DBT *, u_int32_t); /* 32-bit offset=304 size=4, 64=bit offset=512 size=8 */
+  void* __toku_dummy4[14];
   int (*key_range) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t); /* 32-bit offset=364 size=4, 64=bit offset=632 size=8 */
   int (*open) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int); /* 32-bit offset=368 size=4, 64=bit offset=640 size=8 */
   int (*put) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t); /* 32-bit offset=372 size=4, 64=bit offset=648 size=8 */
