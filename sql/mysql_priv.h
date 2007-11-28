@@ -686,7 +686,6 @@ bool check_single_table_access(THD *thd, ulong privilege,
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
-bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
@@ -1148,6 +1147,9 @@ TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
 bool lock_table_name_if_not_cached(THD *thd, const char *db,
                                    const char *table_name, TABLE **table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
+void detach_merge_children(TABLE *table, bool clear_refs);
+bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
+                          TABLE_LIST *new_child_list, TABLE_LIST **new_last);
 bool reopen_table(TABLE *table);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
 void close_data_files_and_morph_locks(THD *thd, const char *db,
@@ -1398,8 +1400,21 @@ int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
                         pthread_cond_t *cond);
 int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
-int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
-bool open_and_lock_tables(THD *thd,TABLE_LIST *tables);
+/* open_and_lock_tables with optional derived handling */
+bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
+/* simple open_and_lock_tables without derived handling */
+inline bool simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  return open_and_lock_tables_derived(thd, tables, FALSE);
+}
+/* open_and_lock_tables with derived handling */
+inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  return open_and_lock_tables_derived(thd, tables, TRUE);
+}
+/* simple open_and_lock_tables without derived handling for single table */
+TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
+                                thr_lock_type lock_type);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
@@ -1976,7 +1991,8 @@ int format_number(uint inputflag,uint max_length,char * pos,uint length,
 /* table.cc */
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
                                uint key_length);
-void init_tmp_table_share(TABLE_SHARE *share, const char *key, uint key_length,
+void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
+                          uint key_length,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);

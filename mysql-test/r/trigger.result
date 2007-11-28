@@ -1979,8 +1979,6 @@ a
 drop table table_25411_a;
 drop table table_25411_b;
 DROP TRIGGER IF EXISTS trg;
-Warnings:
-Note	1360	Trigger does not exist
 SHOW CREATE TRIGGER trg;
 ERROR HY000: Trigger does not exist
 End of 5.1 tests.

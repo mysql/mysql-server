@@ -54,7 +54,7 @@ DELETE FROM t2 WHERE a = 2;
 --copy_file ./suite/rpl/data/rpl_mixed.dat $MYSQLTEST_VARDIR/tmp/rpl_mixed.dat
 LOAD DATA INFILE '../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
 --remove_file $MYSQLTEST_VARDIR/tmp/rpl_mixed.dat
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 --source suite/rpl/include/rpl_mixed_check_select.inc
 --source suite/rpl/include/rpl_mixed_clear_tables.inc
 
@@ -75,7 +75,7 @@ DELETE FROM t1 WHERE a = 2;
 --echo
 --echo ******************** SELECT ********************
 INSERT INTO t1 VALUES(1, 't1, text 1');
-SELECT * FROM t1 WHERE b <> UUID();
+SELECT * FROM t1 WHERE b <> UUID() ORDER BY a;
 --source suite/rpl/include/rpl_mixed_clear_tables.inc
 
 # JOIN
@@ -85,8 +85,8 @@ INSERT INTO t1 VALUES(1, 'CCC');
 INSERT INTO t1 VALUES(2, 'DDD');
 INSERT INTO t2 VALUES(1, 'DDD');
 INSERT INTO t2 VALUES(2, 'CCC');
-SELECT * FROM t1 LEFT JOIN  t2 ON t1.a = t2.a;
-SELECT * FROM t1 INNER JOIN  t2 ON t1.b = t2.b;
+SELECT * FROM t1 LEFT JOIN  t2 ON t1.a = t2.a ORDER BY t1.a,t2.a;
+SELECT * FROM t1 INNER JOIN  t2 ON t1.b = t2.b ORDER BY t1.a,t2.a;
 --source suite/rpl/include/rpl_mixed_clear_tables.inc
 
 # UNION

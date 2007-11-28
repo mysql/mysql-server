@@ -214,16 +214,43 @@ sub collect_one_suite($$)
 
   mtr_verbose("Collecting: $suite");
 
+  my $combination_file=  "combinations";
+  my $combinations = [];
+
   my $suitedir= "$::glob_mysql_test_dir"; # Default
+  my $combination_file= "$::glob_mysql_test_dir/$combination_file";
   if ( $suite ne "main" )
   {
     $suitedir= mtr_path_exists("$suitedir/suite/$suite",
 			       "$suitedir/$suite");
     mtr_verbose("suitedir: $suitedir");
+    $combination_file= "$suitedir/$combination_file";
   }
 
   my $testdir= "$suitedir/t";
   my $resdir=  "$suitedir/r";
+
+  if (!@::opt_combination) 
+  {
+    # Read combinations file
+    if ( open(COMB,$combination_file) )
+    {
+      while (<COMB>)
+      {
+        chomp;
+        s/\ +/ /g;
+        push (@$combinations, $_) unless ($_ eq '');
+      }
+      close COMB;
+    }
+  }
+  else
+  {
+    # take the combination from command-line
+    @$combinations = @::opt_combination;
+  }
+  # Remember last element position
+  my $begin_index = $#{@$cases} + 1;
 
   # ----------------------------------------------------------------------
   # Build a hash of disabled testcases for this suite
@@ -333,6 +360,78 @@ sub collect_one_suite($$)
 			    $suite_opts);
     }
     closedir TESTDIR;
+  }
+
+  # ----------------------------------------------------------------------
+  # Proccess combinations only if new tests were added
+  # ----------------------------------------------------------------------
+  if (0 and $combinations && $begin_index <= $#{@$cases}) 
+  { 
+    my $end_index = $#{@$cases};
+    my $is_copy;
+    # Keep original master/slave options
+    my @orig_opts;
+    for (my $idx = $begin_index; $idx <= $end_index; $idx++) 
+    {
+      foreach my $param (('master_opt','slave_opt','slave_mi')) 
+      {
+        @{$orig_opts[$idx]{$param}} = @{$cases->[$idx]->{$param}};        
+      }
+    }
+    my $comb_index = 1;
+    # Copy original test cases 
+    foreach my $comb_set (@$combinations)
+    {  
+      for (my $idx = $begin_index; $idx <= $end_index; $idx++) 
+      {
+        my $test = $cases->[$idx];
+        my $copied_test = {};
+        foreach my $param (keys %{$test}) 
+        {
+          # Scalar. Copy as is.
+          $copied_test->{$param} = $test->{$param};
+          # Array. Copy reference instead itself
+          if ($param =~ /(master_opt|slave_opt|slave_mi)/) 
+          {
+            my $new_arr = [];
+            @$new_arr = @{$orig_opts[$idx]{$param}};
+            $copied_test->{$param} = $new_arr;
+          }
+          elsif ($param =~ /(comment|combinations)/) 
+          {
+            $copied_test->{$param} = '';
+          }
+        }
+        if ($is_copy) 
+        {
+          push(@$cases, $copied_test);
+          $test = $cases->[$#{@$cases}];
+        }
+        foreach my $comb_opt (split(/ /,$comb_set)) 
+        {
+          push(@{$test->{'master_opt'}},$comb_opt);
+          push(@{$test->{'slave_opt'}},$comb_opt);
+          # Enable rpl if added option is --binlog-format and test case supports that
+          if ($comb_opt =~ /^--binlog-format=.+$/) 
+          {
+            my @opt_pairs = split(/=/, $comb_opt);
+            if ($test->{'binlog_format'} =~ /^$opt_pairs[1]$/ || $test->{'binlog_format'} eq '') 
+            {
+              $test->{'skip'} = 0;
+              $test->{'comment'} = '';
+            }
+            else
+            {
+              $test->{'skip'} = 1;
+              $test->{'comment'} = "Requiring binlog format '$test->{'binlog_format'}'";;
+            } 
+          }
+        }
+        $test->{'combination'} = $comb_set;
+      } 
+      $is_copy = 1;
+      $comb_index++;
+    }    
   }
 
   return $cases;

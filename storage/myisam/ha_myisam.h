@@ -140,4 +140,8 @@ class ha_myisam: public handler
                                      *engine_callback,
                                      ulonglong *engine_data);
 #endif
+  MI_INFO *file_ptr(void)
+  {
+    return file;
+  }
 };
