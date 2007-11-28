@@ -116,23 +116,23 @@ t12
 t13
 t2
 t3
-SELECT table_name FROM information_schema.views WHERE table_schema='test';
+SELECT table_name FROM information_schema.views WHERE table_schema='test' ORDER BY table_name;
 table_name
 v1
 v11
-SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test' ORDER BY trigger_name;
 trigger_name	event_manipulation	event_object_table
-t1_tr1	INSERT	t1
-t1_tr2	UPDATE	t1
 t11_tr1	INSERT	t11
 t11_tr2	UPDATE	t11
-SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test';
+t1_tr1	INSERT	t1
+t1_tr2	UPDATE	t1
+SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test' ORDER BY routine_name;
 routine_type	routine_name
 FUNCTION	f1
 FUNCTION	f2
 PROCEDURE	p1
 PROCEDURE	p11
-SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
+SELECT event_name, status FROM information_schema.events WHERE event_schema='test' ORDER BY event_name;
 event_name	status
 e1	DISABLED
 e11	DISABLED
@@ -276,23 +276,23 @@ t12
 t13
 t2
 t3
-SELECT table_name FROM information_schema.views WHERE table_schema='test';
+SELECT table_name FROM information_schema.views WHERE table_schema='test' ORDER BY table_name;
 table_name
 v1
 v11
-SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test' ORDER BY trigger_name;
 trigger_name	event_manipulation	event_object_table
-t1_tr1	INSERT	t1
-t1_tr2	UPDATE	t1
 t11_tr1	INSERT	t11
 t11_tr2	UPDATE	t11
-SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test';
+t1_tr1	INSERT	t1
+t1_tr2	UPDATE	t1
+SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test' ORDER BY routine_name;
 routine_type	routine_name
 FUNCTION	f1
 FUNCTION	f2
 PROCEDURE	p1
 PROCEDURE	p11
-SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
+SELECT event_name, status FROM information_schema.events WHERE event_schema='test' ORDER BY event_name;
 event_name	status
 e1	SLAVESIDE_DISABLED
 e11	SLAVESIDE_DISABLED
