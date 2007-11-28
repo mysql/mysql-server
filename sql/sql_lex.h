@@ -1283,11 +1283,11 @@ typedef struct st_lex : public Query_tables_list
 
 struct st_lex_local: public st_lex
 {
-  static void *operator new(size_t size)
+  static void *operator new(size_t size) throw()
   {
     return (void*) sql_alloc((uint) size);
   }
-  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  static void *operator new(size_t size, MEM_ROOT *mem_root) throw()
   {
     return (void*) alloc_root(mem_root, (uint) size);
   }
@@ -1303,3 +1303,4 @@ extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
 extern char *skip_rear_comments(CHARSET_INFO *cs, char *begin, char *end);
+
