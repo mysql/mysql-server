@@ -3,6 +3,10 @@ drop database if exists mysqltest_db1;
 drop database if exists mysqltest_db2;
 create database events_test;
 use events_test;
+select * from information_schema.global_variables where variable_name like 'event_scheduler';
+VARIABLE_NAME	VARIABLE_VALUE
+EVENT_SCHEDULER	ON
+SET GLOBAL event_scheduler = 'OFF';
 CREATE EVENT lower_case ON SCHEDULE EVERY 1 MINUTE DO SELECT 1;
 CREATE EVENT Lower_case ON SCHEDULE EVERY 2 MINUTE DO SELECT 2;
 ERROR HY000: Event 'Lower_case' already exists
