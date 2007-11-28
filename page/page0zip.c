@@ -3619,6 +3619,9 @@ page_zip_rec_set_deleted(
 	} else {
 		*slot &= ~(PAGE_ZIP_DIR_SLOT_DEL >> 8);
 	}
+#ifdef UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(page_zip, page_align(rec)));
+#endif /* UNIV_ZIP_DEBUG */
 }
 
 /**************************************************************************
