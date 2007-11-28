@@ -1277,3 +1277,23 @@ drop user юзер_юзер@localhost;
 --error ER_WRONG_STRING_LENGTH
 grant select on test.* to очень_длинный_юзер@localhost;
 set names default;
+
+
+#
+# Bug #16470 crash on grant if old grant tables
+#
+--echo FLUSH PRIVILEGES without procs_priv table.
+RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
+FLUSH PRIVILEGES;
+--echo Assigning privileges without procs_priv table.
+CREATE DATABASE mysqltest1;
+CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
+  SELECT 1;
+--error ER_NO_SUCH_TABLE
+GRANT EXECUTE ON FUNCTION mysqltest1.test TO mysqltest_1@localhost;
+GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
+CALL mysqltest1.test();
+DROP DATABASE mysqltest1;
+RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
+FLUSH PRIVILEGES;
+
