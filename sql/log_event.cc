@@ -36,6 +36,16 @@
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
+
+/*
+  Size of buffer for printing a double in format %.<PREC>g
+
+  optional '-' + optional zero + '.'  + PREC digits + 'e' + sign +
+  exponent digits + '\0'
+*/
+#define FMT_G_BUFSIZE(PREC) (3 + (PREC) + 5 + 1)
+
+
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) && !defined(DBUG_OFF) && !defined(_lint)
 static const char *HA_ERR(int i)
 {
@@ -4508,8 +4518,10 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     switch (type) {
     case REAL_RESULT:
       double real_val;
+      char real_buf[FMT_G_BUFSIZE(14)];
       float8get(real_val, val);
-      my_b_printf(&cache, ":=%.14g%s\n", real_val, print_event_info->delimiter);
+      my_sprintf(real_buf, (real_buf, "%.14g", real_val));
+      my_b_printf(&cache, ":=%s%s\n", real_buf, print_event_info->delimiter);
       break;
     case INT_RESULT:
       char int_buf[22];
