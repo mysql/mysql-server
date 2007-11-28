@@ -555,8 +555,18 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
     return 0;
 }
 
-static int toku_db_del(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, u_int32_t flags __attribute((unused))) {
-    int r = brt_delete(db->i->brt, key);
+static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
+    int r;
+    /* DB_DELETE_ANY supresses the BDB DB->del return value indicating that the key was not found prior to the delete */
+    if (!(flags & DB_DELETE_ANY)) {
+        DBT search_val; memset(&search_val, 0, sizeof search_val); 
+        search_val.flags = DB_DBT_MALLOC;
+        r = db->get(db, txn, key, &search_val, 0);
+        if (r != 0)
+            return r;
+        free(search_val.data);
+    } 
+    r = brt_delete(db->i->brt, key);
     return r;
 }
 
