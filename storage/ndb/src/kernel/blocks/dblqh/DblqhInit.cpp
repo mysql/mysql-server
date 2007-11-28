@@ -168,7 +168,6 @@ Dblqh::Dblqh(Block_context& ctx):
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),
-  c_redo_complete_fragments(c_fragment_pool),
   m_commitAckMarkerHash(m_commitAckMarkerPool),
   c_scanTakeOverHash(c_scanRecordPool)
 {
@@ -294,9 +293,6 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_TUX_ADD_ATTRREF, &Dblqh::execTUX_ADD_ATTRREF);
 
   addRecSignal(GSN_READ_PSEUDO_REQ, &Dblqh::execREAD_PSEUDO_REQ);
-
-  addRecSignal(GSN_BUILDINDXREF, &Dblqh::execBUILDINDXREF);
-  addRecSignal(GSN_BUILDINDXCONF, &Dblqh::execBUILDINDXCONF);
 
   addRecSignal(GSN_DEFINE_BACKUP_REF, &Dblqh::execDEFINE_BACKUP_REF);
   addRecSignal(GSN_DEFINE_BACKUP_CONF, &Dblqh::execDEFINE_BACKUP_CONF);
