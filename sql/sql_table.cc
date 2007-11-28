@@ -4565,6 +4565,55 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 }
 
 
+
+/**
+  @brief          Create frm file based on I_S table
+
+  @param[in]      thd                      thread handler
+  @param[in]      schema_table             I_S table           
+  @param[in]      dst_path                 path where frm should be created
+  @param[in]      create_info              Create info
+
+  @return         Operation status
+    @retval       0                        success
+    @retval       1                        error
+*/
+
+
+bool mysql_create_like_schema_frm(THD* thd, TABLE_LIST* schema_table,
+                                  char *dst_path, HA_CREATE_INFO *create_info)
+{
+  HA_CREATE_INFO local_create_info;
+  Alter_info alter_info;
+  bool tmp_table= (create_info->options & HA_LEX_CREATE_TMP_TABLE);
+  uint keys= schema_table->table->s->keys;
+  uint db_options= 0;
+  DBUG_ENTER("mysql_create_like_schema_frm");
+
+  bzero((char*) &local_create_info, sizeof(local_create_info));
+  local_create_info.db_type= schema_table->table->s->db_type();
+  local_create_info.row_type= schema_table->table->s->row_type;
+  local_create_info.default_table_charset=default_charset_info;
+  alter_info.flags= (ALTER_CHANGE_COLUMN | ALTER_RECREATE);
+  schema_table->table->use_all_columns();
+  if (mysql_prepare_alter_table(thd, schema_table->table,
+                                &local_create_info, &alter_info))
+    DBUG_RETURN(1);
+  if (mysql_prepare_create_table(thd, &local_create_info, &alter_info,
+                                 tmp_table, &db_options,
+                                 schema_table->table->file,
+                                 &schema_table->table->s->key_info, &keys, 0))
+    DBUG_RETURN(1);
+  local_create_info.max_rows= 0;
+  if (mysql_create_frm(thd, dst_path, NullS, NullS,
+                       &local_create_info, alter_info.create_list,
+                       keys, schema_table->table->s->key_info,
+                       schema_table->table->file))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+
 /*
   Create a table identical to the specified table
 
@@ -4668,7 +4717,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     during the call to ha_create_table(). See bug #28614 for more info.
   */
   VOID(pthread_mutex_lock(&LOCK_open));
-  if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
+  if (src_table->schema_table)
+  {
+    if (mysql_create_like_schema_frm(thd, src_table, dst_path, create_info))
+    {
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      goto err;
+    }
+  }
+  else if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
   {
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);
