@@ -1569,6 +1569,7 @@ void test_brt_cursor_set(int n, int cursor_op, DB *db) {
         memcpy(&vv, val.data, val.size);
         assert(vv == v);
         toku_free(val.data);
+        if (cursor_op == DB_SET) assert(key.data == &k);
     }
 
     /* try to set cursor to keys not in the tree, all should fail */
@@ -1580,6 +1581,7 @@ void test_brt_cursor_set(int n, int cursor_op, DB *db) {
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = brt_cursor_get(cursor, &key, &val, DB_SET, null_txn);
         assert(r == DB_NOTFOUND);
+        assert(key.data == &k);
     }
 
     r = brt_cursor_close(cursor);
