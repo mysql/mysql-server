@@ -1826,8 +1826,6 @@ void test_brt_cursor_get_both(int n, DB *db) {
 }
 
 
-extern int brt_do_push_cmd;
-
 int test_brt_cursor_inc = 1000;
 int test_brt_cursor_limit = 10000;
 
@@ -2271,13 +2269,13 @@ static void brt_blackbox_test (void) {
 
     test_brt_delete();
 
-    int old_brt_do_push_cmd = brt_do_push_cmd;
-    brt_do_push_cmd = 0;
+    int old_brt_do_push_cmd = toku_brt_do_push_cmd;
+    toku_brt_do_push_cmd = 0;
 
     test_brt_delete();
     test_brt_cursor(db);
 
-    brt_do_push_cmd = old_brt_do_push_cmd;
+    toku_brt_do_push_cmd = old_brt_do_push_cmd;
 
 //    test3(1<<19, 1<<20, 0);
 //    test4(1<<19, 1<<20, 0);

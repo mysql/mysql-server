@@ -39,7 +39,7 @@ int brt_create_cachetable(CACHETABLE *t, long cachesize, LSN initial_lsn, TOKULO
 extern int brt_debug_mode;
 int toku_verify_brt (BRT brt);
 
-int show_brt_blocknumbers(BRT);
+//int show_brt_blocknumbers(BRT);
 
 typedef struct brt_cursor *BRT_CURSOR;
 int brt_cursor (BRT, BRT_CURSOR*);
@@ -49,5 +49,7 @@ int brt_cursor_close (BRT_CURSOR curs);
 
 typedef struct brtenv *BRTENV;
 int brtenv_checkpoint (BRTENV env);
+
+extern int toku_brt_do_push_cmd; // control whether push occurs eagerly.
 
 #endif
