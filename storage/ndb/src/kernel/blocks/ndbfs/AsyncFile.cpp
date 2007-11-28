@@ -381,12 +381,16 @@ void printErrorAndFlags(Uint32 used_flags) {
     strcat(buf, "O_NONBLOCK, ");
   if((used_flags & O_TRUNC)==O_TRUNC)
     strcat(buf, "O_TRUNC, ");
+#ifdef O_DSYNC /* At least Darwin 7.9 doesn't have it */
   if((used_flags & O_DSYNC)==O_DSYNC)
     strcat(buf, "O_DSYNC, ");
+#endif
   if((used_flags & O_NDELAY)==O_NDELAY)
     strcat(buf, "O_NDELAY, ");
+#ifdef O_RSYNC /* At least Darwin 7.9 doesn't have it */
   if((used_flags & O_RSYNC)==O_RSYNC)
     strcat(buf, "O_RSYNC, ");
+#endif
 #ifdef O_SYNC
   if((used_flags & O_SYNC)==O_SYNC)
     strcat(buf, "O_SYNC, ");
