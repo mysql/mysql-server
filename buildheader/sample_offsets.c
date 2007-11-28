@@ -114,6 +114,7 @@ void sample_db_offsets (void) {
     STRUCT_SETUP(DB, get,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
     STRUCT_SETUP(DB, key_range,      "int (*%s) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)");
     STRUCT_SETUP(DB, open,           "int (*%s) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)");
+    STRUCT_SETUP(DB, pget,           "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, DBT *, u_int32_t)");
     STRUCT_SETUP(DB, put,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
     STRUCT_SETUP(DB, remove,         "int (*%s) (DB *, const char *, const char *, u_int32_t)");
     STRUCT_SETUP(DB, rename,         "int (*%s) (DB *, const char *, const char *, const char *, u_int32_t)");

@@ -68,6 +68,7 @@ void print_defines (void) {
     dodefine(DB_NOTFOUND);
 
     printf("#define DB_BADFORMAT -30500\n"); // private tokudb
+    printf("#define DB_DELETE_ANY %d\n", 1<<16); // private tokudb
 
     dodefine(DB_FIRST);
     dodefine(DB_GET_BOTH);
@@ -189,6 +190,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 
     assert(DB_VERSION_MAJOR==DB_VERSION_MAJOR_32);
     assert(DB_VERSION_MINOR==DB_VERSION_MINOR_32);
+    printf("#define TOKUDB 1\n");
     dodefine(DB_VERSION_MAJOR);
     dodefine(DB_VERSION_MINOR);
     dodefine(DB_VERSION_PATCH);

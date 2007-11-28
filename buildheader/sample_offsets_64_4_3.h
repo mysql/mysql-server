@@ -48,6 +48,7 @@ struct fieldinfo db_fields64[] = {
   {"int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t)", 456, 8},
   {"int (*del) (DB *, DB_TXN *, DBT *, u_int32_t)", 464, 8},
   {"int (*get) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)", 504, 8},
+  {"int (*pget) (DB *, DB_TXN *, DBT *, DBT *, DBT *, u_int32_t)", 512, 8},
   {"int (*key_range) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)", 632, 8},
   {"int (*open) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)", 640, 8},
   {"int (*put) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)", 648, 8},

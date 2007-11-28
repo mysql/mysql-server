@@ -43,10 +43,12 @@ struct fieldinfo db_lsn_fields32[] = {
 struct fieldinfo db_fields32[] = {
   {"void *app_private", 16, 4},
   {"DB_ENV *dbenv", 20, 4},
+  {"int (*associate) (DB*, DB_TXN*, DB*, int(*)(DB*, const DBT*, const DBT*, DBT*), u_int32_t)", 256, 4},
   {"int (*close) (DB*, u_int32_t)", 260, 4},
   {"int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t)", 264, 4},
   {"int (*del) (DB *, DB_TXN *, DBT *, u_int32_t)", 268, 4},
   {"int (*get) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)", 284, 4},
+  {"int (*pget) (DB *, DB_TXN *, DBT *, DBT *, DBT *, u_int32_t)", 288, 4},
   {"int (*key_range) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)", 304, 4},
   {"int (*open) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)", 308, 4},
   {"int (*put) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)", 312, 4},
