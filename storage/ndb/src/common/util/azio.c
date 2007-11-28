@@ -65,17 +65,18 @@ void read_header(azio_stream *s, unsigned char *buffer);
 
 size_t az_inflate_mem_size()
 {
-  return sizeof(struct inflate_state)            // state
-    + ((1U << MAX_WBITS)*sizeof(unsigned char)); // window
+  return sizeof(struct inflate_state)            /* state */
+    + ((1U << MAX_WBITS)*sizeof(unsigned char)); /* window */
 }
 
 size_t az_deflate_mem_size()
 {
   return sizeof(deflate_state)
-    + ((1U << MAX_WBITS)*(2*sizeof(Byte)))       // window = wsize,2*|Byte|
-    + ((1U << MAX_WBITS)*sizeof(Pos))            // prev   = wsize,|Pos|
-    + ((1U << (AZ_MEMLEVEL+7))*sizeof(Pos))      // head   = hashsize,|Pos|
-    + ((1U << (AZ_MEMLEVEL+6))*(sizeof(ush)+2)); // overlay= lit_bufsize,|ush|+2
+    + ((1U << MAX_WBITS)*(2*sizeof(Byte)))      /* window = wsize,2*|Byte| */
+    + ((1U << MAX_WBITS)*sizeof(Pos))           /* prev   = wsize,|Pos| */
+    + ((1U << (AZ_MEMLEVEL+7))*sizeof(Pos))     /* head   = hashsize,|Pos| */
+    + ((1U << (AZ_MEMLEVEL+6))*(sizeof(ush)+2));/* overlay= lit_bufsize,|ush|+2
+						*/
 }
 
 voidpf az_alloc(voidpf opaque, uInt items, uInt size)
@@ -96,7 +97,7 @@ voidpf az_alloc(voidpf opaque, uInt items, uInt size)
 }
 void az_free(voidpf opaque, voidpf address)
 {
-  // Oh how we hack.
+  /* Oh how we hack. */
   struct az_alloc_rec *r = (struct az_alloc_rec*)opaque;
   r->mfree= r->size;
   if(r->mfree==r->size)
@@ -128,7 +129,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     s->stream.zalloc = (alloc_func)az_alloc;
     s->stream.zfree = (free_func)az_free;
   }
-//  s->stream.opaque = (voidpf)r;
+/*  s->stream.opaque = (voidpf)r; */
   s->bufalloced = 0;
   if(!s->inbuf)
   {
@@ -386,7 +387,7 @@ int check_header(azio_stream *s)
   /* Peek ahead to check the gzip magic header */
   if ( s->stream.next_in[0] == gz_magic[0]  && s->stream.next_in[1] == gz_magic[1])
   {
-    abort(); // FIXME: stewart broke it, massively
+    abort(); /* FIXME: stewart broke it, massively */
     s->stream.avail_in -= 2;
     s->stream.next_in += 2;
     s->version= (unsigned char)2;
@@ -954,7 +955,7 @@ int azclose (azio_stream *s)
 
     flush_write_buffer(s);
 
-//    write_header(s);
+/*    write_header(s); */
   }
 
   return destroy(s);
