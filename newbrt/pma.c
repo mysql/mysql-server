@@ -104,7 +104,7 @@ struct kv_pair_tag {
 
 /* allocate a kv pair from the pma kv memory pool */
 static struct kv_pair *kv_pair_malloc_mempool(void *key, int keylen, void *val, int vallen, struct mempool *mp) {
-    struct kv_pair *kv = mempool_malloc(mp, sizeof (struct kv_pair) + keylen + vallen, 4);
+    struct kv_pair *kv = toku_mempool_malloc(mp, sizeof (struct kv_pair) + keylen + vallen, 4);
     if (kv)
         kv_pair_init(kv, key, keylen, val, vallen);
     return kv;
@@ -113,19 +113,19 @@ static struct kv_pair *kv_pair_malloc_mempool(void *key, int keylen, void *val, 
 /* compress all of the kv pairs to the left edge of the memory pool and
    update the pma index with the new kv pair locations */
 static int pma_compress_kvspace(PMA pma) {
-    if (mempool_get_frag_size(&pma->kvspace) == 0)
+    if (toku_mempool_get_frag_size(&pma->kvspace) == 0)
         return -1;
     void *mp = toku_malloc(pma->kvspace.size);
     if (mp == 0)
         return -2;
     struct mempool new_kvspace;
-    mempool_init(&new_kvspace, mp, pma->kvspace.size);
+    toku_mempool_init(&new_kvspace, mp, pma->kvspace.size);
     int i;
     for (i=0; i<pma->N; i++) {
         struct kv_pair *kv = pma->pairs[i];
         if (kv_pair_inuse(kv)) {
             kv = kv_pair_ptr(kv);
-            struct kv_pair *newkv = mempool_malloc(&new_kvspace, kv_pair_size(kv), 4);
+            struct kv_pair *newkv = toku_mempool_malloc(&new_kvspace, kv_pair_size(kv), 4);
             assert(newkv);
             memcpy(newkv, kv, kv_pair_size(kv));
             if (kv_pair_deleted(pma->pairs[i]))
@@ -158,7 +158,7 @@ static struct kv_pair *pma_malloc_kv_pair(PMA pma __attribute__((unused)), void 
 static void pma_mfree_kv_pair(PMA pma __attribute__((unused)), struct kv_pair *kv) {
     kv = kv_pair_ptr(kv);
 #if PMA_USE_MEMPOOL
-    mempool_mfree(&pma->kvspace, kv, kv_pair_size(kv));
+    toku_mempool_mfree(&pma->kvspace, kv, kv_pair_size(kv));
 #else
     kv_pair_free(kv);
 #endif
@@ -609,7 +609,7 @@ int toku_pma_create(PMA *pma, pma_compare_fun_t compare_fun, DB *db, FILENUM fil
     maxsize = maxsize + maxsize/4;
 #if PMA_USE_MEMPOOL
     void *mpbase = toku_malloc(maxsize); assert(mpbase);
-    mempool_init(&result->kvspace, mpbase, maxsize);
+    toku_mempool_init(&result->kvspace, mpbase, maxsize);
 #endif
     *pma = result;
     assert((unsigned long)result->pairs[result->N]==0xdeadbeefL);
@@ -961,8 +961,8 @@ int toku_pma_free (PMA *pmap) {
     }
     assert(pma->n_pairs_present == 0);
 #if PMA_USE_MEMPOOL
-    void *mpbase = mempool_get_base(&pma->kvspace);
-    mempool_fini(&pma->kvspace);
+    void *mpbase = toku_mempool_get_base(&pma->kvspace);
+    toku_mempool_fini(&pma->kvspace);
     toku_free(mpbase);
 #endif
     toku_free(pma->pairs);
@@ -1582,7 +1582,7 @@ void toku_pma_verify(PMA pma) {
         kv = pma->pairs[i];
         if (kv_pair_inuse(kv)) {
             kv = kv_pair_ptr(kv);
-            assert(mempool_inrange(&pma->kvspace, kv, kv_pair_size(kv)));
+            assert(toku_mempool_inrange(&pma->kvspace, kv, kv_pair_size(kv)));
         }
     }
 #endif
