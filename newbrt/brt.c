@@ -42,7 +42,7 @@ static DISKOFF malloc_diskblock (BRT brt, int size);
 //static void verify_local_fingerprint_nonleaf (BRTNODE node);
 
 /* Frees a node, including all the stuff in the hash table. */
-void brtnode_free (BRTNODE *nodep) {
+void toku_brtnode_free (BRTNODE *nodep) {
     BRTNODE node=*nodep;
     int i;
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, node, node->mdicts[0]);
@@ -64,7 +64,7 @@ void brtnode_free (BRTNODE *nodep) {
     *nodep=0;
 }
 
-long brtnode_size(BRTNODE node) {
+static long brtnode_size(BRTNODE node) {
     long size;
     assert(node->tag == TYP_BRTNODE);
     if (node->height > 0)
@@ -73,6 +73,11 @@ long brtnode_size(BRTNODE node) {
         size = node->u.l.n_bytes_in_buffer;
     return size;
 }
+
+static void brt_update_cursors_new_root(BRT t, BRTNODE newroot, BRTNODE left, BRTNODE right);
+static void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
+static void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right);
+static void brt_update_cursors_nonleaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
 
 static void fix_up_parent_pointers_of_children (BRT t, BRTNODE node) {
     int i;
@@ -135,13 +140,13 @@ static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck, unsigned 
 }
 
 
-void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnode_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn __attribute__((__unused__)) , BOOL rename_p __attribute__((__unused__))) {
+void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnode_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn __attribute__((__unused__)) , BOOL rename_p __attribute__((__unused__))) {
     BRTNODE brtnode = brtnode_v;
 //    if ((write_me || keep_me) && (brtnode->height==0)) {
 //	toku_pma_verify_fingerprint(brtnode->u.l.buffer, brtnode->rand4fingerprint, brtnode->subtree_fingerprint);
 //    }
     if (0) {
-	printf("%s:%d brtnode_flush_callback %p keep_me=%d height=%d", __FILE__, __LINE__, brtnode, keep_me, brtnode->height);
+	printf("%s:%d toku_brtnode_flush_callback %p keep_me=%d height=%d", __FILE__, __LINE__, brtnode, keep_me, brtnode->height);
 	if (brtnode->height==0) printf(" pma=%p", brtnode->u.l.buffer);
 	printf("\n");
     }
@@ -188,12 +193,12 @@ void brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *brtnod
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (!keep_me) {
-	brtnode_free(&brtnode);
+	toku_brtnode_free(&brtnode);
     }
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
 }
 
-int brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn) {
+int toku_brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn) {
     BRT t =(BRT)extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
     int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, result, t->flags, t->nodesize, 
@@ -206,7 +211,7 @@ int brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **brtnod
     return r;
 }
 	
-void brtheader_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *header_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
+void toku_brtheader_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *header_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
     struct brt_header *h = header_v;
     assert(nodename==0);
     assert(!h->dirty); // shouldn't be dirty once it is unpinned.
@@ -226,7 +231,7 @@ void brtheader_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *head
     }
 }
 
-int brtheader_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **headerp_v, long *sizep __attribute__((unused)), void*extraargs __attribute__((__unused__)), LSN *written_lsn) {
+int toku_brtheader_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **headerp_v, long *sizep __attribute__((unused)), void*extraargs __attribute__((__unused__)), LSN *written_lsn) {
     struct brt_header **h = (struct brt_header **)headerp_v;
     assert(nodename==0);
     int r = toku_deserialize_brtheader_from(toku_cachefile_fd(cachefile), nodename, h);
@@ -238,7 +243,7 @@ int toku_read_and_pin_brt_header (CACHEFILE cf, struct brt_header **header) {
     void *header_p;
     //fprintf(stderr, "%s:%d read_and_pin_brt_header(...)\n", __FILE__, __LINE__);
     int r = toku_cachetable_get_and_pin(cf, 0, &header_p, NULL,
-				   brtheader_flush_callback, brtheader_fetch_callback, 0);
+				   toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
     if (r!=0) return r;
     *header = header_p;
     return 0;
@@ -347,11 +352,11 @@ static void create_new_brtnode (BRT t, BRTNODE *result, int height, BRTNODE pare
     //    n->brt            = t;
     //printf("%s:%d putting %p (%lld) parent=%p\n", __FILE__, __LINE__, n, n->thisnodename, parent_brtnode);
     r=toku_cachetable_put(t->cf, n->thisnodename, n, brtnode_size(n),
-			  brtnode_flush_callback, brtnode_fetch_callback, t);
+			  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
     assert(r==0);
 }
 
-void delete_node (BRT t, BRTNODE node) {
+static void delete_node (BRT t, BRTNODE node) {
     int i;
     assert(node->height>=0);
     if (node->height==0) {
@@ -388,7 +393,7 @@ static int insert_to_hash_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT *v
 }
 
 
-int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
+static int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
     BRTNODE A,B;
     assert(node->height==0);
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
@@ -429,7 +434,7 @@ static void brt_update_fingerprint_when_moving_hashtable (BRTNODE oldnode, BRTNO
 }
 
 /* Side effect: sets splitk->data pointer to a malloc'd value */
-void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
+static void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
     int n_children_in_a = node->u.n.n_children/2;
     BRTNODE A,B;
     assert(node->height>0);
@@ -783,7 +788,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     DISKOFF targetchild = node->u.n.children[childnum]; 
     assert(targetchild>=0 && targetchild<t->h->unused_memory); // This assertion could fail in a concurrent setting since another process might have bumped unused memory.
     r = toku_cachetable_get_and_pin(t->cf, targetchild, &childnode_v, NULL, 
-				    brtnode_flush_callback, brtnode_fetch_callback, t);
+				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
     if (r!=0) return r;
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, childnode_v);
     child=childnode_v;
@@ -1039,7 +1044,7 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
         r = toku_cachetable_maybe_get_and_pin(t->cf, node->u.n.children[childnum], &child_v);
     else 
         r = toku_cachetable_get_and_pin(t->cf, node->u.n.children[childnum], &child_v, NULL, 
-                                   brtnode_flush_callback, brtnode_fetch_callback, t);
+                                   toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
     if (r != 0)
         return r;
 
@@ -1437,7 +1442,7 @@ static int setup_brt_root_node (BRT t, DISKOFF offset, TOKUTXN txn) {
     }
     //printf("%s:%d putting %p (%lld)\n", __FILE__, __LINE__, node, node->thisnodename);
     r=toku_cachetable_put(t->cf, offset, node, brtnode_size(node),
-			  brtnode_flush_callback, brtnode_fetch_callback, t);
+			  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
     if (r!=0) {
 	toku_free(node);
 	return r;
@@ -1478,38 +1483,38 @@ int toku_brt_create(BRT *brt_ptr) {
     return 0;
 }
 
-int brt_set_flags(BRT brt, int flags) {
+int toku_brt_set_flags(BRT brt, int flags) {
     brt->flags = flags;
     return 0;
 }
 
-int brt_get_flags(BRT brt, int *flags) {
+int toku_brt_get_flags(BRT brt, int *flags) {
     *flags = brt->flags;
     return 0;
 }
 
-int brt_set_nodesize(BRT brt, int nodesize) {
+int toku_brt_set_nodesize(BRT brt, int nodesize) {
     brt->nodesize = nodesize;
     return 0;
 }
 
-int brt_set_bt_compare(BRT brt, int (*bt_compare)(DB *, const DBT*, const DBT*)) {
+int toku_brt_set_bt_compare(BRT brt, int (*bt_compare)(DB *, const DBT*, const DBT*)) {
     brt->compare_fun = bt_compare;
     return 0;
 }
 
-int brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const DBT*)) {
+int toku_brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const DBT*)) {
     brt->dup_compare = dup_compare;
     return 0;
 }
 
-int brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn) {
+int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn) {
 
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
     char *malloced_name=0;
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
-    WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d open_brt(%s, \"%s\", %d, %p, %d, %p)\n",
+    WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d toku_open_brt(%s, \"%s\", %d, %p, %d, %p)\n",
 			  __FILE__, __LINE__, fname, dbname, is_create, newbrt, nodesize, cachetable));
     if (0) { died0:  assert(r); return r; }
 
@@ -1579,7 +1584,7 @@ int brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbn
 	    }
 	    if ((r=tokulogger_log_header(txn, toku_cachefile_filenum(t->cf), t->h)))                               { goto died6; }
 	    if ((r=setup_brt_root_node(t, t->nodesize, txn))!=0) { died6: if (dbname) goto died5; else goto died2;	}
-	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, brtheader_flush_callback, brtheader_fetch_callback, 0))) { goto died6; }
+	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0))) { goto died6; }
 	} else {
 	    int i;
 	    assert(r==0);
@@ -1633,7 +1638,7 @@ int brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbn
     return 0;
 }
 
-int brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags) {
+int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags) {
     int r;
     int r2 = 0;
     int i;
@@ -1642,7 +1647,7 @@ int brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags) {
     assert(flags == 0);
     r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
     //TODO: What if r != 0? Is this possible?
-    //  We just called brt_open, so it should exist...
+    //  We just called toku_brt_open, so it should exist...
     assert(r==0);  
 
     assert(brt->h->unnamed_root==-1);
@@ -1680,7 +1685,7 @@ error:
 }
 
 // This one has no env
-int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable, TOKUTXN txn,
+int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable, TOKUTXN txn,
 	      int (*compare_fun)(DB*,const DBT*,const DBT*), DB *db) {
     BRT brt;
     int r;
@@ -1689,11 +1694,11 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
     r = toku_brt_create(&brt);
     if (r != 0)
         return r;
-    brt_set_nodesize(brt, nodesize);
-    brt_set_bt_compare(brt, compare_fun);
+    toku_brt_set_nodesize(brt, nodesize);
+    toku_brt_set_bt_compare(brt, compare_fun);
     brt->db = db;
 
-    r = brt_open(brt, fname, fname, dbname, is_create, only_create, cachetable, txn);
+    r = toku_brt_open(brt, fname, fname, dbname, is_create, only_create, cachetable, txn);
     if (r != 0) {
         return r;
     }
@@ -1702,7 +1707,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
     return r;
 }
 
-int close_brt (BRT brt) {
+int toku_close_brt (BRT brt) {
     int r;
     while (brt->cursors_head) {
 	BRT_CURSOR c = brt->cursors_head;
@@ -1737,7 +1742,7 @@ CACHEKEY* toku_calculate_root_offset_pointer (BRT brt) {
     abort();
 }
 
-int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *rootp) {
+static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *rootp) {
     TAGMALLOC(BRTNODE, newroot);
     int r;
     DISKOFF newroot_diskoff=malloc_diskblock(brt, brt->h->nodesize);
@@ -1770,7 +1775,7 @@ int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKE
     if (r!=0) return r;
     //printf("%s:%d put %lld\n", __FILE__, __LINE__, brt->root);
     toku_cachetable_put(brt->cf, newroot_diskoff, newroot, brtnode_size(newroot),
-                   brtnode_flush_callback, brtnode_fetch_callback, brt);
+                   toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     brt_update_cursors_new_root(brt, newroot, nodea, nodeb);
     return 0;
 }
@@ -1792,7 +1797,7 @@ static int brt_root_put_cmd(BRT brt, BRT_CMD *cmd, TOKUTXN txn) {
     rootp = toku_calculate_root_offset_pointer(brt);
     if (debug) printf("%s:%d Getting %lld\n", __FILE__, __LINE__, *rootp);
     if ((r=toku_cachetable_get_and_pin(brt->cf, *rootp, &node_v, NULL, 
-				  brtnode_flush_callback, brtnode_fetch_callback, brt))) {
+				  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt))) {
 	goto died0;
     }
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
@@ -1831,7 +1836,7 @@ static int brt_root_put_cmd(BRT brt, BRT_CMD *cmd, TOKUTXN txn) {
     return result;
 }
 
-int brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
+int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     int r;
     BRT_CMD brtcmd;
 
@@ -1842,11 +1847,11 @@ int brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     return r;
 }
 
-int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, BRTNODE parent_brtnode) {
+static int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, BRTNODE parent_brtnode) {
     int result;
     void *node_v;
     int r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL,
-				   brtnode_flush_callback, brtnode_fetch_callback, brt);
+				   toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) 
         return r;
 
@@ -1911,7 +1916,7 @@ int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, BRTNODE parent_brtnod
 }
 
 
-int brt_lookup (BRT brt, DBT *k, DBT *v) {
+int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
     int r;
     CACHEKEY *rootp;
     assert(0==toku_cachefile_count_pinned(brt->cf, 1));
@@ -1933,7 +1938,7 @@ int brt_lookup (BRT brt, DBT *k, DBT *v) {
     return 0;
 }
 
-int brt_delete(BRT brt, DBT *key) {
+int toku_brt_delete(BRT brt, DBT *key) {
     int r;
     BRT_CMD brtcmd;
     DBT val;
@@ -1954,7 +1959,7 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
     BRTNODE node;
     void *node_v;
     int r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL,
-				   brtnode_flush_callback, brtnode_fetch_callback, brt);
+				   toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     assert(r==0);
     printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
@@ -2002,7 +2007,7 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
     return result;
 }
 
-int dump_brt (BRT brt) {
+int toku_dump_brt (BRT brt) {
     int r;
     CACHEKEY *rootp;
     if ((r = toku_read_and_pin_brt_header(brt->cf, &brt->h))) {
@@ -2022,7 +2027,7 @@ static int show_brtnode_blocknumbers (BRT brt, DISKOFF off, BRTNODE parent_brtno
     int i,r;
     assert(off%brt->h->nodesize==0);
     if ((r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL,
-				    brtnode_flush_callback, brtnode_fetch_callback, brt))) {
+				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt))) {
 	if (0) { died0: toku_cachetable_unpin(brt->cf, off, 0, 0); }
 	return r;
     }
@@ -2056,7 +2061,7 @@ int show_brt_blocknumbers (BRT brt) {
 }
 #endif
 
-int brt_flush_debug = 0;
+static int brt_flush_debug = 0;
 
 /*
  * Flush the buffer for a child of a node.  
@@ -2064,7 +2069,7 @@ int brt_flush_debug = 0;
  * then reflect the node split up the cursor path towards the tree root.
  * If the root is reached then create a new root
  */  
-void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor, TOKUTXN txn) {
+static void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor, TOKUTXN txn) {
     int r;
     int child_did_split;
     BRTNODE childa, childb;
@@ -2121,7 +2126,7 @@ void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor, TOKUT
 /*
  * Add a cursor to child of a node.  Increment the cursor count on the child.  Flush the buffer associated with the child.
  */
-void brt_node_add_cursor(BRTNODE node, int childnum, BRT_CURSOR cursor) {
+static void brt_node_add_cursor(BRTNODE node, int childnum, BRT_CURSOR cursor) {
     if (node->height > 0) {
         if (0) printf("brt_node_add_cursor %lld %d %p\n", node->thisnodename, childnum, cursor);
         node->u.n.n_cursors[childnum] += 1;
@@ -2131,7 +2136,7 @@ void brt_node_add_cursor(BRTNODE node, int childnum, BRT_CURSOR cursor) {
 /*
  * Remove a cursor from the child of a node.  Decrement the cursor count on the child.
  */
-void brt_node_remove_cursor(BRTNODE node, int childnum, BRT_CURSOR cursor __attribute__((unused))) {
+static void brt_node_remove_cursor(BRTNODE node, int childnum, BRT_CURSOR cursor __attribute__((unused))) {
     if (node->height > 0) {
         if (0) printf("brt_node_remove_cursor %lld %d %p\n", node->thisnodename, childnum, cursor);
         assert(node->u.n.n_cursors[childnum] > 0);
@@ -2153,7 +2158,7 @@ void brt_update_cursors_new_root(BRT t, BRTNODE newroot, BRTNODE left, BRTNODE r
     }
 }
 
-void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right) {
+static void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right) {
     BRT_CURSOR cursor;
 
     if (brt_update_debug) printf("brt_update_cursors_leaf_split %lld %lld %lld\n", oldnode->thisnodename,
@@ -2165,7 +2170,7 @@ void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE
     }
 }
 
-void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE node, int childnum, BRTNODE left, BRTNODE right) {
+static void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE node, int childnum, BRTNODE left, BRTNODE right) {
     BRT_CURSOR cursor;
 
     if (brt_update_debug) printf("brt_update_cursors_nonleaf_expand %lld h=%d c=%d nc=%d %lld %lld\n", node->thisnodename, node->height, childnum,
@@ -2177,7 +2182,7 @@ void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE node, int childnum, BRTNOD
     }
 }
 
-void brt_update_cursors_nonleaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right) {
+static void brt_update_cursors_nonleaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right) {
     BRT_CURSOR cursor;
 
     if (brt_update_debug) printf("brt_update_cursors_nonleaf_split %lld %lld %lld\n", oldnode->thisnodename,
@@ -2389,12 +2394,12 @@ void toku_brt_cursor_print(BRT_CURSOR cursor) {
     printf("\n");
 }
 
-int brtcurs_set_position_last (BRT_CURSOR cursor, DISKOFF off, DBT *key, TOKUTXN txn, BRTNODE parent_brtnode) {
+static int brtcurs_set_position_last (BRT_CURSOR cursor, DISKOFF off, DBT *key, TOKUTXN txn, BRTNODE parent_brtnode) {
     BRT brt=cursor->brt;
     void *node_v;
  
     int r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL,
-				   brtnode_flush_callback, brtnode_fetch_callback, brt);
+				   toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) {
 	if (0) { died0: toku_cachetable_unpin(brt->cf, off, 1, 0); }
 	return r;
@@ -2451,12 +2456,12 @@ int brtcurs_set_position_last (BRT_CURSOR cursor, DISKOFF off, DBT *key, TOKUTXN
     }
 }
 
-int brtcurs_set_position_first (BRT_CURSOR cursor, DISKOFF off, DBT *key, TOKUTXN txn, BRTNODE parent_brtnode) {
+static int brtcurs_set_position_first (BRT_CURSOR cursor, DISKOFF off, DBT *key, TOKUTXN txn, BRTNODE parent_brtnode) {
     BRT brt=cursor->brt;
     void *node_v;
 
     int r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL,
-				   brtnode_flush_callback, brtnode_fetch_callback, brt);
+				   toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) {
 	if (0) { died0: toku_cachetable_unpin(brt->cf, off, 1, 0); }
 	return r;
@@ -2514,7 +2519,7 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, DISKOFF off, DBT *key, TOKUTX
     }
 }
 
-int brtcurs_set_position_next2(BRT_CURSOR cursor, DBT *key, TOKUTXN txn) {
+static int brtcurs_set_position_next2(BRT_CURSOR cursor, DBT *key, TOKUTXN txn) {
     BRTNODE node;
     int childnum;
     int r;
@@ -2562,7 +2567,7 @@ int brtcurs_set_position_next2(BRT_CURSOR cursor, DBT *key, TOKUTXN txn) {
 }
 
 /* requires that the cursor is initialized. */
-int brtcurs_set_position_next (BRT_CURSOR cursor, DBT *key, TOKUTXN txn) {
+static int brtcurs_set_position_next (BRT_CURSOR cursor, DBT *key, TOKUTXN txn) {
     int r = toku_pma_cursor_set_position_next(cursor->pmacurs);
     if (r==DB_NOTFOUND) {
 	/* We fell off the end of the pma. */
@@ -2575,7 +2580,7 @@ int brtcurs_set_position_next (BRT_CURSOR cursor, DBT *key, TOKUTXN txn) {
     return 0;
 }
 
-int brtcurs_set_position_prev2(BRT_CURSOR cursor, DBT *key, TOKUTXN txn)  {
+static int brtcurs_set_position_prev2(BRT_CURSOR cursor, DBT *key, TOKUTXN txn)  {
     BRTNODE node;
     int childnum;
     int r;
@@ -2622,7 +2627,7 @@ int brtcurs_set_position_prev2(BRT_CURSOR cursor, DBT *key, TOKUTXN txn)  {
     return brtcurs_set_position_prev2(cursor, key, txn);
 }
 
-int brtcurs_set_position_prev (BRT_CURSOR cursor, DBT *key, TOKUTXN txn) {
+static int brtcurs_set_position_prev (BRT_CURSOR cursor, DBT *key, TOKUTXN txn) {
     int r = toku_pma_cursor_set_position_prev(cursor->pmacurs);
     if (r==DB_NOTFOUND) {
 	if (cursor->path_len==1) 
@@ -2634,12 +2639,12 @@ int brtcurs_set_position_prev (BRT_CURSOR cursor, DBT *key, TOKUTXN txn) {
     return 0;
 }
 
-int brtcurs_set_key(BRT_CURSOR cursor, DISKOFF off, DBT *key, DBT *val, int flag, TOKUTXN txn, BRTNODE parent_brtnode) {
+static int brtcurs_set_key(BRT_CURSOR cursor, DISKOFF off, DBT *key, DBT *val, int flag, TOKUTXN txn, BRTNODE parent_brtnode) {
     BRT brt = cursor->brt;
     void *node_v;
     int r;
-    r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL, brtnode_flush_callback,
-                               brtnode_fetch_callback, brt);
+    r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL, toku_brtnode_flush_callback,
+                               toku_brtnode_fetch_callback, brt);
     if (r != 0)
         return r;
 
@@ -2696,12 +2701,12 @@ int brtcurs_set_key(BRT_CURSOR cursor, DISKOFF off, DBT *key, DBT *val, int flag
     return r;
 }
 
-int brtcurs_set_range(BRT_CURSOR cursor, DISKOFF off, DBT *key, TOKUTXN txn, BRTNODE parent_brtnode) {
+static int brtcurs_set_range(BRT_CURSOR cursor, DISKOFF off, DBT *key, TOKUTXN txn, BRTNODE parent_brtnode) {
     BRT brt = cursor->brt;
     void *node_v;
     int r;
-    r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL, brtnode_flush_callback,
-                               brtnode_fetch_callback, brt);
+    r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL, toku_brtnode_flush_callback,
+                               toku_brtnode_fetch_callback, brt);
     if (r != 0)
         return r;
 

@@ -77,7 +77,7 @@ static void toku_recover_fheader (struct logtype_fheader *c) {
     } else {
 	assert(0);
     }
-    toku_cachetable_put(cf, 0, h, 0, brtheader_flush_callback, brtheader_fetch_callback, 0);
+    toku_cachetable_put(cf, 0, h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
 }
 
 static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
@@ -106,7 +106,7 @@ static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
 	abort();
     }
     // Now put it in the cachetable
-    toku_cachetable_put(cf, c->diskoff, n, toku_serialize_brtnode_size(n),  brtnode_flush_callback, brtnode_fetch_callback, 0);
+    toku_cachetable_put(cf, c->diskoff, n, toku_serialize_brtnode_size(n),  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
     r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(n));
     assert(r==0);
 }
@@ -139,7 +139,7 @@ static void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
     int r = find_cachefile(c->filenum, &cf, &brt);
     assert(r==0);
     void *node_v;
-    r = toku_cachetable_get_and_pin(cf, c->diskoff, &node_v, NULL, brtnode_flush_callback, brtnode_fetch_callback, brt);
+    r = toku_cachetable_get_and_pin(cf, c->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     assert(r==0);
     BRTNODE node = node_v;
     assert(node->height==0);

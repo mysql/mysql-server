@@ -119,10 +119,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h);
 int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth);
 
-/* return the size of a tree node */
-long brtnode_size (BRTNODE node);
-
-void brtnode_free (BRTNODE *node);
+void toku_brtnode_free (BRTNODE *node);
 
 //static inline int brtnode_n_hashtables(BRTNODE node) { if (node->height==0) return 1; else return node->u.n.n_children; }
 
@@ -175,11 +172,6 @@ void toku_brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, i
 /* a brt internal node has split.  modify this cursor if it includes the old node in its path. */
 void toku_brt_cursor_nonleaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
 
-void brt_update_cursors_new_root(BRT t, BRTNODE newroot, BRTNODE left, BRTNODE right);
-void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
-void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right);
-void brt_update_cursors_nonleaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
-
 enum brt_cmd_type {
     BRT_NONE = 0,
     BRT_INSERT = 1,
@@ -205,8 +197,8 @@ struct brtenv {
 //    SPINLOCK  checkpointing;
 };
 
-extern cachetable_flush_func_t brtnode_flush_callback, brtheader_flush_callback;
-extern cachetable_fetch_func_t brtnode_fetch_callback, brtheader_fetch_callback;
+extern cachetable_flush_func_t toku_brtnode_flush_callback, toku_brtheader_flush_callback;
+extern cachetable_fetch_func_t toku_brtnode_fetch_callback, toku_brtheader_fetch_callback;
 extern int toku_read_and_pin_brt_header (CACHEFILE cf, struct brt_header **header);
 extern int toku_unpin_brt_header (BRT brt);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt);
