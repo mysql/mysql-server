@@ -8,9 +8,9 @@
 #include "../include/db.h"
 
 
-DBT* init_dbt (DBT *);
-DBT *fill_dbt(DBT *dbt, bytevec k, ITEMLEN len);
-int ybt_set_value (DBT *, bytevec val, ITEMLEN vallen, void **staticptrp);
+DBT* toku_init_dbt (DBT *);
+DBT *toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len);
+int toku_dbt_set_value (DBT *, bytevec val, ITEMLEN vallen, void **staticptrp);
 
 
 

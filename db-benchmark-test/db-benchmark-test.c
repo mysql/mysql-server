@@ -104,7 +104,7 @@ void long_long_to_array (unsigned char *a, unsigned long long l) {
 	a[i] = (l>>(56-8*i))&0xff;
 }
 
-DBT *fill_dbt(DBT *dbt, void *data, int size) {
+DBT *toku_fill_dbt(DBT *dbt, void *data, int size) {
     memset(dbt, 0, sizeof *dbt);
     dbt->size = size;
     dbt->data = data;
@@ -118,7 +118,7 @@ void insert (long long v) {
     long_long_to_array(kc, v);
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
-    int r = db->put(db, tid, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), 0);
+    int r = db->put(db, tid, toku_fill_dbt(&kt, kc, keysize), toku_fill_dbt(&vt, vc, valsize), 0);
     CKERR(r);
     if (do_transactions) {
 	if (n_insertions_since_txn_began>=ITEMS_PER_TRANSACTION) {
@@ -137,7 +137,7 @@ void serial_insert_from (long long from) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
 	{
 	    DBT k,v;
-	    r=db->put(db, tid, fill_dbt(&k, "a", 1), fill_dbt(&v, "b", 1), 0);
+	    r=db->put(db, tid, toku_fill_dbt(&k, "a", 1), toku_fill_dbt(&v, "b", 1), 0);
 	    CKERR(r);
 	}
 				      

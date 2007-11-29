@@ -15,10 +15,11 @@
 #include "log-internal.h"
 #include "log_header.h"
 
-u_int32_t crc=0;
-u_int32_t actual_len=0;
+#if 0
+static u_int32_t crc=0;
+static u_int32_t actual_len=0;
 
-int get_char(void) {
+static int get_char(void) {
     int v = getchar();
     if (v==EOF) return v;
     unsigned char c = v;
@@ -27,7 +28,7 @@ int get_char(void) {
     return v;
 }
 
-u_int32_t get_uint32 (void) {
+static u_int32_t get_uint32 (void) {
     u_int32_t a = get_char();
     u_int32_t b = get_char();
     u_int32_t c = get_char();
@@ -35,7 +36,7 @@ u_int32_t get_uint32 (void) {
     return (a<<24)|(b<<16)|(c<<8)|d;
 }
 
-u_int64_t get_uint64 (void) {
+static u_int64_t get_uint64 (void) {
     u_int32_t hi = get_uint32();
     u_int32_t lo = get_uint32();
     return ((((long long)hi) << 32)
@@ -43,52 +44,51 @@ u_int64_t get_uint64 (void) {
 	    lo);
 }
 
-void transcribe_lsn (void) {
+static void transcribe_lsn (void) {
     long long value = get_uint64();
     printf(" lsn=%lld", value);
 }
 
-void transcribe_txnid (void) {
+static void transcribe_txnid (void) {
     long long value = get_uint64();
     printf(" txnid=%lld", value);
 }
 
-void transcribe_fileid (void) {
+static void transcribe_fileid (void) {
     u_int32_t value = get_uint32();
     printf(" fileid=%d", value);
 }    
 
 
-void transcribe_diskoff (void) {
+static void transcribe_diskoff (void) {
     long long value = get_uint64();
     printf(" diskoff=%lld", value);
 }    
 
-void transcribe_crc32 (void) {
+static void transcribe_crc32 (void) {
     u_int32_t oldcrc=crc;
     u_int32_t l = get_uint32();
     printf(" crc=%08x", l);
     assert(l==oldcrc);
 }
 
-void transcribe_mode (void) {
+static void transcribe_mode (void) {
     u_int32_t value = get_uint32();
     printf(" mode=0%o", value);
 }
 
-void transcribe_filenum(void) {
+static void transcribe_filenum(void) {
     u_int32_t value = get_uint32();
     printf(" filenum=%d", value);
 }
 
-u_int32_t len1;
-void transcribe_len1 (void) {
+static u_int32_t len1;
+static void transcribe_len1 (void) {
     len1 = get_uint32();
     //printf(" len=%d", len1);
 }
 
-
-void transcribe_len (void) {
+static void transcribe_len (void) {
     u_int32_t l = get_uint32();
     printf(" len=%d", l);
     if (l!=actual_len) printf(" actual_len=%d", actual_len);
@@ -96,8 +96,7 @@ void transcribe_len (void) {
     assert(len1==actual_len);
 }
 
-
-void transcribe_key_or_data (char *what) {
+static void transcribe_key_or_data (char *what) {
     u_int32_t l = get_uint32();
     unsigned int i;
     printf(" %s(%d):\"", what, l);
@@ -113,7 +112,7 @@ void transcribe_key_or_data (char *what) {
     printf("\"");
 }
 	
-void transcribe_header (void) {
+static void transcribe_header (void) {
     printf(" {size=%d", get_uint32());
     printf(" flags=%d", get_uint32());
     printf(" nodesize=%d", get_uint32());
@@ -128,6 +127,7 @@ void transcribe_header (void) {
     }
     printf("}");
 }
+#endif
 
 static void newmain (int count) {
     int i;

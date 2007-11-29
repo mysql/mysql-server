@@ -129,12 +129,12 @@ static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck, unsigned 
     struct kv_pair *kv = (struct kv_pair *) ck;
     if (brt->flags & TOKU_DB_DUPSORT) {
         assert(kv_pair_keylen(kv) + kv_pair_vallen(kv) == cl);
-        cmp = brt->compare_fun(brt->db, key, fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
+        cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
         if (cmp == 0 && data != 0)
-            cmp = brt->dup_compare(brt->db, data, fill_dbt(&mydbt, kv_pair_val(kv), kv_pair_vallen(kv)));
+            cmp = brt->dup_compare(brt->db, data, toku_fill_dbt(&mydbt, kv_pair_val(kv), kv_pair_vallen(kv)));
     } else {
         assert(kv_pair_keylen(kv) == cl);
-        cmp = brt->compare_fun(brt->db, key, fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
+        cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
     }
     return cmp;
 }
@@ -571,7 +571,7 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
 	if (childnum_of_node+1<node->u.n.n_children) {
 	    DBT k2;
 	    printf(" nextsplitkey=%s\n", (char*)node->u.n.childkeys[childnum_of_node]);
-	    assert(t->compare_fun(t->db, k, fill_dbt(&k2, node->u.n.childkeys[childnum_of_node], node->u.n.childkeylens[childnum_of_node]))<=0);
+	    assert(t->compare_fun(t->db, k, toku_fill_dbt(&k2, node->u.n.childkeys[childnum_of_node], node->u.n.childkeylens[childnum_of_node]))<=0);
 	} else {
 	    printf("\n");
 	}
@@ -580,7 +580,7 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
     if (to_child) {
 	int again_split=-1; BRTNODE againa,againb;
 	DBT againk;
-	init_dbt(&againk);
+	toku_init_dbt(&againk);
 	//printf("%s:%d hello!\n", __FILE__, __LINE__);
 	r = brtnode_put_cmd(t, child, cmd,
 				&again_split, &againa, &againb, &againk,
@@ -716,8 +716,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     /* Keep pushing to the children, but not if the children would require a pushdown */
     HASHTABLE_ITERATE(old_h, skey, skeylen, sval, svallen, type, ({
         DBT skd, svd;
-	fill_dbt(&skd, skey, skeylen);
-	fill_dbt(&svd, sval, svallen);
+	toku_fill_dbt(&skd, skey, skeylen);
+	toku_fill_dbt(&svd, sval, svallen);
         BRT_CMD brtcmd;
         brtcmd.type = type; brtcmd.u.id.key = &skd; brtcmd.u.id.val = &svd;
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb);
@@ -820,14 +820,14 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 	    DBT childsplitk;
             BRT_CMD brtcmd;
 
-            fill_dbt(&hk, key, keylen);
-            fill_dbt(&hv, val, vallen);
+            toku_fill_dbt(&hk, key, keylen);
+            toku_fill_dbt(&hv, val, vallen);
             brtcmd.type = type;
             brtcmd.u.id.key = &hk;
             brtcmd.u.id.val = &hv;
 
 	    //printf("%s:%d random_picked\n", __FILE__, __LINE__);
-	    init_dbt(&childsplitk);
+	    toku_init_dbt(&childsplitk);
 	    if (debug) printf("%s:%d %*spush down %s\n", __FILE__, __LINE__, debug, "", (char*)key);
 	    r = push_a_brt_cmd_down (t, node, child, childnum,
 				     &brtcmd,
@@ -1882,19 +1882,19 @@ static int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, BRTNODE parent
                 if ((brt->flags & TOKU_DB_DUP)) {
                     result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, node);
                     if (result != 0) {
-                        ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
+                        toku_dbt_set_value(v, hanswer, hanswerlen, &brt->sval);
                         result = 0;
                     }
                 } else {
                     //printf("Found %d bytes\n", *vallen);
-                    ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
+                    toku_dbt_set_value(v, hanswer, hanswerlen, &brt->sval);
                     //printf("%s:%d Returning %p\n", __FILE__, __LINE__, v->data);
                     result = 0;
                 }
             } else if (type == BRT_DELETE) {
                 if ((brt->flags & TOKU_DB_DUP) && toku_hash_find_idx (node->u.n.htables[childnum], k->data, k->size, 1, &hanswer, &hanswerlen, &type) == 0) {
                     assert(type == BRT_INSERT);
-                    ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
+                    toku_dbt_set_value(v, hanswer, hanswerlen, &brt->sval);
                     result = 0;
                 } else
                     result = DB_NOTFOUND;
@@ -1943,7 +1943,7 @@ int toku_brt_delete(BRT brt, DBT *key) {
     BRT_CMD brtcmd;
     DBT val;
 
-    init_dbt(&val);
+    toku_init_dbt(&val);
     val.size = 0;
     brtcmd.type = BRT_DELETE;
     brtcmd.u.id.key = key;
@@ -2080,7 +2080,7 @@ static void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor
         toku_brt_cursor_print(cursor);
     }
 
-    init_dbt(&child_splitk);
+    toku_init_dbt(&child_splitk);
     r = push_some_brt_cmds_down(t, node, childnum, 
 				&child_did_split, &childa, &childb, &child_splitk, brt_flush_debug, txn);
     assert(r == 0);

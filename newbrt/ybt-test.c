@@ -8,19 +8,19 @@
 #include <assert.h>
 #include <string.h>
 
-void ybt_test0 (void) {
+static void ybt_test0 (void) {
     void *v0=0,*v1=0;
     DBT  t0,t1;
-    init_dbt(&t0);
-    init_dbt(&t1);
-    ybt_set_value(&t0, "hello", 6, &v0);
-    ybt_set_value(&t1, "foo",   4, &v1);
+    toku_init_dbt(&t0);
+    toku_init_dbt(&t1);
+    toku_dbt_set_value(&t0, "hello", 6, &v0);
+    toku_dbt_set_value(&t1, "foo",   4, &v1);
     assert(t0.size==6);
     assert(strcmp(t0.data, "hello")==0); 
     assert(t1.size==4);
     assert(strcmp(t1.data, "foo")==0);
 
-    ybt_set_value(&t1, "byebye", 7, &v0);      /* Use v0, not v1 */
+    toku_dbt_set_value(&t1, "byebye", 7, &v0);      /* Use v0, not v1 */
     // This assertion would be wrong, since v0 may have been realloc'd, and t0.data may now point
     // at the wrong place
     //assert(strcmp(t0.data, "byebye")==0);     /* t0's data should be changed too, since it used v0 */
@@ -30,23 +30,23 @@ void ybt_test0 (void) {
     memory_check_all_free();
 
     /* See if we can probe to find out how big something is by setting ulen=0 with YBT_USERMEM */
-    init_dbt(&t0);
+    toku_init_dbt(&t0);
     t0.flags = DB_DBT_USERMEM;
     t0.ulen  = 0;
-    ybt_set_value(&t0, "hello", 6, 0);
+    toku_dbt_set_value(&t0, "hello", 6, 0);
     assert(t0.data==0);
     assert(t0.size==6);
 
     /* Check realloc. */
-    init_dbt(&t0);
+    toku_init_dbt(&t0);
     t0.flags = DB_DBT_REALLOC;
     v0 = 0;
-    ybt_set_value(&t0, "internationalization", 21, &v0);
+    toku_dbt_set_value(&t0, "internationalization", 21, &v0);
     assert(v0==0); /* Didn't change v0 */
     assert(t0.size==21);
     assert(strcmp(t0.data, "internationalization")==0);
 
-    ybt_set_value(&t0, "provincial", 11, &v0);
+    toku_dbt_set_value(&t0, "provincial", 11, &v0);
     assert(t0.size==11);
     assert(strcmp(t0.data, "provincial")==0);
     

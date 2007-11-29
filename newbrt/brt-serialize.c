@@ -383,9 +383,9 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	    bytevec val; ITEMLEN vallen;
 	    toku_verify_counts(result);
 	    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
-            fill_dbt(&keys[i], key, keylen);
+            toku_fill_dbt(&keys[i], key, keylen);
 	    rbuf_bytes(&rc, &val, &vallen);
-            fill_dbt(&vals[i], val, vallen);
+            toku_fill_dbt(&vals[i], val, vallen);
 	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;
         }
         if (n_in_buf > 0) {
@@ -410,7 +410,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	    rbuf_bytes(&rc, &val, &vallen);
 	    {
 		DBT k,v;
-		r = toku_pma_insert(result->u.l.buffer, fill_dbt(&k, key, keylen), fill_dbt(&v, val, vallen), 0);
+		r = toku_pma_insert(result->u.l.buffer, toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, val, vallen), 0);
 		if (r!=0) goto died_21;
 	    }
 	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;
