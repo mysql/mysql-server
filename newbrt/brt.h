@@ -13,7 +13,7 @@
 
 int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 
-int brt_create(BRT *);
+int toku_brt_create(BRT *);
 int brt_set_flags(BRT, int flags);
 int brt_get_flags(BRT, int *flags);
 int brt_set_nodesize(BRT, int nodesize);
@@ -36,18 +36,18 @@ void brt_flush (BRT); /* fsync and clear the caches. */
    cachesize is the upper limit on the size of the size of the values in the table 
    pass 0 if you want the default */
 
-int brt_create_cachetable(CACHETABLE *t, long cachesize, LSN initial_lsn, TOKULOGGER);
+int toku_brt_create_cachetable(CACHETABLE *t, long cachesize, LSN initial_lsn, TOKULOGGER);
 
-extern int brt_debug_mode;
+extern int toku_brt_debug_mode;
 int toku_verify_brt (BRT brt);
 
 //int show_brt_blocknumbers(BRT);
 
 typedef struct brt_cursor *BRT_CURSOR;
-int brt_cursor (BRT, BRT_CURSOR*);
-int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, TOKUTXN);
-int brt_cursor_delete(BRT_CURSOR cursor, int flags);
-int brt_cursor_close (BRT_CURSOR curs);
+int toku_brt_cursor (BRT, BRT_CURSOR*);
+int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, TOKUTXN);
+int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags);
+int toku_brt_cursor_close (BRT_CURSOR curs);
 
 typedef struct brtenv *BRTENV;
 int brtenv_checkpoint (BRTENV env);
