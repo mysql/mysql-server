@@ -366,14 +366,14 @@ enum trx_dict_op {
 	recovery.  This and TRX_DICT_OP_NONE are the only possible
 	operation modes in crash recovery. */
 	TRX_DICT_OP_TABLE = 1,
-	/** The transaction is creating an index in an existing table,
-	In crash recovery, the the data dictionary must be locked, but
-	the table must not be dropped. */
+	/** The transaction is creating or dropping an index in an
+	existing table.  In crash recovery, the the data dictionary
+	must be locked, but the table must not be dropped. */
 	TRX_DICT_OP_INDEX = 2,
-	/** The transaction is creating an index in an existing table,
-	In crash recovery, the the data dictionary must be locked, but
-	the table must not be dropped.  A lock wait timeout is allowed
-	to occur. */
+	/** The transaction is creating or dropping an index in an
+	existing table.  In crash recovery, the the data dictionary
+	must be locked, but the table must not be dropped.  A lock
+	wait timeout is allowed to occur. */
 	TRX_DICT_OP_INDEX_MAY_WAIT = 3
 };
 
