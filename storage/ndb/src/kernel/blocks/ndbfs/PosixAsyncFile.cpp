@@ -74,7 +74,8 @@ int PosixAsyncFile::init()
 
   az_mempool.size = az_mempool.mfree = az_inflate_mem_size()+az_deflate_mem_size();
 
-  ndbout_c("NDBFS/AsyncFile: Allocating %d for In/Deflate buffer",az_mempool.size);
+  ndbout_c("NDBFS/AsyncFile: Allocating %u for In/Deflate buffer",
+           (unsigned int)az_mempool.size);
   az_mempool.mem = (char*) ndbd_malloc(az_mempool.size);
 
   azf.stream.opaque= &az_mempool;
