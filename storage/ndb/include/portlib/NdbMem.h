@@ -73,6 +73,16 @@ int NdbMem_MemLockAll(int);
  */
 int NdbMem_MemUnlockAll(void);
 
+#ifndef HAVE_POSIX_MEMALIGN
+static inline int posix_memalign(void **memptr, size_t alignment, size_t size)
+{
+  *memptr= memalign(alignment,size);
+  if(!*memptr)
+    return ENOMEM;
+  return 0;
+}
+#endif
+
 #ifdef	__cplusplus
 }
 #endif
