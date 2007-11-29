@@ -9,13 +9,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-const int test_object_size = 1;
+static const int test_object_size = 1;
 
-CACHETABLE ct;
+static CACHETABLE ct;
 
 enum { N_PRESENT_LIMIT = 4, TRIALS=200, N_FILES=2 };
-int n_present=0;
-struct present_items {
+static int n_present=0;
+static struct present_items {
     CACHEKEY key;
     CACHEFILE cf;
 } present_items[N_PRESENT_LIMIT];
@@ -84,7 +84,7 @@ static int fetch_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY key
     return 0;
 }
 
-void verify_cachetable_against_present (void) {
+static void verify_cachetable_against_present (void) {
     int i;
     for (i=0; i<n_present; i++) {
 	void *v;
@@ -97,7 +97,7 @@ void verify_cachetable_against_present (void) {
 }
 
 
-void test_chaining (void) {
+static void test_chaining (void) {
     /* Make sure that the hash chain and the LRU list don't get confused. */
     CACHEFILE f[N_FILES];
     enum { FILENAME_LEN=100 };

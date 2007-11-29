@@ -3,6 +3,7 @@
 
 #include "brt.h"
 #include "key.h"
+#include "pma.h"
 
 #include "memory.h"
 #include <assert.h>
@@ -14,10 +15,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-TOKUTXN const null_txn = 0;
-DB * const null_db = 0;
-
-extern long long n_items_malloced;
+static TOKUTXN const null_txn = 0;
+static DB * const null_db = 0;
 
 static void test0 (void) {
     BRT t;
@@ -609,10 +608,8 @@ static void  test_read_what_was_written (void) {
     printf(" ok\n");
 }
 
-extern void toku_pma_show_stats (void);
-
 /* Test c_get(DB_LAST) on an empty tree */
-void test_cursor_last_empty(void) {
+static void test_cursor_last_empty(void) {
     const char *n="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -645,7 +642,7 @@ void test_cursor_last_empty(void) {
     toku_memory_check_all_free();
 }
 
-void test_cursor_next (void) {
+static void test_cursor_next (void) {
     const char *n="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -696,9 +693,9 @@ void test_cursor_next (void) {
 
 }
 
-DB nonce_db;
+static DB nonce_db;
 
-int wrong_compare_fun(DB *db, const DBT *a, const DBT *b) {
+static int wrong_compare_fun(DB *db, const DBT *a, const DBT *b) {
     unsigned int i;
     unsigned char *ad=a->data;
     unsigned char *bd=b->data;
@@ -816,13 +813,13 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     toku_memory_check_all_free();
 }
 
-int test_cursor_debug = 0;
+static int test_cursor_debug = 0;
 
-int test_brt_cursor_keycompare(DB *db __attribute__((unused)), const DBT *a, const DBT *b) {
+static int test_brt_cursor_keycompare(DB *db __attribute__((unused)), const DBT *a, const DBT *b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 
-void assert_cursor_notfound(BRT brt, int position) {
+static void assert_cursor_notfound(BRT brt, int position) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -839,7 +836,7 @@ void assert_cursor_notfound(BRT brt, int position) {
     assert(r==0);
 }
 
-void assert_cursor_value(BRT brt, int position, long long value) {
+static void assert_cursor_value(BRT brt, int position, long long value) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -865,7 +862,7 @@ void assert_cursor_value(BRT brt, int position, long long value) {
     assert(r==0);
 }
 
-void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
+static void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -904,7 +901,7 @@ void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
     assert(r==0);
 }
 
-void test_brt_cursor_first(int n, DB *db) {
+static void test_brt_cursor_first(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -946,7 +943,7 @@ void test_brt_cursor_first(int n, DB *db) {
     assert(r==0);
 }
 
-void test_brt_cursor_last(int n, DB *db) {
+static void test_brt_cursor_last(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -988,7 +985,7 @@ void test_brt_cursor_last(int n, DB *db) {
     assert(r==0);
 }
 
-void test_brt_cursor_first_last(int n, DB *db) {
+static void test_brt_cursor_first_last(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -1034,7 +1031,7 @@ void test_brt_cursor_first_last(int n, DB *db) {
 
 }
 
-void test_brt_cursor_rfirst(int n, DB *db) {
+static void test_brt_cursor_rfirst(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -1077,7 +1074,7 @@ void test_brt_cursor_rfirst(int n, DB *db) {
     assert(r==0);
 }
 
-void assert_cursor_walk(BRT brt, int n) {
+static void assert_cursor_walk(BRT brt, int n) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1109,7 +1106,7 @@ void assert_cursor_walk(BRT brt, int n) {
     assert(r==0);
 }
 
-void test_brt_cursor_walk(int n, DB *db) {
+static void test_brt_cursor_walk(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -1150,7 +1147,7 @@ void test_brt_cursor_walk(int n, DB *db) {
 
 }
 
-void assert_cursor_rwalk(BRT brt, int n) {
+static void assert_cursor_rwalk(BRT brt, int n) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1182,7 +1179,7 @@ void assert_cursor_rwalk(BRT brt, int n) {
     assert(r==0);
 }
 
-void test_brt_cursor_rwalk(int n, DB *db) {
+static void test_brt_cursor_rwalk(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -1223,7 +1220,7 @@ void test_brt_cursor_rwalk(int n, DB *db) {
 
 }
 
-void assert_cursor_walk_inorder(BRT brt, int n) {
+static void assert_cursor_walk_inorder(BRT brt, int n) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1261,7 +1258,7 @@ void assert_cursor_walk_inorder(BRT brt, int n) {
     assert(r==0);
 }
 
-void test_brt_cursor_rand(int n, DB *db) {
+static void test_brt_cursor_rand(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -1311,7 +1308,7 @@ void test_brt_cursor_rand(int n, DB *db) {
 
 }
 
-void test_brt_cursor_split(int n, DB *db) {
+static void test_brt_cursor_split(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -1392,7 +1389,7 @@ void test_brt_cursor_split(int n, DB *db) {
     assert(r==0);
 }
 
-void test_multiple_brt_cursors(int n, DB *db) {
+static void test_multiple_brt_cursors(int n, DB *db) {
     printf("test_multiple_brt_cursors:%d %p\n", n, db);
 
     int r;
@@ -1437,7 +1434,7 @@ static int log16(int n) {
     return r;
 }
 
-void test_multiple_brt_cursor_walk(int n, DB *db) {
+static void test_multiple_brt_cursor_walk(int n, DB *db) {
     printf("test_multiple_brt_cursor_walk:%d %p\n", n, db);
 
     int r;
@@ -1524,7 +1521,7 @@ void test_multiple_brt_cursor_walk(int n, DB *db) {
     assert(r==0);
 }
 
-void test_brt_cursor_set(int n, int cursor_op, DB *db) {
+static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     printf("test_brt_cursor_set:%d %d %p\n", n, cursor_op, db);
 
     int r;
@@ -1597,7 +1594,7 @@ void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     assert(r==0);
 }
 
-void test_brt_cursor_set_range(int n, DB *db) {
+static void test_brt_cursor_set_range(int n, DB *db) {
     printf("test_brt_cursor_set_range:%d %p\n", n, db);
 
     int r;
@@ -1664,7 +1661,7 @@ void test_brt_cursor_set_range(int n, DB *db) {
     assert(r==0);
 }
 
-void test_brt_cursor_delete(int n, DB *db) {
+static void test_brt_cursor_delete(int n, DB *db) {
     printf("test_brt_cursor_delete:%d %p\n", n, db);
 
     int error;
@@ -1726,7 +1723,7 @@ void test_brt_cursor_delete(int n, DB *db) {
     assert(error == 0);
 }
 
-void test_brt_cursor_get_both(int n, DB *db) {
+static void test_brt_cursor_get_both(int n, DB *db) {
     printf("test_brt_cursor_get_both:%d %p\n", n, db);
 
     int error;
@@ -1831,10 +1828,10 @@ void test_brt_cursor_get_both(int n, DB *db) {
 }
 
 
-int test_brt_cursor_inc = 1000;
-int test_brt_cursor_limit = 10000;
+static int test_brt_cursor_inc = 1000;
+static int test_brt_cursor_limit = 10000;
 
-void test_brt_cursor(DB *db) {
+static void test_brt_cursor(DB *db) {
     int n;
 
     test_multiple_brt_cursors(1, db);
@@ -1879,7 +1876,7 @@ void test_brt_cursor(DB *db) {
     test_brt_cursor_get_both(1000, db); toku_memory_check_all_free();
 }
 
-void test_large_kv(int bsize, int ksize, int vsize) {
+static void test_large_kv(int bsize, int ksize, int vsize) {
     BRT t;
     int r;
     CACHETABLE ct;
@@ -1914,7 +1911,7 @@ void test_large_kv(int bsize, int ksize, int vsize) {
  * test the key and value limits
  * the current implementation crashes when kvsize == bsize/2 rather than fails
  */
-void test_brt_limits() {
+static void test_brt_limits() {
     int bsize = 1024;
     int kvsize = 4;
     while (kvsize < bsize/2) {
@@ -1926,7 +1923,7 @@ void test_brt_limits() {
 /*
  * verify that a delete on an empty tree fails
  */
-void test_brt_delete_empty() {
+static void test_brt_delete_empty() {
     printf("test_brt_delete_empty\n");
 
     BRT t;
@@ -1954,7 +1951,7 @@ void test_brt_delete_empty() {
  * insert n keys, delete all n keys, verify that lookups for all the keys fail,
  * verify that a cursor walk of the tree finds nothing
  */
-void test_brt_delete_present(int n) {
+static void test_brt_delete_present(int n) {
     printf("test_brt_delete_present:%d\n", n);
 
     BRT t;
@@ -2016,7 +2013,7 @@ void test_brt_delete_present(int n) {
     r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
-void test_brt_delete_not_present(int n) {
+static void test_brt_delete_not_present(int n) {
     printf("test_brt_delete_not_present:%d\n", n);
 
     BRT t;
@@ -2063,7 +2060,7 @@ void test_brt_delete_not_present(int n) {
     r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
-void test_brt_delete_cursor_first(int n) {
+static void test_brt_delete_cursor_first(int n) {
     printf("test_brt_delete_cursor_first:%d\n", n);
 
     BRT t;
@@ -2155,7 +2152,7 @@ void test_brt_delete_cursor_first(int n) {
    build a 2 level tree, and expect the last insertion to be
    buffered. then delete and lookup. */
 
-void test_insert_delete_lookup(int n) {
+static void test_insert_delete_lookup(int n) {
     printf("test_insert_delete_lookup:%d\n", n);
 
     BRT t;
@@ -2199,7 +2196,7 @@ void test_insert_delete_lookup(int n) {
     r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
-void test_brt_delete() {
+static void test_brt_delete() {
     test_brt_delete_empty(); toku_memory_check_all_free();
     test_brt_delete_present(1); toku_memory_check_all_free();
     test_brt_delete_present(100); toku_memory_check_all_free();

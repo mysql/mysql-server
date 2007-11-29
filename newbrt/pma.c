@@ -1000,7 +1000,7 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, DISKOFF diskoff, u_in
                     pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
                     assert(pma->pairs[idx]);
 		    *fingerprint += rand4fingerprint*toku_calccrc32_kvpair(k->data, k->size, v->data, v->size); 
-                    int r = tokulogger_log_phys_add_or_delete_in_leaf(pma->db, txn, diskoff, 0, pma->pairs[idx]);
+                    int r = toku_logger_log_phys_add_or_delete_in_leaf(pma->db, txn, diskoff, 0, pma->pairs[idx]);
                     return r;
                 } else
                     return BRT_ALREADY_THERE; /* It is already here.  Return an error. */
@@ -1203,7 +1203,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
                 if (!kv_pair_deleted(pma->pairs[idx])) {
                     *replaced_v_size = kv->vallen;
                     *fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
-                    r=tokulogger_log_phys_add_or_delete_in_leaf(pma->db, txn, diskoff, 0, kv);
+                    r=toku_logger_log_phys_add_or_delete_in_leaf(pma->db, txn, diskoff, 0, kv);
                     if (r!=0) return r;
                 }
                 if (v->size == (unsigned int) kv_pair_vallen(kv)) {
@@ -1213,7 +1213,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
                     pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
                     assert(pma->pairs[idx]);
                 }
-                r = tokulogger_log_phys_add_or_delete_in_leaf(pma->db, txn, diskoff, 0, pma->pairs[idx]);
+                r = toku_logger_log_phys_add_or_delete_in_leaf(pma->db, txn, diskoff, 0, pma->pairs[idx]);
                 *fingerprint += rand4fingerprint*toku_calccrc32_kvpair(k->data, k->size, v->data, v->size);
                 return r;
             }

@@ -19,8 +19,8 @@ struct tokulogger {
     int  n_in_buf;
 };
 
-int tokulogger_find_next_unused_log_file(const char *directory, long long *result);
-int tokulogger_find_logfiles (const char *directory, int *n_resultsp, char ***resultp);
+int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
+int toku_logger_find_logfiles (const char *directory, int *n_resultsp, char ***resultp);
 
 enum lt_command {
     LT_COMMIT                   = 'C',
@@ -42,7 +42,7 @@ struct tokutxn {
     LSN        last_lsn; /* Everytime anything is logged, update the LSN.  (We need to atomically record the LSN along with writing into the log.) */
 };
 
-int tokulogger_finish (TOKULOGGER logger, struct wbuf *wbuf);
+int toku_logger_finish (TOKULOGGER logger, struct wbuf *wbuf);
 
 static inline int toku_logsizeof_u_int8_t (u_int32_t v __attribute__((__unused__))) {
     return 1;

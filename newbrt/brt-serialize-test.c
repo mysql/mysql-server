@@ -10,7 +10,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 
-void test_serialize(void) {
+static void test_serialize(void) {
     //    struct brt source_brt;
     int nodesize = 1024;
     struct brtnode sn, *dn;

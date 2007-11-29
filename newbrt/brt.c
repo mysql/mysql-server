@@ -170,7 +170,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *b
 #if 0   
 		    if (rename_p) {
 			DISKOFF newnodename = malloc_diskblock(brtnode->brt, brtnode->nodesize);
-			int r=tokulogger_log_block_rename(cachefile_logger(cachefile), cachefile_filenum(cachefile), nodename, newnodename, parent->thisnodename, i);
+			int r=toku_logger_log_block_rename(cachefile_logger(cachefile), cachefile_filenum(cachefile), nodename, newnodename, parent->thisnodename, i);
 			assert(r!=0); // !!! This error should be handled better (e.g., what if the disk fills up)
 			// !!! Don't forget to free the old node (sometime after some future checkpoint.  TODO!!!)
 			brtnode->thisnodename=newnodename;
@@ -1542,10 +1542,10 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 		t->database_name=0;
 		goto died0a;
 	    }
-	    tokulogger_log_fcreate(txn, fname_in_env, 0777);
+	    toku_logger_log_fcreate(txn, fname_in_env, 0777);
 	}
 	r=toku_cachetable_openfd(&t->cf, cachetable, fd);
-	tokulogger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
+	toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
     }
     if (r!=0) {
 	if (0) { died1: toku_cachefile_close(&t->cf); }
@@ -1582,7 +1582,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 		t->h->names=0;
 		t->h->roots=0;
 	    }
-	    if ((r=tokulogger_log_header(txn, toku_cachefile_filenum(t->cf), t->h)))                               { goto died6; }
+	    if ((r=toku_logger_log_header(txn, toku_cachefile_filenum(t->cf), t->h)))                               { goto died6; }
 	    if ((r=setup_brt_root_node(t, t->nodesize, txn))!=0) { died6: if (dbname) goto died5; else goto died2;	}
 	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0))) { goto died6; }
 	} else {

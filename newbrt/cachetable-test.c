@@ -11,15 +11,15 @@
 #include "memory.h"
 #include "cachetable.h"
 
-const int test_object_size = 1;
+static const int test_object_size = 1;
 
 struct item {
     CACHEKEY key;
     char *something;
 };
 
-int expect_n_flushes=0;
-CACHEKEY flushes[100];
+static int expect_n_flushes=0;
+static CACHEKEY flushes[100];
 
 static void expect1(CACHEKEY key) {
     expect_n_flushes=1;
@@ -29,7 +29,7 @@ static void expectN(CACHEKEY key) {
     flushes[expect_n_flushes++]=key;
 }
 
-CACHEFILE expect_f;
+static CACHEFILE expect_f;
 
 static void flush (CACHEFILE f, CACHEKEY key, void*value, long size __attribute__((__unused__)), BOOL write_me __attribute__((__unused__)), BOOL keep_me __attribute__((__unused__)), LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
     struct item *it = value;
@@ -55,15 +55,15 @@ static void flush (CACHEFILE f, CACHEKEY key, void*value, long size __attribute_
     toku_free(value);
 }
 
-struct item *make_item (CACHEKEY key) {
+static struct item *make_item (CACHEKEY key) {
     struct item *MALLOC(it);
     it->key=key;
     it->something="something";
     return it;
 }
 
-CACHEKEY did_fetch=-1;
-int fetch (CACHEFILE f, CACHEKEY key, void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
+static CACHEKEY did_fetch=-1;
+static int fetch (CACHEFILE f, CACHEKEY key, void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     printf("Fetch %lld\n", key);
     assert (expect_f==f);
     assert((long)extraargs==23);
@@ -74,7 +74,7 @@ int fetch (CACHEFILE f, CACHEKEY key, void**value, long *sizep __attribute__((__
 }
 
 
-void test0 (void) {
+static void test0 (void) {
     void* t3=(void*)23;
     CACHETABLE t;
     CACHEFILE f;
@@ -196,7 +196,7 @@ static int fetch_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attr
 }
 
 
-void test_nested_pin (void) {
+static void test_nested_pin (void) {
     void *f2=(void*)42;
     CACHETABLE t;
     CACHEFILE f;
@@ -233,7 +233,7 @@ void test_nested_pin (void) {
 }
 
 
-void null_flush (CACHEFILE cf     __attribute__((__unused__)),
+static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
 		 CACHEKEY k       __attribute__((__unused__)),
 		 void *v          __attribute__((__unused__)),		 
                  long size        __attribute__((__unused__)),
@@ -242,13 +242,13 @@ void null_flush (CACHEFILE cf     __attribute__((__unused__)),
 		 LSN modified_lsn __attribute__((__unused__)),
 		 BOOL rename_p    __attribute__((__unused__))) {
 }
-int add123_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
+static int add123_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     assert((long)extraargs==123);
     *value = (void*)((unsigned long)key+123L);
     written_lsn->lsn = 0;
     return 0;
 }
-int add222_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
+static int add222_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     assert((long)extraargs==222);
     *value = (void*)((unsigned long)key+222L);
     written_lsn->lsn = 0;
@@ -256,7 +256,7 @@ int add222_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void *
 }
 
 
-void test_multi_filehandles (void) {
+static void test_multi_filehandles (void) {
     CACHETABLE t;
     CACHEFILE f1,f2,f3;
     char fname1[]="test_ct.dat";
@@ -292,18 +292,18 @@ void test_multi_filehandles (void) {
     r = toku_cachetable_close(&t); assert(r==0);
 }
 
-void test_dirty_flush(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
+static void test_dirty_flush(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
     printf("test_dirty_flush %p %lld %p %ld %d %d\n", f, key, value, size, do_write, keep);
 }
 
-int test_dirty_fetch(CACHEFILE f, CACHEKEY key, void **value_ptr, long *size_ptr, void *arg, LSN *written_lsn) {
+static int test_dirty_fetch(CACHEFILE f, CACHEKEY key, void **value_ptr, long *size_ptr, void *arg, LSN *written_lsn) {
     *value_ptr = arg;
     written_lsn->lsn = 0;
     printf("test_dirty_fetch %p %lld %p %ld %p\n", f, key, *value_ptr, *size_ptr, arg);
     return 0;
 }
 
-void test_dirty() {
+static void test_dirty() {
     printf("test_dirty\n");
 
     CACHETABLE t;
@@ -377,7 +377,7 @@ void test_dirty() {
     assert(pinned == 0);
 
     r = toku_cachetable_get_and_pin(f, key, &value, NULL, test_dirty_flush,
-                               test_dirty_fetch, 0);
+				    test_dirty_fetch, 0);
     assert(r == 0);
 
     // cachetable_print_state(t);
@@ -401,16 +401,16 @@ void test_dirty() {
     assert(r == 0);
 }
 
-int test_size_debug;
-CACHEKEY test_size_flush_key;
+static int test_size_debug;
+static CACHEKEY test_size_flush_key;
 
-void test_size_flush_callback(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
+static void test_size_flush_callback(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
     if (test_size_debug) printf("test_size_flush %p %lld %p %ld %d %d\n", f, key, value, size, do_write, keep);
     assert(do_write != 0);
     test_size_flush_key = key;
 }
 
-void test_size_resize() {
+static void test_size_resize() {
     printf("test_size_resize\n");
 
     CACHETABLE t;
@@ -462,7 +462,7 @@ void test_size_resize() {
     assert(r == 0);
 }
 
-void test_size_flush() {
+static void test_size_flush() {
     printf("test_size_flush\n");
 
     CACHETABLE t;
@@ -521,9 +521,9 @@ void test_size_flush() {
 }
 
 enum { KEYLIMIT = 4, TRIALLIMIT=64 };
-CACHEKEY  keys[KEYLIMIT];
-void*     vals[KEYLIMIT];
-int       n_keys=0;
+static CACHEKEY  keys[KEYLIMIT];
+static void*     vals[KEYLIMIT];
+static int       n_keys=0;
 
 static void r_flush (CACHEFILE f __attribute__((__unused__)),
 		     CACHEKEY k, void *value,
@@ -549,7 +549,7 @@ static void r_flush (CACHEFILE f __attribute__((__unused__)),
     abort();
 }
 
-int r_fetch (CACHEFILE f      __attribute__((__unused__)),
+static int r_fetch (CACHEFILE f      __attribute__((__unused__)),
 	     CACHEKEY key     __attribute__((__unused__)),
 	     void**value      __attribute__((__unused__)),
 	     long *sizep      __attribute__((__unused__)),
@@ -559,7 +559,7 @@ int r_fetch (CACHEFILE f      __attribute__((__unused__)),
     return 0;
 }
 
-void test_rename (void) {
+static void test_rename (void) {
     CACHETABLE t;
     CACHEFILE f;
     int i;
