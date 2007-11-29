@@ -212,6 +212,13 @@ test
 SELECT NAME_CONST('test', 'test');
 test
 test
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (), (), ();
+SELECT NAME_CONST(a, '1') FROM t1;
+ERROR HY000: Incorrect arguments to NAME_CONST
+SET INSERT_ID= NAME_CONST(a, a);
+ERROR HY000: Incorrect arguments to NAME_CONST
+DROP TABLE t1;
 End of 5.0 tests
 select connection_id() > 0;
 connection_id() > 0
