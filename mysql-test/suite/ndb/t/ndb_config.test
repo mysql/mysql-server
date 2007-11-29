@@ -1,6 +1,5 @@
 -- source include/have_ndb.inc
 -- source include/ndb_default_cluster.inc
--- source include/not_embedded.inc
 
 --exec $NDB_TOOLS_DIR/ndb_config --no-defaults --query=type,nodeid,host 2> /dev/null
 --exec $NDB_TOOLS_DIR/ndb_config --no-defaults --query=nodeid,host,DataMemory,IndexMemory --type=ndbd 2> /dev/null
