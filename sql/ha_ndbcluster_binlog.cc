@@ -20,7 +20,6 @@
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_connection.h"
 
-#ifdef HAVE_NDB_BINLOG
 #include "rpl_injector.h"
 #include "rpl_filter.h"
 #include "slave.h"
@@ -389,7 +388,9 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
   DBUG_ENTER("ndbcluster_binlog_init_share");
 
   share->connect_count= g_ndb_cluster_connection->get_connect_count();
+#ifdef HAVE_NDB_BINLOG
   share->m_cfn_share= NULL;
+#endif
 
   share->op= 0;
   share->new_op= 0;
@@ -1766,6 +1767,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                   schema->db, schema->name,
                   schema->query_length, schema->query,
                   schema_type));
+      if ((schema->db[0] == 0) && (schema->name[0] == 0))
+        DBUG_RETURN(0);
       switch (schema_type)
       {
       case SOT_CLEAR_SLOCK:
@@ -2668,6 +2671,7 @@ ndb_rep_event_name(String *event_name,const char *db, const char *tbl,
   DBUG_PRINT("info", ("ndb_rep_event_name: %s", event_name->c_ptr()));
 }
 
+#ifdef HAVE_NDB_BINLOG
 static void 
 set_binlog_flags(NDB_SHARE *share,
                  Ndb_binlog_type ndb_binlog_type)
@@ -3263,6 +3267,7 @@ err:
   }
   DBUG_RETURN(ndberror.code);
 }
+#endif /* HAVE_NDB_BINLOG */
 
 bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
@@ -3422,12 +3427,12 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                               dict->getNdbError().code);
       break; // error
     }
-
+#ifdef HAVE_NDB_BINLOG
     /*
      */
     ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
                                        ::server_id, NULL, TRUE);
-
+#endif
     /*
       check if logging turned off for this table
     */
@@ -3682,19 +3687,24 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
 
   Ndb_event_data *event_data= share->event_data;
   int do_ndb_schema_share= 0, do_ndb_apply_status_share= 0;
+#ifdef HAVE_NDB_BINLOG
   uint len= strlen(share->table_name);
+#endif
   if (!ndb_schema_share && strcmp(share->db, NDB_REP_DB) == 0 &&
       strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
     do_ndb_schema_share= 1;
   else if (!ndb_apply_status_share && strcmp(share->db, NDB_REP_DB) == 0 &&
            strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
     do_ndb_apply_status_share= 1;
-  else if (!binlog_filter->db_ok(share->db) ||
-           !ndb_binlog_running ||
-           (len >= sizeof(NDB_EXCEPTIONS_TABLE_SUFFIX) &&
-            strcmp(share->table_name+len-sizeof(NDB_EXCEPTIONS_TABLE_SUFFIX)+1,
-                   lower_case_table_names ? NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER :
-                   NDB_EXCEPTIONS_TABLE_SUFFIX) == 0))
+  else
+#ifdef HAVE_NDB_BINLOG
+    if (!binlog_filter->db_ok(share->db) ||
+        !ndb_binlog_running ||
+        (len >= sizeof(NDB_EXCEPTIONS_TABLE_SUFFIX) &&
+         strcmp(share->table_name+len-sizeof(NDB_EXCEPTIONS_TABLE_SUFFIX)+1,
+                lower_case_table_names ? NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER :
+                NDB_EXCEPTIONS_TABLE_SUFFIX) == 0))
+#endif
   {
     share->flags|= NSF_NO_BINLOG;
     DBUG_RETURN(0);
@@ -5586,5 +5596,4 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
   DBUG_RETURN(FALSE);
 }
 
-#endif /* HAVE_NDB_BINLOG */
 #endif

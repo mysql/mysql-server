@@ -62,9 +62,6 @@
 extern ulong ndb_cache_check_time;
 extern char opt_ndb_constrbuf[];
 extern ulong ndb_extra_logging;
-#endif
-
-#ifdef HAVE_NDB_BINLOG
 extern ulong ndb_report_thresh_binlog_epoch_slip;
 extern ulong ndb_report_thresh_binlog_mem_usage;
 extern my_bool opt_ndb_log_update_as_write;
@@ -490,7 +487,6 @@ sys_ndb_autoincrement_prefetch_sz(&vars, "ndb_autoincrement_prefetch_sz",
 				  &SV::ndb_autoincrement_prefetch_sz);
 static sys_var_thd_bool
 sys_ndb_force_send(&vars, "ndb_force_send", &SV::ndb_force_send);
-#ifdef HAVE_NDB_BINLOG
 static sys_var_long_ptr
 sys_ndb_report_thresh_binlog_epoch_slip(&vars, "ndb_report_thresh_binlog_epoch_slip",
                                         &ndb_report_thresh_binlog_epoch_slip);
@@ -501,7 +497,6 @@ static sys_var_bool_ptr
 sys_ndb_log_update_as_write(&vars, "ndb_log_update_as_write", &opt_ndb_log_update_as_write);
 static sys_var_bool_ptr
 sys_ndb_log_updated_only(&vars, "ndb_log_updated_only", &opt_ndb_log_updated_only);
-#endif
 static sys_var_thd_bool
 sys_ndb_use_exact_count(&vars, "ndb_use_exact_count", &SV::ndb_use_exact_count);
 static sys_var_thd_bool
