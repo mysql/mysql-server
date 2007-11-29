@@ -8,20 +8,20 @@
 #include <errno.h>
 #include <stdio.h>
 
-int memory_check=0;
+int toku_memory_check=0;
 
-#define WHEN_MEM_DEBUG(x) ({if (memory_check) ({x});})
+#define WHEN_MEM_DEBUG(x) ({if (toku_memory_check) ({x});})
 
 
 long long n_items_malloced=0;
 
 /* Memory checking */
 enum { items_limit = 1000 };
-int overflowed=0;
+static int overflowed=0;
 static void *items[items_limit];
 static long sizes[items_limit];
 
-void note_did_malloc (void *p, long size) {
+static void note_did_malloc (void *p, long size) {
     static long long count=0;
     WHEN_MEM_DEBUG(
 		   if (n_items_malloced<items_limit) { items[n_items_malloced]=p; sizes[n_items_malloced]=size; }
@@ -32,7 +32,7 @@ void note_did_malloc (void *p, long size) {
     count++;
 }
 
-void note_did_free(void *p) {
+static void note_did_free(void *p) {
     WHEN_MEM_DEBUG(
 		   if (!overflowed) {
 		       int i;
@@ -166,7 +166,7 @@ void *toku_malloc(unsigned long size) {
     //if ((long)r==0x80523f8) { printf("%s:%d %p size=%ld\n", __FILE__, __LINE__, r, size);   }
     return r;
 }
-void *tagmalloc(unsigned long size, int typtag) {
+void *toku_tagmalloc(unsigned long size, int typtag) {
     //printf("%s:%d tagmalloc\n", __FILE__, __LINE__);
     void *r = toku_malloc(size);
     assert(size>sizeof(int));
@@ -211,17 +211,17 @@ char *toku_strdup (const char *s) {
     return memdup(s, strlen(s)+1);
 }
 
-void memory_check_all_free (void) {
+void toku_memory_check_all_free (void) {
     if (n_items_malloced>0) {
 	printf("n_items_malloced=%lld\n", n_items_malloced);
-	if (memory_check)
+	if (toku_memory_check)
 	    printf(" one item is %p size=%ld\n", items[0], sizes[0]);
     }
     assert(n_items_malloced==0);
 }
 
 int get_n_items_malloced (void) { return n_items_malloced; }
-void print_malloced_items (void) {
+void toku_print_malloced_items (void) {
     int i;
     for (i=0; i<n_items_malloced; i++) {
 	printf(" %p size=%ld\n", items[i], sizes[i]);
@@ -237,7 +237,7 @@ void malloc_report (void) {
     printf("Other: %d (%d fresh)\n", other_malloc_count, fresh_other_malloc_count);
 }
 
-void malloc_cleanup (void) {
+void toku_malloc_cleanup (void) {
     int i;
     for (i=0; i<FREELIST_LIMIT; i++) {
 	void *p;

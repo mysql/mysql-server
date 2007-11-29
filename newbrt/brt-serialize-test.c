@@ -100,8 +100,8 @@ void test_serialize(void) {
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
-    memory_check = 1;
+    toku_memory_check = 1;
     test_serialize();
-    malloc_cleanup();
+    toku_malloc_cleanup();
     return 0;
 }

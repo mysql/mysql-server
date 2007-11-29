@@ -177,7 +177,7 @@ void test0 (void) {
     assert(r==0);
     assert(expect_n_flushes==0);
     expect_f = 0; 
-    memory_check_all_free();
+    toku_memory_check_all_free();
 }
 
 static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)), void *value,
@@ -619,7 +619,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     test_dirty();
     test_size_resize();
     test_size_flush();
-    malloc_cleanup();
+    toku_malloc_cleanup();
     printf("ok\n");
     return 0;
 }
