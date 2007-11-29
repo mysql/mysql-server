@@ -393,13 +393,11 @@ ulong opt_ndb_cluster_connection_pool;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
 ulong ndb_extra_logging;
-#ifdef HAVE_NDB_BINLOG
-ulong ndb_report_thresh_binlog_epoch_slip;
-ulong ndb_report_thresh_binlog_mem_usage;
-my_bool opt_ndb_log_update_as_write;
-my_bool opt_ndb_log_updated_only;
-my_bool opt_ndb_log_orig;
-#endif
+ulong ndb_report_thresh_binlog_epoch_slip= 0;
+ulong ndb_report_thresh_binlog_mem_usage= 0;
+my_bool opt_ndb_log_update_as_write= FALSE;
+my_bool opt_ndb_log_updated_only= FALSE;
+my_bool opt_ndb_log_orig= FALSE;
 
 extern const char *ndb_distribution_names[];
 extern TYPELIB ndb_distribution_typelib;
