@@ -121,9 +121,8 @@ row_build_index_entry(
 
 		if (UNIV_LIKELY_NULL(ext) && !dfield_is_null(dfield)) {
 			/* See if the column is stored externally. */
-			byte*	buf = row_ext_lookup(ext, col_no,
-						     dfield_get_data(dfield),
-						     len, &len);
+			const byte*	buf = row_ext_lookup(ext, col_no,
+							     &len);
 			if (UNIV_LIKELY_NULL(buf)) {
 				if (UNIV_UNLIKELY(buf == field_ref_zero)) {
 					return(NULL);
@@ -229,8 +228,10 @@ row_build(
 			= dict_index_get_nth_field(index, i);
 		const dict_col_t*	col
 			= dict_field_get_col(ind_field);
+		ulint			col_no
+			= dict_col_get_no(col);
 		dfield_t*		dfield
-			= dtuple_get_nth_field(row, dict_col_get_no(col));
+			= dtuple_get_nth_field(row, col_no);
 
 		if (ind_field->prefix_len == 0) {
 
@@ -241,16 +242,20 @@ row_build(
 		}
 
 		if (rec_offs_nth_extern(offsets, i)) {
-			ext_cols[j++] = dict_col_get_no(col);
 			dfield_set_ext(dfield);
+			if (col->ord_part) {
+				/* We will have to fetch prefixes of
+				externally stored columns that are
+				referenced by column prefixes. */
+				ext_cols[j++] = col_no;
+			}
 		}
 	}
 
-	ut_ad(j == n_ext_cols);
 	ut_ad(dtuple_check_typed(row));
 
-	if (n_ext_cols) {
-		*ext = row_ext_create(n_ext_cols, ext_cols,
+	if (j) {
+		*ext = row_ext_create(j, ext_cols, row,
 				      dict_table_zip_size(index->table),
 				      heap);
 	} else {
