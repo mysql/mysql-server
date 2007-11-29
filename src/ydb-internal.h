@@ -1,5 +1,8 @@
 #ifndef YDB_INTERNAL_H
 #define YDB_INTERNAL_H
+
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include "../include/db.h"
 #include "../newbrt/brttypes.h"
 #include "../newbrt/brt.h"

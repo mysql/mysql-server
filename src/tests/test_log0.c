@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 /* Simple test of logging.  Can I start a TokuDB with logging enabled? */
 #include <assert.h>
 #include <stdlib.h>

@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 /* Does removing a database free the DB structure's memory? */
 #include <assert.h>
 #include <stdlib.h>
