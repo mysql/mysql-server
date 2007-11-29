@@ -345,73 +345,74 @@ sub collect_one_suite($)
   # Read combinations for this suite and build testcases x combinations
   # if any combinations exists
   # ----------------------------------------------------------------------
-  if (0 and $combinations && $begin_index <= $#{@$cases}) 
-  { 
-    my $end_index = $#{@$cases};
-    my $is_copy;
-    # Keep original master/slave options
-    my @orig_opts;
-    for (my $idx = $begin_index; $idx <= $end_index; $idx++) 
+  if ( ! $::opt_skip_combination )
+  {
+    my @combinations;
+    my $combination_file= "$suitedir/combinations";
+    #print "combination_file: $combination_file\n";
+    if (@::opt_combinations)
     {
-      foreach my $param (('master_opt','slave_opt','slave_mi')) 
-      {
-        @{$orig_opts[$idx]{$param}} = @{$cases->[$idx]->{$param}};        
+      # take the combination from command-line
+      mtr_verbose("Take the combination from command line");
+      foreach my $combination (@::opt_combinations) {
+	my $comb= {};
+	$comb->{name}= $combination;
+	push(@{$comb->{comb_opt}}, $combination);
+	push(@combinations, $comb);
       }
     }
-    my $comb_index = 1;
-    # Copy original test cases 
-    foreach my $comb_set (@$combinations)
-    {  
-      for (my $idx = $begin_index; $idx <= $end_index; $idx++) 
+    elsif (-f $combination_file )
+    {
+      # Read combinations file in my.cnf format
+      mtr_verbose("Read combinations file");
+      my $config= My::Config->new($combination_file);
+
+      foreach my $group ($config->groups()) {
+	my $comb= {};
+	$comb->{name}= $group->name();
+        foreach my $option ( $group->options() ) {
+	  push(@{$comb->{comb_opt}}, $option->name()."=".$option->value());
+	}
+	push(@combinations, $comb);
+      }
+    }
+
+    if (@combinations)
+    {
+      print " - adding combinations\n";
+      #print_testcases(@cases);
+
+      my @new_cases;
+      foreach my $comb (@combinations)
       {
-        my $test = $cases->[$idx];
-        my $copied_test = {};
-        foreach my $param (keys %{$test}) 
-        {
-          # Scalar. Copy as is.
-          $copied_test->{$param} = $test->{$param};
-          # Array. Copy reference instead itself
-          if ($param =~ /(master_opt|slave_opt|slave_mi)/) 
-          {
-            my $new_arr = [];
-            @$new_arr = @{$orig_opts[$idx]{$param}};
-            $copied_test->{$param} = $new_arr;
-          }
-          elsif ($param =~ /(comment|combinations)/) 
-          {
-            $copied_test->{$param} = '';
-          }
-        }
-        if ($is_copy) 
-        {
-          push(@$cases, $copied_test);
-          $test = $cases->[$#{@$cases}];
-        }
-        foreach my $comb_opt (split(/ /,$comb_set)) 
-        {
-          push(@{$test->{'master_opt'}},$comb_opt);
-          push(@{$test->{'slave_opt'}},$comb_opt);
-          # Enable rpl if added option is --binlog-format and test case supports that
-          if ($comb_opt =~ /^--binlog-format=.+$/) 
-          {
-            my @opt_pairs = split(/=/, $comb_opt);
-            if ($test->{'binlog_format'} =~ /^$opt_pairs[1]$/ || $test->{'binlog_format'} eq '') 
-            {
-              $test->{'skip'} = 0;
-              $test->{'comment'} = '';
-            }
-            else
-            {
-              $test->{'skip'} = 1;
-              $test->{'comment'} = "Requiring binlog format '$test->{'binlog_format'}'";;
-            } 
-          }
-        }
-        $test->{'combination'} = $comb_set;
-      } 
-      $is_copy = 1;
-      $comb_index++;
-    }    
+	foreach my $test (@cases)
+	{
+	  #print $test->{name}, " ", $comb, "\n";
+	  my $new_test= {};
+
+	  while (my ($key, $value) = each(%$test)) {
+	    if (ref $value eq "ARRAY") {
+	      push(@{$new_test->{$key}}, @$value);
+	    } else {
+	      $new_test->{$key}= $value;
+	    }
+	  }
+
+	  # Append the combination options to master_opt and slave_opt
+	  push(@{$new_test->{master_opt}}, @{$comb->{comb_opt}});
+	  push(@{$new_test->{slave_opt}}, @{$comb->{comb_opt}});
+
+	  # Add combination name shrt name
+	  $new_test->{combination}= $comb->{name};
+
+	  # Add the new test to new test cases list
+	  push(@new_cases, $new_test);
+	}
+      }
+      #print_testcases(@new_cases);
+      @cases= @new_cases;
+      #print_testcases(@cases);
+    }
   }
 
   optimize_cases(\@cases);
