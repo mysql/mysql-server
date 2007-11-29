@@ -1943,7 +1943,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   sighold sigset sigthreadmask port_create sleep \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
-  posix_fallocate)
+  posix_fallocate posix_memalign)
 
 #
 #
