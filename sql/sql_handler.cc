@@ -714,16 +714,15 @@ static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables)
 
   @param thd Thread identifier.
   @param tables The list of tables to remove.
+  @param is_locked If LOCK_open is locked.
 
   @note Broadcasts refresh if it closed a table with old version.
 */
 
-void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
+void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked)
 {
   TABLE_LIST *hash_tables, *next;
   DBUG_ENTER("mysql_ha_rm_tables");
-
-  safe_mutex_assert_not_owner(&LOCK_open);
 
   DBUG_ASSERT(tables);
 
@@ -733,7 +732,7 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
   {
     next= hash_tables->next_local;
     if (hash_tables->table)
-      mysql_ha_close_table(thd, hash_tables, FALSE);
+      mysql_ha_close_table(thd, hash_tables, is_locked);
     hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
     hash_tables= next;
   }

@@ -2199,6 +2199,41 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
 }
 
 
+/**
+  Exclusively name-lock a table that is already write-locked by the
+  current thread.
+
+  @param thd current thread context
+  @param tables able list containing one table to open.
+
+  @return FALSE on success, TRUE otherwise.
+*/
+
+bool name_lock_locked_table(THD *thd, TABLE_LIST *tables)
+{
+  DBUG_ENTER("name_lock_locked_table");
+
+  /* Under LOCK TABLES we must only accept write locked tables. */
+  tables->table= find_locked_table(thd, tables->db, tables->table_name);
+
+  if (!tables->table)
+    my_error(ER_TABLE_NOT_LOCKED, MYF(0), tables->alias);
+  else if (tables->table->reginfo.lock_type < TL_WRITE_LOW_PRIORITY)
+    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tables->alias);
+  else
+  {
+    /*
+      Ensures that table is opened only by this thread and that no
+      other statement will open this table.
+    */
+    wait_while_table_is_used(thd, tables->table, HA_EXTRA_FORCE_REOPEN);
+    DBUG_RETURN(FALSE);
+  }
+
+  DBUG_RETURN(TRUE);
+}
+
+
 /*
   Open table which is already name-locked by this thread.
 
@@ -3118,6 +3153,9 @@ bool reopen_table(TABLE *table)
           then there is only one table open and locked. This means that
           the function probably has to be adjusted before it can be used
           anywhere outside ALTER TABLE.
+
+    @note Must not use TABLE_SHARE::table_name/db of the table being closed,
+          the strings are used in a loop even after the share may be freed.
 */
 
 void close_data_files_and_morph_locks(THD *thd, const char *db,
@@ -3387,8 +3425,8 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     @param send_refresh  Should we awake waiters even if we didn't close any tables?
 */
 
-void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
-			  bool send_refresh)
+static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
+                                 bool send_refresh)
 {
   bool found= send_refresh;
   DBUG_ENTER("close_old_data_files");

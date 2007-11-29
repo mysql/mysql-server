@@ -1521,7 +1521,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       built_query.append("DROP TABLE ");
   }
 
-  mysql_ha_rm_tables(thd, tables);
+  mysql_ha_rm_tables(thd, tables, FALSE);
 
   pthread_mutex_lock(&LOCK_open);
 
@@ -3705,13 +3705,15 @@ mysql_rename_table(handlerton *base, const char *old_db,
     Win32 clients must also have a WRITE LOCK on the table !
 */
 
-static void wait_while_table_is_used(THD *thd,TABLE *table,
-				     enum ha_extra_function function)
+void wait_while_table_is_used(THD *thd, TABLE *table,
+                              enum ha_extra_function function)
 {
   DBUG_ENTER("wait_while_table_is_used");
   DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %lu",
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
+
+  safe_mutex_assert_owner(&LOCK_open);
 
   VOID(table->file->extra(function));
   /* Mark all tables that are in use as 'old' */
@@ -4031,7 +4033,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  mysql_ha_rm_tables(thd, tables);
+  mysql_ha_rm_tables(thd, tables, FALSE);
 
   for (table= tables; table; table= table->next_local)
   {
@@ -5795,7 +5797,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   build_table_filename(reg_path, sizeof(reg_path), db, table_name, reg_ext, 0);
   build_table_filename(path, sizeof(path), db, table_name, "", 0);
 
-  mysql_ha_rm_tables(thd, table_list);
+  mysql_ha_rm_tables(thd, table_list, FALSE);
 
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
