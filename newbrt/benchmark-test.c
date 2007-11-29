@@ -12,7 +12,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-const char fname[]="sinsert.brt";
+static const char fname[]="sinsert.brt";
 
 enum { SERIAL_SPACING = 1<<6 };
 enum { ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
@@ -21,34 +21,34 @@ enum { BOUND_INCREASE_PER_ITERATION = SERIAL_SPACING*ITEMS_TO_INSERT_PER_ITERATI
 
 enum { NODE_SIZE = 1<<20 };
 
-int nodesize = NODE_SIZE;
-int keysize = sizeof (long long);
-int valsize = sizeof (long long);
-int do_verify =0; /* Do a slow verify after every insert. */
+static int nodesize = NODE_SIZE;
+static int keysize = sizeof (long long);
+static int valsize = sizeof (long long);
+static int do_verify =0; /* Do a slow verify after every insert. */
 
 
-CACHETABLE ct;
-BRT t;
+static CACHETABLE ct;
+static BRT t;
 
-void setup (void) {
+static void setup (void) {
     int r;
     unlink(fname);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
     r = toku_open_brt(fname, 0, 1, &t, nodesize, ct, NULL_TXN, toku_default_compare_fun, (DB*)0); assert(r==0);
 }
 
-void shutdown (void) {
+static void shutdown (void) {
     int r;
     r = toku_close_brt(t); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 }
-void long_long_to_array (unsigned char *a, unsigned long long l) {
+static void long_long_to_array (unsigned char *a, unsigned long long l) {
     int i;
     for (i=0; i<8; i++)
 	a[i] = (l>>(56-8*i))&0xff;
 }
 
-void insert (long long v) {
+static void insert (long long v) {
     unsigned char kc[keysize], vc[valsize];
     DBT  kt, vt;
     memset(kc, 0, sizeof kc);
@@ -59,18 +59,18 @@ void insert (long long v) {
     if (do_verify) toku_cachetable_verify(ct);
 }
 
-void serial_insert_from (long long from) {
+static void serial_insert_from (long long from) {
     long long i;
     for (i=0; i<ITEMS_TO_INSERT_PER_ITERATION; i++) {
 	insert((from+i)*SERIAL_SPACING);
     }
 }
 
-long long llrandom (void) {
+static long long llrandom (void) {
     return (((long long)(random()))<<32) + random();
 }
 
-void random_insert_below (long long below) {
+static void random_insert_below (long long below) {
     long long i;
     assert(0 < below);
     for (i=0; i<ITEMS_TO_INSERT_PER_ITERATION; i++) {
@@ -78,11 +78,11 @@ void random_insert_below (long long below) {
     }
 }
 
-double tdiff (struct timeval *a, struct timeval *b) {
+static double tdiff (struct timeval *a, struct timeval *b) {
     return (a->tv_sec-b->tv_sec)+1e-6*(a->tv_usec-b->tv_usec);
 }
 
-void biginsert (long long n_elements, struct timeval *starttime) {
+static void biginsert (long long n_elements, struct timeval *starttime) {
     long long i;
     struct timeval t1,t2;
     int iteration;
@@ -100,7 +100,7 @@ void biginsert (long long n_elements, struct timeval *starttime) {
     }
 }
 
-void usage() {
+static void usage() {
     printf("benchmark-test [--nodesize NODESIZE] [--keysize KEYSIZE] [--valsize VALSIZE] [--verify] [TOTALITEMS]\n");
 }
 

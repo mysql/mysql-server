@@ -268,13 +268,13 @@ static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
         char* full_dir = NULL;
         if (env->i->lg_dir) full_dir = construct_full_name(env->i->dir, env->i->lg_dir);
-        r = tokulogger_create_and_open_logger(
+        r = toku_logger_create_and_open_logger(
             full_dir ? full_dir : env->i->dir, &env->i->logger);
         if (full_dir) toku_free(full_dir);
 	if (r!=0) goto died1;
 	if (0) {
 	died2:
-	    tokulogger_log_close(&env->i->logger);
+	    toku_logger_log_close(&env->i->logger);
 	    goto died1;
 	}
     }
@@ -290,7 +290,7 @@ static int toku_db_env_close(DB_ENV * env, u_int32_t flags) {
     if (env->i->cachetable)
         r0=toku_cachetable_close(&env->i->cachetable);
     if (env->i->logger)
-        r1=tokulogger_log_close(&env->i->logger);
+        r1=toku_logger_log_close(&env->i->logger);
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
     if (env->i->lg_dir)
@@ -451,7 +451,7 @@ static int toku_db_txn_commit(DB_TXN * txn, u_int32_t flags) {
     //notef("flags=%d\n", flags);
     if (!txn)
         return -1;
-    int r = tokulogger_commit(txn->i->tokutxn);
+    int r = toku_logger_commit(txn->i->tokutxn);
     if (r != 0)
         return r;
     if (txn->i)
@@ -478,7 +478,7 @@ static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t 
     MALLOC(result->i);
     assert(result->i);
     result->i->parent = stxn;
-    int r = tokutxn_begin(stxn ? stxn->i->tokutxn : 0, &result->i->tokutxn, next_txn++, env->i->logger);
+    int r = toku_logger_txn_begin(stxn ? stxn->i->tokutxn : 0, &result->i->tokutxn, next_txn++, env->i->logger);
     if (r != 0)
         return r;
     *txn = result;
@@ -493,7 +493,7 @@ static int toku_txn_abort(DB_TXN * txn) {
 #if 0
 int txn_commit(DB_TXN * txn, u_int32_t flags) {
     fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
-    return tokulogger_log_commit(txn->i->tokutxn);
+    return toku_logger_log_commit(txn->i->tokutxn);
 }
 #endif
 

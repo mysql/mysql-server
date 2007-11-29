@@ -163,14 +163,14 @@ void generate_log_writer (void) {
 			fprintf(cf, "  txn->logger->lsn.lsn++;\n");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "  wbuf_%s(&wbuf, %s);\n", ft->type, ft->name));
-			fprintf(cf, "  int r= tokulogger_finish(txn->logger, &wbuf);\n");
+			fprintf(cf, "  int r= toku_logger_finish(txn->logger, &wbuf);\n");
 			fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
 			fprintf(cf, "  toku_free(buf);\n");
 			if (lt->command=='C') {
 			    fprintf(cf, "  if (r!=0) return r;\n");
 			    fprintf(cf, "  // commit has some extra work to do.\n");
 			    fprintf(cf, "  if (txn->parent) return 0; // don't fsync if there is a parent.\n");
-			    fprintf(cf, "  else return tokulogger_fsync(txn->logger);\n");
+			    fprintf(cf, "  else return toku_logger_fsync(txn->logger);\n");
 			} else {
 			    fprintf(cf, "  return r;\n");
 			}
@@ -181,8 +181,7 @@ void generate_log_writer (void) {
 
 void generate_log_reader (void) {
     DO_LOGTYPES(lt, ({
-			fprintf(cf, "static int tokulog_fread_%s (FILE *infile, struct logtype_%s *data, u_int32_t crc)", lt->name, lt->name);
-			fprintf(hf, ";\n");
+			fprintf(cf, "static int toku_log_fread_%s (FILE *infile, struct logtype_%s *data, u_int32_t crc)", lt->name, lt->name);
 			fprintf(cf, " {\n");
 			fprintf(cf, "  int r=0;\n");
 			fprintf(cf, "  u_int32_t actual_len=5; // 1 for the command, 4 for the first len.\n");
@@ -196,7 +195,7 @@ void generate_log_reader (void) {
 			fprintf(cf, "  return 0;\n");
 			fprintf(cf, "}\n\n");
 		    }));
-    fprintf2(cf, hf, "int tokulog_fread (FILE *infile, struct log_entry *le)");
+    fprintf2(cf, hf, "int toku_log_fread (FILE *infile, struct log_entry *le)");
     fprintf(hf, ";\n");
     fprintf(cf, " {\n");
     fprintf(cf, "  u_int32_t len1; int r;\n");
@@ -210,7 +209,7 @@ void generate_log_reader (void) {
     fprintf(cf, "  switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, ({
 			fprintf(cf, "  case LT_%s:\n", lt->name);
-			fprintf(cf, "    return tokulog_fread_%s (infile, &le->u.%s, crc);\n", lt->name, lt->name);
+			fprintf(cf, "    return toku_log_fread_%s (infile, &le->u.%s, crc);\n", lt->name, lt->name);
 		    }));
     fprintf(cf, "  };\n");
     fprintf(cf, "  return DB_BADFORMAT;\n"); // Should read past the record using the len field.

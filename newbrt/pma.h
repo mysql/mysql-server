@@ -145,4 +145,6 @@ void toku_pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t
 
 int toku_pma_set_at_index (PMA, int /*index*/, DBT */*key*/, DBT */*value*/); // If the index is wrong or there is a value already, return nonzero
 
+void toku_pma_show_stats (void);
+
 #endif

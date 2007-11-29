@@ -98,7 +98,7 @@ static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     n->local_fingerprint = 0; // nothing there yet
     n->dirty = 1;
     if (c->height==0) {
-	r=toku_pma_create(&n->u.l.buffer, dont_call_this_compare_fun, null_db, c->filenum, c->nodesize);
+	r=toku_pma_create(&n->u.l.buffer, toku_dont_call_this_compare_fun, null_db, c->filenum, c->nodesize);
 	assert(r==0);
 	n->u.l.n_bytes_in_buffer=0;
     } else {
@@ -157,7 +157,7 @@ int main (int argc, char *argv[]) {
     dir = argv[1];
     int n_logfiles;
     char **logfiles;
-    r = tokulogger_find_logfiles(dir, &n_logfiles, &logfiles);
+    r = toku_logger_find_logfiles(dir, &n_logfiles, &logfiles);
     if (r!=0) exit(1);
     int i;
     r = toku_create_cachetable(&ct, 1<<25, (LSN){0}, 0);
@@ -168,7 +168,7 @@ int main (int argc, char *argv[]) {
 	u_int32_t version;
 	r=toku_read_and_print_logmagic(f, &version);
 	assert(r==0 && version==0);
-	while ((r = tokulog_fread(f, &le))==0) {
+	while ((r = toku_log_fread(f, &le))==0) {
 	    printf("Got cmd %c\n", le.cmd);
 	    logtype_dispatch(le, toku_recover_);
 	}

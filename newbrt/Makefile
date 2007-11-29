@@ -90,9 +90,9 @@ ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: cachetable.h hashfun.h memory.h
-brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o
+brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o
 log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
-brt-test.o brt.o: brt.h ../include/db.h hashtable.h pma.h brttypes.h cachetable.h
+brt-test.o brt.o: brt.h ../include/db.h hashtable.h pma.h brttypes.h cachetable.h memory.h
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
 brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
 mdict.o: pma.h
@@ -101,7 +101,6 @@ memory.o: memory.h
 primes.o: primes.h
 hashtest: hashtable.o memory.o primes.o
 brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
-header-io.o: $(BRT_INTERNAL_H_INCLUDES)
 mdict-test: hashtable.o pma.o memory.o
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o
 brt-bigtest.o: brt.h ../include/db.h

@@ -21,7 +21,7 @@
 #include "../src/ydb-internal.h"
 #include "log_header.h"
 
-int tokulogger_find_next_unused_log_file(const char *directory, long long *result) {
+int toku_logger_find_next_unused_log_file(const char *directory, long long *result) {
     DIR *d=opendir(directory);
     long long max=-1;
     struct dirent *de;
@@ -37,7 +37,7 @@ int tokulogger_find_next_unused_log_file(const char *directory, long long *resul
     return r;
 }
 
-int tokulogger_find_logfiles (const char *directory, int *n_resultsp, char ***resultp) {
+int toku_logger_find_logfiles (const char *directory, int *n_resultsp, char ***resultp) {
     int result_limit=1;
     int n_results=0;
     char **MALLOC_N(result_limit, result);
@@ -64,12 +64,12 @@ int tokulogger_find_logfiles (const char *directory, int *n_resultsp, char ***re
     return closedir(d);
 }
 
-int tokulogger_create_and_open_logger (const char *directory, TOKULOGGER *resultp) {
+int toku_logger_create_and_open_logger (const char *directory, TOKULOGGER *resultp) {
     TAGMALLOC(TOKULOGGER, result);
     if (result==0) return -1;
     int r;
     long long nexti;
-    r = tokulogger_find_next_unused_log_file(directory, &nexti);
+    r = toku_logger_find_next_unused_log_file(directory, &nexti);
     if (r!=0) {
     died0:
 	toku_free(result);
@@ -84,12 +84,12 @@ int tokulogger_create_and_open_logger (const char *directory, TOKULOGGER *result
     result->lsn.lsn = 0; // WRONG!!!  This should actually be calculated by looking at the log file. 
 
     *resultp=result;
-    return tokulogger_log_bytes(result, 0, "");
+    return toku_logger_log_bytes(result, 0, "");
 }
 
 static int log_format_version=0;
 
-int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
+int toku_logger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
     int r;
     //fprintf(stderr, "%s:%d logging %d bytes\n", __FILE__, __LINE__, nbytes);
     if (logger->fd==-1) {
@@ -129,7 +129,7 @@ int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
     return 0;
 }
 
-int tokulogger_log_close(TOKULOGGER *loggerp) {
+int toku_logger_log_close(TOKULOGGER *loggerp) {
     TOKULOGGER logger = *loggerp;
     int r = 0;
     if (logger->fd!=-1) {
@@ -146,7 +146,7 @@ int tokulogger_log_close(TOKULOGGER *loggerp) {
     return r;
 }
 #if 0
-int tokulogger_log_brt_remove (TOKULOGGER logger,
+int toku_logger_log_brt_remove (TOKULOGGER logger,
 			       TXNID txnid,
 			       diskoff diskoff,
 			       unsigned char *key,
@@ -157,7 +157,7 @@ n
 }
 #endif
 
-int tokulogger_fsync (TOKULOGGER logger) {
+int toku_logger_fsync (TOKULOGGER logger) {
     //return 0;/// NO TXN
     //fprintf(stderr, "%s:%d syncing log\n", __FILE__, __LINE__);
     if (logger->n_in_buf>0) {
@@ -172,14 +172,14 @@ int tokulogger_fsync (TOKULOGGER logger) {
     return 0;
 }
 
-int tokulogger_finish (TOKULOGGER logger, struct wbuf *wbuf) {
+int toku_logger_finish (TOKULOGGER logger, struct wbuf *wbuf) {
     wbuf_int(wbuf, toku_crc32(0, wbuf->buf, wbuf->ndone));
     wbuf_int(wbuf, 4+wbuf->ndone);
-    return tokulogger_log_bytes(logger, wbuf->ndone, wbuf->buf);
+    return toku_logger_log_bytes(logger, wbuf->ndone, wbuf->buf);
 }
 
 // Log an insertion of a key-value pair into a particular node of the tree.
-int tokulogger_log_brt_insert_with_no_overwrite (TOKULOGGER logger,
+int toku_logger_log_brt_insert_with_no_overwrite (TOKULOGGER logger,
 						 TXNID txnid,
 						 FILENUM fileid,
 						 DISKOFF diskoff,
@@ -207,10 +207,10 @@ int tokulogger_log_brt_insert_with_no_overwrite (TOKULOGGER logger,
     wbuf_DISKOFF(&wbuf, diskoff);
     wbuf_bytes(&wbuf, key, keylen);
     wbuf_bytes(&wbuf, val, vallen);
-    return tokulogger_finish (logger, &wbuf);
+    return toku_logger_finish (logger, &wbuf);
 }
 
-int tokulogger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, DISKOFF diskoff, int is_add, const struct kv_pair *pair) {
+int toku_logger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, DISKOFF diskoff, int is_add, const struct kv_pair *pair) {
     assert(is_add==0);
     if (txn==0) return 0;
     assert(db);
@@ -235,16 +235,16 @@ int tokulogger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, DISKOFF disk
     wbuf_DISKOFF(&wbuf, diskoff);
     wbuf_bytes(&wbuf, kv_pair_key_const(pair), keylen);
     wbuf_bytes(&wbuf, kv_pair_val_const(pair), vallen);
-    return tokulogger_finish(txn->logger, &wbuf);
+    return toku_logger_finish(txn->logger, &wbuf);
 }
 
-int tokulogger_commit (TOKUTXN txn) {
+int toku_logger_commit (TOKUTXN txn) {
     int r = toku_log_commit(txn, txn->txnid64);
     toku_free(txn);
     return r;
 }
 
-int tokulogger_log_checkpoint (TOKULOGGER logger, LSN *lsn) {
+int toku_logger_log_checkpoint (TOKULOGGER logger, LSN *lsn) {
     struct wbuf wbuf;
     const int buflen =10;
     unsigned char buf[buflen];
@@ -253,11 +253,11 @@ int tokulogger_log_checkpoint (TOKULOGGER logger, LSN *lsn) {
     wbuf_LSN (&wbuf, logger->lsn);
     *lsn = logger->lsn;
     logger->lsn.lsn++;
-    return tokulogger_log_bytes(logger, wbuf.ndone, wbuf.buf);
+    return toku_logger_log_bytes(logger, wbuf.ndone, wbuf.buf);
     
 }
 
-int tokutxn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TXNID txnid64, TOKULOGGER logger) {
+int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TXNID txnid64, TOKULOGGER logger) {
     TAGMALLOC(TOKUTXN, result);
     if (result==0) return errno;
     result->txnid64 = txnid64;
@@ -267,7 +267,7 @@ int tokutxn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TXNID txnid64, TOKU
     return 0;
 }
 
-int tokulogger_log_block_rename (TOKULOGGER logger, FILENUM fileid, DISKOFF olddiskoff, DISKOFF newdiskoff, DISKOFF parentdiskoff, int childnum) {
+int toku_logger_log_block_rename (TOKULOGGER logger, FILENUM fileid, DISKOFF olddiskoff, DISKOFF newdiskoff, DISKOFF parentdiskoff, int childnum) {
     const int buflen=(+1 // log command
 		      +8 // lsn
 		      +8 // fileid
@@ -288,10 +288,10 @@ int tokulogger_log_block_rename (TOKULOGGER logger, FILENUM fileid, DISKOFF oldd
     wbuf_DISKOFF(&wbuf, newdiskoff);
     wbuf_DISKOFF(&wbuf, parentdiskoff);
     wbuf_int    (&wbuf, childnum);
-    return tokulogger_finish(logger, &wbuf);
+    return toku_logger_finish(logger, &wbuf);
 }
 
-int tokulogger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
+int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     BYTESTRING bs;
     bs.len = strlen(fname);
     bs.data = (char*)fname;
@@ -299,7 +299,7 @@ int tokulogger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
 }
 
 /* fopen isn't really an action.  It's just for bookkeeping.  We need to know the filename that goes with a filenum. */
-int tokulogger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
+int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
     BYTESTRING bs;
     bs.len = strlen(fname);
     bs.data = (char*)fname;
@@ -308,7 +308,7 @@ int tokulogger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
 }
 
 
-int tokulogger_log_unlink (TOKUTXN txn, const char *fname) {
+int toku_logger_log_unlink (TOKUTXN txn, const char *fname) {
     if (txn==0) return 0;
     const int fnamelen = strlen(fname);
     const int buflen = (+1 // log command
@@ -321,10 +321,10 @@ int tokulogger_log_unlink (TOKUTXN txn, const char *fname) {
     wbuf_init (&wbuf, buf, buflen);
     wbuf_char (&wbuf, LT_UNLINK);
     wbuf_bytes(&wbuf, fname, fnamelen);
-    return tokulogger_finish(txn->logger, &wbuf);
+    return toku_logger_finish(txn->logger, &wbuf);
 };
 
-int tokulogger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
+int toku_logger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
 #if 0
     LOGGEDBRTHEADER lh;
     lh.size = toku_serialize_brt_header_size(h);
@@ -371,7 +371,7 @@ int tokulogger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
     wbuf_FILENUM(&wbuf, filenum);
     r=toku_serialize_brt_header_to_wbuf(&wbuf, h);
     if (r!=0) return r;
-    r=tokulogger_finish(txn->logger, &wbuf);
+    r=toku_logger_finish(txn->logger, &wbuf);
     toku_free(buf);
     return r;
 #endif

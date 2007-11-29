@@ -106,6 +106,6 @@ int toku_default_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, 
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 
-int dont_call_this_compare_fun (DB *db __attribute__((__unused__)), const DBT *a __attribute__((__unused__)), const DBT*b __attribute__((__unused__))) {
+int toku_dont_call_this_compare_fun (DB *db __attribute__((__unused__)), const DBT *a __attribute__((__unused__)), const DBT*b __attribute__((__unused__))) {
     assert(0);
 }
