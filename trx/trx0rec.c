@@ -894,7 +894,11 @@ trx_undo_rec_get_partial_row(
 	ulint		n_ext_cols;
 	ulint*		ext_cols;
 
-	ut_ad(index && ptr && row && ext && heap);
+	ut_ad(index);
+	ut_ad(ptr);
+	ut_ad(row);
+	ut_ad(heap);
+	ut_ad(dict_index_is_clust(index));
 
 	row_len = dict_table_get_n_cols(index->table);
 	n_ext_cols = 0;
@@ -908,15 +912,17 @@ trx_undo_rec_get_partial_row(
 	ptr += 2;
 
 	while (ptr != end_ptr) {
-		dfield_t*	dfield;
-		byte*		field;
-		ulint		field_no;
-		ulint		col_no;
-		ulint		len;
+		dfield_t*		dfield;
+		byte*			field;
+		ulint			field_no;
+		const dict_col_t*	col;
+		ulint			col_no;
+		ulint			len;
 
 		ptr = trx_undo_update_rec_get_field_no(ptr, &field_no);
 
-		col_no = dict_index_get_nth_col_no(index, field_no);
+		col = dict_index_get_nth_col(index, field_no);
+		col_no = dict_col_get_no(col);
 
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len);
 
@@ -929,14 +935,40 @@ trx_undo_rec_get_partial_row(
 			dfield_set_len(dfield,
 				       len - UNIV_EXTERN_STORAGE_FIELD);
 			dfield_set_ext(dfield);
-			ext_cols[n_ext_cols++] = col_no;
+			if (col->ord_part) {
+				/* We will have to fetch prefixes of
+				externally stored columns that are
+				referenced by column prefixes. */
+				ext_cols[n_ext_cols++] = col_no;
+			}
 		}
 	}
 
 	if (n_ext_cols) {
+		ulint	i;
+
 		*ext = row_ext_create(n_ext_cols, ext_cols,
 				      dict_table_zip_size(index->table),
 				      heap);
+
+		/* Fetch the BLOB prefixes, because the clustered
+		index record (and the BLOBs) may have been deleted by
+		the time row_ext_lookup() is called later in the purge
+		thread. */
+		for (i = 0; i < n_ext_cols; i++) {
+			const dfield_t*	dfield;
+			ulint		len;
+			byte*		b;
+
+			dfield = dtuple_get_nth_field(*row, ext_cols[i]);
+
+			b = row_ext_lookup_ith(*ext, i,
+					       dfield_get_data(dfield),
+					       dfield_get_len(dfield),
+					       &len);
+			ut_a(b);
+			ut_a(b != field_ref_zero);
+		}
 	} else {
 		*ext = NULL;
 	}
