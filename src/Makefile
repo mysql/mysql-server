@@ -4,7 +4,7 @@
 LIBNAME=libdb
 
 OPTFLAGS = -O2
-CFLAGS = -W -Wall -Wno-unused -g -fPIC $(OPTFLAGS)
+CFLAGS = -W -Wall -Werror -g -fPIC $(OPTFLAGS)
 CPPFLAGS = -I../include -I../newbrt
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 

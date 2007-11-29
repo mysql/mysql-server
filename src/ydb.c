@@ -60,6 +60,7 @@ static void toku_db_env_err(const DB_ENV * env __attribute__ ((__unused__)), int
 #define note() ({ fprintf(stderr, "YDB: Note %s:%d in %s\n", __FILE__, __LINE__, __func__); })
 #define notef(fmt,...) ({ fprintf(stderr, "YDB: Note %s:%d in %s, ", __FILE__, __LINE__, __func__); fprintf(stderr, fmt, __VA_ARGS__); })
 
+#if 0
 static void print_flags(u_int32_t flags) {
     u_int32_t gotit = 0;
     int doneone = 0;
@@ -76,6 +77,7 @@ static void print_flags(u_int32_t flags) {
         fprintf(stderr, "  flags 0x%x not accounted for", flags & ~gotit);
     fprintf(stderr, "\n");
 }
+#endif
 
 /* TODO make these thread safe */
 
@@ -111,7 +113,7 @@ static int db_env_parse_config_line(DB_ENV* dbenv, char *command, char *value) {
     return r;
 }
 
-static int db_env_read_config(DB_ENV *env, u_int32_t flags) {
+static int db_env_read_config(DB_ENV *env) {
     const char* config_name = "DB_CONFIG";
     char* full_name = NULL;
     char* linebuffer = NULL;
@@ -260,7 +262,7 @@ static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int
         env->i->dir = NULL;
         return r;
     }
-    if ((r = db_env_read_config(env, flags)) != 0) goto died1;
+    if ((r = db_env_read_config(env)) != 0) goto died1;
     
     env->i->open_flags = flags;
     env->i->open_mode = mode;
@@ -309,16 +311,18 @@ static int toku_db_env_close(DB_ENV * env, u_int32_t flags) {
 }
 
 static int toku_db_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
+    env=env; flags=flags; // Suppress compiler warnings.
     *list = NULL;
     return 0;
 }
 
 static int toku_db_env_log_flush(DB_ENV * env, const DB_LSN * lsn) {
+    env=env; lsn=lsn;
     barf();
     return 1;
 }
 
-static int toku_db_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
+static int toku_db_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache __attribute__((__unused__))) {
     env->i->cachetable_size = ((long) gbytes << 30) + bytes;
     return 0;
 }
@@ -343,11 +347,13 @@ static void toku_db_env_set_errpfx(DB_ENV * env, const char *errpfx) {
 }
 
 static int toku_db_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
+    env=env;flags=flags;onoff=onoff;
     assert(flags == 0);
     return 1;
 }
 
 static int toku_db_env_set_lg_bsize(DB_ENV * env, u_int32_t bsize) {
+    env=env; bsize=bsize;
     return 1;
 }
 
@@ -364,14 +370,17 @@ static int toku_db_env_set_lg_dir(DB_ENV * env, const char *dir) {
 }
 
 static int toku_db_env_set_lg_max(DB_ENV * env, u_int32_t lg_max) {
+    env=env; lg_max=lg_max;
     return 1;
 }
 
 static int toku_db_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
+    env=env; detect=detect;
     return 1;
 }
 
 static int toku_db_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
+    env=env;lk_max=lk_max;
     return 0;
 }
 
@@ -389,14 +398,17 @@ static int toku_db_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
 }
 
 static int toku_db_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
+    env=env; which=which; onoff=onoff;
     return 1;
 }
 
 static int toku_db_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte, u_int32_t min, u_int32_t flags) {
+    env=env; kbyte=kbyte; min=min; flags=flags;
     return 0;
 }
 
 static int toku_db_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {
+    env=env;statp=statp;flags=flags;
     return 1;
 }
 
@@ -407,6 +419,7 @@ void toku_default_errcall(const char *errpfx, char *msg) {
 static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 int db_env_create(DB_ENV ** envp, u_int32_t flags) {
+    if (flags!=0) return EINVAL;
     DB_ENV *MALLOC(result);
     if (result == 0)
         return ENOMEM;
@@ -449,6 +462,7 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
 
 static int toku_db_txn_commit(DB_TXN * txn, u_int32_t flags) {
     //notef("flags=%d\n", flags);
+    flags=flags;
     if (!txn)
         return -1;
     int r = toku_logger_commit(txn->i->tokutxn);
@@ -461,18 +475,26 @@ static int toku_db_txn_commit(DB_TXN * txn, u_int32_t flags) {
 }
 
 static u_int32_t toku_db_txn_id(DB_TXN * txn) {
+    txn=txn;
     barf();
     abort();
 }
 
 static TXNID next_txn = 0;
 
+static int toku_txn_abort(DB_TXN * txn) {
+    fprintf(stderr, "toku_txn_abort(%p)\n", txn);
+    abort();
+}
+
 static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
+    flags=flags;
     DB_TXN *MALLOC(result);
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
     //notef("parent=%p flags=0x%x\n", stxn, flags);
+    result->abort = toku_txn_abort;
     result->commit = toku_db_txn_commit;
     result->id = toku_db_txn_id;
     MALLOC(result->i);
@@ -483,11 +505,6 @@ static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t 
         return r;
     *txn = result;
     return 0;
-}
-
-static int toku_txn_abort(DB_TXN * txn) {
-    fprintf(stderr, "toku_txn_abort(%p)\n", txn);
-    abort();
 }
 
 #if 0
@@ -502,7 +519,15 @@ int log_compare(const DB_LSN * a, const DB_LSN * b) {
     abort();
 }
 
+static int toku_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
+			      int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result),
+			      u_int32_t flags) {
+    primary=primary; txn=txn; secondary=secondary; callback=callback; flags=flags;
+    return EINVAL;
+}
+
 static int toku_db_close(DB * db, u_int32_t flags) {
+    flags=flags;
     int r = toku_close_brt(db->i->brt);
     if (r != 0)
         return r;
@@ -539,6 +564,7 @@ static int toku_c_del(DBC * c, u_int32_t flags) {
 }
 
 static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
+    flags=flags;
     DBC *MALLOC(result);
     if (result == 0)
         return ENOMEM;
@@ -589,6 +615,7 @@ static int toku_db_get(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key
 }
 
 static int toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr, u_int32_t flags) {
+    db=db; txn=txn; dbt=dbt; kr=kr; flags=flags;
     barf();
     abort();
 }
@@ -640,6 +667,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
 
     int openflags = 0;
     int r;
+    if (dbtype!=DB_BTREE) return EINVAL;
 
     if ((flags & DB_EXCL) && !(flags & DB_CREATE)) return EINVAL;
 
@@ -761,6 +789,7 @@ cleanup:
 }
 
 static int toku_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
+    if (flags!=0) return EINVAL;
     char afull[PATH_MAX], cfull[PATH_MAX];
     int r;
     assert(nameb == 0);
@@ -797,6 +826,7 @@ static int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
 }
 
 static int toku_db_stat(DB * db, void *v, u_int32_t flags) {
+    db=db; v=v; flags=flags;
     barf();
     abort();
 }
@@ -831,6 +861,7 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     }
     memset(result, 0, sizeof *result);
     result->dbenv = env;
+    result->associate = toku_db_associate;
     result->close = toku_db_close;
     result->cursor = toku_db_cursor;
     result->del = toku_db_del;
