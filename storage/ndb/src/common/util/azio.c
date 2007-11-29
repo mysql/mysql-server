@@ -97,6 +97,7 @@ voidpf az_alloc(voidpf opaque, uInt items, uInt size)
 }
 void az_free(voidpf opaque, voidpf address)
 {
+  (void)address;
   /* Oh how we hack. */
   struct az_alloc_rec *r = (struct az_alloc_rec*)opaque;
   r->mfree= r->size;
@@ -133,10 +134,10 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   s->bufalloced = 0;
   if(!s->inbuf)
   {
-    err= posix_memalign(&(s->inbuf),512,AZ_BUFSIZE_READ);
+    err= posix_memalign((void**)&(s->inbuf),512,AZ_BUFSIZE_READ);
     if(err)
       return -err;
-    err= posix_memalign(&(s->outbuf),512,AZ_BUFSIZE_WRITE);
+    err= posix_memalign((void**)&(s->outbuf),512,AZ_BUFSIZE_WRITE);
     if(err)
       return -err;
     s->bufalloced = 1;
@@ -281,7 +282,7 @@ int write_header(azio_stream *s)
 
   /* Always begin at the begining, and end there as well */
   if(my_pwrite(s->file, (uchar*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
-               MYF(0)) == -1)
+               MYF(0)) == (size_t)-1)
     return -1;
 
   return 0;
@@ -381,7 +382,7 @@ int check_header(azio_stream *s)
   int c;
 
   if(s->stream.avail_in==0)
-    if(c= read_buffer(s))
+    if((c= read_buffer(s)))
       return 0;
 
   /* Peek ahead to check the gzip magic header */
@@ -420,7 +421,7 @@ int check_header(azio_stream *s)
     }
     s->z_err = s->z_eof ? Z_DATA_ERROR : Z_OK;
     s->start = my_tell(s->file, MYF(0));
-    if(s->start == -1)
+    if(s->start == (my_off_t)-1)
       return my_errno;
     s->start-= s->stream.avail_in;
   }
@@ -671,7 +672,7 @@ int write_buffer(azio_stream *s)
 */
 unsigned int azwrite (azio_stream *s, const void*  buf, unsigned int len)
 {
-  int i;
+  unsigned int i;
   s->stream.next_in = (Bytef*)buf;
   s->stream.avail_in = len;
 
@@ -711,7 +712,6 @@ int do_flush (azio_stream *s, int flush)
 {
   uInt len;
   int done = 0;
-  my_off_t afterwrite_pos;
 
   if (s == NULL || s->mode != 'w') return Z_STREAM_ERROR;
 
@@ -760,11 +760,11 @@ int ZEXPORT azflush (s, flush)
 {
   int err;
 
-  if (s->mode == 'r') 
+  if (s->mode == 'r')
   {
     unsigned char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
     if(my_pread(s->file, (uchar*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
-                MYF(0)) == -1)
+                MYF(0)) == (size_t)-1)
       return Z_ERRNO;
     read_header(s, buffer); /* skip the .az header */
 
