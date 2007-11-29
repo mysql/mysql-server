@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include <db.h>
 #include <sys/stat.h>
 #include <sys/types.h>
