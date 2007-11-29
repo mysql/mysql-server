@@ -1483,18 +1483,23 @@ int toku_brt_create(BRT *brt_ptr) {
     return 0;
 }
 
-int toku_brt_set_flags(BRT brt, int flags) {
+int toku_brt_set_flags(BRT brt, unsigned int flags) {
     brt->flags = flags;
     return 0;
 }
 
-int toku_brt_get_flags(BRT brt, int *flags) {
+int toku_brt_get_flags(BRT brt, unsigned int *flags) {
     *flags = brt->flags;
     return 0;
 }
 
-int toku_brt_set_nodesize(BRT brt, int nodesize) {
+int toku_brt_set_nodesize(BRT brt, unsigned int nodesize) {
     brt->nodesize = nodesize;
+    return 0;
+}
+
+int toku_brt_get_nodesize(BRT brt, unsigned int *nodesize) {
+    *nodesize = brt->nodesize;
     return 0;
 }
 
