@@ -6,7 +6,7 @@ static int brt_root_put_cmd_XY (BRT brt, BRT_CMD *md, TOKUTXN txn) {
     }
     CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt);
     if ((r=cachetable_get_and_pin(brt->cf, *rootp, &node_v, NULL, 
-				  brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize))) {
+				  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, (void*)(long)brt->h->nodesize))) {
 	goto died0;
     }
     node=node_v;

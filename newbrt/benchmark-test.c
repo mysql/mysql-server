@@ -34,12 +34,12 @@ void setup (void) {
     int r;
     unlink(fname);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
-    r = open_brt(fname, 0, 1, &t, nodesize, ct, NULL_TXN, toku_default_compare_fun, (DB*)0); assert(r==0);
+    r = toku_open_brt(fname, 0, 1, &t, nodesize, ct, NULL_TXN, toku_default_compare_fun, (DB*)0); assert(r==0);
 }
 
 void shutdown (void) {
     int r;
-    r = close_brt(t); assert(r==0);
+    r = toku_close_brt(t); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 }
 void long_long_to_array (unsigned char *a, unsigned long long l) {
@@ -55,7 +55,7 @@ void insert (long long v) {
     long_long_to_array(kc, v);
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
-    brt_insert(t, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), 0);
+    toku_brt_insert(t, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), 0);
     if (do_verify) toku_cachetable_verify(ct);
 }
 

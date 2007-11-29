@@ -62,7 +62,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
     void *node_v;
     int r;
     if ((r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL,
-					 brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize)))
+					 toku_brtnode_flush_callback, toku_brtnode_fetch_callback, (void*)(long)brt->h->nodesize)))
 	return r;
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;

@@ -91,7 +91,7 @@ void test_serialize(void) {
 	assert(datalen==5);
         assert(type == BRT_NONE);
     }
-    brtnode_free(&dn);
+    toku_brtnode_free(&dn);
 
     kv_pair_free(sn.u.n.childkeys[0]);
     toku_free(hello_string);

@@ -447,7 +447,7 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     return 0;
 }
 
-int toku_db_txn_commit(DB_TXN * txn, u_int32_t flags) {
+static int toku_db_txn_commit(DB_TXN * txn, u_int32_t flags) {
     //notef("flags=%d\n", flags);
     if (!txn)
         return -1;
@@ -503,7 +503,7 @@ int log_compare(const DB_LSN * a, const DB_LSN * b) {
 }
 
 static int toku_db_close(DB * db, u_int32_t flags) {
-    int r = close_brt(db->i->brt);
+    int r = toku_close_brt(db->i->brt);
     if (r != 0)
         return r;
     // printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
@@ -567,7 +567,7 @@ static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
             return r;
         free(search_val.data);
     } 
-    r = brt_delete(db->i->brt, key);
+    r = toku_brt_delete(db->i->brt, key);
     return r;
 }
 
@@ -575,7 +575,7 @@ static int toku_db_get(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key
     assert(flags == 0);
     int r;
     int brtflags;
-    brt_get_flags(db->i->brt, &brtflags);
+    toku_brt_get_flags(db->i->brt, &brtflags);
     if (brtflags & TOKU_DB_DUPSORT) {
         DBC *dbc;
         r = db->cursor(db, txn, &dbc, 0);
@@ -584,7 +584,7 @@ static int toku_db_get(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key
             dbc->c_close(dbc);
         }
     } else
-        r = brt_lookup(db->i->brt, key, data);
+        r = toku_brt_lookup(db->i->brt, key, data);
     return r;
 }
 
@@ -635,7 +635,7 @@ static char *construct_full_name(const char *dir, const char *fname) {
 //  have to inherit mode bits and so forth from the first file that was created.
 // Other problems may ensue (who is responsible for deleting the file?  That's not so bad actually.)
 // This suggests that we really need to put the multiple databases into one file.
-int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
+static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     // Warning.  Should check arguments.  Should check return codes on malloc and open and so forth.
 
     int openflags = 0;
@@ -684,7 +684,7 @@ int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, D
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    r = brt_open(db->i->brt, db->i->full_fname, fname, dbname,
+    r = toku_brt_open(db->i->brt, db->i->full_fname, fname, dbname,
 		 flags & DB_CREATE, flags & DB_EXCL,
 		 db->dbenv->i->cachetable,
 		 txn ? txn->i->tokutxn : NULL_TXN);
@@ -705,13 +705,13 @@ error_cleanup:
     return r;
 }
 
-int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
-    int r = brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
+static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
+    int r = toku_brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
     //printf("%s:%d %d=__toku_db_put(...)\n", __FILE__, __LINE__, r);
     return r;
 }
 
-int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
+static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
     int r;
     int r2;
     char ffull[PATH_MAX];
@@ -724,7 +724,7 @@ int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t fla
         //TODO: Use master database (instead of manual edit) when implemented.
 
         if ((r = db->open(db, NULL, fname, dbname, DB_BTREE, 0, 0777)) != 0) goto cleanup;
-        r = brt_remove_subdb(db->i->brt, dbname, flags);
+        r = toku_brt_remove_subdb(db->i->brt, dbname, flags);
 cleanup:
         r2 = db->close(db, 0);
         return r ? r : r2;
@@ -740,7 +740,7 @@ cleanup:
     return r ? r : r2;
 }
 
-int toku_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
+static int toku_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
     char afull[PATH_MAX], cfull[PATH_MAX];
     int r;
     assert(nameb == 0);
@@ -751,37 +751,35 @@ int toku_db_rename(DB * db, const char *namea, const char *nameb, const char *na
     return rename(afull, cfull);
 }
 
-int toku_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
-    int r = brt_set_bt_compare(db->i->brt, bt_compare);
+static int toku_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
+    int r = toku_brt_set_bt_compare(db->i->brt, bt_compare);
     return r;
 }
 
-int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *, const DBT *)) {
-    int r = brt_set_dup_compare(db->i->brt, dup_compare);
+static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *, const DBT *)) {
+    int r = toku_brt_set_dup_compare(db->i->brt, dup_compare);
     return r;
 }
 
-int toku_db_set_flags(DB * db, u_int32_t flags) {
+static int toku_db_set_flags(DB * db, u_int32_t flags) {
     u_int32_t tflags = 0;
     if (flags & DB_DUP)
         tflags += TOKU_DB_DUP;
     if (flags & DB_DUPSORT)
         tflags += TOKU_DB_DUPSORT;
-    int r= brt_set_flags(db->i->brt, tflags);
+    int r= toku_brt_set_flags(db->i->brt, tflags);
     return r;
 }
 
-int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
-    int r = brt_set_nodesize(db->i->brt, pagesize);
+static int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
+    int r = toku_brt_set_nodesize(db->i->brt, pagesize);
     return r;
 }
 
-int toku_db_stat(DB * db, void *v, u_int32_t flags) {
+static int toku_db_stat(DB * db, void *v, u_int32_t flags) {
     barf();
     abort();
 }
-
-extern int toku_default_compare_fun(DB * db, const DBT * a, const DBT * b);
 
 int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
