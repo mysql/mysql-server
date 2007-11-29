@@ -193,7 +193,7 @@ typedef fp_except fp_except_t;
      this on freebsd
   */
 
-inline void reset_floating_point_exceptions()
+inline void set_proper_floating_point_mode()
 {
   /* Don't fall for overflow, underflow,divide-by-zero or loss of precision */
 #if defined(__i386__)
@@ -204,8 +204,22 @@ inline void reset_floating_point_exceptions()
 	     FP_X_IMP));
 #endif
 }
+#elif defined(__sgi)
+/* for IRIX to use set_fpc_csr() */
+#include <sys/fpu.h>
+
+inline void set_proper_floating_point_mode()
+{
+  /* Enable denormalized DOUBLE values support for IRIX */
+  {
+    union fpc_csr n;
+    n.fc_word = get_fpc_csr();
+    n.fc_struct.flush = 0;
+    set_fpc_csr(n.fc_word);
+  }
+}
 #else
-#define reset_floating_point_exceptions()
+#define set_proper_floating_point_mode()
 #endif /* __FreeBSD__ && HAVE_IEEEFP_H */
 
 } /* cplusplus */
@@ -2876,7 +2890,7 @@ static int init_server_components()
   query_cache_init();
   query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
-  reset_floating_point_exceptions();
+  set_proper_floating_point_mode();
   init_thr_lock();
 #ifdef HAVE_REPLICATION
   init_slave_list();
