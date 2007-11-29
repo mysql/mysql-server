@@ -1,5 +1,8 @@
 #ifndef BRTTYPES_H
 #define BRTTYPES_H
+
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include <sys/types.h>
 #define _XOPEN_SOURCE 500
 #define _FILE_OFFSET_BITS 64

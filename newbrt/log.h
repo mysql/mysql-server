@@ -1,5 +1,8 @@
 #ifndef TOKULOGGGER_H
 #define TOKULOGGGER_H
+
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include "../include/db.h"
 #include "brttypes.h"
 #include "kv-pair.h"

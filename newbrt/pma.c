@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 /* An in-memory Packed Memory Array dictionary.
    The keys and values are arrays of bytes, but are not necessarily kept in scan order.
    Only the pointers are kept.

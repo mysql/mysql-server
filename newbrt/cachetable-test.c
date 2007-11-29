@@ -1,4 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include <assert.h>
 #include <stdio.h>

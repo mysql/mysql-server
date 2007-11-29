@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 /* Dump the log from stdin to stdout. */
 #include <arpa/inet.h>
 #include <assert.h>

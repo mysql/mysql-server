@@ -1,6 +1,8 @@
 #ifndef PMA_H
 #define PMA_H
 
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include "brttypes.h"
 #include "ybt.h"
 #include "yerror.h"

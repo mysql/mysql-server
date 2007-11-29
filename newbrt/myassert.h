@@ -1,6 +1,8 @@
 #ifndef MYASSERT_H
 #define MYASSERT_H
 
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #ifndef TESTER
 #include <assert.h>
 #else

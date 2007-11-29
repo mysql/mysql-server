@@ -1,6 +1,8 @@
 #ifndef HASHTABLE_H
 #define HASHTABLE_H
 
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include "brttypes.h"
 /* Hash table with chaining. */
 /* The keys and values are byte sequences. */

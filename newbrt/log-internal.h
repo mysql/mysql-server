@@ -1,3 +1,5 @@
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>

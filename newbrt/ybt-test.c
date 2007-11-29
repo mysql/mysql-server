@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #define _FILE_OFFSET_BITS 64
 
 #include "ybt.h"

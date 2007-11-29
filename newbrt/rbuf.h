@@ -1,6 +1,8 @@
 #ifndef RBUF_H
 #define RBUF_H
 
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include <assert.h>
 
 struct rbuf {

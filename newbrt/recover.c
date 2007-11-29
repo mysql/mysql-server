@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 /* Recover an env.  The logs are in argv[1].  The new database is created in the cwd. */
 
 // Test:
