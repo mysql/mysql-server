@@ -1,6 +1,8 @@
 # Setup connections to both MySQL Servers connected to the cluster
-connect (server1,localhost,root,,test,$MASTER_MYPORT,);
-connect (server2,localhost,root,,test,$MASTER_MYPORT1,);
+#connect (server1,localhost,root,,test,$MASTER_MYPORT,);
+#connect (server2,localhost,root,,test,$MASTER_MYPORT1,);
+connect (server1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (server2,127.0.0.1,root,,test,$MASTER_MYPORT1,);
 
 # Check that server1 has NDB support
 connection server1;
