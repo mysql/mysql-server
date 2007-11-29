@@ -589,6 +589,13 @@ sub collect_one_test_case($$$$$$$$$) {
       return;
     }
 
+    if ( $tinfo->{'not_embedded'} and $::glob_use_embedded_server )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test disabled for embedded";
+      return;
+    }
+
     if ( $tinfo->{'require_manager'} )
     {
       $tinfo->{'skip'}= 1;
@@ -692,6 +699,7 @@ our @tags=
  ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_multi_ndb.inc", "ndb_test", 1],
  ["include/have_ndb_extra.inc", "ndb_extra", 1],
+ ["include/not_embedded.inc", "not_embedded", 1],
  ["require_manager", "require_manager", 1],
 );
 
