@@ -146,7 +146,6 @@ private:
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
-#ifdef HAVE_NDB_BINLOG
 extern pthread_t ndb_binlog_thread;
 extern pthread_mutex_t injector_mutex;
 extern pthread_cond_t  injector_cond;
@@ -203,6 +202,7 @@ int ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                                  const char *event_name_prefix);
 void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl, my_bool full);
+#ifdef HAVE_NDB_BINLOG
 int
 ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,
@@ -210,6 +210,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    uint server_id,
                                    TABLE *table,
                                    bool do_set_binlog_flags);
+#endif
 int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
 int ndbcluster_binlog_start();
@@ -238,7 +239,6 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
 int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
             uint pack_length);
 int ndbcluster_find_all_files(THD *thd);
-#endif /* HAVE_NDB_BINLOG */
 
 char *ndb_pack_varchar(const NDBCOL *col, char *buf,
                        const char *str, int sz);

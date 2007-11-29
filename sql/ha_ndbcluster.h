@@ -50,10 +50,8 @@ class Ndb_event_data;
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
 extern ulong ndb_cache_check_time;
-#ifdef HAVE_NDB_BINLOG
 extern ulong ndb_report_thresh_binlog_epoch_slip;
 extern ulong ndb_report_thresh_binlog_mem_usage;
-#endif
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -129,6 +127,7 @@ typedef enum {
   NSS_ALTERED 
 } NDB_SHARE_STATE;
 
+#ifdef HAVE_NDB_BINLOG
 enum enum_conflict_fn_type
 {
   CFT_NDB_UNDEF = 0
@@ -155,6 +154,7 @@ typedef struct st_ndbcluster_conflict_fn_share {
   const NdbDictionary::Table *m_ex_tab;
   uint32 m_count;
 } NDB_CONFLICT_FN_SHARE;
+#endif
 
 /*
   Stats that can be retrieved from ndb
@@ -181,16 +181,16 @@ typedef struct st_ndbcluster_share {
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
   struct Ndb_statistics stat;
-#ifdef HAVE_NDB_BINLOG
   uint32 connect_count;
   uint32 flags;
+#ifdef HAVE_NDB_BINLOG
   NDB_CONFLICT_FN_SHARE *m_cfn_share;
+#endif
   Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
   NdbEventOperation *op;
   char *old_names; // for rename table
   MY_BITMAP *subscriber_bitmap;
   NdbEventOperation *new_op;
-#endif
 } NDB_SHARE;
 
 inline
@@ -226,7 +226,6 @@ struct Ndb_tuple_id_range_guard {
   Ndb::TupleIdRange& range;
 };
 
-#ifdef HAVE_NDB_BINLOG
 /* NDB_SHARE.flags */
 #define NSF_HIDDEN_PK   1u /* table has hidden primary key */
 #define NSF_BLOB_FLAG   2u /* table has blob attributes */
@@ -252,7 +251,6 @@ inline void set_binlog_use_update(NDB_SHARE *share)
 { share->flags|= NSF_BINLOG_USE_UPDATE; }
 inline my_bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
-#endif
 
 typedef enum ndb_query_state_bits {
   NDB_QUERY_NORMAL = 0,

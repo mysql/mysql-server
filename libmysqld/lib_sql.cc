@@ -544,6 +544,12 @@ int init_embedded_server(int argc, char **argv, char **groups)
   }
 
   execute_ddl_log_recovery();
+
+  /* Signal successful initialization */
+  pthread_mutex_lock(&LOCK_server_started);
+  mysqld_server_started= 1;
+  pthread_cond_signal(&COND_server_started);
+  pthread_mutex_unlock(&LOCK_server_started);
   return 0;
 }
 
