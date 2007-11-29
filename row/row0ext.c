@@ -81,8 +81,6 @@ row_ext_create(
 	/* Fetch the BLOB prefixes */
 	for (i = 0; i < n_ext; i++) {
 		const dfield_t*	dfield;
-		ulint		len;
-		byte*		b;
 
 		dfield = dtuple_get_nth_field(tuple, ext[i]);
 		row_ext_cache_fill(ret, i, zip_size, dfield);
