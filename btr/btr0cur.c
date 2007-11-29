@@ -2653,9 +2653,10 @@ used by the insert buffer insert merge mechanism. */
 void
 btr_cur_del_unmark_for_ibuf(
 /*========================*/
-	rec_t*		rec,		/* in: record to delete unmark */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page corresponding
-					to rec, or NULL when the tablespace is
+	rec_t*		rec,		/* in/out: record to delete unmark */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page
+					corresponding to rec, or NULL
+					when the tablespace is
 					uncompressed */
 	mtr_t*		mtr)		/* in: mtr */
 {
