@@ -12,6 +12,8 @@ CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) EN
 
 DELETE FROM test.backup_info;
 
+# needed for embedded
+--exec chmod 0777 $MYSQLTEST_VARDIR/tmp.dat
 LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 
 --replace_column 1 <the_backup_id>
