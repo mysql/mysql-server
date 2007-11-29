@@ -279,7 +279,7 @@ static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int
 	}
     }
 
-    r = brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
+    r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
     if (r!=0) goto died2;
     return 0;
 }
@@ -522,19 +522,19 @@ struct __toku_dbc_internal {
 };
 
 static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
-    int r = brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
+    int r = toku_brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
     return r;
 }
 
 static int toku_c_close(DBC * c) {
-    int r = brt_cursor_close(c->i->c);
+    int r = toku_brt_cursor_close(c->i->c);
     toku_free(c->i);
     toku_free(c);
     return r;
 }
 
 static int toku_c_del(DBC * c, u_int32_t flags) {
-    int r = brt_cursor_delete(c->i->c, flags);
+    int r = toku_brt_cursor_delete(c->i->c, flags);
     return r;
 }
 
@@ -550,7 +550,7 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
     assert(result->i);
     result->i->db = db;
     result->i->txn = txn;
-    int r = brt_cursor(db->i->brt, &result->i->c);
+    int r = toku_brt_cursor(db->i->brt, &result->i->c);
     assert(r == 0);
     *c = result;
     return 0;
@@ -845,7 +845,7 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     list_init(&result->i->associated);
     result->i->primary = 0;
     result->i->associate_callback = 0;
-    r = brt_create(&result->i->brt);
+    r = toku_brt_create(&result->i->brt);
     if (r != 0) {
         toku_free(result->i);
         toku_free(result);
