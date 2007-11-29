@@ -361,7 +361,7 @@ fill_trx_row(
 						that's filled */
 	const trx_t*		trx,		/* in: transaction to
 						get data from */
-	const i_s_locks_row_t*	wait_lock_row,	/* in: pointer to the
+	const i_s_locks_row_t*	requested_lock_row,/* in: pointer to the
 						corresponding row in
 						innodb_locks if trx is
 						waiting or NULL if trx
@@ -377,15 +377,15 @@ fill_trx_row(
 
 	if (trx->wait_lock != NULL) {
 
-		ut_a(wait_lock_row != NULL);
+		ut_a(requested_lock_row != NULL);
 
-		row->wait_lock_row = wait_lock_row;
+		row->requested_lock_row = requested_lock_row;
 		row->trx_wait_started = (ib_time_t) trx->wait_started;
 	} else {
 
-		ut_a(wait_lock_row == NULL);
+		ut_a(requested_lock_row == NULL);
 
-		row->wait_lock_row = NULL;
+		row->requested_lock_row = NULL;
 		row->trx_wait_started = 0;
 	}
 
@@ -677,15 +677,15 @@ fill_lock_waits_row(
 						that's filled */
 	i_s_lock_waits_row_t*	row,		/* out: result object
 						that's filled */
-	const i_s_locks_row_t*	wait_lock_row,	/* in: pointer to the
-						relevant wait-lock
+	const i_s_locks_row_t*	requested_lock_row,/* in: pointer to the
+						relevant requested lock
 						row in innodb_locks */
-	const i_s_locks_row_t*	waited_lock_row)/* in: pointer to the
-						relevant waited-lock
+	const i_s_locks_row_t*	blocking_lock_row)/* in: pointer to the
+						relevant blocking lock
 						row in innodb_locks */
 {
-	row->wait_lock_row = wait_lock_row;
-	row->waited_lock_row = waited_lock_row;
+	row->requested_lock_row = requested_lock_row;
+	row->blocking_lock_row = blocking_lock_row;
 
 	return(row);
 }
@@ -899,11 +899,11 @@ add_lock_wait_to_cache(
 						/* out: FALSE if
 						allocation fails */
 	trx_i_s_cache_t*	cache,		/* in/out: cache */
-	const i_s_locks_row_t*	wait_lock_row,	/* in: pointer to the
-						relevant wait-lock
+	const i_s_locks_row_t*	requested_lock_row,/* in: pointer to the
+						relevant requested lock
 						row in innodb_locks */
-	const i_s_locks_row_t*	waited_lock_row)/* in: pointer to the
-						relevant waited-lock
+	const i_s_locks_row_t*	blocking_lock_row)/* in: pointer to the
+						relevant blocking lock
 						row in innodb_locks */
 {
 	i_s_lock_waits_row_t*	dst_row;
@@ -918,7 +918,7 @@ add_lock_wait_to_cache(
 		return(FALSE);
 	}
 
-	fill_lock_waits_row(dst_row, wait_lock_row, waited_lock_row);
+	fill_lock_waits_row(dst_row, requested_lock_row, blocking_lock_row);
 
 	return(TRUE);
 }
@@ -927,9 +927,9 @@ add_lock_wait_to_cache(
 Adds transaction's relevant (important) locks to cache.
 If the transaction is waiting, then the wait lock is added to
 innodb_locks and a pointer to the added row is returned in
-wait_lock_row, otherwise wait_lock_row is set to NULL.
+requested_lock_row, otherwise requested_lock_row is set to NULL.
 If rows can not be allocated then FALSE is returned and the value of
-wait_lock_row is undefined. */
+requested_lock_row is undefined. */
 static
 ibool
 add_trx_relevant_locks_to_cache(
@@ -937,8 +937,9 @@ add_trx_relevant_locks_to_cache(
 					/* out: FALSE if allocation fails */
 	trx_i_s_cache_t*	cache,	/* in/out: cache */
 	const trx_t*		trx,	/* in: transaction */
-	i_s_locks_row_t**	wait_lock_row)/* out: pointer to the
-					wait lock row, or NULL */
+	i_s_locks_row_t**	requested_lock_row)/* out: pointer to the
+					requested lock row, or NULL or
+					undefined */
 {
 	/* If transaction is waiting we add the wait lock and all locks
 	from another transactions that are blocking the wait lock. */
@@ -946,7 +947,7 @@ add_trx_relevant_locks_to_cache(
 
 		const lock_t*		curr_lock;
 		ulint			wait_lock_heap_no;
-		i_s_locks_row_t*	waited_lock_row;
+		i_s_locks_row_t*	blocking_lock_row;
 		lock_queue_iterator_t	iter;
 
 		ut_a(trx->wait_lock != NULL);
@@ -954,13 +955,13 @@ add_trx_relevant_locks_to_cache(
 		wait_lock_heap_no
 			= wait_lock_get_heap_no(trx->wait_lock);
 
-		/* add the wait lock */
-		*wait_lock_row
+		/* add the requested lock */
+		*requested_lock_row
 			= add_lock_to_cache(cache, trx->wait_lock,
 					    wait_lock_heap_no);
 
 		/* memory could not be allocated */
-		if (*wait_lock_row == NULL) {
+		if (*requested_lock_row == NULL) {
 
 			return(FALSE);
 		}
@@ -977,9 +978,9 @@ add_trx_relevant_locks_to_cache(
 			if (lock_has_to_wait(trx->wait_lock,
 					     curr_lock)) {
 
-				/* add the lock that trx->wait_lock is
-				waiting for */
-				waited_lock_row
+				/* add the lock that is
+				blocking trx->wait_lock */
+				blocking_lock_row
 					= add_lock_to_cache(
 						cache, curr_lock,
 						/* heap_no is the same
@@ -988,7 +989,7 @@ add_trx_relevant_locks_to_cache(
 						wait_lock_heap_no);
 
 				/* memory could not be allocated */
-				if (waited_lock_row == NULL) {
+				if (blocking_lock_row == NULL) {
 
 					return(FALSE);
 				}
@@ -996,8 +997,8 @@ add_trx_relevant_locks_to_cache(
 				/* add the relation between both locks
 				to innodb_lock_waits */
 				if (!add_lock_wait_to_cache(
-						cache, *wait_lock_row,
-						waited_lock_row)) {
+						cache, *requested_lock_row,
+						blocking_lock_row)) {
 
 					/* memory could not be allocated */
 					return(FALSE);
@@ -1008,7 +1009,7 @@ add_trx_relevant_locks_to_cache(
 		}
 	} else {
 
-		*wait_lock_row = NULL;
+		*requested_lock_row = NULL;
 	}
 
 	return(TRUE);
@@ -1079,7 +1080,7 @@ fetch_data_into_cache(
 {
 	trx_t*			trx;
 	i_s_trx_row_t*		trx_row;
-	i_s_locks_row_t*	wait_lock_row;
+	i_s_locks_row_t*	requested_lock_row;
 
 	trx_i_s_cache_clear(cache);
 
@@ -1093,7 +1094,7 @@ fetch_data_into_cache(
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		if (!add_trx_relevant_locks_to_cache(cache, trx,
-						     &wait_lock_row)) {
+						     &requested_lock_row)) {
 
 			cache->is_truncated = TRUE;
 			return;
@@ -1110,7 +1111,7 @@ fetch_data_into_cache(
 			return;
 		}
 
-		if (!fill_trx_row(trx_row, trx, wait_lock_row, cache)) {
+		if (!fill_trx_row(trx_row, trx, requested_lock_row, cache)) {
 
 			/* memory could not be allocated */
 			cache->innodb_trx.rows_used--;

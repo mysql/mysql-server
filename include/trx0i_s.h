@@ -61,7 +61,7 @@ typedef struct i_s_trx_row_struct {
 	ullint			trx_weight;
 	const char*		trx_state;
 	ib_time_t		trx_started;
-	const i_s_locks_row_t*	wait_lock_row;
+	const i_s_locks_row_t*	requested_lock_row;
 	ib_time_t		trx_wait_started;
 	ulint			trx_mysql_thread_id;
 	const char*		trx_query;
@@ -69,8 +69,8 @@ typedef struct i_s_trx_row_struct {
 
 /* This structure represents INFORMATION_SCHEMA.innodb_lock_waits row */
 typedef struct i_s_lock_waits_row_struct {
-	const i_s_locks_row_t*	wait_lock_row;
-	const i_s_locks_row_t*	waited_lock_row;
+	const i_s_locks_row_t*	requested_lock_row;
+	const i_s_locks_row_t*	blocking_lock_row;
 } i_s_lock_waits_row_t;
 
 /* This type is opaque and is defined in trx/trx0i_s.c */
