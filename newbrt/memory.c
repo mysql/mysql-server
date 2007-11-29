@@ -13,7 +13,7 @@ int toku_memory_check=0;
 #define WHEN_MEM_DEBUG(x) ({if (toku_memory_check) ({x});})
 
 
-long long n_items_malloced=0;
+static long long n_items_malloced=0;
 
 /* Memory checking */
 enum { items_limit = 1000 };
@@ -141,9 +141,9 @@ void *toku_calloc(long nmemb, long size) {
 static void *freelist[FREELIST_LIMIT];
 
 #define MALLOC_SIZE_COUNTING_LIMIT 512
-int malloc_counts[MALLOC_SIZE_COUNTING_LIMIT]; // We rely on static variables being initialized to 0.
-int fresh_malloc_counts[MALLOC_SIZE_COUNTING_LIMIT];  // We rely on static variables being initialized to 0.
-int other_malloc_count=0, fresh_other_malloc_count=0;
+static int malloc_counts[MALLOC_SIZE_COUNTING_LIMIT]; // We rely on static variables being initialized to 0.
+static int fresh_malloc_counts[MALLOC_SIZE_COUNTING_LIMIT];  // We rely on static variables being initialized to 0.
+static int other_malloc_count=0, fresh_other_malloc_count=0;
 void *toku_malloc(unsigned long size) {
     void * r;
     errno=0;
@@ -202,13 +202,13 @@ void toku_free_n(void* p, unsigned long size) {
     }
 }
 
-void *memdup (const void *v, unsigned int len) {
+void *toku_memdup (const void *v, unsigned int len) {
     void *r=toku_malloc(len);
     memcpy(r,v,len);
     return r;
 }
 char *toku_strdup (const char *s) {
-    return memdup(s, strlen(s)+1);
+    return toku_memdup(s, strlen(s)+1);
 }
 
 void toku_memory_check_all_free (void) {
@@ -220,7 +220,7 @@ void toku_memory_check_all_free (void) {
     assert(n_items_malloced==0);
 }
 
-int get_n_items_malloced (void) { return n_items_malloced; }
+int toku_get_n_items_malloced (void) { return n_items_malloced; }
 void toku_print_malloced_items (void) {
     int i;
     for (i=0; i<n_items_malloced; i++) {
@@ -228,7 +228,7 @@ void toku_print_malloced_items (void) {
     }
 }
 
-void malloc_report (void) {
+void toku_malloc_report (void) {
     int i;
     printf("malloc report:\n");
     for (i=0; i<MALLOC_SIZE_COUNTING_LIMIT; i++) {

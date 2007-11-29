@@ -169,7 +169,7 @@ int main (int argc, char *argv[]) {
     gettimeofday(&t3,0);
     printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
     printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
-    malloc_report();
+    toku_malloc_report();
     toku_malloc_cleanup();
     return 0;
 }

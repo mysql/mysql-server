@@ -549,7 +549,7 @@ int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **br
 	    h->roots[i] = rbuf_diskoff(&rc);
 	    rbuf_bytes(&rc, &nameptr, &len);
 	    assert(strlen(nameptr)+1==len);
-	    h->names[i] = memdup(nameptr,len);
+	    h->names[i] = toku_memdup(nameptr,len);
 	}
 	h->unnamed_root = -1;
     } else {
