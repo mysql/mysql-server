@@ -1,6 +1,8 @@
 #ifndef _TOKU_MEMPOOL_H
 #define _TOKU_MEMPOOL_H
 
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 /* a memory pool is a contiguous region of memory that supports single
    allocations from the pool.  these allocated regions are never recycled.
    when the memory pool no longer has free space, the allocated chunks 

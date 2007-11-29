@@ -1,6 +1,8 @@
 #ifndef MDICT_H
 #define MDICT_H
 
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include "brttypes.h"
 
 //#define USEPMA

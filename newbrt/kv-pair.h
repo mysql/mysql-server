@@ -1,6 +1,8 @@
 #ifndef KV_PAIR_H
 #define KV_PAIR_H
 
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include "memory.h"
 #include <string.h>
 

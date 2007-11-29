@@ -1,5 +1,8 @@
 #ifndef TOKU_CRC_H
 #define TOKU_CRC_H
+
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include <zlib.h>
 
 // zlib crc32 has a bug:  If len==0 then it should return oldcrc32, but crc32 returns 0.

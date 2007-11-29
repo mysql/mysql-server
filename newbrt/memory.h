@@ -1,6 +1,8 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 //#include <stdlib.h>
 
 /* Tokutek memory allocation functions and macros.

@@ -1,6 +1,8 @@
 #ifndef WBUF_H
 #define WBUF_H
 
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include <assert.h>
 #include <string.h>
 #include <errno.h>

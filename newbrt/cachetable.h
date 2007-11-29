@@ -1,6 +1,8 @@
 #ifndef CACHETABLE_H
 #define CACHETABLE_H
 
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include <fcntl.h>
 #include "brttypes.h"
 

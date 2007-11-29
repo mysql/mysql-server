@@ -1,5 +1,7 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #ifndef BRT_H
 #define BRT_H
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 // This must be first to make the 64-bit file mode work right in Linux
 #define _FILE_OFFSET_BITS 64

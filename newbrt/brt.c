@@ -1,4 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 /* Buffered repository tree.
  * Observation:  The in-memory representation of a node doesn't have to be the same as the on-disk representation.
  *  Goal for the in-memory representation:  fast
