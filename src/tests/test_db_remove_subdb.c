@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 /* Does removing subdatabases corrupt the db file/other dbs in that file? (when nothing else open) */
 #include <assert.h>
 #include <stdlib.h>

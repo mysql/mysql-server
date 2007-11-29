@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 // Try to open an environment where the directory does not exist 
 // Try when the dir exists but is not an initialized env
 // Try when the dir exists and we do DB_CREATE: it should work.

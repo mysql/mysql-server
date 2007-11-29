@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 /* Do we open directories with same priority as BDB? i.e. with home, without home, with DB_USE_ENVIRON/etc.. */
 #include <limits.h>
 #include <stdio.h>
