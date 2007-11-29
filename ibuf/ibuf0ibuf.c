@@ -2961,9 +2961,14 @@ dump:
 				    PAGE_CUR_LE, &page_cur);
 
 	if (low_match == dtuple_get_n_fields(entry)) {
-		rec = page_cur_get_rec(&page_cur);
+		buf_block_t*	block;
+		page_zip_des_t*	page_zip;
 
-		btr_cur_del_unmark_for_ibuf(rec, mtr);
+		rec = page_cur_get_rec(&page_cur);
+		block = page_cur_get_block(&page_cur);
+		page_zip = buf_block_get_page_zip(block);
+
+		btr_cur_del_unmark_for_ibuf(rec, page_zip, mtr);
 	} else {
 		rec = page_cur_tuple_insert(&page_cur, entry, index, 0, mtr);
 
