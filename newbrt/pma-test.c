@@ -1182,17 +1182,17 @@ static void test_pma_split_cursor(void) {
 }
 
 static void test_pma_split(void) {
-    test_pma_split_n(0); memory_check_all_free();
-    test_pma_split_n(1); memory_check_all_free();
-    test_pma_split_n(2); memory_check_all_free();
-    test_pma_split_n(4); memory_check_all_free();
-    test_pma_split_n(8); memory_check_all_free();
-    test_pma_split_n(9);  memory_check_all_free();
-    test_pma_dup_split_n(0, TOKU_DB_DUP);  memory_check_all_free();
-    test_pma_dup_split_n(1, TOKU_DB_DUP);  memory_check_all_free();
-    test_pma_dup_split_n(9, TOKU_DB_DUP);  memory_check_all_free();
-    test_pma_split_varkey(); memory_check_all_free();
-    test_pma_split_cursor(); memory_check_all_free();
+    test_pma_split_n(0); toku_memory_check_all_free();
+    test_pma_split_n(1); toku_memory_check_all_free();
+    test_pma_split_n(2); toku_memory_check_all_free();
+    test_pma_split_n(4); toku_memory_check_all_free();
+    test_pma_split_n(8); toku_memory_check_all_free();
+    test_pma_split_n(9);  toku_memory_check_all_free();
+    test_pma_dup_split_n(0, TOKU_DB_DUP);  toku_memory_check_all_free();
+    test_pma_dup_split_n(1, TOKU_DB_DUP);  toku_memory_check_all_free();
+    test_pma_dup_split_n(9, TOKU_DB_DUP);  toku_memory_check_all_free();
+    test_pma_split_varkey(); toku_memory_check_all_free();
+    test_pma_split_cursor(); toku_memory_check_all_free();
 }
 
 /*
@@ -1277,14 +1277,14 @@ static void test_pma_bulk_insert_n(int n) {
 }
 
 static void test_pma_bulk_insert(void) {
-    test_pma_bulk_insert_n(0); memory_check_all_free();
-    test_pma_bulk_insert_n(1); memory_check_all_free();
-    test_pma_bulk_insert_n(2); memory_check_all_free();
-    test_pma_bulk_insert_n(3); memory_check_all_free();
-    test_pma_bulk_insert_n(4); memory_check_all_free();
-    test_pma_bulk_insert_n(5); memory_check_all_free();
-    test_pma_bulk_insert_n(8); memory_check_all_free();
-    test_pma_bulk_insert_n(32); memory_check_all_free();
+    test_pma_bulk_insert_n(0); toku_memory_check_all_free();
+    test_pma_bulk_insert_n(1); toku_memory_check_all_free();
+    test_pma_bulk_insert_n(2); toku_memory_check_all_free();
+    test_pma_bulk_insert_n(3); toku_memory_check_all_free();
+    test_pma_bulk_insert_n(4); toku_memory_check_all_free();
+    test_pma_bulk_insert_n(5); toku_memory_check_all_free();
+    test_pma_bulk_insert_n(8); toku_memory_check_all_free();
+    test_pma_bulk_insert_n(32); toku_memory_check_all_free();
 }
 
 static void test_pma_insert_or_replace(void) {
@@ -1704,13 +1704,13 @@ static void test_pma_cursor_last_delete_first() {
 }
 
 static void test_pma_delete() {
-    test_pma_delete_shrink(256);  memory_check_all_free();
-    test_pma_delete_random(256);  memory_check_all_free();
-    test_pma_delete_cursor(32);   memory_check_all_free();
-    test_pma_delete_insert();     memory_check_all_free();
-    test_pma_double_delete();     memory_check_all_free();
-    test_pma_cursor_first_delete_last(); memory_check_all_free();
-    test_pma_cursor_last_delete_first(); memory_check_all_free();
+    test_pma_delete_shrink(256);  toku_memory_check_all_free();
+    test_pma_delete_random(256);  toku_memory_check_all_free();
+    test_pma_delete_cursor(32);   toku_memory_check_all_free();
+    test_pma_delete_insert();     toku_memory_check_all_free();
+    test_pma_double_delete();     toku_memory_check_all_free();
+    test_pma_cursor_first_delete_last(); toku_memory_check_all_free();
+    test_pma_cursor_last_delete_first(); toku_memory_check_all_free();
 }
 
 static void test_pma_already_there() {
@@ -2384,53 +2384,53 @@ static void test_dup_key_lookup(int n, int mode) {
 }
 
 static void test_dup() {
-    test_nodup_key_insert(2);                            memory_check_all_free();
-    test_dup_key_insert(0);                              memory_check_all_free();
-    test_dup_key_insert(2);                              memory_check_all_free();
-    test_dup_key_insert(1000);                           memory_check_all_free();
-    test_dup_key_delete(0, TOKU_DB_DUP);                 memory_check_all_free();
-    test_dup_key_delete(1000, TOKU_DB_DUP);              memory_check_all_free();
-    test_dupsort_key_insert(2, 0);                       memory_check_all_free();
-    test_dupsort_key_insert(1000, 0);                    memory_check_all_free();
-    test_dupsort_key_insert(2, 1);                       memory_check_all_free();
-    test_dupsort_key_insert(1000, 1);                    memory_check_all_free();
-    test_dup_key_delete(0, TOKU_DB_DUP+TOKU_DB_DUPSORT);           memory_check_all_free();
-    test_dup_key_delete(1000, TOKU_DB_DUP+TOKU_DB_DUPSORT);        memory_check_all_free();
-    test_dup_key_lookup(32, TOKU_DB_DUP);                          memory_check_all_free();
-    test_dup_key_lookup(32, TOKU_DB_DUP+TOKU_DB_DUPSORT);          memory_check_all_free();
+    test_nodup_key_insert(2);                            toku_memory_check_all_free();
+    test_dup_key_insert(0);                              toku_memory_check_all_free();
+    test_dup_key_insert(2);                              toku_memory_check_all_free();
+    test_dup_key_insert(1000);                           toku_memory_check_all_free();
+    test_dup_key_delete(0, TOKU_DB_DUP);                 toku_memory_check_all_free();
+    test_dup_key_delete(1000, TOKU_DB_DUP);              toku_memory_check_all_free();
+    test_dupsort_key_insert(2, 0);                       toku_memory_check_all_free();
+    test_dupsort_key_insert(1000, 0);                    toku_memory_check_all_free();
+    test_dupsort_key_insert(2, 1);                       toku_memory_check_all_free();
+    test_dupsort_key_insert(1000, 1);                    toku_memory_check_all_free();
+    test_dup_key_delete(0, TOKU_DB_DUP+TOKU_DB_DUPSORT);           toku_memory_check_all_free();
+    test_dup_key_delete(1000, TOKU_DB_DUP+TOKU_DB_DUPSORT);        toku_memory_check_all_free();
+    test_dup_key_lookup(32, TOKU_DB_DUP);                          toku_memory_check_all_free();
+    test_dup_key_lookup(32, TOKU_DB_DUP+TOKU_DB_DUPSORT);          toku_memory_check_all_free();
 }
 
 static void pma_tests (void) {
-    memory_check=1;
-    toku_test_keycompare();            memory_check_all_free();
-    test_pma_compare_fun(0);      memory_check_all_free();
-    test_pma_compare_fun(1);      memory_check_all_free();
+    toku_memory_check=1;
+    toku_test_keycompare();            toku_memory_check_all_free();
+    test_pma_compare_fun(0);      toku_memory_check_all_free();
+    test_pma_compare_fun(1);      toku_memory_check_all_free();
     test_pma_iterate();           
-    test_pma_iterate2();          memory_check_all_free();
-    test_make_space_at();         memory_check_all_free();
-    test_smooth_region();         memory_check_all_free();
-    test_find_insert();           memory_check_all_free();
-    test_pma_find();              memory_check_all_free();
-    test_calculate_parameters();  memory_check_all_free();
-    test_count_region();          memory_check_all_free();
+    test_pma_iterate2();          toku_memory_check_all_free();
+    test_make_space_at();         toku_memory_check_all_free();
+    test_smooth_region();         toku_memory_check_all_free();
+    test_find_insert();           toku_memory_check_all_free();
+    test_pma_find();              toku_memory_check_all_free();
+    test_calculate_parameters();  toku_memory_check_all_free();
+    test_count_region();          toku_memory_check_all_free();
 
-    test_pma_random_pick();       memory_check_all_free();
-    test_pma_cursor();            memory_check_all_free();
+    test_pma_random_pick();       toku_memory_check_all_free();
+    test_pma_cursor();            toku_memory_check_all_free();
 
-    test_pma_split();             memory_check_all_free();
-    test_pma_bulk_insert();       memory_check_all_free();
-    test_pma_insert_or_replace(); memory_check_all_free();
+    test_pma_split();             toku_memory_check_all_free();
+    test_pma_bulk_insert();       toku_memory_check_all_free();
+    test_pma_insert_or_replace(); toku_memory_check_all_free();
     test_pma_delete();
-    test_pma_already_there();     memory_check_all_free();
-    test_pma_cursor_set_key();    memory_check_all_free();
-    test_pma_cursor_set_range();  memory_check_all_free();    
-    test_pma_cursor_delete_under();  memory_check_all_free();    
-    test_pma_cursor_set_both();   memory_check_all_free();
+    test_pma_already_there();     toku_memory_check_all_free();
+    test_pma_cursor_set_key();    toku_memory_check_all_free();
+    test_pma_cursor_set_range();  toku_memory_check_all_free();    
+    test_pma_cursor_delete_under();  toku_memory_check_all_free();    
+    test_pma_cursor_set_both();   toku_memory_check_all_free();
     test_dup();
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     pma_tests();
-    malloc_cleanup();
+    toku_malloc_cleanup();
     return 0;
 }

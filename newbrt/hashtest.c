@@ -259,6 +259,6 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     test_insert_nodup(1000);
     test_insert_dup(1000, 0);
     test_insert_dup(1000, 1);
-    malloc_cleanup();
+    toku_malloc_cleanup();
     return 0;
 }

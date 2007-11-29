@@ -82,7 +82,7 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
     } else {
 	result+=4; /* n_entries in buffer table. */
 	result+=node->u.l.n_bytes_in_buffer;
-	if (memory_check) {
+	if (toku_memory_check) {
 	    unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
 	    if (result!=slowresult) printf("%s:%d result=%d slowresult=%d\n", __FILE__, __LINE__, result, slowresult);
 	    assert(result==slowresult);

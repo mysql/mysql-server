@@ -1513,7 +1513,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
     char *malloced_name=0;
-    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d toku_open_brt(%s, \"%s\", %d, %p, %d, %p)\n",
 			  __FILE__, __LINE__, fname, dbname, is_create, newbrt, nodesize, cachetable));
     if (0) { died0:  assert(r); return r; }
@@ -1553,7 +1553,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 	goto died0a;
     }
     assert(t->nodesize>0);
-    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();
     if (is_create) {
 	r = toku_read_and_pin_brt_header(t->cf, &t->h);
 	if (r==-1) {
