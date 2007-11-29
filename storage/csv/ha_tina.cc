@@ -472,14 +472,6 @@ int ha_tina::encode_quote(uchar *buf)
     const char *ptr;
     const char *end_ptr;
     const bool was_null= (*field)->is_null();
-
-    /*
-      CSV does not support nulls. ::create() prevents creation of a table
-      with nullable columns so if we encounter them here, there is a bug.
-      This may only occur if the frm was created by an older version of
-      mysqld which permitted table creation with nullable columns.
-    */
-    DBUG_ASSERT(!(*field)->maybe_null());
     
     /*
       assistance for backwards compatibility in production builds.
