@@ -1,6 +1,9 @@
 #if !defined(TOKUDB_COMMON_H)
-
 #define TOKUDB_COMMON_H
+
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <limits.h>
