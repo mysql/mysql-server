@@ -318,11 +318,12 @@ only used by the insert buffer insert merge mechanism. */
 void
 btr_cur_del_unmark_for_ibuf(
 /*========================*/
-	rec_t*		rec,	/* in: record to delete unmark */
-	page_zip_des_t*	pg_zip,	/* in/out: compressed page corresponding
-				to rec, or NULL when the tablespace is
-				uncompressed */
-	mtr_t*		mtr);	/* in: mtr */
+	rec_t*		rec,		/* in/out: record to delete unmark */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page
+					corresponding to rec, or NULL
+					when the tablespace is
+					uncompressed */
+	mtr_t*		mtr);		/* in: mtr */
 /*****************************************************************
 Tries to compress a page of the tree if it seems useful. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. To avoid
