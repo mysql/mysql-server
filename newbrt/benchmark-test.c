@@ -55,7 +55,7 @@ void insert (long long v) {
     long_long_to_array(kc, v);
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
-    toku_brt_insert(t, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), 0);
+    toku_brt_insert(t, toku_fill_dbt(&kt, kc, keysize), toku_fill_dbt(&vt, vc, valsize), 0);
     if (do_verify) toku_cachetable_verify(ct);
 }
 

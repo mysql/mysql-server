@@ -275,7 +275,7 @@ static int __pma_search(PMA pma, DBT *k, int lo, int hi, int *found) {
             return __pma_search(pma, k, lo, omi, found);
         struct kv_pair *kv = kv_pair_ptr(pma->pairs[mi]);
         DBT k2;
-        int cmp = pma->compare_fun(pma->db, k, fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
         if (cmp > 0)
             return __pma_search(pma, k, mi+1, hi, found);
         if (cmp < 0)
@@ -301,7 +301,7 @@ static int __pma_right_search(PMA pma, DBT *k, int lo, int hi, int *found) {
             return __pma_right_search(pma, k, lo, omi, found);
         struct kv_pair *kv = kv_pair_ptr(pma->pairs[mi]);
         DBT k2;
-        int cmp = pma->compare_fun(pma->db, k, fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
         if (cmp > 0)
             return __pma_right_search(pma, k, mi+1, hi, found);
         if (cmp < 0)
@@ -333,7 +333,7 @@ static int __pma_left_search(PMA pma, DBT *k, int lo, int hi, int *found) {
             return __pma_left_search(pma, k, lo, omi, found);
         struct kv_pair *kv = kv_pair_ptr(pma->pairs[mi]);
         DBT k2;
-        int cmp = pma->compare_fun(pma->db, k, fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
         if (cmp > 0)
             return __pma_left_search(pma, k, mi+1, hi, found);
         if (cmp < 0)
@@ -365,9 +365,9 @@ static int __pma_dup_search(PMA pma, DBT *k, DBT *v, int lo, int hi, int *found)
             return __pma_dup_search(pma, k, v, lo, omi, found);
         struct kv_pair *kv = kv_pair_ptr(pma->pairs[mi]);
         DBT k2, v2;
-        int cmp = pma->compare_fun(pma->db, k, fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
         if (cmp == 0)
-            cmp = pma->dup_compare_fun(pma->db, v, fill_dbt(&v2, kv_pair_val(kv), kv_pair_vallen(kv)));
+            cmp = pma->dup_compare_fun(pma->db, v, toku_fill_dbt(&v2, kv_pair_val(kv), kv_pair_vallen(kv)));
         if (cmp > 0)
             return __pma_dup_search(pma, k, v, mi+1, hi, found);
         if (cmp < 0)
@@ -403,7 +403,7 @@ int toku_pmainternal_find (PMA pma, DBT *k) {
 		// Found one.
                 kv = kv_pair_ptr(kv);
 		DBT k2;
-		int cmp = pma->compare_fun(pma->db, k, fill_dbt(&k2, kv->key, kv->keylen));
+		int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv->key, kv->keylen));
 		if (cmp==0) return mid;
 		else if (cmp<0) {
 		    /* key is smaller than the midpoint, so look in the low half. */
@@ -434,7 +434,7 @@ int toku_pmainternal_find (PMA pma, DBT *k) {
     if (lo>0 && lo < toku_pma_index_limit(pma) && pma->pairs[lo]) {
 	//printf("lo=%d\n", lo);
 	DBT k2;
-	assert(0 >= pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[lo]->key, pma->pairs[lo]->keylen)));
+	assert(0 >= pma->compare_fun(db, k, toku_fill_dbt(&k2, pma->pairs[lo]->key, pma->pairs[lo]->keylen)));
     }
 #endif
     return lo;
@@ -445,7 +445,7 @@ int toku_pmainternal_find (PMA pma, DBT *k) {
     if (lo>0 && lo < toku_pma_index_limit(pma) && pma->pairs[lo]) {
 	//printf("lo=%d\n", lo);
 	DBT k2;
-	assert(0 >= pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[lo]->key, pma->pairs[lo]->keylen)));
+	assert(0 >= pma->compare_fun(db, k, toku_fill_dbt(&k2, pma->pairs[lo]->key, pma->pairs[lo]->keylen)));
     }
     return lo;
 #endif
@@ -758,7 +758,7 @@ int toku_pma_cursor_get_current_data(PMA_CURSOR c, DBT *data) {
     struct kv_pair *pair = pma->pairs[c->position];
     if (!kv_pair_valid(pair)) 
         return BRT_KEYEMPTY;
-    ybt_set_value(data, kv_pair_val(pair), kv_pair_vallen(pair), &c->sval);
+    toku_dbt_set_value(data, kv_pair_val(pair), kv_pair_vallen(pair), &c->sval);
     return 0;
 }
 
@@ -769,8 +769,8 @@ int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val) {
     struct kv_pair *pair = pma->pairs[c->position];
     if (!kv_pair_valid(pair)) 
         return BRT_KEYEMPTY;
-    ybt_set_value(key, kv_pair_key(pair), kv_pair_keylen(pair), &c->skey);
-    ybt_set_value(val, kv_pair_val(pair), kv_pair_vallen(pair), &c->sval);
+    toku_dbt_set_value(key, kv_pair_key(pair), kv_pair_keylen(pair), &c->skey);
+    toku_dbt_set_value(val, kv_pair_val(pair), kv_pair_vallen(pair), &c->sval);
     return 0;
 }
 
@@ -787,7 +787,7 @@ int toku_pma_cursor_set_key(PMA_CURSOR c, DBT *key) {
         DBT k2;
         struct kv_pair *pair = pma->pairs[here];
         if (kv_pair_valid(pair) && 
-            pma->compare_fun(pma->db, key, fill_dbt(&k2, kv_pair_key(pair), kv_pair_keylen(pair)))==0) {
+            pma->compare_fun(pma->db, key, toku_fill_dbt(&k2, kv_pair_key(pair), kv_pair_keylen(pair)))==0) {
             __pma_delete_resume(c->pma, c->position);
             c->position = here;
             r = 0;
@@ -805,8 +805,8 @@ int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val) {
         DBT k2, v2;
         struct kv_pair *pair = pma->pairs[here];
         if (kv_pair_valid(pair) && 
-            pma->compare_fun(pma->db, key, fill_dbt(&k2, kv_pair_key(pair), kv_pair_keylen(pair))) == 0 &&
-            pma->compare_fun(pma->db, val, fill_dbt(&v2, kv_pair_val(pair), kv_pair_vallen(pair))) == 0) {
+            pma->compare_fun(pma->db, key, toku_fill_dbt(&k2, kv_pair_key(pair), kv_pair_keylen(pair))) == 0 &&
+            pma->compare_fun(pma->db, val, toku_fill_dbt(&v2, kv_pair_val(pair), kv_pair_vallen(pair))) == 0) {
             __pma_delete_resume(c->pma, c->position);
             c->position = here;
             r = 0;
@@ -937,8 +937,8 @@ enum pma_errors toku_pma_lookup (PMA pma, DBT *k, DBT *v) {
     DBT k2;
     struct kv_pair *pair;
     pair = pma->pairs[here];
-    if (kv_pair_valid(pair) && pma->compare_fun(pma->db, k, fill_dbt(&k2, pair->key, pair->keylen))==0) {
-        return ybt_set_value(v, pair->key + pair->keylen, pair->vallen, &pma->sval);
+    if (kv_pair_valid(pair) && pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, pair->key, pair->keylen))==0) {
+        return toku_dbt_set_value(v, pair->key + pair->keylen, pair->vallen, &pma->sval);
     } else {
         return DB_NOTFOUND;
     }
@@ -994,7 +994,7 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, DISKOFF diskoff, u_in
         if (idx < toku_pma_index_limit(pma) && pma->pairs[idx]) {
             DBT k2;
             struct kv_pair *kv = kv_pair_ptr(pma->pairs[idx]);
-            if (0==pma->compare_fun(pma->db, k, fill_dbt(&k2, kv->key, kv->keylen))) {
+            if (0==pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv->key, kv->keylen))) {
                 if (kv_pair_deleted(pma->pairs[idx])) {
                     pma_mfree_kv_pair(pma, pma->pairs[idx]);
                     pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
@@ -1033,7 +1033,7 @@ static int pma_next_key(PMA pma, DBT *k, int here, int n, int *found) {
     if (here < n) {
         struct kv_pair *kv = kv_pair_ptr(pma->pairs[here]);
         DBT k2;
-        if (0 == pma->compare_fun(pma->db, k, fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv))))
+        if (0 == pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv))))
             *found = 1;
     }
     return here;
@@ -1199,7 +1199,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
             DBT k2;
             // printf("%s:%d\n", __FILE__, __LINE__);
             kv = kv_pair_ptr(kv);
-            if (0==pma->compare_fun(pma->db, k, fill_dbt(&k2, kv->key, kv->keylen))) {
+            if (0==pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv->key, kv->keylen))) {
                 if (!kv_pair_deleted(pma->pairs[idx])) {
                     *replaced_v_size = kv->vallen;
                     *fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
@@ -1353,9 +1353,9 @@ static void __pma_relocate_kvpairs(PMA pma) {
 
 static int __pma_compare_kv(PMA pma, struct kv_pair *a, struct kv_pair *b) {
     DBT dbta, dbtb;
-    int cmp = pma->compare_fun(pma->db, fill_dbt(&dbta, kv_pair_key(a), kv_pair_keylen(a)), fill_dbt(&dbtb, kv_pair_key(b), kv_pair_keylen(b)));
+    int cmp = pma->compare_fun(pma->db, toku_fill_dbt(&dbta, kv_pair_key(a), kv_pair_keylen(a)), toku_fill_dbt(&dbtb, kv_pair_key(b), kv_pair_keylen(b)));
     if (cmp == 0 && (pma->dup_mode & TOKU_DB_DUPSORT)) {
-        cmp = pma->dup_compare_fun(pma->db, fill_dbt(&dbta, kv_pair_val(a), kv_pair_vallen(b)), fill_dbt(&dbtb, kv_pair_val(b), kv_pair_vallen(b)));
+        cmp = pma->dup_compare_fun(pma->db, toku_fill_dbt(&dbta, kv_pair_val(a), kv_pair_vallen(b)), toku_fill_dbt(&dbtb, kv_pair_val(b), kv_pair_vallen(b)));
     }
     return cmp;
 }
@@ -1562,16 +1562,16 @@ void toku_pma_verify(PMA pma) {
         if (kv_pair_inuse(nextkv)) {
             nextkv = kv_pair_ptr(nextkv);
             DBT kv_dbt, nextkv_dbt;
-            fill_dbt(&kv_dbt, kv_pair_key(kv), kv_pair_keylen(kv));
-            fill_dbt(&nextkv_dbt, kv_pair_key(nextkv), kv_pair_keylen(nextkv));
+            toku_fill_dbt(&kv_dbt, kv_pair_key(kv), kv_pair_keylen(kv));
+            toku_fill_dbt(&nextkv_dbt, kv_pair_key(nextkv), kv_pair_keylen(nextkv));
             int r = pma->compare_fun(pma->db, &kv_dbt, &nextkv_dbt);
             if (pma->dup_mode == 0)
                 assert(r < 0);
             else if (pma->dup_mode & TOKU_DB_DUP)
                 assert(r <= 0);
             if (r == 0 && (pma->dup_mode & TOKU_DB_DUPSORT)) {
-                fill_dbt(&kv_dbt, kv_pair_val(kv), kv_pair_vallen(kv));
-                fill_dbt(&nextkv_dbt, kv_pair_val(nextkv), kv_pair_vallen(nextkv));
+                toku_fill_dbt(&kv_dbt, kv_pair_val(kv), kv_pair_vallen(kv));
+                toku_fill_dbt(&nextkv_dbt, kv_pair_val(nextkv), kv_pair_vallen(nextkv));
                 r = pma->dup_compare_fun(pma->db, &kv_dbt, &nextkv_dbt);
                 assert(r <= 0);
             }

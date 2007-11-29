@@ -4,19 +4,19 @@
 #include <errno.h>
 #include <string.h>
 
-DBT *init_dbt (DBT *ybt) {
+DBT *toku_init_dbt (DBT *ybt) {
     memset(ybt, 0, sizeof(*ybt));
     return ybt;
 }
 
-DBT *fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
-    init_dbt(dbt);
+DBT *toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
+    toku_init_dbt(dbt);
     dbt->size=len;
     dbt->data=(char*)k;
     return dbt;
 }
 
-int ybt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp) {
+int toku_dbt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp) {
     if (ybt->flags==DB_DBT_MALLOC) {
     domalloc:
 	ybt->data = toku_malloc(vallen);

@@ -17,17 +17,17 @@
 #include "cachetable.h"
 #include "key.h"
 
-CACHETABLE ct;
-struct cf_pair {
+static CACHETABLE ct;
+static struct cf_pair {
     FILENUM filenum;
     CACHEFILE cf;
     BRT       brt;
 } *cf_pairs;
-int n_cf_pairs=0, max_cf_pairs=0;
+static int n_cf_pairs=0, max_cf_pairs=0;
 
-DB * const null_db=0;
+static DB * const null_db=0;
 
-int find_cachefile (FILENUM fnum, CACHEFILE *cf, BRT *brt) {
+static int find_cachefile (FILENUM fnum, CACHEFILE *cf, BRT *brt) {
     int i;
     for (i=0; i<n_cf_pairs; i++) {
 	if (fnum.fileid==cf_pairs[i].filenum.fileid) {
@@ -144,7 +144,7 @@ static void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
     BRTNODE node = node_v;
     assert(node->height==0);
     DBT key,data;
-    r = toku_pma_set_at_index(node->u.l.buffer, c->pmaidx, fill_dbt(&key, c->key.data, c->key.len), fill_dbt(&data, c->data.data, c->data.len));
+    r = toku_pma_set_at_index(node->u.l.buffer, c->pmaidx, toku_fill_dbt(&key, c->key.data, c->key.len), toku_fill_dbt(&data, c->data.data, c->data.len));
     node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
     node->u.l.n_bytes_in_buffer += KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
     assert(r==0);
