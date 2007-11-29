@@ -14,9 +14,10 @@
 int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 
 int toku_brt_create(BRT *);
-int toku_brt_set_flags(BRT, int flags);
-int toku_brt_get_flags(BRT, int *flags);
-int toku_brt_set_nodesize(BRT, int nodesize);
+int toku_brt_set_flags(BRT, unsigned int flags);
+int toku_brt_get_flags(BRT, unsigned int *flags);
+int toku_brt_set_nodesize(BRT, unsigned int nodesize);
+int toku_brt_get_nodesize(BRT, unsigned int *nodesize);
 int toku_brt_set_bt_compare(BRT, int (*bt_compare)(DB *, const DBT*, const DBT*));
 int toku_brt_set_dup_compare(BRT, int (*dup_compare)(DB *, const DBT*, const DBT*));
 int brt_set_cachetable(BRT, CACHETABLE);

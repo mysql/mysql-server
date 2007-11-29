@@ -574,7 +574,7 @@ static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
 static int toku_db_get(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, DBT * data, u_int32_t flags) {
     assert(flags == 0);
     int r;
-    int brtflags;
+    unsigned int brtflags;
     toku_brt_get_flags(db->i->brt, &brtflags);
     if (brtflags & TOKU_DB_DUPSORT) {
         DBC *dbc;
@@ -706,7 +706,27 @@ error_cleanup:
 }
 
 static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
-    int r = toku_brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
+    int r;
+
+    if (flags != 0)
+        return EINVAL;
+
+    unsigned int brtflags;
+    r = toku_brt_get_flags(db->i->brt, &brtflags); assert(r == 0);
+    unsigned int nodesize;
+    r = toku_brt_get_nodesize(db->i->brt, &nodesize); assert(r == 0);
+
+    if (brtflags & TOKU_DB_DUPSORT) {
+        unsigned int limit = nodesize / (2*BRT_FANOUT-1);
+        if (key->size + data->size >= limit)
+            return EINVAL;
+    } else {
+        unsigned int limit = nodesize / (3*BRT_FANOUT-1);
+        if (key->size >= limit || data->size >= limit)
+            return EINVAL;
+    }
+    
+    r = toku_brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
     //printf("%s:%d %d=__toku_db_put(...)\n", __FILE__, __LINE__, r);
     return r;
 }
