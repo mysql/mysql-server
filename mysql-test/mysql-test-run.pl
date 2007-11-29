@@ -704,6 +704,7 @@ sub command_line_setup () {
   }
   if ( $opt_embedded_server )
   {
+    $opt_ndb_embedded_server= 1;
     $glob_use_embedded_server= 1;
     # Add the location for libmysqld.dll to the path.
     if ( $glob_win32 )
