@@ -159,6 +159,7 @@ class AsyncFile
   friend class Ndbfs;
 public:
   AsyncFile(SimulatedBlock& fs);
+  virtual ~AsyncFile() {};
 
   void reportTo( MemoryChannel<Request> *reportTo );
 

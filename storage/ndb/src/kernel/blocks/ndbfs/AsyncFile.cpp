@@ -315,31 +315,6 @@ AsyncFile::writevReq( Request * request)
   writeReq(request);
 }
 
-/*
-void
-AsyncFile::closeReq(Request * request)
-{
-  // FIXME: Stewart should check all callers why this is here.
-/*  if (m_open_flags & (
-      FsOpenReq::OM_WRITEONLY |
-      FsOpenReq::OM_READWRITE |
-      FsOpenReq::OM_APPEND )) {
-    syncReq(request);
-  }
-*/
-//}
-
-/*void
-AsyncFile::syncReq(Request * request)
-{
-  // FIXME: Stewart to find out why these are here
-  if(m_auto_sync_freq && m_write_wo_sync == 0){
-    return;
-  }
-  // do sync
-  m_write_wo_sync = 0;
-  }*/
-
 void AsyncFile::endReq()
 {
   if (theWriteBuffer)
