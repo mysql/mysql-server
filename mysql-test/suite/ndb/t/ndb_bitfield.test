@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+# test uses mysqldump, hence not in embedded
 -- source include/not_embedded.inc
 
 --disable_warnings
