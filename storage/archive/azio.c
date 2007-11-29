@@ -262,7 +262,7 @@ void check_header(azio_stream *s)
     if (len) s->inbuf[0] = s->stream.next_in[0];
     errno = 0;
     len = (uInt)my_read(s->file, (uchar *)s->inbuf + len, AZ_BUFSIZE_READ >> len, MYF(0));
-    if (len == 0) s->z_err = Z_ERRNO;
+    if (len == (uInt)-1) s->z_err = Z_ERRNO;
     s->stream.avail_in += len;
     s->stream.next_in = s->inbuf;
     if (s->stream.avail_in < 2) {
