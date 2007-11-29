@@ -29,7 +29,7 @@ struct student_record {
 	char last_name[15];
 	char first_name[15];
 };
-
+#define SPACES "               "
 DB *dbp;
 DB *sdbp;
 DB_TXN *const null_txn = 0;
@@ -77,9 +77,10 @@ void second_setup() {
 
 void setup_student(struct student_record *s) {
     memset(s, 0, sizeof(struct student_record));
-    memcpy(&s->student_id, "WC42",       strlen("WC42"));
-    memcpy(&s->last_name,  "Churchill",  strlen("Churchill"));
-    memcpy(&s->first_name, "Winston",    strlen("Winston"));
+    memcpy(&s->student_id, "WC42"      SPACES,  sizeof(s->student_id));
+    //Padded with enough spaces to fill out last/first name.
+    memcpy(&s->last_name,  "Churchill" SPACES,  sizeof(s->last_name));
+    memcpy(&s->first_name, "Winston"   SPACES,  sizeof(s->first_name));
 }
 
 void insert_test() {
