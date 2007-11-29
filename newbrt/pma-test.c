@@ -11,10 +11,10 @@
 #include "list.h"
 #include "pma-internal.h"
 
-TOKUTXN const null_txn = 0;
-DB * const null_db = 0;
-const DISKOFF null_diskoff = -1;
-const FILENUM null_filenum = {0};
+static TOKUTXN const null_txn = 0;
+static DB * const null_db = 0;
+static const DISKOFF null_diskoff = -1;
+static const FILENUM null_filenum = {0};
 
 #define NULL_ARGS null_txn, null_diskoff
 
@@ -132,7 +132,7 @@ static void test_pma_find (void) {
     toku_free(pma);
 }
 
-void test_smooth_region_N (int N) {
+static void test_smooth_region_N (int N) {
     struct kv_pair *pairs[N];
     struct kv_pair *strings[N];
     char string[N];
@@ -189,7 +189,7 @@ void test_smooth_region_N (int N) {
     }
 }
 
-void test_smooth_region6 (void) {
+static void test_smooth_region6 (void) {
     enum {N=7};
     struct kv_pair *pairs[N];
     char *key;
@@ -256,7 +256,7 @@ static void test_count_region (void) {
 }
 
 // Add a kvpair into a expected sum and check to see if it matches the actual sum.
-void add_fingerprint_and_check(u_int32_t rand4fingerprint, u_int32_t actual_fingerprint, u_int32_t *expect_fingerprint, const void *key, int klen, const void *data, int dlen) {
+static void add_fingerprint_and_check(u_int32_t rand4fingerprint, u_int32_t actual_fingerprint, u_int32_t *expect_fingerprint, const void *key, int klen, const void *data, int dlen) {
     *expect_fingerprint += rand4fingerprint*toku_calccrc32_kvpair(key, klen, data, dlen);
     assert(*expect_fingerprint==actual_fingerprint);
 }
@@ -467,7 +467,7 @@ static void test_pma_iterate2 (void) {
 }
 
 /* Check to see if we can create and kill a cursor. */
-void test_pma_cursor_0 (void) {
+static void test_pma_cursor_0 (void) {
     PMA pma;
     PMA_CURSOR c=0;
     int r;
@@ -483,7 +483,7 @@ void test_pma_cursor_0 (void) {
 
 /* Make sure we can free the cursors in any order.  There is a doubly linked list of cursors
  * and if we free them in a different order, then different unlinking code is invoked. */
-void test_pma_cursor_1 (void) {
+static void test_pma_cursor_1 (void) {
     PMA pma;
     PMA_CURSOR c0=0,c1=0,c2=0;
     int r;
@@ -513,7 +513,7 @@ void test_pma_cursor_1 (void) {
     }
 }
 
-void test_pma_cursor_2 (void) {
+static void test_pma_cursor_2 (void) {
     PMA pma;
     PMA_CURSOR c=0;
     int r;
@@ -527,7 +527,7 @@ void test_pma_cursor_2 (void) {
     r=toku_pma_free(&pma); assert(r==0);
 }
 
-void test_pma_cursor_3 (void) {
+static void test_pma_cursor_3 (void) {
     PMA pma;
     PMA_CURSOR c=0;
     int r;
@@ -578,7 +578,7 @@ void test_pma_cursor_3 (void) {
 
 }
 
-void assert_cursor_val(PMA_CURSOR cursor, int v) {
+static void assert_cursor_val(PMA_CURSOR cursor, int v) {
     DBT key, val;
     int error;
 
@@ -592,7 +592,7 @@ void assert_cursor_val(PMA_CURSOR cursor, int v) {
 }
 
 /* make sure cursors are adjusted when the pma grows */
-void test_pma_cursor_4 (void) {
+static void test_pma_cursor_4 (void) {
     int error;
     PMA pma;
     PMA_CURSOR cursora, cursorb, cursorc;
@@ -662,7 +662,7 @@ void test_pma_cursor_4 (void) {
     assert(error == 0);
 }
 
-void test_pma_cursor_delete(int n) {
+static void test_pma_cursor_delete(int n) {
     printf("test_pma_cursor_delete:%d\n", n);
 
     PMA pma;
@@ -741,7 +741,7 @@ void test_pma_cursor_delete(int n) {
     assert(error == 0);
 }
 
-void test_pma_cursor (void) {
+static void test_pma_cursor (void) {
     test_pma_cursor_0();
     test_pma_cursor_1();
     test_pma_cursor_2();
@@ -751,8 +751,8 @@ void test_pma_cursor (void) {
     test_pma_cursor_delete(2);
 }
 
-int wrong_endian_compare_fun (DB *ignore __attribute__((__unused__)),
-			      const DBT *a, const DBT *b) {
+static int wrong_endian_compare_fun (DB *ignore __attribute__((__unused__)),
+				     const DBT *a, const DBT *b) {
     unsigned int i;
     unsigned char *ad=a->data;
     unsigned char *bd=b->data;
@@ -766,7 +766,7 @@ int wrong_endian_compare_fun (DB *ignore __attribute__((__unused__)),
     return 0;
 }
 
-void test_pma_compare_fun (int wrong_endian_p) {
+static void test_pma_compare_fun (int wrong_endian_p) {
     PMA pma;
     PMA_CURSOR c = 0;
     DBT key,val;
@@ -813,7 +813,7 @@ void test_pma_compare_fun (int wrong_endian_p) {
     r=toku_pma_free(&pma); assert(r==0);
 }
 
-void test_pma_split_n(int n) {
+static void test_pma_split_n(int n) {
     PMA pmaa, pmab, pmac;
     int error;
     int i;
@@ -876,7 +876,7 @@ void test_pma_split_n(int n) {
     assert(error == 0);
 }
 
-void test_pma_dup_split_n(int n, int dup_mode) {
+static void test_pma_dup_split_n(int n, int dup_mode) {
     PMA pmaa, pmab, pmac;
     int error;
     int i;
@@ -953,7 +953,7 @@ void test_pma_dup_split_n(int n, int dup_mode) {
     assert(error == 0);
 }
 
-void test_pma_split_varkey(void) {
+static void test_pma_split_varkey(void) {
     char *keys[] = {
         "this", "is", "a", "key", "this is a really really big key", "zz", 0 };
     PMA pmaa, pmab, pmac;
@@ -1014,7 +1014,8 @@ void test_pma_split_varkey(void) {
     assert(error == 0);
 }
 
-void print_cursor(const char *str, PMA_CURSOR cursor) {
+#if 0
+static void print_cursor(const char *str, PMA_CURSOR cursor) {
     DBT key, val;
     int error;
 
@@ -1028,8 +1029,9 @@ void print_cursor(const char *str, PMA_CURSOR cursor) {
     toku_free(val.data);
     printf("\n");
 }
+#endif
 
-void walk_cursor(const char *str, PMA_CURSOR cursor) {
+static void walk_cursor(const char *str, PMA_CURSOR cursor) {
     DBT key, val;
     int error;
 
@@ -1050,7 +1052,7 @@ void walk_cursor(const char *str, PMA_CURSOR cursor) {
     printf("\n");
 }
 
-void walk_cursor_reverse(const char *str, PMA_CURSOR cursor) {
+static void walk_cursor_reverse(const char *str, PMA_CURSOR cursor) {
     DBT key, val;
     int error;
 
@@ -1071,7 +1073,7 @@ void walk_cursor_reverse(const char *str, PMA_CURSOR cursor) {
     printf("\n");
 }
 
-void test_pma_split_cursor(void) {
+static void test_pma_split_cursor(void) {
     PMA pmaa, pmab, pmac;
     PMA_CURSOR cursora, cursorb, cursorc;
     int error;
@@ -1179,7 +1181,7 @@ void test_pma_split_cursor(void) {
     assert(error == 0);
 }
 
-void test_pma_split(void) {
+static void test_pma_split(void) {
     test_pma_split_n(0); memory_check_all_free();
     test_pma_split_n(1); memory_check_all_free();
     test_pma_split_n(2); memory_check_all_free();
@@ -1198,7 +1200,7 @@ void test_pma_split(void) {
  * inserting them into an empty pma.  verify that the pma contains all
  * of the kv pairs.
  */
-void test_pma_bulk_insert_n(int n) {
+static void test_pma_bulk_insert_n(int n) {
     PMA pma;
     int error;
     int i;
@@ -1274,7 +1276,7 @@ void test_pma_bulk_insert_n(int n) {
     toku_free(vals);
 }
 
-void test_pma_bulk_insert(void) {
+static void test_pma_bulk_insert(void) {
     test_pma_bulk_insert_n(0); memory_check_all_free();
     test_pma_bulk_insert_n(1); memory_check_all_free();
     test_pma_bulk_insert_n(2); memory_check_all_free();
@@ -1285,7 +1287,7 @@ void test_pma_bulk_insert(void) {
     test_pma_bulk_insert_n(32); memory_check_all_free();
 }
 
-void test_pma_insert_or_replace(void) {
+static void test_pma_insert_or_replace(void) {
     PMA pma;
     int r;
     DBT dbtk, dbtv;
@@ -1331,7 +1333,7 @@ void test_pma_insert_or_replace(void) {
 /*
  * test that the pma shrinks back to its minimum size.
  */
-void test_pma_delete_shrink(int n) {
+static void test_pma_delete_shrink(int n) {
     PMA pma;
     int r;
     int i;
@@ -1374,7 +1376,7 @@ void test_pma_delete_shrink(int n) {
  * test that the pma shrinks to its minimum size after inserting
  * random keys and then deleting them.
  */
-void test_pma_delete_random(int n) {
+static void test_pma_delete_random(int n) {
     PMA pma;
     int r;
     int i;
@@ -1418,7 +1420,7 @@ void test_pma_delete_random(int n) {
     assert(r == 0);
 }
 
-void assert_cursor_equal(PMA_CURSOR pmacursor, int v) {
+static void assert_cursor_equal(PMA_CURSOR pmacursor, int v) {
     DBT key, val;
     toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
     toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
@@ -1434,7 +1436,7 @@ void assert_cursor_equal(PMA_CURSOR pmacursor, int v) {
     toku_free(val.data);
 }
 
-void assert_cursor_nokey(PMA_CURSOR pmacursor) {
+static void assert_cursor_nokey(PMA_CURSOR pmacursor) {
    DBT key, val;
     toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
     toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
@@ -1450,7 +1452,7 @@ void assert_cursor_nokey(PMA_CURSOR pmacursor) {
  * - delete keys sequentially.  the cursor should be stuck at the
  * last key until the last key is deleted.
  */
-void test_pma_delete_cursor(int n) {
+static void test_pma_delete_cursor(int n) {
     printf("test_delete_cursor:%d\n", n);
 
     PMA pma;
@@ -1513,7 +1515,7 @@ void test_pma_delete_cursor(int n) {
  * lookup k
  * cursor get current 
  */
-void test_pma_delete_insert() {
+static void test_pma_delete_insert() {
     printf("test_pma_delete_insert\n");
 
     PMA pma;
@@ -1562,7 +1564,7 @@ void test_pma_delete_insert() {
     assert(error == 0);
 }
 
-void test_pma_double_delete() {
+static void test_pma_double_delete() {
     printf("test_pma_double_delete\n");
 
     PMA pma;
@@ -1607,7 +1609,7 @@ void test_pma_double_delete() {
     assert(error == 0);
 }
 
-void test_pma_cursor_first_delete_last() {
+static void test_pma_cursor_first_delete_last() {
     printf("test_pma_cursor_first_delete_last\n");
 
     int error;
@@ -1654,7 +1656,7 @@ void test_pma_cursor_first_delete_last() {
     assert(error == 0);
 }
 
-void test_pma_cursor_last_delete_first() {
+static void test_pma_cursor_last_delete_first() {
     printf("test_pma_cursor_last_delete_first\n");
 
     int error;
@@ -1701,7 +1703,7 @@ void test_pma_cursor_last_delete_first() {
     assert(error == 0);
 }
 
-void test_pma_delete() {
+static void test_pma_delete() {
     test_pma_delete_shrink(256);  memory_check_all_free();
     test_pma_delete_random(256);  memory_check_all_free();
     test_pma_delete_cursor(32);   memory_check_all_free();
@@ -1711,7 +1713,7 @@ void test_pma_delete() {
     test_pma_cursor_last_delete_first(); memory_check_all_free();
 }
 
-void test_pma_already_there() {
+static void test_pma_already_there() {
     printf("test_pma_already_there\n");
 
     int error;
@@ -1740,7 +1742,7 @@ void test_pma_already_there() {
     assert(error == 0);
 }
 
-void test_pma_cursor_set_key() {
+static void test_pma_cursor_set_key() {
     printf("test_pma_cursor_set_key\n");
 
     int error;
@@ -1796,7 +1798,7 @@ void test_pma_cursor_set_key() {
 /*
  * verify that set range works with a pma with keys 10, 20, 30 ... 90
  */
-void test_pma_cursor_set_range() {
+static void test_pma_cursor_set_range() {
     printf("test_pma_cursor_set_range\n");
 
     int error;
@@ -1854,7 +1856,7 @@ void test_pma_cursor_set_range() {
     assert(error == 0);
 }
 
-void test_pma_cursor_delete_under() {
+static void test_pma_cursor_delete_under() {
     printf("test_pma_cursor_delete_under\n");
 
     int error;
@@ -1926,7 +1928,7 @@ void test_pma_cursor_delete_under() {
     assert(error == 0);
 }
 
-void test_pma_cursor_set_both() {
+static void test_pma_cursor_set_both() {
     printf("test_pma_cursor_set_both\n");
 
     int error;
@@ -2003,7 +2005,7 @@ void test_pma_cursor_set_both() {
 }
 
 /* insert n duplicate keys */
-void test_nodup_key_insert(int n) {
+static void test_nodup_key_insert(int n) {
     printf("test_nodup_key_insert:%d\n", n);
 
     PMA pma;
@@ -2040,7 +2042,7 @@ void test_nodup_key_insert(int n) {
 }
 
 /* insert n duplicate keys */
-void test_dup_key_insert(int n) {
+static void test_dup_key_insert(int n) {
     printf("test_dup_key_insert:%d\n", n);
 
     PMA pma;
@@ -2127,7 +2129,7 @@ void test_dup_key_insert(int n) {
 }
 
 /* insert n duplicate keys, delete key, verify all keys are deleted */
-void test_dup_key_delete(int n, int mode) {
+static void test_dup_key_delete(int n, int mode) {
     printf("test_dup_key_delete:%d %x\n", n, mode);
 
     PMA pma;
@@ -2228,7 +2230,7 @@ void test_dup_key_delete(int n, int mode) {
 
 /* insert n duplicate keys with random data
    verify that the data is sorted  */
-void test_dupsort_key_insert(int n, int dup_data) {
+static void test_dupsort_key_insert(int n, int dup_data) {
     printf("test_dupsort_key_insert:%d %d\n", n, dup_data);
 
     PMA pma;
@@ -2322,7 +2324,7 @@ void test_dupsort_key_insert(int n, int dup_data) {
     assert(r == 0);
 }
 
-void test_dup_key_lookup(int n, int mode) {
+static void test_dup_key_lookup(int n, int mode) {
     printf("test_dup_lookup:%d %d\n", n, mode);
 
     PMA pma;
@@ -2381,7 +2383,7 @@ void test_dup_key_lookup(int n, int mode) {
     assert(r == 0);
 }
 
-void test_dup() {
+static void test_dup() {
     test_nodup_key_insert(2);                            memory_check_all_free();
     test_dup_key_insert(0);                              memory_check_all_free();
     test_dup_key_insert(2);                              memory_check_all_free();
@@ -2398,7 +2400,7 @@ void test_dup() {
     test_dup_key_lookup(32, TOKU_DB_DUP+TOKU_DB_DUPSORT);          memory_check_all_free();
 }
 
-void pma_tests (void) {
+static void pma_tests (void) {
     memory_check=1;
     toku_test_keycompare();            memory_check_all_free();
     test_pma_compare_fun(0);      memory_check_all_free();
