@@ -54,7 +54,7 @@ void *toku_realloc(void *, long size);
 #define TAGMALLOC(t,v) t v = toku_tagmalloc(sizeof(*v), TYP_ ## t);
 
 /* Copy memory.  Analogous to strdup() */
-void *memdup (const void *v, unsigned int len);
+void *toku_memdup (const void *v, unsigned int len);
 /* Toku-version of strdup.  Use this so that it calls toku_malloc() */
 char *toku_strdup (const char *s);
 
@@ -63,12 +63,12 @@ void toku_malloc_cleanup (void); /* Before exiting, call this function to free u
 /* Check to see if everything malloc'd was free.  Might be a no-op depending on how memory.c is configured. */
 void toku_memory_check_all_free (void);
 /* Check to see if memory is "sane".  Might be a no-op.  Probably better to simply use valgrind. */
-void do_memory_check(void);
+void toku_do_memory_check(void);
 
 extern int toku_memory_check; // Set to nonzero to get a (much) slower version of malloc that does (much) more checking.
 
-int get_n_items_malloced(void); /* How many items are malloc'd but not free'd.  May return 0 depending on the configuration of memory.c */
+int toku_get_n_items_malloced(void); /* How many items are malloc'd but not free'd.  May return 0 depending on the configuration of memory.c */
 void toku_print_malloced_items(void); /* Try to print some malloced-but-not-freed items.  May be a noop. */
-void malloc_report (void); /* report on statistics about number of mallocs.  Maybe a no-op. */ 
+void toku_malloc_report (void); /* report on statistics about number of mallocs.  Maybe a no-op. */ 
 
 #endif
