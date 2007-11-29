@@ -651,6 +651,8 @@ ha_innobase::add_index(
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
+	/* Create a background transaction for the operations on
+	the data dictionary tables. */
 	trx = trx_allocate_for_mysql();
 	trx_start_if_not_started(trx);
 
@@ -1084,11 +1086,24 @@ ha_innobase::final_drop_index(
 	update_thd();
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx = prebuilt->trx;
+
+	/* Create a background transaction for the operations on
+	the data dictionary tables. */
+	trx = trx_allocate_for_mysql();
+	trx_start_if_not_started(trx);
+
+	trans_register_ha(user_thd, FALSE, ht);
+
+	trx->mysql_thd = user_thd;
+	trx->mysql_query_str = thd_query(user_thd);
 
 	/* Drop indexes marked to be dropped */
 
 	row_mysql_lock_data_dictionary(trx);
+
+	/* Flag this transaction as a dictionary operation, so that
+	the data dictionary will be locked in crash recovery. */
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	index = dict_table_get_first_index(prebuilt->table);
 
@@ -1111,6 +1126,7 @@ ha_innobase::final_drop_index(
 	dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
 
+	trx_commit_for_mysql(trx);
 	row_mysql_unlock_data_dictionary(trx);
 
 	/* Flush the log to reduce probability that the .frm files and
@@ -1119,12 +1135,12 @@ ha_innobase::final_drop_index(
 
 	log_buffer_flush_to_disk();
 
+	trx_free_for_mysql(trx);
+
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
 
 	srv_active_wake_master_thread();
-
-	trx_commit_for_mysql(trx);
 
 	DBUG_RETURN(0);
 }
