@@ -1,6 +1,9 @@
 #if !defined(TOKUDB_COMMON_FUNCS_H)
-
 #define TOKUDB_COMMON_FUNCS_H
+
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #include "tokudb_common.h"
 
 //DB_ENV->err disabled since it does not use db_strerror
