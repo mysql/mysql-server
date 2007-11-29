@@ -930,7 +930,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 			if (field->prefix_len > 0) {
 				ulint		len
 					= dfield_get_len(dfield);
-				const char*	data
+				const byte*	data
 					= dfield_get_data(dfield);
 				ibool		fetch_ext
 					= dfield_is_ext(dfield)
@@ -958,7 +958,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 					col->mbminlen,
 					col->mbmaxlen,
 					field->prefix_len,
-					len, data);
+					len, (const char*) data);
 
 				dfield_set_data(dfield, data, len);
 
@@ -1042,7 +1042,7 @@ row_upd_index_replace_new_col_vals(
 			if (field->prefix_len > 0) {
 				ulint		len
 					= dfield_get_len(dfield);
-				const char*	data
+				const byte*	data
 					= dfield_get_data(dfield);
 				ibool		fetch_ext
 					= dfield_is_ext(dfield)
@@ -1070,7 +1070,7 @@ row_upd_index_replace_new_col_vals(
 					col->mbminlen,
 					col->mbmaxlen,
 					field->prefix_len,
-					len, data);
+					len, (const char*) data);
 
 				dfield_set_data(dfield, data, len);
 
