@@ -32,6 +32,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <NdbMem.h>
+
 #ifdef HAVE_VALGRIND
 #include <valgrind/memcheck.h>
 #else
