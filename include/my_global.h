@@ -123,9 +123,9 @@
 # undef SIZEOF_LONG_LONG 
 # undef SIZEOF_OFF_T 
 # undef SIZEOF_SHORT 
+# undef WORDS_BIGENDIAN
 
 #if defined(__i386__)
-# undef WORDS_BIGENDIAN
 # define SIZEOF_CHARP 4
 # define SIZEOF_INT 4
 # define SIZEOF_LONG 4
@@ -138,6 +138,23 @@
 # define SIZEOF_CHARP 4
 # define SIZEOF_INT 4
 # define SIZEOF_LONG 4
+# define SIZEOF_LONG_LONG 8
+# define SIZEOF_OFF_T 8
+# define SIZEOF_SHORT 2
+
+#if defined(__x86_64__)
+# define SIZEOF_CHARP 8
+# define SIZEOF_INT 4
+# define SIZEOF_LONG 8
+# define SIZEOF_LONG_LONG 8
+# define SIZEOF_OFF_T 8
+# define SIZEOF_SHORT 2
+
+#elif defined(__ppc64__)
+# define WORDS_BIGENDIAN
+# define SIZEOF_CHARP 8
+# define SIZEOF_INT 4
+# define SIZEOF_LONG 8
 # define SIZEOF_LONG_LONG 8
 # define SIZEOF_OFF_T 8
 # define SIZEOF_SHORT 2
