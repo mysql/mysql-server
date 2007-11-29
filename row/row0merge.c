@@ -261,7 +261,6 @@ row_merge_buf_add(
 		ulint			col_no;
 		const dfield_t*		row_field;
 		ulint			len;
-		const void*		field_data;
 
 		ifield = dict_index_get_nth_field(index, i);
 		col = ifield->col;
@@ -269,17 +268,15 @@ row_merge_buf_add(
 		row_field = dtuple_get_nth_field(row, col_no);
 		dfield_copy(field, row_field);
 		len = dfield_get_len(field);
-		field_data = dfield_get_data(field);
 
 		if (dfield_is_null(field)) {
 			ut_ad(!(col->prtype & DATA_NOT_NULL));
-			ut_ad(field_data == NULL);
 			continue;
 		} else if (UNIV_LIKELY(!ext)) {
 		} else if (dict_index_is_clust(index)) {
 			/* Flag externally stored fields. */
-			byte*	buf = row_ext_lookup(ext, col_no,
-						     field_data, len, &len);
+			const byte*	buf = row_ext_lookup(ext, col_no,
+							     &len);
 			if (UNIV_LIKELY_NULL(buf)) {
 				ut_a(buf != field_ref_zero);
 				if (i < dict_index_get_n_unique(index)) {
@@ -290,8 +287,8 @@ row_merge_buf_add(
 				}
 			}
 		} else {
-			byte*	buf = row_ext_lookup(ext, col_no,
-						     field_data, len, &len);
+			const byte*	buf = row_ext_lookup(ext, col_no,
+							     &len);
 			if (UNIV_LIKELY_NULL(buf)) {
 				ut_a(buf != field_ref_zero);
 				dfield_set_data(field, buf, len);

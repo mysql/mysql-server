@@ -945,30 +945,9 @@ trx_undo_rec_get_partial_row(
 	}
 
 	if (n_ext_cols) {
-		ulint	i;
-
-		*ext = row_ext_create(n_ext_cols, ext_cols,
+		*ext = row_ext_create(n_ext_cols, ext_cols, *row,
 				      dict_table_zip_size(index->table),
 				      heap);
-
-		/* Fetch the BLOB prefixes, because the clustered
-		index record (and the BLOBs) may have been deleted by
-		the time row_ext_lookup() is called later in the purge
-		thread. */
-		for (i = 0; i < n_ext_cols; i++) {
-			const dfield_t*	dfield;
-			ulint		len;
-			byte*		b;
-
-			dfield = dtuple_get_nth_field(*row, ext_cols[i]);
-
-			b = row_ext_lookup_ith(*ext, i,
-					       dfield_get_data(dfield),
-					       dfield_get_len(dfield),
-					       &len);
-			ut_a(b);
-			ut_a(b != field_ref_zero);
-		}
 	} else {
 		*ext = NULL;
 	}

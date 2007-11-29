@@ -15,36 +15,78 @@ Created September 2006 Marko Makela
 #include "btr0cur.h"
 
 /************************************************************************
-Looks up and caches a column prefix of an externally stored column. */
-
-byte*
-row_ext_lookup_low(
+Fills the column prefix cache of an externally stored column. */
+static
+void
+row_ext_cache_fill(
 /*===============*/
-				/* out: column prefix, or
-				pointer to field_ref_zero
-				if the BLOB pointer is unset */
 	row_ext_t*	ext,	/* in/out: column prefix cache */
 	ulint		i,	/* in: index of ext->ext[] */
-	const byte*	field,	/* in: locally stored part of the column */
-	ulint		f_len,	/* in: length of field, in bytes */
-	ulint*		len)	/* out: length of prefix, in bytes,
-				at most REC_MAX_INDEX_COL_LEN */
+	ulint		zip_size,/* compressed page size in bytes, or 0 */
+	const dfield_t*	dfield)	/* in: data field */
 {
-	byte*	buf	= ext->buf + i * REC_MAX_INDEX_COL_LEN;
+	const byte*	field	= dfield_get_data(dfield);
+	ulint		f_len	= dfield_get_len(dfield);
+	byte*		buf	= ext->buf + i * REC_MAX_INDEX_COL_LEN;
 
 	ut_ad(i < ext->n_ext);
+	ut_ad(dfield_is_ext(dfield));
 	ut_a(f_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
 	if (UNIV_UNLIKELY(!memcmp(field_ref_zero,
 				  field + f_len - BTR_EXTERN_FIELD_REF_SIZE,
 				  BTR_EXTERN_FIELD_REF_SIZE))) {
 		/* The BLOB pointer is not set: we cannot fetch it */
-		*len = 0;
-		return((byte*) field_ref_zero);
+		ext->len[i] = 0;
 	}
 
-	*len = ext->len[i] = btr_copy_externally_stored_field_prefix(
+	ext->len[i] = btr_copy_externally_stored_field_prefix(
 		buf,
-		REC_MAX_INDEX_COL_LEN, ext->zip_size, field, f_len);
-	return(buf);
+		REC_MAX_INDEX_COL_LEN, zip_size, field, f_len);
+}
+
+/************************************************************************
+Creates a cache of column prefixes of externally stored columns. */
+UNIV_INLINE
+row_ext_t*
+row_ext_create(
+/*===========*/
+				/* out,own: column prefix cache */
+	ulint		n_ext,	/* in: number of externally stored columns */
+	const ulint*	ext,	/* in: col_no's of externally stored columns
+				in the InnoDB table object, as reported by
+				dict_col_get_no(); NOT relative to the records
+				in the clustered index */
+	const dtuple_t*	tuple,	/* in: data tuple containing the field
+				references of the externally stored columns;
+				must be indexed by col_no */
+	ulint		zip_size,/* compressed page size in bytes, or 0 */
+	mem_heap_t*	heap)	/* in: heap where created */
+{
+	ulint		i;
+	row_ext_t*	ret = mem_heap_alloc(heap, (sizeof *ret)
+					     + (n_ext - 1) * sizeof ret->len);
+
+	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+
+	ret->n_ext = n_ext;
+	ret->ext = ext;
+	ret->buf = mem_heap_alloc(heap, n_ext * REC_MAX_INDEX_COL_LEN);
+#ifdef UNIV_DEBUG
+	memset(ret->buf, 0xaa, n_ext * REC_MAX_INDEX_COL_LEN);
+	UNIV_MEM_ALLOC(ret->buf, n_ext * REC_MAX_INDEX_COL_LEN);
+#endif
+
+	/* Fetch the BLOB prefixes */
+	for (i = 0; i < n_ext; i++) {
+		const dfield_t*	dfield;
+		ulint		len;
+		byte*		b;
+
+		dfield = dtuple_get_nth_field(tuple, ext[i]);
+		row_ext_cache_fill(ret, i, zip_size, dfield);
+	}
+
+	return(ret);
 }
