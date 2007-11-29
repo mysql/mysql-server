@@ -716,11 +716,6 @@ extern ulint	btr_cur_n_sea;
 extern ulint	btr_cur_n_non_sea_old;
 extern ulint	btr_cur_n_sea_old;
 
-/* A BLOB field reference full of zero, for use in assertions and tests.
-Initially, BLOB field references are set to zero, in
-dtuple_convert_big_rec(). */
-extern const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
-
 #ifndef UNIV_NONINL
 #include "btr0cur.ic"
 #endif
