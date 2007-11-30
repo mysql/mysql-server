@@ -446,8 +446,8 @@ int check_header(azio_stream *s)
   }
   else
   {
-    azseek(s,0,SEEK_SET);
     s->transparent = 1;
+    azseek(s,0,SEEK_SET);
     s->z_err = Z_OK;
 
     return 0;
