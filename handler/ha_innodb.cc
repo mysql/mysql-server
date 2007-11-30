@@ -7353,7 +7353,7 @@ ha_innobase::get_auto_increment(
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
-		trx->n_autoinc_rows = nb_desired_values;
+		trx->n_autoinc_rows = (ulint) nb_desired_values;
 
 		/* It's possible for nb_desired_values to be 0:
 		e.g., INSERT INTO T1(C) SELECT C FROM T2; */
