@@ -69,7 +69,6 @@ check: bins
 	$(DTOOL) ./brt-test
 	$(DTOOL) ./hashtest
 	./benchmark-test --valsize 256 --verify 1
-#	./mdict-test
 
 check-fanout:
 	let BRT_FANOUT=4; \
@@ -95,13 +94,11 @@ log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_
 brt-test.o brt.o: brt.h ../include/db.h hashtable.h pma.h brttypes.h cachetable.h memory.h
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
 brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
-mdict.o: pma.h
 hashtable.o: hashtable.h brttypes.h memory.h key.h yerror.h ../include/db.h hashfun.h
 memory.o: memory.h
 primes.o: primes.h
 hashtest: hashtable.o memory.o primes.o
 brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
-mdict-test: hashtable.o pma.o memory.o
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o
 brt-bigtest.o: brt.h ../include/db.h
 log-test: log.o memory.o
