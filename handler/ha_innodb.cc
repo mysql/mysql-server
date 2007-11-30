@@ -7161,7 +7161,6 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	int		mysql_error = 0;
 	dict_table_t*	innodb_table = prebuilt->table;
 	ibool		trx_was_not_started	= FALSE;
-	ulint		error;
 
 	ut_a(prebuilt);
 	ut_a(prebuilt->table);
@@ -7182,11 +7181,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-	error = innobase_autoinc_lock();
-	if (error != DB_SUCCESS) {
-		mysql_error = 1;
-		goto err;
-	}
+	dict_table_autoinc_lock(prebuilt->table);
 
 	auto_inc = dict_table_autoinc_read(prebuilt->table);
 
@@ -7199,6 +7194,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
 	if (auto_inc == 0) {
 		dict_index_t* index;
+		ulint error;
 		const char* autoinc_col_name;
 
 		ut_a(!innodb_table->autoinc_inited);
@@ -7227,7 +7223,6 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
 	dict_table_autoinc_unlock(prebuilt->table);
 
-err:
 	/* Since MySQL does not seem to call autocommit after SHOW TABLE
 	STATUS (even if we would register the trx here), we commit our
 	transaction here if it was started here. This is to eliminate a
