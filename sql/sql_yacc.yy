@@ -508,10 +508,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 280 shift/reduce conflicts.
+  Currently there are 177 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 280
+%expect 177
 
 /*
    Comments for TOKENS.
@@ -1157,7 +1157,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         variable variable_aux bool_pri
         predicate bit_expr
         table_wild simple_expr udf_expr
-        expr_or_default set_expr_or_default interval_expr
+        expr_or_default set_expr_or_default
         param_marker geometry_function
         signed_literal now_or_signed_literal opt_escape
         sp_opt_default
@@ -6569,10 +6569,10 @@ bit_expr:
           { $$= new Item_func_plus($1,$3); }
         | bit_expr '-' bit_expr %prec '-'
           { $$= new Item_func_minus($1,$3); }
-        | bit_expr '+' interval_expr interval %prec '+'
-          { $$= new Item_date_add_interval($1,$3,$4,0); }
-        | bit_expr '-' interval_expr interval %prec '-'
-          { $$= new Item_date_add_interval($1,$3,$4,1); }
+        | bit_expr '+' INTERVAL_SYM expr interval %prec '+'
+          { $$= new Item_date_add_interval($1,$4,$5,0); }
+        | bit_expr '-' INTERVAL_SYM expr interval %prec '-'
+          { $$= new Item_date_add_interval($1,$4,$5,1); }
         | bit_expr '*' bit_expr %prec '*'
           { $$= new Item_func_mul($1,$3); }
         | bit_expr '/' bit_expr %prec '/'
@@ -6620,11 +6620,6 @@ comp_op:
 all_or_any:
           ALL     { $$ = 1; }
         | ANY_SYM { $$ = 0; }
-        ;
-
-interval_expr:
-          INTERVAL_SYM expr %prec INTERVAL_SYM
-          { $$=$2; }
         ;
 
 simple_expr:
@@ -6722,18 +6717,9 @@ simple_expr:
             $$= new (YYTHD->mem_root) Item_insert_value(Lex->current_context(),
                                                         $3);
           }
-        | interval_expr interval '+' expr
+        | INTERVAL_SYM expr interval '+' expr %prec INTERVAL_SYM
           /* we cannot put interval before - */
-          { $$= new (YYTHD->mem_root) Item_date_add_interval($4,$1,$2,0); }
-        | interval_expr
-          {
-            if ($1->type() != Item::ROW_ITEM)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            $$= new (YYTHD->mem_root) Item_func_interval((Item_row *)$1);
-          }
+          { $$= new (YYTHD->mem_root) Item_date_add_interval($5,$2,$3,0); }
         ;
 
 /*
@@ -6761,6 +6747,23 @@ function_call_keyword:
           { $$= new (YYTHD->mem_root) Item_func_hour($3); }
         | INSERT '(' expr ',' expr ',' expr ',' expr ')'
           { $$= new (YYTHD->mem_root) Item_func_insert($3,$5,$7,$9); }
+        | INTERVAL_SYM '(' expr ',' expr ')' %prec INTERVAL_SYM
+          {
+            THD *thd= YYTHD;
+            List<Item> *list= new (thd->mem_root) List<Item>;
+            list->push_front($5);
+            list->push_front($3);
+            Item_row *item= new (thd->mem_root) Item_row(*list);
+            $$= new (thd->mem_root) Item_func_interval(item);
+          }
+        | INTERVAL_SYM '(' expr ',' expr ',' expr_list ')' %prec INTERVAL_SYM
+          {
+            THD *thd= YYTHD;
+            $7->push_front($5);
+            $7->push_front($3);
+            Item_row *item= new (thd->mem_root) Item_row(*$7);
+            $$= new (thd->mem_root) Item_func_interval(item);
+          }
         | LEFT '(' expr ',' expr ')'
           { $$= new (YYTHD->mem_root) Item_func_left($3,$5); }
         | MINUTE_SYM '(' expr ')'
@@ -6838,10 +6841,10 @@ function_call_nonkeyword:
             $$= new (YYTHD->mem_root) Item_func_curtime_local($3);
             Lex->safe_to_cache_query=0;
           }
-        | DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
-          { $$= new (YYTHD->mem_root) Item_date_add_interval($3,$5,$6,0); }
-        | DATE_SUB_INTERVAL '(' expr ',' interval_expr interval ')'
-          { $$= new (YYTHD->mem_root) Item_date_add_interval($3,$5,$6,1); }
+        | DATE_ADD_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')' %prec INTERVAL_SYM
+          { $$= new (YYTHD->mem_root) Item_date_add_interval($3,$6,$7,0); }
+        | DATE_SUB_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')' %prec INTERVAL_SYM
+          { $$= new (YYTHD->mem_root) Item_date_add_interval($3,$6,$7,1); }
         | EXTRACT_SYM '(' interval FROM expr ')'
           { $$=new (YYTHD->mem_root) Item_extract( $3, $5); }
         | GET_FORMAT '(' date_time_type  ',' expr ')'
