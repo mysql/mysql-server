@@ -32,6 +32,7 @@ void test_get (int dup_mode) {
     memset(&data, 0, sizeof(data));
     r = db->get(db, null_txn, &key, &data, 0);                               assert(r == 0);
     assert(strcmp(data.data, "b")==0);
+    r = db->close(db, 0); 
 }
 
 int main (int argc, const char *argv[]) {
