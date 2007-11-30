@@ -6589,8 +6589,7 @@ my_bool translog_flush(LSN lsn)
     {
       DBUG_PRINT("info", ("already flushed: (%lu,0x%lx)",
                           LSN_IN_PARTS(log_descriptor.flushed)));
-      translog_unlock();
-      goto out;
+      goto sync;
     }
     /* send to the file if it is not sent */
     sent_to_file= translog_get_sent_to_file();
@@ -6628,6 +6627,7 @@ my_bool translog_flush(LSN lsn)
     }
     translog_lock();
   }
+sync:
   translog_unlock();
 
   for (i= LSN_FILE_NO(old_flushed); i <= LSN_FILE_NO(lsn); i++)

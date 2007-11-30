@@ -18,7 +18,9 @@
   First version written by Guilhem Bichot on 2006-04-27.
 */
 
+#ifndef EXTRACT_DEFINITIONS
 #include "maria_def.h"
+#endif
 
 /*
   A control file contains the following objects:
@@ -89,6 +91,7 @@ one should increment the control file version number.
 #define CF_MIN_CHANGEABLE_TOTAL_SIZE \
 (CF_FILENO_OFFSET + CF_FILENO_SIZE)
 
+#ifndef EXTRACT_DEFINITIONS
 
 /* This module owns these two vars. */
 /**
@@ -475,3 +478,5 @@ int ma_control_file_end()
 
   DBUG_RETURN(close_error);
 }
+
+#endif /* EXTRACT_DEFINITIONS */
