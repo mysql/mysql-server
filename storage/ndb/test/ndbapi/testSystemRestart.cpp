@@ -21,6 +21,7 @@
 #include <Vector.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbBackup.hpp>
+#include <Bitmask.hpp>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -1580,6 +1581,92 @@ int runBug22696(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int 
+runTO(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  Uint32 loops = ctx->getNumLoops();
+  Uint32 rows = ctx->getNumRecords();
+  NdbRestarter res;
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  if (res.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  Uint32 nodeGroups[256];
+  Bitmask<256/32> nodeGroupMap;
+  for (Uint32 j = 0; j<res.getNumDbNodes(); j++)
+  {
+    int node = res.getDbNodeId(j);
+    nodeGroups[node] = res.getNodeGroup(node);
+    nodeGroupMap.set(nodeGroups[node]);
+  }
+
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle = 
+    ndb_mgm_create_logevent_handle(res.handle, filter);
+  struct ndb_logevent event;
+
+  Uint32 i = 0;
+  while(i<=loops && result != NDBT_FAILED)
+  {
+    int val = DumpStateOrd::DihMinTimeBetweenLCP;
+    CHECK(res.dumpStateAllNodes(&val, 1) == 0);
+    
+    Bitmask<256/32> notstopped = nodeGroupMap;
+    while(!notstopped.isclear())
+    {
+      int node;
+      do {
+        node = res.getDbNodeId(rand() % res.getNumDbNodes());
+      } while (!notstopped.get(nodeGroups[node]));
+      
+      notstopped.clear(nodeGroups[node]);
+      ndbout_c("stopping %u", node);
+      CHECK(res.restartOneDbNode(node, false, true, true) == 0);
+      CHECK(res.waitNodesNoStart(&node, 1) == 0);
+      for (Uint32 j = 0; j<25; j++)
+      {
+        CHECK(hugoTrans.scanUpdateRecords(pNdb, 0) == 0);
+      }
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointCompleted);
+    }
+
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+	  event.type != NDB_LE_LocalCheckpointCompleted);
+    
+    int LCP = event.LocalCheckpointCompleted.lci;
+    ndbout_c("LCP: %u", LCP);
+    
+    do {
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointCompleted)
+      {
+        CHECK(hugoTrans.scanUpdateRecords(pNdb, 0) == 0);
+      }
+    } while (event.LocalCheckpointCompleted.lci < LCP + 3);
+    
+    ndbout_c("LCP: %u", event.LocalCheckpointCompleted.lci);
+    
+    CHECK(res.restartAll(false, true, true) == 0);
+    CHECK(res.waitClusterNoStart() == 0);
+    CHECK(res.startAll() == 0);
+    CHECK(res.waitClusterStarted() == 0);
+    
+    CHECK(res.dumpStateAllNodes(&val, 1) == 0);
+    
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_LocalCheckpointCompleted);
+    
+    i++;
+  }
+  
+  ctx->stopTest();  
+  return result;
+}
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -1849,6 +1936,13 @@ TESTCASE("Bug22696", "")
   INITIALIZER(runWaitStarted);
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug22696);
+  FINALIZER(runClearTable);
+}
+TESTCASE("to", "Take-over during SR")
+{
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runTO);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
