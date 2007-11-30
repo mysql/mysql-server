@@ -15,6 +15,7 @@ struct db_header {
 };
 
 struct __toku_db_internal {
+    DB *db; // A pointer back to the DB.
     int freed;
     struct db_header *header;
     int database_number; // -1 if it is the single unnamed database.  Nonnengative number otherwise.
@@ -28,5 +29,6 @@ struct __toku_db_internal {
     struct list associated; // All the associated databases.  The primary is the head of the list.
     DB *primary;            // For secondary (associated) databases, what is the primary?  NULL if not a secondary.
     int(*associate_callback)(DB*, const DBT*, const DBT*, DBT*); // For secondary, the callback function for associate.  NULL if not secondary
+    int associate_is_immutable; // If this DB is a secondary then this field indicates that the index never changes due to updates.
 };
 #endif

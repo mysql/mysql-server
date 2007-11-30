@@ -522,8 +522,27 @@ int log_compare(const DB_LSN * a, const DB_LSN * b) {
 static int toku_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
 			      int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result),
 			      u_int32_t flags) {
-    primary=primary; txn=txn; secondary=secondary; callback=callback; flags=flags;
-    return EINVAL;
+    if (secondary->i->primary) return EINVAL; // The secondary already has a primary
+    if (primary->i->primary)   return EINVAL; // The primary already has a primary
+    if (!list_empty(&secondary->i->associated)) return EINVAL; // The secondary is in some list (or it is a primary)
+    assert(secondary->i->associate_callback==0);      // Something's wrong if this isn't null we made it this far.
+    secondary->i->associate_callback = callback;
+#ifdef DB_IMMUTABLE_KEY
+    secondary->i->associate_is_immutable = (DB_IMMUTABLE_KEY&flags)!=0;
+    flags &= ~DB_IMMUTABLE_KEY;
+#else
+    secondary->i->associate_is_immutable = 0;
+#endif
+    if (flags!=0 && flags!=DB_CREATE) return EINVAL; // after removing DB_IMMUTABLE_KEY the flags better be 0 or DB_CREATE
+    if (flags==DB_CREATE) {
+	txn=txn;
+	// To do this:  Open a cursor on the primary.  Step through it all, doing the callbacks.
+	// Then insert each callback result into the secondary.
+	return -1; // We aren't ready for this case.
+    }
+    list_push(&primary->i->associated, &secondary->i->associated);
+    secondary->i->primary = primary;
+    return 0;
 }
 
 static int toku_db_close(DB * db, u_int32_t flags) {
@@ -733,6 +752,23 @@ error_cleanup:
     return r;
 }
 
+static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondary) {
+    DBT idx;
+    memset(&idx, 0, sizeof(idx));
+    int r = secondary->i->associate_callback(secondary, key, data, &idx);
+    if (r==DB_DONOTINDEX) return 0;
+#ifdef DB_DBT_MULTIPLE
+    if (idx.flags & DB_DBT_MULTIPLE) {
+	return EINVAL; // We aren't ready for this
+    }
+#endif
+    r = secondary->put(secondary, txn, &idx, key, 0);
+    if (idx.flags & DB_DBT_APPMALLOC) {
+	free(idx.data);
+    }
+    return r;
+}
+
 static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
 
@@ -756,7 +792,18 @@ static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t f
     
     r = toku_brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
     //printf("%s:%d %d=__toku_db_put(...)\n", __FILE__, __LINE__, r);
-    return r;
+    if (r!=0) return r;
+
+    // For each secondary add the relevant records.
+    if (db->i->associate_callback) {
+	struct list *h;
+	for (h=list_head(&db->i->associated); h!=&db->i->associated; h=h->next) {
+	    struct __toku_db_internal *dbi=list_struct(h, struct __toku_db_internal, associated);
+	    r=do_associated_inserts(txn, key, data, dbi->db);
+	    if (r!=0) return r;
+	}
+    }
+    return 0;
 }
 
 static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
@@ -883,6 +930,7 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         return ENOMEM;
     }
     memset(result->i, 0, sizeof *result->i);
+    result->i->db = result;
     result->i->freed = 0;
     result->i->header = 0;
     result->i->database_number = 0;
