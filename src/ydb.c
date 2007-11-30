@@ -811,7 +811,7 @@ static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t f
     if (r!=0) return r;
 
     // For each secondary add the relevant records.
-    if (db->i->associate_callback) {
+    if (db->i->primary==0) { // Only do it if it is a primary.   This loop would run an unknown number of times if we tried it on a secondary.
 	struct list *h;
 	for (h=list_head(&db->i->associated); h!=&db->i->associated; h=h->next) {
 	    struct __toku_db_internal *dbi=list_struct(h, struct __toku_db_internal, associated);

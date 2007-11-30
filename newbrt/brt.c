@@ -2449,7 +2449,7 @@ static int brtcurs_set_position_last (BRT_CURSOR cursor, DISKOFF off, DBT *key, 
         cursor->path_len--;
         goto died0;
     } else {
-	r=toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs);
+	r=toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs, &cursor->brt->skey, &cursor->brt->sval);
 	if (r!=0) {
 	    if (0) { died10: toku_pma_cursor_free(&cursor->pmacurs); }
 	    cursor->path_len--;
@@ -2512,7 +2512,7 @@ static int brtcurs_set_position_first (BRT_CURSOR cursor, DISKOFF off, DBT *key,
         cursor->path_len--;
         goto died0;
     } else {
-	r=toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs);
+	r=toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs, &cursor->brt->skey, &cursor->brt->sval);
 	if (r!=0) {
 	    if (0) { died10: toku_pma_cursor_free(&cursor->pmacurs); }
 	    cursor->path_len--;
@@ -2681,7 +2681,7 @@ static int brtcurs_set_key(BRT_CURSOR cursor, DISKOFF off, DBT *key, DBT *val, i
     } else {
         cursor->path_len += 1;
         cursor->path[cursor->path_len-1] = node;
-        r = toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs);
+        r = toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs, &cursor->brt->skey, &cursor->brt->sval);
         if (r == 0) {
             if (flag == DB_SET)
                 r = toku_pma_cursor_set_key(cursor->pmacurs, key);
@@ -2752,7 +2752,7 @@ static int brtcurs_set_range(BRT_CURSOR cursor, DISKOFF off, DBT *key, TOKUTXN t
     } else {
         cursor->path_len += 1;
         cursor->path[cursor->path_len-1] = node;
-        r = toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs);
+        r = toku_pma_cursor(node->u.l.buffer, &cursor->pmacurs, &cursor->brt->skey, &cursor->brt->sval);
         if (r == 0) {
             r = toku_pma_cursor_set_range(cursor->pmacurs, key);
             if (r != 0) {

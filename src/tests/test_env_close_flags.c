@@ -24,8 +24,8 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     r=mkdir(DIR, 0777);        assert(r==0);
     r=db_env_create(&env, 0);  assert(r==0);
     r=env->close   (env, 1);  
-    //BDB does not check this.
-#ifdef USE_TDB    
+    //BDB does not check this in some versions
+#if defined(USE_TDB) || 
     assert(r==EINVAL);
 #else
     assert(r==0);

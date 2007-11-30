@@ -7,7 +7,7 @@ struct pma_cursor {
     PMA pma;
     int position; /* -1 if the position is undefined. */
     struct list next;
-    void *skey, *sval; /* used in dbts. */ 
+    void **sskey, *ssval; /* Used in dbts.   When a cursor is created, you must provide a void** to return results in. */
 };
 
 struct pma {
