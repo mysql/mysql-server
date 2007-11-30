@@ -513,22 +513,6 @@ ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
 
-#
-# Log Table
-#
-
-ALTER TABLE general_log 
-  MODIFY COLUMN user_host MEDIUMTEXT NOT NULL,
-  MODIFY COLUMN thread_id INTEGER NOT NULL,
-  MODIFY COLUMN server_id INTEGER NOT NULL,
-  MODIFY COLUMN command_type VARCHAR(64) NOT NULL,
-  MODIFY COLUMN argument MEDIUMTEXT NOT NULL;
-ALTER TABLE slow_log
-  MODIFY COLUMN db VARCHAR(512) NOT NULL,
-  MODIFY COLUMN last_insert_id INTEGER NOT NULL,
-  MODIFY COLUMN insert_id INTEGER NOT NULL,
-  MODIFY COLUMN server_id INTEGER NOT NULL;
-
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
