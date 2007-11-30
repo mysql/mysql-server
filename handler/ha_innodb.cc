@@ -7350,6 +7350,11 @@ ha_innobase::get_auto_increment(
 
 	trx = prebuilt->trx;
 
+	/* Note: We can't rely on *first_value since some MySQL engines,
+	in particular the partition engine, don't initialize it to 0 when
+	invoking this method. So we are not sure if it's guaranteed to
+	be 0 or not. */
+
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
