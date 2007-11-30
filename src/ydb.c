@@ -616,37 +616,48 @@ static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
     return r;
 }
 
-static int toku_db_get(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
-    assert(flags == 0);
+
+// Internal flag for when doing a get, don't do the work for associate.
+#define DB_NO_ASSOCIATE 42
+
+static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
     unsigned int brtflags;
-    DBT primary_key;
-    DBT *sdata;
-    DB  *primary = db->i->primary;
-    int is_secondary = primary!=0;
-    if (is_secondary) {
+    assert(flags == 0 || flags==DB_NO_ASSOCIATE); // We aren't ready to handle flags such as DB_GET_BOTH  or DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
+    if (db->i->primary==0 || flags==DB_NO_ASSOCIATE) {
+	// It's a get on a primary
+	toku_brt_get_flags(db->i->brt, &brtflags);
+	if (brtflags & TOKU_DB_DUPSORT) {
+	    DBC *dbc;
+	    r = db->cursor(db, txn, &dbc, 0);
+	    if (r!=0) return r;
+	    r = dbc->c_get(dbc, key, data, DB_SET);
+	    int r2 = dbc->c_close(dbc);
+	    if (r!=0) return r;
+	    return r2;
+	} else
+	    return toku_brt_lookup(db->i->brt, key, data);
+    } else {
+	// It's a get on a secondary.
+	DBT primary_key;
 	memset(&primary_key, 0, sizeof(primary_key));
-	sdata=&primary_key;
-    } else {
-	sdata=data;
+	r = toku_db_get (db, txn, key, &primary_key, DB_NO_ASSOCIATE); // Lookup the primary
+	if (r!=0) return r;
+	// If data and primary_key are both zeroed, the temporary storage used to fill in data is different in the two cases because they come from different trees.
+	assert(db->i->brt != db->i->primary->i->brt); // Make sure they realy are different trees.
+	return toku_db_get (db->i->primary, txn, &primary_key, data, 0); 
     }
-    toku_brt_get_flags(db->i->brt, &brtflags);
-    if (brtflags & TOKU_DB_DUPSORT) {
-        DBC *dbc;
-        r = db->cursor(db, txn, &dbc, 0);
-        if (r == 0) {
-            r = dbc->c_get(dbc, key, sdata, DB_SET);
-            dbc->c_close(dbc);
-        }
-    } else
-        r = toku_brt_lookup(db->i->brt, key, sdata);
+}
+
+static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_int32_t flags) {
+    int r;
+    if (!db->i->primary) return EINVAL; // pget doesn't work on a primary.
+    assert(flags==0); // not ready to handle all those other options
+    r = toku_db_get (db, txn, key, pkey, DB_NO_ASSOCIATE);
     if (r!=0) return r;
-    if (is_secondary) {
-	// Time to do a get on the primary
-	return primary->get(primary, txn, &primary_key, data, 0);
-    } else {
-	return r;
-    }
+    assert(db!=db->i->primary);
+    r = toku_db_get (db->i->primary, txn, pkey, data, 0);
+    return r;
 }
 
 static int toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr, u_int32_t flags) {
@@ -931,6 +942,7 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->get = toku_db_get;
     result->key_range = toku_db_key_range;
     result->open = toku_db_open;
+    result->pget = toku_db_pget;
     result->put = toku_db_put;
     result->remove = toku_db_remove;
     result->rename = toku_db_rename;
