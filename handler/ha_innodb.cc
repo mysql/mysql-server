@@ -603,7 +603,6 @@ convert_error_code_to_mysql(
                 thd_mark_transaction_to_rollback(thd, TRUE);
 
 		return(HA_ERR_LOCK_DEADLOCK);
-
 	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
 
 		/* Starting from 5.0.13, we let MySQL just roll back the
@@ -1892,12 +1891,11 @@ retry:
 		/* We just mark the SQL statement ended and do not do a
 		transaction commit */
 
-		if (trx->auto_inc_lock) {
-			/* If we had reserved the auto-inc lock for some
-			table in this SQL statement we release it now */
+		/* If we had reserved the auto-inc lock for some
+		table in this SQL statement we release it now */
 
-			row_unlock_table_autoinc_for_mysql(trx);
-		}
+		row_unlock_table_autoinc_for_mysql(trx);
+
 		/* Store the current undo_no of the transaction so that we
 		know where to roll back if we have to roll back the next
 		SQL statement */
@@ -1950,13 +1948,11 @@ innobase_rollback(
 
 	innobase_release_stat_resources(trx);
 
-	if (trx->auto_inc_lock) {
-		/* If we had reserved the auto-inc lock for some table (if
-		we come here to roll back the latest SQL statement) we
-		release it now before a possibly lengthy rollback */
+	/* If we had reserved the auto-inc lock for some table (if
+	we come here to roll back the latest SQL statement) we
+	release it now before a possibly lengthy rollback */
 
-		row_unlock_table_autoinc_for_mysql(trx);
-	}
+	row_unlock_table_autoinc_for_mysql(trx);
 
 	if (all
 		|| !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
@@ -1990,13 +1986,11 @@ innobase_rollback_trx(
 
 	innobase_release_stat_resources(trx);
 
-	if (trx->auto_inc_lock) {
-		/* If we had reserved the auto-inc lock for some table (if
-		we come here to roll back the latest SQL statement) we
-		release it now before a possibly lengthy rollback */
+	/* If we had reserved the auto-inc lock for some table (if
+	we come here to roll back the latest SQL statement) we
+	release it now before a possibly lengthy rollback */
 
-		row_unlock_table_autoinc_for_mysql(trx);
-	}
+	row_unlock_table_autoinc_for_mysql(trx);
 
 	error = trx_rollback_for_mysql(trx);
 
@@ -7167,6 +7161,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	int		mysql_error = 0;
 	dict_table_t*	innodb_table = prebuilt->table;
 	ibool		trx_was_not_started	= FALSE;
+	ulint		error;
 
 	ut_a(prebuilt);
 	ut_a(prebuilt->table);
@@ -7187,7 +7182,11 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-	dict_table_autoinc_lock(prebuilt->table);
+	error = innobase_autoinc_lock();
+	if (error != DB_SUCCESS) {
+		mysql_error = 1;
+		goto err;
+	}
 
 	auto_inc = dict_table_autoinc_read(prebuilt->table);
 
@@ -7200,7 +7199,6 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
 	if (auto_inc == 0) {
 		dict_index_t* index;
-		ulint error = DB_SUCCESS;
 		const char* autoinc_col_name;
 
 		ut_a(!innodb_table->autoinc_inited);
@@ -7229,6 +7227,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
 	dict_table_autoinc_unlock(prebuilt->table);
 
+err:
 	/* Since MySQL does not seem to call autocommit after SHOW TABLE
 	STATUS (even if we would register the trx here), we commit our
 	transaction here if it was started here. This is to eliminate a
@@ -7279,12 +7278,10 @@ ha_innobase::innobase_get_auto_increment(
 				trx = prebuilt->trx;
 				dict_table_autoinc_unlock(prebuilt->table);
 
-				if (trx->auto_inc_lock) {
-					/* If we had reserved the AUTO-INC
-					lock in this SQL statement we release
-					it before retrying.*/
-					row_unlock_table_autoinc_for_mysql(trx);
-				}
+				/* If we had reserved the AUTO-INC
+				lock in this SQL statement we release
+				it before retrying.*/
+				row_unlock_table_autoinc_for_mysql(trx);
 
 				/* Just to make sure */
 				ut_a(!trx->auto_inc_lock);
@@ -7358,15 +7355,10 @@ ha_innobase::get_auto_increment(
 
 	trx = prebuilt->trx;
 
-	/* Note: We can't rely on *first_value since some MySQL engines,
-	in particular the partition engine, don't initialize it to 0 when
-	invoking this method. So we are not sure if it's guaranteed to
-	be 0 or not. */
-
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
-		trx->n_autoinc_rows = (ulint) nb_desired_values;
+		trx->n_autoinc_rows = nb_desired_values;
 
 		/* It's possible for nb_desired_values to be 0:
 		e.g., INSERT INTO T1(C) SELECT C FROM T2; */
@@ -7710,12 +7702,10 @@ innobase_xa_prepare(
 		/* We just mark the SQL statement ended and do not do a
 		transaction prepare */
 
-		if (trx->auto_inc_lock) {
-			/* If we had reserved the auto-inc lock for some
-			table in this SQL statement we release it now */
+		/* If we had reserved the auto-inc lock for some
+		table in this SQL statement we release it now */
 
-			row_unlock_table_autoinc_for_mysql(trx);
-		}
+		row_unlock_table_autoinc_for_mysql(trx);
 
 		/* Store the current undo_no of the transaction so that we
 		know where to roll back if we have to roll back the next
@@ -8071,7 +8061,7 @@ static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
-  PLUGIN_VAR_RQCMDARG,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The AUTOINC lock modes supported by InnoDB:\n"
   "  0 => Old style AUTOINC locking (for backward compatibility)\n"
   "  1 => New style AUTOINC locking\n"
