@@ -15358,6 +15358,8 @@ static void test_bug21206()
 
   Test that client gets updated value of insert_id on UPDATE that uses
   LAST_INSERT_ID(expr).
+  select_query added to test for bug
+    #26921 Problem in mysql_insert_id() Embedded C API function
 */
 static void test_bug21726()
 {
@@ -15370,6 +15372,8 @@ static void test_bug21726()
   const char *update_query= "UPDATE t1 SET i= LAST_INSERT_ID(i + 1)";
   int rc;
   my_ulonglong insert_id;
+  const char *select_query= "SELECT * FROM t1";
+  MYSQL_RES  *result;
 
   DBUG_ENTER("test_bug21726");
   myheader("test_bug21726");
@@ -15385,6 +15389,13 @@ static void test_bug21726()
   myquery(rc);
   insert_id= mysql_insert_id(mysql);
   DIE_UNLESS(insert_id == 3);
+
+  rc= mysql_query(mysql, select_query);
+  myquery(rc);
+  insert_id= mysql_insert_id(mysql);
+  DIE_UNLESS(insert_id == 3);
+  result= mysql_store_result(mysql);
+  mysql_free_result(result);
 
   DBUG_VOID_RETURN;
 }
