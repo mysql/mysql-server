@@ -635,6 +635,8 @@ static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum
     return 0;
 }
 
+static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, int debug,  TOKUTXN txn);
+
 static int split_count=0;
 
 /* NODE is a node with a child.
@@ -771,6 +773,12 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	//verify_local_fingerprint_nonleaf(*nodeb);
     } else {
 	*did_split=0;
+        if (toku_serialize_brtnode_size(node) > node->nodesize) {
+            // printf("hsoc maybe\n");
+            r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, 0, txn);
+            assert(r == 0);
+            assert(*did_split == 0);
+        }
 	assert(toku_serialize_brtnode_size(node)<=node->nodesize);
     }
     return 0;
