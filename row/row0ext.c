@@ -43,6 +43,7 @@ row_ext_cache_fill(
 	ext->len[i] = btr_copy_externally_stored_field_prefix(
 		buf,
 		REC_MAX_INDEX_COL_LEN, zip_size, field, f_len);
+	ut_a(ext->len[i]);
 }
 
 /************************************************************************
