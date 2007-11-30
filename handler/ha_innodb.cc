@@ -7367,10 +7367,10 @@ ha_innobase::get_auto_increment(
 			trx->n_autoinc_rows = 1;
 		}
 
-		*first_value = autoinc;
+		set_if_bigger(*first_value, autoinc);
 	/* Not in the middle of a mult-row INSERT. */
 	} else if (prebuilt->last_value == 0) {
-		*first_value = autoinc;
+		set_if_bigger(*first_value, autoinc);
 	}
 
 	*nb_reserved_values = trx->n_autoinc_rows;
