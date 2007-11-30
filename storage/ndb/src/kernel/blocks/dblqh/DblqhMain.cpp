@@ -446,7 +446,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
     else
     {
       jam();
-      cstartRecReq = 2;
+      cstartRecReq = SRR_REDO_COMPLETE;
       ndbrequire(c_lcp_complete_fragments.isEmpty());
       StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
       conf->startingNodeId = getOwnNodeId();
@@ -11999,11 +11999,11 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
     sendEMPTY_LCP_CONF(signal, true);
   }
 
-  if (getNodeState().getNodeRestartInProgress() && cstartRecReq != 3)
+  if (cstartRecReq < SRR_FIRST_LCP_DONE)
   {
     jam();
-    ndbrequire(cstartRecReq == 2);
-    cstartRecReq = 3;
+    ndbrequire(cstartRecReq == SRR_REDO_COMPLETE);
+    cstartRecReq = SRR_FIRST_LCP_DONE;
   }
   return;
   
@@ -12248,8 +12248,11 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
-  if (getNodeState().getNodeRestartInProgress() && cstartRecReq < 2)
+  if (cstartRecReq < SRR_REDO_COMPLETE)
   {
+    /**
+     * REDO running is not complete
+     */
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
     saveRef->nodeId = getOwnNodeId();
@@ -12301,8 +12304,11 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     cnewestGci = gci;
   }//if
 
-  if(getNodeState().getNodeRestartInProgress() && cstartRecReq < 3)
+  if(cstartRecReq < SRR_FIRST_LCP_DONE)
   {
+    /**
+     * First LCP has not been done
+     */
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
     saveRef->nodeId = getOwnNodeId();
@@ -14387,7 +14393,8 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
     return;
   }
 
-  if (c_lcp_restoring_fragments.isEmpty() && cstartRecReq == 1)
+  if (c_lcp_restoring_fragments.isEmpty() && 
+      cstartRecReq == SRR_START_REC_REQ_ARRIVED)
   {
     jam();
     /* ----------------------------------------------------------------
@@ -14429,7 +14436,29 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
-  cstartRecReq = 1;
+  cstartRecReq = SRR_START_REC_REQ_ARRIVED; // StartRecReq has arrived
+  
+  if (signal->getLength() == StartRecReq::SignalLength)
+  {
+    jam();
+    NdbNodeBitmask tmp;
+    tmp.assign(NdbNodeBitmask::Size, req->sr_nodes);
+    if (!tmp.equal(m_sr_nodes))
+    {
+      char buf0[100], buf1[100];
+      ndbout_c("execSTART_RECREQ chaning srnodes from %s to %s",
+               m_sr_nodes.getText(buf0),
+               tmp.getText(buf1));
+      
+    }
+    m_sr_nodes.assign(NdbNodeBitmask::Size, req->sr_nodes);
+  }
+  else
+  {
+    jam();
+    cstartRecReqData = RNIL;
+  }
+  
   for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
     ptrAss(logPartPtr, logPartRecord);
     logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
@@ -14497,7 +14526,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   if(cstartType == NodeState::ST_INITIAL_NODE_RESTART)
   {
     jam();
-    cstartRecReq = 2;
+    cstartRecReq = SRR_REDO_COMPLETE; // REDO complete
 
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
@@ -16259,7 +16288,7 @@ void Dblqh::srFourthComp(Signal* signal)
     
     ndbrequire(cinitialStartOngoing == ZTRUE);
     cinitialStartOngoing = ZFALSE;
-
+    cstartRecReq = SRR_REDO_COMPLETE;
     checkStartCompletedLab(signal);
     return;
   } else if ((cstartType == NodeState::ST_NODE_RESTART) ||
@@ -16278,7 +16307,7 @@ void Dblqh::srFourthComp(Signal* signal)
 	return;
       }
     }
-    cstartRecReq = 2;
+    cstartRecReq = SRR_REDO_COMPLETE; // REDO complete
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     conf->senderData = cstartRecReqData;
@@ -17172,7 +17201,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     cnoActiveCopy = 0;
     ccurrentGcprec = RNIL;
     caddNodeState = ZFALSE;
-    cstartRecReq = 0;
+    cstartRecReq = SRR_INITIAL; // Initial
     cnewestGci = 0;
     cnewestCompletedGci = 0;
     crestartOldestGci = 0;

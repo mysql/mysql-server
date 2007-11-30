@@ -106,6 +106,9 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_READ_CONFIG_CONF, &Ndbcntr::execREAD_CONFIG_CONF);
 
   addRecSignal(GSN_FSREMOVECONF, &Ndbcntr::execFSREMOVECONF);
+
+  addRecSignal(GSN_START_COPYREF, &Ndbcntr::execSTART_COPYREF);
+  addRecSignal(GSN_START_COPYCONF, &Ndbcntr::execSTART_COPYCONF);
   
   initData();
   ctypeOfStart = NodeState::ST_ILLEGAL_TYPE;

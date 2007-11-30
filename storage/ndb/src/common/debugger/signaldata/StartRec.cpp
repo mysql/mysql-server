@@ -30,10 +30,19 @@ printSTART_REC_REQ(FILE * output,
 	  refToNode(sig->senderRef),
 	  refToBlock(sig->senderRef));
   
-  fprintf(output, " keepGci: %d lastCompletedGci: %d newestGci: %d\n",
+  fprintf(output, 
+          " keepGci: %d lastCompletedGci: %d newestGci: %d senderData: %x\n",
 	  sig->keepGci, 
 	  sig->lastCompletedGci,
-	  sig->newestGci);
+	  sig->newestGci,
+          sig->senderData);
+
+  NdbNodeBitmask mask;
+  mask.assign(NdbNodeBitmask::Size, sig->sr_nodes);
+  
+  char buf[100];
+  fprintf(output,
+          " sr_nodes: %s", mask.getText(buf));
 
   return true;
 }
@@ -45,9 +54,10 @@ printSTART_REC_CONF(FILE * output,
 		    Uint16 recBlockNo){
   StartRecConf * sig = (StartRecConf *) theData;
 
-  fprintf(output, " startingNodeId: %d\n",
-	  sig->startingNodeId);
-
+  fprintf(output, " startingNodeId: %d senderData\n",
+	  sig->startingNodeId,
+          sig->senderData);
+  
   return true;
 }
 
