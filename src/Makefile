@@ -23,6 +23,9 @@ install: $(LIBNAME).$(LIBEXT) $(LIBNAME).a
 	cp $(LIBNAME).$(LIBEXT) ../lib/
 	cp $(LIBNAME).a ../lib
 
+check: $(LIBNAME).$(LIBEXT)
+	python tokuglobals.py $(LIBNAME).$(LIBEXT)
+
 clean:
 	rm -rf $(LIBNAME).$(LIBEXT) $(LIBNAME).a *.o
 
