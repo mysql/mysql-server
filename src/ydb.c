@@ -616,21 +616,37 @@ static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
     return r;
 }
 
-static int toku_db_get(DB * db, DB_TXN * txn __attribute__ ((unused)), DBT * key, DBT * data, u_int32_t flags) {
+static int toku_db_get(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     assert(flags == 0);
     int r;
     unsigned int brtflags;
+    DBT primary_key;
+    DBT *sdata;
+    DB  *primary = db->i->primary;
+    int is_secondary = primary!=0;
+    if (is_secondary) {
+	memset(&primary_key, 0, sizeof(primary_key));
+	sdata=&primary_key;
+    } else {
+	sdata=data;
+    }
     toku_brt_get_flags(db->i->brt, &brtflags);
     if (brtflags & TOKU_DB_DUPSORT) {
         DBC *dbc;
         r = db->cursor(db, txn, &dbc, 0);
         if (r == 0) {
-            r = dbc->c_get(dbc, key, data, DB_SET);
+            r = dbc->c_get(dbc, key, sdata, DB_SET);
             dbc->c_close(dbc);
         }
     } else
-        r = toku_brt_lookup(db->i->brt, key, data);
-    return r;
+        r = toku_brt_lookup(db->i->brt, key, sdata);
+    if (r!=0) return r;
+    if (is_secondary) {
+	// Time to do a get on the primary
+	return primary->get(primary, txn, &primary_key, data, 0);
+    } else {
+	return r;
+    }
 }
 
 static int toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr, u_int32_t flags) {
