@@ -110,13 +110,14 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, sql_errno, err);
   }
 
+  /* Abort multi-result sets */
+  thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
+
   net_send_error_packet(thd, sql_errno, err);
 
   thd->is_fatal_error= 0;			// Error message is given
   thd->net.report_error= 0;
 
-  /* Abort multi-result sets */
-  thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
   DBUG_VOID_RETURN;
 }
 
