@@ -1855,10 +1855,6 @@ mysql_execute_command(THD *thd)
   
   switch (lex->sql_command) {
   case SQLCOM_SHOW_EVENTS:
-    if ((res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
-                           is_schema_db(thd->lex->select_lex.db))))
-      break;
-    /* fall through */
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
     res= execute_sqlcom_select(thd, all_tables);

@@ -1238,4 +1238,12 @@ select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 #
 explain extended select 1 from information_schema.tables;
 
+#
+# Bug#32775 problems with SHOW EVENTS and Information_Schema
+#
+use information_schema;
+show events;
+show events from information_schema;
+show events where Db= 'information_schema';
+
 --echo End of 5.1 tests.
