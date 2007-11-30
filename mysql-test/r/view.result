@@ -3617,4 +3617,47 @@ DROP TABLE `t-2`;
 DROP VIEW  `v-2`;
 DROP DATABASE `d-1`;
 USE test;
+
+#
+# Bug#26676: VIEW using old table schema in a session.
+#
+
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 INT, c2 INT);
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+
+SELECT * FROM t1;
+c1	c2
+1	2
+3	4
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT * FROM v1;
+c1	c2
+1	2
+3	4
+
+ALTER TABLE t1 ADD COLUMN c3 INT AFTER c2;
+
+SELECT * FROM t1;
+c1	c2	c3
+1	2	NULL
+3	4	NULL
+
+SELECT * FROM v1;
+c1	c2
+1	2
+3	4
+
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c1` AS `c1`,`t1`.`c2` AS `c2` from `t1`	latin1	latin1_swedish_ci
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+# End of test case for Bug#26676.
+
 End of 5.1 tests.
