@@ -442,6 +442,7 @@ int check_header(azio_stream *s)
   }
   else
   {
+    azseek(s,0,SEEK_SET);
     s->transparent = 1;
     s->z_err = Z_OK;
 
@@ -570,16 +571,22 @@ unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned int len, int *
         s->stream.avail_out -= n;
         s->stream.avail_in  -= n;
       }
-      if (s->stream.avail_out > 0) 
+      if (s->stream.avail_out > 0)
       {
-        s->stream.avail_out -=
-          (uInt)my_read(s->file, (uchar *)next_out, s->stream.avail_out, MYF(0));
+        size_t bytes_read;
+        bytes_read= my_read(s->file, (uchar *)next_out, s->stream.avail_out,
+                            MYF(0));
+        if(bytes_read>0)
+          s->stream.avail_out -= bytes_read;
+        if (bytes_read == 0)
+        {
+          s->z_eof = 1;
+          return 0;
+        }
       }
       len -= s->stream.avail_out;
       s->in  += len;
       s->out += len;
-      if (len == 0)
-        s->z_eof = 1;
       return len;
     }
 
