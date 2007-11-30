@@ -72,12 +72,14 @@ ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
 endif
 
+BDB_SUPPRESSIONS = --suppressions=bdb.supressions --gen-suppressions=all
+
 # The @ sign makes the make quiet.  If there is an error there is enough info to tell what test failed.
 %.bdbrun: %.bdb
 ifdef VERBOSE
-	$(UNSETTOKUENV); $(VGRIND) ./$< $(VERBVERBOSE)
+	$(UNSETTOKUENV); $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
 else
-	@ $(UNSETTOKUENV); $(VGRIND) ./$<
+	@ $(UNSETTOKUENV); $(VGRIND) $(BDB_SUPPRESSIONS) ./$<
 endif
 %.tdbrun: %.tdb
 ifdef VERBOSE
@@ -85,8 +87,9 @@ ifdef VERBOSE
 else
 	@ $(SETTOKUENV); $(VGRIND) ./$<
 endif
+
 # For a few of the tests bdb is making valgrind unhappy.
-NO_VGRIND = \
+FOO_NO_VGRIND = \
   db_already_exists \
   db_dup \
   db_env_open_nocreate \
@@ -100,6 +103,12 @@ NO_VGRIND = \
   dup_search \
   rand_insert \
   reverse_compare_fun \
+  # Comment to terminate list so the previous line can end with a slash
+ 
+NO_VGRIND = db_env_open_nocreate \
+  db_env_open_open_close \
+  db_open_notexist_reopen \
+  db_remove_subdb \
   # Comment to terminate list so the previous line can end with a slash
 
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
