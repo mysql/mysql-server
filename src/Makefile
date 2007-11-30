@@ -19,6 +19,7 @@ SHARED=-shared
 endif
 
 install: $(LIBNAME).$(LIBEXT) $(LIBNAME).a
+	(cd ../newbrt;make)
 	cp $(LIBNAME).$(LIBEXT) ../lib/
 	cp $(LIBNAME).a ../lib
 
