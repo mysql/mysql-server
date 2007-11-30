@@ -2408,6 +2408,24 @@ error:
 }
 
 
+/*
+  This method is used exlusevely by filesort() to check if we
+  can create sorting buffers of necessary size.
+  If the handler returns more records that it declares
+  here server can just crash on filesort().
+  We cannot guarantee that's not going to happen with
+  the FEDERATED engine, as we have records==0 always if the
+  client is a VIEW, and for the table the number of
+  records can inpredictably change during execution.
+  So we return maximum possible value here.
+*/
+
+ha_rows ha_federated::estimate_rows_upper_bound()
+{
+  return HA_POS_ERROR;
+}
+
+
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
 
 int ha_federated::index_init(uint keynr, bool sorted)

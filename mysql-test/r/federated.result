@@ -1956,6 +1956,117 @@ a
 DROP TABLE federated.t1;
 DROP TABLE federated.t1;
 End of 5.1 tests
+create table t1 (a varchar(256));
+drop view if exists v1;
+create view v1 as select a from t1;
+create table t1
+(a varchar(256)) engine=federated
+connection='mysql://root@127.0.0.1:SLAVE_PORT/test/v1';
+select 1 from t1 order by a;
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+drop table t1;
+drop table t1;
+drop view v1;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;

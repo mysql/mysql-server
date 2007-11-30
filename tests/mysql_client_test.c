@@ -5914,6 +5914,20 @@ DROP TABLE IF EXISTS test_multi_tab";
   (void) my_process_result_set(result);
   mysql_free_result(result);
 
+  /*
+    Check if errors in one of the queries handled properly.
+  */
+  rc= mysql_query(mysql_local, "select 1; select * from not_existing_table");
+  myquery(rc);
+  result= mysql_store_result(mysql_local);
+  mysql_free_result(result);
+
+  rc= mysql_next_result(mysql_local);
+  DIE_UNLESS(rc > 0);
+
+  rc= mysql_next_result(mysql_local);
+  DIE_UNLESS(rc < 0);
+
   mysql_close(mysql_local);
 }
 
