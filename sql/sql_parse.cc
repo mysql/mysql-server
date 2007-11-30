@@ -788,12 +788,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
-
-  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-  {
-    thd->killed= THD::NOT_KILLED;
-    thd->mysys_var->abort= 0;
-  }
+  DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
   thd->command=command;
   /*
