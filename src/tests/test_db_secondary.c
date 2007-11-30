@@ -5,13 +5,7 @@
 #include <db.h>
 #include <assert.h>
 #include <errno.h>
-/*#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <unistd.h>*/
 
 #include "test.h"
 
@@ -60,7 +54,7 @@ void second_setup() {
 
     /* Open/create primary */
     r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
-    r = dbp->open(dbp, NULL, "students.db", NULL, DB_BTREE, DB_CREATE, 0600);   CKERR(r);
+    r = dbp->open(dbp, NULL, DIR "/students.db", NULL, DB_BTREE, DB_CREATE, 0600);   CKERR(r);
 
     /*
      * Open/create secondary. Note that it supports duplicate data
@@ -68,7 +62,7 @@ void second_setup() {
      */
     r = db_create(&sdbp, dbenv, 0);                                             CKERR(r);
     r = sdbp->set_flags(sdbp, DB_DUP | DB_DUPSORT);                             CKERR(r);
-    r = sdbp->open(sdbp, NULL, "lastname.db", NULL, DB_BTREE, DB_CREATE, 0600); CKERR(r);
+    r = sdbp->open(sdbp, NULL, DIR "/lastname.db", NULL, DB_BTREE, DB_CREATE, 0600); CKERR(r);
     
 
     /* Associate the secondary with the primary. */
@@ -180,6 +174,9 @@ void verify_gone() {
 
 int main() {
     int r;
+
+    system("rm -rf " DIR);
+    mkdir(DIR, 0777);
 
     second_setup();
     insert_test();
