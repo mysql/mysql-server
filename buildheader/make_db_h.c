@@ -70,6 +70,7 @@ void print_defines (void) {
     dodefine(DB_KEYEXIST);
     dodefine(DB_LOCK_DEADLOCK);
     dodefine(DB_NOTFOUND);
+    dodefine(DB_DONOTINDEX);
 
     printf("#define DB_BADFORMAT -30500\n"); // private tokudb
     printf("#define DB_DELETE_ANY %d\n", 1<<16); // private tokudb
@@ -83,6 +84,11 @@ void print_defines (void) {
     dodefine(DB_SET);
     dodefine(DB_SET_RANGE);
     dodefine(DB_RMW);
+
+    dodefine(DB_DBT_APPMALLOC);
+#ifdef DB_DBT_MULTIPLE
+    dodefine(DB_DBT_MULTIPLE);
+#endif
     printf("#endif\n");
 }
 
