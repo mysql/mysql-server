@@ -2951,7 +2951,6 @@ Dbdih::switchPrimaryMutex_locked(Signal* signal, Uint32 toPtrI, Uint32 retVal)
     /**
      * Node died while we waited for lock...
      */
-    ndbout_c("switchPrimaryMutex_locked abortTakeOver");
     abortTakeOver(signal, takeOverPtr);
     return;
   }
@@ -4477,7 +4476,6 @@ void Dbdih::checkCopyTab(Signal* signal, NodeRecordPtr failedNodePtr)
   if (!c_nodeStartMaster.m_fragmentInfoMutex.isNull())
   {
     jam();
-    ndbout_c("unlocknig mutex");
     Mutex mutex(signal, c_mutexMgr, c_nodeStartMaster.m_fragmentInfoMutex);
     mutex.unlock();
   }
