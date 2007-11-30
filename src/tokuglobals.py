@@ -2,6 +2,7 @@
 
 import sys
 import os
+import stat
 import re
 
 def checkglobals(libname, exceptsymbols, verbose):
@@ -30,14 +31,23 @@ def checkglobals(libname, exceptsymbols, verbose):
 
 def main():
     verbose = 0
+    libname = "libdb.so"
     for arg in sys.argv[1:]:
         if arg == "-v":
             verbose += 1
+        elif arg[0:3] == "lib":
+            libname = arg
+
+    try: st = os.stat(libname)
+    except: return 1
+    mode = st[stat.ST_MODE]
+    if not (mode & stat.S_IREAD): return 1
+
     exceptsymbols = {}
     for n in [ "_init", "_fini", "_end", "_edata", "__bss_start" ]:
         exceptsymbols[n] = 1
     for n in [ "db_env_create", "db_create", "db_strerror", "db_version", "log_compare" ]:
         exceptsymbols[n] = 1
-    return checkglobals("libdb.so", exceptsymbols, verbose)
+    return checkglobals(libname, exceptsymbols, verbose)
     
 sys.exit(main())
