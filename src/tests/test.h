@@ -1,6 +1,8 @@
+#include <stdlib.h>
+
 int verbose=0;
 
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
+#define CKERR(r) ({ if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0); })
 
 void parse_args (int argc, const char *argv[]) {
     const char *argv0=argv[0];
