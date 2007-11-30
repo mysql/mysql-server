@@ -137,10 +137,14 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   if(!s->inbuf)
   {
     err= posix_memalign((void**)&(s->inbuf),512,AZ_BUFSIZE_READ);
-    if(err)
+    if(err==ENOTSUP)
+      s->inbuf= malloc(AZ_BUFSIZE_READ);
+    else if(err)
       return -err;
     err= posix_memalign((void**)&(s->outbuf),512,AZ_BUFSIZE_WRITE);
-    if(err)
+    if(err==ENOTSUP)
+      s->inbuf= malloc(AZ_BUFSIZE_READ);
+    else if(err)
       return -err;
     s->bufalloced = 1;
   }

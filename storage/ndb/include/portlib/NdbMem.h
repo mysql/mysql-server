@@ -74,6 +74,7 @@ int NdbMem_MemLockAll(int);
 int NdbMem_MemUnlockAll(void);
 
 #ifndef HAVE_POSIX_MEMALIGN
+#ifdef HAVE_MEMALIGN /* Solaris 10 has memalign but not posix_memalign */
 static inline int posix_memalign(void **memptr, size_t alignment, size_t size)
 {
   *memptr= memalign(alignment,size);
@@ -81,6 +82,20 @@ static inline int posix_memalign(void **memptr, size_t alignment, size_t size)
     return ENOMEM;
   return 0;
 }
+#else /* But Darwin 7.9.0 doesn't have posix_memalign OR memalign */
+static inline int posix_memalign(void **memptr, size_t alignment, size_t size)
+{
+  (void)memptr;
+  (void)alignment;
+  (void)size;
+  return ENOTSUP; /* POSIX says we can return EINVAL or ENOMEM...
+                     but we cheat here and do ENOTSUP so that code
+                     elsewhere can work out if it can fall back to
+                     plain malloc() or not as we cannot reasonably do aligned
+                     memory allocation and free without leaking memory
+                  */
+}
+#endif
 #endif
 
 #ifdef	__cplusplus
