@@ -7246,6 +7246,7 @@ On return if there is no error then the tables AUTOINC lock is locked.*/
 
 ulong
 ha_innobase::innobase_get_auto_increment(
+/*=====================================*/
 	ulonglong*	value)		/* out: autoinc value */
 {
 	ulong		error;
