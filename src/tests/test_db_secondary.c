@@ -13,10 +13,7 @@
 #include <fcntl.h>
 #include <unistd.h>*/
 
-#define CKERR(r) \
-do {                                                                                                        \
-    if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);  \
-} while (0)
+#include "test.h"
 
 // DIR is defined in the Makefile
 
@@ -62,20 +59,20 @@ void second_setup() {
     int r;
 
     /* Open/create primary */
-    r = db_create(&dbp, dbenv, 0);                                              assert(r == 0);
-    r = dbp->open(dbp, NULL, "students.db", NULL, DB_BTREE, DB_CREATE, 0600);   assert(r == 0);
+    r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
+    r = dbp->open(dbp, NULL, "students.db", NULL, DB_BTREE, DB_CREATE, 0600);   CKERR(r);
 
     /*
      * Open/create secondary. Note that it supports duplicate data
      * items, since last names might not be unique.
      */
-    r = db_create(&sdbp, dbenv, 0);                                             assert(r == 0);
-    r = sdbp->set_flags(sdbp, DB_DUP | DB_DUPSORT);                             assert(r == 0);
-    r = sdbp->open(sdbp, NULL, "lastname.db", NULL, DB_BTREE, DB_CREATE, 0600); assert(r == 0);
+    r = db_create(&sdbp, dbenv, 0);                                             CKERR(r);
+    r = sdbp->set_flags(sdbp, DB_DUP | DB_DUPSORT);                             CKERR(r);
+    r = sdbp->open(sdbp, NULL, "lastname.db", NULL, DB_BTREE, DB_CREATE, 0600); CKERR(r);
     
 
     /* Associate the secondary with the primary. */
-    r = dbp->associate(dbp, NULL, sdbp, getname, 0);                            assert(r == 0);
+    r = dbp->associate(dbp, NULL, sdbp, getname, 0);                            CKERR(r);
 }
 
 void setup_student(struct student_record *s) {
@@ -106,23 +103,23 @@ void insert_test() {
     data.data = &s;
     data.size = sizeof(s);
     //Set up secondary key
-    r = getname(sdbp, &key, &data, &skey);              assert(r == 0);
+    r = getname(sdbp, &key, &data, &skey);              CKERR(r);
         
-    r = dbp->put(dbp, null_txn, &key, &data, 0);        assert(r == 0);
+    r = dbp->put(dbp, null_txn, &key, &data, 0);        CKERR(r);
     
 
     /* Try to get it from primary. */
-    r = dbp->get(dbp, null_txn, &key, &testdata, 0);    assert(r == 0);
-    r = dbtcmp(&data, &testdata);                       assert(r == 0);
+    r = dbp->get(dbp, null_txn, &key, &testdata, 0);    CKERR(r);
+    r = dbtcmp(&data, &testdata);                       CKERR(r);
     
     /* Try to get it from secondary. */
-    r = sdbp->get(sdbp, null_txn, &skey, &testdata, 0); assert(r == 0);
-    r = dbtcmp(&data, &testdata);                       assert(r == 0);
+    r = sdbp->get(sdbp, null_txn, &skey, &testdata, 0); CKERR(r);
+    r = dbtcmp(&data, &testdata);                       CKERR(r);
 
     /* Try to pget from secondary */ 
-    r = sdbp->pget(sdbp, null_txn, &skey, &testkey, &testdata, 0);  assert(r == 0);
-    r = dbtcmp(&data, &testdata);                       assert(r == 0);
-    r = dbtcmp(&testkey, &key);                         assert(r == 0);
+    r = sdbp->pget(sdbp, null_txn, &skey, &testkey, &testdata, 0);  CKERR(r);
+    r = dbtcmp(&data, &testdata);                       CKERR(r);
+    r = dbtcmp(&testkey, &key);                         CKERR(r);
     
     /* Make sure we fail 'pget' from primary */
     r = dbp->pget(dbp, null_txn, &key, &testkey, &data, 0);         assert(r == EINVAL);
@@ -135,7 +132,7 @@ void delete_from_primary() {
     memset(&key, 0, sizeof(DBT));
     key.data = "WC42";
     key.size = 4;
-    r = dbp->del(dbp, null_txn, &key, 0);               assert(r == 0);
+    r = dbp->del(dbp, null_txn, &key, 0);               CKERR(r);
 }
 
 void delete_from_secondary() {
@@ -150,8 +147,8 @@ void delete_from_secondary() {
 
     data.data = &s;
     data.size = sizeof(s);
-    r = getname(sdbp, NULL, &data, &skey);              assert(r == 0);
-    r = sdbp->del(sdbp, null_txn, &skey, 0);            assert(r == 0);
+    r = getname(sdbp, NULL, &data, &skey);              CKERR(r);
+    r = sdbp->del(sdbp, null_txn, &skey, 0);            CKERR(r);
 }
 
 void verify_gone() {
@@ -172,12 +169,12 @@ void verify_gone() {
 
     /* Try (fail) to get it from secondary. */
     setup_student(&s);
-    r = getname(sdbp, NULL, &data, &skey);              assert(r == 0);
+    r = getname(sdbp, NULL, &data, &skey);              CKERR(r);
     r = sdbp->get(sdbp, null_txn, &skey, &data, 0);     assert(r == DB_NOTFOUND);
 
     /* Try (fail) to pget from secondary */ 
     setup_student(&s);
-    r = getname(sdbp, NULL, &data, &skey);              assert(r == 0);
+    r = getname(sdbp, NULL, &data, &skey);              CKERR(r);
     r = sdbp->pget(sdbp, null_txn, &skey, &key, &data, 0);assert(r == DB_NOTFOUND);
 }
 
@@ -192,7 +189,7 @@ int main() {
     delete_from_secondary();
     verify_gone();
     
-    r = dbp->close(dbp, 0);                             assert(r == 0);
-    r = sdbp->close(sdbp, 0);                           assert(r == 0);
+    r = dbp->close(dbp, 0);                             CKERR(r);
+    r = sdbp->close(sdbp, 0);                           CKERR(r);
     return 0;
 }
