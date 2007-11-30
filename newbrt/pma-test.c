@@ -18,6 +18,15 @@ static const FILENUM null_filenum = {0};
 
 #define NULL_ARGS null_txn, null_diskoff
 
+void *skey=0, *sval=0;
+
+void local_memory_check_all_free(void) {
+    if (skey) toku_free(skey);
+    if (sval) toku_free(sval);
+    skey = sval = 0;
+    toku_memory_check_all_free();
+}
+
 static void test_make_space_at (void) {
     PMA pma;
     char *key;
@@ -472,7 +481,7 @@ static void test_pma_cursor_0 (void) {
     PMA_CURSOR c=0;
     int r;
     r=toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0); assert(r==0);
-    r=toku_pma_cursor(pma, &c); assert(r==0); assert(c!=0);
+    r=toku_pma_cursor(pma, &c, &skey, &sval); assert(r==0); assert(c!=0);
     printf("%s:%d\n", __FILE__, __LINE__);
     r=toku_pma_free(&pma);      assert(r!=0); /* didn't deallocate the cursor. */
     printf("%s:%d\n", __FILE__, __LINE__);
@@ -490,9 +499,9 @@ static void test_pma_cursor_1 (void) {
     int order;
     for (order=0; order<6; order++) {
 	r=toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0); assert(r==0);
-	r=toku_pma_cursor(pma, &c0); assert(r==0); assert(c0!=0);
-	r=toku_pma_cursor(pma, &c1); assert(r==0); assert(c1!=0);
-	r=toku_pma_cursor(pma, &c2); assert(r==0); assert(c2!=0);
+	r=toku_pma_cursor(pma, &c0, &skey, &sval); assert(r==0); assert(c0!=0);
+	r=toku_pma_cursor(pma, &c1, &skey, &sval); assert(r==0); assert(c1!=0);
+	r=toku_pma_cursor(pma, &c2, &skey, &sval); assert(r==0); assert(c2!=0);
 
 	r=toku_pma_free(&pma); assert(r!=0);
 
@@ -521,7 +530,7 @@ static void test_pma_cursor_2 (void) {
     toku_init_dbt(&key); key.flags=DB_DBT_REALLOC;
     toku_init_dbt(&val); val.flags=DB_DBT_REALLOC;
     r=toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0); assert(r==0);
-    r=toku_pma_cursor(pma, &c); assert(r==0); assert(c!=0);
+    r=toku_pma_cursor(pma, &c, &skey, &sval); assert(r==0); assert(c!=0);
     r=toku_pma_cursor_set_position_last(c); assert(r==DB_NOTFOUND);
     r=toku_pma_cursor_free(&c); assert(r==0);
     r=toku_pma_free(&pma); assert(r==0);
@@ -543,7 +552,7 @@ static void test_pma_cursor_3 (void) {
     do_insert(pma, "aa", 3, "a",  2, rand4fingerprint, &sum, &expect_fingerprint);
     toku_init_dbt(&key); key.flags=DB_DBT_REALLOC;
     toku_init_dbt(&val); val.flags=DB_DBT_REALLOC;
-    r=toku_pma_cursor(pma, &c); assert(r==0); assert(c!=0);
+    r=toku_pma_cursor(pma, &c, &skey, &sval); assert(r==0); assert(c!=0);
 
     r=toku_pma_cursor_set_position_first(c); assert(r==0);
     r=toku_pma_cursor_get_current(c, &key, &val); assert(r==0);
@@ -616,13 +625,13 @@ static void test_pma_cursor_4 (void) {
     assert(toku_pma_n_entries(pma) == 4);
     printf("a:"); toku_print_pma(pma);
 
-    error = toku_pma_cursor(pma, &cursora);
+    error = toku_pma_cursor(pma, &cursora, &skey, &sval);
     assert(error == 0);
     error = toku_pma_cursor_set_position_first(cursora);
     assert(error == 0);
     assert_cursor_val(cursora, 1);
 
-    error = toku_pma_cursor(pma, &cursorb);
+    error = toku_pma_cursor(pma, &cursorb, &skey, &sval);
     assert(error == 0);
     error = toku_pma_cursor_set_position_first(cursorb);
     assert(error == 0);
@@ -631,7 +640,7 @@ static void test_pma_cursor_4 (void) {
     assert(error == 0);
     assert_cursor_val(cursorb, 2);
 
-    error = toku_pma_cursor(pma, &cursorc);
+    error = toku_pma_cursor(pma, &cursorc, &skey, &sval);
     assert(error == 0);
     error = toku_pma_cursor_set_position_last(cursorc);
     assert(error == 0);
@@ -685,7 +694,7 @@ static void test_pma_cursor_delete(int n) {
 
     /* point the cursor to the first kv */
     PMA_CURSOR cursor;
-    error = toku_pma_cursor(pma, &cursor);
+    error = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(error == 0);
 
     DBT cursorkey, cursorval;
@@ -789,7 +798,7 @@ static void test_pma_compare_fun (int wrong_endian_p) {
     do_insert(pma, "11", 3, "11v", 4, rand4fingerprint, &sum, &expect_fingerprint);
     toku_init_dbt(&key); key.flags=DB_DBT_REALLOC;
     toku_init_dbt(&val); val.flags=DB_DBT_REALLOC;
-    r=toku_pma_cursor(pma, &c); assert(r==0); assert(c!=0);
+    r=toku_pma_cursor(pma, &c, &skey, &sval); assert(r==0); assert(c!=0);
     
     for (i=0; i<4; i++) {
 	if (i==0) {
@@ -1111,14 +1120,14 @@ static void test_pma_split_cursor(void) {
     assert(toku_pma_n_entries(pmaa) == 16);
     printf("a:"); toku_print_pma(pmaa);
 
-    error = toku_pma_cursor(pmaa, &cursora);
+    error = toku_pma_cursor(pmaa, &cursora, &skey, &sval);
     assert(error == 0);
     error = toku_pma_cursor_set_position_first(cursora);
     assert(error == 0);
     // print_cursor("cursora", cursora);
     assert_cursor_val(cursora, 1);
 
-    error = toku_pma_cursor(pmaa, &cursorb);
+    error = toku_pma_cursor(pmaa, &cursorb, &skey, &sval);
     assert(error == 0);
     error = toku_pma_cursor_set_position_first(cursorb);
     assert(error == 0);
@@ -1127,7 +1136,7 @@ static void test_pma_split_cursor(void) {
     // print_cursor("cursorb", cursorb);
     assert_cursor_val(cursorb, 2);
 
-    error = toku_pma_cursor(pmaa, &cursorc);
+    error = toku_pma_cursor(pmaa, &cursorc, &skey, &sval);
     assert(error == 0);
     error = toku_pma_cursor_set_position_last(cursorc);
     assert(error == 0);
@@ -1182,17 +1191,17 @@ static void test_pma_split_cursor(void) {
 }
 
 static void test_pma_split(void) {
-    test_pma_split_n(0); toku_memory_check_all_free();
-    test_pma_split_n(1); toku_memory_check_all_free();
-    test_pma_split_n(2); toku_memory_check_all_free();
-    test_pma_split_n(4); toku_memory_check_all_free();
-    test_pma_split_n(8); toku_memory_check_all_free();
-    test_pma_split_n(9);  toku_memory_check_all_free();
-    test_pma_dup_split_n(0, TOKU_DB_DUP);  toku_memory_check_all_free();
-    test_pma_dup_split_n(1, TOKU_DB_DUP);  toku_memory_check_all_free();
-    test_pma_dup_split_n(9, TOKU_DB_DUP);  toku_memory_check_all_free();
-    test_pma_split_varkey(); toku_memory_check_all_free();
-    test_pma_split_cursor(); toku_memory_check_all_free();
+    test_pma_split_n(0); local_memory_check_all_free();
+    test_pma_split_n(1); local_memory_check_all_free();
+    test_pma_split_n(2); local_memory_check_all_free();
+    test_pma_split_n(4); local_memory_check_all_free();
+    test_pma_split_n(8); local_memory_check_all_free();
+    test_pma_split_n(9);  local_memory_check_all_free();
+    test_pma_dup_split_n(0, TOKU_DB_DUP);  local_memory_check_all_free();
+    test_pma_dup_split_n(1, TOKU_DB_DUP);  local_memory_check_all_free();
+    test_pma_dup_split_n(9, TOKU_DB_DUP);  local_memory_check_all_free();
+    test_pma_split_varkey(); local_memory_check_all_free();
+    test_pma_split_cursor(); local_memory_check_all_free();
 }
 
 /*
@@ -1277,14 +1286,14 @@ static void test_pma_bulk_insert_n(int n) {
 }
 
 static void test_pma_bulk_insert(void) {
-    test_pma_bulk_insert_n(0); toku_memory_check_all_free();
-    test_pma_bulk_insert_n(1); toku_memory_check_all_free();
-    test_pma_bulk_insert_n(2); toku_memory_check_all_free();
-    test_pma_bulk_insert_n(3); toku_memory_check_all_free();
-    test_pma_bulk_insert_n(4); toku_memory_check_all_free();
-    test_pma_bulk_insert_n(5); toku_memory_check_all_free();
-    test_pma_bulk_insert_n(8); toku_memory_check_all_free();
-    test_pma_bulk_insert_n(32); toku_memory_check_all_free();
+    test_pma_bulk_insert_n(0); local_memory_check_all_free();
+    test_pma_bulk_insert_n(1); local_memory_check_all_free();
+    test_pma_bulk_insert_n(2); local_memory_check_all_free();
+    test_pma_bulk_insert_n(3); local_memory_check_all_free();
+    test_pma_bulk_insert_n(4); local_memory_check_all_free();
+    test_pma_bulk_insert_n(5); local_memory_check_all_free();
+    test_pma_bulk_insert_n(8); local_memory_check_all_free();
+    test_pma_bulk_insert_n(32); local_memory_check_all_free();
 }
 
 static void test_pma_insert_or_replace(void) {
@@ -1477,7 +1486,7 @@ static void test_pma_delete_cursor(int n) {
 
     PMA_CURSOR pmacursor;
 
-    r = toku_pma_cursor(pma, &pmacursor);
+    r = toku_pma_cursor(pma, &pmacursor, &skey, &sval);
     assert(r == 0);
 
     r = toku_pma_cursor_set_position_last(pmacursor);
@@ -1530,7 +1539,7 @@ static void test_pma_delete_insert() {
 
     PMA_CURSOR pmacursor;
 
-    error = toku_pma_cursor(pma, &pmacursor);
+    error = toku_pma_cursor(pma, &pmacursor, &skey, &sval);
     assert(error == 0);
 
     DBT key, val;
@@ -1579,7 +1588,7 @@ static void test_pma_double_delete() {
 
     PMA_CURSOR pmacursor;
 
-    error = toku_pma_cursor(pma, &pmacursor);
+    error = toku_pma_cursor(pma, &pmacursor, &skey, &sval);
     assert(error == 0);
 
     DBT key;
@@ -1634,7 +1643,7 @@ static void test_pma_cursor_first_delete_last() {
 
     PMA_CURSOR pmacursor;
 
-    error = toku_pma_cursor(pma, &pmacursor);
+    error = toku_pma_cursor(pma, &pmacursor, &skey, &sval);
     assert(error == 0);
 
     error = toku_pma_cursor_set_position_first(pmacursor);
@@ -1681,7 +1690,7 @@ static void test_pma_cursor_last_delete_first() {
 
     PMA_CURSOR pmacursor;
 
-    error = toku_pma_cursor(pma, &pmacursor);
+    error = toku_pma_cursor(pma, &pmacursor, &skey, &sval);
     assert(error == 0);
 
     error = toku_pma_cursor_set_position_last(pmacursor);
@@ -1704,13 +1713,13 @@ static void test_pma_cursor_last_delete_first() {
 }
 
 static void test_pma_delete() {
-    test_pma_delete_shrink(256);  toku_memory_check_all_free();
-    test_pma_delete_random(256);  toku_memory_check_all_free();
-    test_pma_delete_cursor(32);   toku_memory_check_all_free();
-    test_pma_delete_insert();     toku_memory_check_all_free();
-    test_pma_double_delete();     toku_memory_check_all_free();
-    test_pma_cursor_first_delete_last(); toku_memory_check_all_free();
-    test_pma_cursor_last_delete_first(); toku_memory_check_all_free();
+    test_pma_delete_shrink(256);  local_memory_check_all_free();
+    test_pma_delete_random(256);  local_memory_check_all_free();
+    test_pma_delete_cursor(32);   local_memory_check_all_free();
+    test_pma_delete_insert();     local_memory_check_all_free();
+    test_pma_double_delete();     local_memory_check_all_free();
+    test_pma_cursor_first_delete_last(); local_memory_check_all_free();
+    test_pma_cursor_last_delete_first(); local_memory_check_all_free();
 }
 
 static void test_pma_already_there() {
@@ -1767,7 +1776,7 @@ static void test_pma_cursor_set_key() {
     }
 
     PMA_CURSOR cursor;
-    error = toku_pma_cursor(pma, &cursor);
+    error = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(error == 0);
 
     for (i=0; i<n; i += 1) {
@@ -1824,7 +1833,7 @@ static void test_pma_cursor_set_range() {
     }
 
     PMA_CURSOR cursor;
-    error = toku_pma_cursor(pma, &cursor);
+    error = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(error == 0);
 
     for (i=0; i<100; i += 1) {
@@ -1872,7 +1881,7 @@ static void test_pma_cursor_delete_under() {
     assert(error == 0);
 
     PMA_CURSOR cursor;
-    error = toku_pma_cursor(pma, &cursor);
+    error = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(error == 0);
 
     int kvsize;
@@ -1944,7 +1953,7 @@ static void test_pma_cursor_set_both() {
     assert(error == 0);
 
     PMA_CURSOR cursor;
-    error = toku_pma_cursor(pma, &cursor);
+    error = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(error == 0);
 
     DBT key, val;
@@ -2082,7 +2091,7 @@ static void test_dup_key_insert(int n) {
 
     /* cursor walk from key k should find values 0, 1, .. n-1 */
     PMA_CURSOR cursor;
-    r = toku_pma_cursor(pma, &cursor);
+    r = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(r == 0);
 
     k = htonl(2);
@@ -2182,7 +2191,7 @@ static void test_dup_key_delete(int n, int mode) {
 
     /* cursor walk should find keys 1, 3 */
     PMA_CURSOR cursor;
-    r = toku_pma_cursor(pma, &cursor);
+    r = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(r == 0);
 
     r = toku_pma_cursor_set_position_first(cursor);
@@ -2275,7 +2284,7 @@ static void test_dupsort_key_insert(int n, int dup_data) {
 
     /* cursor walk from key k should find values 0, 1, .. n-1 */
     PMA_CURSOR cursor;
-    r = toku_pma_cursor(pma, &cursor);
+    r = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(r == 0);
 
     toku_fill_dbt(&key, &k, sizeof k);
@@ -2384,48 +2393,48 @@ static void test_dup_key_lookup(int n, int mode) {
 }
 
 static void test_dup() {
-    test_nodup_key_insert(2);                            toku_memory_check_all_free();
-    test_dup_key_insert(0);                              toku_memory_check_all_free();
-    test_dup_key_insert(2);                              toku_memory_check_all_free();
-    test_dup_key_insert(1000);                           toku_memory_check_all_free();
-    test_dup_key_delete(0, TOKU_DB_DUP);                 toku_memory_check_all_free();
-    test_dup_key_delete(1000, TOKU_DB_DUP);              toku_memory_check_all_free();
-    test_dupsort_key_insert(2, 0);                       toku_memory_check_all_free();
-    test_dupsort_key_insert(1000, 0);                    toku_memory_check_all_free();
-    test_dupsort_key_insert(2, 1);                       toku_memory_check_all_free();
-    test_dupsort_key_insert(1000, 1);                    toku_memory_check_all_free();
-    test_dup_key_delete(0, TOKU_DB_DUP+TOKU_DB_DUPSORT);           toku_memory_check_all_free();
-    test_dup_key_delete(1000, TOKU_DB_DUP+TOKU_DB_DUPSORT);        toku_memory_check_all_free();
-    test_dup_key_lookup(32, TOKU_DB_DUP);                          toku_memory_check_all_free();
-    test_dup_key_lookup(32, TOKU_DB_DUP+TOKU_DB_DUPSORT);          toku_memory_check_all_free();
+    test_nodup_key_insert(2);                            local_memory_check_all_free();
+    test_dup_key_insert(0);                              local_memory_check_all_free();
+    test_dup_key_insert(2);                              local_memory_check_all_free();
+    test_dup_key_insert(1000);                           local_memory_check_all_free();
+    test_dup_key_delete(0, TOKU_DB_DUP);                 local_memory_check_all_free();
+    test_dup_key_delete(1000, TOKU_DB_DUP);              local_memory_check_all_free();
+    test_dupsort_key_insert(2, 0);                       local_memory_check_all_free();
+    test_dupsort_key_insert(1000, 0);                    local_memory_check_all_free();
+    test_dupsort_key_insert(2, 1);                       local_memory_check_all_free();
+    test_dupsort_key_insert(1000, 1);                    local_memory_check_all_free();
+    test_dup_key_delete(0, TOKU_DB_DUP+TOKU_DB_DUPSORT);           local_memory_check_all_free();
+    test_dup_key_delete(1000, TOKU_DB_DUP+TOKU_DB_DUPSORT);        local_memory_check_all_free();
+    test_dup_key_lookup(32, TOKU_DB_DUP);                          local_memory_check_all_free();
+    test_dup_key_lookup(32, TOKU_DB_DUP+TOKU_DB_DUPSORT);          local_memory_check_all_free();
 }
 
 static void pma_tests (void) {
     toku_memory_check=1;
-    toku_test_keycompare();            toku_memory_check_all_free();
-    test_pma_compare_fun(0);      toku_memory_check_all_free();
-    test_pma_compare_fun(1);      toku_memory_check_all_free();
+    toku_test_keycompare();            local_memory_check_all_free();
+    test_pma_compare_fun(0);      local_memory_check_all_free();
+    test_pma_compare_fun(1);      local_memory_check_all_free();
     test_pma_iterate();           
-    test_pma_iterate2();          toku_memory_check_all_free();
-    test_make_space_at();         toku_memory_check_all_free();
-    test_smooth_region();         toku_memory_check_all_free();
-    test_find_insert();           toku_memory_check_all_free();
-    test_pma_find();              toku_memory_check_all_free();
-    test_calculate_parameters();  toku_memory_check_all_free();
-    test_count_region();          toku_memory_check_all_free();
+    test_pma_iterate2();          local_memory_check_all_free();
+    test_make_space_at();         local_memory_check_all_free();
+    test_smooth_region();         local_memory_check_all_free();
+    test_find_insert();           local_memory_check_all_free();
+    test_pma_find();              local_memory_check_all_free();
+    test_calculate_parameters();  local_memory_check_all_free();
+    test_count_region();          local_memory_check_all_free();
 
-    test_pma_random_pick();       toku_memory_check_all_free();
-    test_pma_cursor();            toku_memory_check_all_free();
+    test_pma_random_pick();       local_memory_check_all_free();
+    test_pma_cursor();            local_memory_check_all_free();
 
-    test_pma_split();             toku_memory_check_all_free();
-    test_pma_bulk_insert();       toku_memory_check_all_free();
-    test_pma_insert_or_replace(); toku_memory_check_all_free();
+    test_pma_split();             local_memory_check_all_free();
+    test_pma_bulk_insert();       local_memory_check_all_free();
+    test_pma_insert_or_replace(); local_memory_check_all_free();
     test_pma_delete();
-    test_pma_already_there();     toku_memory_check_all_free();
-    test_pma_cursor_set_key();    toku_memory_check_all_free();
-    test_pma_cursor_set_range();  toku_memory_check_all_free();    
-    test_pma_cursor_delete_under();  toku_memory_check_all_free();    
-    test_pma_cursor_set_both();   toku_memory_check_all_free();
+    test_pma_already_there();     local_memory_check_all_free();
+    test_pma_cursor_set_key();    local_memory_check_all_free();
+    test_pma_cursor_set_range();  local_memory_check_all_free();    
+    test_pma_cursor_delete_under();  local_memory_check_all_free();    
+    test_pma_cursor_set_both();   local_memory_check_all_free();
     test_dup();
 }
 

@@ -91,7 +91,7 @@ int toku_pma_split(PMA origpma,  unsigned int *origpma_size, DBT *splitk,
 int toku_pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4sem, u_int32_t *fingerprint);
 
 /* Move the cursor to the beginning or the end or to a key */
-int toku_pma_cursor (PMA, PMA_CURSOR *);
+int toku_pma_cursor (PMA, PMA_CURSOR *, void** /*sskey*/, void ** /*ssval*/); // the sskey and ssval point to variables that hold blocks that can be used to return values for zero'd DBTS.
 int toku_pma_cursor_free (PMA_CURSOR*);
 
 /* get the pma that a pma cursor is bound to */

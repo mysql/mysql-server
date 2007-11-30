@@ -665,14 +665,14 @@ int toku_pma_set_dup_compare(PMA pma, pma_compare_fun_t dup_compare_fun) {
     return 0;
 }
 
-int toku_pma_cursor (PMA pma, PMA_CURSOR *cursp) {
+int toku_pma_cursor (PMA pma, PMA_CURSOR *cursp, void **sskey, void **ssval) {
     PMA_CURSOR MALLOC(curs);
     assert(curs!=0);
     if (errno!=0) return errno;
     curs->position=-1; /* undefined */
     curs->pma = pma;
-    curs->skey = 0;
-    curs->sval=0;
+    curs->sskey = sskey;
+    curs->ssval = ssval;
     list_push(&pma->cursors, &curs->next);
     *cursp=curs;
     return 0;
@@ -758,7 +758,7 @@ int toku_pma_cursor_get_current_data(PMA_CURSOR c, DBT *data) {
     struct kv_pair *pair = pma->pairs[c->position];
     if (!kv_pair_valid(pair)) 
         return BRT_KEYEMPTY;
-    toku_dbt_set_value(data, kv_pair_val(pair), kv_pair_vallen(pair), &c->sval);
+    toku_dbt_set_value(data, kv_pair_val(pair), kv_pair_vallen(pair), c->ssval);
     return 0;
 }
 
@@ -769,8 +769,8 @@ int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val) {
     struct kv_pair *pair = pma->pairs[c->position];
     if (!kv_pair_valid(pair)) 
         return BRT_KEYEMPTY;
-    toku_dbt_set_value(key, kv_pair_key(pair), kv_pair_keylen(pair), &c->skey);
-    toku_dbt_set_value(val, kv_pair_val(pair), kv_pair_vallen(pair), &c->sval);
+    toku_dbt_set_value(key, kv_pair_key(pair), kv_pair_keylen(pair), c->sskey);
+    toku_dbt_set_value(val, kv_pair_val(pair), kv_pair_vallen(pair), c->ssval);
     return 0;
 }
 
@@ -863,8 +863,7 @@ int toku_pma_cursor_free (PMA_CURSOR *cursp) {
         __pma_count_cursor_refs(pma, curs->position) == 0) {
         __pma_delete_finish(pma, curs->position);
     }
-    if (curs->skey) toku_free(curs->skey);
-    if (curs->sval) toku_free(curs->sval);
+    // It's not our job to free the sskey and ssval blocks.
     toku_free(curs);
     *cursp=0;
     return 0;
