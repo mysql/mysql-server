@@ -25,8 +25,6 @@ DBT *dbt_init_malloc(DBT *dbt) {
     return dbt;
 }
 
-
-
 void test_key_size_limit(int dup_mode) {
     if (verbose) printf("test_key_size_limit:%d\n", dup_mode);
 
@@ -72,6 +70,8 @@ void test_key_size_limit(int dup_mode) {
             hi = mi-1;
         }
     }
+    free(k);
+    free(v);
     assert(bigest > 0);
     if (verbose && bigest >= 0) printf("bigest %d\n", bigest);
 
