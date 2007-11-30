@@ -547,8 +547,9 @@ public:
       ,TO_MUTEX_BEFORE_LOCKED = 2  // Lock held
       ,TO_AFTER_STORED = 3         // No lock, but NGPtr reservation
       ,TO_MUTEX_BEFORE_COMMIT = 4  // Waiting for lock
-      ,TO_MUTEX_SWITCH_REPLICA = 5 // Waiting for switch replica lock
-      ,TO_WAIT_LCP = 6             // No locks, waiting for LCP
+      ,TO_MUTEX_BEFORE_SWITCH_REPLICA = 5 // Waiting for switch replica lock
+      ,TO_MUTEX_AFTER_SWITCH_REPLICA = 6
+      ,TO_WAIT_LCP = 7             // No locks, waiting for LCP
     };
     
     Uint32 m_flags;       // 
@@ -1128,6 +1129,7 @@ private:
 // TakeOver Record specific methods
 //------------------------------------
   void releaseTakeOver(TakeOverRecordPtr);
+  void abortTakeOver(Signal*, TakeOverRecordPtr);
   bool anyActiveTakeOver();
   void checkToCopy();
   void checkToCopyCompleted(Signal *);

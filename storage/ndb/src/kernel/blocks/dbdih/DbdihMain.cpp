@@ -2695,7 +2695,6 @@ void Dbdih::execSTART_TOREQ(Signal* signal)
   jamEntry();
   StartToReq req = *(StartToReq *)&signal->theData[0];
   
-  CRASH_INSERTION(7133);
 
   if (ndb_pnr(getNodeInfo(refToNode(req.senderRef)).m_version))
   {
@@ -2860,7 +2859,8 @@ Dbdih::updateToReq_fragmentMutex_locked(Signal * signal,
     /**
      * Node died while we waited for lock...
      */
-    goto abort_takeover;
+    abortTakeOver(signal, takeOverPtr);
+    return;
   }
 
   switch(takeOverPtr.p->toMasterStatus){
@@ -2890,12 +2890,13 @@ Dbdih::updateToReq_fragmentMutex_locked(Signal * signal,
       goto ref;
     }
     NGPtr.p->activeTakeOver = 0;
+    takeOverPtr.p->toCopyNode = RNIL;
     Mutex mutex(signal, c_mutexMgr, 
                 takeOverPtr.p->m_switchPrimaryMutexHandle);
     Callback c = { safe_cast(&Dbdih::switchPrimaryMutex_locked), 
                    takeOverPtr.i };
     ndbrequire(mutex.lock(c));
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MUTEX_SWITCH_REPLICA;
+    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MUTEX_BEFORE_SWITCH_REPLICA;
     return;
     break;
   }
@@ -2928,10 +2929,6 @@ ref:
                UpdateToRef::SignalLength, JBB);
     return;
   }
-  
-abort_takeover:
-  ndbrequire(false);
-  
 }
 
 void
@@ -2942,6 +2939,24 @@ Dbdih::switchPrimaryMutex_locked(Signal* signal, Uint32 toPtrI, Uint32 retVal)
   
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, toPtrI);
+
+  Uint32 nodeId = takeOverPtr.p->toStartingNode;
+  NodeRecordPtr nodePtr;
+  nodePtr.i = nodeId;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+
+  if (unlikely(nodePtr.p->nodeStatus != NodeRecord::ALIVE))
+  {
+    jam();
+    /**
+     * Node died while we waited for lock...
+     */
+    ndbout_c("switchPrimaryMutex_locked abortTakeOver");
+    abortTakeOver(signal, takeOverPtr);
+    return;
+  }
+
+  takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MUTEX_AFTER_SWITCH_REPLICA;
 
   UpdateToConf * conf = (UpdateToConf *)&signal->theData[0];
   conf->senderData = takeOverPtr.p->m_senderData;
@@ -2966,6 +2981,44 @@ Dbdih::switchPrimaryMutex_unlocked(Signal* signal, Uint32 toPtrI, Uint32 retVal)
   conf->startingNodeId = takeOverPtr.p->toStartingNode;
   sendSignal(takeOverPtr.p->m_senderRef, GSN_UPDATE_TOCONF, signal, 
              UpdateToConf::SignalLength, JBB);
+}
+
+void
+Dbdih::abortTakeOver(Signal* signal, TakeOverRecordPtr takeOverPtr)
+{
+  if (!takeOverPtr.p->m_switchPrimaryMutexHandle.isNull())
+  {
+    jam();
+    Mutex mutex(signal, c_mutexMgr, 
+                takeOverPtr.p->m_switchPrimaryMutexHandle);
+    mutex.unlock();
+
+  }
+  
+  if (!takeOverPtr.p->m_fragmentInfoMutex.isNull())
+  {
+    jam();
+    Mutex mutex(signal, c_mutexMgr, 
+                takeOverPtr.p->m_fragmentInfoMutex);
+    mutex.unlock();
+  }
+  
+  NodeRecordPtr nodePtr;
+  nodePtr.i = takeOverPtr.p->toCopyNode;
+  if (nodePtr.i != RNIL)
+  {
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    NodeGroupRecordPtr NGPtr;
+    NGPtr.i = nodePtr.p->nodeGroup;
+    ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+    if (NGPtr.p->activeTakeOver == takeOverPtr.p->toStartingNode)
+    {
+      jam();
+      NGPtr.p->activeTakeOver = 0;
+    }
+  }
+  
+  releaseTakeOver(takeOverPtr);
 }
 
 static 
@@ -3034,8 +3087,6 @@ void Dbdih::execEND_TOREQ(Signal* signal)
   jamEntry();
   EndToReq req = *(EndToReq *)&signal->theData[0];
 
-  CRASH_INSERTION(7144);
-  
   Uint32 nodeId = refToNode(req.senderRef);
   TakeOverRecordPtr takeOverPtr;
   ndbrequire(findTakeOver(takeOverPtr, nodeId));
@@ -3463,6 +3514,8 @@ Dbdih::execSTART_TOCONF(Signal* signal)
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
 
+  CRASH_INSERTION(7133);
+
   /**
    * We are now allowed to start copying
    */
@@ -3689,22 +3742,34 @@ Dbdih::execUPDATE_TOCONF(Signal* signal)
   switch(takeOverPtr.p->toSlaveStatus){
   case TakeOverRecord::TO_UPDATE_BEFORE_STORED:
     jam();
+    
+    CRASH_INSERTION(7154);
+    
     takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_CREATE_FRAG_STORED;
     sendCreateFragReq(signal, 0, CreateFragReq::STORED, takeOverPtr.i);
     return;
   case TakeOverRecord::TO_UPDATE_AFTER_STORED:
     jam();
+
+    CRASH_INSERTION(7195);
+
     takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_COPY_FRAG;
     toStartCopyFrag(signal, takeOverPtr);
     return;
   case TakeOverRecord::TO_UPDATE_BEFORE_COMMIT:
     jam();
+
+    CRASH_INSERTION(7196);
+
     takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_CREATE_FRAG_COMMIT;
     sendCreateFragReq(signal, takeOverPtr.p->startGci, 
                       CreateFragReq::COMMIT_STORED, takeOverPtr.i);
     return;
   case TakeOverRecord::TO_UPDATE_AFTER_COMMIT:
     jam();
+
+    CRASH_INSERTION(7197);
+
     takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SELECTING_NEXT;
     startNextCopyFragment(signal, takeOverPtr.i);
     return;
@@ -3795,10 +3860,12 @@ void Dbdih::execCREATE_FRAGCONF(Signal* signal)
   switch(takeOverPtr.p->toSlaveStatus){
   case TakeOverRecord::TO_CREATE_FRAG_STORED:
     jam();
+    CRASH_INSERTION(7198);
     takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_UPDATE_AFTER_STORED;
     break;
   case TakeOverRecord::TO_CREATE_FRAG_COMMIT:
     jam();
+    CRASH_INSERTION(7199);
     takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_UPDATE_AFTER_COMMIT;
     break;
   default:
@@ -3940,6 +4007,8 @@ Dbdih::execEND_TOCONF(Signal* signal)
 {
   jamEntry();
   EndToConf* conf = (EndToConf*)signal->getDataPtr();
+  
+  CRASH_INSERTION(7144);
   
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
@@ -4405,6 +4474,14 @@ void Dbdih::checkCopyTab(Signal* signal, NodeRecordPtr failedNodePtr)
     ndbrequire(false);
   }
   
+  if (!c_nodeStartMaster.m_fragmentInfoMutex.isNull())
+  {
+    jam();
+    ndbout_c("unlocknig mutex");
+    Mutex mutex(signal, c_mutexMgr, c_nodeStartMaster.m_fragmentInfoMutex);
+    mutex.unlock();
+  }
+
   nodeResetStart(signal);
 }//Dbdih::checkCopyTab()
 
@@ -4476,10 +4553,8 @@ Dbdih::handleTakeOver(Signal* signal, TakeOverRecordPtr takeOverPtr)
     jam();
     /**
      * Has lock...and NGPtr reservation...
-     *   run updateToReq_fragmentMutex_locked which will abort as case above
      */
-    takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_MUTEX_BEFORE_STORED;
-    updateToReq_fragmentMutex_locked(signal, takeOverPtr.i, 0);
+    abortTakeOver(signal, takeOverPtr);
     return;
   case TakeOverRecord::TO_AFTER_STORED:{
     jam();
@@ -4509,12 +4584,16 @@ Dbdih::handleTakeOver(Signal* signal, TakeOverRecordPtr takeOverPtr)
      *   do nothing...will be detected when lock is acquired
      */
     return;
-  case TakeOverRecord::TO_MUTEX_SWITCH_REPLICA:
+  case TakeOverRecord::TO_MUTEX_BEFORE_SWITCH_REPLICA:
     jam();
     /**
      * Waiting for lock...
      *   do nothing...will be detected when lock is acquired
      */
+    return;
+  case TakeOverRecord::TO_MUTEX_AFTER_SWITCH_REPLICA:
+    jam();
+    abortTakeOver(signal, takeOverPtr);
     return;
   case TakeOverRecord::TO_WAIT_LCP:{
     jam();
