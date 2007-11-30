@@ -38,12 +38,13 @@ row_ext_cache_fill(
 				  BTR_EXTERN_FIELD_REF_SIZE))) {
 		/* The BLOB pointer is not set: we cannot fetch it */
 		ext->len[i] = 0;
+	} else {
+		/* Fetch at most REC_MAX_INDEX_COL_LEN of the column.
+		The column must be non-empty. */
+		ext->len[i] = btr_copy_externally_stored_field_prefix(
+			buf, REC_MAX_INDEX_COL_LEN, zip_size, field, f_len);
+		ut_a(ext->len[i]);
 	}
-
-	ext->len[i] = btr_copy_externally_stored_field_prefix(
-		buf,
-		REC_MAX_INDEX_COL_LEN, zip_size, field, f_len);
-	ut_a(ext->len[i]);
 }
 
 /************************************************************************
