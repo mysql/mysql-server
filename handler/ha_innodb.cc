@@ -3524,7 +3524,7 @@ set_max_autoinc:
 				err = innobase_set_max_autoinc(auto_inc);
 
 				if (err != DB_SUCCESS) {
-					error = err;
+					error = (int) err;
 				}
 			}
 			break;
