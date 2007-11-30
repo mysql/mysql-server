@@ -1551,4 +1551,30 @@ insert ignore into t1 set c0 = 241221, c1 = -6862346, c2 = 56644;
 select c1 from t1 group by (select c0 from t1 limit 1);
 drop table t1;
 
+#
+# Bug #31890 Partitions: ORDER BY DESC in InnoDB not working
+#
+
+CREATE TABLE t1
+(int_column INT, char_column CHAR(5),
+PRIMARY KEY(char_column,int_column))
+PARTITION BY KEY(char_column,int_column)
+PARTITIONS 101;
+INSERT INTO t1 (int_column, char_column) VALUES
+(      39868 ,'zZZRW'),       
+(     545592 ,'zZzSD'),       
+(       4936 ,'zzzsT'),       
+(       9274 ,'ZzZSX'),       
+(     970185 ,'ZZzTN'),       
+(     786036 ,'zZzTO'),       
+(      37240 ,'zZzTv'),       
+(     313801 ,'zzzUM'),       
+(     782427 ,'ZZZva'),       
+(     907955 ,'zZZvP'),       
+(     453491 ,'zzZWV'),       
+(     756594 ,'ZZZXU'),       
+(     718061 ,'ZZzZH');       
+SELECT * FROM t1 ORDER BY char_column DESC;
+DROP TABLE t1;
+
 --echo End of 5.1 tests
