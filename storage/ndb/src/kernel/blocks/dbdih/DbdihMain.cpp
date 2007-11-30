@@ -241,6 +241,13 @@ void Dbdih::sendSTART_INFOREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 
 void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
+  if (!m_sr_nodes.get(nodeId))
+  {
+    jam();
+    c_START_RECREQ_Counter.clearWaitingFor(nodeId);
+    return;
+  }
+  
   StartRecReq * const req = (StartRecReq*)&signal->theData[0];
   BlockReference ref = calcLqhBlockRef(nodeId);
   req->receivingNodeId = nodeId;
@@ -249,6 +256,7 @@ void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   req->lastCompletedGci = SYSFILE->lastCompletedGCI[nodeId];
   req->newestGci = SYSFILE->newestRestorableGCI;
   req->senderData = extra;
+  m_sr_nodes.copyto(NdbNodeBitmask::Size, req->sr_nodes);
   sendSignal(ref, GSN_START_RECREQ, signal, StartRecReq::SignalLength, JBB);
 
   signal->theData[0] = NDB_LE_StartREDOLog;
@@ -1470,10 +1478,6 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       return;
     case NodeState::ST_SYSTEM_RESTART:
       jam();
-      if (isMaster()) {
-	jam();
-	systemRestartTakeOverLab(signal);
-      }
       ndbsttorry10Lab(signal, __LINE__);
       return;
     case NodeState::ST_INITIAL_NODE_RESTART:
@@ -1527,7 +1531,6 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       jam();
       {
         StartCopyReq* req = (StartCopyReq*)signal->getDataPtrSend();
-        req->startingNodeId = getOwnNodeId();
         req->senderRef = reference();
         req->senderData = RNIL;
         req->flags = StartCopyReq::WAIT_LCP;
@@ -1709,6 +1712,26 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
   
   ndbrequire(isMaster());
   copyGciLab(signal, CopyGCIReq::RESTART); // We have already read the file!
+
+  /**
+   * Keep bitmap of nodes that can be restored...
+   *   and nodes that need take-over
+   *   
+   */
+  m_sr_nodes.clear();
+  m_to_nodes.clear();
+
+  // Start with assumption that all can restore
+  {
+    NodeRecordPtr specNodePtr;
+    specNodePtr.i = cfirstAliveNode;
+    do {
+      jam();
+      m_sr_nodes.set(specNodePtr.i);
+      ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);            
+      specNodePtr.i = specNodePtr.p->nextNode;
+    } while (specNodePtr.i != RNIL);
+  }
 }//Dbdih::ndbStartReqLab()
 
 void Dbdih::execREAD_NODESCONF(Signal* signal) 
@@ -1974,10 +1997,44 @@ void Dbdih::execSTART_MECONF(Signal* signal)
 void Dbdih::execSTART_COPYCONF(Signal* signal) 
 {
   jamEntry();
-  Uint32 nodeId = signal->theData[0];
-  ndbrequire(nodeId == cownNodeId);
-  CRASH_INSERTION(7132);
-  ndbsttorry10Lab(signal, __LINE__);
+  
+  StartCopyConf* conf = (StartCopyConf*)signal->getDataPtr();
+  Uint32 nodeId = conf->startingNodeId;
+  Uint32 senderData = conf->senderData;
+
+  if (senderData == RNIL)
+  {
+    /**
+     * This is NR
+     */
+    jam();
+    ndbrequire(nodeId == cownNodeId);
+    CRASH_INSERTION(7132);
+    ndbsttorry10Lab(signal, __LINE__);
+  }
+  else
+  {
+    /**
+     * This is TO during SR...waiting for all nodes
+     */
+    infoEvent("Take-over of %u complete", nodeId);
+
+    ndbrequire(senderData == getOwnNodeId());
+    ndbrequire(m_to_nodes.get(nodeId));
+    m_to_nodes.clear(nodeId);
+    m_sr_nodes.set(nodeId);
+    if (!m_to_nodes.isclear())
+    {
+      jam();
+      return;
+    }
+
+    signal->theData[0] = reference();
+    m_sr_nodes.copyto(NdbNodeBitmask::Size, signal->theData+1);
+    sendSignal(cntrlblockref, GSN_NDB_STARTCONF, signal, 
+               1 + NdbNodeBitmask::Size, JBB);
+    return;
+  }
   return;
 }//Dbdih::execSTART_COPYCONF()
 
@@ -2603,114 +2660,6 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
 // both the master and the slaves.
 /* ------------------------------------------------------------------------- */
 
-/*****************************************************************************/
-/***********     TAKE OVER DECISION  MODULE                      *************/
-/*****************************************************************************/
-// This module contains the subroutines that take the decision whether to take
-// over a node now or not.
-/* ------------------------------------------------------------------------- */
-/*                       MASTER LOGIC FOR SYSTEM RESTART                     */
-/* ------------------------------------------------------------------------- */
-// WE ONLY COME HERE IF WE ARE THE MASTER AND WE ARE PERFORMING A SYSTEM
-// RESTART. WE ALSO COME HERE DURING THIS SYSTEM RESTART ONE TIME PER NODE
-// THAT NEEDS TAKE OVER.
-/*---------------------------------------------------------------------------*/
-// WE CHECK IF ANY NODE NEEDS TO BE TAKEN OVER AND THE TAKE OVER HAS NOT YET
-// BEEN STARTED OR COMPLETED.
-/*---------------------------------------------------------------------------*/
-void
-Dbdih::systemRestartTakeOverLab(Signal* signal) 
-{
-  NodeRecordPtr nodePtr;
-  StartCopyReq req;
-  req.senderData = RNIL;
-  req.senderRef = reference();
-  req.flags = 0;
-
-  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-    jam();
-    ptrAss(nodePtr, nodeRecord);
-    switch (nodePtr.p->activeStatus) {
-    case Sysfile::NS_Active:
-    case Sysfile::NS_ActiveMissed_1:
-      jam();
-      break;
-      /*---------------------------------------------------------------------*/
-      // WE HAVE NOT REACHED A STATE YET WHERE THIS NODE NEEDS TO BE TAKEN OVER
-      /*---------------------------------------------------------------------*/
-    case Sysfile::NS_ActiveMissed_2:
-    case Sysfile::NS_NotActive_NotTakenOver:
-      jam();
-      /*---------------------------------------------------------------------*/
-      // THIS NODE IS IN TROUBLE. 
-      // WE MUST SUCCEED WITH A LOCAL CHECKPOINT WITH THIS NODE TO REMOVE THE 
-      // DANGER. IF THE NODE IS NOT ALIVE THEN THIS WILL NOT BE
-      // POSSIBLE AND WE CAN START THE TAKE OVER IMMEDIATELY IF WE HAVE ANY 
-      // NODES THAT CAN PERFORM A TAKE OVER.
-      /*---------------------------------------------------------------------*/
-      if (nodePtr.p->nodeStatus != NodeRecord::ALIVE) {
-        jam();
-        Uint32 ThotSpareNode = findHotSpare();
-        if (ThotSpareNode != RNIL) {
-          jam();
-          startTakeOver(signal, ThotSpareNode, nodePtr.i, &req);
-        }//if
-      } else if(nodePtr.p->activeStatus == Sysfile::NS_NotActive_NotTakenOver){
-        jam();
-	/*-------------------------------------------------------------------*/
-	// NOT ACTIVE NODES THAT HAVE NOT YET BEEN TAKEN OVER NEEDS TAKE OVER
-	// IMMEDIATELY. IF WE ARE ALIVE WE TAKE OVER OUR OWN NODE.
-	/*-------------------------------------------------------------------*/
-	infoEvent("Take over of node %d started", 
-		  nodePtr.i);
-	startTakeOver(signal, nodePtr.i, nodePtr.i, &req);
-      }//if
-      break;
-    case Sysfile::NS_TakeOver:
-      /**-------------------------------------------------------------------
-       * WE MUST HAVE FAILED IN THE MIDDLE OF THE TAKE OVER PROCESS. 
-       * WE WILL CONCLUDE THE TAKE OVER PROCESS NOW.
-       *-------------------------------------------------------------------*/
-      if (nodePtr.p->nodeStatus == NodeRecord::ALIVE) {
-        jam();
-        Uint32 takeOverNode = Sysfile::getTakeOverNode(nodePtr.i, 
-						       SYSFILE->takeOver);
-	if(takeOverNode == 0){
-	  jam();
-	  warningEvent("Bug in take-over code restarting");
-	  takeOverNode = nodePtr.i;
-	}
-        startTakeOver(signal, nodePtr.i, takeOverNode, &req);
-      } else {
-        jam();
-	/**-------------------------------------------------------------------
-	 * We are not currently taking over, change our active status.
-	 *-------------------------------------------------------------------*/
-        nodePtr.p->activeStatus = Sysfile::NS_NotActive_NotTakenOver;
-        setNodeRestartInfoBits();
-      }//if
-      break;
-    case Sysfile::NS_HotSpare:
-      jam();
-      break;
-      /*---------------------------------------------------------------------*/
-      // WE NEED NOT TAKE OVER NODES THAT ARE HOT SPARE.
-      /*---------------------------------------------------------------------*/
-    case Sysfile::NS_NotDefined:
-      jam();
-      break;
-      /*---------------------------------------------------------------------*/
-      // WE NEED NOT TAKE OVER NODES THAT DO NOT EVEN EXIST IN THE CLUSTER.
-      /*---------------------------------------------------------------------*/
-    default:
-      ndbrequire(false);
-      break;
-    }//switch
-  }//for
-  /*-------------------------------------------------------------------------*/
-  /* NO TAKE OVER HAS BEEN INITIATED.                                        */
-  /*-------------------------------------------------------------------------*/
-}//Dbdih::systemRestartTakeOverLab()
 
 void Dbdih::changeNodeGroups(Uint32 startNode, Uint32 nodeTakenOver)
 {
@@ -3467,6 +3416,7 @@ done:
 void
 Dbdih::nr_run_redo(Signal* signal, TakeOverRecordPtr takeOverPtr)
 {
+  m_sr_nodes.set(takeOverPtr.p->toStartingNode);
   takeOverPtr.p->toCurrentTabref = 0;
   takeOverPtr.p->toCurrentFragid = 0;
   takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_RUN_REDO;
@@ -9214,6 +9164,8 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 			" for table %d fragment: %d",
 			nodePtr.i, tabPtr.i, i);
 	      
+              m_sr_nodes.clear(nodePtr.i);
+              m_to_nodes.set(nodePtr.i);
 	      setNodeActiveStatus(nodePtr.i, 
 				  Sysfile::NS_NotActive_NotTakenOver);
 	    }
@@ -9829,19 +9781,55 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
     Ptr<TakeOverRecord> takeOverPtr;
     c_takeOverPool.getPtr(takeOverPtr, senderData);
     sendStartTo(signal, takeOverPtr);
-  }
-  else
-  {
-    /* --------------------------------------------------------------------- */
-    // This was the system restart case. We set the state indicating that the
-    // node has completed restoration of all fragments.
-    /* --------------------------------------------------------------------- */
-    receiveLoopMacro(START_RECREQ, senderNodeId);
-
-    signal->theData[0] = reference();
-    sendSignal(cntrlblockref, GSN_NDB_STARTCONF, signal, 1, JBB);
     return;
-  }//if
+  }
+
+  /* --------------------------------------------------------------------- */
+  // This was the system restart case. We set the state indicating that the
+  // node has completed restoration of all fragments.
+  /* --------------------------------------------------------------------- */
+  receiveLoopMacro(START_RECREQ, senderNodeId);
+  
+  /**
+   * Remove each node that has to TO from LCP/LQH
+   */
+  Uint32 i = 0;
+  while ((i = m_to_nodes.find(i + 1)) != NdbNodeBitmask::NotFound)
+  {
+    jam();
+    NodeRecordPtr nodePtr;
+    nodePtr.i = i;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    nodePtr.p->copyCompleted = 0;
+  }
+
+  if (!m_to_nodes.isclear() && c_sr_wait_to)
+  {
+    jam();
+
+    StartCopyReq* req = (StartCopyReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = getOwnNodeId();
+    req->flags = 0; // Note dont wait for LCP
+
+    i = 0;
+    while ((i = m_to_nodes.find(i + 1)) != NdbNodeBitmask::NotFound)
+    {
+      jam();
+      req->startingNodeId = i;
+      sendSignal(calcDihBlockRef(i), GSN_START_COPYREQ, signal, 
+                 StartCopyReq::SignalLength, JBB);
+    }
+
+    char buf[100];
+    infoEvent("Starting take-over of %s", m_to_nodes.getText(buf));    
+    return;
+  }
+  
+  signal->theData[0] = reference();
+  m_sr_nodes.copyto(NdbNodeBitmask::Size, signal->theData+1);
+  sendSignal(cntrlblockref, GSN_NDB_STARTCONF, signal, 
+             1 + NdbNodeBitmask::Size, JBB);
 }//Dbdih::execSTART_RECCONF()
 
 void Dbdih::copyNodeLab(Signal* signal, Uint32 tableId) 
@@ -10464,11 +10452,6 @@ Dbdih::startLcpMutex_locked(Signal* signal, Uint32 senderData, Uint32 retVal){
   req->participatingLQH = c_lcpState.m_participatingLQH;
   req->participatingDIH = c_lcpState.m_participatingDIH;
   sendLoopMacro(START_LCP_REQ, sendSTART_LCP_REQ, RNIL);
-  
-  char buf0[100], buf1[100];
-  infoEvent("SLR: %s %s", 
-            c_lcpState.m_participatingDIH.getText(buf0),
-            c_lcpState.m_participatingLQH.getText(buf1));
 }
 
 void
@@ -12054,10 +12037,6 @@ void Dbdih::checkKeepGci(TabRecordPtr tabPtr, Uint32 fragId, Fragmentstore*,
         jam();
         c_lcpState.oldestRestorableGci = oldestRestorableGci;
       }//if
-    }
-    else
-    {
-      ndbout_c("dont consicider LCP for node %u", ckgReplicaPtr.p->procNode);
     }
     ckgReplicaPtr.i = ckgReplicaPtr.p->nextReplica;
   }//while

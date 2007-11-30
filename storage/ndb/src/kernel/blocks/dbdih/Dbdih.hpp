@@ -1731,6 +1731,10 @@ private:
 #endif
 
   bool check_enable_micro_gcp(Signal* signal, bool broadcast);
+
+  bool c_sr_wait_to;
+  NdbNodeBitmask m_sr_nodes;
+  NdbNodeBitmask m_to_nodes;
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
