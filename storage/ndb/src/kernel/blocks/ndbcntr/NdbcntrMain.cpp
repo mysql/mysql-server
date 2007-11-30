@@ -637,6 +637,7 @@ void
 Ndbcntr::execCNTR_START_REP(Signal* signal){
   jamEntry();
   Uint32 nodeId = signal->theData[0];
+
   c_startedNodes.set(nodeId);
   c_start.m_starting.clear(nodeId);
 
@@ -1187,7 +1188,9 @@ void Ndbcntr::execNDB_STARTCONF(Signal* signal)
   NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
   signal->theData[0] = getOwnNodeId();
   signal->theData[1] = CntrWaitRep::ZWAITPOINT_4_2;
-  sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
+  c_start.m_starting.copyto(NdbNodeBitmask::Size, signal->theData+2);
+  sendSignal(rg, GSN_CNTR_WAITREP, signal, 2 + NdbNodeBitmask::Size, 
+             JBB);
   return;
 }//Ndbcntr::execNDB_STARTCONF()
 
@@ -1490,6 +1493,7 @@ void Ndbcntr::execCNTR_WAITREP(Signal* signal)
     break;
   case CntrWaitRep::ZWAITPOINT_4_2:
     jam();
+    c_start.m_starting.assign(NdbNodeBitmask::Size, signal->theData + 2);
     sendSttorry(signal);
     break;
   case CntrWaitRep::ZWAITPOINT_5_1:

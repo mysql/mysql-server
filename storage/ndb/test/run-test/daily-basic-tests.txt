@@ -1090,3 +1090,15 @@ max-time: 600
 cmd: testNodeRestart
 args: -n pnr_lcp T1
 
+max-time: 600
+cmd: testSystemRestart
+args: -n to T1
+
+max-time: 600
+cmd: testSystemRestart
+args: -n to I3
+
+max-time: 600
+cmd: testSystemRestart
+args: -n to D2
+

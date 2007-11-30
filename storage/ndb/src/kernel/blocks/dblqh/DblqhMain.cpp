@@ -14262,6 +14262,12 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   Uint32 noOfLogNodes = startFragReq->noOfLogNodes;
   Uint32 lcpId = startFragReq->lcpId;
 
+  if (noOfLogNodes > 1)
+  {
+    printSTART_FRAG_REQ(stdout, signal->getDataPtr(), signal->getLength(),
+                        number());
+  }
+
   ndbrequire(noOfLogNodes <= MAX_LOG_EXEC);
   fragptr.p->fragStatus = Fragrecord::CRASH_RECOVERING;
   fragptr.p->srBlockref = startFragReq->userRef;
