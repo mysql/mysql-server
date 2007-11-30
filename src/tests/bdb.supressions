@@ -1,0 +1,87 @@
+{
+   bdb_writes_undefined_data_to_disk
+   Memcheck:Param
+   pwrite64(buf)
+   fun:pwrite64
+   fun:__os_io
+   obj:/lib/libdb-4.3.so
+   fun:__memp_bhwrite
+   fun:__memp_sync_int
+   fun:__memp_fsync
+   fun:__db_sync
+   fun:__db_refresh
+   fun:__db_close
+   fun:__fop_subdb_setup
+   fun:__db_open
+   fun:__db_open_pp
+}
+
+{
+   bdb_leaks_db_home_strdup
+   Memcheck:Leak
+   fun:_vgrZU_libcZdsoZa_malloc
+   fun:__os_malloc
+   fun:__os_strdup
+   fun:__db_open_pp
+   fun:main
+}
+
+{
+   bdb_leaks_in_db_create
+   Memcheck:Leak
+   fun:_vgrZU_libcZdsoZa_malloc
+   fun:__os_malloc
+   fun:__os_calloc
+   fun:__bam_db_create
+   fun:db_create
+   fun:main
+}
+
+{
+   bdb_leaks_if_you_open_twice
+   Memcheck:Leak
+   fun:_vgrZU_libcZdsoZa_malloc
+   fun:__os_malloc
+   fun:__os_strdup
+   fun:__db_open_pp
+}
+
+{
+   bdb_leaks_again
+   Memcheck:Leak
+   fun:_vgrZU_libcZdsoZa_malloc
+   fun:__os_malloc
+   fun:__os_strdup
+   fun:__db_home
+   obj:/lib/libdb-4.3.so
+   fun:__dbenv_open
+}
+
+{
+   <bdb_leaks>
+   Memcheck:Leak
+   fun:_vgrZU_libcZdsoZa_malloc
+   fun:__os_malloc
+   fun:__os_calloc
+   fun:__bam_db_create
+   fun:db_create
+}
+
+{
+   <bdb_leaks>
+   Memcheck:Leak
+   fun:_vgrZU_libcZdsoZa_malloc
+   fun:__os_malloc
+   fun:__os_calloc
+   fun:__bam_db_create
+   fun:db_create
+}
+
+{
+   <bdb_leaks>
+   Memcheck:Leak
+   fun:_vgrZU_libcZdsoZa_malloc
+   fun:__os_malloc
+   fun:__os_calloc
+   fun:db_create
+}
