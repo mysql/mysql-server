@@ -472,6 +472,44 @@ a	b
 3	3
 drop table t1,t2;
 CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+ggid varchar(32) binary DEFAULT '' NOT NULL,
+email varchar(64) DEFAULT '' NOT NULL,
+passwd varchar(32) binary DEFAULT '' NOT NULL,
+PRIMARY KEY (id),
+UNIQUE ggid (ggid)
+) ENGINE=innodb;
+set global innodb_autoinc_lock_mode = 0;
+insert into t1 (ggid,passwd) values ('test1','xxx');
+insert into t1 (ggid,passwd) values ('test2','yyy');
+insert into t1 (ggid,passwd) values ('test2','this will fail');
+ERROR 23000: Duplicate entry 'test2' for key 'ggid'
+insert into t1 (ggid,id) values ('this will fail',1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+select * from t1 where ggid='test1';
+id	ggid	email	passwd
+1	test1		xxx
+select * from t1 where passwd='xxx';
+id	ggid	email	passwd
+1	test1		xxx
+select * from t1 where id=2;
+id	ggid	email	passwd
+2	test2		yyy
+replace into t1 (ggid,id) values ('this will work',1);
+replace into t1 (ggid,passwd) values ('test2','this will work');
+update t1 set id=100,ggid='test2' where id=1;
+ERROR 23000: Duplicate entry 'test2' for key 'ggid'
+select * from t1;
+id	ggid	email	passwd
+1	this will work		
+3	test2		this will work
+select * from t1 where id=1;
+id	ggid	email	passwd
+1	this will work		
+select * from t1 where id=999;
+id	ggid	email	passwd
+drop table t1;
+CREATE TABLE t1 (
 user_name varchar(12),
 password text,
 subscribed char(1),
@@ -1714,13 +1752,13 @@ Variable_name	Value
 Innodb_page_size	16384
 show status like "Innodb_rows_deleted";
 Variable_name	Value
-Innodb_rows_deleted	69
+Innodb_rows_deleted	70
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	1080
+Innodb_rows_inserted	1083
 show status like "Innodb_rows_updated";
 Variable_name	Value
-Innodb_rows_updated	885
+Innodb_rows_updated	886
 show status like "Innodb_row_lock_waits";
 Variable_name	Value
 Innodb_row_lock_waits	0
