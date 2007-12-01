@@ -120,6 +120,9 @@ static int check_max_delayed_threads(THD *thd, set_var *var);
 static void fix_thd_mem_root(THD *thd, enum_var_type type);
 static void fix_trans_mem_root(THD *thd, enum_var_type type);
 static void fix_server_id(THD *thd, enum_var_type type);
+static ulonglong fix_unsigned(THD *thd, ulonglong num,
+                              const struct my_option *option_limits);
+static void throw_bounds_warning(THD *thd, const char *name, ulonglong num);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static uchar *get_error_count(THD *thd);
@@ -1101,6 +1104,27 @@ static void fix_server_id(THD *thd, enum_var_type type)
 }
 
 
+static void throw_bounds_warning(THD *thd, const char *name, ulonglong num)
+{
+  char buf[22];
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                      ER_TRUNCATED_WRONG_VALUE,
+                      ER(ER_TRUNCATED_WRONG_VALUE), name,
+                      ullstr(num, buf));
+}
+
+static ulonglong fix_unsigned(THD *thd, ulonglong num,
+                              const struct my_option *option_limits)
+{
+  bool fixed= FALSE;
+  ulonglong out= getopt_ull_limit_value(num, option_limits, &fixed);
+
+  if (fixed)
+    throw_bounds_warning(thd, option_limits->name, num);
+  return out;
+}
+
+
 sys_var_long_ptr::
 sys_var_long_ptr(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_arg,
                  sys_after_update_func after_update_arg)
@@ -1121,9 +1145,20 @@ bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
   ulonglong tmp= var->save_result.ulonglong_value;
   pthread_mutex_lock(guard);
   if (option_limits)
-    *value= (ulong) getopt_ull_limit_value(tmp, option_limits);
+    *value= (ulong) fix_unsigned(thd, tmp, option_limits);
   else
+  {
+#if SIZEOF_LONG < SIZEOF_LONG_LONG
+    /* Avoid overflows on 32 bit systems */
+    if (tmp > (ulonglong) ~(ulong) 0)
+    {
+      tmp= ((ulonglong) ~(ulong) 0);
+      throw_bounds_warning(thd, name, var->save_result.ulonglong_value);
+    }
+#endif
     *value= (ulong) tmp;
+  }
+
   pthread_mutex_unlock(guard);
   return 0;
 }
@@ -1142,7 +1177,7 @@ bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
   ulonglong tmp= var->save_result.ulonglong_value;
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (option_limits)
-    *value= (ulonglong) getopt_ull_limit_value(tmp, option_limits);
+    *value= (ulonglong) fix_unsigned(thd, tmp, option_limits);
   else
     *value= (ulonglong) tmp;
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -1192,38 +1227,29 @@ bool sys_var_thd_ulong::check(THD *thd, set_var *var)
 bool sys_var_thd_ulong::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
-  char buf[22];
-  bool truncated= false;
 
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ulong) tmp > max_system_variables.*offset)
   {
-    truncated= true;
-    llstr(tmp, buf);
+    throw_bounds_warning(thd, name, tmp);
     tmp= max_system_variables.*offset;
   }
 
-#if SIZEOF_LONG == 4
-  /* Avoid overflows on 32 bit systems */
-  if (tmp > (ulonglong) ~(ulong) 0)
+  if (option_limits)
+    tmp= (ulong) fix_unsigned(thd, tmp, option_limits);
+#if SIZEOF_LONG < SIZEOF_LONG_LONG
+  else if (tmp > (ulonglong) ~(ulong) 0)
   {
-    truncated= true;
-    llstr(tmp, buf);
     tmp= ((ulonglong) ~(ulong) 0);
+    throw_bounds_warning(thd, name, var->save_result.ulonglong_value);
   }
 #endif
-  if (truncated)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), name,
-                        buf);
 
-  if (option_limits)
-    tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
     global_system_variables.*offset= (ulong) tmp;
   else
     thd->variables.*offset= (ulong) tmp;
+
   return 0;
 }
 
@@ -1258,7 +1284,7 @@ bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
     tmp= max_system_variables.*offset;
 
   if (option_limits)
-    tmp= (ha_rows) getopt_ull_limit_value(tmp, option_limits);
+    tmp= (ha_rows) fix_unsigned(thd, tmp, option_limits);
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
@@ -1302,7 +1328,7 @@ bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
     tmp= max_system_variables.*offset;
 
   if (option_limits)
-    tmp= getopt_ull_limit_value(tmp, option_limits);
+    tmp= fix_unsigned(thd, tmp, option_limits);
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
@@ -2012,7 +2038,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
   }
 
   key_cache->param_buff_size=
-    (ulonglong) getopt_ull_limit_value(tmp, option_limits);
+    (ulonglong) fix_unsigned(thd, tmp, option_limits);
 
   /* If key cache didn't existed initialize it, else resize it */
   key_cache->in_init= 1;
@@ -2060,7 +2086,7 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
     goto end;
 
   *((ulong*) (((char*) key_cache) + offset))=
-    (ulong) getopt_ull_limit_value(tmp, option_limits);
+    (ulong) fix_unsigned(thd, tmp, option_limits);
 
   /*
     Don't create a new key cache if it didn't exist
