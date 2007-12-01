@@ -54,10 +54,12 @@ void setup (void) {
     r = db_env_create(&dbenv, 0);
     assert(r == 0);
 
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
     if (dbenv->set_lk_max) {
 	r = dbenv->set_lk_max(dbenv, ITEMS_PER_TRANSACTION*2);
 	assert(r==0);
     }
+#endif
 
     if (dbenv->set_cachesize) {
         r = dbenv->set_cachesize(dbenv, cachesize / (1024*1024*1024), cachesize % (1024*1024*1024), 1);

@@ -379,10 +379,12 @@ static int toku_db_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
     return 1;
 }
 
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
 static int toku_db_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
     env=env;lk_max=lk_max;
     return 0;
 }
+#endif
 
 //void __toku_db_env_set_noticecall (DB_ENV *env, void (*noticecall)(DB_ENV *, db_notices)) {
 //    env->i->noticecall = noticecall;
@@ -441,7 +443,9 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->set_lg_max = toku_db_env_set_lg_max;
     result->set_cachesize = toku_db_env_set_cachesize;
     result->set_lk_detect = toku_db_env_set_lk_detect;
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
     result->set_lk_max = toku_db_env_set_lk_max;
+#endif
     result->log_archive = toku_db_env_log_archive;
     result->txn_stat = toku_db_env_txn_stat;
     result->txn_begin = toku_txn_begin;
