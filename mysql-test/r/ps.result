@@ -807,6 +807,8 @@ select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
 0
 set global max_prepared_stmt_count=10000000000000000;
+Warnings:
+Warning	1292	Truncated incorrect max_prepared_stmt_count value: '10000000000000000'
 select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
 1048576

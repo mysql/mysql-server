@@ -673,6 +673,8 @@ INSERT INTO t1(b,c) SELECT b,c FROM t2;
 UPDATE t2 SET c='2007-01-03';
 INSERT INTO t1(b,c) SELECT b,c FROM t2;
 set @@sort_buffer_size=8192;
+Warnings:
+Warning	1292	Truncated incorrect sort_buffer_size value: '8192'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3072
