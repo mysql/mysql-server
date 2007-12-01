@@ -1955,7 +1955,6 @@ a
 2
 DROP TABLE federated.t1;
 DROP TABLE federated.t1;
-End of 5.1 tests
 create table t1 (a varchar(256));
 drop view if exists v1;
 create view v1 as select a from t1;
@@ -2067,6 +2066,7 @@ select 1 from t1 order by a;
 drop table t1;
 drop table t1;
 drop view v1;
+End of 5.1 tests
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
