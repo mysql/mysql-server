@@ -111,7 +111,11 @@ int simple_read_write_test()
                  0);
   ok((res= test(memcmp(buffr, buffw, PAGE_SIZE) == 0)),
      "Simple write-read page ");
-  flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
+  if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Got error during flushing pagecache\n");
+    exit(1);
+  }
   ok((res&= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
                            simple_read_write_test_file))),
      "Simple write-read page file");
@@ -141,7 +145,11 @@ int simple_read_change_write_read_test()
                   PAGECACHE_PIN_LEFT_UNPINNED,
                   PAGECACHE_WRITE_DELAY,
                   0, LSN_IMPOSSIBLE);
-  flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
+  if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Got error during flushing pagecache\n");
+    exit(1);
+  }
   /* test */
   pagecache_read(&pagecache, &file1, 0, 3, (char*)buffw,
                  PAGECACHE_PLAIN_PAGE,
@@ -161,7 +169,11 @@ int simple_read_change_write_read_test()
                  0);
   ok((res= test(memcmp(buffr, buffw, PAGE_SIZE) == 0)),
      "Simple read-change-write-read page ");
-  flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
+  if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Got error during flushing pagecache\n");
+    exit(1);
+  }
   ok((res&= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
                            simple_read_change_write_read_test_file))),
      "Simple read-change-write-read page file");
@@ -198,7 +210,7 @@ int simple_pin_test()
   /* test */
   if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
   {
-    diag("error in flush_pagecache_blocks\n");
+    diag("Got error during flushing pagecache\n");
     exit(1);
   }
   pagecache_read(&pagecache, &file1, 0, 3, (char*)buffw,

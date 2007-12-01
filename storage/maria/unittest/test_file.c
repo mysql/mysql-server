@@ -29,6 +29,11 @@ int test_file(PAGECACHE_FILE file, char *file_name,
   size_t byte;
   int step= 0;
 
+  if (my_sync(file.file, MYF(MY_WME | MY_IGNORE_BADFD)))
+  {
+    diag("Got error during syncing file\n");
+    exit(1);
+  }
   if ((stat= my_stat(file_name, &stat_buff, MYF(0))) == NULL)
   {
     diag("Can't stat() %s (errno: %d)\n", file_name, errno);
