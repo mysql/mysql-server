@@ -774,12 +774,12 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     } else {
 	*did_split=0;
         if (toku_serialize_brtnode_size(node) > node->nodesize) {
-            // printf("hsoc maybe\n");
+            /* lighten the node by pushing down its buffers.  this may cause
+               the current node to split and go away */
             r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, 0, txn);
             assert(r == 0);
-            assert(*did_split == 0);
         }
-	assert(toku_serialize_brtnode_size(node)<=node->nodesize);
+	if (*did_split == 0) assert(toku_serialize_brtnode_size(node)<=node->nodesize);
     }
     return 0;
 }
