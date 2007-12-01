@@ -162,13 +162,15 @@ void verify_gone() {
     r = dbp->get(dbp, null_txn, &key, &data, 0);        assert(r == DB_NOTFOUND);
 
     /* Try (fail) to get it from secondary. */
-    setup_student(&s);
+    setup_student(&s); memset(&data, 0, sizeof data); data.data = &s; data.size = sizeof s;
     r = getname(sdbp, NULL, &data, &skey);              CKERR(r);
+    memset(&data, 0, sizeof data);
     r = sdbp->get(sdbp, null_txn, &skey, &data, 0);     assert(r == DB_NOTFOUND);
 
     /* Try (fail) to pget from secondary */ 
-    setup_student(&s);
+    setup_student(&s);  memset(&data, 0, sizeof data); data.data = &s; data.size = sizeof s;
     r = getname(sdbp, NULL, &data, &skey);              CKERR(r);
+    memset(&data, 0, sizeof data);
     r = sdbp->pget(sdbp, null_txn, &skey, &key, &data, 0);assert(r == DB_NOTFOUND);
 }
 
