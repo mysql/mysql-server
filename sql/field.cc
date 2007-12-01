@@ -6306,7 +6306,7 @@ int Field_str::store(double nr)
   if (exp >= (int) digits || exp < -4)
     digits= max(0, (int) (max_length - 5 - (exp >= 100 || exp <= -100)));
   
-  length= (uint) my_sprintf(buff, (buff, "%-.*g", digits, nr));
+  length= (uint) my_sprintf(buff, (buff, "%-.*g", min(digits, DBL_DIG ), nr));
 
 #ifdef __WIN__
   /*
