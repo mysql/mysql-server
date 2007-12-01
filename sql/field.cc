@@ -6261,6 +6261,7 @@ int Field_str::store(double nr)
   uint length;
   uint local_char_length= field_length / charset()->mbmaxlen;
   double anr= fabs(nr);
+  bool fractional= (anr != floor(anr));
   int neg= (nr < 0.0) ? 1 : 0;
   uint max_length;
   int exp;
@@ -6289,7 +6290,7 @@ int Field_str::store(double nr)
     calculate the maximum number of significant digits if the 'f'-format
     would be used (+1 for decimal point if the number has a fractional part).
   */
-  digits= max(0, (int) max_length - (nr != trunc(nr)));
+  digits= max(0, (int) max_length - fractional);
   /*
     If the exponent is negative, decrease digits by the number of leading zeros
     after the decimal point that do not count as significant digits.
