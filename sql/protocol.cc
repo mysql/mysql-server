@@ -410,7 +410,10 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
 {
   NET *net= &thd->net;
   uint length;
-  char buff[MYSQL_ERRMSG_SIZE+2], *pos;
+  /*
+    buff[]: sql_errno:2 + ('#':1 + SQLSTATE_LENGTH:5) + MYSQL_ERRMSG_SIZE:512
+  */
+  char buff[2+1+SQLSTATE_LENGTH+MYSQL_ERRMSG_SIZE], *pos;
 
   DBUG_ENTER("send_error_packet");
 
