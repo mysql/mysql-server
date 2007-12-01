@@ -6259,24 +6259,70 @@ int Field_str::store(double nr)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint length;
-  bool use_scientific_notation= TRUE;
   uint local_char_length= field_length / charset()->mbmaxlen;
-  /*
-    Check fabs(nr) against longest value that can be stored in field,
-    which depends on whether the value is < 1 or not, and negative or not
-  */
   double anr= fabs(nr);
   int neg= (nr < 0.0) ? 1 : 0;
-  if (local_char_length > 4 && local_char_length < 32 &&
-      (anr < 1.0 ? anr > 1/(log_10[max(0,(int) local_char_length-neg-2)]) /* -2 for "0." */
-       : anr < log_10[local_char_length-neg]-1))
-    use_scientific_notation= FALSE;
+  uint max_length;
+  int exp;
+  uint digits;
+  uint i;
 
-  length= (uint) my_sprintf(buff, (buff, "%-.*g",
-                                   (use_scientific_notation ?
-                                    max(0, (int)local_char_length-neg-5) :
-                                    local_char_length),
-                                   nr));
+  /* Calculate the exponent from the 'e'-format conversion */
+  if (anr < 1.0 && anr > 0)
+  {
+    for (exp= 0; anr < 1e-100; exp-= 100, anr*= 1e100);
+    for (; anr < 1e-10; exp-= 10, anr*= 1e10);
+    for (i= 1; anr < 1 / log_10[i]; exp--, i++);
+    exp--;
+  }
+  else
+  {
+    for (exp= 0; anr > 1e100; exp+= 100, anr/= 1e100);
+    for (; anr > 1e10; exp+= 10, anr/= 1e10);
+    for (i= 1; anr > log_10[i]; exp++, i++);
+  }
+
+  max_length= local_char_length - neg;
+
+  /*
+    Since in sprintf("%g") precision means the number of significant digits,
+    calculate the maximum number of significant digits if the 'f'-format
+    would be used (+1 for decimal point if the number has a fractional part).
+  */
+  digits= max(0, (int) max_length - (nr != trunc(nr)));
+  /*
+    If the exponent is negative, decrease digits by the number of leading zeros
+    after the decimal point that do not count as significant digits.
+  */
+  if (exp < 0)
+    digits= max(0, (int) digits + exp);
+  /*
+    'e'-format is used only if the exponent is less than -4 or greater than or
+    equal to the precision. In this case we need to adjust the number of
+    significant digits to take "e+NN" + decimal point into account (hence -5).
+    We also have to reserve one additional character if abs(exp) >= 100.
+  */
+  if (exp >= (int) digits || exp < -4)
+    digits= max(0, (int) (max_length - 5 - (exp >= 100 || exp <= -100)));
+  
+  length= (uint) my_sprintf(buff, (buff, "%-.*g", digits, nr));
+
+#ifdef __WIN__
+  /*
+    Windows always zero-pads the exponent to 3 digits, we want to remove the
+    leading 0 to match the sprintf() output on other platforms.
+  */
+  if ((exp >= (int) digits || exp < -4) && exp > -100 && exp < 100)
+  {
+    DBUG_ASSERT(length >= 6); /* 1e+NNN */
+    uint tmp= length - 3;
+    buff[tmp]= buff[tmp + 1];
+    tmp++;
+    buff[tmp]= buff[tmp + 1];
+    length--;
+  }
+#endif
+  
   /*
     +1 below is because "precision" in %g above means the
     max. number of significant digits, not the output width.
