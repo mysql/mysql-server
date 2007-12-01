@@ -5216,7 +5216,7 @@ struct my_option my_long_options[] =
   {"concurrent-insert", OPT_CONCURRENT_INSERT,
    "Use concurrent insert with MyISAM. Disable with --concurrent-insert=0",
    (uchar**) &myisam_concurrent_insert, (uchar**) &myisam_concurrent_insert,
-   0, GET_LONG, OPT_ARG, 1, 0, 2, 0, 0, 0},
+   0, GET_ULONG, OPT_ARG, 1, 0, 2, 0, 0, 0},
   {"console", OPT_CONSOLE, "Write error output on screen; Don't remove the console window on windows.",
    (uchar**) &opt_console, (uchar**) &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
