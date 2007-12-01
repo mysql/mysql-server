@@ -34,7 +34,6 @@ my_bool getopt_compare_strings(const char *s,
 			       const char *t,
 			       uint length);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
-static longlong getopt_ll_limit_value(longlong, const struct my_option *);
 static ulonglong getopt_ull(char *arg, const struct my_option *optp,
 			    int *err);
 static double getopt_double(char *arg, const struct my_option *optp, int *err);
@@ -87,7 +86,7 @@ static void default_reporter(enum loglevel level,
     fprintf(stderr, "%s", "Info: ");
   vfprintf(stderr, format, args);
   va_end(args);
-  fputs('\n', stderr);
+  fputc('\n', stderr);
   fflush(stderr);
 }
 
@@ -785,7 +784,7 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
 {
   longlong num=eval_num_suffix(arg, err, (char*) optp->name);
-  return getopt_ll_limit_value(num, optp);
+  return getopt_ll_limit_value(num, optp, NULL);
 }
 
 /*
@@ -795,11 +794,11 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
   Returns "fixed" value.
 */
 
-static longlong getopt_ll_limit_value(longlong num,
-                                      const struct my_option *optp)
+longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
+                               bool *fix)
 {
   longlong old= num;
-  bool trunc= FALSE;
+  bool adjusted= FALSE;
   char buf1[255], buf2[255];
   ulonglong block_size= (optp->block_size ? (ulonglong) optp->block_size : 1L);
 
@@ -807,7 +806,29 @@ static longlong getopt_ll_limit_value(longlong num,
       optp->max_value) /* if max value is not set -> no upper limit */
   {
     num= (ulonglong) optp->max_value;
-    trunc= TRUE;
+    adjusted= TRUE;
+  }
+
+  switch ((optp->var_type & GET_TYPE_MASK)) {
+  case GET_INT:
+    if (num > (longlong) INT_MAX)
+    {
+      num= ((longlong) INT_MAX);
+      adjusted= TRUE;
+    }
+    break;
+  case GET_LONG:
+#if SIZEOF_LONG < SIZEOF_LONG_LONG
+    if (num > (longlong) LONG_MAX)
+    {
+      num= ((longlong) LONG_MAX);
+      adjusted= TRUE;
+    }
+#endif
+    break;
+  default:
+    DBUG_ASSERT((optp->var_type & GET_TYPE_MASK) == GET_LL);
+    break;
   }
 
   num= ((num - optp->sub_size) / block_size);
@@ -816,10 +837,12 @@ static longlong getopt_ll_limit_value(longlong num,
   if (num < optp->min_value)
   {
     num= optp->min_value;
-    trunc= TRUE;
+    adjusted= TRUE;
   }
 
-  if (trunc)
+  if (fix)
+    *fix= adjusted;
+  else if (adjusted)
     my_getopt_error_reporter(WARNING_LEVEL,
                              "option '%s': signed value %s adjusted to %s",
                              optp->name, llstr(old, buf1), llstr(num, buf2));
@@ -888,13 +911,12 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
     adjusted= TRUE;
   }
 
-  if (adjusted)
+  if (fix)
+    *fix= adjusted;
+  else if (adjusted)
     my_getopt_error_reporter(WARNING_LEVEL,
                              "option '%s': unsigned value %s adjusted to %s",
                              optp->name, ullstr(old, buf1), ullstr(num, buf2));
-
-  if (fix)
-    *fix= adjusted;
 
   return num;
 }
