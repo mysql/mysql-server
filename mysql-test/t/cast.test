@@ -177,6 +177,8 @@ select cast(1.0e+300 as signed int);
 CREATE TABLE t1 (f1 double);
 INSERT INTO t1 SET f1 = -1.0e+30 ;
 INSERT INTO t1 SET f1 = +1.0e+30 ;
+# Expected result is +-1e+30, but Windows returns +-1e+030.
+--replace_result 1e+030 1e+30
 SELECT f1 AS double_val, CAST(f1 AS SIGNED INT) AS cast_val FROM t1;
 DROP TABLE t1;					   
 
