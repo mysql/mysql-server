@@ -141,7 +141,7 @@ set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
 select * from information_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
 set GLOBAL myisam_max_sort_file_size=default;
---replace_result 2147483647 FILE_SIZE 9223372036854775807 FILE_SIZE
+--replace_result 2147483647 FILE_SIZE 2146435072 FILE_SIZE
 show variables like 'myisam_max_sort_file_size';
 --replace_result 2147483647 FILE_SIZE 9223372036854775807 FILE_SIZE
 select * from information_schema.session_variables where variable_name like 'myisam_max_sort_file_size';

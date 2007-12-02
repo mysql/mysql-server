@@ -109,12 +109,20 @@ c1
 DROP TABLE t1;
 SET             @@auto_increment_offset=
 @bug20627_old_auto_increment_offset;
+Warnings:
+Warning	1292	Truncated incorrect auto-increment-offset value: '0'
 SET             @@auto_increment_increment=
 @bug20627_old_auto_increment_increment;
+Warnings:
+Warning	1292	Truncated incorrect auto-increment-increment value: '0'
 SET             @@session.auto_increment_offset=
 @bug20627_old_session_auto_increment_offset;
+Warnings:
+Warning	1292	Truncated incorrect auto-increment-offset value: '0'
 SET             @@session.auto_increment_increment=
 @bug20627_old_session_auto_increment_increment;
+Warnings:
+Warning	1292	Truncated incorrect auto-increment-increment value: '0'
 SET @bug20830_old_auto_increment_offset=
 @@auto_increment_offset= 2;
 SET @bug20830_old_auto_increment_increment=
@@ -237,12 +245,20 @@ SUM(c1)
 DROP TABLE t1;
 SET             @@auto_increment_offset=
 @bug20830_old_auto_increment_offset;
+Warnings:
+Warning	1292	Truncated incorrect auto-increment-offset value: '0'
 SET             @@auto_increment_increment=
 @bug20830_old_auto_increment_increment;
+Warnings:
+Warning	1292	Truncated incorrect auto-increment-increment value: '0'
 SET             @@session.auto_increment_offset=
 @bug20830_old_session_auto_increment_offset;
+Warnings:
+Warning	1292	Truncated incorrect auto-increment-offset value: '0'
 SET             @@session.auto_increment_increment=
 @bug20830_old_session_auto_increment_increment;
+Warnings:
+Warning	1292	Truncated incorrect auto-increment-increment value: '0'
 CREATE TABLE t1(a BIT);
 INSERT DELAYED INTO t1 VALUES(1);
 FLUSH TABLE t1;

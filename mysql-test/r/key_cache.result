@@ -276,6 +276,8 @@ Variable_name	Value
 Key_blocks_unused	KEY_BLOCKS_UNUSED
 set global keycache2.key_buffer_size=0;
 set global keycache3.key_buffer_size=100;
+Warnings:
+Warning	1292	Truncated incorrect key_buffer_size value: '100'
 set global keycache3.key_buffer_size=0;
 create table t1 (mytext text, FULLTEXT (mytext));
 insert t1 values ('aaabbb');
