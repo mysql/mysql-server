@@ -1792,6 +1792,8 @@ show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	8
 set global innodb_thread_concurrency=1001;
+Warnings:
+Warning	1292	Truncated incorrect thread_concurrency value: '1001'
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	1000
@@ -1811,6 +1813,8 @@ show variables like "innodb_concurrency_tickets";
 Variable_name	Value
 innodb_concurrency_tickets	1000
 set global innodb_concurrency_tickets=0;
+Warnings:
+Warning	1292	Truncated incorrect concurrency_tickets value: '0'
 show variables like "innodb_concurrency_tickets";
 Variable_name	Value
 innodb_concurrency_tickets	1
