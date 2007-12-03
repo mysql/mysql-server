@@ -13,22 +13,26 @@ endif
 
 ifeq ($(OSX),OSX)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
-LIBEXT=dylib
-VGRIND=
-BDB_SUPPRESSIONS=
-TDB_LOADLIBES = -L../ -ldb
-SETTOKUENV=export DYLD_LIBRARY_PATH=..
-UNSETTOKUENV=unset DYLD_LIBRARY_PATH
+ LIBEXT=dylib
+ VGRIND=
+ BDB_SUPPRESSIONS=
+ TDB_LOADLIBES = -L../ -ldb
+ SETTOKUENV=export DYLD_LIBRARY_PATH=.. ;
+ UNSETTOKUENV=unset DYLD_LIBRARY_PATH ;
 else
-SETTOKUENV=true
-UNSETTOKUENV=true
-LIBEXT=so
-ifdef BDBDIR
-BDB_LDFLAGS += -Wl,-rpath,$(BDBDIR)/lib -lpthread
+ SETTOKUENV=
+ UNSETTOKUENV=
+ LIBEXT=so
+ ifdef BDBDIR
+  BDB_LDFLAGS += -Wl,-rpath,$(BDBDIR)/lib -lpthread
+ endif
+ TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,..
+ VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
-TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,..
-VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
-BDB_SUPPRESSIONS = --suppressions=bdb.supressions --gen-suppressions=all
+ifeq ($(VGRIND),)
+  BDB_SUPPRESSIONS =
+else
+  BDB_SUPPRESSIONS = --suppressions=bdb.supressions --gen-suppressions=all
 endif
 
 # VERBOSE=true
@@ -77,15 +81,15 @@ endif
 # The @ sign makes the make quiet.  If there is an error there is enough info to tell what test failed.
 %.bdbrun: %.bdb
 ifdef VERBOSE
-	$(UNSETTOKUENV); $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
+	$(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
 else
-	@ $(UNSETTOKUENV); $(VGRIND) $(BDB_SUPPRESSIONS) ./$<
+	@ $(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$<
 endif
 %.tdbrun: %.tdb
 ifdef VERBOSE
-	$(SETTOKUENV); $(VGRIND) ./$< $(VERBVERBOSE)
+	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE)
 else
-	@ $(SETTOKUENV); $(VGRIND) ./$<
+	@ $(SETTOKUENV) $(VGRIND) ./$<
 endif
 
 # For a few of the tests bdb is making valgrind unhappy.
@@ -114,9 +118,9 @@ NO_VGRIND = db_env_open_nocreate \
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 
 %.bdb: %.c
-	$(UNSETTOKUENV); cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
+	$(UNSETTOKUENV) cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
 %.tdb: %.c
-	$(SETTOKUENV); cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
+	$(SETTOKUENV) cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover
 all.recover: test_log2.recover test_log3.recover
