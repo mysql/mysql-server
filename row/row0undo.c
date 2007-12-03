@@ -184,7 +184,7 @@ row_undo_search_clust_to_pcur(
 		ret = FALSE;
 	} else {
 		node->row = row_build(ROW_COPY_DATA, clust_index, rec,
-				      offsets, &node->ext, node->heap);
+				      offsets, NULL, &node->ext, node->heap);
 		btr_pcur_store_position(&(node->pcur), &mtr);
 
 		ret = TRUE;
