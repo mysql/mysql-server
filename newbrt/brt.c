@@ -2863,6 +2863,13 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
         r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
         if (r == 0) assert_cursor_path(cursor);
         break;
+    case DB_CURRENT:
+	if (cursor->path_len<=0) {
+            r = EINVAL; goto died0;
+        }
+	r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
+	if (r == 0) assert_cursor_path(cursor);
+        break;
     case DB_SET:
         r = unpin_cursor(cursor);
         assert(r == 0);
