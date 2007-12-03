@@ -3827,8 +3827,9 @@ void Dbdict::execINCL_NODEREQ(Signal* signal)
   c_nodes.getPtr(nodePtr);
   ndbrequire(nodePtr.p->nodeState == NodeRecord::NDB_NODE_DEAD);
   nodePtr.p->nodeState = NodeRecord::NDB_NODE_ALIVE;
-  signal->theData[0] = reference();
-  sendSignal(retRef, GSN_INCL_NODECONF, signal, 1, JBB);
+  signal->theData[0] = nodePtr.i;
+  signal->theData[1] = reference();
+  sendSignal(retRef, GSN_INCL_NODECONF, signal, 2, JBB);
 
   c_aliveNodes.set(nodePtr.i);
 }//execINCL_NODEREQ()
