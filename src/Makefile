@@ -18,11 +18,14 @@ LIBEXT=so
 SHARED=-shared
 endif
 
-install: $(LIBNAME).$(LIBEXT) $(LIBNAME).a
-	(cd ../newbrt;make)
+.PHONY: install logformat
+install: logformat $(LIBNAME).$(LIBEXT) $(LIBNAME).a
 	cp $(LIBNAME).$(LIBEXT) ../lib/
 	cp $(LIBNAME).a ../lib
 
+logformat:
+	(cd ../newbrt;make)
+	
 check: $(LIBNAME).$(LIBEXT)
 	python tokuglobals.py $(LIBNAME).$(LIBEXT)
 
