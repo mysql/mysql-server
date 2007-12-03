@@ -624,20 +624,35 @@ static int toku_c_close(DBC * c) {
 }
 
 static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary) {
+    u_int32_t brtflags;
     DBT idx;
     memset(&idx, 0, sizeof(idx));
     int r = secondary->i->associate_callback(secondary, key, data, &idx);
+    int r2 = 0;
     if (r==DB_DONOTINDEX) return 0;
 #ifdef DB_DBT_MULTIPLE
     if (idx.flags & DB_DBT_MULTIPLE) {
         return EINVAL; // We aren't ready for this
     }
 #endif
-    r = secondary->del(secondary, txn, &idx, DB_NO_ASSOCIATE | DB_DELETE_ANY);
+	toku_brt_get_flags(secondary->i->brt, &brtflags);
+    if ((brtflags & TOKU_DB_DUPSORT) || (brtflags & TOKU_DB_DUP)) {
+        //If the secondary has duplicates we need to use cursor deletes.
+	    DBC *dbc;
+	    r = secondary->cursor(secondary, txn, &dbc, 0);
+	    if (r!=0) goto cleanup;
+	    r = dbc->c_get(dbc, &idx, key, DB_GET_BOTH | DB_NO_ASSOCIATE);
+	    if (r!=0) goto cleanup;
+	    r = dbc->c_del(dbc, DB_NO_ASSOCIATE);
+cleanup:
+        r2 = dbc->c_close(dbc);
+    }
+    else r = secondary->del(secondary, txn, &idx, DB_NO_ASSOCIATE | DB_DELETE_ANY);
     if (idx.flags & DB_DBT_APPMALLOC) {
     	free(idx.data);
     }
-    return r;
+    if (r!=0) return r;
+    return r2;
 }
 
 static int toku_c_del(DBC * c, u_int32_t flags) {
@@ -645,7 +660,7 @@ static int toku_c_del(DBC * c, u_int32_t flags) {
     DB* db = c->i->db;
     
     
-    //It is a primary with secondaries.
+    //It is a primary with secondaries, or is a secondary.
     if ((db->i->primary == 0 && !list_empty(&db->i->associated)) ||
         db->i->primary != 0) {
         DB* pdb;
@@ -676,6 +691,7 @@ static int toku_c_del(DBC * c, u_int32_t flags) {
     	}
     	if (db->i->primary != 0) {
     	    //If this is a secondary, we did not delete from the primary.
+    	    //Primaries cannot have duplicates, DB->del is safe.
     	    r = pdb->del(pdb, c->i->txn, &pkey, DB_DELETE_ANY);
     	    if (r!=0) return r;
     	}
@@ -737,6 +753,7 @@ static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
     	}
     	if (db->i->primary != 0) {
     	    //If this is a secondary, we did not delete from the primary.
+    	    //Primaries cannot have duplicates, DB->del is safe.
     	    r = pdb->del(pdb, txn, key, DB_DELETE_ANY);
     	    if (r!=0) return r;
     	}
