@@ -1053,8 +1053,9 @@ Backup::execINCL_NODEREQ(Signal* signal)
       break;
     }//if
   }//for
-  signal->theData[0] = reference();
-  sendSignal(senderRef, GSN_INCL_NODECONF, signal, 1, JBB);
+  signal->theData[0] = inclNode;
+  signal->theData[1] = reference();
+  sendSignal(senderRef, GSN_INCL_NODECONF, signal, 2, JBB);
 }
 
 /*****************************************************************************
