@@ -201,6 +201,10 @@ sync_slave_with_master;
 connection slave;
 SELECT 'slave', a FROM t1 ORDER BY a;
 
+#
+# cleanup
+#
+
 connection master;
 drop table t1;
 drop function f1;
@@ -208,4 +212,50 @@ drop function f2;
 drop procedure p1;
 sync_slave_with_master;
 
+#
+# bug#26199 Replication Failure on Slave when using stored procs
+#           with bit-type parameters
+
+connection master;
+
+create table t2 (b BIT(7));
+delimiter //;
+create procedure sp_bug26199(bitvalue BIT(7))
+begin
+  insert into t2 set b = bitvalue;
+end //
+
+create function sf_bug26199(b BIT(7)) returns int
+begin
+  insert into t2 values(b);
+  return 0;
+end//
+
+DELIMITER ;//
+
+
+
+call   sp_bug26199(b'1110');
+call   sp_bug26199('\0');
+select sf_bug26199(b'1111111');
+select sf_bug26199(b'101111111');
+select sf_bug26199('\'');
+select hex(b) from t2;
+
+sync_slave_with_master;
+#connection slave;
+select hex(b) from t2;
+
+#
+# cleanup bug#26199
+#
+connection master;
+drop table t2;
+drop procedure sp_bug26199;
+drop function sf_bug26199;
+
+sync_slave_with_master;
+
 SET GLOBAL log_bin_trust_function_creators = 0;
+
+--echo end of the tests

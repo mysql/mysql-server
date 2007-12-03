@@ -187,7 +187,13 @@ enum ha_extra_function {
     Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
   */
-  HA_EXTRA_INSERT_WITH_UPDATE
+  HA_EXTRA_INSERT_WITH_UPDATE,
+  /*
+    Orders MERGE handler to attach or detach its child tables. Used at
+    begin and end of a statement.
+  */
+  HA_EXTRA_ATTACH_CHILDREN,
+  HA_EXTRA_DETACH_CHILDREN
 };
 
 	/* The following is parameter to ha_panic() */
@@ -407,9 +413,11 @@ enum ha_base_keytype {
 #define HA_ERR_RECORD_IS_THE_SAME 169    /* row not actually updated : 
                                             new values same as the old values */
 
-#define HA_ERR_LOGGING_IMPOSSIBLE 170 /* It is not possible to log this
-                                         statement */
-#define HA_ERR_LAST              170 /*Copy last error nr.*/
+#define HA_ERR_LOGGING_IMPOSSIBLE 170    /* It is not possible to log this
+                                            statement */
+#define HA_ERR_CORRUPT_EVENT      171    /* The event was corrupt, leading to
+                                            illegal data being read */
+#define HA_ERR_LAST              171     /*Copy last error nr.*/
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 

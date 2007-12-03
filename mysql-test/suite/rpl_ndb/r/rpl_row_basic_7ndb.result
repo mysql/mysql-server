@@ -415,4 +415,23 @@ a	b	c
 2	4	8
 3	6	9
 99	99	99
+**** Test for BUG#31552 ****
+**** On Master ****
+DELETE FROM t1;
+**** Resetting master and slave ****
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+START SLAVE;
+**** On Master ****
+INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
+**** On Master ****
+DELETE FROM t1 WHERE C1 = 'L';
+DELETE FROM t1;
+SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
+COUNT(*)	0
+Last_SQL_Error
+0
+SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
+COUNT(*)	0
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
