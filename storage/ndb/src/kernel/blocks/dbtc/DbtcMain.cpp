@@ -313,8 +313,10 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
   hostptr.i = signal->theData[1];
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
   hostptr.p->hostStatus = HS_ALIVE;
-  signal->theData[0] = cownref;
   c_alive_nodes.set(hostptr.i);
+
+  signal->theData[0] = hostptr.i;
+  signal->theData[1] = cownref;
 
   if (ERROR_INSERTED(8039))
   {
@@ -324,11 +326,11 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
     sendSignal(numberToRef(CMVMI, hostptr.i), 
 	       GSN_NDB_TAMPER, signal, 1, JBB);
     signal->theData[0] = save;
-    sendSignalWithDelay(tblockref, GSN_INCL_NODECONF, signal, 5000, 1);
+    sendSignalWithDelay(tblockref, GSN_INCL_NODECONF, signal, 5000, 2);
     return;
   }
 
-  sendSignal(tblockref, GSN_INCL_NODECONF, signal, 1, JBB);
+  sendSignal(tblockref, GSN_INCL_NODECONF, signal, 2, JBB);
 }
 
 void Dbtc::execREAD_NODESREF(Signal* signal) 
