@@ -2057,7 +2057,7 @@ runDropBigTable(NDBT_Context* ctx, NDBT_Step* step)
   BaseString tmp;
   tmp.assfmt("_%s", tab.getName());
   GETNDB(step)->getDictionary()->dropTable(tmp.c_str());
-  return NDBT_OK
+  return NDBT_OK;
 }
 
 int
