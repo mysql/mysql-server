@@ -6300,7 +6300,6 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       Callback c = 
         { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked), 0 };
       ndbrequire(mutex.lock(c, false));
-      startLcpRoundLoopLab(signal, 0, 0);
       break;
     }
   case LMTOS_LCP_CONCLUDING:
@@ -6321,8 +6320,6 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       Callback c = 
         { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked), 0 };
       ndbrequire(mutex.lock(c, false));
-      
-      startLcpRoundLoopLab(signal, 0, 0);
       break;
     }
   default:
@@ -10585,6 +10582,7 @@ Dbdih::master_lcp_fragmentMutex_locked(Signal* signal,
 {
   jamEntry();
   ndbrequire(retVal == 0);
+  startLcpRoundLoopLab(signal, 0, 0);
 }
 
 void Dbdih::startLcpRoundLoopLab(Signal* signal, 
