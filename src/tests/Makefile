@@ -15,6 +15,7 @@ ifeq ($(OSX),OSX)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
 LIBEXT=dylib
 VGRIND=
+BDB_SUPPRESSIONS=
 TDB_LOADLIBES = -L../ -ldb
 SETTOKUENV=export DYLD_LIBRARY_PATH=..
 UNSETTOKUENV=unset DYLD_LIBRARY_PATH
@@ -27,6 +28,7 @@ BDB_LDFLAGS += -Wl,-rpath,$(BDBDIR)/lib -lpthread
 endif
 TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,..
 VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
+BDB_SUPPRESSIONS = --suppressions=bdb.supressions --gen-suppressions=all
 endif
 
 # VERBOSE=true
@@ -71,8 +73,6 @@ $(ALL_TESTS):
 ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
 endif
-
-BDB_SUPPRESSIONS = --suppressions=bdb.supressions --gen-suppressions=all
 
 # The @ sign makes the make quiet.  If there is an error there is enough info to tell what test failed.
 %.bdbrun: %.bdb
