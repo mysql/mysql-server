@@ -70,6 +70,7 @@ void print_defines (void) {
     dodefine(DB_KEYEXIST);
     dodefine(DB_LOCK_DEADLOCK);
     dodefine(DB_NOTFOUND);
+    dodefine(DB_SECONDARY_BAD);
     dodefine(DB_DONOTINDEX);
 
     printf("#define DB_BADFORMAT -30500\n"); // private tokudb
@@ -78,6 +79,7 @@ void print_defines (void) {
     dodefine(DB_FIRST);
     dodefine(DB_GET_BOTH);
     dodefine(DB_LAST);
+    dodefine(DB_CURRENT);
     dodefine(DB_NEXT);
     dodefine(DB_NEXT_DUP);
     dodefine(DB_PREV);
