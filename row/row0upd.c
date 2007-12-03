@@ -1332,7 +1332,7 @@ row_upd_store_row(
 	offsets = rec_get_offsets(rec, clust_index, offsets_,
 				  ULINT_UNDEFINED, &heap);
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
-			      &node->ext, node->heap);
+			      NULL, &node->ext, node->heap);
 	if (UNIV_LIKELY_NULL(node->ext)) {
 		node->n_ext = node->ext->n_ext;
 	} else {

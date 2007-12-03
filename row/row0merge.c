@@ -1154,7 +1154,8 @@ row_merge_read_clustered_index(
 			/* Build a row based on the clustered index. */
 
 			row = row_build(ROW_COPY_POINTERS, clust_index,
-					rec, offsets, &ext, row_heap);
+					rec, offsets,
+					new_table, &ext, row_heap);
 
 			if (UNIV_LIKELY_NULL(nonnull)) {
 				for (i = 0; i < n_nonnull; i++) {

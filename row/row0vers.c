@@ -165,7 +165,7 @@ row_vers_impl_x_locked_off_kernel(
 				ULINT_UNDEFINED, &heap);
 			row = row_build(ROW_COPY_POINTERS, clust_index,
 					prev_version, clust_offsets,
-					&ext, heap);
+					NULL, &ext, heap);
 			entry = row_build_index_entry(row, ext, index, heap);
 			/* entry may be NULL if a record was inserted
 			in place of a deleted record, and the BLOB
@@ -340,7 +340,7 @@ row_vers_old_has_index_entry(
 		row_ext_t*	ext;
 
 		row = row_build(ROW_COPY_POINTERS, clust_index,
-				rec, clust_offsets, &ext, heap);
+				rec, clust_offsets, NULL, &ext, heap);
 		entry = row_build_index_entry(row, ext, index, heap);
 
 		/* If entry == NULL, the record contains unset BLOB
@@ -398,7 +398,7 @@ row_vers_old_has_index_entry(
 
 			row = row_build(ROW_COPY_POINTERS, clust_index,
 					prev_version, clust_offsets,
-					&ext, heap);
+					NULL, &ext, heap);
 			entry = row_build_index_entry(row, ext, index, heap);
 
 			/* If entry == NULL, the record contains unset
