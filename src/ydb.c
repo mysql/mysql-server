@@ -779,11 +779,7 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
 	// It's a get on a secondary.
 	DBT primary_key;
 	memset(&primary_key, 0, sizeof(primary_key));
-	r = toku_db_get (db, txn, key, &primary_key, DB_NO_ASSOCIATE); // Lookup the primary
-	if (r!=0) return r;
-	// If data and primary_key are both zeroed, the temporary storage used to fill in data is different in the two cases because they come from different trees.
-	assert(db->i->brt != db->i->primary->i->brt); // Make sure they realy are different trees.
-	return toku_db_get (db->i->primary, txn, &primary_key, data, 0); 
+	return db->pget(db, txn, key, &primary_key, data, 0);
     }
 }
 
@@ -793,6 +789,8 @@ static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_
     assert(flags==0); // not ready to handle all those other options
     r = toku_db_get (db, txn, key, pkey, DB_NO_ASSOCIATE);
     if (r!=0) return r;
+	// If data and primary_key are both zeroed, the temporary storage used to fill in data is different in the two cases because they come from different trees.
+	assert(db->i->brt != db->i->primary->i->brt); // Make sure they realy are different trees.
     assert(db!=db->i->primary);
     r = toku_db_get (db->i->primary, txn, pkey, data, 0);
     return r;
