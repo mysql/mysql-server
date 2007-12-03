@@ -1162,8 +1162,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	field_opt_list opt_binary table_lock_list table_lock
 	ref_list opt_on_delete opt_on_delete_list opt_on_delete_item use
 	opt_delete_options opt_delete_option varchar nchar nvarchar
-	opt_outer table_list table_name table_alias_ref_list table_alias_ref
-	opt_option opt_place
+	opt_outer table_list table_name opt_option opt_place
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges grant_ident grant_list grant_option
 	object_privilege object_privilege_list user_list rename_list
@@ -6554,20 +6553,6 @@ table_name:
 	}
 	;
 
-table_alias_ref_list:
-        table_alias_ref
-        | table_alias_ref_list ',' table_alias_ref;
-
-table_alias_ref:
-	table_ident
-	{
-	  if (!Select->add_table_to_list(YYTHD, $1, NULL,
-                                         TL_OPTION_UPDATING | TL_OPTION_ALIAS,
-                                         Lex->lock_option ))
-	    MYSQL_YYABORT;
-	}
-	;
-
 if_exists:
 	/* empty */ { $$= 0; }
 	| IF EXISTS { $$= 1; }
@@ -6838,7 +6823,7 @@ single_multi:
             if (multi_delete_set_locks_and_link_aux_tables(Lex))
               MYSQL_YYABORT;
           }
-	| FROM table_alias_ref_list
+	| FROM table_wild_list
 	  { mysql_init_multi_delete(Lex); }
 	  USING join_table_list where_clause
           { 
