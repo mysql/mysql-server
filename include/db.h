@@ -64,12 +64,14 @@ typedef enum {
 #define DB_KEYEXIST -30996
 #define DB_LOCK_DEADLOCK -30995
 #define DB_NOTFOUND -30989
+#define DB_SECONDARY_BAD -30973
 #define DB_DONOTINDEX -30998
 #define DB_BADFORMAT -30500
 #define DB_DELETE_ANY 65536
 #define DB_FIRST 9
 #define DB_GET_BOTH 10
 #define DB_LAST 17
+#define DB_CURRENT 7
 #define DB_NEXT 18
 #define DB_NEXT_DUP 19
 #define DB_PREV 25

@@ -569,8 +569,43 @@ struct __toku_dbc_internal {
     DB_TXN *txn;
 };
 
+// Internal flag for when doing a get/del, don't do the work for associate.
+#define DB_NO_ASSOCIATE 42
+
 static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
+    DB *db = c->i->db;
+
+    if (db->i->primary != 0 && 
+        ((flag & DB_GET_BOTH) /* Uncomment when/if implemented || (flag & DB_GET_BOTH_RANGE)*/) &&
+        !(flag & DB_NO_ASSOCIATE)) return EINVAL;
     int r = toku_brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
+    if (db->i->primary != 0 && !(flag & DB_NO_ASSOCIATE)) {
+        DB *pdb = db->i->primary;
+        DBT pkey;
+
+        if (r != 0) return r;
+        pkey = *data;
+        r = pdb->get(pdb, c->i->txn, &pkey, data, 0);
+        if (r == DB_NOTFOUND) return DB_SECONDARY_BAD;
+    }
+
+    return r;
+}
+
+static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) {
+    int r;
+    DB *db = c->i->db;
+    DB *pdb = db->i->primary;
+    
+    if ((flag & DB_GET_BOTH) /*Uncomment when/if implemented || (flag & DB_GET_BOTH_RANGE)*/) return EINVAL;
+    //Not ready for this yet.
+
+    if (!db->i->primary) return EINVAL;  //c_pget does not work on a primary.
+    
+    r = toku_brt_cursor_get(c->i->c, key, pkey, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
+    if (r != 0) return r;
+    r = pdb->get(pdb, c->i->txn, pkey, data, 0);
+    if (r == DB_NOTFOUND) return DB_SECONDARY_BAD;
     return r;
 }
 
@@ -581,8 +616,66 @@ static int toku_c_close(DBC * c) {
     return r;
 }
 
+static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary) {
+    DBT idx;
+    memset(&idx, 0, sizeof(idx));
+    int r = secondary->i->associate_callback(secondary, key, data, &idx);
+    if (r==DB_DONOTINDEX) return 0;
+#ifdef DB_DBT_MULTIPLE
+    if (idx.flags & DB_DBT_MULTIPLE) {
+        return EINVAL; // We aren't ready for this
+    }
+#endif
+    r = secondary->del(secondary, txn, &idx, DB_NO_ASSOCIATE | DB_DELETE_ANY);
+    if (idx.flags & DB_DBT_APPMALLOC) {
+    	free(idx.data);
+    }
+    return r;
+}
+
 static int toku_c_del(DBC * c, u_int32_t flags) {
-    int r = toku_brt_cursor_delete(c->i->c, flags);
+    int r;
+    DB* db = c->i->db;
+    
+    
+    //It is a primary with secondaries.
+    if ((db->i->primary == 0 && !list_empty(&db->i->associated)) ||
+        db->i->primary != 0) {
+        DB* pdb;
+        DBT key;
+        DBT pkey;
+        DBT data;
+        struct list *h;
+
+        memset(&pkey, 0, sizeof(pkey));
+        memset(&data, 0, sizeof(data));
+        if (db->i->primary == 0) {
+            pdb = db;
+            r = c->c_get(c, &pkey, &data, DB_CURRENT);
+        }
+        else {
+            pdb = db->i->primary;
+            //TODO: replace toku_c_pget( with c->c_pget(c,
+            memset(&key, 0, sizeof(key));
+            r = toku_c_pget(c, &key, &pkey, &data, DB_CURRENT);
+        }
+        if (r != 0) return r;
+        
+    	for (h = list_head(&pdb->i->associated); h != &pdb->i->associated; h = h->next) {
+    	    struct __toku_db_internal *dbi = list_struct(h, struct __toku_db_internal, associated);
+    	    if (dbi->db == db) continue;  //Skip current db (if its primary or secondary)
+    	    r = do_associated_deletes(c->i->txn, &pkey, &data, dbi->db);
+    	    if (r!=0) return r;
+    	}
+    	if (db->i->primary != 0) {
+    	    //If this is a secondary, we did not delete from the primary.
+    	    r = pdb->del(pdb, c->i->txn, &pkey, DB_DELETE_ANY);
+    	    if (r!=0) return r;
+    	}
+    }
+    
+    //Do the actual deleting.
+    r = toku_brt_cursor_delete(c->i->c, flags);
     return r;
 }
 
@@ -607,8 +700,45 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
 
 static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
     int r;
-    /* DB_DELETE_ANY supresses the BDB DB->del return value indicating that the key was not found prior to the delete */
-    if (!(flags & DB_DELETE_ANY)) {
+
+    if (!(flags & DB_NO_ASSOCIATE) &&
+        ((db->i->primary == 0 && !list_empty(&db->i->associated)) ||
+         db->i->primary != 0)) {
+        DB* pdb;
+        DBT data;
+        struct list *h;
+
+        memset(&data, 0, sizeof(data));
+        if (db->i->primary == 0) {
+            pdb = db;
+            r = db->get(db, txn, key, &data, 0);
+        }
+        else {
+            DBT pkey;
+            memset(&pkey, 0, sizeof(pkey));
+            pdb = db->i->primary;
+            r = db->pget(db, txn, key, &pkey, &data, 0);
+            key = &pkey;
+        }
+        if (r != 0) return r;
+        
+    	for (h = list_head(&pdb->i->associated); h != &pdb->i->associated; h = h->next) {
+    	    struct __toku_db_internal *dbi = list_struct(h, struct __toku_db_internal, associated);
+    	    if (dbi->db == db) continue;  //Skip current db (if its primary or secondary)
+    	    r = do_associated_deletes(txn, key, &data, dbi->db);
+    	    if (r!=0) return r;
+    	}
+    	if (db->i->primary != 0) {
+    	    //If this is a secondary, we did not delete from the primary.
+    	    r = pdb->del(pdb, txn, key, DB_DELETE_ANY);
+    	    if (r!=0) return r;
+    	}
+    }
+    /*
+     * DB_DELETE_ANY supresses the BDB DB->del return value indicating that the key was not found prior to the delete
+     * If we are dealing with associated databases, we skip since we already know for certain it was found at this point.
+     */
+    else if (!(flags & DB_DELETE_ANY)) {
         DBT search_val; memset(&search_val, 0, sizeof search_val); 
         search_val.flags = DB_DBT_MALLOC;
         r = db->get(db, txn, key, &search_val, 0);
@@ -616,13 +746,10 @@ static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
             return r;
         free(search_val.data);
     } 
+    //Do the actual deleting.
     r = toku_brt_delete(db->i->brt, key);
     return r;
 }
-
-
-// Internal flag for when doing a get, don't do the work for associate.
-#define DB_NO_ASSOCIATE 42
 
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
