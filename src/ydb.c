@@ -526,8 +526,15 @@ int log_compare(const DB_LSN * a, const DB_LSN * b) {
 static int toku_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
 			      int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result),
 			      u_int32_t flags) {
+    unsigned int brtflags;
+    
     if (secondary->i->primary) return EINVAL; // The secondary already has a primary
     if (primary->i->primary)   return EINVAL; // The primary already has a primary
+
+    toku_brt_get_flags(primary->i->brt, &brtflags);
+    if (brtflags & TOKU_DB_DUPSORT) return EINVAL;  //The primary may not have duplicate keys.
+    if (brtflags & TOKU_DB_DUP)     return EINVAL;  //The primary may not have duplicate keys.
+
     if (!list_empty(&secondary->i->associated)) return EINVAL; // The secondary is in some list (or it is a primary)
     assert(secondary->i->associate_callback==0);      // Something's wrong if this isn't null we made it this far.
     secondary->i->associate_callback = callback;
