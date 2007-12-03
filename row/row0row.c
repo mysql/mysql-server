@@ -153,40 +153,53 @@ record in a clustered index. */
 dtuple_t*
 row_build(
 /*======*/
-				/* out, own: row built; see the NOTE below! */
-	ulint		type,	/* in: ROW_COPY_POINTERS or ROW_COPY_DATA;
-				the latter copies also the data fields to
-				heap while the first only places pointers to
-				data fields on the index page, and thus is
-				more efficient */
-	dict_index_t*	index,	/* in: clustered index */
-	const rec_t*	rec,	/* in: record in the clustered index;
-				NOTE: in the case ROW_COPY_POINTERS
-				the data fields in the row will point
-				directly into this record, therefore,
-				the buffer page of this record must be
-				at least s-latched and the latch held
-				as long as the row dtuple is used! */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index)
-				or NULL, in which case this function
-				will invoke rec_get_offsets() */
-	row_ext_t**	ext,	/* out, own: cache of externally stored
-				column prefixes, or NULL */
-	mem_heap_t*	heap)	/* in: memory heap from which the memory
-				needed is allocated */
+					/* out, own: row built;
+					see the NOTE below! */
+	ulint			type,	/* in: ROW_COPY_POINTERS or
+					ROW_COPY_DATA; the latter
+					copies also the data fields to
+					heap while the first only
+					places pointers to data fields
+					on the index page, and thus is
+					more efficient */
+	const dict_index_t*	index,	/* in: clustered index */
+	const rec_t*		rec,	/* in: record in the clustered
+					index; NOTE: in the case
+					ROW_COPY_POINTERS the data
+					fields in the row will point
+					directly into this record,
+					therefore, the buffer page of
+					this record must be at least
+					s-latched and the latch held
+					as long as the row dtuple is used! */
+	const ulint*		offsets,/* in: rec_get_offsets(rec,index)
+					or NULL, in which case this function
+					will invoke rec_get_offsets() */
+	const dict_table_t*	col_table,
+					/* in: table, to check which
+					externally stored columns
+					occur in the ordering columns
+					of an index, or NULL if
+					index->table should be
+					consulted instead */
+	row_ext_t**		ext,	/* out, own: cache of
+					externally stored column
+					prefixes, or NULL */
+	mem_heap_t*		heap)	/* in: memory heap from which
+					the memory needed is allocated */
 {
-	dtuple_t*	row;
-	dict_table_t*	table;
-	ulint		n_fields;
-	ulint		n_ext_cols;
-	ulint*		ext_cols	= NULL; /* remove bogus warning */
-	ulint		len;
-	ulint		row_len;
-	byte*		buf;
-	ulint		i;
-	ulint		j;
-	mem_heap_t*	tmp_heap	= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	dtuple_t*		row;
+	const dict_table_t*	table;
+	ulint			n_fields;
+	ulint			n_ext_cols;
+	ulint*			ext_cols	= NULL; /* remove warning */
+	ulint			len;
+	ulint			row_len;
+	byte*			buf;
+	ulint			i;
+	ulint			j;
+	mem_heap_t*		tmp_heap	= NULL;
+	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
 	rec_offs_init(offsets_);
 
 	ut_ad(index && rec && heap);
@@ -243,6 +256,14 @@ row_build(
 
 		if (rec_offs_nth_extern(offsets, i)) {
 			dfield_set_ext(dfield);
+
+			if (UNIV_LIKELY_NULL(col_table)) {
+				ut_a(col_no
+				     < dict_table_get_n_cols(col_table));
+				col = dict_table_get_nth_col(
+					col_table, col_no);
+			}
+
 			if (col->ord_part) {
 				/* We will have to fetch prefixes of
 				externally stored columns that are

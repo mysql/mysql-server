@@ -77,27 +77,42 @@ record in a clustered index. */
 dtuple_t*
 row_build(
 /*======*/
-				/* out, own: row built; see the NOTE below! */
-	ulint		type,	/* in: ROW_COPY_POINTERS or ROW_COPY_DATA;
-				the latter copies also the data fields to
-				heap while the first only places pointers to
-				data fields on the index page, and thus is
-				more efficient */
-	dict_index_t*	index,	/* in: clustered index */
-	const rec_t*	rec,	/* in: record in the clustered index;
-				NOTE: in the case ROW_COPY_POINTERS
-				the data fields in the row will point
-				directly into this record, therefore,
-				the buffer page of this record must be
-				at least s-latched and the latch held
-				as long as the row dtuple is used! */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index)
-				or NULL, in which case this function
-				will invoke rec_get_offsets() */
-	row_ext_t**	ext,	/* out, own: cache of externally stored
-				column prefixes, or NULL */
-	mem_heap_t*	heap);	/* in: memory heap from which the memory
-				needed is allocated */
+					/* out, own: row built;
+					see the NOTE below! */
+	ulint			type,	/* in: ROW_COPY_POINTERS or
+					ROW_COPY_DATA; the latter
+					copies also the data fields to
+					heap while the first only
+					places pointers to data fields
+					on the index page, and thus is
+					more efficient */
+	const dict_index_t*	index,	/* in: clustered index */
+	const rec_t*		rec,	/* in: record in the clustered
+					index; NOTE: in the case
+					ROW_COPY_POINTERS the data
+					fields in the row will point
+					directly into this record,
+					therefore, the buffer page of
+					this record must be at least
+					s-latched and the latch held
+					as long as the row dtuple is used! */
+	const ulint*		offsets,/* in: rec_get_offsets(rec,index)
+					or NULL, in which case this function
+					will invoke rec_get_offsets() */
+	const dict_table_t*	col_table,
+					/* in: table, to check which
+					externally stored columns
+					occur in the ordering columns
+					of an index, or NULL if
+					index->table should be
+					consulted instead; the user
+					columns in this table should be
+					the same columns as in index->table */
+	row_ext_t**		ext,	/* out, own: cache of
+					externally stored column
+					prefixes, or NULL */
+	mem_heap_t*		heap);	/* in: memory heap from which
+					the memory needed is allocated */
 /***********************************************************************
 Converts an index record to a typed data tuple. */
 
