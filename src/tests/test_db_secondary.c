@@ -98,9 +98,12 @@ void insert_test() {
     data.size = sizeof(s);
     //Set up secondary key
     r = getname(sdbp, &key, &data, &skey);              CKERR(r);
-        
+
+    //Insert into primary.        
     r = dbp->put(dbp, null_txn, &key, &data, 0);        CKERR(r);
     
+    //Make certain we fail to insert into secondary.
+    r = sdbp->put(sdbp, null_txn, &key, &data, 0);      assert(r == EINVAL);
 
     /* Try to get it from primary. */
     r = dbp->get(dbp, null_txn, &key, &testdata, 0);    CKERR(r);
