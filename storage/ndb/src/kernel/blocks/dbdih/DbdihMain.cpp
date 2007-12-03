@@ -7857,12 +7857,12 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
       if (nodePtr.i != getOwnNodeId())
       {
         SET_ERROR_INSERT_VALUE(7201);
-        sendGCP_PREPARE(signal, nodePtr.i);
+        sendGCP_PREPARE(signal, nodePtr.i, RNIL);
       }
       else
       {
         SET_ERROR_INSERT_VALUE(7202);
-        sendGCP_PREPARE(signal, nodePtr.i);
+        sendGCP_PREPARE(signal, nodePtr.i, RNIL);
       }
       nodePtr.i = nodePtr.p->nextNode;
     } while (nodePtr.i != RNIL);
