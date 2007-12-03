@@ -594,7 +594,7 @@ create table t1 (a int);
 create table t1 select * from t1;
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 create table t2 union = (t1) select * from t1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR HY000: 'test.t2' is not BASE TABLE
 flush tables with read lock;
 unlock tables;
 drop table t1;

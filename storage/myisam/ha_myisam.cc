@@ -119,6 +119,10 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
     definition for further use in mi_create or for a check for underlying
     table conformance in merge engine.
 
+    The caller needs to free *recinfo_out after use. Since *recinfo_out
+    and *keydef_out are allocated with a my_multi_malloc, *keydef_out
+    is freed automatically when *recinfo_out is freed.
+
   RETURN VALUE
     0  OK
     !0 error code

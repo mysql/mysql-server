@@ -405,6 +405,26 @@ CREATE TABLE t12 (data LONG);
 LOCK TABLES t12 WRITE;
 INSERT INTO t12 VALUES(UUID());
 UNLOCK TABLES;
+CREATE FUNCTION my_user()
+RETURNS CHAR(64)
+BEGIN
+DECLARE user CHAR(64);
+SELECT USER() INTO user;
+RETURN user;
+END $$
+CREATE FUNCTION my_current_user()
+RETURNS CHAR(64)
+BEGIN
+DECLARE user CHAR(64);
+SELECT CURRENT_USER() INTO user;
+RETURN user;
+END $$
+DROP TABLE IF EXISTS t13;
+CREATE TABLE t13 (data CHAR(64));
+INSERT INTO t13 VALUES (USER());
+INSERT INTO t13 VALUES (my_user());
+INSERT INTO t13 VALUES (CURRENT_USER());
+INSERT INTO t13 VALUES (my_current_user());
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	drop database if exists mysqltest1
@@ -709,6 +729,30 @@ master-bin.000001	#	Query	#	#	use `mysqltest1`; DROP TABLE IF EXISTS t12
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE TABLE t12 (data LONG)
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t12)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` FUNCTION my_user()
+RETURNS CHAR(64)
+BEGIN
+DECLARE user CHAR(64);
+SELECT USER() INTO user;
+RETURN user;
+END
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` FUNCTION my_current_user()
+RETURNS CHAR(64)
+BEGIN
+DECLARE user CHAR(64);
+SELECT CURRENT_USER() INTO user;
+RETURN user;
+END
+master-bin.000001	#	Query	#	#	use `mysqltest1`; DROP TABLE IF EXISTS t13
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE TABLE t13 (data CHAR(64))
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t13)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t13)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t13)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t13)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	drop database if exists mysqltest1
@@ -1012,6 +1056,30 @@ master-bin.000001	#	Query	#	#	use `mysqltest1`; INSERT INTO t11 VALUES('Careful 
 master-bin.000001	#	Query	#	#	use `mysqltest1`; DROP TABLE IF EXISTS t12
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE TABLE t12 (data LONG)
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t12)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` FUNCTION my_user()
+RETURNS CHAR(64)
+BEGIN
+DECLARE user CHAR(64);
+SELECT USER() INTO user;
+RETURN user;
+END
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` FUNCTION my_current_user()
+RETURNS CHAR(64)
+BEGIN
+DECLARE user CHAR(64);
+SELECT CURRENT_USER() INTO user;
+RETURN user;
+END
+master-bin.000001	#	Query	#	#	use `mysqltest1`; DROP TABLE IF EXISTS t13
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE TABLE t13 (data CHAR(64))
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t13)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t13)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t13)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t13)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 drop database mysqltest1;
 set global binlog_format =@my_binlog_format;
