@@ -793,7 +793,7 @@ static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondar
 	return EINVAL; // We aren't ready for this
     }
 #endif
-    r = secondary->put(secondary, txn, &idx, key, 0);
+    r = secondary->put(secondary, txn, &idx, key, DB_NO_ASSOCIATE);
     if (idx.flags & DB_DBT_APPMALLOC) {
 	free(idx.data);
     }
@@ -803,9 +803,10 @@ static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondar
 static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
 
-    if (flags != 0)
-        return EINVAL;
-
+    if (db->i->primary == 0 && flags != 0) return EINVAL;
+    //Cannot put directly into a secondary.
+    if (db->i->primary != 0 && flags != DB_NO_ASSOCIATE) return EINVAL;
+        
     unsigned int brtflags;
     r = toku_brt_get_flags(db->i->brt, &brtflags); assert(r == 0);
     unsigned int nodesize;
