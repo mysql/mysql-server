@@ -1070,10 +1070,6 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_2b_LCP D2
 
-max-time: 600
-cmd: testNodeRestart
-args: -n Bug31525 T1
-
 max-time: 300
 cmd: test_event
 args: -n Bug31701 T1
