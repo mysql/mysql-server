@@ -1098,3 +1098,7 @@ max-time: 600
 cmd: testSystemRestart
 args: -n to D2
 
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug32922 T1
+

@@ -973,14 +973,7 @@ SELECT c1,hex(c4),c5 FROM t18 ORDER BY c1;
 --echo
 --echo ** update from master **
 connection master;
-#######################################
-# This test should be uncommented
-# once bug30674 is patched
-#######################################
-
-#***************************
-#UPDATE t18 SET c5 = 'TEST' WHERE c6 = 3;
-#***************************
+UPDATE t18 SET c5 = 'TEST' WHERE c6 = 3;
 
 --replace_column 5 CURRENT_TIMESTAMP
 SELECT c1,hex(c4),c5,c6,c7 FROM t18 ORDER BY c1;
