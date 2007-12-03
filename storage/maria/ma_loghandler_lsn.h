@@ -32,7 +32,12 @@ typedef int64 TRANSLOG_ADDRESS;
 */
 #define cmp_translog_addr(A1,A2) ((A1) - (A2))
 
-/* LSN type (address of certain log record chank */
+/*
+  TRANSLOG_ADDRESS is just address of some byte in the log (usually some
+    chunk)
+  LSN used where address of some record in the log needed (not just any
+    address)
+*/
 typedef TRANSLOG_ADDRESS LSN;
 
 /* Gets file number part of a LSN/log address */

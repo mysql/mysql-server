@@ -253,8 +253,6 @@ C_MODE_START
 #define LOGREC_FIXED_RECORD_2LSN_EXAMPLE 5
 #define LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE 6
 
-extern void example_loghandler_init();
-
 extern my_bool translog_init(const char *directory, uint32 log_file_max_size,
 			     uint32 server_version, uint32 server_id,
 			     PAGECACHE *pagecache, uint flags);
@@ -401,6 +399,14 @@ typedef struct st_log_record_type_descriptor
 
 extern LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
 #endif
+
+typedef enum
+{
+  TRANSLOG_SYNC_DIR_NEVER,
+  TRANSLOG_SYNC_DIR_NEWFILE,
+  TRANSLOG_SYNC_DIR_ALWAYS
+} enum_maria_sync_log_dir;
+extern ulong sync_log_dir;
 
 C_MODE_END
 #endif

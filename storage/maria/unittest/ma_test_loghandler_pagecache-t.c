@@ -5,6 +5,7 @@
 #include "../trnman.h"
 
 extern my_bool maria_log_remove();
+extern void example_loghandler_init();
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;

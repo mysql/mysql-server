@@ -81,6 +81,17 @@ TYPELIB maria_stats_method_typelib=
   maria_stats_method_names, NULL
 };
 
+const char *maria_sync_log_dir_names[]=
+{
+  "NEVER", "NEWFILE", "ALWAYS", NullS
+};
+
+TYPELIB maria_sync_log_dir_typelib=
+{
+  array_elements(maria_sync_log_dir_names) - 1, "",
+  maria_sync_log_dir_names, NULL
+};
+
 /** @brief Interval between background checkpoints in seconds */
 static ulong checkpoint_interval;
 static void update_checkpoint_interval(MYSQL_THD thd,
@@ -139,6 +150,12 @@ static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,
        "Specifies how maria index statistics collection code should threat "
        "NULLs. Possible values of name are \"nulls_unequal\", \"nulls_equal\", "
        "and \"nulls_ignored\".", 0, 0, 0, &maria_stats_method_typelib);
+
+static MYSQL_SYSVAR_ENUM(sync_log_dir, sync_log_dir, PLUGIN_VAR_RQCMDARG,
+       "Controls syncing directory after log file growth and new file "
+       "creation. Possible values of are \"never\", \"newfile\" and "
+       "\"always\")", NULL, NULL, TRANSLOG_SYNC_DIR_NEWFILE,
+       &maria_sync_log_dir_typelib);
 
 /*****************************************************************************
 ** MARIA tables
@@ -2512,6 +2529,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(repair_threads),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(stats_method),
+  MYSQL_SYSVAR(sync_log_dir),
   NULL
 };
 
