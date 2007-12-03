@@ -5886,7 +5886,7 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
     jam();
     ndbout_c("resending GSN_MASTER_LCPREQ");
     sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
-			signal->getLength(), 50);
+			50, signal->getLength());
     return;
   }
   Uint32 failedNodeId = req->failedNodeId;
