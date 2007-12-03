@@ -123,7 +123,7 @@ $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 	$(SETTOKUENV) cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover
-all.recover: test_log2.recover test_log3.recover
+all.recover: test_log2.recover test_log3.recover test_log4.recover
 %.recover: %.tdb
 	cd ../../newbrt;make recover
 	./$<
