@@ -1358,11 +1358,12 @@ loop:
   {
     return NDBT_OK;
   }
+
+  ctx->setProperty("StopAbort", Uint32(0));
   
   ndbout << "Killing in " << stop << "ms..." << flush;
   NdbSleep_MilliSleep(stop);
   restarter.restartAll(false, true, true);
-  ctx->setProperty("StopAbort", Uint32(0));
   goto loop;
 }
 
