@@ -1612,6 +1612,8 @@ runBug27466(NDBT_Context* ctx, NDBT_Step* step)
       node2 = res.getDbNodeId(rand() % res.getNumDbNodes());
     }
 
+    ndbout_c("nodes %u %u", node1, node2);
+
     if (res.restartOneDbNode(node1, false, true, true))
       return NDBT_FAILED;
     
