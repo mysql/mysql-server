@@ -82,7 +82,7 @@ void sample_db_env_offsets (void) {
     STRUCT_SETUP(DB_ENV, set_lg_dir, "int  (*%s) (DB_ENV *, const char *)");
     STRUCT_SETUP(DB_ENV, set_lg_max, "int  (*%s) (DB_ENV *, u_int32_t)");
     STRUCT_SETUP(DB_ENV, set_lk_detect, "int  (*%s) (DB_ENV *, u_int32_t)");
-#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR < 6
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
     STRUCT_SETUP(DB_ENV, set_lk_max, "int  (*%s) (DB_ENV *, u_int32_t)");
 #endif
     //STRUCT_SETUP(DB_ENV, set_noticecall, "void (*%s) (DB_ENV *, void (*)(DB_ENV *, db_notices))");
