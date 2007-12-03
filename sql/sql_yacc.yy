@@ -5439,7 +5439,7 @@ alter_commands:
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
           }
-          opt_no_write_to_binlog opt_mi_check_type
+          opt_no_write_to_binlog
         | ANALYZE_SYM PARTITION_SYM opt_no_write_to_binlog
           all_or_alt_part_name_list
           {
@@ -5448,7 +5448,6 @@ alter_commands:
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
           }
-          opt_mi_check_type
         | CHECK_SYM PARTITION_SYM all_or_alt_part_name_list
           {
             LEX *lex= Lex;
@@ -5931,7 +5930,7 @@ analyze:
             lex->no_write_to_binlog= $2;
             lex->check_opt.init();
           }
-          table_list opt_mi_check_type
+          table_list
           {}
         ;
 
@@ -5987,7 +5986,7 @@ optimize:
             lex->no_write_to_binlog= $2;
             lex->check_opt.init();
           }
-          table_list opt_mi_check_type
+          table_list
           {}
         ;
 
@@ -6751,6 +6750,7 @@ function_call_keyword:
         | CURRENT_USER optional_braces
           {
             $$= new (YYTHD->mem_root) Item_func_current_user(Lex->current_context());
+            Lex->set_stmt_unsafe();
             Lex->safe_to_cache_query= 0;
           }
         | DATE_SYM '(' expr ')'
@@ -6796,6 +6796,7 @@ function_call_keyword:
         | USER '(' ')'
           {
             $$= new (YYTHD->mem_root) Item_func_user();
+            Lex->set_stmt_unsafe();
             Lex->safe_to_cache_query=0;
           }
         | YEAR_SYM '(' expr ')'

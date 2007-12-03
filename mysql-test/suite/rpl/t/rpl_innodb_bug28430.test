@@ -136,8 +136,7 @@ SELECT count(*) as "Master byrange" FROM test.byrange_tbl;
 --sync_slave_with_master
 connection slave;
 show create table test.byrange_tbl;
---replace_column 4 MASTER_PORT 33 #
-show slave status;
+source include/show_slave_status.inc;
 SELECT count(*) "Slave norm" FROM test.regular_tbl;
 SELECT count(*) "Slave bykey" FROM test.bykey_tbl;
 SELECT count(*) "Slave byrange" FROM test.byrange_tbl;

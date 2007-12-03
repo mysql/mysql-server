@@ -518,6 +518,42 @@ CREATE TABLE t12 (data LONG);
 LOCK TABLES t12 WRITE;
 INSERT INTO t12 VALUES(UUID());
 UNLOCK TABLES;
+sync_slave_with_master;
+
+#
+# BUG#28086: SBR of USER() becomes corrupted on slave
+# 
+
+connection master;
+
+# Just to get something that is non-trivial, albeit still simple, we
+# stuff the result of USER() and CURRENT_USER() into a variable.
+--delimiter $$
+CREATE FUNCTION my_user()
+    RETURNS CHAR(64)
+BEGIN
+  DECLARE user CHAR(64);
+  SELECT USER() INTO user;
+  RETURN user;
+END $$
+--delimiter ;
+
+--delimiter $$
+CREATE FUNCTION my_current_user()
+    RETURNS CHAR(64)
+BEGIN
+  DECLARE user CHAR(64);
+  SELECT CURRENT_USER() INTO user;
+  RETURN user;
+END $$
+--delimiter ;
+
+DROP TABLE IF EXISTS t13;
+CREATE TABLE t13 (data CHAR(64));
+INSERT INTO t13 VALUES (USER());
+INSERT INTO t13 VALUES (my_user());
+INSERT INTO t13 VALUES (CURRENT_USER());
+INSERT INTO t13 VALUES (my_current_user());
 
 source include/show_binlog_events.inc;
 sync_slave_with_master;

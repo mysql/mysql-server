@@ -28,7 +28,7 @@ insert into t1 values(NULL,'new');
 save_master_pos;
 connection slave;
 # wait until the slave tries to run the query, fails and aborts slave thread
-wait_for_slave_to_stop;
+source include/wait_for_slave_sql_error.inc;
 select * from t1 order by n;
 delete from t1 where n = 2;
 --disable_warnings
