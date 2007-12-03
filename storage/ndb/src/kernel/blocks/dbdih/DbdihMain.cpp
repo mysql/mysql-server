@@ -1600,9 +1600,17 @@ Dbdih::execNODE_START_REP(Signal* signal)
    * For these reasons there are no consistency checks and
    * we rely on c_dictLockSlavePtrI_nodeRestart alone.
    */
-  if (c_dictLockSlavePtrI_nodeRestart != RNIL) {
-    sendDictUnlockOrd(signal, c_dictLockSlavePtrI_nodeRestart);
-    c_dictLockSlavePtrI_nodeRestart = RNIL;
+  if (signal->theData[0] == getOwnNodeId())
+  {
+    /**
+     * With parallel node restart, only unlock self, if it's self that has
+     *   started
+     */
+    jam();
+    if (c_dictLockSlavePtrI_nodeRestart != RNIL) {
+      sendDictUnlockOrd(signal, c_dictLockSlavePtrI_nodeRestart);
+      c_dictLockSlavePtrI_nodeRestart = RNIL;
+    }
   }
 }
 
@@ -2755,6 +2763,8 @@ void Dbdih::execUPDATE_TOREQ(Signal* signal)
       extra = RNIL;
       goto ref;
     }
+    
+    CRASH_INSERTION(7141);
     
     takeOverPtr.p->toCopyNode = req.copyNodeId;
     takeOverPtr.p->toCurrentTabref = req.tableId;
