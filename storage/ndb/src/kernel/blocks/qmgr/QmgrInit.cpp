@@ -31,10 +31,6 @@ void Qmgr::initData()
   cnoCommitFailedNodes = 0;
   c_maxDynamicId = 0;
   c_clusterNodes.clear();
-
-  Uint32 hbDBAPI = 500;
-  setHbApiDelay(hbDBAPI);
-  c_connectedNodes.set(getOwnNodeId());
   c_stopReq.senderRef = 0;
 
   /**
@@ -45,6 +41,27 @@ void Qmgr::initData()
   ndbrequire((Uint32)NodeInfo::MGM == 2); 
 
   m_micro_gcp_enabled = false;
+
+  NodeRecPtr nodePtr;
+  nodePtr.i = getOwnNodeId();
+  ptrAss(nodePtr, nodeRec);
+  nodePtr.p->blockRef = reference();
+
+  c_connectedNodes.set(getOwnNodeId());
+  setNodeInfo(getOwnNodeId()).m_version = NDB_VERSION;
+
+
+  /**
+   * Timeouts
+   */
+  const ndb_mgm_configuration_iterator * p = 
+    m_ctx.m_config.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  Uint32 hbDBAPI = 1500;
+  ndb_mgm_get_int_parameter(p, CFG_DB_API_HEARTBEAT_INTERVAL, &hbDBAPI);
+  
+  setHbApiDelay(hbDBAPI);
 }//Qmgr::initData()
 
 void Qmgr::initRecords() 
@@ -115,6 +132,7 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_DIH_RESTARTREF, &Qmgr::execDIH_RESTARTREF);
   addRecSignal(GSN_DIH_RESTARTCONF, &Qmgr::execDIH_RESTARTCONF);
   addRecSignal(GSN_NODE_VERSION_REP, &Qmgr::execNODE_VERSION_REP);
+  addRecSignal(GSN_START_ORD, &Qmgr::execSTART_ORD);
 
   addRecSignal(GSN_UPGRADE_PROTOCOL_ORD, &Qmgr::execUPGRADE_PROTOCOL_ORD);
   
