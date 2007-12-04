@@ -1128,6 +1128,20 @@ Ndbcntr::waitpoint42To(Signal* signal)
   ctypeOfStart = NodeState::ST_NODE_RESTART;
 
   /**
+   * This is immensely ugly...but makes TUX work (yuck)
+   */
+  {
+    NodeStateRep* rep = (NodeStateRep*)signal->getDataPtrSend();
+    rep->nodeState = getNodeState();
+    rep->nodeState.masterNodeId = cmasterNodeId;
+    rep->nodeState.setNodeGroup(c_nodeGroup);
+    rep->nodeState.starting.restartType = NodeState::ST_NODE_RESTART;
+
+    sendSignal(DBTUX_REF, GSN_NODE_STATE_REP, signal,
+               NodeStateRep::SignalLength, JBB);
+  }
+
+  /**
    * We were forced to perform TO
    */
   StartCopyReq* req = (StartCopyReq*)signal->getDataPtrSend();
