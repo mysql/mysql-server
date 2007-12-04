@@ -25,9 +25,12 @@ install: logformat $(LIBNAME).$(LIBEXT) $(LIBNAME).a
 
 logformat:
 	(cd ../newbrt;make)
-	
+
 check: $(LIBNAME).$(LIBEXT)
 	python tokuglobals.py $(LIBNAME).$(LIBEXT)
+
+strip: $(LIBNAME).$(LIBEXT)
+	strip $(LIBNAME).$(LIBEXT)
 
 clean:
 	rm -rf $(LIBNAME).$(LIBEXT) $(LIBNAME).a *.o
