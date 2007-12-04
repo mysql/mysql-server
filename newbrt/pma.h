@@ -144,8 +144,15 @@ void toku_pma_iterate (PMA, void(*)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), voi
 
 void toku_pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint);
 
+// Set the PMA's size, without moving anything.
+int toku_resize_pma_exactly (PMA pma, int oldsize, int newsize);
+
 int toku_pma_set_at_index (PMA, int /*index*/, DBT */*key*/, DBT */*value*/); // If the index is wrong or there is a value already, return nonzero
 
+// Requires:  No open cursors on the pma.
+int toku_pma_move_indices (PMA pma, INTPAIRARRAY fromto); // Return nonzero if the indices are somehow wrong.
+
 void toku_pma_show_stats (void);
+
 
 #endif
