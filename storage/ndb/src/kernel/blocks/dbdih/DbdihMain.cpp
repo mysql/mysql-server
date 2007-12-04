@@ -6346,7 +6346,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
        */
       Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
       Callback c = 
-        { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked), 0 };
+        { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked), failedNodePtr.i };
       ndbrequire(mutex.lock(c, false));
       return;
     }
@@ -6366,7 +6366,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
        */
       Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
       Callback c = 
-        { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked), 0 };
+        { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked), failedNodePtr.i };
       ndbrequire(mutex.lock(c, false));
       return;
     }
@@ -10659,7 +10659,7 @@ void Dbdih::execTC_CLOPSIZECONF(Signal* signal) {
 
 void
 Dbdih::master_lcp_fragmentMutex_locked(Signal* signal, 
-                                       Uint32 data, Uint32 retVal)
+                                       Uint32 failedNodePtrI, Uint32 retVal)
 {
   jamEntry();
   ndbrequire(retVal == 0);
@@ -10673,7 +10673,7 @@ Dbdih::master_lcp_fragmentMutex_locked(Signal* signal,
   
   c_lcpMasterTakeOverState.set(LMTOS_IDLE, __LINE__);
   
-  checkLocalNodefailComplete(signal, failedNodePtr.i, NF_LCP_TAKE_OVER);
+  checkLocalNodefailComplete(signal, failedNodePtrI, NF_LCP_TAKE_OVER);
 
   startLcpRoundLoopLab(signal, 0, 0);
 }
