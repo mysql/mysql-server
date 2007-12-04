@@ -565,7 +565,7 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
     assert(node->height>0); /* Not a leaf. */
     DBT *k = cmd->u.id.key;
     DBT *v = cmd->u.id.val;
-    int to_child=toku_serialize_brtnode_size(child)+k->size+v->size+KEY_VALUE_OVERHEAD <= child->nodesize;
+    int to_child=toku_serialize_brtnode_size(child)+k->size+v->size+KEY_VALUE_OVERHEAD+BRT_CMD_OVERHEAD <= child->nodesize;
     if (toku_brt_debug_mode) {
 	printf("%s:%d pushing %s to %s %d", __FILE__, __LINE__, (char*)k->data, to_child? "child" : "hash", childnum_of_node);
 	if (childnum_of_node+1<node->u.n.n_children) {
@@ -944,7 +944,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
         if (replaced_v_size>=0) {
             node->u.l.n_bytes_in_buffer += v->size - replaced_v_size;
         } else {
-            node->u.l.n_bytes_in_buffer += k->size + v->size + KEY_VALUE_OVERHEAD;
+            node->u.l.n_bytes_in_buffer += k->size + v->size + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
         }
         node->dirty = 1;
 	
@@ -2912,7 +2912,7 @@ int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags __attribute__((__unused_
         int kvsize;
         r = toku_pma_cursor_delete_under(cursor->pmacurs, &kvsize);
         if (r == 0) {
-            node->u.l.n_bytes_in_buffer -= KEY_VALUE_OVERHEAD + kvsize;
+            node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + kvsize;
             node->dirty = 1;
         }
     } else
