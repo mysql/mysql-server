@@ -1083,7 +1083,7 @@ static int pma_delete_dup (PMA pma, DBT *k, u_int32_t rand4sem, u_int32_t *finge
         struct kv_pair *kv = pma->pairs[righthere];
         if (kv_pair_valid(kv)) {
             /* mark the pair as deleted */
-            *deleted_size += KEY_VALUE_OVERHEAD + kv_pair_keylen(kv) + kv_pair_vallen(kv);
+            *deleted_size += PMA_ITEM_OVERHEAD+ KEY_VALUE_OVERHEAD + kv_pair_keylen(kv) + kv_pair_vallen(kv);
 	    *fingerprint -= rand4sem*toku_calccrc32_kvpair (kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
             pma->pairs[righthere] = kv_pair_set_deleted(kv);
             if (__pma_count_cursor_refs(pma, righthere) == 0) {
@@ -1109,7 +1109,7 @@ static int pma_delete_nodup (PMA pma, DBT *k, u_int32_t rand4sem, u_int32_t *fin
         if (0) printf("%s:%d l=%d r=%d\n", __FILE__, __LINE__, idx, DB_NOTFOUND);
         return DB_NOTFOUND;
     }
-    *deleted_size = KEY_VALUE_OVERHEAD + kv_pair_keylen(kv) + kv_pair_vallen(kv); 
+    *deleted_size = PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + kv_pair_keylen(kv) + kv_pair_vallen(kv); 
     *fingerprint -= rand4sem*toku_calccrc32_kvpair (kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
     pma->pairs[idx] = kv_pair_set_deleted(kv);
     if (__pma_count_cursor_refs(pma, idx) == 0)
@@ -1430,14 +1430,14 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
     /* debug check the kv length sum */
     sumlen = 0;
     for (i=0; i<npairs; i++)
-        sumlen += kv_pair_keylen(pairs[i].pair) + kv_pair_vallen(pairs[i].pair) + KEY_VALUE_OVERHEAD;
+        sumlen += kv_pair_keylen(pairs[i].pair) + kv_pair_vallen(pairs[i].pair) + PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD;
 
     if (origpma_size)
         assert(*(int *)origpma_size == sumlen);
 
     runlen = 0;
     for (i=0; i<npairs;) {
-        runlen += kv_pair_keylen(pairs[i].pair) + kv_pair_vallen(pairs[i].pair) + KEY_VALUE_OVERHEAD;
+        runlen += kv_pair_keylen(pairs[i].pair) + kv_pair_vallen(pairs[i].pair) + PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD;
         i++;
         if (2*runlen >= sumlen)
             break;

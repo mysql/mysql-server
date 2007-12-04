@@ -122,7 +122,7 @@ int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize);
 
 int toku_pma_random_pick(PMA, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 
-int toku_pma_index_limit(PMA);
+int toku_pma_index_limit(PMA); // How many slots are in the PMA right now?
 int toku_pmanode_valid(PMA,int);
 bytevec toku_pmanode_key(PMA,int);
 ITEMLEN toku_pmanode_keylen(PMA,int);
@@ -131,16 +131,18 @@ ITEMLEN toku_pmanode_vallen(PMA,int);
 
 void toku_pma_iterate (PMA, void(*)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*);
 
-#define PMA_ITERATE(table,keyvar,keylenvar,datavar,datalenvar,body) ({ \
-  int __i;                                                             \
-  for (__i=0; __i<toku_pma_index_limit(table); __i++) {		       \
-    if (toku_pmanode_valid(table,__i)) {                                    \
-      bytevec keyvar = toku_pmanode_key(table,__i);                         \
-      ITEMLEN keylenvar = toku_pmanode_keylen(table,__i);                   \
-      bytevec datavar = toku_pmanode_val(table, __i);                       \
-      ITEMLEN datalenvar = toku_pmanode_vallen(table, __i);                 \
+#define PMA_ITERATE_IDX(table,idx,keyvar,keylenvar,datavar,datalenvar,body) ({ \
+  int idx;                                                             \
+  for (idx=0; idx<toku_pma_index_limit(table); idx++) {		       \
+    if (toku_pmanode_valid(table,idx)) {                                    \
+      bytevec keyvar = toku_pmanode_key(table,idx);                         \
+      ITEMLEN keylenvar = toku_pmanode_keylen(table,idx);                   \
+      bytevec datavar = toku_pmanode_val(table, idx);                       \
+      ITEMLEN datalenvar = toku_pmanode_vallen(table, idx);                 \
       body;                                                            \
-} } })
+    } } })
+
+#define PMA_ITERATE(table,keyvar,keylenvar,datavar,datalenvar,body) PMA_ITERATE_IDX(table, __i, keyvar, keylenvar, datavar, datalenvar, body)
 
 void toku_pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint);
 

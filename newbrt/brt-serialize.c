@@ -61,8 +61,9 @@ static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
 	PMA_ITERATE(node->u.l.buffer,
 		    key __attribute__((__unused__)), keylen,
 		    data __attribute__((__unused__)), datalen,
-		    (hsize+=KEY_VALUE_OVERHEAD+keylen+datalen));
+		    (hsize+=PMA_ITEM_OVERHEAD+KEY_VALUE_OVERHEAD+keylen+datalen));
 	assert(hsize==node->u.l.n_bytes_in_buffer);
+	hsize+=4; /* the PMA size */
 	hsize+=4; /* add n entries in buffer table. */
 	return size+hsize;
     }
@@ -80,7 +81,8 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
 	result+=(8+4+4)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and the subtree fingerprint. */
 	result+=node->u.n.n_bytes_in_hashtables;
     } else {
-	result+=4; /* n_entries in buffer table. */
+	result+=(4 /* n_entries in buffer table. */
+		 +4); /* the pma size */
 	result+=node->u.l.n_bytes_in_buffer;
 	if (toku_memory_check) {
 	    unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
@@ -166,9 +168,14 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     } else {
 	//printf(" n_entries=%d\n", toku_pma_n_entries(node->u.l.buffer));
 	wbuf_int(&w, toku_pma_n_entries(node->u.l.buffer));
-	PMA_ITERATE(node->u.l.buffer, key, keylen, data, datalen,
-		    (wbuf_bytes(&w, key, keylen),
-		     wbuf_bytes(&w, data, datalen)));
+	wbuf_int(&w, toku_pma_index_limit(node->u.l.buffer));
+	PMA_ITERATE_IDX(node->u.l.buffer, idx,
+			key, keylen, data, datalen,
+			({
+			    wbuf_int(&w, idx);
+			    wbuf_bytes(&w, key, keylen);
+			    wbuf_bytes(&w, data, datalen);
+			}));
     }
     assert(w.ndone<=w.size);
 #ifdef CRC_ATEND
@@ -377,16 +384,17 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 #if BRT_USE_PMA_BULK_INSERT
 {
         DBT keys[n_in_buf], vals[n_in_buf];
-
+	int index_limit __attribute__((__unused__))= rbuf_int(&rc);
 	for (i=0; i<n_in_buf; i++) {
 	    bytevec key; ITEMLEN keylen; 
 	    bytevec val; ITEMLEN vallen;
 	    toku_verify_counts(result);
+	    int idx __attribute__((__unused__)) = rbuf_int(&rc);
 	    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
             toku_fill_dbt(&keys[i], key, keylen);
 	    rbuf_bytes(&rc, &val, &vallen);
             toku_fill_dbt(&vals[i], val, vallen);
-	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;
+	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
         }
         if (n_in_buf > 0) {
 	    u_int32_t actual_sum = 0;
@@ -413,7 +421,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 		r = toku_pma_insert(result->u.l.buffer, toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, val, vallen), 0);
 		if (r!=0) goto died_21;
 	    }
-	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;
+	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
 	}
 #endif
     }

@@ -14,6 +14,7 @@
 #endif
 enum { TREE_FANOUT = BRT_FANOUT };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
+enum { PMA_ITEM_OVERHEAD = 4 };
 enum { BRT_CMD_OVERHEAD = 1 };
 enum { BRT_DEFAULT_NODE_SIZE = 1 << 20 };
 
@@ -59,7 +60,7 @@ struct brtnode {
         } n;
 	struct leaf {
 	    PMA buffer;
-	    unsigned int n_bytes_in_buffer;
+	    unsigned int n_bytes_in_buffer; /* How many bytes to represent the PMA (including the per-key overheads, but not including the overheads for the node. */
 	} l;
     } u;
 };
