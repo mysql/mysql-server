@@ -2008,7 +2008,7 @@ runCreateBigTable(NDBT_Context* ctx, NDBT_Step* step)
   do {
     hugoTrans.loadTableStartFrom(GETNDB(step), cnt, 10000);
     cnt += 10000;
-  } while (cnt < rows && (NdbTick_CurrentMillisecond() - now) < 10000);
+  } while (cnt < rows && (NdbTick_CurrentMillisecond() - now) < 60000); //1min
   ndbout_c("Loaded %u rows", cnt);
 
   return NDBT_OK;
