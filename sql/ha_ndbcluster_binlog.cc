@@ -872,11 +872,13 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
         return 1;
     }
   }
+
   if (!ndbcluster_find_all_files(thd))
   {
     pthread_mutex_lock(&LOCK_open);
     ndb_binlog_tables_inited= TRUE;
-    if (ndb_binlog_running)
+    if (ndb_binlog_tables_inited &&
+        ndb_binlog_running && ndb_binlog_is_ready)
     {
       if (ndb_extra_logging)
         sql_print_information("NDB Binlog: ndb tables writable");
@@ -1963,6 +1965,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                                ndb_schema_share->use_count));
       free_share(&ndb_schema_share);
       ndb_schema_share= 0;
+      ndb_binlog_tables_inited= FALSE;
       ndb_binlog_is_ready= FALSE;
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
@@ -4301,6 +4304,7 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                                share->key, share->use_count));
       free_share(&ndb_apply_status_share);
       ndb_apply_status_share= 0;
+      ndb_binlog_tables_inited= FALSE;
     }
     DBUG_PRINT("error", ("CLUSTER FAILURE EVENT: "
                         "%s  received share: 0x%lx  op: 0x%lx  share op: 0x%lx  "
@@ -4320,6 +4324,7 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                                share->key, share->use_count));
       free_share(&ndb_apply_status_share);
       ndb_apply_status_share= 0;
+      ndb_binlog_tables_inited= FALSE;
     }
     /* ToDo: remove printout */
     if (ndb_extra_logging)
@@ -5020,6 +5025,11 @@ restart:
     no longer read only
   */
   ndb_binlog_is_ready= TRUE;
+
+  if (ndb_extra_logging)
+    sql_print_information("NDB Binlog: ndb tables writable");
+  close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, FALSE);
+
   {
     static char db[]= "";
     thd->db= db;
@@ -5462,6 +5472,7 @@ err:
                              ndb_apply_status_share->use_count));
     free_share(&ndb_apply_status_share);
     ndb_apply_status_share= 0;
+    ndb_binlog_tables_inited= FALSE;
   }
   if (ndb_schema_share)
   {
@@ -5473,6 +5484,7 @@ err:
                              ndb_schema_share->use_count));
     free_share(&ndb_schema_share);
     ndb_schema_share= 0;
+    ndb_binlog_tables_inited= FALSE;
     pthread_mutex_unlock(&ndb_schema_share_mutex);
     /* end protect ndb_schema_share */
   }

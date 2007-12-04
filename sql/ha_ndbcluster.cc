@@ -7384,6 +7384,7 @@ ha_ndbcluster::delete_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_ASSERT(ndb_schema_share);
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
   /* ndb_share reference temporary */
@@ -7554,6 +7555,7 @@ int ha_ndbcluster::delete_table(const char *name)
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_ASSERT(ndb_schema_share);
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 
@@ -7909,8 +7911,12 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(res);
   }
 #ifdef HAVE_NDB_BINLOG
-  if (!ndb_binlog_tables_inited && ndb_binlog_running && !ndb_binlog_is_ready)
+  if (!ndb_binlog_tables_inited ||
+      (ndb_binlog_running && !ndb_binlog_is_ready))
+  {
     table->db_stat|= HA_READ_ONLY;
+    sql_print_information("table '%s' opened read only", name);
+  }
 #endif
   DBUG_RETURN(0);
 }
@@ -8335,8 +8341,8 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_ASSERT(ndb_schema_share);
     DBUG_VOID_RETURN;
-    //DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
   ndbcluster_drop_database_impl(thd, path);
   char db[FN_REFLEN];
@@ -9924,10 +9930,10 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
     {
       DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
     }
-    if (ndb_get_table_statistics(this, TRUE, ndb, m_ndb_statistics_record,
-                                 &stat))
+    if (int err= ndb_get_table_statistics(this, TRUE, ndb,
+                                          m_ndb_statistics_record, &stat))
     {
-      DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
+      DBUG_RETURN(err);
     }
     if (m_share)
     {
