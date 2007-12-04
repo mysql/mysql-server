@@ -1245,5 +1245,6 @@ use information_schema;
 show events;
 show events from information_schema;
 show events where Db= 'information_schema';
+use test;
 
 --echo End of 5.1 tests.
