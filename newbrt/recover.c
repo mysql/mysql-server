@@ -145,9 +145,19 @@ static void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
     assert(node->height==0);
     DBT key,data;
     r = toku_pma_set_at_index(node->u.l.buffer, c->pmaidx, toku_fill_dbt(&key, c->key.data, c->key.len), toku_fill_dbt(&data, c->data.data, c->data.len));
+    assert(r==0);
     node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
     node->u.l.n_bytes_in_buffer += KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
-    assert(r==0);
+}
+
+static void toku_recover_resizepma (struct logtype_resizepma *c) {
+    c=c;
+    abort();
+}
+
+static void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
+    c=c;
+    abort();
 }
 
 int main (int argc, char *argv[]) {

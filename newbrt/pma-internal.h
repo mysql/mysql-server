@@ -36,9 +36,9 @@ struct pma {
 
 int toku_pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi);
 void toku_pmainternal_calculate_parameters (PMA pma);
-int toku_pmainternal_smooth_region (struct kv_pair *pairs[], int n, int idx, int base, PMA pma);
+int toku_pmainternal_smooth_region (TOKUTXN, FILENUM, DISKOFF, struct kv_pair */*pairs*/[], int /*n*/, int /*idx*/, int /*base*/, PMA /*pma*/, int */*new_idx*/);
 int toku_pmainternal_printpairs (struct kv_pair *pairs[], int N);
-int toku_pmainternal_make_space_at (PMA pma, int idx);
+int toku_pmainternal_make_space_at (TOKUTXN, FILENUM, DISKOFF, PMA pma, int idx, int *new_index);
 int toku_pmainternal_find (PMA pma, DBT *); // The DB is so the comparison fuction can be called.
 void toku_print_pma (PMA pma); /* useful for debugging, so keep the name short. I.e., not pmainternal_print_pma() */
 

@@ -137,4 +137,13 @@ static inline void wbuf_LOGGEDBRTHEADER (struct wbuf *w, LOGGEDBRTHEADER h) {
     }
 }
 
+static inline void wbuf_INTPAIRARRAY (struct wbuf *w, INTPAIRARRAY h) {
+    u_int32_t i;
+    wbuf_int(w, h.size);
+    for (i=0; i<h.size; i++) {
+	wbuf_int(w, h.array[i].a);
+	wbuf_int(w, h.array[i].b);
+    }
+}
+
 #endif

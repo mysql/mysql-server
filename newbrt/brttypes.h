@@ -56,4 +56,11 @@ typedef struct loggedbrtheader {
     } u;
 } LOGGEDBRTHEADER; 
 
+typedef struct intpairarray {
+    u_int32_t size;
+    struct intpair {
+	u_int32_t a,b;
+    } *array;
+} INTPAIRARRAY;
+
 #endif
