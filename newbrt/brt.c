@@ -393,7 +393,7 @@ static int insert_to_hash_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT *v
 }
 
 
-static int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
+static int brtleaf_split (TOKUTXN txn, FILENUM filenum, BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
     BRTNODE A,B;
     assert(node->height==0);
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
@@ -408,9 +408,9 @@ static int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, D
     //printf("%s:%d B is at %lld nodesize=%d\n", __FILE__, __LINE__, B->thisnodename, B->nodesize);
     assert(node->height>0 || node->u.l.buffer!=0);
     int r;
-    r = toku_pma_split(node->u.l.buffer, &node->u.l.n_bytes_in_buffer, splitk,
-		       A->u.l.buffer, &A->u.l.n_bytes_in_buffer, A->rand4fingerprint, &A->local_fingerprint,
-		       B->u.l.buffer, &B->u.l.n_bytes_in_buffer, B->rand4fingerprint, &B->local_fingerprint);
+    r = toku_pma_split(txn, filenum, node->u.l.buffer, &node->u.l.n_bytes_in_buffer, splitk,
+		       A->thisnodename, A->u.l.buffer, &A->u.l.n_bytes_in_buffer, A->rand4fingerprint, &A->local_fingerprint,
+		       A->thisnodename, B->u.l.buffer, &B->u.l.n_bytes_in_buffer, B->rand4fingerprint, &B->local_fingerprint);
     assert(r == 0);
     assert(node->height>0 || node->u.l.buffer!=0);
     /* Remove it from the cache table, and free its storage. */
@@ -933,11 +933,12 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 			     int debug,
 			     TOKUTXN txn) {
 //    toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
+    FILENUM filenum = toku_cachefile_filenum(t->cf);
     if  (cmd->type == BRT_INSERT) {
         DBT *k = cmd->u.id.key;
         DBT *v = cmd->u.id.val;
         int replaced_v_size;
-        enum pma_errors pma_status = toku_pma_insert_or_replace(node->u.l.buffer, k, v, &replaced_v_size, txn, node->thisnodename, node->rand4fingerprint, &node->local_fingerprint);
+        enum pma_errors pma_status = toku_pma_insert_or_replace(node->u.l.buffer, k, v, &replaced_v_size, txn, filenum, node->thisnodename, node->rand4fingerprint, &node->local_fingerprint);
         assert(pma_status==BRT_OK);
         //printf("replaced_v_size=%d\n", replaced_v_size);
         if (replaced_v_size>=0) {
@@ -951,7 +952,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 
         // If it doesn't fit, then split the leaf.
         if (toku_serialize_brtnode_size(node) > node->nodesize) {
-            int r = brtleaf_split (t, node, nodea, nodeb, splitk);
+            int r = brtleaf_split (txn, filenum, t, node, nodea, nodeb, splitk);
             if (r!=0) return r;
             //printf("%s:%d splitkey=%s\n", __FILE__, __LINE__, (char*)*splitkey);
             split_count++;

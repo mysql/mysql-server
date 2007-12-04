@@ -469,7 +469,7 @@ int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, u_int32_t *crc, u_int32_t *l
     return 0;
 }
 
-int toku_fread_LOGGEDBRTHEADER(FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_int32_t *len) {
+int toku_fread_LOGGEDBRTHEADER (FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_int32_t *len) {
     int r;
     r = toku_fread_u_int32_t(f, &v->size,          crc, len); if (r!=0) return r;
     r = toku_fread_u_int32_t(f, &v->flags,         crc, len); if (r!=0) return r;
@@ -479,6 +479,19 @@ int toku_fread_LOGGEDBRTHEADER(FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_in
     r = toku_fread_u_int32_t(f, &v->n_named_roots, crc, len); if (r!=0) return r;
     assert((signed)v->n_named_roots==-1);
     r = toku_fread_DISKOFF  (f, &v->u.one.root,     crc, len); if (r!=0) return r;
+    return 0;
+}
+
+int toku_fread_INTPAIRARRAY (FILE *f, INTPAIRARRAY *v, u_int32_t *crc, u_int32_t *len) {
+    int r;
+    u_int32_t i;
+    r = toku_fread_u_int32_t(f, &v->size, crc, len); if (r!=0) return r;
+    MALLOC_N(v->size, v->array);
+    if (v->array!=0) return errno;
+    for (i=0; i<v->size; i++) {
+	r = toku_fread_u_int32_t(f, &v->array[i].a, crc, len); if (r!=0) return r;
+	r = toku_fread_u_int32_t(f, &v->array[i].b, crc, len); if (r!=0) return r;
+    }
     return 0;
 }
 
@@ -557,6 +570,20 @@ int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname,
     fprintf(outf, " %s={size=%d flags=%d nodesize=%d freelist=%lld unused_memory=%lld n_named_roots=%d", fieldname, v.size, v.flags, v.nodesize, v.freelist, v.unused_memory, v.n_named_roots);
     return 0;
     
+}
+
+int toku_logprint_INTPAIRARRAY (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
+    INTPAIRARRAY v;
+    u_int32_t i;
+    int r = toku_fread_INTPAIRARRAY(inf, &v, crc, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s={size=%d array={", fieldname, v.size);
+    for (i=0; i<v.size; i++) {
+	if (i!=0) fprintf(outf, " ");
+	fprintf(outf, "{%d %d}", v.array[i].a, v.array[i].b);
+    }
+    toku_free(v.array);
+    return 0;
 }
 
 int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {

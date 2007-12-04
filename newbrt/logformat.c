@@ -71,6 +71,17 @@ const struct logtype logtypes[] = {
 			     {"BYTESTRING", "key", 0},
 			     {"BYTESTRING", "data", 0},
                              NULLFIELD}},
+    {"resizepma", 'R', FA{{"TXNID", "txnid", 0},
+			  {"FILENUM",    "filenum", 0},
+			  {"DISKOFF",    "diskoff", 0},
+			  {"u_int32_t",  "oldsize", 0},
+			  {"u_int32_t",  "newsize", 0},
+			  NULLFIELD}},
+    {"pmadistribute", 'M', FA{{"TXNID", "txnid", 0},
+			      {"FILENUM",    "filenum", 0},
+			      {"DISKOFF",    "diskoff", 0},
+			      {"INTPAIRARRAY",   "fromto",    0},
+			      NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
     

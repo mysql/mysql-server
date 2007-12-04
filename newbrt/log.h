@@ -42,6 +42,7 @@ int toku_fread_TXNID   (FILE *f, TXNID *txnid, u_int32_t *crc, u_int32_t *len);
 // fills in the bs with malloced data.
 int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, u_int32_t *crc, u_int32_t *len);
 int toku_fread_LOGGEDBRTHEADER(FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_int32_t *len);
+int toku_fread_INTPAIRARRAY (FILE *f, INTPAIRARRAY *v, u_int32_t *crc, u_int32_t *len);
 
 int toku_logprint_LSN             (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
 int toku_logprint_TXNID           (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
@@ -51,6 +52,7 @@ int toku_logprint_DISKOFF         (FILE *outf, FILE *inf, const char *fieldname,
 int toku_logprint_u_int8_t        (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *);
 int toku_logprint_u_int32_t       (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
 int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
+int toku_logprint_INTPAIRARRAY    (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
 
 int toku_read_and_print_logmagic (FILE *f, u_int32_t *version);
 

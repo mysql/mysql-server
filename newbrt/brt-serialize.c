@@ -390,7 +390,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
         }
         if (n_in_buf > 0) {
 	    u_int32_t actual_sum = 0;
-            r = toku_pma_bulk_insert(result->u.l.buffer, keys, vals, n_in_buf, result->rand4fingerprint, &actual_sum);
+            r = toku_pma_bulk_insert((TOKUTXN)0, (FILENUM){0}, (DISKOFF)0, result->u.l.buffer, keys, vals, n_in_buf, result->rand4fingerprint, &actual_sum);
             if (r!=0) goto died_21;
 	    if (actual_sum!=result->local_fingerprint) {
 		//fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);

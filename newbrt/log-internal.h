@@ -72,3 +72,7 @@ static inline int toku_logsizeof_LOGGEDBRTHEADER (LOGGEDBRTHEADER bs) {
     assert(bs.n_named_roots=0);
     return 4+4+4+8+8+4+8;
 }
+
+static inline int toku_logsizeof_INTPAIRARRAY (INTPAIRARRAY pa) {
+    return 4+(4+4)*pa.size;
+}
