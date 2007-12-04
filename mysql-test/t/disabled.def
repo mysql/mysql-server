@@ -22,3 +22,4 @@ kill                 : Bug#29149: Test "kill" fails on Windows
 innodb_mysql         : Bug#32724: innodb_mysql.test fails randomly
 wait_timeout         : Bug#32801 wait_timeout.test fails randomly
 kill                 : Bug#29149 Test "kill" fails on Windows
+ctype_create         : Bug#32965 main.ctype_create fails
