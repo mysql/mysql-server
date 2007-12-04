@@ -440,11 +440,6 @@ protected:
   ArrayPool<GlobalPage>& m_global_page_pool;
   ArrayPool<GlobalPage>& m_shared_page_pool;
   
-private:
-  /**
-   * Node state
-   */
-  NodeState theNodeState;
   void execNDB_TAMPER(Signal * signal);
   void execNODE_STATE_REP(Signal* signal);
   void execCHANGE_NODE_STATE_REQ(Signal* signal);
@@ -453,6 +448,11 @@ private:
   void execCONTINUE_FRAGMENTED(Signal* signal);
   void execAPI_START_REP(Signal* signal);
   void execNODE_START_REP(Signal* signal);
+private:
+  /**
+   * Node state
+   */
+  NodeState theNodeState;
 
   Uint32 c_fragmentIdCounter;
   ArrayPool<FragmentInfo> c_fragmentInfoPool;
