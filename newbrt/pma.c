@@ -547,12 +547,16 @@ int toku_pmainternal_smooth_region (TOKUTXN txn, FILENUM filenum, DISKOFF diskof
 				tmppairs, n_saved, pma);
 	{
 	    INTPAIRARRAY ipa;
-	    ipa.size=n_saved;
+	    ipa.size=n_saved-1; /* Don't move the blank spot. */
 	    MALLOC_N(n_saved, ipa.array);
 	    if (ipa.array==0) return errno;
+	    int j=0;
 	    for (i=0; i<n_saved; i++) {
-		ipa.array[i].a = tmppairs[i].oldtag;
-		ipa.array[i].b = tmppairs[i].newtag;
+		if (tmppairs[i].newtag!=newidx) {
+		    ipa.array[j].a = tmppairs[i].oldtag;
+		    ipa.array[j].b = tmppairs[i].newtag;
+		    j++;
+		}
 	    }
 	    int r=toku_log_pmadistribute(txn, toku_txn_get_txnid(txn), filenum, diskoff, ipa);
 	    toku_free(ipa.array);
