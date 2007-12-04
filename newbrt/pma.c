@@ -649,13 +649,9 @@ static int __pma_array_size(PMA pma __attribute__((unused)), int asksize) {
     return n;
 }
 
-static int pma_resize_array(TOKUTXN txn, FILENUM filenum, DISKOFF offset, PMA pma, int asksize, int startz) {
-    int i;
-    int n;
-    int oldN = pma->N;
+int toku_resize_pma_exactly (PMA pma, int oldsize, int newsize) {
+    pma->N = newsize;
 
-    n = __pma_array_size(pma, asksize);
-    pma->N = n;
     if (pma->pairs == 0)
         pma->pairs = toku_malloc((1 + pma->N) * sizeof (struct kv_pair *));
     else
@@ -664,9 +660,20 @@ static int pma_resize_array(TOKUTXN txn, FILENUM filenum, DISKOFF offset, PMA pm
         return -1;
     pma->pairs[pma->N] = (void *) 0xdeadbeef;
 
-    for (i=startz; i<pma->N; i++) {
+    int i;
+    for (i=oldsize; i<pma->N; i++) {
         pma->pairs[i] = 0;
     }
+    return 0;
+}
+
+static int pma_resize_array(TOKUTXN txn, FILENUM filenum, DISKOFF offset, PMA pma, int asksize, int startz) {
+    int n;
+    int oldN = pma->N;
+
+    n = __pma_array_size(pma, asksize);
+    int r = toku_resize_pma_exactly(pma, startz, n);
+    if (r!=0) return r;
     toku_pmainternal_calculate_parameters(pma);
     toku_log_resizepma (txn, toku_txn_get_txnid(txn), filenum, offset, oldN, n);
     return 0;
@@ -1638,5 +1645,47 @@ int toku_pma_set_at_index (PMA pma, int idx, DBT *key, DBT *value) {
     if (kv_pair_inuse(pma->pairs[idx])) return -1;
     pma->pairs[idx] = pma_malloc_kv_pair(pma, key->data, key->size, value->data, value->size);
     pma->n_pairs_present++;
+    return 0;
+}
+
+// assume no cursors
+int toku_pma_move_indices (PMA pma, INTPAIRARRAY fromto) {
+    u_int32_t i;
+    for (i=0; i<fromto.size; i++) {
+	// First handle the case for sliding something left.  We can simply move it.
+	{
+	    int a=fromto.array[i].a;
+	    int b=fromto.array[i].b;
+	    if (b==a) continue;
+	    if (b<a) {
+		assert(pma->pairs[b]==0);
+		pma->pairs[b] = pma->pairs[a];
+		pma->pairs[a] = 0;
+		continue;
+	    }
+	}
+	// Otherwise slide things to the right  We have to find the rightmost thing that slides right and move it first.
+	{
+	    // We must slide things to the right.
+	    // Find the next index that does want to go to the left
+	    u_int32_t j;
+	    for (j=i+1; j<fromto.size && fromto.array[j].b <= fromto.array[j].a; j++) {
+		/*nothing */
+	    }
+	    // everything from i (inclusive) to j (exclusive) wants to slide to the right.
+	    u_int32_t jdown;
+	    for (jdown=j-1; 1; jdown--) {
+		int a=fromto.array[jdown].a;
+		int b=fromto.array[jdown].b;
+		if (a!=b) {
+		    assert(pma->pairs[b]==0);
+		    pma->pairs[b] = pma->pairs[a];
+		    pma->pairs[a] = 0;
+		}
+		if (i==jdown) break; // Do it this way so everything can be unsigned and we won't try to go negative.
+	    }
+	    i=j-1;
+	}
+    }
     return 0;
 }
