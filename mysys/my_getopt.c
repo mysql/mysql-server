@@ -867,7 +867,7 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
                                  bool *fix)
 {
   bool adjusted= FALSE;
-  ulonglong old= num, mod;
+  ulonglong old= num;
   char buf1[255], buf2[255];
 
   if ((ulonglong) num > (ulonglong) optp->max_value &&
@@ -892,6 +892,8 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
       num= ((ulonglong) ULONG_MAX);
       adjusted= TRUE;
     }
+#else
+    num= min(num, LONG_MAX);
 #endif
     break;
   default:
