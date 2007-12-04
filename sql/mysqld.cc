@@ -340,6 +340,7 @@ static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
 static double long_query_time;
+static ulong opt_my_crc_dbug_check;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
@@ -5119,7 +5120,7 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
-  OPT_OLD_MODE
+  OPT_DEBUG_CRC, OPT_OLD_MODE
 };
 
 
@@ -5244,6 +5245,10 @@ struct my_option my_long_options[] =
 #ifndef DBUG_OFF
   {"debug", '#', "Debug log.", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-crc-break", OPT_DEBUG_CRC,
+   "Call my_debug_put_break_here() if crc matches this number (for debug).",
+   (uchar**) &opt_my_crc_dbug_check, (uchar**) &opt_my_crc_dbug_check,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, ~(ulong) 0L, 0, 0, 0},
 #endif
   {"default-character-set", 'C', "Set the default character set (deprecated option, use --character-set-server instead).",
    (uchar**) &default_character_set_name, (uchar**) &default_character_set_name,
@@ -7893,6 +7898,7 @@ static void get_options(int *argc,char **argv)
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
+  my_crc_dbug_check= opt_my_crc_dbug_check;
 
   /* long_query_time is in microseconds */
   global_system_variables.long_query_time= max_system_variables.long_query_time=

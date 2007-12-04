@@ -380,9 +380,7 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   int error;
   my_off_t new_root= *root;
   uchar key_buff[HA_MAX_KEY_BUFF];
-#ifdef NOT_YET
   DBUG_ENTER("_ma_ck_write_btree_with_log");
-#endif
 
   if (info->s->now_transactional)
   {
@@ -399,6 +397,8 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
     struct st_msg_to_write_hook_for_undo_key msg;
 
+    /* Save if we need to write a clr record */
+    info->key_write_undo_lsn[keyinfo->key_nr]= info->trn->undo_lsn;
     lsn_store(log_data, info->trn->undo_lsn);
     key_nr_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE,
                   keyinfo->key_nr);
@@ -426,13 +426,8 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   }
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
 
-#ifdef NOT_YET
   DBUG_RETURN(error);
-#else
-  return(error);
-#endif
 } /* _ma_ck_write_btree_with_log */
-
 
 
 /**
@@ -485,7 +480,9 @@ int _ma_enlarge_root(MARIA_HA *info, MARIA_KEYDEF *keyinfo, const uchar *key,
 
   bzero(info->buff, info->s->keypage_header);
   _ma_store_keynr(info, info->buff, keyinfo->key_nr);
-  _ma_store_page_used(info, info->buff, page_length, nod_flag);
+  _ma_store_page_used(info, info->buff, page_length);
+  if (nod_flag)
+    _ma_store_keypage_flag(info, info->buff, KEYPAGE_FLAG_ISNOD);
   (*keyinfo->store_key)(keyinfo, info->buff + info->s->keypage_header +
                         nod_flag, &s_temp);
 
@@ -727,7 +724,7 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   }
   (*keyinfo->store_key)(keyinfo,key_pos,&s_temp);
   a_length+=t_length;
-  _ma_store_page_used(info, anc_buff, a_length, nod_flag);
+  _ma_store_page_used(info, anc_buff, a_length);
 
   /*
     Check if the new key fits totally into the the page
@@ -781,7 +778,7 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
           /* fixing the page's length - it contains only one key now */
           _ma_store_page_used(info, anc_buff, info->s->keypage_header + blen +
-                              ft2len + 2, 0);
+                              ft2len + 2);
         }
         /* the rest will be done when we're back from recursion */
       }
@@ -874,7 +871,7 @@ int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
   split_length= (uint) (key_pos - split_buff);
   a_length= _ma_get_page_used(info, split_buff);
-  _ma_store_page_used(info, split_buff, split_length, nod_flag);
+  _ma_store_page_used(info, split_buff, split_length);
 
   key_pos=after_key;
   if (nod_flag)
@@ -905,7 +902,9 @@ int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   page_length= length + t_length + key_ref_length;
 
   bzero(new_buff, info->s->keypage_header);
-  _ma_store_page_used(info, new_buff, page_length, nod_flag);
+  if (nod_flag)
+    _ma_store_keypage_flag(info, new_buff, KEYPAGE_FLAG_ISNOD);
+  _ma_store_page_used(info, new_buff, page_length);
   /* Copy key number */
   new_buff[info->s->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_KEYID_SIZE -
              KEYPAGE_FLAG_SIZE]=
@@ -1121,8 +1120,8 @@ static int _ma_balance_page(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     new_left_length= info->s->keypage_header+nod_flag+(keys/2)*curr_keylength;
     new_right_length=info->s->keypage_header+nod_flag+(((keys+1)/2)*
                                                        curr_keylength);
-    _ma_store_page_used(info, curr_buff, new_left_length, nod_flag);
-    _ma_store_page_used(info, buff, new_right_length, nod_flag);
+    _ma_store_page_used(info, curr_buff, new_left_length);
+    _ma_store_page_used(info, buff, new_right_length);
 
     DBUG_PRINT("info", ("left_length: %u -> %u  right_length: %u -> %u",
                         left_length, new_left_length,
@@ -1300,15 +1299,18 @@ static int _ma_balance_page(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                      left_length, right_length,
                      new_left_length, new_right_length,
                      extra_length));
-  _ma_store_page_used(info, curr_buff,new_left_length,nod_flag);
-  _ma_store_page_used(info, buff,new_right_length,nod_flag);
+  _ma_store_page_used(info, curr_buff, new_left_length);
+  _ma_store_page_used(info, buff, new_right_length);
 
   bzero(extra_buff, info->s->keypage_header);
+  if (nod_flag)
+    _ma_store_keypage_flag(info, extra_buff, KEYPAGE_FLAG_ISNOD);
+  /* Copy key number */
   extra_buff[info->s->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_KEYID_SIZE -
              KEYPAGE_FLAG_SIZE]=
     buff[info->s->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_KEYID_SIZE -
          KEYPAGE_FLAG_SIZE];
-  _ma_store_page_used(info, extra_buff, extra_buff_length, nod_flag);
+  _ma_store_page_used(info, extra_buff, extra_buff_length);
 
   /* move first largest keys to new page  */
   pos=buff+right_length-extra_length;
@@ -1871,12 +1873,14 @@ static my_bool _ma_log_del_prefix(MARIA_HA *info, my_off_t page, uchar *buff,
   translog_parts= 1;
   extra_length= 0;
 
-  if (offset <= diff_length)
+  if (offset < diff_length + info->s->keypage_header)
   {
     /*
       Key is not anymore on page. Move data down, but take into account that
       the original page had grown with 'move_length bytes'
     */
+    DBUG_ASSERT(offset + key_length <= diff_length + info->s->keypage_header);
+
     log_pos[0]= KEY_OP_DEL_PREFIX;
     int2store(log_pos+1, diff_length - move_length);
     log_pos+= 3;

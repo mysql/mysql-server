@@ -330,7 +330,7 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
   /* creating pageful of keys */
   bzero(info->buff, info->s->keypage_header);
   _ma_store_keynr(info, info->buff, keynr);
-  _ma_store_page_used(info, info->buff, length + info->s->keypage_header, 0);
+  _ma_store_page_used(info, info->buff, length + info->s->keypage_header);
   memcpy(info->buff + info->s->keypage_header, key_ptr, length);
   info->keyread_buff_used= info->page_changed=1;      /* info->buff is used */
   if ((root= _ma_new(info, DFLT_INIT_HITS, &page_link)) == HA_OFFSET_ERROR ||

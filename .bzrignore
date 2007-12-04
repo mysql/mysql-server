@@ -3063,3 +3063,5 @@ libmysqld/sql_tablespace.cc
 sql/link_sources
 ylwrap
 libmysql_r/link_sources
+storage/maria/unittest/page_cache_test_file_1
+storage/maria/unittest/pagecache_debug.log

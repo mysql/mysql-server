@@ -5045,7 +5045,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
                                &page_link.link)))
     {
-      if (my_errno != -1)        /* If not read outside of file */
+      if (my_errno != HA_ERR_FILE_TOO_SHORT)    /* If not read outside of file */
       {
         pagecache_unlock_by_link(share->pagecache, page_link.link,
                                  PAGECACHE_LOCK_WRITE_UNLOCK,
@@ -5487,7 +5487,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
                                      PAGECACHE_PLAIN_PAGE,
                                      PAGECACHE_LOCK_WRITE, &page_link.link)))
           {
-            if (my_errno != -1)        /* If not read outside of file */
+            if (my_errno != HA_ERR_FILE_TOO_SHORT) /* If not read outside of file */
             {
               pagecache_unlock_by_link(share->pagecache, page_link.link,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,

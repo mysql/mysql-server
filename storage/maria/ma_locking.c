@@ -389,8 +389,8 @@ int _ma_readinfo(register MARIA_HA *info __attribute__ ((unused)),
       /* should not be done for transactional tables */
       if (_ma_state_info_read_dsk(share->kfile.file, &share->state))
       {
-	int error=my_errno ? my_errno : -1;
-	my_errno=error;
+        if (!my_errno)
+          my_errno= HA_ERR_FILE_TOO_SHORT;
 	DBUG_RETURN(1);
       }
     }

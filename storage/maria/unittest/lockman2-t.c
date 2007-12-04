@@ -286,9 +286,10 @@ pthread_handler_t test_lockman(void *arg)
   return 0;
 }
 
-int main()
+int main(int argc __attribute__((unused)), char **argv)
 {
   int i;
+  MY_INIT(argv[0]);
 
   my_init();
   pthread_mutex_init(&rt_mutex, 0);

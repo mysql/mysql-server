@@ -154,8 +154,9 @@ void test_trnman_read_from()
   }
 }
 
-int main()
+int main(int argc __attribute__((unused)), char **argv)
 {
+  MY_INIT(argv[0]);
   my_init();
 
   plan(6);

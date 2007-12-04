@@ -429,10 +429,10 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
 	DBUG_RETURN(1);
       if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
       {
-	int error=my_errno ? my_errno : -1;
+	int error= my_errno ? my_errno : HA_ERR_FILE_TOO_SHORT;
 	VOID(my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
 		     MYF(MY_SEEK_NOT_DONE)));
-	my_errno=error;
+	my_errno= error;
 	DBUG_RETURN(1);
       }
     }

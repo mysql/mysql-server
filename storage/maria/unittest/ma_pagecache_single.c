@@ -16,6 +16,7 @@ static const char* default_dbug_option;
 #endif
 
 static char *file1_name= (char*)"page_cache_test_file_1";
+static char *file2_name= (char*)"page_cache_test_file_2";
 static PAGECACHE_FILE file1;
 static pthread_cond_t COND_thread_count;
 static pthread_mutex_t LOCK_thread_count;
@@ -69,21 +70,17 @@ static struct file_desc  simple_delete_flush_test_file[]=
     file_name            Path (and name) of file which should be reset
 */
 
-void reset_file(PAGECACHE_FILE file, char *file_name)
+void reset_file(PAGECACHE_FILE *file, const char *file_name)
 {
-  flush_pagecache_blocks(&pagecache, &file1, FLUSH_RELEASE);
-  if (my_close(file1.file, MYF(0)) != 0)
-  {
-    diag("Got error during %s closing from close() (errno: %d)\n",
-         file_name, errno);
+  flush_pagecache_blocks(&pagecache, file, FLUSH_RELEASE);
+  if (my_close(file->file, MYF(MY_WME)))
     exit(1);
-  }
-  my_delete(file_name, MYF(0));
-  if ((file.file= my_open(file_name,
-                          O_CREAT | O_TRUNC | O_RDWR, MYF(0))) == -1)
+  my_delete(file_name, MYF(MY_WME));
+  if ((file->file= my_open(file_name,
+                           O_CREAT | O_TRUNC | O_RDWR, MYF(0))) == -1)
   {
     diag("Got error during %s creation from open() (errno: %d)\n",
-         file_name, errno);
+         file_name, my_errno);
     exit(1);
   }
 }
@@ -120,7 +117,7 @@ int simple_read_write_test()
                            simple_read_write_test_file))),
      "Simple write-read page file");
   if (res)
-    reset_file(file1, file1_name);
+    reset_file(&file1, file1_name);
   free(buffw);
   free(buffr);
   DBUG_RETURN(res);
@@ -135,8 +132,9 @@ int simple_read_change_write_read_test()
 {
   unsigned char *buffw= malloc(PAGE_SIZE);
   unsigned char *buffr= malloc(PAGE_SIZE);
-  int res;
+  int res, res2;
   DBUG_ENTER("simple_read_change_write_read_test");
+
   /* prepare the file */
   bfill(buffw, PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
@@ -169,19 +167,21 @@ int simple_read_change_write_read_test()
                  0);
   ok((res= test(memcmp(buffr, buffw, PAGE_SIZE) == 0)),
      "Simple read-change-write-read page ");
+  DBUG_ASSERT(pagecache.blocks_changed == 1);
   if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
   {
     diag("Got error during flushing pagecache\n");
     exit(1);
   }
-  ok((res&= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+  DBUG_ASSERT(pagecache.blocks_changed == 0);
+  ok((res2= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
                            simple_read_change_write_read_test_file))),
      "Simple read-change-write-read page file");
-  if (res)
-    reset_file(file1, file1_name);
+  if (res && res2)
+    reset_file(&file1, file1_name);
   free(buffw);
   free(buffr);
-  DBUG_RETURN(res);
+  DBUG_RETURN(res && res2);
 }
 
 
@@ -259,7 +259,7 @@ int simple_pin_test()
                            simple_pin_test_file2))),
      "Simple pin page result file");
   if (res)
-    reset_file(file1, file1_name);
+    reset_file(&file1, file1_name);
 err:
   free(buffw);
   free(buffr);
@@ -301,7 +301,7 @@ int simple_delete_forget_test()
                           simple_delete_forget_test_file))),
      "Simple delete-forget page file");
   if (res)
-    reset_file(file1, file1_name);
+    reset_file(&file1, file1_name);
   free(buffw);
   free(buffr);
   DBUG_RETURN(res);
@@ -343,7 +343,7 @@ int simple_delete_flush_test()
                           simple_delete_flush_test_file))),
      "Simple delete-forget page file");
   if (res)
-    reset_file(file1, file1_name);
+    reset_file(&file1, file1_name);
   free(buffw);
   free(buffr);
   DBUG_RETURN(res);
@@ -356,13 +356,14 @@ int simple_delete_flush_test()
 
 int simple_big_test()
 {
-  unsigned char *buffw= (unsigned char *)malloc(PAGE_SIZE);
-  unsigned char *buffr= (unsigned char *)malloc(PAGE_SIZE);
-  struct file_desc *desc=
-    (struct file_desc *)malloc((PCACHE_SIZE/(PAGE_SIZE/2) + 1) *
-                               sizeof(struct file_desc));
+  unsigned char *buffw= (unsigned char *) my_malloc(PAGE_SIZE, MYF(MY_WME));
+  unsigned char *buffr= (unsigned char *) my_malloc(PAGE_SIZE, MYF(MY_WME));
+  struct file_desc *desc= ((struct file_desc *)
+                           my_malloc((PCACHE_SIZE/(PAGE_SIZE/2) + 1) *
+                                     sizeof(struct file_desc), MYF(MY_WME)));
   int res, i;
   DBUG_ENTER("simple_big_test");
+
   /* prepare the file twice larger then cache */
   for (i= 0; i < PCACHE_SIZE/(PAGE_SIZE/2); i++)
   {
@@ -392,7 +393,8 @@ int simple_big_test()
       if (buffr[j] != (i & 0xff))
       {
         diag("simple_big_test seq: page %u byte %u mismatch\n", i, j);
-        return 0;
+        res= 0;
+        goto err;
       }
     }
   }
@@ -411,7 +413,8 @@ int simple_big_test()
       if (buffr[j] != (page & 0xff))
       {
         diag("simple_big_test rnd: page %u byte %u mismatch\n", page, j);
-        return 0;
+        res= 0;
+        goto err;
       }
     }
   }
@@ -422,11 +425,16 @@ int simple_big_test()
                           desc))),
      "Simple big file");
   if (res)
-    reset_file(file1, file1_name);
-  free(buffw);
-  free(buffr);
+    reset_file(&file1, file1_name);
+
+err:
+  my_free(buffw, 0);
+  my_free(buffr, 0);
+  my_free(desc, 0);
   DBUG_RETURN(res);
 }
+
+
 /*
   Thread function
 */
@@ -439,7 +447,6 @@ static void *test_thread(void *arg)
 
   my_thread_init();
   DBUG_ENTER("test_thread");
-
   DBUG_PRINT("enter", ("param: %d", param));
 
   if (!simple_read_write_test() ||
@@ -472,7 +479,7 @@ int main(int argc __attribute__((unused)),
   pthread_t tid;
   pthread_attr_t thr_attr;
   int *param, error, pagen;
-
+  File tmp_file;
   MY_INIT(argv[0]);
 
 #ifndef DBUG_OFF
@@ -487,10 +494,13 @@ int main(int argc __attribute__((unused)),
     DBUG_SET_INITIAL(default_dbug_option);
   }
 #endif
-
-
   DBUG_ENTER("main");
   DBUG_PRINT("info", ("Main thread: %s\n", my_thread_name()));
+
+  if ((tmp_file= my_open(file2_name, O_CREAT | O_TRUNC | O_RDWR,
+                         MYF(MY_WME))) < 0)
+    exit(1);
+
   if ((file1.file= my_open(file1_name,
                            O_CREAT | O_TRUNC | O_RDWR, MYF(0))) == -1)
   {
@@ -498,6 +508,9 @@ int main(int argc __attribute__((unused)),
 	    errno);
     exit(1);
   }
+  my_close(tmp_file, MYF(0));
+  my_delete(file2_name, MYF(0));
+
   DBUG_PRINT("info", ("file1: %d", file1.file));
   if (chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
   {
@@ -541,7 +554,7 @@ int main(int argc __attribute__((unused)),
   plan(12);
 
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
-                             PAGE_SIZE)) == 0)
+                             PAGE_SIZE, MYF(MY_WME))) == 0)
   {
     fprintf(stderr,"Got error: init_pagecache() (errno: %d)\n",
             errno);
@@ -583,12 +596,9 @@ int main(int argc __attribute__((unused)),
   end_pagecache(&pagecache, 1);
   DBUG_PRINT("info", ("Page cache ended"));
 
-  if (my_close(file1.file, MYF(0)) != 0)
-  {
-    fprintf(stderr, "Got error during file1 closing from close() (errno: %d)\n",
-	    errno);
+  if (my_close(file1.file, MYF(MY_WME)))
     exit(1);
-  }
+
   /*my_delete(file1_name, MYF(0));*/
   my_end(0);
 
