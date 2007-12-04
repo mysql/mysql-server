@@ -789,7 +789,6 @@ AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
 AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
 AC_CHECK_FUNC(gethostbyname_r)
-AC_CHECK_LIB(mtmalloc, malloc)
 
 AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
 AC_CHECK_FUNC(yp_get_default_domain, ,
