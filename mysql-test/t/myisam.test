@@ -4,7 +4,7 @@
 
 # Initialise
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 --enable_warnings
 SET SQL_WARNINGS=1;
 

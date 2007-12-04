@@ -155,6 +155,7 @@ enum en_key_op
   KEY_OP_DEL_PREFIX,	/* Delete data at start of page */
   KEY_OP_ADD_SUFFIX,    /* Insert data at end of page */
   KEY_OP_DEL_SUFFIX,    /* Delete data at end of page */
+  KEY_OP_CHECK		/* For debugging; CRC of used part of page */
 };
 
 /* Size of log file; One log file is restricted to 4G */

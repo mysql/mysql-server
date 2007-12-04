@@ -1801,7 +1801,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
 	if (my_read(info->dfile.file, (uchar*)to, block_info.data_len,
                     MYF(MY_NABP)))
 	{
-	  if (my_errno == -1)
+	  if (my_errno == HA_ERR_FILE_TOO_SHORT)
 	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */
 	  goto err;
 	}

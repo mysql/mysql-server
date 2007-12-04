@@ -158,7 +158,8 @@ typedef struct st_pagecache
   ulonglong global_cache_r_requests;/* number of read requests (read hits)   */
   ulonglong global_cache_read;      /* number of reads from files to cache   */
 
-  uint shift;                    /* block size = 2 ^ shift                   */
+  uint shift;                       /* block size = 2 ^ shift                */
+  myf  readwrite_flags;             /* Flags to pread/pwrite() */
   my_bool inited;
   my_bool resize_in_flush;       /* true during flush of resize operation    */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
@@ -183,7 +184,7 @@ extern PAGECACHE dflt_pagecache_var, *dflt_pagecache;
 
 extern ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
                             uint division_limit, uint age_threshold,
-                            uint block_size);
+                            uint block_size, myf my_read_flags);
 extern ulong resize_pagecache(PAGECACHE *pagecache,
                               size_t use_mem, uint division_limit,
                               uint age_threshold);

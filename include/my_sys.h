@@ -546,6 +546,7 @@ my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */
 					  *(info)->current_pos)
 
 typedef uint32 ha_checksum;
+extern ha_checksum my_crc_dbug_check;
 
 /* Define the type of function to be passed to process_default_option_files */
 typedef int (*Process_option_func)(void *ctx, const char *group_name,
@@ -858,6 +859,7 @@ extern int unpackfrm(uchar **, size_t *, const uchar *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);
+extern void my_debug_put_break_here(void);
 extern void my_sleep(ulong m_seconds);
 extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);

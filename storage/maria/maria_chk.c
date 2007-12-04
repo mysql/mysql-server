@@ -296,7 +296,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "page_buffer_size", OPT_PAGE_BUFFER_SIZE, "",
     (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
-    GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
+    GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) USE_BUFFER_INIT,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
   { "read_buffer_size", OPT_READ_BUFFER_SIZE, "",
     (uchar**) &check_param.read_buffer_length,
@@ -998,7 +998,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
   maria_lock_database(info, F_EXTRA_LCK);
   datafile= info->dfile.file;
   if (init_pagecache(maria_pagecache, param->use_buffers, 0, 0,
-                     maria_block_size) == 0)
+                     maria_block_size, MY_WME) == 0)
   {
     _ma_check_print_error(param, "Can't initialize page cache with %lu memory",
                           (ulong) param->use_buffers);

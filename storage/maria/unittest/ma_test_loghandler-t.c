@@ -170,7 +170,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
-                             TRANSLOG_PAGE_SIZE)) == 0)
+                             TRANSLOG_PAGE_SIZE, 0)) == 0)
   {
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);

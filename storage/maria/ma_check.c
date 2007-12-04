@@ -2051,6 +2051,11 @@ static void initialize_variables_for_repair(HA_CHECK *param,
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|= T_CALC_CHECKSUM;
   param->glob_crc= 0;
+  if (rep_quick)
+    param->testflag|= T_QUICK;
+  else
+    param->testflag&= ~T_QUICK;
+  param->org_key_map= info->s->state.key_map;
 
   sort_param->sort_info= sort_info;
   sort_param->fix_datafile= (my_bool) (! rep_quick);
@@ -2872,7 +2877,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   double  *rec_per_key_part;
   char llbuff[22];
   MARIA_SORT_INFO sort_info;
-  ulonglong key_map=share->state.key_map;
+  ulonglong key_map= share->state.key_map;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
   my_bool scan_inited= 0;
@@ -3005,9 +3010,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   for (sort_param.key=0 ; sort_param.key < share->base.keys ;
        rec_per_key_part+=sort_param.keyinfo->keysegs, sort_param.key++)
   {
-    sort_param.read_cache=param->read_cache;
     sort_param.keyinfo=share->keyinfo+sort_param.key;
-    sort_param.seg=sort_param.keyinfo->seg;
     if (! maria_is_key_active(key_map, sort_param.key))
     {
       /* Remember old statistics for key */
@@ -3020,6 +3023,9 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 
     if ((!(param->testflag & T_SILENT)))
       printf ("- Fixing index %d\n",sort_param.key+1);
+
+    sort_param.read_cache=param->read_cache;
+    sort_param.seg=sort_param.keyinfo->seg;
     sort_param.max_pos= sort_param.pos= org_header_length;
     keyseg=sort_param.seg;
     bzero((char*) sort_param.unique,sizeof(sort_param.unique));
@@ -3363,9 +3369,6 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     printf("- parallel recovering (with sort) MARIA-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
-
-  if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
-    param->testflag|=T_CALC_CHECKSUM;
 
   if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                             FLUSH_FORCE_WRITE, FLUSH_IGNORE_CHANGED))
@@ -4815,14 +4818,17 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
 
 	/* Save pointer to previous block */
   if (nod_flag)
+  {
+    _ma_store_keypage_flag(info, anc_buff, KEYPAGE_FLAG_ISNOD);
     _ma_kpointer(info,key_block->end_pos,prev_block);
+  }
 
   t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,
 				(uchar*) 0,lastkey,lastkey,key,
 				 &s_temp);
   (*keyinfo->store_key)(keyinfo, key_block->end_pos+nod_flag,&s_temp);
   a_length+=t_length;
-  _ma_store_page_used(info, anc_buff, a_length, nod_flag);
+  _ma_store_page_used(info, anc_buff, a_length);
   key_block->end_pos+=t_length;
   if (a_length <= keyinfo->block_length)
   {
@@ -4832,7 +4838,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
   }
 
   /* Fill block with end-zero and write filled block */
-  _ma_store_page_used(info, anc_buff, key_block->last_length, nod_flag);
+  _ma_store_page_used(info, anc_buff, key_block->last_length);
   bzero(anc_buff+key_block->last_length,
 	keyinfo->block_length- key_block->last_length);
   key_file_length=info->state->key_file_length;
@@ -5812,8 +5818,7 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
   if (translog_inited && !maria_in_recovery &&
       info->s->base.born_transactional)
   {
-    my_bool now_transactional= info->s->now_transactional;
-    info->s->now_transactional= 1;
+    my_bool save_now_transactional= info->s->now_transactional;
 
     /*
       For now this record is only informative. It could serve when applying
@@ -5833,15 +5838,21 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
       record).
     */
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-    uchar log_data[FILEID_STORE_SIZE + 4];
+    uchar log_data[FILEID_STORE_SIZE + 4 + 8];
     LSN lsn;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+
     /*
       testflag gives an idea of what REPAIR did (in particular T_QUICK
       or not: did it touch the data file or not?).
     */
     int4store(log_data + FILEID_STORE_SIZE, param->testflag);
+    /* org_key_map is used when recreating index after a load data infile */
+    int8store(log_data + FILEID_STORE_SIZE + 4, param->org_key_map);
+
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+
+    info->s->now_transactional= 1;
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_REPAIR_TABLE,
                                        &dummy_transaction_object, info,
                                        sizeof(log_data),
@@ -5857,7 +5868,7 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
     */
     if (_ma_update_create_rename_lsn(share, lsn, TRUE))
       return 1;
-    info->s->now_transactional= now_transactional;
+    info->s->now_transactional= save_now_transactional;
   }
   return 0;
 }

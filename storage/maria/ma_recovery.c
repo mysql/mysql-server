@@ -58,6 +58,7 @@ static FILE *tracef; /**< trace file for debugging */
 static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
 /** @brief to avoid writing a checkpoint if recovery did nothing. */
 static my_bool checkpoint_useful;
+static my_bool procent_printed;
 static ulonglong now; /**< for tracking execution time of phases */
 uint warnings; /**< count of warnings */
 
@@ -156,9 +157,35 @@ void tprint(FILE *trace_file __attribute__ ((unused)),
   va_list args;
   va_start(args, format);
   if (trace_file != NULL)
+  {
+    if (procent_printed)
+    {
+      procent_printed= 0;
+      fputc('\n', trace_file ? trace_file : stderr);
+    }
     vfprintf(trace_file, format, args);
+  }
   va_end(args);
 }
+
+void eprint(FILE *trace_file, const char *format, ...)
+  ATTRIBUTE_FORMAT(printf, 2, 3);
+
+void eprint(FILE *trace_file __attribute__ ((unused)),
+            const char *format __attribute__ ((unused)), ...)
+{
+  va_list args;
+  va_start(args, format);
+  if (procent_printed)
+  {
+    /* In silent mode, print on another line than the 0% 10% 20% line */
+    procent_printed= 0;
+    fputc('\n', trace_file ? trace_file : stderr);
+  }
+  vfprintf(trace_file ? trace_file : stderr, format, args);
+  va_end(args);
+}
+
 
 #define ALERT_USER() DBUG_ASSERT(0)
 
@@ -312,6 +339,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
       Detailed progress info goes to stderr, because ma_message_no_user()
       cannot put several messages on one line.
     */
+    procent_printed= 1;
     fprintf(stderr, " (%.1f seconds); ", phase_took);
   }
 
@@ -353,6 +381,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   if (recovery_message_printed == REC_MSG_UNDO)
   {
     float phase_took= (now - old_now)/10000000.0;
+    procent_printed= 1;
     fprintf(stderr, " (%.1f seconds); ", phase_took);
   }
 
@@ -368,6 +397,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   if (recovery_message_printed == REC_MSG_FLUSH)
   {
     float phase_took= (now - old_now)/10000000.0;
+    procent_printed= 1;
     fprintf(stderr, " (%.1f seconds); ", phase_took);
   }
 
@@ -381,7 +411,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   goto end;
 err:
   error= 1;
-  tprint(tracef, "Recovery of tables with transaction logs FAILED\n");
+  tprint(tracef, "\nRecovery of tables with transaction logs FAILED\n");
 end:
   hash_free(&all_dirty_pages);
   bzero(&all_dirty_pages, sizeof(all_dirty_pages));
@@ -404,6 +434,7 @@ end:
     else
       ma_message_no_user(ME_JUST_INFO, "recovery done");
   }
+  procent_printed= 0;
   /* we don't cleanly close tables if we hit some error (may corrupt them) */
   DBUG_RETURN(error);
 }
@@ -418,7 +449,8 @@ static void display_record_position(const LOG_DESC *log_desc,
     if number==0, we're going over records which we had already seen and which
     form a group, so we indent below the group's end record
   */
-  tprint(tracef, "%sRec#%u LSN (%lu,0x%lx) short_trid %u %s(num_type:%u) len %lu\n",
+  tprint(tracef,
+         "%sRec#%u LSN (%lu,0x%lx) short_trid %u %s(num_type:%u) len %lu\n",
          number ? "" : "   ", number, LSN_IN_PARTS(rec->lsn),
          rec->short_trid, log_desc->name, rec->type,
          (ulong)rec->record_length);
@@ -436,7 +468,7 @@ static int display_and_apply_record(const LOG_DESC *log_desc,
     return 1;
   }
   if ((error= (*log_desc->record_execute_in_redo_phase)(rec)))
-    tprint(tracef, "Got error when executing record\n");
+    eprint(tracef, "Got error %d when executing record\n", my_errno);
   return error;
 }
 
@@ -467,10 +499,10 @@ prototype_redo_exec_hook(LONG_TRANSACTION_ID)
     {
       char llbuf[22];
       llstr(long_trid, llbuf);
-      tprint(tracef, "Found an old transaction long_trid %s short_trid %u"
+      eprint(tracef, "Found an old transaction long_trid %s short_trid %u"
              " with same short id as this new transaction, and has neither"
-             " committed nor rollback (undo_lsn: (%lu,0x%lx))\n", llbuf,
-             sid, LSN_IN_PARTS(ulsn));
+             " committed nor rollback (undo_lsn: (%lu,0x%lx))\n",
+             llbuf, sid, LSN_IN_PARTS(ulsn));
       goto err;
     }
   }
@@ -570,11 +602,10 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
                            log_record_buffer.str, NULL) !=
       rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     goto end;
   }
   name= log_record_buffer.str;
-  tprint(tracef, "Table '%s'", name);
   /*
     TRUNCATE TABLE and REPAIR USE_FRM call maria_create(), so below we can
     find a REDO_CREATE_TABLE for a table which we have open, that's why we
@@ -582,7 +613,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   */
   if (close_one_table(name, rec->lsn))
   {
-    tprint(tracef, " got error %d on close\n", my_errno);
+    eprint(tracef, "Table '%s' got error %d on close\n", name, my_errno);
     ALERT_USER();
     goto end;
   }
@@ -594,7 +625,8 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     /* check that we're not already using it */
     if (share->reopen != 1)
     {
-      tprint(tracef, ", is already open (reopen=%u)\n", share->reopen);
+      eprint(tracef, "Table '%s is already open (reopen=%u)\n",
+             name, share->reopen);
       ALERT_USER();
       goto end;
     }
@@ -606,22 +638,23 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
         one was renamed to its name, thus create_rename_lsn is 0 and should
         not be trusted.
       */
-      tprint(tracef, ", is not transactional, ignoring creation\n");
+      tprint(tracef, "Table '%s' is not transactional, ignoring creation\n",
+             name);
       ALERT_USER();
       error= 0;
       goto end;
     }
     if (cmp_translog_addr(share->state.create_rename_lsn, rec->lsn) >= 0)
     {
-      tprint(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
-             " record, ignoring creation",
-             LSN_IN_PARTS(share->state.create_rename_lsn));
+      tprint(tracef, "Table '%s' has create_rename_lsn (%lu,0x%lx) more "
+             "recent than record, ignoring creation",
+             name, LSN_IN_PARTS(share->state.create_rename_lsn));
       error= 0;
       goto end;
     }
     if (maria_is_crashed(info))
     {
-      tprint(tracef, ", is crashed, can't recreate it");
+      eprint(tracef, "Table '%s' is crashed, can't recreate it\n", name);
       ALERT_USER();
       goto end;
     }
@@ -629,7 +662,8 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     info= NULL;
   }
   else /* one or two files absent, or header corrupted... */
-    tprint(tracef, " can't be opened, probably does not exist");
+    tprint(tracef, "Table '%s' can't be opened, probably does not exist\n",
+           name);
   /* if does not exist, or is older, overwrite it */
   ptr= name + strlen(name) + 1;
   if ((flags= ptr[0] ? HA_DONT_TOUCH_DATA : 0))
@@ -653,7 +687,8 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   /** @todo handle symlinks */
   if (data_file_name[0] || index_file_name[0])
   {
-    tprint(tracef, ", DATA|INDEX DIRECTORY clauses are not handled\n");
+    eprint(tracef, "Table '%s' DATA|INDEX DIRECTORY clauses are not handled\n",
+           name);
     goto end;
   }
   fn_format(filename, name, "", MARIA_NAME_IEXT,
@@ -662,18 +697,18 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
             MY_APPEND_EXT);
   linkname_ptr= NULL;
   create_flag= MY_DELETE_OLD;
-  tprint(tracef, ", creating as '%s'", filename);
+  tprint(tracef, "Table '%s' creating as '%s'", name, filename);
   if ((kfile= my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
                                      MYF(MY_WME|create_flag))) < 0)
   {
-    tprint(tracef, " Failed to create index file\n");
+    eprint(tracef, "Failed to create index file\n");
     goto end;
   }
   if (my_pwrite(kfile, kfile_header,
                 kfile_size_before_extension, 0, MYF(MY_NABP|MY_WME)) ||
       my_chsize(kfile, keystart, 0, MYF(MY_WME)))
   {
-    tprint(tracef, " Failed to write to index file\n");
+    eprint(tracef, "Failed to write to index file\n");
     goto end;
   }
   if (!(flags & HA_DONT_TOUCH_DATA))
@@ -687,7 +722,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
                                  MYF(MY_WME | create_flag))) < 0) ||
         my_close(dfile, MYF(MY_WME)))
     {
-      tprint(tracef, " Failed to create data file\n");
+      eprint(tracef, "Failed to create data file\n");
       goto end;
     }
     /*
@@ -699,7 +734,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     if (((info= maria_open(name, O_RDONLY, 0)) == NULL) ||
         _ma_initialize_data_file(info->s, info->dfile.file))
     {
-      tprint(tracef, " Failed to open new table or write to data file\n");
+      eprint(tracef, "Failed to open new table or write to data file\n");
       goto end;
     }
   }
@@ -730,7 +765,7 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
                            log_record_buffer.str, NULL) !=
       rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     goto end;
   }
   old_name= log_record_buffer.str;
@@ -867,13 +902,13 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
   tprint(tracef, ", renaming '%s'", old_name);
   if (maria_rename(old_name, new_name))
   {
-    tprint(tracef, "Failed to rename table\n");
+    eprint(tracef, "Failed to rename table\n");
     goto end;
   }
   info= maria_open(new_name, O_RDONLY, 0);
   if (info == NULL)
   {
-    tprint(tracef, "Failed to open renamed table\n");
+    eprint(tracef, "Failed to open renamed table\n");
     goto end;
   }
   if (_ma_update_create_rename_lsn(info->s, rec->lsn, TRUE))
@@ -887,7 +922,7 @@ drop:
   tprint(tracef, ", only dropping '%s'", old_name);
   if (maria_delete_table(old_name))
   {
-    tprint(tracef, "Failed to drop table\n");
+    eprint(tracef, "Failed to drop table\n");
     goto end;
   }
   error= 0;
@@ -907,6 +942,11 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
 {
   int error= 1;
   MARIA_HA *info;
+  HA_CHECK param;
+  char *name;
+  uint quick_repair;
+  DBUG_ENTER("exec_REDO_LOGREC_REDO_REPAIR_TABLE");
+
   if (skip_DDLs)
   {
     /*
@@ -914,26 +954,46 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
       insertions into them.
     */
     tprint(tracef, "we skip DDLs\n");
-    return 0;
+    DBUG_RETURN(0);
   }
   if ((info= get_MARIA_HA_from_REDO_record(rec)) == NULL)
-    return 0;
+    DBUG_RETURN(0);
+
   /*
     Otherwise, the mapping is newer than the table, and our record is newer
     than the mapping, so we can repair.
   */
   tprint(tracef, "   repairing...\n");
-  HA_CHECK param;
+
   maria_chk_init(&param);
-  param.isam_file_name= info->s->open_file_name;
-  param.testflag= uint4korr(rec->header);
-  if (maria_repair(&param, info, info->s->open_file_name, param.testflag))
+  param.isam_file_name= name= info->s->open_file_name;
+  param.testflag= uint4korr(rec->header + FILEID_STORE_SIZE);
+  param.tmpdir= maria_tmpdir;
+  DBUG_ASSERT(maria_tmpdir);
+
+  info->s->state.key_map= uint8korr(rec->header + FILEID_STORE_SIZE + 4);
+  quick_repair= param.testflag & T_QUICK;
+
+
+  if (param.testflag & T_REP_PARALLEL)
+  {
+    if (maria_repair_parallel(&param, info, name, quick_repair))
+      goto end;
+  }
+  else if (param.testflag & T_REP_BY_SORT)
+  {
+    if (maria_repair_by_sort(&param, info, name, quick_repair))
+      goto end;
+  }
+  else if (maria_repair(&param, info, name, quick_repair))
     goto end;
+
   if (_ma_update_create_rename_lsn(info->s, rec->lsn, TRUE))
     goto end;
   error= 0;
+
 end:
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -953,7 +1013,7 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
                            log_record_buffer.str, NULL) !=
       rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     return 1;
   }
   name= log_record_buffer.str;
@@ -991,7 +1051,7 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
     tprint(tracef, ", dropping '%s'", name);
     if (maria_delete_table(name))
     {
-      tprint(tracef, "Failed to drop table\n");
+      eprint(tracef, "Failed to drop table\n");
       goto end;
     }
   }
@@ -1012,6 +1072,7 @@ prototype_redo_exec_hook(FILE_ID)
   int error= 1;
   const char *name;
   MARIA_HA *info;
+  DBUG_ENTER("exec_REDO_LOGREC_FILE_ID");
 
   if (cmp_translog_addr(rec->lsn, checkpoint_start) < 0)
   {
@@ -1022,7 +1083,7 @@ prototype_redo_exec_hook(FILE_ID)
       happened and so mapping is not needed.
     */
     tprint(tracef, "ignoring because before checkpoint\n");
-    return 0;
+    DBUG_RETURN(0);
   }
 
   enlarge_buffer(rec);
@@ -1031,7 +1092,7 @@ prototype_redo_exec_hook(FILE_ID)
                            log_record_buffer.str, NULL) !=
        rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     goto end;
   }
   sid= fileid_korr(log_record_buffer.str);
@@ -1042,7 +1103,7 @@ prototype_redo_exec_hook(FILE_ID)
     prepare_table_for_close(info, rec->lsn);
     if (maria_close(info))
     {
-      tprint(tracef, "Failed to close table\n");
+      eprint(tracef, "Failed to close table\n");
       goto end;
     }
     all_tables[sid].info= NULL;
@@ -1052,7 +1113,7 @@ prototype_redo_exec_hook(FILE_ID)
     goto end;
   error= 0;
 end:
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -1213,14 +1274,14 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD)
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL)
   {
-    tprint(tracef, "Failed to read allocate buffer for record\n");
+    eprint(tracef, "Failed to read allocate buffer for record\n");
     goto end;
   }
   if (translog_read_record(rec->lsn, 0, rec->record_length,
                            log_record_buffer.str, NULL) !=
       rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     goto end;
   }
   buff= log_record_buffer.str;
@@ -1255,7 +1316,7 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL)
                            log_record_buffer.str, NULL) !=
        rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     goto end;
   }
   buff= log_record_buffer.str;
@@ -1291,7 +1352,7 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS)
                            log_record_buffer.str, NULL) !=
        rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     goto end;
   }
   buff= log_record_buffer.str;
@@ -1351,7 +1412,7 @@ prototype_redo_exec_hook(REDO_FREE_BLOCKS)
                            log_record_buffer.str, NULL) !=
        rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     goto end;
   }
 
@@ -1410,7 +1471,7 @@ prototype_redo_exec_hook(REDO_INDEX)
                            log_record_buffer.str, NULL) !=
        rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     goto end;
   }
 
@@ -1436,7 +1497,7 @@ prototype_redo_exec_hook(REDO_INDEX_NEW_PAGE)
                            log_record_buffer.str, NULL) !=
        rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     goto end;
   }
 
@@ -1493,7 +1554,7 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
                                HA_CHECKSUM_STORE_SIZE, buff, NULL) !=
           HA_CHECKSUM_STORE_SIZE)
       {
-        tprint(tracef, "Failed to read record\n");
+        eprint(tracef, "Failed to read record\n");
         return 1;
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
@@ -1532,7 +1593,7 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
                                HA_CHECKSUM_STORE_SIZE, buff, NULL) !=
           HA_CHECKSUM_STORE_SIZE)
       {
-        tprint(tracef, "Failed to read record\n");
+        eprint(tracef, "Failed to read record\n");
         return 1;
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
@@ -1564,7 +1625,7 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
                                HA_CHECKSUM_STORE_SIZE, buff, NULL) !=
           HA_CHECKSUM_STORE_SIZE)
       {
-        tprint(tracef, "Failed to read record\n");
+        eprint(tracef, "Failed to read record\n");
         return 1;
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
@@ -1712,7 +1773,7 @@ prototype_redo_exec_hook(CLR_END)
                                buff, NULL) !=
           KEY_NR_STORE_SIZE + PAGE_STORE_SIZE)
       {
-        tprint(tracef, "Failed to read record\n");
+        eprint(tracef, "Failed to read record\n");
         DBUG_RETURN(1);
       }
       key_nr= key_nr_korr(buff);
@@ -1732,7 +1793,7 @@ prototype_redo_exec_hook(CLR_END)
                                CLR_TYPE_STORE_SIZE, HA_CHECKSUM_STORE_SIZE,
                                buff, NULL) != HA_CHECKSUM_STORE_SIZE)
       {
-        tprint(tracef, "Failed to read record\n");
+        eprint(tracef, "Failed to read record\n");
         DBUG_RETURN(1);
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
@@ -1781,7 +1842,7 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT)
                              log_record_buffer.str, NULL) !=
         rec->record_length)
     {
-      tprint(tracef, "Failed to read record\n");
+      eprint(tracef, "Failed to read record\n");
       return 1;
     }
     record_ptr= log_record_buffer.str;
@@ -1818,7 +1879,7 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
                            log_record_buffer.str, NULL) !=
        rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     return 1;
   }
 
@@ -1860,7 +1921,7 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
                            log_record_buffer.str, NULL) !=
        rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     return 1;
   }
 
@@ -1904,7 +1965,7 @@ prototype_undo_exec_hook(UNDO_KEY_INSERT)
                            log_record_buffer.str, NULL) !=
         rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     return 1;
   }
 
@@ -1949,7 +2010,7 @@ prototype_undo_exec_hook(UNDO_KEY_DELETE)
                            log_record_buffer.str, NULL) !=
         rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     return 1;
   }
 
@@ -1994,7 +2055,7 @@ prototype_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT)
                            log_record_buffer.str, NULL) !=
         rec->record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     return 1;
   }
 
@@ -2077,7 +2138,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
 
   if (len == RECHEADER_READ_ERROR)
   {
-    tprint(tracef, "Failed to read header of the first record.\n");
+    eprint(tracef, "Failed to read header of the first record.\n");
     return 1;
   }
   if (translog_init_scanner(lsn, 1, &scanner, 1))
@@ -2211,7 +2272,10 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   translog_destroy_scanner(&scanner);
   translog_free_record_header(&rec);
   if (recovery_message_printed == REC_MSG_REDO)
+  {
     fprintf(stderr, " 100%%");
+    procent_printed= 1;
+  }
   return 0;
 
 err:
@@ -2343,7 +2407,7 @@ static int run_undo_phase(uint unfinished)
         display_record_position(log_desc, &rec, 0);
         if (log_desc->record_execute_in_undo_phase(&rec, trn))
         {
-          tprint(tracef, "Got error when executing undo\n");
+          tprint(tracef, "Got error %d when executing undo\n", my_errno);
           return 1;
         }
       }
@@ -2542,7 +2606,7 @@ static LSN parse_checkpoint_record(LSN lsn)
                            log_record_buffer.str, NULL) !=
       rec.record_length)
   {
-    tprint(tracef, "Failed to read record\n");
+    eprint(tracef, "Failed to read record\n");
     return LSN_ERROR;
   }
 
@@ -2793,6 +2857,7 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
   static ulonglong initial_remainder= -1;
   int cur_logno, cur_offset;
   ulonglong local_remainder;
+  int percentage_done;
 
   if (tracef == stdout)
     return;
@@ -2800,6 +2865,7 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
   {
     print_preamble();
     fprintf(stderr, "recovered pages: 0%%");
+    procent_printed= 1;
     recovery_message_printed= REC_MSG_REDO;
   }
   if (end_logno == FILENO_IMPOSSIBLE)
@@ -2815,12 +2881,13 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
      max(end_logno - cur_logno - 1, 0) * TRANSLOG_FILE_SIZE + end_offset);
   if (initial_remainder == (ulonglong)(-1))
     initial_remainder= local_remainder;
-  int percentage_done=
-    (initial_remainder - local_remainder) * ULL(100) / initial_remainder;
+  percentage_done= ((initial_remainder - local_remainder) * ULL(100) /
+                    initial_remainder);
   if ((percentage_done - percentage_printed) >= 10)
   {
     percentage_printed= percentage_done;
     fprintf(stderr, " %d%%", percentage_done);
+    procent_printed= 1;
   }
 }
 

@@ -662,7 +662,7 @@ static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, uchar *key,
     info->keyread_buff_used= 1;
     bzero(info->buff, info->s->keypage_header);
     _ma_store_keynr(info, info->buff, keynr);
-    _ma_store_page_used(info, info->buff, info->s->keypage_header, 0);
+    _ma_store_page_used(info, info->buff, info->s->keypage_header);
 
     res= maria_rtree_add_key(info, keyinfo, key, key_length, info->buff,
                               NULL);
@@ -698,9 +698,10 @@ static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, uchar *key,
       }
 
       bzero(new_root_buf, info->s->keypage_header);
+      if (nod_flag)
+        _ma_store_keypage_flag(info, new_root_buf, KEYPAGE_FLAG_ISNOD);
       _ma_store_keynr(info, new_root_buf, keynr);
-      _ma_store_page_used(info, new_root_buf, info->s->keypage_header,
-                          nod_flag);
+      _ma_store_page_used(info, new_root_buf, info->s->keypage_header);
       if ((new_root= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==
 	  HA_OFFSET_ERROR)
         goto err1;

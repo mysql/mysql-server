@@ -340,11 +340,12 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   }
 
   bzero(new_page, info->s->keypage_header);
+  if (nod_flag)
+    _ma_store_keypage_flag(info, new_page, KEYPAGE_FLAG_ISNOD);
   _ma_store_keynr(info, new_page, keyinfo->key_nr);
-  _ma_store_page_used(info, page, info->s->keypage_header + n1 * full_length,
-                      nod_flag);
+  _ma_store_page_used(info, page, info->s->keypage_header + n1 * full_length)
   _ma_store_page_used(info, new_page, info->s->keypage_header +
-                      n2 * full_length, nod_flag);
+                      n2 * full_length);
 
   if ((*new_page_offs= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==
       HA_OFFSET_ERROR)

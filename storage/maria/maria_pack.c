@@ -516,7 +516,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
                    2+4+16));
 
   if (init_pagecache(maria_pagecache, MARIA_MIN_PAGE_CACHE_SIZE, 0, 0,
-                     maria_block_size) == 0)
+                     maria_block_size, MY_WME) == 0)
   {
     fprintf(stderr, "Can't initialize page cache\n");
     goto err;
@@ -2975,6 +2975,9 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
   share->state.dellink= HA_OFFSET_ERROR;
   share->state.split=(ha_rows) mrg->records;
   share->state.version=(ulong) time((time_t*) 0);
+  if (share->base.born_transactional)
+    share->state.create_rename_lsn= share->state.is_of_horizon=
+      LSN_REPAIRED_BY_MARIA_CHK;
   if (! maria_is_all_keys_active(share->state.key_map, share->base.keys))
   {
     /*

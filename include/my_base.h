@@ -422,7 +422,8 @@ enum ha_base_keytype {
 #define HA_ERR_LOGGING_IMPOSSIBLE 170
 #define HA_ERR_NEW_FILE	          171	 /* New file format */
 #define HA_ERR_INITIALIZATION     172    /* Error during initialization */
-#define HA_ERR_LAST               172    /* Copy of last error nr */
+#define HA_ERR_FILE_TOO_SHORT	  173	 /* File too short */
+#define HA_ERR_LAST               173    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

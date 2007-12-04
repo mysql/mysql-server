@@ -1764,7 +1764,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
 	/* VOID(my_seek(info->dfile,filepos,MY_SEEK_SET,MYF(0))); */
 	if (my_read(info->dfile,(uchar*) to,block_info.data_len,MYF(MY_NABP)))
 	{
-	  if (my_errno == -1)
+	  if (my_errno == HA_ERR_FILE_TOO_SHORT)
 	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */
 	  goto err;
 	}

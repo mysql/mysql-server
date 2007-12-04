@@ -4683,8 +4683,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     (see SQLCOM_GRANT case, mysql_execute_command() function) and
     set db_is_pattern according to 'dont_check_global_grants' value.
   */
-  bool  db_is_pattern= (test(want_access & GRANT_ACL) &&
-                        dont_check_global_grants);
+  bool  db_is_pattern= ((want_access & GRANT_ACL) && dont_check_global_grants);
 #endif
   ulong dummy;
   DBUG_ENTER("check_access");

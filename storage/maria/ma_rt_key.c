@@ -59,7 +59,7 @@ int maria_rtree_add_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
                                          info->s->base.rec_reflength);
       page_size+= key_length + info->s->base.rec_reflength;
     }
-    _ma_store_page_used(info, page_buf, page_size, nod_flag);
+    _ma_store_page_used(info, page_buf, page_size);
     DBUG_RETURN(0);
   }
 
@@ -86,7 +86,7 @@ int maria_rtree_delete_key(MARIA_HA *info, uchar *page_buf, uchar *key,
 	  (key - page_buf));
   page_size-= key_length + nod_flag;
 
-  _ma_store_page_used(info, page_buf, page_size, nod_flag);
+  _ma_store_page_used(info, page_buf, page_size);
   return 0;
 }
 
