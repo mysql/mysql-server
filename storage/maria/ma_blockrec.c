@@ -5040,13 +5040,17 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   }
   else
   {
-    if (!(buff= pagecache_read(share->pagecache, &info->dfile,
-                               page, 0, 0,
-                               PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
-                               &page_link.link)))
+    share->pagecache->readwrite_flags&= ~MY_WME;
+    buff= pagecache_read(share->pagecache, &info->dfile,
+                         page, 0, 0,
+                         PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
+                         &page_link.link);
+    share->pagecache->readwrite_flags= share->pagecache->org_readwrite_flags;
+    if (!buff)
     {
-      if (my_errno != HA_ERR_FILE_TOO_SHORT)    /* If not read outside of file */
+      if (my_errno != HA_ERR_FILE_TOO_SHORT)
       {
+        /* If not read outside of file */
         pagecache_unlock_by_link(share->pagecache, page_link.link,
                                  PAGECACHE_LOCK_WRITE_UNLOCK,
                                  PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
@@ -5481,14 +5485,19 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
         }
         else
         {
-          if (!(buff= pagecache_read(share->pagecache,
-                                     &info->dfile,
-                                     page, 0, 0,
-                                     PAGECACHE_PLAIN_PAGE,
-                                     PAGECACHE_LOCK_WRITE, &page_link.link)))
+          share->pagecache->readwrite_flags&= ~MY_WME;
+          buff= pagecache_read(share->pagecache,
+                               &info->dfile,
+                               page, 0, 0,
+                               PAGECACHE_PLAIN_PAGE,
+                               PAGECACHE_LOCK_WRITE, &page_link.link);
+          share->pagecache->readwrite_flags= share->pagecache->
+            org_readwrite_flags;
+          if (!buff)
           {
-            if (my_errno != HA_ERR_FILE_TOO_SHORT) /* If not read outside of file */
+            if (my_errno != HA_ERR_FILE_TOO_SHORT)
             {
+              /* If not read outside of file */
               pagecache_unlock_by_link(share->pagecache, page_link.link,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,

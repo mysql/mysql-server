@@ -160,6 +160,7 @@ typedef struct st_pagecache
 
   uint shift;                       /* block size = 2 ^ shift                */
   myf  readwrite_flags;             /* Flags to pread/pwrite() */
+  myf  org_readwrite_flags;         /* Flags to pread/pwrite() at init */
   my_bool inited;
   my_bool resize_in_flush;       /* true during flush of resize operation    */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */

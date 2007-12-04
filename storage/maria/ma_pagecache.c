@@ -723,6 +723,7 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
   pagecache->block_size= block_size;
   pagecache->shift= my_bit_log2(block_size);
   pagecache->readwrite_flags= my_readwrite_flags | MY_NABP | MY_WAIT_IF_FULL;
+  pagecache->org_readwrite_flags= pagecache->readwrite_flags;
   DBUG_PRINT("info", ("block_size: %u", block_size));
   DBUG_ASSERT(((uint)(1 << pagecache->shift)) == block_size);
 
