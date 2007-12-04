@@ -1,5 +1,5 @@
 ifndef BDBDIR
-BDBDIR=/usr/local/BerkeleyDB.4.1
+BDBDIR=/usr/local/BerkeleyDB.4.4
 endif
 BDB_DUMP=$(BDBDIR)/bin/db_dump
 BDB_LOAD=$(BDBDIR)/bin/db_load
@@ -26,6 +26,9 @@ all: $(UTILS) $(STATIC_UTILS)
 
 %_static: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< $(STATIC_LDFLAGS)
+
+strip: $(STATIC_UTILS) 
+	strip $(STATIC_UTILS)
 
 test: test_gen test_load test_dump test_bdb_tokudb
 
