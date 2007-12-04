@@ -487,7 +487,7 @@ int toku_fread_INTPAIRARRAY (FILE *f, INTPAIRARRAY *v, u_int32_t *crc, u_int32_t
     u_int32_t i;
     r = toku_fread_u_int32_t(f, &v->size, crc, len); if (r!=0) return r;
     MALLOC_N(v->size, v->array);
-    if (v->array!=0) return errno;
+    if (v->array==0) return errno;
     for (i=0; i<v->size; i++) {
 	r = toku_fread_u_int32_t(f, &v->array[i].a, crc, len); if (r!=0) return r;
 	r = toku_fread_u_int32_t(f, &v->array[i].b, crc, len); if (r!=0) return r;
