@@ -6348,7 +6348,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       Callback c = 
         { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked), 0 };
       ndbrequire(mutex.lock(c, false));
-      break;
+      return;
     }
   case LMTOS_LCP_CONCLUDING:
     {
@@ -6368,7 +6368,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       Callback c = 
         { safe_cast(&Dbdih::master_lcp_fragmentMutex_locked), 0 };
       ndbrequire(mutex.lock(c, false));
-      break;
+      return;
     }
   default:
     ndbrequire(false);
@@ -10663,6 +10663,18 @@ Dbdih::master_lcp_fragmentMutex_locked(Signal* signal,
 {
   jamEntry();
   ndbrequire(retVal == 0);
+
+  signal->theData[0] = NDB_LE_LCP_TakeoverCompleted;
+  signal->theData[1] = c_lcpMasterTakeOverState.state;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+  
+  signal->theData[0] = 7012;
+  execDUMP_STATE_ORD(signal);
+  
+  c_lcpMasterTakeOverState.set(LMTOS_IDLE, __LINE__);
+  
+  checkLocalNodefailComplete(signal, failedNodePtr.i, NF_LCP_TAKE_OVER);
+
   startLcpRoundLoopLab(signal, 0, 0);
 }
 
