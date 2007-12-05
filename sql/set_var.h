@@ -578,6 +578,7 @@ public:
     sys_var_character_set(name_arg) {}
   void set_default(THD *thd, enum_var_type type);
   CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
+  bool check(THD *thd, set_var *var);
 };
 
 class sys_var_character_set_results :public sys_var_character_set
