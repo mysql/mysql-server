@@ -576,9 +576,6 @@ struct __toku_dbc_internal {
     DB_TXN *txn;
 };
 
-// Internal flag for when doing a get/del, don't do the work for associate.
-#define DB_NO_ASSOCIATE 42
-
 static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
     int r = toku_brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
     return r;
@@ -630,6 +627,47 @@ static int toku_c_close(DBC * c) {
     return r;
 }
 
+static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
+    int r;
+    unsigned int brtflags;
+    
+    assert(flags == 0); // We aren't ready to handle flags such as DB_GET_BOTH  or DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
+    toku_brt_get_flags(db->i->brt, &brtflags);
+    if (brtflags & TOKU_DB_DUPSORT) {
+        DBC *dbc;
+        r = db->cursor(db, txn, &dbc, 0);
+        if (r!=0) return r;
+        r = toku_c_get_noassociate(dbc, key, data, DB_SET);
+        int r2 = dbc->c_close(dbc);
+        if (r!=0) return r;
+        return r2;
+    }
+    else return toku_brt_lookup(db->i->brt, key, data);
+}
+
+static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
+    int r;
+    //DB_DELETE_ANY supresses the BDB DB->del return value indicating that the key was not found prior to the delete
+    if (!(flags & DB_DELETE_ANY)) {
+        DBT search_val; memset(&search_val, 0, sizeof search_val); 
+        search_val.flags = DB_DBT_MALLOC;
+        r = toku_db_get_noassociate(db, txn, key, &search_val, 0);
+        if (r != 0)
+            return r;
+        free(search_val.data);
+    } 
+    //Do the actual deleting.
+    r = toku_brt_delete(db->i->brt, key);
+    return r;
+}
+
+static int toku_c_del_noassociate(DBC * c, u_int32_t flags) {
+    int r;
+    
+    r = toku_brt_cursor_delete(c->i->c, flags);
+    return r;
+}
+
 static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary) {
     u_int32_t brtflags;
     DBT idx;
@@ -650,11 +688,11 @@ static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary
 	    if (r!=0) goto cleanup;
 	    r = toku_c_get_noassociate(dbc, &idx, key, DB_GET_BOTH);
 	    if (r!=0) goto cleanup;
-	    r = dbc->c_del(dbc, DB_NO_ASSOCIATE);
+	    r = toku_c_del_noassociate(dbc, 0);
 cleanup:
         r2 = dbc->c_close(dbc);
     }
-    else r = secondary->del(secondary, txn, &idx, DB_NO_ASSOCIATE | DB_DELETE_ANY);
+    else r = toku_db_del_noassociate(secondary, txn, &idx, DB_DELETE_ANY);
     if (idx.flags & DB_DBT_APPMALLOC) {
     	free(idx.data);
     }
@@ -666,12 +704,9 @@ static int toku_c_del(DBC * c, u_int32_t flags) {
     int r;
     DB* db = c->i->db;
     
-    
     //It is a primary with secondaries, or is a secondary.
-    if ((db->i->primary == 0 && !list_empty(&db->i->associated)) ||
-        db->i->primary != 0) {
+    if (db->i->primary != 0 || !list_empty(&db->i->associated)) {
         DB* pdb;
-        DBT key;
         DBT pkey;
         DBT data;
         struct list *h;
@@ -683,10 +718,10 @@ static int toku_c_del(DBC * c, u_int32_t flags) {
             r = c->c_get(c, &pkey, &data, DB_CURRENT);
         }
         else {
+            DBT skey;
             pdb = db->i->primary;
-            //TODO: replace toku_c_pget( with c->c_pget(c,
-            memset(&key, 0, sizeof(key));
-            r = toku_c_pget(c, &key, &pkey, &data, DB_CURRENT);
+            memset(&skey, 0, sizeof(skey));
+            r = toku_c_pget(c, &skey, &pkey, &data, DB_CURRENT);
         }
         if (r != 0) return r;
         
@@ -698,15 +733,13 @@ static int toku_c_del(DBC * c, u_int32_t flags) {
     	}
     	if (db->i->primary != 0) {
     	    //If this is a secondary, we did not delete from the primary.
-    	    //Primaries cannot have duplicates, DB->del is safe.
-    	    r = pdb->del(pdb, c->i->txn, &pkey, DB_DELETE_ANY);
+    	    //Primaries cannot have duplicates, (noncursor) del is safe.
+    	    r = toku_db_del_noassociate(pdb, c->i->txn, &pkey, DB_DELETE_ANY);
     	    if (r!=0) return r;
     	}
     }
-    
-    //Do the actual deleting.
-    r = toku_brt_cursor_delete(c->i->c, flags);
-    return r;
+    r = toku_c_del_noassociate(c, flags);
+    return r;    
 }
 
 static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
@@ -731,74 +764,45 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
 static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
     int r;
 
-    if (!(flags & DB_NO_ASSOCIATE) &&
-        ((db->i->primary == 0 && !list_empty(&db->i->associated)) ||
-         db->i->primary != 0)) {
+    //It is a primary with secondaries, or is a secondary.
+    if (db->i->primary != 0 || !list_empty(&db->i->associated)) {
         DB* pdb;
         DBT data;
+        DBT pkey;
+        DBT *pdb_key;
         struct list *h;
 
         memset(&data, 0, sizeof(data));
         if (db->i->primary == 0) {
             pdb = db;
             r = db->get(db, txn, key, &data, 0);
+            pdb_key = key;
         }
         else {
-            DBT pkey;
             memset(&pkey, 0, sizeof(pkey));
             pdb = db->i->primary;
             r = db->pget(db, txn, key, &pkey, &data, 0);
-            key = &pkey;
+            pdb_key = &pkey;
         }
         if (r != 0) return r;
         
     	for (h = list_head(&pdb->i->associated); h != &pdb->i->associated; h = h->next) {
     	    struct __toku_db_internal *dbi = list_struct(h, struct __toku_db_internal, associated);
-    	    if (dbi->db == db) continue;  //Skip current db (if its primary or secondary)
-    	    r = do_associated_deletes(txn, key, &data, dbi->db);
+    	    if (dbi->db == db) continue;                  //Skip current db (if its primary or secondary)
+    	    r = do_associated_deletes(txn, pdb_key, &data, dbi->db);
     	    if (r!=0) return r;
     	}
     	if (db->i->primary != 0) {
     	    //If this is a secondary, we did not delete from the primary.
-    	    //Primaries cannot have duplicates, DB->del is safe.
-    	    r = pdb->del(pdb, txn, key, DB_DELETE_ANY);
+    	    //Primaries cannot have duplicates, (noncursor) del is safe.
+    	    r = toku_db_del_noassociate(pdb, txn, pdb_key, DB_DELETE_ANY);
     	    if (r!=0) return r;
     	}
+    	//We know for certain it was already found, so no need to return DB_NOTFOUND.
+    	flags |= DB_DELETE_ANY;
     }
-    /*
-     * DB_DELETE_ANY supresses the BDB DB->del return value indicating that the key was not found prior to the delete
-     * If we are dealing with associated databases, we skip since we already know for certain it was found at this point.
-     */
-    else if (!(flags & DB_DELETE_ANY)) {
-        DBT search_val; memset(&search_val, 0, sizeof search_val); 
-        search_val.flags = DB_DBT_MALLOC;
-        r = db->get(db, txn, key, &search_val, 0);
-        if (r != 0)
-            return r;
-        free(search_val.data);
-    } 
-    //Do the actual deleting.
-    r = toku_brt_delete(db->i->brt, key);
+    r = toku_db_del_noassociate(db, txn, key, flags);
     return r;
-}
-
-
-static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
-    int r;
-    unsigned int brtflags;
-    
-    assert(flags == 0); // We aren't ready to handle flags such as DB_GET_BOTH  or DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
-    toku_brt_get_flags(db->i->brt, &brtflags);
-    if (brtflags & TOKU_DB_DUPSORT) {
-        DBC *dbc;
-        r = db->cursor(db, txn, &dbc, 0);
-        if (r!=0) return r;
-        r = toku_c_get_noassociate(dbc, key, data, DB_SET);
-        int r2 = dbc->c_close(dbc);
-        if (r!=0) return r;
-        return r2;
-    }
-    else return toku_brt_lookup(db->i->brt, key, data);
 }
 
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
@@ -983,7 +987,7 @@ static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondar
 #endif
     r = toku_db_put_noassociate(secondary, txn, &idx, key, 0);
     if (idx.flags & DB_DBT_APPMALLOC) {
-	free(idx.data);
+        free(idx.data);
     }
     return r;
 }
@@ -995,16 +999,17 @@ static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t f
     //Cannot put directly into a secondary.
     if (db->i->primary != 0) return EINVAL;
 
+    //BUG: If we are doing a 'replace' insert, the secondary indexes will have new entries put in, but old entries will not be removed
     r = toku_db_put_noassociate(db, txn, key, data, flags);
     if (r!=0) return r;
     // For each secondary add the relevant records.
-    if (db->i->primary==0) { // Only do it if it is a primary.   This loop would run an unknown number of times if we tried it on a secondary.
-        struct list *h;
-        for (h=list_head(&db->i->associated); h!=&db->i->associated; h=h->next) {
-            struct __toku_db_internal *dbi=list_struct(h, struct __toku_db_internal, associated);
-            r=do_associated_inserts(txn, key, data, dbi->db);
-            if (r!=0) return r;
-        }
+    assert(db->i->primary==0);
+    // Only do it if it is a primary.   This loop would run an unknown number of times if we tried it on a secondary.
+    struct list *h;
+    for (h=list_head(&db->i->associated); h!=&db->i->associated; h=h->next) {
+        struct __toku_db_internal *dbi=list_struct(h, struct __toku_db_internal, associated);
+        r=do_associated_inserts(txn, key, data, dbi->db);
+        if (r!=0) return r;
     }
     return 0;
 }
