@@ -579,23 +579,8 @@ struct __toku_dbc_internal {
 // Internal flag for when doing a get/del, don't do the work for associate.
 #define DB_NO_ASSOCIATE 42
 
-static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
-    DB *db = c->i->db;
-
-    if (db->i->primary != 0 && 
-        ((flag & DB_GET_BOTH) /* Uncomment when/if implemented || (flag & DB_GET_BOTH_RANGE)*/) &&
-        !(flag & DB_NO_ASSOCIATE)) return EINVAL;
+static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
     int r = toku_brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
-    if (db->i->primary != 0 && !(flag & DB_NO_ASSOCIATE)) {
-        DB *pdb = db->i->primary;
-        DBT pkey;
-
-        if (r != 0) return r;
-        pkey = *data;
-        r = pdb->get(pdb, c->i->txn, &pkey, data, 0);
-        if (r == DB_NOTFOUND) return DB_SECONDARY_BAD;
-    }
-
     return r;
 }
 
@@ -603,16 +588,38 @@ static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) 
     int r;
     DB *db = c->i->db;
     DB *pdb = db->i->primary;
-    
-    if ((flag & DB_GET_BOTH) /*Uncomment when/if implemented || (flag & DB_GET_BOTH_RANGE)*/) return EINVAL;
     //Not ready for this yet.
 
-    if (!db->i->primary) return EINVAL;  //c_pget does not work on a primary.
+    if (!pdb) return EINVAL;  //c_pget does not work on a primary.
+	// If data and primary_key are both zeroed, the temporary storage used to fill in data is different in the two cases because they come from different trees.
+	assert(db->i->brt!=pdb->i->brt); // Make sure they realy are different trees.
+    assert(db!=pdb);
     
-    r = toku_brt_cursor_get(c->i->c, key, pkey, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
+    r = toku_c_get_noassociate(c, key, pkey, flag);
     if (r != 0) return r;
     r = pdb->get(pdb, c->i->txn, pkey, data, 0);
     if (r == DB_NOTFOUND) return DB_SECONDARY_BAD;
+    return r;
+}
+
+static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
+    DB *db = c->i->db;
+    int r;
+
+    if (db->i->primary==0) r = toku_c_get_noassociate(c, key, data, flag);
+    else {
+        // It's a c_get on a secondary.
+        DBT primary_key;
+        u_int32_t get_flag = flag & ~DB_RMW;
+        
+        /* It is an error to use the DB_GET_BOTH or DB_GET_BOTH_RANGE flag on a
+         * cursor that has been opened on a secondary index handle.
+         * DB_GET_BOTH_RANGE not implemented yet.
+         */
+        if ((get_flag == DB_GET_BOTH) /* || (get_flag == DB_GET_BOTH_RANGE)*/) return EINVAL;
+        memset(&primary_key, 0, sizeof(primary_key));
+        r = toku_c_pget(c, key, &primary_key, data, flag);
+    }
     return r;
 }
 
@@ -641,7 +648,7 @@ static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary
 	    DBC *dbc;
 	    r = secondary->cursor(secondary, txn, &dbc, 0);
 	    if (r!=0) goto cleanup;
-	    r = dbc->c_get(dbc, &idx, key, DB_GET_BOTH | DB_NO_ASSOCIATE);
+	    r = toku_c_get_noassociate(dbc, &idx, key, DB_GET_BOTH);
 	    if (r!=0) goto cleanup;
 	    r = dbc->c_del(dbc, DB_NO_ASSOCIATE);
 cleanup:
@@ -786,7 +793,7 @@ static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
         DBC *dbc;
         r = db->cursor(db, txn, &dbc, 0);
         if (r!=0) return r;
-        r = dbc->c_get(dbc, key, data, DB_SET);
+        r = toku_c_get_noassociate(dbc, key, data, DB_SET);
         int r2 = dbc->c_close(dbc);
         if (r!=0) return r;
         return r2;
@@ -795,14 +802,16 @@ static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
 }
 
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
+    int r;
     assert(flags == 0); // We aren't ready to handle flags such as DB_GET_BOTH  or DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
-    if (db->i->primary==0) return toku_db_get_noassociate(db, txn, key, data, flags);
+    if (db->i->primary==0) r = toku_db_get_noassociate(db, txn, key, data, flags);
     else {
         // It's a get on a secondary.
         DBT primary_key;
         memset(&primary_key, 0, sizeof(primary_key));
-        return db->pget(db, txn, key, &primary_key, data, 0);
+        r = db->pget(db, txn, key, &primary_key, data, 0);
     }
+    return r;
 }
 
 static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_int32_t flags) {
@@ -815,6 +824,7 @@ static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_
 	assert(db->i->brt != db->i->primary->i->brt); // Make sure they realy are different trees.
     assert(db!=db->i->primary);
     r = toku_db_get (db->i->primary, txn, pkey, data, 0);
+    if (r == DB_NOTFOUND) return DB_SECONDARY_BAD;
     return r;
 }
 
