@@ -7031,8 +7031,15 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   bool error= TRUE;                                 // Error message is given
   DBUG_ENTER("create_table_precheck");
 
+  /*
+    Require CREATE [TEMPORARY] privilege on new table; for
+    CREATE TABLE ... SELECT, also require INSERT.
+  */
+
   want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-              CREATE_TMP_ACL : CREATE_ACL);
+              CREATE_TMP_ACL : CREATE_ACL) |
+             (select_lex->item_list.elements ? INSERT_ACL : 0);
+
   if (check_access(thd, want_priv, create_table->db,
 		   &create_table->grant.privilege, 0, 0,
                    test(create_table->schema_table)) ||
