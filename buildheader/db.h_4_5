@@ -214,7 +214,8 @@ struct __toku_dbc {
   int (*c_del) (DBC *, u_int32_t); /* 32-bit offset=212 size=4, 64=bit offset=320 size=8 */
   void* __toku_dummy3[1];
   int (*c_get) (DBC *, DBT *, DBT *, u_int32_t); /* 32-bit offset=220 size=4, 64=bit offset=336 size=8 */
-  void* __toku_dummy4[10]; /* Padding at the end */ 
+  int (*c_pget) (DBC *, DBT *, DBT *, DBT *, u_int32_t); /* 32-bit offset=224 size=4, 64=bit offset=344 size=8 */
+  void* __toku_dummy4[9]; /* Padding at the end */ 
 };
 struct __toku_dbt {
   void*data; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
