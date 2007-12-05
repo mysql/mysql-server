@@ -202,6 +202,7 @@ trx_undo_page_report_insert(
 	byte*		ptr;
 	ulint		i;
 
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_INSERT);
 
@@ -403,6 +404,35 @@ trx_undo_rec_skip_row_ref(
 }
 
 /**************************************************************************
+Fetch a prefix of an externally stored column, for writing to the undo log
+of an update or delete marking of a clustered index record. */
+static
+byte*
+trx_undo_page_fetch_ext(
+/*====================*/
+					/* out: ext_buf */
+	byte*		ext_buf,	/* in: a buffer of
+					REC_MAX_INDEX_COL_LEN
+					+ BTR_EXTERN_FIELD_REF_SIZE */
+	ulint		zip_size,	/* compressed page size in bytes,
+					or 0 for uncompressed BLOB  */
+	const byte*	field,		/* in: an externally stored column */
+	ulint*		len)		/* in: length of field;
+					out: used length of ext_buf */
+{
+	/* Fetch the BLOB. */
+	ulint	ext_len = btr_copy_externally_stored_field_prefix(
+		ext_buf, REC_MAX_INDEX_COL_LEN, zip_size, field, *len);
+	ut_a(ext_len);
+	/* Append the BLOB pointer to the prefix. */
+	memcpy(ext_buf + ext_len,
+	       field + *len - BTR_EXTERN_FIELD_REF_SIZE,
+	       BTR_EXTERN_FIELD_REF_SIZE);
+	*len = ext_len + BTR_EXTERN_FIELD_REF_SIZE;
+	return(ext_buf);
+}
+
+/**************************************************************************
 Reports in the undo log of an update or delete marking of a clustered index
 record. */
 static
@@ -435,6 +465,8 @@ trx_undo_page_report_modify(
 	ulint		type_cmpl;
 	byte*		type_cmpl_ptr;
 	ulint		i;
+	byte		ext_buf[REC_MAX_INDEX_COL_LEN
+				+ BTR_EXTERN_FIELD_REF_SIZE];
 
 	ut_a(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -505,7 +537,11 @@ trx_undo_page_report_modify(
 
 		field = rec_get_nth_field(rec, offsets, i, &flen);
 
-		if (trx_undo_left(undo_page, ptr) < 4) {
+		/* The ordering columns must not be stored externally. */
+		ut_ad(!rec_offs_nth_extern(offsets, i));
+		ut_ad(dict_index_get_nth_col(index, i)->ord_part);
+
+		if (trx_undo_left(undo_page, ptr) < 5) {
 
 			return(0);
 		}
@@ -555,6 +591,18 @@ trx_undo_page_report_modify(
 			}
 
 			if (rec_offs_nth_extern(offsets, pos)) {
+				/* If an ordering field has external
+				storage, we will store a longer
+				prefix of the field. */
+
+				if (dict_index_get_nth_col(index,
+							   pos)->ord_part) {
+					field = trx_undo_page_fetch_ext(
+						ext_buf,
+						dict_table_zip_size(table),
+						field, &flen);
+				}
+
 				/* If a field has external storage, we add
 				to flen the flag */
 
@@ -637,6 +685,15 @@ trx_undo_page_report_modify(
 							  &flen);
 
 				if (rec_offs_nth_extern(offsets, pos)) {
+					/* If an ordering field has external
+					storage, we will store a longer
+					prefix of the field. */
+
+					field = trx_undo_page_fetch_ext(
+						ext_buf,
+						dict_table_zip_size(table),
+						field, &flen);
+
 					/* If a field has external
 					storage, we add to flen the flag */
 
@@ -884,15 +941,11 @@ trx_undo_rec_get_partial_row(
 				record! */
 	dict_index_t*	index,	/* in: clustered index */
 	dtuple_t**	row,	/* out, own: partial row */
-	row_ext_t**	ext,	/* out, own: prefix cache for
-				externally stored columns */
 	mem_heap_t*	heap)	/* in: memory heap from which the memory
 				needed is allocated */
 {
 	const byte*	end_ptr;
 	ulint		row_len;
-	ulint		n_ext_cols;
-	ulint*		ext_cols;
 
 	ut_ad(index);
 	ut_ad(ptr);
@@ -901,8 +954,6 @@ trx_undo_rec_get_partial_row(
 	ut_ad(dict_index_is_clust(index));
 
 	row_len = dict_table_get_n_cols(index->table);
-	n_ext_cols = 0;
-	ext_cols = mem_heap_alloc(heap, row_len * sizeof *ext_cols);
 
 	*row = dtuple_create(heap, row_len);
 
@@ -935,21 +986,14 @@ trx_undo_rec_get_partial_row(
 			dfield_set_len(dfield,
 				       len - UNIV_EXTERN_STORAGE_FIELD);
 			dfield_set_ext(dfield);
-			if (col->ord_part) {
-				/* We will have to fetch prefixes of
-				externally stored columns that are
-				referenced by column prefixes. */
-				ext_cols[n_ext_cols++] = col_no;
-			}
+			/* If the prefix of this column is indexed,
+			ensure that enough prefix is stored in the
+			undo log record. */
+			ut_a(!col->ord_part
+			     || dfield_get_len(dfield)
+			     >= REC_MAX_INDEX_COL_LEN
+			     + BTR_EXTERN_FIELD_REF_SIZE);
 		}
-	}
-
-	if (n_ext_cols) {
-		*ext = row_ext_create(n_ext_cols, ext_cols, *row,
-				      dict_table_zip_size(index->table),
-				      heap);
-	} else {
-		*ext = NULL;
 	}
 
 	return(ptr);

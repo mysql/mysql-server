@@ -65,8 +65,6 @@ struct purge_node_struct{
 	dtuple_t*	row;	/* NULL, or a copy (also fields copied to
 				heap) of the indexed fields of the row to
 				handle */
-	row_ext_t*	ext;	/* NULL, or prefixes of the externally
-				stored columns of the row */
 	dict_index_t*	index;	/* NULL, or the next index whose record should
 				be handled */
 	mem_heap_t*	heap;	/* memory heap used as auxiliary storage for

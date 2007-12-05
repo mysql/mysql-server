@@ -337,9 +337,7 @@ row_purge_del_mark(
 		index = node->index;
 
 		/* Build the index entry */
-		entry = row_build_index_entry(node->row,
-					      node->ext,
-					      index, heap);
+		entry = row_build_index_entry(node->row, NULL, index, heap);
 		ut_a(entry);
 		row_purge_remove_sec_if_poss(node, index, entry);
 
@@ -385,7 +383,7 @@ row_purge_upd_exist_or_extern(
 		if (row_upd_changes_ord_field_binary(NULL, node->index,
 						     node->update)) {
 			/* Build the older version of the index entry */
-			entry = row_build_index_entry(node->row, node->ext,
+			entry = row_build_index_entry(node->row, NULL,
 						      index, heap);
 			ut_a(entry);
 			row_purge_remove_sec_if_poss(node, index, entry);
@@ -562,9 +560,7 @@ err_exit:
 
 	if (!(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		ptr = trx_undo_rec_get_partial_row(ptr, clust_index,
-						   &node->row,
-						   &node->ext,
-						   node->heap);
+						   &node->row, node->heap);
 	}
 
 	return(TRUE);
