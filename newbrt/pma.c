@@ -1675,7 +1675,7 @@ int toku_pma_move_indices (PMA pma, INTPAIRARRAY fromto) {
 	    // We must slide things to the right.
 	    // Find the next index that does want to go to the left
 	    u_int32_t j;
-	    for (j=i+1; j<fromto.size && fromto.array[j].b <= fromto.array[j].a; j++) {
+	    for (j=i+1; j<fromto.size &&  fromto.array[j].a < fromto.array[j].b; j++) {
 		/*nothing */
 	    }
 	    // everything from i (inclusive) to j (exclusive) wants to slide to the right.
