@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1, `t``1`, `t 1`;
 drop view if exists v1;
 drop database if exists client_test_db;
 mysql.columns_priv                                 OK
@@ -57,4 +57,27 @@ test.t1                                            OK
 test.t1                                            OK
 drop view v1;
 drop table t1;
+create table `t``1`(a int);
+create table `t 1`(a int);
+test.t 1                                           OK
+test.t`1                                           OK
+drop table `t``1`, `t 1`;
 End of 5.0 tests
+create table t1(a int);
+create view v1 as select * from t1;
+show tables;
+Tables_in_test
+t1
+v1
+show tables;
+Tables_in_test
+t1
+#mysql50#v-1
+v1
+show tables;
+Tables_in_test
+t1
+v1
+v-1
+drop view v1, `v-1`;
+drop table t1;

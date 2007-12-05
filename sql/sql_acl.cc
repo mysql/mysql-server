@@ -365,8 +365,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 #endif
     VOID(push_dynamic(&acl_hosts,(uchar*) &host));
   }
-  qsort((uchar*) dynamic_element(&acl_hosts,0,ACL_HOST*),acl_hosts.elements,
-	sizeof(ACL_HOST),(qsort_cmp) acl_compare);
+  my_qsort((uchar*) dynamic_element(&acl_hosts,0,ACL_HOST*),acl_hosts.elements,
+	   sizeof(ACL_HOST),(qsort_cmp) acl_compare);
   end_read_record(&read_record_info);
   freeze_size(&acl_hosts);
 
@@ -553,8 +553,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         allow_all_hosts=1;			// Anyone can connect
     }
   }
-  qsort((uchar*) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
-	sizeof(ACL_USER),(qsort_cmp) acl_compare);
+  my_qsort((uchar*) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
+	   sizeof(ACL_USER),(qsort_cmp) acl_compare);
   end_read_record(&read_record_info);
   freeze_size(&acl_users);
 
@@ -612,8 +612,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 #endif
     VOID(push_dynamic(&acl_dbs,(uchar*) &db));
   }
-  qsort((uchar*) dynamic_element(&acl_dbs,0,ACL_DB*),acl_dbs.elements,
-	sizeof(ACL_DB),(qsort_cmp) acl_compare);
+  my_qsort((uchar*) dynamic_element(&acl_dbs,0,ACL_DB*),acl_dbs.elements,
+	   sizeof(ACL_DB),(qsort_cmp) acl_compare);
   end_read_record(&read_record_info);
   freeze_size(&acl_dbs);
   init_check_host();
@@ -1243,8 +1243,8 @@ static void acl_insert_user(const char *user, const char *host,
   if (!acl_user.host.hostname ||
       (acl_user.host.hostname[0] == wild_many && !acl_user.host.hostname[1]))
     allow_all_hosts=1;		// Anyone can connect /* purecov: tested */
-  qsort((uchar*) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
-	sizeof(ACL_USER),(qsort_cmp) acl_compare);
+  my_qsort((uchar*) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
+	   sizeof(ACL_USER),(qsort_cmp) acl_compare);
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
@@ -1306,8 +1306,8 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
   acl_db.access=privileges;
   acl_db.sort=get_sort(3,acl_db.host.hostname,acl_db.db,acl_db.user);
   VOID(push_dynamic(&acl_dbs,(uchar*) &acl_db));
-  qsort((uchar*) dynamic_element(&acl_dbs,0,ACL_DB*),acl_dbs.elements,
-	sizeof(ACL_DB),(qsort_cmp) acl_compare);
+  my_qsort((uchar*) dynamic_element(&acl_dbs,0,ACL_DB*),acl_dbs.elements,
+	   sizeof(ACL_DB),(qsort_cmp) acl_compare);
 }
 
 
