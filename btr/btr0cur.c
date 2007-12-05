@@ -2144,7 +2144,7 @@ btr_cur_pessimistic_update(
 					      trx->id);
 	}
 
-	if (flags & BTR_NO_UNDO_LOG_FLAG) {
+	if ((flags & BTR_NO_UNDO_LOG_FLAG) && rec_offs_any_extern(offsets)) {
 		/* We are in a transaction rollback undoing a row
 		update: we must free possible externally stored fields
 		which got new values in the update, if they are not
@@ -2854,12 +2854,7 @@ btr_cur_pessimistic_delete(
 
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
-	/* Free externally stored fields if the record is neither
-	a node pointer nor in one-byte format.
-	This condition avoids an unnecessary loop. */
-	if (page_is_leaf(page)
-	    && (page_is_comp(page)
-		|| !rec_get_1byte_offs_flag(rec))) {
+	if (rec_offs_any_extern(offsets)) {
 		btr_rec_free_externally_stored_fields(index,
 						      rec, offsets, page_zip,
 						      in_rollback, mtr);
