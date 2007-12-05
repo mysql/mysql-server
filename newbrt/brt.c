@@ -682,6 +682,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     }
     node->u.n.children[childnum]   = childa->thisnodename;
     node->u.n.children[childnum+1] = childb->thisnodename;
+    node->u.n.n_cursors[childnum+1] = 0;
     fixup_child_fingerprint(node, childnum,   childa);
     fixup_child_fingerprint(node, childnum+1, childb);
     toku_hashtable_create(&node->u.n.htables[childnum]);
@@ -2280,28 +2281,30 @@ void toku_brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t __attribute__((unus
 //    if (i >= 0 && cursor->path[i] == node) {
 //    }
     if (0) toku_brt_cursor_print(cursor);
+    /* see if the cursor path references the node */
     for (i = 0; i < cursor->path_len; i++)
         if (cursor->path[i] == node)
             break;
     if (i < cursor->path_len) {
-        if (cursor->pathcnum[i] < childnum)
+        if (cursor->pathcnum[i] < childnum)     /* cursor is left of the split so nothing to do */
             return;
-        if (cursor->pathcnum[i] > childnum) {
-        setnewchild:
-            oldchildnum = cursor->pathcnum[i];
-            newchildnum = oldchildnum + 1;
-            brt_node_remove_cursor(node, oldchildnum, cursor);
-            brt_node_add_cursor(node, newchildnum, cursor);
-            cursor->pathcnum[i] = newchildnum;
+        if (cursor->pathcnum[i] > childnum) {   /* cursor is right of the split so just increment the cursor childnum */
+            cursor->pathcnum[i] += 1;
             return;
         } 
-        if (i == cursor->path_len-1 && (cursor->op == DB_PREV || cursor->op == DB_LAST)) {
+        if (i == cursor->path_len-1 && (cursor->op == DB_PREV || cursor->op == DB_LAST)) { /* explain this, batman */
             goto setnewchild;
         }
-        if (i+1 < cursor->path_len) {
+        if (i+1 < cursor->path_len) {           /* the cursor path traversed the old child so update it if it traverses the right child */
             assert(cursor->path[i+1] == left || cursor->path[i+1] == right);
             if (cursor->path[i+1] == right) {
-                goto setnewchild;
+            setnewchild:
+                oldchildnum = cursor->pathcnum[i];
+                newchildnum = oldchildnum + 1;
+                brt_node_remove_cursor(node, oldchildnum, cursor);
+                brt_node_add_cursor(node, newchildnum, cursor);
+                cursor->pathcnum[i] = newchildnum;
+                return;
             }
         } 
     }
