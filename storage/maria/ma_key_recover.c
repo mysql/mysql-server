@@ -812,8 +812,8 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       break;
     }
     case KEY_OP_CHECK:                          /* 8 */
-#ifdef EXTRA_DEBUG_KEY_CHANGES
     {
+#ifdef EXTRA_DEBUG_KEY_CHANGES
       uint check_page_length;
       ha_checksum crc;
       check_page_length= uint2korr(header);
