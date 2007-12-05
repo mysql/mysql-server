@@ -32,7 +32,7 @@ static void make_db (void) {
     r=tid->commit(tid, 0);    assert(r==0);
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
     
-    for (i=0; i<10; i++) {
+    for (i=0; i<20000; i++) {
 	char hello[30], there[30];
 	DBT key,data;
 	snprintf(hello, sizeof(hello), "hello%ld.%d", random(), i);
