@@ -749,6 +749,7 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
         return ENOMEM;
     memset(result, 0, sizeof *result);
     result->c_get = toku_c_get;
+    result->c_pget = toku_c_pget;
     result->c_close = toku_c_close;
     result->c_del = toku_c_del;
     MALLOC(result->i);
