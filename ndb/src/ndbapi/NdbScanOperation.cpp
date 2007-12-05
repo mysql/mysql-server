@@ -849,6 +849,10 @@ NdbScanOperation::doSendScan(int aProcessorId)
   // sending it. This could not be done in openScan because 
   // we created the ATTRINFO signals after the SCAN_TABREQ signal.
   ScanTabReq * const req = CAST_PTR(ScanTabReq, tSignal->getDataPtrSend());
+  if (unlikely(theTotalCurrAI_Len > ScanTabReq::MaxTotalAttrInfo)) {
+    setErrorCode(4257);
+    return -1;
+  }
   req->attrLenKeyLen = (tupKeyLen << 16) | theTotalCurrAI_Len;
   Uint32 tmp = req->requestInfo;
   ScanTabReq::setDistributionKeyFlag(tmp, theDistrKeyIndicator_);

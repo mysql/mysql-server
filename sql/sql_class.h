@@ -159,7 +159,13 @@ typedef struct st_log_info
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   pthread_mutex_t lock;
-  st_log_info():fatal(0) { pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);}
+  st_log_info()
+    : index_file_offset(0), index_file_start_offset(0),
+      pos(0), fatal(0)
+  {
+    log_file_name[0] = '\0';
+    pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);
+  }
   ~st_log_info() { pthread_mutex_destroy(&lock);}
 } LOG_INFO;
 
@@ -1368,9 +1374,20 @@ public:
 
   ulonglong  limit_found_rows;
   ulonglong  options;           /* Bitmap of states */
-  longlong   row_count_func;	/* For the ROW_COUNT() function */
-  ha_rows    cuted_fields,
-             sent_row_count, examined_row_count;
+  longlong   row_count_func;    /* For the ROW_COUNT() function */
+  ha_rows    cuted_fields;
+
+  /*
+    number of rows we actually sent to the client, including "synthetic"
+    rows in ROLLUP etc.
+  */
+  ha_rows    sent_row_count;
+
+  /*
+    number of rows we read, sent or not, including in create_sort_index()
+  */
+  ha_rows    examined_row_count;
+
   /*
     The set of those tables whose fields are referenced in all subqueries
     of the query.
@@ -1403,7 +1420,11 @@ public:
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
-  ulong      row_count;  // Row counter, mainly for errors and warnings
+  /*
+    Row counter, mainly for errors and warnings. Not increased in
+    create_sort_index(); may differ from examined_row_count.
+  */
+  ulong      row_count;
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     tmp_table, global_read_lock;
@@ -1992,12 +2013,19 @@ public:
 class select_export :public select_to_file {
   uint field_term_length;
   int field_sep_char,escape_char,line_sep_char;
+  int field_term_char; // first char of FIELDS TERMINATED BY or MAX_INT
   /*
     The is_ambiguous_field_sep field is true if a value of the field_sep_char
     field is one of the 'n', 't', 'r' etc characters
     (see the READ_INFO::unescape method and the ESCAPE_CHARS constant value).
   */
   bool is_ambiguous_field_sep;
+  /*
+     The is_ambiguous_field_term is true if field_sep_char contains the first
+     char of the FIELDS TERMINATED BY (ENCLOSED BY is empty), and items can
+     contain this character.
+  */
+  bool is_ambiguous_field_term;
   /*
     The is_unsafe_field_sep field is true if a value of the field_sep_char
     field is one of the '0'..'9', '+', '-', '.' and 'e' characters
@@ -2029,7 +2057,7 @@ class select_insert :public select_result_interceptor {
   ulonglong last_insert_id;
   COPY_INFO info;
   bool insert_into_view;
-
+  bool is_bulk_insert_mode;
   select_insert(TABLE_LIST *table_list_par,
 		TABLE *table_par, List<Item> *fields_par,
 		List<Item> *update_fields, List<Item> *update_values,
@@ -2350,6 +2378,11 @@ class multi_delete :public select_result_interceptor
   /* True if at least one table we delete from is not transactional */
   bool normal_tables;
   bool delete_while_scanning;
+  /*
+     error handling (rollback and binlogging) can happen in send_eof()
+     so that afterward send_error() needs to find out that.
+  */
+  bool error_handled;
 
 public:
   multi_delete(TABLE_LIST *dt, uint num_of_tables);
@@ -2385,6 +2418,11 @@ class multi_update :public select_result_interceptor
   /* True if the update operation has made a change in a transactional table */
   bool transactional_tables;
   bool ignore;
+  /* 
+     error handling (rollback and binlogging) can happen in send_eof()
+     so that afterward send_error() needs to find out that.
+  */
+  bool error_handled;
 
 public:
   multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,

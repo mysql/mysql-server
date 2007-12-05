@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.52)
+AM_INIT_AUTOMAKE(mysql, 5.0.54)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -23,7 +23,7 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=52
+NDB_VERSION_BUILD=54
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -124,6 +124,8 @@ case $MACHINE_TYPE in
 esac
 
 # Save some variables and the command line options for mysqlbug
+SAVE_CC="$CC"
+SAVE_CXX="$CXX"
 SAVE_ASFLAGS="$ASFLAGS"
 SAVE_CFLAGS="$CFLAGS"
 SAVE_CXXFLAGS="$CXXFLAGS"
@@ -131,6 +133,8 @@ SAVE_LDFLAGS="$LDFLAGS"
 SAVE_CXXLDFLAGS="$CXXLDFLAGS"
 CONF_COMMAND="$0 $ac_configure_args"
 AC_SUBST(CONF_COMMAND)
+AC_SUBST(SAVE_CC)
+AC_SUBST(SAVE_CXX)
 AC_SUBST(SAVE_ASFLAGS)
 AC_SUBST(SAVE_CFLAGS)
 AC_SUBST(SAVE_CXXFLAGS)
@@ -373,6 +377,7 @@ AC_SUBST(CC)
 AC_SUBST(CFLAGS)
 AC_SUBST(CXX)
 AC_SUBST(CXXFLAGS)
+AC_SUBST(ASFLAGS)
 AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
 
@@ -631,7 +636,7 @@ AC_SUBST(NOINST_LDFLAGS)
 
 if test "$TARGET_LINUX" = "true" -a "$static_nss" = ""
 then
-  tmp=`nm /usr/lib/libc.a  | grep _nss_files_getaliasent_r`
+  tmp=`nm /usr/lib*/libc.a  | grep _nss_files_getaliasent_r`
   if test -n "$tmp"
   then
      STATIC_NSS_FLAGS="-lc -lnss_files -lnss_dns -lresolv"

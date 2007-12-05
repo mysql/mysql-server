@@ -149,13 +149,19 @@ SUFFIXES = .sh
 	  -e 's!@''CC''@!@CC@!'\
 	  -e 's!@''CXX''@!@CXX@!'\
 	  -e 's!@''GXX''@!@GXX@!'\
+	  -e 's!@''SAVE_CC''@!@SAVE_CC@!'\
+	  -e 's!@''SAVE_CXX''@!@SAVE_CXX@!'\
 	  -e 's!@''CC_VERSION''@!@CC_VERSION@!'\
 	  -e 's!@''CXX_VERSION''@!@CXX_VERSION@!'\
 	  -e 's!@''PERL''@!@PERL@!' \
-	  -e 's!@''ASFLAGS''@!@SAVE_ASFLAGS@!'\
-	  -e 's!@''CFLAGS''@!@SAVE_CFLAGS@!'\
-	  -e 's!@''CXXFLAGS''@!@SAVE_CXXFLAGS@!'\
-	  -e 's!@''LDFLAGS''@!@SAVE_LDFLAGS@!'\
+	  -e 's!@''SAVE_ASFLAGS''@!@SAVE_ASFLAGS@!'\
+	  -e 's!@''SAVE_CFLAGS''@!@SAVE_CFLAGS@!'\
+	  -e 's!@''SAVE_CXXFLAGS''@!@SAVE_CXXFLAGS@!'\
+	  -e 's!@''SAVE_LDFLAGS''@!@SAVE_LDFLAGS@!'\
+	  -e 's!@''ASFLAGS''@!@ASFLAGS@!'\
+	  -e 's!@''CFLAGS''@!@CFLAGS@!'\
+	  -e 's!@''CXXFLAGS''@!@CXXFLAGS@!'\
+	  -e 's!@''LDFLAGS''@!@LDFLAGS@!'\
 	  -e 's!@''CLIENT_LIBS''@!@CLIENT_LIBS@!' \
 	  -e 's!@''ZLIB_LIBS''@!@ZLIB_LIBS@!' \
 	  -e 's!@''LIBS''@!@LIBS@!' \

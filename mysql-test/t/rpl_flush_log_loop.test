@@ -3,6 +3,9 @@
 
 source include/master-slave.inc;
 
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show variables like 'relay_log%';
+
 connection slave;
 stop slave;
 --replace_result $MASTER_MYPORT MASTER_PORT

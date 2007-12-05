@@ -1380,7 +1380,11 @@ longlong Item_func_int_div::val_int()
 
 void Item_func_int_div::fix_length_and_dec()
 {
-  max_length=args[0]->max_length - args[0]->decimals;
+  Item_result argtype= args[0]->result_type();
+  /* use precision ony for the data type it is applicable for and valid */
+  max_length=args[0]->max_length -
+    (argtype == DECIMAL_RESULT || argtype == INT_RESULT ?
+     args[0]->decimals : 0);
   maybe_null=1;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
 }
@@ -1999,6 +2003,7 @@ void Item_func_round::fix_length_and_dec()
   case DECIMAL_RESULT:
   {
     hybrid_type= DECIMAL_RESULT;
+    decimals_to_set= min(DECIMAL_MAX_SCALE, decimals_to_set);
     int decimals_delta= args[0]->decimals - decimals_to_set;
     int precision= args[0]->decimal_precision();
     int length_increase= ((decimals_delta <= 0) || truncate) ? 0:1;
@@ -2105,7 +2110,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   longlong dec= args[1]->val_int();
   if (dec > 0 || (dec < 0 && args[1]->unsigned_flag))
   {
-    dec= min((ulonglong) dec, DECIMAL_MAX_SCALE);
+    dec= min((ulonglong) dec, decimals);
     decimals= (uint8) dec; // to get correct output
   }
   else if (dec < INT_MIN)
@@ -2243,6 +2248,7 @@ void Item_func_min_max::fix_length_and_dec()
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length(max_int_part+decimals, decimals,
                                             unsigned_flag);
+  cached_field_type= agg_field_type(args, arg_count);
 }
 
 
@@ -4939,13 +4945,44 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return TRUE;
   }
-  table=((Item_field *)item)->field->table;
+  /*
+    With prepared statements Item_func_match::fix_fields is called twice.
+    When it is called first time we have original item tree here and add
+    conversion layer for character sets that do not have ctype array a few
+    lines below. When it is called second time, we already have conversion
+    layer in item tree.
+  */
+  table= (item->type() == Item::FIELD_ITEM) ?
+         ((Item_field *)item)->field->table :
+         ((Item_field *)((Item_func_conv *)item)->key_item())->field->table;
   if (!(table->file->table_flags() & HA_CAN_FULLTEXT))
   {
     my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
     return 1;
   }
   table->fulltext_searched=1;
+  /* A workaround for ucs2 character set */
+  if (!args[1]->collation.collation->ctype)
+  {
+    CHARSET_INFO *compatible_cs=
+      get_compatible_charset_with_ctype(args[1]->collation.collation);
+    bool rc= 1;
+    if (compatible_cs)
+    {
+      Item_string *conv_item= new Item_string("", 0, compatible_cs,
+                                              DERIVATION_EXPLICIT);
+      item= args[0];
+      args[0]= conv_item;
+      rc= agg_item_charsets(cmp_collation, func_name(), args, arg_count,
+                            MY_COLL_ALLOW_SUPERSET_CONV |
+                            MY_COLL_ALLOW_COERCIBLE_CONV |
+                            MY_COLL_DISALLOW_NONE, 1);
+      args[0]= item;
+    }
+    else
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "MATCH");
+    return rc;
+  }
   return agg_arg_collations_for_comparison(cmp_collation,
                                            args+1, arg_count-1, 0);
 }

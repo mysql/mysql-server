@@ -188,7 +188,7 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
 
   do
   {
-    for (;; doc+= mbl)
+    for (;; doc+= (mbl ? mbl : 1))
     {
       if (doc >= end) DBUG_RETURN(0);
       if (true_word_char(cs, *doc)) break;

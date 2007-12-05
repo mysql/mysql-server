@@ -691,6 +691,8 @@ extern WF_PACK *wf_comp(my_string str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);
 extern size_s strip_sp(my_string str);
+extern my_bool array_append_string_unique(const char *str,
+                                          const char **array, size_t size);
 extern void get_date(my_string to,int timeflag,time_t use_time);
 extern void soundex(CHARSET_INFO *, my_string out_pntr, my_string in_pntr,pbool remove_garbage);
 extern int init_record_cache(RECORD_CACHE *info,uint cachesize,File file,
@@ -881,6 +883,8 @@ extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
 extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 					   uint cs_flags, myf my_flags);
+extern CHARSET_INFO *get_compatible_charset_with_ctype(CHARSET_INFO
+                                                       *original_cs);
 extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);

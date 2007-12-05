@@ -1088,4 +1088,33 @@ select column_default from information_schema.columns where table_name= 't1';
 show columns from t1;
 drop table t1;
 
+#
+# Bug#31633 Information schema = NULL queries crash the server
+#
+select * from information_schema.columns where table_schema = NULL;
+select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_NAME` = NULL;
+select * from information_schema.schemata where schema_name = NULL;
+select * from `information_schema`.`STATISTICS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`STATISTICS` where `TABLE_NAME` = NULL;
+select * from information_schema.tables where table_schema = NULL;
+select * from information_schema.tables where table_catalog = NULL;
+select * from information_schema.tables where table_name = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_SCHEMA` = NULL;
+select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_TABLE` = NULL;
+select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
+
 --echo End of 5.0 tests.
+
+#
+# Bug#30079 A check for "hidden" I_S tables is flawed
+#
+--error 1109
+show fields from information_schema.table_names;
+--error 1109
+show keys from information_schema.table_names;
+

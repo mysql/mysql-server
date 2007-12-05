@@ -387,4 +387,12 @@ ALTER TABLE t1 DISABLE KEYS;
 SELECT * FROM t1 WHERE MATCH(a) AGAINST('test');
 DROP TABLE t1;
 
+#
+# BUG#11392 - fulltext search bug
+#
+CREATE TABLE t1(a TEXT);
+INSERT INTO t1 VALUES(' aaaaa aaaa');
+SELECT * FROM t1 WHERE MATCH(a) AGAINST ('"aaaa"' IN BOOLEAN MODE);
+DROP TABLE t1;
+
 # End of 4.1 tests

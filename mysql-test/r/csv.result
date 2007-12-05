@@ -5029,4 +5029,46 @@ F7	÷	DIVISION SIGN
 FE	þ	LATIN SMALL LETTER THORN
 FF	ÿ	LATIN SMALL LETTER Y WITH DIAERESIS
 drop table t1;
+create table t1(a datetime) engine=csv;
+insert into t1 values();
+select * from t1;
+a
+0000-00-00 00:00:00
+drop table t1;
+create table t1(a set('foo','bar')) engine=csv;
+insert into t1 values();
+select * from t1;
+a
+
+drop table t1;
+create table t1(a varchar(32)) engine=csv;
+insert into t1 values();
+select * from t1;
+a
+
+drop table t1;
+create table t1(a int) engine=csv;
+insert into t1 values();
+select * from t1;
+a
+0
+drop table t1;
+create table t1(a blob) engine=csv;
+insert into t1 values();
+select * from t1;
+a
+
+drop table t1;
+create table t1(a bit(1)) engine=csv;
+insert into t1 values();
+select BIN(a) from t1;
+BIN(a)
+0
+drop table t1;
+create table t1(a enum('foo','bar') default 'foo') engine=csv;
+insert into t1 values();
+select * from t1;
+a
+foo
+drop table t1;
 End of 5.0 tests

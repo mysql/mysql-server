@@ -35,8 +35,9 @@ eval select table_name, index_schema, index_name, index_type
  where table_schema like '$dbname%';
 
 --replace_result $SERVER_NAME <SERVER_NAME>
+--sorted_result
 eval select *
-  from information_schema.user_privileges order by grantee, privilege_type;
+  from information_schema.user_privileges;
 # where grantee="'u_6_401013'@'%'";
 
 eval select *

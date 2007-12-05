@@ -1338,9 +1338,23 @@ ha_ndbcluster_cond::generate_scan_filter(NdbScanOperation *op)
 
   if (m_cond_stack)
   {
-    NdbScanFilter filter(op);
+    NdbScanFilter filter(op, false); // don't abort on too large
     
-    DBUG_RETURN(generate_scan_filter_from_cond(filter));
+    int ret=generate_scan_filter_from_cond(filter);
+    if (ret != 0)
+    {
+      const NdbError& err=filter.getNdbError();
+      if (err.code == NdbScanFilter::FilterTooLarge)
+      {
+        // err.message has static storage
+        DBUG_PRINT("info", ("%s", err.message));
+        push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     err.code, err.message);
+        ret=0;
+      }
+    }
+    if (ret != 0)
+      DBUG_RETURN(ret);
   }
   else
   {  
@@ -1391,7 +1405,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbScanOperation *op,
 {
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
-  NdbScanFilter filter(op);
+  NdbScanFilter filter(op, true); // abort on too large
   int res;
   DBUG_ENTER("generate_scan_filter_from_key");
 
