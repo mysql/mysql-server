@@ -139,7 +139,7 @@ show global variables like 'net_%';
 show session variables like 'net_%';
 set net_buffer_length=1;
 show variables like 'net_buffer_length';
---warning 1292
+#warning 1292
 set net_buffer_length=2000000000;
 show variables like 'net_buffer_length';
 
@@ -536,7 +536,14 @@ set @test = @@query_prealloc_size;
 set @@query_prealloc_size = @test;
 select @@query_prealloc_size = @test;
 
-# End of 4.1 tests
+#
+# Bug#31588 buffer overrun when setting variables
+#
+# Buffer-size Off By One. Should throw valgrind-warning without fix #31588.
+--error 1231
+set global sql_mode=repeat('a',80);
+
+--echo End of 4.1 tests
 
 #
 # Bug#6282 Packet error with SELECT INTO
@@ -674,6 +681,20 @@ select @@hostname;
 set @@hostname= "anothername";
 --replace_column 2 #
 show variables like 'hostname';
+
+#
+# Bug #29131: SHOW VARIABLES reports variable 'log' but SET doesn't recognize it
+#
+
+SHOW VARIABLES LIKE 'log';
+SELECT @@log;
+--error 1238
+SET GLOBAL log=0;
+
+SHOW VARIABLES LIKE 'log_slow_queries';
+SELECT @@log_slow_queries;
+--error 1238
+SET GLOBAL log_slow_queries=0;
 
 --echo End of 5.0 tests
 

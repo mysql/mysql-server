@@ -1,6 +1,6 @@
 /* signals.c -- signal handling support for readline. */
 
-/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -21,7 +21,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <stdio.h>		/* Just for NULL.  Yuck. */
 #include <sys/types.h>
@@ -129,7 +131,11 @@ rl_signal_handler (sig)
 #if !defined (HAVE_BSD_SIGNALS) && !defined (HAVE_POSIX_SIGNALS)
   /* Since the signal will not be blocked while we are in the signal
      handler, ignore it until rl_clear_signals resets the catcher. */
+#  if defined (SIGALRM)
   if (sig == SIGINT || sig == SIGALRM)
+#  else
+  if (sig == SIGINT)
+#  endif
     rl_set_sighandler (sig, SIG_IGN, &dummy_cxt);
 #endif /* !HAVE_BSD_SIGNALS && !HAVE_POSIX_SIGNALS */
 
@@ -139,17 +145,22 @@ rl_signal_handler (sig)
       rl_free_line_state ();
       /* FALLTHROUGH */
 
+    case SIGTERM:
 #if defined (SIGTSTP)
     case SIGTSTP:
     case SIGTTOU:
     case SIGTTIN:
 #endif /* SIGTSTP */
+#if defined (SIGALRM)
     case SIGALRM:
-    case SIGTERM:
+#endif
+#if defined (SIGQUIT)
     case SIGQUIT:
+#endif
       rl_cleanup_after_signal ();
 
 #if defined (HAVE_POSIX_SIGNALS)
+      sigemptyset (&set);
       sigprocmask (SIG_BLOCK, (sigset_t *)NULL, &set);
       sigdelset (&set, sig);
 #else /* !HAVE_POSIX_SIGNALS */
@@ -162,7 +173,11 @@ rl_signal_handler (sig)
       signal (sig, SIG_ACK);
 #endif
 
+#if defined (HAVE_KILL)
       kill (getpid (), sig);
+#else
+      raise (sig);		/* assume we have raise */
+#endif
 
       /* Let the signal that we just sent through.  */
 #if defined (HAVE_POSIX_SIGNALS)
@@ -274,13 +289,51 @@ rl_set_signals ()
 {
   sighandler_cxt dummy;
   SigHandler *oh;
+#if defined (HAVE_POSIX_SIGNALS)
+  static int sigmask_set = 0;
+  static sigset_t bset, oset;
+#endif
+
+#if defined (HAVE_POSIX_SIGNALS)
+  if (rl_catch_signals && sigmask_set == 0)
+    {
+      sigemptyset (&bset);
+
+      sigaddset (&bset, SIGINT);
+      sigaddset (&bset, SIGINT);
+#if defined (SIGQUIT)
+      sigaddset (&bset, SIGQUIT);
+#endif
+#if defined (SIGALRM)
+      sigaddset (&bset, SIGALRM);
+#endif
+#if defined (SIGTSTP)
+      sigaddset (&bset, SIGTSTP);
+#endif
+#if defined (SIGTTIN)
+      sigaddset (&bset, SIGTTIN);
+#endif
+#if defined (SIGTTOU)
+      sigaddset (&bset, SIGTTOU);
+#endif
+      sigmask_set = 1;
+    }      
+#endif /* HAVE_POSIX_SIGNALS */
 
   if (rl_catch_signals && signals_set_flag == 0)
     {
+#if defined (HAVE_POSIX_SIGNALS)
+      sigemptyset (&oset);
+      sigprocmask (SIG_BLOCK, &bset, &oset);
+#endif
+
       rl_maybe_set_sighandler (SIGINT, rl_signal_handler, &old_int);
       rl_maybe_set_sighandler (SIGTERM, rl_signal_handler, &old_term);
+#if defined (SIGQUIT)
       rl_maybe_set_sighandler (SIGQUIT, rl_signal_handler, &old_quit);
+#endif
 
+#if defined (SIGALRM)
       oh = rl_set_sighandler (SIGALRM, rl_signal_handler, &old_alrm);
       if (oh == (SigHandler *)SIG_IGN)
 	rl_sigaction (SIGALRM, &old_alrm, &dummy);
@@ -292,6 +345,7 @@ rl_set_signals ()
       if (oh != (SigHandler *)SIG_DFL && (old_alrm.sa_flags & SA_RESTART))
 	rl_sigaction (SIGALRM, &old_alrm, &dummy);
 #endif /* HAVE_POSIX_SIGNALS */
+#endif /* SIGALRM */
 
 #if defined (SIGTSTP)
       rl_maybe_set_sighandler (SIGTSTP, rl_signal_handler, &old_tstp);
@@ -306,6 +360,10 @@ rl_set_signals ()
 #endif /* SIGTTIN */
 
       signals_set_flag = 1;
+
+#if defined (HAVE_POSIX_SIGNALS)
+      sigprocmask (SIG_SETMASK, &oset, (sigset_t *)NULL);
+#endif
     }
 
 #if defined (SIGWINCH)
@@ -330,8 +388,12 @@ rl_clear_signals ()
 
       rl_sigaction (SIGINT, &old_int, &dummy);
       rl_sigaction (SIGTERM, &old_term, &dummy);
+#if defined (SIGQUIT)
       rl_sigaction (SIGQUIT, &old_quit, &dummy);
+#endif
+#if defined (SIGALRM)
       rl_sigaction (SIGALRM, &old_alrm, &dummy);
+#endif
 
 #if defined (SIGTSTP)
       rl_sigaction (SIGTSTP, &old_tstp, &dummy);
@@ -366,16 +428,18 @@ void
 rl_cleanup_after_signal ()
 {
   _rl_clean_up_for_exit ();
-  (*rl_deprep_term_function) ();
-  rl_clear_signals ();
+  if (rl_deprep_term_function)
+    (*rl_deprep_term_function) ();
   rl_clear_pending_input ();
+  rl_clear_signals ();
 }
 
 /* Reset the terminal and readline state after a signal handler returns. */
 void
 rl_reset_after_signal ()
 {
-  (*rl_prep_term_function) (_rl_meta_flag);
+  if (rl_prep_term_function)
+    (*rl_prep_term_function) (_rl_meta_flag);
   rl_set_signals ();
 }
 
@@ -396,7 +460,7 @@ rl_free_line_state ()
 
   _rl_kill_kbd_macro ();
   rl_clear_message ();
-  _rl_init_argument ();
+  _rl_reset_argument ();
 }
 
 #endif  /* HANDLE_SIGNALS */

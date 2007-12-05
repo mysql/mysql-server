@@ -1,6 +1,6 @@
 # Initialise
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1, t2;
 --enable_warnings
 
 #
@@ -231,4 +231,27 @@ drop table bug19145a;
 drop table bug19145b;
 drop table bug19145c;
 
-# End of 4.1 tests
+--echo # End of 4.1 tests
+
+--echo #
+--echo # Bug #31471: decimal_bin_size: Assertion `scale >= 0 &&
+--echo #             precision > 0 && scale <= precision'
+--echo #
+
+CREATE TABLE t1 (a DECIMAL (1, 0) ZEROFILL, b DECIMAL (1, 0) ZEROFILL);
+INSERT INTO t1 (a, b) VALUES (0, 0);
+
+CREATE TABLE t2 SELECT IFNULL(a, b) FROM t1;
+DESCRIBE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 SELECT IFNULL(a, NULL) FROM t1;
+DESCRIBE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 SELECT IFNULL(NULL, b) FROM t1;
+DESCRIBE t2;
+
+DROP TABLE t1, t2;
+
+--echo # End of 5.0 tests

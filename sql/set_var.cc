@@ -201,6 +201,7 @@ sys_var_key_cache_long  sys_key_cache_age_threshold("key_cache_age_threshold",
 							      param_age_threshold));
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
+sys_var_bool_const_ptr sys_log("log", &opt_log);
 sys_var_trust_routine_creators
 sys_trust_routine_creators("log_bin_trust_routine_creators",
                            &trust_function_creators);
@@ -213,6 +214,7 @@ sys_var_bool_ptr
 sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
 sys_var_thd_ulong	sys_long_query_time("long_query_time",
 					     &SV::long_query_time);
+sys_var_bool_const_ptr sys_log_slow("log_slow_queries", &opt_slow_log);
 sys_var_thd_bool	sys_low_priority_updates("low_priority_updates",
 						 &SV::low_priority_updates,
 						 fix_low_priority_updates);
@@ -665,9 +667,11 @@ sys_var *sys_variables[]=
   &sys_lc_time_names,
   &sys_license,
   &sys_local_infile,
+  &sys_log,
   &sys_log_binlog,
   &sys_log_off,
   &sys_log_queries_not_using_indexes,
+  &sys_log_slow,
   &sys_log_update,
   &sys_log_warnings,
   &sys_long_query_time,
@@ -946,7 +950,7 @@ struct show_var_st init_vars[]= {
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
 #endif
-  {"log",                     (char*) &opt_log,                     SHOW_BOOL},
+  {sys_log.name,              (char*) &sys_log,                     SHOW_SYS},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
   {sys_trust_function_creators.name,(char*) &sys_trust_function_creators, SHOW_SYS},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
@@ -955,7 +959,7 @@ struct show_var_st init_vars[]= {
 #ifdef HAVE_REPLICATION
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
 #endif
-  {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
+  {sys_log_slow.name,         (char*) &sys_log_slow,                SHOW_SYS},
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
@@ -1040,6 +1044,9 @@ struct show_var_st init_vars[]= {
   {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
 #ifdef HAVE_REPLICATION
+  {"relay_log" , (char*) &opt_relay_logname, SHOW_CHAR_PTR},
+  {"relay_log_index", (char*) &opt_relaylog_index_name, SHOW_CHAR_PTR},
+  {"relay_log_info_file", (char*) &relay_log_info_file, SHOW_CHAR_PTR},
   {sys_relay_log_purge.name,  (char*) &sys_relay_log_purge,         SHOW_SYS},
   {"relay_log_space_limit",  (char*) &relay_log_space_limit,        SHOW_LONGLONG},
 #endif
@@ -1764,7 +1771,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 					    &not_used));
     if (error_len)
     {
-      strmake(buff, error, min(sizeof(buff), error_len));
+      strmake(buff, error, min(sizeof(buff) - 1, error_len));
       goto err;
     }
   }

@@ -565,11 +565,12 @@ JOIN::prepare(Item ***rref_pointer_array,
   
 
   /*
-    Check if one one uses a not constant column with group functions
-    and no GROUP BY.
+    Check if there are references to un-aggregated columns when computing 
+    aggregate functions with implicit grouping (there is no GROUP BY).
     TODO:  Add check of calculation of GROUP functions and fields:
 	   SELECT COUNT(*)+table.col1 from table1;
   */
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
   {
     if (!group_list)
     {
@@ -582,6 +583,13 @@ JOIN::prepare(Item ***rref_pointer_array,
 	  flag|=1;
 	else if (!(flag & 2) && !item->const_during_execution())
 	  flag|=2;
+      }
+      if (having)
+      {
+        if (having->with_sum_func)
+          flag |= 1;
+        else if (!having->const_during_execution())
+          flag |= 2;
       }
       if (flag == 3)
       {
@@ -1057,10 +1065,19 @@ JOIN::optimize()
         We have found that grouping can be removed since groups correspond to
         only one row anyway, but we still have to guarantee correct result
         order. The line below effectively rewrites the query from GROUP BY
-        <fields> to ORDER BY <fields>. One exception is if skip_sort_order is
-        set (see above), then we can simply skip GROUP BY.
+        <fields> to ORDER BY <fields>. There are two exceptions:
+        - if skip_sort_order is set (see above), then we can simply skip
+          GROUP BY;
+        - we can only rewrite ORDER BY if the ORDER BY fields are 'compatible'
+          with the GROUP BY ones, i.e. either one is a prefix of another.
+          We only check if the ORDER BY is a prefix of GROUP BY. In this case
+          test_if_subpart() copies the ASC/DESC attributes from the original
+          ORDER BY fields.
+          If GROUP BY is a prefix of ORDER BY, then it is safe to leave
+          'order' as is.
        */
-      order= skip_sort_order ? 0 : group_list;
+      if (!order || test_if_subpart(group_list, order))
+          order= skip_sort_order ? 0 : group_list;
       group_list= 0;
       group= 0;
     }
@@ -5927,7 +5944,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
-	      join->best_positions[i].records_read= sel->quick->records;
+	      join->best_positions[i].records_read= (double)sel->quick->records;
 	  }
 	  else
 	  {
@@ -6083,10 +6100,9 @@ make_join_readinfo(JOIN *join, ulonglong options)
       ordered. If there is a temp table the ordering is done as a last
       operation and doesn't prevent join cache usage.
     */
-    if (!ordered_set && !join->need_tmp &&
-        ((table == join->sort_by_table &&
-         (!join->order || join->skip_sort_order)) ||
-        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables)))
+    if (!ordered_set && !join->need_tmp && 
+        (table == join->sort_by_table ||
+         (join->sort_by_table == (TABLE *) 1 && i != join->const_tables)))
       ordered_set= 1;
 
     switch (tab->type) {
@@ -10385,6 +10401,15 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       error= (*end_select)(join,join_tab,0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)
 	error= (*end_select)(join,join_tab,1);
+
+      /*
+        If we don't go through evaluate_join_record(), do the counting
+        here.  join->send_records is increased on success in end_send(),
+        so we don't touch it here.
+      */
+      join->examined_rows++;
+      join->thd->row_count++;
+      DBUG_ASSERT(join->examined_rows <= 1);
     }
     else if (join->send_row_on_empty_set())
     {
@@ -14395,6 +14420,9 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  item_field= (Item*) new Item_field(field);
 	if (!item_field)
 	  DBUG_RETURN(TRUE);                    // Fatal error
+
+        if (item->real_item()->type() != Item::FIELD_ITEM)
+          field->orig_table= 0;
 	item_field->name= item->name;
         if (item->type() == Item::REF_ITEM)
         {
@@ -15534,6 +15562,55 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
 }
 
 
+/**
+  @brief Print an index hint for a table
+
+  @details Prints out the USE|FORCE|IGNORE index hints for a table.
+
+  @param      thd         the current thread
+  @param[out] str         appends the index hint here
+  @param      hint        what the hint is (as string : "USE INDEX"|
+                          "FORCE INDEX"|"IGNORE INDEX")
+  @param      hint_length the length of the string in 'hint'
+  @param      indexes     a list of index names for the hint
+*/
+
+void 
+TABLE_LIST::print_index_hint(THD *thd, String *str, 
+                                const char *hint, uint32 hint_length,
+                                List<String> indexes)
+{
+  List_iterator_fast<String> li(indexes);
+  String *idx;
+  bool first= 1;
+  size_t find_length= strlen(primary_key_name);
+
+  str->append (' ');
+  str->append (hint, hint_length);
+  str->append (STRING_WITH_LEN(" ("));
+  while ((idx = li++))
+  {
+    if (first)
+      first= 0;
+    else
+      str->append(',');
+    /* 
+      It's safe to use ptr() here because we compare the length first
+      and we rely that my_strcasecmp will not access more than length()
+      chars from the string. See test_if_string_in_list() for similar
+      implementation.
+    */   
+    if (find_length == idx->length() &&
+        !my_strcasecmp (system_charset_info, primary_key_name, 
+                        idx->ptr()))
+      str->append(primary_key_name);
+    else
+      append_identifier (thd, str, idx->ptr(), idx->length());
+  }
+  str->append(')');
+}
+
+
 /*
   Print table as it should be in join list
 
@@ -15598,9 +15675,33 @@ void TABLE_LIST::print(THD *thd, String *str)
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias))
     {
+      char t_alias_buff[MAX_ALIAS_NAME];
+      const char *t_alias= alias;
+
       str->append(' ');
-      append_identifier(thd, str, alias, strlen(alias));
+      if (lower_case_table_names== 1)
+      {
+        if (alias && alias[0])
+        {
+          strmov(t_alias_buff, alias);
+          my_casedn_str(files_charset_info, t_alias_buff);
+          t_alias= t_alias_buff;
+        }
+      }
+
+      append_identifier(thd, str, t_alias, strlen(t_alias));
     }
+
+    if (use_index)
+    {
+      if (force_index)
+        print_index_hint(thd, str, STRING_WITH_LEN("FORCE INDEX"), *use_index);
+      else
+        print_index_hint(thd, str, STRING_WITH_LEN("USE INDEX"), *use_index);
+    }
+    if (ignore_index)
+      print_index_hint (thd, str, STRING_WITH_LEN("IGNORE INDEX"), *ignore_index);
+
   }
 }
 

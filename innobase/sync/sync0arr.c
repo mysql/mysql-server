@@ -40,7 +40,15 @@ because we can do with a very small number of OS events,
 say 200. In NT 3.51, allocating events seems to be a quadratic
 algorithm, because 10 000 events are created fast, but
 100 000 events takes a couple of minutes to create.
-*/
+
+As of 5.0.30 the above mentioned design is changed. Since now
+OS can handle millions of wait events efficiently, we no longer
+have this concept of each cell of wait array having one event.
+Instead, now the event that a thread wants to wait on is embedded
+in the wait object (mutex or rw_lock). We still keep the global
+wait array for the sake of diagnostics and also to avoid infinite
+wait The error_monitor thread scans the global wait array to signal
+any waiting threads who have missed the signal. */
 
 /* A cell where an individual thread may wait suspended
 until a resource is released. The suspending is implemented
@@ -62,6 +70,14 @@ struct sync_cell_struct {
 	ibool		waiting;	/* TRUE if the thread has already
 					called sync_array_event_wait
 					on this cell */
+	ib_longlong	signal_count;	/* We capture the signal_count
+					of the wait_object when we
+					reset the event. This value is
+					then passed on to os_event_wait
+					and we wait only if the event
+					has not been signalled in the
+					period between the reset and
+					wait call. */
 	time_t		reservation_time;/* time when the thread reserved
 					the wait cell */
 };
@@ -216,6 +232,7 @@ sync_array_create(
 		cell = sync_array_get_nth_cell(arr, i);        	
                 cell->wait_object = NULL;
 		cell->waiting = FALSE;
+		cell->signal_count = 0;
 	}
 
 	return(arr);
@@ -282,16 +299,23 @@ sync_array_validate(
 /***********************************************************************
 Puts the cell event in reset state. */
 static
-void
+ib_longlong
 sync_cell_event_reset(
 /*==================*/
+				/* out: value of signal_count
+				at the time of reset. */
 	ulint		type,	/* in: lock type mutex/rw_lock */
 	void*		object) /* in: the rw_lock/mutex object */
 {
 	if (type == SYNC_MUTEX) {
-		os_event_reset(((mutex_t *) object)->event);
+		return(os_event_reset(((mutex_t *) object)->event));
+#ifdef __WIN__
+	} else if (type == RW_LOCK_WAIT_EX) {
+		return(os_event_reset(
+		       ((rw_lock_t *) object)->wait_ex_event));
+#endif
 	} else {
-		os_event_reset(((rw_lock_t *) object)->event);
+		return(os_event_reset(((rw_lock_t *) object)->event));
 	}
 }		
 
@@ -345,8 +369,11 @@ sync_array_reserve_cell(
 
 			sync_array_exit(arr);
 
-			/* Make sure the event is reset */
-			sync_cell_event_reset(type, object);
+			/* Make sure the event is reset and also store
+			the value of signal_count at which the event
+			was reset. */
+			cell->signal_count = sync_cell_event_reset(type,
+								object);
 
 			cell->reservation_time = time(NULL);
 
@@ -388,7 +415,14 @@ sync_array_wait_event(
 
 	if (cell->request_type == SYNC_MUTEX) {
 		event = ((mutex_t*) cell->wait_object)->event;
-	} else {
+#ifdef __WIN__
+	/* On windows if the thread about to wait is the one which
+	has set the state of the rw_lock to RW_LOCK_WAIT_EX, then
+	it waits on a special event i.e.: wait_ex_event. */
+	} else if (cell->request_type == RW_LOCK_WAIT_EX) {
+		event = ((rw_lock_t*) cell->wait_object)->wait_ex_event;
+#endif
+	} else {	
 		event = ((rw_lock_t*) cell->wait_object)->event;
 	}
 
@@ -413,7 +447,7 @@ sync_array_wait_event(
 #endif
         sync_array_exit(arr);
 
-        os_event_wait(event);
+        os_event_wait_low(event, cell->signal_count);
 
         sync_array_free_cell(arr, index);
 }
@@ -457,7 +491,11 @@ sync_array_cell_print(
 #endif /* UNIV_SYNC_DEBUG */
 			(ulong) mutex->waiters);
 
-	} else if (type == RW_LOCK_EX || type == RW_LOCK_SHARED) {
+	} else if (type == RW_LOCK_EX
+#ifdef __WIN__
+		   || type == RW_LOCK_WAIT_EX
+#endif
+		   || type == RW_LOCK_SHARED) {
 
 		fputs(type == RW_LOCK_EX ? "X-lock on" : "S-lock on", file);
 
@@ -638,7 +676,8 @@ sync_array_detect_deadlock(
 
 		return(FALSE); /* No deadlock */
 
-	} else if (cell->request_type == RW_LOCK_EX) {
+	} else if (cell->request_type == RW_LOCK_EX
+		   || cell->request_type == RW_LOCK_WAIT_EX) {
 
 	    lock = cell->wait_object;
 
@@ -734,7 +773,8 @@ sync_arr_cell_can_wake_up(
 			return(TRUE);
 		}
 
-	} else if (cell->request_type == RW_LOCK_EX) {
+	} else if (cell->request_type == RW_LOCK_EX
+		   || cell->request_type == RW_LOCK_WAIT_EX) {
 
 	    	lock = cell->wait_object;
 
@@ -783,6 +823,7 @@ sync_array_free_cell(
 
 	cell->waiting = FALSE;
 	cell->wait_object =  NULL;
+	cell->signal_count = 0;
 
 	ut_a(arr->n_reserved > 0);
 	arr->n_reserved--;
@@ -839,6 +880,14 @@ sync_arr_wake_threads_if_sema_free(void)
 
 					mutex = cell->wait_object;
 					os_event_set(mutex->event);
+#ifdef __WIN__
+				} else if (cell->request_type
+					   == RW_LOCK_WAIT_EX) {
+					rw_lock_t*	lock;
+
+					lock = cell->wait_object;
+					os_event_set(lock->wait_ex_event);
+#endif
 				} else {
 					rw_lock_t*	lock;
 

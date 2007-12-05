@@ -339,8 +339,8 @@ static my_bool opt_sync_bdb_logs;
 
 /* Global variables */
 
-bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
-my_bool opt_log_queries_not_using_indexes= 0;
+bool opt_update_log, opt_bin_log;
+my_bool opt_log, opt_slow_log, opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_character_set_client_handshake= 1;
@@ -2862,7 +2862,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.collation_connection=  default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
 
   if (!(character_set_filesystem=
         get_charset_by_csname(character_set_filesystem_name,
@@ -6544,7 +6543,8 @@ static void mysql_init_variables(void)
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
-  opt_log= opt_update_log= opt_slow_log= 0;
+  opt_log= opt_slow_log= 0;
+  opt_update_log= 0;
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;

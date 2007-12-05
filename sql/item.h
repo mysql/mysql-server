@@ -870,6 +870,9 @@ public:
   */
   virtual bool result_as_longlong() { return FALSE; }
   bool is_datetime();
+  virtual Field::geometry_type get_geometry_type() const
+    { return Field::GEOM_GEOMETRY; };
+  String *check_well_formed_result(String *str, bool send_error= 0);
 };
 
 
@@ -1112,6 +1115,8 @@ public:
   Item_name_const(Item *name_arg, Item *val):
     value_item(val), name_item(name_arg)
   {
+    if(!value_item->basic_const_item())
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
     Item::maybe_null= TRUE;
   }
 
@@ -1335,7 +1340,7 @@ public:
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(byte *select_arg);
   void print(String *str);
-  Field::geometry_type get_geometry_type()
+  Field::geometry_type get_geometry_type() const
   {
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
     return field->get_geometry_type();
@@ -1579,7 +1584,7 @@ public:
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
-  Item *clone_item() { return new Item_uint(name,max_length); }
+  Item *clone_item() { return new Item_uint(name, value, max_length); }
   int save_in_field(Field *field, bool no_conversions);
   void print(String *str);
   Item_num *neg ();
@@ -1853,6 +1858,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
+  void print(String *str);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
@@ -2463,7 +2469,7 @@ public:
   };
   virtual void store(Item *)= 0;
   enum Type type() const { return CACHE_ITEM; }
-  static Item_cache* get_cache(Item_result type);
+  static Item_cache* get_cache(const Item *item);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
   // to prevent drop fixed flag (no need parent cleanup call)
@@ -2525,9 +2531,16 @@ class Item_cache_str: public Item_cache
 {
   char buffer[STRING_BUFFER_USUAL_SIZE];
   String *value, value_buff;
+  bool is_varbinary;
+  
 public:
-  Item_cache_str(): Item_cache(), value(0) { }
-
+  Item_cache_str(const Item *item) :
+    Item_cache(), value(0),
+    is_varbinary(item->type() == FIELD_ITEM &&
+                 ((const Item_field *) item)->field->type() ==
+                   MYSQL_TYPE_VARCHAR &&
+                 !((const Item_field *) item)->field->has_charset())
+  {}
   void store(Item *item);
   double val_real();
   longlong val_int();
@@ -2535,6 +2548,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };
+  int save_in_field(Field *field, bool no_conversions);
 };
 
 class Item_cache_row: public Item_cache
@@ -2637,7 +2651,7 @@ public:
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
-  Field::geometry_type get_geometry_type() { return geometry_type; };
+  Field::geometry_type get_geometry_type() const { return geometry_type; };
 };
 
 

@@ -410,7 +410,12 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   if (!initialized)
   {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+    if (opt_noacl)
+      my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
+               udf->name.str,
+               "UDFs are unavailable with the --skip-grant-tables option");
+    else
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -514,7 +519,10 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   DBUG_ENTER("mysql_drop_function");
   if (!initialized)
   {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+    if (opt_noacl)
+      my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), udf_name->str);
+    else
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     DBUG_RETURN(1);
   }
   rw_wrlock(&THR_LOCK_udf);  

@@ -4,8 +4,6 @@
 *.bb
 *.bbg
 *.bin
-*.vcproj.cmake
-cmake_install.cmake
 *.cdf
 *.core
 *.d
@@ -33,6 +31,7 @@ cmake_install.cmake
 *.spec
 *.user
 *.vcproj
+*.vcproj.cmake
 */*.dir/*
 */*_pure_*warnings
 */.deps
@@ -347,6 +346,7 @@ client/tmp.diff
 client_debug/*
 client_release/*
 client_test
+cmake_install.cmake
 cmd-line-utils/libedit/common.h
 cmd-line-utils/libedit/makelist
 comon.h
@@ -366,6 +366,9 @@ contrib/*.vcproj
 core
 core.*
 core.2430
+cscope.in.out
+cscope.out
+cscope.po.out
 db-*.*.*
 dbug/*.ds?
 dbug/*.vcproj
@@ -377,6 +380,8 @@ dbug/main.r
 dbug/output*.r
 dbug/user.ps
 dbug/user.t
+debian/control
+debian/defs.mk
 depcomp
 emacs.h
 examples/*.ds?
@@ -413,6 +418,7 @@ heap/hp_test2
 help
 help.c
 help.h
+include/abi_check
 include/check_abi
 include/my_config.h
 include/my_global.h
@@ -472,6 +478,7 @@ libmysql/release/libmysql.exp
 libmysql/vio_priv.h
 libmysql_r/*.c
 libmysql_r/acconfig.h
+libmysql_r/client_settings.h
 libmysql_r/conf_to_src
 libmysql_r/my_static.h
 libmysql_r/mysys_priv.h
@@ -1257,6 +1264,7 @@ support-files/mysql-3.23.29-gamma.spec
 support-files/mysql-log-rotate
 support-files/mysql.server
 support-files/mysql.spec
+support-files/mysqld_multi.server
 support-files/ndb-config-2-node.ini
 tags
 test/ndbapi/bank/bankCreator
@@ -1315,6 +1323,7 @@ test_xml
 tests/*.ds?
 tests/*.vcproj
 tests/.libs -prune
+tests/bug25714
 tests/client_test
 tests/connect_test
 tests/mysql_client_test
@@ -1342,11 +1351,3 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
-debian/control
-debian/defs.mk
-include/abi_check
-support-files/mysqld_multi.server
-tests/bug25714
-cscope.in.out
-cscope.out
-cscope.po.out

@@ -530,12 +530,16 @@ create table t1 (
   a varchar(255),
   key a(a)
 ) character set utf8 collate utf8_czech_ci;
--- In Czech 'ch' is a single letter between 'h' and 'i'
+# In Czech 'ch' is a single letter between 'h' and 'i'
 insert into t1 values
 ('b'),('c'),('d'),('e'),('f'),('g'),('h'),('ch'),('i'),('j');
 select * from t1 where a like 'c%';
 alter table t1 convert to character set ucs2 collate ucs2_czech_ci;
 select * from t1 where a like 'c%';
 drop table t1;
+
+set collation_connection=ucs2_unicode_ci;
+--source include/ctype_regex.inc
+set names utf8;
 
 -- echo End for 5.0 tests

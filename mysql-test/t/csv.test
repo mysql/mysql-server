@@ -1427,4 +1427,37 @@ insert into t1 values (0xFF,'LATIN SMALL LETTER Y WITH DIAERESIS');
 select hex(c), c, name from t1 order by 1;
 drop table t1;
 
+#
+# Bug #31473: does not work with NULL value in datetime field
+# This bug is a 5.1 but is here to prevent 5.0 regression.
+#
+create table t1(a datetime) engine=csv;
+insert into t1 values();
+select * from t1;
+drop table t1;
+create table t1(a set('foo','bar')) engine=csv;
+insert into t1 values();
+select * from t1;
+drop table t1;
+create table t1(a varchar(32)) engine=csv;
+insert into t1 values();
+select * from t1;
+drop table t1;
+create table t1(a int) engine=csv;
+insert into t1 values();
+select * from t1;
+drop table t1;
+create table t1(a blob) engine=csv;
+insert into t1 values();
+select * from t1;
+drop table t1;
+create table t1(a bit(1)) engine=csv;
+insert into t1 values();
+select BIN(a) from t1;
+drop table t1;
+create table t1(a enum('foo','bar') default 'foo') engine=csv;
+insert into t1 values();
+select * from t1;
+drop table t1;
+
 --echo End of 5.0 tests

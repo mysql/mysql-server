@@ -1717,7 +1717,7 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
     item->decimals= sel_item->decimals;
     item->unsigned_flag= sel_item->unsigned_flag;
     maybe_null= sel_item->maybe_null;
-    if (!(row[i]= Item_cache::get_cache(res_type)))
+    if (!(row[i]= Item_cache::get_cache(sel_item)))
       return;
     row[i]->setup(sel_item);
   }
@@ -2178,6 +2178,7 @@ int subselect_indexsubquery_engine::exec()
   ((Item_in_subselect *) item)->value= 0;
   empty_result_set= TRUE;
   null_keypart= 0;
+  table->status= 0;
 
   if (check_null)
   {
@@ -2189,6 +2190,16 @@ int subselect_indexsubquery_engine::exec()
   /* Copy the ref key and check for nulls... */
   if (copy_ref_key())
     DBUG_RETURN(1);
+
+  if (table->status)
+  {
+    /* 
+      We know that there will be no rows even if we scan. 
+      Can be set in copy_ref_key.
+    */
+    ((Item_in_subselect *) item)->value= 0;
+    DBUG_RETURN(0);
+  }
 
   if (null_keypart)
     DBUG_RETURN(scan_table());

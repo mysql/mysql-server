@@ -961,8 +961,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	  sql_field->length=		dup_field->char_length;
           sql_field->pack_length=	dup_field->pack_length;
           sql_field->key_length=	dup_field->key_length;
-	  sql_field->create_length_to_internal_length();
 	  sql_field->decimals=		dup_field->decimals;
+	  sql_field->create_length_to_internal_length();
 	  sql_field->unireg_check=	dup_field->unireg_check;
           /* 
             We're making one field from two, the result field will have
@@ -1293,7 +1293,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
           if (f_is_geom(sql_field->pack_flag) && sql_field->geom_type ==
               Field::GEOM_POINT)
-            column->length= 21;
+            column->length= 25;
 	  if (!column->length)
 	  {
 	    my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name);

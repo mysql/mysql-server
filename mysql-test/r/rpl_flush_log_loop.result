@@ -4,6 +4,13 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+show variables like 'relay_log%';
+Variable_name	Value
+relay_log	MYSQLTEST_VARDIR/master-data/relay-log
+relay_log_index	
+relay_log_info_file	relay-log.info
+relay_log_purge	ON
+relay_log_space_limit	0
 stop slave;
 change master to master_host='127.0.0.1',master_user='root',
 master_password='',master_port=MASTER_PORT;

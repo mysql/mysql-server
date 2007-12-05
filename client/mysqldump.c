@@ -89,7 +89,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
                 opt_alldbs=0,opt_create_db=0,opt_lock_all_tables=0,
-                opt_set_charset=0,
+                opt_set_charset=0, opt_dump_date=1,
                 opt_autocommit=0,opt_disable_keys=1,opt_xml=0,
                 opt_delete_master_logs=0, tty_password=0,
                 opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
@@ -412,6 +412,9 @@ static struct my_option my_long_options[] =
    "isolated from them. Option automatically turns off --lock-tables.",
    (gptr*) &opt_single_transaction, (gptr*) &opt_single_transaction, 0,
    GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},
+  {"dump-date", OPT_DUMP_DATE, "Put a dump date to the end of the output.",
+   (gptr*) &opt_dump_date, (gptr*) &opt_dump_date, 0,
+   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"skip-opt", OPT_SKIP_OPTIMIZATION,
    "Disable --opt. Disables --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -633,10 +636,15 @@ static void write_footer(FILE *sql_file)
     fputs("\n", sql_file);
     if (opt_comments)
     {
-      char time_str[20];
-      get_date(time_str, GETDATE_DATE_TIME, 0);
-      fprintf(sql_file, "-- Dump completed on %s\n",
-              time_str);
+      if (opt_dump_date)
+      {
+        char time_str[20];
+        get_date(time_str, GETDATE_DATE_TIME, 0);
+        fprintf(sql_file, "-- Dump completed on %s\n",
+                time_str);
+      }
+      else
+        fprintf(sql_file, "-- Dump completed\n");
     }
     check_io(sql_file);
   }

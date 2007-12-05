@@ -2077,6 +2077,21 @@ sub environment_setup () {
     ($lib_udf_example ?  dirname($lib_udf_example) : "") .
       ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
 
+  # ----------------------------------------------------
+  # Setup env so childs can execute myisampack and myisamchk
+  # ----------------------------------------------------
+  $ENV{'MYISAMCHK'}= mtr_native_path(mtr_exe_exists(
+                       vs_config_dirs('storage/myisam', 'myisamchk'),
+                       vs_config_dirs('myisam', 'myisamchk'),
+                       "$path_client_bindir/myisamchk",
+                       "$glob_basedir/storage/myisam/myisamchk",
+                       "$glob_basedir/myisam/myisamchk"));
+  $ENV{'MYISAMPACK'}= mtr_native_path(mtr_exe_exists(
+                        vs_config_dirs('storage/myisam', 'myisampack'),
+                        vs_config_dirs('myisam', 'myisampack'),
+                        "$path_client_bindir/myisampack",
+                        "$glob_basedir/storage/myisam/myisampack",
+                        "$glob_basedir/myisam/myisampack"));
 
   # ----------------------------------------------------
   # We are nice and report a bit about our settings

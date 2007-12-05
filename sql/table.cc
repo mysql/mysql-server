@@ -732,9 +732,11 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
 	  }
 	  if (field->type() == FIELD_TYPE_BLOB ||
-	      field->real_type() == MYSQL_TYPE_VARCHAR)
+	      field->real_type() == MYSQL_TYPE_VARCHAR ||
+              field->type() == FIELD_TYPE_GEOMETRY)
 	  {
-	    if (field->type() == FIELD_TYPE_BLOB)
+	    if (field->type() == FIELD_TYPE_BLOB ||
+                field->type() == FIELD_TYPE_GEOMETRY)
 	      key_part->key_part_flag|= HA_BLOB_PART;
             else
               key_part->key_part_flag|= HA_VAR_LENGTH_PART;
