@@ -94,7 +94,7 @@ static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     n->parent_brtnode = 0;
     n->height         = c->height;
     n->rand4fingerprint = c->rand4fingerprint;
-    // !!! is_dup_sort is not stored in the log !!!
+    n->flags = c->is_dup_sort ? TOKU_DB_DUPSORT : 0; // Don't have TOKU_DB_DUP ???
     n->local_fingerprint = 0; // nothing there yet
     n->dirty = 1;
     if (c->height==0) {
@@ -158,6 +158,8 @@ static void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
 
     r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
+    toku_free(c->key.data);
+    toku_free(c->data.data);
 }
 
 static void toku_recover_resizepma (struct logtype_resizepma *c) {
@@ -203,6 +205,8 @@ static void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
 
     r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
+
+    toku_free(c->fromto.array);
 }
 
 int main (int argc, char *argv[]) {
@@ -224,7 +228,7 @@ int main (int argc, char *argv[]) {
 	r=toku_read_and_print_logmagic(f, &version);
 	assert(r==0 && version==0);
 	while ((r = toku_log_fread(f, &le))==0) {
-	    printf("%lld: Got cmd %c\n", le.u.commit.lsn.lsn, le.cmd);
+	    //printf("%lld: Got cmd %c\n", le.u.commit.lsn.lsn, le.cmd);
 	    logtype_dispatch(le, toku_recover_);
 	}
 	if (r!=EOF) {
