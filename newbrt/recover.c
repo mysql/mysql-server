@@ -17,6 +17,13 @@
 #include "cachetable.h"
 #include "key.h"
 
+//#define DO_VERIFY_COUNTS
+#ifdef DO_VERIFY_COUNTS
+#define VERIFY_COUNTS(n) toku_verify_counts(n)
+#else
+#define VERIFY_COUNTS(n) ((void)0)
+#endif
+
 static CACHETABLE ct;
 static struct cf_pair {
     FILENUM filenum;
@@ -108,7 +115,7 @@ static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     // Now put it in the cachetable
     toku_cachetable_put(cf, c->diskoff, n, toku_serialize_brtnode_size(n),  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
 
-    toku_verify_counts(n);
+    VERIFY_COUNTS(n);
 
     r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(n));
     assert(r==0);
@@ -147,14 +154,14 @@ static void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
     assert(r==0);
     BRTNODE node = node_v;
     assert(node->height==0);
-    toku_verify_counts(node);
+    VERIFY_COUNTS(node);
     DBT key,data;
     r = toku_pma_set_at_index(node->u.l.buffer, c->pmaidx, toku_fill_dbt(&key, c->key.data, c->key.len), toku_fill_dbt(&data, c->data.data, c->data.len));
     assert(r==0);
     node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
     node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
 
-    toku_verify_counts(node);
+    VERIFY_COUNTS(node);
 
     r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
@@ -175,7 +182,7 @@ static void toku_recover_resizepma (struct logtype_resizepma *c) {
     r = toku_resize_pma_exactly (node->u.l.buffer, c->oldsize, c->newsize);
     assert(r==0);
     
-    toku_verify_counts(node);
+    VERIFY_COUNTS(node);
 
     r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
@@ -201,7 +208,7 @@ static void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
     r = toku_pma_move_indices (node->u.l.buffer, c->fromto);
     // The bytes in bufer and fingerprint shouldn't change
 
-    toku_verify_counts(node);
+    VERIFY_COUNTS(node);
 
     r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
