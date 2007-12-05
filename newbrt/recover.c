@@ -180,6 +180,13 @@ static void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
     assert(r==0);
     BRTNODE node = node_v;
     assert(node->height==0);
+    {
+	unsigned int i;
+	for (i=0; i<c->fromto.size; i++) {
+	    assert(c->fromto.array[i].a < toku_pma_index_limit(node->u.l.buffer));
+	    assert(c->fromto.array[i].b < toku_pma_index_limit(node->u.l.buffer));
+	}
+    }
     r = toku_pma_move_indices (node->u.l.buffer, c->fromto);
     // The bytes in bufer and fingerprint shouldn't change
 

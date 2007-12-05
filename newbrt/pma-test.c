@@ -30,7 +30,8 @@ void local_memory_check_all_free(void) {
 static void test_make_space_at (void) {
     PMA pma;
     char *key;
-    int r, newi;
+    int r;
+    unsigned int newi;
     struct kv_pair *key_A, *key_B;
 
     key = "A";
@@ -85,7 +86,7 @@ static void test_make_space_at (void) {
     toku_print_pma(pma);
     printf("r=%d\n", newi);
     {
-	int i;
+	unsigned int i;
 	for (i=0; i<toku_pma_index_limit(pma); i++) {
 	    if (pma->pairs[i]) {
 		assert(i<newi);
@@ -102,9 +103,9 @@ static void test_make_space_at (void) {
 
 static void test_pma_find (void) {
     PMA pma;
-    int i;
+    unsigned int i, fidx;
     int r;
-    const int N = 16;
+    const unsigned int N = 16;
     DBT k;
     MALLOC(pma);
     MALLOC_N(N,pma->pairs);
@@ -118,25 +119,25 @@ static void test_pma_find (void) {
 
     pma->pairs[5] = kv_pair_malloc("hello", 5, 0, 0);
     assert(toku_pma_index_limit(pma)==N);
-    r=toku_pmainternal_find(pma, toku_fill_dbt(&k, "hello", 5));
+    fidx=toku_pmainternal_find(pma, toku_fill_dbt(&k, "hello", 5));
     assert(toku_pma_index_limit(pma)==N);
-    assert(r==5);
-    r=toku_pmainternal_find(pma, toku_fill_dbt(&k, "there", 5));
-    assert(r==6);
-    r=toku_pmainternal_find(pma, toku_fill_dbt(&k, "aaa", 3));
-    assert(r==0);
+    assert(fidx==5);
+    fidx=toku_pmainternal_find(pma, toku_fill_dbt(&k, "there", 5));
+    assert(fidx==6);
+    fidx=toku_pmainternal_find(pma, toku_fill_dbt(&k, "aaa", 3));
+    assert(fidx==0);
 
     pma->pairs[N-1] = kv_pair_malloc("there", 5, 0, 0);
-    r=toku_pmainternal_find(pma, toku_fill_dbt(&k, "hello", 5));
-    assert(r==5);
-    r=toku_pmainternal_find(pma, toku_fill_dbt(&k, "there", 5));
-    assert(r==N-1);
-    r=toku_pmainternal_find(pma, toku_fill_dbt(&k, "aaa", 3));
-    assert(r==0);
-    r=toku_pmainternal_find(pma, toku_fill_dbt(&k, "hellob", 6));
-    assert(r==6);
-    r=toku_pmainternal_find(pma, toku_fill_dbt(&k, "zzz", 3));
-    assert(r==N);
+    fidx=toku_pmainternal_find(pma, toku_fill_dbt(&k, "hello", 5));
+    assert(fidx==5);
+    fidx=toku_pmainternal_find(pma, toku_fill_dbt(&k, "there", 5));
+    assert(fidx+1==N);
+    fidx=toku_pmainternal_find(pma, toku_fill_dbt(&k, "aaa", 3));
+    assert(fidx==0);
+    fidx=toku_pmainternal_find(pma, toku_fill_dbt(&k, "hellob", 6));
+    assert(fidx==6);
+    fidx=toku_pmainternal_find(pma, toku_fill_dbt(&k, "zzz", 3));
+    assert(fidx==N);
 
     for (i=0; i<N; i++)
         if (pma->pairs[i])

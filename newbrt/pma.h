@@ -122,17 +122,17 @@ int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize);
 
 int toku_pma_random_pick(PMA, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 
-int toku_pma_index_limit(PMA); // How many slots are in the PMA right now?
-int toku_pmanode_valid(PMA,int);
-bytevec toku_pmanode_key(PMA,int);
-ITEMLEN toku_pmanode_keylen(PMA,int);
-bytevec toku_pmanode_val(PMA,int);
-ITEMLEN toku_pmanode_vallen(PMA,int);
+unsigned int toku_pma_index_limit(PMA); // How many slots are in the PMA right now?
+int toku_pmanode_valid(PMA, unsigned int);
+bytevec toku_pmanode_key(PMA, unsigned int);
+ITEMLEN toku_pmanode_keylen(PMA, unsigned int);
+bytevec toku_pmanode_val(PMA, unsigned int);
+ITEMLEN toku_pmanode_vallen(PMA, unsigned int);
 
 void toku_pma_iterate (PMA, void(*)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*);
 
 #define PMA_ITERATE_IDX(table,idx,keyvar,keylenvar,datavar,datalenvar,body) ({ \
-  int idx;                                                             \
+  unsigned int idx;							\
   for (idx=0; idx<toku_pma_index_limit(table); idx++) {		       \
     if (toku_pmanode_valid(table,idx)) {                                    \
       bytevec keyvar = toku_pmanode_key(table,idx);                         \
@@ -149,7 +149,7 @@ void toku_pma_verify_fingerprint (PMA pma, u_int32_t rand4fingerprint, u_int32_t
 // Set the PMA's size, without moving anything.
 int toku_resize_pma_exactly (PMA pma, int oldsize, int newsize);
 
-int toku_pma_set_at_index (PMA, int /*index*/, DBT */*key*/, DBT */*value*/); // If the index is wrong or there is a value already, return nonzero
+int toku_pma_set_at_index (PMA, unsigned int /*index*/, DBT */*key*/, DBT */*value*/); // If the index is wrong or there is a value already, return nonzero
 
 // Requires:  No open cursors on the pma.
 int toku_pma_move_indices (PMA pma, INTPAIRARRAY fromto); // Return nonzero if the indices are somehow wrong.
