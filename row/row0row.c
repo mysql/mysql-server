@@ -119,7 +119,8 @@ row_build_index_entry(
 
 		dfield_copy(dfield, dfield2);
 
-		if (UNIV_LIKELY_NULL(ext) && !dfield_is_null(dfield)) {
+		if (dfield_is_null(dfield)) {
+		} else if (UNIV_LIKELY_NULL(ext)) {
 			/* See if the column is stored externally. */
 			const byte*	buf = row_ext_lookup(ext, col_no,
 							     &len);
@@ -129,10 +130,16 @@ row_build_index_entry(
 				}
 				dfield_set_data(dfield, buf, len);
 			}
+		} else if (dfield_is_ext(dfield)) {
+			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
+			len -= BTR_EXTERN_FIELD_REF_SIZE;
+			ut_a(ind_field->prefix_len <= len
+			     || dict_index_is_clust(index));
 		}
 
 		/* If a column prefix index, take only the prefix */
 		if (ind_field->prefix_len > 0 && !dfield_is_null(dfield)) {
+			ut_ad(col->ord_part);
 			len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminlen, col->mbmaxlen,
 				ind_field->prefix_len,
