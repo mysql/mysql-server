@@ -96,8 +96,8 @@ int expect_cursor_get(DBC *cursor, int expectk, int expectv, int op) {
     return r;
 }
 
-void test_dup_next(int n, int dup_mode) {
-    if (verbose) printf("test_dup_next:%d %d\n", n, dup_mode);
+void test_dup_next(int n, int dup_mode, int bracket_dups) {
+    if (verbose) printf("test_dup_next:%d %d %d\n", n, dup_mode, bracket_dups);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -114,8 +114,8 @@ void test_dup_next(int n, int dup_mode) {
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
     db_put(db, 0, 0);
-    db_put(db, 2, 0);
-    /* seq inserts to build the tree */
+    if (bracket_dups) db_put(db, 2, 0);
+
     int i;
     for (i=0; i<n; i++) {
         int k = htonl(1);
@@ -137,6 +137,8 @@ void test_dup_next(int n, int dup_mode) {
 
     r = expect_cursor_get(cursor, htonl(1), htonl(i), DB_NEXT_DUP); assert(r == DB_NOTFOUND);
 
+    r = expect_cursor_get(cursor, htonl(1), htonl(i-1), DB_CURRENT); assert(r == 0);
+
     r = cursor->c_close(cursor); assert(r == 0);
 
     r = db->close(db, 0); assert(r == 0);
@@ -150,8 +152,9 @@ int main(int argc, const char *argv[]) {
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
 
-    for (i = 1; i <= (1<<16); i *= 2) {
-         test_dup_next(i, DB_DUP + DB_DUPSORT);
+    for (i = 1; i <= 65536; i *= 2) {
+        test_dup_next(i, DB_DUP + DB_DUPSORT, 0);
+        test_dup_next(i, DB_DUP + DB_DUPSORT, 1);
     }
 
     return 0;
