@@ -178,8 +178,6 @@ trx_undo_rec_get_partial_row(
 				record! */
 	dict_index_t*	index,	/* in: clustered index */
 	dtuple_t**	row,	/* out, own: partial row */
-	row_ext_t**	ext,	/* out, own: prefix cache for
-				externally stored columns */
 	mem_heap_t*	heap);	/* in: memory heap from which the memory
 				needed is allocated */
 /***************************************************************************
