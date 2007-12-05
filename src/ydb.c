@@ -771,8 +771,40 @@ static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
         DBT pkey;
         DBT *pdb_key;
         struct list *h;
+        u_int32_t brtflags;
 
         memset(&data, 0, sizeof(data));
+
+        toku_brt_get_flags(db->i->brt, &brtflags);
+        if ((brtflags & TOKU_DB_DUPSORT) || (brtflags & TOKU_DB_DUP)) {
+            int r2;
+    	    DBC *dbc;
+
+            /* If we are deleting all copies from a secondary with duplicates,
+             * We have to make certain we cascade all the deletes. */
+
+            assert(db->i->primary!=0);    //Primary cannot have duplicates.
+            r = db->cursor(db, txn, &dbc, 0);
+            if (r!=0) goto cleanup;
+            r = toku_c_get_noassociate(dbc, key, &data, DB_SET);
+            if (r!=0) goto cleanup;
+            
+            while (r==0) {
+                r = dbc->c_del(dbc, 0);
+                if (r!=0) goto cleanup;
+                r = toku_c_get_noassociate(dbc, key, &data, DB_NEXT_DUP);
+                if (r == DB_NOTFOUND) {
+                    //Already deleted at least one.  Quit out.
+                    r = 0;
+                    goto cleanup;
+                }
+            }
+cleanup:
+            r2 = dbc->c_close(dbc);
+            if (r != 0) return r;
+            return r2;
+        }
+
         if (db->i->primary == 0) {
             pdb = db;
             r = db->get(db, txn, key, &data, 0);
@@ -999,7 +1031,6 @@ static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t f
     //Cannot put directly into a secondary.
     if (db->i->primary != 0) return EINVAL;
 
-    //BUG: If we are doing a 'replace' insert, the secondary indexes will have new entries put in, but old entries will not be removed
     r = toku_db_put_noassociate(db, txn, key, data, flags);
     if (r!=0) return r;
     // For each secondary add the relevant records.
