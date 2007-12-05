@@ -100,6 +100,7 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     unsigned int calculated_size = toku_serialize_brtnode_size(node);
     //char buf[size];
     char *MALLOC_N(size,buf);
+    toku_verify_counts(node);
     assert(size>0);
     wbuf_init(&w, buf, size);
     //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
