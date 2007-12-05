@@ -6706,7 +6706,7 @@ sync:
   {
     File *handler= file_handlers;
     File *end= file_handlers + current_file_handler;
-    for (; handler < end; handler++)
+    for (; handler <= end; handler++)
       rc|= my_sync(*handler, MYF(MY_WME));
   }
   log_descriptor.flushed= sent_to_disk;
