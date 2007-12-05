@@ -490,6 +490,9 @@ const char* Log_event::get_type_str()
   case USER_VAR_EVENT: return "User var";
   case FORMAT_DESCRIPTION_EVENT: return "Format_desc";
   case TABLE_MAP_EVENT: return "Table_map";
+  case PRE_GA_WRITE_ROWS_EVENT: return "Write_rows_event_old";
+  case PRE_GA_UPDATE_ROWS_EVENT: return "Update_rows_event_old";
+  case PRE_GA_DELETE_ROWS_EVENT: return "Delete_rows_event_old";
   case WRITE_ROWS_EVENT: return "Write_rows";
   case UPDATE_ROWS_EVENT: return "Update_rows";
   case DELETE_ROWS_EVENT: return "Delete_rows";
@@ -1015,6 +1018,8 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   DBUG_ENTER("Log_event::read_log_event(char*,...)");
   DBUG_ASSERT(description_event != 0);
   DBUG_PRINT("info", ("binlog_version: %d", description_event->binlog_version));
+  DBUG_DUMP("data", (unsigned char*) buf, event_len);
+
   /* Check the integrity */
   if (event_len < EVENT_LEN_OFFSET ||
       buf[EVENT_TYPE_OFFSET] >= ENUM_END_EVENT ||

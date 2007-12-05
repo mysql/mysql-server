@@ -175,14 +175,6 @@ protected:
   ulong       m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
-  /*
-    Bitmap for columns available in the after image, if present. These
-    fields are only available for Update_rows events. Observe that the
-    width of both the before image COLS vector and the after image
-    COLS vector is the same: the number of columns of the table on the
-    master.
-  */
-  MY_BITMAP   m_cols_ai;
 
   ulong       m_master_reclength; /* Length of record on master side */
 
@@ -442,11 +434,7 @@ public:
   Update_rows_log_event_old(THD*, TABLE*, ulong table_id,
                             MY_BITMAP const *cols,
                             bool is_transactional);
-
-  void init(MY_BITMAP const *cols);
 #endif
-
-  virtual ~Update_rows_log_event_old();
 
 #ifdef HAVE_REPLICATION
   Update_rows_log_event_old(const char *buf, uint event_len,
@@ -465,11 +453,6 @@ public:
                                   cols, fields, before_record, after_record);
   }
 #endif
-
-  virtual bool is_valid() const
-  {
-    return Old_rows_log_event::is_valid() && m_cols_ai.bitmap;
-  }
 
 protected:
 #ifdef MYSQL_CLIENT
