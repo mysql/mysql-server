@@ -811,6 +811,7 @@ SET GLOBAL slow_query_log = @old_slow_log_state;
 # Bug#21557 entries in the general query log truncated at 1000 characters.
 #
 
+select CONNECTION_ID() into @thread_id;
 truncate table mysql.general_log;
 set @old_general_log_state = @@global.general_log;
 set global general_log = on;
@@ -921,7 +922,7 @@ prepare long_query from "select ? as long_query";
 execute long_query using @lparam;
 --enable_result_log
 set global general_log = off;
-select command_type, argument from mysql.general_log;
+select command_type, argument from mysql.general_log where thread_id = @thread_id;
 deallocate prepare long_query;
 set global general_log = @old_general_log_state;
 
