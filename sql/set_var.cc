@@ -164,7 +164,8 @@ static sys_var_character_set_sv	sys_character_set_server(&vars, "character_set_s
 sys_var_const_str       sys_charset_system(&vars, "character_set_system",
                                            (char *)my_charset_utf8_general_ci.name);
 static sys_var_character_set_database	sys_character_set_database(&vars, "character_set_database");
-static sys_var_character_set_sv sys_character_set_client(&vars, "character_set_client",
+static sys_var_character_set_client sys_character_set_client(&vars, 
+                                        "character_set_client",
                                         &SV::character_set_client,
                                         &default_charset_info);
 static sys_var_character_set_sv sys_character_set_connection(&vars, "character_set_connection",
@@ -1865,6 +1866,21 @@ CHARSET_INFO **sys_var_character_set_sv::ci_ptr(THD *thd, enum_var_type type)
 }
 
 
+bool sys_var_character_set_client::check(THD *thd, set_var *var)
+{
+  if (sys_var_character_set_sv::check(thd, var))
+    return 1;
+  /* Currently, UCS-2 cannot be used as a client character set */
+  if (var->save_result.charset->mbminlen > 1)
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, 
+             var->save_result.charset->csname);
+    return 1;
+  }
+  return 0;
+}
+
+
 CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd,
 						       enum_var_type type)
 {
@@ -2106,18 +2122,24 @@ void sys_var_log_state::set_default(THD *thd, enum_var_type type)
 
 static int  sys_check_log_path(THD *thd,  set_var *var)
 {
-  char path[FN_REFLEN];
+  char path[FN_REFLEN], buff[FN_REFLEN];
   MY_STAT f_stat;
-  const char *var_path= var->value->str_value.ptr();
+  String str(buff, sizeof(buff), system_charset_info), *res;
+  const char *log_file_str;
+      
+  if (!(res= var->value->val_str(&str)))
+    goto err;
+
+  log_file_str= res->c_ptr();
   bzero(&f_stat, sizeof(MY_STAT));
 
-  (void) unpack_filename(path, var_path);
+  (void) unpack_filename(path, log_file_str);
   if (my_stat(path, &f_stat, MYF(0)))
   {
     /* Check if argument is a file and we have 'write' permission */
     if (!MY_S_ISREG(f_stat.st_mode) ||
         !(f_stat.st_mode & MY_S_IWRITE))
-      return -1;
+      goto err;
   }
   else
   {
@@ -2126,11 +2148,16 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
       Check if directory exists and 
       we have permission to create file & write to file
     */
-    (void) dirname_part(path, var_path, &path_length);
+    (void) dirname_part(path, log_file_str, &path_length);
     if (my_access(path, (F_OK|W_OK)))
-      return -1;
+      goto err;
   }
   return 0;
+
+err:
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, 
+           res ? log_file_str : "NULL");
+  return 1;
 }
 
 
@@ -2283,6 +2310,13 @@ uchar *sys_var_log_output::value_ptr(THD *thd, enum_var_type type,
 
 int set_var_collation_client::check(THD *thd)
 {
+  /* Currently, UCS-2 cannot be used as a client character set */
+  if (character_set_client->mbminlen > 1)
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+             character_set_client->csname);
+    return 1;
+  }
   return 0;
 }
 
@@ -2904,7 +2938,8 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted)
 
     /* sort into order */
     if (sorted)
-      qsort(result, count + fixed_count, sizeof(SHOW_VAR), (qsort_cmp)show_cmp);
+      my_qsort(result, count + fixed_count, sizeof(SHOW_VAR),
+               (qsort_cmp) show_cmp);
     
     /* make last element empty */
     bzero(show, sizeof(SHOW_VAR));

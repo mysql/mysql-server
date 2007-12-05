@@ -2626,6 +2626,23 @@ bool Item_func_case::fix_fields(THD *thd, Item **ref)
 }
 
 
+void Item_func_case::agg_str_lengths(Item* arg)
+{
+  set_if_bigger(max_length, arg->max_length);
+  set_if_bigger(decimals, arg->decimals);
+  unsigned_flag= unsigned_flag && arg->unsigned_flag;
+}
+
+
+void Item_func_case::agg_num_lengths(Item *arg)
+{
+  uint len= my_decimal_length_to_precision(arg->max_length, arg->decimals,
+                                           arg->unsigned_flag) - arg->decimals;
+  set_if_bigger(max_length, len); 
+  set_if_bigger(decimals, arg->decimals);
+  unsigned_flag= unsigned_flag && arg->unsigned_flag; 
+}
+
 
 void Item_func_case::fix_length_and_dec()
 {
@@ -2689,15 +2706,22 @@ void Item_func_case::fix_length_and_dec()
   
   max_length=0;
   decimals=0;
-  for (uint i=0 ; i < ncases ; i+=2)
+  unsigned_flag= TRUE;
+  if (cached_result_type == STRING_RESULT)
   {
-    set_if_bigger(max_length,args[i+1]->max_length);
-    set_if_bigger(decimals,args[i+1]->decimals);
+    for (uint i= 0; i < ncases; i+= 2)
+      agg_str_lengths(args[i + 1]);
+    if (else_expr_num != -1)
+      agg_str_lengths(args[else_expr_num]);
   }
-  if (else_expr_num != -1) 
+  else
   {
-    set_if_bigger(max_length,args[else_expr_num]->max_length);
-    set_if_bigger(decimals,args[else_expr_num]->decimals);
+    for (uint i= 0; i < ncases; i+= 2)
+      agg_num_lengths(args[i + 1]);
+    if (else_expr_num != -1) 
+      agg_num_lengths(args[else_expr_num]);
+    max_length= my_decimal_precision_to_length(max_length + decimals, decimals,
+                                               unsigned_flag);
   }
 }
 
@@ -2901,7 +2925,7 @@ static inline int cmp_ulongs (ulonglong a_val, ulonglong b_val)
 
   SYNOPSIS
     cmp_longlong()
-      cmp_arg   an argument passed to the calling function (qsort2)
+      cmp_arg   an argument passed to the calling function (my_qsort2)
       a         left argument
       b         right argument
 

@@ -555,6 +555,18 @@ INSERT INTO t1 VALUES('abcd');
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
 DROP TABLE t1;
 
+#
+# Bug #31615: crash after set names ucs2 collate xxx
+#
+--error 1231
+set names ucs2;
+--error 1231
+set names ucs2 collate ucs2_bin;
+--error 1231
+set character_set_client= ucs2;
+--error 1231
+set character_set_client= concat('ucs', substr('2', 1));
+
 --echo End of 4.1 tests
 
 #
