@@ -199,7 +199,7 @@ f2	datetime	YES		NULL
 f3	time	YES		NULL	
 f4	time	YES		NULL	
 f5	time	YES		NULL	
-f6	time	NO		00:00:00	
+f6	time	YES		NULL	
 f7	datetime	YES		NULL	
 f8	date	YES		NULL	
 f9	time	YES		NULL	

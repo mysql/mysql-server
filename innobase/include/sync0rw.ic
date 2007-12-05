@@ -382,6 +382,9 @@ rw_lock_s_unlock_func(
 	mutex_exit(mutex);
 
 	if (UNIV_UNLIKELY(sg)) {
+#ifdef __WIN__
+		os_event_set(lock->wait_ex_event);
+#endif
 		os_event_set(lock->event);
 		sync_array_object_signalled(sync_primary_wait_array);
 	}
@@ -463,6 +466,9 @@ rw_lock_x_unlock_func(
 	mutex_exit(&(lock->mutex));
 
 	if (UNIV_UNLIKELY(sg)) {
+#ifdef __WIN__
+		os_event_set(lock->wait_ex_event);
+#endif
 		os_event_set(lock->event);
 		sync_array_object_signalled(sync_primary_wait_array);
 	}

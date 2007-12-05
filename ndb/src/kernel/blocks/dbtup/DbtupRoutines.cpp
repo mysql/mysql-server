@@ -676,8 +676,6 @@ bool
 Dbtup::checkUpdateOfPrimaryKey(Uint32* updateBuffer, Tablerec* const regTabPtr)
 {
   Uint32 keyReadBuffer[MAX_KEY_SIZE_IN_WORDS];
-  Uint32 attributeHeader;
-  AttributeHeader* ahOut = (AttributeHeader*)&attributeHeader;
   AttributeHeader ahIn(*updateBuffer);
   Uint32 attributeId = ahIn.getAttributeId();
   Uint32 attrDescriptorIndex = regTabPtr->tabDescriptor + (attributeId << ZAD_LOG_SIZE);
@@ -700,16 +698,17 @@ Dbtup::checkUpdateOfPrimaryKey(Uint32* updateBuffer, Tablerec* const regTabPtr)
 
   ReadFunction f = regTabPtr->readFunctionArray[attributeId];
 
-  AttributeHeader::init(&attributeHeader, attributeId, 0);
+  AttributeHeader attributeHeader(attributeId, 0);
   tOutBufIndex = 0;
   tMaxRead = MAX_KEY_SIZE_IN_WORDS;
 
   bool tmp = tXfrmFlag;
   tXfrmFlag = true;
-  ndbrequire((this->*f)(&keyReadBuffer[0], ahOut, attrDescriptor, attributeOffset));
+  ndbrequire((this->*f)(&keyReadBuffer[0], &attributeHeader, attrDescriptor,
+                        attributeOffset));
   tXfrmFlag = tmp;
-  ndbrequire(tOutBufIndex == ahOut->getDataSize());
-  if (ahIn.getDataSize() != ahOut->getDataSize()) {
+  ndbrequire(tOutBufIndex == attributeHeader.getDataSize());
+  if (ahIn.getDataSize() != attributeHeader.getDataSize()) {
     ljam();
     return true;
   }//if

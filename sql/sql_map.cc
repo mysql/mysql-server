@@ -41,7 +41,7 @@ mapped_files::mapped_files(const my_string filename,byte *magic,uint magic_lengt
     struct stat stat_buf;
     if (!fstat(file,&stat_buf))
     {
-      if (!(map=(byte*) my_mmap(0,(size=(ulong) stat_buf.st_size),PROT_READ,
+      if (!(map=(byte*) my_mmap(0,(size_t)(size=(ulong) stat_buf.st_size),PROT_READ,
 			     MAP_SHARED | MAP_NORESERVE,file,
 			     0L)))
       {
@@ -52,7 +52,7 @@ mapped_files::mapped_files(const my_string filename,byte *magic,uint magic_lengt
     if (map && memcmp(map,magic,magic_length))
     {
       my_error(ER_WRONG_MAGIC, MYF(0), name);
-      VOID(my_munmap(map,size));
+      VOID(my_munmap(map,(size_t)size));
       map=0;
     }
     if (!map)
@@ -70,7 +70,7 @@ mapped_files::~mapped_files()
 #ifdef HAVE_MMAP
   if (file >= 0)
   {
-    VOID(my_munmap(map,size));
+    VOID(my_munmap(map,(size_t)size));
     VOID(my_close(file,MYF(0)));
     file= -1; map=0;
   }

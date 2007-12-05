@@ -392,9 +392,8 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 	return NULL;
       }//if
     }//if
-    Uint32 ah;
-    AttributeHeader::init(&ah, tAttrInfo->m_attrId, 0);
-    if (insertATTRINFO(ah) != -1) {	
+    AttributeHeader ah(tAttrInfo->m_attrId, 0);
+    if (insertATTRINFO(ah.m_value) != -1) {	
       // Insert Attribute Id into ATTRINFO part. 
       
       /************************************************************************
@@ -525,12 +524,11 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   
   tAttrId = tAttrInfo->m_attrId;
   const char *aValue = aValuePassed; 
-  Uint32 ahValue;
   if (aValue == NULL) {
     if (tAttrInfo->m_nullable) {
-      AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, 0);
+      AttributeHeader ah(tAttrId, 0);
       ah.setNULL();
-      insertATTRINFO(ahValue);
+      insertATTRINFO(ah.m_value);
       // Insert Attribute Id with the value
       // NULL into ATTRINFO part. 
       DBUG_RETURN(0);
@@ -563,8 +561,8 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   }//if
   const Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Including bits in last word
   const Uint32 sizeInWords = sizeInBytes / 4;          // Excluding bits in last word
-  (void) AttributeHeader::init(&ahValue, tAttrId, totalSizeInWords);
-  insertATTRINFO( ahValue );
+  AttributeHeader ah(tAttrId, totalSizeInWords);
+  insertATTRINFO( ah.m_value );
 
   /***********************************************************************
    * Check if the pointer of the value passed is aligned on a 4 byte boundary.

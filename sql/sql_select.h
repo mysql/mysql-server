@@ -521,9 +521,13 @@ public:
   store_key(THD *thd, Field *field_arg, char *ptr, char *null, uint length)
     :null_key(0), null_ptr(null), err(0)
   {
-    if (field_arg->type() == FIELD_TYPE_BLOB)
+    if (field_arg->type() == FIELD_TYPE_BLOB
+        || field_arg->type() == FIELD_TYPE_GEOMETRY)
     {
-      /* Key segments are always packed with a 2 byte length prefix */
+      /* 
+        Key segments are always packed with a 2 byte length prefix.
+        See mi_rkey for details.
+      */
       to_field=new Field_varstring(ptr, length, 2, (uchar*) null, 1, 
 				   Field::NONE, field_arg->field_name,
 				   field_arg->table, field_arg->charset());

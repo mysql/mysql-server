@@ -1,7 +1,7 @@
 Introduction
 ============
 
-This is the Gnu Readline library, version 5.0.
+This is the Gnu Readline library, version 5.2.
 
 The Readline library provides a set of functions for use by applications
 that allow users to edit command lines as they are typed in.  Both
@@ -102,6 +102,9 @@ SHLIB_XLDFLAGS	Additional flags to pass to SHOBJ_LD for shared library
 SHLIB_LIBS	Any additional libraries that shared libraries should be
 		linked against when they are created.
 
+SHLIB_LIBPREF	The prefix to use when generating the filename of the shared
+		library.  The default is `lib'; Cygwin uses `cyg'.
+
 SHLIB_LIBSUFF	The suffix to add to `libreadline' and `libhistory' when
 		generating the filename of the shared library.  Many systems
 		use `so'; HP-UX uses `sl'.
@@ -117,6 +120,17 @@ SHLIB_LIBVERSION The string to append to the filename to indicate the version
 		Systems based on System V Release 4 don't use minor version
 		numbers; use `$(SHLIB_LIBSUFF).$(SHLIB_MAJOR)' on those systems.
 		Other Unix versions use different schemes.
+
+SHLIB_DLLVERSION The version number for shared libraries that determines API
+		compatibility between readline versions and the underlying
+		system.  Used only on Cygwin.  Defaults to $SHLIB_MAJOR, but
+		can be overridden at configuration time by defining DLLVERSION
+		in the environment.
+
+SHLIB_DOT	The character used to separate the name of the shared library
+		from the suffix and version information.  The default is `.';
+		systems like Cygwin which don't separate version information
+		from the library name should set this to the empty string.
 
 SHLIB_STATUS	Set this to `supported' when you have defined the other
 		necessary variables.  Make uses this to determine whether
@@ -169,4 +183,4 @@ list (mirrored to the Usenet newsgroup gnu.bash.bug) often contains
 Readline bug reports and fixes. 
 
 Chet Ramey
-chet@po.cwru.edu
+chet.ramey@case.edu

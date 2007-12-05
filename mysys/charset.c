@@ -810,3 +810,43 @@ ulong escape_quotes_for_mysql(CHARSET_INFO *charset_info,
   *to= 0;
   return overflow ? (ulong)~0 : (ulong) (to - to_start);
 }
+
+
+/**
+  @brief Find compatible character set with ctype.
+
+  @param[in] original_cs Original character set
+
+  @note
+    128 my_charset_ucs2_general_uca      ->192 my_charset_utf8_general_uca_ci
+    129 my_charset_ucs2_icelandic_uca_ci ->193 my_charset_utf8_icelandic_uca_ci
+    130 my_charset_ucs2_latvian_uca_ci   ->194 my_charset_utf8_latvian_uca_ci
+    131 my_charset_ucs2_romanian_uca_ci  ->195 my_charset_utf8_romanian_uca_ci
+    132 my_charset_ucs2_slovenian_uca_ci ->196 my_charset_utf8_slovenian_uca_ci
+    133 my_charset_ucs2_polish_uca_ci    ->197 my_charset_utf8_polish_uca_ci
+    134 my_charset_ucs2_estonian_uca_ci  ->198 my_charset_utf8_estonian_uca_ci
+    135 my_charset_ucs2_spanish_uca_ci   ->199 my_charset_utf8_spanish_uca_ci
+    136 my_charset_ucs2_swedish_uca_ci   ->200 my_charset_utf8_swedish_uca_ci
+    137 my_charset_ucs2_turkish_uca_ci   ->201 my_charset_utf8_turkish_uca_ci
+    138 my_charset_ucs2_czech_uca_ci     ->202 my_charset_utf8_czech_uca_ci
+    139 my_charset_ucs2_danish_uca_ci    ->203 my_charset_utf8_danish_uca_ci
+    140 my_charset_ucs2_lithuanian_uca_ci->204 my_charset_utf8_lithuanian_uca_ci
+    141 my_charset_ucs2_slovak_uca_ci    ->205 my_charset_utf8_slovak_uca_ci
+    142 my_charset_ucs2_spanish2_uca_ci  ->206 my_charset_utf8_spanish2_uca_ci
+    143 my_charset_ucs2_roman_uca_ci     ->207 my_charset_utf8_roman_uca_ci
+    144 my_charset_ucs2_persian_uca_ci   ->208 my_charset_utf8_persian_uca_ci
+
+  @return Compatible character set or NULL.
+*/
+
+CHARSET_INFO *get_compatible_charset_with_ctype(CHARSET_INFO *original_cs)
+{
+  CHARSET_INFO *compatible_cs= 0;
+  DBUG_ENTER("get_compatible_charset_with_ctype");
+  if (!strcmp(original_cs->csname, "ucs2") &&
+      (compatible_cs= get_charset(original_cs->number + 64, MYF(0))) &&
+      (!compatible_cs->ctype ||
+       strcmp(original_cs->name + 4, compatible_cs->name + 4)))
+    compatible_cs= 0;
+  DBUG_RETURN(compatible_cs);
+}

@@ -1356,6 +1356,30 @@ int ha_ndbcluster::set_primary_key_from_record(NdbOperation *op, const byte *rec
   DBUG_RETURN(0);
 }
 
+bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
+{
+  KEY* key_info= table->key_info + keyno;
+  KEY_PART_INFO* key_part= key_info->key_part;
+  KEY_PART_INFO* end= key_part+key_info->key_parts;
+  uint i;
+  DBUG_ENTER("check_index_fields_in_write_set");
+
+  if (m_retrieve_all_fields)
+  {
+    DBUG_RETURN(true);
+  }
+  for (i= 0; key_part != end; key_part++, i++)
+  {
+    Field* field= key_part->field;
+    if (field->query_id != current_thd->query_id)
+    {
+      DBUG_RETURN(false);
+    }
+  }
+
+  DBUG_RETURN(true);
+}
+
 int ha_ndbcluster::set_index_key_from_record(NdbOperation *op, const byte *record, uint keyno)
 {
   KEY* key_info= table->key_info + keyno;
@@ -1643,7 +1667,8 @@ check_null_in_record(const KEY* key_info, const byte *record)
  * primary key or unique index values
 */
 
-int ha_ndbcluster::peek_indexed_rows(const byte *record, bool check_pk)
+int ha_ndbcluster::peek_indexed_rows(const byte *record, 
+                                     NDB_WRITE_OP write_op)
 {
   NdbTransaction *trans= m_active_trans;
   NdbOperation *op;
@@ -1656,7 +1681,7 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record, bool check_pk)
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   
   first= NULL;
-  if (check_pk && table->s->primary_key != MAX_KEY)
+  if (write_op != NDB_UPDATE && table->s->primary_key != MAX_KEY)
   {
     /*
      * Fetch any row with colliding primary key
@@ -1687,9 +1712,15 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record, bool check_pk)
       */
       if (check_null_in_record(key_info, record))
       {
-	DBUG_PRINT("info", ("skipping check for key with NULL"));
+        DBUG_PRINT("info", ("skipping check for key with NULL"));
         continue;
       } 
+      if (write_op != NDB_INSERT && !check_index_fields_in_write_set(i))
+      {
+        DBUG_PRINT("info", ("skipping check for key %u not in write_set", i));
+        continue;
+      }
+
       NdbIndexOperation *iop;
       NDBINDEX *unique_index = (NDBINDEX *) m_index[i].unique_index;
       key_part= key_info->key_part;
@@ -2268,7 +2299,7 @@ int ha_ndbcluster::write_row(byte *record)
       start_bulk_insert will set parameters to ensure that each
       write_row is committed individually
     */
-    int peek_res= peek_indexed_rows(record, true);
+    int peek_res= peek_indexed_rows(record, NDB_INSERT);
     
     if (!peek_res) 
     {
@@ -2302,7 +2333,7 @@ int ha_ndbcluster::write_row(byte *record)
                                      auto_value, 1) == -1)
       {
         if (--retries &&
-            ndb->getNdbError().status == NdbError::TemporaryError);
+            ndb->getNdbError().status == NdbError::TemporaryError)
         {
           my_sleep(retry_sleep);
           continue;
@@ -2456,7 +2487,8 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   if (m_ignore_dup_key && (thd->lex->sql_command == SQLCOM_UPDATE ||
                            thd->lex->sql_command == SQLCOM_UPDATE_MULTI))
   {
-    int peek_res= peek_indexed_rows(new_data, pk_update);
+    NDB_WRITE_OP write_op= (pk_update) ? NDB_PK_UPDATE : NDB_UPDATE;
+    int peek_res= peek_indexed_rows(new_data, write_op);
     
     if (!peek_res) 
     {
@@ -4862,7 +4894,7 @@ ulonglong ha_ndbcluster::get_auto_increment()
                                    auto_value, cache_size, step, start))
     {
       if (--retries &&
-          ndb->getNdbError().status == NdbError::TemporaryError);
+          ndb->getNdbError().status == NdbError::TemporaryError)
       {
         my_sleep(retry_sleep);
         continue;

@@ -41,8 +41,7 @@ public:
   STATIC_CONST( FRAGMENT_MEMORY= 0xFFF9 );
 
   /** Initialize AttributeHeader at location aHeaderPtr */
-  static AttributeHeader& init(void* aHeaderPtr, Uint32 anAttributeId, 
-			       Uint32 aDataSize);
+  static void init(Uint32* aHeaderPtr, Uint32 anAttributeId, Uint32 aDataSize);
 
   /** Returns size of AttributeHeader (usually one or two words) */
   Uint32 getHeaderSize() const; // In 32-bit words
@@ -100,10 +99,11 @@ public:
  */
 
 inline
-AttributeHeader& AttributeHeader::init(void* aHeaderPtr, Uint32 anAttributeId, 
-				       Uint32 aDataSize)
+void AttributeHeader::init(Uint32* aHeaderPtr, Uint32 anAttributeId, 
+                           Uint32 aDataSize)
 {
-  return * new (aHeaderPtr) AttributeHeader(anAttributeId, aDataSize);
+  AttributeHeader ah(anAttributeId, aDataSize);
+  *aHeaderPtr = ah.m_value;
 }
 
 inline

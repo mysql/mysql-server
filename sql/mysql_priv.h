@@ -1224,6 +1224,7 @@ my_bool mysql_rm_tmp_tables(void);
 
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
+extern enum_field_types agg_field_type(Item **items, uint nitems);
 
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
@@ -1309,8 +1310,8 @@ extern bool opt_endinfo, using_udf_functions;
 extern my_bool locked_in_memory;
 extern bool opt_using_transactions, mysqld_embedded;
 extern bool using_update_log, opt_large_files, server_id_supplied;
-extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
-extern my_bool opt_log_queries_not_using_indexes;
+extern bool opt_update_log, opt_bin_log, opt_error_log;
+extern my_bool opt_log, opt_slow_log, opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;

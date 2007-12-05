@@ -1888,5 +1888,27 @@ set engine_condition_pushdown = 1;
 SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
 fname	lname
 Young	Foo
+drop table t1;
+create table t1 (a int, b int, c int, d int, primary key using hash(a))
+engine=ndbcluster;
+insert into t1 values (10,1,100,0+0x1111);
+insert into t1 values (20,2,200,0+0x2222);
+insert into t1 values (30,3,300,0+0x3333);
+insert into t1 values (40,4,400,0+0x4444);
+insert into t1 values (50,5,500,0+0x5555);
+set engine_condition_pushdown = on;
+select a,b,d from t1
+where b in (0,1,2,5)
+order by b;
+a	b	d
+10	1	4369
+20	2	8738
+50	5	21845
+a	b	d
+10	1	4369
+20	2	8738
+50	5	21845
+Warnings:
+Warning	4294	Scan filter is too large, discarded
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;

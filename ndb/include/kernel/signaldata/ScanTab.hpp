@@ -46,6 +46,7 @@ public:
    * Length of signal
    */
   STATIC_CONST( StaticLength = 11 );
+  STATIC_CONST( MaxTotalAttrInfo = 0xFFFF );
 
 private:
 
