@@ -947,35 +947,15 @@ error_cleanup:
     return r;
 }
 
-static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondary) {
-    DBT idx;
-    memset(&idx, 0, sizeof(idx));
-    int r = secondary->i->associate_callback(secondary, key, data, &idx);
-    if (r==DB_DONOTINDEX) return 0;
-#ifdef DB_DBT_MULTIPLE
-    if (idx.flags & DB_DBT_MULTIPLE) {
-	return EINVAL; // We aren't ready for this
-    }
-#endif
-    r = secondary->put(secondary, txn, &idx, key, DB_NO_ASSOCIATE);
-    if (idx.flags & DB_DBT_APPMALLOC) {
-	free(idx.data);
-    }
-    return r;
-}
-
-static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
+static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
-
-    if (db->i->primary == 0 && flags != 0) return EINVAL;
-    //Cannot put directly into a secondary.
-    if (db->i->primary != 0 && flags != DB_NO_ASSOCIATE) return EINVAL;
-        
     unsigned int brtflags;
-    r = toku_brt_get_flags(db->i->brt, &brtflags); assert(r == 0);
     unsigned int nodesize;
-    r = toku_brt_get_nodesize(db->i->brt, &nodesize); assert(r == 0);
 
+    if (flags != 0) return EINVAL;
+
+    r = toku_brt_get_flags(db->i->brt, &brtflags); assert(r == 0);
+    r = toku_brt_get_nodesize(db->i->brt, &nodesize); assert(r == 0);
     if (brtflags & TOKU_DB_DUPSORT) {
         unsigned int limit = nodesize / (2*BRT_FANOUT-1);
         if (key->size + data->size >= limit)
@@ -988,16 +968,43 @@ static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t f
     
     r = toku_brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
     //printf("%s:%d %d=__toku_db_put(...)\n", __FILE__, __LINE__, r);
-    if (r!=0) return r;
+    return r;
+}
 
+static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondary) {
+    DBT idx;
+    memset(&idx, 0, sizeof(idx));
+    int r = secondary->i->associate_callback(secondary, key, data, &idx);
+    if (r==DB_DONOTINDEX) return 0;
+#ifdef DB_DBT_MULTIPLE
+    if (idx.flags & DB_DBT_MULTIPLE) {
+	return EINVAL; // We aren't ready for this
+    }
+#endif
+    r = toku_db_put_noassociate(secondary, txn, &idx, key, 0);
+    if (idx.flags & DB_DBT_APPMALLOC) {
+	free(idx.data);
+    }
+    return r;
+}
+
+static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
+    int r;
+
+    if (flags != 0) return EINVAL;
+    //Cannot put directly into a secondary.
+    if (db->i->primary != 0) return EINVAL;
+
+    r = toku_db_put_noassociate(db, txn, key, data, flags);
+    if (r!=0) return r;
     // For each secondary add the relevant records.
     if (db->i->primary==0) { // Only do it if it is a primary.   This loop would run an unknown number of times if we tried it on a secondary.
-	struct list *h;
-	for (h=list_head(&db->i->associated); h!=&db->i->associated; h=h->next) {
-	    struct __toku_db_internal *dbi=list_struct(h, struct __toku_db_internal, associated);
-	    r=do_associated_inserts(txn, key, data, dbi->db);
-	    if (r!=0) return r;
-	}
+        struct list *h;
+        for (h=list_head(&db->i->associated); h!=&db->i->associated; h=h->next) {
+            struct __toku_db_internal *dbi=list_struct(h, struct __toku_db_internal, associated);
+            r=do_associated_inserts(txn, key, data, dbi->db);
+            if (r!=0) return r;
+        }
     }
     return 0;
 }
