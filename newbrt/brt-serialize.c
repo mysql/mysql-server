@@ -380,6 +380,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
         toku_pma_set_dup_mode(result->u.l.buffer, flags);
         if (flags & TOKU_DB_DUPSORT) toku_pma_set_dup_compare(result->u.l.buffer, dup_compare);
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
+	toku_verify_counts(result);
 #define BRT_USE_PMA_BULK_INSERT 1
 #if BRT_USE_PMA_BULK_INSERT
 {
@@ -388,7 +389,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	for (i=0; i<n_in_buf; i++) {
 	    bytevec key; ITEMLEN keylen; 
 	    bytevec val; ITEMLEN vallen;
-	    toku_verify_counts(result);
+	    // The counts are wrong here
 	    int idx __attribute__((__unused__)) = rbuf_int(&rc);
 	    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
             toku_fill_dbt(&keys[i], key, keylen);
@@ -424,6 +425,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
 	}
 #endif
+	toku_verify_counts(result);
     }
     {
 	unsigned int n_read_so_far = rc.ndone;
@@ -450,6 +452,10 @@ void toku_verify_counts (BRTNODE node) {
     /*foo*/
     if (node->height==0) {
 	assert(node->u.l.buffer);
+	unsigned int sum=0;
+	PMA_ITERATE(node->u.l.buffer, key __attribute__((__unused__)), keylen, data  __attribute__((__unused__)), datalen,
+		    sum+=(PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + keylen + datalen));
+	assert(sum==node->u.l.n_bytes_in_buffer);
     } else {
 	unsigned int sum = 0;
 	int i;
