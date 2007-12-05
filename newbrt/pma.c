@@ -552,7 +552,7 @@ int toku_pmainternal_smooth_region (TOKUTXN txn, FILENUM filenum, DISKOFF diskof
 	    if (ipa.array==0) return errno;
 	    int j=0;
 	    for (i=0; i<n_saved; i++) {
-		if (tmppairs[i].newtag!=newidx) {
+		if (tmppairs[i].pair!=0) {
 		    ipa.array[j].a = tmppairs[i].oldtag;
 		    ipa.array[j].b = tmppairs[i].newtag;
 		    j++;
