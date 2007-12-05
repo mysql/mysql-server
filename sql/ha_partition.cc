@@ -1531,6 +1531,14 @@ int ha_partition::copy_partitions(ulonglong *copied, ulonglong *deleted)
   longlong func_value;
   DBUG_ENTER("ha_partition::copy_partitions");
 
+  if (m_part_info->linear_hash_ind)
+  {
+    if (m_part_info->part_type == HASH_PARTITION)
+      set_linear_hash_mask(m_part_info, m_part_info->no_parts);
+    else
+      set_linear_hash_mask(m_part_info, m_part_info->no_subparts);
+  }
+
   while (reorg_part < m_reorged_parts)
   {
     handler *file= m_reorged_file[reorg_part];

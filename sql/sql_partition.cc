@@ -1402,7 +1402,7 @@ static void set_up_partition_func_pointers(partition_info *part_info)
     NONE
 */
 
-static void set_linear_hash_mask(partition_info *part_info, uint no_parts)
+void set_linear_hash_mask(partition_info *part_info, uint no_parts)
 {
   uint mask;
 
