@@ -84,12 +84,12 @@ static void fix_up_parent_pointers_of_children (BRT t, BRTNODE node) {
     assert(node->height>0);
     for (i=0; i<node->u.n.n_children; i++) {
 	void *v;
-	int r = toku_cachetable_maybe_get_and_pin(t->cf, node->u.n.children[i], &v);
+	int r = toku_cachetable_maybe_get_and_pin(t->cf, BRTNODE_CHILD_DISKOFF(node, i), &v);
 	if (r==0) {
 	    BRTNODE child = v;
 	    //printf("%s:%d pin %p\n", __FILE__, __LINE__, v);
 	    child->parent_brtnode = node;
-	    r=toku_cachetable_unpin(t->cf, node->u.n.children[i], child->dirty, brtnode_size(child));
+	    r=toku_cachetable_unpin(t->cf, BRTNODE_CHILD_DISKOFF(node, i), child->dirty, brtnode_size(child));
 	}
     }
 }
@@ -99,12 +99,12 @@ static void fix_up_parent_pointers_of_children_now_that_parent_is_gone (CACHEFIL
     if (node->height==0) return;
     for (i=0; i<node->u.n.n_children; i++) {
 	void *v;
-	int r = toku_cachetable_maybe_get_and_pin(cf, node->u.n.children[i], &v);
+	int r = toku_cachetable_maybe_get_and_pin(cf, BRTNODE_CHILD_DISKOFF(node, i), &v);
 	if (r==0) {
 	    BRTNODE child = v;
 	    //printf("%s:%d pin %p\n", __FILE__, __LINE__, v);
 	    child->parent_brtnode = 0;
-	    r=toku_cachetable_unpin(cf, node->u.n.children[i], child->dirty, brtnode_size(child));
+	    r=toku_cachetable_unpin(cf, BRTNODE_CHILD_DISKOFF(node, i), child->dirty, brtnode_size(child));
 	}
     }
 }
@@ -162,8 +162,8 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *b
 	    //printf("%s:%d parent height=%d has %d children: The first few are", __FILE__, __LINE__, pheight, nc);
 	    assert(parent->u.n.n_children<=TREE_FANOUT+1);
 	    for (i=0; i<parent->u.n.n_children; i++) {
-		//printf(" %lld\n", parent->u.n.children[i]);
-		if (parent->u.n.children[i]==nodename) {
+		//printf(" %lld\n", BRTNODE_CHILD_DISKOFF(parent, i));
+		if (BRTNODE_CHILD_DISKOFF(parent, i)==nodename) {
 		    // Rename the block, informing the parent of the new block
 #if 0   
 		    if (rename_p) {
@@ -172,7 +172,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *b
 			assert(r!=0); // !!! This error should be handled better (e.g., what if the disk fills up)
 			// !!! Don't forget to free the old node (sometime after some future checkpoint.  TODO!!!)
 			brtnode->thisnodename=newnodename;
-			parent->u.n.children[i] = newnodename;
+			BRTNODE_CHILD_DISKOFF(parent, i) = newnodename;
 			toku_cachetable_rename(cachefile, nodename, newnodename);
 		    }
 #endif
@@ -452,8 +452,8 @@ static void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nod
 	int i;
 	for (i=0; i<n_children_in_a; i++) {
 	    HASHTABLE htab       = node->u.n.htables[i];
-	    A->u.n.children[i]   = node->u.n.children[i];
-	    A->u.n.htables[i]    = htab;
+	    BRTNODE_CHILD_DISKOFF(A, i) = BRTNODE_CHILD_DISKOFF(node, i);
+	    A->u.n.htables[i]            = htab;
 	    A->u.n.n_bytes_in_hashtables += (A->u.n.n_bytes_in_hashtable[i] = node->u.n.n_bytes_in_hashtable[i]);
 	    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(A, i) = BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i);
 
@@ -466,9 +466,9 @@ static void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nod
 	for (i=n_children_in_a; i<node->u.n.n_children; i++) {
 	    int targchild = i-n_children_in_a;
 	    HASHTABLE htab       = node->u.n.htables[i];
-	    B->u.n.children[targchild]   = node->u.n.children[i];
-	    B->u.n.htables[targchild]    = htab;
-	    B->u.n.n_bytes_in_hashtables += (B->u.n.n_bytes_in_hashtable[targchild] = node->u.n.n_bytes_in_hashtable[i]);
+	    BRTNODE_CHILD_DISKOFF(B, targchild) = BRTNODE_CHILD_DISKOFF(node, i);
+	    B->u.n.htables[targchild]           = htab;
+	    B->u.n.n_bytes_in_hashtables        += (B->u.n.n_bytes_in_hashtable[targchild] = node->u.n.n_bytes_in_hashtable[i]);
 	    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(B, targchild) = BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i);
 
 	    node->u.n.htables[i] = 0;
@@ -668,14 +668,14 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     // Slide the children over.
     for (cnum=node->u.n.n_children; cnum>childnum+1; cnum--) {
-	node->u.n.children[cnum] = node->u.n.children[cnum-1];
+	BRTNODE_CHILD_DISKOFF(node,cnum) = BRTNODE_CHILD_DISKOFF(node, cnum-1);
 	node->u.n.htables[cnum] = node->u.n.htables[cnum-1];
 	BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, cnum) = BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, cnum-1);
 	node->u.n.n_bytes_in_hashtable[cnum] = node->u.n.n_bytes_in_hashtable[cnum-1];
         node->u.n.n_cursors[cnum] = node->u.n.n_cursors[cnum-1];
     }
-    node->u.n.children[childnum]   = childa->thisnodename;
-    node->u.n.children[childnum+1] = childb->thisnodename;
+    BRTNODE_CHILD_DISKOFF(node, childnum)   = childa->thisnodename;
+    BRTNODE_CHILD_DISKOFF(node, childnum+1) = childb->thisnodename;
     node->u.n.n_cursors[childnum+1] = 0;
     fixup_child_fingerprint(node, childnum,   childa);
     fixup_child_fingerprint(node, childnum+1, childb);
@@ -758,8 +758,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	assert((*nodeb)->height>0);
 	assert((*nodea)->u.n.n_children>0);
 	assert((*nodeb)->u.n.n_children>0);
-	assert((*nodea)->u.n.children[(*nodea)->u.n.n_children-1]!=0);
-	assert((*nodeb)->u.n.children[(*nodeb)->u.n.n_children-1]!=0);
+	assert(BRTNODE_CHILD_DISKOFF(*nodea, (*nodea)->u.n.n_children-1)!=0);
+	assert(BRTNODE_CHILD_DISKOFF(*nodeb, (*nodeb)->u.n.n_children-1)!=0);
 	assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
 	assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
 	//verify_local_fingerprint_nonleaf(*nodea);
@@ -786,7 +786,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     BRTNODE child;
     int r;
     assert(node->height>0);
-    DISKOFF targetchild = node->u.n.children[childnum]; 
+    DISKOFF targetchild = BRTNODE_CHILD_DISKOFF(node, childnum);
     assert(targetchild>=0 && targetchild<t->h->unused_memory); // This assertion could fail in a concurrent setting since another process might have bumped unused memory.
     r = toku_cachetable_get_and_pin(t->cf, targetchild, &childnode_v, NULL, 
 				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
@@ -797,7 +797,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     //verify_local_fingerprint_nonleaf(child);
     toku_verify_counts(child);
     //printf("%s:%d height=%d n_bytes_in_hashtable = {%d, %d, %d, ...}\n", __FILE__, __LINE__, child->height, child->n_bytes_in_hashtable[0], child->n_bytes_in_hashtable[1], child->n_bytes_in_hashtable[2]);
-    if (child->height>0 && child->u.n.n_children>0) assert(child->u.n.children[child->u.n.n_children-1]!=0);
+    if (child->height>0 && child->u.n.n_children>0) assert(BRTNODE_CHILD_DISKOFF(child, child->u.n.n_children-1)!=0);
     if (debug) printf("%s:%d %*spush_some_brt_cmds_down to %lld\n", __FILE__, __LINE__, debug, "", child->thisnodename);
     /* I am exposing the internals of the hash table here, mostly because I am not thinking of a really
      * good way to do it otherwise.  I want to loop over the elements of the hash table, deleting some as I
@@ -889,8 +889,8 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 	    int childnum;
 	    if (0) printf("%s:%d %*sfind_heaviest_data\n", __FILE__, __LINE__, debug, "");
 	    find_heaviest_child(node, &childnum);
-	    if (0) printf("%s:%d %*spush some down from %lld into %lld (child %d)\n", __FILE__, __LINE__, debug, "", node->thisnodename, node->u.n.children[childnum], childnum);
-	    assert(node->u.n.children[childnum]!=0);
+	    if (0) printf("%s:%d %*spush some down from %lld into %lld (child %d)\n", __FILE__, __LINE__, debug, "", node->thisnodename, BRTNODE_CHILD_DISKOFF(node, childnum), childnum);
+	    assert(BRTNODE_CHILD_DISKOFF(node, childnum)!=0);
 	    int r = push_some_brt_cmds_down(t, node, childnum, did_split, nodea, nodeb, splitk, debugp1(debug), txn);
 	    if (r!=0) return r;
 	    assert(*did_split==0 || *did_split==1);
@@ -900,8 +900,8 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 		assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);		
 		assert((*nodea)->u.n.n_children>0);
 		assert((*nodeb)->u.n.n_children>0);
-		assert((*nodea)->u.n.children[(*nodea)->u.n.n_children-1]!=0);
-		assert((*nodeb)->u.n.children[(*nodeb)->u.n.n_children-1]!=0);
+		assert(BRTNODE_CHILD_DISKOFF(*nodea, (*nodea)->u.n.n_children-1)!=0);
+		assert(BRTNODE_CHILD_DISKOFF(*nodeb, (*nodeb)->u.n.n_children-1)!=0);
 		//verify_local_fingerprint_nonleaf(*nodea);
 		//verify_local_fingerprint_nonleaf(*nodeb);
 	    } else {
@@ -1043,9 +1043,9 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
     *did_split = 0;
 
     if (maybe) 
-        r = toku_cachetable_maybe_get_and_pin(t->cf, node->u.n.children[childnum], &child_v);
+        r = toku_cachetable_maybe_get_and_pin(t->cf, BRTNODE_CHILD_DISKOFF(node, childnum), &child_v);
     else 
-        r = toku_cachetable_get_and_pin(t->cf, node->u.n.children[childnum], &child_v, NULL, 
+        r = toku_cachetable_get_and_pin(t->cf, BRTNODE_CHILD_DISKOFF(node, childnum), &child_v, NULL, 
                                    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
     if (r != 0)
         return r;
@@ -1167,8 +1167,8 @@ static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 	assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
 	assert((*nodea)->u.n.n_children>0);
 	assert((*nodeb)->u.n.n_children>0);
-	assert((*nodea)->u.n.children[(*nodea)->u.n.n_children-1]!=0);
-	assert((*nodeb)->u.n.children[(*nodeb)->u.n.n_children-1]!=0);
+	assert(BRTNODE_CHILD_DISKOFF(*nodea, (*nodea)->u.n.n_children-1)!=0);
+	assert(BRTNODE_CHILD_DISKOFF(*nodeb, (*nodeb)->u.n.n_children-1)!=0);
 	toku_verify_counts(*nodea);
 	toku_verify_counts(*nodeb);
     } else {
@@ -1261,8 +1261,8 @@ static int brt_nonleaf_delete_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
 	assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
 	assert((*nodea)->u.n.n_children>0);
 	assert((*nodeb)->u.n.n_children>0);
-	assert((*nodea)->u.n.children[(*nodea)->u.n.n_children-1]!=0);
-	assert((*nodeb)->u.n.children[(*nodeb)->u.n.n_children-1]!=0);
+	assert(BRTNODE_CHILD_DISKOFF(*nodea,(*nodea)->u.n.n_children-1)!=0);
+	assert(BRTNODE_CHILD_DISKOFF(*nodeb,(*nodeb)->u.n.n_children-1)!=0);
 	toku_verify_counts(*nodea);
 	toku_verify_counts(*nodeb);
     } else {
@@ -1886,7 +1886,7 @@ static int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, BRTNODE parent
 	if (toku_hash_find (node->u.n.htables[childnum], k->data, k->size, &hanswer, &hanswerlen, &type)==0) {
 	    if (type == BRT_INSERT) {
                 if ((brt->flags & TOKU_DB_DUP)) {
-                    result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, node);
+                    result = brt_lookup_node(brt, BRTNODE_CHILD_DISKOFF(node, childnum), k, v, node);
                     if (result != 0) {
                         toku_dbt_set_value(v, hanswer, hanswerlen, &brt->sval);
                         result = 0;
@@ -1914,7 +1914,7 @@ static int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, BRTNODE parent
 	}
     }
     
-    result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, node);
+    result = brt_lookup_node(brt, BRTNODE_CHILD_DISKOFF(node, childnum), k, v, node);
     //verify_local_fingerprint_nonleaf(node);
     r = toku_cachetable_unpin(brt->cf, off, 0, 0);
     assert(r == 0);
@@ -1992,7 +1992,7 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
 		if (i>0) {
 		    printf("%*spivot %d=%s\n", depth+1, "", i-1, (char*)node->u.n.childkeys[i-1]);
 		}
-		toku_dump_brtnode(brt, node->u.n.children[i], depth+4,
+		toku_dump_brtnode(brt, BRTNODE_CHILD_DISKOFF(node, i), depth+4,
 				  (i==0) ? lorange : node->u.n.childkeys[i-1],
 				  (i==0) ? lolen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]),
 				  (i==node->u.n.n_children-1) ? hirange : node->u.n.childkeys[i],
@@ -2043,7 +2043,7 @@ static int show_brtnode_blocknumbers (BRT brt, DISKOFF off, BRTNODE parent_brtno
     printf(" %lld", off/brt->h->nodesize);
     if (node->height>0) {
 	for (i=0; i<node->u.n.n_children; i++) {
-	    if ((r=show_brtnode_blocknumbers(brt, node->u.n.children[i], node))) goto died0;
+	    if ((r=show_brtnode_blocknumbers(brt, BRTNODE_CHILD_DISKOFF(node, i), node))) goto died0;
 	}
     }
     r = toku_cachetable_unpin(brt->cf, off, 0, 0);
@@ -2437,7 +2437,7 @@ static int brtcurs_set_position_last (BRT_CURSOR cursor, DISKOFF off, DBT *key, 
             brt_node_remove_cursor(node, childnum, cursor);
             goto try_last_child;
         }
-        r=brtcurs_set_position_last (cursor, node->u.n.children[childnum], key, txn, node);
+        r=brtcurs_set_position_last (cursor, BRTNODE_CHILD_DISKOFF(node, childnum), key, txn, node);
 	if (r == 0)
             return 0;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2499,7 +2499,7 @@ static int brtcurs_set_position_first (BRT_CURSOR cursor, DISKOFF off, DBT *key,
             brt_node_remove_cursor(node, childnum, cursor);
             goto try_first_child;
         }
-        r=brtcurs_set_position_first (cursor, node->u.n.children[childnum], key, txn, node);
+        r=brtcurs_set_position_first (cursor, BRTNODE_CHILD_DISKOFF(node, childnum), key, txn, node);
         if (r == 0)
             return r;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2563,7 +2563,7 @@ static int brtcurs_set_position_next2(BRT_CURSOR cursor, DBT *key, TOKUTXN txn) 
             node = cursor->path[cursor->path_len-1];
             childnum = cursor->pathcnum[cursor->path_len-1];
 	}
-        r = brtcurs_set_position_first(cursor, node->u.n.children[childnum], key, txn, node);
+        r = brtcurs_set_position_first(cursor, BRTNODE_CHILD_DISKOFF(node, childnum), key, txn, node);
         if (r == 0)
             return 0;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2624,7 +2624,7 @@ static int brtcurs_set_position_prev2(BRT_CURSOR cursor, DBT *key, TOKUTXN txn) 
             node = cursor->path[cursor->path_len-1];
             childnum = cursor->pathcnum[cursor->path_len-1];
         }
-        r = brtcurs_set_position_last(cursor, node->u.n.children[childnum], key, txn, node);
+        r = brtcurs_set_position_last(cursor, BRTNODE_CHILD_DISKOFF(node, childnum), key, txn, node);
         if (r == 0)
             return 0;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2678,7 +2678,7 @@ static int brtcurs_set_key(BRT_CURSOR cursor, DISKOFF off, DBT *key, DBT *val, i
             }
             break;
         }
-        r = brtcurs_set_key(cursor, node->u.n.children[childnum], key, val, flag, txn, node);
+        r = brtcurs_set_key(cursor, BRTNODE_CHILD_DISKOFF(node, childnum), key, val, flag, txn, node);
         if (r != 0)
             brt_node_remove_cursor(node, childnum, cursor);
     } else {
@@ -2741,7 +2741,7 @@ static int brtcurs_set_range(BRT_CURSOR cursor, DISKOFF off, DBT *key, TOKUTXN t
             }
             break;
         }
-        r = brtcurs_set_range(cursor, node->u.n.children[childnum], key, txn, node);
+        r = brtcurs_set_range(cursor, BRTNODE_CHILD_DISKOFF(node, childnum), key, txn, node);
         if (r != 0) {
             node = cursor->path[cursor->path_len-1];
             childnum = cursor->pathcnum[cursor->path_len-1];

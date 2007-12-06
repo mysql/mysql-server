@@ -84,6 +84,7 @@ struct brtnode {
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
 	    unsigned char   pivotflags[TREE_FANOUT];
 	    DISKOFF         children[TREE_FANOUT+1];  /* unused if height==0 */   /* Note: The last element of these arrays is used only temporarily while splitting a node. */
+#define BRTNODE_CHILD_DISKOFF(node,i) ((node)->u.n.children[i])
 	    HASHTABLE       htables[TREE_FANOUT+1];
 	    unsigned int    n_bytes_in_hashtable[TREE_FANOUT+1]; /* how many bytes are in each hashtable (including overheads) */
 	    unsigned int    n_cursors[TREE_FANOUT+1];
