@@ -141,6 +141,11 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 	  60);
   forminfo[46]=(uchar) strlen((char*)forminfo+47);	// Length of comment
 #ifdef EXTRA_DEBUG
+  /*
+    EXTRA_DEBUG causes strmake() to initialize its buffer behind the
+    payload with a magic value to detect wrong buffer-sizes. We
+    explicitly zero that segment again.
+  */
   memset((char*) forminfo+47 + forminfo[46], 0, 61 - forminfo[46]);
 #endif
 
