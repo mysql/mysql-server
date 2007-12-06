@@ -123,17 +123,23 @@ static void fixup_child_fingerprint(BRTNODE node, int childnum_of_node, BRTNODE 
     node->dirty=1;
 }
 
-static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck, unsigned int cl) {
+unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {
+    if (brt->flags & TOKU_DB_DUPSORT) {
+	return kv_pair_keylen(pk) + kv_pair_vallen(pk);
+    } else {
+	return kv_pair_keylen(pk);
+    }
+}
+
+static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck) {
     int cmp;
     DBT mydbt;
     struct kv_pair *kv = (struct kv_pair *) ck;
     if (brt->flags & TOKU_DB_DUPSORT) {
-        assert(kv_pair_keylen(kv) + kv_pair_vallen(kv) == cl);
         cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
         if (cmp == 0 && data != 0)
             cmp = brt->dup_compare(brt->db, data, toku_fill_dbt(&mydbt, kv_pair_val(kv), kv_pair_vallen(kv)));
     } else {
-        assert(kv_pair_keylen(kv) == cl);
         cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
     }
     return cmp;
@@ -571,7 +577,7 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
 	if (childnum_of_node+1<node->u.n.n_children) {
 	    DBT k2;
 	    printf(" nextsplitkey=%s\n", (char*)node->u.n.childkeys[childnum_of_node]);
-	    assert(t->compare_fun(t->db, k, toku_fill_dbt(&k2, node->u.n.childkeys[childnum_of_node], node->u.n.childkeylens[childnum_of_node]))<=0);
+	    assert(t->compare_fun(t->db, k, toku_fill_dbt(&k2, node->u.n.childkeys[childnum_of_node], toku_brt_pivot_key_len(t, node->u.n.childkeys[childnum_of_node])))<=0);
 	} else {
 	    printf("\n");
 	}
@@ -726,7 +732,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb);
         int tochildnum = childnum;
         BRTNODE tochild = childa;
-        int cmp = brt_compare_pivot(t, &skd, &svd, childsplitk->data, childsplitk->size);
+        int cmp = brt_compare_pivot(t, &skd, &svd, childsplitk->data);
         if (cmp < 0) {
             ;
         } else if (cmp > 0) {
@@ -989,7 +995,7 @@ static unsigned int brtnode_right_child (BRTNODE node, DBT *k, DBT *data, BRT t)
     int maybe = -1;  /* last pivot that matched the key */
     int i;
     for (i=node->u.n.n_children-2; i >= 0; i--) {
-        int cmp = brt_compare_pivot(t, k, data, node->u.n.childkeys[i], node->u.n.childkeylens[i]);
+        int cmp = brt_compare_pivot(t, k, data, node->u.n.childkeys[i]);
         if (cmp < 0) {
             continue;
         } else if (cmp > 0) {
@@ -1020,7 +1026,7 @@ static unsigned int brtnode_left_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
     int i;
     assert(node->height>0);
     for (i=0; i<node->u.n.n_children-1; i++) {
-	int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[i], node->u.n.childkeylens[i]);
+	int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[i]);
         if (cmp > 0) continue;
         if (cmp < 0) return i;
         if (t->flags & TOKU_DB_DUP) {
@@ -1301,7 +1307,7 @@ static int brt_nonleaf_delete_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
     }
     int i;
     for (i = 0; i < node->u.n.n_children-1; i++) {
-        int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i], node->u.n.childkeylens[i]);
+        int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
         if (cmp > 0) {
             continue;
         } else if (cmp < 0) {
@@ -1350,7 +1356,7 @@ static int brt_nonleaf_delete_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 
     /* post condition: for all pk(i) == k -> assert pf(i) == 0 */
     for (i=0; i < node->u.n.n_children-1; i++) {
-        int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i], node->u.n.childkeylens[i]);
+        int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
 
         if (cmp == 0)
             assert(node->u.n.pivotflags[i] == 0);
@@ -2002,12 +2008,12 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
 		    printf("%*spivot %d=%s\n", depth+1, "", i-1, (char*)node->u.n.childkeys[i-1]);
 		}
 		toku_dump_brtnode(brt, node->u.n.children[i], depth+4,
-			     (i==0) ? lorange : node->u.n.childkeys[i-1],
-			     (i==0) ? lolen   : node->u.n.childkeylens[i-1],
-			     (i==node->u.n.n_children-1) ? hirange : node->u.n.childkeys[i],
-			     (i==node->u.n.n_children-1) ? hilen   : node->u.n.childkeylens[i],
-			     node
-			     );
+				  (i==0) ? lorange : node->u.n.childkeys[i-1],
+				  (i==0) ? lolen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]),
+				  (i==node->u.n.n_children-1) ? hirange : node->u.n.childkeys[i],
+				  (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]),
+				  node
+				  );
 	    }
 	}
     } else {

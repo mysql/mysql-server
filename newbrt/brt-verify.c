@@ -79,14 +79,14 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 		thislolen  =lolen;
 	    } else {
 		thislorange=kv_pair_key(node->u.n.childkeys[i-1]);
-		thislolen  =node->u.n.childkeylens[i-1];
+		thislolen  =toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]);
 	    }
 	    if (node->u.n.n_children==0 || i+1>=node->u.n.n_children) {
 		thishirange=hirange;
 		thishilen  =hilen;
 	    } else {
 		thishirange=kv_pair_key(node->u.n.childkeys[i]);
-		thishilen  =node->u.n.childkeylens[i];
+		thishilen  =toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]);
 	    }
 	    {
 		void verify_pair (bytevec key, unsigned int keylen,
@@ -105,15 +105,15 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
 	    if (i>0) {
-		if (lorange) assert(toku_keycompare(lorange,lolen, kv_pair_key(node->u.n.childkeys[i-1]), node->u.n.childkeylens[i-1])<0);
-		if (hirange) assert(toku_keycompare(kv_pair_key(node->u.n.childkeys[i-1]), node->u.n.childkeylens[i-1], hirange, hilen)<=0);
+		if (lorange) assert(toku_keycompare(lorange,lolen, kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]))<0);
+		if (hirange) assert(toku_keycompare(kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]), hirange, hilen)<=0);
 	    }
 	    if (recurse) {
 		result|=toku_verify_brtnode(brt, node->u.n.children[i],
                                             (i==0) ? lorange : kv_pair_key(node->u.n.childkeys[i-1]),
-                                            (i==0) ? lolen   : node->u.n.childkeylens[i-1],
+                                            (i==0) ? lolen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]),
                                             (i==node->u.n.n_children-1) ? hirange : kv_pair_key(node->u.n.childkeys[i]),
-                                            (i==node->u.n.n_children-1) ? hilen   : node->u.n.childkeylens[i],
+                                            (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]),
                                             recurse,
                                             node);
 	    }
