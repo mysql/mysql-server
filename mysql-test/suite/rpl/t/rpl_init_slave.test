@@ -6,7 +6,6 @@ source include/master-slave.inc;
 
 save_master_pos;
 connection slave;
-sleep 1;
 show variables like 'init_slave';
 show variables like 'max_connections';
 sync_with_master;

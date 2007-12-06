@@ -60,23 +60,24 @@ insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 connection con1;
 create temporary table t3(f int);
 insert into t3 select * from t1 where f<6;
-sleep 1;
+let $wait_condition= SELECT COUNT(*) = 5 FROM t3;
+--source include/wait_condition.inc
 
 connection con2;
 create temporary table t3(f int);
-sleep 1;
 
 connection con1;
 insert into t2 select count(*) from t3;
-sleep 1;
+let $wait_condition= SELECT COUNT(*) = 1 FROM t2;
+--source include/wait_condition.inc
 
 connection con2;
 insert into t3 select * from t1 where f>=4;
-sleep 1;
+let $wait_condition= SELECT COUNT(*) = 7 FROM t3;
+--source include/wait_condition.inc
 
 connection con1;
 drop temporary table t3;
-sleep 1;
 
 connection con2;
 insert into t2 select count(*) from t3;
