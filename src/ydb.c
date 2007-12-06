@@ -576,8 +576,35 @@ struct __toku_dbc_internal {
     DB_TXN *txn;
 };
 
+static int verify_secondary_key(DB *secondary, DBT *pkey, DBT *data, DBT *skey) {
+    int r = 0;
+    DBT idx;
+
+    assert(secondary->i->primary != 0);
+    memset(&idx, 0, sizeof(idx));
+    secondary->i->associate_callback(secondary, pkey, data, &idx);
+    if (r==DB_DONOTINDEX) return DB_SECONDARY_BAD;
+#ifdef DB_DBT_MULTIPLE
+    if (idx.flags & DB_DBT_MULTIPLE) {
+        return EINVAL; // We aren't ready for this
+    }
+#endif
+	if (skey->size != idx.size || memcmp(skey->data, idx.data, idx.size) != 0) r = DB_SECONDARY_BAD;
+    if (idx.flags & DB_DBT_APPMALLOC) {
+    	free(idx.data);
+    }
+    return r;
+}
+
 static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
     int r = toku_brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
+    return r;
+}
+
+static int toku_c_del_noassociate(DBC * c, u_int32_t flags) {
+    int r;
+    
+    r = toku_brt_cursor_delete(c->i->c, flags);
     return r;
 }
 
@@ -591,11 +618,19 @@ static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) 
 	// If data and primary_key are both zeroed, the temporary storage used to fill in data is different in the two cases because they come from different trees.
 	assert(db->i->brt!=pdb->i->brt); // Make sure they realy are different trees.
     assert(db!=pdb);
-    
+
+    if (0) {
+delete_silently:
+        //Silently delete and re-run.
+        r = toku_c_del_noassociate(c, 0);
+        if (r != 0) return r;
+    }    
     r = toku_c_get_noassociate(c, key, pkey, flag);
     if (r != 0) return r;
     r = pdb->get(pdb, c->i->txn, pkey, data, 0);
-    if (r == DB_NOTFOUND) return DB_SECONDARY_BAD;
+    if (r == DB_NOTFOUND)   goto delete_silently;
+    r = verify_secondary_key(db, pkey, data, key);
+    if (r != 0)             goto delete_silently;
     return r;
 }
 
@@ -658,13 +693,6 @@ static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t f
     } 
     //Do the actual deleting.
     r = toku_brt_delete(db->i->brt, key);
-    return r;
-}
-
-static int toku_c_del_noassociate(DBC * c, u_int32_t flags) {
-    int r;
-    
-    r = toku_brt_cursor_delete(c->i->c, flags);
     return r;
 }
 
