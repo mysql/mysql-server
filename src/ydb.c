@@ -811,6 +811,7 @@ static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
         if ((brtflags & TOKU_DB_DUPSORT) || (brtflags & TOKU_DB_DUP)) {
             int r2;
     	    DBC *dbc;
+    	    BOOL found = FALSE;
 
             /* If we are deleting all copies from a secondary with duplicates,
              * We have to make certain we cascade all the deletes. */
@@ -823,11 +824,12 @@ static int toku_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
             
             while (r==0) {
                 r = dbc->c_del(dbc, 0);
-                if (r!=0) goto cleanup;
+                if (r==0) found = TRUE;
+                if (r!=0 && r!=DB_KEYEMPTY) goto cleanup;
                 r = toku_c_get_noassociate(dbc, key, &data, DB_NEXT_DUP);
                 if (r == DB_NOTFOUND) {
-                    //Already deleted at least one.  Quit out.
-                    r = 0;
+                    //If we deleted at least one we're happy.  Quit out.
+                    if (found) r = 0;
                     goto cleanup;
                 }
             }
