@@ -612,7 +612,6 @@ static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) 
     int r;
     DB *db = c->i->db;
     DB *pdb = db->i->primary;
-    //Not ready for this yet.
 
     if (!pdb) return EINVAL;  //c_pget does not work on a primary.
 	// If data and primary_key are both zeroed, the temporary storage used to fill in data is different in the two cases because they come from different trees.
@@ -629,6 +628,7 @@ delete_silently_and_retry:
     if (r != 0) return r;
     r = pdb->get(pdb, c->i->txn, pkey, data, 0);
     if (r == DB_NOTFOUND)   goto delete_silently_and_retry;
+    if (r != 0) return r;
     r = verify_secondary_key(db, pkey, data, key);
     if (r != 0)             goto delete_silently_and_retry;
     return r;
