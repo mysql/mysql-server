@@ -48,6 +48,9 @@ let $more_pk_ui_tests= 0;
 
 ##### Storage engine to be tested
 let $engine= 'MyISAM';
+# The server uses in case of MyISAM symlinking (if available) and the expected
+# results fit to symlinking support.
+--source include/have_symlink.inc
 
 ##### Execute the test of "table" files
 # MyISAM has files per PK, UI, ...
