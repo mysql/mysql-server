@@ -12665,7 +12665,7 @@ t6	CREATE TABLE `t6` (
   `b` tinyblob,
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
+) ENGINE=ARCHIVE AUTO_INCREMENT=36 DEFAULT CHARSET=latin1
 DROP TABLE t1, t2, t4, t5, t6;
 create table t1 (i int) engine=archive;
 insert into t1 values (1);
