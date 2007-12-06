@@ -276,6 +276,7 @@ int kvpair_compare (const void *av, const void *bv) {
 static DISKOFF malloc_diskblock_header_is_in_memory (BRT brt, int size) {
     DISKOFF result = brt->h->unused_memory;
     brt->h->unused_memory+=size;
+    brt->h->dirty = 1;
     return result;
 }
 
