@@ -620,7 +620,7 @@ static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) 
     assert(db!=pdb);
 
     if (0) {
-delete_silently:
+delete_silently_and_retry:
         //Silently delete and re-run.
         r = toku_c_del_noassociate(c, 0);
         if (r != 0) return r;
@@ -628,9 +628,9 @@ delete_silently:
     r = toku_c_get_noassociate(c, key, pkey, flag);
     if (r != 0) return r;
     r = pdb->get(pdb, c->i->txn, pkey, data, 0);
-    if (r == DB_NOTFOUND)   goto delete_silently;
+    if (r == DB_NOTFOUND)   goto delete_silently_and_retry;
     r = verify_secondary_key(db, pkey, data, key);
-    if (r != 0)             goto delete_silently;
+    if (r != 0)             goto delete_silently_and_retry;
     return r;
 }
 
@@ -884,16 +884,19 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
 
 static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_int32_t flags) {
     int r;
+    int r2;
+    DBC *dbc;
     if (!db->i->primary) return EINVAL; // pget doesn't work on a primary.
     assert(flags==0); // not ready to handle all those other options
-    r = toku_db_get_noassociate (db, txn, key, pkey, 0);
-    if (r!=0) return r;
-	// If data and primary_key are both zeroed, the temporary storage used to fill in data is different in the two cases because they come from different trees.
 	assert(db->i->brt != db->i->primary->i->brt); // Make sure they realy are different trees.
     assert(db!=db->i->primary);
-    r = toku_db_get (db->i->primary, txn, pkey, data, 0);
-    if (r == DB_NOTFOUND) return DB_SECONDARY_BAD;
-    return r;
+
+    r = db->cursor(db, txn, &dbc, 0);
+    if (r!=0) return r;
+    r = dbc->c_pget(dbc, key, pkey, data, DB_SET);
+    r2 = dbc->c_close(dbc);
+    if (r!=0) return r;
+    return r2;    
 }
 
 static int toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr, u_int32_t flags) {
