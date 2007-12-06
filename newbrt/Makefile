@@ -118,6 +118,13 @@ cachetable-test2: cachetable.o memory.o cachetable-test2.o primes.o
 benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o
 benchmark-test.o: brt.h ../include/db.h
 
+checko2:
+ifeq ($(OPTFLAGS),-O2)
+	@echo OPTFLAGS=$(OPTFLAGS) ok
+else
+	@echo OPTFLAGS=$(OPTFLAGS) bad; exit 1
+endif
+
 clean:
 	rm -rf $(REGRESSION_TESTS) $(BINS) *.o *.bb *.bbg *.da
 	rm -rf test_oexcl.c.tmp 
