@@ -1,0 +1,29 @@
+.\" Process this file with
+.\" groff -man -Tascii foo.1
+.\"
+.\" Copyright (c) 2007 Tokutek.  All Rights Reserved.
+.TH tokudb_dump 1 "November 2007" Tokutek "TokuDB Programmer's Manual"
+.SH NAME
+tokudb_dump
+.SH SYNOPSIS
+.LP
+\fBtokudb_dump
+dbfilename
+.SH DESCRIPTION
+The
+.B tokudb_dump
+program reads a TokuDB database and writes its key/data pairs to the standard output.
+The format of the key/data pairs is compatible with the 
+.B tokudb_load 
+program and with the Berkeley DB load and dump programs.
+.SH CONFORMING TO
+The TokuDB embedded database provides a subset of the functionality of
+the Berkeley DB.  Programs that work with TokuDB probably work with
+with most versions of Berkeley DB with only recompilation or
+relinking.  The database files are incompatible, however, so to
+convert from one library to the other you would need to dump the
+database with one library's tool and load it with the other's.
+.SH AUTHOR
+Tokutek, Inc.
+.SH COPYRIGHT
+Copyright (c) 2007 Tokutek.  All Rights Reserved.
