@@ -2725,6 +2725,8 @@ bool sys_var_pluginvar::update(THD *thd, set_var *var)
 static void plugin_opt_set_limits(struct my_option *options,
                                   const struct st_mysql_sys_var *opt)
 {
+  options->sub_size= 0;
+
   switch (opt->flags & (PLUGIN_VAR_TYPEMASK |
                         PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_THDLOCAL)) {
   /* global system variables */
