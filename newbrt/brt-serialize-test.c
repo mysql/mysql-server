@@ -33,7 +33,6 @@ static void test_serialize(void) {
     sn.u.n.n_children = 2;
     hello_string = toku_strdup("hello");
     sn.u.n.childkeys[0] = kv_pair_malloc(hello_string, 6, 0, 0); 
-    sn.u.n.childkeylens[0] = 6;
     sn.u.n.totalchildkeylens = 6;
     sn.u.n.pivotflags[0] = 42;
     sn.u.n.children[0] = sn.nodesize*30;

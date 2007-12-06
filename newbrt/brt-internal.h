@@ -73,7 +73,7 @@ struct brtnode {
 							 Note: It is possible that Child 1's keys are == to child 0's key's, so it is
 							 not necessarily true that child 1's keys are > childkeys[0].
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
-	    unsigned int    childkeylens[TREE_FANOUT];
+//	    unsigned int    childkeylens[TREE_FANOUT];
 	    unsigned char   pivotflags[TREE_FANOUT];
 	    DISKOFF         children[TREE_FANOUT+1];  /* unused if height==0 */   /* Note: The last element of these arrays is used only temporarily while splitting a node. */
 	    HASHTABLE       htables[TREE_FANOUT+1];

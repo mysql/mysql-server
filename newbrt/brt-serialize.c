@@ -281,7 +281,6 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	for (i=0; i<TREE_FANOUT; i++) { 
 	    result->u.n.child_subtree_fingerprints[i]=0;
             result->u.n.childkeys[i]=0; 
-            result->u.n.childkeylens[i]=0; 
         }
 	for (i=0; i<TREE_FANOUT+1; i++) { 
             result->u.n.children[i]=0; 
@@ -307,12 +306,12 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
                 unsigned int keylen, datalen;
                 rbuf_bytes(&rc, &keyptr, &keylen);
                 rbuf_bytes(&rc, &dataptr, &datalen);
-                result->u.n.childkeylens[i] = keylen + datalen;
                 result->u.n.childkeys[i] = kv_pair_malloc(keyptr, keylen, dataptr, datalen);
             } else {
                 bytevec childkeyptr;
-                rbuf_bytes(&rc, &childkeyptr, &result->u.n.childkeylens[i]); /* Returns a pointer into the rbuf. */
-                result->u.n.childkeys[i] = kv_pair_malloc((void*)childkeyptr, result->u.n.childkeylens[i], 0, 0);
+		unsigned int cklen;
+                rbuf_bytes(&rc, &childkeyptr, &cklen); /* Returns a pointer into the rbuf. */
+                result->u.n.childkeys[i] = kv_pair_malloc((void*)childkeyptr, cklen, 0, 0);
             }
             //printf(" key %d length=%d data=%s\n", i, result->childkeylens[i], result->childkeys[i]);
 	    result->u.n.totalchildkeylens+=toku_brtnode_pivot_key_len(result, result->u.n.childkeys[i]);
