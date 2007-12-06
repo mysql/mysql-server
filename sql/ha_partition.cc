@@ -1598,7 +1598,11 @@ error:
 
 void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 {
-  m_file[0]->update_create_info(create_info);
+  info(HA_STATUS_AUTO);
+
+  if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
+    create_info->auto_increment_value= stats.auto_increment_value;
+
   create_info->data_file_name= create_info->index_file_name = NULL;
   return;
 }
