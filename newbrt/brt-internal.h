@@ -233,4 +233,7 @@ extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void 
 extern u_int32_t toku_calccrc32_cmd (int type, const void *key, int keylen, const void *val, int vallen);
 extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD *cmd);
 
+// How long is the pivot key?
+unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk);
+
 #endif
