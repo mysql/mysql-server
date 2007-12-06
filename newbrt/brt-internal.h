@@ -35,10 +35,12 @@ struct brtnode_nonleaf_pivotinfo {
 };
 struct brtnode_nonleaf_childinfo {
     u_int32_t    subtree_fingerprint;
+#if 0
     DISKOFF      diskoff;
     HASHTABLE    htable;
     unsigned int n_bytes_in_hashtable; /* How many bytes are in each hashtable (including overheads for the disk-representation) */
     unsigned int n_cursors;
+#endif
 };
 
 typedef struct brtnode *BRTNODE;
@@ -63,17 +65,23 @@ struct brtnode {
 	    unsigned int    totalchildkeylens;
 	    unsigned int    n_bytes_in_hashtables;
 
+	    struct brtnode_nonleaf_childinfo childinfos[TREE_FANOUT+1]; /* One extra so we can grow */
+
+#if 0
+	    u_int32_t       child_subtree_fingerprints[TREE_FANOUT+1];
+#define BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node,i) ((node)->u.n.child_subtree_fingerprints[i])
+#else
+#define BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node,i) ((node)->u.n.childinfos[i].subtree_fingerprint)
+#endif
+
 //#define CHSTRUCT
 #ifdef CHSTRUCT
 	    struct brtnode_nonleaf_pivotinfo pivots[TREE_FANOUT]; /* One extra one so we can grow. */
-	    struct brtnode_nonleaf_childinfo children[TREE_FANOUT+1]; /* One extra so we can grow */
 #else
-	    u_int32_t       child_subtree_fingerprints[TREE_FANOUT+1];
 	    struct kv_pair *childkeys[TREE_FANOUT];   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
 							 Note: It is possible that Child 1's keys are == to child 0's key's, so it is
 							 not necessarily true that child 1's keys are > childkeys[0].
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
-//	    unsigned int    childkeylens[TREE_FANOUT];
 	    unsigned char   pivotflags[TREE_FANOUT];
 	    DISKOFF         children[TREE_FANOUT+1];  /* unused if height==0 */   /* Note: The last element of these arrays is used only temporarily while splitting a node. */
 	    HASHTABLE       htables[TREE_FANOUT+1];
