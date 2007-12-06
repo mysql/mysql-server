@@ -2842,7 +2842,7 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
         r=brtcurs_set_position_last(cursor, *rootp, kbt, txn, null_brtnode); if (r!=0) goto died0;
-        r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+        r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt, 0);
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_FIRST:
@@ -2850,14 +2850,14 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
         r=brtcurs_set_position_first(cursor, *rootp, kbt, txn, null_brtnode); if (r!=0) goto died0;
-        r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+        r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt, 0);
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_NEXT:
 	if (cursor->path_len<=0)
 	    goto do_db_first;
 	r=brtcurs_set_position_next(cursor, kbt, txn); if (r!=0) goto died0;
-	r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
+	r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt, 0); if (r!=0) goto died0;
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_NEXT_DUP:
@@ -2868,15 +2868,15 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
            if the keys are the same then return the duplicate key and data */
 
         DBT k1; memset(&k1, 0, sizeof k1); 
-        r = toku_pma_cursor_get_current(cursor->pmacurs, &k1, 0); if (r != 0) goto died0;
+        r = toku_pma_cursor_get_current(cursor->pmacurs, &k1, 0, 1); if (r != 0) goto died0;
         r = toku_pma_cursor_set_position_next(cursor->pmacurs);
         if (r == 0) {
             DBT k2; memset(&k2, 0, sizeof k2); k2.flags = DB_DBT_MALLOC;
-            r = toku_pma_cursor_get_current(cursor->pmacurs, &k2, 0); if (r != 0) goto died0;
+            r = toku_pma_cursor_get_current(cursor->pmacurs, &k2, 0, 0); if (r != 0) goto died0;
             int cmp = cursor->brt->compare_fun(cursor->brt->db, &k1, &k2);
             toku_free(k2.data);
             if (cmp == 0) {
-                r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+                r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt, 0);
                 if (r != 0) {
                     toku_pma_cursor_set_position_prev(cursor->pmacurs); goto died0;
                 }
@@ -2892,14 +2892,14 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
                 goto died0;
             }
             DBT k2; memset(&k2, 0, sizeof k2); k2.flags = DB_DBT_MALLOC;
-            r = toku_pma_cursor_get_current(cursor->pmacurs, &k2, 0); assert(r == 0);
+            r = toku_pma_cursor_get_current(cursor->pmacurs, &k2, 0, 0); assert(r == 0);
             int cmp = cursor->brt->compare_fun(cursor->brt->db, &k1, &k2);
             toku_free(k2.data);
             if (cmp != 0) {
                 brtcurs_set_position_prev(cursor, 0, txn);
                 r = DB_NOTFOUND;
             } else
-                r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+                r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt, 0);
             if (r != 0) goto died0;
         } else
             goto died0;
@@ -2908,14 +2908,14 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
         if (cursor->path_len<= 0)
             goto do_db_last;
         r = brtcurs_set_position_prev(cursor, kbt, txn); if (r!=0) goto died0;
-        r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
+        r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt, 0); if (r!=0) goto died0;
         if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_CURRENT:
 	if (cursor->path_len<=0) {
             r = EINVAL; goto died0;
         }
-	r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
+	r=toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt, 0); if (r!=0) goto died0;
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_SET:
@@ -2923,7 +2923,7 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
         assert(r == 0);
         r = brtcurs_set_key(cursor, *rootp, kbt, vbt, DB_SET, txn, null_brtnode);
         if (r != 0) goto died0;
-        r = toku_pma_cursor_get_current(cursor->pmacurs, 0, vbt);
+        r = toku_pma_cursor_get_current(cursor->pmacurs, 0, vbt, 0);
         if (r != 0) goto died0;
         break;
     case DB_GET_BOTH:
@@ -2937,7 +2937,7 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
         assert(r == 0);
         r = brtcurs_set_range(cursor, *rootp, kbt, txn, null_brtnode);
         if (r != 0) goto died0;
-        r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+        r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt, 0);
         if (r != 0) goto died0;
         break;
     default:
