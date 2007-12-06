@@ -108,11 +108,13 @@ UPDATE test.t2 SET b1 = 0 WHERE b1 = 1;
 
 INSERT INTO test.t1 VALUES(NULL,1,'add some more test data test.', 'and hope for the best', 3.321,5.221,0,YEAR(NOW()),NOW());
 
-# To make sure BUG#14698 is gone, we sleep 2 seconds before calling trigger
+# To make sure BUG#14698 is gone, we sleep before calling trigger
 # (with the bug in, that caused differences in TIMESTAMP columns).
 # We just need to let the machine's clock advance, it's not
-# to do synchronization, so real_sleep is good.
-real_sleep 2;
+# to do synchronization.
+
+let $wait_condition= SELECT SUM(f)= ROUND(SUM(f)) FROM t3;
+--source include/wait_condition.inc
 
 DELETE FROM test.t1 WHERE id = 1;
 
