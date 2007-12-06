@@ -478,27 +478,22 @@ static void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nod
 	}
 	for (i=0; i<n_children_in_a-1; i++) {
 	    A->u.n.childkeys[i] = node->u.n.childkeys[i];
-	    A->u.n.childkeylens[i] = node->u.n.childkeylens[i];
             A->u.n.pivotflags[i] = node->u.n.pivotflags[i];
 	    A->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[i]);
 	    node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[i]);
 	    node->u.n.childkeys[i] = 0;
-	    node->u.n.childkeylens[i] = 0;
 	}
 	splitk->data = (void*)(node->u.n.childkeys[n_children_in_a-1]);
 	splitk->size = toku_brt_pivot_key_len(t, node->u.n.childkeys[n_children_in_a-1]);
         splitk->flags = node->u.n.pivotflags[n_children_in_a-1];
 	node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[n_children_in_a-1]);
 	node->u.n.childkeys[n_children_in_a-1]=0;
-	node->u.n.childkeylens[n_children_in_a-1]=0;
 	for (i=n_children_in_a; i<node->u.n.n_children-1; i++) {
 	    B->u.n.childkeys[i-n_children_in_a] = node->u.n.childkeys[i];
-	    B->u.n.childkeylens[i-n_children_in_a] = node->u.n.childkeylens[i];
             B->u.n.pivotflags[i-n_children_in_a] = node->u.n.pivotflags[i];
 	    B->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[i]);
 	    node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[i]);
 	    node->u.n.childkeys[i] = 0;
-	    node->u.n.childkeylens[i] = 0;
 	}
 	assert(node->u.n.totalchildkeylens==0);
 
@@ -695,11 +690,9 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     // Slide the keys over
     for (cnum=node->u.n.n_children-1; cnum>childnum; cnum--) {
 	node->u.n.childkeys[cnum] = node->u.n.childkeys[cnum-1];
-	node->u.n.childkeylens[cnum] = node->u.n.childkeylens[cnum-1];
         node->u.n.pivotflags[cnum] = node->u.n.pivotflags[cnum-1];
     }
     node->u.n.childkeys[childnum]= (void*)childsplitk->data;
-    node->u.n.childkeylens[childnum]= childsplitk->size;
     node->u.n.pivotflags[childnum] = childsplitk->flags;
     node->u.n.totalchildkeylens += childsplitk->size;
     node->u.n.n_children++;
@@ -1768,7 +1761,6 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     newroot->u.n.n_children=2;
     //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
     newroot->u.n.childkeys[0] = splitk.data;
-    newroot->u.n.childkeylens[0] = splitk.size;
     newroot->u.n.pivotflags[0] = splitk.flags;
     newroot->u.n.totalchildkeylens=splitk.size;
     newroot->u.n.children[0]=nodea->thisnodename;
