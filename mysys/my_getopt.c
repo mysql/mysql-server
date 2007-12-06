@@ -799,7 +799,7 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
                                  bool *fix)
 {
   bool adjusted= FALSE;
-  ulonglong old= num, mod;
+  ulonglong old= num;
   char buf1[255], buf2[255];
 
   if ((ulonglong) num > (ulonglong) optp->max_value &&
