@@ -2362,7 +2362,7 @@ static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr)
 
 my_bool translog_lock()
 {
-  struct st_translog_buffer *current_buffer;
+  uint8 current_buffer;
   DBUG_ENTER("translog_lock");
 
   /*
@@ -2371,12 +2371,16 @@ my_bool translog_lock()
   */
   for (;;)
   {
-    current_buffer= log_descriptor.bc.buffer;
-    if (translog_buffer_lock(current_buffer))
+    /*
+      log_descriptor.bc.buffer_no is only one byte so its reading is
+      an atomic operation
+    */
+    current_buffer= log_descriptor.bc.buffer_no;
+    if (translog_buffer_lock(log_descriptor.buffers + current_buffer))
       DBUG_RETURN(1);
-    if (log_descriptor.bc.buffer == current_buffer)
+    if (log_descriptor.bc.buffer_no == current_buffer)
       break;
-    translog_buffer_unlock(current_buffer);
+    translog_buffer_unlock(log_descriptor.buffers + current_buffer);
   }
   DBUG_RETURN(0);
 }
@@ -3348,35 +3352,35 @@ void translog_destroy()
   uint i;
   DBUG_ENTER("translog_destroy");
 
-  if (translog_inited)
+  DBUG_ASSERT(translog_inited);
+  translog_lock();
+  translog_inited= 0;
+  if (log_descriptor.bc.buffer->file != -1)
+    translog_finish_page(&log_descriptor.horizon, &log_descriptor.bc);
+  translog_unlock();
+
+  for (i= 0; i < TRANSLOG_BUFFERS_NO; i++)
   {
-    if (log_descriptor.bc.buffer->file != -1)
-      translog_finish_page(&log_descriptor.horizon, &log_descriptor.bc);
-
-    for (i= 0; i < TRANSLOG_BUFFERS_NO; i++)
-    {
-      struct st_translog_buffer *buffer= log_descriptor.buffers + i;
-      translog_buffer_destroy(buffer);
-    }
-
-    /* close files */
-    for (i= 0; i < OPENED_FILES_NUM; i++)
-    {
-      if (log_descriptor.log_file_num[i] != -1)
-        translog_close_log_file(log_descriptor.log_file_num[i]);
-    }
-    pthread_mutex_destroy(&log_descriptor.sent_to_disk_lock);
-    pthread_mutex_destroy(&log_descriptor.file_header_lock);
-    pthread_mutex_destroy(&log_descriptor.unfinished_files_lock);
-    pthread_mutex_destroy(&log_descriptor.purger_lock);
-    pthread_mutex_destroy(&log_descriptor.log_flush_lock);
-    delete_dynamic(&log_descriptor.unfinished_files);
-
-    my_close(log_descriptor.directory_fd, MYF(MY_WME));
-    my_atomic_rwlock_destroy(&LOCK_id_to_share);
-    my_free((uchar*)(id_to_share + 1), MYF(MY_ALLOW_ZERO_PTR));
-    translog_inited= 0;
+    struct st_translog_buffer *buffer= log_descriptor.buffers + i;
+    translog_buffer_destroy(buffer);
   }
+
+  /* close files */
+  for (i= 0; i < OPENED_FILES_NUM; i++)
+  {
+    if (log_descriptor.log_file_num[i] != -1)
+      translog_close_log_file(log_descriptor.log_file_num[i]);
+  }
+  pthread_mutex_destroy(&log_descriptor.sent_to_disk_lock);
+  pthread_mutex_destroy(&log_descriptor.file_header_lock);
+  pthread_mutex_destroy(&log_descriptor.unfinished_files_lock);
+  pthread_mutex_destroy(&log_descriptor.purger_lock);
+  pthread_mutex_destroy(&log_descriptor.log_flush_lock);
+  delete_dynamic(&log_descriptor.unfinished_files);
+
+  my_close(log_descriptor.directory_fd, MYF(MY_WME));
+  my_atomic_rwlock_destroy(&LOCK_id_to_share);
+  my_free((uchar*)(id_to_share + 1), MYF(MY_ALLOW_ZERO_PTR));
   DBUG_VOID_RETURN;
 }
 
@@ -3803,6 +3807,7 @@ static my_bool translog_advance_pointer(uint pages, uint16 last_page_data)
                                log_descriptor.bc.current_page_fill),
                        pages, (uint) log_descriptor.page_overhead,
                        (uint) last_page_data));
+  translog_lock_assert_owner();
 
   for (;;)
   {
