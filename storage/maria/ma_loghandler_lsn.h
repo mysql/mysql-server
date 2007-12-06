@@ -20,7 +20,7 @@
   Transaction log record address:
   file_no << 32 | offset
   file_no is only 3 bytes so we can use signed integer to make
-  comparison more simple.
+  comparison simpler.
 */
 typedef int64 TRANSLOG_ADDRESS;
 
@@ -67,11 +67,11 @@ typedef TRANSLOG_ADDRESS LSN;
 #define lsn_store(dst, lsn) \
   do { \
     int3store((dst), LSN_FILE_NO(lsn)); \
-    int4store((dst) + 3, LSN_OFFSET(lsn)); \
+    int4store((char*)(dst) + 3, LSN_OFFSET(lsn)); \
   } while (0)
 
 /* Unpacks LSN from the buffer (P) */
-#define lsn_korr(P) MAKE_LSN(uint3korr(P), uint4korr((P) + 3))
+#define lsn_korr(P) MAKE_LSN(uint3korr(P), uint4korr((char*)(P) + 3))
 
 /* what we need to add to LSN to increase it on one file */
 #define LSN_ONE_FILE ((int64)0x100000000LL)
@@ -98,7 +98,7 @@ typedef LSN LSN_WITH_FLAGS;
 /**
    @brief the maximum valid LSN.
    Unlike ULONGLONG_MAX, it can be safely used in comparison with valid LSNs
-   (ULONGLONG_MAX is too big for correctness of cmp_translog_address()).
+   (ULONGLONG_MAX is too big for correctness of cmp_translog_addr()).
 */
 #define LSN_MAX (LSN)ULL(0x00FFFFFFFFFFFFFF)
 

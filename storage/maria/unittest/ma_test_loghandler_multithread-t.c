@@ -374,7 +374,7 @@ int main(int argc __attribute__((unused)),
 
     bzero(indeces, sizeof(indeces));
 
-    if (translog_init_scanner(first_lsn, 1, &scanner, 0))
+    if (translog_scanner_init(first_lsn, 1, &scanner, 0))
     {
       fprintf(stderr, "scanner init failed\n");
       goto err;

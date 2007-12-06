@@ -5006,7 +5006,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   DBUG_ENTER("_ma_apply_redo_insert_row_head_or_tail");
 
   page=  page_korr(header);
-  rownr= dirpos_korr(header+PAGE_STORE_SIZE);
+  rownr= dirpos_korr(header + PAGE_STORE_SIZE);
 
   DBUG_PRINT("enter", ("rowid: %lu  page: %lu  rownr: %u  data_length: %u",
                        (ulong) ma_recordpos(page, rownr),

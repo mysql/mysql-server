@@ -45,7 +45,7 @@ void example_loghandler_init()
   for (i= LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE + 1;
        i < LOGREC_NUMBER_OF_TYPES;
        i++)
-    log_record_type_descriptor[i].class= LOGRECTYPE_NOT_ALLOWED;
+    log_record_type_descriptor[i].rclass= LOGRECTYPE_NOT_ALLOWED;
 }
 
 
