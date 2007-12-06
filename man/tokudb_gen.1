@@ -1,0 +1,31 @@
+.\" Process this file with
+.\" groff -man -Tascii foo.1
+.\"
+.\" Copyright (c) 2007 Tokutek.  All Rights Reserved.
+.TH tokudb_gen 1 "November 2007" Tokutek "TokuDB Programmer's Manual"
+.SH NAME
+tokudb_gen
+.SH SYNOPSIS
+.LP
+\fBtokudb_gen
+-n numkeys
+.SH DESCRIPTION
+The
+.B tokudb_gen
+program generates random key/data pairs onto the standard output that match
+the input requirements of the
+.B tokudb_load
+program and the output requirements of the
+.B tokudb_dump
+program.
+.SH CONFORMING TO
+The TokuDB embedded database provides a subset of the functionality of
+the Berkeley DB.  Programs that work with TokuDB probably work with
+with most versions of Berkeley DB with only recompilation or
+relinking.  The database files are incompatible, however, so to
+convert from one library to the other you would need to dump the
+database with one library's tool and load it with the other's.
+.SH AUTHOR
+Tokutek, Inc.
+.SH COPYRIGHT
+Copyright (c) 2007 Tokutek.  All Rights Reserved.
