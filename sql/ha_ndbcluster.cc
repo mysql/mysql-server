@@ -540,6 +540,27 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
                       err.code, res));
   if (res == HA_ERR_FOUND_DUPP_KEY)
   {
+    uint error_data= (uint) err.details;
+    uint dupkey= MAX_KEY;
+
+    DBUG_PRINT("info", ("HA_ERR_FOUND_DUPP_KEY, index table %u", error_data));
+    for (uint i= 0; i < MAX_KEY; i++)
+    {
+      if (m_index[i].type == UNIQUE_INDEX || 
+          m_index[i].type == UNIQUE_ORDERED_INDEX)
+      {
+        const NDBINDEX *unique_index=
+          (const NDBINDEX *) m_index[i].unique_index;
+        if (unique_index &&
+            unique_index->getIndexTable() &&
+            (uint) unique_index->getIndexTable()->getTableId() == error_data)
+        {
+          DBUG_PRINT("info", ("Found violated key %u", i));
+          dupkey= i;
+          break;
+        }
+      }
+    }
     if (m_rows_to_insert == 1)
     {
       /*
@@ -547,7 +568,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
 	violations here, so we need to return MAX_KEY for non-primary
 	to signal that key is unknown
       */
-      m_dupkey= err.code == 630 ? table->s->primary_key : MAX_KEY; 
+      m_dupkey= err.code == 630 ? table->s->primary_key : dupkey; 
     }
     else
     {
