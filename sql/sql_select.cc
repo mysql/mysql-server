@@ -8991,7 +8991,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   {
     uint8 dec= item->decimals;
     uint8 intg= ((Item_decimal *) item)->decimal_precision() - dec;
-    uint8 len= item->max_length;
+    uint32 len= item->max_length;
 
     /*
       Trying to put too many digits overall in a DECIMAL(prec,dec)
