@@ -4597,6 +4597,8 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   if (var_entry)
   {
+    unsigned_flag= var_entry->unsigned_flag;
+
     collation.set(var_entry->collation);
     switch (var_entry->type) {
     case REAL_RESULT:
