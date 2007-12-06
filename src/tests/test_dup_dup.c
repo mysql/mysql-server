@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <db.h>
+#include <errno.h>
 
 #include "test.h"
 
@@ -25,14 +26,17 @@ DBT *dbt_init_malloc(DBT *dbt) {
     return dbt;
 }
 
-void db_put(DB *db, int k, int v) {
+void db_put(DB *db, int k, int v, u_int32_t put_flags, int rexpect) {
     DBT key, val;
-    int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-    assert(r == 0);
+    int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), put_flags);
+    if (r != rexpect) {
+        printf("Expected %d, got %d\n", rexpect, r);
+        assert(r == rexpect);
+    }
 }
 
-void test_dup_dup(int dup_mode) {
-    if (verbose) printf("test_dup_dup: %d\n", dup_mode);
+void test_dup_dup(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup) {
+    if (verbose) printf("test_dup_dup: %d, %u, %d, %d\n", dup_mode, put_flags, rexpect, rexpectdupdup);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -52,8 +56,8 @@ void test_dup_dup(int dup_mode) {
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
 
-    db_put(db, 0, 0);
-    db_put(db, 0, 0);
+    db_put(db, 0, 0, put_flags, rexpect);
+    db_put(db, 0, 0, put_flags, rexpectdupdup);
 
     DBC *cursor;
     r = db->cursor(db, null_txn, &cursor, 0);
@@ -68,7 +72,7 @@ void test_dup_dup(int dup_mode) {
         int kk, vv;
         memcpy(&kk, key.data, key.size);
         memcpy(&vv, val.data, val.size);
-        printf("kk %d vv %d\n", kk, vv);
+        if (verbose) printf("kk %d vv %d\n", kk, vv);
         free(key.data);
         free(val.data);
     }
@@ -87,8 +91,14 @@ int main(int argc, const char *argv[]) {
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
 
-    test_dup_dup(0);
-    test_dup_dup(DB_DUP + DB_DUPSORT);
-
+    test_dup_dup(0, 0, 0, 0);
+    test_dup_dup(0, DB_NODUPDATA, EINVAL, EINVAL);
+    test_dup_dup(0, DB_NOOVERWRITE, 0, DB_KEYEXIST);
+    test_dup_dup(DB_DUP, 0, 0, 0);
+    test_dup_dup(DB_DUP, DB_NODUPDATA, EINVAL, EINVAL);
+    test_dup_dup(DB_DUP, DB_NOOVERWRITE, 0, DB_KEYEXIST);
+    test_dup_dup(DB_DUP | DB_DUPSORT, 0, 0, DB_KEYEXIST);
+    test_dup_dup(DB_DUP | DB_DUPSORT, DB_NODUPDATA, 0, DB_KEYEXIST);
+    test_dup_dup(DB_DUP | DB_DUPSORT, DB_NOOVERWRITE, 0, DB_KEYEXIST);
     return 0;
 }
