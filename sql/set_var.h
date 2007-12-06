@@ -365,6 +365,7 @@ public:
   void set_default(THD *thd, enum_var_type type);
   SHOW_TYPE show_type() { return SHOW_LONGLONG; }
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  bool check(THD *thd, set_var *var);
   bool check_default(enum_var_type type)
   {
     return type == OPT_GLOBAL && !option_limits;
