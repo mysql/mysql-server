@@ -480,7 +480,7 @@ static void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nod
 	    A->u.n.childkeys[i] = node->u.n.childkeys[i];
 	    A->u.n.childkeylens[i] = node->u.n.childkeylens[i];
             A->u.n.pivotflags[i] = node->u.n.pivotflags[i];
-	    A->u.n.totalchildkeylens += node->u.n.childkeylens[i];
+	    A->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[i]);
 	    node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[i]);
 	    node->u.n.childkeys[i] = 0;
 	    node->u.n.childkeylens[i] = 0;
