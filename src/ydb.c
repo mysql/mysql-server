@@ -896,6 +896,7 @@ static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_
     r = db->cursor(db, txn, &dbc, 0);
     if (r!=0) return r;
     r = dbc->c_pget(dbc, key, pkey, data, DB_SET);
+    if (r==DB_KEYEMPTY) r = DB_NOTFOUND;
     r2 = dbc->c_close(dbc);
     if (r!=0) return r;
     return r2;    
