@@ -646,9 +646,12 @@ static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
         
         /* It is an error to use the DB_GET_BOTH or DB_GET_BOTH_RANGE flag on a
          * cursor that has been opened on a secondary index handle.
-         * DB_GET_BOTH_RANGE not implemented yet.
          */
-        if ((get_flag == DB_GET_BOTH) /* || (get_flag == DB_GET_BOTH_RANGE)*/) return EINVAL;
+        if ((get_flag == DB_GET_BOTH)
+#ifdef DB_GET_BOTH_RANGE
+            || (get_flag == DB_GET_BOTH_RANGE)
+#endif
+        ) return EINVAL;
         memset(&primary_key, 0, sizeof(primary_key));
         r = toku_c_pget(c, key, &primary_key, data, flag);
     }
