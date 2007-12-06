@@ -234,6 +234,7 @@ extern u_int32_t toku_calccrc32_cmd (int type, const void *key, int keylen, cons
 extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD *cmd);
 
 // How long is the pivot key?
-unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk);
+unsigned int toku_brt_pivot_key_len (BRT, struct kv_pair *); // Given the tree
+unsigned int toku_brtnode_pivot_key_len (BRTNODE, struct kv_pair *); // Given the node
 
 #endif

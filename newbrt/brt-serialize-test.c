@@ -66,7 +66,7 @@ static void test_serialize(void) {
     assert(dn->rand4fingerprint==randval);
     assert(dn->u.n.n_children==2);
     assert(strcmp(kv_pair_key(dn->u.n.childkeys[0]), "hello")==0);
-    assert(dn->u.n.childkeylens[0]==6);
+    assert(toku_brtnode_pivot_key_len(dn, dn->u.n.childkeys[0])==6);
     assert(dn->u.n.totalchildkeylens==6);
     assert(dn->u.n.pivotflags[0]==42);
     assert(dn->u.n.children[0]==nodesize*30);
