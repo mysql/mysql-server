@@ -114,12 +114,12 @@ static void fixup_child_fingerprint(BRTNODE node, int childnum_of_node, BRTNODE 
     if (child->height>0) {
 	int i;
 	for (i=0; i<child->u.n.n_children; i++) {
-	    sum += child->u.n.child_subtree_fingerprints[i];
+	    sum += BRTNODE_CHILD_SUBTREE_FINGERPRINTS(child,i);
 	}
     }
     // Don't try to get fancy about not modifying the fingerprint if it didn't change.
     // We only call this function if we have reason to believe that the child's fingerprint did change.
-    node->u.n.child_subtree_fingerprints[childnum_of_node]=sum;
+    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node,childnum_of_node)=sum;
     node->dirty=1;
 }
 
@@ -317,7 +317,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
 	}
 	n->u.n.totalchildkeylens = 0;
 	for (i=0; i<TREE_FANOUT+1; i++) {
-	    n->u.n.child_subtree_fingerprints[i] = 0;
+	    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(n, i) = 0;
 //	    n->u.n.children[i] = 0;
 //	    n->u.n.htables[i] = 0;
 	    n->u.n.n_bytes_in_hashtable[i] = 0;
@@ -455,7 +455,7 @@ static void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nod
 	    A->u.n.children[i]   = node->u.n.children[i];
 	    A->u.n.htables[i]    = htab;
 	    A->u.n.n_bytes_in_hashtables += (A->u.n.n_bytes_in_hashtable[i] = node->u.n.n_bytes_in_hashtable[i]);
-	    A->u.n.child_subtree_fingerprints[i] = node->u.n.child_subtree_fingerprints[i];
+	    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(A, i) = BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i);
 
 	    node->u.n.htables[i] = 0;
 	    node->u.n.n_bytes_in_hashtables -= node->u.n.n_bytes_in_hashtable[i];
@@ -469,7 +469,7 @@ static void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nod
 	    B->u.n.children[targchild]   = node->u.n.children[i];
 	    B->u.n.htables[targchild]    = htab;
 	    B->u.n.n_bytes_in_hashtables += (B->u.n.n_bytes_in_hashtable[targchild] = node->u.n.n_bytes_in_hashtable[i]);
-	    B->u.n.child_subtree_fingerprints[targchild] = node->u.n.child_subtree_fingerprints[i];
+	    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(B, targchild) = BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i);
 
 	    node->u.n.htables[i] = 0;
 	    node->u.n.n_bytes_in_hashtables -= node->u.n.n_bytes_in_hashtable[i];
@@ -670,7 +670,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     for (cnum=node->u.n.n_children; cnum>childnum+1; cnum--) {
 	node->u.n.children[cnum] = node->u.n.children[cnum-1];
 	node->u.n.htables[cnum] = node->u.n.htables[cnum-1];
-	node->u.n.child_subtree_fingerprints[cnum] = node->u.n.child_subtree_fingerprints[cnum-1];
+	BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, cnum) = BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, cnum-1);
 	node->u.n.n_bytes_in_hashtable[cnum] = node->u.n.n_bytes_in_hashtable[cnum-1];
         node->u.n.n_cursors[cnum] = node->u.n.n_cursors[cnum-1];
     }

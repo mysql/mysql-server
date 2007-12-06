@@ -40,7 +40,7 @@ static void verify_parent_fingerprint (BRTNODE node) {
     if (node->height>0) {
 	int i;
 	for (i=0; i<node->u.n.n_children; i++) {
-	    subtree_fingerprint+=node->u.n.child_subtree_fingerprints[i];
+	    subtree_fingerprint += BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i);
 	}
     }
     if (parent) {
@@ -48,7 +48,7 @@ static void verify_parent_fingerprint (BRTNODE node) {
 	assert(parent->height>0);
 	for (i=0; i<parent->u.n.n_children; i++) {
 	    if (parent->u.n.children[i]==node->thisnodename) {
-		assert(parent->u.n.child_subtree_fingerprints[i]==subtree_fingerprint);
+		assert(BRTNODE_CHILD_SUBTREE_FINGERPRINTS(parent, i)==subtree_fingerprint);
 		return;
 	    }
 	}

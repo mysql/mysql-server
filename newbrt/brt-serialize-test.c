@@ -37,8 +37,8 @@ static void test_serialize(void) {
     sn.u.n.pivotflags[0] = 42;
     sn.u.n.children[0] = sn.nodesize*30;
     sn.u.n.children[1] = sn.nodesize*35;
-    sn.u.n.child_subtree_fingerprints[0] = random();
-    sn.u.n.child_subtree_fingerprints[1] = random();
+    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(&sn, 0) = random();
+    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(&sn, 0) = random();
     r = toku_hashtable_create(&sn.u.n.htables[0]); assert(r==0);
     r = toku_hashtable_create(&sn.u.n.htables[1]); assert(r==0);
     r = toku_hash_insert(sn.u.n.htables[0], "a", 2, "aval", 5, BRT_NONE); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE,   "a", 2, "aval", 5);
@@ -73,7 +73,7 @@ static void test_serialize(void) {
     {
 	int i;
 	for (i=0; i<2; i++) {
-	    assert(dn->u.n.child_subtree_fingerprints[i]==sn.u.n.child_subtree_fingerprints[i]);
+	    assert(BRTNODE_CHILD_SUBTREE_FINGERPRINTS(dn, i)==BRTNODE_CHILD_SUBTREE_FINGERPRINTS(&sn, i));
 	}
 	assert(dn->local_fingerprint==sn.local_fingerprint);
     }

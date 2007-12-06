@@ -124,13 +124,13 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	{
 	    u_int32_t subtree_fingerprint = node->local_fingerprint;
 	    for (i=0; i<node->u.n.n_children; i++) {
-		subtree_fingerprint += node->u.n.child_subtree_fingerprints[i];
+		subtree_fingerprint += BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i);
 	    }
 	    wbuf_int(&w, subtree_fingerprint);
 	}
 	wbuf_int(&w, node->u.n.n_children);
 	for (i=0; i<node->u.n.n_children; i++) {
-	    wbuf_int(&w, node->u.n.child_subtree_fingerprints[i]);
+	    wbuf_int(&w, BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i));
 	}
 	//printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
         for (i=0; i<node->u.n.n_children-1; i++) 
@@ -279,7 +279,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
     if (result->height>0) {
 	result->u.n.totalchildkeylens=0;
 	for (i=0; i<TREE_FANOUT; i++) { 
-	    result->u.n.child_subtree_fingerprints[i]=0;
+	    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(result, i)=0;
             result->u.n.childkeys[i]=0; 
         }
 	for (i=0; i<TREE_FANOUT+1; i++) { 
@@ -295,7 +295,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	assert(result->u.n.n_children>=0 && result->u.n.n_children<=TREE_FANOUT);
 	for (i=0; i<result->u.n.n_children; i++) {
 	    u_int32_t childfp = rbuf_int(&rc);
-	    result->u.n.child_subtree_fingerprints[i]= childfp;
+	    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(result, i)= childfp;
 	    check_subtree_fingerprint += childfp;
 	}
         for (i=0; i<result->u.n.n_children-1; i++) 
