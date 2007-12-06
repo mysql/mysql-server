@@ -835,6 +835,7 @@ RestoreDataIterator::getNextTuple(int  & res)
 BackupFile::BackupFile(void (* _free_data_callback)()) 
   : free_data_callback(_free_data_callback)
 {
+  memset(&m_file,0,sizeof(m_file));
   m_file.file = -1;
   m_path[0] = 0;
   m_fileName[0] = 0;
