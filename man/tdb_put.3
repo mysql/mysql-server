@@ -1,0 +1,74 @@
+.\" Process this file with
+.\" groff -man -Tascii foo.1
+.\"
+.\" Copyright (c) 2007 Tokutek.  All Rights Reserved.
+.TH DB->put 3 "November 2007" Tokutek "TokuDB Programmer's Manual"
+.SH NAME
+DB->open
+.SH SYNOPSIS
+.LP
+\fB #include <db.h>
+.br
+.sp
+.HP 12
+.BI "int DB->put(DB *" db ,
+.br
+.BI "DB_TXN *" txnid ,
+.br
+.BI "DBT *" key ,
+.br
+.BI "DBT *" data ,
+.br
+.BI "u_int32_t " flags );
+.br
+.SH DESCRIPTION
+.B DB->put
+stores a key/data pair into a database, replacing any previously
+existing key if duplicates are not enabled, or adding a duplicate if
+duplicates are enabled.  TokuDB does not support unsorted duplicates
+(it supports no-duplicates and sorted duplicates), hence the new
+key-data pair is inserted at the correct sorted location.
+.SH PARAMETERS
+.IP \fIdb
+The \fBDB\fR handle for the database\fR.
+.IP \fItxnid
+Either \fBNULL\fR or a \fBTXNID\fR.
+.IP \fIkey
+The key to be inserted.
+.IP \fIdata
+The data to be inserted.
+.IP \fIflags
+Must be zero.
+
+Note: TokuDB does supports neither \fBDB_NODUPDATA\fR nor \fBDB_NOOVERRITE\fR.
+.SH RETURN VALUE
+.LP
+Returns zero on success.  The following non-zero errors can be returned:
+.IP \fBDB_DEADLOCK
+The system discovered deadlock cycle involving this and other transactions.
+This operation was killed.
+.IP \fBDB_LOCK_NOTGRANTED
+In an environment configured for lock timeouts, the system was unable to grant a lock within the allowed time.
+.IP \fBENOENT
+The file or directory does not exist.
+.IP \fBEINVAL
+You passed invalid parameters to this operation.  In many cases
+\fBEINVAL\fR
+is not a very helpful error code, indicating only that you did something wrong.
+
+If \fIflags\fR is non-zero, returns \fBEINVAL\fR.
+.SH CONFORMING TO
+The TokuDB embedded database provides a subset of the functionality of
+the Berkeley DB.  Programs that work with TokuDB probably work with
+with most versions of Berkeley DB with only recompilation or
+relinking.  The database files are incompatible, however, so to
+convert from one library to the other you would need to dump the
+database with one library's tool and load it with the other's.
+.SH RESTRICTIONS
+.LP
+Key items are limited to 16KB in size.
+Data items are limited to 256KB in size (for now.) 
+.SH AUTHOR
+Tokutek, Inc.
+.SH COPYRIGHT
+Copyright (c) 2007 Tokutek.  All Rights Reserved.

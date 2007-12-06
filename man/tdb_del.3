@@ -1,0 +1,108 @@
+.\" Process this file with
+.\" groff -man -Tascii foo.1
+.\"
+.\" Copyright (c) 2007 Tokutek.  All Rights Reserved.
+.TH DB->del 3 "November 2007" Tokutek "TokuDB Programmer's Manual"
+.SH NAME
+DB->del
+.SH SYNOPSIS
+.LP
+\fB #include <db.h>
+.br
+.sp
+.HP 12
+.BI "int DB->del(DB *" db ,
+.br
+.BI "DB_TXN *" txnid ,
+.br
+.BI "DBT *" key ,
+.br
+.BI "u_int32_t " flags );
+.br
+.SH DESCRIPTION
+.B DB->del
+removes all the key/data pairs that match \fIkey\fR.  If there are
+duplicates, all matching records are removed.
+
+When called on a secondary index (associated via
+\fBDB->associate(3)\fR), all the matching keys in the secondary
+database are used to identify keys/data pairs in the primary database.
+The keys in the primary are all removed, and all the corresponding
+records in all the secondary indices are removed.
+
+.SH PARAMETERS
+.IP \fIdb
+The \fBDB\fR handle for the database\fR.
+.IP \fItxnid
+Either \fBNULL\fR or a \fBTXNID\fR.
+.IP \fIkey
+The key to be deleted.
+.IP \fIflags
+Must be zero or \fBDB_DELETE_ANY\fR.
+Using \fBDB_DELETE_ANY\fR causes \fBDB->del()\fR to return 0 even if
+there are no matching key/data pairs.
+
+
+.SH RETURN VALUE
+.LP
+Returns zero on success.  Success is defined to be that either there
+was at least one matching key/data pair and it was deleted, or there
+were no matching key/data pairs and \fBDB_DELETE_ANY\fR was passed
+(and nothing else went wrong.)
+
+The following non-zero values can be returned:
+.IP \fBDB_NOTFOUND
+If the flags do not include \fBDB_DELETE_ANY\fR and there was no
+matching key/data pair, then return \fBDB_NOTFOUND\fR.
+.IP \fBDB_DEADLOCK
+The system discovered deadlock cycle involving this and other transactions.
+This operation was killed.
+.IP \fBDB_LOCK_NOTGRANTED
+In an environment configured for lock timeouts, the system was unable to grant a lock within the allowed time.
+.IP \fBEINVAL
+You passed invalid parameters to this operation.  In many cases
+\fBEINVAL\fR
+is not a very helpful error code, indicating only that you did something wrong.
+.SH PERFORMANCE DISCUSSION
+
+Performing a deletion without \fBDB_DELETE_ANY\fR is relatively
+expensive.  For example, suppose you have a large database that is
+stored on disk and is much larger than main memory.  Then
+\fBDB->get()\fR using a randomly selected key usually requires at
+least one disk-head movement, limiting you about 100 to 150 get
+operations per second per disk drive.  A delete operation that doesn't
+require the \fBDB_NOTFOUND\fR result to be computed can run much
+faster, however (orders of magnitude faster in some cases.)  For the
+\fBDB->del\fR operation to compute the \fBDB_NOTFOUND\fR result
+requires a get, which slows down the deletions.
+
+However, suppose that the key you are deleting is already in main
+memory (because you recently accessed it).  In that case, there is
+likely to be little or no performance difference between using
+\fBDB_DELETE_ANY\fR or not.
+
+Associated secondary indexes can also slow down deletion operations,
+since TokuDB performs a \fBDB->get\fR to get the primary key/data pair
+so that it can use the callback function to compute all the secondary
+keys that must be deleted.  
+
+One way to achieve fast deletions with secondary indices is to design
+your primary key so that contiguous ranges will be removed from your
+database at the same time.  For example, if you design your primary
+key to be a timestamp, and you expire the oldest data first, then
+deletions can run fast: Use a cursor to find the leftmost item, and
+delete it, move right, delete some more, and so forth.  The cursor
+scan is fast, and the deletes on all the secondary keys will be fast
+too.
+
+.SH CONFORMING TO
+The TokuDB embedded database provides a subset of the functionality of
+the Berkeley DB.  Programs that work with TokuDB probably work with
+with most versions of Berkeley DB with only recompilation or
+relinking.  The database files are incompatible, however, so to
+convert from one library to the other you would need to dump the
+database with one library's tool and load it with the other's.
+.SH AUTHOR
+Tokutek, Inc.
+.SH COPYRIGHT
+Copyright (c) 2007 Tokutek.  All Rights Reserved.
