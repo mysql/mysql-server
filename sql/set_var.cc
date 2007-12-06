@@ -122,6 +122,7 @@ static void fix_trans_mem_root(THD *thd, enum_var_type type);
 static void fix_server_id(THD *thd, enum_var_type type);
 static ulonglong fix_unsigned(THD *thd, ulonglong num,
                               const struct my_option *option_limits);
+static bool get_unsigned(THD *thd, set_var *var);
 static void throw_bounds_warning(THD *thd, const char *name, ulonglong num);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
@@ -1124,6 +1125,18 @@ static ulonglong fix_unsigned(THD *thd, ulonglong num,
   return out;
 }
 
+static bool get_unsigned(THD *thd, set_var *var)
+{
+  if (var->value->unsigned_flag)
+    var->save_result.ulonglong_value= (ulonglong) var->value->val_int();
+  else
+  {
+    longlong v= var->value->val_int();
+    var->save_result.ulonglong_value= (ulonglong) ((v < 0) ? 0 : v);
+  }
+  return 0;
+}
+
 
 sys_var_long_ptr::
 sys_var_long_ptr(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_arg,
@@ -1135,9 +1148,7 @@ sys_var_long_ptr(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_ar
 
 bool sys_var_long_ptr_global::check(THD *thd, set_var *var)
 {
-  longlong v= var->value->val_int();
-  var->save_result.ulonglong_value= v < 0 ? 0 : v;
-  return 0;
+  return get_unsigned(thd, var);
 }
 
 bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
@@ -1150,9 +1161,9 @@ bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
   {
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
     /* Avoid overflows on 32 bit systems */
-    if (tmp > (ulonglong) ~(ulong) 0)
+    if (tmp > ULONG_MAX)
     {
-      tmp= ((ulonglong) ~(ulong) 0);
+      tmp= ULONG_MAX;
       throw_bounds_warning(thd, name, var->save_result.ulonglong_value);
     }
 #endif
@@ -1220,7 +1231,7 @@ uchar *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
 
 bool sys_var_thd_ulong::check(THD *thd, set_var *var)
 {
-  return (sys_var_thd::check(thd, var) ||
+  return (get_unsigned(thd, var) ||
           (check_func && (*check_func)(thd, var)));
 }
 
@@ -1238,9 +1249,9 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   if (option_limits)
     tmp= (ulong) fix_unsigned(thd, tmp, option_limits);
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
-  else if (tmp > (ulonglong) ~(ulong) 0)
+  else if (tmp > ULONG_MAX)
   {
-    tmp= ((ulonglong) ~(ulong) 0);
+    tmp= ULONG_MAX;
     throw_bounds_warning(thd, name, var->save_result.ulonglong_value);
   }
 #endif
@@ -1318,6 +1329,11 @@ uchar *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type,
   if (type == OPT_GLOBAL)
     return (uchar*) &(global_system_variables.*offset);
   return (uchar*) &(thd->variables.*offset);
+}
+
+bool sys_var_thd_ulonglong::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var);
 }
 
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
