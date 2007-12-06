@@ -2141,7 +2141,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
     eprint(tracef, "Failed to read header of the first record.\n");
     return 1;
   }
-  if (translog_init_scanner(lsn, 1, &scanner, 1))
+  if (translog_scanner_init(lsn, 1, &scanner, 1))
   {
     tprint(tracef, "Scanner init failed\n");
     return 1;
@@ -2189,7 +2189,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
             tprint(tracef, "Cannot find record where it should be\n");
             goto err;
           }
-          if (translog_init_scanner(rec2.lsn, 1, &scanner2, 1))
+          if (translog_scanner_init(rec2.lsn, 1, &scanner2, 1))
           {
             tprint(tracef, "Scanner2 init failed\n");
             goto err;
