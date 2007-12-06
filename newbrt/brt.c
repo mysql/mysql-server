@@ -123,14 +123,6 @@ static void fixup_child_fingerprint(BRTNODE node, int childnum_of_node, BRTNODE 
     node->dirty=1;
 }
 
-unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {
-    if (brt->flags & TOKU_DB_DUPSORT) {
-	return kv_pair_keylen(pk) + kv_pair_vallen(pk);
-    } else {
-	return kv_pair_keylen(pk);
-    }
-}
-
 static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck) {
     int cmp;
     DBT mydbt;
@@ -489,22 +481,22 @@ static void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nod
 	    A->u.n.childkeylens[i] = node->u.n.childkeylens[i];
             A->u.n.pivotflags[i] = node->u.n.pivotflags[i];
 	    A->u.n.totalchildkeylens += node->u.n.childkeylens[i];
-	    node->u.n.totalchildkeylens -= node->u.n.childkeylens[i];
+	    node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[i]);
 	    node->u.n.childkeys[i] = 0;
 	    node->u.n.childkeylens[i] = 0;
 	}
 	splitk->data = (void*)(node->u.n.childkeys[n_children_in_a-1]);
-	splitk->size = node->u.n.childkeylens[n_children_in_a-1];
+	splitk->size = toku_brt_pivot_key_len(t, node->u.n.childkeys[n_children_in_a-1]);
         splitk->flags = node->u.n.pivotflags[n_children_in_a-1];
-	node->u.n.totalchildkeylens -= node->u.n.childkeylens[n_children_in_a-1];
+	node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[n_children_in_a-1]);
 	node->u.n.childkeys[n_children_in_a-1]=0;
 	node->u.n.childkeylens[n_children_in_a-1]=0;
 	for (i=n_children_in_a; i<node->u.n.n_children-1; i++) {
 	    B->u.n.childkeys[i-n_children_in_a] = node->u.n.childkeys[i];
 	    B->u.n.childkeylens[i-n_children_in_a] = node->u.n.childkeylens[i];
             B->u.n.pivotflags[i-n_children_in_a] = node->u.n.pivotflags[i];
-	    B->u.n.totalchildkeylens += node->u.n.childkeylens[i];
-	    node->u.n.totalchildkeylens -= node->u.n.childkeylens[i];
+	    B->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[i]);
+	    node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[i]);
 	    node->u.n.childkeys[i] = 0;
 	    node->u.n.childkeylens[i] = 0;
 	}

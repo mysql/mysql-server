@@ -37,7 +37,7 @@ static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
 	    size+=4;
             if (node->flags & TOKU_DB_DUPSORT) size += 4;
             size+=1; /* pivotflags */
-	    csize+=node->u.n.childkeylens[i];
+	    csize+=toku_brtnode_pivot_key_len(node, node->u.n.childkeys[i]);
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
 	    size+=8; // diskoff
@@ -140,7 +140,7 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
                 wbuf_bytes(&w, kv_pair_key(node->u.n.childkeys[i]), kv_pair_keylen(node->u.n.childkeys[i]));
                 wbuf_bytes(&w, kv_pair_val(node->u.n.childkeys[i]), kv_pair_vallen(node->u.n.childkeys[i]));
             } else {
-                wbuf_bytes(&w, kv_pair_key(node->u.n.childkeys[i]), node->u.n.childkeylens[i]);
+                wbuf_bytes(&w, kv_pair_key(node->u.n.childkeys[i]), toku_brtnode_pivot_key_len(node, node->u.n.childkeys[i]));
             }
 	    //printf("%s:%d w.ndone=%d (childkeylen[%d]=%d\n", __FILE__, __LINE__, w.ndone, i, node->childkeylens[i]);
 	}
@@ -315,7 +315,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
                 result->u.n.childkeys[i] = kv_pair_malloc((void*)childkeyptr, result->u.n.childkeylens[i], 0, 0);
             }
             //printf(" key %d length=%d data=%s\n", i, result->childkeylens[i], result->childkeys[i]);
-	    result->u.n.totalchildkeylens+=result->u.n.childkeylens[i];
+	    result->u.n.totalchildkeylens+=toku_brtnode_pivot_key_len(result, result->u.n.childkeys[i]);
 	}
 	for (i=0; i<result->u.n.n_children; i++) {
 	    result->u.n.children[i] = rbuf_diskoff(&rc);
@@ -578,3 +578,18 @@ int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **br
     return 0;
 }
 
+unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {
+    if (brt->flags & TOKU_DB_DUPSORT) {
+	return kv_pair_keylen(pk) + kv_pair_vallen(pk);
+    } else {
+	return kv_pair_keylen(pk);
+    }
+}
+
+unsigned int toku_brtnode_pivot_key_len (BRTNODE node, struct kv_pair *pk) {
+    if (node->flags & TOKU_DB_DUPSORT) {
+	return kv_pair_keylen(pk) + kv_pair_vallen(pk);
+    } else {
+	return kv_pair_keylen(pk);
+    }
+}
