@@ -91,14 +91,16 @@ int main(int argc, const char *argv[]) {
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
 
-    test_dup_dup(0, 0, 0, 0);
-    test_dup_dup(0, DB_NODUPDATA, EINVAL, EINVAL);
-    test_dup_dup(0, DB_NOOVERWRITE, 0, DB_KEYEXIST);
-    test_dup_dup(DB_DUP, 0, 0, 0);
-    test_dup_dup(DB_DUP, DB_NODUPDATA, EINVAL, EINVAL);
-    test_dup_dup(DB_DUP, DB_NOOVERWRITE, 0, DB_KEYEXIST);
-    test_dup_dup(DB_DUP | DB_DUPSORT, 0, 0, DB_KEYEXIST);
-    test_dup_dup(DB_DUP | DB_DUPSORT, DB_NODUPDATA, 0, DB_KEYEXIST);
-    test_dup_dup(DB_DUP | DB_DUPSORT, DB_NOOVERWRITE, 0, DB_KEYEXIST);
+    test_dup_dup(0,                   0,              0,        0);
+    test_dup_dup(0,                   DB_NODUPDATA,   EINVAL,   EINVAL);
+    test_dup_dup(0,                   DB_NOOVERWRITE, 0,        DB_KEYEXIST);
+
+    test_dup_dup(DB_DUP,              0,              0,        0);
+    test_dup_dup(DB_DUP,              DB_NODUPDATA,   EINVAL,   EINVAL);
+    test_dup_dup(DB_DUP,              DB_NOOVERWRITE, 0,        DB_KEYEXIST);
+
+    test_dup_dup(DB_DUP | DB_DUPSORT, 0,              0,        DB_KEYEXIST);
+    test_dup_dup(DB_DUP | DB_DUPSORT, DB_NODUPDATA,   0,        DB_KEYEXIST);
+    test_dup_dup(DB_DUP | DB_DUPSORT, DB_NOOVERWRITE, 0,        DB_KEYEXIST);
     return 0;
 }
