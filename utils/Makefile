@@ -8,7 +8,7 @@ CPPFLAGS = -I$(BDBDIR)/include
 CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g
 LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread -Wl,-rpath,$(BDBDIR)/lib
 # LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread
-STATIC_LDFLAGS = -static -L../lib -ldb -lz
+STATIC_LDFLAGS = ../lib/libdb.a -lz
 
 UTILS=            \
    tokudb_gen     \
