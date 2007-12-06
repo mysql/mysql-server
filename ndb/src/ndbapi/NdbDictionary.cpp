@@ -542,6 +542,15 @@ NdbDictionary::Index::getTable() const {
   return m_impl.getTable();
 }
 
+const NdbDictionary::Table *
+NdbDictionary::Index::getIndexTable() const {
+  NdbTableImpl * t = m_impl.m_table;
+  if (t) {
+    return t->m_facade;
+  }
+  return 0;
+}
+
 unsigned
 NdbDictionary::Index::getNoOfColumns() const {
   return m_impl.m_columns.size();
