@@ -81,12 +81,28 @@ static void print_flags(u_int32_t flags) {
 
 /* TODO make these thread safe */
 
+/* a count of the open env handles */
+static int toku_ydb_refs = 0;
+
+static void ydb_add_ref() {
+    toku_ydb_refs += 1;
+}
+
+static void ydb_unref() {
+    assert(toku_ydb_refs > 0);
+    toku_ydb_refs -= 1;
+    if (toku_ydb_refs == 0) {
+        /* call global destructors */
+        toku_malloc_cleanup();
+    }
+}
+
 static void db_env_add_ref(DB_ENV *env) {
-    env->i->ref_count++;
+    env->i->ref_count += 1;
 }
 
 static void db_env_unref(DB_ENV *env) {
-    env->i->ref_count--;
+    env->i->ref_count -= 1;
     if (env->i->ref_count == 0)
         env->close(env, 0);
 }
@@ -304,6 +320,7 @@ static int toku_db_env_close(DB_ENV * env, u_int32_t flags) {
     toku_free(env->i->dir);
     toku_free(env->i);
     toku_free(env);
+    ydb_unref();
     if (flags!=0) return EINVAL;
     if (r0) return r0;
     if (r1) return r1;
@@ -460,6 +477,7 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->i->errcall = toku_default_errcall;
     result->i->errpfx = toku_strdup("");
 
+    ydb_add_ref();
     *envp = result;
     return 0;
 }
@@ -567,6 +585,7 @@ static int toku_db_close(DB * db, u_int32_t flags) {
     toku_free(db->i->full_fname);
     toku_free(db->i);
     toku_free(db);
+    ydb_unref();
     return r;
 }
 
@@ -1227,6 +1246,7 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         db_env_unref(env);
         return ENOMEM;
     }
+    ydb_add_ref();
     *db = result;
     return 0;
 }
