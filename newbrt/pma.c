@@ -785,13 +785,14 @@ int toku_pma_cursor_set_position_next (PMA_CURSOR c) {
     return DB_NOTFOUND;
 }
 
-int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val) {
+int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val, int even_deleted) {
     if (c->position == -1)
         return DB_NOTFOUND;
     PMA pma = c->pma;
     struct kv_pair *pair = pma->pairs[c->position];
-    if (!kv_pair_valid(pair)) 
+    if (!kv_pair_inuse(pair) || (kv_pair_deleted(pair) && !even_deleted)) 
         return BRT_KEYEMPTY;
+    pair = kv_pair_ptr(pair);
     if (key) toku_dbt_set_value(key, kv_pair_key(pair), kv_pair_keylen(pair), c->sskey);
     if (val) toku_dbt_set_value(val, kv_pair_val(pair), kv_pair_vallen(pair), c->ssval);
     return 0;

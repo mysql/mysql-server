@@ -102,11 +102,10 @@ int toku_pma_cursor_set_position_first (PMA_CURSOR c);
 int toku_pma_cursor_set_position_next (PMA_CURSOR c); /* Requires the cursor is init'd.  Returns DB_NOTFOUND if we fall off the end. */
 int toku_pma_cursor_set_position_prev (PMA_CURSOR c);
 
-/* get the key and data under the cursor */
-int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val);
-int toku_pma_cursor_get_current_key(PMA_CURSOR c, DBT *key);
-int toku_pma_cursor_get_current_data(PMA_CURSOR c, DBT *val);
-
+/* get the key and data under the cursor 
+   if even_deleted is 1 then the key and val under the cursor are returned even if 
+   it has been deleted previously */
+int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val, int even_deleted);
 
 /* set the cursor to the matching key and value pair */
 int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val);
