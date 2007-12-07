@@ -1301,6 +1301,10 @@ char *db_strerror(int error) {
             return errorstr;
     }
     
+    if (error==DB_BADFORMAT) {
+	return "Database Bad Format (probably a corrupted database)";
+    }
+
     static char unknown_result[100];    // Race condition if two threads call this at the same time.    However even in a bad case, it should be some sort of nul-terminated string.
     errorstr = unknown_result;
     snprintf(errorstr, sizeof unknown_result, "Unknown error code: %d", error);
