@@ -1022,11 +1022,6 @@ public:
     const char * getTable() const;
 
     /**
-     * Get the table representing the index
-     */
-    const Table * getIndexTable() const;
-
-    /**
      * Get the number of columns in the index
      */
     unsigned getNoOfColumns() const;
