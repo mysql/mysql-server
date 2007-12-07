@@ -226,3 +226,15 @@ USE test;
 
 
 --echo End of 5.0 tests
+
+#
+# BUG#25677 - With --skip-symbolic-links option on, DATA DIRECTORY clause is
+#             silently ignored
+#
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='NO_DIR_IN_CREATE';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval CREATE TABLE t1(a INT) DATA DIRECTORY='$MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY='$MYSQLTEST_VARDIR/tmp';
+DROP TABLE t1;
+SET @@SQL_MODE=@OLD_SQL_MODE;
+
+--echo End of 5.1 tests
