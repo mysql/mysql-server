@@ -448,3 +448,4 @@ DROP TABLE t1;
 DROP DATABASE mysqltest_db1;
 USE test;
 End of 5.0 tests.
+End of 5.1 tests.

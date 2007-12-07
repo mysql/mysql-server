@@ -304,3 +304,21 @@ while ($i)
   dec $i ;
 }
 --enable_query_log
+
+###########################################################################
+
+--echo #
+--echo # Bug#19723: kill of active connection yields different error code
+--echo # depending on platform.
+--echo #
+
+--echo
+--echo # Connection: con2.
+--connection con2
+
+KILL CONNECTION_ID();
+
+--echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR, depending on the timing 
+--echo # of close of the connection socket
+--error 2013, 2006 
+SELECT 1;
