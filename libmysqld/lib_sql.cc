@@ -243,9 +243,11 @@ static my_bool emb_read_query_result(MYSQL *mysql)
   mysql->warning_count= res->embedded_info->warning_count;
   mysql->server_status= res->embedded_info->server_status;
   mysql->field_count= res->fields;
-  mysql->fields= res->embedded_info->fields_list;
-  mysql->affected_rows= res->embedded_info->affected_rows;
-  mysql->insert_id= res->embedded_info->insert_id;
+  if (!(mysql->fields= res->embedded_info->fields_list))
+  {
+    mysql->affected_rows= res->embedded_info->affected_rows;
+    mysql->insert_id= res->embedded_info->insert_id;
+  }
   net_clear_error(&mysql->net);
   mysql->info= 0;
 
