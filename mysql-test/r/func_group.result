@@ -61,7 +61,7 @@ grp	sum
 NULL	NULL
 1	7
 2	20.25
-3	45.483163247594
+3	45.48316324759439
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
 replace into t2 select grp, a, c from t1 limit 2,1;
@@ -891,7 +891,7 @@ select 1e8 * sum(distinct df) from t1;
 330000000
 select 1e8 * min(df) from t1;
 1e8 * min(df)
-110000000
+110000000.00000001
 create table t3 (ifl int);
 insert into t3 values(1), (2);
 select cast(min(ifl) as decimal(5,2)) from t3;
@@ -1186,7 +1186,7 @@ std(s1/s2)
 0.21325764
 select std(o1/o2) from bug22555;
 std(o1/o2)
-0.21325763586649
+0.2132576358664934
 select std(e1/e2) from bug22555;
 std(e1/e2)
 0.21325764
@@ -1209,13 +1209,13 @@ i	count(*)	std(e1/e2)
 3	4	0.000000000000000000000000000000
 select round(std(s1/s2), 17) from bug22555;
 round(std(s1/s2), 17)
-0.21325763586649341
+0.21325763586649340
 select std(o1/o2) from bug22555;
 std(o1/o2)
-0.21325763586649
+0.2132576358664934
 select round(std(e1/e2), 17) from bug22555;
 round(std(e1/e2), 17)
-0.21325763586649341
+0.21325763586649340
 set div_precision_increment=20;
 select i, count(*), std(s1/s2) from bug22555 group by i order by i;
 i	count(*)	std(s1/s2)
@@ -1234,13 +1234,13 @@ i	count(*)	std(e1/e2)
 3	4	0.000000000000000000000000000000
 select round(std(s1/s2), 17) from bug22555;
 round(std(s1/s2), 17)
-0.21325763586649341
+0.21325763586649340
 select std(o1/o2) from bug22555;
 std(o1/o2)
-0.21325763586649
+0.2132576358664934
 select round(std(e1/e2), 17) from bug22555;
 round(std(e1/e2), 17)
-0.21325763586649341
+0.21325763586649340
 set @@div_precision_increment=@saved_div_precision_increment;
 drop table bug22555;
 create table bug22555 (s smallint, o double, e decimal);

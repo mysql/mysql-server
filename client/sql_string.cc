@@ -677,7 +677,7 @@ void String::qs_append(const char *str, uint32 len)
 void String::qs_append(double d)
 {
   char *buff = Ptr + str_length;
-  str_length+= my_sprintf(buff, (buff, "%.14g", d));
+  str_length+= my_gcvt(d, MY_GCVT_ARG_DOUBLE, FLOATING_POINT_BUFFER - 1, buff, NULL);
 }
 
 void String::qs_append(double *d)

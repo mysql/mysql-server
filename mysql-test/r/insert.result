@@ -175,12 +175,12 @@ Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	4
 original_value	1e+1111111111a
-f_double	1.79769313486232e+308
-f_float	3.40282e+38
+f_double	1.7976931348623157e308
+f_float	3.40282e38
 f_double_7_2	99999.99
 f_float_4_3	9.999
-f_double_u	1.79769313486232e+308
-f_float_u	3.40282e+38
+f_double_u	1.7976931348623157e308
+f_float_u	3.40282e38
 f_double_15_1_u	99999999999999.9
 f_float_3_1_u	99.9
 set @value= "-1e+1111111111a";
@@ -204,8 +204,8 @@ Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	5
 original_value	-1e+1111111111a
-f_double	-1.79769313486232e+308
-f_float	-3.40282e+38
+f_double	-1.7976931348623157e308
+f_float	-3.40282e38
 f_double_7_2	-99999.99
 f_float_4_3	-9.999
 f_double_u	0
@@ -227,13 +227,13 @@ Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
 Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	6
-original_value	1e+111
-f_double	1e+111
-f_float	3.40282e+38
+original_value	1e111
+f_double	1e111
+f_float	3.40282e38
 f_double_7_2	99999.99
 f_float_4_3	9.999
-f_double_u	1e+111
-f_float_u	3.40282e+38
+f_double_u	1e111
+f_float_u	3.40282e38
 f_double_15_1_u	99999999999999.9
 f_float_3_1_u	99.9
 set @value= -1e+111;
@@ -248,9 +248,9 @@ Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
 Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	7
-original_value	-1e+111
-f_double	-1e+111
-f_float	-3.40282e+38
+original_value	-1e111
+f_double	-1e111
+f_float	-3.40282e38
 f_double_7_2	-99999.99
 f_float_4_3	-9.999
 f_double_u	0
@@ -499,4 +499,116 @@ i
 2
 2
 DROP TABLE t1, t2;
+CREATE TABLE t1 (
+a char(20) NOT NULL,
+b char(7) DEFAULT NULL,
+c char(4) DEFAULT NULL
+);
+INSERT INTO t1(a,b,c) VALUES (9.999999e+0, 9.999999e+0, 9.999e+0);
+INSERT INTO t1(a,b,c) VALUES (1.225e-05, 1.225e-05, 1.225e-05);
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
+INSERT INTO t1(a,b) VALUES (1.225e-04, 1.225e-04);
+INSERT INTO t1(a,b) VALUES (1.225e-01, 1.225e-01);
+INSERT INTO t1(a,b) VALUES (1.225877e-01, 1.225877e-01);
+INSERT INTO t1(a,b) VALUES (1.225e+01, 1.225e+01);
+INSERT INTO t1(a,b,c) VALUES (1.225e+01, 1.225e+01, 1.225e+01);
+INSERT INTO t1(a,b) VALUES (1.225e+05, 1.225e+05);
+INSERT INTO t1(a,b) VALUES (1.225e+10, 1.225e+10);
+INSERT INTO t1(a,b) VALUES (1.225e+15, 1.225e+15);
+INSERT INTO t1(a,b) VALUES (5000000e+0, 5000000e+0);
+INSERT INTO t1(a,b) VALUES (1.25e+78, 1.25e+78);
+INSERT INTO t1(a,b) VALUES (1.25e-94, 1.25e-94);
+INSERT INTO t1(a,b) VALUES (1.25e+203, 1.25e+203);
+INSERT INTO t1(a,b) VALUES (1.25e-175, 1.25e-175);
+INSERT INTO t1(a,c) VALUES (1.225e+0, 1.225e+0);
+INSERT INTO t1(a,c) VALUES (1.37e+0, 1.37e+0);
+INSERT INTO t1(a,c) VALUES (-1.37e+0, -1.37e+0);
+INSERT INTO t1(a,c) VALUES (1.87e-3, 1.87e-3);
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
+INSERT INTO t1(a,c) VALUES (-1.87e-2, -1.87e-2);
+INSERT INTO t1(a,c) VALUES (5000e+0, 5000e+0);
+INSERT INTO t1(a,c) VALUES (-5000e+0, -5000e+0);
+SELECT * FROM t1;
+a	b	c
+9.999999	10	10
+0.00001225	1.22e-5	1e-5
+0.0001225	1.22e-4	NULL
+0.1225	0.1225	NULL
+0.1225877	0.12259	NULL
+12.25	12.25	NULL
+12.25	12.25	12.2
+122500	122500	NULL
+12250000000	1.22e10	NULL
+1.225e15	1.22e15	NULL
+5000000	5000000	NULL
+1.25e78	1.25e78	NULL
+1.25e-94	1.2e-94	NULL
+1.25e203	1.2e203	NULL
+1.25e-175	1e-175	NULL
+1.225	NULL	1.23
+1.37	NULL	1.37
+-1.37	NULL	-1.4
+0.00187	NULL	2e-3
+-0.0187	NULL	0
+5000	NULL	5000
+-5000	NULL	-5e3
+DROP TABLE t1;
+CREATE TABLE t1 (
+a char(20) NOT NULL,
+b char(7) DEFAULT NULL,
+c char(5)
+);
+INSERT INTO t1(a,b,c) VALUES (9.999999e+0, 9.999999e+0, 9.999e+0);
+INSERT INTO t1(a,b,c) VALUES (1.225e-05, 1.225e-05, 1.225e-05);
+INSERT INTO t1(a,b) VALUES (1.225e-04, 1.225e-04);
+INSERT INTO t1(a,b) VALUES (1.225e-01, 1.225e-01);
+INSERT INTO t1(a,b) VALUES (1.225877e-01, 1.225877e-01);
+INSERT INTO t1(a,b) VALUES (1.225e+01, 1.225e+01);
+INSERT INTO t1(a,b,c) VALUES (1.225e+01, 1.225e+01, 1.225e+01);
+INSERT INTO t1(a,b) VALUES (1.225e+05, 1.225e+05);
+INSERT INTO t1(a,b) VALUES (1.225e+10, 1.225e+10);
+INSERT INTO t1(a,b) VALUES (1.225e+15, 1.225e+15);
+INSERT INTO t1(a,b) VALUES (5000000e+0, 5000000e+0);
+INSERT INTO t1(a,b) VALUES (1.25e+78, 1.25e+78);
+INSERT INTO t1(a,b) VALUES (1.25e-94, 1.25e-94);
+INSERT INTO t1(a,b) VALUES (1.25e+203, 1.25e+203);
+INSERT INTO t1(a,b) VALUES (1.25e-175, 1.25e-175);
+INSERT INTO t1(a,c) VALUES (1.225e+0, 1.225e+0);
+INSERT INTO t1(a,c) VALUES (1.37e+0, 1.37e+0);
+INSERT INTO t1(a,c) VALUES (-1.37e+0, -1.37e+0);
+INSERT INTO t1(a,c) VALUES (1.87e-3, 1.87e-3);
+INSERT INTO t1(a,c) VALUES (-1.87e-2, -1.87e-2);
+INSERT INTO t1(a,c) VALUES (5000e+0, 5000e+0);
+INSERT INTO t1(a,c) VALUES (-5000e+0, -5000e+0);
+SELECT * FROM t1;
+a	b	c
+9.999999	10	9.999
+0.00001225	1.22e-5	1e-5
+0.0001225	1.22e-4	NULL
+0.1225	0.1225	NULL
+0.1225877	0.12259	NULL
+12.25	12.25	NULL
+12.25	12.25	12.25
+122500	122500	NULL
+12250000000	1.22e10	NULL
+1.225e15	1.22e15	NULL
+5000000	5000000	NULL
+1.25e78	1.25e78	NULL
+1.25e-94	1.2e-94	NULL
+1.25e203	1.2e203	NULL
+1.25e-175	1e-175	NULL
+1.225	NULL	1.225
+1.37	NULL	1.37
+-1.37	NULL	-1.37
+0.00187	NULL	0.002
+-0.0187	NULL	-0.02
+5000	NULL	5000
+-5000	NULL	-5000
+DROP TABLE t1;
+CREATE TABLE t (a CHAR(10),b INT);
+INSERT INTO t VALUES (),(),();
+INSERT INTO t(a) SELECT rand() FROM t;
+DROP TABLE t;
 End of 5.0 tests.

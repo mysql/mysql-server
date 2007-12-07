@@ -408,3 +408,15 @@ INSERT INTO t1 VALUES (1.1325,3);
 SELECT ROUND(qty,3), dps, ROUND(qty,dps) FROM t1;
 
 DROP TABLE t1;
+
+#
+# Bug #24541: "Data truncated..." on decimal type columns without any good reason
+#
+
+create table t1 (c1 decimal(10,6));
+insert into t1 (c1) values (9.99e-4);
+insert into t1 (c1) values (9.98e-4);
+insert into t1 (c1) values (0.000999);
+insert into t1 (c1) values (cast(9.99e-4 as decimal(10,6)));
+select * from t1;
+drop table t1;

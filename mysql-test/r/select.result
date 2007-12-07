@@ -2784,26 +2784,26 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select max(key1) from t1 where key1 <= 0.6158;
 max(key1)
-0.61580002307892
+0.6158000230789185
 select max(key2) from t2 where key2 <= 1.6158;
 max(key2)
-1.6158000230789
+1.6158000230789185
 select min(key1) from t1 where key1 >= 0.3762;
 min(key1)
-0.37619999051094
+0.37619999051094055
 select min(key2) from t2 where key2 >= 1.3762;
 min(key2)
-1.3761999607086
+1.3761999607086182
 select max(key1), min(key2) from t1, t2
 where key1 <= 0.6158 and key2 >= 1.3762;
 max(key1)	min(key2)
-0.61580002307892	1.3761999607086
+0.6158000230789185	1.3761999607086182
 select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
 max(key1)
-0.61580002307892
+0.6158000230789185
 select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 min(key1)
-0.37619999051094
+0.37619999051094055
 DROP TABLE t1,t2;
 CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
 INSERT INTO t1 VALUES (10);

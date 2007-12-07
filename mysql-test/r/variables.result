@@ -54,7 +54,7 @@ select @`select`,@not_used;
 set @test_int=10,@test_double=1e-10,@test_string="abcdeghi",@test_string2="abcdefghij",@select=NULL;
 select @test_int,@test_double,@test_string,@test_string2,@select;
 @test_int	@test_double	@test_string	@test_string2	@select
-10	1e-10	abcdeghi	abcdefghij	NULL
+10	0.0000000001	abcdeghi	abcdefghij	NULL
 set @test_int="hello",@test_double="hello",@test_string="hello",@test_string2="hello";
 select @test_int,@test_double,@test_string,@test_string2;
 @test_int	@test_double	@test_string	@test_string2
