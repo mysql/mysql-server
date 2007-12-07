@@ -1093,7 +1093,8 @@ rec_convert_dtuple_to_rec_comp(
 			ut_ad(len == fixed_len);
 			ut_ad(!dfield_is_ext(field));
 		} else if (dfield_is_ext(field)) {
-			ut_ad(len < REC_MAX_INDEX_COL_LEN);
+			ut_ad(len < REC_MAX_INDEX_COL_LEN
+			      + BTR_EXTERN_FIELD_REF_SIZE);
 			*lens-- = (byte) (len >> 8) | 0xc0;
 			*lens-- = (byte) len;
 		} else {
