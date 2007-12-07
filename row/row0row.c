@@ -232,6 +232,8 @@ row_build(
 
 	row = dtuple_create(heap, row_len);
 
+	dict_table_copy_types(row, table);
+
 	dtuple_set_info_bits(row, rec_get_info_bits(
 				     rec, dict_table_is_comp(table)));
 
@@ -240,8 +242,6 @@ row_build(
 	if (n_ext_cols) {
 		ext_cols = mem_heap_alloc(heap, n_ext_cols * sizeof *ext_cols);
 	}
-
-	dict_table_copy_types(row, table);
 
 	for (i = j = 0; i < n_fields; i++) {
 		dict_field_t*		ind_field
