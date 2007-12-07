@@ -342,11 +342,11 @@ INSERT INTO t1 SET f1 = -1.0e+30 ;
 INSERT INTO t1 SET f1 = +1.0e+30 ;
 SELECT f1 AS double_val, CAST(f1 AS SIGNED INT) AS cast_val FROM t1;
 double_val	cast_val
--1e+30	-9223372036854775808
-1e+30	9223372036854775807
+-1e30	-9223372036854775808
+1e30	9223372036854775807
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1e+30'
-Warning	1292	Truncated incorrect INTEGER value: '1e+30'
+Warning	1292	Truncated incorrect INTEGER value: '-1e30'
+Warning	1292	Truncated incorrect INTEGER value: '1e30'
 DROP TABLE t1;
 select isnull(date(NULL)), isnull(cast(NULL as DATE));
 isnull(date(NULL))	isnull(cast(NULL as DATE))
@@ -363,7 +363,7 @@ cast('1.2' as decimal(3,2))
 1.20
 select 1e18 * cast('1.2' as decimal(3,2));
 1e18 * cast('1.2' as decimal(3,2))
-1.2e+18
+1.2e18
 select cast(cast('1.2' as decimal(3,2)) as signed);
 cast(cast('1.2' as decimal(3,2)) as signed)
 1

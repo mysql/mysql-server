@@ -799,3 +799,15 @@ SELECT ROUND(qty,3), dps, ROUND(qty,dps) FROM t1;
 ROUND(qty,3)	dps	ROUND(qty,dps)
 1.133	3	1.133
 DROP TABLE t1;
+create table t1 (c1 decimal(10,6));
+insert into t1 (c1) values (9.99e-4);
+insert into t1 (c1) values (9.98e-4);
+insert into t1 (c1) values (0.000999);
+insert into t1 (c1) values (cast(9.99e-4 as decimal(10,6)));
+select * from t1;
+c1
+0.000999
+0.000998
+0.000999
+0.000999
+drop table t1;

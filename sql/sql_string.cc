@@ -109,82 +109,19 @@ bool String::set_int(longlong num, bool unsigned_flag, CHARSET_INFO *cs)
 
 bool String::set_real(double num,uint decimals, CHARSET_INFO *cs)
 {
-  char buff[331];
+  char buff[FLOATING_POINT_BUFFER];
   uint dummy_errors;
+  size_t len;
 
   str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
-    uint32 len= my_sprintf(buff,(buff, "%.14g",num));// Enough for a DATETIME
+    len= my_gcvt(num, MY_GCVT_ARG_DOUBLE, sizeof(buff) - 1, buff, NULL);
     return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
-#ifdef HAVE_FCONVERT
-  int decpt,sign;
-  char *pos,*to;
-
-  VOID(fconvert(num,(int) decimals,&decpt,&sign,buff+1));
-  if (!my_isdigit(&my_charset_latin1, buff[1]))
-  {						// Nan or Inf
-    pos=buff+1;
-    if (sign)
-    {
-      buff[0]='-';
-      pos=buff;
-    }
-    uint dummy_errors;
-    return copy(pos,(uint32) strlen(pos), &my_charset_latin1, cs, &dummy_errors);
-  }
-  if (alloc((uint32) ((uint32) decpt+3+decimals)))
-    return TRUE;
-  to=Ptr;
-  if (sign)
-    *to++='-';
-
-  pos=buff+1;
-  if (decpt < 0)
-  {					/* value is < 0 */
-    *to++='0';
-    if (!decimals)
-      goto end;
-    *to++='.';
-    if ((uint32) -decpt > decimals)
-      decpt= - (int) decimals;
-    decimals=(uint32) ((int) decimals+decpt);
-    while (decpt++ < 0)
-      *to++='0';
-  }
-  else if (decpt == 0)
-  {
-    *to++= '0';
-    if (!decimals)
-      goto end;
-    *to++='.';
-  }
-  else
-  {
-    while (decpt-- > 0)
-      *to++= *pos++;
-    if (!decimals)
-      goto end;
-    *to++='.';
-  }
-  while (decimals--)
-    *to++= *pos++;
-
-end:
-  *to=0;
-  str_length=(uint32) (to-Ptr);
-  return FALSE;
-#else
-#ifdef HAVE_SNPRINTF
-  buff[sizeof(buff)-1]=0;			// Safety
-  snprintf(buff,sizeof(buff)-1, "%.*f",(int) decimals,num);
-#else
-  sprintf(buff,"%.*f",(int) decimals,num);
-#endif
-  return copy(buff,(uint32) strlen(buff), &my_charset_latin1, cs,
+  len= my_fcvt(num, decimals, buff, NULL);
+  return copy(buff, (uint32) len, &my_charset_latin1, cs,
               &dummy_errors);
-#endif
 }
 
 
@@ -667,7 +604,7 @@ void String::qs_append(const char *str, uint32 len)
 void String::qs_append(double d)
 {
   char *buff = Ptr + str_length;
-  str_length+= my_sprintf(buff, (buff, "%.14g", d));
+  str_length+= my_gcvt(d, MY_GCVT_ARG_DOUBLE, FLOATING_POINT_BUFFER - 1, buff, NULL);
 }
 
 void String::qs_append(double *d)

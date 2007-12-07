@@ -258,7 +258,7 @@ fid	AsText(EndPoint(g))
 107	POINT(40 10)
 SELECT fid, GLength(g) FROM gis_line;
 fid	GLength(g)
-105	24.142135623731
+105	24.14213562373095
 106	40
 107	30
 SELECT fid, NumPoints(g) FROM gis_line;
@@ -284,7 +284,7 @@ Note	1003	select astext(startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint
 SELECT fid, AsText(Centroid(g)) FROM gis_polygon;
 fid	AsText(Centroid(g))
 108	POINT(15 15)
-109	POINT(25.416666666667 25.416666666667)
+109	POINT(25.416666666666668 25.416666666666668)
 110	POINT(20 10)
 SELECT fid, Area(g) FROM gis_polygon;
 fid	Area(g)
@@ -318,8 +318,8 @@ fid	IsClosed(g)
 116	0
 SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon;
 fid	AsText(Centroid(g))
-117	POINT(55.588527753042 17.426536064114)
-118	POINT(55.588527753042 17.426536064114)
+117	POINT(55.58852775304244 17.42653606411398)
+118	POINT(55.58852775304244 17.42653606411398)
 119	POINT(2 2)
 SELECT fid, Area(g) FROM gis_multi_polygon;
 fid	Area(g)
@@ -651,11 +651,11 @@ insert into t1 values ('85984',GeomFromText('MULTIPOLYGON(((-115.006363
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85998;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85998	MULTIPOLYGON	0	POINT(115.31877315203 -36.237472821022)
+85998	MULTIPOLYGON	0	POINT(115.31877315203185 -36.23747282102153)
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85984;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85984	MULTIPOLYGON	0	POINT(-114.87787186923 36.33101763469)
+85984	MULTIPOLYGON	0	POINT(-114.87787186923329 36.33101763469042)
 drop table t1;
 create table t1 (fl geometry not null);
 insert into t1 values (1);
