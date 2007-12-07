@@ -5162,7 +5162,6 @@ void Dbtc::execLQHKEYREF(Signal* signal)
         TcIndexData* indexData = c_theIndexes.getPtr(currentIndexId);
         indexId = indexData->indexId;
         regApiPtr->errorData = indexId;
-        ndbout_c("LQHKEYREF, found index %u", indexId);
 	const Uint32 opType = regTcPtr->operation;
 	if (errCode == ZALREADYEXIST)
 	  errCode = terrorCode = ZNOTUNIQUE;
@@ -5246,7 +5245,6 @@ void Dbtc::execLQHKEYREF(Signal* signal)
         jam();
 	regApiPtr->lqhkeyreqrec--; // Compensate for extra during read
 	tcKeyRef->connectPtr = indexOp;
-        ndbout_c("TCKEYREF, sending index %u", indexId);
         tcKeyRef->errorData = indexId;
 	EXECUTE_DIRECT(DBTC, GSN_TCKEYREF, signal, TcKeyRef::SignalLength);
 	apiConnectptr.i = save;
@@ -5254,7 +5252,6 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       } else {
         jam();
 	tcKeyRef->connectPtr = clientData;
-        ndbout_c("TCKEYREF, sending index %u", indexId);
         tcKeyRef->errorData = indexId;
 	sendSignal(regApiPtr->ndbapiBlockref, 
 		   GSN_TCKEYREF, signal, TcKeyRef::SignalLength, JBB);
@@ -12234,7 +12231,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
-    // tcIndxRef->errorData = ??; Where to find indexId
+    tcIndxRef->errorData = regApiPtr->errorData;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -13030,7 +13027,6 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   }
 
   regApiPtr->currSavePointId = currSavePointId;
-  ndbout_c("TCKEYREQ, saving index %u", indexData->indexId);
   tcConnectptr.p->currentIndexId = indexData->indexId;
 
   // *********** KEYINFO ***********

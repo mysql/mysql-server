@@ -1769,7 +1769,6 @@ transactions.
     theError.code = aSignal->readData(4);// Override any previous errors
     if (aSignal->getLength() == TcRollbackRep::SignalLength)
     {
-      DBUG_PRINT("info", ("Found error data %u", aSignal->readData(5)));
       // Signal may contain additional error data
       theError.details = (char *) aSignal->readData(5);
     }
