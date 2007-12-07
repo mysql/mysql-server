@@ -293,7 +293,8 @@ insert delayed into t2 values(rand());
 set @a=2.345;
 insert delayed into t2 values(@a);
 
-sleep 4; # time for the delayed inserts to reach disk
+let $wait_condition= SELECT COUNT(*) = 19 FROM t2;
+--source include/wait_condition.inc
 
 # If you want to do manual testing of the mixed mode regarding UDFs (not
 # testable automatically as quite platform- and compiler-dependent),
