@@ -3475,4 +3475,55 @@ DROP VIEW  `v-2`;
 DROP DATABASE `d-1`;
 USE test;
 
+--echo
+--echo #
+--echo # Bug#26676: VIEW using old table schema in a session.
+--echo #
+--echo
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(c1 INT, c2 INT);
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+
+--echo
+
+SELECT * FROM t1;
+
+--echo
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+--echo
+
+SELECT * FROM v1;
+
+--echo
+
+ALTER TABLE t1 ADD COLUMN c3 INT AFTER c2;
+
+--echo
+
+SELECT * FROM t1;
+
+--echo
+
+SELECT * FROM v1;
+
+--echo
+
+SHOW CREATE VIEW v1;
+
+--echo
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo
+--echo # End of test case for Bug#26676.
+--echo
+
 --echo End of 5.1 tests.
