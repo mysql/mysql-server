@@ -23,24 +23,107 @@ struct primary_key {
     int rand; /* in network order */
     struct timestamp ts;
 };
+
+struct name_key {
+    unsigned char len;
+    unsigned char* name;
+};
+
 struct primary_data {
     struct timestamp creationtime;
     struct timestamp expiretime; /* not valid if doesexpire==0 */
-    char doesexpire;
-    char namelen;
-    char name[0];
+    unsigned char doesexpire;
+    struct name_key name;
 };
 
-struct name_key {
-    char namelen;
-    char name[0];
-};
+void free_pd (struct primary_data *pd) {
+    free(pd->name.name);
+    free(pd);
+}
+
+void write_uchar_to_dbt (DBT *dbt, const unsigned char c) {
+    assert(dbt->size+1 <= dbt->ulen);
+    ((char*)dbt->data)[dbt->size++]=c;
+}
+
+void write_uint_to_dbt (DBT *dbt, const unsigned int v) {
+    write_uchar_to_dbt(dbt, (v>>24)&0xff);
+    write_uchar_to_dbt(dbt, (v>>16)&0xff);
+    write_uchar_to_dbt(dbt, (v>> 8)&0xff);
+    write_uchar_to_dbt(dbt, (v>> 0)&0xff);
+}
+
+void write_timestamp_to_dbt (DBT *dbt, const struct timestamp *ts) {
+    write_uint_to_dbt(dbt, ts->tv_sec);
+    write_uint_to_dbt(dbt, ts->tv_usec);
+}
+
+void write_pk_to_dbt (DBT *dbt, const struct primary_key *pk) {
+    write_uint_to_dbt(dbt, pk->rand);
+    write_timestamp_to_dbt(dbt, &pk->ts);
+}
+
+void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
+    write_uchar_to_dbt(dbt, nk->len);
+    int i;
+    for (i=0; i<nk->len; i++) {
+	write_uchar_to_dbt(dbt, nk->name[i]);
+    }
+}
+
+void write_pd_to_dbt (DBT *dbt, const struct primary_data *pd) {
+    write_timestamp_to_dbt(dbt, &pd->creationtime);
+    write_timestamp_to_dbt(dbt, &pd->expiretime);
+    write_uchar_to_dbt(dbt, pd->doesexpire);
+    write_name_to_dbt(dbt, &pd->name);
+}
+
+void read_uchar_from_dbt (const DBT *dbt, int *off, unsigned char *uchar) {
+    assert(*off < dbt->size);
+    *uchar = ((unsigned char *)dbt->data)[(*off)++];
+}
+
+void read_uint_from_dbt (const DBT *dbt, int *off, unsigned int *uint) {
+    unsigned char a,b,c,d;
+    read_uchar_from_dbt(dbt, off, &a);
+    read_uchar_from_dbt(dbt, off, &b);
+    read_uchar_from_dbt(dbt, off, &c);
+    read_uchar_from_dbt(dbt, off, &d);
+    *uint = (a<<24)+(b<<16)+(c<<8)+d;
+}
+
+void read_timestamp_from_dbt (const DBT *dbt, int *off, struct timestamp *ts) {
+    read_uint_from_dbt(dbt, off, &ts->tv_sec);
+    read_uint_from_dbt(dbt, off, &ts->tv_usec);
+}
+
+void read_name_from_dbt (const DBT *dbt, int *off, struct name_key *nk) {
+    read_uchar_from_dbt(dbt, off, &nk->len);
+    nk->name = malloc(nk->len);
+    int i;
+    for (i=0; i<nk->len; i++) {
+	read_uchar_from_dbt(dbt, off, &nk->name[i]);
+    }
+}
+
+void read_pd_from_dbt (const DBT *dbt, int *off, struct primary_data *pd) {
+    read_timestamp_from_dbt(dbt, off, &pd->creationtime);
+    read_timestamp_from_dbt(dbt, off, &pd->expiretime);
+    read_uchar_from_dbt(dbt, off, &pd->doesexpire);
+    read_name_from_dbt(dbt, off, &pd->name);
+}
 
 int name_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
-    struct primary_data *d = data->data;
-    result->flags=0;
-    result->size=1+d->namelen;
-    result->data=&d->name[0];
+    struct primary_data *pd = malloc(sizeof(*pd));
+    int off=0;
+    read_pd_from_dbt(data, &off, pd);
+    static int buf[1000];
+
+    result->ulen=1000;
+    result->data=buf;
+    result->size=0;
+    write_name_to_dbt(result,  &pd->name);
+    free_pd(pd);
     return 0;
 }
 
@@ -102,28 +185,36 @@ void gettod (struct timestamp *ts) {
 void insert_person (void) {
     int namelen = 5+random()%245;
     struct primary_key  pk;
-    struct primary_data *pd=malloc(namelen+sizeof(*pd));;
+    struct primary_data pd;
+    char keyarray[1000], dataarray[1000]; 
+    unsigned char namearray[1000];
     pk.rand = random();
     gettod(&pk.ts);
-    pd->creationtime = pk.ts;
-    pd->expiretime   = pk.ts;
-    pd->expiretime.tv_sec += 24*60*60*366;
-    pd->doesexpire = (random()%1==0);
-    pd->namelen = namelen;
+    pd.creationtime = pk.ts;
+    pd.expiretime   = pk.ts;
+    pd.expiretime.tv_sec += 24*60*60*366;
+    pd.doesexpire = (random()%1==0);
+    pd.name.len = namelen;
     int i;
-    pd->name[0] = 'A'+random()%26;
+    pd.name.name = namearray;
+    pd.name.name[0] = 'A'+random()%26;
     for (i=1; i<namelen; i++) {
-	pd->name[i] = 'a'+random()%26;
+	pd.name.name[i] = 'a'+random()%26;
     }
     DBT key,data;
     memset(&key,0,sizeof(DBT));
     memset(&data,0,sizeof(DBT));
-    key.size = sizeof(pk);
-    key.data = &pk;
-    data.size = namelen+sizeof(*pd);
-    data.data = pd;
+    key.data = keyarray;
+    key.ulen = 1000;
+    key.size = 0;
+    data.data = dataarray;
+    data.ulen = 1000;
+    data.size = 0;
+    write_pk_to_dbt(&key, &pk);
+    write_pd_to_dbt(&data, &pd);
+    printf("sizeof(pk)=%d\n", sizeof(struct primary_key));
+    printf("sizeof(pd)=%d\n", sizeof(struct primary_data));
     int r=dbp->put(dbp, null_txn, &key, &data,0);  assert(r==0);
-    free(pd);
 }
 
 int main () {
@@ -132,7 +223,7 @@ int main () {
 
     create_databases();
 
-//    insert_person();
+    insert_person();
 
     close_databases();
 
