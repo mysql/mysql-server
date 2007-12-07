@@ -59,7 +59,7 @@ int getskey(DB *secondary, const DBT *pkey, const DBT *pdata, DBT *skey)
 	memset(skey, 0, sizeof(DBT));
 	entry = (DATA*)pdata->data;
 
-    if (callback_set_malloc) skey->flags = DB_DBT_MALLOC;
+    if (callback_set_malloc) skey->flags = DB_DBT_APPMALLOC;
     if (callback_init_data) {
         skey->size = sizeof(entry->skey);
         if (callback_set_malloc) {
