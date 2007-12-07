@@ -101,8 +101,8 @@ test-binlog-statement:
 	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
 
+# This code is duplicated in "test-bt", see the Changeset comment of 2007-Dec-07
 test-embedded:
-	# This code is duplicated in "test-bt", see the Changeset comment of 2007-Dec-07
 	if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
 	  @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
