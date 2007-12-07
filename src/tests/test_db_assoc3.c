@@ -212,8 +212,8 @@ void insert_person (void) {
     data.size = 0;
     write_pk_to_dbt(&key, &pk);
     write_pd_to_dbt(&data, &pd);
-    printf("sizeof(pk)=%d\n", sizeof(struct primary_key));
-    printf("sizeof(pd)=%d\n", sizeof(struct primary_data));
+    printf("sizeof(pk)=%d\n", (int)sizeof(struct primary_key));
+    printf("sizeof(pd)=%d\n", (int)sizeof(struct primary_data));
     int r=dbp->put(dbp, null_txn, &key, &data,0);  assert(r==0);
 }
 
