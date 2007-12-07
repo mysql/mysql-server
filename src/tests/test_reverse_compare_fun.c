@@ -16,18 +16,7 @@
 
 #include "test.h"
 
-DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
-    memset(dbt, 0, sizeof *dbt);
-    dbt->data = data;
-    dbt->size = size;
-    return dbt;
-}
 
-DBT *dbt_init_malloc(DBT *dbt) {
-    memset(dbt, 0, sizeof *dbt);
-    dbt->flags = DB_DBT_MALLOC;
-    return dbt;
-}
 
 int keycompare (const void *key1, unsigned int key1len, const void *key2, unsigned int key2len) {
     if (key1len==key2len) {

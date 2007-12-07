@@ -12,18 +12,7 @@
 
 #include "test.h"
 
-DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
-    memset(dbt, 0, sizeof *dbt);
-    dbt->data = data;
-    dbt->size = size;
-    return dbt;
-}
 
-DBT *dbt_init_malloc(DBT *dbt) {
-    memset(dbt, 0, sizeof *dbt);
-    dbt->flags = DB_DBT_MALLOC;
-    return dbt;
-}
 
 void expect(DBC *cursor, int k, int v) {
     DBT key, val;

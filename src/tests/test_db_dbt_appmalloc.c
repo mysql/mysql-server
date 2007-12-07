@@ -25,12 +25,6 @@ DB_TXN *const null_txn = 0;
 DB_ENV *dbenv;
 
 
-DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
-    memset(dbt, 0, sizeof *dbt);
-    dbt->data = data;
-    dbt->size = size;
-    return dbt;
-}
 
 void* lastmalloced;
 
