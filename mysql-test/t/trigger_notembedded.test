@@ -875,3 +875,37 @@ DROP DATABASE mysqltest_db1;
 USE test;
 
 --echo End of 5.0 tests.
+
+#
+# Bug#23713 LOCK TABLES + CREATE TRIGGER + FLUSH TABLES WITH READ LOCK = deadlock
+#
+
+# Test temporarily disable due to Bug#32395
+--disable_parsing
+create table t1 (i int);
+connect (flush,localhost,root,,test,,);
+connection default;
+--echo connection: default
+lock tables t1 write;
+connection flush;
+--echo connection: flush
+--send flush tables with read lock;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+create trigger t1_bi before insert on t1 for each row begin end;
+unlock tables;
+connection flush;
+--echo connection: flush
+--reap
+unlock tables;
+connection default;
+select * from t1;
+drop table t1;
+disconnect flush;
+--enable_parsing
+
+--echo End of 5.1 tests.

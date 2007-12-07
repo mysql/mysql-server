@@ -1981,4 +1981,39 @@ drop table table_25411_b;
 DROP TRIGGER IF EXISTS trg;
 SHOW CREATE TRIGGER trg;
 ERROR HY000: Trigger does not exist
+drop table if exists t1;
+create table t1 (i int, j int);
+create trigger t1_bi before insert on t1 for each row begin end;
+create trigger t1_bi before insert on t1 for each row begin end;
+ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+drop trigger t1_bi;
+drop trigger t1_bi;
+ERROR HY000: Trigger does not exist
+lock tables t1 read;
+create trigger t1_bi before insert on t1 for each row begin end;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+create trigger t1_bi before insert on t1 for each row begin end;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+drop trigger t1_bi;
+ERROR HY000: Trigger does not exist
+unlock tables;
+create trigger t1_bi before insert on t1 for each row begin end;
+lock tables t1 read;
+create trigger t1_bi before insert on t1 for each row begin end;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+drop trigger t1_bi;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+unlock tables;
+drop trigger t1_bi;
+lock tables t1 write;
+create trigger b1_bi before insert on t1 for each row set new.i = new.i + 10;
+insert into t1 values (10, 10);
+drop trigger b1_bi;
+insert into t1 values (10, 10);
+select * from t1;
+i	j
+20	10
+10	10
+unlock tables;
+drop table t1;
 End of 5.1 tests.

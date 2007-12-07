@@ -87,7 +87,6 @@ bool Prelock_error_handler::safely_trapped_errors()
   @defgroup Data_Dictionary Data Dictionary
   @{
 */
-
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 static HASH table_def_cache;
@@ -993,8 +992,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info="Flushing tables";
 
     close_old_data_files(thd,thd->open_tables,1,1);
-    mysql_ha_flush(thd, tables, MYSQL_HA_REOPEN_ON_USAGE | MYSQL_HA_FLUSH_ALL,
-                   TRUE);
+    mysql_ha_flush(thd);
+
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info",
@@ -2200,6 +2199,41 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
 }
 
 
+/**
+  Exclusively name-lock a table that is already write-locked by the
+  current thread.
+
+  @param thd current thread context
+  @param tables able list containing one table to open.
+
+  @return FALSE on success, TRUE otherwise.
+*/
+
+bool name_lock_locked_table(THD *thd, TABLE_LIST *tables)
+{
+  DBUG_ENTER("name_lock_locked_table");
+
+  /* Under LOCK TABLES we must only accept write locked tables. */
+  tables->table= find_locked_table(thd, tables->db, tables->table_name);
+
+  if (!tables->table)
+    my_error(ER_TABLE_NOT_LOCKED, MYF(0), tables->alias);
+  else if (tables->table->reginfo.lock_type < TL_WRITE_LOW_PRIORITY)
+    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tables->alias);
+  else
+  {
+    /*
+      Ensures that table is opened only by this thread and that no
+      other statement will open this table.
+    */
+    wait_while_table_is_used(thd, tables->table, HA_EXTRA_FORCE_REOPEN);
+    DBUG_RETURN(FALSE);
+  }
+
+  DBUG_RETURN(TRUE);
+}
+
+
 /*
   Open table which is already name-locked by this thread.
 
@@ -2731,7 +2765,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     deadlock may occur.
   */
   if (thd->handler_tables)
-    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
+    mysql_ha_flush(thd);
 
   /*
     Actually try to find the table in the open_cache.
@@ -3119,6 +3153,9 @@ bool reopen_table(TABLE *table)
           then there is only one table open and locked. This means that
           the function probably has to be adjusted before it can be used
           anywhere outside ALTER TABLE.
+
+    @note Must not use TABLE_SHARE::table_name/db of the table being closed,
+          the strings are used in a loop even after the share may be freed.
 */
 
 void close_data_files_and_morph_locks(THD *thd, const char *db,
@@ -3388,8 +3425,8 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     @param send_refresh  Should we awake waiters even if we didn't close any tables?
 */
 
-void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
-			  bool send_refresh)
+static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
+                                 bool send_refresh)
 {
   bool found= send_refresh;
   DBUG_ENTER("close_old_data_files");
@@ -3530,7 +3567,7 @@ bool wait_for_tables(THD *thd)
   {
     thd->some_tables_deleted=0;
     close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
-    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
+    mysql_ha_flush(thd);
     if (!table_is_used(thd->open_tables,1))
       break;
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -4300,7 +4337,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     temporary mem_root for new .frm parsing.
     TODO: variables for size
   */
-  init_alloc_root(&new_frm_mem, 8024, 8024);
+  init_sql_alloc(&new_frm_mem, 8024, 8024);
 
   thd->current_tablenr= 0;
  restart:

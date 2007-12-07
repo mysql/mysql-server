@@ -146,7 +146,7 @@ bool
 Events::set_opt_event_scheduler(char *argument)
 {
   if (argument == NULL)
-    opt_event_scheduler= Events::EVENTS_DISABLED;
+    opt_event_scheduler= Events::EVENTS_ON;
   else
   {
     int type;

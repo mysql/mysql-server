@@ -978,7 +978,8 @@ bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 bool compare_record(TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
                         const char *table_name);
-
+void wait_while_table_is_used(THD *thd, TABLE *table,
+                              enum ha_extra_function function);
 bool table_cache_init(void);
 void table_cache_free(void);
 bool table_def_init(void);
@@ -1141,6 +1142,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
 TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 		  bool *refresh, uint flags);
+bool name_lock_locked_table(THD *thd, TABLE_LIST *tables);
 bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in);
 TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
                                       uint key_length);
@@ -1291,12 +1293,9 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
 bool mysql_ha_close(THD *thd, TABLE_LIST *tables);
 bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                    List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
-int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
-                   bool is_locked);
-/* mysql_ha_flush mode_flags bits */
-#define MYSQL_HA_CLOSE_FINAL        0x00
-#define MYSQL_HA_REOPEN_ON_USAGE    0x01
-#define MYSQL_HA_FLUSH_ALL          0x02
+void mysql_ha_flush(THD *thd);
+void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked);
+void mysql_ha_cleanup(THD *thd);
 
 /* sql_base.cc */
 #define TMP_TABLE_KEY_EXTRA 8

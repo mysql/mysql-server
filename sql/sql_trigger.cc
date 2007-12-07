@@ -323,6 +323,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   TABLE *table;
   bool result= TRUE;
   String stmt_query;
+  bool need_start_waiting= FALSE;
 
   DBUG_ENTER("mysql_create_or_drop_trigger");
 
@@ -374,10 +375,12 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   /*
     We don't want perform our operations while global read lock is held
     so we have to wait until its end and then prevent it from occurring
-    again until we are done. (Acquiring LOCK_open is not enough because
-    global read lock is held without holding LOCK_open).
+    again until we are done, unless we are under lock tables. (Acquiring
+    LOCK_open is not enough because global read lock is held without holding
+    LOCK_open).
   */
-  if (wait_if_global_read_lock(thd, 0, 1))
+  if (!thd->locked_tables &&
+      !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     DBUG_RETURN(TRUE);
 
   VOID(pthread_mutex_lock(&LOCK_open));
@@ -433,35 +436,25 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     goto end;
   }
 
-  if (lock_table_names(thd, tables))
-    goto end;
+  /* We also don't allow creation of triggers on views. */
+  tables->required_type= FRMTYPE_TABLE;
 
-  /*
-    If the table is under LOCK TABLES, lock_table_names() does not set
-    tables->table. Find the table in open_tables.
-  */
-  if (!tables->table && thd->locked_tables)
+  /* Keep consistent with respect to other DDL statements */
+  mysql_ha_rm_tables(thd, tables, TRUE);
+
+  if (thd->locked_tables)
   {
-    for (table= thd->open_tables;
-         table && (strcmp(table->s->table_name.str, tables->table_name) ||
-                   strcmp(table->s->db.str, tables->db));
-         table= table->next) {}
-    tables->table= table;
+    /* Table must be write locked */
+    if (name_lock_locked_table(thd, tables))
+      goto end;
   }
-  if (!tables->table)
+  else
   {
-    /* purecov: begin inspected */
-    my_error(ER_TABLE_NOT_LOCKED, MYF(0), tables->alias);
-    goto end;
-    /* purecov: end */
-  }
+    /* Grab the name lock and insert the placeholder*/
+    if (lock_table_names(thd, tables))
+      goto end;
 
-  /* No need to reopen the table if it is locked with LOCK TABLES. */
-  if (!thd->locked_tables || (tables->table->in_use != thd))
-  {
-    /* We also don't allow creation of triggers on views. */
-    tables->required_type= FRMTYPE_TABLE;
-
+    /* Convert the placeholder to a real table */
     if (reopen_name_locked_table(thd, tables, TRUE))
     {
       unlock_table_name(thd, tables);
@@ -489,13 +482,20 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   /* Under LOCK TABLES we must reopen the table to activate the trigger. */
   if (!result && thd->locked_tables)
   {
-    /*
-      Must not use table->s->db.str or table->s->table_name.str here.
-      The strings are used in a loop even after the share may be freed.
-    */
+    /* Make table suitable for reopening */
     close_data_files_and_morph_locks(thd, tables->db, tables->table_name);
     thd->in_lock_tables= 1;
-    result= reopen_tables(thd, 1, 0);
+    if (reopen_tables(thd, 1, 1))
+    {
+      /* To be safe remove this table from the set of LOCKED TABLES */
+      unlink_open_table(thd, tables->table, FALSE);
+
+      /*
+        Ignore reopen_tables errors for now. It's better not leave master/slave
+        in a inconsistent state.
+      */
+      thd->clear_error();
+    }
     thd->in_lock_tables= 0;
   }
 
@@ -507,7 +507,9 @@ end:
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
-  start_waiting_global_read_lock(thd);
+
+  if (need_start_waiting)
+    start_waiting_global_read_lock(thd);
 
   if (!result)
     send_ok(thd);
