@@ -430,6 +430,29 @@ void TERMINATE(FILE *file, uint flag)
 }
 
 
+/*
+  Report where a piece of memory was allocated
+
+  This is usefull to call from withing a debugger
+*/
+
+
+void sf_malloc_report_allocated(void *memory)
+{
+  struct st_irem *irem;  
+  for (irem= sf_malloc_root ; irem ; irem=irem->next)
+  {
+    char *data= (((char*) irem) + ALIGN_SIZE(sizeof(struct st_irem)) +
+                 sf_malloc_prehunc);
+    if (data <= (char*) memory && (char*) memory <= data + irem->datasize)
+    {
+      printf("%u bytes at 0x%lx, allocated at line %u in '%s'\n",
+             irem->datasize, (long) data, irem->linenum, irem->filename);
+      break;
+    }
+  }
+}
+
 	/* Returns 0 if chunk is ok */
 
 static int _checkchunk(register struct st_irem *irem, const char *filename,
