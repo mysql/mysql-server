@@ -1194,6 +1194,7 @@ ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table '
 DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 DROP USER mysqltest_1@localhost;
+DROP USER mysqltest_2@localhost;
 use test;
 CREATE TABLE t1 (f1 int, f2 int);
 INSERT INTO t1 VALUES(1,1), (2,2);
@@ -1213,6 +1214,7 @@ f1	f2
 REVOKE UPDATE (f1) ON `test`.`t1` FROM 'mysqltest_1'@'localhost';
 REVOKE SELECT ON `test`.* FROM 'mysqltest_1'@'localhost';
 REVOKE ALL ON db27878.* FROM 'mysqltest_1'@'localhost';
+DROP USER mysqltest_1@localhost;
 DROP DATABASE db27878;
 use test;
 DROP TABLE t1;
@@ -1226,6 +1228,44 @@ drop user юзер_юзер@localhost;
 grant select on test.* to очень_длинный_юзер@localhost;
 ERROR HY000: String 'очень_длинный_юзер' is too long for user name (should be no longer than 16)
 set names default;
+create database mysqltest;
+use mysqltest;
+grant create on mysqltest.* to mysqltest@localhost;
+create table t1 (i INT);
+insert into t1 values (1);
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't1'
+create table t2 (i INT);
+create table t4 (i INT);
+grant select, insert on mysqltest.t2 to mysqltest@localhost;
+grant         insert on mysqltest.t4 to mysqltest@localhost;
+grant create, insert on mysqltest.t5 to mysqltest@localhost;
+grant create, insert on mysqltest.t6 to mysqltest@localhost;
+flush privileges;
+insert into t2 values (1);
+create table if not exists t1 select * from t2;
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't1'
+create table if not exists t3 select * from t2;
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't3'
+create table if not exists t4 select * from t2;
+Warnings:
+Note	1050	Table 't4' already exists
+create table if not exists t5 select * from t2;
+create table t6 select * from t2;
+create table t7 select * from t2;
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't7'
+create table t4 select * from t2;
+ERROR 42S01: Table 't4' already exists
+create table t1 select * from t2;
+ERROR 42000: INSERT command denied to user 'mysqltest'@'localhost' for table 't1'
+drop table t1,t2,t4,t5,t6;
+revoke create         on mysqltest.*  from mysqltest@localhost;
+revoke select, insert on mysqltest.t2 from mysqltest@localhost;
+revoke insert         on mysqltest.t4 from mysqltest@localhost;
+revoke create, insert on mysqltest.t5 from mysqltest@localhost;
+revoke create, insert on mysqltest.t6 from mysqltest@localhost;
+drop user mysqltest@localhost;
+drop database mysqltest;
+use test;
 FLUSH PRIVILEGES without procs_priv table.
 RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
 FLUSH PRIVILEGES;
@@ -1245,3 +1285,4 @@ CALL mysqltest1.test();
 DROP DATABASE mysqltest1;
 RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
 FLUSH PRIVILEGES;
+End of 5.1 tests
