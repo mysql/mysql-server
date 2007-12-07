@@ -36,11 +36,12 @@ delimiter ;|
 CALL test.p1();
 SELECT * FROM test.t1 ORDER BY blob_column;
 save_master_pos;
-# Need to allow some time when NDB engine is used for
-# the injector thread to have time to populate binlog
-sleep 10;
 sync_slave_with_master;
 connection slave;
+# Need to allow some time when NDB engine is used for
+# the injector thread to have time to populate binlog
+let $wait_condition= SELECT INSTR(blob_column,'aberration') > 0 FROM test.t1 WHERE a = 2;
+--source include/wait_condition.inc
 SELECT * FROM test.t1 ORDER BY blob_column;
 
 # Cleanup
