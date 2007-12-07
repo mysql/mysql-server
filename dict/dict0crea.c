@@ -49,6 +49,8 @@ dict_create_sys_tables_tuple(
 
 	entry = dtuple_create(heap, 8 + DATA_N_SYS_COLS);
 
+	dict_table_copy_types(entry, sys_tables);
+
 	/* 0: NAME -----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 0);
 
@@ -111,8 +113,6 @@ dict_create_sys_tables_tuple(
 	dfield_set_data(dfield, ptr, 4);
 	/*----------------------------------*/
 
-	dict_table_copy_types(entry, sys_tables);
-
 	return(entry);
 }
 
@@ -143,6 +143,8 @@ dict_create_sys_columns_tuple(
 	sys_columns = dict_sys->sys_columns;
 
 	entry = dtuple_create(heap, 7 + DATA_N_SYS_COLS);
+
+	dict_table_copy_types(entry, sys_columns);
 
 	/* 0: TABLE_ID -----------------------*/
 	dfield = dtuple_get_nth_field(entry, 0);
@@ -192,8 +194,6 @@ dict_create_sys_columns_tuple(
 
 	dfield_set_data(dfield, ptr, 4);
 	/*---------------------------------*/
-
-	dict_table_copy_types(entry, sys_columns);
 
 	return(entry);
 }
@@ -330,6 +330,8 @@ dict_create_sys_indexes_tuple(
 
 	entry = dtuple_create(heap, 7 + DATA_N_SYS_COLS);
 
+	dict_table_copy_types(entry, sys_indexes);
+
 	/* 0: TABLE_ID -----------------------*/
 	dfield = dtuple_get_nth_field(entry, 0);
 
@@ -388,8 +390,6 @@ dict_create_sys_indexes_tuple(
 	dfield_set_data(dfield, ptr, 4);
 	/*--------------------------------*/
 
-	dict_table_copy_types(entry, sys_indexes);
-
 	return(entry);
 }
 
@@ -419,6 +419,7 @@ dict_create_sys_fields_tuple(
 	for (j = 0; j < index->n_fields; j++) {
 		if (dict_index_get_nth_field(index, j)->prefix_len > 0) {
 			index_contains_column_prefix_field = TRUE;
+			break;
 		}
 	}
 
@@ -427,6 +428,8 @@ dict_create_sys_fields_tuple(
 	sys_fields = dict_sys->sys_fields;
 
 	entry = dtuple_create(heap, 3 + DATA_N_SYS_COLS);
+
+	dict_table_copy_types(entry, sys_fields);
 
 	/* 0: INDEX_ID -----------------------*/
 	dfield = dtuple_get_nth_field(entry, 0);
@@ -462,8 +465,6 @@ dict_create_sys_fields_tuple(
 	dfield_set_data(dfield, field->name,
 			ut_strlen(field->name));
 	/*---------------------------------*/
-
-	dict_table_copy_types(entry, sys_fields);
 
 	return(entry);
 }

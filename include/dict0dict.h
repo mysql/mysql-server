@@ -639,7 +639,9 @@ dict_table_col_in_clustered_key(
 	const dict_table_t*	table,	/* in: table */
 	ulint			n);	/* in: column number */
 /***********************************************************************
-Copies types of columns contained in table to tuple. */
+Copies types of columns contained in table to tuple and sets all
+fields of the tuple to the SQL NULL value.  This function should
+be called right after dtuple_create(). */
 
 void
 dict_table_copy_types(

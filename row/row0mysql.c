@@ -854,7 +854,6 @@ row_get_prebuilt_insert_row(
 	ins_node_t*	node;
 	dtuple_t*	row;
 	dict_table_t*	table	= prebuilt->table;
-	ulint		i;
 
 	ut_ad(prebuilt && table && prebuilt->trx);
 
@@ -876,14 +875,6 @@ row_get_prebuilt_insert_row(
 				    dict_table_get_n_cols(table));
 
 		dict_table_copy_types(row, table);
-
-		/* We init the value of every field to the SQL NULL to avoid
-		a debug assertion from failing */
-
-		for (i = 0; i < dtuple_get_n_fields(row); i++) {
-
-			dfield_set_null(dtuple_get_nth_field(row, i));
-		}
 
 		ins_node_set_new_row(node, row);
 
