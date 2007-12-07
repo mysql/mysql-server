@@ -7070,7 +7070,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 
         for (; lock_p < end_p; lock_p++)
         {
-          if ((*lock_p)->type == TL_WRITE)
+          if ((*lock_p)->type >= TL_WRITE_ALLOW_WRITE)
           {
             my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
             return 1;
