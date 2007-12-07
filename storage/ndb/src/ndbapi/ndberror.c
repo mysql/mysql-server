@@ -766,8 +766,6 @@ ndberror_update(ndberror_struct * error){
   if(!found){
     error->status = ST_U;
   }
-
-  error->details = 0;
 }
 
 #if CHECK_ERRORCODES
