@@ -400,13 +400,6 @@ typedef struct st_mi_sort_param
 
 /* Functions to store length of space packed keys, VARCHAR or BLOB keys */
 
-#define store_key_length_inc(key,length) \
-{ if ((length) < 255) \
-  { *(key)++=(length); } \
-  else \
-  { *(key)=255; mi_int2store((key)+1,(length)); (key)+=3; } \
-}
-
 #define store_key_length(key,length) \
 { if ((length) < 255) \
   { *(key)=(length); } \

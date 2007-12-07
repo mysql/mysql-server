@@ -51,6 +51,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
+#define MY_SYNC_DIR     1024    /* my_create/delete/rename: sync directory */
 #define MY_RAID         64      /* Support for RAID */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
@@ -212,6 +213,7 @@ extern int (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern int (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
 extern uint my_file_limit;
+extern ulong my_thread_stack_size;
 
 #ifdef HAVE_LARGE_PAGES
 extern my_bool my_use_large_pages;
@@ -276,7 +278,14 @@ enum cache_type
 
 enum flush_type
 {
-  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE
+  FLUSH_KEEP,           /* flush block and keep it in the cache */
+  FLUSH_RELEASE,        /* flush block and remove it from the cache */
+  FLUSH_IGNORE_CHANGED, /* remove block from the cache */
+  /*
+    As my_disable_flush_pagecache_blocks is always 0, the following option
+    is strictly equivalent to FLUSH_KEEP
+  */
+  FLUSH_FORCE_WRITE
 };
 
 typedef struct st_record_cache	/* Used when cacheing records */
@@ -627,6 +636,8 @@ extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
 extern int my_fclose(FILE *fd,myf MyFlags);
 extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern int my_sync(File fd, myf my_flags);
+extern int my_sync_dir(const char *dir_name, myf my_flags);
+extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
 extern int my_error _VARARGS((int nr,myf MyFlags, ...));
 extern int my_printf_error _VARARGS((uint my_err, const char *format,
 				     myf MyFlags, ...))
@@ -661,7 +672,7 @@ extern char *my_tmpdir(MY_TMPDIR *tmpdir);
 extern void free_tmpdir(MY_TMPDIR *tmpdir);
 
 extern void my_remember_signal(int signal_number,sig_handler (*func)(int));
-extern size_t dirname_part(char * to, const char *name, size_t *to_res_length);
+extern size_t dirname_part(char * to,const char *name, size_t *to_res_length);
 extern size_t dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
 extern int test_if_hard_path(const char *dir_name);
@@ -709,7 +720,7 @@ extern sig_handler sigtstp_handler(int signal_number);
 extern void handle_recived_signals(void);
 
 extern sig_handler my_set_alarm_variable(int signo);
-extern void my_string_ptr_sort(uchar *base, uint items, size_t size);
+extern void my_string_ptr_sort(uchar *base,uint items,size_t size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 				  size_t size_of_element,uchar *buffer[]);
 extern qsort_t qsort2(void *base_ptr, size_t total_elems, size_t size,
@@ -775,6 +786,7 @@ extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,uchar * element);
 extern uchar *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern uchar *pop_dynamic(DYNAMIC_ARRAY*);
 extern my_bool set_dynamic(DYNAMIC_ARRAY *array,uchar * element,uint array_index);
+extern my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements);
 extern void get_dynamic(DYNAMIC_ARRAY *array,uchar * element,uint array_index);
 extern void delete_dynamic(DYNAMIC_ARRAY *array);
 extern void delete_dynamic_element(DYNAMIC_ARRAY *array, uint array_index);
@@ -841,11 +853,8 @@ extern int unpackfrm(uchar **, size_t *, const uchar *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);
-extern uint my_bit_log2(ulong value);
-extern uint32 my_round_up_to_next_power(uint32 v);
-extern uint my_count_bits(ulonglong v);
-extern uint my_count_bits_ushort(ushort v);
 extern void my_sleep(ulong m_seconds);
+extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
@@ -863,7 +872,7 @@ extern int my_getncpus();
 #ifndef MAP_NOSYNC
 #define MAP_NOSYNC      0
 #endif
-#ifndef MAP_NORESERVE   
+#ifndef MAP_NORESERVE
 #define MAP_NORESERVE 0         /* For irix and AIX */
 #endif
 

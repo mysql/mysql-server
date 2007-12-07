@@ -873,7 +873,7 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
   /* As this is just a mapping, we don't have to force the underlying
      tables to be closed */
   if (operation == HA_EXTRA_FORCE_REOPEN ||
-      operation == HA_EXTRA_PREPARE_FOR_DELETE)
+      operation == HA_EXTRA_PREPARE_FOR_DROP)
     return 0;
   return myrg_extra(file,operation,0);
 }

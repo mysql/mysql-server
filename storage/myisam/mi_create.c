@@ -17,6 +17,7 @@
 
 #include "ftdefs.h"
 #include "sp_defs.h"
+#include <my_bit.h>
 
 #if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
@@ -56,7 +57,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   HA_KEYSEG *keyseg,tmp_keyseg;
   MI_COLUMNDEF *rec;
   ulong *rec_per_key_part;
-  my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
+  my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   MI_CREATE_INFO tmp_create_info;
   DBUG_ENTER("mi_create");
   DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u",
@@ -116,10 +117,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	share.base.blobs++;
 	if (pack_reclength != INT_MAX32)
 	{
-	  if (rec->length == 4+mi_portable_sizeof_char_ptr)
+	  if (rec->length == 4+portable_sizeof_char_ptr)
 	    pack_reclength= INT_MAX32;
 	  else
-	    pack_reclength+=(1 << ((rec->length-mi_portable_sizeof_char_ptr)*8)); /* Max blob length */
+	    pack_reclength+=(1 << ((rec->length-portable_sizeof_char_ptr)*8)); /* Max blob length */
 	}
       }
       else if (type == FIELD_SKIP_PRESPACE ||
