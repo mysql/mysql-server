@@ -24,6 +24,7 @@
 #include "Interpreter.hpp"
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyReq.hpp>
+#include <signaldata/TcKeyRef.hpp>
 #include <signaldata/KeyInfo.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include <signaldata/ScanTab.hpp>
@@ -545,6 +546,12 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   }//if
 
   setErrorCode(aSignal->readData(4));
+  if (aSignal->getLength() == TcKeyRef::SignalLength)
+  {
+    // Signal may contain additional error data
+    setErrorDetails((char *) aSignal->readData(5));
+  }
+
   theStatus = Finished;
   theReceiver.m_received_result_length = ~0;
 
