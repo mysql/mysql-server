@@ -213,6 +213,14 @@ SELECT NAME_CONST('test', 1.0);
 SELECT NAME_CONST('test', -1.0);
 SELECT NAME_CONST('test', 'test');
 
+#
+# Bug #31349: ERROR 1062 (23000): Duplicate entry '' for key 'group_key'
+#
+create table t1 (a int not null);
+insert into t1 values (-1), (-2);
+select min(a) from t1 group by inet_ntoa(a);
+drop table t1;
+
 --echo End of 5.0 tests
 
 #
