@@ -4,26 +4,39 @@ endif
 BDB_DUMP=$(BDBDIR)/bin/db_dump
 BDB_LOAD=$(BDBDIR)/bin/db_load
 
-CPPFLAGS = -I$(BDBDIR)/include
 CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g
-LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread -Wl,-rpath,$(BDBDIR)/lib
-# LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread
+
+# vars to compile bins that handle tokudb using libdb.so
+# when one uses relative address in an rpath, the library better be located relative
+# to the current directory
+CPPFLAGS = -I../include
+LDFLAGS = -L../lib -ldb -lpthread -Wl,-rpath,$(PWD)/../lib
+
+# vars to compile bins that handle tokudb using libdb.a
 STATIC_CPPFLAGS = -I../include 
 STATIC_LDFLAGS = ../lib/libdb.a -lz
+
+# vars to compile bins that handle bdb
+BDB_CPPFLAGS = -I$(BDBDIR)/include
+BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread -Wl,-rpath,$(BDBDIR)/lib
 
 UTILS=            \
    tokudb_gen     \
    tokudb_load    \
    tokudb_dump    \
 #End
+BDB_UTILS=$(patsubst %,%.bdb,$(UTILS))
 STATIC_UTILS=$(patsubst %,%_static,$(UTILS))
 
 .PHONY: all clean test test_gen test_gen_hex test_load test_dump
 
-all: $(UTILS) $(STATIC_UTILS)
+all: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS)
 
 %: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
+%.bdb: %.c
+	$(CC) $(BDB_CPPFLAGS) $(CFLAGS) -o $@ $< $(BDB_LDFLAGS)
 
 %_static: %.c
 	$(CC) $(STATIC_CPPFLAGS) $(CFLAGS) -o $@ $< $(STATIC_LDFLAGS)
@@ -31,7 +44,7 @@ all: $(UTILS) $(STATIC_UTILS)
 strip: $(STATIC_UTILS) 
 	strip $(STATIC_UTILS)
 
-test: test_gen test_load test_dump test_bdb_tokudb
+test: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) test_gen test_load test_dump test_bdb_tokudb
 
 test_gen: test_gen_hex
 
@@ -61,7 +74,7 @@ test_load:
 	$(BDB_LOAD) $@.bdb.temp < $@.gen.temp
 	./tokudb_load $@.tokudb.temp < $@.gen.temp
 	$(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
-	$(BDB_DUMP) $@.tokudb.temp > $@.dump.tokudb.temp
+	./tokudb_dump $@.tokudb.temp > $@.dump.tokudb.temp
 	if ! diff -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
 
 test_dump:
@@ -71,7 +84,7 @@ test_dump:
 	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp
 	$(BDB_LOAD) $@.bdb.temp < $@.gen.temp
 	$(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
-	./tokudb_dump $@.bdb.temp > $@.dump.tokudb.temp
+	./tokudb_dump.bdb $@.bdb.temp > $@.dump.tokudb.temp
 	if ! diff -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
 
 test_bdb_tokudb:
@@ -85,5 +98,5 @@ test_bdb_tokudb:
 
 #if diff -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
 clean:
-	rm -rf *.so *.o $(UTILS) $(STATIC_UTILS) *.temp
+	rm -rf *.so *.o $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) *.temp
 
