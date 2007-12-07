@@ -38,7 +38,7 @@ static void test_serialize(void) {
     sn.u.n.children[0] = sn.nodesize*30;
     sn.u.n.children[1] = sn.nodesize*35;
     BRTNODE_CHILD_SUBTREE_FINGERPRINTS(&sn, 0) = random();
-    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(&sn, 0) = random();
+    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(&sn, 1) = random();
     r = toku_hashtable_create(&sn.u.n.htables[0]); assert(r==0);
     r = toku_hashtable_create(&sn.u.n.htables[1]); assert(r==0);
     r = toku_hash_insert(sn.u.n.htables[0], "a", 2, "aval", 5, BRT_NONE); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE,   "a", 2, "aval", 5);
