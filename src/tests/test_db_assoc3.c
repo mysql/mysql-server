@@ -1,14 +1,20 @@
 /* Primary with two associated things. */
 
-#include <string.h>
-#include <db.h>
+#include <arpa/inet.h>
 #include <assert.h>
+#include <db.h>
 #include <errno.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <arpa/inet.h>
+#include <unistd.h>
 
 #include "test.h"
+
+enum mode {
+    MODE_DEFAULT, MODE_DB_CREATE
+} mode;
+
 
 
 /* Primary is a map from a UID which consists of a random number followed by the current time. */
@@ -217,13 +223,87 @@ void insert_person (void) {
     int r=dbp->put(dbp, null_txn, &key, &data,0);  assert(r==0);
 }
 
-int main () {
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777); 
+void setup_for_db_create (void) {
 
-    create_databases();
+    // Remove name.db and then rebuild it with associate(... DB_CREATE)
 
-    insert_person();
+    int r=unlink(DIR "/name.db");
+    assert(r==0);
+
+    r = db_env_create(&dbenv, 0);                                                    CKERR(r);
+    r = dbenv->open(dbenv, DIR, DB_PRIVATE|DB_INIT_MPOOL, 0);                        CKERR(r);
+
+    r = db_create(&dbp, dbenv, 0);                                                   CKERR(r);
+    r = dbp->open(dbp, null_txn, "primary.db", NULL, DB_BTREE, 0, 0600);             CKERR(r);
+
+    r = db_create(&namedb, dbenv, 0);                                                CKERR(r);
+    r = namedb->open(namedb, null_txn, "name.db", NULL, DB_BTREE, DB_CREATE, 0600);  CKERR(r);
+
+    r = db_create(&expiredb, dbenv, 0);                                              CKERR(r);
+    r = expiredb->open(expiredb, null_txn, "expire.db", NULL, DB_BTREE, 0, 0600);    CKERR(r);
+    
+    r = dbp->associate(dbp, NULL, expiredb, expire_callback, 0);                     CKERR(r);
+    r = dbp->associate(dbp, NULL, namedb, name_callback, DB_CREATE);                 CKERR(r);
+
+}
+
+int count_entries (DB *db) {
+    DBC *dbc;
+    int r = db->cursor(db, null_txn, &dbc, 0);                                       CKERR(r);
+    DBT key,data;
+    memset(&key,  0, sizeof(key));    
+    memset(&data, 0, sizeof(data));
+    int n_found=0;
+    for (r = dbc->c_get(dbc, &key, &data, DB_FIRST);
+	 r==0;
+	 r = dbc->c_get(dbc, &key, &data, DB_NEXT)) {
+	n_found++;
+    }
+    assert(r==DB_NOTFOUND);
+    r=dbc->c_close(dbc);                                                             CKERR(r);
+    return n_found;
+}
+
+void do_create (void) {
+    setup_for_db_create();
+    // Now check to see if the number of names matches the number of associated things.
+    int n_named = count_entries(namedb);
+    int n_prim  = count_entries(dbp);
+    assert(n_named==n_prim);
+}
+
+void usage (const char *argv1) {
+    fprintf(stderr, "Usage:\n %s [ --DB-CREATE ]\n", argv1);
+    exit(1);
+}
+
+int main (int argc, const char *argv[]) {
+
+    if (argc==1) {
+	mode = MODE_DEFAULT;
+    } else if (argc==2) {
+	if (strcmp(argv[1], "--DB_CREATE")==0) {
+	    mode = MODE_DB_CREATE;
+	} else {
+	    usage(argv[0]);
+	}
+    } else {
+	usage(argv[0]);
+    }
+
+    switch (mode) {
+    case MODE_DEFAULT:
+	system("rm -rf " DIR);
+	mkdir(DIR, 0777); 
+	create_databases();
+	int i;
+	for (i=0; i<100; i++)
+	    insert_person();
+	break;
+    case MODE_DB_CREATE:
+	do_create();
+	break;
+    }
 
     close_databases();
 
