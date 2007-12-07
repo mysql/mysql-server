@@ -8,12 +8,6 @@
 
 #include "test.h"
 
-DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
-    memset(dbt, 0, sizeof *dbt);
-    dbt->data = data;
-    dbt->size = size;
-    return dbt;
-}
 
 void test_get (int dup_mode) {
     DB_ENV * const null_env = 0;
