@@ -1904,7 +1904,7 @@ static void test_pma_cursor_delete_under() {
     int kvsize;
 
     /* delete under an uninitialized cursor should fail */
-    error = toku_pma_cursor_delete_under(cursor, &kvsize);
+    error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
     assert(error == DB_NOTFOUND);
 
     DBT key, val;
@@ -1937,11 +1937,11 @@ static void test_pma_cursor_delete_under() {
         toku_free(val.data);
 
         /* delete under should succeed */
-        error = toku_pma_cursor_delete_under(cursor, &kvsize);
+        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
         assert(error == 0);
 
         /* 2nd delete under should fail */
-        error = toku_pma_cursor_delete_under(cursor, &kvsize);
+        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
         assert(error == DB_NOTFOUND);
     }
     assert(i == n);
