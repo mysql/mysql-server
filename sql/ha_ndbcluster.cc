@@ -543,7 +543,6 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     uint error_data= (uint) err.details;
     uint dupkey= MAX_KEY;
 
-    DBUG_PRINT("info", ("HA_ERR_FOUND_DUPP_KEY, index table %u", error_data));
     for (uint i= 0; i < MAX_KEY; i++)
     {
       if (m_index[i].type == UNIQUE_INDEX || 
@@ -555,7 +554,6 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
             unique_index->getIndexTable() &&
             (uint) unique_index->getIndexTable()->getTableId() == error_data)
         {
-          DBUG_PRINT("info", ("Found violated key %u", i));
           dupkey= i;
           break;
         }
