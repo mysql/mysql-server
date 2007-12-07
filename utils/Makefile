@@ -8,6 +8,7 @@ CPPFLAGS = -I$(BDBDIR)/include
 CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g
 LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread -Wl,-rpath,$(BDBDIR)/lib
 # LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread
+STATIC_CPPFLAGS = -I../include 
 STATIC_LDFLAGS = ../lib/libdb.a -lz
 
 UTILS=            \
@@ -25,7 +26,7 @@ all: $(UTILS) $(STATIC_UTILS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 %_static: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< $(STATIC_LDFLAGS)
+	$(CC) $(STATIC_CPPFLAGS) $(CFLAGS) -o $@ $< $(STATIC_LDFLAGS)
 
 strip: $(STATIC_UTILS) 
 	strip $(STATIC_UTILS)
