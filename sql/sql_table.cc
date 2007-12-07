@@ -2771,7 +2771,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST *src_table,
     operations on the target table.
   */
   if (lock_and_wait_for_table_name(thd, src_table))
-    goto err;
+    DBUG_RETURN(res);
 
   pthread_mutex_lock(&LOCK_open);
 
