@@ -791,7 +791,7 @@ int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val, int even_delet
     PMA pma = c->pma;
     struct kv_pair *pair = pma->pairs[c->position];
     if (!kv_pair_inuse(pair) || (kv_pair_deleted(pair) && !even_deleted)) 
-        return BRT_KEYEMPTY;
+        return DB_KEYEMPTY;
     pair = kv_pair_ptr(pair);
     if (key) toku_dbt_set_value(key, kv_pair_key(pair), kv_pair_keylen(pair), c->sskey);
     if (val) toku_dbt_set_value(val, kv_pair_val(pair), kv_pair_vallen(pair), c->ssval);
