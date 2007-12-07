@@ -45,7 +45,7 @@ template class List_iterator<create_field>;
 uchar Field_null::null[1]={1};
 const char field_separator=',';
 
-#define DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE 320
+#define DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE FLOATING_POINT_BUFFER
 #define LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
@@ -2125,13 +2125,7 @@ int Field_decimal::store(double nr)
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
 
   fyllchar = zerofill ? (char) '0' : (char) ' ';
-#ifdef HAVE_SNPRINTF
-  buff[sizeof(buff)-1]=0;			// Safety
-  snprintf(buff,sizeof(buff)-1, "%.*f",(int) dec,nr);
-  length= strlen(buff);
-#else
-  length= my_sprintf(buff,(buff,"%.*f",dec,nr));
-#endif
+  length= my_fcvt(nr, dec, buff, NULL);
 
   if (length > field_length)
   {
@@ -2502,17 +2496,6 @@ int Field_new_decimal::store(double nr)
 
   err= double2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW, nr,
                          &decimal_value);
-  /*
-    TODO: fix following when double2my_decimal when double2decimal
-    will return E_DEC_TRUNCATED always correctly
-  */
-  if (!err)
-  {
-    double nr2;
-    my_decimal2double(E_DEC_FATAL_ERROR, &decimal_value, &nr2);
-    if (nr2 != nr)
-      err= E_DEC_TRUNCATED;
-  }
   if (err)
   {
     if (check_overflow(err))
@@ -3845,67 +3828,20 @@ String *Field_float::val_str(String *val_buffer,
   uint to_length=max(field_length,70);
   val_buffer->alloc(to_length);
   char *to=(char*) val_buffer->ptr();
+  size_t len;
 
   if (dec >= NOT_FIXED_DEC)
-  {
-    sprintf(to,"%-*.*g",(int) field_length,FLT_DIG,nr);
-    to=strcend(to,' ');
-    *to=0;
-  }
+    len= my_gcvt(nr, MY_GCVT_ARG_FLOAT, to_length - 1, to, NULL);
   else
   {
-#ifdef HAVE_FCONVERT
-    char buff[70],*pos=buff;
-    int decpt,sign,tmp_dec=dec;
-
-    VOID(sfconvert(&nr,tmp_dec,&decpt,&sign,buff));
-    if (sign)
-    {
-      *to++='-';
-    }
-    if (decpt < 0)
-    {					/* val_buffer is < 0 */
-      *to++='0';
-      if (!tmp_dec)
-	goto end;
-      *to++='.';
-      if (-decpt > tmp_dec)
-	decpt= - (int) tmp_dec;
-      tmp_dec=(uint) ((int) tmp_dec+decpt);
-      while (decpt++ < 0)
-	*to++='0';
-    }
-    else if (decpt == 0)
-    {
-      *to++= '0';
-      if (!tmp_dec)
-	goto end;
-      *to++='.';
-    }
-    else
-    {
-      while (decpt-- > 0)
-	*to++= *pos++;
-      if (!tmp_dec)
-	goto end;
-      *to++='.';
-    }
-    while (tmp_dec--)
-      *to++= *pos++;
-#else
-#ifdef HAVE_SNPRINTF
-    to[to_length-1]=0;			// Safety
-    snprintf(to,to_length-1,"%.*f",dec,nr);
-    to=strend(to);
-#else
-    to+= my_sprintf(to,(to,"%.*f",dec,nr));
-#endif
-#endif
+    /*
+      We are safe here because the buffer length is >= 70, and
+      fabs(float) < 10^39, dec < NOT_FIXED_DEC. So the resulting string
+      will be not longer than 69 chars + terminating '\0'.
+    */
+    len= my_fcvt(nr, dec, to, NULL);
   }
-#ifdef HAVE_FCONVERT
- end:
-#endif
-  val_buffer->length((uint) (to-val_buffer->ptr()));
+  val_buffer->length((uint) len);
   if (zerofill)
     prepend_zeros(val_buffer);
   return val_buffer;
@@ -4077,8 +4013,12 @@ int Field_real::truncate(double *nr, double max_value)
     max_value*= log_10[order];
     max_value-= 1.0 / log_10[dec];
 
-    double tmp= rint((res - floor(res)) * log_10[dec]) / log_10[dec];
-    res= floor(res) + tmp;
+    /* Check for infinity so we don't get NaN in calculations */
+    if (!my_isinf(res))
+    {
+      double tmp= rint((res - floor(res)) * log_10[dec]) / log_10[dec];
+      res= floor(res) + tmp;
+    }
   }
   
   if (res < -max_value)
@@ -4187,68 +4127,14 @@ String *Field_double::val_str(String *val_buffer,
   uint to_length=max(field_length, DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE);
   val_buffer->alloc(to_length);
   char *to=(char*) val_buffer->ptr();
+  size_t len;
 
   if (dec >= NOT_FIXED_DEC)
-  {
-    sprintf(to,"%-*.*g",(int) field_length,DBL_DIG,nr);
-    to=strcend(to,' ');
-  }
+    len= my_gcvt(nr, MY_GCVT_ARG_DOUBLE, to_length - 1, to, NULL);
   else
-  {
-#ifdef HAVE_FCONVERT
-    char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
-    char *pos= buff;
-    int decpt,sign,tmp_dec=dec;
+    len= my_fcvt(nr, dec, to, NULL);
 
-    VOID(fconvert(nr,tmp_dec,&decpt,&sign,buff));
-    if (sign)
-    {
-      *to++='-';
-    }
-    if (decpt < 0)
-    {					/* val_buffer is < 0 */
-      *to++='0';
-      if (!tmp_dec)
-	goto end;
-      *to++='.';
-      if (-decpt > tmp_dec)
-	decpt= - (int) tmp_dec;
-      tmp_dec=(uint) ((int) tmp_dec+decpt);
-      while (decpt++ < 0)
-	*to++='0';
-    }
-    else if (decpt == 0)
-    {
-      *to++= '0';
-      if (!tmp_dec)
-	goto end;
-      *to++='.';
-    }
-    else
-    {
-      while (decpt-- > 0)
-	*to++= *pos++;
-      if (!tmp_dec)
-	goto end;
-      *to++='.';
-    }
-    while (tmp_dec--)
-      *to++= *pos++;
-#else
-#ifdef HAVE_SNPRINTF
-    to[to_length-1]=0;			// Safety
-    snprintf(to,to_length-1,"%.*f",dec,nr);
-    to=strend(to);
-#else
-    to+= my_sprintf(to,(to,"%.*f",dec,nr));
-#endif
-#endif
-  }
-#ifdef HAVE_FCONVERT
- end:
-#endif
-
-  val_buffer->length((uint) (to-val_buffer->ptr()));
+  val_buffer->length((uint) len);
   if (zerofill)
     prepend_zeros(val_buffer);
   return val_buffer;
@@ -6037,34 +5923,13 @@ int Field_str::store(double nr)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
-  uint length;
-  bool use_scientific_notation= TRUE;
   uint local_char_length= field_length / charset()->mbmaxlen;
-  /*
-    Check fabs(nr) against longest value that can be stored in field,
-    which depends on whether the value is < 1 or not, and negative or not
-  */
-  double anr= fabs(nr);
-  int neg= (nr < 0.0) ? 1 : 0;
-  if (local_char_length > 4 && local_char_length < 32 &&
-      (anr < 1.0 ? anr > 1/(log_10[max(0,(int) local_char_length-neg-2)]) /* -2 for "0." */
-       : anr < log_10[local_char_length-neg]-1))
-    use_scientific_notation= FALSE;
+  size_t length;
+  my_bool error;
 
-  length= (uint) my_sprintf(buff, (buff, "%-.*g",
-                                   (use_scientific_notation ?
-                                    max(0, (int)local_char_length-neg-5) :
-                                    local_char_length),
-                                   nr));
-  /*
-    +1 below is because "precision" in %g above means the
-    max. number of significant digits, not the output width.
-    Thus the width can be larger than number of significant digits by 1
-    (for decimal point)
-    the test for local_char_length < 5 is for extreme cases,
-    like inserting 500.0 in char(1)
-  */
-  DBUG_ASSERT(local_char_length < 5 || length <= local_char_length+1);
+  length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE, local_char_length, buff, &error);
+  if (error)
+    report_data_too_long(this);
   return store(buff, length, charset());
 }
 
@@ -7166,7 +7031,7 @@ oom_error:
 int Field_blob::store(double nr)
 {
   CHARSET_INFO *cs=charset();
-  value.set_real(nr, 2, cs);
+  value.set_real(nr, NOT_FIXED_DEC, cs);
   return Field_blob::store(value.ptr(),(uint) value.length(), cs);
 }
 

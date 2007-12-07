@@ -92,9 +92,6 @@ extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
 extern char NEAR _dig_vec_upper[];
 extern char NEAR _dig_vec_lower[];
 
-/* Defined in strtod.c */
-extern const double log_10[309];
-
 #ifdef BAD_STRING_COMPILER
 #define strmov(A,B)  (memccpy(A,B,0,INT_MAX)-1)
 #else
@@ -196,8 +193,33 @@ extern char *strstr(const char *, const char *);
 extern int is_prefix(const char *, const char *);
 
 /* Conversion routines */
+typedef enum {
+  MY_GCVT_ARG_FLOAT,
+  MY_GCVT_ARG_DOUBLE
+} my_gcvt_arg_type;
+
 double my_strtod(const char *str, char **end, int *error);
 double my_atof(const char *nptr);
+size_t my_fcvt(double x, int precision, char *to, my_bool *error);
+size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
+               my_bool *error);
+
+#define NOT_FIXED_DEC 31
+
+/*
+  The longest string my_fcvt can return is 311 + "precision" bytes.
+  Here we assume that we never cal my_fcvt() with precision >= NOT_FIXED_DEC
+  (+ 1 byte for the terminating '\0').
+*/
+#define FLOATING_POINT_BUFFER (311 + NOT_FIXED_DEC)
+
+/*
+  The maximum reasonable field width for my_gcvt() conversion.
+  (DBL_DIG + 2) significant digits + sign + "." + "e-NNN".
+  Lower values may lead to loss of precision.
+*/
+#define MY_GCVT_MAX_FIELD_WIDTH (DBL_DIG + 2 + 7)
+  
 
 extern char *llstr(longlong value,char *buff);
 #ifndef HAVE_STRTOUL

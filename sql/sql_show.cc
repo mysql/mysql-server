@@ -2047,7 +2047,8 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_DOUBLE_STATUS:
         {
           value= ((char *) status_var + (ulong) value);
-          end= buff + sprintf(buff, "%f", *(double*) value);
+          /* 6 is the default precision for '%f' in sprintf() */
+          end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
           break;
         }
         case SHOW_LONG_STATUS:

@@ -23,7 +23,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#define NOT_FIXED_DEC			31
 #define DATETIME_DEC                     6
 
 class Send_field;
