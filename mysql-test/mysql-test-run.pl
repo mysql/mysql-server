@@ -461,6 +461,19 @@ sub main () {
 #
 ##############################################################################
 
+#
+# When an option is no longer used by this program, it must be explicitly
+# ignored or else it will be passed through to mysqld.  GetOptions will call
+# this subroutine once for each such option on the command line.  See
+# Getopt::Long documentation.
+#
+
+sub warn_about_removed_option {
+  my ($option, $value, $hash_value) = @_;
+
+  warn "WARNING: This option is no longer used, and is ignored: --$option\n";
+}
+
 sub command_line_setup () {
 
   # These are defaults for things that are set on the command line
@@ -497,6 +510,15 @@ sub command_line_setup () {
 
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
+
+  # Options that are no longer used must still be processed, because all
+  # unprocessed options are passed directly to mysqld.  The user will be
+  # warned that the option is being ignored.
+  #
+  # Put the complete option string here.  For example, to remove the --suite
+  # option, remove it from GetOptions() below and put 'suite|suites=s' here.
+  my @removed_options = (
+  );
 
   Getopt::Long::Configure("pass_through");
   GetOptions(
@@ -625,6 +647,9 @@ sub command_line_setup () {
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
+
+             # Options which are no longer used
+             (map { $_ => \&warn_about_removed_option } @removed_options),
 
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
