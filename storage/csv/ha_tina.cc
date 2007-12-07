@@ -1486,7 +1486,10 @@ int ha_tina::create(const char *name, TABLE *table_arg,
   for (Field **field= table_arg->s->field; *field; field++)
   {
     if ((*field)->real_maybe_null())
-      DBUG_RETURN(-1);
+    {
+      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "nullable columns");
+      DBUG_RETURN(HA_ERR_UNSUPPORTED);
+    }
   }
   
 
