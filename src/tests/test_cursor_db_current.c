@@ -13,8 +13,6 @@
 
 #include "test.h"
 
-
-
 void db_put(DB *db, int k, int v) {
     DB_TXN * const null_txn = 0;
     DBT key, val;
@@ -22,18 +20,17 @@ void db_put(DB *db, int k, int v) {
     assert(r == 0);
 }
 
-void test_db_current() {
-    if (verbose) printf("test_db_current\n");
+void test_cursor_current() {
+    if (verbose) printf("test_cursor_current\n");
 
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test.db.current.brt";
+    const char * const fname = DIR "/" "test.cursor.current.brt";
     int r;
 
     unlink(fname);
 
-    /* create the dup database file */
     r = db_create(&db, null_env, 0);
     assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
@@ -42,7 +39,7 @@ void test_db_current() {
     /* insert <1,1> */
     int k = 1, v = 1;
     db_put(db, k, v);
-    
+  
     DBC *cursor;
 
     r = db->cursor(db, null_txn, &cursor, 0);
@@ -57,21 +54,27 @@ void test_db_current() {
     assert(r == 0);
     assert(key.size == sizeof kk);
     memcpy(&kk, key.data, sizeof kk);
-    assert(kk == 1);
+    assert(kk == k);
     assert(data.size == sizeof vv);
     memcpy(&vv, data.data, data.size);
-    assert(vv == 1);
+    assert(vv == v);
     free(key.data); free(data.data);
 
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&data), DB_CURRENT);
     assert(r == 0);
     assert(key.size == sizeof kk);
     memcpy(&kk, key.data, sizeof kk);
-    assert(kk == 1);
+    assert(kk == k);
     assert(data.size == sizeof vv);
     memcpy(&vv, data.data, data.size);
-    assert(vv == 1);
+    assert(vv == v);
     free(key.data); free(data.data);
+
+    r = cursor->c_del(cursor, 0); 
+    assert(r == 0);
+
+    r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&data), DB_CURRENT);
+    assert(r == DB_KEYEMPTY);
 
     r = cursor->c_close(cursor);
     assert(r == 0);
@@ -86,7 +89,7 @@ int main(int argc, const char *argv[]) {
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
 
-    test_db_current();
+    test_cursor_current();
 
     return 0;
 }
