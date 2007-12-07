@@ -588,7 +588,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
                       err.code, res));
   if (res == HA_ERR_FOUND_DUPP_KEY)
   {
-    uint error_data= (uint) err.details;
+    char *error_data= err.details;
     uint dupkey= MAX_KEY;
 
     for (uint i= 0; i < MAX_KEY; i++)
@@ -599,7 +599,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
         const NDBINDEX *unique_index=
           (const NDBINDEX *) m_index[i].unique_index;
         if (unique_index &&
-            (uint) unique_index->getObjectId() == error_data)
+            (uint) unique_index->getObjectId() == (int) error_data)
         {
           dupkey= i;
           break;
