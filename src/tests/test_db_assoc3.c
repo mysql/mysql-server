@@ -272,7 +272,7 @@ void insert_person (void) {
     data.size = 0;
     write_pk_to_dbt(&key, &pk);
     write_pd_to_dbt(&data, &pd);
-    int r=dbp->put(dbp, null_txn, &key, &data,0);  assert(r==0);
+    int r=dbp->put(dbp, null_txn, &key, &data,0);   CKERR(r);
 }
 
 void delete_oldest_expired (void) {
@@ -293,12 +293,15 @@ void delete_oldest_expired (void) {
     memcpy(savepkey.data, pkey.data, pkey.size);
     switch (random()%3) {
     case 0:
+	printf("%s:%d\n",__FILE__,__LINE__); 
 	r = delete_cursor->c_del(delete_cursor, 0);  CKERR(r);
 	break;
     case 1:
+	printf("%s:%d\n",__FILE__,__LINE__); 
 	r = expiredb->del(expiredb, null_txn, &key, 0); CKERR(r);
 	break;
     case 2:
+	printf("%s:%d\n",__FILE__,__LINE__); 
 	r = dbp->del(dbp, null_txn, &pkey, 0);   CKERR(r);
 	break;
     default:
@@ -323,24 +326,37 @@ void activity (void) {
 		       
 
 void usage (const char *argv1) {
-    fprintf(stderr, "Usage:\n %s [ --DB-CREATE ]\n", argv1);
+    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] seed ", argv1);
     exit(1);
 }
 
 int main (int argc, const char *argv[]) {
+    const char *progname=argv[0];
+    int useseed;
 
-    if (argc==1) {
-	mode = MODE_DEFAULT;
-    } else if (argc==2) {
-	if (strcmp(argv[1], "--DB_CREATE")==0) {
+    {
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	useseed = tv.tv_sec+tv.tv_usec*997;  // magic:  997 is a prime, and a million (microseconds/second) times 997 is still 32 bits.
+    }
+
+    mode = MODE_DEFAULT;
+    argv++; argc--;
+    while (argc>0) {
+	if (strcmp(argv[0], "--DB_CREATE")==0) {
 	    mode = MODE_DB_CREATE;
-	} else if (strcmp(argv[1], "--more")==0) {
+	} else if (strcmp(argv[0], "--more")==0) {
 	    mode = MODE_MORE;
 	} else {
-	    usage(argv[0]);
+	    errno=0;
+	    char *endptr;
+	    useseed = strtoul(argv[0], &endptr, 10);
+	    printf("Got %d\n", useseed);
+	    if (errno!=0 || *endptr!=0 || endptr==argv[0]) {
+		usage(progname);
+	    }
 	}
-    } else {
-	usage(argv[0]);
+	argc--; argv++;
     }
 
     switch (mode) {
@@ -350,15 +366,14 @@ int main (int argc, const char *argv[]) {
 	create_databases();
 	{
 	    int i;
-	    for (i=0; i<100; i++)
+	    for (i=0; i<83; i++)
 		activity();
 	}
 	break;
     case MODE_MORE:
 	create_databases();
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	srandom(tv.tv_sec+tv.tv_usec*997); // magic:  997 is a prime, and a million (microseconds/second) times 997 is still 32 bits.
+	printf("seed=%d\n", useseed);
+	srandom(useseed);
 	{
 	    int i;
 	    for (i=0; i<100; i++)
