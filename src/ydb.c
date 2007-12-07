@@ -29,6 +29,7 @@ struct __toku_db_txn_internal {
 };
 
 static char *construct_full_name(const char *dir, const char *fname);
+static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondary);
     
 struct __toku_db_env_internal {
     int ref_count;
@@ -541,6 +542,33 @@ int log_compare(const DB_LSN * a, const DB_LSN * b) {
     abort();
 }
 
+static int maybe_do_associate_create (DB_TXN*txn, DB*primary, DB*secondary) {
+    DBC *dbc;
+    int r = secondary->cursor(secondary, txn, &dbc, 0);
+    if (r!=0) return r;
+    DBT key,data;
+    r = dbc->c_get(dbc, &key, &data, DB_FIRST);
+    {
+	int r2=dbc->c_close(dbc);
+	if (r!=DB_NOTFOUND) {
+	    return r2;
+	}
+    }
+    /* Now we know the secondary is empty. */
+    r = primary->cursor(primary, txn, &dbc, 0);
+    if (r!=0) return r;
+    for (r = dbc->c_get(dbc, &key, &data, DB_FIRST);
+	 r==0;
+	 r = dbc->c_get(dbc, &key, &data, DB_NEXT)) {
+	r = do_associated_inserts(txn, &key, &data, secondary);
+	if (r!=0) {
+	    dbc->c_close(dbc);
+	    return r;
+	}
+    }
+    return 0;
+}
+
 static int toku_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
 			      int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result),
 			      u_int32_t flags) {
@@ -563,14 +591,13 @@ static int toku_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
     secondary->i->associate_is_immutable = 0;
 #endif
     if (flags!=0 && flags!=DB_CREATE) return EINVAL; // after removing DB_IMMUTABLE_KEY the flags better be 0 or DB_CREATE
-    if (flags==DB_CREATE) {
-	txn=txn;
-	// To do this:  Open a cursor on the primary.  Step through it all, doing the callbacks.
-	// Then insert each callback result into the secondary.
-	return -1; // We aren't ready for this case.
-    }
     list_push(&primary->i->associated, &secondary->i->associated);
     secondary->i->primary = primary;
+    if (flags==DB_CREATE) {
+	// To do this:  If the secondary is empty, then open a cursor on the primary.  Step through it all, doing the callbacks.
+	// Then insert each callback result into the secondary.
+	return maybe_do_associate_create(txn, primary, secondary);
+    }
     return 0;
 }
 
