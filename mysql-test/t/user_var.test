@@ -237,3 +237,11 @@ select @a:=f2, count(f2) from t1 group by 1 desc;
 select @a:=f3, count(f3) from t1 group by 1 desc;
 select @a:=f4, count(f4) from t1 group by 1 desc;
 drop table t1;
+
+#
+# Bug#32482: Crash for a query with ORDER BY a user variable.
+#
+create table t1 (f1 int);
+insert into t1 values (2), (1);
+select @i := f1 as j from t1 order by 1;
+drop table t1;

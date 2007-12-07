@@ -3848,9 +3848,12 @@ Item_func_set_user_var::fix_length_and_dec()
 
 bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
 {
-  TABLE *table= (TABLE *) arg;
-  if (result_field->table == table || !table)
-    bitmap_set_bit(result_field->table->read_set, result_field->field_index);
+  if (result_field)
+  {
+    TABLE *table= (TABLE *) arg;
+    if (result_field->table == table || !table)
+      bitmap_set_bit(result_field->table->read_set, result_field->field_index);
+  }
   return 0;
 }
 
