@@ -57,6 +57,7 @@ int2str(register long int val, register char *dst, register int radix,
   register char *p;
   long int new_val;
   char *dig_vec= upcase ? _dig_vec_upper : _dig_vec_lower;
+  ulong uval= (ulong) val;
 
   if (radix < 0)
   {
@@ -65,7 +66,8 @@ int2str(register long int val, register char *dst, register int radix,
     if (val < 0)
     {
       *dst++ = '-';
-      val = -val;
+      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      uval = (ulong)0 - uval;
     }
     radix = -radix;
   }
@@ -86,8 +88,8 @@ int2str(register long int val, register char *dst, register int radix,
   */
   p = &buffer[sizeof(buffer)-1];
   *p = '\0';
-  new_val=(ulong) val / (ulong) radix;
-  *--p = dig_vec[(uchar) ((ulong) val- (ulong) new_val*(ulong) radix)];
+  new_val= uval / (ulong) radix;
+  *--p = dig_vec[(uchar) (uval- (ulong) new_val*(ulong) radix)];
   val = new_val;
 #ifdef HAVE_LDIV
   while (val != 0)
@@ -133,20 +135,22 @@ char *int10_to_str(long int val,char *dst,int radix)
   char buffer[65];
   register char *p;
   long int new_val;
+  unsigned long int uval = (unsigned long int) val;
 
   if (radix < 0)				/* -10 */
   {
     if (val < 0)
     {
       *dst++ = '-';
-      val = -val;
+      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      uval = (unsigned long int)0 - uval;
     }
   }
 
   p = &buffer[sizeof(buffer)-1];
   *p = '\0';
-  new_val= (long) ((unsigned long int) val / 10);
-  *--p = '0'+ (char) ((unsigned long int) val - (unsigned long) new_val * 10);
+  new_val= (long) (uval / 10);
+  *--p = '0'+ (char) (uval - (unsigned long) new_val * 10);
   val = new_val;
 
   while (val != 0)
