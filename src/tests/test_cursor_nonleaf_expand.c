@@ -37,6 +37,14 @@ int db_put(DB *db, int k, int v) {
     return r;
 }
 
+/* use inserts and cursors to test the brt_nonleaf_expand function
+   insert keys 0 and n and set cursors to them
+   then insert keys 1 .. n-1.  this should cause leaf splits, new root nodes, nonleaf expands
+   and nonleaf splits as the tree grows. 
+
+   the reverse parameter controls where in insertions are made to test the <, =, >
+   cases in the brt_nonleaf_expand function */
+
 void test_cursor_nonleaf_expand(int n, int reverse) {
     if (verbose) printf("test_cursor_nonleaf_expand:%d %d\n", n, reverse);
 
@@ -69,6 +77,7 @@ void test_cursor_nonleaf_expand(int n, int reverse) {
         } 
     }
 
+    /* make sure the cursors did not move */
     expect_cursor_get(cursor0, htonl(0), 0, DB_CURRENT);
     expect_cursor_get(cursorn, htonl(n), n, DB_CURRENT);
 
