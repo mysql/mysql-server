@@ -2675,13 +2675,17 @@ AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
 export CC CXX CFLAGS CXXFLAGS LD LDFLAGS AR
 ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'"
 
-if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
+if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
   # Avoid _PROGRAMS names
   THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o"
   AC_SUBST(THREAD_LOBJECTS)
+fi
+
+if test "$with_server" != "no"
+then
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 
