@@ -12,7 +12,7 @@
 #include "test.h"
 
 enum mode {
-    MODE_DEFAULT, MODE_DB_CREATE
+    MODE_DEFAULT, MODE_DB_CREATE, MODE_MORE
 } mode;
 
 
@@ -152,6 +152,8 @@ DB *dbp,*namedb,*expiredb;
 
 DB_TXN * const null_txn=0;
 
+DBC *delete_cursor=0;
+
 void create_databases (void) {
     int r;
 
@@ -173,10 +175,13 @@ void create_databases (void) {
 
 void close_databases (void) {
     int r;
-    r = namedb->close(namedb, 0);   CKERR(r);
-    r = dbp->close(dbp, 0);      CKERR(r);
+    if (delete_cursor) {
+	r = delete_cursor->c_close(delete_cursor); CKERR(r);
+    }
+    r = namedb->close(namedb, 0);     CKERR(r);
+    r = dbp->close(dbp, 0);           CKERR(r);
     r = expiredb->close(expiredb, 0); CKERR(r);
-    r = dbenv->close(dbenv, 0);  CKERR(r);
+    r = dbenv->close(dbenv, 0);       CKERR(r);
 }
     
 
@@ -186,41 +191,6 @@ void gettod (struct timestamp *ts) {
     assert(r==0);
     ts->tv_sec  = htonl(tv.tv_sec);
     ts->tv_usec = htonl(tv.tv_usec);
-}
-
-void insert_person (void) {
-    int namelen = 5+random()%245;
-    struct primary_key  pk;
-    struct primary_data pd;
-    char keyarray[1000], dataarray[1000]; 
-    unsigned char namearray[1000];
-    pk.rand = random();
-    gettod(&pk.ts);
-    pd.creationtime = pk.ts;
-    pd.expiretime   = pk.ts;
-    pd.expiretime.tv_sec += 24*60*60*366;
-    pd.doesexpire = (random()%1==0);
-    pd.name.len = namelen;
-    int i;
-    pd.name.name = namearray;
-    pd.name.name[0] = 'A'+random()%26;
-    for (i=1; i<namelen; i++) {
-	pd.name.name[i] = 'a'+random()%26;
-    }
-    DBT key,data;
-    memset(&key,0,sizeof(DBT));
-    memset(&data,0,sizeof(DBT));
-    key.data = keyarray;
-    key.ulen = 1000;
-    key.size = 0;
-    data.data = dataarray;
-    data.ulen = 1000;
-    data.size = 0;
-    write_pk_to_dbt(&key, &pk);
-    write_pd_to_dbt(&data, &pd);
-    printf("sizeof(pk)=%d\n", (int)sizeof(struct primary_key));
-    printf("sizeof(pd)=%d\n", (int)sizeof(struct primary_data));
-    int r=dbp->put(dbp, null_txn, &key, &data,0);  assert(r==0);
 }
 
 void setup_for_db_create (void) {
@@ -272,6 +242,86 @@ void do_create (void) {
     assert(n_named==n_prim);
 }
 
+void insert_person (void) {
+    int namelen = 5+random()%245;
+    struct primary_key  pk;
+    struct primary_data pd;
+    char keyarray[1000], dataarray[1000]; 
+    unsigned char namearray[1000];
+    pk.rand = random();
+    gettod(&pk.ts);
+    pd.creationtime = pk.ts;
+    pd.expiretime   = pk.ts;
+    pd.expiretime.tv_sec += 24*60*60*366;
+    pd.doesexpire = (random()%10==0);
+    pd.name.len = namelen;
+    int i;
+    pd.name.name = namearray;
+    pd.name.name[0] = 'A'+random()%26;
+    for (i=1; i<namelen; i++) {
+	pd.name.name[i] = 'a'+random()%26;
+    }
+    DBT key,data;
+    memset(&key,0,sizeof(DBT));
+    memset(&data,0,sizeof(DBT));
+    key.data = keyarray;
+    key.ulen = 1000;
+    key.size = 0;
+    data.data = dataarray;
+    data.ulen = 1000;
+    data.size = 0;
+    write_pk_to_dbt(&key, &pk);
+    write_pd_to_dbt(&data, &pd);
+    int r=dbp->put(dbp, null_txn, &key, &data,0);  assert(r==0);
+}
+
+void delete_oldest_expired (void) {
+    int r;
+    if (delete_cursor==0) {
+	r = expiredb->cursor(expiredb, null_txn, &delete_cursor, 0); CKERR(r);
+	
+    }
+    DBT key,pkey,data, savepkey;
+    memset(&key, 0, sizeof(key));
+    memset(&pkey, 0, sizeof(pkey));
+    memset(&data, 0, sizeof(data));
+    r = delete_cursor->c_pget(delete_cursor, &key, &pkey, &data, DB_FIRST);
+    if (r==DB_NOTFOUND) return;
+    CKERR(r);
+    savepkey = pkey;
+    savepkey.data = malloc(pkey.size);
+    memcpy(savepkey.data, pkey.data, pkey.size);
+    switch (random()%3) {
+    case 0:
+	r = delete_cursor->c_del(delete_cursor, 0);  CKERR(r);
+	break;
+    case 1:
+	r = expiredb->del(expiredb, null_txn, &key, 0); CKERR(r);
+	break;
+    case 2:
+	r = dbp->del(dbp, null_txn, &pkey, 0);   CKERR(r);
+	break;
+    default:
+	assert(0);
+    }
+    // Make sure it's really gone.
+    r = delete_cursor->c_get(delete_cursor, &key, &data, DB_CURRENT);
+    assert(r==DB_KEYEMPTY);
+    r = dbp->get(dbp, null_txn, &savepkey, &data, 0);
+    assert(r==DB_NOTFOUND);
+    free(savepkey.data);
+}
+
+void activity (void) {
+    if (random()%20==0) {
+	// Delete the oldest expired one.  Keep the cursor open
+	delete_oldest_expired();
+    } else {
+	insert_person();
+    }
+}
+		       
+
 void usage (const char *argv1) {
     fprintf(stderr, "Usage:\n %s [ --DB-CREATE ]\n", argv1);
     exit(1);
@@ -284,6 +334,8 @@ int main (int argc, const char *argv[]) {
     } else if (argc==2) {
 	if (strcmp(argv[1], "--DB_CREATE")==0) {
 	    mode = MODE_DB_CREATE;
+	} else if (strcmp(argv[1], "--more")==0) {
+	    mode = MODE_MORE;
 	} else {
 	    usage(argv[0]);
 	}
@@ -296,9 +348,22 @@ int main (int argc, const char *argv[]) {
 	system("rm -rf " DIR);
 	mkdir(DIR, 0777); 
 	create_databases();
-	int i;
-	for (i=0; i<100; i++)
-	    insert_person();
+	{
+	    int i;
+	    for (i=0; i<100; i++)
+		activity();
+	}
+	break;
+    case MODE_MORE:
+	create_databases();
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	srandom(tv.tv_sec+tv.tv_usec*997); // magic:  997 is a prime, and a million (microseconds/second) times 997 is still 32 bits.
+	{
+	    int i;
+	    for (i=0; i<100; i++)
+		activity();
+	}
 	break;
     case MODE_DB_CREATE:
 	do_create();
