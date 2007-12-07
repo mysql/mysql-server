@@ -575,6 +575,20 @@ static int toku_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
 }
 
 static int toku_db_close(DB * db, u_int32_t flags) {
+    if (db->i->primary==0) {
+	// It is a primary.  Unlink all the secondaries. */
+	while (!list_empty(&db->i->associated)) {
+	    assert(list_struct(list_head(&db->i->associated),
+			       struct __toku_db_internal,
+			       associated)->primary==db);
+	    list_remove(list_head(&db->i->associated));
+	}
+    } else {
+	// It is a secondary.  Remove it from the list, (which it must be in .*/
+	if (!list_empty(&db->i->associated)) {
+	    list_remove(&db->i->associated);
+	}
+    }
     flags=flags;
     int r = toku_close_brt(db->i->brt);
     if (r != 0)
