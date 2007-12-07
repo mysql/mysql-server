@@ -13,6 +13,8 @@
 
 #include "test.h"
 
+int errors;
+
 DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
     memset(dbt, 0, sizeof *dbt);
     dbt->data = data;
@@ -31,7 +33,7 @@ void db_put(DB *db, int k, int v, u_int32_t put_flags, int rexpect) {
     int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), put_flags);
     if (r != rexpect) {
         printf("Expected %d, got %d\n", rexpect, r);
-        assert(r == rexpect);
+        if (r != rexpect) errors = 1;
     }
 }
 
@@ -102,5 +104,6 @@ int main(int argc, const char *argv[]) {
     test_dup_dup(DB_DUP | DB_DUPSORT, 0,              0,        DB_KEYEXIST);
     test_dup_dup(DB_DUP | DB_DUPSORT, DB_NODUPDATA,   0,        DB_KEYEXIST);
     test_dup_dup(DB_DUP | DB_DUPSORT, DB_NOOVERWRITE, 0,        DB_KEYEXIST);
-    return 0;
+
+    return errors;
 }

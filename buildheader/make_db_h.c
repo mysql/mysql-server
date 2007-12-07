@@ -57,6 +57,7 @@ void print_defines (void) {
     dodefine(DB_DUP);
     dodefine(DB_DUPSORT);
 
+    dodefine(DB_NODUPDATA);
     dodefine(DB_NOOVERWRITE);
 
     dodefine(DB_INIT_LOCK);
