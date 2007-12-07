@@ -181,14 +181,14 @@ parse_arguments PICK-ARGS-FROM-ARGV "$@"
 if test -n "$basedir"
 then
   print_defaults=`find_in_basedir my_print_defaults bin extra`
-  if ! test -x "$print_defaults"
+  if test ! -x "$print_defaults"
   then
     missing_in_basedir my_print_defaults
     exit 1
   fi
 else
   print_defaults="@bindir@/my_print_defaults"
-  if ! test -x "$print_defaults"
+  if test ! -x "$print_defaults"
   then
     echo "FATAL ERROR: Could not find $print_defaults"
     echo
@@ -223,7 +223,7 @@ else
       exit 1
     fi
     mysqld=`find_in_basedir mysqld libexec sbin bin`
-    if ! test -x "$mysqld"
+    if test ! -x "$mysqld"
     then
       missing_in_basedir mysqld
       exit 1
