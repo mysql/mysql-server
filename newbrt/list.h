@@ -37,8 +37,11 @@ static inline void list_push_head(struct list *head, struct list *list) {
 }
 
 static inline void list_remove(struct list *list) {
-    list->next->prev = list->prev;
-    list->prev->next = list->next;
+    struct list *prev = list->prev;
+    struct list *next = list->next;
+    next->prev = prev;
+    prev->next = next;
+    list_init(list); // Set the list element to be empty
 }
 
 static inline struct list *list_pop(struct list *head) {
