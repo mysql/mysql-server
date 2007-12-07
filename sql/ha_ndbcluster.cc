@@ -599,7 +599,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
         const NDBINDEX *unique_index=
           (const NDBINDEX *) m_index[i].unique_index;
         if (unique_index &&
-            (char *) unique_index->getObjectId() == (int) error_data)
+            (char *) unique_index->getObjectId() == error_data)
         {
           dupkey= i;
           break;
