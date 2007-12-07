@@ -1722,7 +1722,7 @@ int toku_close_brt (BRT brt) {
 	if (r!=0) return r;
     }
     if (brt->cf) {
-        assert(0==toku_cachefile_count_pinned(brt->cf, 1));
+        assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // For the brt, the pinned count should be zero.
         //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
         if ((r = toku_cachefile_close(&brt->cf))!=0) return r;
     }
@@ -1925,12 +1925,12 @@ static int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, BRTNODE parent
 int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
     int r;
     CACHEKEY *rootp;
-    assert(0==toku_cachefile_count_pinned(brt->cf, 1));
+    //assert(0==toku_cachefile_count_pinned(brt->cf, 1));     // That assertion isn't right.  An open cursor could cause things to be pinned.
     if ((r = toku_read_and_pin_brt_header(brt->cf, &brt->h))) {
 	printf("%s:%d\n", __FILE__, __LINE__);
 	if (0) { died0: toku_unpin_brt_header(brt); }
 	// printf("%s:%d returning %d\n", __FILE__, __LINE__, r);
-	assert(0==toku_cachefile_count_pinned(brt->cf, 1));
+	//assert(0==toku_cachefile_count_pinned(brt->cf, 1));  // That assertion isn't right.  An open cursor could cause things to be pinned.
 	return r;
     }
     rootp = toku_calculate_root_offset_pointer(brt);
@@ -1940,7 +1940,7 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
     }
     //printf("%s:%d r=%d", __FILE__, __LINE__, r); if (r==0) printf(" vallen=%d", *vallen); printf("\n");
     if ((r = toku_unpin_brt_header(brt))!=0) return r;
-    assert(0==toku_cachefile_count_pinned(brt->cf, 1));
+    //assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // That assertion isn't right.  An open cursor could cause things to be pinned.
     return 0;
 }
 
