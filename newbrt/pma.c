@@ -865,7 +865,7 @@ int toku_pma_cursor_set_range(PMA_CURSOR c, DBT *key) {
     return r;
 }
 
-int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize) {
+int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize, u_int32_t rand4sem, u_int32_t *fingerprint) {
     int r = DB_NOTFOUND;
     if (c->position >= 0) {
         PMA pma = c->pma;
@@ -874,6 +874,7 @@ int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize) {
         if (kv_pair_valid(kv)) {
             if (kvsize) 
                 *kvsize = kv_pair_keylen(kv) + kv_pair_vallen(kv);
+	    *fingerprint -= rand4sem*toku_calccrc32_kvpair (kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
             pma->pairs[c->position] = kv_pair_set_deleted(kv);
             r = 0;
         }
