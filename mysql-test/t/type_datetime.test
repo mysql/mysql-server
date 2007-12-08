@@ -338,6 +338,43 @@ insert into t1 values (), (), ();
 select sum(a) from t1 group by convert(a, datetime);
 drop table t1;
 
+#
+# Bug #32694: NOT NULL table field in a subquery produces invalid results
+#
+create table t1 (id int(10) not null, cur_date datetime not null);
+create table t2 (id int(10) not null, cur_date date not null);
+insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
+insert into t2 (id, cur_date) values (1, '2007-04-25');
+
+explain extended
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+
+explain extended
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+
+insert into t1 (id, cur_date) values (2, '2007-04-26 18:30:22');
+insert into t2 (id, cur_date) values (2, '2007-04-26');
+
+explain extended
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+
+explain extended
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+
+drop table t1,t2;
+
 --echo End of 5.0 tests
 #
 # Test of storing datetime into date fields
