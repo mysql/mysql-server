@@ -668,11 +668,93 @@ static int toku_c_del_noassociate(DBC * c, u_int32_t flags) {
     return r;
 }
 
+//Get the main portion of a cursor flag (excluding the bitwise or'd components).
+static int get_main_cursor_flag(u_int32_t flag) {
+#ifdef DB_READ_UNCOMMITTED
+    flag &= ~DB_READ_UNCOMMITTED;
+#endif    
+#ifdef DB_MULTIPLE
+    flag &= ~DB_MULTIPLE;
+#endif
+#ifdef DB_MULTIPLE_KEY
+    flag &= ~DB_MULTIPLE_KEY;
+#endif    
+    flag &= ~DB_RMW;
+    return flag;
+}
+
+static int toku_free_unneeded_dbts(DBT *key, DBT *pkey, DBT *data, u_int32_t flag_in) {
+    BOOL free_key;
+    BOOL free_pkey;
+    BOOL free_data;
+    u_int32_t flag = get_main_cursor_flag(flag_in);
+    
+    //Find out whether to free each part, based on the flag sent to pkey.
+    switch (flag) {
+        case (DB_SET_RANGE):
+        case (DB_NEXT_DUP): //Unsure if key will not be malloced even though it COULD stay the same.. we really need to reload!
+#ifdef DB_NEXT_NODUP
+        case (DB_NEXT_NODUP):
+#endif        
+#ifdef DB_PREV_NODUP
+        case (DB_PREV_NODUP):
+#endif
+        case (DB_CURRENT):      //What happens if we already did a current?  Does everything get re-malloced?
+        case (DB_NEXT):         //What happens if next is a duplicate?  Does key really get malocced?
+        case (DB_PREV):         //What happens if prev is a duplicate?  Does key really get malocced?
+        case (DB_FIRST):
+        case (DB_LAST): {
+            //Everything is write.
+            free_key = free_pkey = free_data = TRUE;
+            break;
+        }
+        case (DB_SET): {
+            //Key will stay the same.
+            free_pkey = free_data = TRUE;
+            free_key = FALSE;
+            break;
+        }
+        case (DB_GET_BOTH): {
+            //Note that DB_GET_BOTH must have been given to pget (NOT c_get).
+            //Key and pkey are read, data is write.
+            free_data = TRUE;
+            free_key = free_pkey = FALSE;
+            break;
+        }
+        default: {
+            fprintf(stderr, "Unexpected flag to toku_free_unneeded dbts %u\n", flag);
+            return EINVAL;
+        }
+        
+    }
+#ifdef FREE_IF_NEEDED
+#error Rename the FREE_IF_NEEDED macro here, it is overwriting something
+#endif
+#define FREE_IF_NEEDED(dbt, free_bool)                  \
+if (free_bool && (dbt->flags & DB_DBT_MALLOC)) { \
+    free(dbt->data);                                    \
+    dbt->data = NULL;                                   \
+    dbt->ulen = 0;                                      \
+    dbt->size = 0;                                      \
+}
+    FREE_IF_NEEDED(key,  free_key);
+    FREE_IF_NEEDED(pkey, free_pkey);
+    FREE_IF_NEEDED(data, free_data);
+#undef FREE_IF_NEEDED
+
+#if defined(DB_GET_BOTH_RANGE) || defined(DB_SET_RECNO) || defined(DB_GET_RECNO) || defined(DB_JOIN_ITEM)
+#error Need to set up freeing behavior in toku_free_unneeded_dbts to prevent memory leaks.
+#endif
+    return 0;
+}
 
 static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) {
     int r;
     DB *db = c->i->db;
     DB *pdb = db->i->primary;
+    DBT oldkey = *key;
+    DBT oldpkey = *pkey;
+    DBT olddata = *data;
 
     if (!pdb) return EINVAL;  //c_pget does not work on a primary.
 	// If data and primary_key are both zeroed, the temporary storage used to fill in data is different in the two cases because they come from different trees.
@@ -681,10 +763,17 @@ static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) 
 
     if (0) {
 delete_silently_and_retry:
+        //Free any old data.
+        r = toku_free_unneeded_dbts(key, pkey, data, flag);
+        //Restore old parameters.
+        *key = oldkey;
+        *pkey = oldpkey;
+        *data = olddata;
+        if (r != 0) return r;
         //Silently delete and re-run.
         r = toku_c_del_noassociate(c, 0);
         if (r != 0) return r;
-    }    
+    }
     r = toku_c_get_noassociate(c, key, pkey, flag);
     if (r != 0) return r;
     r = pdb->get(pdb, c->i->txn, pkey, data, 0);
@@ -703,7 +792,7 @@ static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
     else {
         // It's a c_get on a secondary.
         DBT primary_key;
-        u_int32_t get_flag = flag & ~DB_RMW;
+        u_int32_t get_flag = get_main_cursor_flag(flag);
         
         /* It is an error to use the DB_GET_BOTH or DB_GET_BOTH_RANGE flag on a
          * cursor that has been opened on a secondary index handle.
@@ -1196,6 +1285,7 @@ static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *,
 }
 
 static int toku_db_set_flags(DB * db, u_int32_t flags) {
+    ///////
     u_int32_t tflags = 0;
     if (flags & DB_DUP)
         tflags += TOKU_DB_DUP;
