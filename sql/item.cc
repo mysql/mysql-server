@@ -1221,14 +1221,14 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
   s.length(0);
 
   if (value_item->fix_fields(thd, &value_item) ||
-      name_item->fix_fields(thd, &name_item))
+      name_item->fix_fields(thd, &name_item) ||
+      !value_item->const_item() ||
+      !name_item->const_item() ||
+      !(item_name= name_item->val_str(&s))) // Can't have a NULL name 
+  {
+    my_error(ER_RESERVED_SYNTAX, MYF(0), "NAME_CONST");
     return TRUE;
-  if (!(value_item->const_item() && name_item->const_item()))
-    return TRUE;
-
-  if (!(item_name= name_item->val_str(&s)))
-    return TRUE; /* Can't have a NULL name */
-
+  }
   set_name(item_name->ptr(), (uint) item_name->length(), system_charset_info);
   max_length= value_item->max_length;
   decimals= value_item->decimals;
