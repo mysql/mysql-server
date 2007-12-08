@@ -207,4 +207,9 @@ test
 SELECT NAME_CONST('test', 'test');
 test
 test
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (5), (2);
+SELECT NAME_CONST(x,2) FROM (SELECT a x FROM t1) t;
+ERROR HY000: The 'NAME_CONST' syntax is reserved for purposes internal to the MySQL server
+DROP TABLE t1;
 End of 5.0 tests
