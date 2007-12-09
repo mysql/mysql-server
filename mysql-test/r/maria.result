@@ -1977,6 +1977,8 @@ show variables like 'maria%';
 Variable_name	Value
 maria_block_size	8192
 maria_checkpoint_interval	30
+maria_log_file_size	1073741824
+maria_log_purge_type	immediate
 maria_max_sort_file_size	9223372036853727232
 maria_pagecache_age_threshold	300
 maria_pagecache_buffer_size	8384512

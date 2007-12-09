@@ -280,10 +280,8 @@ static int really_execute_checkpoint(void)
      be robust against that: remember a few previous checkpoints in the
      control file, and not purge logs immediately... Think about it.
   */
-#if 0 /* purging/keeping will be an option */
   if (translog_purge(log_low_water_mark))
     fprintf(stderr, "Maria engine: log purge failed\n"); /* not deadly */
-#endif
 
   goto end;
 

@@ -2336,8 +2336,9 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
   int cur_offset= LSN_OFFSET(addr);
   ulonglong remainder;
   remainder= (cur_logno == end_logno) ? (end_offset - cur_offset) :
-    (TRANSLOG_FILE_SIZE - cur_offset +
-     max(end_logno - cur_logno - 1, 0) * TRANSLOG_FILE_SIZE + end_offset);
+    (((longlong)log_file_size) - cur_offset +
+     max(end_logno - cur_logno - 1, 0) * ((longlong)log_file_size) +
+     end_offset);
   if (initial_remainder == (ulonglong)(-1))
     initial_remainder= remainder;
   int percentage_done=
