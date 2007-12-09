@@ -353,6 +353,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     ulong orig_sql_mode= thd->variables.sql_mode;
     enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     ulonglong orig_field_val; /* original field value if valid */
+    LINT_INIT(orig_field_val);
     thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
                              MODE_INVALID_DATES;
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
