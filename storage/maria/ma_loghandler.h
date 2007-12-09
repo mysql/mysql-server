@@ -17,9 +17,11 @@
 #define _ma_loghandler_h
 
 /* transaction log default cache size  (TODO: make it global variable) */
-#define TRANSLOG_PAGECACHE_SIZE 1024*1024*2
-/* transaction log default file size  (TODO: make it global variable) */
-#define TRANSLOG_FILE_SIZE 1024*1024*1024
+#define TRANSLOG_PAGECACHE_SIZE (1024*1024*2)
+/* transaction log default file size */
+#define TRANSLOG_FILE_SIZE (1024*1024*1024)
+/* minimum possible transaction log size */
+#define TRANSLOG_MIN_FILE_SIZE (1024*1024*4)
 /* transaction log default flags (TODO: make it global variable) */
 #define TRANSLOG_DEFAULT_FLAGS 0
 
@@ -307,6 +309,12 @@ extern my_bool translog_inited;
 extern LSN translog_first_lsn_in_log();
 extern LSN translog_first_theoretical_lsn();
 extern LSN translog_next_LSN(TRANSLOG_ADDRESS addr, TRANSLOG_ADDRESS horizon);
+extern my_bool translog_purge_at_flush();
+extern uint32 translog_get_first_file(TRANSLOG_ADDRESS horizon);
+extern uint32 translog_get_first_needed_file();
+extern char *translog_filename_by_fileno(uint32 file_no, char *path);
+extern uint32 translog_get_file_size();
+extern uint32 translog_set_file_size(uint32 size);
 
 /* record parts descriptor */
 struct st_translog_parts
@@ -387,6 +395,15 @@ typedef struct st_log_record_type_descriptor
 } LOG_DESC;
 
 extern LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
+
+typedef enum
+{
+  TRANSLOG_PURGE_IMMIDIATE,
+  TRANSLOG_PURGE_EXTERNAL,
+  TRANSLOG_PURGE_ONDEMAND
+} enum_maria_translog_purge_type;
+extern ulong log_purge_type;
+extern ulong log_file_size;
 
 typedef enum
 {

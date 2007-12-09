@@ -238,6 +238,11 @@ struct st_translog_descriptor
   pthread_mutex_t unfinished_files_lock;
   DYNAMIC_ARRAY unfinished_files;
 
+  /*
+    minimum number of still need file calculeted during last
+    translog_purge call
+  */
+  uint32 min_need_file;
   /* Purger data: minimum file in the log (or 0 if unknown) */
   uint32 min_file_number;
   /* Protect purger from many calls and it's data */
@@ -248,6 +253,8 @@ struct st_translog_descriptor
 
 static struct st_translog_descriptor log_descriptor;
 
+ulong log_purge_type= TRANSLOG_PURGE_IMMIDIATE;
+ulong log_file_size= TRANSLOG_FILE_SIZE;
 ulong sync_log_dir= TRANSLOG_SYNC_DIR_NEWFILE;
 
 /* Marker for end of log */
@@ -678,18 +685,16 @@ static void translog_check_cursor(struct st_buffer_cursor *cursor)
 #endif
 
 /*
-  Get file name of the log by log number
+  @brief Get file name of the log by log number
 
-  SYNOPSIS
-    translog_filename_by_fileno()
-    file_no              Number of the log we want to open
-    path                 Pointer to buffer where file name will be
+  @param file_no         Number of the log we want to open
+  @param path            Pointer to buffer where file name will be
                          stored (must be FN_REFLEN bytes at least)
-  RETURN
-    pointer to path
+
+  @return pointer to path
 */
 
-static char *translog_filename_by_fileno(uint32 file_no, char *path)
+char *translog_filename_by_fileno(uint32 file_no, char *path)
 {
   char buff[11], *end;
   uint length;
@@ -699,7 +704,7 @@ static char *translog_filename_by_fileno(uint32 file_no, char *path)
   /* log_descriptor.directory is already formated */
   end= strxmov(path, log_descriptor.directory, "maria_log.0000000", NullS);
   length= (uint) (int10_to_str(file_no, buff, 10) - buff);
-  strmov(end-length+1, buff);
+  strmov(end - length +1, buff);
 
   DBUG_PRINT("info", ("Path: '%s'  path: 0x%lx", path, (ulong) path));
   DBUG_RETURN(path);
@@ -2807,6 +2812,18 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
   DBUG_RETURN(0);
 }
 
+/**
+  @brief round correctly transaction log size
+
+  @return maximum possible log size less or equal then given one
+*/
+
+static uint32 translog_round_log_size(uint32 size)
+{
+  size= (size - (size % TRANSLOG_PAGE_SIZE));
+  return max(size, TRANSLOG_MIN_FILE_SIZE);
+}
+
 /*
   Initialize transaction log
 
@@ -2857,6 +2874,7 @@ my_bool translog_init(const char *directory,
                             sizeof(struct st_file_counter),
                             10, 10))
     DBUG_RETURN(1);
+  log_descriptor.min_need_file= 0;
   log_descriptor.min_file_number= 0;
   log_descriptor.last_lsn_checked= LSN_IMPOSSIBLE;
 
@@ -2873,8 +2891,8 @@ my_bool translog_init(const char *directory,
 
   log_descriptor.in_buffers_only= LSN_IMPOSSIBLE;
   /* max size of one log size (for new logs creation) */
-  log_descriptor.log_file_max_size=
-    log_file_max_size - (log_file_max_size % TRANSLOG_PAGE_SIZE);
+  log_file_size= log_descriptor.log_file_max_size=
+    translog_round_log_size(log_file_max_size);
   /* server version */
   log_descriptor.server_version= server_version;
   /* server ID */
@@ -6833,7 +6851,7 @@ my_bool translog_is_file(uint file_no)
 
 static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected)
 {
-  uint min_file= 1, max_file;
+  uint min_file= 0, max_file;
   DBUG_ENTER("translog_first_file");
   if (!is_protected)
     translog_mutex_lock(&log_descriptor.purger_lock);
@@ -7007,7 +7025,7 @@ LSN translog_first_lsn_in_log()
 
 
 /**
-   @brief returns theoretical first LSN if first log is present
+   @brief Returns theoretical first LSN if first log is present
 
    @retval LSN_ERROR Error
    @retval LSN_IMPOSSIBLE no log
@@ -7043,7 +7061,7 @@ LSN translog_first_theoretical_lsn()
 
 
 /**
-  @brief Check given low water mark and purge files if it is need
+  @brief Checks given low water mark and purge files if it is need
 
   @param low the last (minimum) address which is need
 
@@ -7066,7 +7084,6 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
     uint32 i;
     uint32 min_file= translog_first_file(horizon, 1);
     DBUG_ASSERT(min_file != 0); /* log is already started */
-
     for(i= min_file; i < last_need_file && rc == 0; i++)
     {
       LSN lsn= translog_get_file_max_lsn_stored(i);
@@ -7080,14 +7097,140 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
       if (cmp_translog_addr(lsn, low) >= 0)
         break;
       DBUG_PRINT("info", ("purge file %lu", (ulong) i));
+      if (log_purge_type == TRANSLOG_PURGE_IMMIDIATE)
       {
         char path[FN_REFLEN], *file_name;
         file_name= translog_filename_by_fileno(i, path);
         rc= test(my_delete(file_name, MYF(MY_WME)));
       }
     }
+    if (unlikely(rc == 1))
+      log_descriptor.min_need_file= 0; /* impossible value */
+    else
+      log_descriptor.min_need_file= i;
   }
 
   translog_mutex_unlock(&log_descriptor.purger_lock);
   DBUG_RETURN(rc);
 }
+
+
+/**
+  @brief Purges files by stored min need file in case of
+    "ondemend" purge type
+
+  @note This function do real work only if it is "ondemend" purge type
+    and translog_purge() was called at least once and last time without
+    errors
+
+  @retval 0 OK
+  @retval 1 Error
+*/
+
+my_bool translog_purge_at_flush()
+{
+  uint32 i, min_file;
+  int rc= 0;
+  DBUG_ENTER("translog_purge_at_flush");
+  DBUG_ASSERT(translog_inited == 1);
+
+  if (log_purge_type != TRANSLOG_PURGE_ONDEMAND)
+  {
+    DBUG_PRINT("info", ("It is not \"at_flush\" => exit"));
+    DBUG_RETURN(0);
+  }
+
+  translog_mutex_lock(&log_descriptor.purger_lock);
+
+  if (unlikely(log_descriptor.min_need_file == 0))
+  {
+    DBUG_PRINT("info", ("No info about min need file => exit"));
+    translog_mutex_unlock(&log_descriptor.purger_lock);
+    DBUG_RETURN(0);
+  }
+
+  min_file= translog_first_file(translog_get_horizon(), 1);
+  DBUG_ASSERT(min_file != 0); /* log is already started */
+  for(i= min_file; i < log_descriptor.min_need_file && rc == 0; i++)
+  {
+    char path[FN_REFLEN], *file_name;
+    DBUG_PRINT("info", ("purge file %lu\n", (ulong) i));
+    file_name= translog_filename_by_fileno(i, path);
+    rc= test(my_delete(file_name, MYF(MY_WME)));
+  }
+
+  translog_mutex_unlock(&log_descriptor.purger_lock);
+  DBUG_RETURN(rc);
+}
+
+
+/**
+  @brief Gets min file number
+
+  @param horizon         the end of the log
+
+  @retval minimum file number
+  @retval 0 no files found
+*/
+
+uint32 translog_get_first_file(TRANSLOG_ADDRESS horizon)
+{
+  return translog_first_file(horizon, 0);
+}
+
+
+/**
+  @brief Gets min file number which is needed
+
+  @retval minimum file number
+  @retval 0 unknown
+*/
+
+uint32 translog_get_first_needed_file()
+{
+  uint32 file_no;
+  translog_mutex_lock(&log_descriptor.purger_lock);
+  file_no= log_descriptor.min_need_file;
+  translog_mutex_unlock(&log_descriptor.purger_lock);
+  return file_no;
+}
+
+
+/**
+  @brief Gets transaction log file size
+
+  @return transaction log file size
+*/
+
+uint32 translog_get_file_size()
+{
+  uint32 res;
+  translog_lock();
+  res= log_descriptor.log_file_max_size;
+  translog_unlock();
+  return (res);
+}
+
+
+/**
+  @brief Sets transaction log file size
+
+  @return Returns actually set transaction log size
+*/
+
+uint32 translog_set_file_size(uint32 size)
+{
+  uint32 res;
+  translog_lock();
+  res= log_descriptor.log_file_max_size= translog_round_log_size(size);
+  /* if current file longer then finish it*/
+  if (LSN_OFFSET(log_descriptor.horizon) >=  log_descriptor.log_file_max_size)
+  {
+    struct st_translog_buffer *old_buffer= log_descriptor.bc.buffer;
+    translog_buffer_next(&log_descriptor.horizon, &log_descriptor.bc, 1);
+    translog_buffer_unlock(old_buffer);
+  }
+  translog_unlock();
+  return (res);
+}
+
