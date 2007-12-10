@@ -73,6 +73,7 @@ void print_defines (void) {
     dodefine(DB_NOTFOUND);
     dodefine(DB_SECONDARY_BAD);
     dodefine(DB_DONOTINDEX);
+    dodefine(DB_BUFFER_SMALL);
 
     printf("#define DB_BADFORMAT -30500\n"); // private tokudb
     printf("#define DB_DELETE_ANY %d\n", 1<<16); // private tokudb

@@ -67,6 +67,7 @@ typedef enum {
 #define DB_NOTFOUND -30989
 #define DB_SECONDARY_BAD -30973
 #define DB_DONOTINDEX -30998
+#define DB_BUFFER_SMALL -30999
 #define DB_BADFORMAT -30500
 #define DB_DELETE_ANY 65536
 #define DB_FIRST 9

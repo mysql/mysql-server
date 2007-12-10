@@ -21,15 +21,13 @@ int toku_dbt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp
     domalloc:
 	ybt->data = toku_malloc(vallen);
 	if (errno!=0) return errno;
-	ybt->ulen = vallen;
     } else if (ybt->flags==DB_DBT_REALLOC) {
 	if (ybt->data==0) goto domalloc;
 	ybt->data = toku_realloc(ybt->data, vallen);
 	if (errno!=0) return errno;
-	ybt->ulen = vallen;
-
     } else if (ybt->flags==DB_DBT_USERMEM) {
-	/*nothing*/
+        ybt->size = vallen;
+        if (ybt->ulen < vallen) return DB_BUFFER_SMALL;
     } else {
 	if (staticptrp==0) return -1;
 	void *staticptr=*staticptrp;
@@ -42,11 +40,9 @@ int toku_dbt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp
 	//if (old!=staticptr) printf("%s:%d MALLOC --> %p\n", __FILE__, __LINE__, staticptr);
 	*staticptrp = staticptr;
 	ybt->data = staticptr;
-	ybt->ulen = vallen;
     }
     ybt->size = vallen;
-    if (ybt->ulen>0) {
-	if (ybt->ulen<vallen) vallen=ybt->ulen;
+    if (ybt->size>0) {
 	memcpy(ybt->data, val, vallen);
     }
     return 0;
