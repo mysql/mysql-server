@@ -1262,7 +1262,7 @@ static my_bool translog_buffer_lock(struct st_translog_buffer *buffer)
 }
 #else
 #define translog_buffer_lock(B) \
-  pthread_mutex_lock(&B->mutex)
+  pthread_mutex_lock(&((B)->mutex))
 #endif
 
 
@@ -1296,7 +1296,7 @@ static my_bool translog_buffer_unlock(struct st_translog_buffer *buffer)
 }
 #else
 #define translog_buffer_unlock(B) \
-  pthread_mutex_unlock(&B->mutex)
+  pthread_mutex_unlock(&((B)->mutex))
 #endif
 
 

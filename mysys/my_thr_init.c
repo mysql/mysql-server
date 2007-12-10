@@ -385,6 +385,8 @@ struct st_my_thread_var *_my_thread_var(void)
   return tmp;
 }
 
+#ifndef DBUG_OFF
+
 extern void *my_thread_var_get_dbug(my_bool *error)
 {
   struct st_my_thread_var *tmp=
@@ -406,7 +408,7 @@ extern void my_thread_var_set_dbug(void *dbug)
   struct st_my_thread_var *tmp= _my_thread_var();
   tmp->dbug= dbug;
 }
-
+#endif
 
 /****************************************************************************
   Get name of current thread.
