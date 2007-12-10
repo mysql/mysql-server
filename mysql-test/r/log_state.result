@@ -237,4 +237,16 @@ SELECT @@slow_query_log, @@log_slow_queries;
 1	1
 SET GLOBAL general_log = @old_general_log_state;
 SET GLOBAL slow_query_log = @old_slow_log_state;
+set @old_general_log_file= @@global.general_log_file;
+set @old_slow_query_log_file= @@global.slow_query_log_file;
+set global general_log_file= concat('/not exiting path/log.maste', 'r');
+ERROR 42000: Variable 'general_log_file' can't be set to the value of '/not exiting path/log.master'
+set global general_log_file= NULL;
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'NULL'
+set global slow_query_log_file= concat('/not exiting path/log.maste', 'r');
+ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of '/not exiting path/log.master'
+set global slow_query_log_file= NULL;
+ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of 'NULL'
+set global general_log_file= @old_general_log_file;
+set global slow_query_log_file= @old_slow_query_log_file;
 End of 5.1 tests

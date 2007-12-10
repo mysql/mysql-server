@@ -2670,7 +2670,7 @@ void do_copy_file(struct st_command *command)
   command	command handle
 
   DESCRIPTION
-  chmod_file <octal> <file_name>
+  chmod <octal> <file_name>
   Change file permission of <file_name>
 
 */
