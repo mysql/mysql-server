@@ -236,7 +236,7 @@ int main (int argc, char *argv[]) {
       printf("VERSION=3\n"
              "format=%s\n"
              "type=btree\n"
-             "db_pagesize=4096\n"
+             //"db_pagesize=4096\n"  //Don't write pagesize which would be useless.
              "HEADER=END\n",
              g.plaintext ? "print" : "bytevalue");
    }
