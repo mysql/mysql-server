@@ -218,8 +218,7 @@ cleanup:
 int usage()
 {
    fprintf(stderr,
-           "usage: %s [-klNprRV] [-f output_file] [-h home]\n"
-           "          [-s subdatabase] db_file\n",
+           "usage: %s [-pVT] [-f output] [-h home] [-s database] db_file\n",
            g.progname);
    return EXIT_FAILURE;
 }
