@@ -740,6 +740,7 @@ public:
     // Index op return context
     UintR indexOp;
     UintR clientData;
+    Uint32 errorData;
     UintR attrInfoLen;
     
     UintR accumulatingIndexOp;

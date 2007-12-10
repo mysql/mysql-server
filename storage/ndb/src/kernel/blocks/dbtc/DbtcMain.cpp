@@ -5187,6 +5187,7 @@ void Dbtc::releaseDirtyWrite(Signal* signal)
 void Dbtc::execLQHKEYREF(Signal* signal) 
 {
   const LqhKeyRef * const lqhKeyRef = (LqhKeyRef *)signal->getDataPtr();
+  Uint32 indexId = 0;
   jamEntry();
   
   UintR compare_transid1, compare_transid2;
@@ -5238,6 +5239,9 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
 	
 	// The operation executed an index trigger
+        TcIndexData* indexData = c_theIndexes.getPtr(currentIndexId);
+        indexId = indexData->indexId;
+        regApiPtr->errorData = indexId;
 	const Uint32 opType = regTcPtr->operation;
 	if (errCode == ZALREADYEXIST)
 	  errCode = terrorCode = ZNOTUNIQUE;
@@ -5250,7 +5254,6 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	} else {
 	  jam();
 	  /** ZDELETE && NOT_FOUND */
-	  TcIndexData* indexData = c_theIndexes.getPtr(currentIndexId);
 	  if(indexData->indexState == IS_BUILDING && state != CS_ABORTING){
 	    jam();
 	    /**
@@ -5311,12 +5314,14 @@ void Dbtc::execLQHKEYREF(Signal* signal)
         jam();
 	regApiPtr->lqhkeyreqrec--; // Compensate for extra during read
 	tcKeyRef->connectPtr = indexOp;
+        tcKeyRef->errorData = indexId;
 	EXECUTE_DIRECT(DBTC, GSN_TCKEYREF, signal, TcKeyRef::SignalLength);
 	apiConnectptr.i = save;
 	apiConnectptr.p = regApiPtr;
       } else {
         jam();
 	tcKeyRef->connectPtr = clientData;
+        tcKeyRef->errorData = indexId;
 	sendSignal(regApiPtr->ndbapiBlockref, 
 		   GSN_TCKEYREF, signal, TcKeyRef::SignalLength, JBB);
       }//if
@@ -10731,6 +10736,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
       tcRollbackRep->transId[0] = apiConnectptr.p->transid[0];
       tcRollbackRep->transId[1] = apiConnectptr.p->transid[1];
       tcRollbackRep->returnCode = apiConnectptr.p->returncode;
+      tcRollbackRep->errorData = apiConnectptr.p->errorData;
       sendSignal(blockRef, GSN_TCROLLBACKREP, signal, 
 		 TcRollbackRep::SignalLength, JBB);
     }
@@ -12413,6 +12419,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;    
+    tcIndxRef->errorData = 0;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -12432,6 +12439,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;    
+    tcIndxRef->errorData = 0;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -12515,6 +12523,7 @@ void Dbtc::execTCKEYREF(Signal* signal)
     tcIndxRef->transId[0] = tcKeyRef->transId[0];
     tcIndxRef->transId[1] = tcKeyRef->transId[1];
     tcIndxRef->errorCode = tcKeyRef->errorCode;
+    tcIndxRef->errorData = 0;
 
     releaseIndexOperation(regApiPtr, indexOp);
 
@@ -12592,6 +12601,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4000;
+    tcIndxRef->errorData = 0;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -12607,6 +12617,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
+    tcIndxRef->errorData = 0;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -12635,6 +12646,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
+    tcIndxRef->errorData = 0;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
                TcKeyRef::SignalLength, JBB);
     */
@@ -12660,6 +12672,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
+    tcIndxRef->errorData = regApiPtr->errorData;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -12713,6 +12726,7 @@ void Dbtc::readIndexTable(Signal* signal,
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4000;    
+    // tcIndxRef->errorData = ??; Where to find indexId
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -12859,6 +12873,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;    
+    tcIndxRef->errorData = 0;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
