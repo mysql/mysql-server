@@ -331,6 +331,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
 
   SYNOPSIS
     init_tmp_table_share()
+    thd         thread handle
     share	Share to fill
     key		Table_cache_key, as generated from create_table_def_key.
 		must start with db name.    
@@ -348,7 +349,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     use key_length= 0 as neither table_cache_key or key_length will be used).
 */
 
-void init_tmp_table_share(TABLE_SHARE *share, const char *key,
+void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           uint key_length, const char *table_name,
                           const char *path)
 {
@@ -375,8 +376,13 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
     anyway to be able to catch errors.
    */
   share->table_map_version= ~(ulonglong)0;
-  share->table_map_id= ~0UL;
   share->cached_row_logging_check= -1;
+
+  /*
+    table_map_id is also used for MERGE tables to suppress repeated
+    compatibility checks.
+  */
+  share->table_map_id= (ulong) thd->query_id;
 
   DBUG_VOID_RETURN;
 }
@@ -4542,6 +4548,25 @@ void st_table::mark_columns_needed_for_insert()
   }
   if (found_next_number_field)
     mark_auto_increment_column();
+}
+
+
+/**
+  @brief Check if this is part of a MERGE table with attached children.
+
+  @return       status
+    @retval     TRUE            children are attached
+    @retval     FALSE           no MERGE part or children not attached
+
+  @detail
+    A MERGE table consists of a parent TABLE and zero or more child
+    TABLEs. Each of these TABLEs is called a part of a MERGE table.
+*/
+
+bool st_table::is_children_attached(void)
+{
+  return((child_l && children_attached) ||
+         (parent && parent->children_attached));
 }
 
 /*

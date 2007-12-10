@@ -742,7 +742,7 @@ public:
   virtual uchar *get_value(Item *item)=0;
   void sort()
   {
-    qsort2(base,used_count,size,compare,collation);
+    my_qsort2(base,used_count,size,compare,collation);
   }
   int find(Item *item);
   
@@ -1145,6 +1145,8 @@ public:
   Item *find_item(String *str);
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   void cleanup();
+  void agg_str_lengths(Item *arg);
+  void agg_num_lengths(Item *arg);
 };
 
 /*

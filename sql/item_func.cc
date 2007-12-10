@@ -3721,13 +3721,12 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
-
+  pthread_mutex_unlock(&LOCK_user_locks);
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
-  pthread_mutex_unlock(&LOCK_user_locks);
   pthread_cond_destroy(&cond);
 
   return test(!error); 		// Return 1 killed
@@ -3843,7 +3842,8 @@ Item_func_set_user_var::fix_length_and_dec()
 bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
 {
   TABLE *table= (TABLE *) arg;
-  if (result_field->table == table || !table)
+  if (result_field &&
+      (!table || result_field->table == table))
     bitmap_set_bit(result_field->table->read_set, result_field->field_index);
   return 0;
 }

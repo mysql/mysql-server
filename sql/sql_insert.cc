@@ -2272,7 +2272,17 @@ pthread_handler_t handle_delayed_insert(void *arg)
     parsed using a lex, that depends on initialized thd->lex.
   */
   lex_start(thd);
-  if (!(di->table=open_ltable(thd, &di->table_list, TL_WRITE_DELAYED, 0)))
+  thd->lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
+  /*
+    Statement-based replication of INSERT DELAYED has problems with RAND()
+    and user vars, so in mixed mode we go to row-based.
+  */
+  thd->lex->set_stmt_unsafe();
+  thd->set_current_stmt_binlog_row_based_if_mixed();
+
+  /* Open table */
+  if (!(di->table= open_n_lock_single_table(thd, &di->table_list,
+                                            TL_WRITE_DELAYED)))
   {
     thd->fatal_error();				// Abort waiting inserts
     goto err;
@@ -3310,7 +3320,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   tmp_table.alias= 0;
   tmp_table.timestamp_field= 0;
   tmp_table.s= &share;
-  init_tmp_table_share(&share, "", 0, "", "");
+  init_tmp_table_share(thd, &share, "", 0, "", "");
 
   tmp_table.s->db_create_options=0;
   tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;

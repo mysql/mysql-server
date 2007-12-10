@@ -2654,7 +2654,7 @@ int ha_create_table(THD *thd, const char *path,
   TABLE_SHARE share;
   DBUG_ENTER("ha_create_table");
   
-  init_tmp_table_share(&share, db, 0, table_name, path);
+  init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0) ||
       open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
                             OTM_CREATE))
@@ -2720,7 +2720,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   if (error)
     DBUG_RETURN(2);
 
-  init_tmp_table_share(&share, db, 0, name, path);
+  init_tmp_table_share(thd, &share, db, 0, name, path);
   if (open_table_def(thd, &share, 0))
   {
     DBUG_RETURN(3);
@@ -3728,11 +3728,12 @@ int handler::ha_reset()
 int handler::ha_write_row(uchar *buf)
 {
   int error;
+  DBUG_ENTER("handler::ha_write_row");
   if (unlikely(error= write_row(buf)))
-    return error;
+    DBUG_RETURN(error);
   if (unlikely(error= binlog_log_row<Write_rows_log_event>(table, 0, buf)))
-    return error;
-  return 0;
+    DBUG_RETURN(error); /* purecov: inspected */
+  DBUG_RETURN(0);
 }
 
 

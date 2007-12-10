@@ -343,7 +343,7 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share)
     (TABLE*)alloc_root(&event_data->mem_root, sizeof(TABLE));
 
   safe_mutex_assert_owner(&LOCK_open);
-  init_tmp_table_share(table_share, share->db, 0, share->table_name, 
+  init_tmp_table_share(thd, table_share, share->db, 0, share->table_name, 
                        share->key);
   if ((error= open_table_def(thd, table_share, 0)) ||
       (error= open_table_from_share(thd, table_share, "", 0, 

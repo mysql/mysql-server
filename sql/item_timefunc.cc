@@ -3241,37 +3241,41 @@ get_date_time_result_type(const char *format, uint length)
 
 void Item_func_str_to_date::fix_length_and_dec()
 {
-  char format_buff[64];
-  String format_str(format_buff, sizeof(format_buff), &my_charset_bin), *format;
   maybe_null= 1;
   decimals=0;
   cached_field_type= MYSQL_TYPE_DATETIME;
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   cached_timestamp_type= MYSQL_TIMESTAMP_NONE;
-  format= args[1]->val_str(&format_str);
-  if (!args[1]->null_value && (const_item= args[1]->const_item()))
+  if ((const_item= args[1]->const_item()))
   {
-    cached_format_type= get_date_time_result_type(format->ptr(),
-                                                  format->length());
-    switch (cached_format_type) {
-    case DATE_ONLY:
-      cached_timestamp_type= MYSQL_TIMESTAMP_DATE;
-      cached_field_type= MYSQL_TYPE_DATE; 
-      max_length= MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
-      break;
-    case TIME_ONLY:
-    case TIME_MICROSECOND:
-      cached_timestamp_type= MYSQL_TIMESTAMP_TIME;
-      cached_field_type= MYSQL_TYPE_TIME; 
-      max_length= MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
-      break;
-    default:
-      cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
-      cached_field_type= MYSQL_TYPE_DATETIME; 
-      break;
+    char format_buff[64];
+    String format_str(format_buff, sizeof(format_buff), &my_charset_bin);
+    String *format= args[1]->val_str(&format_str);
+    if (!args[1]->null_value)
+    {
+      cached_format_type= get_date_time_result_type(format->ptr(),
+                                                    format->length());
+      switch (cached_format_type) {
+      case DATE_ONLY:
+        cached_timestamp_type= MYSQL_TIMESTAMP_DATE;
+        cached_field_type= MYSQL_TYPE_DATE; 
+        max_length= MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN;
+        break;
+      case TIME_ONLY:
+      case TIME_MICROSECOND:
+        cached_timestamp_type= MYSQL_TIMESTAMP_TIME;
+        cached_field_type= MYSQL_TYPE_TIME; 
+        max_length= MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN;
+        break;
+      default:
+        cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
+        cached_field_type= MYSQL_TYPE_DATETIME; 
+        break;
+      }
     }
   }
 }
+
 
 bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
