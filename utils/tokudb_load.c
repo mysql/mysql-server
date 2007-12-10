@@ -163,7 +163,6 @@ cleanup:
       g.exitcode = EXIT_FAILURE;
       fprintf(stderr, "%s: dbenv->close: %s\n", g.progname, db_strerror(retval));
    }
-   //TODO:  /* Resend any caught signal. */
    if (g.config_options)   free(g.config_options);
    if (g.subdatabase)      free(g.subdatabase);
    if (g.read_header.data) free(g.read_header.data);
@@ -221,8 +220,7 @@ cleanup:
 int usage()
 {
    fprintf(stderr,
-           "usage: %s [-nTV] [-c name=value] [-f input_file]\n"
-           "          [-h home] [-t btree] db_file\n",
+           "usage: %s [-TV] [-c name=value] [-f file] [-h home] [-t btree] db_file\n",
            g.progname);
    return EXIT_FAILURE;
 }
