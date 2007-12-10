@@ -162,6 +162,7 @@ extern char *my_strdup_with_length(const char *from, size_t length,
 #define ORIG_CALLER_INFO    /* nothing */
 #define TRASH(A,B) /* nothing */
 #endif
+#define my_strndup(A,B,C)  my_strdup_with_length((A), (B), (C))
 
 #ifdef HAVE_LARGE_PAGES
 extern uint my_get_large_page_size(void);

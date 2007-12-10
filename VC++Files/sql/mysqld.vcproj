@@ -1017,6 +1017,9 @@
 			RelativePath="sql_prepare.cpp">
 		</File>
 		<File
+			RelativePath="sql_profile.cpp">
+		</File>
+		<File
 			RelativePath="sql_rename.cpp">
 		</File>
 		<File
