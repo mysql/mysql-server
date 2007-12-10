@@ -410,6 +410,7 @@ blocked by readers, a writer may queue for the lock by setting the writer
 field. Then no new readers are allowed in. */
 
 struct rw_lock_struct {
+	os_event_t	event;	/* Used by sync0arr.c for thread queueing */
 	ulint	reader_count;	/* Number of readers who have locked this
 				lock in the shared mode */
 	ulint	writer; 	/* This field is set to RW_LOCK_EX if there

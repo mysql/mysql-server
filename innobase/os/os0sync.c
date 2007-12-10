@@ -21,6 +21,7 @@ Created 9/6/1995 Heikki Tuuri
 
 /* Type definition for an operating system mutex struct */
 struct os_mutex_struct{ 
+	os_event_t	event;	/* Used by sync0arr.c for queing threads */
 	void*		handle;	/* OS handle to mutex */
 	ulint		count;	/* we use this counter to check
 				that the same thread does not
@@ -35,6 +36,7 @@ struct os_mutex_struct{
 /* Mutex protecting counts and the lists of OS mutexes and events */
 os_mutex_t	os_sync_mutex;
 ibool		os_sync_mutex_inited	= FALSE;
+ibool		os_sync_free_called	= FALSE;
 
 /* This is incremented by 1 in os_thread_create and decremented by 1 in
 os_thread_exit */
@@ -50,6 +52,10 @@ ulint	os_event_count		= 0;
 ulint	os_mutex_count		= 0;
 ulint	os_fast_mutex_count	= 0;
 
+/* Because a mutex is embedded inside an event and there is an
+event embedded inside a mutex, on free, this generates a recursive call.
+This version of the free event function doesn't acquire the global lock */
+static void os_event_free_internal(os_event_t	event);
 
 /*************************************************************
 Initializes global event and OS 'slow' mutex lists. */
@@ -76,6 +82,7 @@ os_sync_free(void)
 	os_event_t	event;
 	os_mutex_t	mutex;
 
+	os_sync_free_called = TRUE;
 	event = UT_LIST_GET_FIRST(os_event_list);
 
 	while (event) {
@@ -99,6 +106,7 @@ os_sync_free(void)
 
 	      mutex = UT_LIST_GET_FIRST(os_mutex_list);
 	}
+	os_sync_free_called = FALSE;
 }
 
 /*************************************************************
@@ -146,14 +154,21 @@ os_event_create(
 	event->signal_count = 0;
 #endif /* __WIN__ */
 
-        /* Put to the list of events */
-	os_mutex_enter(os_sync_mutex);
+	/* The os_sync_mutex can be NULL because during startup an event
+	can be created [ because it's embedded in the mutex/rwlock ] before
+	this module has been initialized */
+	if (os_sync_mutex != NULL) {
+		os_mutex_enter(os_sync_mutex);
+	}
 
+	/* Put to the list of events */
 	UT_LIST_ADD_FIRST(os_event_list, os_event_list, event);
 
 	os_event_count++;
 
-	os_mutex_exit(os_sync_mutex);
+	if (os_sync_mutex != NULL) {
+		os_mutex_exit(os_sync_mutex);
+	}
 
 	return(event);
 }
@@ -253,6 +268,35 @@ os_event_reset(
 
 	os_fast_mutex_unlock(&(event->os_mutex));
 #endif
+}
+
+/**************************************************************
+Frees an event object, without acquiring the global lock. */
+static
+void
+os_event_free_internal(
+/*===================*/
+	os_event_t	event)	/* in: event to free */
+{
+#ifdef __WIN__
+	ut_a(event);
+
+	ut_a(CloseHandle(event->handle));
+#else
+	ut_a(event);
+
+	/* This is to avoid freeing the mutex twice */
+	os_fast_mutex_free(&(event->os_mutex));
+
+	ut_a(0 == pthread_cond_destroy(&(event->cond_var)));
+#endif
+	/* Remove from the list of events */
+
+	UT_LIST_REMOVE(os_event_list, os_event_list, event);
+
+	os_event_count--;
+
+	ut_free(event);
 }
 
 /**************************************************************
@@ -456,6 +500,7 @@ os_mutex_create(
 
 	mutex_str->handle = mutex;
 	mutex_str->count = 0;
+	mutex_str->event = os_event_create(NULL);
 
 	if (os_sync_mutex_inited) {
 		/* When creating os_sync_mutex itself we cannot reserve it */
@@ -531,6 +576,10 @@ os_mutex_free(
 	os_mutex_t	mutex)	/* in: mutex to free */
 {
 	ut_a(mutex);
+
+	if (!os_sync_free_called) {
+		os_event_free_internal(mutex->event);
+	}
 
 	if (os_sync_mutex_inited) {
 		os_mutex_enter(os_sync_mutex);
