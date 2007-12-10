@@ -1551,7 +1551,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_lock(&LOCK_global_system_variables);
     value= *(ha_rows*) value_ptr(thd, var_type, base);
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_int((longlong) value);
+    return new Item_int((ulonglong) value);
   }
   case SHOW_MY_BOOL:
   {
