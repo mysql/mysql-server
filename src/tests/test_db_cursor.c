@@ -6,13 +6,12 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <unistd.h>
 
 #include "test.h"
 
 static enum mode {
-    MODE_DEFAULT, MODE_DB_CREATE, MODE_MORE
+    MODE_DEFAULT, MODE_MORE
 } mode;
 
 
@@ -111,10 +110,6 @@ static void read_pd_from_dbt (const DBT *dbt, int *off, struct primary_data *pd)
     read_timestamp_from_dbt(dbt, off, &pd->expiretime);
     read_uchar_from_dbt(dbt, off, &pd->doesexpire);
     read_name_from_dbt(dbt, off, &pd->name);
-}
-
-static int name_offset_in_pd_dbt (void) {
-    return 13;
 }
 
 static int name_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
@@ -224,14 +219,6 @@ static int count_entries (DB *db) {
     return n_found;
 }
 
-static void do_create (void) {
-    create_databases();
-    // Now check to see if the number of names matches the number of associated things.
-    int n_named = count_entries(namedb);
-    int n_prim  = count_entries(dbp);
-    assert(n_named==n_prim);
-}
-
 static void insert_person (void) {
     int namelen = 5+random()%245;
     struct primary_key  pk;
@@ -273,38 +260,27 @@ static void insert_person (void) {
 }
 
 static void delete_oldest_expired (void) {
+    static int count=0;
+    assert(count==0);
+    count++;
     int r;
     printf("%s:%d deleting\n", __FILE__, __LINE__);
-    if (delete_cursor==0) {
-	r = expiredb->cursor(expiredb, null_txn, &delete_cursor, 0); CKERR(r);
-	
-    }
-    DBT key,pkey,data, savepkey;
-    memset(&key, 0, sizeof(key));
+    DBT pkey;
     memset(&pkey, 0, sizeof(pkey));
-    memset(&data, 0, sizeof(data));
-    r = delete_cursor->c_pget(delete_cursor, &key, &pkey, &data, DB_FIRST);
-    if (r==DB_NOTFOUND) return;
-    CKERR(r);
     {
-	char *deleted_key = ((char*)data.data)+name_offset_in_pd_dbt();
-	int compare=strcmp(deleted_key, nc_key.data);
-	if (compare>0) {
-	    //printf("%s:%d r3=%d compare=%d count=%d cacount=%d cucount=%d deleting %s cursor=%s\n", __FILE__, __LINE__, r3, compare, count_all_items, calc_n_items, cursor_count_n_items, deleted_key, (char*)nc_key.data);
-	    calc_n_items--;
-	}
+	calc_n_items--;
 	count_all_items--;
     }
-    savepkey = pkey;
-    savepkey.data = malloc(pkey.size);
-    memcpy(savepkey.data, pkey.data, pkey.size);
+    {
+	unsigned char buf[8];
+	unsigned int pkey_0 = 2053999932;
+	unsigned int pkey_1 = 1;
+	((int*)buf)[0] = htonl(pkey_0);
+	((int*)buf)[1] = htonl(pkey_1);
+	pkey.data = buf;
+	pkey.size = 8;
+    }
     r = dbp->del(dbp, null_txn, &pkey, 0);   CKERR(r);
-    // Make sure it's really gone.
-    r = delete_cursor->c_get(delete_cursor, &key, &data, DB_CURRENT);
-    assert(r==DB_KEYEMPTY);
-    r = dbp->get(dbp, null_txn, &savepkey, &data, 0);
-    assert(r==DB_NOTFOUND);
-    free(savepkey.data);
 }
 
 // Use a cursor to step through the names.
@@ -354,13 +330,7 @@ static void usage (const char *argv1) {
 
 int main (int argc, const char *argv[]) {
     const char *progname=argv[0];
-    int useseed;
-
-    {
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	useseed = tv.tv_sec+tv.tv_usec*997;  // magic:  997 is a prime, and a million (microseconds/second) times 997 is still 32 bits.
-    }
+    int useseed = 1; 
 
     memset(&nc_key, 0, sizeof(nc_key));
     memset(&nc_data, 0, sizeof(nc_data));
@@ -374,17 +344,10 @@ int main (int argc, const char *argv[]) {
     mode = MODE_DEFAULT;
     argv++; argc--;
     while (argc>0) {
-	if (strcmp(argv[0], "--DB_CREATE")==0) {
-	    mode = MODE_DB_CREATE;
-	} else if (strcmp(argv[0], "--more")==0) {
+	if (strcmp(argv[0], "--more")==0) {
 	    mode = MODE_MORE;
 	} else {
-	    errno=0;
-	    char *endptr;
-	    useseed = strtoul(argv[0], &endptr, 10);
-	    if (errno!=0 || *endptr!=0 || endptr==argv[0]) {
-		usage(progname);
-	    }
+	    usage(progname);
 	}
 	argc--; argv++;
     }
@@ -410,7 +373,7 @@ int main (int argc, const char *argv[]) {
 	calc_n_items = count_all_items = count_entries(dbp);
 	//printf("%s:%d n_items initially=%d\n", __FILE__, __LINE__, count_all_items);
 	{
-	    const int n_activities = 100000;
+	    const int n_activities = 10;
 	    int i;
 	    cursor_load = 8*(1+2*count_all_items/n_activities);
 	    printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
@@ -419,9 +382,6 @@ int main (int argc, const char *argv[]) {
 		activity();
 	    }
 	}
-	break;
-    case MODE_DB_CREATE:
-	do_create();
 	break;
     }
 
