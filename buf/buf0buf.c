@@ -1712,7 +1712,6 @@ buf_page_get_gen(
 	buf_block_t*	block;
 	ibool		accessed;
 	ulint		fix_type;
-	ibool		success;
 	ibool		must_read;
 
 	ut_ad(mtr);
@@ -1788,6 +1787,7 @@ loop2:
 
 	switch (buf_block_get_state(block)) {
 		buf_page_t*	bpage;
+		ibool		success;
 
 	case BUF_BLOCK_FILE_PAGE:
 		break;
@@ -1904,9 +1904,12 @@ wait_until_unfixed:
 
 		/* Decompress the page and apply buffered operations
 		while not holding buf_pool->mutex or block->mutex. */
-		buf_zip_decompress(block, srv_use_checksums);
-		ibuf_merge_or_delete_for_page(block, space, offset,
-					      zip_size, TRUE);
+		success = buf_zip_decompress(block, srv_use_checksums);
+
+		if (UNIV_LIKELY(success)) {
+			ibuf_merge_or_delete_for_page(block, space, offset,
+						      zip_size, TRUE);
+		}
 
 		/* Unfix and unlatch the block. */
 		mutex_enter(&buf_pool->mutex);
@@ -1916,6 +1919,12 @@ wait_until_unfixed:
 		buf_block_set_io_fix(block, BUF_IO_NONE);
 		mutex_exit(&block->mutex);
 		rw_lock_x_unlock(&block->lock);
+
+		if (UNIV_UNLIKELY(!success)) {
+
+			mutex_exit(&buf_pool->mutex);
+			return(NULL);
+		}
 
 		break;
 
@@ -1957,6 +1966,8 @@ wait_until_unfixed:
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	if (mode == BUF_GET_NOWAIT) {
+		ibool	success;
+
 		if (rw_latch == RW_S_LATCH) {
 			success = rw_lock_s_lock_func_nowait(&(block->lock),
 							     file, line);
