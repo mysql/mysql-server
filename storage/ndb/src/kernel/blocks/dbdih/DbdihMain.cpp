@@ -202,8 +202,26 @@ void Dbdih::sendGCP_PREPARE(Signal* signal, Uint32 nodeId)
   req->nodeId = cownNodeId;
   req->gci_hi = Uint32(m_micro_gcp.m_master.m_new_gci >> 32);
   req->gci_lo = Uint32(m_micro_gcp.m_master.m_new_gci);
-  sendSignal(ref, GSN_GCP_PREPARE, signal, GCPPrepare::SignalLength, JBA);
-  
+
+  if (! (ERROR_INSERTED(7201) || ERROR_INSERTED(7202)))
+  {
+    sendSignal(ref, GSN_GCP_PREPARE, signal, GCPPrepare::SignalLength, JBA);
+  }
+  else if (ERROR_INSERTED(7201))
+  {
+    sendSignal(ref, GSN_GCP_PREPARE, signal, GCPPrepare::SignalLength, JBB);
+  } 
+  else if (ERROR_INSERTED(7202))
+  {
+    ndbrequire(nodeId == getOwnNodeId());
+    sendSignalWithDelay(ref, GSN_GCP_PREPARE, signal, 2000, 
+                        GCPPrepare::SignalLength);    
+  }
+  else
+  {
+    ndbrequire(false); // should be dead code #ifndef ERROR_INSERT
+  }
+
   ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
 }//Dbdih::sendGCP_PREPARE()
 
@@ -2235,12 +2253,9 @@ void Dbdih::gcpBlockedLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
 void Dbdih::execINCL_NODECONF(Signal* signal) 
 {
-  Uint32 TsendNodeId;
-  Uint32 TstartNode_or_blockref;
-  
   jamEntry();
-  TstartNode_or_blockref = signal->theData[0];
-  TsendNodeId = signal->theData[1];
+  Uint32 TstartNode = signal->theData[0];
+  Uint32 TsendNodeId_or_blockref = signal->theData[1];
 
   Uint32 blocklist[6];
   blocklist[0] = clocallqhblockref;
@@ -2252,9 +2267,21 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   
   for (Uint32 i = 0; blocklist[i] != 0; i++)
   {
-    if (TstartNode_or_blockref == blocklist[i])
+    if (TsendNodeId_or_blockref == blocklist[i])
     {
       jam();
+
+      if (TstartNode != c_nodeStartSlave.nodeId)
+      {
+        jam();
+        warningEvent("Recevied INCL_NODECONF for %u from %s"
+                     " while %u is starting",
+                     TstartNode,
+                     getBlockName(refToBlock(TsendNodeId_or_blockref)),
+                     c_nodeStartSlave.nodeId);
+        return;
+      }
+      
       if (getNodeStatus(c_nodeStartSlave.nodeId) == NodeRecord::ALIVE && 
 	  blocklist[i+1] != 0)
       {
@@ -2282,10 +2309,21 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
       }
     }
   }
+
+  if (c_nodeStartMaster.startNode != TstartNode)
+  {
+    jam();
+    warningEvent("Recevied INCL_NODECONF for %u from %u"
+                 " while %u is starting",
+                 TstartNode,
+                 TsendNodeId_or_blockref,
+                 c_nodeStartMaster.startNode);
+    return;
+  }
   
   ndbrequire(cmasterdihref = reference());
-  receiveLoopMacro(INCL_NODEREQ, TsendNodeId);
-
+  receiveLoopMacro(INCL_NODEREQ, TsendNodeId_or_blockref);
+  
   CRASH_INSERTION(7128);
   /*-------------------------------------------------------------------------*/
   // Now that we have included the starting node in the node lists in the
@@ -5106,8 +5144,8 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
     jam();
     GCPPrepareConf* conf = (GCPPrepareConf*)signal->getDataPtrSend();
     conf->nodeId = failedNodeId;
-    conf->gci_hi = Uint32(m_micro_gcp.m_new_gci >> 32);
-    conf->gci_lo = Uint32(m_micro_gcp.m_new_gci);
+    conf->gci_hi = Uint32(m_micro_gcp.m_master.m_new_gci >> 32);
+    conf->gci_lo = Uint32(m_micro_gcp.m_master.m_new_gci);
     sendSignal(reference(), GSN_GCP_PREPARECONF, signal, 
                GCPPrepareConf::SignalLength, JBB);
   }//if
@@ -6176,7 +6214,7 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
     jam();
     ndbout_c("resending GSN_MASTER_LCPREQ");
     sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
-			signal->getLength(), 50);
+			50, signal->getLength());
     return;
   }
   Uint32 failedNodeId = req->failedNodeId;
@@ -8154,6 +8192,39 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
                       signal, &c_GCP_PREPARE_Counter, &Dbdih::sendGCP_PREPARE);
     signal->theData[0] = 9999;
     sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+    return;
+  }
+  else if (ERROR_INSERTED(7200))
+  {
+    c_GCP_PREPARE_Counter.clearWaitingFor();
+    NodeRecordPtr nodePtr;
+    nodePtr.i = cfirstAliveNode;
+    do {
+      jam();
+      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+      c_GCP_PREPARE_Counter.setWaitingFor(nodePtr.i);
+      if (nodePtr.i != getOwnNodeId())
+      {
+        SET_ERROR_INSERT_VALUE(7201);
+        sendGCP_PREPARE(signal, nodePtr.i);
+      }
+      else
+      {
+        SET_ERROR_INSERT_VALUE(7202);
+        sendGCP_PREPARE(signal, nodePtr.i);
+      }
+      nodePtr.i = nodePtr.p->nextNode;
+    } while (nodePtr.i != RNIL);
+
+    NodeReceiverGroup rg(CMVMI, c_GCP_PREPARE_Counter);
+    rg.m_nodes.clear(getOwnNodeId());
+    Uint32 victim = rg.m_nodes.find(0);
+    
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, victim),
+	       GSN_NDB_TAMPER, signal, 1, JBA);
+
+    CLEAR_ERROR_INSERT_VALUE;
     return;
   }
 #endif
@@ -13565,6 +13636,7 @@ void Dbdih::nodeResetStart(Signal *signal)
   jam();
   bool startGCP = c_nodeStartMaster.blockGcp;
 
+  c_nodeStartSlave.nodeId = 0;
   c_nodeStartMaster.startNode = RNIL;
   c_nodeStartMaster.failNr = cfailurenr;
   c_nodeStartMaster.activeState = false;

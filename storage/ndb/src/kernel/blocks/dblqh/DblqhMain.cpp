@@ -496,8 +496,9 @@ void Dblqh::execINCL_NODEREQ(Signal* signal)
       cnodeStatus[i] = ZNODE_UP;
     }//if
   }//for
-  signal->theData[0] = cownref; 
-  sendSignal(retRef, GSN_INCL_NODECONF, signal, 1, JBB);
+  signal->theData[0] = nodeId;
+  signal->theData[1] = cownref; 
+  sendSignal(retRef, GSN_INCL_NODECONF, signal, 2, JBB);
   return;
 }//Dblqh::execINCL_NODEREQ()
 
