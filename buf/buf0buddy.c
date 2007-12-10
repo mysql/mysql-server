@@ -268,7 +268,10 @@ void*
 buf_buddy_alloc_clean(
 /*==================*/
 			/* out: allocated block, or NULL */
-	ulint	i)	/* in: index of buf_pool->zip_free[] */
+	ulint	i,	/* in: index of buf_pool->zip_free[] */
+	ibool*	lru)	/* in: pointer to a variable that will be assigned
+			TRUE if storage was allocated from the LRU list
+			and buf_pool->mutex was temporarily released */
 {
 	buf_page_t*	bpage;
 
@@ -297,7 +300,7 @@ buf_buddy_alloc_clean(
 
 		for (; j--; bpage = UT_LIST_GET_NEXT(list, bpage)) {
 			if (bpage->zip.ssize != dummy_zip.ssize
-			    || !buf_LRU_free_block(bpage, FALSE)) {
+			    || !buf_LRU_free_block(bpage, FALSE, lru)) {
 
 				continue;
 			}
@@ -344,7 +347,7 @@ free_LRU:
 		mutex_enter(block_mutex);
 
 		/* Keep the compressed pages of uncompressed blocks. */
-		if (!buf_LRU_free_block(bpage, FALSE)) {
+		if (!buf_LRU_free_block(bpage, FALSE, lru)) {
 
 			mutex_exit(block_mutex);
 			continue;
@@ -433,7 +436,7 @@ buf_buddy_alloc_low(
 
 	/* Try replacing a clean page in the buffer pool. */
 
-	block = buf_buddy_alloc_clean(i);
+	block = buf_buddy_alloc_clean(i, lru);
 
 	if (block) {
 
