@@ -279,7 +279,7 @@ buf_LRU_search_and_free_block(
 				= buf_page_get_mutex(bpage);
 
 			mutex_enter(block_mutex);
-			freed = buf_LRU_free_block(bpage, TRUE);
+			freed = buf_LRU_free_block(bpage, TRUE, NULL);
 			mutex_exit(block_mutex);
 
 			if (freed) {
@@ -302,7 +302,7 @@ buf_LRU_search_and_free_block(
 				= buf_page_get_mutex(bpage);
 
 			mutex_enter(block_mutex);
-			freed = buf_LRU_free_block(bpage, TRUE);
+			freed = buf_LRU_free_block(bpage, TRUE, NULL);
 			mutex_exit(block_mutex);
 
 			if (freed) {
@@ -330,7 +330,7 @@ buf_LRU_search_and_free_block(
 
 				buf_block_t*	block = (buf_block_t*) bpage;
 				mutex_enter(&block->mutex);
-				freed = buf_LRU_free_block(bpage, TRUE);
+				freed = buf_LRU_free_block(bpage, TRUE, NULL);
 				mutex_exit(&block->mutex);
 
 				if (freed) {
@@ -938,8 +938,12 @@ buf_LRU_free_block(
 				it will not temporarily release
 				buf_pool->mutex. */
 	buf_page_t*	bpage,	/* in: block to be freed */
-	ibool		zip)	/* in: TRUE if should remove also the
+	ibool		zip,	/* in: TRUE if should remove also the
 				compressed page of an uncompressed page */
+	ibool*		buf_pool_mutex_released)
+				/* in: pointer to a variable that will
+				be assigned TRUE if buf_pool->mutex
+				was temporarily released, or NULL */
 {
 	buf_page_t*	b = NULL;
 	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
@@ -1052,6 +1056,10 @@ alloc:
 			buf_pool->mutex and block_mutex. */
 			b->buf_fix_count++;
 			b->io_fix = BUF_IO_READ;
+		}
+
+		if (buf_pool_mutex_released) {
+			*buf_pool_mutex_released = TRUE;
 		}
 
 		mutex_exit(&buf_pool->mutex);

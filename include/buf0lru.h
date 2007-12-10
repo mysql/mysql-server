@@ -85,8 +85,12 @@ buf_LRU_free_block(
 				it will not temporarily release
 				buf_pool->mutex. */
 	buf_page_t*	block,	/* in: block to be freed */
-	ibool		zip);	/* in: TRUE if should remove also the
+	ibool		zip,	/* in: TRUE if should remove also the
 				compressed page of an uncompressed page */
+	ibool*		buf_pool_mutex_released);
+				/* in: pointer to a variable that will
+				be assigned TRUE if buf_pool->mutex
+				was temporarily released, or NULL */
 /**********************************************************************
 Look for a replaceable block from the end of the LRU list and put it to
 the free list if found. */
