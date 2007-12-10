@@ -32,6 +32,7 @@
 #include <signaldata/TcCommit.hpp>
 #include <signaldata/TcKeyFailConf.hpp>
 #include <signaldata/TcHbRep.hpp>
+#include <signaldata/TcRollbackRep.hpp>
 
 /*****************************************************************************
 NdbTransaction( Ndb* aNdb );
@@ -1753,6 +1754,8 @@ Remark:         Handles the reception of the ROLLBACKREP signal.
 int
 NdbTransaction::receiveTCROLLBACKREP( NdbApiSignal* aSignal)
 {
+  DBUG_ENTER("NdbTransaction::receiveTCROLLBACKREP");
+
   /****************************************************************************
 Check that we are expecting signals from this transaction and that it doesn't
 belong to a transaction already completed. Simply ignore messages from other 
@@ -1760,6 +1763,11 @@ transactions.
   ****************************************************************************/
   if(checkState_TransId(aSignal->getDataPtr() + 1)){
     theError.code = aSignal->readData(4);// Override any previous errors
+    if (aSignal->getLength() == TcRollbackRep::SignalLength)
+    {
+      // Signal may contain additional error data
+      theError.details = (char *) aSignal->readData(5);
+    }
 
     /**********************************************************************/
     /*	A serious error has occured. This could be due to deadlock or */
@@ -1771,14 +1779,14 @@ transactions.
     theCompletionStatus = CompletedFailure;
     theCommitStatus = Aborted;
     theReturnStatus = ReturnFailure;
-    return 0;
+    DBUG_RETURN(0);
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
     abort();
 #endif
   }
 
-  return -1;
+  DBUG_RETURN(-1);
 }//NdbTransaction::receiveTCROLLBACKREP()
 
 /*******************************************************************************
