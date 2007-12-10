@@ -618,7 +618,7 @@ bool ha_ndbcluster::get_error_message(int error,
   DBUG_ENTER("ha_ndbcluster::get_error_message");
   DBUG_PRINT("enter", ("error: %d", error));
 
-  Ndb *ndb= get_ndb();
+  Ndb *ndb= check_ndb_in_thd(current_thd);
   if (!ndb)
     DBUG_RETURN(FALSE);
 
