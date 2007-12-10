@@ -1,4 +1,9 @@
 #### suite/funcs_1/views/views_master.test
+#
+# Last Change:
+# 2007-10-05 mleich
+#    1. Fix for Bug#31237 Test "ndb_views" fails because of differing order ...
+#    2. Cleanup of test
 
 let $message= ! Attention: The file with the expected results is not
               |            thoroughly checked.
@@ -13,7 +18,7 @@ let $message= ! Attention: The file with the expected results is not
 # If this bug is fixed, please
 # 1. set the following variable to 0
 # 2. check, if the test passes
-# 3. remove the workarounds 
+# 3. remove the workarounds
 let $have_bug_11589= 1;
 if ($have_bug_11589)
 {
@@ -42,7 +47,7 @@ Bug#10713: mysqldump includes database in create view and referenced tables;
 #     MySQL has also added some vendor-specific enhancements to the standard
 #     SQL requirements.
 
-# FIXME (ML)
+# FIXME (mleich)
 #   - Alter all object names so that they follow the v/t/..<number> scheme or
 #     apply another method which prevents that customer data might be
 #     accidently modified
@@ -107,6 +112,12 @@ insert into tb2 (f59,f60,f61) values (109,108,104);
 INSERT INTO tb2 (f59,f60) VALUES( 299,899 );
 INSERT INTO tb2 (f59,f60) VALUES( 242,79  );
 INSERT INTO tb2 (f59,f60) VALUES( 424,89  );
+if ($have_bug_11589)
+{
+--disable_ps_protocol
+}
+SELECT * FROM tb2 ORDER BY f59, f60, f61;
+--enable_ps_protocol
 #
 #
 Use test;
@@ -155,52 +166,52 @@ Insert into t1  values (500,9866);
 
 #(03)
     CREATE or REPLACE VIEW v1 AS select f59,f60,f61
-    FROM test.tb2 limit 4,3;
-    select * FROM v1 order by f59,f60,f61 limit 0,10;
+    FROM test.tb2;
+    select * FROM v1 order by f59,f60,f61 limit 4,3;
 
 #(04)
     CREATE or REPLACE VIEW v1 AS select distinct f59
-    FROM test.tb2 limit 4,3;
-    select * FROM v1 order by f59 limit 0,10;
+    FROM test.tb2;
+    select * FROM v1 order by f59 limit 4,3;
 
 #(05)
     ALTER VIEW v1 AS select f59
-    FROM test.tb2 limit 6,2;
-    select * FROM v1 order by f59 limit 0,10;
+    FROM test.tb2;
+    select * FROM v1 order by f59 limit 6,2;
 
 #(06)
     CREATE or REPLACE VIEW v1 AS select f59
-    from tb2 order by f59 limit 100;
+    from tb2 order by f59;
     select * FROM v1 order by f59 limit 0,10;
 
 #(07)
     CREATE or REPLACE VIEW v1 AS select f59
-    from tb2 order by f59 asc limit 100;
+    from tb2 order by f59 asc;
     select * FROM v1 limit 0,10;
 
 #(08)
     CREATE or REPLACE VIEW v1 AS select f59
-    from tb2 order by f59 desc limit 100;
+    from tb2 order by f59 desc;
     select * FROM v1 limit 0,10;
 
 #(09)
     CREATE or REPLACE VIEW v1 AS select f59
-    from tb2 group by f59 limit 100;
+    from tb2 group by f59;
     select * FROM v1 order by f59 limit 0,10;
 
 #(10)
     CREATE or REPLACE VIEW v1 AS select f59
-    from tb2 group by f59 asc limit 100;
+    from tb2 group by f59 asc;
     select * FROM v1 order by f59 limit 0,10;
 
 #(11)
     CREATE or REPLACE VIEW v1 AS select f59
-    from tb2 group by f59 desc limit 100;
+    from tb2 group by f59 desc;
     select * FROM v1 order by f59 limit 0,10;
 
 #(12)
     CREATE or REPLACE VIEW v1 AS (select f59 from tb2)
-    union (select f59 from t1) limit 100;
+    union (select f59 from t1);
     select * FROM v1 order by f59 limit 0,10;
 
 #(13)
@@ -260,12 +271,12 @@ CREATE TABLE t1 (f1 BIGINT) ;
 
 # SELECT INTO is illegal
 SET @x=0;
---error 1350
+--error ER_VIEW_SELECT_CLAUSE
 CREATE or REPLACE VIEW v1 AS Select 1 INTO @x;
 Select @x;
 
 # Subquery in the FROM clause is illegal
---error 1349
+--error ER_VIEW_SELECT_DERIVED
 CREATE or REPLACE VIEW v1 AS Select 1
 FROM (SELECT 1 FROM t1) my_table;
 
@@ -282,23 +293,16 @@ SELECT @a ;
 SELECT * FROM t1;
 DROP TRIGGER tr1 ;
 SET @a:=0 ;
---error 1347
+--error ER_WRONG_OBJECT
 CREATE TRIGGER tr1 BEFORE INSERT ON v1 FOR EACH ROW SET @a:=1 ;
 
-# RENAME VIEW is not available even when we try it via rename table.
-# FIXME: Write a bug report for the ugly error message
-#        1017: Can't find file: './test/v1.frm' (errno: 2),
-#        because the much more beautiful
-#        1347: 'test.v1' is not BASE TABLE
-#        exists.
---replace_result '\\' '/'
-# MLML --error 1017
 RENAME TABLE v1 TO v2;
---error 1064
+# RENAME VIEW is not available even when we try it via rename table.
+--error ER_PARSE_ERROR
 RENAME VIEW  v2 TO v1;
-#--error 1347
+#--error ER_WRONG_OBJECT
 ALTER TABLE v2 RENAME AS v1;
---error 1064
+--error ER_PARSE_ERROR
 ALTER VIEW  v1 RENAME AS v2;
 
 # VIEWs cannot contain a PRIMARY KEY or have an Index.
@@ -310,12 +314,12 @@ DROP VIEW  IF EXISTS v2 ;
 CREATE TABLE t1 ( f1 DATE, f2 BLOB, f3 DOUBLE );
 CREATE VIEW  v1 AS SELECT f1, f2, f3 FROM t1;
 ALTER  TABLE t1 ADD PRIMARY KEY(f1);
---error 1347
+--error ER_WRONG_OBJECT
 ALTER  TABLE v1 ADD PRIMARY KEY(f1);
---error 1064
+--error ER_PARSE_ERROR
 ALTER  VIEW  v1 ADD PRIMARY KEY(f1);
 CREATE INDEX t1_idx ON t1(f3);
---error 1347
+--error ER_WRONG_OBJECT
 CREATE INDEX v1_idx ON v1(f3);
 DROP TABLE t1;
 DROP VIEW  v1;
@@ -333,21 +337,21 @@ let $message= Testcase 3.3.1.3 + 3.1.1.4 ;
 DROP VIEW  IF EXISTS v1 ;
 --enable_warnings
 # REPLACE after VIEW name
---error 1064
-CREATE VIEW v1 or REPLACE AS Select * from tb2 my_table limit 50;
+--error ER_PARSE_ERROR
+CREATE VIEW v1 or REPLACE AS Select * from tb2 my_table;
 # CHECK OPTION before AS SELECT
---error 1064
+--error ER_PARSE_ERROR
 CREATE VIEW v1 WITH CASCADED CHECK OPTION AS Select *
 from tb2 my_table limit 50;
 # CHECK OPTION before AS SELECT
---error 1064
+--error ER_PARSE_ERROR
 CREATE VIEW v1 WITH LOCAL CHECK OPTION AS Select *
 from tb2 my_table limit 50;
 # CREATE after SELECT
---error 1064
-SELECT * FROM tb2 my_table CREATE VIEW As v1 limit 100 ;
+--error ER_PARSE_ERROR
+SELECT * FROM tb2 my_table CREATE VIEW As v1;
 # AS forgotten
---error 1064
+--error ER_PARSE_ERROR
 CREATE or REPLACE VIEW v1 Select f59, f60
 from test.tb2 my_table where f59 = 250 ;
 # positive case
@@ -355,60 +359,60 @@ CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK OPTION;
 DROP VIEW v1;
 # REPLACE OR CREATE instead of CREATE OR REPLACE
---error 1064
+--error ER_PARSE_ERROR
 REPLACE OR CREATE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK OPTION;
 # AS after SELECT
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE VIEW v1 SELECT AS F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK OPTION;
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table CASCADED WITH CHECK OPTION;
 # OPTION CHECK instead of CHECK OPTION
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH CASCADED OPTION CHECK;
 # CHECK OPTION before WITH
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table CHECK OPTION WITH CASCADED;
 # CHECK OPTION before AS SELECT
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE VIEW v1 WITH CASCADED CHECK OPTION
 AS SELECT F59, F60 FROM test.tb2 my_table;
 # VIEW <viewname> after AS SELECT
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE AS SELECT F59, F60
 FROM test.tb2 my_table VIEW v1 WITH CASCADED CHECK OPTION;
 # VIEW <viewname> after CHECK OPTION
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE AS SELECT F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK OPTION VIEW v1;
 
 # Variants with LOCAL CHECK OPTION
---error 1064
+--error ER_PARSE_ERROR
 REPLACE OR CREATE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH LOCAL CHECK OPTION;
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE VIEW v1 SELECT AS F59, F60
 FROM test.tb2 my_table WITH LOCAL CHECK OPTION;
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table LOCAL WITH CHECK OPTION;
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH LOCAL OPTION CHECK;
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table CHECK OPTION WITH LOCAL;
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE VIEW v1 WITH CASCADED CHECK OPTION
 AS SELECT F59, F60 FROM test.tb2 my_table;
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE AS SELECT F59, F60
 FROM test.tb2 my_table VIEW v1 WITH LOCAL CHECK OPTION;
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE AS SELECT F59, F60
 FROM test.tb2 my_table WITH LOCAL CHECK OPTION VIEW v1;
 
@@ -419,15 +423,15 @@ CREATE table t1 (f1 int ,f2 int)  ;
 INSERT INTO t1 values (235, 22);
 INSERT INTO t1 values (554, 11);
 # SELECTs of UNION in braces
---error 1064
+--error ER_PARSE_ERROR
 CREATE or REPLACE view v1 as (Select from f59 tb2)
 Union ALL (Select from f1 t1);
 # by before order
---error 1064
+--error ER_PARSE_ERROR
 CREATE or REPLACE view v1 as Select f59, f60
-from tb2 by order f59 limit 100 ;
+from tb2 by order f59;
 # by before group
---error 1064
+--error ER_PARSE_ERROR
 CREATE or REPLACE view v1 as Select f59, f60
 from tb2 by group f59  ;
 
@@ -442,24 +446,24 @@ let $message= Testcase 3.3.1.5 ;
 --disable_warnings
 DROP VIEW  IF EXISTS v1 ;
 --enable_warnings
---error 1064
-CREATE VIEW v1 SELECT * FROM tb2 limit 100 ;
---error 1064
-CREATE v1 AS SELECT * FROM tb2 limit 100 ;
---error 1064
-VIEW v1 AS SELECT * FROM tb2 limit 100 ;
+--error ER_PARSE_ERROR
+CREATE VIEW v1 SELECT * FROM tb2;
+--error ER_PARSE_ERROR
+CREATE v1 AS SELECT * FROM tb2;
+--error ER_PARSE_ERROR
+VIEW v1 AS SELECT * FROM tb2;
 # positive case
 CREATE VIEW v1 AS SELECT 1;
 DROP VIEW v1;
---error 1064
+--error ER_PARSE_ERROR
        VIEW v1 AS SELECT 1;
---error 1064
+--error ER_PARSE_ERROR
 CREATE      v1 AS SELECT 1;
---error 1064
+--error ER_PARSE_ERROR
 CREATE VIEW    AS SELECT 1;
---error 1064
+--error ER_PARSE_ERROR
 CREATE VIEW v1    SELECT 1;
---error 1064
+--error ER_PARSE_ERROR
 CREATE VIEW v1 AS         ;
 
 
@@ -480,37 +484,37 @@ let $message= Testcase 3.3.1.6 ;
 DROP VIEW  IF EXISTS v1 ;
 --enable_warnings
 CREATE or REPLACE                       VIEW v1
-as SELECT * from tb2 limit 100 ;
+as SELECT * from tb2;
 CREATE or REPLACE ALGORITHM = UNDEFINED VIEW v1
-as SELECT * from tb2 limit 100 ;
+as SELECT * from tb2;
 CREATE or REPLACE ALGORITHM = MERGE     VIEW v1
-as SELECT * from tb2 limit 100 ;
+as SELECT * from tb2;
 CREATE or REPLACE ALGORITHM = TEMPTABLE VIEW v1
-as SELECT * from tb2 limit 100 ;
+as SELECT * from tb2;
 CREATE or REPLACE ALGORITHM = TEMPTABLE VIEW v1
-as SELECT * from tb2 limit 100 ;
+as SELECT * from tb2;
 # negative test cases
---error 1064
+--error ER_PARSE_ERROR
 CREATE or REPLACE           = TEMPTABLE VIEW v1
-as SELECT * from tb2 limit 100 ;
---error 1064
+as SELECT * from tb2;
+--error ER_PARSE_ERROR
 CREATE or REPLACE ALGORITHM   TEMPTABLE VIEW v1
-as SELECT * from tb2 limit 100 ;
---error 1064
+as SELECT * from tb2;
+--error ER_PARSE_ERROR
 CREATE or REPLACE ALGORITHM =           VIEW v1
-as SELECT * from tb2 limit 100 ;
---error 1064
+as SELECT * from tb2;
+--error ER_PARSE_ERROR
 CREATE or REPLACE TEMPTABLE = ALGORITHM VIEW v1
-as SELECT * from tb2 limit 100 ;
---error 1064
+as SELECT * from tb2;
+--error ER_PARSE_ERROR
 CREATE or REPLACE TEMPTABLE - ALGORITHM VIEW v1
-as SELECT * from tb2 limit 100 ;
---error 1064
+as SELECT * from tb2;
+--error ER_PARSE_ERROR
 CREATE or REPLACE GARBAGE   = TEMPTABLE VIEW v1
-as SELECT * from tb2 limit 100 ;
---error 1064
+as SELECT * from tb2;
+--error ER_PARSE_ERROR
 CREATE or REPLACE ALGORITHM = GARBAGE VIEW v1
-as SELECT * from tb2 limit 100 ;
+as SELECT * from tb2;
 Drop view if exists v1 ;
 
 CREATE or REPLACE VIEW v1
@@ -522,16 +526,16 @@ AS SELECT * from tb2 where f59 < 1 WITH CASCADED CHECK OPTION;
 CREATE or REPLACE VIEW v1
 AS SELECT * from tb2 where f59 < 1 WITH LOCAL    CHECK OPTION;
 # negative test cases
---error 1064
+--error ER_PARSE_ERROR
 CREATE or REPLACE VIEW v1
 AS SELECT * from tb2 where f59 < 1 WITH NO       CHECK OPTION;
---error 1064
+--error ER_PARSE_ERROR
 CREATE or REPLACE VIEW v1
 AS SELECT * from tb2 where f59 < 1      CASCADED CHECK OPTION;
---error 1064
+--error ER_PARSE_ERROR
 CREATE or REPLACE VIEW v1
 AS SELECT * from tb2 where f59 < 1 WITH CASCADED       OPTION;
---error 1064
+--error ER_PARSE_ERROR
 CREATE or REPLACE VIEW v1
 AS SELECT * from tb2 where f59 < 1 WITH CASCADED CHECK       ;
 
@@ -543,12 +547,12 @@ let $message= Testcase 3.3.1.7 ;
 #                   view names are accepted, at creation time, alteration time,
 #                   and drop time.
 ###############################################################################
-# Note(ML): non-qualified view name means a view name without preceeding
-#           database name
+# Note(mleich): non-qualified view name means a view name without preceeding
+#               database name
 --disable_warnings
 DROP VIEW  IF EXISTS v1 ;
 --enable_warnings
-Create view test.v1 AS Select * from test.tb2 limit 100 ;
+Create view test.v1 AS Select * from test.tb2;
 Alter view test.v1 AS Select F59 from test. tb2 limit 100 ;
 Drop view test.v1 ;
 Create view v1 AS Select * from test.tb2 limit 100 ;
@@ -561,11 +565,11 @@ let $message= Testcase 3.3.1.A0 ;
 ###############################################################################
 # Testcase 3.3.1.A0: Ensure that view names are treated case sensitive.
 ###############################################################################
-# Note(ML): Maybe this test produces portability problems on Windows.
-#           FIXME There should be a test outside this one checking the
-#                 creation of objects with cases sensitive names.
-#                 If we have this test the following sub testcase should
-#                 be deleted.
+# Note(mleich): Maybe this test produces portability problems on Windows.
+#               FIXME There should be a test outside this one checking the
+#                     creation of objects with cases sensitive names.
+#                     If we have this test the following sub testcase should
+#                     be deleted.
 --disable_warnings
 DROP TABLE IF EXISTS t1 ;
 DROP VIEW  IF EXISTS v1 ;
@@ -576,8 +580,8 @@ INSERT INTO t1 VALUES(1111), (2222);
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE f1 = 1111;
 # We get here the sql code
 # - 0    on OS with    cases sensitive view names (Example: UNIX)
-# - 1050 on OS without cases sensitive view names (Example: WINDOWS)
---error 0,1050
+# - ER_TABLE_EXISTS_ERROR on OS without cases sensitive view names (Example: WINDOWS)
+--error 0,ER_TABLE_EXISTS_ERROR
 CREATE VIEW V1 AS SELECT * FROM t1 WHERE f1 = 2222;
 SELECT * FROM v1;
 # SELECT * FROM V1;
@@ -595,20 +599,20 @@ let $message= Testcase 3.3.1.8 ;
 #                   that an appropriate error message is returned when the name
 #                   is rejected.
 ###############################################################################
-# Note(ML): There could be more negative tests here, but I assume that the
-#           server routines checking if a table or view name is acceptable are
-#           heavily tested in tests checking the creation of tables.
---error 1064
+# Note(mleich): There could be more negative tests here, but I assume that the
+#               server routines checking if a table or view name is acceptable
+#               are heavily tested in tests checking the creation of tables.
+--error ER_PARSE_ERROR
 Create view select AS Select * from test.tb2 limit 100;
---error 1064
+--error ER_PARSE_ERROR
 Create view as AS Select * from test.tb2 limit 100;
---error 1064
+--error ER_PARSE_ERROR
 Create view where AS Select * from test.tb2 limit 100;
---error 1064
+--error ER_PARSE_ERROR
 Create view from AS Select * from test.tb2 limit 100;
---error 1064
+--error ER_PARSE_ERROR
 Create view while AS Select * from test.tb2 limit 100;
---error 1064
+--error ER_PARSE_ERROR
 Create view asdkj*(&*&&^ as Select * from test.tb2 limit 100 ;
 --disable_warnings
 Drop view if exists test.procedure ;
@@ -623,10 +627,11 @@ let $message= Testcase 3.3.1.9 ;
 # Testcase 3.3.1.9: Ensure that a reference to a non-existent view is rejected
 #                   with an appropriate error message
 ###############################################################################
-# Note(ML): The SELECT statement syntax does not contain any functionality to
-#           claim, that the object after FROM must be a VIEW. SHOW's will be
-#           checked in 3.3.11 Checks on SHOW, EXPLAIN, and DESCRIBE statements.
-#           Let's check here a view based on a dropped view or table.
+# Note(mleich): The SELECT statement syntax does not contain any functionality
+#               to claim, that the object after FROM must be a VIEW. SHOW's will
+#               be checked in
+#                  3.3.11 Checks on SHOW, EXPLAIN, and DESCRIBE statements.
+#               Let's check here a view based on a dropped view or table.
 --disable_warnings
 Drop TABLE IF EXISTS t1 ;
 Drop VIEW  IF EXISTS v1;
@@ -640,32 +645,32 @@ CREATE VIEW v2 AS SELECT *  FROM v1;
 
 # Only negative cases, positive cases will be checked later:
 DROP TABLE t1;
---error 1356
+--error ER_VIEW_INVALID
 SELECT * FROM v1;
---error 1356
+--error ER_VIEW_INVALID
 DELETE FROM v1;
---error 1356
+--error ER_VIEW_INVALID
 UPDATE v1 SET f1 = 'aaaaa';
---error 1356
+--error ER_VIEW_INVALID
 INSERT INTO v1 SET f1 = "fffff";
 # v2 is based on v1, which is now invalid
---error 1356
+--error ER_VIEW_INVALID
 SELECT * FROM v2;
---error 1356
+--error ER_VIEW_INVALID
 DELETE FROM v2;
---error 1356
+--error ER_VIEW_INVALID
 UPDATE v2 SET f1 = 'aaaaa';
---error 1356
+--error ER_VIEW_INVALID
 INSERT INTO v2 SET f1 = "fffff";
 DROP VIEW v1;
 # v2 is based on v1, which is now dropped
---error 1356
+--error ER_VIEW_INVALID
 SELECT * FROM v2;
---error 1356
+--error ER_VIEW_INVALID
 DELETE FROM v2;
---error 1356
+--error ER_VIEW_INVALID
 UPDATE v2 SET f1 = 'aaaaa';
---error 1356
+--error ER_VIEW_INVALID
 INSERT INTO v2 SET f1 = "fffff";
 
 DROP VIEW v2;
@@ -677,11 +682,11 @@ DROP VIEW  IF EXISTS v1 ;
 --enable_warnings
 CREATE TABLE t1 (f1 FLOAT);
 # Create a new VIEW based on itself
---error 1146
+--error ER_NO_SUCH_TABLE
 CREATE VIEW v1 AS SELECT * FROM v1;
 # Replace a valid VIEW with one new based on itself
 CREATE VIEW  v1 AS SELECT * FROM t1;
---error 1146
+--error ER_NO_SUCH_TABLE
 CREATE or REPLACE VIEW  v1 AS SELECT * FROM v1;
 
 DROP VIEW  v1;
@@ -697,9 +702,9 @@ let $message= Testcase 3.3.1.10 ;
 Drop view if exists test.v1 ;
 --enable_warnings
 Create view test.v1 AS Select * from test.tb2 ;
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 Create view test.v1 AS Select F59 from test.tb2 ;
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 Create view      v1 AS Select F59 from test.tb2 ;
 
 
@@ -710,18 +715,18 @@ let $message= Testcase 3.3.1.11 ;
 #                    table with the same name in the same database.
 ###############################################################################
 # The VIEW should get the same name like an already existing TABLE.
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 Create view test.tb2 AS Select f59,f60 from test.tb2 limit 100 ;
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 Create view      tb2 AS Select f59,f60 from test.tb2 limit 100 ;
 # The TABLE should get the same name like an already existing VIEW.
 --disable_warnings
 Drop view if exists test.v111 ;
 --enable_warnings
 Create view test.v111 as select * from tb2 limit 50;
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 Create table test.v111(f1 int );
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 Create table      v111(f1 int );
 DROP VIEW test.v111;
 
@@ -825,9 +830,9 @@ if ($have_bug_11589)
 SELECT * FROM test.v1 order by f59,f60,f61,f62,f63,f64,f65;
 --enable_ps_protocol
 # Switch the SELECT but not the base table
-CREATE OR REPLACE VIEW test.v1 AS SELECT F59 FROM tb2 limit 10,100;
+CREATE OR REPLACE VIEW test.v1 AS SELECT F59 FROM tb2;
 SHOW CREATE VIEW test.v1;
-SELECT * FROM test.v1 order by F59;
+SELECT * FROM test.v1 order by F59 limit 10,100;
 Drop table test.t1 ;
 Drop view  test.v1 ;
 
@@ -839,9 +844,9 @@ let $message= Testcase 3.3.1.14 ;
 #                    used to create a view using the name of an existing base
 #                    table, it fails with an appropriate error message.
 ###############################################################################
---error 1347
+--error ER_WRONG_OBJECT
 CREATE OR REPLACE VIEW test.tb2 AS SELECT * From tb2 LIMIT 2;
---error 1347
+--error ER_WRONG_OBJECT
 CREATE OR REPLACE VIEW tb2 AS SELECT * From tb2 LIMIT 2;
 
 
@@ -856,12 +861,12 @@ let $message= Testcase 3.3.1.15 ;
 --disable_warnings
 Drop table if exists test.v1 ;
 --enable_warnings
-CREATE OR REPLACE view test.v1 as select * from tb2 LIMIT 2;
+CREATE OR REPLACE view test.v1 as select * from tb2;
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM test.v1;
+SELECT * FROM test.v1 ORDER BY f59,f60,f61 LIMIT 2;
 --enable_ps_protocol
 Drop view test.v1 ;
 
@@ -880,8 +885,8 @@ let $message= Testcase 3.3.1.16 + 3.3.1.17 ;
 Drop table if exists test.v1 ;
 --enable_warnings
 CREATE OR REPLACE VIEW v1 AS SELECT * From tb2;
-# Note(ML): The empty result is intended, because I want to compare
-#           column names only
+# Note(mleich): The empty result is intended, because I want to compare
+#               column names only.
 SELECT * FROM tb2 WHERE 1 = 2;
 SELECT * FROM v1  WHERE 1 = 2;
 Drop view v1;
@@ -924,7 +929,7 @@ let $message= Testcase 3.3.1.18 ;
 #                    from the underlying base table(s) rather than the view
 #                    column names.
 ###############################################################################
-# Note(ML): The goal is to check the merge algorithm.
+# Note(mleich): The goal is to check the merge algorithm.
 --disable_warnings
 Drop view if exists v1 ;
 Drop view if exists v1_1 ;
@@ -935,14 +940,14 @@ from test.tb2 limit 0,100 ;
 Create view v1_1
 as Select test.tb2.f59 as NewNameF1, test.tb2.f60 as NewNameF2
 from tb2 limit 0,100 ;
---error 1054
+--error ER_BAD_FIELD_ERROR
 SELECT NewNameF1,f60             FROM test.v1_1 ;
---error 1054
+--error ER_BAD_FIELD_ERROR
 SELECT NewNameF1, v1_1.f60 FROM test.v1_1 ;
---error 1054
+--error ER_BAD_FIELD_ERROR
 SELECT f59, f60 FROM test.v1 ;
 Use test ;
---error 1054
+--error ER_BAD_FIELD_ERROR
 SELECT F59 FROM v1 ;
 
 
@@ -974,14 +979,14 @@ SELECT * FROM v1;
 # negative testcases (sometimes including the underlying SELECT)
 # duplicate via alias in SELECT
 SELECT f1, f2 AS f1 FROM t1;
---error 1060
+--error ER_DUP_FIELDNAME
 CREATE OR REPLACE VIEW v1 AS SELECT f1, f2 AS f1 FROM t1;
 # duplicate via JOIN SELECT
 SELECT t1.f1, t2.f1 AS f1 FROM t1, t2;
---error 1060
+--error ER_DUP_FIELDNAME
 CREATE OR REPLACE VIEW v1 AS SELECT t1.f1, t2.f1 AS f1 FROM t1, t2;
 # duplicate via VIEW definition
---error 1060
+--error ER_DUP_FIELDNAME
 CREATE OR REPLACE VIEW v1 (my_col, my_col) AS SELECT * FROM t1;
 
 
@@ -1000,13 +1005,13 @@ CREATE TABLE t1( f1 BIGINT, f2 DECIMAL(5,2));
 CREATE OR REPLACE VIEW v1 (my_f1, my_f2) AS SELECT *      FROM t1;
 CREATE OR REPLACE VIEW v1 (my_f1, my_f2) AS SELECT f1, f2 FROM t1;
 # negative cases, where we assign a wrong number of column names
---error 1353
+--error ER_VIEW_WRONG_LIST
 CREATE OR REPLACE VIEW v1 (my_f1       ) AS SELECT *      FROM t1;
---error 1353
+--error ER_VIEW_WRONG_LIST
 CREATE OR REPLACE VIEW v1 (my_f1       ) AS SELECT f1, f2 FROM t1;
---error 1353
+--error ER_VIEW_WRONG_LIST
 CREATE OR REPLACE VIEW v1 (my_f1, my_f2, my_f3) AS SELECT *      FROM t1;
---error 1353
+--error ER_VIEW_WRONG_LIST
 CREATE OR REPLACE VIEW v1 (my_f1, my_f2, my_f3) AS SELECT f1, f2 FROM t1;
 
 
@@ -1019,8 +1024,8 @@ let $message= Testcase 3.3.1.21 ;
 --disable_warnings
 DROP VIEW  IF EXISTS v1;
 --enable_warnings
-CREATE VIEW test.v1( F59, F60 ) AS SELECT F59, F60 From tb2 LIMIT 2;
-SELECT * FROM test.v1 order by F59, F60 desc;
+CREATE VIEW test.v1( F59, F60 ) AS SELECT F59, F60 From tb2;
+SELECT * FROM test.v1 order by F59, F60 desc LIMIT 2;
 Drop view if exists test.v1 ;
 
 
@@ -1034,12 +1039,12 @@ let $message= Testcase 3.3.1.22 ;
 --disable_warnings
 DROP VIEW  IF EXISTS v1;
 --enable_warnings
-CREATE VIEW test.v1( product ) AS SELECT f59*f60 From tb2 LIMIT 2;
-SELECT * FROM test.v1;
+CREATE VIEW test.v1( product ) AS SELECT f59*f60 From tb2;
+SELECT * FROM test.v1 WHERE product IS NOT NULL ORDER BY product LIMIT 2;
 CREATE OR REPLACE VIEW test.v1( product ) AS SELECT 1*2;
-SELECT * FROM test.v1;
+SELECT * FROM test.v1 LIMIT 2;
 CREATE OR REPLACE VIEW test.v1( product ) AS SELECT USER();
-SELECT * FROM test.v1;
+SELECT * FROM test.v1 LIMIT 2;
 Drop view if exists test.v1 ;
 
 
@@ -1053,18 +1058,18 @@ let $message= Testcase 3.3.1.23 + 3.3.1.24 ;
 #                    a non-existent view fails, with an appropriate error
 #                    message, at creation time.
 ###############################################################################
-# Note(ML): The SELECT statement syntax does not contain any functionality to
-#           claim, that the object after FROM must be a VIEW.
-#           Testcase 3.3.1.24 should be deleted.
+# Note(mleich): The SELECT statement syntax does not contain any functionality
+#               to claim, that the object after FROM must be a VIEW.
+#               Testcase 3.3.1.24 should be deleted.
 USE test;
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 DROP VIEW  IF EXISTS v1;
 DROP VIEW  IF EXISTS v2;
 --enable_warnings
---error 1146
+--error ER_NO_SUCH_TABLE
 CREATE VIEW test.v2 AS SELECT * FROM test.t1;
---error 1146
+--error ER_NO_SUCH_TABLE
 CREATE VIEW      v2 AS Select * from test.v1;
 DROP VIEW IF EXISTS v2;
 
@@ -1075,8 +1080,8 @@ let $message= Testcase 3.3.1.25 ;
 # Testcase 3.3.1.25: Ensure that a view cannot be based on one or more
 #                    temporary tables.
 ###############################################################################
-# Note(ML): A temporary table hides permanent tables which have the same name.
-#           So do not forget to drop the temporary table.
+# Note(mleich): A temporary table hides permanent tables which have the same
+#               name. So do not forget to drop the temporary table.
 --disable_warnings
 DROP TABLE IF EXISTS t1_temp;
 DROP TABLE IF EXISTS t2_temp;
@@ -1086,13 +1091,13 @@ Create table t1_temp(f59 char(10),f60 int) ;
 Create temporary table t1_temp(f59 char(10),f60 int) ;
 Insert into t1_temp values('FER',90);
 Insert into t1_temp values('CAR',27);
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 Create view v1 as select * from t1_temp ;
 
 Create temporary table t2_temp(f59 char(10),f60 int) ;
 Insert into t2_temp values('AAA',11);
 Insert into t2_temp values('BBB',22);
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 Create or replace view v1
 as select t1_temp.f59,t2_temp.f59 from t1_temp,t2_temp ;
 DROP temporary table t1_temp;
@@ -1110,34 +1115,34 @@ INSERT INTO t1 VALUES('A');
 INSERT INTO t2 VALUES('t2');
 INSERT INTO t2 VALUES('B');
 # simple SELECT
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT f2 FROM t2;
 # JOIN - temporary table first
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT *      FROM t2, t1;
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT f2, f1 FROM t2, t1;
 # JOIN - temporary table last
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT *      FROM t1, t2;
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT f1, f2 FROM t1, t2;
 # UNION - temporary table first
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT *  FROM t2 UNION SELECT *  FROM t1;
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT f2 FROM t2 UNION SELECT f1 FROM t1;
 # UNION - temporary table last
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT *  FROM t1 UNION SELECT *  FROM t2;
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT f1 FROM t1 UNION SELECT f2 FROM t2;
 # SUBQUERY - temporary table first
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2
 WHERE f2 = ( SELECT f1 FROM t1 );
 # SUBQUERY - temporary table last
---error 1352
+--error ER_VIEW_SELECT_TMPTABLE
 CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t1
 WHERE f1 = ( SELECT f2 FROM t2 );
 DROP TABLE t1;
@@ -1153,12 +1158,12 @@ let $message= Testcase 3.3.1.26 ;
 --disable_warnings
 DROP VIEW  IF EXISTS v1;
 --enable_warnings
-Create view test.v1 AS Select * from test.tb2 limit 2 ;
+Create view test.v1 AS Select * from test.tb2;
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-Select * from test.v1;
+Select * from test.v1 order by f59, f60, f61 limit 2;
 --enable_ps_protocol
 Drop view test.v1 ;
 
@@ -1173,9 +1178,9 @@ let $message= Testcase 3.3.1.27 ;
 DROP VIEW  IF EXISTS test.v1;
 Drop VIEW  IF EXISTS test.v1_1 ;
 --enable_warnings
-Create view test.v1 AS Select * from test.tb2 limit 2 ;
+Create view test.v1 AS Select * from test.tb2;
 Create view test.v1_1 AS Select F59 from test.v1 ;
-Select * from test.v1_1 order by F59 limit 20 ;
+Select * from test.v1_1 order by F59 limit 2;
 Drop view test.v1 ;
 Drop view test.v1_1 ;
 
@@ -1223,7 +1228,8 @@ Create view test2.v2 AS Select F59 from test.v1 ;
 Drop view if exists test.v1 ;
 Drop view if exists test2.v2 ;
 
-# Note(ML): Testcase 3.3.1.30 (identical requirements like 3.3.1.26) omitted
+# Note(mleich): Testcase 3.3.1.30 (identical requirements like 3.3.1.26)
+#               --> omitted
 
 let $message= Testcase 3.3.1.31 ;
 --source include/show_msg80.inc
@@ -1372,10 +1378,6 @@ let $message= Testcase 3.3.1.37 ;
 #                    tables and/or views, some of which reside in the same
 #                    database and some of which reside in one other database.
 ###############################################################################
-# (Bug Associated)
-# FIXME: ??? Bug number
-# FIXME: reimplement this test
-
 use test;
 --disable_warnings
 Drop table if exists t1;
@@ -1407,8 +1409,8 @@ Drop view  test.v1_main ;
 let $message= Testcase 3.3.1.31 - 3.3.1.37 New Implementation ;
 --source include/show_msg80.inc
 ###############################################################################
-# ML: The testcases 3.3.1.31 - 3.3.1.37 should be tested more systematic.
-#                  Ensure that a view can be based on a join of multiple
+# mleich: The testcases 3.3.1.31 - 3.3.1.37 should be tested more systematic.
+#                       Ensure that a view can be based on a join of multiple
 # Testcase 3.3.1.31:        tables              within the same database
 # Testcase 3.3.1.32:        tables              from another    database.
 # Testcase 3.3.1.33:        views               within the same database
@@ -1504,8 +1506,8 @@ Drop view  if exists test.v1_main;
 Drop view  if exists test1.v1_1 ;
 Drop database if exists test3 ;
 --enable_warnings
-Create view test.v1 as Select f59, f60 FROM test.tb2 limit 20 ;
-Select * from test.v1 order by f59,f60;
+Create view test.v1 as Select f59, f60 FROM test.tb2;
+Select * from test.v1 order by f59,f60 limit 20;
 
 Create table test1.t1 (f59 int,f60 int)  ;
 Insert into test1.t1 values (199,507) ;
@@ -1522,7 +1524,7 @@ Create view test3.v1_2 as Select f59,f60 from test3.t1 ;
 Select * from test3.v1_2 ;
 use test ;
 
-# ML: FIXME The SELECT should deliver at least one row.
+# mleich: FIXME The SELECT should deliver at least one row.
 Create view v1_main
 as SELECT test.tb2.f59 as f1, test1.v1_1.f59 as f2,
           test3.v1_2.f59 as f3
@@ -1546,10 +1548,10 @@ let $message= Testcase 3.3.1.39 ;
 --disable_warnings
 Drop view if exists test.v1 ;
 --enable_warnings
---error 1349
+--error ER_VIEW_SELECT_DERIVED
 CREATE VIEW test.v1
 AS Select f59 from (Select * FROM tb2 limit 20) tx ;
---error 1146
+--error ER_NO_SUCH_TABLE
 SELECT * FROM test.v1 order by f59 ;
 --disable_warnings
 Drop view if exists test.v1 ;
@@ -1568,10 +1570,10 @@ Drop view if exists test.v1 ;
 --enable_warnings
 Set @var1 = 'ABC' ;
 Set @var2 = 'XYZ' ;
---error 1351
+--error ER_VIEW_SELECT_VARIABLE
 CREATE VIEW test.v1 AS SELECT @var1, @var2 ;
 # System variables (name starts with '@@') are also not allowed
---error 1351
+--error ER_VIEW_SELECT_VARIABLE
 CREATE VIEW test.v1 AS SELECT @@global.sort_buffer_size;
 --disable_warnings
 Drop view if exists test.v1 ;
@@ -1616,11 +1618,11 @@ let $message= Testcase 3.3.1.42 ;
 --disable_warnings
 Drop VIEW if exists test.v1 ;
 --enable_warnings
---error 1064
+--error ER_PARSE_ERROR
 CREATE TEMPORARY VIEW test.v1 AS
 SELECT * FROM test.tb2 limit 2 ;
 #(02)
---error 1064
+--error ER_PARSE_ERROR
 CREATE OR REPLACE TEMPORARY VIEW test.v1 AS
 SELECT * FROM test.tb2 limit 2 ;
 
@@ -1677,12 +1679,12 @@ let $message= Testcase 3.3.1.44 ;
 #                    with an appropriate error message and do not affect the
 #                    data in the underlying tables(s).
 ###############################################################################
-# ML: Maybe we need some more tests here.
+# mleich: Maybe we need some more tests here.
 --disable_warnings
 Drop view if exists test.v1 ;
 --enable_warnings
 
-# Note(ML): The modification will fail, because the VIEW contains 'limit'
+# Note(mleich): The modification will fail, because the VIEW contains 'limit'
 CREATE VIEW test.v1 AS SELECT f59,f60 FROM test.tb2 limit 100;
 
 --error ER_NON_INSERTABLE_TABLE
@@ -1819,7 +1821,7 @@ Drop view if exists test.v1 ;
 CREATE VIEW test.v1 AS SELECT f59,f60
 FROM test.tb2 where f59 = 195 WITH CHECK OPTION ;
 
---error 1369
+--error ER_VIEW_CHECK_FAILED
 UPDATE test.v1 SET f59 = 198 where f59=195 ;
 SELECT * FROM test.v1 order by f59 ;
 
@@ -1844,14 +1846,14 @@ FROM test.tb2 where F59 = 0987 WITH LOCAL CHECK OPTION ;
 CREATE VIEW test.v2 as SELECT * FROM test.v1 ;
 
 # This UPDATE violates the definition of VIEW test.v1.
---error 1369
+--error ER_VIEW_CHECK_FAILED
 UPDATE test.v1 SET F59 = 919 where f59 = 0987 ;
 SELECT * FROM test.v1 order by f59 ;
 
-# ML: This UPDATE violates the definition of VIEW test.v1, but this
-#     does not count, because the UPDATE runs on test.v2, which
-#     is defined without any CHECK OPTION.
-#     FIXME Does this testcase fit to 3.3.1.47 ?
+# mleich: This UPDATE violates the definition of VIEW test.v1, but this
+#         does not count, because the UPDATE runs on test.v2, which
+#         is defined without any CHECK OPTION.
+#         FIXME Does this testcase fit to 3.3.1.47 ?
 UPDATE test.v2 SET F59 = 9879 where f59 = 919 ;
 SELECT * FROM tb2 where f59 = 9879 ;
 
@@ -1890,9 +1892,9 @@ INSERT INTO v1 VALUES('B',2);
 SELECT * FROM v1 order by f1, f2;
 # negative cases
 --enable_info
---error 1369
+--error ER_VIEW_CHECK_FAILED
 UPDATE v1 SET f2 = 4;
---error 1369
+--error ER_VIEW_CHECK_FAILED
 INSERT INTO v1 VALUES('B',3);
 --disable_info
 # Bug#11771: View over InnoDB table, wrong result SELECT on VIEW,
@@ -1982,7 +1984,7 @@ let $message= Testcase 3.3.1.49A ;
 #       The annoying redundant
 #       eval INSERT INTO t1_results VALUES (@v3_to_v1_options,@statement,
 #                                           @v3_to_v1_violation,$mysql_errno);
-#       could not be put into a file to be sourced because of 
+#       could not be put into a file to be sourced because of
 #       Bug#10267 mysqltest, wrong number of loops when a script is sourced
 #                 within a loop
 #
@@ -2066,7 +2068,7 @@ while ($num1)
       SELECT * FROM v3;
       SELECT * FROM t1;
       DELETE FROM t1;
-    # 2. DELETEs within v3 
+    # 2. DELETEs within v3
       # Outside v1 (0 to 10)
       INSERT INTO t1 VALUES(16, 'sixteen');
       # Inside v1 (0 to 10), Outside v2 ((0 to 10) AND (6 to 16) -> (6 to 10))
@@ -2242,7 +2244,7 @@ while ($num1)
 
 SELECT * FROM t1_results ORDER BY v3_to_v1_options;
 
-let $message= 
+let $message=
 Plausibility checks for INSERTs and UPDATEs ( 4. and 5. above).
 All following SELECTs must give ROW NOT FOUND ;
 --source include/show_msg80.inc
@@ -2259,10 +2261,10 @@ SELECT * FROM t1_results
 WHERE v3_to_v1_options LIKE '  %' AND errno <> 0
 ORDER BY v3_to_v1_options;
 # 3. There must be NO successful INSERT/UPDATE, when the toplevel VIEW v3 is
-#    defined with any CHECK OPTION and the WHERE qualification of this VIEW is 
+#    defined with any CHECK OPTION and the WHERE qualification of this VIEW is
 #    violated. Expect ROW NOT FUND
 SELECT * FROM t1_results
-WHERE v3_to_v1_options LIKE 'WITH %' 
+WHERE v3_to_v1_options LIKE 'WITH %'
   AND v3_to_v1_violation LIKE 'v3_%' AND errno = 0
 ORDER BY v3_to_v1_options;
 # 4. There must be NO successful INSERT/UPDATE, when the toplevel VIEW v3 is
@@ -2272,7 +2274,8 @@ SELECT * FROM t1_results
 WHERE v3_to_v1_options LIKE 'WITH %' AND v3_to_v1_options NOT LIKE 'WITH LOCAL %'
   AND v3_to_v1_violation NOT LIKE '  _  _  ' AND errno = 0
 ORDER BY v3_to_v1_options;
-# 5. There must be NO failing INSERT/UPDATE getting a sql_errno <> 1369.
+# 5. There must be NO failing INSERT/UPDATE getting a
+#    sql_errno <> 1369 (ER_VIEW_CHECK_FAILED).
 SELECT * FROM t1_results
 WHERE errno <> 0 AND errno <> 1369
 ORDER BY v3_to_v1_options;
@@ -2294,12 +2297,12 @@ DROP VIEW  IF EXISTS test.v1;
 #                    that is semantically equivalent to CREATE VIEW <view name>
 #                    AS SELECT * FROM <table name>.
 ###############################################################################
-CREATE VIEW test.v1 AS SELECT * FROM test.tb2 limit 5 ;
+CREATE VIEW test.v1 AS SELECT * FROM test.tb2;
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM test.v1 order by f59 ;
+SELECT * FROM test.v1 order by f59 limit 5;
 --enable_ps_protocol
 drop view test.v1 ;
 ###############################################################################
@@ -2309,8 +2312,8 @@ drop view test.v1 ;
 #                    that is semantically equivalent to CREATE VIEW <view name>
 #                    AS SELECT col1, col3 FROM <table name>.
 ###############################################################################
-CREATE VIEW test.v1 AS SELECT F59,F61 FROM test.tb2 limit 50 ;
-SELECT * FROM test.v1 order by F59, F61 ;
+CREATE VIEW test.v1 AS SELECT F59,F61 FROM test.tb2;
+SELECT * FROM test.v1 order by F59, F61 limit 50;
 drop view test.v1 ;
 ###############################################################################
 # Testcase 3.3.1.52: Ensure that a view that is a subset of every column and
@@ -2319,12 +2322,12 @@ drop view test.v1 ;
 #                    that is semantically equivalent to CREATE VIEW <view name>
 #                    AS SELECT * FROM <table name> WHERE ....
 ###############################################################################
-CREATE VIEW test.v1 AS SELECT * FROM test.tb2 order by f59, f60, f61 limit 20 ;
+CREATE VIEW test.v1 AS SELECT * FROM test.tb2 order by f59, f60, f61;
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM test.v1 order by f59,f60,f61 ;
+SELECT * FROM test.v1 order by f59,f60,f61 limit 20;
 --enable_ps_protocol
 drop view test.v1 ;
 ###############################################################################
@@ -2334,8 +2337,8 @@ drop view test.v1 ;
 #                    definition that is semantically equivalent to CREATE VIEW
 #                    <view name> AS SELECT col1, col3 FROM <table name> WHERE ..
 ###############################################################################
-CREATE VIEW test.v1 AS SELECT F59,f61 FROM test.tb2 limit 20 ;
-SELECT * FROM test.v1 order by f59,f61 desc limit 50;
+CREATE VIEW test.v1 AS SELECT F59,f61 FROM test.tb2;
+SELECT * FROM test.v1 order by f59,f61 desc limit 20;
 drop view test.v1 ;
 
 
@@ -2370,10 +2373,10 @@ drop table test.t2 ;
 drop view  test.v1 ;
 
 
-# FIXME(ML): Implement an automatic check for 3.3.1.50 - 3.3.1.54
-#            CREATE VIEW ... AS <SELECT ... FROM tb2 ...>
-#            CREATE TEMPORARY TABLE ... AS <SELECT ... FROM tb2 ...>
-#            Comparison of the VIEW with the temporary table
+# FIXME(mleich): Implement an automatic check for 3.3.1.50 - 3.3.1.54
+#                CREATE VIEW ... AS <SELECT ... FROM tb2 ...>
+#                CREATE TEMPORARY TABLE ... AS <SELECT ... FROM tb2 ...>
+#                Comparison of the VIEW with the temporary table
 
 let $message= Testcase 3.3.1.50 - 3.3.1.54 additional implementation;
 --source include/show_msg80.inc
@@ -2704,7 +2707,7 @@ CREATE VIEW  v1 AS SELECT f1 FROM t1;
 
 # DROP VIEW
 DROP VIEW v1;
---error 1051
+--error ER_BAD_TABLE_ERROR
 DROP VIEW v1;
 
 CREATE VIEW  v1 AS SELECT f1 FROM t1;
@@ -2751,7 +2754,7 @@ while ($num1)
   # DROP VIEW v1_top < |RESTRICD|CASCADE> must be successful.
   eval $aux1 ;
   # Check, that v1_top really no more exists + cleanup for the second sub test
-  --error 1051
+  --error ER_BAD_TABLE_ERROR
   DROP VIEW v1_top;
 
   CREATE VIEW  v1_top AS SELECT * FROM v1_base;
@@ -2781,8 +2784,8 @@ let $message= Testcase 3.3.1.69, 3.3.1.70, 3.3.1.A5 ;
 # 3.3.1.A5    SHOW COLUMNS, SHOW FIELDS, DESCRIBE, EXPLAIN
 #             statement is executed
 ###############################################################################
-# Note(ML): There will be no non failing sub testcases with SHOW here.
-#           They will be done in 3.3.11 ff.
+# Note(mleich): There will be no non failing sub testcases with SHOW here.
+#               They will be done in 3.3.11 ff.
 --disable_warnings
 DROP TABLE IF EXISTS t1 ;
 DROP VIEW  IF EXISTS v1 ;
@@ -2793,24 +2796,24 @@ DROP VIEW v1 ;
 
 # The negative tests:
 #     SELECT
---error 1146
+--error ER_NO_SUCH_TABLE
 SELECT * FROM v1 ;
 #
---error 1146
+--error ER_NO_SUCH_TABLE
 SHOW CREATE VIEW v1 ;
---error 1146
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE v1 ;
 # Attention: Like is a filter. So we will get an empty result set here.
 SHOW TABLE STATUS like 'v1' ;
 SHOW TABLES LIKE 'v1';
---error 1146
+--error ER_NO_SUCH_TABLE
 SHOW COLUMNS FROM v1;
---error 1146
+--error ER_NO_SUCH_TABLE
 SHOW FIELDS  FROM v1;
 CHECK TABLE v1;
---error 1146
+--error ER_NO_SUCH_TABLE
 DESCRIBE v1;
---error 1146
+--error ER_NO_SUCH_TABLE
 EXPLAIN SELECT * FROM v1;
 
 Use test;
@@ -2879,34 +2882,34 @@ eval EXPLAIN SELECT * FROM test3.v$toplevel;
 # 1.2 Check the top level view when a base VIEW is dropped
 DROP VIEW test3.v0;
 eval SHOW CREATE VIEW test3.v$toplevel;
---error 1356
+--error ER_VIEW_INVALID
 eval SELECT * FROM test3.v$toplevel;
---error 1356
+--error ER_VIEW_INVALID
 eval EXPLAIN SELECT * FROM test3.v$toplevel;
 
 
 # 2. Complicated nested VIEWs
 #       parameter @max_level = nesting level
 #       There is a limit(@join_limit = 61) for the number of tables which
-#       could be joined. This limit will be reached, when we set 
+#       could be joined. This limit will be reached, when we set
 #            @max_level = @join_limit - 1  .
 --disable_query_log
 #++++++++++++++++++++++++++++++++++++++++++++++
 # OBN - Reduced the value of join limit to 30
 #       Above seems to hang - FIXME
-# ML  - Reason unclear why it hangs for OBN on innodb and memory.
-#       Hypothesis: Maybe the consumption of virtual memory is high
-#                   and OBN's box performs excessive paging.
-#                   (RAM: OBN ~384MB RAM, ML 1 GB)
+# mleich  - Reason unclear why it hangs for OBN on innodb and memory.
+#           Hypothesis: Maybe the consumption of virtual memory is high
+#                       and OBN's box performs excessive paging.
+#                       (RAM: OBN ~384MB RAM, mleich 1 GB)
 #++++++++++++++++++++++++++++++++++++++++++++++
 let $message= FIXME - Setting join_limit to 28 - hangs for higher values;
 --source include/show_msg.inc
 # OBN - Reduced from 30 in 5.1.21 to avoid hitting the ndbcluster limit
-#       of "ERROR HY000:RROR HY000: Got temporary error 4006 'Connect failure 
-#           - out of connection objects (increase MaxNoOfConcurrentTransactions)' 
+#       of "ERROR HY000: Got temporary error 4006 'Connect failure
+#           - out of connection objects (increase MaxNoOfConcurrentTransactions)'
 #           from NDBCLUSTER " to early;
 #SET @join_limit = 61;
-SET @join_limit = 28; # OBN - see above 
+SET @join_limit = 28; # OBN - see above
 SET @max_level = @join_limit - 1;
 --enable_query_log
 
@@ -3042,9 +3045,9 @@ let $sublevel= `SELECT @max_level`;
 eval CREATE VIEW test1.v$level AS SELECT f1, f2
             FROM test3.t1 tab1 NATURAL JOIN test1.v$sublevel tab2;
 eval SHOW CREATE VIEW test1.v$level;
-# the following line as written as '--eror 1116' and the command
+# the following line as written as '--eror ER_TOO_MANY_TABLES' and the command
 # is successful so assuming no expected error was intended
-# --error 1116
+# --error ER_TOO_MANY_TABLES
 eval SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
             CAST(f2 AS CHAR) AS f2 FROM test1.v$level;
 let $message= The output of following EXPLAIN is deactivated, because the result
@@ -3055,9 +3058,9 @@ if (1)
 {
 --disable_result_log
 }
-# the following line as written as '--eror 1116' and the command
+# the following line as written as '--eror ER_TOO_MANY_TABLES' and the command
 # is successful so assuming no expected error was intended
-# --error 1116
+# --error ER_TOO_MANY_TABLES
 eval EXPLAIN SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
                 CAST(f2 AS CHAR) AS f2 FROM test1.v$level;
 if (1)
@@ -3070,10 +3073,10 @@ eval DROP VIEW IF EXISTS test1.v$level;
 #     and check the behaviour of the top level view.
 # 2.3.1 Exchange numeric and string column
 --disable_result_log
-CREATE OR REPLACE VIEW test1.v0 AS 
+CREATE OR REPLACE VIEW test1.v0 AS
 SELECT f1 as f2, f2 as f1 FROM test2.t1;
 # 2.3.2 DATE instead of numeric
-CREATE OR REPLACE VIEW test2.v0 AS 
+CREATE OR REPLACE VIEW test2.v0 AS
 SELECT CAST('0001-01-01' AS DATE) as f1, f2 FROM test3.t1;
 eval SHOW CREATE VIEW test1.v$toplevel;
 eval SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
@@ -3536,25 +3539,25 @@ DELETE FROM t1;
 #------------------------------------------------
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 # UPDATE my_greeting - f1
---error 1348
+--error ER_NONUPDATEABLE_COLUMN
 UPDATE v1 SET my_greeting = 'Hej' WHERE f1 = 1;
 SELECT * from t1;
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 # UPDATE my_greeting - f2
---error 1348
+--error ER_NONUPDATEABLE_COLUMN
 UPDATE v1 SET my_greeting = 'Hej' WHERE f2 = 'ABC';
 SELECT * from t1;
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 # UPDATE my_greeting - my_greeting
---error 1348
+--error ER_NONUPDATEABLE_COLUMN
 UPDATE v1 SET my_greeting = 'Hej' WHERE my_greeting = 'HELLO';
 SELECT * from t1;
 DELETE FROM t1;
 INSERT INTO t1 VALUES(1, 'ABC', -1.2E-3, 'X');
 # UPDATE my_greeting - none
---error 1348
+--error ER_NONUPDATEABLE_COLUMN
 UPDATE v1 SET my_greeting = 'Hej';
 SELECT * from t1;
 DELETE FROM t1;
@@ -3577,7 +3580,7 @@ DROP VIEW v1;
 CREATE VIEW v1 AS SELECT f1, f2, f4 FROM t1;
 
 # This INSERT must fail
---error 1423
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
 INSERT INTO v1 SET f1 = 1;
 SELECT * from t1;
 DELETE FROM t1;
@@ -3630,10 +3633,10 @@ let $message= Testcases 3.3.2.7 - 3.3.2.9,
 # Summary of 3.3.2.7 - 3.3.2.11
 #        Ensure that a view with a definition that includes
 #        UNION or UNION DISTINCT or UNION ALL or EXCEPT or INTERSECT
-#        rejects any INSERT or UPDATE or DELETE statement with an 
+#        rejects any INSERT or UPDATE or DELETE statement with an
 #        appropriate error message
 #
-# ML: I assume the type of the storage engine does not play any role.
+# mleich: I assume the type of the storage engine does not play any role.
 ###############################################################################
 INSERT INTO tb2 (f59,f60,f61) VALUES (77,185,126) ;
 INSERT INTO tb2 (f59,f60,f61) VALUES (59,58,54) ;
@@ -3668,9 +3671,9 @@ while ($num)
    eval $aux;
    --error ER_NON_INSERTABLE_TABLE
    INSERT INTO v1 VALUES (3000);
-   --error 1288
+   --error ER_NON_UPDATABLE_TABLE
    UPDATE v1 SET f61 = 100 WHERE f61 = 32;
-   --error 1288
+   --error ER_NON_UPDATABLE_TABLE
    DELETE FROM v1;
    DROP VIEW v1 ;
 
@@ -3771,13 +3774,17 @@ SET @variant7= 'CREATE VIEW v1 AS SELECT f61 FROM v2';
 #            but the error message
 #                ERROR 1093 (HY000) : You can't specify target table 'v1' for
 #                update in FORM clause"
-#            is wrong. The server must deliver ERROR 1288.
+#            is wrong.
+#            The server must deliver ERROR 1288 (ER_NON_UPDATABLE_TABLE).
 #            Bug#10773 Incorrect message is displayed while updating a view
-# ML FIXME (remove the comment above, replace --error 1288,1093 with 
-#    --error 1288 and update the file with expected results)
-#    when Bug#10773 is solved
+# mleich FIXME: Remove the comment above, replace
+#                  --error ER_NON_UPDATABLE_TABLE,ER_UPDATE_TABLE_USED
+#               with
+#                  --error ER_NON_UPDATABLE_TABLE
+#               and update the file with expected results when the
+#               Bug#10773 is fixed.
 # For a reference to a non-updateable view 3.3.2.19
-let $message= Some server responses suffer from 
+let $message= Some server responses suffer from
 Bug#10773 Incorrect message is displayed while updating a view;
 --source include/show_msg80.inc
 SET @variant8= 'CREATE VIEW v1 AS SELECT f59 AS f61 FROM t1 WHERE f60 IN (SELECT f59 FROM t1)';
@@ -3798,15 +3805,12 @@ while ($num)
 
    --error ER_NON_INSERTABLE_TABLE
    INSERT INTO v1 VALUES (1002);
-   --error 1288, 1093
+   # --error ER_NON_UPDATABLE_TABLE, ER_UPDATE_TABLE_USED
+   --error ER_NON_UPDATABLE_TABLE
    UPDATE v1 SET f61=1007;
-   --error 1288
+   --error ER_NON_UPDATABLE_TABLE
    DELETE FROM v1;
 
-   # The following "--error 0" will be no more needed, when 
-   #    Bug#12471: mysqltest, --error within loop affects wrong statement
-   # is fixed.
-   --error 0
    DROP VIEW v1;
 
    dec $num;
@@ -3827,7 +3831,7 @@ let $message= Testcases 3.3.A1;
 #
 #            There is no specification of the intended behaviour within
 #            the MySQL manual. That means I assume the observed effects are
-#            no bug as long we do not get a crash or obviously non 
+#            no bug as long we do not get a crash or obviously non
 #            reasonable results.
 ###############################################################################
 --disable_warnings
@@ -3852,18 +3856,18 @@ SELECT * FROM v1 order by f1, report;
 # 1. Name of one base table column is altered
 ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
 INSERT INTO t1 SET f1 = 0, f4x = 'ABC', report = 't1 1';
---error 1356
+--error ER_VIEW_INVALID
 INSERT INTO v1 SET f1 = 0, f4  = 'ABC', report = 'v1 1';
---error 1054
+--error ER_BAD_FIELD_ERROR
 INSERT INTO v1 SET f1 = 0, f4x = 'ABC', report = 'v1 1a';
---error 1356
+--error ER_VIEW_INVALID
 INSERT INTO v1 SET f1 = 0, report = 'v1 1b';
 DESCRIBE t1;
 # Bug#12533 crash on DESCRIBE <view> after renaming base table column;
---error 1356
+--error ER_VIEW_INVALID
 DESCRIBE v1;
 SELECT * FROM t1 order by f1, report;
---error 1356
+--error ER_VIEW_INVALID
 SELECT * FROM v1 order by f1, report;
 ALTER TABLE t1 CHANGE COLUMN f4x f4 CHAR(5);
 #
@@ -3894,11 +3898,11 @@ DESCRIBE v1;
 SELECT * FROM t1 order by f1, report;
 SELECT * FROM v1 order by f1, report;
 #
-# 5. Type of one base table column altered   numeric -> string 
+# 5. Type of one base table column altered   numeric -> string
 ALTER TABLE t1 CHANGE COLUMN f1 f1 VARCHAR(30);
-INSERT INTO t1 SET f1 = '<------------- 30 ----------->', 
+INSERT INTO t1 SET f1 = '<------------- 30 ----------->',
                    f4 = '<------ 20 -------->', report = 't1 5';
-INSERT INTO v1 SET f1 = '<------------- 30 ----------->', 
+INSERT INTO v1 SET f1 = '<------------- 30 ----------->',
                    f4 = '<------ 20 -------->', report = 'v1 5';
 DESCRIBE t1;
 DESCRIBE v1;
@@ -3908,13 +3912,13 @@ SELECT * FROM v1 order by f1, report;
 # 6. DROP of one base table column
 ALTER TABLE t1 DROP COLUMN f2;
 INSERT INTO t1 SET f1 = 'ABC', f4 = '<------ 20 -------->', report = 't1 6';
---error 1356
+--error ER_VIEW_INVALID
 INSERT INTO v1 SET f1 = 'ABC', f4 = '<------ 20 -------->', report = 'v1 6';
 DESCRIBE t1;
---error 1356
+--error ER_VIEW_INVALID
 DESCRIBE v1;
 SELECT * FROM t1 order by f1, report;
---error 1356
+--error ER_VIEW_INVALID
 SELECT * FROM v1 order by f1, report;
 #
 # 7. Recreation of dropped base table column with the same data type like before
@@ -3945,7 +3949,7 @@ SELECT * FROM v1 order by f1, report;
 ALTER TABLE t1 ADD COLUMN f3 NUMERIC(7,2);
 INSERT INTO t1 SET f1 = 'ABC', f2 = -3.3E-4,
                    f3 = -2.2, f4 = '<------ 20 -------->', report = 't1 9';
---error 1054
+--error ER_BAD_FIELD_ERROR
 INSERT INTO v1 SET f1 = 'ABC', f2 = -3.3E-4,
                    f3 = -2.2, f4 = '<------ 20 -------->', report = 'v1 9';
 INSERT INTO v1 SET f1 = 'ABC', f2 = -3.3E-4,

@@ -272,6 +272,52 @@ handler t1 read a=(1);
 handler t1 close;
 drop table t1;
 
+#
+# Bug #30219: GROUP BY a column of the BIT type
+#
+
+CREATE TABLE t1 (b BIT(2), a VARCHAR(5));
+INSERT INTO t1 (b, a) VALUES (1, "x"), (3, "zz"), (0, "y"), (3, "z");
+SELECT b+0, COUNT(DISTINCT a) FROM t1 GROUP BY b;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a CHAR(5), b BIT(2));
+INSERT INTO t1 (b, a) VALUES (1, "x"), (3, "zz"), (0, "y"), (3, "z");
+SELECT b+0, COUNT(DISTINCT a) FROM t1 GROUP BY b;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT, b BIT(2));
+INSERT INTO t1 (b, a) VALUES (1, 1), (3, 2), (0, 3), (3, 4);
+SELECT b+0, COUNT(DISTINCT a) FROM t1 GROUP BY b;
+DROP TABLE t1;
+
+#
+# Bug#30245: A wrong type of a BIT field is reported when grouped by it.
+#
+CREATE TABLE t1 (b BIT);
+INSERT INTO t1 (b) VALUES (1), (0);
+--enable_metadata
+--replace_column 1 #
+SELECT DISTINCT b FROM t1;
+--replace_column 1 #
+SELECT b FROM t1 GROUP BY b;
+--disable_metadata
+DROP TABLE t1;
+
+#
+# BUG#30324 Wrong query result for COUNT(DISTINCT(bit_column))
+#
+CREATE TABLE t1 (a int, b bit(2));
+INSERT INTO t1 VALUES (3, 2), (2, 3), (2, 0), (3, 2), (3, 1);
+SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
+DROP TABLE t1;
+
+create table t2 (a int, b bit(2), c char(10));
+INSERT INTO t2 VALUES (3, 2, 'two'), (2, 3, 'three'), (2, 0, 'zero'), 
+                      (3, 2, 'two'), (3, 1, 'one');
+SELECT COUNT(DISTINCT b,c) FROM t2 GROUP BY a;
+DROP TABLE t2;
+
 --echo End of 5.0 tests
 
 #

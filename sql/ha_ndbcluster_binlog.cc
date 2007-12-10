@@ -267,7 +267,7 @@ static void run_query(THD *thd, char *buf, char *end,
   DBUG_PRINT("query", ("%s", thd->query));
   mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
 
-  if (no_print_error && thd->query_error)
+  if (no_print_error && thd->is_slave_error)
   {
     int i;
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -279,7 +279,7 @@ static void run_query(THD *thd, char *buf, char *end,
       sql_print_error("NDB: %s: error %s %d(ndb: %d) %d %d",
                       buf, thd->net.last_error, thd->net.last_errno,
                       thd_ndb->m_error_code,
-                      thd->net.report_error, thd->query_error);
+                      (int) thd->is_error(), thd->is_slave_error);
   }
 
   thd->options= save_thd_options;
@@ -342,7 +342,7 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share)
     (TABLE*)alloc_root(&event_data->mem_root, sizeof(TABLE));
 
   safe_mutex_assert_owner(&LOCK_open);
-  init_tmp_table_share(table_share, share->db, 0, share->table_name, 
+  init_tmp_table_share(thd, table_share, share->db, 0, share->table_name, 
                        share->key);
   if ((error= open_table_def(thd, table_share, 0)) ||
       (error= open_table_from_share(thd, table_share, "", 0, 
@@ -4795,6 +4795,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     pthread_exit(0);
     DBUG_RETURN(NULL);
   }
+  lex_start(thd);
 
   thd->init_for_queries();
   thd->command= COM_DAEMON;

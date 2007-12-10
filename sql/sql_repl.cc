@@ -452,7 +452,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     name=0;					// Find first log
 
   linfo.index_file_offset = 0;
-  thd->current_linfo = &linfo;
 
   if (mysql_bin_log.find_log_pos(&linfo, name, 1))
   {
@@ -460,6 +459,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
   }
+
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->current_linfo = &linfo;
+  pthread_mutex_unlock(&LOCK_thread_count);
 
   if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0)
   {
@@ -887,7 +890,7 @@ err:
   DBUG_VOID_RETURN;
 }
 
-int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
+int start_slave(THD* thd , Master_info* mi,  bool net_report)
 {
   int slave_errno= 0;
   int thread_mask;
@@ -924,7 +927,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 
         if (thd->lex->mi.pos)
         {
-          mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_MASTER_POS;
+          mi->rli.until_condition= Relay_log_info::UNTIL_MASTER_POS;
           mi->rli.until_log_pos= thd->lex->mi.pos;
           /*
              We don't check thd->lex->mi.log_file_name for NULL here
@@ -935,7 +938,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
         }
         else if (thd->lex->mi.relay_log_pos)
         {
-          mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_RELAY_POS;
+          mi->rli.until_condition= Relay_log_info::UNTIL_RELAY_POS;
           mi->rli.until_log_pos= thd->lex->mi.relay_log_pos;
           strmake(mi->rli.until_log_name, thd->lex->mi.relay_log_name,
                   sizeof(mi->rli.until_log_name)-1);
@@ -943,7 +946,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
         else
           mi->rli.clear_until_condition();
 
-        if (mi->rli.until_condition != RELAY_LOG_INFO::UNTIL_NONE)
+        if (mi->rli.until_condition != Relay_log_info::UNTIL_NONE)
         {
           /* Preparing members for effective until condition checking */
           const char *p= fn_ext(mi->rli.until_log_name);
@@ -965,7 +968,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 
           /* mark the cached result of the UNTIL comparison as "undefined" */
           mi->rli.until_log_names_cmp_result=
-            RELAY_LOG_INFO::UNTIL_LOG_NAMES_CMP_UNKNOWN;
+            Relay_log_info::UNTIL_LOG_NAMES_CMP_UNKNOWN;
 
           /* Issuing warning then started without --skip-slave-start */
           if (!opt_skip_slave_start)
@@ -1012,7 +1015,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 }
 
 
-int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
+int stop_slave(THD* thd, Master_info* mi, bool net_report )
 {
   DBUG_ENTER("stop_slave");
   
@@ -1078,7 +1081,7 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
 */
 
 
-int reset_slave(THD *thd, MASTER_INFO* mi)
+int reset_slave(THD *thd, Master_info* mi)
 {
   MY_STAT stat_area;
   char fname[FN_REFLEN];
@@ -1192,7 +1195,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
 }
 
 
-bool change_master(THD* thd, MASTER_INFO* mi)
+bool change_master(THD* thd, Master_info* mi)
 {
   int thread_mask;
   const char* errmsg= 0;
@@ -1488,13 +1491,16 @@ bool mysql_show_binlog_events(THD* thd)
       name=0;					// Find first log
 
     linfo.index_file_offset = 0;
-    thd->current_linfo = &linfo;
 
     if (mysql_bin_log.find_log_pos(&linfo, name, 1))
     {
       errmsg = "Could not find target log";
       goto err;
     }
+
+    pthread_mutex_lock(&LOCK_thread_count);
+    thd->current_linfo = &linfo;
+    pthread_mutex_unlock(&LOCK_thread_count);
 
     if ((file=open_binlog(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
@@ -1801,6 +1807,9 @@ static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff);
 
 static SHOW_VAR fixed_vars[]= {
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
+  {"relay_log" , (char*) &opt_relay_logname, SHOW_CHAR_PTR},
+  {"relay_log_index", (char*) &opt_relaylog_index_name, SHOW_CHAR_PTR},
+  {"relay_log_info_file", (char*) &relay_log_info_file, SHOW_CHAR_PTR},
   {"relay_log_space_limit",   (char*) &relay_log_space_limit,       SHOW_LONGLONG},
   {"slave_load_tmpdir",       (char*) &slave_load_tmpdir,           SHOW_CHAR_PTR},
   {"slave_skip_errors",       (char*) &show_slave_skip_errors,      SHOW_FUNC},

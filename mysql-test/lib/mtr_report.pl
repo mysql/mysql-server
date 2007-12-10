@@ -19,6 +19,7 @@
 # same name.
 
 use strict;
+use warnings;
 
 sub mtr_report_test_name($);
 sub mtr_report_test_passed($);
@@ -26,7 +27,6 @@ sub mtr_report_test_failed($);
 sub mtr_report_test_skipped($);
 sub mtr_report_test_not_skipped_though_disabled($);
 
-sub mtr_show_failed_diff ($);
 sub mtr_report_stats ($);
 sub mtr_print_line ();
 sub mtr_print_thick_line ();
@@ -38,6 +38,9 @@ sub mtr_child_error (@);
 sub mtr_debug (@);
 sub mtr_verbose (@);
 
+my $tot_real_time= 0;
+
+
 
 ##############################################################################
 #
@@ -45,43 +48,10 @@ sub mtr_verbose (@);
 #
 ##############################################################################
 
-# We can't use diff -u or diff -a as these are not portable
-
-sub mtr_show_failed_diff ($) {
-  my $tinfo=  shift;
-
-  # The reject and log files have been dumped to
-  # to filenames based on the result_file's name
-  my $base_file= mtr_match_extension($tinfo->{'result_file'},
-				    "result"); # Trim extension
-  my $reject_file=  "$base_file.reject";
-  my $result_file=  "$base_file.result";
-  my $log_file=     "$base_file.log";
-
-  my $diffopts= $::opt_udiff ? "-u" : "-c";
-
-  if ( -f $reject_file )
-  {
-    print "Below are the diffs between actual and expected results:\n";
-    print "-------------------------------------------------------\n";
-    # FIXME check result code?!
-    mtr_run("diff",[$diffopts,$result_file,$reject_file], "", "", "", "");
-    print "-------------------------------------------------------\n";
-    print "Please follow the instructions outlined at\n";
-    print "http://www.mysql.com/doc/en/Reporting_mysqltest_bugs.html\n";
-    print "to find the reason to this problem and how to report this.\n\n";
-  }
-
-  if ( -f $log_file )
-  {
-    print "Result from queries before failure can be found in $log_file\n";
-    # FIXME Maybe a tail -f -n 10 $log_file here
-  }
-}
-
 sub mtr_report_test_name ($) {
   my $tinfo= shift;
 
+  _mtr_log("$tinfo->{name}");
   printf "%-30s ", $tinfo->{'name'};
 }
 
@@ -91,15 +61,15 @@ sub mtr_report_test_skipped ($) {
   $tinfo->{'result'}= 'MTR_RES_SKIPPED';
   if ( $tinfo->{'disable'} )
   {
-    print "[ disabled ]  $tinfo->{'comment'}\n";
+    mtr_report("[ disabled ]  $tinfo->{'comment'}");
   }
   elsif ( $tinfo->{'comment'} )
   {
-    print "[ skipped ]   $tinfo->{'comment'}\n";
+    mtr_report("[ skipped ]   $tinfo->{'comment'}");
   }
   else
   {
-    print "[ skipped ]\n";
+    mtr_report("[ skipped ]");
   }
 }
 
@@ -127,11 +97,11 @@ sub mtr_report_test_passed ($) {
   if ( $::opt_timer and -f "$::opt_vardir/log/timer" )
   {
     $timer= mtr_fromfile("$::opt_vardir/log/timer");
-    $::glob_tot_real_time += ($timer/1000);
+    $tot_real_time += ($timer/1000);
     $timer= sprintf "%12s", $timer;
   }
   $tinfo->{'result'}= 'MTR_RES_PASSED';
-  print "[ pass ]   $timer\n";
+  mtr_report("[ pass ]   $timer");
 }
 
 sub mtr_report_test_failed ($) {
@@ -140,27 +110,34 @@ sub mtr_report_test_failed ($) {
   $tinfo->{'result'}= 'MTR_RES_FAILED';
   if ( defined $tinfo->{'timeout'} )
   {
-    print "[ fail ]  timeout\n";
+    mtr_report("[ fail ]  timeout");
     return;
   }
   else
   {
-    print "[ fail ]\n";
+    mtr_report("[ fail ]");
   }
 
   if ( $tinfo->{'comment'} )
   {
-    print "\nERROR: $tinfo->{'comment'}\n";
+    # The test failure has been detected by mysql-test-run.pl
+    # when starting the servers or due to other error, the reason for
+    # failing the test is saved in "comment"
+    mtr_report("\nERROR: $tinfo->{'comment'}");
   }
   elsif ( -f $::path_timefile )
   {
-    print "\nErrors are (from $::path_timefile) :\n";
+    # Test failure was detected by test tool and it's report
+    # about what failed has been saved to file. Display the report.
+    print "\n";
     print mtr_fromfile($::path_timefile); # FIXME print_file() instead
-    print "\n(the last lines may be the most important ones)\n";
+    print "\n";
   }
   else
   {
-    print "\nUnexpected termination, probably when starting mysqld\n";
+    # Neither this script or the test tool has recorded info
+    # about why the test has failed. Should be debugged.
+    mtr_report("\nUnexpected termination, probably when starting mysqld");;
   }
 }
 
@@ -219,7 +196,7 @@ sub mtr_report_stats ($) {
       "of what went wrong.\n",
       "If you want to report this error, please read first ",
       "the documentation at\n",
-      "http://www.mysql.com/doc/en/MySQL_test_suite.html\n";
+      "http://dev.mysql.com/doc/mysql/en/mysql-test-suite.html\n";
   }
   if (!$::opt_extern)
   {
@@ -228,8 +205,10 @@ sub mtr_report_stats ($) {
 
   if ( $::opt_timer )
   {
-    print
-      "Spent $::glob_tot_real_time seconds actually executing testcases\n"
+    use English;
+
+    mtr_report("Spent", sprintf("%.3f", $tot_real_time),"of",
+	       time - $BASETIME, "seconds executing testcases");
   }
 
   # ----------------------------------------------------------------------
@@ -366,13 +345,22 @@ sub mtr_report_stats ($) {
 
                 # BUG#29807 - innodb_mysql.test: Cannot find table test/t2
                 #             from the internal data dictionary
-                /Cannot find table test\/bug29807 from the internal data dictionary/ or
+                /Cannot find or open table test\/bug29807 from/ or
 
                 # BUG#29839 - lowercase_table3.test: Cannot find table test/T1
                 #             from the internal data dictiona
                 /Cannot find table test\/BUG29839 from the internal data dictionary/ or
+
                 # rpl_ndb_basic expects this error
-                /Slave: Got error 146 during COMMIT Error_code: 1180/
+                /Slave: Got error 146 during COMMIT Error_code: 1180/ or
+
+		# rpl_extrColmaster_*.test, the slave thread produces warnings
+		# when it get updates to a table that has more columns on the
+		# master
+		/Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
+		/Slave: Can't DROP 'c7'.* 1091/ or
+		/Slave: Key column 'c6'.* 1072/
+
 	       )
             {
               next;                       # Skip these lines
@@ -489,35 +477,66 @@ sub mtr_print_header () {
 
 ##############################################################################
 #
-#  Misc
+#  Log and reporting functions
 #
 ##############################################################################
 
+use IO::File;
+
+my $log_file_ref= undef;
+
+sub mtr_log_init ($) {
+  my ($filename)= @_;
+
+  mtr_error("Log is already open") if defined $log_file_ref;
+
+  $log_file_ref= IO::File->new($filename, "a") or
+    mtr_warning("Could not create logfile $filename: $!");
+}
+
+sub _mtr_log (@) {
+  print $log_file_ref join(" ", @_),"\n"
+    if defined $log_file_ref;
+}
+
 sub mtr_report (@) {
+  # Print message to screen and log
+  _mtr_log(@_);
   print join(" ", @_),"\n";
 }
 
 sub mtr_warning (@) {
+  # Print message to screen and log
+  _mtr_log("WARNING: ", @_);
   print STDERR "mysql-test-run: WARNING: ",join(" ", @_),"\n";
 }
 
 sub mtr_error (@) {
+  # Print message to screen and log
+  _mtr_log("ERROR: ", @_);
   print STDERR "mysql-test-run: *** ERROR: ",join(" ", @_),"\n";
   mtr_exit(1);
 }
 
 sub mtr_child_error (@) {
+  # Print message to screen and log
+  _mtr_log("ERROR(child): ", @_);
   print STDERR "mysql-test-run: *** ERROR(child): ",join(" ", @_),"\n";
   exit(1);
 }
 
 sub mtr_debug (@) {
+  # Only print if --script-debug is used
   if ( $::opt_script_debug )
   {
+    _mtr_log("###: ", @_);
     print STDERR "####: ",join(" ", @_),"\n";
   }
 }
+
 sub mtr_verbose (@) {
+  # Always print to log, print to screen only when --verbose is used
+  _mtr_log("> ",@_);
   if ( $::opt_verbose )
   {
     print STDERR "> ",join(" ", @_),"\n";

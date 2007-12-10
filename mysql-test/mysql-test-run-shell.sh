@@ -23,7 +23,16 @@ USE_MANAGER=0
 MY_TZ=GMT-3
 TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
 LOCAL_SOCKET=@MYSQL_UNIX_ADDR@
-MYSQL_TCP_PORT=@MYSQL_TCP_PORT@
+
+if [ -z "$MYSQL_TCP_PORT" ]; then
+  MYSQL_TCP_PORT=@MYSQL_TCP_PORT@
+  if [ @MYSQL_TCP_PORT_DEFAULT@ -eq 0 ]; then
+    ESP=`getent services mysql/tcp`
+    if [ $? -eq 0 ]; then
+      MYSQL_TCP_PORT=`echo "$ESP"|sed -e's-^[a-z]*[ ]*\([0-9]*\)/[a-z]*$-\1-g'`
+    fi
+  fi
+fi
 
 umask 022
 
@@ -981,7 +990,7 @@ show_failed_diff ()
     $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please follow the instructions outlined at"
-    echo "http://dev.mysql.com/doc/mysql/en/reporting-mysqltest-bugs.html"
+    echo "http://forge.mysql.com/wiki/MySQL_Internals_Porting#Debugging_a_MySQL_Server"
     echo "to find the reason to this problem and how to report this."
     echo ""
   fi

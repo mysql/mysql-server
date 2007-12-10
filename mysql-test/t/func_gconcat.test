@@ -562,4 +562,41 @@ insert into t1 (id, name) values (2, "óra");
 select b.id, group_concat(b.name) from t1 a, t1 b group by b.id;
 drop table t1;
 
+#
+# Bug #31154: group_concat() and bit fields;
+#
+create table t1(a bit not null);
+insert into t1 values (), (), ();
+select group_concat(distinct a) from t1;
+select group_concat(distinct a order by a) from t1;
+drop table t1;
+
+create table t1(a bit(2) not null);
+insert into t1 values (1), (0), (0), (3), (1);
+select group_concat(distinct a) from t1;
+select group_concat(distinct a order by a) from t1;
+select group_concat(distinct a order by a desc) from t1;
+drop table t1;
+
+create table t1(a bit(2), b varchar(10), c bit);
+insert into t1 values (1, 'a', 0), (0, 'b', 1), (0, 'c', 0), (3, 'd', 1),
+(1, 'e', 1), (3, 'f', 1), (0, 'g', 1);
+select group_concat(distinct a, c) from t1;
+select group_concat(distinct a, c order by a) from t1;
+select group_concat(distinct a, c) from t1;
+select group_concat(distinct a, c order by a, c) from t1;
+select group_concat(distinct a, c order by a desc, c desc) from t1;
+
+drop table t1;
+
+
+#
+# Bug#30897 GROUP_CONCAT returns extra comma on empty fields
+#
+create table t1 (f1 char(20));
+insert into t1 values (''),('');
+select group_concat(distinct f1) from t1;
+select group_concat(f1) from t1;
+drop table t1;
+
 --echo End of 5.0 tests

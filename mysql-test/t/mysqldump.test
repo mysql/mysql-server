@@ -1577,6 +1577,23 @@ SELECT * FROM t2;
 DROP TABLE t1,t2;
 
 --echo #
+--echo # Bug#29815: new option for suppressing last line of mysqldump:
+--echo #            "Dump completed on"
+--echo #
+
+--echo # --skip-dump-date:
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*//
+--exec $MYSQL_DUMP --skip-dump-date test
+
+--echo # --dump-date:
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// / on [0-9 :-]+/ on DATE/
+--exec $MYSQL_DUMP --dump-date test
+
+--echo # --dump-date (default):
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// / on [0-9 :-]+/ on DATE/
+--exec $MYSQL_DUMP test
+
+--echo #
 --echo # End of 5.0 tests
 --echo #
 
@@ -1754,6 +1771,34 @@ set names latin1;
 DROP DATABASE mysqldump_test_db;
 
 ###########################################################################
+
+--echo #
+--echo # BUG#29938: wrong behavior of mysqldump --skip-events
+--echo #            with --all-databases
+--echo #
+
+TRUNCATE mysql.event;
+
+USE test;
+CREATE event e29938 ON SCHEDULE AT '2035-12-31 20:01:23' DO SET @bug29938=29938;
+SHOW EVENTS;
+--exec $MYSQL_DUMP --skip-events --all-databases > $MYSQLTEST_VARDIR/tmp/bug29938.sql
+
+TRUNCATE mysql.event;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29938.sql
+SHOW EVENTS;
+
+
+--echo #
+--echo # Bug#31113 mysqldump 5.1 can't handle a dash ("-") in database names
+--echo #
+create database `test-database`;
+use `test-database`;
+create table test (a int);
+--exec $MYSQL_DUMP --compact --opt --quote-names test-database
+drop database `test-database`;
+use test;
+
 
 --echo #
 --echo # End of 5.1 tests

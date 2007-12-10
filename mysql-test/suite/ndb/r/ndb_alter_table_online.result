@@ -47,7 +47,7 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
 truncate ndb_show_tables_results;
 ALTER TABLE t1 ADD c INT;
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 
 ndb_show_tables completed.....
 
@@ -80,7 +80,7 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
 truncate ndb_show_tables_results;
 ALTER TABLE t1 ADD c INT;
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 
 ndb_show_tables completed.....
 
@@ -156,9 +156,9 @@ insert into t1 values (5,5),(6,6);
 update t1 set b = 0 where a = 6;
 ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 update t1 set b = 0 where a = 2;
 update t1 set b = 0 where a = 4;
 update t1 set b = 0 where a = 5;
@@ -188,9 +188,9 @@ insert into t1 values (5,5),(6,6);
 update t1 set b = 0 where a = 6;
 ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 update t1 set b = 0 where a = 2;
 update t1 set b = 0 where a = 4;
 update t1 set b = 0 where a = 5;
@@ -498,31 +498,31 @@ truncate ndb_show_tables_results;
 *******************************
 ALTER ONLINE TABLE t1 ADD c FLOAT;
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 *******************************
 * Add column d as nullable DOUBLE
 *******************************
 ALTER ONLINE TABLE t1 ADD d DOUBLE UNSIGNED;
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 *******************************
 * Add column e as nullable DECIMAL
 *******************************
 ALTER ONLINE TABLE t1 ADD e DECIMAL(5,2);
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 *******************************
 * Add column f as nullable DATETIME
 *******************************
 ALTER ONLINE TABLE t1 ADD f DATETIME;
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 *******************************
 * Add column g as nullable BINARY
 *******************************
 ALTER TABLE t1 ADD g BINARY(4);
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 
 ndb_show_tables completed.....
 
@@ -583,7 +583,7 @@ CREATE TABLE t1
 TABLESPACE ts1 STORAGE DISK
 ENGINE=NDB;
 Warnings:
-Warning	1475	DYNAMIC column b with STORAGE DISK is not supported, column will become FIXED
+Warning	1478	DYNAMIC column b with STORAGE DISK is not supported, column will become FIXED
 ALTER ONLINE TABLE t1 CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC'
 ALTER ONLINE TABLE t1 ADD COLUMN c INT COLUMN_FORMAT DYNAMIC;
@@ -619,7 +619,7 @@ CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)ROW_FORMAT=FIXED
 ENGINE=NDB;
 Warnings:
-Warning	1475	Row format FIXED incompatible with dynamic attribute b
+Warning	1478	Row format FIXED incompatible with dynamic attribute b
 -- t1 --
 Version: #
 Fragment type: 5

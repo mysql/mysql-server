@@ -1,5 +1,5 @@
 ################################################################################
-# include/partition_alter_13.inc                                               #
+# inc/partition_alter_13.inc                                                   #
 #                                                                              #
 # Purpose:                                                                     #
 #   Check ALTER partitioned table and the state of the table afterwards        #
@@ -10,7 +10,7 @@
 #        PARTITION BY RANGE/LIST ... SUBPARTITION BY HASH/KEY ...              #
 #   do                                                                         #
 #     1. Create the partitioned table                                          #
-#     2. Execute include/partition_alter_1.inc, which will                     #
+#     2. Execute inc/partition_alter_1.inc, which will                     #
 #        - Insert the first half of the table t0_template into t1              #
 #        - Execute the ALTER TABLE statement                                   #
 #        - Insert the second half of the table t0_template into t1             #
@@ -26,14 +26,14 @@
 #   Example:                                                                   #
 #          let $unique= , UNIQUE INDEX uidx1 (f_int1);                         #
 #          let $alter= ALTER TABLE t1 DROP UNIQUE INDEX uidx1;                 #
-#          include/partition_alter1.inc                                        #
+#          inc/partition_alter1.inc                                            #
 #                                                                              #
 # Attention: The routine include/partition_alter_11.inc is very similar        #
 #            to this one. So if something has to be changed here it            #
 #            might be necessary to do it also there                            #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
@@ -56,7 +56,6 @@ $unique
 )
 $partitioning;
 --source suite/parts/inc/partition_alter_1.inc
-# --source include/partition_alter_1.inc
 
 #----------- PARTITION BY KEY
 if ($with_partitioning)
@@ -69,7 +68,6 @@ $unique
 )
 $partitioning;
 --source suite/parts/inc/partition_alter_1.inc
-# --source include/partition_alter_1.inc
 
 #----------- PARTITION BY LIST
 if ($with_partitioning)
@@ -90,7 +88,6 @@ $unique
 )
 $partitioning;
 --source suite/parts/inc/partition_alter_1.inc
-# --source include/partition_alter_1.inc
 
 #----------- PARTITION BY RANGE
 if ($with_partitioning)
@@ -112,7 +109,6 @@ $unique
 )
 $partitioning;
 --source suite/parts/inc/partition_alter_1.inc
-# --source include/partition_alter_1.inc
 
 #----------- PARTITION BY RANGE -- SUBPARTITION BY HASH
 if ($with_partitioning)
@@ -133,7 +129,6 @@ $unique
 )
 $partitioning;
 --source suite/parts/inc/partition_alter_1.inc
-# --source include/partition_alter_1.inc
 
 #----------- PARTITION BY RANGE -- SUBPARTITION BY KEY
 if ($with_partitioning)
@@ -157,7 +152,6 @@ $unique
 )
 $partitioning;
 --source suite/parts/inc/partition_alter_1.inc
-# --source include/partition_alter_1.inc
 
 #----------- PARTITION BY LIST -- SUBPARTITION BY HASH
 if ($with_partitioning)
@@ -178,7 +172,6 @@ $unique
 )
 $partitioning;
 --source suite/parts/inc/partition_alter_1.inc
-# --source include/partition_alter_1.inc
 
 #----------- PARTITION BY LIST -- SUBPARTITION BY KEY
 if ($with_partitioning)
@@ -199,4 +192,3 @@ $unique
 )
 $partitioning;
 --source suite/parts/inc/partition_alter_1.inc
-# --source include/partition_alter_1.inc

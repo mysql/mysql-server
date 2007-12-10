@@ -344,5 +344,6 @@ FLUSH LOGS;
 --exec rm $MYSQLTEST_VARDIR/tmp/local.sql
 
 DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5; 
+sync_slave_with_master;
 
 # End of 4.1 tests

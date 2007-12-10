@@ -2769,7 +2769,12 @@ int ha_federated::info(uint flag)
     status_query_string.length(0);
 
     result= mysql_store_result(mysql);
-    if (!result)
+
+    /*
+      We're going to use fields num. 4, 12 and 13 of the resultset,
+      so make sure we have these fields.
+    */
+    if (!result || (mysql_num_fields(result) < 14))
       goto error;
 
     if (!mysql_num_rows(result))
@@ -2795,15 +2800,15 @@ int ha_federated::info(uint flag)
         stats.records=   (ha_rows) my_strtoll10(row[4], (char**) 0,
                                                        &error);
       if (row[5] != NULL)
-        stats.mean_rec_length= (ha_rows) my_strtoll10(row[5], (char**) 0, &error);
+        stats.mean_rec_length= (ulong) my_strtoll10(row[5], (char**) 0, &error);
 
       stats.data_file_length= stats.records * stats.mean_rec_length;
 
       if (row[12] != NULL)
-        stats.update_time=     (ha_rows) my_strtoll10(row[12], (char**) 0,
+        stats.update_time=     (time_t) my_strtoll10(row[12], (char**) 0,
                                                       &error);
       if (row[13] != NULL)
-        stats.check_time=      (ha_rows) my_strtoll10(row[13], (char**) 0,
+        stats.check_time=      (time_t) my_strtoll10(row[13], (char**) 0,
                                                       &error);
     }
     /*
@@ -3169,7 +3174,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
 #ifdef XXX_SUPERCEDED_BY_WL2952
   if (lock_type != F_UNLCK)
   {
-    ha_federated *trx= (ha_federated *)thd->ha_data[ht->slot];
+    ha_federated *trx= (ha_federated *)thd_get_ha_data(thd, ht);
 
     DBUG_PRINT("info",("federated not lock F_UNLCK"));
     if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) 
@@ -3200,7 +3205,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
           DBUG_PRINT("info", ("error setting autocommit FALSE: %d", error));
           DBUG_RETURN(error);
         }
-        thd->ha_data[ht->slot]= this;
+        thd_set_ha_data(thd, ht, this);
         trans_register_ha(thd, TRUE, ht);
         /*
           Send a lock table to the remote end.
@@ -3230,7 +3235,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
 static int federated_commit(handlerton *hton, THD *thd, bool all)
 {
   int return_val= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[hton->slot];
+  ha_federated *trx= (ha_federated *) thd_get_ha_data(thd, hton);
   DBUG_ENTER("federated_commit");
 
   if (all)
@@ -3245,7 +3250,7 @@ static int federated_commit(handlerton *hton, THD *thd, bool all)
       if (error && !return_val)
         return_val= error;
     }
-    thd->ha_data[hton->slot]= NULL;
+    thd_set_ha_data(thd, hton, NULL);
   }
 
   DBUG_PRINT("info", ("error val: %d", return_val));
@@ -3256,7 +3261,7 @@ static int federated_commit(handlerton *hton, THD *thd, bool all)
 static int federated_rollback(handlerton *hton, THD *thd, bool all)
 {
   int return_val= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[hton->slot];
+  ha_federated *trx= (ha_federated *)thd_get_ha_data(thd, hton);
   DBUG_ENTER("federated_rollback");
 
   if (all)
@@ -3271,7 +3276,7 @@ static int federated_rollback(handlerton *hton, THD *thd, bool all)
       if (error && !return_val)
         return_val= error;
     }
-    thd->ha_data[hton->slot]= NULL;
+    thd_set_ha_data(thd, hton, NULL);
   }
 
   DBUG_PRINT("info", ("error val: %d", return_val));

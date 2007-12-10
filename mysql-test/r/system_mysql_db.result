@@ -196,7 +196,7 @@ proc	CREATE TABLE `proc` (
   `is_deterministic` enum('YES','NO') NOT NULL DEFAULT 'NO',
   `security_type` enum('INVOKER','DEFINER') NOT NULL DEFAULT 'DEFINER',
   `param_list` blob NOT NULL,
-  `returns` char(64) NOT NULL DEFAULT '',
+  `returns` longblob NOT NULL,
   `body` longblob NOT NULL,
   `definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
   `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -240,11 +240,11 @@ show create table general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
   `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `user_host` mediumtext,
-  `thread_id` int(11) DEFAULT NULL,
-  `server_id` int(11) DEFAULT NULL,
-  `command_type` varchar(64) DEFAULT NULL,
-  `argument` mediumtext
+  `user_host` mediumtext NOT NULL,
+  `thread_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
+  `command_type` varchar(64) NOT NULL,
+  `argument` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 show create table slow_log;
 Table	Create Table
@@ -255,10 +255,10 @@ slow_log	CREATE TABLE `slow_log` (
   `lock_time` time NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
-  `db` varchar(512) DEFAULT NULL,
-  `last_insert_id` int(11) DEFAULT NULL,
-  `insert_id` int(11) DEFAULT NULL,
-  `server_id` int(11) DEFAULT NULL,
+  `db` varchar(512) NOT NULL,
+  `last_insert_id` int(11) NOT NULL,
+  `insert_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
   `sql_text` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show tables;

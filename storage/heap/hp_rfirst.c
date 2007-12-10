@@ -35,6 +35,17 @@ int heap_rfirst(HP_INFO *info, uchar *record, int inx)
 	     sizeof(uchar*));
       info->current_ptr = pos;
       memcpy(record, pos, (size_t)share->reclength);
+      /*
+        If we're performing index_first on a table that was taken from
+        table cache, info->lastkey_len is initialized to previous query.
+        Thus we set info->lastkey_len to proper value for subsequent
+        heap_rnext() calls.
+        This is needed for DELETE queries only, otherwise this variable is
+        not used.
+        Note that the same workaround may be needed for heap_rlast(), but
+        for now heap_rlast() is never used for DELETE queries.
+      */
+      info->lastkey_len= 0;
       info->update = HA_STATE_AKTIV;
     }
     else

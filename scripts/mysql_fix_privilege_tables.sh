@@ -25,6 +25,7 @@ sql_only=0
 basedir="@prefix@"
 verbose=0
 args=""
+# no elaborate fallback here; with no argument, it will happen in "mysql"
 port=""
 socket=""
 database="mysql"

@@ -90,7 +90,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
                 opt_alldbs=0,opt_create_db=0,opt_lock_all_tables=0,
-                opt_set_charset=0,
+                opt_set_charset=0, opt_dump_date=1,
                 opt_autocommit=0,opt_disable_keys=1,opt_xml=0,
                 opt_delete_master_logs=0, tty_password=0,
                 opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
@@ -424,10 +424,17 @@ static struct my_option my_long_options[] =
    "Creates a consistent snapshot by dumping all tables in a single "
    "transaction. Works ONLY for tables stored in storage engines which "
    "support multiversioning (currently only InnoDB does); the dump is NOT "
-   "guaranteed to be consistent for other storage engines. Option "
-   "automatically turns off --lock-tables.",
+   "guaranteed to be consistent for other storage engines. "
+   "While a --single-transaction dump is in process, to ensure a valid "
+   "dump file (correct table contents and binary log position), no other "
+   "connection should use the following statements: ALTER TABLE, DROP "
+   "TABLE, RENAME TABLE, TRUNCATE TABLE, as consistent snapshot is not "
+   "isolated from them. Option automatically turns off --lock-tables.",
    (uchar**) &opt_single_transaction, (uchar**) &opt_single_transaction, 0,
    GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},
+  {"dump-date", OPT_DUMP_DATE, "Put a dump date to the end of the output.",
+   (uchar**) &opt_dump_date, (uchar**) &opt_dump_date, 0,
+   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"skip-opt", OPT_SKIP_OPTIMIZATION,
    "Disable --opt. Disables --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -655,10 +662,15 @@ static void write_footer(FILE *sql_file)
     fputs("\n", sql_file);
     if (opt_comments)
     {
-      char time_str[20];
-      get_date(time_str, GETDATE_DATE_TIME, 0);
-      fprintf(sql_file, "-- Dump completed on %s\n",
-              time_str);
+      if (opt_dump_date)
+      {
+        char time_str[20];
+        get_date(time_str, GETDATE_DATE_TIME, 0);
+        fprintf(sql_file, "-- Dump completed on %s\n",
+                time_str);
+      }
+      else
+        fprintf(sql_file, "-- Dump completed\n");
     }
     check_io(sql_file);
   }
@@ -1036,8 +1048,10 @@ static int fetch_db_collation(const char *db_name,
   char query[QUERY_LENGTH];
   MYSQL_RES *db_cl_res;
   MYSQL_ROW db_cl_row;
+  char quoted_database_buf[NAME_LEN*2+3];
+  char *qdatabase= quote_name(db_name, quoted_database_buf, 1);
 
-  my_snprintf(query, sizeof (query), "use %s", db_name);
+  my_snprintf(query, sizeof (query), "use %s", qdatabase);
 
   if (mysql_query_with_error_report(mysql, NULL, query))
     return 1;
@@ -1312,8 +1326,8 @@ static char *cover_definer_clause_in_trigger(const char *trigger_def_str,
 
   @note This function will go away when WL#3995 is implemented.
 
-  @param[in] def_str    CREATE FUNCTION|PROCEDURE statement string.
-  @param[in] def_length length of the def_str.
+  @param[in] def_str        CREATE FUNCTION|PROCEDURE statement string.
+  @param[in] def_str_length length of the def_str.
 
   @return pointer to the new allocated query string.
 */
@@ -1896,7 +1910,7 @@ static uint dump_events_for_db(char *db)
           if (create_delimiter(row[3], delimiter, sizeof(delimiter)) == NULL)
           {
             fprintf(stderr, "%s: Warning: Can't create delimiter for event '%s'\n",
-                    event_name, my_progname);
+                    my_progname, event_name);
             DBUG_RETURN(1);
           }
 
@@ -3047,6 +3061,18 @@ static void dump_table(char *table, char *db)
     DBUG_VOID_RETURN;
   }
 
+  /*
+     Check --skip-events flag: it is not enough to skip creation of events
+     discarding SHOW CREATE EVENT statements generation. The myslq.event
+     table data should be skipped too.
+  */
+  if (!opt_events && !my_strcasecmp(&my_charset_latin1, db, "mysql") &&
+      !my_strcasecmp(&my_charset_latin1, table, "event"))
+  {
+    verbose_msg("-- Skipping data table mysql.event, --skip-events was used\n");
+    DBUG_VOID_RETURN;
+  }
+
   result_table= quote_name(table,table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
@@ -3856,7 +3882,7 @@ int init_dumping_tables(char *qdatabase)
       /* Old server version, dump generic CREATE DATABASE */
       if (opt_drop_database)
         fprintf(md_result_file,
-                "\n/*!40000 DROP DATABASE IF EXISTS %s;*/\n",
+                "\n/*!40000 DROP DATABASE IF EXISTS %s*/;\n",
                 qdatabase);
       fprintf(md_result_file,
               "\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
@@ -4365,6 +4391,18 @@ static int start_transaction(MYSQL *mysql_con)
     need the REPEATABLE READ level (not anything lower, for example READ
     COMMITTED would give one new consistent read per dumped table).
   */
+  if ((mysql_get_server_version(mysql_con) < 40100) && opt_master_data)
+  {
+    fprintf(stderr, "-- %s: the combination of --single-transaction and "
+            "--master-data requires a MySQL server version of at least 4.1 "
+            "(current server's version is %s). %s\n",
+            ignore_errors ? "Warning" : "Error",
+            mysql_con->server_version ? mysql_con->server_version : "unknown",
+            ignore_errors ? "Continuing due to --force, backup may not be consistent across all tables!" : "Aborting.");
+    if (!ignore_errors)
+      exit(EX_MYSQLERR);
+  }
+
   return (mysql_query_with_error_report(mysql_con, 0,
                                         "SET SESSION TRANSACTION ISOLATION "
                                         "LEVEL REPEATABLE READ") ||

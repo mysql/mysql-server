@@ -667,6 +667,20 @@ public:
 };
 
 
+class sys_var_character_set_client: public sys_var_character_set_sv
+{
+public:
+  sys_var_character_set_client(sys_var_chain *chain, const char *name_arg,
+                               CHARSET_INFO *SV::*offset_arg,
+                               CHARSET_INFO **global_default_arg,
+                               bool is_nullable= 0)
+    : sys_var_character_set_sv(chain, name_arg, offset_arg, global_default_arg,
+                               is_nullable)
+  { }
+  bool check(THD *thd, set_var *var);
+};
+
+
 class sys_var_character_set_database :public sys_var_character_set
 {
 public:

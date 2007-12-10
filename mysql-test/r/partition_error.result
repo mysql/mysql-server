@@ -1,4 +1,13 @@
 drop table if exists t1;
+CREATE TABLE t1 (
+a int
+)
+PARTITION BY RANGE (a)
+(
+PARTITION p0 VALUES LESS THAN (1),
+PARTITION p1 VALU ES LESS THAN (2)
+);
+ERROR HY000: Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition
 partition by list (a)
 partitions 3
 (partition x1 values in (1,2,9,4) tablespace ts1,
@@ -351,7 +360,7 @@ partition by range (a)
 partitions 2
 (partition x1 values less than (4),
 partition x2);
-ERROR HY000: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition
+ERROR HY000: Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -531,7 +540,7 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4),
 partition x2);
-ERROR HY000: LIST PARTITIONING requires definition of VALUES IN for each partition
+ERROR HY000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -551,7 +560,7 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4,6),
 partition x2);
-ERROR HY000: LIST PARTITIONING requires definition of VALUES IN for each partition
+ERROR HY000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition
 CREATE TABLE t1 (
 a int not null,
 b int not null,

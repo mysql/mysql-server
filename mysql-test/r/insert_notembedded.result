@@ -105,3 +105,22 @@ DROP VIEW  view_target2;
 DROP VIEW  view_target3;
 DROP USER  user20989@localhost;
 DROP DATABASE meow;
+connection: default
+set low_priority_updates=1;
+drop table if exists t1;
+create table t1 (a int, b int, unique key t1$a (a));
+lock table t1 read;
+connection: update
+set low_priority_updates=1;
+show variables like 'low_priority_updates';
+Variable_name	Value
+low_priority_updates	ON
+insert into t1 values (1, 2) ON DUPLICATE KEY UPDATE b = 2;;
+connection: select
+select * from t1;
+a	b
+connection: default
+select * from t1;
+a	b
+drop table t1;
+set low_priority_updates=default;

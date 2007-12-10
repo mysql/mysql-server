@@ -102,8 +102,9 @@ sp_get_item_value(THD *thd, Item *item, String *str)
   case REAL_RESULT:
   case INT_RESULT:
   case DECIMAL_RESULT:
-    return item->val_str(str);
-
+    if (item->field_type() != MYSQL_TYPE_BIT)
+      return item->val_str(str);
+    else {/* Bit type is handled as binary string */}
   case STRING_RESULT:
     {
       String *result= item->val_str(str);
@@ -249,11 +250,14 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_CREATE_TRIGGER:
   case SQLCOM_CREATE_USER:
   case SQLCOM_ALTER_TABLE:
+  case SQLCOM_GRANT:
+  case SQLCOM_REVOKE:
   case SQLCOM_BEGIN:
   case SQLCOM_RENAME_TABLE:
   case SQLCOM_RENAME_USER:
   case SQLCOM_DROP_INDEX:
   case SQLCOM_DROP_DB:
+  case SQLCOM_REVOKE_ALL:
   case SQLCOM_DROP_USER:
   case SQLCOM_DROP_VIEW:
   case SQLCOM_DROP_TRIGGER:
@@ -367,7 +371,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   thd->abort_on_warning= save_abort_on_warning;
   thd->transaction.stmt.modified_non_trans_table= save_stmt_modified_non_trans_table;
 
-  if (thd->net.report_error)
+  if (thd->is_error())
   {
     /* Return error status if something went wrong. */
     err_status= TRUE;
@@ -383,17 +387,43 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
  *
  */
 
+sp_name::sp_name(THD *thd, char *key, uint key_len)
+{
+  m_sroutines_key.str= key;
+  m_sroutines_key.length= key_len;
+  m_qname.str= ++key;
+  m_qname.length= key_len - 1;
+  if ((m_name.str= strchr(m_qname.str, '.')))
+  {
+    m_db.length= m_name.str - key;
+    m_db.str= strmake_root(thd->mem_root, key, m_db.length);
+    m_name.str++;
+    m_name.length= m_qname.length - m_db.length - 1;
+  }
+  else
+  {
+    m_name.str= m_qname.str;
+    m_name.length= m_qname.length;
+    m_db.str= 0;
+    m_db.length= 0;
+  }
+  m_explicit_name= false;
+}
+
 void
 sp_name::init_qname(THD *thd)
 {
-  m_sroutines_key.length=  m_db.length + m_name.length + 2;
+  const uint dot= !!m_db.length;
+  /* m_sroutines format: m_type + [database + dot] + name + nul */
+  m_sroutines_key.length= 1 + m_db.length + dot + m_name.length;
   if (!(m_sroutines_key.str= (char*) thd->alloc(m_sroutines_key.length + 1)))
     return;
   m_qname.length= m_sroutines_key.length - 1;
   m_qname.str= m_sroutines_key.str + 1;
-  sprintf(m_qname.str, "%.*s.%.*s",
-	  (int) m_db.length, (m_db.length ? m_db.str : ""),
-	  (int) m_name.length, m_name.str);
+  sprintf(m_qname.str, "%.*s%.*s%.*s",
+          (int) m_db.length, (m_db.length ? m_db.str : ""),
+          dot, ".",
+          (int) m_name.length, m_name.str);
 }
 
 
@@ -436,14 +466,16 @@ check_routine_name(LEX_STRING *ident)
  */
 
 void *
-sp_head::operator new(size_t size)
+sp_head::operator new(size_t size) throw()
 {
   DBUG_ENTER("sp_head::operator new");
   MEM_ROOT own_root;
   sp_head *sp;
 
-  init_alloc_root(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+  init_sql_alloc(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
   sp= (sp_head *) alloc_root(&own_root, size);
+  if (sp == NULL)
+    return NULL;
   sp->main_mem_root= own_root;
   DBUG_PRINT("info", ("mem_root 0x%lx", (ulong) &sp->mem_root));
   DBUG_RETURN(sp);
@@ -454,6 +486,10 @@ sp_head::operator delete(void *ptr, size_t size)
 {
   DBUG_ENTER("sp_head::operator delete");
   MEM_ROOT own_root;
+
+  if (ptr == NULL)
+    DBUG_VOID_RETURN;
+
   sp_head *sp= (sp_head *) ptr;
 
   /* Make a copy of main_mem_root as free_root will free the sp */
@@ -506,6 +542,9 @@ sp_head::init(LEX *lex)
   DBUG_ENTER("sp_head::init");
 
   lex->spcont= m_pcont= new sp_pcontext();
+
+  if (!lex->spcont)
+    DBUG_VOID_RETURN;
 
   /*
     Altough trg_table_fields list is used only in triggers we init for all
@@ -1013,9 +1052,10 @@ bool
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char old_db_buf[NAME_LEN+1];
-  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
-  bool dbchanged;
+  char saved_cur_db_name_buf[NAME_LEN+1];
+  LEX_STRING saved_cur_db_name=
+    { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
+  bool cur_db_changed= FALSE;
   sp_rcontext *ctx;
   bool err_status= FALSE;
   uint ip= 0;
@@ -1039,7 +1079,7 @@ sp_head::execute(THD *thd)
     DBUG_RETURN(TRUE);
 
   /* init per-instruction memroot */
-  init_alloc_root(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  init_sql_alloc(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
 
   DBUG_ASSERT(!(m_flags & IS_INVOKED));
   m_flags|= IS_INVOKED;
@@ -1070,12 +1110,15 @@ sp_head::execute(THD *thd)
   */
 
   if (m_db.length &&
-      (err_status= sp_use_new_db(thd, m_db, &old_db, 0, &dbchanged)))
+      (err_status= mysql_opt_change_db(thd, &m_db, &saved_cur_db_name, FALSE,
+                                       &cur_db_changed)))
+  {
     goto done;
+  }
 
   if ((ctx= thd->spcont))
     ctx->clear_handler();
-  thd->query_error= 0;
+  thd->is_slave_error= 0;
   old_arena= thd->stmt_arena;
 
   /*
@@ -1242,9 +1285,9 @@ sp_head::execute(THD *thd)
   state= EXECUTED;
 
  done:
-  DBUG_PRINT("info", ("err_status: %d  killed: %d  query_error: %d  report_error: %d",
-		      err_status, thd->killed, thd->query_error,
-                      thd->net.report_error));
+  DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
+		      err_status, thd->killed, thd->is_slave_error,
+                      thd->is_error()));
 
   if (thd->killed)
     err_status= TRUE;
@@ -1252,14 +1295,14 @@ sp_head::execute(THD *thd)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (dbchanged)
+  if (cur_db_changed && !thd->killed)
   {
     /*
-      No access check when changing back to where we came from.
-      (It would generate an error from mysql_change_db() when old_db=="")
+      Force switching back to the saved current database, because it may be
+      NULL. In this case, mysql_change_db() would generate an error.
     */
-    if (! thd->killed)
-      err_status|= mysql_change_db(thd, &old_db, TRUE);
+
+    err_status|= mysql_change_db(thd, &saved_cur_db_name, TRUE);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_PRINT("info",
@@ -1839,7 +1882,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       we'll leave it here.
     */
     if (!thd->in_sub_stmt)
-      close_thread_tables(thd, 0, 0);
+      close_thread_tables(thd);
 
     DBUG_PRINT("info",(" %.*s: eval args done",
                        (int) m_name.length, m_name.str));
@@ -1928,16 +1971,29 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 }
 
 
-// Reset lex during parsing, before we parse a sub statement.
-void
+/**
+  @brief Reset lex during parsing, before we parse a sub statement.
+
+  @param thd Thread handler.
+
+  @return Error state
+    @retval true An error occurred.
+    @retval false Success.
+*/
+
+bool
 sp_head::reset_lex(THD *thd)
 {
   DBUG_ENTER("sp_head::reset_lex");
   LEX *sublex;
   LEX *oldlex= thd->lex;
 
+  sublex= new (thd->mem_root)st_lex_local;
+  if (sublex == 0)
+    DBUG_RETURN(TRUE);
+
+  thd->lex= sublex;
   (void)m_lex.push_front(oldlex);
-  thd->lex= sublex= new st_lex;
 
   /* Reset most stuff. */
   lex_start(thd);
@@ -1958,7 +2014,7 @@ sp_head::reset_lex(THD *thd)
   sublex->interval_list.empty();
   sublex->type= 0;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
 // Restore lex during parsing, after we have parsed a sub statement.
@@ -2642,7 +2698,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
     cleanup_items() is called in sp_head::execute()
   */
-  DBUG_RETURN(res || thd->net.report_error);
+  DBUG_RETURN(res || thd->is_error());
 }
 
 
@@ -2694,7 +2750,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   query= thd->query;
   query_length= thd->query_length;
-  if (!(res= alloc_query(thd, m_query.str, m_query.length+1)) &&
+  if (!(res= alloc_query(thd, m_query.str, m_query.length)) &&
       !(res=subst_spvars(thd, this, &m_query)))
   {
     /*
@@ -2702,7 +2758,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       queries with SP vars can't be cached)
     */
     if (unlikely((thd->options & OPTION_LOG_OFF)==0))
-      general_log_print(thd, COM_QUERY, "%s", thd->query);
+      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
 
     if (query_cache_send_result_to_client(thd,
 					  thd->query, thd->query_length) <= 0)
@@ -3825,7 +3881,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
 
   if (!(table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(TABLE_LIST));
+    thd->fatal_error();
     return NULL;
   }
   table->db_length= strlen(db);

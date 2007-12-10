@@ -31,6 +31,7 @@ try
     configureInTS.Close();
     var default_comment = "Source distribution";
     var default_port = GetValue(configureIn, "MYSQL_TCP_PORT_DEFAULT");
+    var actual_port = 0;
 
     var configfile = fso.CreateTextFile("win\\configure.data", true);
     for (i=0; i < args.Count(); i++)
@@ -59,10 +60,41 @@ try
                     default_comment = parts[1];
                     break;
             case "MYSQL_TCP_PORT":
-                    default_port = parts[1];
+                    actual_port = parts[1];
                     break;
         }
     }
+    if (actual_port == 0)
+	{
+       // if we actually defaulted (as opposed to the pathological case of
+       // --with-tcp-port=<MYSQL_TCP_PORT_DEFAULT> which might in theory
+       // happen if whole batch of servers was built from a script), set
+       // the default to zero to indicate that; we don't lose information
+       // that way, because 0 obviously indicates that we can get the
+       // default value from MYSQL_TCP_PORT. this seems really evil, but
+       // testing for MYSQL_TCP_PORT==MYSQL_TCP_PORT_DEFAULT would make a
+       // a port of MYSQL_TCP_PORT_DEFAULT magic even if the builder did not
+       // intend it to mean "use the default, in fact, look up a good default
+       // from /etc/services if you can", but really, really meant 3306 when
+       // they passed in 3306. When they pass in a specific value, let them
+       // have it; don't second guess user and think we know better, this will
+       // just make people cross.  this makes the the logic work like this
+       // (which is complicated enough):
+       // 
+       // - if a port was set during build, use that as a default.
+       // 
+       // - otherwise, try to look up a port in /etc/services; if that fails,
+       //   use MYSQL_TCP_PORT_DEFAULT (at the time of this writing 3306)
+       // 
+       // - allow the MYSQL_TCP_PORT environment variable to override that.
+       // 
+       // - allow command-line parameters to override all of the above.
+       // 
+       // the top-most MYSQL_TCP_PORT_DEFAULT is read from win/configure.js,
+       // so don't mess with that.
+	   actual_port = default_port;
+	   default_port = 0;
+	}
 
     configfile.WriteLine("SET (COMPILATION_COMMENT \"" +
                          default_comment + "\")");
@@ -71,7 +103,8 @@ try
                          GetValue(configureIn, "PROTOCOL_VERSION") + "\")");
     configfile.WriteLine("SET (DOT_FRM_VERSION \"" +
                          GetValue(configureIn, "DOT_FRM_VERSION") + "\")");
-    configfile.WriteLine("SET (MYSQL_TCP_PORT \"" + default_port + "\")");
+    configfile.WriteLine("SET (MYSQL_TCP_PORT_DEFAULT \"" + default_port + "\")");
+    configfile.WriteLine("SET (MYSQL_TCP_PORT \"" + actual_port + "\")");
     configfile.WriteLine("SET (MYSQL_UNIX_ADDR \"" +
                          GetValue(configureIn, "MYSQL_UNIX_ADDR_DEFAULT") + "\")");
     var version = GetVersion(configureIn);

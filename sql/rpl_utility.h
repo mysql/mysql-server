@@ -22,8 +22,7 @@
 
 #include "mysql_priv.h"
 
-struct st_relay_log_info;
-typedef st_relay_log_info RELAY_LOG_INFO;
+class Relay_log_info;
 
 
 /**
@@ -61,7 +60,7 @@ public:
    */
   table_def(field_type *types, ulong size, uchar *field_metadata, 
       int metadata_size, uchar *null_bitmap)
-    : m_size(size), m_type(0),
+    : m_size(size), m_type(0), m_field_metadata_size(metadata_size),
       m_field_metadata(0), m_null_bits(0), m_memory(NULL)
   {
     m_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
@@ -100,7 +99,7 @@ public:
           /*
             These types store a single byte.
           */
-          m_field_metadata[i]= (uchar)field_metadata[index];
+          m_field_metadata[i]= field_metadata[index];
           index++;
           break;
         }
@@ -108,14 +107,14 @@ public:
         case MYSQL_TYPE_ENUM:
         case MYSQL_TYPE_STRING:
         {
-          short int x= field_metadata[index++] << 8U; // real_type
-          x = x + field_metadata[index++];            // pack or field length
+          uint16 x= field_metadata[index++] << 8U; // real_type
+          x+= field_metadata[index++];            // pack or field length
           m_field_metadata[i]= x;
           break;
         }
         case MYSQL_TYPE_BIT:
         {
-          short int x= field_metadata[index++]; 
+          uint16 x= field_metadata[index++]; 
           x = x + (field_metadata[index++] << 8U);
           m_field_metadata[i]= x;
           break;
@@ -126,14 +125,14 @@ public:
             These types store two bytes.
           */
           char *ptr= (char *)&field_metadata[index];
-          m_field_metadata[i]= sint2korr(ptr);
+          m_field_metadata[i]= uint2korr(ptr);
           index= index + 2;
           break;
         }
         case MYSQL_TYPE_NEWDECIMAL:
         {
-          short int x= field_metadata[index++] << 8U; // precision
-          x = x + field_metadata[index++];            // decimals
+          uint16 x= field_metadata[index++] << 8U; // precision
+          x+= field_metadata[index++];            // decimals
           m_field_metadata[i]= x;
           break;
         }
@@ -194,7 +193,7 @@ public:
   uint16 field_metadata(uint index) const
   {
     DBUG_ASSERT(index < m_size);
-    if (m_field_metadata)
+    if (m_field_metadata_size)
       return m_field_metadata[index];
     else
       return 0;
@@ -237,11 +236,12 @@ public:
     @retval 1  if the table definition is not compatible with @c table
     @retval 0  if the table definition is compatible with @c table
   */
-  int compatible_with(RELAY_LOG_INFO const *rli, TABLE *table) const;
+  int compatible_with(Relay_log_info const *rli, TABLE *table) const;
 
 private:
   ulong m_size;           // Number of elements in the types array
   field_type *m_type;                     // Array of type descriptors
+  uint m_field_metadata_size;
   uint16 *m_field_metadata;
   uchar *m_null_bits;
   uchar *m_memory;

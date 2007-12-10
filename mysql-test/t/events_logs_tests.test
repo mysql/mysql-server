@@ -61,7 +61,8 @@ create event ev_log_general on schedule at now() on completion not preserve
 --echo Nothing should be logged
 --echo
 --replace_column 1 USER_HOST
-select user_host, db, sql_text from mysql.slow_log where sql_text not like 'create event%';
+select user_host, db, sql_text from mysql.slow_log
+  where sql_text like 'select \'events_logs_test\'%';
 set @@global.long_query_time=1;
 truncate mysql.slow_log;
 create event ev_log_general on schedule at now() on completion not preserve
@@ -72,7 +73,8 @@ create event ev_log_general on schedule at now() on completion not preserve
 --echo Event sub-statement should be logged.
 --echo 
 --replace_column 1 USER_HOST
-select user_host, db, sql_text from mysql.slow_log where sql_text not like 'create event%';
+select user_host, db, sql_text from mysql.slow_log
+  where sql_text like 'select \'events_logs_test\'%';
 
 drop database events_test;
 set global event_scheduler=off;

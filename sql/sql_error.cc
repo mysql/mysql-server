@@ -137,7 +137,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
     level= MYSQL_ERROR::WARN_LEVEL_ERROR;
   }
 
-  if (thd->handle_error(code, level))
+  if (thd->handle_error(code, msg, level))
     DBUG_RETURN(NULL);
 
   if (thd->spcont &&

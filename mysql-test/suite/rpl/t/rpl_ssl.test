@@ -41,27 +41,57 @@ select * from t1;
 
 # Do the same thing a number of times
 disable_query_log;
+disable_result_log;
+# 2007-11-27 mats Bug #32756  	Starting and stopping the slave in a loop can lose rows
+# After discussions with Engineering, I'm disabling this part of the test to avoid it causing
+# red trees.
+disable_parsing;
 let $i= 100;
 while ($i)
 {
   start slave;
   connection master;
   insert into t1 values (NULL);
+  select * from t1; # Some variance
   connection slave;
+  select * from t1; # Some variance
   stop slave;
   dec $i;
 }
-start slave;
+enable_parsing;
+START SLAVE;
 enable_query_log;
+enable_result_log;
 connection master;
 # INSERT one more record to make sure
 # the sync has something to do
 insert into t1 values (NULL);
+let $master_count= `select count(*) from t1`;
+
 sync_slave_with_master;
 --source include/wait_for_slave_to_start.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 query_vertical show slave status;
+
+let $slave_count= `select count(*) from t1`;
+
+if (`select $slave_count != $master_count`)
+{
+  echo master and slave differed in number of rows;
+  echo master: $master_count;
+  echo slave: $slave_count;
+
+  connection master;
+  echo === master ===;
+  select count(*) t1;
+  select * from t1;
+  connection slave;
+  echo === slave ===;
+  select count(*) t1;
+  select * from t1;
+  query_vertical show slave status;
+}
 
 connection master;
 drop user replssl@localhost;

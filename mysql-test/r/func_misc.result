@@ -190,6 +190,34 @@ ERROR 21000: Operand should contain 1 column(s)
 drop table table_26093;
 drop function func_26093_a;
 drop function func_26093_b;
+SELECT NAME_CONST('test', NOW());
+ERROR HY000: Incorrect arguments to NAME_CONST
+SELECT NAME_CONST('test', UPPER('test'));
+ERROR HY000: Incorrect arguments to NAME_CONST
+SELECT NAME_CONST('test', NULL);
+test
+NULL
+SELECT NAME_CONST('test', 1);
+test
+1
+SELECT NAME_CONST('test', -1);
+test
+-1
+SELECT NAME_CONST('test', 1.0);
+test
+1.0
+SELECT NAME_CONST('test', -1.0);
+test
+-1.0
+SELECT NAME_CONST('test', 'test');
+test
+test
+create table t1 (a int not null);
+insert into t1 values (-1), (-2);
+select min(a) from t1 group by inet_ntoa(a);
+min(a)
+-2
+drop table t1;
 End of 5.0 tests
 select connection_id() > 0;
 connection_id() > 0

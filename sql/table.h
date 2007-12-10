@@ -157,7 +157,7 @@ enum enum_table_category
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
     do not apply to this table.
-    Note that LOCK TABLE <t> FOR READ/WRITE
+    Note that LOCK TABLE t FOR READ/WRITE
     can be used on temporary tables.
     Temporary tables are not part of the table cache.
   */
@@ -166,7 +166,7 @@ enum enum_table_category
   /**
     User table.
     These tables do honor:
-    - LOCK TABLE <t> FOR READ/WRITE
+    - LOCK TABLE t FOR READ/WRITE
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
     User tables are cached in the table cache.
@@ -176,7 +176,7 @@ enum enum_table_category
   /**
     System table, maintained by the server.
     These tables do honor:
-    - LOCK TABLE <t> FOR READ/WRITE
+    - LOCK TABLE t FOR READ/WRITE
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
     Typically, writes to system tables are performed by
@@ -190,7 +190,7 @@ enum enum_table_category
     These tables are an interface provided by the system
     to inspect the system metadata.
     These tables do *not* honor:
-    - LOCK TABLE <t> FOR READ/WRITE
+    - LOCK TABLE t FOR READ/WRITE
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
     as there is no point in locking explicitely
@@ -212,7 +212,7 @@ enum enum_table_category
     These tables are an interface provided by the system
     to inspect the system performance data.
     These tables do *not* honor:
-    - LOCK TABLE <t> FOR READ/WRITE
+    - LOCK TABLE t FOR READ/WRITE
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
     as there is no point in locking explicitely
@@ -433,6 +433,12 @@ typedef struct st_table_share
   {
     return (table_category == TABLE_CATEGORY_PERFORMANCE);
   }
+
+  inline ulong get_table_def_version()
+  {
+    return table_map_id;
+  }
+
 } TABLE_SHARE;
 
 
@@ -456,6 +462,11 @@ struct st_table {
   struct st_table *open_next, **open_prev;	/* Link to open tables */
 #endif
   struct st_table *next, *prev;
+
+  /* For the below MERGE related members see top comment in ha_myisammrg.cc */
+  struct st_table *parent;          /* Set in MERGE child.  Ptr to parent */
+  TABLE_LIST      *child_l;         /* Set in MERGE parent. List of children */
+  TABLE_LIST      **child_last_l;   /* Set in MERGE parent. End of list */
 
   THD	*in_use;                        /* Which thread uses this */
   Field **field;			/* Pointer to fields */
@@ -501,6 +512,24 @@ struct st_table {
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
   MY_BITMAP     *read_set, *write_set;          /* Active column sets */
+  /*
+   The ID of the query that opened and is using this table. Has different
+   meanings depending on the table type.
+
+   Temporary tables:
+
+   table->query_id is set to thd->query_id for the duration of a statement
+   and is reset to 0 once it is closed by the same statement. A non-zero
+   table->query_id means that a statement is using the table even if it's
+   not the current statement (table is in use by some outer statement).
+
+   Non-temporary tables:
+
+   Under pre-locked or LOCK TABLES mode: query_id is set to thd->query_id
+   for the duration of a statement and is reset to 0 once it is closed by
+   the same statement. A non-zero query_id is used to control which tables
+   in the list of pre-opened and locked tables are actually being used.
+  */
   query_id_t	query_id;
 
   /* 
@@ -595,8 +624,8 @@ struct st_table {
   my_bool locked_by_name;
   my_bool fulltext_searched;
   my_bool no_cache;
-  /* To signal that we should reset query_id for tables and cols */
-  my_bool clear_query_id;
+  /* To signal that the table is associated with a HANDLER statement */
+  my_bool open_by_handler;
   /*
     To indicate that a non-null value of the auto_increment field
     was provided by the user or retrieved from the current record.
@@ -606,6 +635,8 @@ struct st_table {
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
+  /* If MERGE children attached to parent. See top comment in ha_myisammrg.cc */
+  my_bool children_attached;
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
@@ -657,6 +688,7 @@ struct st_table {
   */
   inline bool needs_reopen_or_name_lock()
   { return s->version != refresh_version; }
+  bool is_children_attached(void);
 };
 
 enum enum_schema_table_state
@@ -980,6 +1012,8 @@ struct TABLE_LIST
     (non-zero only for merged underlying tables of a view).
   */
   TABLE_LIST	*referencing_view;
+  /* Ptr to parent MERGE table list item. See top comment in ha_myisammrg.cc */
+  TABLE_LIST    *parent_l;
   /*
     Security  context (non-zero only for tables which belong
     to view with SQL SECURITY DEFINER)
@@ -1160,6 +1194,20 @@ struct TABLE_LIST
   */
   bool process_index_hints(TABLE *table);
 
+  /* Access MERGE child def version.  See top comment in ha_myisammrg.cc */
+  inline ulong get_child_def_version()
+  {
+    return child_def_version;
+  }
+  inline void set_child_def_version(ulong version)
+  {
+    child_def_version= version;
+  }
+  inline void init_child_def_version()
+  {
+    child_def_version= ~0UL;
+  }
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
@@ -1167,6 +1215,9 @@ private:
     Cleanup for re-execution in a prepared statement or a stored
     procedure.
   */
+
+  /* Remembered MERGE child def version.  See top comment in ha_myisammrg.cc */
+  ulong         child_def_version;
 };
 
 class Item;

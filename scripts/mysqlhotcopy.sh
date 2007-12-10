@@ -821,30 +821,14 @@ sub get_raid_dirs {
 sub get_list_of_tables {
     my ( $db ) = @_;
 
-    # "use database" cannot cope with database names containing spaces
-    # so create a new connection 
+    my $tables =
+        eval {
+            $dbh->selectall_arrayref('SHOW TABLES FROM ' .
+                                     $dbh->quote_identifier($db))
+        } || [];
+    warn "Unable to retrieve list of tables in $db: $@" if $@;
 
-    my $dbh = DBI->connect("dbi:mysql:${db}${dsn};mysql_read_default_group=mysqlhotcopy",
-			    $opt{user}, $opt{password},
-    {
-	RaiseError => 1,
-	PrintError => 0,
-	AutoCommit => 1,
-    });
-
-    my @dbh_tables = eval { $dbh->tables() };
-
-    ## Remove quotes around table names
-    my $quote = $dbh->get_info(29); # SQL_IDENTIFIER_QUOTE_CHAR
-    if ($quote) {
-      foreach (@dbh_tables) {
-        s/^$quote(.*)$quote$/$1/;
-        s/$quote$quote/$quote/g;
-      }
-    }
-
-    $dbh->disconnect();
-    return @dbh_tables;
+    return (map { $_->[0] } @$tables);
 }
 
 sub quote_names {

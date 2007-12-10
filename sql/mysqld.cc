@@ -749,14 +749,16 @@ static void close_connections(void)
   (void) pthread_mutex_lock(&LOCK_manager);
   if (manager_thread_in_use)
   {
-    DBUG_PRINT("quit",("killing manager thread: 0x%lx",manager_thread));
+    DBUG_PRINT("quit", ("killing manager thread: 0x%lx",
+                        (ulong)manager_thread));
    (void) pthread_cond_signal(&COND_manager);
   }
   (void) pthread_mutex_unlock(&LOCK_manager);
 
   /* kill connection thread */
 #if !defined(__WIN__) && !defined(__NETWARE__)
-  DBUG_PRINT("quit",("waiting for select thread: 0x%lx",select_thread));
+  DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
+                      (ulong) select_thread));
   (void) pthread_mutex_lock(&LOCK_thread_count);
 
   while (select_thread_in_use)
@@ -1291,7 +1293,7 @@ static void wait_for_signal_thread_to_end()
   */
   for (i= 0 ; i < 100 && signal_thread_in_use; i++)
   {
-    if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL))
+    if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL) != ESRCH)
       break;
     my_sleep(100);				// Give it time to die
   }
@@ -1362,8 +1364,21 @@ static void set_ports()
   {					// Get port if not from commandline
     struct  servent *serv_ptr;
     mysqld_port= MYSQL_PORT;
+
+    /*
+      if builder specifically requested a default port, use that
+      (even if it coincides with our factory default).
+      only if they didn't do we check /etc/services (and, failing
+      on that, fall back to the factory default of 3306).
+      either default can be overridden by the environment variable
+      MYSQL_TCP_PORT, which in turn can be overridden with command
+      line options.
+    */
+
+#if MYSQL_PORT_DEFAULT == 0
     if ((serv_ptr= getservbyname("mysql", "tcp")))
       mysqld_port= ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+#endif
     if ((env = getenv("MYSQL_TCP_PORT")))
       mysqld_port= (uint) atoi(env);		/* purecov: inspected */
   }
@@ -2217,7 +2232,7 @@ bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
 You seem to be running 32-bit Linux and have %d concurrent connections.\n\
 If you have not changed STACK_SIZE in LinuxThreads and built the binary \n\
 yourself, LinuxThreads is quite likely to steal a part of the global heap for\n\
-the thread stack. Please read http://www.mysql.com/doc/en/Linux.html\n\n",
+the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 	    thread_count);
   }
 #endif /* HAVE_LINUXTHREADS */
@@ -2237,7 +2252,7 @@ Some pointers may be invalid and cause the dump to abort...\n");
     fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
   }
   fprintf(stderr, "\
-The manual page at http://www.mysql.com/doc/en/Crashing.html contains\n\
+The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
 information that should help you find out what is causing the crash.\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
@@ -2571,7 +2586,7 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       TODO: There are two exceptions mechanism (THD and sp_rcontext),
       this could be improved by having a common stack of handlers.
     */
-    if (thd->handle_error(error,
+    if (thd->handle_error(error, str,
                           MYSQL_ERROR::WARN_LEVEL_ERROR))
       DBUG_RETURN(0);
 
@@ -2581,10 +2596,15 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       DBUG_RETURN(0);
     }
 
-    thd->query_error=  1; // needed to catch query errors during replication
+    thd->is_slave_error=  1; // needed to catch query errors during replication
 
     if (!thd->no_warnings_for_error)
+    {
+      thd->no_warnings_for_error= TRUE;
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
+      thd->no_warnings_for_error= FALSE;
+    }
+
     /*
       thd->lex->current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
@@ -2924,7 +2944,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.collation_connection=  default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
 
   if (!(character_set_filesystem= 
         get_charset_by_csname(character_set_filesystem_name,
@@ -4290,6 +4309,7 @@ void create_thread_to_handle_connection(THD *thd)
   }
   else
   {
+    char error_message_buff[MYSQL_ERRMSG_SIZE];
     /* Create new thread to handle connection */
     int error;
     thread_created++;
@@ -4308,7 +4328,10 @@ void create_thread_to_handle_connection(THD *thd)
       thd->killed= THD::KILL_CONNECTION;			// Safety
       (void) pthread_mutex_unlock(&LOCK_thread_count);
       statistic_increment(aborted_connects,&LOCK_status);
-      net_printf_error(thd, ER_CANT_CREATE_THREAD, error);
+      /* Can't use my_error() since store_globals has not been called. */
+      my_snprintf(error_message_buff, sizeof(error_message_buff),
+                  ER(ER_CANT_CREATE_THREAD), error);
+      net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff);
       (void) pthread_mutex_lock(&LOCK_thread_count);
       close_connection(thd,0,0);
       delete thd;
@@ -4583,8 +4606,13 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 			  sock == unix_sock ? VIO_LOCALHOST: 0)) ||
 	my_net_init(&thd->net,vio_tmp))
     {
-      if (vio_tmp)
-	vio_delete(vio_tmp);
+      /*
+        Only delete the temporary vio if we didn't already attach it to the
+        NET object. The destructor in THD will delete any initialized net
+        structure.
+      */
+      if (vio_tmp && thd->net.vio != vio_tmp)
+        vio_delete(vio_tmp);
       else
       {
 	(void) shutdown(new_sock, SHUT_RDWR);
@@ -5086,6 +5114,7 @@ enum options_mysqld
   OPT_PLUGIN_DIR,
   OPT_LOG_OUTPUT,
   OPT_PORT_OPEN_TIMEOUT,
+  OPT_KEEP_FILES_ON_CREATE,
   OPT_GENERAL_LOG,
   OPT_SLOW_LOG,
   OPT_THREAD_HANDLING,
@@ -5093,8 +5122,7 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
-  OPT_OLD_MODE,
-  OPT_KEEP_FILES_ON_CREATE
+  OPT_OLD_MODE
 };
 
 
@@ -5650,7 +5678,13 @@ master-ssl",
   {"pid-file", OPT_PID_FILE, "Pid file used by safe_mysqld.",
    (uchar**) &pidfile_name_ptr, (uchar**) &pidfile_name_ptr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (uchar**) &mysqld_port,
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   (uchar**) &mysqld_port,
    (uchar**) &mysqld_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port-open-timeout", OPT_PORT_OPEN_TIMEOUT,
    "Maximum time in seconds to wait for the port to become free. "
@@ -5994,7 +6028,7 @@ log and this option does nothing anymore.",
    (uchar**) &dflt_key_cache_var.param_buff_size,
    (uchar**) 0,
    0, (GET_ULL | GET_ASK_ADDR),
-   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD,
+   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, SIZE_T_MAX, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
@@ -6269,7 +6303,7 @@ The minimum value for this variable is 4096.",
    "Each thread that does a sequential scan allocates a buffer of this size for each table it scans. If you do many sequential scans, you may want to increase this value.",
    (uchar**) &global_system_variables.read_buff_size,
    (uchar**) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE,
+   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, INT_MAX32, MALLOC_OVERHEAD, IO_SIZE,
    0},
   {"read_only", OPT_READONLY,
    "Make all non-temporary tables read-only, with the exception for replication (slave) threads and users with the SUPER privilege",
@@ -6281,12 +6315,12 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.read_rnd_buff_size,
    (uchar**) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
-   SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
+   INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"record_buffer", OPT_RECORD_BUFFER,
    "Alias for read_buffer_size",
    (uchar**) &global_system_variables.read_buff_size,
    (uchar**) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
+   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
 #ifdef HAVE_REPLICATION
   {"relay_log_purge", OPT_RELAY_LOG_PURGE,
    "0 = do not purge relay logs. 1 = purge them as soon as they are no more needed.",
@@ -7787,12 +7821,13 @@ mysqld_get_one_option(int optid,
     break;
   }
   case OPT_ONE_THREAD:
-    global_system_variables.thread_handling= 2;
+    global_system_variables.thread_handling=
+      SCHEDULER_ONE_THREAD_PER_CONNECTION;
     break;
   case OPT_THREAD_HANDLING:
   {
     global_system_variables.thread_handling=
-      find_type_or_exit(argument, &thread_handling_typelib, opt->name);
+      find_type_or_exit(argument, &thread_handling_typelib, opt->name)-1;
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:

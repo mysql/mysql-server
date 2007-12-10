@@ -19,6 +19,10 @@
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <my_getopt.h>
+#include <errno.h>
+
+typedef void (*init_func_p)(const struct my_option *option, uchar* *variable,
+                            longlong value);
 
 static void default_reporter(enum loglevel level, const char *format, ...);
 my_error_reporter my_getopt_error_reporter= &default_reporter;
@@ -33,7 +37,12 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *arg, const struct my_option *optp,
 			    int *err);
 static double getopt_double(char *arg, const struct my_option *optp, int *err);
-static void init_variables(const struct my_option *options);
+static void init_variables(const struct my_option *options,
+                           init_func_p init_one_value);
+static void init_one_value(const struct my_option *option, uchar* *variable,
+			   longlong value);
+static void fini_one_value(const struct my_option *option, uchar* *variable,
+			   longlong value);
 static int setval(const struct my_option *opts, uchar* *value, char *argument,
 		  my_bool set_maximum_value);
 static char *check_struct_option(char *cur_arg, char *key_name);
@@ -117,7 +126,7 @@ int handle_options(int *argc, char ***argv,
   DBUG_ASSERT(argv && *argv);
   (*argc)--; /* Skip the program name */
   (*argv)++; /*      --- || ----      */
-  init_variables(longopts);
+  init_variables(longopts, init_one_value);
 
   for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
   {
@@ -730,7 +739,15 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
   longlong num;
   
   *error= 0;
+  errno= 0;
   num= strtoll(argument, &endchar, 10);
+  if (errno == ERANGE)
+  {
+    my_getopt_error_reporter(ERROR_LEVEL,
+                             "Incorrect integer value: '%s'", argument);
+    *error= 1;
+    return 0;
+  }
   if (*endchar == 'k' || *endchar == 'K')
     num*= 1024L;
   else if (*endchar == 'm' || *endchar == 'M')
@@ -767,7 +784,14 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
   num= eval_num_suffix(arg, err, (char*) optp->name);
   if (num > 0 && (ulonglong) num > (ulonglong) optp->max_value &&
       optp->max_value) /* if max value is not set -> no upper limit */
+  {
+    char buf[22];
+    my_getopt_error_reporter(WARNING_LEVEL,
+                             "Truncated incorrect %s value: '%s'", 
+                             optp->name, llstr(num, buf));
+    
     num= (ulonglong) optp->max_value;
+  }
   num= ((num - optp->sub_size) / block_size);
   num= (longlong) (num * block_size);
   return max(num, optp->min_value);
@@ -906,6 +930,37 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
 }
 
 
+/*
+  Init one value to it's default values
+
+  SYNOPSIS
+    init_one_value()
+    option		Option to initialize
+    value		Pointer to variable
+*/
+
+static void fini_one_value(const struct my_option *option, uchar* *variable,
+			   longlong value __attribute__ ((unused)))
+{
+  DBUG_ENTER("fini_one_value");
+  switch ((option->var_type & GET_TYPE_MASK)) {
+  case GET_STR_ALLOC:
+    my_free((*(char**) variable), MYF(MY_ALLOW_ZERO_PTR));
+    *((char**) variable)= NULL;
+    break;
+  default: /* dummy default to avoid compiler warnings */
+    break;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+void my_cleanup_options(const struct my_option *options)
+{
+  init_variables(options, fini_one_value);
+}
+
+
 /* 
   initialize all variables to their default values
 
@@ -919,7 +974,8 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
     for a value and initialize.
 */
 
-static void init_variables(const struct my_option *options)
+static void init_variables(const struct my_option *options,
+                           init_func_p init_one_value)
 {
   DBUG_ENTER("init_variables");
   for (; options->name; options++)

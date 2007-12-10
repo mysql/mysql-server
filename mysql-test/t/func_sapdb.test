@@ -47,6 +47,7 @@ select makedate(1997,1);
 select makedate(1997,0);
 select makedate(9999,365);
 select makedate(9999,366);
+select makedate(100,1);
 
 #Time functions
 

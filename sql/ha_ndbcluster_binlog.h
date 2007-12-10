@@ -276,10 +276,12 @@ void set_binlog_flags(NDB_SHARE *share);
 
 inline
 Thd_ndb *
-get_thd_ndb(THD *thd) { return (Thd_ndb *) thd->ha_data[ndbcluster_hton->slot]; }
+get_thd_ndb(THD *thd)
+{ return (Thd_ndb *) thd_get_ha_data(thd, ndbcluster_hton); }
 
 inline
 void
-set_thd_ndb(THD *thd, Thd_ndb *thd_ndb) { thd->ha_data[ndbcluster_hton->slot]= thd_ndb; }
+set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
+{ thd_set_ha_data(thd, ndbcluster_hton, thd_ndb); }
 
 Ndb* check_ndb_in_thd(THD* thd);

@@ -15,9 +15,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  @file
-  A public interface of Events Scheduler module.
+/**
+  @defgroup Event_Scheduler Event Scheduler
+  @ingroup Runtime_Environment
+  @{
+
+  @file events.h
+
+  A public interface of Events_Scheduler module.
 */
 
 class Event_parse_data;
@@ -42,7 +47,7 @@ int
 sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 
 /**
-  @class Events -- a facade to the functionality of the Event Scheduler.
+  @brief A facade to the functionality of the Event Scheduler.
 
   Every public operation against the scheduler has to be executed via the
   interface provided by a static method of this class. No instance of this
@@ -152,5 +157,8 @@ private:
   void operator=(Events &);
 };
 
+/**
+  @} (end of group Event Scheduler)
+*/
 
 #endif /* _EVENT_H_ */

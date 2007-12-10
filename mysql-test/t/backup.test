@@ -57,7 +57,16 @@ unlock tables;
 connection con1;
 reap;
 drop table t5;
---system rm $MYSQLTEST_VARDIR/tmp/t?.*
+remove_file $MYSQLTEST_VARDIR/tmp/t1.MYD;
+remove_file $MYSQLTEST_VARDIR/tmp/t2.MYD;
+remove_file $MYSQLTEST_VARDIR/tmp/t3.MYD;
+remove_file $MYSQLTEST_VARDIR/tmp/t4.MYD;
+remove_file $MYSQLTEST_VARDIR/tmp/t5.MYD;
+remove_file $MYSQLTEST_VARDIR/tmp/t1.frm;
+remove_file $MYSQLTEST_VARDIR/tmp/t2.frm;
+remove_file $MYSQLTEST_VARDIR/tmp/t3.frm;
+remove_file $MYSQLTEST_VARDIR/tmp/t4.frm;
+remove_file $MYSQLTEST_VARDIR/tmp/t5.frm;
 
 # End of 4.1 tests
 # End of 5.0 tests

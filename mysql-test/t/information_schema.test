@@ -807,7 +807,8 @@ DROP FUNCTION func2;
 select column_type, group_concat(table_schema, '.', table_name), count(*) as num
 from information_schema.columns where
 table_schema='information_schema' and
-(column_type = 'varchar(7)' or column_type = 'varchar(20)')
+(column_type = 'varchar(7)' or column_type = 'varchar(20)'
+ or column_type = 'varchar(27)')
 group by column_type order by num;
 
 #
@@ -953,7 +954,7 @@ BEGIN
   DECLARE col1, col2, col3, col4, col6 CHAR(255);
   DECLARE default_val VARCHAR(65532);
   DECLARE done INT DEFAULT 0;
-  DECLARE cur1 CURSOR FOR SHOW COLUMNS FROM bug23037;
+  DECLARE cur1 CURSOR FOR SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, EXTRA FROM INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='bug23037';
   DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
   OPEN cur1;
   FETCH cur1 INTO col1, col2, col3, col4, default_val, col6;
@@ -1047,7 +1048,57 @@ alter database;
 --error ER_PARSE_ERROR
 alter database test;
 
+#
+# Bug#27629 Possible security flaw in INFORMATION_SCHEMA and SHOW statements
+#
+
+create database mysqltest;
+create table mysqltest.t1(a int, b int, c int);
+create trigger mysqltest.t1_ai after insert on mysqltest.t1
+  for each row set @a = new.a + new.b + new.c;
+grant select(b) on mysqltest.t1 to mysqltest_1@localhost;
+
+select trigger_name from information_schema.triggers
+where event_object_table='t1';
+show triggers from mysqltest;
+
+connect (con27629,localhost,mysqltest_1,,mysqltest);
+show columns from t1;
+select column_name from information_schema.columns where table_name='t1';
+
+show triggers;
+select trigger_name from information_schema.triggers
+where event_object_table='t1';
+connection default;
+drop user mysqltest_1@localhost;
+drop database mysqltest;
+
+#
+# Bug#27747 database metadata doesn't return sufficient column default info
+#
+create table t1 (
+  f1 varchar(50),
+  f2 varchar(50) not null,
+  f3 varchar(50) default '',
+  f4 varchar(50) default NULL,
+  f5 bigint not null,
+  f6 bigint not null default 10,
+  f7 datetime not null,
+  f8 datetime default '2006-01-01'
+);
+select column_default from information_schema.columns where table_name= 't1';
+show columns from t1;
+drop table t1;
+
 --echo End of 5.0 tests.
+
+#
+# Bug#30079 A check for "hidden" I_S tables is flawed
+#
+--error 1109
+show fields from information_schema.table_names;
+--error 1109
+show keys from information_schema.table_names;
 #
 # Show engines
 #
@@ -1092,6 +1143,7 @@ END$$
 
 DELIMITER ;$$
 
+let $wait_timeout= 300;
 let $wait_condition=select count(*) = 0 from information_schema.events where event_name='event_status';
 --source include/wait_condition.inc
 
@@ -1136,4 +1188,55 @@ select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TA
 select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TABLE_NAME='';
 select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='';
 select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='nonexisting';
+
+#
+# Bug#30689 Wrong content in I_S.VIEWS.VIEW_DEFINITION if VIEW is based on I_S
+#
+CREATE VIEW v1
+AS SELECT *
+FROM INFORMATION_SCHEMA.TABLES;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME = 'v1';
+DROP VIEW v1;
+
+#
+# Bug#30795 Query on INFORMATION_SCHEMA.SCHEMATA, wrong result
+#
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME ='information_schema';
+                                                                                                 
+#
+# Bug#31381 Error in retrieving Data from INFORMATION_SCHEMA
+#
+SELECT TABLE_COLLATION FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
+
+#
+# Bug#31633 Information schema = NULL queries crash the server
+#
+select * from information_schema.columns where table_schema = NULL;
+select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`PARTITIONS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`PARTITIONS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`REFERENTIAL_CONSTRAINTS` where `CONSTRAINT_SCHEMA` = NULL;
+select * from `information_schema`.`REFERENTIAL_CONSTRAINTS` where `TABLE_NAME` = NULL;
+select * from information_schema.schemata where schema_name = NULL;
+select * from `information_schema`.`STATISTICS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`STATISTICS` where `TABLE_NAME` = NULL;
+select * from information_schema.tables where table_schema = NULL;
+select * from information_schema.tables where table_catalog = NULL;
+select * from information_schema.tables where table_name = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_NAME` = NULL;
+select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_SCHEMA` = NULL;
+select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_TABLE` = NULL;
+select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
+select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
+
+#
+# Bug#31630 debug assert with explain extended select ... from i_s
+#
+explain extended select 1 from information_schema.tables;
+
 --echo End of 5.1 tests.

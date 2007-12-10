@@ -358,3 +358,21 @@ SELECT * FROM (SELECT a, SUM(a) FROM t1 GROUP BY a WITH ROLLUP) as t;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#31095: Unexpected NULL constant caused server crash.
+--echo #
+create table t1(a int);
+insert into t1 values (1),(2),(3);
+select count(a) from t1 group by null with rollup;
+drop table t1;
+--echo ##############################################################
+
+#
+# Bug #32558: group by null-returning expression with rollup causes crash
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(0);
+SELECT 1 FROM t1 GROUP BY (DATE(NULL)) WITH ROLLUP;
+DROP TABLE t1;
+
+--echo End of 5.0 tests

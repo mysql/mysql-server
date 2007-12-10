@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.22-ndb-6.3.7)
+AM_INIT_AUTOMAKE(mysql, 5.1.23-ndb-6.3.7)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 NDB_VERSION_MAJOR=6
@@ -100,6 +100,8 @@ case $MACHINE_TYPE in
 esac
 
 # Save some variables and the command line options for mysqlbug
+SAVE_CC="$CC"
+SAVE_CXX="$CXX"
 SAVE_ASFLAGS="$ASFLAGS"
 SAVE_CFLAGS="$CFLAGS"
 SAVE_CXXFLAGS="$CXXFLAGS"
@@ -107,6 +109,8 @@ SAVE_LDFLAGS="$LDFLAGS"
 SAVE_CXXLDFLAGS="$CXXLDFLAGS"
 CONF_COMMAND="$0 $ac_configure_args"
 AC_SUBST(CONF_COMMAND)
+AC_SUBST(SAVE_CC)
+AC_SUBST(SAVE_CXX)
 AC_SUBST(SAVE_ASFLAGS)
 AC_SUBST(SAVE_CFLAGS)
 AC_SUBST(SAVE_CXXFLAGS)
@@ -345,6 +349,7 @@ AC_SUBST(CC)
 AC_SUBST(CFLAGS)
 AC_SUBST(CXX)
 AC_SUBST(CXXFLAGS)
+AC_SUBST(ASFLAGS)
 AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
 
@@ -594,7 +599,7 @@ AC_SUBST(NOINST_LDFLAGS)
 
 if test "$TARGET_LINUX" = "true" -a "$static_nss" = ""
 then
-  tmp=`nm /usr/lib/libc.a  | grep _nss_files_getaliasent_r`
+  tmp=`nm /usr/lib*/libc.a  | grep _nss_files_getaliasent_r`
   if test -n "$tmp"
   then
      STATIC_NSS_FLAGS="-lc -lnss_files -lnss_dns -lresolv"
@@ -681,7 +686,34 @@ AC_ARG_WITH(tcp-port,
     [  --with-tcp-port=port-number
                           Which port to use for MySQL services (default 3306)],
     [ MYSQL_TCP_PORT=$withval ],
-    [ MYSQL_TCP_PORT=$MYSQL_TCP_PORT_DEFAULT ]
+    [ MYSQL_TCP_PORT=$MYSQL_TCP_PORT_DEFAULT
+      # if we actually defaulted (as opposed to the pathological case of
+      # --with-tcp-port=<MYSQL_TCP_PORT_DEFAULT> which might in theory
+      # happen if whole batch of servers was built from a script), set
+      # the default to zero to indicate that; we don't lose information
+      # that way, because 0 obviously indicates that we can get the
+      # default value from MYSQL_TCP_PORT. this seems really evil, but
+      # testing for MYSQL_TCP_PORT==MYSQL_TCP_PORT_DEFAULT would make a
+      # a port of MYSQL_TCP_PORT_DEFAULT magic even if the builder did not
+      # intend it to mean "use the default, in fact, look up a good default
+      # from /etc/services if you can", but really, really meant 3306 when
+      # they passed in 3306. When they pass in a specific value, let them
+      # have it; don't second guess user and think we know better, this will
+      # just make people cross.  this makes the the logic work like this
+      # (which is complicated enough):
+      #
+      # - if a port was set during build, use that as a default.
+      #
+      # - otherwise, try to look up a port in /etc/services; if that fails,
+      #   use MYSQL_TCP_PORT_DEFAULT (at the time of this writing 3306)
+      #
+      # - allow the MYSQL_TCP_PORT environment variable to override that.
+      #
+      # - allow command-line parameters to override all of the above.
+      #
+      # the top-most MYSQL_TCP_PORT_DEFAULT is read from win/configure.js,
+      # so don't mess with that.
+      MYSQL_TCP_PORT_DEFAULT=0 ]
     )
 AC_SUBST(MYSQL_TCP_PORT)
 # We might want to document the assigned port in the manual.
@@ -843,7 +875,7 @@ if test "$TARGET_LINUX" = "true"; then
     [ USE_PSTACK=$withval ],
     [ USE_PSTACK=no ])
   pstack_libs=
-  pstack_dirs=
+  pstack_dir=
   if test "$USE_PSTACK" = yes -a "$TARGET_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386"
   then
     have_libiberty= have_libbfd=
@@ -856,11 +888,11 @@ dnl I have no idea if this is a good test - can not find docs for libiberty
 
     if test x"$have_libiberty" = xyes -a x"$have_libbfd" = xyes
     then
-      pstack_dirs='$(top_srcdir)'/pstack
+      pstack_dir="pstack"
       pstack_libs="../pstack/libpstack.a -lbfd -liberty"
       # We must link staticly when using pstack
       with_mysqld_ldflags="-all-static"
-      AC_SUBST([pstack_dirs])
+      AC_SUBST([pstack_dir])
       AC_SUBST([pstack_libs])
       AC_DEFINE([USE_PSTACK], [1], [the pstack backtrace library])
 dnl This check isn't needed, but might be nice to give some feedback....
@@ -874,7 +906,6 @@ dnl      have_libiberty_h=no)
     USE_PSTACK="no"
   fi
 fi
-AM_CONDITIONAL(COMPILE_PSTACK, test "$USE_PSTACK" = "yes")
 AC_MSG_CHECKING([if we should use pstack])
 AC_MSG_RESULT([$USE_PSTACK])
 
@@ -1724,7 +1755,18 @@ then
   LDFLAGS="$LDFLAGS -rdynamic"
   AC_MSG_RESULT("-rdynamic")
 else
-  AC_MSG_RESULT("none")
+  case "$SYSTEM_TYPE$with_mysqld_ldflags " in
+  *freebsd*"-all-static "*|*dragonfly*"-all-static "*)
+    AC_MSG_RESULT("none")
+    ;;
+  *freebsd*|*dragonfly*)
+    MYSQLD_EXTRA_LDFLAGS="$MYSQLD_EXTRA_LDFLAGS -export-dynamic"
+    AC_MSG_RESULT("-export-dynamic")
+    ;;
+  *)
+    AC_MSG_RESULT("none")
+    ;;
+  esac
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -2349,8 +2391,7 @@ AC_ARG_WITH([mysqlmanager],
 if test "$with_mysqlmanager" = "yes" -o \
         '(' "$with_mysqlmanager:$with_server" = ":yes" -a \
             -d "$srcdir/server-tools" ')' ; then
-  tools_dirs="$tools_dirs server-tools"
-  AC_CONFIG_FILES(server-tools/Makefile server-tools/instance-manager/Makefile)
+  tools_dirs="server-tools"
 fi
 
 AC_SUBST(tools_dirs)
@@ -2362,7 +2403,6 @@ if test "$with_embedded_server" = "yes"
 then
   libmysqld_dirs=libmysqld
 
-  AC_CONFIG_FILES(libmysqld/Makefile libmysqld/examples/Makefile)
   # We can't build embedded library without building the server, because
   # we depend on libmysys, libmystrings, libmyisam, etc.
   with_server=yes
@@ -2447,70 +2487,58 @@ then
     # For NetWare, do not need readline
     echo "Skipping readline"
 else
-
-if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
-then
-    readline_topdir="cmd-line-utils"
-    readline_basedir="libedit"
-    readline_dir="$readline_topdir/$readline_basedir"
-    readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
-    compile_libedit=yes
-    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
-    AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
-elif test "$with_readline" = "yes"
-then
-    readline_topdir="cmd-line-utils"
-    readline_basedir="readline"
-    readline_dir="$readline_topdir/$readline_basedir"
-    readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
-    compile_readline=yes
-    want_to_use_readline="yes"
-    AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
-else
-    # Use system readline library
-    AC_LANG_SAVE
-    AC_LANG_CPLUSPLUS
-    MYSQL_CHECK_LIBEDIT_INTERFACE
-    MYSQL_CHECK_NEW_RL_INTERFACE
-    MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
-    AC_LANG_RESTORE
-    if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "./cmd-line-utils/readline"]
+    if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
     then
-        # Use the new readline interface, but only if the package includes a bundled libreadline
-        # this way we avoid linking commercial source with GPL readline
-        readline_link="-lreadline"
-        want_to_use_readline="yes"
-    elif [test "$mysql_cv_libedit_interface" = "yes"]
+	readline_topdir="cmd-line-utils"
+	readline_basedir="libedit"
+	readline_dir="$readline_topdir/$readline_basedir"
+	readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
+	readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
+	compile_libedit=yes
+	AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
+	AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
+    elif test "$with_readline" = "yes"
     then
-        # Use libedit
-        readline_link="-ledit"
+	readline_topdir="cmd-line-utils"
+	readline_basedir="readline"
+	readline_dir="$readline_topdir/$readline_basedir"
+	readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
+	readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
+	compile_readline=yes
+	want_to_use_readline="yes"
+	AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
     else
-       AC_MSG_ERROR([Could not find system readline or libedit libraries
-          Use --with-readline or --with-libedit to use the bundled
-          versions of libedit or readline])
+	# Use system readline library
+	AC_LANG_SAVE
+	AC_LANG_CPLUSPLUS
+	MYSQL_CHECK_LIBEDIT_INTERFACE
+	MYSQL_CHECK_NEW_RL_INTERFACE
+	MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
+	AC_LANG_RESTORE
+	if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "$srcdir/cmd-line-utils/readline"]
+	then
+	    # Use the new readline interface, but only if the package includes a bundled libreadline
+	    # this way we avoid linking commercial source with GPL readline
+	    readline_link="-lreadline"
+	    want_to_use_readline="yes"
+	elif [test "$mysql_cv_libedit_interface" = "yes"]
+	then
+	    # Use libedit
+	    readline_link="-ledit"
+	else
+	   AC_MSG_ERROR([Could not find system readline or libedit libraries
+	      Use --with-readline or --with-libedit to use the bundled
+	      versions of libedit or readline])
+	fi
     fi
-fi
 
-# if there is no readline, but we want to build with readline, we fail
-if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
-then
-    AC_MSG_ERROR([This commercially licensed MySQL source package can't
-          be built with libreadline. Please use --with-libedit to use
-          the bundled version of libedit instead.])
-fi
-
-#
-# if either readline or libedit is enabled - generate Makefile's for both
-# (to make sure both are included in 'make dist')
-#
-if test -n "$readline_basedir"
-then
-  AC_CONFIG_FILES(cmd-line-utils/Makefile dnl
-                  cmd-line-utils/libedit/Makefile dnl
-                  cmd-line-utils/readline/Makefile)
-fi
+    # if there is no readline, but we want to build with readline, we fail
+    if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
+    then
+	AC_MSG_ERROR([This commercially licensed MySQL source package can't
+	      be built with libreadline. Please use --with-libedit to use
+	      the bundled version of libedit instead.])
+    fi
 fi
 
 AC_SUBST(readline_dir)
@@ -2579,7 +2607,6 @@ AC_SUBST(man8_files)
 sql_server_dirs=
 sql_server=
 server_scripts=
-thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
@@ -2592,7 +2619,6 @@ then
   sql_client_dirs="strings regex mysys dbug extra libmysql client"
 else
   sql_client_dirs="strings regex mysys dbug extra libmysql libmysql_r client"
-  AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should the client be thread safe])
 fi
 
@@ -2627,7 +2653,7 @@ then
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 
-  sql_server="$sql_server vio sql"
+  sql_server="vio sql"
 fi
 
 # IMPORTANT - do not modify LIBS past this line - this hack is the only way
@@ -2639,7 +2665,6 @@ LIBS="$LIBS $STATIC_NSS_FLAGS"
 
 AC_SUBST(sql_server_dirs)
 AC_SUBST(sql_server)
-AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
 
 AC_SUBST(mysql_plugin_dirs)
@@ -2677,19 +2702,28 @@ esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
+if test -d "$srcdir/pstack" ; then
+  AC_CONFIG_FILES(pstack/Makefile pstack/aout/Makefile)
+fi
+if test -d "$srcdir/cmd-line-utils/readline" ; then
+  AC_CONFIG_FILES(cmd-line-utils/readline/Makefile)
+fi
+
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
- libmysql/Makefile client/Makefile dnl
- pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
+ libmysql/Makefile libmysql_r/Makefile client/Makefile dnl
+ sql/Makefile sql/share/Makefile dnl
  sql/sql_builtin.cc sql-common/Makefile dnl
  dbug/Makefile scripts/Makefile include/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile support-files/RHEL4-SElinux/Makefile dnl
+ server-tools/Makefile server-tools/instance-manager/Makefile dnl
+ cmd-line-utils/Makefile cmd-line-utils/libedit/Makefile dnl
+ libmysqld/Makefile libmysqld/examples/Makefile dnl
  mysql-test/Makefile dnl
- debian/Makefile debian/defs.mk debian/control dnl
  mysql-test/ndb/Makefile netware/Makefile sql-bench/Makefile dnl
  include/mysql_version.h plugin/Makefile win/Makefile)
 

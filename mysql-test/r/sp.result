@@ -2469,7 +2469,7 @@ Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
-data	int(11)	NO			
+data	int(11)	NO		NULL	
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
@@ -2523,7 +2523,7 @@ Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
-data	int(11)	NO			
+data	int(11)	NO		NULL	
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
@@ -4914,7 +4914,7 @@ create table t3 as select * from v1|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `j` bigint(11) DEFAULT NULL
+  `j` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3|
 j
@@ -5670,7 +5670,7 @@ drop function if exists pi;
 create function pi() returns varchar(50)
 return "pie, my favorite desert.";
 Warnings:
-Note	1582	This function 'pi' has the same name as a native function
+Note	1585	This function 'pi' has the same name as a native function
 SET @save_sql_mode=@@sql_mode;
 SET SQL_MODE='IGNORE_SPACE';
 select pi(), pi ();
@@ -5719,15 +5719,15 @@ use test;
 create function `database`() returns varchar(50)
 return "Stored function database";
 Warnings:
-Note	1582	This function 'database' has the same name as a native function
+Note	1585	This function 'database' has the same name as a native function
 create function `current_user`() returns varchar(50)
 return "Stored function current_user";
 Warnings:
-Note	1582	This function 'current_user' has the same name as a native function
+Note	1585	This function 'current_user' has the same name as a native function
 create function md5(x varchar(50)) returns varchar(50)
 return "Stored function md5";
 Warnings:
-Note	1582	This function 'md5' has the same name as a native function
+Note	1585	This function 'md5' has the same name as a native function
 SET SQL_MODE='IGNORE_SPACE';
 select database(), database ();
 database()	database ()
@@ -6546,4 +6546,369 @@ DROP VIEW v1;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
+create function f1()
+returns int(11)
+not deterministic
+contains sql
+sql security definer
+comment ''
+begin
+declare x int(11);
+set x=-1;
+return x;
+end|
+create view v1 as select 1 as one, f1() as days;
+show create view test.v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`	latin1	latin1_swedish_ci
+select column_name from information_schema.columns
+where table_name='v1' and table_schema='test';
+column_name
+one
+days
+drop view v1;
+drop function f1;
+
+# Bug#13675.
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP TABLE IF EXISTS t1;
+
+CREATE PROCEDURE p1(v DATETIME) CREATE TABLE t1 SELECT v;
+CREATE PROCEDURE p2(v INT) CREATE TABLE t1 SELECT v;
+
+CALL p1(NOW());
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p1('text');
+Warnings:
+Warning	1264	Out of range value for column 'v' at row 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p2(10);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` bigint(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p2('text');
+Warnings:
+Warning	1366	Incorrect integer value: 'text' for column 'v' at row 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` bigint(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+#
+# Bug#31035.
+#
+
+#
+# - Prepare.
+#
+
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP FUNCTION IF EXISTS f4;
+
+#
+# - Create required objects.
+#
+
+CREATE TABLE t1(c1 INT);
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+CREATE FUNCTION f1()
+RETURNS INT
+NOT DETERMINISTIC
+RETURN 1;
+
+CREATE FUNCTION f2(p INT)
+RETURNS INT
+NOT DETERMINISTIC
+RETURN 1;
+
+CREATE FUNCTION f3()
+RETURNS INT
+DETERMINISTIC
+RETURN 1;
+
+CREATE FUNCTION f4(p INT)
+RETURNS INT
+DETERMINISTIC
+RETURN 1;
+
+#
+# - Check.
+#
+
+SELECT f1() AS a FROM t1 GROUP BY a;
+a
+1
+
+SELECT f2(@a) AS a FROM t1 GROUP BY a;
+a
+1
+
+SELECT f3() AS a FROM t1 GROUP BY a;
+a
+1
+
+SELECT f4(0) AS a FROM t1 GROUP BY a;
+a
+1
+
+SELECT f4(@a) AS a FROM t1 GROUP BY a;
+a
+1
+
+#
+# - Cleanup.
+#
+
+DROP TABLE t1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP FUNCTION f4;
+
+#
+# Bug#31191.
+#
+
+#
+# - Prepare.
+#
+
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP FUNCTION IF EXISTS f1;
+
+#
+# - Create required objects.
+#
+
+CREATE TABLE t1 (
+id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+barcode INT(8) UNSIGNED ZEROFILL nOT NULL,
+PRIMARY KEY  (id),
+UNIQUE KEY barcode (barcode)
+);
+
+INSERT INTO t1 (id, barcode) VALUES (1, 12345678);
+INSERT INTO t1 (id, barcode) VALUES (2, 12345679);
+
+CREATE TABLE test.t2 (
+id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+barcode BIGINT(11) UNSIGNED ZEROFILL NOT NULL,
+PRIMARY KEY  (id)
+);
+
+INSERT INTO test.t2 (id, barcode) VALUES (1, 12345106708);
+INSERT INTO test.t2 (id, barcode) VALUES (2, 12345106709);
+
+CREATE FUNCTION f1(p INT(8))
+RETURNS BIGINT(11) UNSIGNED
+READS SQL DATA
+RETURN FLOOR(p/1000)*1000000 + 100000 + FLOOR((p MOD 1000)/10)*100 + (p MOD 10);
+
+#
+# - Check.
+#
+
+SELECT DISTINCT t1.barcode, f1(t1.barcode)
+FROM t1
+INNER JOIN t2
+ON f1(t1.barcode) = t2.barcode
+WHERE t1.barcode=12345678;
+barcode	f1(t1.barcode)
+12345678	12345106708
+
+#
+# - Cleanup.
+#
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP FUNCTION f1;
+
+#
+# Bug#31226.
+#
+
+#
+# - Prepare.
+#
+
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS f1;
+
+#
+# - Create required objects.
+#
+
+CREATE TABLE t1(id INT);
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+CREATE FUNCTION f1()
+RETURNS DATETIME
+NOT DETERMINISTIC NO SQL
+RETURN NOW();
+
+#
+# - Check.
+#
+
+SELECT f1() FROM t1 GROUP BY 1;
+f1()
+<timestamp>
+
+#
+# - Cleanup.
+#
+
+DROP TABLE t1;
+DROP FUNCTION f1;
+
+DROP PROCEDURE IF EXISTS db28318_a.t1;
+DROP PROCEDURE IF EXISTS db28318_b.t2;
+DROP DATABASE IF EXISTS db28318_a;
+DROP DATABASE IF EXISTS db28318_b;
+CREATE DATABASE db28318_a;
+CREATE DATABASE db28318_b;
+CREATE PROCEDURE db28318_a.t1() SELECT "db28318_a.t1";
+CREATE PROCEDURE db28318_b.t2() CALL t1();
+use db28318_a;
+CALL db28318_b.t2();
+ERROR 42000: PROCEDURE db28318_b.t1 does not exist
+DROP PROCEDURE db28318_a.t1;
+DROP PROCEDURE db28318_b.t2;
+DROP DATABASE db28318_a;
+DROP DATABASE db28318_b;
+use test;
 End of 5.0 tests
+
+#
+# Bug#20550.
+#
+
+#
+# - Prepare.
+#
+
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+
+#
+# - Create required objects.
+#
+
+CREATE FUNCTION f1() RETURNS VARCHAR(65525) RETURN 'Hello';
+
+CREATE FUNCTION f2() RETURNS TINYINT RETURN 1;
+
+CREATE VIEW v1 AS SELECT f1();
+
+CREATE VIEW v2 AS SELECT f2();
+
+#
+# - Check.
+#
+
+SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+DATA_TYPE
+varchar
+
+SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v2';
+DATA_TYPE
+tinyint
+
+#
+# - Cleanup.
+#
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP VIEW v1;
+DROP VIEW v2;
+
+#
+# - Bug#24923: prepare.
+#
+
+DROP FUNCTION IF EXISTS f1;
+
+#
+# - Bug#24923: create required objects.
+#
+
+CREATE FUNCTION f1(p INT)
+RETURNS ENUM ('Very_long_enum_element_identifier',
+'Another_very_long_enum_element_identifier')
+BEGIN
+CASE p
+WHEN 1 THEN
+RETURN 'Very_long_enum_element_identifier';
+ELSE
+RETURN 'Another_very_long_enum_element_identifier';
+END CASE;
+END|
+
+#
+# - Bug#24923: check.
+#
+
+SELECT f1(1);
+f1(1)
+Very_long_enum_element_identifier
+
+SELECT f1(2);
+f1(2)
+Another_very_long_enum_element_identifier
+
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`(p INT) RETURNS enum('Very_long_enum_element_identifier','Another_very_long_enum_element_identifier') CHARSET latin1
+BEGIN
+CASE p
+WHEN 1 THEN
+RETURN 'Very_long_enum_element_identifier';
+ELSE
+RETURN 'Another_very_long_enum_element_identifier';
+END CASE;
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+#
+# - Bug#24923: cleanup.
+#
+
+DROP FUNCTION f1;
+
+End of 5.1 tests

@@ -107,11 +107,11 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			rpl_utility.cc rpl_injector.cc rpl_rli.cc rpl_mi.cc \
 			rpl_reporting.cc \
                         sql_union.cc sql_derived.cc \
-			client.c sql_client.cc mini_client_errors.c pack.c\
+			sql_client.cc \
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
 			sql_olap.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc sql_cursor.cc \
-			tztime.cc my_time.c my_user.c my_decimal.cc\
+			tztime.cc my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
                         event_scheduler.cc event_data_objects.cc \
@@ -119,6 +119,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
 			sql_servers.cc
+
+nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
 
 libndb_la_CPPFLAGS=	@ndbcluster_includes@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
@@ -149,6 +151,7 @@ DISTCLEANFILES =        $(EXTRA_PROGRAMS)
 MAINTAINERCLEANFILES =  $(BUILT_MAINT_SRC)
 AM_YFLAGS =		-d --verbose
 
+# These are listed in 'nodist_mysqld_SOURCES'
 link_sources:
 	rm -f mini_client_errors.c
 	@LN_CP_F@ $(top_srcdir)/libmysql/errmsg.c mini_client_errors.c

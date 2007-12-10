@@ -45,27 +45,9 @@ call bug4902_2()|
 call bug4902_2()|
 drop procedure bug4902_2|
 
-
-# Disable until bug#17244 is fixed
---disable_parsing
 #
-# BUG#5278: Stored procedure packets out of order if SET PASSWORD.
+# BUG#3583: query cache doesn't work for stored procedures
 #
---disable_warnings
-drop function if exists bug5278|
---enable_warnings
-create function bug5278 () returns char
-begin
-  SET PASSWORD FOR 'bob'@'%.loc.gov' = PASSWORD('newpass');
-  return 'okay';
-end|
-
---error 1133
-select bug5278()|
---error 1133
-select bug5278()|
-drop function bug5278|
---enable_parsing
 
 --disable_warnings
 drop table if exists t1|
@@ -74,9 +56,6 @@ create table t1 (
 	id   char(16) not null default '',
         data int not null
 )|
-#
-# BUG#3583: query cache doesn't work for stored procedures
-#
 --disable_warnings
 drop procedure if exists bug3583|
 --enable_warnings
@@ -287,3 +266,68 @@ connection default;
 drop user mysqltest_1@localhost;
 drop procedure 15298_1;
 drop procedure 15298_2;
+
+#
+# Bug#29936 Stored Procedure DML ignores low_priority_updates setting
+#
+
+--disable_warnings
+drop table if exists t1;
+drop procedure if exists p1;
+--enable_warnings
+
+create table t1 (value varchar(15));
+create procedure p1() update t1 set value='updated' where value='old';
+
+# load the procedure into sp cache and execute once
+call p1();
+
+insert into t1 (value) values ("old");
+
+connect (rl_holder, localhost, root,,);
+connect (rl_acquirer, localhost, root,,);
+connect (rl_contender, localhost, root,,);
+connect (rl_wait, localhost, root,,);
+
+connection rl_holder;
+select get_lock('b26162',120);
+
+connection rl_acquirer;
+--send select 'rl_acquirer', value from t1 where get_lock('b26162',120);
+
+# we must wait till this select opens and locks the tables
+connection rl_wait;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+  info = "select 'rl_acquirer', value from t1 where get_lock('b26162',120)";
+--source include/wait_condition.inc
+
+connection default;
+set session low_priority_updates=on;
+--send call p1();
+
+connection rl_wait;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and
+  info = "update t1 set value='updated' where value='old'";
+--source include/wait_condition.inc
+
+connection rl_contender;
+select 'rl_contender', value from t1;
+
+connection rl_holder;
+select release_lock('b26162');
+
+connection rl_acquirer;
+--reap
+connection default;
+--reap
+
+disconnect rl_holder;
+disconnect rl_acquirer;
+disconnect rl_wait;
+drop procedure p1;
+drop table t1;
+set session low_priority_updates=default;

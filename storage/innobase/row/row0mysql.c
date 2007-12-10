@@ -1728,10 +1728,11 @@ row_mysql_unlock_data_dictionary(
 }
 
 /*************************************************************************
-Does a table creation operation for MySQL.  If the name of the table
-to be created is equal with one of the predefined magic table names,
-then this also starts printing the corresponding monitor output by
-the master thread. */
+Drops a table for MySQL. If the name of the table ends in
+one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
+"innodb_table_monitor", then this will also start the printing of monitor
+output by the master thread. If the table name ends in "innodb_mem_validate",
+InnoDB will try to invoke mem_validate(). */
 
 int
 row_create_table_for_mysql(
@@ -1756,13 +1757,11 @@ row_create_table_for_mysql(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	if (srv_created_new_raw) {
-		fputs("InnoDB: A new raw disk partition was initialized or\n"
-		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
-		      "InnoDB: database modifications by the user. Shut down\n"
-		      "InnoDB: mysqld and edit my.cnf so that newraw"
-		      " is replaced\n"
-		      "InnoDB: with raw, and innodb_force_... is removed.\n",
-		      stderr);
+		fputs("InnoDB: A new raw disk partition was initialized:\n"
+		      "InnoDB: we do not allow database modifications"
+		      " by the user.\n"
+		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
+		      " is replaced with raw.\n", stderr);
 
 		dict_mem_table_free(table);
 		trx_commit_for_mysql(trx);
@@ -2703,13 +2702,11 @@ row_truncate_table_for_mysql(
 	ut_ad(table);
 
 	if (srv_created_new_raw) {
-		fputs("InnoDB: A new raw disk partition was initialized or\n"
-		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
-		      "InnoDB: database modifications by the user. Shut down\n"
-		      "InnoDB: mysqld and edit my.cnf so that newraw"
-		      " is replaced\n"
-		      "InnoDB: with raw, and innodb_force_... is removed.\n",
-		      stderr);
+		fputs("InnoDB: A new raw disk partition was initialized:\n"
+		      "InnoDB: we do not allow database modifications"
+		      " by the user.\n"
+		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
+		      " is replaced with raw.\n", stderr);
 
 		return(DB_ERROR);
 	}
@@ -2898,7 +2895,9 @@ next_rec:
 
 	/* MySQL calls ha_innobase::reset_auto_increment() which does
 	the same thing. */
+	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 0);
+	dict_table_autoinc_unlock(table);
 	dict_update_statistics(table);
 
 	trx_commit_for_mysql(trx);
@@ -2916,9 +2915,10 @@ funct_exit:
 #endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
-Drops a table for MySQL. If the name of the table to be dropped is equal
-with one of the predefined magic table names, then this also stops printing
-the corresponding monitor output by the master thread. */
+Drops a table for MySQL. If the name of the dropped table ends in
+one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
+"innodb_table_monitor", then this will also stop the printing of monitor
+output by the master thread. */
 
 int
 row_drop_table_for_mysql(
@@ -2934,21 +2934,17 @@ row_drop_table_for_mysql(
 	ulint		err;
 	const char*	table_name;
 	ulint		namelen;
-	char*		dir_path_of_temp_table	= NULL;
-	ibool		success;
 	ibool		locked_dictionary	= FALSE;
 	pars_info_t*    info			= NULL;
 
 	ut_a(name != NULL);
 
 	if (srv_created_new_raw) {
-		fputs("InnoDB: A new raw disk partition was initialized or\n"
-		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
-		      "InnoDB: database modifications by the user. Shut down\n"
-		      "InnoDB: mysqld and edit my.cnf so that newraw"
-		      " is replaced\n"
-		      "InnoDB: with raw, and innodb_force_... is removed.\n",
-		      stderr);
+		fputs("InnoDB: A new raw disk partition was initialized:\n"
+		      "InnoDB: we do not allow database modifications"
+		      " by the user.\n"
+		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
+		      " is replaced with raw.\n", stderr);
 
 		return(DB_ERROR);
 	}
@@ -3232,14 +3228,20 @@ check_next_foreign:
 	} else {
 		ibool		is_path;
 		const char*	name_or_path;
+		mem_heap_t*	heap;
 
+		heap = mem_heap_create(200);
+
+		/* Clone the name, in case it has been allocated
+		from table->heap, which will be freed by
+		dict_table_remove_from_cache(table) below. */
+		name = mem_heap_strdup(heap, name);
 		space_id = table->space;
 
 		if (table->dir_path_of_temp_table != NULL) {
-			dir_path_of_temp_table = mem_strdup(
-				table->dir_path_of_temp_table);
 			is_path = TRUE;
-			name_or_path = dir_path_of_temp_table;
+			name_or_path = mem_heap_strdup(
+				heap, table->dir_path_of_temp_table);
 		} else {
 			is_path = FALSE;
 			name_or_path = name;
@@ -3272,13 +3274,7 @@ check_next_foreign:
 					"InnoDB: of table ");
 				ut_print_name(stderr, trx, TRUE, name);
 				fprintf(stderr, ".\n");
-
-				goto funct_exit;
-			}
-
-			success = fil_delete_tablespace(space_id);
-
-			if (!success) {
+			} else if (!fil_delete_tablespace(space_id)) {
 				fprintf(stderr,
 					"InnoDB: We removed now the InnoDB"
 					" internal data dictionary entry\n"
@@ -3296,6 +3292,8 @@ check_next_foreign:
 				err = DB_ERROR;
 			}
 		}
+
+		mem_heap_free(heap);
 	}
 funct_exit:
 
@@ -3303,10 +3301,6 @@ funct_exit:
 
 	if (locked_dictionary) {
 		row_mysql_unlock_data_dictionary(trx);
-	}
-
-	if (dir_path_of_temp_table) {
-		mem_free(dir_path_of_temp_table);
 	}
 
 	trx->op_info = "";

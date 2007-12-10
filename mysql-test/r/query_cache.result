@@ -1655,52 +1655,18 @@ set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
 End of 5.0 tests
-drop database if exists db1;
-drop database if exists db2;
-set GLOBAL query_cache_size=15*1024*1024;
-create database db1;
-use db1;
-create table t1(c1 int)engine=myisam;
-insert into t1(c1) values (1);
-select * from db1.t1 f;
-c1
+CREATE TABLE t1 (a ENUM('rainbow'));
+INSERT INTO t1 VALUES (),(),(),(),();
+SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
 1
-show status like 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-rename schema db1 to db2;
-show status like 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	0
-drop database db2;
-set global query_cache_size=default;
-drop database if exists db1;
-drop database if exists db3;
-set GLOBAL query_cache_size=15*1024*1024;
-create database db1;
-create database db3;
-use db1;
-create table t1(c1 int) engine=myisam;
-use db3;
-create table t1(c1 int) engine=myisam;
-use db1;
-insert into t1(c1) values (1);
-use mysql;
-select * from db1.t1;
-c1
 1
-select c1+1 from db1.t1;
-c1+1
-2
-select * from db3.t1;
-c1
-show status like 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	3
-rename schema db1 to db2;
-show status like 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-drop database db2;
-drop database db3;
+DROP TABLE t1;
+CREATE TABLE t1 (a LONGBLOB);
+INSERT INTO t1 SET a = 'aaaa';
+INSERT INTO t1 SET a = 'aaaa';
+SELECT 1 FROM t1 GROUP BY
+(SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
+1
+1
+DROP TABLE t1;
 End of 5.1 tests

@@ -3805,6 +3805,28 @@ c1
 2
 DROP TABLE t1,t2;
 #
+# Bug#29815: new option for suppressing last line of mysqldump:
+#            "Dump completed on"
+#
+# --skip-dump-date:
+--
+
+
+
+-- Dump completed
+# --dump-date:
+--
+
+
+
+-- Dump completed on DATE
+# --dump-date (default):
+--
+
+
+
+-- Dump completed on DATE
+#
 # End of 5.0 tests
 #
 drop table if exists t1;
@@ -4176,6 +4198,38 @@ set names latin1;
 
 # Cleanup.
 DROP DATABASE mysqldump_test_db;
+#
+# BUG#29938: wrong behavior of mysqldump --skip-events
+#            with --all-databases
+#
+TRUNCATE mysql.event;
+USE test;
+CREATE event e29938 ON SCHEDULE AT '2035-12-31 20:01:23' DO SET @bug29938=29938;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	e29938	root@localhost	SYSTEM	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+TRUNCATE mysql.event;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+#
+# Bug#31113 mysqldump 5.1 can't handle a dash ("-") in database names
+#
+create database `test-database`;
+use `test-database`;
+create table test (a int);
+DROP TABLE IF EXISTS `test`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE `test` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+LOCK TABLES `test` WRITE;
+/*!40000 ALTER TABLE `test` DISABLE KEYS */;
+/*!40000 ALTER TABLE `test` ENABLE KEYS */;
+UNLOCK TABLES;
+drop database `test-database`;
+use test;
 #
 # End of 5.1 tests
 #

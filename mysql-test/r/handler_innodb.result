@@ -515,3 +515,216 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
+drop table if exists t1;
+create table t1 (a int) ENGINE=MEMORY;
+--> client 2
+handler t1 open;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+--> client 1
+drop table t1;
+drop table if exists t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias read a next;
+ERROR 42000: Key 'a' doesn't exist in table 't1_alias'
+handler t1_alias READ a next where inexistent > 0;
+ERROR 42S22: Unknown column 'inexistent' in 'field list'
+handler t1_alias read a next;
+ERROR 42000: Key 'a' doesn't exist in table 't1_alias'
+handler t1_alias READ a next where inexistent > 0;
+ERROR 42S22: Unknown column 'inexistent' in 'field list'
+handler t1_alias close;
+drop table t1;
+drop table if exists t1,t2;
+create table t1 (c1 int);
+create table t2 (c1 int);
+insert into t1 values (1);
+insert into t2 values (2);
+connection: default
+handler t1 open;
+handler t1 read first;
+c1
+1
+connection: flush
+flush tables;;
+connection: default
+handler t2 open;
+handler t2 read first;
+c1
+2
+handler t1 read next;
+c1
+1
+handler t1 close;
+handler t2 close;
+drop table t1,t2;
+drop table if exists t1,t2;
+create table t1 (c1 int);
+connection: default
+handler t1 open;
+handler t1 read first;
+c1
+connection: flush
+rename table t1 to t2;;
+connection: default
+handler t2 open;
+handler t2 read first;
+c1
+handler t1 read next;
+ERROR 42S02: Table 'test.t1' doesn't exist
+handler t1 close;
+handler t2 close;
+drop table t2;
+drop table if exists t1;
+create temporary table t1 (a int, b char(1), key a(a), key b(a,b));
+insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
+(5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+select a,b from t1;
+a	b
+0	a
+1	b
+2	c
+3	d
+4	e
+5	f
+6	g
+7	h
+8	i
+9	j
+handler t1 open as a1;
+handler a1 read a first;
+a	b
+0	a
+handler a1 read a next;
+a	b
+1	b
+handler a1 read a next;
+a	b
+2	c
+select a,b from t1;
+ERROR HY000: Can't reopen table: 'a1'
+handler a1 read a prev;
+a	b
+1	b
+handler a1 read a prev;
+a	b
+0	a
+handler a1 read a=(6) where b="g";
+a	b
+6	g
+handler a1 close;
+select a,b from t1;
+a	b
+0	a
+1	b
+2	c
+3	d
+4	e
+5	f
+6	g
+7	h
+8	i
+9	j
+handler t1 open as a2;
+handler a2 read a first;
+a	b
+0	a
+handler a2 read a last;
+a	b
+9	j
+handler a2 read a prev;
+a	b
+8	i
+handler a2 close;
+drop table t1;
+drop table if exists t1,t2;
+create table t1 (a int);
+handler t1 open as t1_alias;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+flush tables;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias close;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias read first;
+a
+drop table t1;
+handler t1_alias read next;
+ERROR 42S02: Unknown table 't1_alias' in HANDLER
+create table t1 (a int);
+create temporary table t2 (a int, key(a));
+handler t1 open as a1;
+handler t2 open as a2;
+handler a2 read a first;
+a
+drop table t1, t2;
+handler a2 read a next;
+ERROR 42S02: Unknown table 'a2' in HANDLER
+handler a1 close;
+ERROR 42S02: Unknown table 'a1' in HANDLER
+create table t1 (a int, key(a));
+create table t2 like t1;
+handler t1 open as a1;
+handler t2 open as a2;
+handler a1 read a first;
+a
+handler a2 read a first;
+a
+alter table t1 add b int;
+handler a1 close;
+ERROR 42S02: Unknown table 'a1' in HANDLER
+handler a2 close;
+drop table t1, t2;
+create table t1 (a int, key(a));
+handler t1 open as a1;
+handler a1 read a first;
+a
+rename table t1 to t2;
+handler a1 read a first;
+ERROR 42S02: Unknown table 'a1' in HANDLER
+drop table t2;
+create table t1 (a int, key(a));
+create table t2 like t1;
+handler t1 open as a1;
+handler t2 open as a2;
+handler a1 read a first;
+a
+handler a2 read a first;
+a
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+handler a1 close;
+ERROR 42S02: Unknown table 'a1' in HANDLER
+handler a2 close;
+drop table t1, t2;
+create table t1 (a int, b char(1), key a(a), key b(a,b));
+insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
+(5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+handler t1 open;
+handler t1 read a first;
+a	b
+0	a
+handler t1 read a next;
+a	b
+1	b
+flush tables;
+handler t1 read a next;
+a	b
+0	a
+handler t1 read a next;
+a	b
+1	b
+flush tables with read lock;
+handler t1 read a next;
+a	b
+0	a
+unlock tables;
+drop table t1;
+handler t1 read a next;
+ERROR 42S02: Unknown table 't1' in HANDLER

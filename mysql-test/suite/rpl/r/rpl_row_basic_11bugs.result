@@ -242,3 +242,34 @@ a	b
 3	1
 4	4
 drop table t1,t2;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+**** On Master ****
+SET SESSION BINLOG_FORMAT=ROW;
+CREATE TABLE t1 (a INT PRIMARY KEY, b SET('master','slave'));
+INSERT INTO t1 VALUES (1,'master,slave'), (2,'master,slave');
+**** On Slave ****
+UPDATE t1 SET a = 5, b = 'slave' WHERE a = 1;
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	master,slave
+5	slave
+**** On Master ****
+UPDATE t1 SET a = 5, b = 'master' WHERE a = 1;
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	master,slave
+5	master
+**** On Slave ****
+Last_SQL_Error
+
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	master,slave
+5	slave
+DROP TABLE t1;
+**** On Master ****
+DROP TABLE t1;

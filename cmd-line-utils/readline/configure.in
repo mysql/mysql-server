@@ -4,9 +4,27 @@ dnl
 dnl report bugs to chet@po.cwru.edu
 dnl
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION([for Readline 5.0, version 2.52, from autoconf version] AC_ACVERSION)
 
-AC_INIT(readline, 5.0-rc1, bug-readline@gnu.org)
+# Copyright (C) 1987-2005 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+# 02111-1307, USA.
+
+AC_REVISION([for Readline 5.2, version 2.61])
+
+AC_INIT(readline, 5.2, bug-readline@gnu.org)
 
 dnl make sure we are using a recent autoconf version
 AC_PREREQ(2.50)
@@ -16,18 +34,26 @@ AC_CONFIG_AUX_DIR(./support)
 AC_CONFIG_HEADERS(config.h)
 
 dnl update the value of RL_READLINE_VERSION in readline.h when this changes
-LIBVERSION=5.0
+LIBVERSION=5.2
 
 AC_CANONICAL_HOST
 
 dnl configure defaults
 opt_curses=no
+opt_purify=no
 
 dnl arguments to configure
 AC_ARG_WITH(curses, AC_HELP_STRING([--with-curses], [use the curses library instead of the termcap library]), opt_curses=$withval)
+AC_ARG_WITH(purify, AC_HELP_STRING([--with-purify], [configure to postprocess with purify]), opt_purify=$withval)
 
 if test "$opt_curses" = "yes"; then
 	prefer_curses=yes
+fi
+
+if test "$opt_purify" = yes; then
+	PURIFY="purify"
+else
+	PURIFY=
 fi
 
 dnl option parsing for optional features
@@ -41,6 +67,36 @@ AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [build static libraries 
 
 if test $opt_multibyte = no; then
 AC_DEFINE(NO_MULTIBYTE_SUPPORT)
+fi
+
+dnl load up the cross-building cache file -- add more cases and cache
+dnl files as necessary
+
+dnl Note that host and target machine are the same, and different than the
+dnl build machine.
+
+CROSS_COMPILE=
+if test "x$cross_compiling" = "xyes"; then
+    case "${host}" in
+    *-cygwin*)
+        cross_cache=${srcdir}/cross-build/cygwin.cache
+        ;;
+    *-mingw*)
+        cross_cache=${srcdir}/cross-build/mingw.cache
+        ;;
+    i[[3456]]86-*-beos*)
+        cross_cache=${srcdir}/cross-build/x86-beos.cache
+        ;;
+    *)  echo "configure: cross-compiling for $host is not supported" >&2
+        ;;
+    esac
+    if test -n "${cross_cache}" && test -r "${cross_cache}"; then
+        echo "loading cross-build cache file ${cross_cache}"
+        . ${cross_cache}
+    fi
+    unset cross_cache
+    CROSS_COMPILE='-DCROSS_COMPILING'
+    AC_SUBST(CROSS_COMPILE)
 fi
 
 echo ""
@@ -83,14 +139,24 @@ AC_HEADER_STDC
 AC_HEADER_STAT
 AC_HEADER_DIRENT
 
-AC_CHECK_FUNCS(lstat memmove putenv select setenv setlocale \
-		strcasecmp strpbrk tcgetattr vsnprintf isascii isxdigit)
+AC_CHECK_FUNCS(fcntl kill lstat)
+AC_CHECK_FUNCS(memmove putenv select setenv setlocale \
+		strcasecmp strpbrk tcgetattr vsnprintf)
+AC_CHECK_FUNCS(isascii isxdigit)
+AC_CHECK_FUNCS(getpwent getpwnam getpwuid)
 
 AC_FUNC_STRCOLL
 
-AC_CHECK_HEADERS(unistd.h stdlib.h varargs.h stdarg.h string.h strings.h \
-		limits.h sys/ptem.h sys/pte.h sys/stream.h sys/select.h \
-		termcap.h termios.h termio.h sys/file.h locale.h memory.h )
+AC_CHECK_HEADERS(fcntl.h unistd.h stdlib.h varargs.h stdarg.h string.h strings.h \
+		limits.h locale.h pwd.h memory.h termcap.h termios.h termio.h)
+AC_CHECK_HEADERS(sys/pte.h sys/stream.h sys/select.h sys/file.h)
+
+AC_CHECK_HEADERS(sys/ptem.h,,,
+[[
+#if HAVE_SYS_STREAM_H
+#  include <sys/stream.h>
+#endif
+]])
 
 BASH_SYS_SIGNAL_VINTAGE
 BASH_SYS_REINSTALL_SIGHANDLERS
@@ -143,7 +209,13 @@ esac
 #
 if test -f ${srcdir}/support/shobj-conf; then
         AC_MSG_CHECKING(configuration for building shared libraries)
-        eval `${CONFIG_SHELL-/bin/sh} ${srcdir}/support/shobj-conf -C "${CC}" -c ${host_cpu} -o ${host_os} -v ${host_vendor}`
+        eval `TERMCAP_LIB=$TERMCAP_LIB ${CONFIG_SHELL-/bin/sh} ${srcdir}/support/shobj-conf -C "${CC}" -c ${host_cpu} -o ${host_os} -v ${host_vendor}`
+
+#	case "$SHLIB_LIBS" in
+#	*curses*|*termcap*|*termlib*)	;;
+#	*)			SHLIB_LIBS="$SHLIB_LIBS $TERMCAP_LIB" ;;
+#	esac
+	
         AC_SUBST(SHOBJ_CC)
         AC_SUBST(SHOBJ_CFLAGS)
         AC_SUBST(SHOBJ_LD)
@@ -153,8 +225,11 @@ if test -f ${srcdir}/support/shobj-conf; then
         AC_SUBST(SHOBJ_STATUS)
 	AC_SUBST(SHLIB_STATUS)
 	AC_SUBST(SHLIB_XLDFLAGS)
+	AC_SUBST(SHLIB_DOT)
+	AC_SUBST(SHLIB_LIBPREF)
 	AC_SUBST(SHLIB_LIBSUFF)
 	AC_SUBST(SHLIB_LIBVERSION)
+	AC_SUBST(SHLIB_DLLVERSION)
 	AC_SUBST(SHLIB_LIBS)
         AC_MSG_RESULT($SHLIB_STATUS)
 
@@ -191,6 +266,12 @@ msdosdjgpp*)	BUILD_DIR=`pwd.exe` ;;	# to prevent //d/path/file
 *)		BUILD_DIR=`pwd` ;;
 esac
 
+case "$BUILD_DIR" in
+*\ *)	BUILD_DIR=`echo "$BUILD_DIR" | sed 's: :\\\\ :g'` ;;
+*)	;;
+esac
+
+AC_SUBST(PURIFY)
 AC_SUBST(BUILD_DIR)
 
 AC_SUBST(CFLAGS)

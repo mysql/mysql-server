@@ -3,7 +3,7 @@ SET NAMES armscii8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET armscii8 COLLATE armscii8_bin) ENGINE=NDB CHARACTER SET armscii8 COLLATE armscii8_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	armscii8_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	armscii8_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -233,7 +233,7 @@ SET NAMES armscii8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET armscii8 COLLATE armscii8_general_ci) ENGINE=NDB CHARACTER SET armscii8 COLLATE armscii8_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	armscii8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	armscii8_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -463,7 +463,7 @@ SET NAMES ascii;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET ascii COLLATE ascii_bin) ENGINE=NDB CHARACTER SET ascii COLLATE ascii_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	ascii_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	ascii_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -693,7 +693,7 @@ SET NAMES ascii;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET ascii COLLATE ascii_general_ci) ENGINE=NDB CHARACTER SET ascii COLLATE ascii_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	ascii_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	ascii_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -737,7 +737,6 @@ a_ascii	a_len
 44	1
 64	1
 45	1
-60	1
 65	1
 46	1
 66	1
@@ -779,17 +778,18 @@ a_ascii	a_len
 78	1
 59	1
 79	1
-7E	1
 5A	1
 7A	1
-5D	1
 5B	1
 5C	1
+5D	1
 5E	1
 5F	1
+60	1
 7B	1
 7C	1
 7D	1
+7E	1
 7F	1
 80	1
 81	1
@@ -923,7 +923,7 @@ SET NAMES big5;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET big5 COLLATE big5_bin) ENGINE=NDB CHARACTER SET big5 COLLATE big5_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	big5_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	big5_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -1027,7 +1027,7 @@ SET NAMES big5;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET big5 COLLATE big5_chinese_ci) ENGINE=NDB CHARACTER SET big5 COLLATE big5_chinese_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	big5_chinese_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	big5_chinese_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -1131,7 +1131,7 @@ SET NAMES binary;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET binary) ENGINE=NDB CHARACTER SET binary;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	binary	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	binary	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -1361,7 +1361,7 @@ SET NAMES cp1250;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1250 COLLATE cp1250_bin) ENGINE=NDB CHARACTER SET cp1250 COLLATE cp1250_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1250_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1250_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -1591,7 +1591,7 @@ SET NAMES cp1250;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1250 COLLATE cp1250_croatian_ci) ENGINE=NDB CHARACTER SET cp1250 COLLATE cp1250_croatian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1250_croatian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1250_croatian_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -1821,7 +1821,7 @@ SET NAMES cp1250;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1250 COLLATE cp1250_czech_cs) ENGINE=NDB CHARACTER SET cp1250 COLLATE cp1250_czech_cs;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1250_czech_cs	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1250_czech_cs	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 7F	1
@@ -2051,7 +2051,7 @@ SET NAMES cp1250;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1250 COLLATE cp1250_general_ci) ENGINE=NDB CHARACTER SET cp1250 COLLATE cp1250_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1250_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1250_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 A0	1
@@ -2281,7 +2281,7 @@ SET NAMES cp1251;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1251 COLLATE cp1251_bin) ENGINE=NDB CHARACTER SET cp1251 COLLATE cp1251_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1251_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1251_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -2511,7 +2511,7 @@ SET NAMES cp1251;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1251 COLLATE cp1251_bulgarian_ci) ENGINE=NDB CHARACTER SET cp1251 COLLATE cp1251_bulgarian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1251_bulgarian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1251_bulgarian_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -2741,7 +2741,7 @@ SET NAMES cp1251;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1251 COLLATE cp1251_general_ci) ENGINE=NDB CHARACTER SET cp1251 COLLATE cp1251_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1251_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1251_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -2971,7 +2971,7 @@ SET NAMES cp1251;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1251 COLLATE cp1251_general_cs) ENGINE=NDB CHARACTER SET cp1251 COLLATE cp1251_general_cs;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1251_general_cs	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1251_general_cs	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -3201,7 +3201,7 @@ SET NAMES cp1251;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1251 COLLATE cp1251_ukrainian_ci) ENGINE=NDB CHARACTER SET cp1251 COLLATE cp1251_ukrainian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1251_ukrainian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1251_ukrainian_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 60	1
@@ -3431,7 +3431,7 @@ SET NAMES cp1256;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1256 COLLATE cp1256_bin) ENGINE=NDB CHARACTER SET cp1256 COLLATE cp1256_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1256_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1256_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -3661,7 +3661,7 @@ SET NAMES cp1256;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1256 COLLATE cp1256_general_ci) ENGINE=NDB CHARACTER SET cp1256 COLLATE cp1256_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1256_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1256_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -3891,7 +3891,7 @@ SET NAMES cp1257;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1257 COLLATE cp1257_bin) ENGINE=NDB CHARACTER SET cp1257 COLLATE cp1257_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1257_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1257_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -4121,7 +4121,7 @@ SET NAMES cp1257;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1257 COLLATE cp1257_general_ci) ENGINE=NDB CHARACTER SET cp1257 COLLATE cp1257_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1257_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1257_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -4351,7 +4351,7 @@ SET NAMES cp1257;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1257 COLLATE cp1257_lithuanian_ci) ENGINE=NDB CHARACTER SET cp1257 COLLATE cp1257_lithuanian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp1257_lithuanian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp1257_lithuanian_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -4581,7 +4581,7 @@ SET NAMES cp850;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp850 COLLATE cp850_bin) ENGINE=NDB CHARACTER SET cp850 COLLATE cp850_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp850_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp850_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -4811,7 +4811,7 @@ SET NAMES cp850;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp850 COLLATE cp850_general_ci) ENGINE=NDB CHARACTER SET cp850 COLLATE cp850_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp850_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp850_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -5041,7 +5041,7 @@ SET NAMES cp852;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp852 COLLATE cp852_bin) ENGINE=NDB CHARACTER SET cp852 COLLATE cp852_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp852_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp852_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -5271,7 +5271,7 @@ SET NAMES cp852;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp852 COLLATE cp852_general_ci) ENGINE=NDB CHARACTER SET cp852 COLLATE cp852_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp852_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp852_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -5501,7 +5501,7 @@ SET NAMES cp866;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp866 COLLATE cp866_bin) ENGINE=NDB CHARACTER SET cp866 COLLATE cp866_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp866_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp866_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -5731,7 +5731,7 @@ SET NAMES cp866;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp866 COLLATE cp866_general_ci) ENGINE=NDB CHARACTER SET cp866 COLLATE cp866_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp866_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp866_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -5961,7 +5961,7 @@ SET NAMES cp932;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp932 COLLATE cp932_bin) ENGINE=NDB CHARACTER SET cp932 COLLATE cp932_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp932_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp932_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -6128,7 +6128,7 @@ SET NAMES cp932;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp932 COLLATE cp932_japanese_ci) ENGINE=NDB CHARACTER SET cp932 COLLATE cp932_japanese_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	cp932_japanese_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	cp932_japanese_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -6295,7 +6295,7 @@ SET NAMES dec8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET dec8 COLLATE dec8_bin) ENGINE=NDB CHARACTER SET dec8 COLLATE dec8_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	dec8_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	dec8_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -6525,7 +6525,7 @@ SET NAMES dec8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET dec8 COLLATE dec8_swedish_ci) ENGINE=NDB CHARACTER SET dec8 COLLATE dec8_swedish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	dec8_swedish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	dec8_swedish_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -6755,7 +6755,7 @@ SET NAMES eucjpms;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET eucjpms COLLATE eucjpms_bin) ENGINE=NDB CHARACTER SET eucjpms COLLATE eucjpms_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	eucjpms_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	eucjpms_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -6859,7 +6859,7 @@ SET NAMES eucjpms;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET eucjpms COLLATE eucjpms_japanese_ci) ENGINE=NDB CHARACTER SET eucjpms COLLATE eucjpms_japanese_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	eucjpms_japanese_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	eucjpms_japanese_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -6963,7 +6963,7 @@ SET NAMES euckr;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET euckr COLLATE euckr_bin) ENGINE=NDB CHARACTER SET euckr COLLATE euckr_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	euckr_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	euckr_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -7067,7 +7067,7 @@ SET NAMES euckr;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET euckr COLLATE euckr_korean_ci) ENGINE=NDB CHARACTER SET euckr COLLATE euckr_korean_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	euckr_korean_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	euckr_korean_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -7171,7 +7171,7 @@ SET NAMES gb2312;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET gb2312 COLLATE gb2312_bin) ENGINE=NDB CHARACTER SET gb2312 COLLATE gb2312_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	gb2312_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	gb2312_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -7275,7 +7275,7 @@ SET NAMES gb2312;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET gb2312 COLLATE gb2312_chinese_ci) ENGINE=NDB CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	gb2312_chinese_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	gb2312_chinese_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -7379,7 +7379,7 @@ SET NAMES gbk;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET gbk COLLATE gbk_bin) ENGINE=NDB CHARACTER SET gbk COLLATE gbk_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	gbk_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	gbk_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -7483,7 +7483,7 @@ SET NAMES gbk;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET gbk COLLATE gbk_chinese_ci) ENGINE=NDB CHARACTER SET gbk COLLATE gbk_chinese_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	gbk_chinese_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	gbk_chinese_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -7587,7 +7587,7 @@ SET NAMES geostd8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET geostd8 COLLATE geostd8_bin) ENGINE=NDB CHARACTER SET geostd8 COLLATE geostd8_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	geostd8_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	geostd8_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -7817,7 +7817,7 @@ SET NAMES geostd8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET geostd8 COLLATE geostd8_general_ci) ENGINE=NDB CHARACTER SET geostd8 COLLATE geostd8_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	geostd8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	geostd8_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -8047,7 +8047,7 @@ SET NAMES greek;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET greek COLLATE greek_bin) ENGINE=NDB CHARACTER SET greek COLLATE greek_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	greek_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	greek_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -8277,7 +8277,7 @@ SET NAMES greek;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET greek COLLATE greek_general_ci) ENGINE=NDB CHARACTER SET greek COLLATE greek_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	greek_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	greek_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -8507,7 +8507,7 @@ SET NAMES hebrew;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET hebrew COLLATE hebrew_bin) ENGINE=NDB CHARACTER SET hebrew COLLATE hebrew_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	hebrew_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	hebrew_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -8737,7 +8737,7 @@ SET NAMES hebrew;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET hebrew COLLATE hebrew_general_ci) ENGINE=NDB CHARACTER SET hebrew COLLATE hebrew_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	hebrew_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	hebrew_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -8967,7 +8967,7 @@ SET NAMES hp8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET hp8 COLLATE hp8_bin) ENGINE=NDB CHARACTER SET hp8 COLLATE hp8_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	hp8_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	hp8_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -9197,7 +9197,7 @@ SET NAMES hp8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET hp8 COLLATE hp8_english_ci) ENGINE=NDB CHARACTER SET hp8 COLLATE hp8_english_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	hp8_english_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	hp8_english_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -9427,7 +9427,7 @@ SET NAMES keybcs2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET keybcs2 COLLATE keybcs2_bin) ENGINE=NDB CHARACTER SET keybcs2 COLLATE keybcs2_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	keybcs2_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	keybcs2_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -9657,7 +9657,7 @@ SET NAMES keybcs2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET keybcs2 COLLATE keybcs2_general_ci) ENGINE=NDB CHARACTER SET keybcs2 COLLATE keybcs2_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	keybcs2_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	keybcs2_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -9887,7 +9887,7 @@ SET NAMES koi8r;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET koi8r COLLATE koi8r_bin) ENGINE=NDB CHARACTER SET koi8r COLLATE koi8r_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	koi8r_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	koi8r_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -10117,7 +10117,7 @@ SET NAMES koi8r;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET koi8r COLLATE koi8r_general_ci) ENGINE=NDB CHARACTER SET koi8r COLLATE koi8r_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	koi8r_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	koi8r_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -10347,7 +10347,7 @@ SET NAMES koi8u;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET koi8u COLLATE koi8u_bin) ENGINE=NDB CHARACTER SET koi8u COLLATE koi8u_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	koi8u_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	koi8u_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -10577,7 +10577,7 @@ SET NAMES koi8u;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET koi8u COLLATE koi8u_general_ci) ENGINE=NDB CHARACTER SET koi8u COLLATE koi8u_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	koi8u_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	koi8u_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 60	1
@@ -10807,7 +10807,7 @@ SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_bin) ENGINE=NDB CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin1_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin1_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -11037,7 +11037,7 @@ SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_danish_ci) ENGINE=NDB CHARACTER SET latin1 COLLATE latin1_danish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin1_danish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin1_danish_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -11267,7 +11267,7 @@ SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_general_ci) ENGINE=NDB CHARACTER SET latin1 COLLATE latin1_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin1_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin1_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -11497,7 +11497,7 @@ SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_general_cs) ENGINE=NDB CHARACTER SET latin1 COLLATE latin1_general_cs;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin1_general_cs	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin1_general_cs	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -11727,7 +11727,7 @@ SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_german1_ci) ENGINE=NDB CHARACTER SET latin1 COLLATE latin1_german1_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin1_german1_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin1_german1_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -11957,7 +11957,7 @@ SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_german2_ci) ENGINE=NDB CHARACTER SET latin1 COLLATE latin1_german2_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin1_german2_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin1_german2_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -12187,7 +12187,7 @@ SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_spanish_ci) ENGINE=NDB CHARACTER SET latin1 COLLATE latin1_spanish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin1_spanish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin1_spanish_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -12417,7 +12417,7 @@ SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_swedish_ci) ENGINE=NDB CHARACTER SET latin1 COLLATE latin1_swedish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin1_swedish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin1_swedish_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -12647,7 +12647,7 @@ SET NAMES latin2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin2 COLLATE latin2_bin) ENGINE=NDB CHARACTER SET latin2 COLLATE latin2_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin2_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin2_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -12877,7 +12877,7 @@ SET NAMES latin2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin2 COLLATE latin2_croatian_ci) ENGINE=NDB CHARACTER SET latin2 COLLATE latin2_croatian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin2_croatian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin2_croatian_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -13107,7 +13107,7 @@ SET NAMES latin2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin2 COLLATE latin2_czech_cs) ENGINE=NDB CHARACTER SET latin2 COLLATE latin2_czech_cs;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin2_czech_cs	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin2_czech_cs	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 2E	1
@@ -13337,7 +13337,7 @@ SET NAMES latin2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin2 COLLATE latin2_general_ci) ENGINE=NDB CHARACTER SET latin2 COLLATE latin2_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin2_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin2_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -13567,7 +13567,7 @@ SET NAMES latin2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin2 COLLATE latin2_hungarian_ci) ENGINE=NDB CHARACTER SET latin2 COLLATE latin2_hungarian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin2_hungarian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin2_hungarian_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 7F	1
@@ -13797,7 +13797,7 @@ SET NAMES latin5;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin5 COLLATE latin5_bin) ENGINE=NDB CHARACTER SET latin5 COLLATE latin5_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin5_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin5_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -14027,7 +14027,7 @@ SET NAMES latin5;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin5 COLLATE latin5_turkish_ci) ENGINE=NDB CHARACTER SET latin5 COLLATE latin5_turkish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin5_turkish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin5_turkish_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -14257,7 +14257,7 @@ SET NAMES latin7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin7 COLLATE latin7_bin) ENGINE=NDB CHARACTER SET latin7 COLLATE latin7_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin7_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin7_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -14487,7 +14487,7 @@ SET NAMES latin7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin7 COLLATE latin7_estonian_cs) ENGINE=NDB CHARACTER SET latin7 COLLATE latin7_estonian_cs;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin7_estonian_cs	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin7_estonian_cs	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 80	1
@@ -14717,7 +14717,7 @@ SET NAMES latin7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin7 COLLATE latin7_general_ci) ENGINE=NDB CHARACTER SET latin7 COLLATE latin7_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin7_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin7_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 7F	1
@@ -14947,7 +14947,7 @@ SET NAMES latin7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin7 COLLATE latin7_general_cs) ENGINE=NDB CHARACTER SET latin7 COLLATE latin7_general_cs;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	latin7_general_cs	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	latin7_general_cs	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 7F	1
@@ -15177,7 +15177,7 @@ SET NAMES macce;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macce COLLATE macce_bin) ENGINE=NDB CHARACTER SET macce COLLATE macce_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	macce_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	macce_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -15407,7 +15407,7 @@ SET NAMES macce;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macce COLLATE macce_general_ci) ENGINE=NDB CHARACTER SET macce COLLATE macce_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	macce_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	macce_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -15637,7 +15637,7 @@ SET NAMES macroman;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macroman COLLATE macroman_bin) ENGINE=NDB CHARACTER SET macroman COLLATE macroman_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	macroman_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	macroman_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -15867,7 +15867,7 @@ SET NAMES macroman;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macroman COLLATE macroman_general_ci) ENGINE=NDB CHARACTER SET macroman COLLATE macroman_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	macroman_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	macroman_general_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -16097,7 +16097,7 @@ SET NAMES sjis;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET sjis COLLATE sjis_bin) ENGINE=NDB CHARACTER SET sjis COLLATE sjis_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	sjis_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	sjis_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -16264,7 +16264,7 @@ SET NAMES sjis;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET sjis COLLATE sjis_japanese_ci) ENGINE=NDB CHARACTER SET sjis COLLATE sjis_japanese_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	sjis_japanese_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	sjis_japanese_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -16431,7 +16431,7 @@ SET NAMES swe7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET swe7 COLLATE swe7_bin) ENGINE=NDB CHARACTER SET swe7 COLLATE swe7_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	swe7_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	swe7_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -16661,7 +16661,7 @@ SET NAMES swe7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET swe7 COLLATE swe7_swedish_ci) ENGINE=NDB CHARACTER SET swe7 COLLATE swe7_swedish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	swe7_swedish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	swe7_swedish_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -16891,7 +16891,7 @@ SET NAMES tis620;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET tis620 COLLATE tis620_bin) ENGINE=NDB CHARACTER SET tis620 COLLATE tis620_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	tis620_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	tis620_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -17121,7 +17121,7 @@ SET NAMES tis620;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET tis620 COLLATE tis620_thai_ci) ENGINE=NDB CHARACTER SET tis620 COLLATE tis620_thai_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	tis620_thai_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	tis620_thai_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -17351,7 +17351,7 @@ SET NAMES ujis;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET ujis COLLATE ujis_bin) ENGINE=NDB CHARACTER SET ujis COLLATE ujis_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	ujis_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	ujis_bin	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -17455,7 +17455,7 @@ SET NAMES ujis;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET ujis COLLATE ujis_japanese_ci) ENGINE=NDB CHARACTER SET ujis COLLATE ujis_japanese_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	ujis_japanese_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	ujis_japanese_ci	#	#	#
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ascii	a_len
 21	1
@@ -17562,7 +17562,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_bin;
@@ -20103,7 +20103,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_czech_ci;
@@ -22644,7 +22644,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_danish_ci;
@@ -25185,7 +25185,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_estonian_ci;
@@ -27726,7 +27726,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_general_ci;
@@ -30267,7 +30267,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_hungarian_ci;
@@ -32808,7 +32808,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_icelandic_ci;
@@ -35349,7 +35349,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_latvian_ci;
@@ -37890,7 +37890,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_lithuanian_ci;
@@ -40431,7 +40431,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_persian_ci;
@@ -42972,7 +42972,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_polish_ci;
@@ -45513,7 +45513,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_roman_ci;
@@ -48054,7 +48054,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_romanian_ci;
@@ -50595,7 +50595,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_slovak_ci;
@@ -53136,7 +53136,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_slovenian_ci;
@@ -55677,7 +55677,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_spanish2_ci;
@@ -58218,7 +58218,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_spanish_ci;
@@ -60759,7 +60759,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_swedish_ci;
@@ -63300,7 +63300,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_turkish_ci;
@@ -65841,7 +65841,7 @@ SET NAMES utf8;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=NDB CHARACTER SET utf8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci;
@@ -68381,7 +68381,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_bin) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_bin;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_bin	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_bin	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -70920,7 +70920,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_czech_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_czech_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_czech_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_czech_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -73459,7 +73459,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_danish_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_danish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_danish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_danish_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -75998,7 +75998,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_estonian_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_estonian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_estonian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_estonian_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -78537,7 +78537,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_general_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_general_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -81076,7 +81076,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_hungarian_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_hungarian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_hungarian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_hungarian_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -83615,7 +83615,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_icelandic_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_icelandic_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_icelandic_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_icelandic_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -86154,7 +86154,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_latvian_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_latvian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_latvian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_latvian_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -88693,7 +88693,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_lithuanian_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_lithuanian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_lithuanian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_lithuanian_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -91232,7 +91232,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_persian_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_persian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_persian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_persian_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -93771,7 +93771,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_polish_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_polish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_polish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_polish_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -96310,7 +96310,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_roman_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_roman_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_roman_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_roman_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -98849,7 +98849,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_romanian_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_romanian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_romanian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_romanian_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -101388,7 +101388,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_slovak_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_slovak_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_slovak_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_slovak_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -103927,7 +103927,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_slovenian_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_slovenian_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_slovenian_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_slovenian_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -106466,7 +106466,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_spanish2_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_spanish2_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_spanish2_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_spanish2_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -109005,7 +109005,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_spanish_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_spanish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_spanish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_spanish_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -111544,7 +111544,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_swedish_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_swedish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_swedish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_swedish_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -114083,7 +114083,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_turkish_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_turkish_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_turkish_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_turkish_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
@@ -116622,7 +116622,7 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_unicode_ci) ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_unicode_ci;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NDBCLUSTER	#	#	#	#	#	#	#	#	#	#	#	#	utf8_unicode_ci	#	#	#
+t1	ndbcluster	#	#	#	#	#	#	#	#	#	#	#	#	utf8_unicode_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;

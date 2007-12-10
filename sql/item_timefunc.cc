@@ -597,7 +597,7 @@ err:
     strmake(buff, val_begin, min(length, sizeof(buff)-1));
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
-                        date_time_type, buff, "str_to_time");
+                        date_time_type, buff, "str_to_date");
   }
   DBUG_RETURN(1);
 }
@@ -962,6 +962,44 @@ enum_monotonicity_info Item_func_to_days::get_monotonicity_info() const
 }
 
 
+longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  longlong res;
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
+  {
+    /* got NULL, leave the incl_endp intact */
+    return LONGLONG_MIN;
+  }
+  res=(longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
+  
+  if (args[0]->field_type() == MYSQL_TYPE_DATE)
+  {
+    // TO_DAYS() is strictly monotonic for dates, leave incl_endp intact
+    return res;
+  }
+ 
+  /*
+    Handle the special but practically useful case of datetime values that
+    point to day bound ("strictly less" comparison stays intact):
+
+      col < '2007-09-15 00:00:00'  -> TO_DAYS(col) <  TO_DAYS('2007-09-15')
+
+    which is different from the general case ("strictly less" changes to
+    "less or equal"):
+
+      col < '2007-09-15 12:34:56'  -> TO_DAYS(col) <= TO_DAYS('2007-09-15')
+  */
+  if (!left_endp && !(ltime.hour || ltime.minute || ltime.second ||
+                      ltime.second_part))
+    ; /* do nothing */
+  else
+    *incl_endp= TRUE;
+  return res;
+}
+
+
 longlong Item_func_dayofyear::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -1152,7 +1190,7 @@ longlong Item_func_year::val_int()
   Get information about this Item tree monotonicity
 
   SYNOPSIS
-    Item_func_to_days::get_monotonicity_info()
+    Item_func_year::get_monotonicity_info()
 
   DESCRIPTION
   Get information about monotonicity of the function represented by this item
@@ -1170,6 +1208,37 @@ enum_monotonicity_info Item_func_year::get_monotonicity_info() const
     return MONOTONIC_INCREASING;
   return NON_MONOTONIC;
 }
+
+
+longlong Item_func_year::val_int_endpoint(bool left_endp, bool *incl_endp)
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
+  {
+    /* got NULL, leave the incl_endp intact */
+    return LONGLONG_MIN;
+  }
+
+  /*
+    Handle the special but practically useful case of datetime values that
+    point to year bound ("strictly less" comparison stays intact) :
+
+      col < '2007-01-01 00:00:00'  -> YEAR(col) <  2007
+
+    which is different from the general case ("strictly less" changes to
+    "less or equal"):
+
+      col < '2007-09-15 23:00:00'  -> YEAR(col) <= 2007
+  */
+  if (!left_endp && ltime.day == 1 && ltime.month == 1 && 
+      !(ltime.hour || ltime.minute || ltime.second || ltime.second_part))
+    ; /* do nothing */
+  else
+    *incl_endp= TRUE;
+  return ltime.year;
+}
+
 
 longlong Item_func_unix_timestamp::val_int()
 {
@@ -1582,8 +1651,7 @@ bool Item_func_now::get_date(MYSQL_TIME *res,
 int Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
   to->set_notnull();
-  to->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
-  return 0;
+  return to->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
 }
 
 
@@ -2518,6 +2586,13 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 }
 
 
+bool Item_date_typecast::get_time(MYSQL_TIME *ltime)
+{
+  bzero((char *)ltime, sizeof(MYSQL_TIME));
+  return args[0]->null_value;
+}
+
+
 String *Item_date_typecast::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -3166,37 +3241,41 @@ get_date_time_result_type(const char *format, uint length)
 
 void Item_func_str_to_date::fix_length_and_dec()
 {
-  char format_buff[64];
-  String format_str(format_buff, sizeof(format_buff), &my_charset_bin), *format;
   maybe_null= 1;
   decimals=0;
-  cached_field_type= MYSQL_TYPE_STRING;
+  cached_field_type= MYSQL_TYPE_DATETIME;
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   cached_timestamp_type= MYSQL_TIMESTAMP_NONE;
-  format= args[1]->val_str(&format_str);
-  if (!args[1]->null_value && (const_item= args[1]->const_item()))
+  if ((const_item= args[1]->const_item()))
   {
-    cached_format_type= get_date_time_result_type(format->ptr(),
-                                                  format->length());
-    switch (cached_format_type) {
-    case DATE_ONLY:
-      cached_timestamp_type= MYSQL_TIMESTAMP_DATE;
-      cached_field_type= MYSQL_TYPE_DATE; 
-      max_length= MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
-      break;
-    case TIME_ONLY:
-    case TIME_MICROSECOND:
-      cached_timestamp_type= MYSQL_TIMESTAMP_TIME;
-      cached_field_type= MYSQL_TYPE_TIME; 
-      max_length= MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
-      break;
-    default:
-      cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
-      cached_field_type= MYSQL_TYPE_DATETIME; 
-      break;
+    char format_buff[64];
+    String format_str(format_buff, sizeof(format_buff), &my_charset_bin);
+    String *format= args[1]->val_str(&format_str);
+    if (!args[1]->null_value)
+    {
+      cached_format_type= get_date_time_result_type(format->ptr(),
+                                                    format->length());
+      switch (cached_format_type) {
+      case DATE_ONLY:
+        cached_timestamp_type= MYSQL_TIMESTAMP_DATE;
+        cached_field_type= MYSQL_TYPE_DATE; 
+        max_length= MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN;
+        break;
+      case TIME_ONLY:
+      case TIME_MICROSECOND:
+        cached_timestamp_type= MYSQL_TIMESTAMP_TIME;
+        cached_field_type= MYSQL_TYPE_TIME; 
+        max_length= MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN;
+        break;
+      default:
+        cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
+        cached_field_type= MYSQL_TYPE_DATETIME; 
+        break;
+      }
     }
   }
 }
+
 
 bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {

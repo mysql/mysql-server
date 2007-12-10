@@ -483,7 +483,7 @@ drop table t1,t2;
 create table t1 (a int);
 --error 1093
 create table t1 select * from t1;
---error 1093
+--error ER_WRONG_OBJECT
 create table t2 union = (t1) select * from t1;
 flush tables with read lock;
 unlock tables;
@@ -1197,14 +1197,17 @@ drop table t1,t2;
 CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 --error 1102
 DROP DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
---error 1049
-RENAME DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa TO a;
---error 1102
-RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
-create database mysqltest;
---error 1102
-RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
-drop database mysqltest;
+
+# TODO: enable these tests when RENAME DATABASE is implemented.
+# --error 1049
+# RENAME DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa TO a;
+# --error 1102
+# RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+# create database mysqltest;
+# --error 1102
+# RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+# drop database mysqltest;
+
 --error 1102
 USE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 --error 1102
@@ -1300,4 +1303,29 @@ return 0;
 drop view имя_вью_кодировке_утф8_длиной_больше_чем_42;
 drop table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
 set names default;
+
+#
+# Bug#21136 CREATE TABLE SELECT within CREATE TABLE SELECT causes server crash
+#
+
+--disable_warnings
+drop table if exists t1,t2,t3;
+drop function if exists f1;
+--enable_warnings
+
+--delimiter |
+create function f1() returns int
+begin
+  declare res int;
+  create temporary table t3 select 1 i;
+  set res:= (select count(*) from t1);
+  drop temporary table t3;
+  return res;
+end|
+--delimiter ;
+create table t1 as select 1;
+create table t2 as select f1() from t1;
+drop table t1,t2;
+drop function f1;
+
 --echo End of 5.1 tests

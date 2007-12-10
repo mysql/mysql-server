@@ -196,7 +196,6 @@ t1	a	select
 show columns from mysqltest.t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	varchar(30)	YES	MUL	NULL	
 select table_name, column_name, privileges from information_schema.columns
 where table_schema = 'mysqltest' and table_name = 'v1';
 table_name	column_name	privileges
@@ -388,10 +387,14 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 select * from information_schema.views where TABLE_NAME like "v%";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 NULL	test	v0	select schema_name from information_schema.schemata	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v1	select table_name from information_schema.tables	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v2	select column_name from information_schema.columns	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v3	select CHARACTER_SET_NAME from information_schema.character_sets	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v4	select COLLATION_NAME from information_schema.collations	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v1	select table_name from information_schema.tables
+where table_name="v1"	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v2	select column_name from information_schema.columns
+where table_name="v2"	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v3	select CHARACTER_SET_NAME from information_schema.character_sets
+where CHARACTER_SET_NAME like "latin1%"	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v4	select COLLATION_NAME from information_schema.collations
+where COLLATION_NAME like "latin1%"	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -579,7 +582,7 @@ proc	sql_data_access	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL
 proc	is_deterministic	enum('YES','NO')
 proc	security_type	enum('INVOKER','DEFINER')
 proc	param_list	blob
-proc	returns	char(64)
+proc	returns	longblob
 proc	body	longblob
 proc	definer	char(77)
 proc	created	timestamp
@@ -1037,7 +1040,7 @@ b	NULL
 use test;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO			
+a	int(11)	NO		NULL	
 b	int(11)	YES		NULL	
 drop table t1;
 CREATE TABLE t1 (a int);
@@ -1138,11 +1141,13 @@ DROP FUNCTION func2;
 select column_type, group_concat(table_schema, '.', table_name), count(*) as num
 from information_schema.columns where
 table_schema='information_schema' and
-(column_type = 'varchar(7)' or column_type = 'varchar(20)')
+(column_type = 'varchar(7)' or column_type = 'varchar(20)'
+ or column_type = 'varchar(27)')
 group by column_type order by num;
 column_type	group_concat(table_schema, '.', table_name)	num
+varchar(27)	information_schema.COLUMNS	1
 varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
-varchar(20)	information_schema.COLUMNS,information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS	6
+varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS	5
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
@@ -1410,7 +1415,67 @@ alter database;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 alter database test;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+create database mysqltest;
+create table mysqltest.t1(a int, b int, c int);
+create trigger mysqltest.t1_ai after insert on mysqltest.t1
+for each row set @a = new.a + new.b + new.c;
+grant select(b) on mysqltest.t1 to mysqltest_1@localhost;
+select trigger_name from information_schema.triggers
+where event_object_table='t1';
+trigger_name
+t1_ai
+show triggers from mysqltest;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+b	int(11)	YES		NULL	
+select column_name from information_schema.columns where table_name='t1';
+column_name
+b
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+select trigger_name from information_schema.triggers
+where event_object_table='t1';
+trigger_name
+drop user mysqltest_1@localhost;
+drop database mysqltest;
+create table t1 (
+f1 varchar(50),
+f2 varchar(50) not null,
+f3 varchar(50) default '',
+f4 varchar(50) default NULL,
+f5 bigint not null,
+f6 bigint not null default 10,
+f7 datetime not null,
+f8 datetime default '2006-01-01'
+);
+select column_default from information_schema.columns where table_name= 't1';
+column_default
+NULL
+NULL
+
+NULL
+NULL
+10
+NULL
+2006-01-01 00:00:00
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+f1	varchar(50)	YES		NULL	
+f2	varchar(50)	NO		NULL	
+f3	varchar(50)	YES			
+f4	varchar(50)	YES		NULL	
+f5	bigint(20)	NO		NULL	
+f6	bigint(20)	NO		10	
+f7	datetime	NO		NULL	
+f8	datetime	YES		2006-01-01 00:00:00	
+drop table t1;
 End of 5.0 tests.
+show fields from information_schema.table_names;
+ERROR 42S02: Unknown table 'table_names' in information_schema
+show keys from information_schema.table_names;
+ERROR 42S02: Unknown table 'table_names' in information_schema
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
 MyISAM	DEFAULT	Default engine as of MySQL 3.23 with great performance	NO	NO	NO
@@ -1485,4 +1550,65 @@ count(*)
 select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='nonexisting';
 count(*)
 0
+CREATE VIEW v1
+AS SELECT *
+FROM INFORMATION_SCHEMA.TABLES;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME = 'v1';
+VIEW_DEFINITION
+SELECT *
+FROM INFORMATION_SCHEMA.TABLES
+DROP VIEW v1;
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME ='information_schema';
+SCHEMA_NAME
+information_schema
+SELECT TABLE_COLLATION FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
+TABLE_COLLATION
+utf8_bin
+select * from information_schema.columns where table_schema = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	STORAGE	FORMAT
+select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	STORAGE	FORMAT
+select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_SCHEMA` = NULL;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
+select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_NAME` = NULL;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
+select * from `information_schema`.`PARTITIONS` where `TABLE_SCHEMA` = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
+select * from `information_schema`.`PARTITIONS` where `TABLE_NAME` = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
+select * from `information_schema`.`REFERENTIAL_CONSTRAINTS` where `CONSTRAINT_SCHEMA` = NULL;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+select * from `information_schema`.`REFERENTIAL_CONSTRAINTS` where `TABLE_NAME` = NULL;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+select * from information_schema.schemata where schema_name = NULL;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+select * from `information_schema`.`STATISTICS` where `TABLE_SCHEMA` = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
+select * from `information_schema`.`STATISTICS` where `TABLE_NAME` = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
+select * from information_schema.tables where table_schema = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+select * from information_schema.tables where table_catalog = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+select * from information_schema.tables where table_name = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_SCHEMA` = NULL;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+select * from `information_schema`.`TABLE_CONSTRAINTS` where `TABLE_NAME` = NULL;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_SCHEMA` = NULL;
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_TABLE` = NULL;
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+explain extended select 1 from information_schema.tables;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
+Warnings:
+Note	1003	select 1 AS `1` from `information_schema`.`tables`
 End of 5.1 tests.

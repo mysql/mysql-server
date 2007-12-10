@@ -97,7 +97,7 @@ explain SELECT t1.a from t1 group by a order by a desc;
 explain SELECT distinct t1.a from t1 order by a desc limit 1;
 explain SELECT distinct a from t3 order by a desc limit 2;
 explain SELECT distinct a,b from t3 order by a+1;
-explain SELECT distinct a,b from t3 order by a limit 10;
+explain SELECT distinct a,b from t3 order by a limit 2;
 explain SELECT a,b from t3 group by a,b order by a+1;
 
 drop table t1,t2,t3,t4;

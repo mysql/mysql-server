@@ -54,7 +54,7 @@ SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 GROUP_ID	int(10) unsigned	NULL	NO	PRI	0		#	
 LANG_ID	smallint(5) unsigned	NULL	NO	PRI	0		#	
-NAME	char(80)	latin1_swedish_ci	NO	MUL			#	
+NAME	char(80)	latin1_swedish_ci	NO	MUL	NULL		#	
 DROP TABLE t1;
 create table t1 (n int);
 insert into t1 values(9),(3),(12),(10);
@@ -1125,7 +1125,7 @@ INDEX(`int_field`)
 );
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-int_field	int(10) unsigned	NO	MUL		
+int_field	int(10) unsigned	NO	MUL	NULL	
 char_field	char(10)	YES		NULL	
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
@@ -1146,16 +1146,16 @@ unsigned_int_field	char_field
 5	pet
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-unsigned_int_field	int(10) unsigned	NO	MUL		
+unsigned_int_field	int(10) unsigned	NO	MUL	NULL	
 char_field	char(10)	YES		NULL	
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-unsigned_int_field	int(10) unsigned	NO	MUL		
+unsigned_int_field	int(10) unsigned	NO	MUL	NULL	
 char_field	char(10)	YES		NULL	
 ALTER TABLE t2 MODIFY unsigned_int_field BIGINT UNSIGNED NOT NULL;
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-unsigned_int_field	bigint(20) unsigned	NO	MUL		
+unsigned_int_field	bigint(20) unsigned	NO	MUL	NULL	
 char_field	char(10)	YES		NULL	
 DROP TABLE t2;
 CREATE TABLE t1 (f1 INT, f2 INT, f3 INT);

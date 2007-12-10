@@ -1599,6 +1599,7 @@ error:
 void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 {
   m_file[0]->update_create_info(create_info);
+  create_info->data_file_name= create_info->index_file_name = NULL;
   return;
 }
 
@@ -2678,6 +2679,8 @@ int ha_partition::write_row(uchar * buf)
   uint32 part_id;
   int error;
   longlong func_value;
+  bool autoincrement_lock= FALSE;
+  my_bitmap_map *old_map;
 #ifdef NOT_NEEDED
   uchar *rec0= m_rec0;
 #endif
@@ -2694,6 +2697,27 @@ int ha_partition::write_row(uchar * buf)
   */
   if (table->next_number_field && buf == table->record[0])
   {
+    /*
+      Some engines (InnoDB for example) can change autoincrement
+      counter only after 'table->write_row' operation.
+      So if another thread gets inside the ha_partition::write_row
+      before it is complete, it gets same auto_increment value,
+      which means DUP_KEY error (bug #27405)
+      Here we separate the access using table_share->mutex, and
+      use autoincrement_lock variable to avoid unnecessary locks.
+      Probably not an ideal solution.
+    */
+    if (table_share->tmp_table == NO_TMP_TABLE)
+    {
+      /*
+        Bug#30878 crash when alter table from non partitioned table
+        to partitioned.
+        Checking if tmp table then there is no need to lock,
+        and the table_share->mutex may not be initialised.
+      */
+      autoincrement_lock= TRUE;
+      pthread_mutex_lock(&table_share->mutex);
+    }
     error= update_auto_increment();
 
     /*
@@ -2702,10 +2726,10 @@ int ha_partition::write_row(uchar * buf)
       the correct partition. We must check and fail if neccessary.
     */
     if (error)
-      DBUG_RETURN(error);
+      goto exit;
   }
 
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+  old_map= dbug_tmp_use_all_columns(table, table->read_set);
 #ifdef NOT_NEEDED
   if (likely(buf == rec0))
 #endif
@@ -2724,11 +2748,15 @@ int ha_partition::write_row(uchar * buf)
   if (unlikely(error))
   {
     m_part_info->err_value= func_value;
-    DBUG_RETURN(error);
+    goto exit;
   }
   m_last_part= part_id;
   DBUG_PRINT("info", ("Insert in partition %d", part_id));
-  DBUG_RETURN(m_file[part_id]->write_row(buf));
+  error= m_file[part_id]->write_row(buf);
+exit:
+  if (autoincrement_lock)
+    pthread_mutex_unlock(&table_share->mutex);
+  DBUG_RETURN(error);
 }
 
 
@@ -2766,16 +2794,28 @@ int ha_partition::write_row(uchar * buf)
 int ha_partition::update_row(const uchar *old_data, uchar *new_data)
 {
   uint32 new_part_id, old_part_id;
-  int error;
+  int error= 0;
   longlong func_value;
+  timestamp_auto_set_type orig_timestamp_type= table->timestamp_field_type;
   DBUG_ENTER("ha_partition::update_row");
+
+  /*
+    We need to set timestamp field once before we calculate
+    the partition. Then we disable timestamp calculations
+    inside m_file[*]->update_row() methods
+  */
+  if (orig_timestamp_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+  {
+    table->timestamp_field->set_time();
+    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+  }
 
   if ((error= get_parts_for_update(old_data, new_data, table->record[0],
                                    m_part_info, &old_part_id, &new_part_id,
                                    &func_value)))
   {
     m_part_info->err_value= func_value;
-    DBUG_RETURN(error);
+    goto exit;
   }
 
   /*
@@ -2787,23 +2827,27 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   if (new_part_id == old_part_id)
   {
     DBUG_PRINT("info", ("Update in partition %d", new_part_id));
-    DBUG_RETURN(m_file[new_part_id]->update_row(old_data, new_data));
+    error= m_file[new_part_id]->update_row(old_data, new_data);
+    goto exit;
   }
   else
   {
     DBUG_PRINT("info", ("Update from partition %d to partition %d",
 			old_part_id, new_part_id));
     if ((error= m_file[new_part_id]->write_row(new_data)))
-      DBUG_RETURN(error);
+      goto exit;
     if ((error= m_file[old_part_id]->delete_row(old_data)))
     {
 #ifdef IN_THE_FUTURE
       (void) m_file[new_part_id]->delete_last_inserted_row(new_data);
 #endif
-      DBUG_RETURN(error);
+      goto exit;
     }
   }
-  DBUG_RETURN(0);
+
+exit:
+  table->timestamp_field_type= orig_timestamp_type;
+  DBUG_RETURN(error);
 }
 
 
@@ -2907,12 +2951,7 @@ void ha_partition::start_bulk_insert(ha_rows rows)
   handler **file;
   DBUG_ENTER("ha_partition::start_bulk_insert");
 
-  if (!rows)
-  {
-    /* Avoid allocation big caches in all underlaying handlers */
-    DBUG_VOID_RETURN;
-  }
-  rows= rows/m_tot_parts + 1;
+  rows= rows ? rows/m_tot_parts + 1 : 0;
   file= m_file;
   do
   {
@@ -3228,13 +3267,8 @@ end_dont_reset_start_part:
 
 void ha_partition::position(const uchar *record)
 {
-  handler *file;
+  handler *file= m_file[m_last_part];
   DBUG_ENTER("ha_partition::position");
-
-  if (unlikely(get_part_for_delete(record, m_rec0, m_part_info, &m_last_part)))
-    m_last_part= 0;
-
-  file= m_file[m_last_part];
 
   file->position(record);
   int2store(ref, m_last_part);
@@ -3290,6 +3324,36 @@ int ha_partition::rnd_pos(uchar * buf, uchar *pos)
   file= m_file[part_id];
   m_last_part= part_id;
   DBUG_RETURN(file->rnd_pos(buf, (pos + PARTITION_BYTES_IN_POS)));
+}
+
+
+/*
+  Read row using position using given record to find
+
+  SYNOPSIS
+    rnd_pos_by_record()
+    record             Current record in MySQL Row Format
+
+  RETURN VALUE
+    >0                 Error code
+    0                  Success
+
+  DESCRIPTION
+    this works as position()+rnd_pos() functions, but does some extra work,
+    calculating m_last_part - the partition to where the 'record'
+    should go.
+
+    called from replication (log_event.cc)
+*/
+
+int ha_partition::rnd_pos_by_record(uchar *record)
+{
+  DBUG_ENTER("ha_partition::rnd_pos_by_record");
+
+  if (unlikely(get_part_for_delete(record, m_rec0, m_part_info, &m_last_part)))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(handler::rnd_pos_by_record(record));
 }
 
 
@@ -3349,6 +3413,22 @@ int ha_partition::index_init(uint inx, bool sorted)
   */
   if (m_lock_type == F_WRLCK)
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
+  else if (sorted && m_table_flags & HA_PARTIAL_COLUMN_READ)
+  {
+    /*
+      An ordered scan is requested and necessary fields aren't in read_set.
+      This may happen e.g. with SELECT COUNT(*) FROM t1. We must ensure
+      that all fields of current key are included into read_set, as
+      partitioning requires them for sorting
+      (see ha_partition::handle_ordered_index_scan).
+
+      TODO: handle COUNT(*) queries via unordered scan.
+    */
+    uint i;
+    for (i= 0; i < m_curr_key_info->key_parts; i++)
+      bitmap_set_bit(table->read_set,
+                     m_curr_key_info->key_part[i].field->field_index);
+  }
   file= m_file;
   do
   {
@@ -4501,6 +4581,8 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   4) Parameters only used by temporary tables for query processing
   5) Parameters only used by MyISAM internally
   6) Parameters not used at all
+  7) Parameters only used by federated tables for query processing
+  8) Parameters only used by NDB
 
   The partition handler need to handle category 1), 2) and 3).
 
@@ -4767,6 +4849,15 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   HA_EXTRA_INSERT_WITH_UPDATE:
     Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
+
+  8) Parameters only used by NDB
+  ------------------------------
+  HA_EXTRA_DELETE_CANNOT_BATCH:
+  HA_EXTRA_UPDATE_CANNOT_BATCH:
+    Inform handler that delete_row()/update_row() cannot batch deletes/updates
+    and should perform them immediately. This may be needed when table has 
+    AFTER DELETE/UPDATE triggers which access to subject table.
+    These flags are reset by the handler::extra(HA_EXTRA_RESET) call.
 */
 
 int ha_partition::extra(enum ha_extra_function operation)
@@ -4851,6 +4942,13 @@ int ha_partition::extra(enum ha_extra_function operation)
     /* Category 7), used by federated handlers */
   case HA_EXTRA_INSERT_WITH_UPDATE:
     DBUG_RETURN(loop_extra(operation));
+    /* Category 8) Parameters only used by NDB */
+  case HA_EXTRA_DELETE_CANNOT_BATCH:
+  case HA_EXTRA_UPDATE_CANNOT_BATCH:
+  {
+    /* Currently only NDB use the *_CANNOT_BATCH */
+    break;
+  }
   default:
   {
     /* Temporary crash to discover what is wrong */

@@ -1329,6 +1329,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   }
   new_thd->thread_stack= (char*) &tables;
   new_thd->store_globals();
+  lex_start(new_thd);
   new_thd->db= my_strdup("mysql", MYF(0));
   new_thd->db_length= 5;
   bzero((uchar*)&tables, sizeof(tables));
@@ -1944,7 +1945,7 @@ static int check_func_enum(THD *thd, struct st_mysql_sys_var *var,
     length= sizeof(buff);
     if (!(str= value->val_str(value, buff, &length)))
       goto err;
-    if ((result= find_type(typelib, str, length, 1)-1) < 0)
+    if ((result= (long)find_type(typelib, str, length, 1)-1) < 0)
     {
       strvalue= str;
       goto err;
@@ -2449,7 +2450,7 @@ void plugin_thdvar_cleanup(THD *thd)
 /**
   @brief Free values of thread variables of a plugin.
 
-  @detail This must be called before a plugin is deleted. Otherwise its
+  This must be called before a plugin is deleted. Otherwise its
   variables are no longer accessible and the value space is lost. Note
   that only string values with PLUGIN_VAR_MEMALLOC are allocated and
   must be freed.
@@ -3053,7 +3054,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   MEM_ROOT *mem_root= alloc_root_inited(&tmp->mem_root) ?
                       &tmp->mem_root : &plugin_mem_root;
   st_mysql_sys_var **opt;
-  my_option *opts;
+  my_option *opts= NULL;
   char *p, *varname;
   int error;
   st_mysql_sys_var *o;
@@ -3092,7 +3093,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     {
        sql_print_error("Parsing options for plugin '%s' failed.",
                        tmp->name.str);
-       DBUG_RETURN(error);
+       goto err;
     }
   }
 
@@ -3101,6 +3102,8 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     sql_print_warning("Plugin '%s' cannot be disabled", tmp->name.str);
     *enabled= TRUE;
   }
+
+  error= 1;
 
   if (*enabled)
   {
@@ -3140,7 +3143,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
       {
         sql_print_error("Plugin '%s' has conflicting system variables",
                         tmp->name.str);
-        DBUG_RETURN(1);
+        goto err;
       }
       tmp->system_vars= chain.first;
     }
@@ -3150,7 +3153,10 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   if (enabled_saved && global_system_variables.log_warnings)
     sql_print_information("Plugin '%s' disabled by command line option",
                           tmp->name.str);
-  DBUG_RETURN(1);
+err:
+  if (opts)
+    my_cleanup_options(opts);
+  DBUG_RETURN(error);
 }
 
 

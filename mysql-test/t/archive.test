@@ -1320,7 +1320,7 @@ SELECT * FROM t2;
 INSERT INTO t2 VALUES (2,011401,37,'breaking','dreaded','Steinberg','W');
 INSERT INTO t2 VALUES (3,011402,37,'Romans','scholastics','jarring','');
 INSERT INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
-OPTIMIZE TABLE t2 EXTENDED;
+OPTIMIZE TABLE t2;
 SELECT * FROM t2;
 REPAIR TABLE t2;
 SELECT * FROM t2;
@@ -1351,8 +1351,16 @@ SELECT * FROM t2;
 
 # Test INSERT DELAYED and wait until the table has one more record
 SELECT COUNT(auto) FROM t2;
-INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
-while (`SELECT COUNT(auto)!=1214 FROM t2`)
+INSERT DELAYED INTO t2 VALUES (99999,011403,37,'the','delayed','insert','');
+
+# Insert another record since in Archive delayed values are only
+# guaranteed to materialize based on either:
+# 1) A new row showing up from a normal insert
+# 2) A flush table  has occurred.
+INSERT INTO t2 VALUES (100000,000001,00,'after','delayed','insert','');
+
+# Wait for the delayed insert to appear
+while (`SELECT COUNT(auto)!=1215 FROM t2`)
 {
   sleep 0.1;
 }
@@ -1361,7 +1369,7 @@ SELECT COUNT(auto) FROM t2;
 # Adding test for ALTER TABLE
 ALTER TABLE t2 DROP COLUMN fld6; 
 SHOW CREATE TABLE t2;
-SELECT * FROM t2;
+SELECT * FROM t2 WHERE auto != 100000;
 
 
 # Adding tests for autoincrement
@@ -1559,3 +1567,25 @@ insert into t1 set a='';
 insert into t1 set a='a';
 check table t1 extended;
 drop table t1;
+
+#
+# BUG#31036 - Using order by with archive table crashes server
+#
+
+CREATE TABLE t1(a VARCHAR(510)) ENGINE = ARCHIVE;
+
+let $bug31036=41;
+--disable_query_log
+while($bug31036)
+{
+  INSERT INTO t1(a) VALUES (REPEAT('a', 510));
+  dec $bug31036;
+}
+--enable_query_log
+INSERT INTO t1(a) VALUES ('');
+
+--disable_result_log
+SELECT * FROM t1 ORDER BY a;
+--enable_result_log
+
+DROP TABLE t1;

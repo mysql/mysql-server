@@ -167,6 +167,7 @@ int main(int argc, char *argv[])
     DBUG_ENTER("main");
 
     charsets_dir= DEFAULT_CHARSET_DIR;
+    my_umask_dir= 0777;
     if (get_options(&argc, &argv))
       DBUG_RETURN(1);
     if (!(row_count= parse_input_file(TXTFILE, &error_head, &lang_head)))

@@ -4929,7 +4929,7 @@ Note	1051	Unknown table 't2'
 Note	1051	Unknown table 't3'
 Note	1051	Unknown table 't4'
 DROP TABLE IF EXISTS bug13894;
-CREATE TABLE bug13894 ( val integer ) ENGINE = CSV;
+CREATE TABLE bug13894 ( val integer not null ) ENGINE = CSV;
 INSERT INTO bug13894 VALUES (5);
 INSERT INTO bug13894 VALUES (10);
 INSERT INTO bug13894 VALUES (11);
@@ -4949,7 +4949,7 @@ val
 11
 DROP TABLE bug13894;
 DROP TABLE IF EXISTS bug14672;
-CREATE TABLE bug14672 (c1 integer) engine = CSV;
+CREATE TABLE bug14672 (c1 integer not null) engine = CSV;
 INSERT INTO bug14672 VALUES (1), (2), (3);
 SELECT * FROM bug14672;
 c1
@@ -4975,7 +4975,7 @@ c1
 4
 5
 DROP TABLE bug14672;
-CREATE TABLE test_concurrent_insert ( val integer ) ENGINE = CSV;
+CREATE TABLE test_concurrent_insert ( val integer not null ) ENGINE = CSV;
 LOCK TABLES test_concurrent_insert READ LOCAL;
 INSERT INTO test_concurrent_insert VALUES (1);
 SELECT * FROM test_concurrent_insert;
@@ -4992,7 +4992,7 @@ val
 2
 UNLOCK TABLES;
 DROP TABLE test_concurrent_insert;
-CREATE TABLE test_repair_table ( val integer ) ENGINE = CSV;
+CREATE TABLE test_repair_table ( val integer not null ) ENGINE = CSV;
 CHECK TABLE test_repair_table;
 Table	Op	Msg_type	Msg_text
 test.test_repair_table	check	status	OK
@@ -5000,7 +5000,7 @@ REPAIR TABLE test_repair_table;
 Table	Op	Msg_type	Msg_text
 test.test_repair_table	repair	status	OK
 DROP TABLE test_repair_table;
-CREATE TABLE test_repair_table2 ( val integer ) ENGINE = CSV;
+CREATE TABLE test_repair_table2 ( val integer not null ) ENGINE = CSV;
 SELECT * from test_repair_table2;
 val
 Warnings:
@@ -5011,7 +5011,7 @@ CHECK TABLE test_repair_table2;
 Table	Op	Msg_type	Msg_text
 test.test_repair_table2	check	status	OK
 DROP TABLE test_repair_table2;
-CREATE TABLE test_repair_table3 ( val integer ) ENGINE = CSV;
+CREATE TABLE test_repair_table3 ( val integer not null ) ENGINE = CSV;
 CHECK TABLE test_repair_table3;
 Table	Op	Msg_type	Msg_text
 test.test_repair_table3	check	error	Corrupt
@@ -5114,7 +5114,7 @@ num	magic_no	company_name	founded
 1	0102	CORRECT	1876
 1	0102	CORRECT2	1876
 DROP TABLE test_repair_table5;
-create table t1 (a int) engine=csv;
+create table t1 (a int not null) engine=csv;
 insert t1 values (1);
 delete from t1;
 affected rows: 1
@@ -5138,7 +5138,7 @@ insert t1 values (1),(2),(3),(4),(5);
 truncate table t1;
 affected rows: 0
 drop table t1;
-create table t1 (v varchar(32));
+create table t1 (v varchar(32) not null);
 insert into t1 values ('def'),('abc'),('hij'),('3r4f');
 select * from t1;
 v
@@ -5193,8 +5193,8 @@ select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
 i	v
 4	3r4f
 drop table t1;
-create table bug15205 (val int(11) default null) engine=csv;
-create table bug15205_2 (val int(11) default null) engine=csv;
+create table bug15205 (val int(11) not null) engine=csv;
+create table bug15205_2 (val int(11) not null) engine=csv;
 select * from bug15205;
 ERROR HY000: Can't get stat of './test/bug15205.CSV' (Errcode: 2)
 select * from bug15205_2;
@@ -5205,8 +5205,8 @@ drop table bug15205;
 drop table bug15205_2;
 set names latin1;
 create table t1 (
-c varchar(1),
-name varchar(64)
+c varchar(1) not null,
+name varchar(64) not null
 ) character set latin1 engine=csv;
 insert into t1 values (0xC0,'LATIN CAPITAL LETTER A WITH GRAVE');
 insert into t1 values (0xE0,'LATIN SMALL LETTER A WITH GRAVE');
@@ -5224,9 +5224,9 @@ FE	þ	LATIN SMALL LETTER THORN
 FF	ÿ	LATIN SMALL LETTER Y WITH DIAERESIS
 drop table t1;
 End of 5.0 tests
-create table bug22080_1 (id int,string varchar(64)) Engine=CSV;
-create table bug22080_2 (id int,string varchar(64)) Engine=CSV;
-create table bug22080_3 (id int,string varchar(64)) Engine=CSV;
+create table bug22080_1 (id int not null,string varchar(64) not null) Engine=CSV;
+create table bug22080_2 (id int not null,string varchar(64) not null) Engine=CSV;
+create table bug22080_3 (id int not null,string varchar(64) not null) Engine=CSV;
 insert into bug22080_1 values(1,'string');
 insert into bug22080_1 values(2,'string');
 insert into bug22080_1 values(3,'string');
@@ -5237,7 +5237,7 @@ check table bug22080_3;
 Table	Op	Msg_type	Msg_text
 test.bug22080_3	check	error	Corrupt
 drop tables bug22080_1,bug22080_2,bug22080_3;
-create table float_test (id float,string varchar(64)) Engine=CSV;
+create table float_test (id float not null,string varchar(64) not null) Engine=CSV;
 insert into float_test values(1.0,'string');
 insert into float_test values(2.23,'serg.g');
 insert into float_test values(0.03,'string');
@@ -5254,14 +5254,14 @@ id	string
 9.67	string
 drop table float_test;
 CREATE TABLE `bug21328` (
-`col1` int(11) DEFAULT NULL,
-`col2` int(11) DEFAULT NULL,
-`col3` int(11) DEFAULT NULL
+`col1` int(11) NOT NULL,
+`col2` int(11) NOT NULL,
+`col3` int(11) NOT NULL
 ) ENGINE=CSV;
-insert into bug21328 values (1,NULL,NULL);
+insert into bug21328 values (1,0,0);
 alter table bug21328 engine=myisam;
 drop table bug21328;
-create table t1(a blob, b int) engine=csv;
+create table t1(a blob not null, b int not null) engine=csv;
 insert into t1 values('a', 1);
 flush tables;
 update t1 set b=2;
@@ -5269,7 +5269,7 @@ select * from t1;
 a	b
 a	2
 drop table t1;
-create table t1(a int) engine=csv;
+create table t1(a int not null) engine=csv;
 insert into t1 values(-1), (-123.34), (2), (-23);
 select * from t1;
 a
@@ -5281,7 +5281,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1(a int, b int) engine=csv;
+create table t1(a int not null, b int not null) engine=csv;
 repair table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	Warning	Data truncated for column 'a' at row 5
@@ -5299,7 +5299,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1(a int) engine=csv;
+create table t1(a int not null) engine=csv;
 insert into t1 values (0), (1), (2);
 delete from t1 limit 2;
 check table t1;
@@ -5314,5 +5314,63 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 select * from t1;
 a
+drop table t1;
+create table t1(a datetime not null) engine=csv;
+insert into t1 values();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select * from t1;
+a
+0000-00-00 00:00:00
+drop table t1;
+create table t1(a set('foo','bar') not null) engine=csv;
+insert into t1 values();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select * from t1;
+a
+
+drop table t1;
+create table t1(a varchar(32) not null) engine=csv;
+insert into t1 values();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select * from t1;
+a
+
+drop table t1;
+create table t1(a int not null) engine=csv;
+insert into t1 values();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select * from t1;
+a
+0
+drop table t1;
+create table t1(a blob not null) engine=csv;
+insert into t1 values();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select * from t1;
+a
+
+drop table t1;
+create table t1(a bit(1) not null) engine=csv;
+insert into t1 values();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select BIN(a) from t1;
+BIN(a)
+0
+drop table t1;
+create table t1(a enum('foo','bar') default null) engine=csv;
+ERROR HY000: Can't create table 'test.t1' (errno: -1)
+create table t1(a enum('foo','bar') default 'foo') engine=csv;
+ERROR HY000: Can't create table 'test.t1' (errno: -1)
+create table t1(a enum('foo','bar') default 'foo' not null) engine=csv;
+insert into t1 values();
+select * from t1;
+a
+foo
 drop table t1;
 End of 5.1 tests

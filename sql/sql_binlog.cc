@@ -37,6 +37,9 @@ void mysql_client_binlog_statement(THD* thd)
                             thd->lex->comment.length : 2048),
                      thd->lex->comment.str));
 
+  if (check_global_access(thd, SUPER_ACL))
+    DBUG_VOID_RETURN;
+
   /*
     Temporarily turn off send_ok, since different events handle this
     differently
@@ -52,7 +55,7 @@ void mysql_client_binlog_statement(THD* thd)
     Allocation
   */
   if (!thd->rli_fake)
-    thd->rli_fake= new RELAY_LOG_INFO;
+    thd->rli_fake= new Relay_log_info;
 
   const Format_description_log_event *desc=
     new Format_description_log_event(4);

@@ -409,10 +409,12 @@ protected:
     If query is cacheable return number tables in query
     (query without tables not cached)
   */
-  static
   TABLE_COUNTER_TYPE is_cacheable(THD *thd, uint32 query_len, char *query,
-				  LEX *lex, TABLE_LIST *tables_used,
-				  uint8 *tables_type);
+                                  LEX *lex, TABLE_LIST *tables_used,
+                                  uint8 *tables_type);
+  TABLE_COUNTER_TYPE process_and_count_tables(THD *thd,
+                                              TABLE_LIST *tables_used,
+                                              uint8 *tables_type);
 
   static my_bool ask_handler_allowance(THD *thd, TABLE_LIST *tables_used);
  public:

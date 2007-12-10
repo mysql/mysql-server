@@ -253,8 +253,6 @@ bool String::needs_conversion(uint32 arg_length,
       (to_cs == &my_charset_bin) || 
       (to_cs == from_cs) ||
       my_charset_same(from_cs, to_cs) ||
-      (my_charset_is_ascii_based(to_cs) &&
-       my_charset_is_8bit_pure_ascii(from_cs)) ||
       ((from_cs == &my_charset_bin) &&
        (!(*offset=(arg_length % to_cs->mbminlen)))))
     return FALSE;

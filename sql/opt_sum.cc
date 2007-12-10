@@ -295,14 +295,15 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
                  Check if case 1 from above holds. If it does, we should read
                  the skipped tuple.
               */
-              if (ref.key_buff[prefix_len] == 1 && 
-                  /* 
+              if (item_field->field->real_maybe_null() &&
+                  ref.key_buff[prefix_len] == 1 &&
+                  /*
                      Last keypart (i.e. the argument to MIN) is set to NULL by
                      find_key_for_maxmin only if all other keyparts are bound
                      to constants in a conjunction of equalities. Hence, we
                      can detect this by checking only if the last keypart is
                      NULL.
-                  */                     
+                  */
                   (error == HA_ERR_KEY_NOT_FOUND ||
                    key_cmp_if_same(table, ref.key_buff, ref.key, prefix_len)))
               {

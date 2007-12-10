@@ -82,7 +82,7 @@ struct NdbThread;
   signum set in g_ndb_shm_signum in a portable manner.
 */
 #ifdef NDB_SHM_TRANSPORTER
-void NdbThread_set_shm_sigmask(bool block);
+void NdbThread_set_shm_sigmask(my_bool block);
 #endif
 
 /**

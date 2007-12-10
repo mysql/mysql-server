@@ -140,7 +140,8 @@ static my_bool opt_compress= FALSE, tty_password= FALSE,
                auto_generate_sql= FALSE;
 const char *auto_generate_sql_type= "mixed";
 
-static unsigned long connect_flags= CLIENT_MULTI_RESULTS;
+static unsigned long connect_flags= CLIENT_MULTI_RESULTS |
+                                    CLIENT_MULTI_STATEMENTS;
 
 static int verbose, delimiter_length;
 static uint commit_rate;
@@ -1416,15 +1417,15 @@ get_options(int *argc,char ***argv)
     tmp_string[sbuf.st_size]= '\0';
     my_close(data_file,MYF(0));
     if (user_supplied_pre_statements)
-      actual_queries= parse_delimiter(tmp_string, &pre_statements,
-                                      delimiter[0]);
+      (void)parse_delimiter(tmp_string, &pre_statements,
+                            delimiter[0]);
     my_free(tmp_string, MYF(0));
   } 
   else if (user_supplied_pre_statements)
   {
-    actual_queries= parse_delimiter(user_supplied_pre_statements,
-                                    &pre_statements,
-                                    delimiter[0]);
+    (void)parse_delimiter(user_supplied_pre_statements,
+                          &pre_statements,
+                          delimiter[0]);
   }
 
   if (user_supplied_post_statements && my_stat(user_supplied_post_statements, &sbuf, MYF(0)))
@@ -1447,14 +1448,14 @@ get_options(int *argc,char ***argv)
     tmp_string[sbuf.st_size]= '\0';
     my_close(data_file,MYF(0));
     if (user_supplied_post_statements)
-      parse_delimiter(tmp_string, &post_statements,
-                      delimiter[0]);
+      (void)parse_delimiter(tmp_string, &post_statements,
+                            delimiter[0]);
     my_free(tmp_string, MYF(0));
   } 
   else if (user_supplied_post_statements)
   {
-    parse_delimiter(user_supplied_post_statements, &post_statements,
-                    delimiter[0]);
+    (void)parse_delimiter(user_supplied_post_statements, &post_statements,
+                          delimiter[0]);
   }
 
   if (verbose >= 2)
@@ -1673,6 +1674,7 @@ static int
 run_statements(MYSQL *mysql, statement *stmt) 
 {
   statement *ptr;
+  MYSQL_RES *result;
   DBUG_ENTER("run_statements");
 
   for (ptr= stmt; ptr && ptr->length; ptr= ptr->next)
@@ -1682,6 +1684,11 @@ run_statements(MYSQL *mysql, statement *stmt)
       fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
               my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
       exit(1);
+    }
+    if (mysql_field_count(mysql))
+    {
+      result= mysql_store_result(mysql);
+      mysql_free_result(result);
     }
   }
 
@@ -1813,6 +1820,13 @@ limit_not_met:
       {
         mysql_close(mysql);
 
+        if (!(mysql= mysql_init(NULL)))
+        {
+          fprintf(stderr,"%s: mysql_init() failed ERROR : %s\n",
+                  my_progname, mysql_error(mysql));
+          exit(0);
+        }
+
         if (slap_connect(mysql))
           goto end;
       }
@@ -1864,13 +1878,16 @@ limit_not_met:
         }
       }
 
-      if (mysql_field_count(mysql))
+      do
       {
-        result= mysql_store_result(mysql);
-        while ((row = mysql_fetch_row(result)))
-          counter++;
-        mysql_free_result(result);
-      }
+        if (mysql_field_count(mysql))
+        {
+          result= mysql_store_result(mysql);
+          while ((row = mysql_fetch_row(result)))
+            counter++;
+          mysql_free_result(result);
+        }
+      } while(mysql_next_result(mysql) == 0);
       queries++;
 
       if (commit_rate && commit_rate <= trans_counter)
@@ -2002,7 +2019,6 @@ parse_delimiter(const char *script, statement **stmt, char delm)
     ptr+= retstr - ptr + 1;
     if (isspace(*ptr))
       ptr++;
-    count++;
   }
 
   if (ptr != script+length)

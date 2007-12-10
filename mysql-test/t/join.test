@@ -698,4 +698,33 @@ select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 
 
 drop table t1, t2;
 
+#
+# Bug #31094: Forcing index-based sort doesn't work anymore if joins are
+# done
+#
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+CREATE TABLE t2 (c INT PRIMARY KEY, d INT);
+
+INSERT INTO t1 VALUES(1,NULL),(2,NULL),(3,NULL),(4,NULL);
+INSERT INTO t1 SELECT a + 4, b FROM t1;
+INSERT INTO t1 SELECT a + 8, b FROM t1;
+INSERT INTO t1 SELECT a + 16, b FROM t1;
+INSERT INTO t1 SELECT a + 32, b FROM t1;
+INSERT INTO t1 SELECT a + 64, b FROM t1;
+INSERT INTO t2 SELECT a, b FROM t1;
+
+#expect indexed ORDER BY
+EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
+EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a LIMIT 2;
+SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
+SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a LIMIT 2;
+
+#expect filesort
+EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a;
+EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a;
+SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a;
+SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a;
+
+DROP TABLE IF EXISTS t1,t2;
 --echo End of 5.0 tests.

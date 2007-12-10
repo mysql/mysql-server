@@ -79,7 +79,8 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
 	sql_servers.cc
 
-libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
+libmysqld_int_a_SOURCES= $(libmysqld_sources)
+nodist_libmysqld_int_a_SOURCES= $(libmysqlsources) $(sqlsources)
 libmysqld_a_SOURCES=
 
 sqlstoragesources =	$(EXTRA_libmysqld_a_SOURCES)

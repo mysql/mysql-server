@@ -47,6 +47,35 @@ static bool make_empty_rec(THD *thd, int file, enum legacy_db_type table_type,
 			   uint reclength, ulong data_offset,
                            handler *handler);
 
+/**
+  An interceptor to hijack ER_TOO_MANY_FIELDS error from
+  pack_screens and retry again without UNIREG screens.
+
+  XXX: what is a UNIREG  screen?
+*/
+
+struct Pack_header_error_handler: public Internal_error_handler
+{
+  virtual bool handle_error(uint sql_errno,
+                            const char *message,
+                            MYSQL_ERROR::enum_warning_level level,
+                            THD *thd);
+  bool is_handled;
+  Pack_header_error_handler() :is_handled(FALSE) {}
+};
+
+
+bool
+Pack_header_error_handler::
+handle_error(uint sql_errno,
+             const char * /* message */,
+             MYSQL_ERROR::enum_warning_level /* level */,
+             THD * /* thd */)
+{
+  is_handled= (sql_errno == ER_TOO_MANY_FIELDS);
+  return is_handled;
+}
+
 /*
   Create a frm (table definition) file
 
@@ -86,6 +115,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info= thd->work_part_info;
 #endif
+  Pack_header_error_handler pack_header_error_handler;
+  int error;
   const uint format_section_header_size= 8;
   uint format_section_len;
   uint tablespace_len= 0;
@@ -102,17 +133,22 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     create_info->null_bits++;
   data_offset= (create_info->null_bits + 7) / 8;
 
-  if (pack_header(forminfo, ha_legacy_type(create_info->db_type),
-                  create_fields,info_length,
-		  screens, create_info->table_options,
-                  data_offset, db_file))
+  thd->push_internal_handler(&pack_header_error_handler);
+
+  error= pack_header(forminfo, ha_legacy_type(create_info->db_type),
+                     create_fields,info_length,
+                     screens, create_info->table_options,
+                     data_offset, db_file);
+
+  thd->pop_internal_handler();
+
+  if (error)
   {
     my_free(screen_buff, MYF(0));
-    if (thd->net.last_errno != ER_TOO_MANY_FIELDS)
+    if (! pack_header_error_handler.is_handled)
       DBUG_RETURN(1);
 
     // Try again without UNIREG screens (to get more columns)
-    thd->net.last_error[0]=0;
     if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,1)))
       DBUG_RETURN(1);
     if (pack_header(forminfo, ha_legacy_type(create_info->db_type),
@@ -519,7 +555,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
     int2store(pos+6, key->block_size);
     pos+=8;
     key_parts+=key->key_parts;
-    DBUG_PRINT("loop", ("flags: %d  key_parts: %d at 0x%lx",
+    DBUG_PRINT("loop", ("flags: %lu  key_parts: %d at 0x%lx",
                         key->flags, key->key_parts,
                         (long) key->key_part));
     for (key_part=key->key_part,key_part_end=key_part+key->key_parts ;

@@ -432,8 +432,11 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 --echo "Should return 1 row"
 select definer, name, db from mysql.event;
 
---echo "Should be only 1 process"
-select /*1*/ user, host, db, command, state, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
+--echo "Should be only 0 process"
+select /*1*/ user, host, db, command, state, info
+  from information_schema.processlist
+  where (user='event_scheduler')
+  order by info;
 select release_lock("test_lock1");
 drop event закачка;
 --echo "Should have 0 events"
@@ -447,13 +450,28 @@ set global event_scheduler=on;
 select get_lock("test_lock2", 20);
 --echo "Create an event which tries to acquire a mutex. The event locks on the mutex"
 create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
---echo "Let some time pass to the event starts"
---sleep 1
+
 --echo "Should have only 2 processes: the scheduler and the locked event"
-select /*2*/ user, host, db, command, state, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;--echo "Release the mutex, the event worker should finish."
+let $wait_condition= select count(*) = 2 from information_schema.processlist
+  where ( (state like 'User lock%' AND info like 'select get_lock%')
+       OR (command='Daemon' AND user='event_scheduler' AND
+           state = 'Waiting for next activation'));
+--source include/wait_condition.inc
+
+select /*2*/ user, host, db, command, state, info
+  from information_schema.processlist
+  where (info like "select get_lock%" OR user='event_scheduler')
+  order by info;
 --echo "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 drop event закачка;
+
+# Wait for release_lock("test_lock2") to complete,
+# to avoid polluting the next test information_schema.processlist
+let $wait_condition= select count(*) = 0 from information_schema.processlist
+  where (state like 'User lock%' AND info like 'select get_lock%');
+--source include/wait_condition.inc
+
 
 ##
 ## 1. get a lock
@@ -466,13 +484,31 @@ drop event закачка;
 set global event_scheduler=1;
 select get_lock("test_lock2_1", 20);
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
---sleep 1
---echo "Should have only 3 processes: the scheduler, our conn and the locked event"
-select /*3*/ user, host, db, command, state, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
+
+--echo "Should have only 2 processes: the scheduler and the locked event"
+let $wait_condition= select count(*) = 2 from information_schema.processlist
+  where ( (state like 'User lock%' AND info like 'select get_lock%')
+          OR (command='Daemon' AND user='event_scheduler' AND
+              state = 'Waiting for next activation'));
+--source include/wait_condition.inc
+
+select /*3*/ user, host, db, command, state, info
+  from information_schema.processlist
+  where (info like "select get_lock%" OR user='event_scheduler')
+  order by info;
+
 set global event_scheduler=off;
---sleep 0.8
+
+let $wait_condition= select count(*) =1 from information_schema.processlist
+  where (info like "select get_lock%" OR user='event_scheduler');
+--source include/wait_condition.inc
+
 --echo "Should have only our process now:"
-select /*4*/ user, host, db, command, state, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
+select /*4*/ user, host, db, command, state, info
+  from information_schema.processlist
+  where (info like "select get_lock%" OR user='event_scheduler')
+  order by info;
+select release_lock("test_lock2_1");
 drop event закачка21;
 let $wait_condition=
   select count(*) = 0 from information_schema.processlist

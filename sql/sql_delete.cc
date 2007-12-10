@@ -37,9 +37,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   bool		transactional_table, safe_update, const_cond;
   bool          direct_delete_loop;
   bool          might_use_read_removal= FALSE;
+  bool          const_cond_result;
   ha_rows	deleted= 0;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
+  THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_delete");
 
   if (open_and_lock_tables(thd, table_list))
@@ -88,6 +90,12 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   select_lex->no_error= thd->lex->ignore;
 
+  const_cond_result= const_cond && (!conds || conds->val_int());
+  if (thd->is_error())
+  {
+    /* Error evaluating val_int(). */
+    DBUG_RETURN(TRUE);
+  }
   /*
     Test if the user wants to delete all rows and deletion doesn't have
     any side-effects (because of triggers), so we can use optimized
@@ -107,7 +115,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       - We should not be binlogging this statement row-based, and
       - there should be no delete triggers associated with the table.
   */
-  if (!using_limit && const_cond && (!conds || conds->val_int()) &&
+  if (!using_limit && const_cond_result &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       (thd->lex->sql_command == SQLCOM_TRUNCATE ||
        (!thd->current_stmt_binlog_row_based &&
@@ -144,7 +152,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   {
     free_underlaid_joins(thd, select_lex);
     thd->row_count_func= 0;
-    send_ok(thd);				// No matching records
+    send_ok(thd, (ha_rows) thd->row_count_func);  // No matching records
     DBUG_RETURN(0);
   }
 #endif
@@ -161,7 +169,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     delete select;
     free_underlaid_joins(thd, select_lex);
     thd->row_count_func= 0;
-    send_ok(thd,0L);
+    send_ok(thd, (ha_rows) thd->row_count_func);
     /*
       We don't need to call reset_auto_increment in this case, because
       mysql_truncate always gives a NULL conds argument, hence we never
@@ -269,10 +277,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   table->mark_columns_needed_for_delete();
 
   while (!(error=info.read_record(&info)) && !thd->killed &&
-	 !thd->net.report_error)
+	 ! thd->is_error())
   {
-    // thd->net.report_error is tested to disallow delete row on error
-    if (!(select && select->skip_record())&& !thd->net.report_error )
+    // thd->is_error() is tested to disallow delete row on error
+    if (!(select && select->skip_record())&& ! thd->is_error() )
     {
 
       if (table->triggers &&
@@ -317,7 +325,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     else
       table->file->unlock_row();  // Row failed selection, release lock on it
   }
-  if (thd->killed && !error)
+  killed_status= thd->killed;
+  if (killed_status != THD::NOT_KILLED || thd->is_error())
     error= 1;					// Aborted
   if (will_batch && (loc_error= table->file->end_bulk_delete()))
   {
@@ -362,13 +371,12 @@ cleanup:
     thd->transaction.stmt.modified_non_trans_table= TRUE;
   
   /* See similar binlogging code in sql_update.cc, for comments */
-  if ((error < 0) || (deleted && !transactional_table))
+  if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
     {
       if (error < 0)
         thd->clear_error();
-
       /*
         [binlog]: If 'handler::delete_all_rows()' was called and the
         storage engine does not inject the rows itself, we replicate
@@ -377,7 +385,7 @@ cleanup:
       */
       int log_result= thd->binlog_query(THD::ROW_QUERY_TYPE,
                                         thd->query, thd->query_length,
-                                        transactional_table, FALSE);
+                                        transactional_table, FALSE, killed_status);
 
       if (log_result && transactional_table)
       {
@@ -409,10 +417,10 @@ cleanup:
   if (error < 0 || (thd->lex->ignore && !thd->is_fatal_error))
   {
     thd->row_count_func= deleted;
-    send_ok(thd,deleted);
+    send_ok(thd, (ha_rows) thd->row_count_func);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
-  DBUG_RETURN(error >= 0 || thd->net.report_error);
+  DBUG_RETURN(error >= 0 || thd->is_error());
 }
 
 
@@ -564,7 +572,7 @@ bool mysql_multi_delete_prepare(THD *thd)
 multi_delete::multi_delete(TABLE_LIST *dt, uint num_of_tables_arg)
   : delete_tables(dt), deleted(0), found(0),
     num_of_tables(num_of_tables_arg), error(0),
-    do_delete(0), transactional_tables(0), normal_tables(0)
+    do_delete(0), transactional_tables(0), normal_tables(0), error_handled(0)
 {
   tempfiles= (Unique **) sql_calloc(sizeof(Unique *) * num_of_tables);
 }
@@ -743,12 +751,14 @@ void multi_delete::send_error(uint errcode,const char *err)
   /* First send error what ever it is ... */
   my_message(errcode, err, MYF(0));
 
-  /* If nothing deleted return */
-  if (!deleted)
+  /* the error was handled or nothing deleted and no side effects return */
+  if (error_handled ||
+      !thd->transaction.stmt.modified_non_trans_table && !deleted)
     DBUG_VOID_RETURN;
 
   /* Something already deleted so we have to invalidate cache */
-  query_cache_invalidate3(thd, delete_tables, 1);
+  if (deleted)
+    query_cache_invalidate3(thd, delete_tables, 1);
 
   /*
     If rows from the first table only has been deleted and it is
@@ -768,10 +778,28 @@ void multi_delete::send_error(uint errcode,const char *err)
     */
     error= 1;
     send_eof();
+    DBUG_ASSERT(error_handled);
+    DBUG_VOID_RETURN;
   }
-  DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
+  
+  if (thd->transaction.stmt.modified_non_trans_table)
+  {
+    /* 
+       there is only side effects; to binlog with the error
+    */
+    if (mysql_bin_log.is_open())
+    {
+      thd->binlog_query(THD::ROW_QUERY_TYPE,
+                        thd->query, thd->query_length,
+                        transactional_tables, FALSE);
+    }
+    thd->transaction.all.modified_non_trans_table= true;
+  }
+  DBUG_ASSERT(!normal_tables || !deleted ||
+              thd->transaction.stmt.modified_non_trans_table);
   DBUG_VOID_RETURN;
 }
+
 
 
 /*
@@ -866,6 +894,7 @@ int multi_delete::do_deletes()
 
 bool multi_delete::send_eof()
 {
+  THD::killed_state killed_status= THD::NOT_KILLED;
   thd->proc_info="deleting from reference tables";
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
@@ -873,7 +902,7 @@ bool multi_delete::send_eof()
 
   /* compute a total error to know if something failed */
   local_error= local_error || error;
-
+  killed_status= (local_error == 0)? THD::NOT_KILLED : thd->killed;
   /* reset used flags */
   thd->proc_info="end";
 
@@ -885,7 +914,9 @@ bool multi_delete::send_eof()
   {
     query_cache_invalidate3(thd, delete_tables, 1);
   }
-  if ((local_error == 0) || (deleted && normal_tables))
+  DBUG_ASSERT(!normal_tables || !deleted ||
+              thd->transaction.stmt.modified_non_trans_table);
+  if ((local_error == 0) || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
     {
@@ -893,7 +924,7 @@ bool multi_delete::send_eof()
         thd->clear_error();
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_tables, FALSE) &&
+                            transactional_tables, FALSE, killed_status) &&
           !normal_tables)
       {
 	local_error=1;  // Log write failed: roll back the SQL statement
@@ -902,7 +933,8 @@ bool multi_delete::send_eof()
     if (thd->transaction.stmt.modified_non_trans_table)
       thd->transaction.all.modified_non_trans_table= TRUE;
   }
-  DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
+  if (local_error != 0)
+    error_handled= TRUE; // to force early leave from ::send_error()
 
   /* Commit or rollback the current SQL statement */
   if (transactional_tables)
@@ -912,7 +944,7 @@ bool multi_delete::send_eof()
   if (!local_error)
   {
     thd->row_count_func= deleted;
-    ::send_ok(thd, deleted);
+    ::send_ok(thd, (ha_rows) thd->row_count_func);
   }
   return 0;
 }

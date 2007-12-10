@@ -1,7 +1,7 @@
 /* rltty.c -- functions to prepare and restore the terminal for readline's
    use. */
 
-/* Copyright (C) 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1992-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -22,7 +22,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <sys/types.h>
 #include <signal.h>
@@ -149,7 +151,9 @@ set_winsize (int tty __attribute__((unused)))
 #endif /* TIOCGWINSZ */
 }
 
-#if defined (NEW_TTY_DRIVER)
+#if defined (NO_TTY_DRIVER)
+/* Nothing */
+#elif defined (NEW_TTY_DRIVER)
 
 /* Values for the `flags' field of a struct bsdtty.  This tells which
    elements of the struct bsdtty have been fetched from the system and
@@ -230,6 +234,7 @@ get_tty_settings (tty, tiop)
 
   tiop->flags = tiop->lflag = 0;
 
+  errno = 0;
   if (ioctl (tty, TIOCGETP, &(tiop->sgttyb)) < 0)
     return -1;
   tiop->flags |= SGTTY_SET;
@@ -515,6 +520,7 @@ get_tty_settings (tty, tiop)
 {
   set_winsize (tty);
 
+  errno = 0;
   if (_get_tty_settings (tty, tiop) < 0)
     return -1;
 
@@ -628,9 +634,23 @@ prepare_terminal_settings (meta_flag, oldtio, tiop)
 
 #endif /* TERMIOS_TTY_DRIVER && _POSIX_VDISABLE */
 }
-#endif  /* NEW_TTY_DRIVER */
+#endif  /* !NEW_TTY_DRIVER */
 
 /* Put the terminal in CBREAK mode so that we can detect key presses. */
+#if defined (NO_TTY_DRIVER)
+void
+rl_prep_terminal (meta_flag)
+     int meta_flag;
+{
+  readline_echoing_p = 1;
+}
+
+void
+rl_deprep_terminal ()
+{
+}
+
+#else /* ! NO_TTY_DRIVER */
 void
 rl_prep_terminal (meta_flag)
      int meta_flag;
@@ -648,16 +668,43 @@ rl_prep_terminal (meta_flag)
 
   if (get_tty_settings (tty, &tio) < 0)
     {
+#if defined (ENOTSUP)
+      /* MacOS X, at least, lies about the value of errno if tcgetattr fails. */
+      if (errno == ENOTTY || errno == ENOTSUP)
+#else
+      if (errno == ENOTTY)
+#endif
+	readline_echoing_p = 1;		/* XXX */
       release_sigint ();
       return;
     }
 
   otio = tio;
 
-  rl_tty_unset_default_bindings (_rl_keymap);
+  if (_rl_bind_stty_chars)
+    {
+#if defined (VI_MODE)
+      /* If editing in vi mode, make sure we restore the bindings in the
+	 insertion keymap no matter what keymap we ended up in. */
+      if (rl_editing_mode == vi_mode)
+	rl_tty_unset_default_bindings (vi_insertion_keymap);
+      else
+#endif
+	rl_tty_unset_default_bindings (_rl_keymap);
+    }
   save_tty_chars (&otio);
   RL_SETSTATE(RL_STATE_TTYCSAVED);
-  _rl_bind_tty_special_chars (_rl_keymap, tio);
+  if (_rl_bind_stty_chars)
+    {
+#if defined (VI_MODE)
+      /* If editing in vi mode, make sure we set the bindings in the
+	 insertion keymap no matter what keymap we ended up in. */
+      if (rl_editing_mode == vi_mode)
+	_rl_bind_tty_special_chars (vi_insertion_keymap, tio);	
+      else
+#endif
+	_rl_bind_tty_special_chars (_rl_keymap, tio);
+    }
 
   prepare_terminal_settings (meta_flag, otio, &tio);
 
@@ -707,6 +754,7 @@ rl_deprep_terminal ()
 
   release_sigint ();
 }
+#endif /* !NO_TTY_DRIVER */
 
 /* **************************************************************** */
 /*								    */
@@ -715,8 +763,13 @@ rl_deprep_terminal ()
 /* **************************************************************** */
 
 int
-rl_restart_output(int count __attribute__((unused)), int key __attribute__((unused)))
+rl_restart_output (count, key)
+     int count, key;
 {
+#if defined (__MINGW32__)
+  return 0;
+#else /* !__MING32__ */
+
   int fildes = fileno (rl_outstream);
 #if defined (TIOCSTART)
 #if defined (apollo)
@@ -744,11 +797,17 @@ rl_restart_output(int count __attribute__((unused)), int key __attribute__((unus
 #endif /* !TIOCSTART */
 
   return 0;
+#endif /* !__MINGW32__ */
 }
 
 int
-rl_stop_output(int count __attribute__((unused)), int key __attribute__((unused)))
+rl_stop_output (count, key)
+     int count, key;
 {
+#if defined (__MINGW32__)
+  return 0;
+#else
+
   int fildes = fileno (rl_instream);
 
 #if defined (TIOCSTOP)
@@ -771,6 +830,7 @@ rl_stop_output(int count __attribute__((unused)), int key __attribute__((unused)
 #endif /* !TIOCSTOP */
 
   return 0;
+#endif /* !__MINGW32__ */
 }
 
 /* **************************************************************** */
@@ -779,9 +839,16 @@ rl_stop_output(int count __attribute__((unused)), int key __attribute__((unused)
 /*								    */
 /* **************************************************************** */
 
+#if !defined (NO_TTY_DRIVER)
 #define SET_SPECIAL(sc, func)	set_special_char(kmap, &ttybuff, sc, func)
+#endif
 
-#if defined (NEW_TTY_DRIVER)
+#if defined (NO_TTY_DRIVER)
+
+#define SET_SPECIAL(sc, func)
+#define RESET_SPECIAL(c)
+
+#elif defined (NEW_TTY_DRIVER)
 static void
 set_special_char (kmap, tiop, sc, func)
      Keymap kmap;
@@ -862,6 +929,7 @@ void
 rltty_set_default_bindings (kmap)
      Keymap kmap;
 {
+#if !defined (NO_TTY_DRIVER)
   TIOTYPE ttybuff;
   int tty;
 
@@ -869,6 +937,7 @@ rltty_set_default_bindings (kmap)
 
   if (get_tty_settings (tty, &ttybuff) == 0)
     _rl_bind_tty_special_chars (kmap, ttybuff);
+#endif
 }
 
 /* New public way to set the system default editing chars to their readline
@@ -906,7 +975,7 @@ rl_tty_unset_default_bindings (kmap)
 
 #if defined (HANDLE_SIGNALS)
 
-#if defined (NEW_TTY_DRIVER)
+#if defined (NEW_TTY_DRIVER) || defined (NO_TTY_DRIVER)
 int
 _rl_disable_tty_signals ()
 {

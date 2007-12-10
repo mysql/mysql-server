@@ -84,7 +84,7 @@ class Stored_routine_creation_ctx : public Stored_program_creation_ctx,
 {
 public:
   static Stored_routine_creation_ctx *
-  load_from_db(THD *thd, const class sp_name *name, TABLE *proc_tbl);
+  load_from_db(THD *thd, const sp_name *name, TABLE *proc_tbl);
 
 public:
   virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)
@@ -520,9 +520,10 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 {
   LEX *old_lex= thd->lex, newlex;
   String defstr;
-  char old_db_buf[NAME_LEN+1];
-  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
-  bool dbchanged;
+  char saved_cur_db_name_buf[NAME_LEN+1];
+  LEX_STRING saved_cur_db_name=
+    { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
+  bool cur_db_changed;
   ulong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
@@ -567,16 +568,17 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   }
 
   /*
-    Change current database if needed.
+    Change the current database (if needed).
 
-    collation_database will be updated here. However, it can be wrong,
-    because it will contain the current value of the database collation.
-    We need collation_database to be fixed at the creation time -- so
-    we'll update it later in switch_query_ctx().
+    TODO: why do we force switch here?
   */
 
-  if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
+  if (mysql_opt_change_db(thd, &name->m_db, &saved_cur_db_name, TRUE,
+                          &cur_db_changed))
+  {
+    ret= SP_INTERNAL_ERROR;
     goto end;
+  }
 
   thd->spcont= NULL;
 
@@ -585,34 +587,42 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
     lex_start(thd);
 
-    if (parse_sql(thd, &lip, creation_ctx) || newlex.sphead == NULL)
-    {
-      sp_head *sp= newlex.sphead;
+    ret= parse_sql(thd, &lip, creation_ctx) || newlex.sphead == NULL;
 
-      if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
-        goto end;
-      delete sp;
-      ret= SP_PARSE_ERROR;
-    }
-    else
+    /*
+      Force switching back to the saved current database (if changed),
+      because it may be NULL. In this case, mysql_change_db() would
+      generate an error.
+    */
+
+    if (cur_db_changed && mysql_change_db(thd, &saved_cur_db_name, TRUE))
     {
-      if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
-        goto end;
-      *sphp= newlex.sphead;
-      (*sphp)->set_definer(&definer_user_name, &definer_host_name);
-      (*sphp)->set_info(created, modified, &chistics, sql_mode);
-      (*sphp)->set_creation_ctx(creation_ctx);
-      (*sphp)->optimize();
-      /*
-        Not strictly necessary to invoke this method here, since we know
-        that we've parsed CREATE PROCEDURE/FUNCTION and not an
-        UPDATE/DELETE/INSERT/REPLACE/LOAD/CREATE TABLE, but we try to
-        maintain the invariant that this method is called for each
-        distinct statement, in case its logic is extended with other
-        types of analyses in future.
-      */
-      newlex.set_trg_event_type_for_tables();
+      delete newlex.sphead;
+      ret= SP_INTERNAL_ERROR;
+      goto end;
     }
+
+    if (ret)
+    {
+      delete newlex.sphead;
+      ret= SP_PARSE_ERROR;
+      goto end;
+    }
+
+    *sphp= newlex.sphead;
+    (*sphp)->set_definer(&definer_user_name, &definer_host_name);
+    (*sphp)->set_info(created, modified, &chistics, sql_mode);
+    (*sphp)->set_creation_ctx(creation_ctx);
+    (*sphp)->optimize();
+    /*
+      Not strictly necessary to invoke this method here, since we know
+      that we've parsed CREATE PROCEDURE/FUNCTION and not an
+      UPDATE/DELETE/INSERT/REPLACE/LOAD/CREATE TABLE, but we try to
+      maintain the invariant that this method is called for each
+      distinct statement, in case its logic is extended with other
+      types of analyses in future.
+    */
+    newlex.set_trg_event_type_for_tables();
   }
 
 end:
@@ -672,6 +682,10 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 
   CHARSET_INFO *db_cs= get_default_db_collation(thd, sp->m_db.str);
 
+  enum_check_fields saved_count_cuted_fields;
+
+  bool store_failed= FALSE;
+
   DBUG_ENTER("sp_create_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
                        sp->m_name.str));
@@ -685,6 +699,9 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
     statement.
   */
   thd->clear_current_stmt_binlog_row_based();
+
+  saved_count_cuted_fields= thd->count_cuted_fields;
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
 
   if (!(table= open_proc_table_for_update(thd)))
     ret= SP_OPEN_TABLE_FAILED;
@@ -715,43 +732,77 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       ret= SP_BODY_TOO_LONG;
       goto done;
     }
-    table->field[MYSQL_PROC_FIELD_DB]->
-      store(sp->m_db.str, sp->m_db.length, system_charset_info);
-    table->field[MYSQL_PROC_FIELD_NAME]->
-      store(sp->m_name.str, sp->m_name.length, system_charset_info);
-    table->field[MYSQL_PROC_MYSQL_TYPE]->
-      store((longlong)type, TRUE);
-    table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]->
-      store(sp->m_name.str, sp->m_name.length, system_charset_info);
+
+    store_failed=
+      table->field[MYSQL_PROC_FIELD_DB]->
+        store(sp->m_db.str, sp->m_db.length, system_charset_info);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_NAME]->
+        store(sp->m_name.str, sp->m_name.length, system_charset_info);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_MYSQL_TYPE]->
+        store((longlong)type, TRUE);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]->
+        store(sp->m_name.str, sp->m_name.length, system_charset_info);
+
     if (sp->m_chistics->daccess != SP_DEFAULT_ACCESS)
-      table->field[MYSQL_PROC_FIELD_ACCESS]->
-	store((longlong)sp->m_chistics->daccess, TRUE);
-    table->field[MYSQL_PROC_FIELD_DETERMINISTIC]->
-      store((longlong)(sp->m_chistics->detistic ? 1 : 2), TRUE);
+    {
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_ACCESS]->
+          store((longlong)sp->m_chistics->daccess, TRUE);
+    }
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_DETERMINISTIC]->
+        store((longlong)(sp->m_chistics->detistic ? 1 : 2), TRUE);
+
     if (sp->m_chistics->suid != SP_IS_DEFAULT_SUID)
-      table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
-	store((longlong)sp->m_chistics->suid, TRUE);
-    table->field[MYSQL_PROC_FIELD_PARAM_LIST]->
-      store(sp->m_params.str, sp->m_params.length, system_charset_info);
+    {
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
+          store((longlong)sp->m_chistics->suid, TRUE);
+    }
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_PARAM_LIST]->
+        store(sp->m_params.str, sp->m_params.length, system_charset_info);
+
     if (sp->m_type == TYPE_ENUM_FUNCTION)
     {
       String retstr(64);
       sp_returns_type(thd, retstr, sp);
-      table->field[MYSQL_PROC_FIELD_RETURNS]->
-	store(retstr.ptr(), retstr.length(), system_charset_info);
+
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_RETURNS]->
+          store(retstr.ptr(), retstr.length(), system_charset_info);
     }
-    table->field[MYSQL_PROC_FIELD_BODY]->
-      store(sp->m_body.str, sp->m_body.length, system_charset_info);
-    table->field[MYSQL_PROC_FIELD_DEFINER]->
-      store(definer, (uint)strlen(definer), system_charset_info);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_BODY]->
+        store(sp->m_body.str, sp->m_body.length, system_charset_info);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_DEFINER]->
+        store(definer, (uint)strlen(definer), system_charset_info);
+
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_CREATED])->set_time();
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
-    table->field[MYSQL_PROC_FIELD_SQL_MODE]->
-      store((longlong)thd->variables.sql_mode, TRUE);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_SQL_MODE]->
+        store((longlong)thd->variables.sql_mode, TRUE);
+
     if (sp->m_chistics->comment.str)
-      table->field[MYSQL_PROC_FIELD_COMMENT]->
-	store(sp->m_chistics->comment.str, sp->m_chistics->comment.length,
-	      system_charset_info);
+    {
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_COMMENT]->
+          store(sp->m_chistics->comment.str, sp->m_chistics->comment.length,
+                system_charset_info);
+    }
 
     if ((sp->m_type == TYPE_ENUM_FUNCTION) &&
         !trust_function_creators && mysql_bin_log.is_open())
@@ -784,24 +835,34 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
     }
 
     table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]->set_notnull();
-    table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]->store(
-      thd->charset()->csname,
-      strlen(thd->charset()->csname),
-      system_charset_info);
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]->store(
+        thd->charset()->csname,
+        strlen(thd->charset()->csname),
+        system_charset_info);
 
     table->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]->set_notnull();
-    table->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]->store(
-      thd->variables.collation_connection->name,
-      strlen(thd->variables.collation_connection->name),
-      system_charset_info);
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]->store(
+        thd->variables.collation_connection->name,
+        strlen(thd->variables.collation_connection->name),
+        system_charset_info);
 
     table->field[MYSQL_PROC_FIELD_DB_COLLATION]->set_notnull();
-    table->field[MYSQL_PROC_FIELD_DB_COLLATION]->store(
-      db_cs->name, strlen(db_cs->name), system_charset_info);
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_DB_COLLATION]->store(
+        db_cs->name, strlen(db_cs->name), system_charset_info);
 
     table->field[MYSQL_PROC_FIELD_BODY_UTF8]->set_notnull();
-    table->field[MYSQL_PROC_FIELD_BODY_UTF8]->store(
-      sp->m_body_utf8.str, sp->m_body_utf8.length, system_charset_info);
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_BODY_UTF8]->store(
+        sp->m_body_utf8.str, sp->m_body_utf8.length, system_charset_info);
+
+    if (store_failed)
+    {
+      ret= SP_FLD_STORE_FAILED;
+      goto done;
+    }
 
     ret= SP_OK;
     if (table->file->ha_write_row(table->record[0]))
@@ -832,6 +893,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   }
 
 done:
+  thd->count_cuted_fields= saved_count_cuted_fields;
+
   close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
@@ -1581,12 +1644,12 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
   {
     Sroutine_hash_entry *rn=
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry) +
-                                          key->length);
+                                          key->length + 1);
     if (!rn)              // OOM. Error will be reported using fatal_error().
       return FALSE;
     rn->key.length= key->length;
     rn->key.str= (char *)rn + sizeof(Sroutine_hash_entry);
-    memcpy(rn->key.str, key->str, key->length);
+    memcpy(rn->key.str, key->str, key->length + 1);
     my_hash_insert(&lex->sroutines, (uchar *)rn);
     lex->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
     rn->belong_to_view= belong_to_view;
@@ -1769,7 +1832,7 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
 
   for (Sroutine_hash_entry *rt= start; rt; rt= rt->next)
   {
-    sp_name name(rt->key.str, rt->key.length);
+    sp_name name(thd, rt->key.str, rt->key.length);
     int type= rt->key.str[0];
     sp_head *sp;
 
@@ -1777,13 +1840,6 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
                               &thd->sp_func_cache : &thd->sp_proc_cache),
                               &name)))
     {
-      name.m_name.str= strchr(name.m_qname.str, '.');
-      name.m_db.length= name.m_name.str - name.m_qname.str;
-      name.m_db.str= strmake_root(thd->mem_root, name.m_qname.str,
-                                  name.m_db.length);
-      name.m_name.str+= 1;
-      name.m_name.length= name.m_qname.length - name.m_db.length - 1;
-
       switch ((ret= db_find_routine(thd, type, &name, &sp)))
       {
       case SP_OK:
@@ -1810,7 +1866,7 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
           an error with it's return value without calling my_error(), we
           set the generic "mysql.proc table corrupt" error here.
          */
-        if (!thd->net.report_error)
+        if (! thd->is_error())
         {
           /*
             SP allows full NAME_LEN chars thus he have to allocate enough
@@ -2024,70 +2080,4 @@ create_string(THD *thd, String *buf,
   }
   buf->append(body, bodylen);
   return TRUE;
-}
-
-
-
-/*
-  Change the current database if needed.
-
-  SYNOPSIS
-    sp_use_new_db()
-      thd            thread handle
-      new_db         new database name (a string and its length)
-      old_db         [IN] str points to a buffer where to store the old
-                          database, length contains the size of the buffer
-                     [OUT] if old db was not NULL, its name is copied
-                     to the buffer pointed at by str and length is updated
-                     accordingly. Otherwise str[0] is set to '\0' and length
-                     is set to 0. The out parameter should be used only if
-                     the database name has been changed (see dbchangedp).
-     dbchangedp      [OUT] is set to TRUE if the current database is changed,
-                     FALSE otherwise. A database is not changed if the old
-                     name is the same as the new one, both names are empty,
-                     or an error has occurred.
-
-  RETURN VALUE
-    0                success
-    1                access denied or out of memory (the error message is
-                     set in THD)
-*/
-
-int
-sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
-	      bool no_access_check, bool *dbchangedp)
-{
-  int ret;
-  DBUG_ENTER("sp_use_new_db");
-  DBUG_PRINT("enter", ("newdb: %s", new_db.str));
-
-  /*
-    A stored routine always belongs to some database. The
-    old database (old_db) might be NULL, but to restore the
-    old database we will use mysql_change_db.
-  */
-  DBUG_ASSERT(new_db.str && new_db.length);
-
-  if (thd->db)
-  {
-    old_db->length= (strmake(old_db->str, thd->db, old_db->length) -
-                     old_db->str);
-  }
-  else
-  {
-    old_db->str[0]= '\0';
-    old_db->length= 0;
-  }
-
-  /* Don't change the database if the new name is the same as the old one. */
-  if (my_strcasecmp(system_charset_info, old_db->str, new_db.str) == 0)
-  {
-    *dbchangedp= FALSE;
-    DBUG_RETURN(0);
-  }
-
-  ret= mysql_change_db(thd, &new_db, no_access_check);
-
-  *dbchangedp= ret == 0;
-  DBUG_RETURN(ret);
 }

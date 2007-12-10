@@ -140,6 +140,7 @@ bool servers_init(bool dont_read_servers_table)
     DBUG_RETURN(TRUE);
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+  lex_start(thd);
   /*
     It is safe to call servers_reload() since servers_* arrays and hashes which
     will be freed there are global static objects and thus are initialized
@@ -289,7 +290,7 @@ get_server_from_table_to_cache(TABLE *table)
 {
   /* alloc a server struct */
   char *ptr;
-  char *blank= (char*)"";
+  char * const blank= (char*)"";
   FOREIGN_SERVER *server= (FOREIGN_SERVER *)alloc_root(&mem,
                                                        sizeof(FOREIGN_SERVER));
   DBUG_ENTER("get_server_from_table_to_cache");
@@ -312,7 +313,7 @@ get_server_from_table_to_cache(TABLE *table)
   server->port= server->sport ? atoi(server->sport) : 0;
 
   ptr= get_field(&mem, table->field[6]);
-  server->socket= ptr && strlen(ptr) ? ptr : NULL;
+  server->socket= ptr && strlen(ptr) ? ptr : blank;
   ptr= get_field(&mem, table->field[7]);
   server->scheme= ptr ? ptr : blank;
   ptr= get_field(&mem, table->field[8]);

@@ -2,14 +2,6 @@ SET @max_row = 20;
 SET @@session.storage_engine = 'MyISAM';
 
 #------------------------------------------------------------------------
-# There are several testcases disabled because of the open bugs
-# #15890
-# The expected results suffer from the following bugs
-# harmless #17455, #19305
-# which cannot be suppressed because of technical reasons.
-#------------------------------------------------------------------------
-
-#------------------------------------------------------------------------
 #  0. Setting of auxiliary variables + Creation of an auxiliary tables
 #     needed in many testcases
 #------------------------------------------------------------------------
@@ -31,7 +23,7 @@ DROP TABLE IF EXISTS t0_definition;
 CREATE TABLE t0_definition (
 state CHAR(3),
 create_command VARBINARY(5000),
-file_list      VARBINARY(5000),
+file_list      VARBINARY(10000),
 PRIMARY KEY (state)
 ) ENGINE = MEMORY;
 DROP TABLE IF EXISTS t0_aux;

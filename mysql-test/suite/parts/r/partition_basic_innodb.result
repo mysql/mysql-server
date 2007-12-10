@@ -2,14 +2,6 @@ SET @max_row = 20;
 SET @@session.storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------
-# There are several testcases disabled because of the open bugs
-# #15890
-# The expected results suffer from the following bugs
-# harmless #17455, #19305
-# which cannot be suppressed because of technical reasons.
-#------------------------------------------------------------------------
-
-#------------------------------------------------------------------------
 #  0. Setting of auxiliary variables + Creation of an auxiliary tables
 #     needed in many testcases
 #------------------------------------------------------------------------
@@ -31,7 +23,7 @@ DROP TABLE IF EXISTS t0_definition;
 CREATE TABLE t0_definition (
 state CHAR(3),
 create_command VARBINARY(5000),
-file_list      VARBINARY(5000),
+file_list      VARBINARY(10000),
 PRIMARY KEY (state)
 ) ENGINE = MEMORY;
 DROP TABLE IF EXISTS t0_aux;
@@ -61,7 +53,7 @@ SET @@session.sql_mode= '';
 DROP TABLE IF EXISTS t1;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -496,17 +488,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -941,17 +933,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1386,17 +1378,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1829,17 +1821,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2274,17 +2266,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2717,17 +2709,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3162,17 +3154,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3607,10 +3599,10 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
@@ -3618,7 +3610,7 @@ unified filelist
 # 1.1.1 with DATA DIECTORY/INDEX DIRECTORY
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -4053,17 +4045,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -4498,17 +4490,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -4943,17 +4935,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -5386,17 +5378,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -5831,17 +5823,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -6274,17 +6266,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -6719,17 +6711,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -7164,10 +7156,10 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
@@ -7175,7 +7167,7 @@ unified filelist
 DROP TABLE IF EXISTS t1;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -7610,17 +7602,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -8055,17 +8047,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -8500,17 +8492,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -8943,17 +8935,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -9388,17 +9380,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -9831,17 +9823,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -10276,10 +10268,10 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
@@ -10297,7 +10289,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY HASH(f_int1 + f_int2) PARTITIONS 2;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -10732,7 +10724,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -10745,7 +10737,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY KEY(f_int1,f_int2) PARTITIONS 5;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -11180,7 +11172,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -11201,7 +11193,7 @@ PARTITION part2 VALUES IN (2),
 PARTITION part3 VALUES IN (3));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -11636,7 +11628,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -11655,7 +11647,7 @@ PARTITION parte VALUES LESS THAN (20),
 PARTITION partf VALUES LESS THAN (2147483646));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -12088,7 +12080,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -12105,7 +12097,7 @@ PARTITION partc VALUES LESS THAN (10),
 PARTITION partd VALUES LESS THAN (2147483646));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -12538,7 +12530,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -12559,7 +12551,7 @@ PARTITION part4 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart41, SUBPARTITION subpart42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -12992,7 +12984,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -13013,7 +13005,7 @@ PARTITION part4 VALUES IN (NULL)
 (SUBPARTITION sp41, SUBPARTITION sp42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -13448,7 +13440,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -13465,7 +13457,7 @@ SUBPARTITION BY KEY(f_int2)  SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -13900,7 +13892,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #------------------------------------------------------------------------
 #  2   Tables with PRIMARY KEY and/or UNIQUE INDEXes
@@ -13910,7 +13902,7 @@ DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -14382,17 +14374,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -14864,17 +14856,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -15346,17 +15338,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -15826,17 +15818,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -16308,17 +16300,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -16788,17 +16780,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -17270,17 +17262,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -17752,10 +17744,10 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
@@ -17763,7 +17755,7 @@ unified filelist
 DROP TABLE IF EXISTS t1;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -18235,17 +18227,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -18717,17 +18709,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -19199,17 +19191,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -19679,17 +19671,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -20161,17 +20153,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -20641,17 +20633,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -21123,17 +21115,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -21605,10 +21597,10 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
@@ -21616,7 +21608,7 @@ unified filelist
 DROP TABLE IF EXISTS t1;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -22104,17 +22096,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -22602,17 +22594,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -23100,17 +23092,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -23596,17 +23588,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -24094,17 +24086,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -24590,17 +24582,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -25088,17 +25080,17 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
 --- not determined ---
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -25586,10 +25578,10 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # Attention: There are unused files.
-#            Either the DROP TABLE or a preceeding ALTER TABLE
+#            Either the DROP TABLE or a preceding ALTER TABLE
 #            <alter partitioning> worked incomplete.
 # We found:
 unified filelist
@@ -25611,7 +25603,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY HASH(f_int1 + f_int2) PARTITIONS 2;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -26083,7 +26075,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -26096,7 +26088,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY KEY(f_int1,f_int2) PARTITIONS 5;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -26568,7 +26560,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -26589,7 +26581,7 @@ PARTITION part2 VALUES IN (2),
 PARTITION part3 VALUES IN (3));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -27061,7 +27053,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -27080,7 +27072,7 @@ PARTITION parte VALUES LESS THAN (20),
 PARTITION partf VALUES LESS THAN (2147483646));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -27550,7 +27542,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -27567,7 +27559,7 @@ PARTITION partc VALUES LESS THAN (10),
 PARTITION partd VALUES LESS THAN (2147483646));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -28037,7 +28029,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -28058,7 +28050,7 @@ PARTITION part4 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart41, SUBPARTITION subpart42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -28528,7 +28520,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -28549,7 +28541,7 @@ PARTITION part4 VALUES IN (NULL)
 (SUBPARTITION sp41, SUBPARTITION sp42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -29021,7 +29013,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -29038,7 +29030,7 @@ SUBPARTITION BY KEY(f_int2)  SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -29510,7 +29502,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -29524,7 +29516,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY HASH(f_int1 + f_int2) PARTITIONS 2;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -29996,7 +29988,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -30009,7 +30001,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY KEY(f_int1,f_int2) PARTITIONS 5;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -30481,7 +30473,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -30502,7 +30494,7 @@ PARTITION part2 VALUES IN (2),
 PARTITION part3 VALUES IN (3));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -30974,7 +30966,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -30993,7 +30985,7 @@ PARTITION parte VALUES LESS THAN (20),
 PARTITION partf VALUES LESS THAN (2147483646));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -31463,7 +31455,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -31480,7 +31472,7 @@ PARTITION partc VALUES LESS THAN (10),
 PARTITION partd VALUES LESS THAN (2147483646));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -31950,7 +31942,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -31971,7 +31963,7 @@ PARTITION part4 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart41, SUBPARTITION subpart42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -32441,7 +32433,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -32462,7 +32454,7 @@ PARTITION part4 VALUES IN (NULL)
 (SUBPARTITION sp41, SUBPARTITION sp42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -32934,7 +32926,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -32951,7 +32943,7 @@ SUBPARTITION BY KEY(f_int2)  SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -33423,7 +33415,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -33437,7 +33429,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY HASH(f_int1 + f_int2) PARTITIONS 2;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -33925,7 +33917,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -33938,7 +33930,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY KEY(f_int1,f_int2) PARTITIONS 5;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -34426,7 +34418,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -34447,7 +34439,7 @@ PARTITION part2 VALUES IN (2),
 PARTITION part3 VALUES IN (3));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -34935,7 +34927,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -34954,7 +34946,7 @@ PARTITION parte VALUES LESS THAN (20),
 PARTITION partf VALUES LESS THAN (2147483646));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -35440,7 +35432,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -35457,7 +35449,7 @@ PARTITION partc VALUES LESS THAN (10),
 PARTITION partd VALUES LESS THAN (2147483646));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -35943,7 +35935,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -35964,7 +35956,7 @@ PARTITION part4 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart41, SUBPARTITION subpart42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -36450,7 +36442,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -36471,7 +36463,7 @@ PARTITION part4 VALUES IN (NULL)
 (SUBPARTITION sp41, SUBPARTITION sp42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -36959,7 +36951,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -36976,7 +36968,7 @@ SUBPARTITION BY KEY(f_int2)  SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -37464,7 +37456,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP VIEW  IF EXISTS v1;
 DROP TABLE IF EXISTS t1;

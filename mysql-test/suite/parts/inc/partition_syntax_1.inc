@@ -1,8 +1,8 @@
 ################################################################################
-# include/partition_syntax_1.inc                                               #
+# inc/partition_syntax_1.inc                                                   #
 #                                                                              #
 # Purpose:                                                                     #
-#   Auxiliary script, only useful when sourced by include/partition_syntax.inc #
+#   Auxiliary script, only useful when sourced by inc/partition_syntax.inc     #
 #                                                                              #
 #    Try to create a table with number of partitions/subpartitions             #
 #    = $part_number. Print the layout of the table and drop it.                #
@@ -10,11 +10,13 @@
 #    The parameter $part_number must be set before sourcing this script.       #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
-# Original Date: 2006-03-05                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
+# Original Author: mleich                                                      #
+# Original Date:   2006-03-05                                                  #
+# Change Author:   mleich                                                      #
+# Change Date:     2007-10-08                                                  #
+# Change:          Fix for                                                     #
+#                  Bug#31481 test suite parts: Many tests fail because of      #
+#                            changed server error codes                        #
 ################################################################################
 
 --disable_abort_on_error
@@ -27,16 +29,13 @@ PARTITION BY HASH(f_int1) PARTITIONS $part_number;
 eval SET @my_errno= $mysql_errno ;
 let $run= `SELECT @my_errno = 0`;
 # Expected error codes are
-# 0
-# 1064 ER_PARSE_ERROR
-#      Reason: assign -1 partitions
-# 1496 ER_TOO_MANY_PARTITIONS_ERROR
-# 1501 ER_NO_PARTS_ERROR
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1064,1496,1501)`;
-if ($unexpected_error)
+# 0, ER_PARSE_ERROR (Reason: assign -1 partitions), ER_TOO_MANY_PARTITIONS_ERROR
+# and ER_NO_PARTS_ERROR
+if (`SELECT @my_errno NOT IN (0,$ER_PARSE_ERROR,$ER_TOO_MANY_PARTITIONS_ERROR,
+                              $ER_NO_PARTS_ERROR)`)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1064,1496,1501
+   --echo #      Expected/handled SQL codes are 0,$ER_PARSE_ERROR,$ER_TOO_MANY_PARTITIONS_ERROR,$ER_NO_PARTS_ERROR
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;
@@ -48,7 +47,6 @@ if ($unexpected_error)
 if ($run)
 {
    --source suite/parts/inc/partition_layout_check1.inc
-   # --source include/partition_layout_check1.inc
    eval DROP TABLE t1;
 }
 #### Try to create a table with the given subpartition number
@@ -65,16 +63,13 @@ SUBPARTITIONS $part_number
 eval SET @my_errno= $mysql_errno ;
 let $run= `SELECT @my_errno = 0`;
 # Expected error codes are
-# 0
-# 1064 ER_PARSE_ERROR
-#      Reason: assign -1 partitions
-# 1496 ER_TOO_MANY_PARTITIONS_ERROR
-# 1501 ER_NO_PARTS_ERROR
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1064,1496,1501)`;
-if ($unexpected_error)
+# 0, ER_PARSE_ERROR (Reason: assign -1 partitions), ER_TOO_MANY_PARTITIONS_ERROR
+# and ER_NO_PARTS_ERROR
+if (`SELECT @my_errno NOT IN (0,$ER_PARSE_ERROR,$ER_TOO_MANY_PARTITIONS_ERROR,
+                              $ER_NO_PARTS_ERROR)`)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1064,1496,1501
+   --echo #      Expected/handled SQL codes are 0,$ER_PARSE_ERROR,$ER_TOO_MANY_PARTITIONS_ERROR,$ER_NO_PARTS_ERROR
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;
@@ -86,6 +81,5 @@ if ($unexpected_error)
 if ($run)
 {
    --source suite/parts/inc/partition_layout_check1.inc
-   # --source include/partition_layout_check1.inc
    eval DROP TABLE t1;
 }

@@ -797,6 +797,42 @@ UPDATE t1 set spatial_point=GeomFromText('POINT(41 46)') where  c1 like 'f%';
 CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
 
+#
+# Bug #30286 spatial index cause corruption and server crash!
+#
+
+create table t1 (a geometry not null, spatial index(a));
+insert into t1 values (PointFromWKB(POINT(1.1517219314031e+164, 131072)));
+insert into t1 values (PointFromWKB(POINT(9.1248812352444e+192, 2.9740338169556e+284)));
+insert into t1 values (PointFromWKB(POINT(4.7783097267365e-299, -0)));
+insert into t1 values (PointFromWKB(POINT(1.49166814624e-154, 2.0880974297595e-53)));
+insert into t1 values (PointFromWKB(POINT(4.0917382598702e+149, 1.2024538023802e+111)));
+insert into t1 values (PointFromWKB(POINT(2.0349165139404e+236, 2.9993936277913e-241)));
+insert into t1 values (PointFromWKB(POINT(2.5243548967072e-29, 1.2024538023802e+111)));
+insert into t1 values (PointFromWKB(POINT(0, 6.9835074892995e-251)));
+insert into t1 values (PointFromWKB(POINT(2.0880974297595e-53, 3.1050361846014e+231)));
+insert into t1 values (PointFromWKB(POINT(2.8728483499323e-188, 2.4600631144627e+260)));
+insert into t1 values (PointFromWKB(POINT(3.0517578125e-05, 2.0349165139404e+236)));
+insert into t1 values (PointFromWKB(POINT(1.1517219314031e+164, 1.1818212630766e-125)));
+insert into t1 values (PointFromWKB(POINT(2.481040258324e-265, 5.7766220027675e-275)));
+insert into t1 values (PointFromWKB(POINT(2.0880974297595e-53, 2.5243548967072e-29)));
+insert into t1 values (PointFromWKB(POINT(5.7766220027675e-275, 9.9464647281957e+86)));
+insert into t1 values (PointFromWKB(POINT(2.2181357552967e+130, 3.7857669957337e-270)));
+insert into t1 values (PointFromWKB(POINT(4.5767114681874e-246, 3.6893488147419e+19)));
+insert into t1 values (PointFromWKB(POINT(4.5767114681874e-246, 3.7537584144024e+255)));
+insert into t1 values (PointFromWKB(POINT(3.7857669957337e-270, 1.8033161362863e-130)));
+insert into t1 values (PointFromWKB(POINT(0, 5.8774717541114e-39)));
+insert into t1 values (PointFromWKB(POINT(1.1517219314031e+164, 2.2761049594727e-159)));
+insert into t1 values (PointFromWKB(POINT(6.243497100632e+144, 3.7857669957337e-270)));
+insert into t1 values (PointFromWKB(POINT(3.7857669957337e-270, 2.6355494858076e-82)));
+insert into t1 values (PointFromWKB(POINT(2.0349165139404e+236, 3.8518598887745e-34)));
+insert into t1 values (PointFromWKB(POINT(4.6566128730774e-10, 2.0880974297595e-53)));
+insert into t1 values (PointFromWKB(POINT(2.0880974297595e-53, 1.8827498946116e-183)));
+insert into t1 values (PointFromWKB(POINT(1.8033161362863e-130, 9.1248812352444e+192)));
+insert into t1 values (PointFromWKB(POINT(4.7783097267365e-299, 2.2761049594727e-159)));
+insert into t1 values (PointFromWKB(POINT(1.94906280228e+289, 1.2338789709327e-178)));
+drop table t1;
+
 # End of 4.1 tests
 
 #

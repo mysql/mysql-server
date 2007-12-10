@@ -280,8 +280,20 @@ let $B = changed value of B;
 var2: content of variable 1
 var3: content of variable 1 content of variable 1
 length of var3 is longer than 0
+var1
+hi	1	hi there
+var2
+2
+var2 again
+2
+var3 two columns with same name
+1	2	3
+var4 from query that returns NULL
+var5 from query that returns no row
+failing query in let
+mysqltest: At line 1: Error running query 'failing query': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
-mysqltest: At line 1: Could not open file ./non_existingFile
+mysqltest: At line 1: Could not open file './non_existingFile'
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/error.sql": At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 
@@ -340,6 +352,8 @@ here is the sourced script
 In loop
 here is the sourced script
 here is the sourced script
+"hello"
+"hello"
 mysqltest: At line 1: Missing argument to sleep
 mysqltest: At line 1: Missing argument to real_sleep
 mysqltest: At line 1: Invalid argument to sleep "abc"
@@ -461,7 +475,6 @@ root@localhost
 --------------------------------------------------------------------------------
 this will be executed
 this will be executed
-mysqltest: Result length mismatch
 mysqltest: The test didn't produce any output
 Failing multi statement query
 mysqltest: At line 3: query 'create table t1 (a int primary key);
@@ -473,6 +486,8 @@ mysqltest: At line 3: query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
+
+More results from queries before failure can be found in MYSQLTEST_VARDIR/log/bug11731.log
 drop table t1;
 Multi statement using expected error
 create table t1 (a int primary key);
@@ -520,17 +535,19 @@ drop table t1;
 mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
 mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
 mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
+Content for test_file1
+mysqltest: At line 1: File already exist: 'MYSQLTEST_VARDIR/tmp/test_file1.tmp'
 Some data
 for cat_file command
 of mysqltest
-mysqltest: At line 1: Failed to open file non_existing_file
+mysqltest: At line 1: Failed to open file 'non_existing_file'
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'mode' to command 'chmod'
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 mysqltest: At line 1: You must write a 4 digit octal number for mode
-mysqltest: At line 1: Missing required argument 'file' to command 'chmod'
+mysqltest: At line 1: Missing required argument 'filename' to command 'chmod'
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 hello
@@ -705,4 +722,7 @@ a	int(11)	YES		NULL
 b	varchar(255)	YES		NULL	
 c	datetime	YES		NULL	
 drop table t1;
+mysqltest: At line 1: change user failed: Unknown database 'inexistent'
+mysqltest: At line 1: change user failed: Access denied for user 'inexistent'@'localhost' (using password: NO)
+mysqltest: At line 1: change user failed: Access denied for user 'root'@'localhost' (using password: YES)
 End of tests

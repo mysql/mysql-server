@@ -17,6 +17,7 @@
 #    let $wait_condition=
 #      SELECT c = 3 FROM t;
 #    --source include/wait_condition.inc
+#    --echo Executed the test condition $wait_condition_reps times
 #
 # EXAMPLE
 #    events_bugs.test, events_time_zone.test
@@ -33,9 +34,13 @@ if ($wait_timeout)
 # calls, and default will be used instead.
 let $wait_timeout= 0;
 
+# Keep track of how many times the wait condition is tested
+# This is used by some tests (e.g., main.status)
+let $wait_condition_reps= 0;
 while ($wait_counter)
 {
     let $success= `$wait_condition`;
+    inc $wait_condition_reps;
     if ($success)
     {
         let $wait_counter= 0;

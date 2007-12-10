@@ -152,3 +152,38 @@ disconnect root;
 connection default;
 
 DROP DATABASE meow;
+
+#
+# Bug#28587 SELECT is blocked by INSERT waiting on read lock, even with low_priority_updates
+#
+--echo connection: default
+set low_priority_updates=1;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int, b int, unique key t1$a (a));
+lock table t1 read;
+connect (update,localhost,root,,);
+connection update;
+--echo connection: update
+set low_priority_updates=1;
+show variables like 'low_priority_updates';
+let $ID= `select connection_id()`;
+--send insert into t1 values (1, 2) ON DUPLICATE KEY UPDATE b = 2;
+connection default;
+# we must wait till the insert opens and locks the table
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and id = $ID;
+--source include/wait_condition.inc
+connect (select,localhost,root,,);
+--echo connection: select
+select * from t1;
+connection default;
+--echo connection: default
+select * from t1;
+connection default;
+disconnect update;
+disconnect select;
+drop table t1;
+set low_priority_updates=default;

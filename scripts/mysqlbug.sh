@@ -23,7 +23,8 @@ VERSION="@VERSION@@MYSQL_SERVER_SUFFIX@"
 COMPILATION_COMMENT="@COMPILATION_COMMENT@"
 BUGmysql="mysql@lists.mysql.com"
 # This is set by configure
-COMP_ENV_INFO="CC='@CC@'  CFLAGS='@CFLAGS@'  CXX='@CXX@'  CXXFLAGS='@CXXFLAGS@'  LDFLAGS='@LDFLAGS@'  ASFLAGS='@ASFLAGS@'"
+COMP_CALL_INFO="CC='@SAVE_CC@'  CFLAGS='@SAVE_CFLAGS@'  CXX='@SAVE_CXX@'  CXXFLAGS='@SAVE_CXXFLAGS@'  LDFLAGS='@SAVE_LDFLAGS@'  ASFLAGS='@SAVE_ASFLAGS@'"
+COMP_RUN_INFO="CC='@CC@'  CFLAGS='@CFLAGS@'  CXX='@CXX@'  CXXFLAGS='@CXXFLAGS@'  LDFLAGS='@LDFLAGS@'  ASFLAGS='@ASFLAGS@'"
 CONFIGURE_LINE="@CONF_COMMAND@"
 
 LIBC_INFO=""
@@ -261,7 +262,8 @@ ${ORGANIZATION- $ORGANIZATION_C}
 `test -n "$MACHINE"  && echo "Machine: $MACHINE"`
 `test -n "$FILE_PATHS"  && echo "Some paths: $FILE_PATHS"`
 `test -n "$GCC_INFO"  && echo "GCC: $GCC_INFO"`
-`test -n "$COMP_ENV_INFO"  && echo "Compilation info: $COMP_ENV_INFO"`
+`test -n "$COMP_CALL_INFO"  && echo "Compilation info (call): $COMP_CALL_INFO"`
+`test -n "$COMP_RUN_INFO"   && echo "Compilation info (used): $COMP_RUN_INFO"`
 `test -n "$LIBC_INFO"  && echo "LIBC: $LIBC_INFO"`
 `test -n "$CONFIGURE_LINE"  && echo "Configure command: $CONFIGURE_LINE"`
 `test -n "$PERL_INFO"  && echo "Perl: $PERL_INFO"`

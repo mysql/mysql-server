@@ -3,5 +3,9 @@
 --source include/have_ndb.inc
 
 let $engine_type= ndb;
+# $OTHER_ENGINE_TYPE must be
+# - <> $engine_type
+# - all time available like MyISAM or MEMORY
+let $OTHER_ENGINE_TYPE= MEMORY;
 
 --source suite/funcs_1/datadict/datadict_master.inc

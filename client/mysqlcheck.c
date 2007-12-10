@@ -146,7 +146,13 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", (uchar**) &opt_mysql_port,
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   (uchar**) &opt_mysql_port,
    (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
@@ -204,6 +210,7 @@ static void dbDisconnect(char *host);
 static void DBerror(MYSQL *mysql, const char *when);
 static void safe_exit(int error);
 static void print_result();
+static uint fixed_name_length(const char *name);
 static char *fix_table_name(char *dest, char *src);
 int what_to_do = 0;
 
@@ -436,14 +443,14 @@ static int process_selected_tables(char *db, char **table_names, int tables)
   {
     /* 
       We need table list in form `a`, `b`, `c`
-      that's why we need 4 more chars added to to each table name
+      that's why we need 2 more chars added to to each table name
       space is for more readable output in logs and in case of error
     */	  
     char *table_names_comma_sep, *end;
     int i, tot_length = 0;
 
     for (i = 0; i < tables; i++)
-      tot_length += strlen(*(table_names + i)) + 4;
+      tot_length+= fixed_name_length(*(table_names + i)) + 2;
 
     if (!(table_names_comma_sep = (char *)
 	  my_malloc((sizeof(char) * tot_length) + 4, MYF(MY_WME))))
@@ -461,23 +468,46 @@ static int process_selected_tables(char *db, char **table_names, int tables)
   }
   else
     for (; tables > 0; tables--, table_names++)
-      handle_request_for_tables(*table_names, strlen(*table_names));
+      handle_request_for_tables(*table_names, fixed_name_length(*table_names));
   return 0;
 } /* process_selected_tables */
 
 
+static uint fixed_name_length(const char *name)
+{
+  const char *p;
+  uint extra_length= 2;  /* count the first/last backticks */
+  
+  for (p= name; *p; p++)
+  {
+    if (*p == '`')
+      extra_length++;
+    else if (*p == '.')
+      extra_length+= 2;
+  }
+  return (p - name) + extra_length;
+}
+
+
 static char *fix_table_name(char *dest, char *src)
 {
-  char *db_sep;
-
   *dest++= '`';
-  if ((db_sep= strchr(src, '.')))
+  for (; *src; src++)
   {
-    dest= strmake(dest, src, (uint) (db_sep - src));
-    dest= strmov(dest, "`.`");
-    src= db_sep + 1;
+    switch (*src) {
+    case '.':            /* add backticks around '.' */
+      *dest++= '`';
+      *dest++= '.';
+      *dest++= '`';
+      break;
+    case '`':            /* escape backtick character */
+      *dest++= '`';
+      /* fall through */
+    default:
+      *dest++= *src;
+    }
   }
-  dest= strxmov(dest, src, "`", NullS);
+  *dest++= '`';
   return dest;
 }
 
@@ -498,7 +528,7 @@ static int process_all_tables_in_db(char *database)
   {
     /*
       We need table list in form `a`, `b`, `c`
-      that's why we need 4 more chars added to to each table name
+      that's why we need 2 more chars added to to each table name
       space is for more readable output in logs and in case of error
      */
 
@@ -506,7 +536,7 @@ static int process_all_tables_in_db(char *database)
     uint tot_length = 0;
 
     while ((row = mysql_fetch_row(res)))
-      tot_length += strlen(row[0]) + 4;
+      tot_length+= fixed_name_length(row[0]) + 2;
     mysql_data_seek(res, 0);
 
     if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+4, MYF(MY_WME))))
@@ -531,10 +561,13 @@ static int process_all_tables_in_db(char *database)
   else
   {
     while ((row = mysql_fetch_row(res)))
-      /* Skip tables with an engine of NULL (probably a view). */
-      if (row[1])
+      /* 
+        Skip tables with an engine of NULL (probably a view)
+        if we don't perform renaming.
+      */
+      if (row[1] || what_to_do == DO_UPGRADE)
       {
-        handle_request_for_tables(row[0], strlen(row[0]));
+        handle_request_for_tables(row[0], fixed_name_length(row[0]));
       }
   }
   mysql_free_result(res);
@@ -543,13 +576,13 @@ static int process_all_tables_in_db(char *database)
 
 
 
-static int fix_object_name(const char *obj, const char *name)
+static int fix_table_storage_name(const char *name)
 {
   char qbuf[100 + NAME_LEN*4];
   int rc= 0;
   if (strncmp(name, "#mysql50#", 9))
     return 1;
-  sprintf(qbuf, "RENAME %s `%s` TO `%s`", obj, name, name + 9);
+  sprintf(qbuf, "RENAME TABLE `%s` TO `%s`", name, name + 9);
   if (mysql_query(sock, qbuf))
   {
     fprintf(stderr, "Failed to %s\n", qbuf);
@@ -561,6 +594,23 @@ static int fix_object_name(const char *obj, const char *name)
   return rc;
 }
 
+static int fix_database_storage_name(const char *name)
+{
+  char qbuf[100 + NAME_LEN*4];
+  int rc= 0;
+  if (strncmp(name, "#mysql50#", 9))
+    return 1;
+  sprintf(qbuf, "ALTER DATABASE `%s` UPGRADE DATA DIRECTORY NAME", name);
+  if (mysql_query(sock, qbuf))
+  {
+    fprintf(stderr, "Failed to %s\n", qbuf);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    rc= 1;
+  }
+  if (verbose)
+    printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
+  return rc;
+}
 
 static int process_one_db(char *database)
 {
@@ -569,7 +619,7 @@ static int process_one_db(char *database)
     int rc= 0;
     if (opt_fix_db_names && !strncmp(database,"#mysql50#", 9))
     {
-      rc= fix_object_name("DATABASE", database);
+      rc= fix_database_storage_name(database);
       database+= 9;
     }
     if (rc || !opt_fix_table_names)
@@ -624,7 +674,7 @@ static int handle_request_for_tables(char *tables, uint length)
     op= (opt_write_binlog) ? "OPTIMIZE" : "OPTIMIZE NO_WRITE_TO_BINLOG";
     break;
   case DO_UPGRADE:
-    return fix_object_name("TABLE", tables);
+    return fix_table_storage_name(tables);
   }
 
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
@@ -811,7 +861,7 @@ int main(int argc, char **argv)
     for (i = 0; i < tables4repair.elements ; i++)
     {
       char *name= (char*) dynamic_array_ptr(&tables4repair, i);
-      handle_request_for_tables(name, strlen(name));
+      handle_request_for_tables(name, fixed_name_length(name));
     }
   }
  end:

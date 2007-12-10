@@ -11,7 +11,7 @@
 
 // Old implementation of do_apply_event()
 int 
-Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli)
+Old_rows_log_event::do_apply_event(Rows_log_event *ev, const Relay_log_info *rli)
 {
   DBUG_ENTER("Rows_log_event::do_apply_event(st_relay_log_info*)");
   int error= 0;
@@ -32,7 +32,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
      */
     DBUG_ASSERT(ev->get_flags(Rows_log_event::STMT_END_F));
 
-    const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
+    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
     close_thread_tables(thd);
     thd->clear_error();
     DBUG_RETURN(0);
@@ -68,7 +68,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
     {
       if (!need_reopen)
       {
-        if (thd->query_error || thd->is_fatal_error)
+        if (thd->is_slave_error || thd->is_fatal_error)
         {
           /*
             Error reporting borrowed from Query_log_event with many excessive
@@ -88,7 +88,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
                       "Error in %s event: when locking tables",
                       ev->get_type_str());
         }
-        const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
+        const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
         DBUG_RETURN(error);
       }
 
@@ -112,7 +112,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
       uint tables_count= rli->tables_to_lock_count;
       if ((error= open_tables(thd, &tables, &tables_count, 0)))
       {
-        if (thd->query_error || thd->is_fatal_error)
+        if (thd->is_slave_error || thd->is_fatal_error)
         {
           /*
             Error reporting borrowed from Query_log_event with many excessive
@@ -123,9 +123,9 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
                       "Error '%s' on reopening tables",
                       (actual_error ? thd->net.last_error :
                        "unexpected success or fatal error"));
-          thd->query_error= 1;
+          thd->is_slave_error= 1;
         }
-        const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
+        const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
         DBUG_RETURN(error);
       }
     }
@@ -146,8 +146,8 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
         {
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
-          thd->query_error= 1;
-          const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
+          thd->is_slave_error= 1;
+          const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(Rows_log_event::ERR_BAD_TABLE_DEF);
         }
       }
@@ -169,14 +169,14 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
      */
     for (TABLE_LIST *ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
     {
-      const_cast<RELAY_LOG_INFO*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
+      const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
     }
 #ifdef HAVE_QUERY_CACHE
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
 #endif
   }
 
-  TABLE* table= const_cast<RELAY_LOG_INFO*>(rli)->m_table_map.get_table(ev->m_table_id);
+  TABLE* table= const_cast<Relay_log_info*>(rli)->m_table_map.get_table(ev->m_table_id);
 
   if (table)
   {
@@ -221,7 +221,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
       inside a statement and halting abruptly might cause problems
       when restarting.
      */
-    const_cast<RELAY_LOG_INFO*>(rli)->set_flag(RELAY_LOG_INFO::IN_STMT);
+    const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
 
     error= do_before_row_operations(table);
     while (error == 0 && row_start < ev->m_rows_end)
@@ -255,14 +255,14 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
                     "Error in %s event: row application failed. %s",
                     ev->get_type_str(),
                     thd->net.last_error ? thd->net.last_error : "");
-  thd->query_error= 1;
+  thd->is_slave_error= 1;
   break;
       }
 
       row_start= row_end;
     }
     DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
-                    const_cast<RELAY_LOG_INFO*>(rli)->abort_slave= 1;);
+                    const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(table, error);
     if (!ev->cache_stmt)
     {
@@ -276,7 +276,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
     The table def is needed in unpack_row().
   */
   if (rli->tables_to_lock && ev->get_flags(Rows_log_event::STMT_END_F))
-    const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
+    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
 
   if (error)
   {                     /* error has occured during the transaction */
@@ -299,8 +299,8 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
       rollback at the caller along with sbr.
     */
     thd->reset_current_stmt_binlog_row_based();
-    const_cast<RELAY_LOG_INFO*>(rli)->cleanup_context(thd, error);
-    thd->query_error= 1;
+    const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
+    thd->is_slave_error= 1;
     DBUG_RETURN(error);
   }
 
@@ -329,7 +329,7 @@ Old_rows_log_event::do_apply_event(Rows_log_event *ev, const RELAY_LOG_INFO *rli
       problem.  When WL#2975 is implemented, just remove the member
       st_relay_log_info::last_event_start_time and all its occurences.
     */
-    const_cast<RELAY_LOG_INFO*>(rli)->last_event_start_time= my_time(0);
+    const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
 
   DBUG_RETURN(0);
@@ -964,7 +964,7 @@ int Write_rows_log_event_old::do_after_row_operations(TABLE *table, int error)
 
 int
 Write_rows_log_event_old::do_prepare_row(THD *thd_arg,
-                                         RELAY_LOG_INFO const *rli,
+                                         Relay_log_info const *rli,
                                          TABLE *table,
                                          uchar const *row_start,
                                          uchar const **row_end)
@@ -973,7 +973,7 @@ Write_rows_log_event_old::do_prepare_row(THD *thd_arg,
   DBUG_ASSERT(row_start && row_end);
 
   int error;
-  error= unpack_row_old(const_cast<RELAY_LOG_INFO*>(rli),
+  error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
                         table->write_set, PRE_GA_WRITE_ROWS_EVENT);
@@ -1043,7 +1043,7 @@ int Delete_rows_log_event_old::do_after_row_operations(TABLE *table, int error)
 
 int
 Delete_rows_log_event_old::do_prepare_row(THD *thd_arg,
-                                          RELAY_LOG_INFO const *rli,
+                                          Relay_log_info const *rli,
                                           TABLE *table,
                                           uchar const *row_start,
                                           uchar const **row_end)
@@ -1056,7 +1056,7 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd_arg,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
 
-  error= unpack_row_old(const_cast<RELAY_LOG_INFO*>(rli),
+  error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
                         table->read_set, PRE_GA_DELETE_ROWS_EVENT);
@@ -1137,7 +1137,7 @@ int Update_rows_log_event_old::do_after_row_operations(TABLE *table, int error)
 }
 
 int Update_rows_log_event_old::do_prepare_row(THD *thd_arg,
-                                              RELAY_LOG_INFO const *rli,
+                                              Relay_log_info const *rli,
                                               TABLE *table,
                                               uchar const *row_start,
                                               uchar const **row_end)
@@ -1151,13 +1151,13 @@ int Update_rows_log_event_old::do_prepare_row(THD *thd_arg,
   DBUG_ASSERT(table->s->fields >= m_width);
 
   /* record[0] is the before image for the update */
-  error= unpack_row_old(const_cast<RELAY_LOG_INFO*>(rli),
+  error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
                         table->read_set, PRE_GA_UPDATE_ROWS_EVENT);
   row_start = *row_end;
   /* m_after_image is the after image for the update */
-  error= unpack_row_old(const_cast<RELAY_LOG_INFO*>(rli),
+  error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, m_after_image,
                         row_start, &m_cols, row_end, &m_master_reclength,
                         table->write_set, PRE_GA_UPDATE_ROWS_EVENT);

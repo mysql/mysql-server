@@ -1,5 +1,23 @@
 #### suite/funcs_1/datadict/datadict_master.inc
 #
+# Checks of INFORMATION_SCHEMA table properties and content.
+# (mostly only the features introduced with MySQL 5.1)
+#
+# Please set the variable $OTHER_ENGINE_TYPE before sourcing this script.
+# $OTHER_ENGINE_TYPE must be
+# - <> $engine_type
+# - all time available like MyISAM or MEMORY
+#
+# Last change:
+# 2007-08-24 mleich Fixes for the bugs
+#                   #30438 "{memory,myisam,ndb}__datadict" tests fail:
+#                          Use "InnoDB" without checking
+#                   #30418 "datadict" tests (all engines) fail:
+#                          Dependency on the host name for ordering
+#                   #30420 "datadict" tests (all engines) fail:
+#                          Release build has help tables loaded
+#
+
 --disable_abort_on_error
 let $message=
 .
@@ -13,8 +31,9 @@ let $message=
 . *__datadict.test are started. This can be a result of showing e.g. maximum
 . values of the number of rows of tables.
 .
-. This .result file has been checked OK with Linux 5.0.23-bk,
-. ChangeSet@1.2211, 2006-06-28 10:11:43-07:00.
+. This .result file has been checked OK with Linux 5.0.48,
+. build tree ChangeSet@1.2477.6.3, 2007-07-30
+. except that the not fixed Bug#30020 causes a difference.
 .;
 --source include/show_msg80.inc
 
@@ -29,9 +48,11 @@ let $message=
    # and otherwise some extra statements needs to be executed as long as the bug is not
    # fixed:
    let $have_bug_11589= 1;
+   let $have_bug_30689= 1;
 
    #seems not to work: --vertical_results
    eval SELECT $have_bug_11589 AS "have_bug_11589";
+   eval SELECT $have_bug_30689 AS "have_bug_30689";
    #seems not to work: --horizontal_results
 
    # As long as
@@ -46,6 +67,15 @@ let $message=
       let $message= There are some statements where the ps-protocol is switched off.
                     This may come from the bug listed below, ir from other problems.
                     Bug#11589: mysqltest, --ps-protocol, strange output, float/double/real with zerofill;
+      --source include/show_msg80.inc
+   }
+   if ($have_bug_30689)
+   {
+      let $message= Selects on INFORMATION_SCHEMA.VIEWS present incomplete
+                    content for the column VIEW_DEFINITION in cases where
+                    the view selects(=is based) on an INFORMATION_SCHEMA table.
+                    ---> VIEWS vu and vu1
+                    Bug#30689 Wrong content in I_S.VIEWS.VIEW_DEFINITION if VIEW is based on I_S;
       --source include/show_msg80.inc
    }
 #
@@ -105,6 +135,7 @@ SELECT DISTINCT u,
     AS Server_Clean
 FROM db_datadict.vu1;
 --replace_result $SERVER_NAME <SERVER_NAME>
+--sorted_result
 SELECT * FROM db_datadict.vu order by u;
 
 delimiter //;
@@ -156,7 +187,8 @@ SELECT * FROM tables
 # 17 CHECK_TIME
 --replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM tables
- WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema')
+  AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 --horizontal_results
 --enable_ps_protocol
 
@@ -167,7 +199,7 @@ select s.catalog_name, s.schema_name, s.default_character_set_name,
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 select * from columns;
 select * from character_sets;
-select sum(id) from collations;
+select sum(id) from collations where collation_name <> 'utf8_general_cs';
 select collation_name, character_set_name into @x,@y
   from collation_character_set_applicability limit 1;
   select @x, @y;
@@ -176,9 +208,11 @@ select collation_name, character_set_name into @x,@y
 select * from routines;
 
 select count(*) from routines;
-select * from statistics;
+select * from statistics
+where not (table_schema = 'mysql' and table_name like 'help_%');
 select * from views;
 --replace_result $SERVER_NAME <SERVER_NAME>
+--sorted_result
 select * from user_privileges order by grantee, privilege_type;
 select * from schema_privileges;
 select * from table_privileges;
@@ -187,7 +221,8 @@ select * from table_constraints;
 select * from key_column_usage;
 select count(*) as max_recs from key_column_usage;
 
-select max(cardinality) from statistics;
+select max(cardinality) from statistics
+where not (table_schema = 'mysql' and table_name like 'help_%');
 
 select concat("View '",
        table_name, "' is associated with the database '", table_schema, "'.")
@@ -199,6 +234,7 @@ select concat("Table or view '", table_name,
   from tables;
 
 --replace_result $SERVER_NAME <SERVER_NAME>
+--sorted_result
 select grantee as "user's having select privilege",
        substring( grantee, length(SUBSTRING_INDEX(grantee,_utf8'@',1))+2 )
   from user_privileges where privilege_type = 'select'
@@ -233,47 +269,47 @@ let $dd_part2= LIMIT 1;
 # check again, but from different database (will fail due to missing database name)
 use db_datadict;
 
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from schemata;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from tables;
---error 1146
+--error ER_NO_SUCH_TABLE
 select s.catalog_name, s.schema_name, s.default_character_set_name,
        t.table_type, t.engine
   from schemata s inner join tables t
  ORDER BY s.catalog_name, s.schema_name, s.default_character_set_name;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from columns limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from character_sets limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from collations limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from collation_character_set_applicability limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from routines limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from statistics limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from views limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from user_privileges limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from schema_privileges limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from table_privileges limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from column_privileges limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from table_constraints limit 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from key_column_usage limit 0, 5;
 # Reference Manual 22.1.16 - we will add more ...:
-# --error 1146
+# --error ER_NO_SUCH_TABLE
 # select * from parameters;
-# --error 1146
+# --error ER_NO_SUCH_TABLE
 # select * from referential_constraints;
-# --error 1146
+# --error ER_NO_SUCH_TABLE
 # select * from triggers;
 let $message= will fail due to missing database name;
 let $dd_part1= SELECT * FROM;
@@ -316,7 +352,8 @@ SELECT * FROM information_schema.tables
 # 17 CHRCK_TIME
 --replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM information_schema.tables
- WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema')
+  AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 --horizontal_results
 --enable_ps_protocol
 
@@ -383,13 +420,15 @@ select * from collation_character_set_applicability
  order by character_set_name desc, collation_name limit 0, 5;
 
 select routine_definition from routines;
-select * from statistics group by index_name asc  limit 0, 5;
+select * from statistics where table_name not like 'help_%'
+group by index_name asc  limit 0, 5;
 select concat(table_schema, ', ', table_name, ', ', view_definition) view_info
   from views;
 select concat(table_schema, ', ', table_name) "Table_info"
   from tables ORDER BY 1;
 
 --replace_result $SERVER_NAME <SERVER_NAME>
+--sorted_result
 select distinct grantee from user_privileges order by grantee, privilege_type;
 select * from schema_privileges where table_catalog is null limit 0, 5;
 select * from table_privileges where grantee like '%r%'  limit 0, 5;
@@ -402,8 +441,10 @@ select sum(ordinal_position) from key_column_usage;
 select * from schemata limit 0,5;
 select * from schemata  limit 0,5;
 --replace_result $SERVER_NAME <SERVER_NAME>
+--sorted_result
 select distinct grantee from user_privileges;
 --replace_result $SERVER_NAME <SERVER_NAME>
+--sorted_result
 select all      grantee from user_privileges order by grantee, privilege_type;
 
 select id , character_set_name from collations order by id asc limit 10;
@@ -448,13 +489,13 @@ connect (u3212,localhost,user_3212,,db_datadict);
 --source suite/funcs_1/include/show_connection.inc
 
 # no db given --> db_datadict.schema does not exist
---error 1146
+--error ER_NO_SUCH_TABLE
 eval SELECT *
   INTO OUTFILE '../tmp/out.$ENGINE_TYPE.user.file'
   FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
   LINES TERMINATED BY '\n'
   FROM schemata LIMIT 0, 5;
---error 1146
+--error ER_NO_SUCH_TABLE
 eval SELECT *
   FROM schemata LIMIT 0, 5;
 
@@ -529,43 +570,43 @@ let $message= Testcase 3.2.1.3:;
 ################################################################################
 
 #FIXME: in this block we had --error 1288 until Mid Sep05, check the change!
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into schemata (catalog_name, schema_name, default_character_set_name, sql_path)
   values ('null', 'db1', 'latin1', 'null');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into tables (table_schema, table_name)values('db_datadict', 't1');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into columns (table_name, column_name)values('t3', 'f2');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into character_sets (character_set_name, default_collate_name, description, maxlen)
   values('cp1251', 'cp1251_general_ci', 'windows  cyrillic', 1);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into collations ( collation_name, character_set_name, id, is_default, is_compiled, sortlen)
   values ('cp1251_bin', 'cp1251', 50, '', '', 0);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into collation_character_set_applicability (collation_name, character_set_name)
   values (' big5_chinese_ci', 'big6');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into routines(routine_name, routine_type ) values ('p2', 'procedure');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into statistics(table_schema, table_name, index_name)
   values ('mysql', 'db', 'primary');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into views(table_schema, table_name) values ('db2', 'v2');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into user_privileges (privilege_type, is_grantable) values ('select', 'yes');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into schema_privileges (table_schema, privilege_type) values('db2', 'insert');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into table_privileges (able_schema, table_name, privilege_type)
   values('db2', 'v2', 'insert');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into  column_privileges (table_name, column_name, privilege_type)
   values ('t3', 'f3', 'insert');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into table_constraints ( constraint_schema, constraint_name, table_schema)
   values ('primary', 'mysql', 'user');
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into key_column_usage (constraint_schema, constraint_name, table_name)
   values ('mysql', 'primary', 'db');
 
@@ -586,7 +627,7 @@ delimiter ;//
 SELECT table_schema, privilege_type FROM information_schema.schema_privileges
  WHERE table_schema LIKE 'db%';
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 call db_datadict.sp_4_1_3();
 
 #FIXME: check for the diffs Win ./. Linux
@@ -607,7 +648,7 @@ connect (u413,localhost,user_4_1_3,,test);
 use information_schema;
 
 #FIXME: check later the change from 1288 to 1044 (since Mid Sep05)
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into table_constraints ( constraint_schema, constraint_name,  table_schema)
   values ('primary', 'mysql', 'user');
 
@@ -627,38 +668,38 @@ use information_schema;
 --source suite/funcs_1/include/show_connection.inc
 
 #FIXME: check later the change from 1288 to 1044 (since Mid Sep05) in the whole next block
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update schemata set schema_name = 'db5' where default_character_set_name = 'latin1';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update tables set table_schema = 'db_datadict1' where table_name = 't1';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update columns set table_name = 't4' where column_name = 'f2';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update character_sets set character_set_name = 'cp1252' where maxlen = 1;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update collations set collation_name = 'cp1253_bin'
  where character_set_name = 'cp1251';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update collation_character_set_applicability set collation_name = 'big6_chinese_ci'
   where character_set_name = 'big6';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update routines set routine_name = p2 where routine_body = 'sql';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update statistics set table_schema = 'mysql1' where table_name = 'db';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update views set table_schema = 'db3' where table_name = 'v1';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update  user_privileges set privilege_type = 'insert' where is_grantable = 'yes';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update schema_privileges set table_schema = 'db2' where privilege_type = 'select';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update table_privileges set table_name = 'v3' where privilege_type = 'select';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update column_privileges set table_name = 't4' where column_name = 'f3';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update  table_constraints set constraint_schema = 'primary'
  where table_schema = 'proc';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update key_column_usage set  table_name = 'db1' where constraint_name = 'primary';
 
 # update through a procedure
@@ -678,7 +719,7 @@ delimiter ;//
 --replace_column 16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
 select * from information_schema.routines;
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 call db_datadict.sp_4_1_4();
 
 #FIXME: check for the diffs Win ./. Linux
@@ -696,7 +737,7 @@ use information_schema;
 --source suite/funcs_1/include/show_connection.inc
 
 #FIXME: check later the change from 1288 to 1044 (since Mid Sep05)
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update  user_privileges set privilege_type = 'insert' where is_grantable = 'yes';
 
 connection default;
@@ -720,35 +761,35 @@ let $dd_part2=;
 --source suite/funcs_1/datadict/datadict_tables_error_1044.inc
 
 #FIXME: check later the change from 1288 to 1044 (since Mid Sep05) in the whole next block
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from schemata where schema_name = 'mysql';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from tables where table_name = 'abc';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from columns;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from character_sets;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from collations;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from collation_character_set_applicability;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from routines;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from statistics;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from views;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from user_privileges;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from schema_privileges;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from table_privileges;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from column_privileges;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from table_constraints;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from key_column_usage;
 
 # delete through a procedure
@@ -763,7 +804,7 @@ begin
 end//
 delimiter ;//
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 call db_datadict.sp_4_1_5();
 
 # cleanup
@@ -777,7 +818,7 @@ use information_schema;
 --source suite/funcs_1/include/show_connection.inc
 
 #FIXME: check later the change from 1288 to 1044 (since Mid Sep05)
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from tables where table_name = 'abc';
 
 disconnect u413;
@@ -804,7 +845,7 @@ let $dd_part1= CREATE TABLE;
 let $dd_part2= ( c1 INT );
 --source suite/funcs_1/datadict/datadict_tables_error_1044.inc
 #FIXME solved - 3.2.1.6: check for better error message - 42S02: Unknown table '<xxx>' in <db> ?
---error 1109
+--error ER_UNKNOWN_TABLE
 create table t1 (f1 int, f2 int, f3 int);
 
 use db_datadict;
@@ -815,7 +856,7 @@ let $dd_part1= CREATE TABLE information_schema.;
 let $dd_part2= ( c1 INT );
 --source suite/funcs_1/datadict/datadict_tables_error_1044.inc
 #FIXME solved - 3.2.1.6: check for better error message - 42S02: Unknown table '<xxx>' in <db> ?
---error 1109
+--error ER_UNKNOWN_TABLE
 create table information_schema.t1 (f1 int, f2 int, f3 int);
 
 # create a table in information_schema as a limited user with sufficient permissions
@@ -838,7 +879,7 @@ let $dd_part1= CREATE TABLE;
 let $dd_part2= ( c1 INT );
 --source suite/funcs_1/datadict/datadict_tables_error_1044.inc
 #FIXME solved - 3.2.1.6: check for better error message - 42S02: Unknown table '<xxx>' in <db> ?
---error 1109
+--error ER_UNKNOWN_TABLE
 create table t1 (f1 int, f2 int, f3 int);
 
 use test;
@@ -849,7 +890,7 @@ let $dd_part1= CREATE TABLE information_schema.;
 let $dd_part2= ( c1 INT );
 --source suite/funcs_1/datadict/datadict_tables_error_1044.inc
 #FIXME solved - 3.2.1.6: check for better error message - 42S02: Unknown table '<xxx>' in <db> ?
---error 1109
+--error ER_UNKNOWN_TABLE
 create table information_schema.t1 (f1 int, f2 int, f3 int);
 
 #cleanup
@@ -874,7 +915,7 @@ let $dd_part2= AS SELECT * FROM mysql.time_zone;
 #FIXME: check change from error 1 to 1044
 --source suite/funcs_1/datadict/datadict_tables_error_1044.inc
 
---error 1109
+--error ER_UNKNOWN_TABLE
 CREATE VIEW v1 AS SELECT * FROM information_schema.schemata;
 
 USE db_datadict;
@@ -895,7 +936,7 @@ CREATE USER user_4_1_7@localhost;
 
 GRANT ALL ON db_datadict.*        TO user_4_1_7@localhost;
 #FIXME: check that GRANT ON i_s is no longer allowed
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 GRANT ALL ON information_schema.* TO user_4_1_7@localhost;
 
 FLUSH PRIVILEGES;
@@ -910,7 +951,7 @@ let $dd_part1= CREATE VIEW ;
 let $dd_part2= AS SELECT * FROM db_datadict.v1;
 #FIXME: check change from error 1 to 1044
 --source suite/funcs_1/datadict/datadict_tables_error_1044.inc
---error 1109
+--error ER_UNKNOWN_TABLE
 create view v1 as select * from table_privileges;
 
 use db_datadict;
@@ -940,45 +981,45 @@ let $message= Testcase 3.2.1.8:;
 use information_schema;
 
 #FIXME: check later the change from 1288 to 1044 (since Mid Sep05)
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i1 on schemata(schema_name);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i2 on tables(table_schema);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i3 on columns(table_name);
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i4 on character_sets(character_set_name);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i5 on collations( collation_name);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i6 on collation_character_set_applicability(collation_name);
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i7 on routines(routine_name);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i8 on statistics(table_schema);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i9 on views(table_schema);
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i10 on user_privileges(privilege_type);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i11 on schema_privileges(table_schema);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i12 on table_privileges(able_schema);
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i13 on column_privileges(table_name);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i14 on table_constraints(constraint_schema);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i15 on key_column_usage(constraint_schema);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i16 on triggers(trigger_name);
 
 use db_datadict;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i15 on information_schema.key_column_usage(constraint_schema);
 
 use information_schema;
@@ -996,45 +1037,45 @@ connect (u4, localhost, user_4_1_8, , test);
 
 use information_schema;
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i1 on schemata(schema_name);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i2 on tables(table_schema);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i3 on columns(table_name);
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i4 on character_sets(character_set_name);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i5 on collations( collation_name);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i6 on collation_character_set_applicability(collation_name);
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i7 on routines(routine_name);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i8 on statistics(table_schema);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i9 on views(table_schema);
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i10 on user_privileges(privilege_type);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i11 on schema_privileges(table_schema);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i12 on table_privileges(able_schema);
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i13 on column_privileges(table_name);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i14 on table_constraints(constraint_schema);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i15 on key_column_usage(constraint_schema);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i16 on triggers(trigger_name);
 
 use db_datadict;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i15 on information_schema.key_column_usage(constraint_schema);
 
 disconnect u4;
@@ -1069,37 +1110,37 @@ let $dd_part2= ADD f1 INT;
 #FIXME: check change from error 1146 to 1044
 --source suite/funcs_1/datadict/datadict_tables_error_1044.inc
 # now more detailed checks
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table schemata add f1 int;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table tables drop primary key;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table columns add f1 int;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table character_sets disable keys;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table collations enable keys;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table collation_character_set_applicability add f1 int;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table routines discard tablespace;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table statistics import tablespace;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table views drop column table_name;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table user_privileges drop index privilege_type;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table schema_privileges drop column is_grantable;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table table_privileges order by constraint_type;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table column_privileges rename to aaxyz;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table table_constraints order by schema_name;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table key_column_usage rename to information_schema.aabxyz;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table triggers rename to information_schema.sql_mode;
 # Alter an information_schema table as a limited user with sufficient permissions
 
@@ -1204,25 +1245,25 @@ connect (u7,localhost,user_4_1_11, ,test);
 use information_schema;
 --source suite/funcs_1/include/show_connection.inc
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 drop table routines;
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table collations enable keys;
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create index i5 on collations( collation_name );
 
---error 1109
+--error ER_UNKNOWN_TABLE
 create view v1 as select * from schemata;
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from columns;
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update columns set table_name = 't4' where column_name = 'f2';
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into collations ( collation_name, character_set_name, id, is_default,
   is_compiled, sortlen)
   values ('cp1251_bin', 'cp1251', 50, '', '', 0);
@@ -1250,13 +1291,13 @@ CREATE DATABASE db_datadict;
 CREATE USER 'u_6_401011'@'localhost';
 
 #FIXME: check that GRANT ON i_s is no longer allowed
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 GRANT ALL ON information_schema.* TO 'u_6_401011'@'localhost';
 GRANT ALL ON db_datadict.* TO 'u_6_401011'@'localhost';
 
 FLUSH PRIVILEGES;
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE information_schema.schemata RENAME db_datadict.schemata;
 
 let $message= root: move table to other DB;
@@ -1270,7 +1311,7 @@ connect (u_6_401011, localhost, u_6_401011, , db_datadict);
 USE information_schema;
 --source suite/funcs_1/include/show_connection.inc
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE information_schema.schemata RENAME db_datadict.schemata;
 
 let $message= user: move table to other DB;
@@ -1306,38 +1347,38 @@ let $dd_part2=;
 #FIXME: check change from error 1288 to 1044
 --source suite/funcs_1/datadict/datadict_tables_error_1044.inc
 # check UPDATE for all ...
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.tables SET table_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.columns SET table_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.statistics SET table_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.views SET table_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.table_privileges SET table_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.column_privileges SET table_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.table_constraints SET table_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.key_column_usage SET table_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.schemata SET catalog_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.character_sets SET description = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.collations SET character_set_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.collation_character_set_applicability
    SET character_set_name = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.routines SET routine_type = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.user_privileges SET grantee = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.schema_privileges SET grantee = 't_4711';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 UPDATE information_schema.triggers SET sql_mode = 't_4711';
 
 CREATE USER 'u_6_401012'@'localhost';
@@ -1347,28 +1388,28 @@ connect (u_6_401012, localhost, u_6_401012, , test);
 
 use information_schema;
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 insert into information_schema.schemata  (catalog_name, schema_name,
   default_character_set_name, sql_path)
   values (null, information_schema1, utf16, null);
 #FIXME: check later the change from 1142 to 1044 (since Mid Sep05)
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table information_schema.schemata rename db_datadict1.schemata;
 #FIXME: check later the change from 1146 to 1044 (since Mid Sep05)
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table information_schema.tables drop column checksum;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table information_schema.statistics modify packed int;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table information_schema.routines modify created int not null;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table information_schema.key_column_usage drop column ordinal_position;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table information_schema.table_privileges
   change privilege_type rights_approved varchar(32);
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update columns set table_name = 't4' where column_name = 'f2';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 delete from information_schema.collations;
 
 disconnect u_6_401012;
@@ -1449,7 +1490,7 @@ DROP DATABASE IF EXISTS db_datadict;
 CREATE DATABASE db_datadict;
 USE db_datadict;
 
-create table res_t_401014(f1 char(10), f2 text(25), f3 int);
+create table res_t_401014(f1 char(10), f2 varchar(25), f3 int);
 create view res_v_401014 as select * from res_t_401014;
 create procedure sp_6_401014() select 'db_datadict';
 create function fn_6_401014() returns int return 0;
@@ -1465,7 +1506,7 @@ let $message= show existing objects >before< changing them ...;
 use db_datadict;
 
 alter table res_t_401014 change f1 ff1 int;
-alter table res_t_401014 engine = innodb;
+eval alter table res_t_401014 engine = $OTHER_ENGINE_TYPE;
 alter table res_t_401014 change f3 f3_new bigint;
 alter view res_v_401014 as select ff1 from res_t_401014;
 alter procedure sp_6_401014 sql security invoker;
@@ -1572,7 +1613,7 @@ connection default;
 --source suite/funcs_1/include/show_connection.inc
 
 #FIXME: check that GRANT ON i_s is no longer allowed
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant usage on information_schema.* to 'u_6_401016'@'localhost';
 FLUSH PRIVILEGES;
 
@@ -1609,7 +1650,7 @@ let $message= Testcase 3.2.1.17:;
 CREATE USER 'u_6_401017'@'localhost';
 
 #FIXME: check that GRANT ON i_s is no longer allowed
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant select on information_schema.* to u_6_401017@localhost;
 
 FLUSH PRIVILEGES;
@@ -1619,13 +1660,14 @@ connect (u_6_401017, localhost, u_6_401017, , test);
 
 use information_schema;
 
-select * from collation_character_set_applicability;
+select * from collation_character_set_applicability
+where collation_name <> 'utf8_general_cs';
 select * from schemata;
 select table_name from tables;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 select table_name, column_name, column_type from columns;
 select character_set_name from character_sets;
-select collation_name from collations;
+select collation_name from collations where collation_name <> 'utf8_general_cs';
 select routine_name, routine_type from routines;
 select table_name, index_name from statistics;
 select table_name from views;
@@ -1655,7 +1697,7 @@ let $message= Testcase 3.2.1.18:;
 CREATE USER 'u_6_401018'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 GRANT CREATE VIEW ON information_schema.* TO 'u_6_401018'@'localhost';
 GRANT ALL         ON db_datadict.*        TO 'u_6_401018'@'localhost';
 
@@ -1696,52 +1738,52 @@ let $message= Testcase 3.2.1.19:;
 CREATE USER 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant alter on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant alter routine on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant create on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant create routine on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant create temporary tables
    on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant delete on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant drop on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant execute on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant index on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant insert on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant lock tables on information_schema.* to 'u_6_401019'@'localhost';
 
 #FIXME: check GRANT on IS
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant update on information_schema.* to 'u_6_401019'@'localhost';
 
 SELECT * FROM information_schema.table_privileges
@@ -1770,18 +1812,18 @@ connect (u_6_401020, localhost, u_6_401020, , test);
 USE information_schema;
 SELECT * FROM schemata;
 
---error 1109
+--error ER_UNKNOWN_TABLE
 CREATE TABLE tb_not_allowed ( col TEXT );
 #FIXME 3.2.1.20: bad message: ERROR 42S02: Unknown table 'tb_not_allowed' in information_schema
 #FIXME 3.2.1.20: better:      ERROR 42000: Access denied for user 'u_6_401020'@'localhost' to database 'information_schema'
 
---error 1109
+--error ER_UNKNOWN_TABLE
 create view res_v1 as select * from information_schema.schemata;
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table schemata modify catalog_name varchar(255);
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 update schemata set catalog_name = 'abc'
  where schema_name = 'information_schema';
 
@@ -1794,7 +1836,7 @@ CREATE PROCEDURE sp_3_2_1_20()
   END//
 delimiter ;//
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 DELETE FROM schemata WHERE schema_name = 'information_schema';
 
 disconnect u_6_401020;
@@ -1885,7 +1927,7 @@ let $message= Testcase 3.2.3.2:;
 #                    the USAGE privilege.
 ################################################################################
 
-SELECT * FROM collations;
+SELECT * FROM collations where collation_name <> 'utf8_general_cs';
 # -------------------------------------------------------------------------------------------------------
 
 let $message= Testcase 3.2.3.3:;
@@ -1925,9 +1967,15 @@ let $message= Testcase 3.2.4.2:;
 # Testcase 3.2.4.2:  Ensure that the table shows the relevant information on
 #                    every collation/character set combination for which the
 #                    current user or PUBLIC have the USAGE privilege.
+# Note(2007-08-24 mleich):
+#                    The amount of collations/character sets grows with new
+#                    MySQL releases and is a reason why this test might
+#                    fail with differences. Please check the new entries
+#                    and update with expected results afterwards.
 ################################################################################
 
-SELECT * FROM collation_character_set_applicability;
+SELECT * FROM collation_character_set_applicability
+where collation_name <> 'utf8_general_cs';
 # -------------------------------------------------------------------------------------------------------
 
 let $message= Testcase 3.2.4.3:;
@@ -3152,7 +3200,7 @@ SELECT * FROM information_schema.tables
 # 17 CHECK_TIME
 --replace_column  9 "#ARL#"  10 "#DL#"  11 "#MDL#"  12 "#IL#"  13 "#DF#"  15 "YYYY-MM-DD hh:mm:ss"  16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM information_schema.tables
- WHERE NOT( table_schema = 'information_schema');
+ WHERE NOT( table_schema = 'information_schema') AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 --enable_ps_protocol
 
 # clean-up
@@ -3352,7 +3400,8 @@ SELECT * FROM information_schema.statistics;
 connection default;
 --source suite/funcs_1/include/show_connection.inc
 REVOKE SELECT ON db_datadict.tb_6_401402_1 FROM 'user_1'@'localhost';
-SELECT * FROM information_schema.statistics;
+SELECT * FROM information_schema.statistics
+WHERE NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 
 # nothing visible for user_1
 connection user_14_1;
@@ -3654,14 +3703,14 @@ eval $cmd3;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (user_16_2, localhost, user_2, , db_datadict);
 eval $cmd1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $cmd2;
 eval $cmd3;
 
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (user_16_3, localhost, user_3, , test);
 eval $cmd1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $cmd2;
 eval $cmd3;
 
@@ -3679,22 +3728,22 @@ eval $cmd3;
 connection user_16_1;
 --source suite/funcs_1/include/show_connection.inc
 eval $cmd1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $cmd2;
 eval $cmd3;
 
 --source suite/funcs_1/include/show_connection.inc
 # checks entered before bug #12269 was reported
 # OK, user_1 has no privs here
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CREATE TABLE db_datadict.tb_55 ( c1 TEXT );
 --source suite/funcs_1/include/show_connection.inc
 eval $cmd1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $cmd2;
 eval $cmd3;
 # OK, user_1 has no privs here
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CREATE TABLE db_datadict.tb_66 ( c1 TEXT );
 
 let $message= add ALL on db_datadict.* (and select on mysql.user) to user_1;
@@ -3717,7 +3766,7 @@ eval $cmd2;
 eval $cmd3;
 
 # OK, user_1 has no privs here
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CREATE TABLE db_datadict.tb_56 ( c1 TEXT );
 
 # using 'USE' lets the server read the privileges new, so now the CREATE works
@@ -3743,13 +3792,13 @@ eval $cmd3;
 connection user_16_1;
 --source suite/funcs_1/include/show_connection.inc
 eval $cmd1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $cmd2;
 eval $cmd3;
 # WORKS, as the existing old privileges are used!
 CREATE TABLE db_datadict.tb_58 ( c1 TEXT );
 # existing privileges are "read" new when USE is called, user has no priviliges
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 USE db_datadict;
 #FIXME 3.2.16: check that it is correct that this now 'works': --error 1142
 CREATE TABLE db_datadict.tb_59 ( c1 TEXT );
@@ -3861,7 +3910,7 @@ let $is_table= parameters;
 # and don't forget to add the test description to QATestPlanV50func
 let $message= checking a table that will be implemented later;
 --source include/show_msg.inc
---error 1109
+--error ER_UNKNOWN_TABLE
 eval DESC $is_table;
 #--source suite/funcs_1/datadict/datadict_show_table_design.inc
 # -------------------------------------------------------------------------------------------------------

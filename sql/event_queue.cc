@@ -17,6 +17,10 @@
 #include "event_queue.h"
 #include "event_data_objects.h"
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
 
 #define EVENT_QUEUE_INITIAL_SIZE 30
 #define EVENT_QUEUE_EXTENT       30
@@ -750,3 +754,7 @@ Event_queue::dump_internal_status()
 
   DBUG_VOID_RETURN;
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/

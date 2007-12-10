@@ -647,32 +647,32 @@ select extractValue('<a>a','/a');
 extractValue('<a>a','/a')
 NULL
 Warnings:
-Warning	1522	Incorrect XML value: 'parse error at line 1 pos 5: unexpected END-OF-INPUT'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 5: unexpected END-OF-INPUT'
 select extractValue('<a>a<','/a');
 extractValue('<a>a<','/a')
 NULL
 Warnings:
-Warning	1522	Incorrect XML value: 'parse error at line 1 pos 6: END-OF-INPUT unexpected (ident or '/' wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 6: END-OF-INPUT unexpected (ident or '/' wanted)'
 select extractValue('<a>a</','/a');
 extractValue('<a>a</','/a')
 NULL
 Warnings:
-Warning	1522	Incorrect XML value: 'parse error at line 1 pos 7: END-OF-INPUT unexpected (ident wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 7: END-OF-INPUT unexpected (ident wanted)'
 select extractValue('<a>a</a','/a');
 extractValue('<a>a</a','/a')
 NULL
 Warnings:
-Warning	1522	Incorrect XML value: 'parse error at line 1 pos 8: END-OF-INPUT unexpected ('>' wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 8: END-OF-INPUT unexpected ('>' wanted)'
 select extractValue('<a>a</a></b>','/a');
 extractValue('<a>a</a></b>','/a')
 NULL
 Warnings:
-Warning	1522	Incorrect XML value: 'parse error at line 1 pos 12: '</b>' unexpected (END-OF-INPUT wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 12: '</b>' unexpected (END-OF-INPUT wanted)'
 select extractValue('<a b=>a</a>','/a');
 extractValue('<a b=>a</a>','/a')
 NULL
 Warnings:
-Warning	1522	Incorrect XML value: 'parse error at line 1 pos 7: '>' unexpected (ident or string wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 7: '>' unexpected (ident or string wanted)'
 select extractValue('<e>1</e>','position()');
 ERROR HY000: XPATH syntax error: ''
 select extractValue('<e>1</e>','last()');
@@ -723,17 +723,17 @@ select extractValue('<zot><tim0><01>10:39:15</01><02>140</02></tim0></zot>','//*
 extractValue('<zot><tim0><01>10:39:15</01><02>140</02></tim0></zot>','//*')
 NULL
 Warnings:
-Warning	1522	Incorrect XML value: 'parse error at line 1 pos 13: unknown token unexpected (ident or '/' wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 13: unknown token unexpected (ident or '/' wanted)'
 select extractValue('<.>test</.>','//*');
 extractValue('<.>test</.>','//*')
 NULL
 Warnings:
-Warning	1522	Incorrect XML value: 'parse error at line 1 pos 2: unknown token unexpected (ident or '/' wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 2: unknown token unexpected (ident or '/' wanted)'
 select extractValue('<->test</->','//*');
 extractValue('<->test</->','//*')
 NULL
 Warnings:
-Warning	1522	Incorrect XML value: 'parse error at line 1 pos 2: unknown token unexpected (ident or '/' wanted)'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 2: unknown token unexpected (ident or '/' wanted)'
 select extractValue('<:>test</:>','//*');
 extractValue('<:>test</:>','//*')
 test
@@ -1012,3 +1012,21 @@ select ExtractValue('<a>a</a>', '/a[@x=@y0123456789_0123456789_0123456789_012345
 ERROR HY000: XPATH error: comparison of two nodesets is not supported: '=@y0123456789_0123456789_0123456'
 select ExtractValue('<a>a</a>', '/a[@x=$y0123456789_0123456789_0123456789_0123456789]');
 ERROR HY000: Unknown XPATH variable at: '$y0123456789_0123456789_01234567'
+select updatexml(NULL, 1, 1), updatexml(1, NULL, 1), updatexml(1, 1, NULL);
+updatexml(NULL, 1, 1)	updatexml(1, NULL, 1)	updatexml(1, 1, NULL)
+NULL	NULL	NULL
+select updatexml(NULL, NULL, 1), updatexml(1, NULL, NULL), 
+updatexml(NULL, 1, NULL);
+updatexml(NULL, NULL, 1)	updatexml(1, NULL, NULL)	updatexml(NULL, 1, NULL)
+NULL	NULL	NULL
+select updatexml(NULL, NULL, NULL);
+updatexml(NULL, NULL, NULL)
+NULL
+CREATE TABLE t1(a INT NOT NULL);
+INSERT INTO t1 VALUES (0), (0);
+SELECT 1 FROM t1 ORDER BY(UPDATEXML(a, '1', '1'));
+1
+1
+1
+DROP TABLE t1;
+End of 5.1 tests

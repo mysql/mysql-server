@@ -492,7 +492,7 @@ bool show_new_master(THD* thd)
     0           success
  */
 
-int update_slave_list(MYSQL* mysql, MASTER_INFO* mi)
+int update_slave_list(MYSQL* mysql, Master_info* mi)
 {
   MYSQL_RES* res=0;
   MYSQL_ROW row;
@@ -679,7 +679,7 @@ bool show_slave_hosts(THD* thd)
 }
 
 
-int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
+int connect_to_master(THD *thd, MYSQL* mysql, Master_info* mi)
 {
   DBUG_ENTER("connect_to_master");
 
@@ -734,7 +734,7 @@ static inline void cleanup_mysql_results(MYSQL_RES* db_res,
 
 
 static int fetch_db_tables(THD *thd, MYSQL *mysql, const char *db,
-			   MYSQL_RES *table_res, MASTER_INFO *mi)
+			   MYSQL_RES *table_res, Master_info *mi)
 {
   MYSQL_ROW row;
   for (row = mysql_fetch_row(table_res); row;

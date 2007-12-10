@@ -20,18 +20,11 @@ export CCACHE_GCOV_VERSION_ENABLED
 path=`dirname $0`
 . "$path/SETUP.sh"
 
-# GCC4 needs -fprofile-arcs -ftest-coverage on the linker command line (as well
-# as on the compiler command line), and this requires setting LDFLAGS for BDB.
-export LDFLAGS="-fprofile-arcs -ftest-coverage"
+export LDFLAGS="$gcov_link_flags"
 
-# The  -fprofile-arcs and -ftest-coverage options cause GCC to instrument the
-# code with profiling information used by gcov.
-# The -DDISABLE_TAO_ASM is needed to avoid build failures in Yassl.
-# The -DHAVE_gcov enables code to write out coverage info even when crashing.
-extra_flags="$pentium_cflags -fprofile-arcs -ftest-coverage -DDISABLE_TAO_ASM -DHAVE_MUTEX_THREAD_ONLY $debug_extra_flags $debug_cflags $max_cflags -DMYSQL_SERVER_SUFFIX=-gcov -DHAVE_gcov"
-extra_configs="$pentium_configs $debug_configs --disable-shared $static_link"
-extra_configs="$extra_configs $max_configs"
+extra_flags="$pentium_cflags $debug_cflags $max_cflags $gcov_compile_flags"
 c_warnings="$c_warnings $debug_extra_warnings"
 cxx_warnings="$cxx_warnings $debug_extra_warnings"
+extra_configs="$pentium_configs $debug_configs $gcov_configs $max_configs"
 
 . "$path/FINISH.sh"

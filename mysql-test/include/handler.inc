@@ -465,3 +465,230 @@ select * from t1;
 # Just to be sure and not confuse the next test case writer.
 drop table if exists t1;
 
+#
+# Bug#25856 - HANDLER table OPEN in one connection lock DROP TABLE in another one
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+eval create table t1 (a int) ENGINE=$other_engine_type;
+--echo --> client 2
+connection con2;
+--error 1031
+handler t1 open;
+--echo --> client 1
+connection default;
+drop table t1;
+
+#
+# Bug#30632 HANDLER read failure causes hang
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int);
+handler t1 open as t1_alias;
+--error 1176
+handler t1_alias read a next;
+--error 1054
+handler t1_alias READ a next where inexistent > 0;
+--error 1176
+handler t1_alias read a next;
+--error 1054
+handler t1_alias READ a next where inexistent > 0;
+handler t1_alias close;
+drop table t1;
+
+#
+# Bug#21587 FLUSH TABLES causes server crash when used with HANDLER statements
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (c1 int);
+create table t2 (c1 int);
+insert into t1 values (1);
+insert into t2 values (2);
+--echo connection: default
+handler t1 open;
+handler t1 read first;
+connect (flush,localhost,root,,);
+connection flush;
+--echo connection: flush
+--send flush tables;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+handler t2 open;
+handler t2 read first;
+handler t1 read next;
+handler t1 close;
+handler t2 close;
+connection flush;
+reap;
+connection default;
+drop table t1,t2;
+disconnect flush;
+
+#
+# Bug#31409 RENAME TABLE causes server crash or deadlock when used with HANDLER statements
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (c1 int);
+--echo connection: default
+handler t1 open;
+handler t1 read first;
+connect (flush,localhost,root,,);
+connection flush;
+--echo connection: flush
+--send rename table t1 to t2;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "rename table t1 to t2";
+--source include/wait_condition.inc
+handler t2 open;
+handler t2 read first;
+--error ER_NO_SUCH_TABLE
+handler t1 read next;
+handler t1 close;
+handler t2 close;
+connection flush;
+reap;
+connection default;
+drop table t2;
+disconnect flush;
+
+#
+# Bug#30882 Dropping a temporary table inside a stored function may cause a server crash
+#
+# Test HANDLER statements in conjunction with temporary tables. While the temporary table
+# is open by a HANDLER, no other statement can access it.
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create temporary table t1 (a int, b char(1), key a(a), key b(a,b));
+insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
+                      (5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+select a,b from t1;
+handler t1 open as a1;
+handler a1 read a first;
+handler a1 read a next;
+handler a1 read a next;
+--error ER_CANT_REOPEN_TABLE
+select a,b from t1;
+handler a1 read a prev;
+handler a1 read a prev;
+handler a1 read a=(6) where b="g";
+handler a1 close;
+select a,b from t1;
+handler t1 open as a2;
+handler a2 read a first;
+handler a2 read a last;
+handler a2 read a prev;
+handler a2 close;
+drop table t1;
+
+#
+# Bug#31397 Inconsistent drop table behavior of handler tables.
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (a int);
+handler t1 open as t1_alias;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+flush tables;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias close;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias read first;
+drop table t1;
+--error ER_UNKNOWN_TABLE
+handler t1_alias read next;
+
+# Test that temporary tables associated with handlers are properly dropped.
+
+create table t1 (a int);
+create temporary table t2 (a int, key(a));
+handler t1 open as a1;
+handler t2 open as a2;
+handler a2 read a first;
+drop table t1, t2;
+--error ER_UNKNOWN_TABLE
+handler a2 read a next;
+--error ER_UNKNOWN_TABLE
+handler a1 close;
+
+# Alter table drop handlers
+
+create table t1 (a int, key(a));
+create table t2 like t1;
+handler t1 open as a1;
+handler t2 open as a2;
+handler a1 read a first;
+handler a2 read a first;
+alter table t1 add b int;
+--error ER_UNKNOWN_TABLE
+handler a1 close;
+handler a2 close;
+drop table t1, t2;
+
+# Rename table drop handlers
+
+create table t1 (a int, key(a));
+handler t1 open as a1;
+handler a1 read a first;
+rename table t1 to t2;
+--error ER_UNKNOWN_TABLE
+handler a1 read a first;
+drop table t2;
+
+# Optimize table drop handlers
+
+create table t1 (a int, key(a));
+create table t2 like t1;
+handler t1 open as a1;
+handler t2 open as a2;
+handler a1 read a first;
+handler a2 read a first;
+optimize table t1;
+--error ER_UNKNOWN_TABLE
+handler a1 close;
+handler a2 close;
+drop table t1, t2;
+
+# Flush tables causes handlers reopen
+
+create table t1 (a int, b char(1), key a(a), key b(a,b));
+insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
+                      (5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+handler t1 open;
+handler t1 read a first;
+handler t1 read a next;
+flush tables;
+handler t1 read a next;
+handler t1 read a next;
+flush tables with read lock;
+handler t1 read a next;
+unlock tables;
+drop table t1;
+--error ER_UNKNOWN_TABLE
+handler t1 read a next;

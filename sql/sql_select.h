@@ -194,6 +194,12 @@ typedef struct st_join_table {
   enum join_type type;
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
   bool		sorted;
+  /* 
+    If it's not 0 the number stored this field indicates that the index
+    scan has been chosen to access the table data and we expect to scan 
+    this number of rows for the table.
+  */ 
+  ha_rows       limit; 
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
@@ -560,9 +566,13 @@ public:
   store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null, uint length)
     :null_key(0), null_ptr(null), err(0)
   {
-    if (field_arg->type() == MYSQL_TYPE_BLOB)
+    if (field_arg->type() == MYSQL_TYPE_BLOB
+        || field_arg->type() == MYSQL_TYPE_GEOMETRY)
     {
-        /* Key segments are always packed with a 2 byte length prefix */
+      /* 
+        Key segments are always packed with a 2 byte length prefix.
+        See mi_rkey for details.
+      */
       to_field= new Field_varstring(ptr, length, 2, null, 1, 
                                     Field::NONE, field_arg->field_name,
                                     field_arg->table->s, field_arg->charset());

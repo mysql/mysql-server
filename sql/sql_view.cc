@@ -223,9 +223,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 {
   LEX *lex= thd->lex;
   bool link_to_local;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  bool definer_check_is_needed= mode != VIEW_ALTER || lex->definer;
-#endif
   /* first table in list is target VIEW name => cut off it */
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
@@ -280,7 +277,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       - same as current user
       - current user has SUPER_ACL
   */
-  if (definer_check_is_needed &&
+  if (lex->definer &&
       (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) != 0 ||
        my_strcasecmp(system_charset_info,
                      lex->definer->host.str,
@@ -610,7 +607,7 @@ err:
   thd->proc_info= "end";
   lex->link_first_table_back(view, link_to_local);
   unit->cleanup();
-  DBUG_RETURN(res || thd->net.report_error);
+  DBUG_RETURN(res || thd->is_error());
 }
 
 
@@ -672,7 +669,7 @@ static File_option view_parameters[]=
   FILE_OPTIONS_STRING},
  {{(char*) STRING_WITH_LEN("view_body_utf8")},
   my_offsetof(TABLE_LIST, view_body_utf8),
-  FILE_OPTIONS_STRING},
+  FILE_OPTIONS_ESTRING},
  {{NullS, 0},			0,
   FILE_OPTIONS_STRING}
 };
@@ -826,7 +823,7 @@ loop_out:
                         view_parameters + revision_number_position, 1,
                         &file_parser_dummy_hook))
       {
-        error= thd->net.report_error? -1 : 0;
+        error= thd->is_error() ? -1 : 0;
         goto err;
       }
     }
@@ -889,7 +886,7 @@ loop_out:
   if (sql_create_definition_file(&dir, &file, view_file_type,
 				 (uchar*)view, view_parameters, num_view_backups))
   {
-    error= thd->net.report_error? -1 : 1;
+    error= thd->is_error() ? -1 : 1;
     goto err;
   }
   DBUG_RETURN(0);
@@ -951,6 +948,12 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
                ("VIEW %s.%s is already processed on previous PS/SP execution",
                 table->view_db.str, table->view_name.str));
     DBUG_RETURN(0);
+  }
+
+  if (table->index_hints && table->index_hints->elements)
+  {
+      my_error(ER_WRONG_USAGE, MYF(0), "index hints", "VIEW");
+      DBUG_RETURN(TRUE);
   }
 
   /* check loop via view definition */
@@ -1044,9 +1047,20 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
 
   {
+    char old_db_buf[NAME_LEN+1];
+    LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
+    bool dbchanged;
     Lex_input_stream lip(thd,
                          table->select_stmt.str,
                          table->select_stmt.length);
+
+    /* 
+      Use view db name as thread default database, in order to ensure
+      that the view is parsed and prepared correctly.
+    */
+    if ((result= mysql_opt_change_db(thd, &table->view_db, &old_db, 1,
+                                     &dbchanged)))
+      goto end;
 
     lex_start(thd);
     view_select= &lex->select_lex;
@@ -1091,6 +1105,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
         lex->sql_command= old_lex->sql_command;
 
     thd->variables.sql_mode= saved_mode;
+
+    if (dbchanged && mysql_change_db(thd, &old_db, TRUE))
+      goto err;
   }
   if (!parse_status)
   {

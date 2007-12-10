@@ -830,7 +830,7 @@ sync_thread_levels_g(
 				mutex = slot->latch;
 
 				fprintf(stderr,
-					"InnoDB error: sync levels should be"
+					"InnoDB: sync levels should be"
 					" > %lu but a level is %lu\n",
 					(ulong) limit, (ulong) slot->level);
 

@@ -16,7 +16,7 @@
 #ifndef LOG_H
 #define LOG_H
 
-struct st_relay_log_info;
+class Relay_log_info;
 
 class Format_description_log_event;
 
@@ -121,7 +121,7 @@ extern TC_LOG_DUMMY tc_log_dummy;
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
 
-struct st_relay_log_info;
+class Relay_log_info;
 
 typedef struct st_log_info
 {
@@ -130,7 +130,13 @@ typedef struct st_log_info
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   pthread_mutex_t lock;
-  st_log_info():fatal(0) { pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);}
+  st_log_info()
+    : index_file_offset(0), index_file_start_offset(0),
+      pos(0), fatal(0)
+    {
+      log_file_name[0] = '\0';
+      pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);
+    }
   ~st_log_info() { pthread_mutex_destroy(&lock);}
 } LOG_INFO;
 
@@ -363,7 +369,7 @@ public:
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
   int purge_logs_before_date(time_t purge_time);
-  int purge_first_log(struct st_relay_log_info* rli, bool included);
+  int purge_first_log(Relay_log_info* rli, bool included);
   bool reset_logs(THD* thd);
   void close(uint exiting);
 
@@ -500,6 +506,8 @@ public:
   void lock_exclusive() { rw_wrlock(&LOCK_logger); }
   void unlock() { rw_unlock(&LOCK_logger); }
   bool is_log_table_enabled(uint log_table_type);
+  bool log_command(THD *thd, enum enum_server_command command);
+
   /*
     We want to initialize all log mutexes as soon as possible,
     but we cannot do it in constructor, as safe_mutex relies on
@@ -519,6 +527,8 @@ public:
                       ulonglong current_utime);
   bool general_log_print(THD *thd,enum enum_server_command command,
                          const char *format, va_list args);
+  bool general_log_write(THD *thd, enum enum_server_command command,
+                         const char *query, uint query_length);
 
   /* we use this function to setup all enabled log event handlers */
   int set_handlers(uint error_log_printer,
