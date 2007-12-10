@@ -35,11 +35,11 @@ void test_cursor_current() {
     assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
-    
-    /* insert <1,1> */
-    int k = 1, v = 1;
+
+    int k = 42, v = 42000;
     db_put(db, k, v);
-  
+    db_put(db, 43, 2000);
+ 
     DBC *cursor;
 
     r = db->cursor(db, null_txn, &cursor, 0);
@@ -83,6 +83,32 @@ void test_cursor_current() {
     assert(r == 0);
 }
 
+void db_get(DB *db, int k, int v, int expectr) {
+    DBT key, val;
+    int r = db->get(db, 0, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
+    assert(r == expectr);
+}
+
+void test_reopen() {
+    if (verbose) printf("test_reopen\n");
+
+    DB_ENV * const null_env = 0;
+    DB *db;
+    DB_TXN * const null_txn = 0;
+    const char * const fname = DIR "/" "test.cursor.current.brt";
+    int r;
+
+    r = db_create(&db, null_env, 0);
+    assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
+    assert(r == 0);
+
+    db_get(db, 1, 1, DB_NOTFOUND);
+
+    r = db->close(db, 0);
+    assert(r == 0);
+}
+
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
   
@@ -90,6 +116,7 @@ int main(int argc, const char *argv[]) {
     mkdir(DIR, 0777);
 
     test_cursor_current();
+    test_reopen();
 
     return 0;
 }
