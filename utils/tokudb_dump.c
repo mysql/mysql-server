@@ -60,25 +60,41 @@ int main(int argc, char *argv[]) {
 
    while ((ch = getopt(argc, argv, "klNpRrVd:f:h:P:s:")) != EOF) {
       switch (ch) {
+         case ('d'): {
+            ERRORX("-%c option not supported.\n", ch);
+            goto error;
+         }
+         case ('f'): {
+            if (freopen(optarg, "w", stdout) == NULL) {
+               fprintf(stderr,
+                       "%s: %s: reopen: %s\n",
+                       g.progname, optarg, strerror(errno));
+               goto error;
+            }
+            break;
+         }
+         case ('h'): {
+            g.homedir = optarg;
+            break;
+         }
          case ('k'): {
             ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('l'): {
             //TODO: Implement (Requires master database support)
-            ERRORX("-%c option not supported.\n", ch);
+            ERRORX("-%c option not supported.\n", ch); //YET!
             goto error;
          }
          case ('N'): {
             ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
-         case ('T'): {
-            g.plaintext    = true;
-            g.leadingspace = false;
-            g.header       = false;
-            g.footer       = false;
-            break;
+         case ('P'): {
+            /* Clear password. */
+            memset(optarg, 0, strlen(optarg));
+            ERRORX("-%c option not supported.\n", ch);
+            goto error;
          }
          case ('p'): {
             g.plaintext = true;
@@ -100,36 +116,20 @@ int main(int argc, char *argv[]) {
             ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
+         case ('s'): {
+            g.subdatabase = optarg;
+            goto error;
+         }
          case ('V'): {
             printf("%s\n", db_version(NULL, NULL, NULL));
             goto cleanup;
          }
-         case ('d'): {
-            ERRORX("-%c option not supported.\n", ch);
-            goto error;
-         }
-         case ('f'): {
-            if (freopen(optarg, "w", stdout) == NULL) {
-               fprintf(stderr,
-                       "%s: %s: reopen: %s\n",
-                       g.progname, optarg, strerror(errno));
-               goto error;
-            }
+         case ('T'): {
+            g.plaintext    = true;
+            g.leadingspace = false;
+            g.header       = false;
+            g.footer       = false;
             break;
-         }
-         case ('h'): {
-            g.homedir = optarg;
-            break;
-         }
-         case ('P'): {
-            /* Clear password. */
-            memset(optarg, 0, strlen(optarg));
-            ERRORX("-%c option not supported.\n", ch);
-            goto error;
-         }
-         case ('s'): {
-            g.subdatabase = optarg;
-            goto error;
          }
          case ('?'):
          default: {
