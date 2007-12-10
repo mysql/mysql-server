@@ -4,11 +4,11 @@
 # API:
 # 1) set $mms_tables to N, the script will cover tables mysqltest.t1,...tN
 # 2) set $mvr_debug_option to the crash way
-# 3) set $mvr_restore_old_snapshot to 1 if you want recovery to run on
+# 3) set $mvr_crash_statement to the statement which will trigger a crash
+# 4) set $mvr_restore_old_snapshot to 1 if you want recovery to run on
 # an old copy of tables and of the control file, 0 for normal recovery.
-# 4) set $mms_compare_physically to 1 if you want a physical byte-for-byte
+# 5) set $mms_compare_physically to 1 if you want a physical byte-for-byte
 # comparison with expected table. Checksum comparison is always done.
-
 # "mvr" is a namespace for Maria_Verify_Recovery
 
 connection admin;
@@ -34,7 +34,7 @@ system echo wait-maria_verify_recovery.inc >> $MYSQLTEST_VARDIR/tmp/master0.expe
 eval SET SESSION debug=$mvr_debug_option;
 --echo * crashing mysqld intentionally
 --error 2013
-set global maria_checkpoint_interval=1; # this will crash (DBUG magic)
+eval $mvr_crash_statement; # this will crash (DBUG magic)
 
 if ($mvr_restore_old_snapshot)
 {

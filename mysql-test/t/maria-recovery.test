@@ -38,6 +38,7 @@ let $mvr_restore_old_snapshot=1;
 # produce a physically identical table.
 let $mms_compare_physically=1;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 # the script below will trigger recovery and compare checksums
 -- source include/maria_verify_recovery.inc
 let $mms_compare_physically=0;
@@ -58,6 +59,7 @@ let $mvr_restore_old_snapshot=0;
 # UNDO phase prevents physical comparison, normally,
 # so we'll only use checksums to compare.
 let $mms_compare_physically=0;
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 
 # Note that we don't remove logs between iterations. Test is
 # cumulative (each new recovery processes more log records than the previous).
@@ -134,6 +136,7 @@ SELECT LENGTH(b) FROM t1 WHERE i=3;
 let $mvr_restore_old_snapshot=1;
 let $mms_compare_physically=0;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
 SELECT LENGTH(b) FROM t1 WHERE i=3;
 drop table t1;

@@ -1783,7 +1783,7 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
   }
 
   DBUG_RETURN(_ma_bitmap_free_full_pages(info, row->extents,
-                                          row->extents_count));
+                                         row->extents_count));
 }
 
 
@@ -1830,8 +1830,7 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
       res= 1;
   }
   pthread_mutex_lock(&info->s->bitmap.bitmap_lock);
-  if (_ma_reset_full_page_bits(info, &info->s->bitmap, page,
-                               count))
+  if (_ma_bitmap_reset_full_page_bits(info, &info->s->bitmap, page, count))
     res= 1;
   pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);
   DBUG_RETURN(res);
@@ -2357,6 +2356,24 @@ static my_bool write_block_record(MARIA_HA *info,
       goto disk_err;
   }
 
+#ifdef RECOVERY_EXTRA_DEBUG
+  if (info->trn->undo_lsn != LSN_IMPOSSIBLE)
+  {
+    /* Stop right after the REDO; testing incomplete log record groups */
+    DBUG_EXECUTE_IF("maria_flush_whole_log",
+                    {
+                      DBUG_PRINT("maria_flush_whole_log", ("now"));
+                      translog_flush(translog_get_horizon());
+                    });
+    DBUG_EXECUTE_IF("maria_crash",
+                    {
+                      DBUG_PRINT("maria_crash", ("now"));
+                      fflush(DBUG_FILE);
+                      abort();
+                    });
+  }
+#endif
+
   /* Increase data file size, if extended */
   position= (my_off_t) head_block->page * block_size;
   if (info->state->data_file_length <= position)
@@ -2676,6 +2693,24 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
 
   if (_ma_bitmap_find_place(info, row, blocks))
     DBUG_RETURN(1);                         /* Error reading bitmap */
+
+#ifdef RECOVERY_EXTRA_DEBUG
+  /* Send this over-allocated bitmap to disk and crash, see if recovers */
+  DBUG_EXECUTE_IF("maria_flush_bitmap",
+                  {
+                    DBUG_PRINT("maria_flush_bitmap", ("now"));
+                    _ma_bitmap_flush(info->s);
+                    _ma_flush_table_files(info, MARIA_FLUSH_DATA |
+                                          MARIA_FLUSH_INDEX,
+                                          FLUSH_KEEP, FLUSH_KEEP);
+                  });
+  DBUG_EXECUTE_IF("maria_crash",
+                  {
+                    DBUG_PRINT("maria_crash", ("now"));
+                    fflush(DBUG_FILE);
+                    abort();
+                  });
+#endif
 
   /* page will be pinned & locked by get_head_or_tail_page */
   if (get_head_or_tail_page(info, blocks->block, info->buff,
@@ -4108,7 +4143,7 @@ my_bool _ma_scan_init_block_record(MARIA_HA *info)
     We have to flush bitmap as we will read the bitmap from the page cache
     while scanning rows
   */
-  DBUG_RETURN(_ma_flush_bitmap(info->s));
+  DBUG_RETURN(_ma_bitmap_flush(info->s));
 }
 
 
@@ -5329,8 +5364,8 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info,
 
     /** @todo leave bitmap lock to the bitmap code... */
     pthread_mutex_lock(&share->bitmap.bitmap_lock);
-    res= _ma_reset_full_page_bits(info, &share->bitmap, start_page,
-                                  page_range);
+    res= _ma_bitmap_reset_full_page_bits(info, &share->bitmap, start_page,
+                                         page_range);
     pthread_mutex_unlock(&share->bitmap.bitmap_lock);
     if (res)
       DBUG_RETURN(res);
@@ -5404,7 +5439,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
   }
   /** @todo leave bitmap lock to the bitmap code... */
   pthread_mutex_lock(&share->bitmap.bitmap_lock);
-  res= _ma_reset_full_page_bits(info, &share->bitmap, page, 1);
+  res= _ma_bitmap_reset_full_page_bits(info, &share->bitmap, page, 1);
   pthread_mutex_unlock(&share->bitmap.bitmap_lock);
   if (res)
     DBUG_RETURN(res);
@@ -5553,8 +5588,8 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
       }
       /** @todo leave bitmap lock to the bitmap code... */
       pthread_mutex_lock(&share->bitmap.bitmap_lock);
-      res= _ma_set_full_page_bits(info, &share->bitmap, start_page,
-                                  page_range);
+      res= _ma_bitmap_set_full_page_bits(info, &share->bitmap, start_page,
+                                         page_range);
       pthread_mutex_unlock(&share->bitmap.bitmap_lock);
       if (res)
         DBUG_RETURN(res);

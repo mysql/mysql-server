@@ -531,6 +531,11 @@ static LOG_DESC INIT_LOGREC_INCOMPLETE_LOG=
  NULL, NULL, NULL, 0,
  "incomplete_log", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
+static LOG_DESC INIT_LOGREC_INCOMPLETE_GROUP=
+{LOGRECTYPE_FIXEDLENGTH, 0, 0,
+ NULL, NULL, NULL, 0,
+ "incomplete_group", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
+
 const myf log_write_flags= MY_WME | MY_NABP | MY_WAIT_IF_FULL;
 
 static void loghandler_init()
@@ -610,12 +615,14 @@ static void loghandler_init()
     INIT_LOGREC_LONG_TRANSACTION_ID;
   log_record_type_descriptor[LOGREC_INCOMPLETE_LOG]=
     INIT_LOGREC_INCOMPLETE_LOG;
-  for (i= LOGREC_INCOMPLETE_LOG + 1;
+  log_record_type_descriptor[LOGREC_INCOMPLETE_GROUP]=
+    INIT_LOGREC_INCOMPLETE_GROUP;
+  for (i= LOGREC_INCOMPLETE_GROUP + 1;
        i < LOGREC_NUMBER_OF_TYPES;
        i++)
     log_record_type_descriptor[i].rclass= LOGRECTYPE_NOT_ALLOWED;
   DBUG_EXECUTE("info",
-               check_translog_description_table(LOGREC_INCOMPLETE_LOG););
+               check_translog_description_table(LOGREC_INCOMPLETE_GROUP););
 };
 
 

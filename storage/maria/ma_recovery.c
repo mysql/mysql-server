@@ -80,6 +80,7 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE);
 prototype_redo_exec_hook(REDO_DROP_TABLE);
 prototype_redo_exec_hook(FILE_ID);
 prototype_redo_exec_hook(INCOMPLETE_LOG);
+prototype_redo_exec_hook_dummy(INCOMPLETE_GROUP);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
 prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL);
 prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS);
@@ -108,7 +109,7 @@ prototype_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT);
 
 static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply);
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase);
-static int run_undo_phase(uint unfinished);
+static int run_undo_phase(uint uncommitted);
 static void display_record_position(const LOG_DESC *log_desc,
                                     const TRANSLOG_HEADER_BUFFER *rec,
                                     uint number);
@@ -276,7 +277,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
                     my_bool take_checkpoints, uint *warnings_count)
 {
   int error= 0;
-  uint unfinished_trans;
+  uint uncommitted_trans;
   ulonglong old_now;
   DBUG_ENTER("maria_apply_log");
 
@@ -326,7 +327,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   if (run_redo_phase(from_lsn, apply))
     goto err;
 
-  if ((unfinished_trans=
+  if ((uncommitted_trans=
        end_of_redo_phase(should_run_undo_phase)) == (uint)-1)
     goto err;
 
@@ -366,13 +367,13 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
 
   if (should_run_undo_phase)
   {
-    if (run_undo_phase(unfinished_trans))
+    if (run_undo_phase(uncommitted_trans))
       goto err;
   }
-  else if (unfinished_trans > 0)
+  else if (uncommitted_trans > 0)
   {
-    tprint(tracef, "***WARNING: %u unfinished transactions; some tables may"
-           " be left inconsistent!***\n", unfinished_trans);
+    tprint(tracef, "***WARNING: %u uncommitted transactions; some tables may"
+           " be left inconsistent!***\n", uncommitted_trans);
     warnings++;
   }
 
@@ -481,7 +482,7 @@ prototype_redo_exec_hook(LONG_TRANSACTION_ID)
   LSN gslsn= all_active_trans[sid].group_start_lsn;
   if (gslsn != LSN_IMPOSSIBLE)
   {
-    tprint(tracef, "Group at LSN (%lu,0x%lx) short_trid %u aborted\n",
+    tprint(tracef, "Group at LSN (%lu,0x%lx) short_trid %u incomplete\n",
            LSN_IN_PARTS(gslsn), sid);
     all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
   }
@@ -537,6 +538,12 @@ prototype_redo_exec_hook_dummy(CHECKPOINT)
   return 0;
 }
 
+
+prototype_redo_exec_hook_dummy(INCOMPLETE_GROUP)
+{
+  /* abortion was already made */
+  return 0;
+}
 
 prototype_redo_exec_hook(INCOMPLETE_LOG)
 {
@@ -1687,7 +1694,6 @@ prototype_redo_exec_hook(COMMIT)
 {
   uint16 sid= rec->short_trid;
   TrID long_trid= all_active_trans[sid].long_trid;
-  LSN gslsn= all_active_trans[sid].group_start_lsn;
   char llbuf[22];
   if (long_trid == 0)
   {
@@ -1696,19 +1702,8 @@ prototype_redo_exec_hook(COMMIT)
     return 0;
   }
   llstr(long_trid, llbuf);
-  tprint(tracef, "Transaction long_trid %s short_trid %u committed", llbuf, sid);
-  if (gslsn != LSN_IMPOSSIBLE)
-  {
-    /*
-      It's not an error, it may be that trn got a disk error when writing to a
-      table, so an unfinished group staid in the log.
-    */
-    tprint(tracef, ", with group at LSN (%lu,0x%lx) short_trid %u aborted\n",
-           LSN_IN_PARTS(gslsn), sid);
-    all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
-  }
-  else
-    tprint(tracef, "\n");
+  tprint(tracef, "Transaction long_trid %s short_trid %u committed\n",
+         llbuf, sid);
   bzero(&all_active_trans[sid], sizeof(all_active_trans[sid]));
 #ifdef MARIA_VERSIONING
   /*
@@ -2096,6 +2091,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_redo_exec_hook(REDO_DROP_TABLE);
   install_redo_exec_hook(FILE_ID);
   install_redo_exec_hook(INCOMPLETE_LOG);
+  install_redo_exec_hook(INCOMPLETE_GROUP);
   install_redo_exec_hook(REDO_INSERT_ROW_HEAD);
   install_redo_exec_hook(REDO_INSERT_ROW_TAIL);
   install_redo_exec_hook(REDO_INSERT_ROW_BLOBS);
@@ -2154,8 +2150,8 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
     /*
       A complete group is a set of log records with an "end mark" record
       (e.g. a set of REDOs for an operation, terminated by an UNDO for this
-      operation); if there is no "end mark" record the group is incomplete
-      and won't be executed.
+      operation); if there is no "end mark" record the group is incomplete and
+      won't be executed.
     */
     if ((log_desc->record_in_group == LOGREC_IS_GROUP_ITSELF) ||
         (log_desc->record_in_group == LOGREC_LAST_IN_GROUP))
@@ -2168,8 +2164,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
             can happen if the transaction got a table write error, then
             unlocked tables thus wrote a COMMIT record.
           */
-          tprint(tracef, "\nDiscarding unfinished group before this record\n");
-          ALERT_USER();
+          tprint(tracef, "\nDiscarding incomplete group before this record\n");
           all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
         }
         else
@@ -2285,14 +2280,14 @@ err:
 
 
 /**
-   @brief Informs about any aborted groups or unfinished transactions,
+   @brief Informs about any aborted groups or uncommitted transactions,
    prepares for the UNDO phase if needed.
 
    @note Observe that it may init trnman.
 */
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
 {
-  uint sid, unfinished= 0;
+  uint sid, uncommitted= 0;
   char llbuf[22];
   LSN addr;
 
@@ -2316,12 +2311,15 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
     LSN gslsn= all_active_trans[sid].group_start_lsn;
     TRN *trn;
     if (gslsn != LSN_IMPOSSIBLE)
-      tprint(tracef, "Group at LSN (%lu,0x%lx) short_trid %u aborted\n",
+    {
+      tprint(tracef, "Group at LSN (%lu,0x%lx) short_trid %u incomplete\n",
              LSN_IN_PARTS(gslsn), sid);
+      all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
+    }
     if (all_active_trans[sid].undo_lsn != LSN_IMPOSSIBLE)
     {
       llstr(long_trid, llbuf);
-      tprint(tracef, "Transaction long_trid %s short_trid %u unfinished\n",
+      tprint(tracef, "Transaction long_trid %s short_trid %u uncommitted\n",
              llbuf, sid);
       /* dummy_transaction_object serves only for DDLs */
       DBUG_ASSERT(long_trid != 0);
@@ -2332,9 +2330,24 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
         trn->undo_lsn= all_active_trans[sid].undo_lsn;
         trn->first_undo_lsn= all_active_trans[sid].first_undo_lsn |
           TRANSACTION_LOGGED_LONG_ID; /* because trn is known in log */
+        if (gslsn != LSN_IMPOSSIBLE)
+        {
+          /*
+            UNDO phase will log some records. So, a future recovery may see:
+            REDO(from incomplete group) - REDO(from rollback) - CLR_END
+            and thus execute the first REDO (finding it in "a complete
+            group"). To prevent that:
+          */
+          LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS];
+          LSN lsn;
+          if (translog_write_record(&lsn, LOGREC_INCOMPLETE_GROUP,
+                                    trn, NULL, 0,
+                                    TRANSLOG_INTERNAL_PARTS, log_array,
+                                    NULL, NULL))
+            return -1;
+        }
       }
-      /* otherwise we will just warn about it */
-      unfinished++;
+      uncommitted++;
     }
 #ifdef MARIA_VERSIONING
     /*
@@ -2366,13 +2379,13 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
         translog_assign_id_to_share_from_recovery(info->s, sid);
     }
   }
-  return unfinished;
+  return uncommitted;
 }
 
 
-static int run_undo_phase(uint unfinished)
+static int run_undo_phase(uint uncommitted)
 {
-  if (unfinished > 0)
+  if (uncommitted > 0)
   {
     checkpoint_useful= TRUE;
     if (tracef != stdout)
@@ -2382,12 +2395,12 @@ static int run_undo_phase(uint unfinished)
       fprintf(stderr, "transactions to roll back:");
       recovery_message_printed= REC_MSG_UNDO;
     }
-    tprint(tracef, "%u transactions will be rolled back\n", unfinished);
+    tprint(tracef, "%u transactions will be rolled back\n", uncommitted);
     for( ; ; )
     {
       if (recovery_message_printed == REC_MSG_UNDO)
-        fprintf(stderr, " %u", unfinished);
-      if ((unfinished--) == 0)
+        fprintf(stderr, " %u", uncommitted);
+      if ((uncommitted--) == 0)
         break;
       char llbuf[22];
       TRN *trn= trnman_get_any_trn();

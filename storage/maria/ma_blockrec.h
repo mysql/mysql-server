@@ -170,7 +170,7 @@ my_bool _ma_compare_block_record(register MARIA_HA *info,
 /* ma_bitmap.c */
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
 my_bool _ma_bitmap_end(MARIA_SHARE *share);
-my_bool _ma_flush_bitmap(MARIA_SHARE *share);
+my_bool _ma_bitmap_flush(MARIA_SHARE *share);
 void _ma_bitmap_reset_cache(MARIA_SHARE *share);
 my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
                               MARIA_BITMAP_BLOCKS *result_blocks);
@@ -179,10 +179,12 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
                                    uint count);
 my_bool _ma_bitmap_set(MARIA_HA *info, ulonglong pos, my_bool head,
                        uint empty_space);
-my_bool _ma_reset_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
-                                 ulonglong page, uint page_count);
-my_bool _ma_set_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
-                               ulonglong page, uint page_count);
+my_bool _ma_bitmap_reset_full_page_bits(MARIA_HA *info,
+                                        MARIA_FILE_BITMAP *bitmap,
+                                        ulonglong page, uint page_count);
+my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
+                                      MARIA_FILE_BITMAP *bitmap,
+                                      ulonglong page, uint page_count);
 uint _ma_free_size_to_head_pattern(MARIA_FILE_BITMAP *bitmap, uint size);
 my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *new_row,
                                   ulonglong page, uint free_size,

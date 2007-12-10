@@ -1070,7 +1070,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
          over-allocation if crash); see also _ma_change_bitmap_page().
       */
       sync_error|=
-        _ma_flush_bitmap(share); /* after that, all is in page cache */
+        _ma_bitmap_flush(share); /* after that, all is in page cache */
       DBUG_ASSERT(share->pagecache == maria_pagecache);
     }
     if (share->in_checkpoint & MARIA_CHECKPOINT_SHOULD_FREE_ME)

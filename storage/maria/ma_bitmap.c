@@ -229,7 +229,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
 
 my_bool _ma_bitmap_end(MARIA_SHARE *share)
 {
-  my_bool res= _ma_flush_bitmap(share);
+  my_bool res= _ma_bitmap_flush(share);
   pthread_mutex_destroy(&share->bitmap.bitmap_lock);
   my_free((uchar*) share->bitmap.map, MYF(MY_ALLOW_ZERO_PTR));
   share->bitmap.map= 0;
@@ -241,11 +241,11 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
   Send updated bitmap to the page cache
 
   SYNOPSIS
-    _ma_flush_bitmap()
+    _ma_bitmap_flush()
     share		Share handler
 
   NOTES
-    In the future, _ma_flush_bitmap() will be called to flush changes don't
+    In the future, _ma_bitmap_flush() will be called to flush changes don't
     by this thread (ie, checking the changed flag is ok). The reason we
     check it again in the mutex is that if someone else did a flush at the
     same time, we don't have to do the write.
@@ -255,10 +255,10 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
     1    error
 */
 
-my_bool _ma_flush_bitmap(MARIA_SHARE *share)
+my_bool _ma_bitmap_flush(MARIA_SHARE *share)
 {
   my_bool res= 0;
-  DBUG_ENTER("_ma_flush_bitmap");
+  DBUG_ENTER("_ma_bitmap_flush");
   if (share->bitmap.changed)
   {
     pthread_mutex_lock(&share->bitmap.bitmap_lock);
@@ -585,6 +585,7 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
   my_bool res;
   DBUG_ENTER("_ma_read_bitmap_page");
   DBUG_ASSERT(page % bitmap->pages_covered == 0);
+  DBUG_ASSERT(!bitmap->changed);
 
   bitmap->page= page;
   if (end_of_page > share->state.state.data_file_length)
@@ -713,7 +714,7 @@ static my_bool _ma_change_bitmap_page(MARIA_HA *info,
 
   RETURN
     0  ok
-    1  error (either couldn't save old bitmap or read new one
+    1  error (either couldn't save old bitmap or read new one)
 */
 
 static my_bool move_to_next_bitmap(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap)
@@ -1824,7 +1825,7 @@ static uint get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   Mark all pages in a region as free
 
   SYNOPSIS
-    _ma_reset_full_page_bits()
+    _ma_bitmap_reset_full_page_bits()
     info                Maria handler
     bitmap              Bitmap handler
     page                Start page
@@ -1839,13 +1840,14 @@ static uint get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
     1  Error (when reading bitmap)
 */
 
-my_bool _ma_reset_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
-                                 ulonglong page, uint page_count)
+my_bool _ma_bitmap_reset_full_page_bits(MARIA_HA *info,
+                                        MARIA_FILE_BITMAP *bitmap,
+                                        ulonglong page, uint page_count)
 {
   ulonglong bitmap_page;
   uint offset, bit_start, bit_count, tmp;
   uchar *data;
-  DBUG_ENTER("_ma_reset_full_page_bits");
+  DBUG_ENTER("_ma_bitmap_reset_full_page_bits");
   DBUG_PRINT("enter", ("page: %lu  page_count: %u", (ulong) page, page_count));
   safe_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
 
@@ -1899,7 +1901,7 @@ my_bool _ma_reset_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   Set all pages in a region as used
 
   SYNOPSIS
-    _ma_set_full_page_bits()
+    _ma_bitmap_set_full_page_bits()
     info                Maria handler
     bitmap              Bitmap handler
     page                Start page
@@ -1914,13 +1916,14 @@ my_bool _ma_reset_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
     1  Error (when reading bitmap)
 */
 
-my_bool _ma_set_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
-                               ulonglong page, uint page_count)
+my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
+                                      MARIA_FILE_BITMAP *bitmap,
+                                      ulonglong page, uint page_count)
 {
   ulonglong bitmap_page;
   uint offset, bit_start, bit_count, tmp;
   uchar *data;
-  DBUG_ENTER("_ma_set_full_page_bits");
+  DBUG_ENTER("_ma_bitmap_set_full_page_bits");
   DBUG_PRINT("enter", ("page: %lu  page_count: %u", (ulong) page, page_count));
   safe_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
 
@@ -2058,8 +2061,8 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
         goto err;
     }
     if (!(block->used & BLOCKUSED_USED) &&
-        _ma_reset_full_page_bits(info, bitmap,
-                                 block->page, page_count))
+        _ma_bitmap_reset_full_page_bits(info, bitmap,
+                                        block->page, page_count))
       goto err;
   }
   pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);
@@ -2105,7 +2108,8 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
         continue;                               /* Not used extent */
       if (pagecache_delete_pages(info->s->pagecache, &info->dfile, page,
                                  page_count, PAGECACHE_LOCK_WRITE, 1) ||
-          _ma_reset_full_page_bits(info, &info->s->bitmap, page, page_count))
+          _ma_bitmap_reset_full_page_bits(info, &info->s->bitmap, page,
+                                          page_count))
       {
         pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);
         DBUG_RETURN(1);
@@ -2122,7 +2126,7 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
 
   SYNOPSIS
    _ma_bitmap_set()
-   info		Mari handler
+   info		Maria handler
    page		Adress to page
    head		1 if page is a head page, 0 if tail page
    empty_space	How much empty space there is on page

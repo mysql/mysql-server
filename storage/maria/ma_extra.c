@@ -572,7 +572,7 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
     }
     if (share->data_file_type == BLOCK_RECORD)
     {
-      if(_ma_flush_bitmap(share) ||
+      if(_ma_bitmap_flush(share) ||
          flush_pagecache_blocks(share->pagecache, &info->dfile,
                                 flush_type_for_data))
         goto err;
