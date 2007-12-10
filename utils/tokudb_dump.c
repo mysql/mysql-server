@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
 
    if (verify_library_version() != 0) goto error;
 
-   while ((ch = getopt(argc, argv, "klNpRrVd:f:h:P:s:")) != EOF) {
+   while ((ch = getopt(argc, argv, "d:f:h:klNP:ps:RrVT")) != EOF) {
       switch (ch) {
          case ('d'): {
             ERRORX("-%c option not supported.\n", ch);
