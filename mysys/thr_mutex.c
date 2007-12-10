@@ -96,7 +96,7 @@ int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
   int error;
 #ifndef DBUG_OFF
   if (my_thread_var_get_dbug((my_bool*) 0))
-    DBUG_PRINT("mutex", ("Locking mutex: 0x%lx", (ulong) mp));
+    DBUG_PRINT("mutex", ("0x%lx locking", (ulong) mp));
 #endif
   if (!mp->file)
   {
@@ -137,7 +137,7 @@ line %d more than 1 time\n", file,line);
   pthread_mutex_unlock(&mp->global);
 #ifndef DBUG_OFF
   if (my_thread_var_get_dbug((my_bool*) 0))
-    DBUG_PRINT("mutex", ("mutex: 0x%lx locked", (ulong) mp));
+    DBUG_PRINT("mutex", ("0x%lx locked", (ulong) mp));
 #endif
   return error;
 }
@@ -148,7 +148,7 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
   int error;
 #ifndef DBUG_OFF
   if (my_thread_var_get_dbug((my_bool*) 0))
-    DBUG_PRINT("mutex", ("Unlocking mutex 0x%lx", (ulong) mp));
+    DBUG_PRINT("mutex", ("0x%lx unlocking", (ulong) mp));
 #endif
   pthread_mutex_lock(&mp->global);
   if (mp->count == 0)

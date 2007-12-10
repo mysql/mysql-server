@@ -932,7 +932,8 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
 	  flag|=bit;
 	else
 	{
-	  memcpy((uchar*) to,from,(size_t) length); to+=length;
+          memcpy((uchar*) to,from,(size_t) length);
+          to+=length;
 	}
       }
       else if (type == FIELD_SKIP_ENDSPACE ||
