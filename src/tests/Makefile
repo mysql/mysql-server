@@ -116,6 +116,7 @@ NO_VGRIND = db_env_open_nocreate \
   # Comment to terminate list so the previous line can end with a slash
 
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
+$(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
 
 %.bdb: %.c
 	$(UNSETTOKUENV) cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
