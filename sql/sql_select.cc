@@ -3723,7 +3723,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   {
     KEYUSE key_end,*prev,*save_pos,*use;
 
-    qsort(keyuse->buffer,keyuse->elements,sizeof(KEYUSE),
+    my_qsort(keyuse->buffer,keyuse->elements,sizeof(KEYUSE),
 	  (qsort_cmp) sort_keyuse);
 
     bzero((char*) &key_end,sizeof(key_end));    /* Add for easy testing */
@@ -4492,8 +4492,9 @@ choose_plan(JOIN *join, table_map join_tables)
       Apply heuristic: pre-sort all access plans with respect to the number of
       records accessed.
   */
-  qsort(join->best_ref + join->const_tables, join->tables - join->const_tables,
-        sizeof(JOIN_TAB*), straight_join?join_tab_cmp_straight:join_tab_cmp);
+  my_qsort(join->best_ref + join->const_tables,
+           join->tables - join->const_tables, sizeof(JOIN_TAB*),
+           straight_join ? join_tab_cmp_straight : join_tab_cmp);
   
   if (straight_join)
   {
@@ -4540,6 +4541,17 @@ choose_plan(JOIN *join, table_map join_tables)
     ptr1 pointer to first JOIN_TAB object
     ptr2 pointer to second JOIN_TAB object
 
+  NOTES
+    The order relation implemented by join_tab_cmp() is not transitive,
+    i.e. it is possible to choose such a, b and c that (a < b) && (b < c)
+    but (c < a). This implies that result of a sort using the relation
+    implemented by join_tab_cmp() depends on the order in which
+    elements are compared, i.e. the result is implementation-specific.
+    Example:
+      a: dependent = 0x0 table->map = 0x1 found_records = 3 ptr = 0x907e6b0
+      b: dependent = 0x0 table->map = 0x2 found_records = 3 ptr = 0x907e838
+      c: dependent = 0x6 table->map = 0x10 found_records = 2 ptr = 0x907ecd0
+     
   RETURN
     1  if first is bigger
     -1 if second is bigger
@@ -6440,7 +6452,15 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	  else if (!table->covering_keys.is_clear_all() &&
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
-	    tab->index=find_shortest_key(table, & table->covering_keys);
+	    /*
+	      See bug #26447: "Using the clustered index for a table scan
+	      is always faster than using a secondary index".
+	    */
+            if (table->s->primary_key != MAX_KEY &&
+                table->file->primary_key_is_clustered())
+              tab->index= table->s->primary_key;
+            else
+              tab->index=find_shortest_key(table, & table->covering_keys);
 	    tab->read_first_record= join_read_first;
 	    tab->type=JT_NEXT;		// Read with index_first / index_next
 	  }
@@ -9201,9 +9221,43 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     new_field->set_derivation(item->collation.derivation);
     break;
   case DECIMAL_RESULT:
-    new_field= new Field_new_decimal(item->max_length, maybe_null, item->name,
-                                     item->decimals, item->unsigned_flag);
+  {
+    uint8 dec= item->decimals;
+    uint8 intg= ((Item_decimal *) item)->decimal_precision() - dec;
+    uint32 len= item->max_length;
+
+    /*
+      Trying to put too many digits overall in a DECIMAL(prec,dec)
+      will always throw a warning. We must limit dec to
+      DECIMAL_MAX_SCALE however to prevent an assert() later.
+    */
+
+    if (dec > 0)
+    {
+      signed int overflow;
+
+      dec= min(dec, DECIMAL_MAX_SCALE);
+
+      /*
+        If the value still overflows the field with the corrected dec,
+        we'll throw out decimals rather than integers. This is still
+        bad and of course throws a truncation warning.
+        +1: for decimal point
+      */
+
+      overflow= my_decimal_precision_to_length(intg + dec, dec,
+                                               item->unsigned_flag) - len;
+
+      if (overflow > 0)
+        dec= max(0, dec - overflow);            // too long, discard fract
+      else
+        len -= item->decimals - dec;            // corrected value fits
+    }
+
+    new_field= new Field_new_decimal(len, maybe_null, item->name,
+                                     dec, item->unsigned_flag);
     break;
+  }
   case ROW_RESULT:
   default:
     // This case should never be choosen
@@ -9624,7 +9678,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->keys_in_use_for_query.init();
 
   table->s= share;
-  init_tmp_table_share(share, "", 0, tmpname, tmpname);
+  init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
   share->blob_field= blob_field;
   share->blob_ptr_size= mi_portable_sizeof_char_ptr;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM

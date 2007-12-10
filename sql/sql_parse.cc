@@ -470,6 +470,46 @@ end:
 }
 
 
+/**
+  @brief Check access privs for a MERGE table and fix children lock types.
+
+  @param[in]        thd         thread handle
+  @param[in]        db          database name
+  @param[in,out]    table_list  list of child tables (merge_list)
+                                lock_type and optionally db set per table
+
+  @return           status
+    @retval         0           OK
+    @retval         != 0        Error
+
+  @detail
+    This function is used for write access to MERGE tables only
+    (CREATE TABLE, ALTER TABLE ... UNION=(...)). Set TL_WRITE for
+    every child. Set 'db' for every child if not present.
+*/
+
+static bool check_merge_table_access(THD *thd, char *db,
+                                     TABLE_LIST *table_list)
+{
+  int error= 0;
+
+  if (table_list)
+  {
+    /* Check that all tables use the current database */
+    TABLE_LIST *tlist;
+
+    for (tlist= table_list; tlist; tlist= tlist->next_local)
+    {
+      if (!tlist->db || !tlist->db[0])
+        tlist->db= db; /* purecov: inspected */
+    }
+    error= check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                              table_list,0);
+  }
+  return error;
+}
+
+
 /* This works because items are allocated with sql_alloc() */
 
 void free_items(Item *item)
@@ -748,12 +788,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
-
-  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-  {
-    thd->killed= THD::NOT_KILLED;
-    thd->mysys_var->abort= 0;
-  }
+  DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
   thd->command=command;
   /*
@@ -2262,6 +2297,19 @@ mysql_execute_command(THD *thd)
 
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
+
+      /*
+        Disable non-empty MERGE tables with CREATE...SELECT. Too
+        complicated. See Bug #26379. Empty MERGE tables are read-only
+        and don't allow CREATE...SELECT anyway.
+      */
+      if (create_info.used_fields & HA_CREATE_USED_UNION)
+      {
+        my_error(ER_WRONG_OBJECT, MYF(0), create_table->db,
+                 create_table->table_name, "BASE TABLE");
+        res= 1;
+        goto end_with_restore_list;
+      }
 
       if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
       {
@@ -5110,26 +5158,6 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
 }
 
 
-bool check_merge_table_access(THD *thd, char *db,
-			      TABLE_LIST *table_list)
-{
-  int error=0;
-  if (table_list)
-  {
-    /* Check that all tables use the current database */
-    TABLE_LIST *tmp;
-    for (tmp= table_list; tmp; tmp= tmp->next_local)
-    {
-      if (!tmp->db || !tmp->db[0])
-	tmp->db=db;
-    }
-    error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-			     table_list,0);
-  }
-  return error;
-}
-
-
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
 ****************************************************************************/
@@ -6310,24 +6338,23 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 }
 
 
-/*
-  Reload/resets privileges and the different caches.
+/**
+  @brief Reload/resets privileges and the different caches.
 
-  SYNOPSIS
-    reload_acl_and_cache()
-    thd			Thread handler (can be NULL!)
-    options             What should be reset/reloaded (tables, privileges,
-    slave...)
-    tables              Tables to flush (if any)
-    write_to_binlog     Depending on 'options', it may be very bad to write the
-                        query to the binlog (e.g. FLUSH SLAVE); this is a
-                        pointer where reload_acl_and_cache() will put 0 if
-                        it thinks we really should not write to the binlog.
-                        Otherwise it will put 1.
+  @param thd Thread handler (can be NULL!)
+  @param options What should be reset/reloaded (tables, privileges, slave...)
+  @param tables Tables to flush (if any)
+  @param write_to_binlog True if we can write to the binlog.
+               
+  @note Depending on 'options', it may be very bad to write the
+    query to the binlog (e.g. FLUSH SLAVE); this is a
+    pointer where reload_acl_and_cache() will put 0 if
+    it thinks we really should not write to the binlog.
+    Otherwise it will put 1.
 
-  RETURN
-    0	 ok
-    !=0  error.  thd->killed or thd->is_error() is set
+  @return Error status code
+    @retval 0 Ok
+    @retval !=0  Error; thd->killed is set or thd->is_error() is true
 */
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
@@ -6431,7 +6458,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 
         for (; lock_p < end_p; lock_p++)
         {
-          if ((*lock_p)->type == TL_WRITE)
+          if ((*lock_p)->type >= TL_WRITE_ALLOW_WRITE)
           {
             my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
             return 1;
@@ -7001,8 +7028,15 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   bool error= TRUE;                                 // Error message is given
   DBUG_ENTER("create_table_precheck");
 
+  /*
+    Require CREATE [TEMPORARY] privilege on new table; for
+    CREATE TABLE ... SELECT, also require INSERT.
+  */
+
   want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-              CREATE_TMP_ACL : CREATE_ACL);
+              CREATE_TMP_ACL : CREATE_ACL) |
+             (select_lex->item_list.elements ? INSERT_ACL : 0);
+
   if (check_access(thd, want_priv, create_table->db,
 		   &create_table->grant.privilege, 0, 0,
                    test(create_table->schema_table)) ||

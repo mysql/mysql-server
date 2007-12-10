@@ -466,14 +466,16 @@ check_routine_name(LEX_STRING *ident)
  */
 
 void *
-sp_head::operator new(size_t size)
+sp_head::operator new(size_t size) throw()
 {
   DBUG_ENTER("sp_head::operator new");
   MEM_ROOT own_root;
   sp_head *sp;
 
-  init_alloc_root(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+  init_sql_alloc(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
   sp= (sp_head *) alloc_root(&own_root, size);
+  if (sp == NULL)
+    return NULL;
   sp->main_mem_root= own_root;
   DBUG_PRINT("info", ("mem_root 0x%lx", (ulong) &sp->mem_root));
   DBUG_RETURN(sp);
@@ -484,6 +486,10 @@ sp_head::operator delete(void *ptr, size_t size)
 {
   DBUG_ENTER("sp_head::operator delete");
   MEM_ROOT own_root;
+
+  if (ptr == NULL)
+    DBUG_VOID_RETURN;
+
   sp_head *sp= (sp_head *) ptr;
 
   /* Make a copy of main_mem_root as free_root will free the sp */
@@ -536,6 +542,9 @@ sp_head::init(LEX *lex)
   DBUG_ENTER("sp_head::init");
 
   lex->spcont= m_pcont= new sp_pcontext();
+
+  if (!lex->spcont)
+    DBUG_VOID_RETURN;
 
   /*
     Altough trg_table_fields list is used only in triggers we init for all
@@ -1070,7 +1079,7 @@ sp_head::execute(THD *thd)
     DBUG_RETURN(TRUE);
 
   /* init per-instruction memroot */
-  init_alloc_root(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  init_sql_alloc(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
 
   DBUG_ASSERT(!(m_flags & IS_INVOKED));
   m_flags|= IS_INVOKED;
@@ -1962,16 +1971,29 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 }
 
 
-// Reset lex during parsing, before we parse a sub statement.
-void
+/**
+  @brief Reset lex during parsing, before we parse a sub statement.
+
+  @param thd Thread handler.
+
+  @return Error state
+    @retval true An error occurred.
+    @retval false Success.
+*/
+
+bool
 sp_head::reset_lex(THD *thd)
 {
   DBUG_ENTER("sp_head::reset_lex");
   LEX *sublex;
   LEX *oldlex= thd->lex;
 
+  sublex= new (thd->mem_root)st_lex_local;
+  if (sublex == 0)
+    DBUG_RETURN(TRUE);
+
+  thd->lex= sublex;
   (void)m_lex.push_front(oldlex);
-  thd->lex= sublex= new st_lex;
 
   /* Reset most stuff. */
   lex_start(thd);
@@ -1992,7 +2014,7 @@ sp_head::reset_lex(THD *thd)
   sublex->interval_list.empty();
   sublex->type= 0;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
 // Restore lex during parsing, after we have parsed a sub statement.
@@ -3859,7 +3881,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
 
   if (!(table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(TABLE_LIST));
+    thd->fatal_error();
     return NULL;
   }
   table->db_length= strlen(db);

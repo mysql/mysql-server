@@ -433,6 +433,12 @@ typedef struct st_table_share
   {
     return (table_category == TABLE_CATEGORY_PERFORMANCE);
   }
+
+  inline ulong get_table_def_version()
+  {
+    return table_map_id;
+  }
+
 } TABLE_SHARE;
 
 
@@ -456,6 +462,11 @@ struct st_table {
   struct st_table *open_next, **open_prev;	/* Link to open tables */
 #endif
   struct st_table *next, *prev;
+
+  /* For the below MERGE related members see top comment in ha_myisammrg.cc */
+  struct st_table *parent;          /* Set in MERGE child.  Ptr to parent */
+  TABLE_LIST      *child_l;         /* Set in MERGE parent. List of children */
+  TABLE_LIST      **child_last_l;   /* Set in MERGE parent. End of list */
 
   THD	*in_use;                        /* Which thread uses this */
   Field **field;			/* Pointer to fields */
@@ -624,6 +635,8 @@ struct st_table {
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
+  /* If MERGE children attached to parent. See top comment in ha_myisammrg.cc */
+  my_bool children_attached;
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
@@ -675,6 +688,7 @@ struct st_table {
   */
   inline bool needs_reopen_or_name_lock()
   { return s->version != refresh_version; }
+  bool is_children_attached(void);
 };
 
 enum enum_schema_table_state
@@ -998,6 +1012,8 @@ struct TABLE_LIST
     (non-zero only for merged underlying tables of a view).
   */
   TABLE_LIST	*referencing_view;
+  /* Ptr to parent MERGE table list item. See top comment in ha_myisammrg.cc */
+  TABLE_LIST    *parent_l;
   /*
     Security  context (non-zero only for tables which belong
     to view with SQL SECURITY DEFINER)
@@ -1178,6 +1194,20 @@ struct TABLE_LIST
   */
   bool process_index_hints(TABLE *table);
 
+  /* Access MERGE child def version.  See top comment in ha_myisammrg.cc */
+  inline ulong get_child_def_version()
+  {
+    return child_def_version;
+  }
+  inline void set_child_def_version(ulong version)
+  {
+    child_def_version= version;
+  }
+  inline void init_child_def_version()
+  {
+    child_def_version= ~0UL;
+  }
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
@@ -1185,6 +1215,9 @@ private:
     Cleanup for re-execution in a prepared statement or a stored
     procedure.
   */
+
+  /* Remembered MERGE child def version.  See top comment in ha_myisammrg.cc */
+  ulong         child_def_version;
 };
 
 class Item;

@@ -4941,7 +4941,7 @@ the generated partition syntax in a correct manner.
 
        We use the old partitioning also for the new table. We do this
        by assigning the partition_info from the table loaded in
-       open_ltable to the partition_info struct used by mysql_create_table
+       open_table to the partition_info struct used by mysql_create_table
        later in this method.
 
      Case IIb:

@@ -69,6 +69,8 @@ typedef struct st_myrg_info
   uint	 merge_insert_method;
   uint	 tables,options,reclength,keys;
   my_bool cache_in_use;
+  /* If MERGE children attached to parent. See top comment in ha_myisammrg.cc */
+  my_bool children_attached;
   LIST	 open_list;
   QUEUE  by_key;
   ulong *rec_per_key_part;			/* for sql optimizing */
@@ -80,6 +82,13 @@ typedef struct st_myrg_info
 extern int myrg_close(MYRG_INFO *file);
 extern int myrg_delete(MYRG_INFO *file,const uchar *buff);
 extern MYRG_INFO *myrg_open(const char *name,int mode,int wait_if_locked);
+extern MYRG_INFO *myrg_parent_open(const char *parent_name,
+                                   int (*callback)(void*, const char*),
+                                   void *callback_param);
+extern int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
+                                MI_INFO *(*callback)(void*),
+                                void *callback_param);
+extern int myrg_detach_children(MYRG_INFO *m_info);
 extern int myrg_panic(enum ha_panic_function function);
 extern int myrg_rfirst(MYRG_INFO *file,uchar *buf,int inx);
 extern int myrg_rlast(MYRG_INFO *file,uchar *buf,int inx);

@@ -2601,7 +2601,12 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     thd->is_slave_error=  1; // needed to catch query errors during replication
 
     if (!thd->no_warnings_for_error)
+    {
+      thd->no_warnings_for_error= TRUE;
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
+      thd->no_warnings_for_error= FALSE;
+    }
+
     /*
       thd->lex->current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
@@ -4603,8 +4608,13 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 			  sock == unix_sock ? VIO_LOCALHOST: 0)) ||
 	my_net_init(&thd->net,vio_tmp))
     {
-      if (vio_tmp)
-	vio_delete(vio_tmp);
+      /*
+        Only delete the temporary vio if we didn't already attach it to the
+        NET object. The destructor in THD will delete any initialized net
+        structure.
+      */
+      if (vio_tmp && thd->net.vio != vio_tmp)
+        vio_delete(vio_tmp);
       else
       {
 	(void) shutdown(new_sock, SHUT_RDWR);
@@ -7782,12 +7792,13 @@ mysqld_get_one_option(int optid,
     break;
   }
   case OPT_ONE_THREAD:
-    global_system_variables.thread_handling= 2;
+    global_system_variables.thread_handling=
+      SCHEDULER_ONE_THREAD_PER_CONNECTION;
     break;
   case OPT_THREAD_HANDLING:
   {
     global_system_variables.thread_handling=
-      find_type_or_exit(argument, &thread_handling_typelib, opt->name);
+      find_type_or_exit(argument, &thread_handling_typelib, opt->name)-1;
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:

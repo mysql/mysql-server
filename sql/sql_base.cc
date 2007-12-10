@@ -87,7 +87,6 @@ bool Prelock_error_handler::safely_trapped_errors()
   @defgroup Data_Dictionary Data Dictionary
   @{
 */
-
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 static HASH table_def_cache;
@@ -684,6 +683,9 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
     to open the table
 
     thd->killed will be set if we run out of memory
+
+    If closing a MERGE child, the calling function has to take care for
+    closing the parent too, if necessary.
 */
 
 
@@ -712,6 +714,12 @@ void close_handle_and_leave_table_as_lock(TABLE *table)
     share->tmp_table= INTERNAL_TMP_TABLE;       // for intern_close_table()
   }
 
+  /*
+    When closing a MERGE parent or child table, detach the children first.
+    Do not clear child table references to allow for reopen.
+  */
+  if (table->child_l || table->parent)
+    detach_merge_children(table, FALSE);
   table->file->close();
   table->db_stat= 0;                            // Mark file closed
   release_table_share(table->s, RELEASE_NORMAL);
@@ -812,6 +820,10 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 void intern_close_table(TABLE *table)
 {						// Free all structures
   DBUG_ENTER("intern_close_table");
+  DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx",
+                        table->s ? table->s->db.str : "?",
+                        table->s ? table->s->table_name.str : "?",
+                        (long) table));
 
   free_io_cache(table);
   delete table->triggers;
@@ -834,6 +846,9 @@ void intern_close_table(TABLE *table)
 static void free_cache_entry(TABLE *table)
 {
   DBUG_ENTER("free_cache_entry");
+
+  /* Assert that MERGE children are not attached before final close. */
+  DBUG_ASSERT(!table->is_children_attached());
 
   intern_close_table(table);
   if (!table->in_use)
@@ -901,6 +916,54 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
       pthread_mutex_lock(&oldest_unused_share->mutex);
       VOID(hash_delete(&table_def_cache, (uchar*) oldest_unused_share));
     }
+    DBUG_PRINT("tcache", ("incremented global refresh_version to: %lu",
+                          refresh_version));
+    if (if_wait_for_refresh)
+    {
+      /*
+        Other threads could wait in a loop in open_and_lock_tables(),
+        trying to lock one or more of our tables.
+
+        If they wait for the locks in thr_multi_lock(), their lock
+        request is aborted. They loop in open_and_lock_tables() and
+        enter open_table(). Here they notice the table is refreshed and
+        wait for COND_refresh. Then they loop again in
+        open_and_lock_tables() and this time open_table() succeeds. At
+        this moment, if we (the FLUSH TABLES thread) are scheduled and
+        on another FLUSH TABLES enter close_cached_tables(), they could
+        awake while we sleep below, waiting for others threads (us) to
+        close their open tables. If this happens, the other threads
+        would find the tables unlocked. They would get the locks, one
+        after the other, and could do their destructive work. This is an
+        issue if we have LOCK TABLES in effect.
+
+        The problem is that the other threads passed all checks in
+        open_table() before we refresh the table.
+
+        The fix for this problem is to set some_tables_deleted for all
+        threads with open tables. These threads can still get their
+        locks, but will immediately release them again after checking
+        this variable. They will then loop in open_and_lock_tables()
+        again. There they will wait until we update all tables version
+        below.
+
+        Setting some_tables_deleted is done by remove_table_from_cache()
+        in the other branch.
+
+        In other words (reviewer suggestion): You need this setting of
+        some_tables_deleted for the case when table was opened and all
+        related checks were passed before incrementing refresh_version
+        (which you already have) but attempt to lock the table happened
+        after the call to close_old_data_files() i.e. after removal of
+        current thread locks.
+      */
+      for (uint idx=0 ; idx < open_cache.records ; idx++)
+      {
+        TABLE *table=(TABLE*) hash_element(&open_cache,idx);
+        if (table->in_use)
+          table->in_use->some_tables_deleted= 1;
+      }
+    }
   }
   else
   {
@@ -929,8 +992,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info="Flushing tables";
 
     close_old_data_files(thd,thd->open_tables,1,1);
-    mysql_ha_flush(thd, tables, MYSQL_HA_REOPEN_ON_USAGE | MYSQL_HA_FLUSH_ALL,
-                   TRUE);
+    mysql_ha_flush(thd);
+
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info",
@@ -1073,6 +1136,14 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd)
     {
       table->query_id= 0;
       table->file->ha_reset();
+      /*
+        Detach temporary MERGE children from temporary parent to allow new
+        attach at next open. Do not do the detach, if close_thread_tables()
+        is called from a sub-statement. The temporary table might still be
+        used in the top-level statement.
+      */
+      if (table->child_l || table->parent)
+        detach_merge_children(table, TRUE);
     }
   }
 }
@@ -1170,8 +1241,16 @@ static void close_open_tables(THD *thd)
 
 void close_thread_tables(THD *thd)
 {
+  TABLE *table;
   prelocked_mode_type prelocked_mode= thd->prelocked_mode;
   DBUG_ENTER("close_thread_tables");
+
+#ifdef EXTRA_DEBUG
+  DBUG_PRINT("tcache", ("open tables:"));
+  for (table= thd->open_tables; table; table= table->next)
+    DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
+                          table->s->table_name.str, (long) table));
+#endif
 
   /*
     We are assuming here that thd->derived_tables contains ONLY derived
@@ -1186,7 +1265,7 @@ void close_thread_tables(THD *thd)
   */
   if (thd->derived_tables)
   {
-    TABLE *table, *next;
+    TABLE *next;
     /*
       Close all derived tables generated in queries like
       SELECT * FROM (SELECT * FROM t1)
@@ -1266,6 +1345,13 @@ void close_thread_tables(THD *thd)
   if (!thd->active_transaction())
     thd->transaction.xid_state.xid.null();
 
+  /*
+    Note that we need to hold LOCK_open while changing the
+    open_tables list. Another thread may work on it.
+    (See: remove_table_from_cache(), mysql_wait_completed_table())
+    Closing a MERGE child before the parent would be fatal if the
+    other thread tries to abort the MERGE lock in between.
+  */
   if (thd->open_tables)
     close_open_tables(thd);
 
@@ -1292,8 +1378,17 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   DBUG_ENTER("close_thread_table");
   DBUG_ASSERT(table->key_read == 0);
   DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
+  DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
+                        table->s->table_name.str, (long) table));
 
   *table_ptr=table->next;
+  /*
+    When closing a MERGE parent or child table, detach the children first.
+    Clear child table references to force new assignment at next open.
+  */
+  if (table->child_l || table->parent)
+    detach_merge_children(table, TRUE);
+
   if (table->needs_reopen_or_name_lock() ||
       thd->version != refresh_version || !table->db_stat)
   {
@@ -1307,6 +1402,9 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
       handled by the first alternative.
     */
     DBUG_ASSERT(!table->open_placeholder);
+
+    /* Assert that MERGE children are not attached in unused_tables. */
+    DBUG_ASSERT(!table->is_children_attached());
 
     /* Free memory and reset for next loop */
     table->file->ha_reset();
@@ -1729,6 +1827,8 @@ int drop_temporary_table(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
   DBUG_ENTER("drop_temporary_table");
+  DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
+                          table_list->db, table_list->table_name));
 
   if (!(table= find_temporary_table(thd, table_list)))
     DBUG_RETURN(1);
@@ -1756,6 +1856,24 @@ int drop_temporary_table(THD *thd, TABLE_LIST *table_list)
 void close_temporary_table(THD *thd, TABLE *table,
                            bool free_share, bool delete_table)
 {
+  DBUG_ENTER("close_temporary_table");
+  DBUG_PRINT("tmptable", ("closing table: '%s'.'%s' 0x%lx  alias: '%s'",
+                          table->s->db.str, table->s->table_name.str,
+                          (long) table, table->alias));
+
+  /*
+    When closing a MERGE parent or child table, detach the children
+    first. Clear child table references as MERGE table cannot be
+    reopened after final close of one of its tables.
+
+    This is necessary here because it is sometimes called with attached
+    tables and without prior close_thread_tables(). E.g. in
+    mysql_alter_table(), mysql_rm_table_part2(), mysql_truncate(),
+    drop_open_table().
+  */
+  if (table->child_l || table->parent)
+    detach_merge_children(table, TRUE);
+
   if (table->prev)
   {
     table->prev->next= table->next;
@@ -1782,6 +1900,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     slave_open_temp_tables--;
   }
   close_temporary(table, free_share, delete_table);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1797,6 +1916,8 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
 {
   handlerton *table_type= table->s->db_type();
   DBUG_ENTER("close_temporary");
+  DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
+                          table->s->db.str, table->s->table_name.str));
 
   free_io_cache(table);
   closefrm(table, 0);
@@ -1848,6 +1969,9 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 
 static void relink_unused(TABLE *table)
 {
+  /* Assert that MERGE children are not attached in unused_tables. */
+  DBUG_ASSERT(!table->is_children_attached());
+
   if (table != unused_tables)
   {
     table->prev->next=table->next;		/* Remove from unused list */
@@ -1863,6 +1987,77 @@ static void relink_unused(TABLE *table)
 
 
 /**
+  @brief Prepare an open merge table for close.
+
+  @param[in]     thd             thread context
+  @param[in]     table           table to prepare
+  @param[in,out] prev_pp         pointer to pointer of previous table
+
+  @detail
+    If the table is a MERGE parent, just detach the children.
+    If the table is a MERGE child, close the parent (incl. detach).
+*/
+
+static void unlink_open_merge(THD *thd, TABLE *table, TABLE ***prev_pp)
+{
+  DBUG_ENTER("unlink_open_merge");
+
+  if (table->parent)
+  {
+    /*
+      If MERGE child, close parent too. Closing includes detaching.
+
+      This is used for example in ALTER TABLE t1 RENAME TO t5 under
+      LOCK TABLES where t1 is a MERGE child:
+      CREATE TABLE t1 (c1 INT);
+      CREATE TABLE t2 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1);
+      LOCK TABLES t1 WRITE, t2 WRITE;
+      ALTER TABLE t1 RENAME TO t5;
+    */
+    TABLE *parent= table->parent;
+    TABLE **prv_p;
+
+    /* Find parent in open_tables list. */
+    for (prv_p= &thd->open_tables;
+         *prv_p && (*prv_p != parent);
+         prv_p= &(*prv_p)->next) {}
+    if (*prv_p)
+    {
+      /* Special treatment required if child follows parent in list. */
+      if (*prev_pp == &parent->next)
+        *prev_pp= prv_p;
+      /*
+        Remove parent from open_tables list and close it.
+        This includes detaching and hence clearing parent references.
+      */
+      close_thread_table(thd, prv_p);
+    }
+  }
+  else if (table->child_l)
+  {
+    /*
+      When closing a MERGE parent, detach the children first. It is
+      not necessary to clear the child or parent table reference of
+      this table because the TABLE is freed. But we need to clear
+      the child or parent references of the other belonging tables
+      so that they cannot be moved into the unused_tables chain with
+      these pointers set.
+
+      This is used for example in ALTER TABLE t2 RENAME TO t5 under
+      LOCK TABLES where t2 is a MERGE parent:
+      CREATE TABLE t1 (c1 INT);
+      CREATE TABLE t2 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1);
+      LOCK TABLES t1 WRITE, t2 WRITE;
+      ALTER TABLE t2 RENAME TO t5;
+    */
+    detach_merge_children(table, TRUE);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
     @brief  Remove all instances of table from thread's open list and
             table cache.
 
@@ -1873,7 +2068,7 @@ static void relink_unused(TABLE *table)
                     FALSE - otherwise
 
     @note When unlock parameter is FALSE or current thread doesn't have
-          any tables locked with LOCK TABLES tables are assumed to be
+          any tables locked with LOCK TABLES, tables are assumed to be
           not locked (for example already unlocked).
 */
 
@@ -1881,31 +2076,45 @@ void unlink_open_table(THD *thd, TABLE *find, bool unlock)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length= find->s->table_cache_key.length;
-  TABLE *list, **prev, *next;
+  TABLE *list, **prev;
   DBUG_ENTER("unlink_open_table");
 
   safe_mutex_assert_owner(&LOCK_open);
 
-  list= thd->open_tables;
-  prev= &thd->open_tables;
   memcpy(key, find->s->table_cache_key.str, key_length);
-  for (; list ; list=next)
+  /*
+    Note that we need to hold LOCK_open while changing the
+    open_tables list. Another thread may work on it.
+    (See: remove_table_from_cache(), mysql_wait_completed_table())
+    Closing a MERGE child before the parent would be fatal if the
+    other thread tries to abort the MERGE lock in between.
+  */
+  for (prev= &thd->open_tables; *prev; )
   {
-    next=list->next;
+    list= *prev;
+
     if (list->s->table_cache_key.length == key_length &&
 	!memcmp(list->s->table_cache_key.str, key, key_length))
     {
       if (unlock && thd->locked_tables)
-        mysql_lock_remove(thd, thd->locked_tables, list, TRUE);
+        mysql_lock_remove(thd, thd->locked_tables,
+                          list->parent ? list->parent : list, TRUE);
+
+      /* Prepare MERGE table for close. Close parent if necessary. */
+      unlink_open_merge(thd, list, &prev);
+
+      /* Remove table from open_tables list. */
+      *prev= list->next;
+      /* Close table. */
       VOID(hash_delete(&open_cache,(uchar*) list)); // Close table
     }
     else
     {
-      *prev=list;				// put in use list
+      /* Step to next entry in open_tables list. */
       prev= &list->next;
     }
   }
-  *prev=0;
+
   // Notify any 'refresh' threads
   broadcast_refresh();
   DBUG_VOID_RETURN;
@@ -1992,6 +2201,41 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   thd->proc_info= proc_info;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Exclusively name-lock a table that is already write-locked by the
+  current thread.
+
+  @param thd current thread context
+  @param tables able list containing one table to open.
+
+  @return FALSE on success, TRUE otherwise.
+*/
+
+bool name_lock_locked_table(THD *thd, TABLE_LIST *tables)
+{
+  DBUG_ENTER("name_lock_locked_table");
+
+  /* Under LOCK TABLES we must only accept write locked tables. */
+  tables->table= find_locked_table(thd, tables->db, tables->table_name);
+
+  if (!tables->table)
+    my_error(ER_TABLE_NOT_LOCKED, MYF(0), tables->alias);
+  else if (tables->table->reginfo.lock_type < TL_WRITE_LOW_PRIORITY)
+    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tables->alias);
+  else
+  {
+    /*
+      Ensures that table is opened only by this thread and that no
+      other statement will open this table.
+    */
+    wait_while_table_is_used(thd, tables->table, HA_EXTRA_FORCE_REOPEN);
+    DBUG_RETURN(FALSE);
+  }
+
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -2388,9 +2632,14 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                    table->s->table_name.str);
           DBUG_RETURN(0);
         }
+        /*
+          When looking for a usable TABLE, ignore MERGE children, as they
+          belong to their parent and cannot be used explicitly.
+        */
         if (!my_strcasecmp(system_charset_info, table->alias, alias) &&
             table->query_id != thd->query_id && /* skip tables already used */
-            !(thd->prelocked_mode && table->query_id))
+            !(thd->prelocked_mode && table->query_id) &&
+            !table->parent)
         {
           int distance= ((int) table->reginfo.lock_type -
                          (int) table_list->lock_type);
@@ -2521,7 +2770,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     deadlock may occur.
   */
   if (thd->handler_tables)
-    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
+    mysql_ha_flush(thd);
 
   /*
     Actually try to find the table in the open_cache.
@@ -2539,6 +2788,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
        table= (TABLE*) hash_next(&open_cache, (uchar*) key, key_length,
                                  &state))
   {
+    DBUG_PRINT("tcache", ("in_use table: '%s'.'%s' 0x%lx", table->s->db.str,
+                          table->s->table_name.str, (long) table));
     /*
       Here we flush tables marked for flush.
       Normally, table->s->version contains the value of
@@ -2627,6 +2878,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
   if (table)
   {
+    DBUG_PRINT("tcache", ("unused table: '%s'.'%s' 0x%lx", table->s->db.str,
+                          table->s->table_name.str, (long) table));
     /* Unlink the table from "unused_tables" list. */
     if (table == unused_tables)
     {						// First unused
@@ -2642,6 +2895,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     /* Insert a new TABLE instance into the open cache */
     int error;
+    DBUG_PRINT("tcache", ("opening new table"));
     /* Free cache if too big */
     while (open_cache.records > table_cache_size && unused_tables)
       VOID(hash_delete(&open_cache,(uchar*) unused_tables)); /* purecov: tested */
@@ -2708,7 +2962,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(0); // VIEW
     }
-    DBUG_PRINT("info", ("inserting table 0x%lx into the cache", (long) table));
+    DBUG_PRINT("info", ("inserting table '%s'.'%s' 0x%lx into the cache",
+                        table->s->db.str, table->s->table_name.str,
+                        (long) table));
     VOID(my_hash_insert(&open_cache,(uchar*) table));
   }
 
@@ -2798,9 +3054,12 @@ bool reopen_table(TABLE *table)
   TABLE_LIST table_list;
   THD *thd= table->in_use;
   DBUG_ENTER("reopen_table");
+  DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
+                        table->s->table_name.str, (long) table));
 
   DBUG_ASSERT(table->s->ref_count == 0);
   DBUG_ASSERT(!table->sort.io_cache);
+  DBUG_ASSERT(!table->children_attached);
 
 #ifdef EXTRA_DEBUG
   if (table->db_stat)
@@ -2841,6 +3100,17 @@ bool reopen_table(TABLE *table)
   tmp.next=		table->next;
   tmp.prev=		table->prev;
 
+  /* Preserve MERGE parent. */
+  tmp.parent=           table->parent;
+  /* Fix MERGE child list and check for unchanged union. */
+  if ((table->child_l || tmp.child_l) &&
+      fix_merge_after_open(table->child_l, table->child_last_l,
+                           tmp.child_l, tmp.child_last_l))
+  {
+    VOID(closefrm(&tmp, 1)); // close file, free everything
+    goto end;
+  }
+
   delete table->triggers;
   if (table->file)
     VOID(closefrm(table, 1));		// close file, free everything
@@ -2862,6 +3132,11 @@ bool reopen_table(TABLE *table)
   }
   if (table->triggers)
     table->triggers->set_table(table);
+  /*
+    Do not attach MERGE children here. The children might be reopened
+    after the parent. Attach children after reopening all tables that
+    require reopen. See for example reopen_tables().
+  */
 
   broadcast_refresh();
   error=0;
@@ -2883,6 +3158,9 @@ bool reopen_table(TABLE *table)
           then there is only one table open and locked. This means that
           the function probably has to be adjusted before it can be used
           anywhere outside ALTER TABLE.
+
+    @note Must not use TABLE_SHARE::table_name/db of the table being closed,
+          the strings are used in a loop even after the share may be freed.
 */
 
 void close_data_files_and_morph_locks(THD *thd, const char *db,
@@ -2914,12 +3192,83 @@ void close_data_files_and_morph_locks(THD *thd, const char *db,
 	!strcmp(table->s->db.str, db))
     {
       if (thd->locked_tables)
-        mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
+      {
+        if (table->parent)
+        {
+          /*
+            If MERGE child, need to reopen parent too. This means that
+            the first child to be closed will detach all children from
+            the parent and close it. OTOH in most cases a MERGE table
+            won't have multiple children with the same db.table_name.
+          */
+          mysql_lock_remove(thd, thd->locked_tables, table->parent, TRUE);
+          table->parent->open_placeholder= 1;
+          close_handle_and_leave_table_as_lock(table->parent);
+        }
+        else
+          mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
+      }
       table->open_placeholder= 1;
       close_handle_and_leave_table_as_lock(table);
     }
   }
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  @brief Reattach MERGE children after reopen.
+
+  @param[in]     thd            thread context
+  @param[in,out] err_tables_p   pointer to pointer of tables in error
+
+  @return       status
+    @retval     FALSE           OK, err_tables_p unchanged
+    @retval     TRUE            Error, err_tables_p contains table(s)
+*/
+
+static bool reattach_merge(THD *thd, TABLE **err_tables_p)
+{
+  TABLE *table;
+  TABLE *next;
+  TABLE **prv_p= &thd->open_tables;
+  bool error= FALSE;
+  DBUG_ENTER("reattach_merge");
+
+  for (table= thd->open_tables; table; table= next)
+  {
+    next= table->next;
+    DBUG_PRINT("tcache", ("check table: '%s'.'%s' 0x%lx  next: 0x%lx",
+                          table->s->db.str, table->s->table_name.str,
+                          (long) table, (long) next));
+    /* Reattach children for MERGE tables with "closed data files" only. */
+    if (table->child_l && !table->children_attached)
+    {
+      DBUG_PRINT("tcache", ("MERGE parent, attach children"));
+      if(table->file->extra(HA_EXTRA_ATTACH_CHILDREN))
+      {
+        my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
+        error= TRUE;
+        /* Remove table from open_tables. */
+        *prv_p= next;
+        if (next)
+          prv_p= &next->next;
+        /* Stack table on error list. */
+        table->next= *err_tables_p;
+        *err_tables_p= table;
+        continue;
+      }
+      else
+      {
+        table->children_attached= TRUE;
+        DBUG_PRINT("myrg", ("attached parent: '%s'.'%s' 0x%lx",
+                            table->s->db.str,
+                            table->s->table_name.str, (long) table));
+      }
+    }
+    prv_p= &table->next;
+  }
+  DBUG_RETURN(error);
 }
 
 
@@ -2947,7 +3296,9 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
 {
   TABLE *table,*next,**prev;
   TABLE **tables,**tables_ptr;			// For locks
+  TABLE *err_tables= NULL;
   bool error=0, not_used;
+  bool merge_table_found= FALSE;
   DBUG_ENTER("reopen_tables");
 
   if (!thd->open_tables)
@@ -2956,10 +3307,15 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
   safe_mutex_assert_owner(&LOCK_open);
   if (get_locks)
   {
-    /* The ptr is checked later */
+    /*
+      The ptr is checked later
+      Do not handle locks of MERGE children.
+    */
     uint opens=0;
     for (table= thd->open_tables; table ; table=table->next)
-      opens++;
+      if (!table->parent)
+        opens++;
+    DBUG_PRINT("tcache", ("open tables to lock: %u", opens));
     tables= (TABLE**) my_alloca(sizeof(TABLE*)*opens);
   }
   else
@@ -2971,17 +3327,37 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
   {
     uint db_stat=table->db_stat;
     next=table->next;
+    DBUG_PRINT("tcache", ("open table: '%s'.'%s' 0x%lx  "
+                          "parent: 0x%lx  db_stat: %u",
+                          table->s->db.str, table->s->table_name.str,
+                          (long) table, (long) table->parent, db_stat));
+    if (table->child_l && !db_stat)
+      merge_table_found= TRUE;
     if (!tables || (!db_stat && reopen_table(table)))
     {
       my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
+      /*
+        If we could not allocate 'tables', we may close open tables
+        here. If a MERGE table is affected, detach the children first.
+        It is not necessary to clear the child or parent table reference
+        of this table because the TABLE is freed. But we need to clear
+        the child or parent references of the other belonging tables so
+        that they cannot be moved into the unused_tables chain with
+        these pointers set.
+      */
+      if (table->child_l || table->parent)
+        detach_merge_children(table, TRUE);
       VOID(hash_delete(&open_cache,(uchar*) table));
       error=1;
     }
     else
     {
+      DBUG_PRINT("tcache", ("opened. need lock: %d",
+                            get_locks && !db_stat && !table->parent));
       *prev= table;
       prev= &table->next;
-      if (get_locks && !db_stat)
+      /* Do not handle locks of MERGE children. */
+      if (get_locks && !db_stat && !table->parent)
 	*tables_ptr++= table;			// need new lock on this
       if (in_refresh)
       {
@@ -2990,25 +3366,52 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
       }
     }
   }
+  *prev=0;
+  /*
+    When all tables are open again, we can re-attach MERGE children to
+    their parents. All TABLE objects are still present.
+  */
+  DBUG_PRINT("tcache", ("re-attaching MERGE tables: %d", merge_table_found));
+  if (!error && merge_table_found && reattach_merge(thd, &err_tables))
+  {
+    while (err_tables)
+    {
+      VOID(hash_delete(&open_cache, (uchar*) err_tables));
+      err_tables= err_tables->next;
+    }
+  }
+  DBUG_PRINT("tcache", ("open tables to lock: %u",
+                        (uint) (tables_ptr - tables)));
   if (tables != tables_ptr)			// Should we get back old locks
   {
     MYSQL_LOCK *lock;
-    /* We should always get these locks */
+    /*
+      We should always get these locks. Anyway, we must not go into
+      wait_for_tables() as it tries to acquire LOCK_open, which is
+      already locked.
+    */
     thd->some_tables_deleted=0;
     if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr - tables),
-                                 0, &not_used)))
+                                 MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN, &not_used)))
     {
       thd->locked_tables=mysql_lock_merge(thd->locked_tables,lock);
     }
     else
+    {
+      /*
+        This case should only happen if there is a bug in the reopen logic.
+        Need to issue error message to have a reply for the application.
+        Not exactly what happened though, but close enough.
+      */
+      my_error(ER_LOCK_DEADLOCK, MYF(0));
       error=1;
+    }
   }
   if (get_locks && tables)
   {
     my_afree((uchar*) tables);
   }
   broadcast_refresh();
-  *prev=0;
   DBUG_RETURN(error);
 }
 
@@ -3027,14 +3430,19 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     @param send_refresh  Should we awake waiters even if we didn't close any tables?
 */
 
-void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
-			  bool send_refresh)
+static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
+                                 bool send_refresh)
 {
   bool found= send_refresh;
   DBUG_ENTER("close_old_data_files");
 
   for (; table ; table=table->next)
   {
+    DBUG_PRINT("tcache", ("checking table: '%s'.'%s' 0x%lx",
+                          table->s->db.str, table->s->table_name.str,
+                          (long) table));
+    DBUG_PRINT("tcache", ("needs refresh: %d  is open: %u",
+                          table->needs_reopen_or_name_lock(), table->db_stat));
     /*
       Reopen marked for flush.
     */
@@ -3046,13 +3454,33 @@ void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
 	if (morph_locks)
 	{
           /*
-            Wake up threads waiting for table-level lock on this table
-            so they won't sneak in when we will temporarily remove our
-            lock on it. This will also give them a chance to close their
-            instances of this table.
+            Forward lock handling to MERGE parent. But unlock parent
+            once only.
           */
-          mysql_lock_abort(thd, table, TRUE);
-          mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
+          TABLE *ulcktbl= table->parent ? table->parent : table;
+          if (ulcktbl->lock_count)
+          {
+            /*
+              Wake up threads waiting for table-level lock on this table
+              so they won't sneak in when we will temporarily remove our
+              lock on it. This will also give them a chance to close their
+              instances of this table.
+            */
+            mysql_lock_abort(thd, ulcktbl, TRUE);
+            mysql_lock_remove(thd, thd->locked_tables, ulcktbl, TRUE);
+            ulcktbl->lock_count= 0;
+          }
+          if ((ulcktbl != table) && ulcktbl->db_stat)
+          {
+            /*
+              Close the parent too. Note that parent can come later in
+              the list of tables. It will then be noticed as closed and
+              as a placeholder. When this happens, do not clear the
+              placeholder flag. See the branch below ("***").
+            */
+            ulcktbl->open_placeholder= 1;
+            close_handle_and_leave_table_as_lock(ulcktbl);
+          }
           /*
             We want to protect the table from concurrent DDL operations
             (like RENAME TABLE) until we will re-open and re-lock it.
@@ -3061,7 +3489,7 @@ void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
 	}
         close_handle_and_leave_table_as_lock(table);
       }
-      else if (table->open_placeholder)
+      else if (table->open_placeholder && !morph_locks)
       {
         /*
           We come here only in close-for-back-off scenario. So we have to
@@ -3069,8 +3497,11 @@ void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
           in case of concurrent execution of CREATE TABLE t1 SELECT * FROM t2
           and RENAME TABLE t2 TO t1). In close-for-re-open scenario we will
           probably want to let it stay.
+
+          Note "***": We must not enter this branch if the placeholder
+          flag has been set because of a former close through a child.
+          See above the comment that refers to this note.
         */
-        DBUG_ASSERT(!morph_locks);
         table->open_placeholder= 0;
       }
     }
@@ -3141,7 +3572,7 @@ bool wait_for_tables(THD *thd)
   {
     thd->some_tables_deleted=0;
     close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
-    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
+    mysql_ha_flush(thd);
     if (!table_is_used(thd->open_tables,1))
       break;
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -3191,13 +3622,29 @@ TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name)
   prev= &thd->open_tables;
   DBUG_ENTER("drop_locked_tables");
 
+  /*
+    Note that we need to hold LOCK_open while changing the
+    open_tables list. Another thread may work on it.
+    (See: remove_table_from_cache(), mysql_wait_completed_table())
+    Closing a MERGE child before the parent would be fatal if the
+    other thread tries to abort the MERGE lock in between.
+  */
   for (table= thd->open_tables; table ; table=next)
   {
     next=table->next;
     if (!strcmp(table->s->table_name.str, table_name) &&
 	!strcmp(table->s->db.str, db))
     {
-      mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
+      /* If MERGE child, forward lock handling to parent. */
+      mysql_lock_remove(thd, thd->locked_tables,
+                        table->parent ? table->parent : table, TRUE);
+      /*
+        When closing a MERGE parent or child table, detach the children first.
+        Clear child table references in case this object is opened again.
+      */
+      if (table->child_l || table->parent)
+        detach_merge_children(table, TRUE);
+
       if (!found)
       {
         found= table;
@@ -3246,7 +3693,8 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
     if (!strcmp(table->s->table_name.str, table_name) &&
 	!strcmp(table->s->db.str, db))
     {
-      mysql_lock_abort(thd,table, TRUE);
+      /* If MERGE child, forward lock handling to parent. */
+      mysql_lock_abort(thd, table->parent ? table->parent : table, TRUE);
       break;
     }
   }
@@ -3277,7 +3725,8 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
     share->table_map_id is given a value that with a high certainty is
     not used by any other table (the only case where a table id can be
     reused is on wrap-around, which means more than 4 billion table
-    shares open at the same time).
+    share opens have been executed while one table was open all the
+    time).
 
     share->table_map_id is not ~0UL.
  */
@@ -3516,6 +3965,340 @@ err:
 }
 
 
+/**
+  @brief Add list of MERGE children to a TABLE_LIST list.
+
+  @param[in]    tlist           the parent TABLE_LIST object just opened
+
+  @return status
+    @retval     0               OK
+    @retval     != 0            Error
+
+  @detail
+    When a MERGE parent table has just been opened, insert the
+    TABLE_LIST chain from the MERGE handle into the table list used for
+    opening tables for this statement. This lets the children be opened
+    too.
+*/
+
+static int add_merge_table_list(TABLE_LIST *tlist)
+{
+  TABLE       *parent= tlist->table;
+  TABLE_LIST  *child_l;
+  DBUG_ENTER("add_merge_table_list");
+  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", parent->s->db.str,
+                      parent->s->table_name.str, (long) parent));
+
+  /* Must not call this with attached children. */
+  DBUG_ASSERT(!parent->children_attached);
+  /* Must not call this with children list in place. */
+  DBUG_ASSERT(tlist->next_global != parent->child_l);
+  /* Prevent inclusion of another MERGE table. Could make infinite recursion. */
+  if (tlist->parent_l)
+  {
+    my_error(ER_ADMIN_WRONG_MRG_TABLE, MYF(0), tlist->alias);
+    DBUG_RETURN(1);
+  }
+
+  /* Fix children.*/
+  for (child_l= parent->child_l; ; child_l= child_l->next_global)
+  {
+    /*
+      Note: child_l->table may still be set if this parent was taken
+      from the unused_tables chain. Ignore this fact here. The
+      reference will be replaced by the handler in
+      ::extra(HA_EXTRA_ATTACH_CHILDREN).
+    */
+
+    /* Set lock type. */
+    child_l->lock_type= tlist->lock_type;
+
+    /* Set parent reference. */
+    child_l->parent_l= tlist;
+
+    /* Break when this was the last child. */
+    if (&child_l->next_global == parent->child_last_l)
+      break;
+  }
+
+  /* Insert children into the table list. */
+  *parent->child_last_l= tlist->next_global;
+  tlist->next_global= parent->child_l;
+
+  /*
+    Do not fix the prev_global pointers. We will remove the
+    chain soon anyway.
+  */
+
+  DBUG_RETURN(0);
+}
+
+
+/**
+  @brief Attach MERGE children to the parent.
+
+  @param[in]    tlist           the child TABLE_LIST object just opened
+
+  @return status
+    @retval     0               OK
+    @retval     != 0            Error
+
+  @note
+    This is called when the last MERGE child has just been opened, let
+    the handler attach the MyISAM tables to the MERGE table. Remove
+    MERGE TABLE_LIST chain from the statement list so that it cannot be
+    changed or freed.
+*/
+
+static int attach_merge_children(TABLE_LIST *tlist)
+{
+  TABLE *parent= tlist->parent_l->table;
+  int error;
+  DBUG_ENTER("attach_merge_children");
+  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", parent->s->db.str,
+                      parent->s->table_name.str, (long) parent));
+
+  /* Must not call this with attached children. */
+  DBUG_ASSERT(!parent->children_attached);
+  /* Must call this with children list in place. */
+  DBUG_ASSERT(tlist->parent_l->next_global == parent->child_l);
+
+  /* Attach MyISAM tables to MERGE table. */
+  error= parent->file->extra(HA_EXTRA_ATTACH_CHILDREN);
+
+  /*
+    Remove children from the table list. Even in case of an error.
+    This should prevent tampering with them.
+  */
+  tlist->parent_l->next_global= *parent->child_last_l;
+
+  /*
+    Do not fix the last childs next_global pointer. It is needed for
+    stepping to the next table in the enclosing loop in open_tables().
+    Do not fix prev_global pointers. We did not set them.
+  */
+
+  if (error)
+  {
+    DBUG_PRINT("error", ("attaching MERGE children failed: %d", my_errno));
+    parent->file->print_error(error, MYF(0));
+    DBUG_RETURN(1);
+  }
+
+  parent->children_attached= TRUE;
+  DBUG_PRINT("myrg", ("attached parent: '%s'.'%s' 0x%lx", parent->s->db.str,
+                      parent->s->table_name.str, (long) parent));
+
+  /*
+    Note that we have the cildren in the thd->open_tables list at this
+    point.
+  */
+
+  DBUG_RETURN(0);
+}
+
+
+/**
+  @brief Detach MERGE children from the parent.
+
+  @note
+    Call this before the first table of a MERGE table (parent or child)
+    is closed.
+
+    When closing thread tables at end of statement, both parent and
+    children are in thd->open_tables and will be closed. In most cases
+    the children will be closed before the parent. They are opened after
+    the parent and thus stacked into thd->open_tables before it.
+
+    To avoid that we touch a closed children in any way, we must detach
+    the children from the parent when the first belonging table is
+    closed (parent or child).
+
+    All references to the children should be removed on handler level
+    and optionally on table level.
+
+  @note
+    Assure that you call it for a MERGE parent or child only.
+    Either table->child_l or table->parent must be set.
+
+  @param[in]    table           the TABLE object of the parent
+  @param[in]    clear_refs      if to clear TABLE references
+                                this must be true when called from
+                                close_thread_tables() to enable fresh
+                                open in open_tables()
+                                it must be false when called in preparation
+                                for reopen_tables()
+*/
+
+void detach_merge_children(TABLE *table, bool clear_refs)
+{
+  TABLE_LIST *child_l;
+  TABLE *parent= table->child_l ? table : table->parent;
+  bool first_detach;
+  DBUG_ENTER("detach_merge_children");
+  /*
+    Either table->child_l or table->parent must be set. Parent must have
+    child_l set.
+  */
+  DBUG_ASSERT(parent && parent->child_l);
+  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx  clear_refs: %d",
+                      table->s->db.str, table->s->table_name.str,
+                      (long) table, clear_refs));
+  DBUG_PRINT("myrg", ("parent: '%s'.'%s' 0x%lx", parent->s->db.str,
+                      parent->s->table_name.str, (long) parent));
+
+  /*
+    In a open_tables() loop it can happen that not all tables have their
+    children attached yet. Also this is called for every child and the
+    parent from close_thread_tables().
+  */
+  if ((first_detach= parent->children_attached))
+  {
+    VOID(parent->file->extra(HA_EXTRA_DETACH_CHILDREN));
+    parent->children_attached= FALSE;
+    DBUG_PRINT("myrg", ("detached parent: '%s'.'%s' 0x%lx", parent->s->db.str,
+                        parent->s->table_name.str, (long) parent));
+  }
+  else
+    DBUG_PRINT("myrg", ("parent is already detached"));
+
+  if (clear_refs)
+  {
+    /* In any case clear the own parent reference. (***) */
+    table->parent= NULL;
+
+    /*
+      On the first detach, clear all references. If this table is the
+      parent, we still may need to clear the child references. The first
+      detach might not have done this.
+    */
+    if (first_detach || (table == parent))
+    {
+      /* Clear TABLE references to force new assignment at next open. */
+      for (child_l= parent->child_l; ; child_l= child_l->next_global)
+      {
+        /*
+          Do not DBUG_ASSERT(child_l->table); open_tables might be
+          incomplete.
+
+          Clear the parent reference of the children only on the first
+          detach. The children might already be closed. They will clear
+          it themseves when this function is called for them with
+          'clear_refs' true. See above "(***)".
+        */
+        if (first_detach && child_l->table)
+          child_l->table->parent= NULL;
+
+        /* Clear the table reference to force new assignment at next open. */
+        child_l->table= NULL;
+
+        /* Break when this was the last child. */
+        if (&child_l->next_global == parent->child_last_l)
+          break;
+      }
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  @brief Fix MERGE children after open.
+
+  @param[in]    old_child_list  first list member from original table
+  @param[in]    old_last        pointer to &next_global of last list member
+  @param[in]    new_child_list  first list member from freshly opened table
+  @param[in]    new_last        pointer to &next_global of last list member
+
+  @return       mismatch
+    @retval     FALSE           OK, no mismatch
+    @retval     TRUE            Error, lists mismatch
+
+  @detail
+    Main action is to copy TABLE reference for each member of original
+    child list to new child list. After a fresh open these references
+    are NULL. Assign the old children to the new table. Some of them
+    might also be reopened or will be reopened soon.
+
+    Other action is to verify that the table definition with respect to
+    the UNION list did not change.
+
+  @note
+    This function terminates the child list if the respective '*_last'
+    pointer is non-NULL. Do not call it from a place where the list is
+    embedded in another list and this would break it.
+
+    Terminating the list is required for example in the first
+    reopen_table() after open_tables(). open_tables() requires the end
+    of the list not to be terminated because other tables could follow
+    behind the child list.
+
+    If a '*_last' pointer is NULL, the respective list is assumed to be
+    NULL terminated.
+*/
+
+bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
+                          TABLE_LIST *new_child_list, TABLE_LIST **new_last)
+{
+  bool mismatch= FALSE;
+  DBUG_ENTER("fix_merge_after_open");
+  DBUG_PRINT("myrg", ("old last addr: 0x%lx  new last addr: 0x%lx",
+                      (long) old_last, (long) new_last));
+
+  /* Terminate the lists for easier check of list end. */
+  if (old_last)
+    *old_last= NULL;
+  if (new_last)
+    *new_last= NULL;
+
+  for (;;)
+  {
+    DBUG_PRINT("myrg", ("old list item: 0x%lx  new list item: 0x%lx",
+                        (long) old_child_list, (long) new_child_list));
+    /* Break if one of the list is at its end. */
+    if (!old_child_list || !new_child_list)
+      break;
+    /* Old table has references to child TABLEs. */
+    DBUG_ASSERT(old_child_list->table);
+    /* New table does not yet have references to child TABLEs. */
+    DBUG_ASSERT(!new_child_list->table);
+    DBUG_PRINT("myrg", ("old table: '%s'.'%s'  new table: '%s'.'%s'",
+                        old_child_list->db, old_child_list->table_name,
+                        new_child_list->db, new_child_list->table_name));
+    /* Child db.table names must match. */
+    if (strcmp(old_child_list->table_name, new_child_list->table_name) ||
+        strcmp(old_child_list->db,         new_child_list->db))
+      break;
+    /*
+      Copy TABLE reference. Child TABLE objects are still in place
+      though not necessarily open yet.
+    */
+    DBUG_PRINT("myrg", ("old table ref: 0x%lx  replaces new table ref: 0x%lx",
+                        (long) old_child_list->table,
+                        (long) new_child_list->table));
+    new_child_list->table= old_child_list->table;
+    /* Step both lists. */
+    old_child_list= old_child_list->next_global;
+    new_child_list= new_child_list->next_global;
+  }
+  DBUG_PRINT("myrg", ("end of list, mismatch: %d", mismatch));
+  /*
+    If the list pointers are not both NULL after the loop, then the
+    lists differ. If the are both identical, but not NULL, then they
+    have at least one table in common and hence the rest of the list
+    would be identical too. But in this case the loop woul run until the
+    list end, where both pointers would become NULL.
+  */
+  if (old_child_list != new_child_list)
+    mismatch= TRUE;
+  if (mismatch)
+    my_error(ER_TABLE_DEF_CHANGED, MYF(0));
+
+  DBUG_RETURN(mismatch);
+}
+
+
 /*
   Open all tables in list
 
@@ -3546,7 +4329,7 @@ err:
 
 int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
 {
-  TABLE_LIST *tables;
+  TABLE_LIST *tables= NULL;
   bool refresh;
   int result=0;
   MEM_ROOT new_frm_mem;
@@ -3559,7 +4342,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     temporary mem_root for new .frm parsing.
     TODO: variables for size
   */
-  init_alloc_root(&new_frm_mem, 8024, 8024);
+  init_sql_alloc(&new_frm_mem, 8024, 8024);
 
   thd->current_tablenr= 0;
  restart:
@@ -3606,6 +4389,9 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   */
   for (tables= *start; tables ;tables= tables->next_global)
   {
+    DBUG_PRINT("tcache", ("opening table: '%s'.'%s'  item: 0x%lx",
+                          tables->db, tables->table_name, (long) tables));
+
     safe_to_ignore_table= FALSE;
 
     /*
@@ -3657,6 +4443,10 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       else
         tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags);
     }
+    else
+      DBUG_PRINT("tcache", ("referenced table: '%s'.'%s' 0x%lx",
+                            tables->db, tables->table_name,
+                            (long) tables->table));
 
     if (!tables->table)
     {
@@ -3686,6 +4476,19 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         */
         hash_free(&tables->view->sroutines);
 	goto process_view_routines;
+      }
+
+      /*
+        If in a MERGE table open, we need to remove the children list
+        from statement table list before restarting. Otherwise the list
+        will be inserted another time.
+      */
+      if (tables->parent_l)
+      {
+        TABLE_LIST *parent_l= tables->parent_l;
+        /* The parent table should be correctly open at this point. */
+        DBUG_ASSERT(parent_l->table);
+        parent_l->next_global= *parent_l->table->child_last_l;
       }
 
       if (refresh)				// Refresh in progress
@@ -3756,6 +4559,24 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         thd->update_lock_default : tables->lock_type;
     tables->table->grant= tables->grant;
 
+    /* Attach MERGE children if not locked already. */
+    DBUG_PRINT("tcache", ("is parent: %d  is child: %d",
+                          test(tables->table->child_l),
+                          test(tables->parent_l)));
+    DBUG_PRINT("tcache", ("in lock tables: %d  in prelock mode: %d",
+                          test(thd->locked_tables), test(thd->prelocked_mode)));
+    if (((!thd->locked_tables && !thd->prelocked_mode) ||
+         tables->table->s->tmp_table) &&
+        ((tables->table->child_l &&
+          add_merge_table_list(tables)) ||
+         (tables->parent_l &&
+          (&tables->next_global == tables->parent_l->table->child_last_l) &&
+          attach_merge_children(tables))))
+    {
+      result= -1;
+      goto err;
+    }
+
 process_view_routines:
     /*
       Again we may need cache all routines used by this view and add
@@ -3788,6 +4609,18 @@ process_view_routines:
   if (query_tables_last_own)
     thd->lex->mark_as_requiring_prelocking(query_tables_last_own);
 
+  if (result && tables)
+  {
+    /*
+      Some functions determine success as (tables->table != NULL).
+      tables->table is in thd->open_tables. It won't go lost. If the
+      error happens on a MERGE child, clear the parents TABLE reference.
+    */
+    if (tables->parent_l)
+      tables->parent_l->table= NULL;
+    tables->table= NULL;
+  }
+  DBUG_PRINT("tcache", ("returning: %d", result));
   DBUG_RETURN(result);
 }
 
@@ -3824,6 +4657,63 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
+}
+
+
+/**
+  @brief Open and lock one table
+
+  @param[in]    thd             thread handle
+  @param[in]    table_l         table to open is first table in this list
+  @param[in]    lock_type       lock to use for table
+
+  @return       table
+    @retval     != NULL         OK, opened table returned
+    @retval     NULL            Error
+
+  @note
+    If ok, the following are also set:
+      table_list->lock_type 	lock_type
+      table_list->table		table
+
+  @note
+    If table_l is a list, not a single table, the list is temporarily
+    broken.
+
+  @detail
+    This function is meant as a replacement for open_ltable() when
+    MERGE tables can be opened. open_ltable() cannot open MERGE tables.
+
+    There may be more differences between open_n_lock_single_table() and
+    open_ltable(). One known difference is that open_ltable() does
+    neither call decide_logging_format() nor handle some other logging
+    and locking issues because it does not call lock_tables().
+*/
+
+TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
+                                thr_lock_type lock_type)
+{
+  TABLE_LIST *save_next_global;
+  DBUG_ENTER("open_n_lock_single_table");
+
+  /* Remember old 'next' pointer. */
+  save_next_global= table_l->next_global;
+  /* Break list. */
+  table_l->next_global= NULL;
+
+  /* Set requested lock type. */
+  table_l->lock_type= lock_type;
+  /* Allow to open real tables only. */
+  table_l->required_type= FRMTYPE_TABLE;
+
+  /* Open the table. */
+  if (simple_open_n_lock_tables(thd, table_l))
+    table_l->table= NULL; /* Just to be sure. */
+
+  /* Restore list. */
+  table_l->next_global= save_next_global;
+
+  DBUG_RETURN(table_l->table);
 }
 
 
@@ -3868,6 +4758,17 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
 
   if (table)
   {
+    if (table->child_l)
+    {
+      /* A MERGE table must not come here. */
+      /* purecov: begin tested */
+      my_error(ER_WRONG_OBJECT, MYF(0), table->s->db.str,
+               table->s->table_name.str, "BASE TABLE");
+      table= 0;
+      goto end;
+      /* purecov: end */
+    }
+
     table_list->lock_type= lock_type;
     table_list->table=	   table;
     table->grant= table_list->grant;
@@ -3885,56 +4786,21 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
 	  table= 0;
     }
   }
+
+ end:
   thd->proc_info=0;
   DBUG_RETURN(table);
 }
 
 
 /*
-  Open all tables in list and locks them for read without derived
-  tables processing.
+  Open all tables in list, locks them and optionally process derived tables.
 
   SYNOPSIS
-    simple_open_n_lock_tables()
+    open_and_lock_tables_derived()
     thd		- thread handler
     tables	- list of tables for open&locking
-
-  RETURN
-    0  - ok
-    -1 - error
-
-  NOTE
-    The lock will automaticaly be freed by close_thread_tables()
-*/
-
-int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
-{
-  uint counter;
-  bool need_reopen;
-  DBUG_ENTER("simple_open_n_lock_tables");
-
-  for ( ; ; ) 
-  {
-    if (open_tables(thd, &tables, &counter, 0))
-      DBUG_RETURN(-1);
-    if (!lock_tables(thd, tables, counter, &need_reopen))
-      break;
-    if (!need_reopen)
-      DBUG_RETURN(-1);
-    close_tables_for_reopen(thd, &tables);
-  }
-  DBUG_RETURN(0);
-}
-
-
-/*
-  Open all tables in list, locks them and process derived tables
-  tables processing.
-
-  SYNOPSIS
-    open_and_lock_tables()
-    thd		- thread handler
-    tables	- list of tables for open&locking
+    derived     - if to handle derived tables
 
   RETURN
     FALSE - ok
@@ -3942,27 +4808,43 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 
   NOTE
     The lock will automaticaly be freed by close_thread_tables()
+
+  NOTE
+    There are two convenience functions:
+    - simple_open_n_lock_tables(thd, tables)  without derived handling
+    - open_and_lock_tables(thd, tables)       with derived handling
+    Both inline functions call open_and_lock_tables_derived() with
+    the third argument set appropriately.
 */
 
-bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
 {
   uint counter;
   bool need_reopen;
-  DBUG_ENTER("open_and_lock_tables");
+  DBUG_ENTER("open_and_lock_tables_derived");
+  DBUG_PRINT("enter", ("derived handling: %d", derived));
 
   for ( ; ; ) 
   {
     if (open_tables(thd, &tables, &counter, 0))
       DBUG_RETURN(-1);
+
+    DBUG_EXECUTE_IF("sleep_open_and_lock_after_open", {
+      const char *old_proc_info= thd->proc_info;
+      thd->proc_info= "DBUG sleep";
+      my_sleep(6000000);
+      thd->proc_info= old_proc_info;});
+
     if (!lock_tables(thd, tables, counter, &need_reopen))
       break;
     if (!need_reopen)
       DBUG_RETURN(-1);
     close_tables_for_reopen(thd, &tables);
   }
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
-      (thd->fill_derived_tables() &&
-       mysql_handle_derived(thd->lex, &mysql_derived_filling)))
+  if (derived &&
+      (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
+       (thd->fill_derived_tables() &&
+        mysql_handle_derived(thd->lex, &mysql_derived_filling))))
     DBUG_RETURN(TRUE); /* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -4276,7 +5158,17 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       thd->lock= 0;
       thd->in_lock_tables=0;
 
-      for (table= tables; table != first_not_own; table= table->next_global)
+      /*
+        When open_and_lock_tables() is called for a single table out of
+        a table list, the 'next_global' chain is temporarily broken. We
+        may not find 'first_not_own' before the end of the "list".
+        Look for example at those places where open_n_lock_single_table()
+        is called. That function implements the temporary breaking of
+        a table list for opening a single table.
+      */
+      for (table= tables;
+           table && table != first_not_own;
+           table= table->next_global)
       {
         if (!table->placeholder())
         {
@@ -4303,7 +5195,17 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
   else
   {
     TABLE_LIST *first_not_own= thd->lex->first_not_own_table();
-    for (table= tables; table != first_not_own; table= table->next_global)
+    /*
+      When open_and_lock_tables() is called for a single table out of
+      a table list, the 'next_global' chain is temporarily broken. We
+      may not find 'first_not_own' before the end of the "list".
+      Look for example at those places where open_n_lock_single_table()
+      is called. That function implements the temporary breaking of
+      a table list for opening a single table.
+    */
+    for (table= tables;
+         table && table != first_not_own;
+         table= table->next_global)
     {
       if (!table->placeholder() &&
 	  check_lock_and_start_stmt(thd, table->table, table->lock_type))
@@ -4407,7 +5309,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   saved_cache_key= strmov(tmp_path, path)+1;
   memcpy(saved_cache_key, cache_key, key_length);
 
-  init_tmp_table_share(share, saved_cache_key, key_length,
+  init_tmp_table_share(thd, share, saved_cache_key, key_length,
                        strend(saved_cache_key)+1, tmp_path);
 
   if (open_table_def(thd, share, 0) ||
@@ -4453,6 +5355,8 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
       slave_open_temp_tables++;
   }
   tmp_table->pos_in_table_list= 0;
+  DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,
+                          tmp_table->s->table_name.str, (long) tmp_table));
   DBUG_RETURN(tmp_table);
 }
 
@@ -7134,7 +8038,7 @@ my_bool mysql_rm_tmp_tables(void)
           /* We should cut file extention before deleting of table */
           memcpy(filePathCopy, filePath, filePath_len - ext_len);
           filePathCopy[filePath_len - ext_len]= 0;
-          init_tmp_table_share(&share, "", 0, "", filePathCopy);
+          init_tmp_table_share(thd, &share, "", 0, "", filePathCopy);
           if (!open_table_def(thd, &share, 0) &&
               ((handler_file= get_new_handler(&share, thd->mem_root,
                                               share.db_type()))))
@@ -7236,7 +8140,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   TABLE_SHARE *share;
   bool result= 0, signalled= 0;
   DBUG_ENTER("remove_table_from_cache");
-  DBUG_PRINT("enter", ("Table: '%s.%s'  flags: %u", db, table_name, flags));
+  DBUG_PRINT("enter", ("table: '%s'.'%s'  flags: %u", db, table_name, flags));
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   for (;;)
@@ -7251,6 +8155,8 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
                                    &state))
     {
       THD *in_use;
+      DBUG_PRINT("tcache", ("found table: '%s'.'%s' 0x%lx", table->s->db.str,
+                            table->s->table_name.str, (long) table));
 
       table->s->version=0L;		/* Free when thread is ready */
       if (!(in_use=table->in_use))
@@ -7289,13 +8195,19 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
         }
         /*
 	  Now we must abort all tables locks used by this thread
-	  as the thread may be waiting to get a lock for another table
+	  as the thread may be waiting to get a lock for another table.
+          Note that we need to hold LOCK_open while going through the
+          list. So that the other thread cannot change it. The other
+          thread must also hold LOCK_open whenever changing the
+          open_tables list. Aborting the MERGE lock after a child was
+          closed and before the parent is closed would be fatal.
         */
         for (TABLE *thd_table= in_use->open_tables;
 	     thd_table ;
 	     thd_table= thd_table->next)
         {
-	  if (thd_table->db_stat)		// If table is open
+          /* Do not handle locks of MERGE children. */
+	  if (thd_table->db_stat && !thd_table->parent)	// If table is open
 	    signalled|= mysql_lock_abort_for_thread(thd, thd_table);
         }
       }
@@ -7498,7 +8410,9 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   lpt->old_lock_type= lpt->table->reginfo.lock_type;
   VOID(pthread_mutex_lock(&LOCK_open));
-  mysql_lock_abort(lpt->thd, lpt->table, TRUE);
+  /* If MERGE child, forward lock handling to parent. */
+  mysql_lock_abort(lpt->thd, lpt->table->parent ? lpt->table->parent :
+                   lpt->table, TRUE);
   VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags));
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(0);
@@ -7519,14 +8433,18 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
     We also downgrade locks after the upgrade to WRITE_ONLY
 */
 
+/* purecov: begin unused */
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   VOID(pthread_mutex_lock(&LOCK_open));
   remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name,
                           RTFC_WAIT_OTHER_THREAD_FLAG);
   VOID(pthread_mutex_unlock(&LOCK_open));
-  mysql_lock_downgrade_write(lpt->thd, lpt->table, lpt->old_lock_type);
+  /* If MERGE child, forward lock handling to parent. */
+  mysql_lock_downgrade_write(lpt->thd, lpt->table->parent ? lpt->table->parent :
+                             lpt->table, lpt->old_lock_type);
 }
+/* purecov: end */
 
 
 /*
@@ -7592,13 +8510,19 @@ void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table
       }
       /*
         Now we must abort all tables locks used by this thread
-        as the thread may be waiting to get a lock for another table
+        as the thread may be waiting to get a lock for another table.
+        Note that we need to hold LOCK_open while going through the
+        list. So that the other thread cannot change it. The other
+        thread must also hold LOCK_open whenever changing the
+        open_tables list. Aborting the MERGE lock after a child was
+        closed and before the parent is closed would be fatal.
       */
       for (TABLE *thd_table= in_use->open_tables;
            thd_table ;
            thd_table= thd_table->next)
       {
-        if (thd_table->db_stat)		// If table is open
+        /* Do not handle locks of MERGE children. */
+        if (thd_table->db_stat && !thd_table->parent) // If table is open
           mysql_lock_abort_for_thread(lpt->thd, thd_table);
       }
     }
@@ -7608,8 +8532,10 @@ void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table
     those in use for removal after completion. Now we also need to abort
     all that are locked and are not progressing due to being locked
     by our lock. We don't upgrade our lock here.
+    If MERGE child, forward lock handling to parent.
   */
-  mysql_lock_abort(lpt->thd, my_table, FALSE);
+  mysql_lock_abort(lpt->thd, my_table->parent ? my_table->parent : my_table,
+                   FALSE);
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_VOID_RETURN;
 }
@@ -7868,6 +8794,13 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
   pthread_mutex_lock(&LOCK_open);
 
   found_old_table= false;
+  /*
+    Note that we need to hold LOCK_open while changing the
+    open_tables list. Another thread may work on it.
+    (See: remove_table_from_cache(), mysql_wait_completed_table())
+    Closing a MERGE child before the parent would be fatal if the
+    other thread tries to abort the MERGE lock in between.
+  */
   while (thd->open_tables)
     found_old_table|= close_thread_table(thd, &thd->open_tables);
 

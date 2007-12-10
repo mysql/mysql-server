@@ -12,36 +12,15 @@
 user_limits     : Bug#23921 random failure of user_limits.test
 
 concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
-ndb_single_user          : Bug will not be fixed in this release (not yet atleast)
-ndb_autodiscover         : BUG#18952 2006-02-16 NDB Auto Discovery is failing designed tests in ndb_autodiscovery.test
-ndb_autodiscover2         : BUG#18952 2006-02-16 NDB Auto Discovery is failing designed tests in ndb_autodiscovery.test
-ndb_load                 : BUG#17233 2006-05-04 tomas failed load data from infile causes mysqld dbug_assert, binlog not flushed
+ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Double Whopper
 
-partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
-rpl_ndb_circular_simplex : BUG#27972 2007-04-20 mats Slave cannot start where it stopped
-rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
-rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
-rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
-rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK on master
-rpl_ndb_innodb2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
-rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
-#rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
-rpl_ndb_ddl              : BUG#28798 2007-05-31  lars  Valgrind failure in NDB
-rpl_ndb_mix_innodb       : BUG#28123 rpl_ndb_mix_innodb.test casue slave to core on sol10-sparc-a
-rpl_ndb_ctype_ucs2_def   : BUG#27404 util thd mysql_parse sig11 when mysqld default multibyte charset
-
-rpl_invoked_features     : BUG#29020 2007-06-21 Lars Non-deterministic test case
-rpl_stm_extraColmaster_ndb : WL#3915 : Statement-based replication not supported in ndb. Enable test when supported.
-
-# the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
-#ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
-#ndb_binlog_discover      : bug#21806 2006-08-24
-#ndb_autodiscover3        : bug#21806
-
-#rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly
-
-ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
-
-im_options_set       : Bug#20294: Instance manager tests fail randomly
-im_options_unset     : Bug#20294: Instance manager tests fail randomly
 federated_transactions   : Bug#29523 Transactions do not work
+events                   : Bug#32664 events.test fails randomly
+events_scheduling        : Bug#29830 Test case 'events_scheduling' fails on Mac OS X and Windows
+lowercase_table3         : Bug#32667 lowercase_table3.test reports to error log
+kill                 : Bug#29149: Test "kill" fails on Windows
+innodb_mysql         : Bug#32724: innodb_mysql.test fails randomly
+wait_timeout         : Bug#32801 wait_timeout.test fails randomly
+kill                 : Bug#29149 Test "kill" fails on Windows
+ctype_create         : Bug#32965 main.ctype_create fails
+status               : Bug#32966 main.status fails
