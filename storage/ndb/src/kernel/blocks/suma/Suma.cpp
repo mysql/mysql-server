@@ -832,8 +832,9 @@ Suma::execINCL_NODEREQ(Signal* signal){
   ndbrequire(!c_alive_nodes.get(nodeId));
   c_alive_nodes.set(nodeId);
   
-  signal->theData[0] = reference();
-  sendSignal(senderRef, GSN_INCL_NODECONF, signal, 1, JBB);
+  signal->theData[0] = nodeId;
+  signal->theData[1] = reference();
+  sendSignal(senderRef, GSN_INCL_NODECONF, signal, 2, JBB);
 }
 
 void
@@ -2390,6 +2391,7 @@ Suma::execSUB_START_REQ(Signal* signal){
     
   {
     jam();
+    c_subscriberPool.release(subbPtr);
     sendSubStartRef(signal, SubStartRef::PartiallyConnected);
     return;
   }
