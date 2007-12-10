@@ -74,23 +74,8 @@ int main(int argc, char *argv[]) {
       ERROR(errno, "main: calloc\n");
       goto error;
    }
-   while ((ch = getopt(argc, argv, "nTVc:f:h:p:t:r:")) != EOF) {
+   while ((ch = getopt(argc, argv, "c:f:h:nP:r:Tt:V")) != EOF) {
       switch (ch) {
-         case ('n'): {
-            /* g.overwritekeys = false; */
-            ERRORX("-%c option not supported.\n", ch);
-            goto error;
-         }
-         case ('T'): {
-            g.plaintext    = true;
-            g.leadingspace = false;
-            g.header       = false;
-            break;
-         }
-         case ('V'): {
-            printf("%s\n", db_version(NULL, NULL, NULL));
-            goto cleanup;
-         }
          case ('c'): {
             *next_config_option++ = optarg;
             break;
@@ -108,11 +93,26 @@ int main(int argc, char *argv[]) {
             g.homedir = optarg;
             break;
          }
-         case ('p'): {
+         case ('n'): {
+            /* g.overwritekeys = false; */
+            ERRORX("-%c option not supported.\n", ch);
+            goto error;
+         }
+         case ('P'): {
             /* Clear password. */
             memset(optarg, 0, strlen(optarg));
             ERRORX("-%c option not supported.\n", ch);
             goto error;
+         }
+         case ('r'): {
+            ERRORX("-%c option not supported.\n", ch);
+            goto error;
+         }
+         case ('T'): {
+            g.plaintext    = true;
+            g.leadingspace = false;
+            g.header       = false;
+            break;
          }
          case ('t'): {
             if (!strcmp(optarg, "btree")) {
@@ -126,9 +126,9 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "%s: Unrecognized db type %s.\n", g.progname, optarg);
             goto error;
          }
-         case ('r'): {
-            ERRORX("-%c option not supported.\n", ch);
-            goto error;
+         case ('V'): {
+            printf("%s\n", db_version(NULL, NULL, NULL));
+            goto cleanup;
          }
          case ('?'):
          default: {
