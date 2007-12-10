@@ -17001,6 +17001,12 @@ static void test_bug20023()
     Check that SQL_BIG_SELECTS will be the original one.
   ***********************************************************************/
 
+#if NOT_USED
+  /*
+    max_join_size is a ulong or better.
+    my_snprintf() only goes up to ul.
+  */
+
   /* Restore MAX_JOIN_SIZE. */
 
   my_snprintf(query_buffer,
@@ -17009,6 +17015,11 @@ static void test_bug20023()
            (int) max_join_size_orig);
 
   DIE_IF(mysql_query(&con, query_buffer));
+
+#else
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+#endif
+
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */
