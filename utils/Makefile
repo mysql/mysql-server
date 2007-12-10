@@ -4,13 +4,28 @@ endif
 BDB_DUMP=$(BDBDIR)/bin/db_dump
 BDB_LOAD=$(BDBDIR)/bin/db_load
 
+DIFF=diff -I 'db_pagesize='
+
 CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g
 
 # vars to compile bins that handle tokudb using libdb.so
 # when one uses relative address in an rpath, the library better be located relative
 # to the current directory
 CPPFLAGS = -I../include
-LDFLAGS = -L../lib -ldb -lpthread -Wl,-rpath,$(PWD)/../lib
+
+ifeq ($(OSX),OSX)
+#Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
+ TDB_LOADLIBES = 
+ BDB_LOADLIBES =
+ SETTOKUENV=export DYLD_LIBRARY_PATH=.. ;
+ UNSETTOKUENV=export DYLD_LIBRARY_PATH=$(BDBDIR)/lib ;
+else
+ TDB_LOADLIBES = -Wl,-rpath,$(PWD)/../lib
+ BDB_LOADLIBES = -Wl,-rpath,$(BDBDIR)/lib
+ SETTOKUENV=
+ UNSETTOKUENV=
+endif
+LDFLAGS = -L../lib -ldb -lpthread $(TDB_LOADLIBES)
 
 # vars to compile bins that handle tokudb using libdb.a
 STATIC_CPPFLAGS = -I../include 
@@ -18,7 +33,7 @@ STATIC_LDFLAGS = ../lib/libdb.a -lz
 
 # vars to compile bins that handle bdb
 BDB_CPPFLAGS = -I$(BDBDIR)/include
-BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread -Wl,-rpath,$(BDBDIR)/lib
+BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread $(BDB_LOADLIBES)
 
 UTILS=            \
    tokudb_gen     \
@@ -58,12 +73,12 @@ test_gen_hex:
 	echo "Generating text input > db > text"
 	rm -f $@.*.temp
 	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp
-	$(BDB_LOAD) $@.db.temp < $@.gen.temp
-	$(BDB_DUMP) $@.db.temp > $@.load_dump.temp
+	$(UNSETTOKUENV) $(BDB_LOAD) $@.db.temp < $@.gen.temp
+	$(UNSETTOKUENV) $(BDB_DUMP) $@.db.temp > $@.load_dump.temp
 	./tokudb_gen -Hf > $@.gen_sorted.temp
 	export LC_ALL=C;./tokudb_gen -hf $(TEST_GEN_HEX_FLAGS) -d "\t" -s "\n" | sort -k 1,1 | tr -d "\n" | tr "\t" "\n" >> $@.gen_sorted.temp
 	./tokudb_gen -Fh  >> $@.gen_sorted.temp
-	if ! diff -q $@.load_dump.temp $@.gen_sorted.temp; then echo "Test Failed!"; exit 1; fi
+	if ! $(DIFF) -q $@.load_dump.temp $@.gen_sorted.temp; then echo "Test Failed!"; exit 1; fi
 	rm $@.*.temp
 
 test_load:
@@ -71,32 +86,32 @@ test_load:
 	echo "Generating text input > db > text"
 	rm -f $@.*.temp
 	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp
-	$(BDB_LOAD) $@.bdb.temp < $@.gen.temp
-	./tokudb_load $@.tokudb.temp < $@.gen.temp
-	$(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
-	./tokudb_dump $@.tokudb.temp > $@.dump.tokudb.temp
-	if ! diff -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
+	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp < $@.gen.temp
+	$(SETTOKUENV)   ./tokudb_load $@.tokudb.temp < $@.gen.temp
+	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
+	$(SETTOKUENV)   ./tokudb_dump $@.tokudb.temp > $@.dump.tokudb.temp
+	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
 
 test_dump:
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
 	echo "Generating text input > db > text"
 	rm -f $@.*.temp
 	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp
-	$(BDB_LOAD) $@.bdb.temp < $@.gen.temp
-	$(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
-	./tokudb_dump.bdb $@.bdb.temp > $@.dump.tokudb.temp
-	if ! diff -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
+	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp < $@.gen.temp
+	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
+	$(UNSETTOKUENV) ./tokudb_dump.bdb $@.bdb.temp > $@.dump.tokudb.temp
+	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
 
 test_bdb_tokudb:
 	rm -rf $@.*.temp
 	./tokudb_gen $(TEST_GEN_HEX_FLAGS) >$@.gen.temp
-	$(BDB_LOAD) $@.bdb.temp <$@.gen.temp
-	$(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp
-	./tokudb_load_static $@.tdb.temp <$@.gen.temp
-	./tokudb_dump_static $@.tdb.temp >$@.dump.tdb.temp
-	if ! diff -q $@.dump.bdb.temp $@.dump.tdb.temp; then echo "$@ failed"; exit 1; fi
+	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp <$@.gen.temp
+	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp
+	$(SETTOKUENV)   ./tokudb_load_static $@.tdb.temp <$@.gen.temp
+	$(SETTOKUENV)   ./tokudb_dump_static $@.tdb.temp >$@.dump.tdb.temp
+	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp; then echo "$@ failed"; exit 1; fi
 
-#if diff -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
+#if $(DIFF) -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
 clean:
 	rm -rf *.so *.o $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) *.temp
 
