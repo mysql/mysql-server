@@ -70,7 +70,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   signalIdUsed    = _signalId;
 
   m_connected     = false;
-  m_timeOutMillis = 1000;
+  m_timeOutMillis = 30000;
 
   m_connect_address.s_addr= 0;
   if(s_port<0)
@@ -101,7 +101,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
 
   if(m_connected)
   {
-    DBUG_RETURN(true); // TODO assert(0);
+    DBUG_RETURN(false); // TODO assert(0);
   }
   
   {
