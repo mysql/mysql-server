@@ -43,6 +43,7 @@ BINS =  $(REGRESSION_TESTS) \
         randbrt \
         randdb4 \
         tdb_logprint \
+	test_toku_malloc_plain_free \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 tdb_logprint: LDFLAGS+=-lz
@@ -68,6 +69,7 @@ check: bins
 	$(DTOOL) ./brt-serialize-test
 	$(DTOOL) ./brt-test
 	$(DTOOL) ./hashtest
+	$(DTOOL) ./test_toku_malloc_plain_free
 	./benchmark-test --valsize 256 --verify 1
 
 check-fanout:
@@ -106,7 +108,7 @@ brt-verify.o: $(BRT_INTERNAL_H_INCLUDES)
 fingerprint.o: $(BRT_INTERNAL_H_INCLUDES)
 
 brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o
-
+test_toku_malloc_plain_free: memory.o
 
 
 cachetable-test.o: cachetable.h memory.h 

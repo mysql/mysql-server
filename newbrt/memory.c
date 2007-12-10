@@ -58,6 +58,8 @@ static void note_did_free(void *p) {
 //#define BUFFERED_MALLOC
 #ifdef BUFFERED_MALLOC
 
+#error "Turning on BUFFERED_MALLOC will probably break things.  For example, DBT's are DB_DBT_MALLOC'd using toku_malloc(), but then the user calls free() (rather than toku_free)."
+
 enum { BUFFERING = 4096 };
 void mark_buffer (char *p, int size) {
     unsigned int *pl = (unsigned int*)p;
