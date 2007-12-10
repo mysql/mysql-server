@@ -471,22 +471,30 @@ int ha_tina::encode_quote(uchar *buf)
   {
     const char *ptr;
     const char *end_ptr;
+    const bool was_null= (*field)->is_null();
 
     /*
-      CSV does not support nulls. Write quoted 0 to the buffer. In fact,
-      (*field)->val_str(&attribute,&attribute) would usually return 0
-      in this case but we write it explicitly here.
-      Basically this is a safety check, as no one ensures that the
-      field content is cleaned up every time we use Field::set_null()
-      in the code.
+      CSV does not support nulls. ::create() prevents creation of a table
+      with nullable columns so if we encounter them here, there is a bug.
+      This may only occur if the frm was created by an older version of
+      mysqld which permitted table creation with nullable columns.
     */
-    if ((*field)->is_null())
+    DBUG_ASSERT(!(*field)->maybe_null());
+    
+    /*
+      assistance for backwards compatibility in production builds.
+      note: this will not work for ENUM columns.
+    */
+    if (was_null)
     {
-      buffer.append(STRING_WITH_LEN("\"0\","));
-      continue;
+      (*field)->set_default();
+      (*field)->set_notnull();
     }
 
     (*field)->val_str(&attribute,&attribute);
+    
+    if (was_null)
+      (*field)->set_null();
 
     if ((*field)->str_needs_quotes())
     {
@@ -1195,8 +1203,8 @@ int ha_tina::rnd_end()
       The sort is needed when there were updates/deletes with random orders.
       It sorts so that we move the firts blocks to the beginning.
     */
-    qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set),
-          (qsort_cmp)sort_set);
+    my_qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set),
+             (qsort_cmp)sort_set);
 
     off_t write_begin= 0, write_end;
 
@@ -1479,6 +1487,16 @@ int ha_tina::create(const char *name, TABLE *table_arg,
   char name_buff[FN_REFLEN];
   File create_file;
   DBUG_ENTER("ha_tina::create");
+
+  /*
+    check columns
+  */
+  for (Field **field= table_arg->s->field; *field; field++)
+  {
+    if ((*field)->real_maybe_null())
+      DBUG_RETURN(-1);
+  }
+  
 
   if ((create_file= my_create(fn_format(name_buff, name, "", CSM_EXT,
                                         MY_REPLACE_EXT|MY_UNPACK_FILENAME), 0,

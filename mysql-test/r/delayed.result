@@ -73,13 +73,13 @@ a
 13
 DROP TABLE t1;
 SET @bug20627_old_auto_increment_offset=
-@@auto_increment_offset= 2;
+@@auto_increment_offset;
 SET @bug20627_old_auto_increment_increment=
-@@auto_increment_increment= 3;
+@@auto_increment_increment;
 SET @bug20627_old_session_auto_increment_offset=
-@@session.auto_increment_offset= 4;
+@@session.auto_increment_offset;
 SET @bug20627_old_session_auto_increment_increment=
-@@session.auto_increment_increment= 5;
+@@session.auto_increment_increment;
 SET @@auto_increment_offset= 2;
 SET @@auto_increment_increment= 3;
 SET @@session.auto_increment_offset= 4;
@@ -116,13 +116,13 @@ SET             @@session.auto_increment_offset=
 SET             @@session.auto_increment_increment=
 @bug20627_old_session_auto_increment_increment;
 SET @bug20830_old_auto_increment_offset=
-@@auto_increment_offset= 2;
+@@auto_increment_offset;
 SET @bug20830_old_auto_increment_increment=
-@@auto_increment_increment= 3;
+@@auto_increment_increment;
 SET @bug20830_old_session_auto_increment_offset=
-@@session.auto_increment_offset= 4;
+@@session.auto_increment_offset;
 SET @bug20830_old_session_auto_increment_increment=
-@@session.auto_increment_increment= 5;
+@@session.auto_increment_increment;
 SET @@auto_increment_offset= 2;
 SET @@auto_increment_increment= 3;
 SET @@session.auto_increment_offset= 4;
@@ -250,8 +250,32 @@ SELECT HEX(a) FROM t1;
 HEX(a)
 1
 DROP TABLE t1;
-CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
-CREATE TABLE t2(c1 INT) ENGINE=MERGE UNION=(t1);
-INSERT DELAYED INTO t2 VALUES(1);
-ERROR HY000: Table storage engine for 't2' doesn't have this option
-DROP TABLE t1, t2;
+DROP TABLE IF EXISTS t1,t2;
+SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE `t1` (
+`id` int(11) PRIMARY KEY auto_increment,
+`f1` varchar(10) NOT NULL UNIQUE
+);
+INSERT DELAYED INTO t1 VALUES(0,"test1");
+SELECT * FROM t1;
+id	f1
+0	test1
+SET SQL_MODE='PIPES_AS_CONCAT';
+INSERT DELAYED INTO t1 VALUES(0,'a' || 'b');
+SELECT * FROM t1;
+id	f1
+0	test1
+1	ab
+SET SQL_MODE='ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES';
+INSERT DELAYED INTO t1 VALUES(mod(1,0),"test3");
+ERROR 22012: Division by 0
+CREATE TABLE t2 (
+`id` int(11) PRIMARY KEY auto_increment,
+`f1` date
+);
+SET SQL_MODE='NO_ZERO_DATE,STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
+INSERT DELAYED INTO t2 VALUES (0,'0000-00-00');
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'f1' at row 1
+INSERT DELAYED INTO t2 VALUES (0,'2007-00-00');
+ERROR 22007: Incorrect date value: '2007-00-00' for column 'f1' at row 1
+DROP TABLE t1,t2;

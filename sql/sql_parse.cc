@@ -28,6 +28,11 @@
 #include "events.h"
 #include "sql_trigger.h"
 
+/**
+  @defgroup Runtime_Environment Runtime Environment
+  @{
+*/
+
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
   ((LP)->sphead->m_type == TYPE_ENUM_FUNCTION ? "FUNCTION" : "PROCEDURE")
@@ -80,7 +85,6 @@ const LEX_STRING command_name[]={
 const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
 };
-
 
 static void unlock_locked_tables(THD *thd)
 {
@@ -316,8 +320,6 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
     values of init_command_var can't be changed
   */
   rw_rdlock(var_mutex);
-  thd->query= init_command_var->value;
-  thd->query_length= init_command_var->value_length;
   save_client_capabilities= thd->client_capabilities;
   thd->client_capabilities|= CLIENT_MULTI_QUERIES;
   /*
@@ -327,7 +329,9 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   save_vio= thd->net.vio;
   thd->net.vio= 0;
   thd->net.no_send_error= 0;
-  dispatch_command(COM_QUERY, thd, thd->query, thd->query_length+1);
+  dispatch_command(COM_QUERY, thd,
+                   init_command_var->value,
+                   init_command_var->value_length);
   rw_unlock(var_mutex);
   thd->client_capabilities= save_client_capabilities;
   thd->net.vio= save_vio;
@@ -432,7 +436,7 @@ pthread_handler_t handle_bootstrap(void *arg)
     if (thd->is_fatal_error)
       break;
 
-    if (thd->net.report_error)
+    if (thd->is_error())
     {
       /* The query failed, send error to log and abort bootstrap */
       net_send_error(thd);
@@ -463,6 +467,46 @@ end:
   pthread_exit(0);
 #endif
   DBUG_RETURN(0);
+}
+
+
+/**
+  @brief Check access privs for a MERGE table and fix children lock types.
+
+  @param[in]        thd         thread handle
+  @param[in]        db          database name
+  @param[in,out]    table_list  list of child tables (merge_list)
+                                lock_type and optionally db set per table
+
+  @return           status
+    @retval         0           OK
+    @retval         != 0        Error
+
+  @detail
+    This function is used for write access to MERGE tables only
+    (CREATE TABLE, ALTER TABLE ... UNION=(...)). Set TL_WRITE for
+    every child. Set 'db' for every child if not present.
+*/
+
+static bool check_merge_table_access(THD *thd, char *db,
+                                     TABLE_LIST *table_list)
+{
+  int error= 0;
+
+  if (table_list)
+  {
+    /* Check that all tables use the current database */
+    TABLE_LIST *tlist;
+
+    for (tlist= table_list; tlist; tlist= tlist->next_local)
+    {
+      if (!tlist->db || !tlist->db[0])
+        tlist->db= db; /* purecov: inspected */
+    }
+    error= check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                              table_list,0);
+  }
+  return error;
 }
 
 
@@ -676,40 +720,49 @@ bool do_command(THD *thd)
     DBUG_PRINT("info",("Got error %d reading command from socket %s",
 		       net->error,
 		       vio_description(net->vio)));
+
     /* Check if we can continue without closing the connection */
+
     if (net->error != 3)
-    {
-      statistic_increment(aborted_threads,&LOCK_status);
       DBUG_RETURN(TRUE);			// We have to close it.
-    }
+
     net_send_error(thd, net->last_errno, NullS);
     net->error= 0;
     DBUG_RETURN(FALSE);
   }
-  else
+
+  packet= (char*) net->read_pos;
+  /*
+    'packet_length' contains length of data, as it was stored in packet
+    header. In case of malformed header, my_net_read returns zero.
+    If packet_length is not zero, my_net_read ensures that the returned
+    number of bytes was actually read from network.
+    There is also an extra safety measure in my_net_read:
+    it sets packet[packet_length]= 0, but only for non-zero packets.
+  */
+  if (packet_length == 0)                       /* safety */
   {
-    packet=(char*) net->read_pos;
-    command = (enum enum_server_command) (uchar) packet[0];
-    if (command >= COM_END)
-      command= COM_END;				// Wrong command
-    DBUG_PRINT("info",("Command on %s = %d (%s)",
-		       vio_description(net->vio), command,
-		       command_name[command].str));
+    /* Initialize with COM_SLEEP packet */
+    packet[0]= (uchar) COM_SLEEP;
+    packet_length= 1;
   }
+  /* Do not rely on my_net_read, extra safety against programming errors. */
+  packet[packet_length]= '\0';                  /* safety */
+
+  command= (enum enum_server_command) (uchar) packet[0];
+
+  if (command >= COM_END)
+    command= COM_END;				// Wrong command
+
+  DBUG_PRINT("info",("Command on %s = %d (%s)",
+                     vio_description(net->vio), command,
+                     command_name[command].str));
 
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
-  /*
-    packet_length contains length of data, as it was stored in packet
-    header. In case of malformed header, packet_length can be zero.
-    If packet_length is not zero, my_net_read ensures that this number
-    of bytes was actually read from network. Additionally my_net_read
-    sets packet[packet_length]= 0 (thus if packet_length == 0,
-    command == packet[0] == COM_SLEEP).
-    In dispatch_command packet[packet_length] points beyond the end of packet.
-  */
-  DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
+  DBUG_ASSERT(packet_length);
+  DBUG_RETURN(dispatch_command(command, thd, packet+1, (uint) (packet_length-1)));
 }
 #endif  /* EMBEDDED_LIBRARY */
 
@@ -722,9 +775,7 @@ bool do_command(THD *thd)
     thd             connection handle
     command         type of command to perform 
     packet          data for the command, packet is always null-terminated
-    packet_length   length of packet + 1 (to show that data is
-                    null-terminated) except for COM_SLEEP, where it
-                    can be zero.
+    packet_length   length of packet. Can be zero, e.g. in case of COM_SLEEP.
   RETURN VALUE
     0   ok
     1   request of thread shutdown, i. e. if command is
@@ -737,12 +788,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
-
-  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-  {
-    thd->killed= THD::NOT_KILLED;
-    thd->mysys_var->abort= 0;
-  }
+  DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
   thd->command=command;
   /*
@@ -768,10 +814,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     LEX_STRING tmp;
     status_var_increment(thd->status_var.com_stat[SQLCOM_CHANGE_DB]);
     thd->convert_string(&tmp, system_charset_info,
-			packet, packet_length-1, thd->charset());
+			packet, packet_length, thd->charset());
     if (!mysql_change_db(thd, &tmp, FALSE))
     {
-      general_log_print(thd, command, "%s",thd->db);
+      general_log_write(thd, command, thd->db, thd->db_length);
       send_ok(thd);
     }
     break;
@@ -788,14 +834,16 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     char *tbl_name;
     LEX_STRING db;
+    /* Safe because there is always a trailing \0 at the end of the packet */
     uint db_len= *(uchar*) packet;
-    if (db_len >= packet_length || db_len > NAME_LEN)
+    if (db_len + 1 > packet_length || db_len > NAME_LEN)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;
     }
+    /* Safe because there is always a trailing \0 at the end of the packet */
     uint tbl_len= *(uchar*) (packet + db_len + 1);
-    if (db_len+tbl_len+2 > packet_length || tbl_len > NAME_LEN)
+    if (db_len + tbl_len + 2 > packet_length || tbl_len > NAME_LEN)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;
@@ -818,7 +866,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CHANGE_USER:
   {
     status_var_increment(thd->status_var.com_other);
-    char *user= (char*) packet, *packet_end= packet+ packet_length;
+    char *user= (char*) packet, *packet_end= packet + packet_length;
+    /* Safe because there is always a trailing \0 at the end of the packet */
     char *passwd= strend(user)+1;
 
     thd->change_user();
@@ -835,6 +884,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char db_buff[NAME_LEN+1];                 // buffer to store db in utf8
     char *db= passwd;
     char *save_db;
+    /*
+      If there is no password supplied, the packet must contain '\0',
+      in any type of handshake (4.1 or pre-4.1).
+     */
+    if (passwd >= packet_end)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      break;
+    }
     uint passwd_len= (thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
                       (uchar)(*passwd++) : strlen(passwd));
     uint dummy_errors, save_db_length, db_length;
@@ -843,22 +901,32 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     USER_CONN *save_user_connect;
 
     db+= passwd_len + 1;
-#ifndef EMBEDDED_LIBRARY
-    /* Small check for incoming packet */
-    if ((uint) ((uchar*) db - net->read_pos) > packet_length)
+    /*
+      Database name is always NUL-terminated, so in case of empty database
+      the packet must contain at least the trailing '\0'.
+    */
+    if (db >= packet_end)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;
     }
-#endif
+    db_length= strlen(db);
+
+    char *ptr= db + db_length + 1;
+    uint cs_number= 0;
+
+    if (ptr < packet_end)
+    {
+      if (ptr + 2 > packet_end)
+      {
+        my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+        break;
+      }
+
+      cs_number= uint2korr(ptr);
+    }
+
     /* Convert database name to utf8 */
-    /*
-      Handle problem with old bug in client protocol where db had an extra
-      \0
-    */
-    db_length= (packet_end - db);
-    if (db_length > 0 && db[db_length-1] == 0)
-      db_length--;
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info, db, db_length,
                              thd->charset(), &dummy_errors)]= 0;
@@ -878,15 +946,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     /* Clear variables that are allocated */
     thd->user_connect= 0;
+    thd->security_ctx->priv_user= thd->security_ctx->user;
     res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, FALSE);
 
     if (res)
     {
-      /* authentication failure, we shall restore old user */
-      if (res > 0)
-        my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      else
-        thd->clear_error();                     // Error already sent to client
       x_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
@@ -900,8 +964,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
-      x_free((uchar*) save_db);
-      x_free((uchar*)  save_security_ctx.user);
+      x_free(save_db);
+      x_free(save_security_ctx.user);
+
+      if (cs_number)
+      {
+        thd_init_client_charset(thd, cs_number);
+        thd->update_charset();
+      }
     }
     break;
   }
@@ -941,10 +1011,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;					// fatal error is set
     char *packet_end= thd->query + thd->query_length;
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
-    const char *format= "%.*b";
     const char* found_semicolon= NULL;
 
-    general_log_print(thd, command, format, thd->query_length, thd->query);
+    general_log_write(thd, command, thd->query, thd->query_length);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -952,16 +1021,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     mysql_parse(thd, thd->query, thd->query_length, & found_semicolon);
 
-    while (!thd->killed && found_semicolon && !thd->net.report_error)
+    while (!thd->killed && found_semicolon && ! thd->is_error())
     {
       char *next_packet= (char*) found_semicolon;
       net->no_send_error= 0;
       /*
         Multiple queries exits, execute them individually
       */
-      if (thd->lock || thd->open_tables || thd->derived_tables ||
-          thd->prelocked_mode)
-        close_thread_tables(thd);
+      close_thread_tables(thd);
       ulong length= (ulong)(packet_end - next_packet);
 
       log_slow_statement(thd);
@@ -994,18 +1061,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
 #else
   {
-    char *fields, *packet_end= packet + packet_length - 1, *arg_end;
+    char *fields, *packet_end= packet + packet_length, *arg_end;
     /* Locked closure of all tables */
     TABLE_LIST table_list;
     LEX_STRING conv_name;
-    size_t dummy;
 
     /* used as fields initializator */
     lex_start(thd);
 
     status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS]);
     bzero((char*) &table_list,sizeof(table_list));
-    if (thd->copy_db_to(&table_list.db, &dummy))
+    if (thd->copy_db_to(&table_list.db, &table_list.db_length))
       break;
     /*
       We have name + wildcard in packet, separated by endzero
@@ -1069,7 +1135,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       HA_CREATE_INFO create_info;
 
       status_var_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB]);
-      if (thd->make_lex_string(&db, packet, packet_length - 1, FALSE) ||
+      if (thd->make_lex_string(&db, packet, packet_length, FALSE) ||
           thd->make_lex_string(&alias, db.str, db.length, FALSE) ||
           check_db_name(&db))
       {
@@ -1090,7 +1156,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       status_var_increment(thd->status_var.com_stat[SQLCOM_DROP_DB]);
       LEX_STRING db;
 
-      if (thd->make_lex_string(&db, packet, packet_length - 1, FALSE) ||
+      if (thd->make_lex_string(&db, packet, packet_length, FALSE) ||
           check_db_name(&db))
       {
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
@@ -1104,7 +1170,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                    ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
 	break;
       }
-      general_log_print(thd, command, db.str);
+      general_log_write(thd, command, db.str, db.length);
       mysql_rm_db(thd, db.str, 0, 0);
       break;
     }
@@ -1159,7 +1225,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break; /* purecov: inspected */
     /*
       If the client is < 4.1.3, it is going to send us no argument; then
-      packet_length is 1, packet[0] is the end 0 of the packet. Note that
+      packet_length is 0, packet[0] is the end 0 of the packet. Note that
       SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
       packet[0].
     */
@@ -1299,12 +1365,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
-  if (thd->lock || thd->open_tables || thd->derived_tables ||
-      thd->prelocked_mode)
-  {
-    thd->proc_info="closing tables";
-    close_thread_tables(thd);			/* Free tables */
-  }
+
+  thd->proc_info= "closing tables";
+  /* Free tables */
+  close_thread_tables(thd);
+
   /*
     assume handlers auto-commit (if some doesn't - transaction handling
     in MySQL should be redesigned to support it; it's a big change,
@@ -1318,9 +1383,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->transaction.xid_state.xid.null();
 
   /* report error issued during command execution */
-  if (thd->killed_errno() && !thd->net.report_error)
+  if (thd->killed_errno() && ! thd->is_error())
     thd->send_kill_message();
-  if (thd->net.report_error)
+  if (thd->is_error())
     net_send_error(thd);
 
   log_slow_statement(thd);
@@ -1517,9 +1582,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
 bool alloc_query(THD *thd, const char *packet, uint packet_length)
 {
-  packet_length--;				// Remove end null
   /* Remove garbage at start and end of query */
-  while (my_isspace(thd->charset(),packet[0]) && packet_length > 0)
+  while (packet_length > 0 && my_isspace(thd->charset(), packet[0]))
   {
     packet++;
     packet_length--;
@@ -1727,8 +1791,7 @@ mysql_execute_command(THD *thd)
     variables, but for now this is probably good enough.
     Don't reset warnings when executing a stored routine.
   */
-  if ((all_tables || &lex->select_lex != lex->all_selects_list ||
-       lex->sroutines.records) && !thd->spcont)
+  if ((all_tables || !lex->is_single_level_stmt()) && !thd->spcont)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
@@ -2052,7 +2115,16 @@ mysql_execute_command(THD *thd)
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     pthread_mutex_lock(&LOCK_active_mi);
-    res = show_master_info(thd,active_mi);
+    if (active_mi != NULL)
+    {
+      res = show_master_info(thd, active_mi);
+    }
+    else
+    {
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "the master info structure does not exist");
+      send_ok(thd);
+    }
     pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
@@ -2225,6 +2297,19 @@ mysql_execute_command(THD *thd)
 
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
+
+      /*
+        Disable non-empty MERGE tables with CREATE...SELECT. Too
+        complicated. See Bug #26379. Empty MERGE tables are read-only
+        and don't allow CREATE...SELECT anyway.
+      */
+      if (create_info.used_fields & HA_CREATE_USED_UNION)
+      {
+        my_error(ER_WRONG_OBJECT, MYF(0), create_table->db,
+                 create_table->table_name, "BASE TABLE");
+        res= 1;
+        goto end_with_restore_list;
+      }
 
       if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
       {
@@ -2907,6 +2992,13 @@ end_with_restore_list:
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                         OPTION_SETUP_TABLES_DONE,
 			del_result, unit, select_lex);
+      res|= thd->net.report_error;
+      if (unlikely(res))
+      {
+        /* If we had a another error reported earlier then this will be ignored */
+        del_result->send_error(ER_UNKNOWN_ERROR, "Execution of the query failed");
+        del_result->abort();
+      }
       delete del_result;
     }
     else
@@ -3018,6 +3110,10 @@ end_with_restore_list:
   case SQLCOM_SET_OPTION:
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
+
+    if (lex->autocommit && end_active_trans(thd))
+      goto error;
+
     if ((check_table_access(thd, SELECT_ACL, all_tables, 0) ||
 	 open_and_lock_tables(thd, all_tables)))
       goto error;
@@ -3170,12 +3266,9 @@ end_with_restore_list:
     res= mysql_rm_db(thd, lex->name.str, lex->drop_if_exists, 0);
     break;
   }
-  case SQLCOM_RENAME_DB:
+  case SQLCOM_ALTER_DB_UPGRADE:
   {
-    LEX_STRING *olddb, *newdb;
-    List_iterator <LEX_STRING> db_list(lex->db_list);
-    olddb= db_list++;
-    newdb= db_list++;
+    LEX_STRING *db= & lex->name;
     if (end_active_trans(thd))
     {
       res= 1;
@@ -3183,24 +3276,22 @@ end_with_restore_list:
     }
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread && 
-       (!rpl_filter->db_ok(olddb->str) ||
-        !rpl_filter->db_ok(newdb->str) ||
-        !rpl_filter->db_ok_with_wild_table(olddb->str) ||
-        !rpl_filter->db_ok_with_wild_table(newdb->str)))
+       (!rpl_filter->db_ok(db->str) ||
+        !rpl_filter->db_ok_with_wild_table(db->str)))
     {
       res= 1;
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
     }
 #endif
-    if (check_db_name(newdb))
+    if (check_db_name(db))
     {
-      my_error(ER_WRONG_DB_NAME, MYF(0), newdb->str);
+      my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
       break;
     }
-    if (check_access(thd,ALTER_ACL,olddb->str,0,1,0,is_schema_db(olddb->str)) ||
-        check_access(thd,DROP_ACL,olddb->str,0,1,0,is_schema_db(olddb->str)) ||
-        check_access(thd,CREATE_ACL,newdb->str,0,1,0,is_schema_db(newdb->str)))
+    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
+        check_access(thd, DROP_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
+        check_access(thd, CREATE_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
     {
       res= 1;
       break;
@@ -3212,7 +3303,8 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    res= mysql_rename_db(thd, olddb, newdb);
+
+    res= mysql_upgrade_db(thd, db);
     if (!res)
       send_ok(thd);
     break;
@@ -3255,6 +3347,8 @@ end_with_restore_list:
   }
   case SQLCOM_SHOW_CREATE_DB:
   {
+    DBUG_EXECUTE_IF("4x_server_emul",
+                    my_error(ER_UNKNOWN_ERROR, MYF(0)); goto error;);
     if (check_db_name(&lex->name))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
@@ -3323,12 +3417,6 @@ end_with_restore_list:
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
       break;
 #ifdef HAVE_DLOPEN
-    if (sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
-                        &thd->sp_func_cache, FALSE))
-    {
-      my_error(ER_UDF_EXISTS, MYF(0), lex->spname->m_name.str);
-      goto error;
-    }
     if (!(res = mysql_create_function(thd, &lex->udf)))
       send_ok(thd);
 #else
@@ -3376,6 +3464,8 @@ end_with_restore_list:
   }
   case SQLCOM_REVOKE_ALL:
   {
+    if (end_active_trans(thd))
+      goto error;
     if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1, 0) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
@@ -3387,6 +3477,9 @@ end_with_restore_list:
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
+    if (end_active_trans(thd))
+      goto error;
+
     if (check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
 		     first_table ?  first_table->db : select_lex->db,
 		     first_table ? &first_table->grant.privilege : 0,
@@ -3779,6 +3872,9 @@ end_with_restore_list:
     case SP_BODY_TOO_LONG:
       my_error(ER_TOO_LONG_BODY, MYF(0), name);
     break;
+    case SP_FLD_STORE_FAILED:
+      my_error(ER_CANT_CREATE_SROUTINE, MYF(0), name);
+      break;
     default:
       my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
     break;
@@ -3895,7 +3991,7 @@ create_sp_error:
                                 thd->row_count_func));
 	else
         {
-          DBUG_ASSERT(thd->net.report_error == 1 || thd->killed);
+          DBUG_ASSERT(thd->is_error() || thd->killed);
 	  goto error;		// Substatement should already have sent error
         }
       }
@@ -4488,7 +4584,7 @@ finish:
     */
     start_waiting_global_read_lock(thd);
   }
-  DBUG_RETURN(res || thd->net.report_error);
+  DBUG_RETURN(res || thd->is_error());
 }
 
 
@@ -5062,26 +5158,6 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
 }
 
 
-bool check_merge_table_access(THD *thd, char *db,
-			      TABLE_LIST *table_list)
-{
-  int error=0;
-  if (table_list)
-  {
-    /* Check that all tables use the current database */
-    TABLE_LIST *tmp;
-    for (tmp= table_list; tmp; tmp= tmp->next_local)
-    {
-      if (!tmp->db || !tmp->db[0])
-	tmp->db=db;
-    }
-    error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-			     table_list,0);
-  }
-  return error;
-}
-
-
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
 ****************************************************************************/
@@ -5251,6 +5327,11 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->init_query();
   select_lex->init_select();
   lex->nest_level++;
+  if (lex->nest_level > (int) MAX_SELECT_NESTING)
+  {
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT,MYF(0),MAX_SELECT_NESTING);
+    DBUG_RETURN(1);
+  }
   select_lex->nest_level= lex->nest_level;
   /*
     Don't evaluate this subquery during statement prepare even if
@@ -5370,11 +5451,12 @@ void mysql_init_multi_delete(LEX *lex)
 
 /**
   Parse a query.
-  @param thd Current thread
-  @param inBuf Begining of the query text
-  @param length Length of the query text
-  @param [out] semicolon For multi queries, position of the character of
-  the next query in the query text.
+
+  @param       thd     Current thread
+  @param       inBuf   Begining of the query text
+  @param       length  Length of the query text
+  @param[out]  found_semicolon For multi queries, position of the character of
+                               the next query in the query text.
 */
 
 void mysql_parse(THD *thd, const char *inBuf, uint length,
@@ -5426,7 +5508,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
       else
 #endif
       {
-	if (! thd->net.report_error)
+	if (! thd->is_error())
 	{
           /*
             Binlog logs a string starting from thd->query and having length
@@ -5450,7 +5532,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     }
     else
     {
-      DBUG_ASSERT(thd->net.report_error);
+      DBUG_ASSERT(thd->is_error());
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
 
@@ -5753,7 +5835,12 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
         (schema_table->hidden && 
-         (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
+         ((sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0 || 
+          /*
+            this check is used for show columns|keys from I_S hidden table
+          */
+          lex->sql_command == SQLCOM_SHOW_FIELDS ||
+          lex->sql_command == SQLCOM_SHOW_KEYS)))
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
                ptr->table_name, INFORMATION_SCHEMA_NAME.str);
@@ -6251,24 +6338,23 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 }
 
 
-/*
-  Reload/resets privileges and the different caches.
+/**
+  @brief Reload/resets privileges and the different caches.
 
-  SYNOPSIS
-    reload_acl_and_cache()
-    thd			Thread handler (can be NULL!)
-    options             What should be reset/reloaded (tables, privileges,
-    slave...)
-    tables              Tables to flush (if any)
-    write_to_binlog     Depending on 'options', it may be very bad to write the
-                        query to the binlog (e.g. FLUSH SLAVE); this is a
-                        pointer where reload_acl_and_cache() will put 0 if
-                        it thinks we really should not write to the binlog.
-                        Otherwise it will put 1.
+  @param thd Thread handler (can be NULL!)
+  @param options What should be reset/reloaded (tables, privileges, slave...)
+  @param tables Tables to flush (if any)
+  @param write_to_binlog True if we can write to the binlog.
+               
+  @note Depending on 'options', it may be very bad to write the
+    query to the binlog (e.g. FLUSH SLAVE); this is a
+    pointer where reload_acl_and_cache() will put 0 if
+    it thinks we really should not write to the binlog.
+    Otherwise it will put 1.
 
-  RETURN
-    0	 ok
-    !=0  error.  thd->killed or thd->net.report_error is set
+  @return Error status code
+    @retval 0 Ok
+    @retval !=0  Error; thd->killed is set or thd->is_error() is true
 */
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
@@ -6372,7 +6458,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 
         for (; lock_p < end_p; lock_p++)
         {
-          if ((*lock_p)->type == TL_WRITE)
+          if ((*lock_p)->type >= TL_WRITE_ALLOW_WRITE)
           {
             my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
             return 1;
@@ -6942,8 +7028,15 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   bool error= TRUE;                                 // Error message is given
   DBUG_ENTER("create_table_precheck");
 
+  /*
+    Require CREATE [TEMPORARY] privilege on new table; for
+    CREATE TABLE ... SELECT, also require INSERT.
+  */
+
   want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-              CREATE_TMP_ACL : CREATE_ACL);
+              CREATE_TMP_ACL : CREATE_ACL) |
+             (select_lex->item_list.elements ? INSERT_ACL : 0);
+
   if (check_access(thd, want_priv, create_table->db,
 		   &create_table->grant.privilege, 0, 0,
                    test(create_table->schema_table)) ||
@@ -7229,7 +7322,12 @@ bool parse_sql(THD *thd,
 
   /* Parse the query. */
 
-  bool err_status= MYSQLparse(thd) != 0 || thd->is_fatal_error;
+  bool mysql_parse_status= MYSQLparse(thd) != 0;
+
+  /* Check that if MYSQLparse() failed, thd->is_error() is set. */
+
+  DBUG_ASSERT(!mysql_parse_status ||
+              mysql_parse_status && thd->is_error());
 
   /* Reset Lex_input_stream. */
 
@@ -7242,5 +7340,9 @@ bool parse_sql(THD *thd,
 
   /* That's it. */
 
-  return err_status;
+  return mysql_parse_status || thd->is_fatal_error;
 }
+
+/**
+  @} (end of group Runtime_Environment)
+*/

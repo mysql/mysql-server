@@ -242,18 +242,21 @@ DELIMITER /
 SELECT 1/
 EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/bug21412.sql;
 
 # This should give an error...
 --write_file $MYSQLTEST_VARDIR/tmp/bug21412.sql
 DELIMITER \
 EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/bug21412.sql;
 
 # As should this...
 --write_file $MYSQLTEST_VARDIR/tmp/bug21412.sql
 DELIMITER \\
 EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/bug21412.sql;
 
 #
 # Some coverage of not normally used parts
@@ -274,6 +277,20 @@ EOF
 --exec $MYSQL --pager="540bytelengthstringxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" -e "select 1" > /dev/null 2>&1
 --exec $MYSQL --character-sets-dir="540bytelengthstringxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" -e "select 1" 2>&1
 
+#
+# bug #30164: Using client side macro inside server side comments generates broken queries
+#
+--exec $MYSQL test -e "/*! \C latin1 */ select 1;"
+
+#
+# Bug#29323 mysql client only accetps ANSI encoded files
+#
+--write_file $MYSQLTEST_VARDIR/tmp/bug29323.sql
+﻿select "This is a file starting with UTF8 BOM 0xEFBBBF";
+EOF
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29323.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/bug29323.sql;
+
 --echo End of 5.0 tests
 
 #
@@ -282,3 +299,21 @@ EOF
 --disable_query_log
 --exec $MYSQL --server-arg=no-defaults test -e "quit"
 --enable_query_log
+
+#
+# Bug #25146: Some warnings/errors not shown when using --show-warnings
+#
+
+# This one should succeed with no warnings
+--exec $MYSQL --show-warnings test -e "create table t1 (id int)"
+
+# This should succeed, with warnings about conversion from nonexistent engine
+--exec $MYSQL --show-warnings test -e "create table t2 (id int) engine=nonexistent"
+
+# This should fail, with warnings as well
+--error 1
+--exec $MYSQL --show-warnings test -e "create table t2 (id int) engine=nonexistent2"
+
+drop tables t1, t2;
+
+--echo End of tests

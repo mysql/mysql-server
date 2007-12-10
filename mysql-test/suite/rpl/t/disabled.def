@@ -11,9 +11,8 @@
 ##############################################################################
 
 rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK on master
-#rpl_innodb_mixed_ddl     : Bug #29363 rpl.rpl_innodb_mixed_* test failures
-#rpl_innodb_mixed_dml     : Bug #29363 rpl.rpl_innodb_mixed_* test failures
-rpl_invoked_features     : BUG#29020 2007-06-21 Lars Non-deterministic test case
-rpl_auto_increment_11932   : Bug#29809 2007-07-16 ingo Slave SQL errors in warnings file
 rpl_stm_extraColmaster_ndb : WL#3915 : Statement-based replication not supported in ndb. Enable test when supported.
-rpl_row_extraColmaster_ndb : BUG#29549 : Replication of BLOBs fail for NDB
+rpl_innodb_bug28430      : Bug #32247 2007-11-27 mats Test reports wrong value of "AUTO_INCREMENT" (on a partitioned InnoDB table)
+rpl_view                   : Bug#32654: rpl_view.test fails randomly
+rpl_ndb_multi              : Bug#30751: rpl_ndb_multi missing row in output
+rpl_log_pos                : Bug#8693 Test 'rpl_log_pos' fails sometimes

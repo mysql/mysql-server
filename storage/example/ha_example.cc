@@ -79,6 +79,10 @@
   ha_example::open() would also have been necessary. Calls to
   ha_example::extra() are hints as to what will be occuring to the request.
 
+  A Longer Example can be found called the "Skeleton Engine" which can be 
+  found on TangentOrg. It has both an engine and a full build environment
+  for building a pluggable storage engine.
+
   Happy coding!<br>
     -Brian
 */
@@ -132,7 +136,6 @@ static int example_init_func(void *p)
                    (hash_get_key) example_get_key,0,0);
 
   example_hton->state=   SHOW_OPTION_YES;
-  example_hton->db_type= DB_TYPE_EXAMPLE_DB;
   example_hton->create=  example_create_handler;
   example_hton->flags=   HTON_CAN_RECREATE;
 
@@ -845,6 +848,34 @@ int ha_example::create(const char *name, TABLE *table_arg,
 struct st_mysql_storage_engine example_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
+static ulong srv_enum_var= 0;
+
+const char *enum_var_names[]=
+{
+  "e1", "e2", NullS
+};
+
+TYPELIB enum_var_typelib=
+{
+  array_elements(enum_var_names) - 1, "enum_var_typelib",
+  enum_var_names, NULL
+};
+
+static MYSQL_SYSVAR_ENUM(
+  enum_var,                       // name
+  srv_enum_var,                   // varname
+  PLUGIN_VAR_RQCMDARG,            // opt
+  "Sample ENUM system variable.", // comment
+  NULL,                           // check
+  NULL,                           // update
+  0,                              // def
+  &enum_var_typelib);             // typelib
+
+static struct st_mysql_sys_var* example_system_variables[]= {
+  MYSQL_SYSVAR(enum_var),
+  NULL
+};
+
 mysql_declare_plugin(example)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -857,7 +888,7 @@ mysql_declare_plugin(example)
   example_done_func,                            /* Plugin Deinit */
   0x0001 /* 0.1 */,
   NULL,                                         /* status variables */
-  NULL,                                         /* system variables */
+  example_system_variables,                     /* system variables */
   NULL                                          /* config options */
 }
 mysql_declare_plugin_end;

@@ -23,15 +23,22 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
-			@thread_dirs@ pstack \
+			@pstack_dir@ \
 			@sql_union_dirs@ unittest storage plugin \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			mysql-test support-files sql-bench @tools_dirs@ \
 			win
 
-DIST_SUBDIRS =		$(SUBDIRS) BUILD debian
-
+DIST_SUBDIRS =		. include Docs zlib \
+			cmd-line-utils sql-common scripts \
+			pstack \
+			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
+			vio sql man tests \
+			netware libmysqld \
+			mysql-test support-files sql-bench server-tools \
+			win \
+			BUILD
 DISTCLEANFILES = ac_available_languages_fragment
 
 # Create permission databases
@@ -45,7 +52,6 @@ bin-dist:		all
 # Create initial database files for Windows installations.
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
-	rm -f  `find $(distdir) -type l -print`
 	mkdir -p $(distdir)/win
 	scripts/mysql_install_db --no-defaults --windows \
 		--basedir=$(top_builddir) \
@@ -60,7 +66,7 @@ tags:
   test-pl test-force-pl test-full-pl test-force-full-pl test-force-pl-mem \
   test-unit test-ps test-nr test-pr test-ns test-binlog-statement \
   test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp \
-  test-ext-stress test-ext \
+  test-ext-stress test-ext test-embedded \
   test-fast test-fast-cursor test-fast-view test-fast-prepare \
   test-full-qa
 
@@ -95,6 +101,15 @@ test-binlog-statement:
 	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
 
+test-embedded:
+	if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
+	  cd mysql-test ; MTR_BUILD_THREAD=auto \
+	  @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
+	    --embedded-server --skip-rpl --skip-ndbcluster ; \
+	else \
+	  echo "no program found for 'embedded' tests - skipped testing" ; \
+	fi
+
 test:	test-unit test-ns test-pr
 
 test-full:	test test-nr test-ps
@@ -125,11 +140,7 @@ test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --comment=NDB            --force --timer \
 	--with-ndbcluster-only
-	-if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
-	  cd mysql-test ; MTR_BUILD_THREAD=auto \
-	  @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
-	    --embedded-server --skip-rpl --skip-ndbcluster ; \
-	fi
+	-$(MAKE) test-embedded
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs1_ps --ps-protocol --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \

@@ -825,4 +825,55 @@ id	group_concat(b.name)
 1	óra,óra
 2	óra,óra
 drop table t1;
+create table t1(a bit not null);
+insert into t1 values (), (), ();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select group_concat(distinct a) from t1;
+group_concat(distinct a)
+0
+select group_concat(distinct a order by a) from t1;
+group_concat(distinct a order by a)
+0
+drop table t1;
+create table t1(a bit(2) not null);
+insert into t1 values (1), (0), (0), (3), (1);
+select group_concat(distinct a) from t1;
+group_concat(distinct a)
+1,0,3
+select group_concat(distinct a order by a) from t1;
+group_concat(distinct a order by a)
+0,1,3
+select group_concat(distinct a order by a desc) from t1;
+group_concat(distinct a order by a desc)
+3,1,0
+drop table t1;
+create table t1(a bit(2), b varchar(10), c bit);
+insert into t1 values (1, 'a', 0), (0, 'b', 1), (0, 'c', 0), (3, 'd', 1),
+(1, 'e', 1), (3, 'f', 1), (0, 'g', 1);
+select group_concat(distinct a, c) from t1;
+group_concat(distinct a, c)
+10,01,00,31,11
+select group_concat(distinct a, c order by a) from t1;
+group_concat(distinct a, c order by a)
+00,01,11,10,31
+select group_concat(distinct a, c) from t1;
+group_concat(distinct a, c)
+10,01,00,31,11
+select group_concat(distinct a, c order by a, c) from t1;
+group_concat(distinct a, c order by a, c)
+00,01,10,11,31
+select group_concat(distinct a, c order by a desc, c desc) from t1;
+group_concat(distinct a, c order by a desc, c desc)
+31,11,10,01,00
+drop table t1;
+create table t1 (f1 char(20));
+insert into t1 values (''),('');
+select group_concat(distinct f1) from t1;
+group_concat(distinct f1)
+
+select group_concat(f1) from t1;
+group_concat(f1)
+,
+drop table t1;
 End of 5.0 tests

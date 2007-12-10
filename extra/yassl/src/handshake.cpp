@@ -719,6 +719,10 @@ int DoProcessReply(SSL& ssl)
 
     // add new data
     uint read  = ssl.useSocket().receive(buffer.get_buffer() + buffSz, ready);
+    if (read == static_cast<uint>(-1)) {
+        ssl.SetError(receive_error);
+        return 0;
+    }
     buffer.add_size(read);
     uint offset = 0;
     const MessageFactory& mf = ssl.getFactory().getMessage();

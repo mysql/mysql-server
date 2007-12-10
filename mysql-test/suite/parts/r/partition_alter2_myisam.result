@@ -2,14 +2,6 @@ SET @max_row = 20;
 SET @@session.storage_engine = 'MyISAM';
 
 #------------------------------------------------------------------------
-# There are several testcases disabled because of the open bugs
-# #15890
-# The expected results suffer from the following bugs
-# harmless #17455, #19305
-# which cannot be suppressed because of technical reasons.
-#------------------------------------------------------------------------
-
-#------------------------------------------------------------------------
 #  0. Setting of auxiliary variables + Creation of an auxiliary tables
 #     needed in many testcases
 #------------------------------------------------------------------------
@@ -31,7 +23,7 @@ DROP TABLE IF EXISTS t0_definition;
 CREATE TABLE t0_definition (
 state CHAR(3),
 create_command VARBINARY(5000),
-file_list      VARBINARY(5000),
+file_list      VARBINARY(10000),
 PRIMARY KEY (state)
 ) ENGINE = MEMORY;
 DROP TABLE IF EXISTS t0_aux;
@@ -71,7 +63,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -516,7 +508,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -534,7 +526,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -985,7 +977,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -1011,7 +1003,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1468,7 +1460,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -1492,7 +1484,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1943,7 +1935,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -1965,7 +1957,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2422,7 +2414,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -2448,7 +2440,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2903,7 +2895,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -2929,7 +2921,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3386,7 +3378,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -3408,7 +3400,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3867,7 +3859,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #  1.1.3 UNIQUE INDEX exists
 DROP TABLE IF EXISTS t1;
@@ -3887,7 +3879,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -4384,7 +4376,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -4402,7 +4394,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -4905,7 +4897,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -4931,7 +4923,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -5440,7 +5432,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -5464,7 +5456,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -5967,7 +5959,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -5989,7 +5981,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -6498,7 +6490,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -6524,7 +6516,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -7031,7 +7023,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -7057,7 +7049,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -7566,7 +7558,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -7588,7 +7580,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -8099,7 +8091,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -8118,7 +8110,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -8615,7 +8607,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -8633,7 +8625,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -9136,7 +9128,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -9162,7 +9154,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -9671,7 +9663,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -9695,7 +9687,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -10198,7 +10190,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -10220,7 +10212,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -10729,7 +10721,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -10755,7 +10747,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -11262,7 +11254,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -11288,7 +11280,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -11797,7 +11789,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -11819,7 +11811,7 @@ ALTER TABLE t1 MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -12330,7 +12322,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #------------------------------------------------------------------------
 #  1.3   ALTER column f_int1 and f_int2
@@ -12354,7 +12346,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -12799,7 +12791,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -12817,7 +12809,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -13268,7 +13260,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -13294,7 +13286,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -13751,7 +13743,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -13775,7 +13767,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -14226,7 +14218,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -14248,7 +14240,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -14705,7 +14697,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -14731,7 +14723,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -15186,7 +15178,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -15212,7 +15204,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -15669,7 +15661,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -15691,7 +15683,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -16150,7 +16142,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -16169,7 +16161,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -16614,7 +16606,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -16632,7 +16624,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -17083,7 +17075,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -17109,7 +17101,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -17566,7 +17558,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -17590,7 +17582,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -18041,7 +18033,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -18063,7 +18055,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -18518,7 +18510,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -18544,7 +18536,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -18999,7 +18991,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -19025,7 +19017,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -19482,7 +19474,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -19504,7 +19496,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -19963,7 +19955,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #  1.3.3 UNIQUE INDEX exists
 DROP TABLE IF EXISTS t1;
@@ -19983,7 +19975,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -20480,7 +20472,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -20498,7 +20490,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -21001,7 +20993,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -21027,7 +21019,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -21536,7 +21528,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -21560,7 +21552,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -22063,7 +22055,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -22085,7 +22077,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -22594,7 +22586,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -22620,7 +22612,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -23127,7 +23119,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -23153,7 +23145,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -23662,7 +23654,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -23684,7 +23676,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -24195,7 +24187,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -24214,7 +24206,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -24711,7 +24703,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -24729,7 +24721,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -25232,7 +25224,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -25258,7 +25250,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -25767,7 +25759,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -25791,7 +25783,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -26294,7 +26286,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -26316,7 +26308,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -26823,7 +26815,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -26849,7 +26841,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -27356,7 +27348,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -27382,7 +27374,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -27891,7 +27883,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -27913,7 +27905,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -28424,7 +28416,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -28443,7 +28435,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -28940,7 +28932,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -28958,7 +28950,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -29461,7 +29453,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -29487,7 +29479,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -29996,7 +29988,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -30020,7 +30012,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -30523,7 +30515,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -30545,7 +30537,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -31054,7 +31046,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -31080,7 +31072,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -31587,7 +31579,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -31613,7 +31605,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -32122,7 +32114,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -32144,7 +32136,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -32655,7 +32647,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -32674,7 +32666,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -33171,7 +33163,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -33189,7 +33181,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -33692,7 +33684,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -33718,7 +33710,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -34227,7 +34219,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -34251,7 +34243,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -34754,7 +34746,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -34776,7 +34768,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -35283,7 +35275,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -35309,7 +35301,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -35816,7 +35808,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -35842,7 +35834,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -36351,7 +36343,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -36373,7 +36365,7 @@ ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -36884,7 +36876,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 
 #========================================================================
@@ -36912,7 +36904,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -37359,7 +37351,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -37377,7 +37369,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -37830,7 +37822,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -37856,7 +37848,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -38315,7 +38307,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -38339,7 +38331,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -38790,7 +38782,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -38812,7 +38804,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -39271,7 +39263,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -39297,7 +39289,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -39752,7 +39744,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -39778,7 +39770,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -40237,7 +40229,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -40259,7 +40251,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -40720,7 +40712,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #  2.1.3 UNIQUE INDEX exists
 DROP TABLE IF EXISTS t1;
@@ -40740,7 +40732,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -41239,7 +41231,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -41257,7 +41249,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -41762,7 +41754,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -41788,7 +41780,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -42299,7 +42291,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -42323,7 +42315,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -42826,7 +42818,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -42848,7 +42840,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -43359,7 +43351,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -43385,7 +43377,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -43892,7 +43884,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -43918,7 +43910,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -44429,7 +44421,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -44451,7 +44443,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -44964,7 +44956,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -44983,7 +44975,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -45482,7 +45474,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -45500,7 +45492,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -46005,7 +45997,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -46031,7 +46023,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -46542,7 +46534,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -46566,7 +46558,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -47069,7 +47061,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -47091,7 +47083,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -47602,7 +47594,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -47628,7 +47620,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -48135,7 +48127,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -48161,7 +48153,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -48672,7 +48664,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -48694,7 +48686,7 @@ ALTER TABLE t1 MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -49207,7 +49199,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #------------------------------------------------------------------------
 #  2.3   ALTER column f_int1 and f_int2 used in partitioning function
@@ -49230,7 +49222,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -49678,7 +49670,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -49696,7 +49688,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -50150,7 +50142,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -50176,7 +50168,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -50636,7 +50628,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -50660,7 +50652,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -51116,7 +51108,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -51138,7 +51130,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -51598,7 +51590,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -51624,7 +51616,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -52084,7 +52076,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -52110,7 +52102,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -52570,7 +52562,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -52592,7 +52584,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -53054,7 +53046,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -53073,7 +53065,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -53521,7 +53513,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -53539,7 +53531,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -53993,7 +53985,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -54019,7 +54011,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -54479,7 +54471,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -54503,7 +54495,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -54959,7 +54951,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -54981,7 +54973,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -55441,7 +55433,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -55467,7 +55459,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -55927,7 +55919,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -55953,7 +55945,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -56413,7 +56405,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -56435,7 +56427,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -56897,7 +56889,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #  2.3.3 UNIQUE INDEX exists
 DROP TABLE IF EXISTS t1;
@@ -56917,7 +56909,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -57417,7 +57409,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -57435,7 +57427,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -57941,7 +57933,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -57967,7 +57959,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -58479,7 +58471,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -58503,7 +58495,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -59011,7 +59003,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -59033,7 +59025,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -59545,7 +59537,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -59571,7 +59563,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -60083,7 +60075,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -60109,7 +60101,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -60621,7 +60613,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -60643,7 +60635,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -61157,7 +61149,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -61176,7 +61168,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -61676,7 +61668,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -61694,7 +61686,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -62200,7 +62192,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -62226,7 +62218,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -62738,7 +62730,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -62762,7 +62754,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -63270,7 +63262,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -63292,7 +63284,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -63804,7 +63796,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -63830,7 +63822,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -64342,7 +64334,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -64368,7 +64360,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -64880,7 +64872,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -64902,7 +64894,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -65416,7 +65408,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -65435,7 +65427,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -65935,7 +65927,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -65953,7 +65945,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -66459,7 +66451,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -66485,7 +66477,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -66997,7 +66989,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -67021,7 +67013,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -67529,7 +67521,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -67551,7 +67543,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -68063,7 +68055,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -68089,7 +68081,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -68601,7 +68593,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -68627,7 +68619,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -69139,7 +69131,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -69161,7 +69153,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -69675,7 +69667,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -69694,7 +69686,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -70194,7 +70186,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -70212,7 +70204,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -70718,7 +70710,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -70744,7 +70736,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -71256,7 +71248,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -71280,7 +71272,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -71788,7 +71780,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -71810,7 +71802,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -72322,7 +72314,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -72348,7 +72340,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -72860,7 +72852,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -72886,7 +72878,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -73398,7 +73390,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -73420,7 +73412,7 @@ ALTER TABLE t1 MODIFY f_int1 MEDIUMINT, MODIFY f_int2 MEDIUMINT;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 AND @max_row;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -73934,7 +73926,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 DROP VIEW  IF EXISTS v1;
 DROP TABLE IF EXISTS t1;

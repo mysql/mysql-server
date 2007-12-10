@@ -173,7 +173,7 @@ void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr)
 }
 
 /**
-  The operation appends unprocessed part of pre-processed buffer till
+  @brief The operation appends unprocessed part of pre-processed buffer till
   the given pointer (ptr) and sets m_cpp_utf8_processed_ptr to end_ptr.
 
   The idea is that some tokens in the pre-processed buffer (like character
@@ -323,7 +323,6 @@ void lex_start(THD *thd)
   lex->length=0;
   lex->part_info= 0;
   lex->select_lex.in_sum_expr=0;
-  lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
@@ -339,6 +338,7 @@ void lex_start(THD *thd)
   lex->query_tables= 0;
   lex->reset_query_tables_list(FALSE);
   lex->expr_allows_subselect= TRUE;
+  lex->use_only_table_context= FALSE;
 
   lex->name.str= 0;
   lex->name.length= 0;
@@ -363,6 +363,7 @@ void lex_start(THD *thd)
   lex->server_options.owner= 0;
   lex->server_options.port= -1;
 
+  lex->is_lex_started= TRUE;
   DBUG_VOID_RETURN;
 }
 
@@ -720,6 +721,7 @@ static inline uint int_token(const char *str,uint length)
 int MYSQLlex(void *arg, void *yythd)
 {
   reg1	uchar c;
+  bool comment_closed;
   int	tokval, result_state;
   uint length;
   enum my_lex_states state;
@@ -1212,7 +1214,10 @@ int MYSQLlex(void *arg, void *yythd)
         /*
           The special comment format is very strict:
           '/' '*' '!', followed by exactly
-          2 digits (major), then 3 digits (minor).
+          1 digit (major), 2 digits (minor), then 2 digits (dot).
+          32302 -> 3.23.02
+          50032 -> 5.0.32
+          50114 -> 5.1.14
         */
         char version_str[6];
         version_str[0]= lip->yyPeekn(0);
@@ -1231,7 +1236,7 @@ int MYSQLlex(void *arg, void *yythd)
           ulong version;
           version=strtol(version_str, NULL, 10);
 
-          /* Accept 'M' 'M' 'm' 'm' 'm' */
+          /* Accept 'M' 'm' 'm' 'd' 'd' */
           lip->yySkipn(5);
 
           if (version <= MYSQL_VERSION_ID)
@@ -1255,16 +1260,36 @@ int MYSQLlex(void *arg, void *yythd)
         lip->yySkip();                  // Accept /
         lip->yySkip();                  // Accept *
       }
-
-      while (! lip->eof() &&
-            ((c=lip->yyGet()) != '*' || lip->yyPeek() != '/'))
+      /*
+        Discard:
+        - regular '/' '*' comments,
+        - special comments '/' '*' '!' for a future version,
+        by scanning until we find a closing '*' '/' marker.
+        Note: There is no such thing as nesting comments,
+        the first '*' '/' sequence seen will mark the end.
+      */
+      comment_closed= FALSE;
+      while (! lip->eof())
       {
-        if (c == '\n')
+        c= lip->yyGet();
+        if (c == '*')
+        {
+          if (lip->yyPeek() == '/')
+          {
+            lip->yySkip();
+            comment_closed= TRUE;
+            state = MY_LEX_START;
+            break;
+          }
+        }
+        else if (c == '\n')
           lip->yylineno++;
       }
-      if (! lip->eof())
-        lip->yySkip();                  // remove last '/'
+      /* Unbalanced comments with a missing '*' '/' are a syntax error */
+      if (! comment_closed)
+        return (ABORT_SYM);
       state = MY_LEX_START;             // Try again
+      lip->in_comment= NO_COMMENT;
       lip->set_echo(TRUE);
       break;
     case MY_LEX_END_LONG_COMMENT:
@@ -1316,6 +1341,9 @@ int MYSQLlex(void *arg, void *yythd)
         lip->set_echo(FALSE);
         lip->yySkip();
         lip->set_echo(TRUE);
+        /* Unbalanced comments with a missing '*' '/' are a syntax error */
+        if (lip->in_comment != NO_COMMENT)
+          return (ABORT_SYM);
         lip->next_state=MY_LEX_END;     // Mark for next loop
         return(END_OF_INPUT);
       }
@@ -1399,6 +1427,19 @@ int MYSQLlex(void *arg, void *yythd)
   }
 }
 
+
+/**
+  Construct a copy of this object to be used for mysql_alter_table
+  and mysql_create_table.
+
+  Historically, these two functions modify their Alter_info
+  arguments. This behaviour breaks re-execution of prepared
+  statements and stored procedures and is compensated by always
+  supplying a copy of Alter_info to these functions.
+
+  @return You need to use check the error in THD for out
+  of memory condition after calling this function.
+*/
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   :drop_list(rhs.drop_list, mem_root),
@@ -1543,7 +1584,6 @@ void st_select_lex::init_select()
   options= 0;
   sql_cache= SQL_CACHE_UNSPECIFIED;
   braces= 0;
-  expr_list.empty();
   interval_list.empty();
   ftfunc_list_alloc.empty();
   inner_sum_func_list= 0;
@@ -1738,7 +1778,7 @@ void st_select_lex_unit::exclude_tree()
     'last' should be reachable from this st_select_lex_node
 */
 
-void st_select_lex::mark_as_dependent(SELECT_LEX *last)
+void st_select_lex::mark_as_dependent(st_select_lex *last)
 {
   /*
     Mark all selects from resolved to 1 before select where was
@@ -2100,7 +2140,7 @@ void Query_tables_list::destroy_query_tables_list()
 
 st_lex::st_lex()
   :result(0), yacc_yyss(0), yacc_yyvs(0),
-   sql_command(SQLCOM_END), option_type(OPT_DEFAULT)
+   sql_command(SQLCOM_END), option_type(OPT_DEFAULT), is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
@@ -2356,13 +2396,22 @@ st_lex::copy_db_to(char **p_db, size_t *p_db_length) const
     values	- SELECT_LEX with initial values for counters
 */
 
-void st_select_lex_unit::set_limit(SELECT_LEX *sl)
+void st_select_lex_unit::set_limit(st_select_lex *sl)
 {
   ha_rows select_limit_val;
+  ulonglong val;
 
   DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
-  select_limit_val= (ha_rows)(sl->select_limit ? sl->select_limit->val_uint() :
-                                                 HA_POS_ERROR);
+  val= sl->select_limit ? sl->select_limit->val_uint() : HA_POS_ERROR;
+  select_limit_val= (ha_rows)val;
+#ifndef BIG_TABLES
+  /* 
+    Check for overflow : ha_rows can be smaller then ulonglong if
+    BIG_TABLES is off.
+    */
+  if (val != (ulonglong)select_limit_val)
+    select_limit_val= HA_POS_ERROR;
+#endif
   offset_limit_cnt= (ha_rows)(sl->offset_limit ? sl->offset_limit->val_uint() :
                                                  ULL(0));
   select_limit_cnt= select_limit_val + offset_limit_cnt;
@@ -2886,7 +2935,7 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
   partitioning or if only partitions to add or to split.
 
   @note  This needs to be outside of WITH_PARTITION_STORAGE_ENGINE since it
-  is used from the sql parser that doesn't have any #ifdef's
+  is used from the sql parser that doesn't have any ifdef's
 
   @retval  TRUE    Yes, it is part of a management partition command
   @retval  FALSE          No, not a management partition command

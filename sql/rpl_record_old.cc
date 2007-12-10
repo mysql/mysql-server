@@ -70,7 +70,7 @@ pack_row_old(TABLE *table, MY_BITMAP const* cols,
  */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int
-unpack_row_old(RELAY_LOG_INFO *rli,
+unpack_row_old(Relay_log_info *rli,
                TABLE *table, uint const colcnt, uchar *record,
                uchar const *row, MY_BITMAP const *cols,
                uchar const **row_end, ulong *master_reclength,

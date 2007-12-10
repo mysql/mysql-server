@@ -208,3 +208,26 @@ GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 drop user mysqltest_1@localhost;
 drop procedure 15298_1;
 drop procedure 15298_2;
+drop table if exists t1;
+drop procedure if exists p1;
+create table t1 (value varchar(15));
+create procedure p1() update t1 set value='updated' where value='old';
+call p1();
+insert into t1 (value) values ("old");
+select get_lock('b26162',120);
+get_lock('b26162',120)
+1
+select 'rl_acquirer', value from t1 where get_lock('b26162',120);;
+set session low_priority_updates=on;
+call p1();;
+select 'rl_contender', value from t1;
+rl_contender	value
+rl_contender	old
+select release_lock('b26162');
+release_lock('b26162')
+1
+rl_acquirer	value
+rl_acquirer	old
+drop procedure p1;
+drop table t1;
+set session low_priority_updates=default;

@@ -1,5 +1,6 @@
 SET SESSION STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
+drop procedure if exists p1;
 create table t1 (
 c_id int(11) not null default '0',
 org_id int(11) default null,
@@ -352,13 +353,13 @@ EXPLAIN
 SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	PRIMARY,name	name	23	NULL	3	Using where; Using index
+1	SIMPLE	t1	index	PRIMARY,name	PRIMARY	4	NULL	3	Using where
 1	SIMPLE	t2	ref	fkey	fkey	5	test.t1.id	1	Using where; Using index
 EXPLAIN
 SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%' OR FALSE;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	fkey	5	NULL	5	Using index
+1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	5	
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.fkey	1	Using where
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
@@ -388,6 +389,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 name	dept
 DROP TABLE t1;
+drop table if exists t1;
 show variables like 'innodb_rollback_on_timeout';
 Variable_name	Value
 innodb_rollback_on_timeout	OFF
@@ -450,6 +452,7 @@ tes	1234
 drop table test;
 set global query_cache_type=@save_qcache_type;
 set global query_cache_size=@save_qcache_size;
+drop table if exists t1;
 show variables like 'innodb_rollback_on_timeout';
 Variable_name	Value
 innodb_rollback_on_timeout	OFF
@@ -774,6 +777,7 @@ EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using filesort
 DROP TABLE t1;
+drop table if exists t1;
 show variables like 'innodb_rollback_on_timeout';
 Variable_name	Value
 innodb_rollback_on_timeout	OFF
@@ -879,13 +883,13 @@ EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
 id	1
 select_type	SIMPLE
 table	t1
-type	range
+type	index
 possible_keys	bkey
-key	bkey
-key_len	5
+key	PRIMARY
+key_len	4
 ref	NULL
-rows	16
-Extra	Using where; Using index; Using filesort
+rows	32
+Extra	Using where
 SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
 a	b
 1	2
@@ -974,13 +978,13 @@ EXPLAIN SELECT * FROM t2 WHERE b=1 ORDER BY a;
 id	1
 select_type	SIMPLE
 table	t2
-type	ref
+type	index
 possible_keys	bkey
-key	bkey
-key_len	5
-ref	const
-rows	8
-Extra	Using where; Using index; Using filesort
+key	PRIMARY
+key_len	4
+ref	NULL
+rows	16
+Extra	Using where; Using index
 SELECT * FROM t2 WHERE b=1 ORDER BY a;
 a	b	c
 1	1	1
@@ -1124,6 +1128,73 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table t1;
+CREATE TABLE t1 (
+a INT,
+b INT,
+KEY (b)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,10), (2,10), (2,20), (3,30);
+START TRANSACTION;
+SELECT * FROM t1 WHERE b=20 FOR UPDATE;
+a	b
+2	20
+START TRANSACTION;
+SELECT * FROM t1 WHERE b=10 ORDER BY A FOR UPDATE;
+a	b
+1	10
+2	10
+ROLLBACK;
+ROLLBACK;
+DROP TABLE t1;
+CREATE TABLE t1(
+a INT, 
+b INT NOT NULL, 
+c INT NOT NULL, 
+d INT, 
+UNIQUE KEY (c,b)
+) engine=innodb;
+INSERT INTO t1 VALUES (1,1,1,50), (1,2,3,40), (2,1,3,4);
+EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using filesort
+SELECT c,b,d FROM t1 GROUP BY c,b,d;
+c	b	d
+1	1	50
+3	1	4
+3	2	40
+EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d ORDER BY NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT c,b,d FROM t1 GROUP BY c,b,d ORDER BY NULL;
+c	b	d
+1	1	50
+3	1	4
+3	2	40
+EXPLAIN SELECT c,b,d FROM t1 ORDER BY c,b,d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using filesort
+SELECT c,b,d FROM t1 ORDER BY c,b,d;
+c	b	d
+1	1	50
+3	1	4
+3	2	40
+EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	8	NULL	3	
+SELECT c,b,d FROM t1 GROUP BY c,b;
+c	b	d
+1	1	50
+3	1	4
+3	2	40
+EXPLAIN SELECT c,b   FROM t1 GROUP BY c,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	8	NULL	3	Using index
+SELECT c,b   FROM t1 GROUP BY c,b;
+c	b
+1	1
+3	1
+3	2
+DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a), INDEX b (b)) ENGINE=InnoDB;
 INSERT INTO t1(a,b) VALUES (1,1), (2,2), (3,2);
 EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
@@ -1194,11 +1265,11 @@ select_type	SIMPLE
 table	t1
 type	index
 possible_keys	NULL
-key	b
-key_len	5
+key	PRIMARY
+key_len	4
 ref	NULL
 rows	3
-Extra	Using index; Using filesort
+Extra	Using filesort
 SELECT * FROM t1 ORDER BY b ASC, a DESC;
 a	b
 1	1
@@ -1210,17 +1281,66 @@ select_type	SIMPLE
 table	t1
 type	index
 possible_keys	NULL
-key	b
-key_len	5
+key	PRIMARY
+key_len	4
 ref	NULL
 rows	3
-Extra	Using index; Using filesort
+Extra	Using filesort
 SELECT * FROM t1 ORDER BY b DESC, a ASC;
 a	b
 2	2
 3	2
 1	1
 DROP TABLE t1;
+
+#
+# Bug#27610: ALTER TABLE ROW_FORMAT=... does not rebuild the table.
+#
+
+# - prepare;
+
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1(c INT)
+ENGINE = InnoDB
+ROW_FORMAT = COMPACT;
+
+# - initial check;
+
+SELECT table_schema, table_name, row_format
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = DATABASE() AND table_name = 't1';
+table_schema	table_name	row_format
+test	t1	Compact
+
+# - change ROW_FORMAT and check;
+
+ALTER TABLE t1 ROW_FORMAT = REDUNDANT;
+
+SELECT table_schema, table_name, row_format
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = DATABASE() AND table_name = 't1';
+table_schema	table_name	row_format
+test	t1	Redundant
+
+# - that's it, cleanup.
+
+DROP TABLE t1;
+create table t1(a char(10) not null, unique key aa(a(1)),
+b char(4) not null, unique key bb(b(4))) engine=innodb;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	char(10)	NO	UNI	NULL	
+b	char(4)	NO	PRI	NULL	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) NOT NULL,
+  `b` char(4) NOT NULL,
+  UNIQUE KEY `bb` (`b`),
+  UNIQUE KEY `aa` (`a`(1))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
 End of 5.0 tests
 CREATE TABLE `t2` (
 `k` int(11) NOT NULL auto_increment,
@@ -1352,5 +1472,126 @@ select @b:=f2 from t1;
 select if(@a=@b,"ok","wrong");
 if(@a=@b,"ok","wrong")
 ok
+drop table t1;
+SET SESSION AUTOCOMMIT = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+# Switch to connection con1
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(256))
+ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,2);
+# 1. test for locking:
+BEGIN;
+UPDATE t1 SET b = 12 WHERE a = 1;
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
+SELECT * FROM t1;
+a	b
+1	12
+# Switch to connection con2
+UPDATE t1 SET b = 21 WHERE a = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Switch to connection con1
+SELECT * FROM t1;
+a	b
+1	12
+ROLLBACK;
+# 2. test for serialized update:
+CREATE TABLE t2 (a INT);
+TRUNCATE t1;
+INSERT INTO t1 VALUES (1,'init');
+CREATE PROCEDURE p1()
+BEGIN
+UPDATE t1 SET b = CONCAT(b, '+con2')  WHERE a = 1;
+INSERT INTO t2 VALUES ();
+END|
+BEGIN;
+UPDATE t1 SET b = CONCAT(b, '+con1') WHERE a = 1;
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
+SELECT * FROM t1;
+a	b
+1	init+con1
+# Switch to connection con2
+CALL p1;;
+# Switch to connection con1
+SELECT * FROM t1;
+a	b
+1	init+con1
+COMMIT;
+SELECT * FROM t1;
+a	b
+1	init+con1
+# Switch to connection con2
+SELECT * FROM t1;
+a	b
+1	init+con1+con2
+# Switch to connection con1
+# 3. test for updated key column:
+TRUNCATE t1;
+TRUNCATE t2;
+INSERT INTO t1 VALUES (1,'init');
+BEGIN;
+UPDATE t1 SET a = 2, b = CONCAT(b, '+con1') WHERE a = 1;
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
+SELECT * FROM t1;
+a	b
+2	init+con1
+# Switch to connection con2
+CALL p1;;
+# Switch to connection con1
+SELECT * FROM t1;
+a	b
+2	init+con1
+COMMIT;
+SELECT * FROM t1;
+a	b
+2	init+con1
+# Switch to connection con2
+SELECT * FROM t1;
+a	b
+2	init+con1
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b)) engine=innodb;
+CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+CONSTRAINT c2 FOREIGN KEY f2 (c) REFERENCES t1 (a,b) ON UPDATE NO ACTION) engine=innodb;
+ERROR 42000: Incorrect foreign key definition for 'f2': Key reference and table reference don't match
+CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a,b) ON UPDATE NO ACTION) engine=innodb;
+ERROR 42000: Incorrect foreign key definition for 'c2': Key reference and table reference don't match
+CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+CONSTRAINT c1 FOREIGN KEY c2 (c) REFERENCES t1 (a) ON DELETE NO ACTION,
+CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION) engine=innodb;
+ALTER TABLE t2 DROP FOREIGN KEY c2;
+DROP TABLE t2;
+CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+FOREIGN KEY (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
+ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
+CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+FOREIGN KEY f1 (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
+ERROR 42000: Incorrect foreign key definition for 'f1': Key reference and table reference don't match
+CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+CONSTRAINT c1 FOREIGN KEY f1 (c) REFERENCES t1 (a) ON DELETE NO ACTION,
+CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION,
+FOREIGN KEY f3 (c) REFERENCES t1 (a) ON UPDATE NO ACTION,
+FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION) engine=innodb;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  PRIMARY KEY (`c`,`d`),
+  CONSTRAINT `c1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION,
+  CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON UPDATE NO ACTION,
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON UPDATE NO ACTION,
+  CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t2;
+DROP TABLE t1;
+create table t1 (a int auto_increment primary key) engine=innodb;
+alter table t1 order by a;
+Warnings:
+Warning	1105	ORDER BY ignored as there is a user-defined clustered index in the table 't1'
 drop table t1;
 End of 5.1 tests

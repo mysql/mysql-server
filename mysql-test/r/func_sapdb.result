@@ -93,6 +93,9 @@ makedate(9999,365)
 select makedate(9999,366);
 makedate(9999,366)
 NULL
+select makedate(100,1);
+makedate(100,1)
+0100-01-01
 select addtime("1997-12-31 23:59:59.999999", "1 1:1:1.000002");
 addtime("1997-12-31 23:59:59.999999", "1 1:1:1.000002")
 1998-01-02 01:01:01.000001
@@ -196,7 +199,7 @@ f2	datetime	YES		NULL
 f3	time	YES		NULL	
 f4	time	YES		NULL	
 f5	time	YES		NULL	
-f6	time	NO		00:00:00	
+f6	time	YES		NULL	
 f7	datetime	YES		NULL	
 f8	date	YES		NULL	
 f9	time	YES		NULL	

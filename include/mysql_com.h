@@ -94,6 +94,7 @@ enum enum_server_command
 #define TIMESTAMP_FLAG	1024		/* Field is a timestamp */
 #define SET_FLAG	2048		/* field is a set */
 #define NO_DEFAULT_VALUE_FLAG 4096	/* Field doesn't have default value */
+#define ON_UPDATE_NOW_FLAG 8192         /* Field is set to NOW on UPDATE */
 #define NUM_FLAG	32768		/* Field is num (for clients) */
 #define PART_KEY_FLAG	16384		/* Intern; Part of some key */
 #define GROUP_FLAG	32768		/* Intern: Group field */
@@ -205,7 +206,7 @@ typedef struct st_net {
   unsigned char reading_or_writing;
   char save_char;
   my_bool no_send_ok;  /* For SPs and other things that do multiple stmts */
-  my_bool no_send_eof; /* For SPs' first version read-only cursors */
+  my_bool unused; /* Please remove with the next incompatible ABI change */
   my_bool compress;
   /*
     Set if OK packet is already sent, and we do not need to send error

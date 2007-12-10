@@ -607,11 +607,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	period	NULL	NULL	NULL	41810	Using filesort
+1	SIMPLE	t3	index	period	period	4	NULL	1	
 1	SIMPLE	t1	ref	period	period	4	test.t3.period	4181	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	period	NULL	NULL	NULL	41810	Using filesort
+1	SIMPLE	t1	index	period	period	4	NULL	1	
 1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
 select period from t1;
 period
@@ -2827,6 +2827,14 @@ FFFFFFFFFFFFFFFF	7FFFFFFFFFFFFFFF
 FFFFFFFFFFFFFFFF	7FFFFFFFFFFFFFFF
 8FFFFFFFFFFFFFFF	7FFFFFFFFFFFFFFF
 drop table t1;
+CREATE TABLE t1 (c0 int);
+CREATE TABLE t2 (c0 int);
+INSERT INTO t1 VALUES(@@connect_timeout);
+INSERT INTO t2 VALUES(@@connect_timeout);
+SELECT * FROM t1 JOIN t2 ON t1.c0 = t2.c0 WHERE (t1.c0 <=> @@connect_timeout);
+c0	c0
+X	X
+DROP TABLE t1, t2;
 End of 4.1 tests
 CREATE TABLE t1 ( 
 K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
@@ -3233,40 +3241,40 @@ drop table t1, t2 ,t3;
 create table t1(f1 int, f2 date);
 insert into t1 values(1,'2005-01-01'),(2,'2005-09-01'),(3,'2005-09-30'),
 (4,'2005-10-01'),(5,'2005-12-30');
-select * from t1 where f2 >= 0;
+select * from t1 where f2 >= 0            order by f2;
 f1	f2
 1	2005-01-01
 2	2005-09-01
 3	2005-09-30
 4	2005-10-01
 5	2005-12-30
-select * from t1 where f2 >= '0000-00-00';
+select * from t1 where f2 >= '0000-00-00' order by f2;
 f1	f2
 1	2005-01-01
 2	2005-09-01
 3	2005-09-30
 4	2005-10-01
 5	2005-12-30
-select * from t1 where f2 >= '2005-09-31';
+select * from t1 where f2 >= '2005-09-31' order by f2;
 f1	f2
 4	2005-10-01
 5	2005-12-30
-select * from t1 where f2 >= '2005-09-3a';
+select * from t1 where f2 >= '2005-09-3a' order by f2;
 f1	f2
+3	2005-09-30
 4	2005-10-01
 5	2005-12-30
 Warnings:
 Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
-select * from t1 where f2 <= '2005-09-31';
+select * from t1 where f2 <= '2005-09-31' order by f2;
 f1	f2
 1	2005-01-01
 2	2005-09-01
 3	2005-09-30
-select * from t1 where f2 <= '2005-09-3a';
+select * from t1 where f2 <= '2005-09-3a' order by f2;
 f1	f2
 1	2005-01-01
 2	2005-09-01
-3	2005-09-30
 Warnings:
 Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
 drop table t1;
@@ -3980,6 +3988,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	f1	index	inx	inx	10	NULL	7	Using where; Using index
 1	SIMPLE	f2	ref	inx	inx	5	test.f1.b	1	Using where; Using index
 DROP TABLE t1;
+CREATE TABLE t1 (c1 INT, c2 INT);
+INSERT INTO t1 VALUES (1,11), (2,22), (2,22);
+EXPLAIN SELECT c1 FROM t1 WHERE (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT COUNT(c2)))))))))))))))))))))))))))))))) > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+31	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+32	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+EXPLAIN SELECT c1 FROM t1 WHERE (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT COUNT(c2))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) > 0;
+ERROR HY000: Too high level of nesting for select
+DROP TABLE t1;
 CREATE TABLE t1 (
 c1 int(11) NOT NULL AUTO_INCREMENT,
 c2 varchar(1000) DEFAULT NULL,
@@ -4037,4 +4055,273 @@ SHOW WARNINGS;
 Level	Code	Message
 Note	1003	select '0' AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by '0','0','0','0','0'
 DROP TABLE t1;
+SELECT 1 AS ` `;
+
+1
+Warnings:
+Warning	1474	Name ' ' has become ''
+SELECT 1 AS `  `;
+
+1
+Warnings:
+Warning	1474	Name '  ' has become ''
+SELECT 1 AS ` x`;
+x
+1
+Warnings:
+Warning	1466	Leading spaces are removed from name ' x'
+CREATE VIEW v1 AS SELECT 1 AS ``;
+ERROR 42000: Incorrect column name ''
+CREATE VIEW v1 AS SELECT 1 AS ` `;
+ERROR 42000: Incorrect column name ' '
+CREATE VIEW v1 AS SELECT 1 AS `  `;
+ERROR 42000: Incorrect column name '  '
+CREATE VIEW v1 AS SELECT (SELECT 1 AS `  `);
+ERROR 42000: Incorrect column name '  '
+CREATE VIEW v1 AS SELECT 1 AS ` x`;
+Warnings:
+Warning	1466	Leading spaces are removed from name ' x'
+SELECT `x` FROM v1;
+x
+1
+ALTER VIEW v1 AS SELECT 1 AS ` `;
+ERROR 42000: Incorrect column name ' '
+DROP VIEW v1;
+select str_to_date('2007-10-09','%Y-%m-%d') between '2007/10/01 00:00:00 GMT'
+                                                and '2007/10/20 00:00:00 GMT';
+str_to_date('2007-10-09','%Y-%m-%d') between '2007/10/01 00:00:00 GMT'
+                                                and '2007/10/20 00:00:00 GMT'
+1
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007/10/01 00:00:00 GMT'
+Warning	1292	Truncated incorrect datetime value: '2007/10/20 00:00:00 GMT'
+select str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6';
+str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6'
+1
+Warnings:
+Warning	1292	Truncated incorrect date value: '2007/10/01 00:00:00 GMT-6'
+select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
+str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6'
+1
+Warnings:
+Warning	1292	Truncated incorrect date value: '2007/10/2000:00:00 GMT-6'
+select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6';
+str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6'
+1
+Warnings:
+Warning	1292	Truncated incorrect date value: '2007-10-1 00:00:00 GMT-6'
+select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-01 x00:00:00 GMT-6';
+str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-01 x00:00:00 GMT-6'
+1
+Warnings:
+Warning	1292	Truncated incorrect date value: '2007-10-01 x00:00:00 GMT-6'
+select str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 00:00:00 GMT-6';
+str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 00:00:00 GMT-6'
+1
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-10-01 00:00:00 GMT-6'
+select str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 00:x00:00 GMT-6';
+str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 00:x00:00 GMT-6'
+1
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-10-01 00:x00:00 GMT-6'
+select str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 x12:34:56 GMT-6';
+str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 x12:34:56 GMT-6'
+1
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-10-01 x12:34:56 GMT-6'
+select str_to_date('2007-10-01 12:34:00','%Y-%m-%d %H:%i:%s') = '2007-10-01 12:34x:56 GMT-6';
+str_to_date('2007-10-01 12:34:00','%Y-%m-%d %H:%i:%s') = '2007-10-01 12:34x:56 GMT-6'
+1
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-10-01 12:34x:56 GMT-6'
+select str_to_date('2007-10-01 12:34:56','%Y-%m-%d %H:%i:%s') = '2007-10-01 12:34x:56 GMT-6';
+str_to_date('2007-10-01 12:34:56','%Y-%m-%d %H:%i:%s') = '2007-10-01 12:34x:56 GMT-6'
+0
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-10-01 12:34x:56 GMT-6'
+select str_to_date('2007-10-01 12:34:56','%Y-%m-%d %H:%i:%s') = '2007-10-01 12:34:56';
+str_to_date('2007-10-01 12:34:56','%Y-%m-%d %H:%i:%s') = '2007-10-01 12:34:56'
+1
+select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-01 12:00:00';
+str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-01 12:00:00'
+0
+select str_to_date('2007-10-01 12','%Y-%m-%d %H') = '2007-10-01 12:00:00';
+str_to_date('2007-10-01 12','%Y-%m-%d %H') = '2007-10-01 12:00:00'
+1
+select str_to_date('2007-10-01 12:34','%Y-%m-%d %H') = '2007-10-01 12:00:00';
+str_to_date('2007-10-01 12:34','%Y-%m-%d %H') = '2007-10-01 12:00:00'
+1
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-10-01 12:34'
+select str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34';
+str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34'
+1
+select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
+str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
+1
+select str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
+                                                and '2007/10/20 00:00:00';
+str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
+                                                and '2007/10/20 00:00:00'
+1
+set SQL_MODE=TRADITIONAL;
+select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
+str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
+0
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
+select str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
+str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
+0
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
+select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
+str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34'
+0
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34:00'
+select str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01'
+                                                and '2007/10/20';
+str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01'
+                                                and '2007/10/20'
+0
+Warnings:
+Warning	1292	Incorrect datetime value: '2007-10-00' for column '2007/09/01' at row 1
+Warning	1292	Incorrect datetime value: '2007-10-00' for column '2007/10/20' at row 1
+set SQL_MODE=DEFAULT;
+select str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20';
+str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20'
+1
+Warnings:
+Warning	1292	Truncated incorrect datetime value: ''
+select str_to_date('','%Y-%m-%d') between '2007/10/01' and '2007/10/20';
+str_to_date('','%Y-%m-%d') between '2007/10/01' and '2007/10/20'
+0
+select str_to_date('','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
+str_to_date('','%Y-%m-%d %H:%i') = '2007-10-01 12:34'
+0
+select str_to_date(NULL,'%Y-%m-%d %H:%i') = '2007-10-01 12:34';
+str_to_date(NULL,'%Y-%m-%d %H:%i') = '2007-10-01 12:34'
+NULL
+select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '';
+str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = ''
+0
+Warnings:
+Warning	1292	Truncated incorrect datetime value: ''
+select str_to_date('1','%Y-%m-%d') = '1';
+str_to_date('1','%Y-%m-%d') = '1'
+0
+Warnings:
+Warning	1292	Truncated incorrect date value: '1'
+select str_to_date('1','%Y-%m-%d') = '1';
+str_to_date('1','%Y-%m-%d') = '1'
+0
+Warnings:
+Warning	1292	Truncated incorrect date value: '1'
+select str_to_date('','%Y-%m-%d') = '';
+str_to_date('','%Y-%m-%d') = ''
+0
+Warnings:
+Warning	1292	Truncated incorrect date value: ''
+select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
+str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL
+0
+select str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00';
+str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00'
+0
+select str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL;
+str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL
+0
+CREATE TABLE t1 (c11 INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t2 (c21 INT UNSIGNED NOT NULL, 
+c22 INT DEFAULT NULL, 
+KEY(c21, c22));
+CREATE TABLE t3 (c31 INT UNSIGNED NOT NULL DEFAULT 0, 
+c32 INT DEFAULT NULL, 
+c33 INT NOT NULL, 
+c34 INT UNSIGNED DEFAULT 0,
+KEY (c33, c34, c32));
+INSERT INTO t1 values (),(),(),(),();
+INSERT INTO t2 SELECT a.c11, b.c11 FROM t1 a, t1 b;
+INSERT INTO t3 VALUES (1, 1, 1, 0), 
+(2, 2, 0, 0), 
+(3, 3, 1, 0), 
+(4, 4, 0, 0), 
+(5, 5, 1, 0);
+SELECT c32 FROM t1, t2, t3 WHERE t1.c11 IN (1, 3, 5) AND 
+t3.c31 = t1.c11 AND t2.c21 = t1.c11 AND 
+t3.c33 = 1 AND t2.c22 in (1, 3) 
+ORDER BY c32;
+c32
+1
+1
+3
+3
+5
+5
+SELECT c32 FROM t1, t2, t3 WHERE t1.c11 IN (1, 3, 5) AND 
+t3.c31 = t1.c11 AND t2.c21 = t1.c11 AND 
+t3.c33 = 1 AND t2.c22 in (1, 3) 
+ORDER BY c32 DESC;
+c32
+5
+5
+3
+3
+1
+1
+DROP TABLE t1, t2, t3;
+
+#
+# Bug#30736: Row Size Too Large Error Creating a Table and
+# Inserting Data.
+#
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+
+CREATE TABLE t1(
+c1 DECIMAL(10, 2),
+c2 FLOAT);
+
+INSERT INTO t1 VALUES (0, 1), (2, 3), (4, 5);
+
+CREATE TABLE t2(
+c3 DECIMAL(10, 2))
+SELECT
+c1 * c2 AS c3
+FROM t1;
+
+SELECT * FROM t1;
+c1	c2
+0.00	1
+2.00	3
+4.00	5
+
+SELECT * FROM t2;
+c3
+0.00
+6.00
+20.00
+
+DROP TABLE t1;
+DROP TABLE t2;
+
 End of 5.0 tests
+create table t1(a INT, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SELECT a FROM t1 ORDER BY a LIMIT 2;
+a
+1
+2
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967296;
+a
+3
+4
+5
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967297;
+a
+3
+4
+5
+DROP TABLE t1;

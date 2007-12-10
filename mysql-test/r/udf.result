@@ -11,7 +11,7 @@ RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 CREATE AGGREGATE FUNCTION avgcost
 RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
 select myfunc_double();
-ERROR HY000: myfunc_double must have at least one argument
+ERROR HY000: Can't initialize function 'myfunc_double'; myfunc_double must have at least one argument
 select myfunc_double(1);
 myfunc_double(1)
 49.00
@@ -24,26 +24,26 @@ select myfunc_int();
 myfunc_int()
 0
 select lookup();
-ERROR HY000: Wrong arguments to lookup;  Use the source
+ERROR HY000: Can't initialize function 'lookup'; Wrong arguments to lookup;  Use the source
 select lookup("127.0.0.1");
 lookup("127.0.0.1")
 127.0.0.1
 select lookup(127,0,0,1);
-ERROR HY000: Wrong arguments to lookup;  Use the source
+ERROR HY000: Can't initialize function 'lookup'; Wrong arguments to lookup;  Use the source
 select lookup("localhost");
 lookup("localhost")
 127.0.0.1
 select reverse_lookup();
-ERROR HY000: Wrong number of arguments to reverse_lookup;  Use the source
+ERROR HY000: Can't initialize function 'reverse_lookup'; Wrong number of arguments to reverse_lookup;  Use the source
 select reverse_lookup("127.0.0.1");
 select reverse_lookup(127,0,0,1);
 select reverse_lookup("localhost");
 reverse_lookup("localhost")
 NULL
 select avgcost();
-ERROR HY000: wrong number of arguments: AVGCOST() requires two arguments
+ERROR HY000: Can't initialize function 'avgcost'; wrong number of arguments: AVGCOST() requires two arguments
 select avgcost(100,23.76);
-ERROR HY000: wrong argument type: AVGCOST() requires an INT and a REAL
+ERROR HY000: Can't initialize function 'avgcost'; wrong argument type: AVGCOST() requires an INT and a REAL
 create table t1(sum int, price float(24));
 insert into t1 values(100, 50.00), (100, 100.00);
 select avgcost(sum, price) from t1;
@@ -95,10 +95,10 @@ FR
 DROP TABLE bug19904;
 CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
-ERROR HY000: Incorrect usage of SONAME and DEFINER
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNS STRING SONAME "should_not_parse.so"' at line 2
 CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
-ERROR HY000: Incorrect usage of SONAME and DEFINER
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNS STRING SONAME "should_not_parse.so"' at line 2
 create table t1(f1 int);
 insert into t1 values(1),(2);
 explain select myfunc_int(f1) from t1 order by 1;
@@ -214,7 +214,7 @@ DROP FUNCTION IF EXISTS metaphon;
 CREATE FUNCTION metaphon(a int) RETURNS int
 return 0;
 CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
-ERROR HY000: Function 'metaphon' already exists
+DROP FUNCTION metaphon;
 DROP FUNCTION metaphon;
 CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 CREATE FUNCTION metaphon(a int) RETURNS int
@@ -334,4 +334,35 @@ Qcache_queries_in_cache	0
 drop table t1;
 drop function metaphon;
 set GLOBAL query_cache_size=default;
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+DROP FUNCTION metaphon;
+USE test;
+CREATE TABLE const_len_bug (
+str_const varchar(4000),
+result1 varchar(4000),
+result2 varchar(4000)
+);
+CREATE TRIGGER check_const_len_trigger BEFORE INSERT ON const_len_bug FOR EACH ROW BEGIN
+set NEW.str_const = 'bar';
+set NEW.result2 = check_const_len(NEW.str_const);
+END |
+CREATE PROCEDURE check_const_len_sp (IN str_const VARCHAR(4000))
+BEGIN
+DECLARE result VARCHAR(4000);
+SET result = check_const_len(str_const);
+insert into const_len_bug values(str_const, result, "");
+END |
+CREATE FUNCTION check_const_len RETURNS string SONAME "UDF_EXAMPLE_LIB";
+CALL check_const_len_sp("foo");
+SELECT * from const_len_bug;
+str_const	result1	result2
+bar	Correct length	Correct length
+DROP FUNCTION check_const_len;
+DROP PROCEDURE check_const_len_sp;
+DROP TRIGGER check_const_len_trigger;
+DROP TABLE const_len_bug;
 End of 5.0 tests.

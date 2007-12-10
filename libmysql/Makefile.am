@@ -34,7 +34,6 @@ libmysqlclient_la_LDFLAGS = $(target_ldflags)
 EXTRA_DIST = Makefile.shared libmysql.def dll.c mytest.c CMakeLists.txt
 noinst_HEADERS = client_settings.h
 
-# This is called from the toplevel makefile
 link_sources:
 	  set -x; \
 	  ss=`echo $(mystringsobjects) | sed "s;\.lo;.c;g"`; \

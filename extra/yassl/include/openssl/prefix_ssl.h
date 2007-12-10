@@ -30,6 +30,7 @@
 #define SSL_CTX_new yaSSL_CTX_new
 #define SSL_new yaSSL_new
 #define SSL_set_fd yaSSL_set_fd
+#define SSL_get_fd yaSSL_get_fd
 #define SSL_connect yaSSL_connect
 #define SSL_write yaSSL_write
 #define SSL_read yaSSL_read
@@ -91,6 +92,8 @@
 #define SSL_set_rfd yaSSL_set_rfd
 #define SSL_set_wfd yaSSL_set_wfd
 #define SSL_set_shutdown yaSSL_set_shutdown
+#define SSL_set_quiet_shutdown yaSSL_set_quiet_shutdown
+#define SSL_get_quiet_shutdown yaSSL_get_quiet_shutdown
 #define SSL_want_read yaSSL_want_read
 #define SSL_want_write yaSSL_want_write
 #define SSL_pending yaSSL_pending

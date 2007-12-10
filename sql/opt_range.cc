@@ -1756,10 +1756,10 @@ SEL_ARG *SEL_ARG::clone_tree(RANGE_OPT_PARAM *param)
     the UPDATE/DELETE code will work:
      * index can only be scanned in forward direction
      * HA_EXTRA_KEYREAD will not be used
-    Perhaps these assumptions could be relaxed
+    Perhaps these assumptions could be relaxed.
 
   RETURN
-    index number
+    Number of the index that produces the required ordering in the cheapest way
     MAX_KEY if no such index was found.
 */
 
@@ -1778,6 +1778,7 @@ uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit)
     if (!(table->keys_in_use_for_query.is_set(idx)))
       continue;
     KEY_PART_INFO *keyinfo= table->key_info[idx].key_part;
+    uint n_parts=  table->key_info[idx].key_parts;
     uint partno= 0;
     
     /* 
@@ -1787,7 +1788,7 @@ uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit)
     */
     if (!(table->file->index_flags(idx, 0, 1) & HA_READ_ORDER))
       continue;
-    for (ord= order; ord; ord= ord->next, partno++)
+    for (ord= order; ord && partno < n_parts; ord= ord->next, partno++)
     {
       Item *item= order->item[0];
       if (!(item->type() == Item::FIELD_ITEM &&
@@ -3343,17 +3344,15 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   {
     key_part->key=          0;
     key_part->part=	    part;
-    key_part->length=       (uint16) (*field)->pack_length_in_rec();
-    /* 
-      psergey-todo: check yet again if this is correct for tricky field types,
-      e.g. see "Fix a fatal error in decimal key handling" in open_binary_frm()
-    */
-    key_part->store_length= (uint16) (*field)->pack_length();
+    key_part->store_length= key_part->length= (uint16) (*field)->key_length();
     if ((*field)->real_maybe_null())
       key_part->store_length+= HA_KEY_NULL_LENGTH;
     if ((*field)->type() == MYSQL_TYPE_BLOB || 
         (*field)->real_type() == MYSQL_TYPE_VARCHAR)
       key_part->store_length+= HA_KEY_BLOB_LENGTH;
+
+    DBUG_PRINT("info", ("part %u length %u store_length %u", part,
+                         key_part->length, key_part->store_length));
 
     key_part->field=        (*field);
     key_part->image_type =  Field::itRAW;
@@ -3505,7 +3504,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
   if (param->table->file->primary_key_is_clustered())
   {
     result= param->table->file->read_time(param->table->s->primary_key,
-                                          records, records);
+                                          (uint)records, records);
   }
   else
   {
@@ -3714,7 +3713,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 
   /* Add Unique operations cost */
   unique_calc_buff_size=
-    Unique::get_cost_calc_buff_size(non_cpk_scan_records,
+    Unique::get_cost_calc_buff_size((ulong)non_cpk_scan_records,
                                     param->table->file->ref_length,
                                     param->thd->variables.sortbuff_size);
   if (param->imerge_cost_buff_size < unique_calc_buff_size)
@@ -3726,7 +3725,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   }
 
   imerge_cost +=
-    Unique::get_use_cost(param->imerge_cost_buff, non_cpk_scan_records,
+    Unique::get_use_cost(param->imerge_cost_buff, (uint)non_cpk_scan_records,
                          param->table->file->ref_length,
                          param->thd->variables.sortbuff_size);
   DBUG_PRINT("info",("index_merge total cost: %g (wanted: less then %g)",
@@ -4066,7 +4065,7 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param)
   info->is_covering= FALSE;
   info->index_scan_costs= 0.0;
   info->index_records= 0;
-  info->out_rows= param->table->file->stats.records;
+  info->out_rows= (double) param->table->file->stats.records;
   bitmap_clear_all(&info->covered_fields);
   return info;
 }
@@ -4464,8 +4463,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     ROR_SCAN_INFO's.
     Step 2: Get best ROR-intersection using an approximate algorithm.
   */
-  qsort(tree->ror_scans, tree->n_ror_scans, sizeof(ROR_SCAN_INFO*),
-        (qsort_cmp)cmp_ror_scan_info);
+  my_qsort(tree->ror_scans, tree->n_ror_scans, sizeof(ROR_SCAN_INFO*),
+           (qsort_cmp)cmp_ror_scan_info);
   DBUG_EXECUTE("info",print_ror_scans_arr(param->table, "ordered",
                                           tree->ror_scans,
                                           tree->ror_scans_end););
@@ -4657,8 +4656,8 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
         bitmap_get_first(&(*scan)->covered_fields);
     }
 
-    qsort(ror_scan_mark, ror_scans_end-ror_scan_mark, sizeof(ROR_SCAN_INFO*),
-          (qsort_cmp)cmp_ror_scan_info_covering);
+    my_qsort(ror_scan_mark, ror_scans_end-ror_scan_mark, sizeof(ROR_SCAN_INFO*),
+             (qsort_cmp)cmp_ror_scan_info_covering);
 
     DBUG_EXECUTE("info", print_ror_scans_arr(param->table,
                                              "remaining scans",
@@ -5052,7 +5051,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
 
     if (inv)
     {
-      if (func->array->result_type() != ROW_RESULT)
+      if (func->array && func->array->result_type() != ROW_RESULT)
       {
         /*
           We get here for conditions in form "t.key NOT IN (c1, c2, ...)",
@@ -7351,6 +7350,9 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
     tmp_max_flag= max_key_flag | key_tree->max_flag;
   }
 
+  if (unlikely(param->thd->killed != 0))
+    return HA_POS_ERROR;
+  
   keynr=param->real_keynr[idx];
   param->range_count++;
   if (!tmp_min_flag && ! tmp_max_flag &&
@@ -7815,8 +7817,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   range->min_keypart_map= range->max_keypart_map=
     make_prev_keypart_map(ref->key_parts);
   range->flag= ((ref->key_length == key_info->key_length &&
-		 (key_info->flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
-		 HA_NOSAME) ? EQ_RANGE : 0);
+		 (key_info->flags & HA_END_SPACE_KEY) == 0) ? EQ_RANGE : 0);
 
   if (!(quick->key_parts=key_part=(KEY_PART *)
 	alloc_root(&quick->alloc,sizeof(KEY_PART)*ref->key_parts)))
@@ -8196,7 +8197,7 @@ int QUICK_RANGE_SELECT::reset()
   if (file->ha_table_flags() & HA_NEED_READ_RANGE_BUFFER)
   {
     mrange_bufsiz= min(multi_range_bufsiz,
-                       (QUICK_SELECT_I::records + 1)* head->s->reclength);
+                       ((uint)QUICK_SELECT_I::records + 1)* head->s->reclength);
 
     while (mrange_bufsiz &&
            ! my_multi_malloc(MYF(MY_WME),
@@ -9822,7 +9823,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
                         bool have_min, bool have_max,
                         double *read_cost, ha_rows *records)
 {
-  uint table_records;
+  ha_rows table_records;
   uint num_groups;
   uint num_blocks;
   uint keys_per_block;
@@ -9839,14 +9840,14 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   keys_per_block= (table->file->stats.block_size / 2 /
                    (index_info->key_length + table->file->ref_length)
                         + 1);
-  num_blocks= (table_records / keys_per_block) + 1;
+  num_blocks= (uint)(table_records / keys_per_block) + 1;
 
   /* Compute the number of keys in a group. */
   keys_per_group= index_info->rec_per_key[group_key_parts - 1];
   if (keys_per_group == 0) /* If there is no statistics try to guess */
     /* each group contains 10% of all records */
-    keys_per_group= (table_records / 10) + 1;
-  num_groups= (table_records / keys_per_group) + 1;
+    keys_per_group= (uint)(table_records / 10) + 1;
+  num_groups= (uint)(table_records / keys_per_group) + 1;
 
   /* Apply the selectivity of the quick select for group prefixes. */
   if (range_tree && (quick_prefix_records != HA_POS_ERROR))
@@ -9890,9 +9891,9 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   *records= num_groups;
 
   DBUG_PRINT("info",
-             ("table rows: %u  keys/block: %u  keys/group: %u  result rows: %lu  blocks: %u",
-              table_records, keys_per_block, keys_per_group, (ulong) *records,
-              num_blocks));
+             ("table rows: %lu  keys/block: %u  keys/group: %u  result rows: %lu  blocks: %u",
+              (ulong)table_records, keys_per_block, keys_per_group, 
+              (ulong) *records, num_blocks));
   DBUG_VOID_RETURN;
 }
 

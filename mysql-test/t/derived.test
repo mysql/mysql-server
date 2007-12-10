@@ -211,7 +211,8 @@ drop table t2;
 # select list counter
 #
 CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
-insert into t1 values (128, 'rozn', 2, now(), 10),(128, 'rozn', 1, now(), 10);
+insert into t1 values (128, 'rozn', 2, curdate(), 10),
+  (128, 'rozn', 1, curdate(), 10);
 SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MAX(concat(date_,";",price)), 12) price FROM t1 WHERE itemid=128 AND  grpid='rozn' GROUP BY itemid, grpid, vendor) lastprices;
 DROP TABLE t1;
 

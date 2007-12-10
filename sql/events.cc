@@ -21,6 +21,11 @@
 #include "event_scheduler.h"
 #include "sp_head.h" // for Stored_program_creation_ctx
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
+
 /*
  TODO list :
  - CREATE EVENT should not go into binary log! Does it now? The SQL statements
@@ -141,7 +146,7 @@ bool
 Events::set_opt_event_scheduler(char *argument)
 {
   if (argument == NULL)
-    opt_event_scheduler= Events::EVENTS_DISABLED;
+    opt_event_scheduler= Events::EVENTS_ON;
   else
   {
     int type;
@@ -790,8 +795,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   Check access rights and fill INFORMATION_SCHEMA.events table.
 
   @param[in,out]  thd     Thread context
-  @param[in]      table   The temporary table to fill.
-      cond    Unused
+  @param[in]      tables  The temporary table to fill.
 
   In MySQL INFORMATION_SCHEMA tables are temporary tables that are
   created and filled on demand. In this function, we fill
@@ -880,6 +884,7 @@ Events::init(my_bool opt_noacl)
   */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+  lex_start(thd);
 
   /*
     We will need Event_db_repository anyway, even if the scheduler is
@@ -1120,11 +1125,25 @@ Events::load_events_from_db(THD *thd)
   READ_RECORD read_record_info;
   bool ret= TRUE;
   uint count= 0;
+  ulong saved_master_access;
 
   DBUG_ENTER("Events::load_events_from_db");
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
 
-  if (db_repository->open_event_table(thd, TL_WRITE, &table))
+  /*
+    NOTE: even if we run in read-only mode, we should be able to lock the
+    mysql.event table for writing. In order to achieve this, we should call
+    mysql_lock_tables() under the super user.
+  */
+
+  saved_master_access= thd->security_ctx->master_access;
+  thd->security_ctx->master_access |= SUPER_ACL;
+
+  ret= db_repository->open_event_table(thd, TL_WRITE, &table);
+
+  thd->security_ctx->master_access= saved_master_access;
+
+  if (ret)
   {
     sql_print_error("Event Scheduler: Failed to open table mysql.event");
     DBUG_RETURN(TRUE);
@@ -1187,3 +1206,7 @@ end:
 
   DBUG_RETURN(ret);
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/

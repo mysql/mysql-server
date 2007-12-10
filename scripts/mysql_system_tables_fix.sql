@@ -344,6 +344,7 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                              'MODIFIES_SQL_DATA'
                             ) DEFAULT 'CONTAINS_SQL' NOT NULL,
                  MODIFY body longblob NOT NULL,
+                 MODIFY returns longblob NOT NULL,
                  MODIFY sql_mode
                         set('REAL_AS_FLOAT',
                             'PIPES_AS_CONCAT',

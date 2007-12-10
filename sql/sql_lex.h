@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+  @defgroup Semantic_Analysis Semantic Analysis
+*/
 
 /* YACC and LEX Definitions */
 
@@ -75,7 +78,6 @@ enum enum_sql_command {
   SQLCOM_LOAD,SQLCOM_SET_OPTION,SQLCOM_LOCK_TABLES,SQLCOM_UNLOCK_TABLES,
   SQLCOM_GRANT,
   SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
-  SQLCOM_RENAME_DB,
   SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
   SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK,
@@ -114,6 +116,7 @@ enum enum_sql_command {
   SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
   SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
   SQLCOM_SHOW_CREATE_TRIGGER,
+  SQLCOM_ALTER_DB_UPGRADE,
 
   /* This should be the last !!! */
 
@@ -257,6 +260,8 @@ public:
     key_name.str= str;
     key_name.length= length;
   }
+
+  void print(THD *thd, String *str);
 }; 
 
 /* 
@@ -594,7 +599,6 @@ public:
   const char *type;               /* type of select for EXPLAIN          */
 
   SQL_LIST order_list;                /* ORDER clause */
-  List<List_item>     expr_list;
   SQL_LIST *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
@@ -887,16 +891,6 @@ public:
     datetime_field= 0;
     error_if_not_empty= FALSE;
   }
-  /**
-    Construct a copy of this object to be used for mysql_alter_table
-    and mysql_create_table. Historically, these two functions modify
-    their Alter_info arguments. This behaviour breaks re-execution of
-    prepared statements and stored procedures and is compensated by
-    always supplying a copy of Alter_info to these functions.
-
-    @return You need to use check the error in THD for out
-    of memory condition after calling this function.
-  */
   Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root);
 private:
   Alter_info &operator=(const Alter_info &rhs); // not implemented
@@ -1102,8 +1096,9 @@ enum enum_comment_state
 
 
 /**
-  This class represents the character input stream consumed during
+  @brief This class represents the character input stream consumed during
   lexical analysis.
+
   In addition to consuming the input stream, this class performs some
   comment pre processing, by filtering out out of bound special text
   from the query input stream.
@@ -1113,6 +1108,7 @@ enum enum_comment_state
   is the pre-processed buffer that contains only the query text that
   should be seen once out-of-bound data is removed.
 */
+
 class Lex_input_stream
 {
 public:
@@ -1121,6 +1117,7 @@ public:
 
   /**
     Set the echo mode.
+
     When echo is true, characters parsed from the raw input stream are
     preserved. When false, characters parsed are silently ignored.
     @param echo the echo mode.
@@ -1516,9 +1513,9 @@ typedef struct st_lex : public Query_tables_list
   /** End of SELECT of CREATE VIEW statement */
   const char* create_view_select_end;
 
-  /** Start of 'ON <table>', in trigger statements.  */
+  /** Start of 'ON table', in trigger statements.  */
   const char* raw_trg_on_table_name_begin;
-  /** End of 'ON <table>', in trigger statements. */
+  /** End of 'ON table', in trigger statements. */
   const char* raw_trg_on_table_name_end;
 
   /* Partition info structure filled in by PARTITION BY parse part */
@@ -1554,7 +1551,6 @@ typedef struct st_lex : public Query_tables_list
     required a local context, the parser pops the top-most context.
   */
   List<Name_resolution_context> context_stack;
-  List<LEX_STRING>     db_list;
 
   SQL_LIST	      proc_list, auxiliary_table_list, save_list;
   Create_field	      *last_field;
@@ -1621,7 +1617,7 @@ typedef struct st_lex : public Query_tables_list
   uint8 create_view_algorithm;
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
-
+  bool autocommit;
   bool verbose, no_write_to_binlog;
 
   bool tx_chain, tx_release;
@@ -1699,6 +1695,14 @@ typedef struct st_lex : public Query_tables_list
   */
   const char *fname_start;
   const char *fname_end;
+  
+  /**
+    During name resolution search only in the table list given by 
+    Name_resolution_context::first_name_resolution_table and
+    Name_resolution_context::last_name_resolution_table
+    (see Item_field::fix_fields()). 
+  */
+  bool use_only_table_context;
 
   LEX_STRING view_body_utf8;
 
@@ -1709,6 +1713,7 @@ typedef struct st_lex : public Query_tables_list
   st_alter_tablespace *alter_tablespace_info;
   
   bool escape_used;
+  bool is_lex_started; /* If lex_start() did run. For debugging. */
 
   st_lex();
 
@@ -1804,15 +1809,37 @@ typedef struct st_lex : public Query_tables_list
 
   bool table_or_sp_used();
   bool is_partition_management() const;
+
+  /**
+    @brief check if the statement is a single-level join
+    @return result of the check
+      @retval TRUE  The statement doesn't contain subqueries, unions and 
+                    stored procedure calls.
+      @retval FALSE There are subqueries, UNIONs or stored procedure calls.
+  */
+  bool is_single_level_stmt() 
+  { 
+    /* 
+      This check exploits the fact that the last added to all_select_list is
+      on its top. So select_lex (as the first added) will be at the tail 
+      of the list.
+    */ 
+    if (&select_lex == all_selects_list && !sroutines.records)
+    {
+      DBUG_ASSERT(!all_selects_list->next_select_in_list());
+      return TRUE;
+    }
+    return FALSE;
+  }
 } LEX;
 
 struct st_lex_local: public st_lex
 {
-  static void *operator new(size_t size)
+  static void *operator new(size_t size) throw()
   {
     return sql_alloc(size);
   }
-  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  static void *operator new(size_t size, MEM_ROOT *mem_root) throw()
   {
     return (void*) alloc_root(mem_root, (uint) size);
   }
@@ -1831,5 +1858,9 @@ extern int MYSQLlex(void *arg, void *yythd);
 extern void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
+
+/**
+  @} (End of group Semantic_Analysis)
+*/
 
 #endif /* MYSQL_SERVER */

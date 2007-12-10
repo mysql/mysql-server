@@ -5,8 +5,7 @@
 ASRC =			$(srcdir)/vi.c $(srcdir)/emacs.c $(srcdir)/common.c
 AHDR =			vi.h emacs.h common.h
 
-# Make sure to include stuff from this directory first, to get right "config.h"
-INCLUDES =		-I. -I$(top_builddir)/include -I$(top_srcdir)/include
+INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
 
 noinst_LIBRARIES =	libedit.a
 
@@ -21,9 +20,9 @@ EXTRA_libedit_a_SOURCES =	np/unvis.c np/strlcpy.c np/vis.c np/strlcat.c \
 libedit_a_LIBADD = 		@LIBEDIT_LOBJECTS@
 libedit_a_DEPENDENCIES 	= 	@LIBEDIT_LOBJECTS@
 
-pkginclude_HEADERS =	readline/readline.h
-
-noinst_HEADERS =	chared.h el.h el_term.h histedit.h key.h parse.h refresh.h sig.h \
+noinst_HEADERS =	readline/readline.h \
+\
+			chared.h el.h el_term.h histedit.h key.h parse.h refresh.h sig.h \
 			sys.h tokenizer.h config.h hist.h map.h prompt.h read.h \
 			search.h tty.h libedit_term.h vis.h
 
@@ -31,7 +30,14 @@ EXTRA_DIST = makelist.sh np/unvis.c np/strlcpy.c np/vis.c np/vis.h np/strlcat.c 
 
 CLEANFILES = makelist common.h emacs.h vi.h fcns.h help.h fcns.c help.c
 
-DEFS = -DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR 
+# Make sure to include stuff from this directory first, to get right "config.h"
+# Automake puts into DEFAULT_INCLUDES this source and corresponding
+# build directory together with ../../include to let all make files
+# find the central "config.h". This variable is used before INCLUDES
+# above. But in automake 1.10 the order of these are changed. Put the
+# includes of this directory into DEFS to always be sure it is first
+# before DEFAULT_INCLUDES on the compile line.
+DEFS = -DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR -I. -I$(srcdir)
 
 SUFFIXES = .sh
 

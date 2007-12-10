@@ -40,6 +40,29 @@ void win_pthread_init(void)
   pthread_mutex_init(&THR_LOCK_thread,MY_MUTEX_INIT_FAST);
 }
 
+
+/**
+   Adapter to @c pthread_mutex_trylock()
+
+   @retval 0      Mutex was acquired
+   @retval EBUSY  Mutex was already locked by a thread
+ */
+int
+win_pthread_mutex_trylock(pthread_mutex_t *mutex)
+{
+  if (TryEnterCriticalSection(mutex))
+  {
+    /* Don't allow recursive lock */
+    if (mutex->RecursionCount > 1){
+      LeaveCriticalSection(mutex);
+      return EBUSY;
+    }
+    return 0;
+  }
+  return EBUSY;
+}
+
+
 /*
 ** We have tried to use '_beginthreadex' instead of '_beginthread' here
 ** but in this case the program leaks about 512 characters for each

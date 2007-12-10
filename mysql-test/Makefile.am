@@ -18,7 +18,6 @@
 ## Process this file with automake to create Makefile.in
 
 SUBDIRS = ndb
-DIST_SUBDIRS=ndb
 
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
@@ -167,6 +166,7 @@ SUFFIXES = .sh
 	  -e 's!@''PERL''@!@PERL@!' \
 	  -e 's!@''VERSION''@!@VERSION@!' \
 	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \
+	  -e 's!@''MYSQL_TCP_PORT_DEFAULT''@!@MYSQL_TCP_PORT_DEFAULT@!' \
 	  -e 's!@''MYSQL_BASE_VERSION''@!@MYSQL_BASE_VERSION@!' \
 	  -e 's!@''MYSQL_UNIX_ADDR''@!@MYSQL_UNIX_ADDR@!' \
 	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \

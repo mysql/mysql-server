@@ -1,0 +1,13 @@
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+
+#
+# Bug #30126: semicolon before closing */ in /*!... CREATE DATABASE ;*/
+#
+
+CREATE DATABASE mysqldump_30126;
+USE mysqldump_30126;
+CREATE TABLE t1 (c1 int);
+--exec $MYSQL_DUMP --add-drop-database mysqldump_30126 > $MYSQLTEST_VARDIR/tmp/bug30126.sql
+--exec $MYSQL mysqldump_30126 < $MYSQLTEST_VARDIR/tmp/bug30126.sql
+DROP DATABASE mysqldump_30126;

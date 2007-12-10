@@ -1,5 +1,5 @@
 ################################################################################
-# include/partition_check_read.inc                                             #
+# inc/partition_check_read.inc                                                 #
 #                                                                              #
 # Purpose:                                                                     #
 #   Read table t1 row by row                                                   #
@@ -10,7 +10,7 @@
 #       - the table contains all expected rows                                 #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #
@@ -80,7 +80,7 @@ if ($no_debug)
 --disable_query_log
 }
 --echo # check read via $col_to_check success: $success
-# ML: The following is omitted because of not reported mysqltest bug
+# mleich: The following is omitted because of not reported mysqltest bug
 #     (@max_row time the success message)
 if (0)
 {

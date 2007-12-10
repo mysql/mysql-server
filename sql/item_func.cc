@@ -187,7 +187,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
     }
   }
   fix_length_and_dec();
-  if (thd->net.report_error) // An error inside fix_length_and_dec occured
+  if (thd->is_error()) // An error inside fix_length_and_dec occured
     return TRUE;
   fixed= 1;
   return FALSE;
@@ -1377,7 +1377,11 @@ longlong Item_func_int_div::val_int()
 
 void Item_func_int_div::fix_length_and_dec()
 {
-  max_length=args[0]->max_length - args[0]->decimals;
+  Item_result argtype= args[0]->result_type();
+  /* use precision ony for the data type it is applicable for and valid */
+  max_length=args[0]->max_length -
+    (argtype == DECIMAL_RESULT || argtype == INT_RESULT ?
+     args[0]->decimals : 0);
   maybe_null=1;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
 }
@@ -1996,6 +2000,7 @@ void Item_func_round::fix_length_and_dec()
   case DECIMAL_RESULT:
   {
     hybrid_type= DECIMAL_RESULT;
+    decimals_to_set= min(DECIMAL_MAX_SCALE, decimals_to_set);
     int decimals_delta= args[0]->decimals - decimals_to_set;
     int precision= args[0]->decimal_precision();
     int length_increase= ((decimals_delta <= 0) || truncate) ? 0:1;
@@ -2102,7 +2107,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   longlong dec= args[1]->val_int();
   if (dec > 0 || (dec < 0 && args[1]->unsigned_flag))
   {
-    dec= min((ulonglong) dec, DECIMAL_MAX_SCALE);
+    dec= min((ulonglong) dec, decimals);
     decimals= (uint8) dec; // to get correct output
   }
   else if (dec < INT_MIN)
@@ -2238,6 +2243,7 @@ void Item_func_min_max::fix_length_and_dec()
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length(max_int_part+decimals, decimals,
                                             unsigned_flag);
+  cached_field_type= agg_field_type(args, arg_count);
 }
 
 
@@ -2892,6 +2898,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
   if (u_d->func_init)
   {
+    char init_msg_buff[MYSQL_ERRMSG_SIZE];
     char *to=num_buffer;
     for (uint i=0; i < arg_count; i++)
     {
@@ -2916,7 +2923,8 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
           String *res= arguments[i]->val_str(&buffers[i]);
           if (arguments[i]->null_value)
             continue;
-          f_args.args[i]= (char*) res->ptr();
+          f_args.args[i]= (char*) res->c_ptr();
+          f_args.lengths[i]= res->length();
           break;
         }
         case INT_RESULT:
@@ -2943,10 +2951,10 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     }
     thd->net.last_error[0]=0;
     Udf_func_init init= u_d->func_init;
-    if ((error=(uchar) init(&initid, &f_args, thd->net.last_error)))
+    if ((error=(uchar) init(&initid, &f_args, init_msg_buff)))
     {
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
-               u_d->name.str, thd->net.last_error);
+               u_d->name.str, init_msg_buff);
       free_udf(u_d);
       DBUG_RETURN(TRUE);
     }
@@ -3618,9 +3626,16 @@ longlong Item_func_last_insert_id::val_int()
     thd->first_successful_insert_id_in_prev_stmt= value;
     return value;
   }
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return thd->read_first_successful_insert_id_in_prev_stmt();
 }
+
+
+bool Item_func_last_insert_id::fix_fields(THD *thd, Item **ref)
+{
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return Item_int_func::fix_fields(thd, ref);
+}
+
 
 /* This function is just used to test speed of different functions */
 
@@ -3706,13 +3721,12 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
-
+  pthread_mutex_unlock(&LOCK_user_locks);
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
-  pthread_mutex_unlock(&LOCK_user_locks);
   pthread_cond_destroy(&cond);
 
   return test(!error); 		// Return 1 killed
@@ -3828,7 +3842,8 @@ Item_func_set_user_var::fix_length_and_dec()
 bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
 {
   TABLE *table= (TABLE *) arg;
-  if (result_field->table == table || !table)
+  if (result_field &&
+      (!table || result_field->table == table))
     bitmap_set_bit(result_field->table->read_set, result_field->field_index);
   return 0;
 }
@@ -4060,7 +4075,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
 
   NOTES
     For now it always return OK. All problem with value evaluating
-    will be caught by thd->net.report_error check in sql_set_variables().
+    will be caught by thd->is_error() check in sql_set_variables().
 
   RETURN
     FALSE OK.
@@ -5591,8 +5606,13 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     
 #endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
+
   if (!m_sp->m_chistics->detistic)
-   used_tables_cache |= RAND_TABLE_BIT;
+  {
+    used_tables_cache |= RAND_TABLE_BIT;
+    const_item_cache= FALSE;
+  }
+
   DBUG_RETURN(res);
 }
 
@@ -5600,8 +5620,12 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 void Item_func_sp::update_used_tables()
 {
   Item_func::update_used_tables();
+
   if (!m_sp->m_chistics->detistic)
-   used_tables_cache |= RAND_TABLE_BIT;
+  {
+    used_tables_cache |= RAND_TABLE_BIT;
+    const_item_cache= FALSE;
+  }
 }
 
 

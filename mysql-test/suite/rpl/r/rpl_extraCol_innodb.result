@@ -33,6 +33,73 @@ a	b	c	d	e
 3	4	QA	2	TEST
 *** Drop t1  ***
 DROP TABLE t1;
+*** Create t2 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t2 (a INT, b INT PRIMARY KEY, c CHAR(5),
+d FLOAT DEFAULT '2.00',
+e CHAR(5) DEFAULT 'TEST2')
+ENGINE='InnoDB';
+*** Create t2 on Master ***
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, c CHAR(10)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Master Data Insert ***
+INSERT INTO t2 () VALUES(1,2,'Kyle, TEX'),(2,1,'JOE AUSTIN'),(3,4,'QA TESTING');
+SELECT * FROM t2 ORDER BY a;
+a	b	c
+1	2	Kyle, TEX
+2	1	JOE AUSTIN
+3	4	QA TESTING
+*** Start Slave ***
+START SLAVE;
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	#
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	#
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	1535
+Last_Error	Table definition on master and slave does not match: Column 2 size mismatch - master has size 10, test.t2 on slave has size 6. Master's column size should be <= the slave's column size.
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1535
+Last_SQL_Error	Table definition on master and slave does not match: Column 2 size mismatch - master has size 10, test.t2 on slave has size 6. Master's column size should be <= the slave's column size.
+STOP SLAVE;
+RESET SLAVE;
+SELECT * FROM t2 ORDER BY a;
+a	b	c	d	e
+RESET MASTER;
+START SLAVE;
+*** Drop t2  ***
+DROP TABLE t2;
 *** Create t3 on slave  ***
 STOP SLAVE;
 RESET SLAVE;
@@ -57,7 +124,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -69,10 +136,10 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -88,11 +155,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
-Last_SQL_Errno	1532
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t3  ***
@@ -120,7 +186,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -132,10 +198,10 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -151,11 +217,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
-Last_SQL_Errno	1532
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t4  ***
@@ -183,7 +248,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -195,10 +260,10 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -214,11 +279,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
-Last_SQL_Errno	1532
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t5  ***
@@ -245,7 +309,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -257,10 +321,10 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -276,11 +340,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
-Last_SQL_Errno	1532
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=3;
 *** Drop t6  ***
 DROP TABLE t6;
@@ -358,7 +421,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -370,10 +433,10 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -389,11 +452,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
-Last_SQL_Errno	1532
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t10  ***
@@ -420,7 +482,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -432,10 +494,10 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -451,11 +513,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
-Last_SQL_Errno	1532
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t11  ***
@@ -554,6 +615,66 @@ c1	c2	c3	c4	c5	c6	c7
 1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
 2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
 3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+*** Create t14a on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t14a (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+c6 INT DEFAULT '1',
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+*** Create t14a on Master ***
+CREATE TABLE t14a (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t14a () VALUES(1,@b1,'Kyle'),
+(2,@b1,'JOE'),
+(3,@b1,'QA');
+SELECT * FROM t14a ORDER BY c1;
+c1	c4	c5
+1	b1b1b1b1b1b1b1b1	Kyle
+2	b1b1b1b1b1b1b1b1	JOE
+3	b1b1b1b1b1b1b1b1	QA
+*** Select on Slave ****
+SELECT * FROM t14a ORDER BY c1;
+c1	c4	c5	c6	c7
+1	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
+2	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
+3	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+STOP SLAVE;
+RESET SLAVE;
+*** Master Drop c5 ***
+ALTER TABLE t14a DROP COLUMN c5;
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t14a () VALUES(4,@b1),
+(5,@b1),
+(6,@b1);
+SELECT * FROM t14a ORDER BY c1;
+c1	c4
+1	b1b1b1b1b1b1b1b1
+2	b1b1b1b1b1b1b1b1
+3	b1b1b1b1b1b1b1b1
+4	b1b1b1b1b1b1b1b1
+5	b1b1b1b1b1b1b1b1
+6	b1b1b1b1b1b1b1b1
+*** Select on Slave ****
+SELECT * FROM t14a ORDER BY c1;
+c1	c4	c5	c6	c7
+1	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
+2	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
+3	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+4	b1b1b1b1b1b1b1b1	NULL	1	CURRENT_TIMESTAMP
+5	b1b1b1b1b1b1b1b1	NULL	1	CURRENT_TIMESTAMP
+6	b1b1b1b1b1b1b1b1	NULL	1	CURRENT_TIMESTAMP
 *** connect to master and drop columns ***
 ALTER TABLE t14 DROP COLUMN c2;
 ALTER TABLE t14 DROP COLUMN c4;
@@ -611,7 +732,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -623,7 +744,7 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1060
@@ -642,12 +763,11 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	1060
 Last_SQL_Error	Error 'Duplicate column name 'c6'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5'
-Master_Bind	0.0.0.0
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 *** Try to insert in master ****
 INSERT INTO t15 () VALUES(5,2.00,'Replication Testing',@b1,'Buda',2);
@@ -663,6 +783,7 @@ c1	c2	c3	c4	c5	c6	c7
 1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
 2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
 3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+5	2.00	Replication Testing	b1b1b1b1b1b1b1b1	Buda	2	CURRENT_TIMESTAMP
 *** DROP TABLE t15 ***
 DROP TABLE t15;
 *** Create t16 on slave  ***
@@ -747,7 +868,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -759,10 +880,10 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -778,11 +899,10 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
-Last_SQL_Errno	1532
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 ** DROP table t17 ***

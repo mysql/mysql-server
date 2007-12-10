@@ -163,7 +163,8 @@ static sys_var_character_set_sv	sys_character_set_server(&vars, "character_set_s
 sys_var_const_str       sys_charset_system(&vars, "character_set_system",
                                            (char *)my_charset_utf8_general_ci.name);
 static sys_var_character_set_database	sys_character_set_database(&vars, "character_set_database");
-static sys_var_character_set_sv sys_character_set_client(&vars, "character_set_client",
+static sys_var_character_set_client sys_character_set_client(&vars, 
+                                        "character_set_client",
                                         &SV::character_set_client,
                                         &default_charset_info);
 static sys_var_character_set_sv sys_character_set_connection(&vars, "character_set_connection",
@@ -649,8 +650,14 @@ static sys_var_const_str	sys_license(&vars, "license", STRINGIFY_ARG(LICENSE));
 /* Global variables which enable|disable logging */
 static sys_var_log_state sys_var_general_log(&vars, "general_log", &opt_log,
                                       QUERY_LOG_GENERAL);
+/* Synonym of "general_log" for consistency with SHOW VARIABLES output */
+static sys_var_log_state sys_var_log(&vars, "log", &opt_log,
+                                      QUERY_LOG_GENERAL);
 static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
                                          QUERY_LOG_SLOW);
+/* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
+static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
+                                          &opt_slow_log, QUERY_LOG_SLOW);
 sys_var_str sys_var_general_log_path(&vars, "general_log_file", sys_check_log_path,
 				     sys_update_general_log_path,
 				     sys_default_general_log_path,
@@ -686,10 +693,8 @@ static SHOW_VAR fixed_vars[]= {
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_MY_BOOL},
 #endif
-  {"log",                     (char*) &opt_log,                     SHOW_MY_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
-  {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_MY_BOOL},
   {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_MY_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
@@ -1196,16 +1201,31 @@ bool sys_var_thd_ulong::check(THD *thd, set_var *var)
 bool sys_var_thd_ulong::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
+  char buf[22];
+  bool truncated= false;
 
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ulong) tmp > max_system_variables.*offset)
+  {
+    truncated= true;
+    llstr(tmp, buf);
     tmp= max_system_variables.*offset;
+  }
 
 #if SIZEOF_LONG == 4
   /* Avoid overflows on 32 bit systems */
   if (tmp > (ulonglong) ~(ulong) 0)
+  {
+    truncated= true;
+    llstr(tmp, buf);
     tmp= ((ulonglong) ~(ulong) 0);
+  }
 #endif
+  if (truncated)
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), name,
+                        buf);
 
   if (option_limits)
     tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
@@ -1413,7 +1433,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 					    &not_used));
     if (error_len)
     {
-      strmake(buff, error, min(sizeof(buff), error_len));
+      strmake(buff, error, min(sizeof(buff) - 1, error_len));
       goto err;
     }
   }
@@ -1854,6 +1874,21 @@ CHARSET_INFO **sys_var_character_set_sv::ci_ptr(THD *thd, enum_var_type type)
 }
 
 
+bool sys_var_character_set_client::check(THD *thd, set_var *var)
+{
+  if (sys_var_character_set_sv::check(thd, var))
+    return 1;
+  /* Currently, UCS-2 cannot be used as a client character set */
+  if (var->save_result.charset->mbminlen > 1)
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, 
+             var->save_result.charset->csname);
+    return 1;
+  }
+  return 0;
+}
+
+
 CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd,
 						       enum_var_type type)
 {
@@ -2095,18 +2130,24 @@ void sys_var_log_state::set_default(THD *thd, enum_var_type type)
 
 static int  sys_check_log_path(THD *thd,  set_var *var)
 {
-  char path[FN_REFLEN];
+  char path[FN_REFLEN], buff[FN_REFLEN];
   MY_STAT f_stat;
-  const char *var_path= var->value->str_value.ptr();
+  String str(buff, sizeof(buff), system_charset_info), *res;
+  const char *log_file_str;
+      
+  if (!(res= var->value->val_str(&str)))
+    goto err;
+
+  log_file_str= res->c_ptr();
   bzero(&f_stat, sizeof(MY_STAT));
 
-  (void) unpack_filename(path, var_path);
+  (void) unpack_filename(path, log_file_str);
   if (my_stat(path, &f_stat, MYF(0)))
   {
     /* Check if argument is a file and we have 'write' permission */
     if (!MY_S_ISREG(f_stat.st_mode) ||
         !(f_stat.st_mode & MY_S_IWRITE))
-      return -1;
+      goto err;
   }
   else
   {
@@ -2115,11 +2156,16 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
       Check if directory exists and 
       we have permission to create file & write to file
     */
-    (void) dirname_part(path, var_path, &path_length);
+    (void) dirname_part(path, log_file_str, &path_length);
     if (my_access(path, (F_OK|W_OK)))
-      return -1;
+      goto err;
   }
   return 0;
+
+err:
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, 
+           res ? log_file_str : "NULL");
+  return 1;
 }
 
 
@@ -2272,6 +2318,13 @@ uchar *sys_var_log_output::value_ptr(THD *thd, enum_var_type type,
 
 int set_var_collation_client::check(THD *thd)
 {
+  /* Currently, UCS-2 cannot be used as a client character set */
+  if (character_set_client->mbminlen > 1)
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+             character_set_client->csname);
+    return 1;
+  }
   return 0;
 }
 
@@ -2893,7 +2946,8 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted)
 
     /* sort into order */
     if (sorted)
-      qsort(result, count + fixed_count, sizeof(SHOW_VAR), (qsort_cmp)show_cmp);
+      my_qsort(result, count + fixed_count, sizeof(SHOW_VAR),
+               (qsort_cmp) show_cmp);
     
     /* make last element empty */
     bzero(show, sizeof(SHOW_VAR));
@@ -3044,7 +3098,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
     if ((error= var->check(thd)))
       goto err;
   }
-  if (!(error= test(thd->net.report_error)))
+  if (!(error= test(thd->is_error())))
   {
     it.rewind();
     while ((var= it++))

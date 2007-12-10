@@ -55,194 +55,277 @@ enable_result_log;
 
 select @result /* must be zero either way */;
 
-# the functions are either *insensitive* to killing or killing can cause
-# strange problmes with the error propagation out of SF's stack
-#  Bug#27563, Bug#27565, BUG#24971
+
+--remove_file $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
+connection con1;
+select RELEASE_LOCK("a");
+
 #
-# TODO: use if's block as regression test for the bugs or remove
+# bug#27571 asynchronous setting mysql_`query`::error and Query_log_e::error_code
 #
-if (0)
-{
+
+# checking that killing inside of select loops is safe as before
+# killing after the loop can be only simulated - another test
+
+delete from t1;
+delete from t2;
+insert into t1 values (1,1),(2,2);
+
+#
+# simple update
+#
+connection con1;
+begin; update t1 set b=11 where a=2;
+
+connection con2;
+let $ID= `select connection_id()`;
+begin;
+send update t1 set b=b+10;
+
+connection con1;
+--replace_result $ID ID
+eval kill query $ID;
+rollback;
+
+# Bug #32148  	killi query may be ineffective 
+# forced to comment out the test's outcome 
+# and mask out ineffective ER_QUERY_INTERRUPTED
+# todo1: revert back upon fixing bug#32148
+# todo2: the tests need refining in that
+#        killing should wait till the victim requested
+#        its lock (wait_condition available in 5.1 tests)
+
+connection con2;
+--error 0,ER_QUERY_INTERRUPTED
+reap;
+rollback;
+select * from t1  order by a /* must be the same as before (1,1),(2,2) */;
+
+#
+# multi update
+# commented out as Bug #31807 multi-update,delete killing does not report with ER_QUERY_INTERRUPTED
+# in the way
+#
+# connection con1;
+# begin; update t1 set b=b+10;
+
+# connection con2;
+# send update t1 as t_1,t1 as t_2 set t_1.b=11 where t_2.a=2;
+
+# connection con1;
+# --replace_result $ID ID
+# eval kill query $ID;
+# rollback;
+
+# disable_abort_on_error;
+
+# connection con2;
+# --error HY000,ER_QUERY_INTERRUPTED
+# reap;
+# select * from t1 /* must be the same as before (1,1),(2,2) */;
+
+# enable_abort_on_error;
+#
+# simple delete
+#
+connection con1;
+begin; delete from t1 where a=2;
+
+connection con2;
+let $ID= `select connection_id()`;
+begin;
+send delete from t1 where a=2;
+
+connection con1;
+--replace_result $ID ID
+eval kill query $ID;
+rollback;
+
+connection con2;
+--error 0,ER_QUERY_INTERRUPTED
+reap;
+rollback;
+# todo1,2 above
+select * from t1 order by a /* must be the same as before (1,1),(2,2) */;
+
+
+#
+# multi delete
+# the same as for multi-update
+#
+# connection con1;
+# begin; delete from t1 where a=2;
+
+# connection con2;
+# send delete t1 from t1 where t1.a=2;
+
+# connection con1;
+# --replace_result $ID ID
+# eval kill query $ID;
+# rollback;
+
+# connection con2;
+# --error 0,ER_QUERY_INTERRUPTED
+# reap;
+# select * from t1 /* must be the same as before (1,1),(2,2) */;
+#
+# insert select
+#
+connection con1;
+--disable_warnings
+drop table if exists t4;
+--enable_warnings
+create table t4 (a int, b int) engine=innodb;
+insert into t4 values (3, 3);
+begin; insert into t1 values (3, 3);
+
+connection con2;
+let $ID= `select connection_id()`;
+begin;
+send insert into t1 select * from t4 for update;
+
+connection con1;
+--replace_result $ID ID
+eval kill query $ID;
+rollback;
+
+connection con2;
+--error 0,ER_QUERY_INTERRUPTED
+reap;
+# todo 1,2 above
+rollback;
+select * from t1 /* must be the same as before (1,1),(2,2) */;
+
+drop table t4; # cleanup for the sub-case
+
+###
+## non-ta table case: killing must be recorded in binlog
+###
+create table t4 (a int, b int) ENGINE=MyISAM /* for killing update and delete */;
+
 delimiter |;
-create function bug27563() 
+create function bug27563(n int) 
 RETURNS int(11)
 DETERMINISTIC
 begin
-  select get_lock("a", 10)  into @a;
-  return 1;
+  if @b > 0 then
+     select get_lock("a", 20)  into @a;
+  else 
+     set @b= 1;
+  end if;
+  return n;
 end|
 delimiter ;|
 
-# the function is sensitive to killing requiring innodb though with wrong client error 
-# TO FIX in BUG#27565; TODO: remove --error 1105 afterwards
-delimiter |;
-create function bug27565() 
-RETURNS int(11)
-DETERMINISTIC
-begin
-  select a from t1 where a=1  into @a for update;
-  return 1;
-end|
-delimiter ;|
+#
+# update
+#
 
+delete from t4;
+insert into t4 values (1,1), (1,1);
 reset master;
-
-
-### ta table case: killing causes rollback
-
-# A. autocommit ON
 connection con1;
 select get_lock("a", 20);
 
 connection con2;
 let $ID= `select connection_id()`;
-send insert into t1 values (bug27563(),1);
+set @b= 0;
+send update t4 set b=b + bug27563(b);
 
 connection con1;
+let $wait_condition= select count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+source include/wait_condition.inc;
+select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+
+--replace_result $ID ID
 eval kill query $ID;
 
 connection con2;
-# todo (re-record test): after bugs 27563,27565 got fixed affected rows will report zero
---enable_info
-# todo: remove 0 return after fixing Bug#27563
---error 0,ER_QUERY_INTERRUPTED
-reap; ### pb: wrong error
---disable_info
-###--replace_column 2 # 5 #
-### show binlog events from 98 /* nothing in binlog unless Bug#27563 */;
-show master status /* must be only FD event unless Bug#27563 */;
-select count(*) from t1 /* must be zero unless Bug#27563 */;
-
-# M. multi-statement-ta
-connection con2;
-let $ID= `select connection_id()`;
-begin;
-send insert into t1 values (bug27563(),1);
-
-connection con1;
-eval kill query $ID;
-connection con2;
-# todo (re-record test): after bugs 27563,27565 got fixed affected rows will report zero
---enable_info
-# todo: remove 0 return after fixing  Bug#27563
---error 0,ER_QUERY_INTERRUPTED
+--error ER_QUERY_INTERRUPTED
 reap;
---disable_info
-select count(*) from t1 /* must be zero unless Bug#27563 */;
-commit;
+select * from t4 order by b /* must be (1,1), (1,2) */;
+select @b  /* must be 1 at the end of a stmt calling bug27563() */;
+--echo must have the update query event more to FD
+source include/show_binlog_events.inc;
 
+# a proof the query is binlogged with an error
 
-### non-ta table case: killing must be recorded in binlog
+--exec $MYSQL_BINLOG --start-position=106 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select
+(@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+let $error_code= `select @a like "%#%error_code=0%" /* must return 0*/`;
+eval select $error_code /* must return 0 to mean the killed query is in */;
 
-reset master;
-
-connection con2;
-let $ID= `select connection_id()`;
-send insert into t2 values (bug27563(),1);
-
-connection con1;
-eval kill query $ID;
-
-connection con2;
-# todo: remove 0 return after fixing  Bug#27563
---error 0,ER_QUERY_INTERRUPTED
-reap;
-select count(*) from t2 /* must be one */;
-#show binlog events from 98 /* must have the insert on non-ta table */;
-show master status  /* must have the insert event more to FD */;
-# the value of the error flag of KILLED_QUERY is tested further
-
+# cleanup for the sub-case
 connection con1;
 select RELEASE_LOCK("a");
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 
-### test with effective killing of SF()
-
-delete from t1;
-delete from t2;
-insert into t1 values (1,1);
-insert into t2 values (1,1);
-
-# 
-# Bug#27565
-# test where KILL is propagated as error to the top level
-# still another bug with the error message to the user
-# todo: fix reexecute the result file after fixing
-# 
-begin; update t1 set b=0 where a=1;
-
-connection con2;
-let $ID= `select connection_id()`;
-send update t2 set b=bug27565()-1 where a=1;
-
-connection con1;
-eval kill query $ID;
-commit;
-
-connection con2;
-# todo: fix Bug #27565 killed query of SF() is not reported correctly and 
-# remove 1105 (wrong)
-#--error ER_QUERY_INTERRUPTED
---error 1105,ER_QUERY_INTERRUPTED
-reap; ### pb: wrong error
-select * from t1 /* must be: (1,0) */;
-select * from t2 /* must be as before: (1,1) */;
-
-## bug#22725 with effective and propagating killing
 #
-# top-level ta-table
-connection con1;
-delete from t3;
+# delete
+#
+
+delete from t4;
+insert into t4 values (1,1), (2,2);
 reset master;
-begin; update t1 set b=0 where a=1;
+connection con1;
+select get_lock("a", 20);
 
 connection con2;
 let $ID= `select connection_id()`;
-# the query won't perform completely since the function gets interrupted
-send insert into t3 values  (0,0),(1,bug27565());
+set @b= 0;
+send delete from t4 where b=bug27563(1) or b=bug27563(2);
 
 connection con1;
+let $wait_condition= select count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+source include/wait_condition.inc;
+select count(*) FROM INFORMATION_SCHEMA.PROCESSLIST where state='User lock';
+--replace_result $ID ID
 eval kill query $ID;
-rollback;
 
 connection con2;
-# todo: fix Bug #27565 killed query of SF() is not reported correctly and 
-# remove 1105 (wrong)
-#--error ER_QUERY_INTERRUPTED
---error 1105,ER_QUERY_INTERRUPTED
-reap; ### pb: wrong error
-select count(*) from t3 /* must be zero */;
-show master status /* nothing in binlog */;
+--error ER_QUERY_INTERRUPTED
+reap;
+select count(*) from t4 /* must be 1 */;
+select @b  /* must be 1 at the end of a stmt calling bug27563() */;
+--echo must have the delete query event more to FD
+source include/show_binlog_events.inc;
 
-# top-level non-ta-table
+# a proof the query is binlogged with an error
+
+--exec $MYSQL_BINLOG --start-position=106 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select
+(@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
+is not null;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+let $error_code= `select @a like "%#%error_code=0%" /* must return 0*/`;
+eval select $error_code /* must return 0 to mean the killed query is in */;
+
+# cleanup for the sub-case
 connection con1;
-delete from t2;
-reset master;
-begin;  update t1 set b=0 where a=1;
+select RELEASE_LOCK("a");
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 
-connection con2;
-let $ID= `select connection_id()`;
-# the query won't perform completely since the function gets intrurrupted
-send insert into t2 values (0,0),(1,bug27565()) /* non-ta t2 */;
+drop table t4;
 
-connection con1;
-eval kill query $ID;
-rollback;
+#
+# load data - see simulation tests
+#
 
-connection con2;
-# todo: fix Bug #27565 killed query of SF() is not reported correctly and 
-# remove 1105 (wrong)
-#--error ER_QUERY_INTERRUPTED
---error 1105,ER_QUERY_INTERRUPTED
-reap; ### pb: wrong error
 
-select count(*) from t2    /* count must be one */;
-show master status /* insert into non-ta must be in binlog */;
+# bug#27571 cleanup
 
 drop function bug27563;
-drop function bug27565;
-}
 
-system rm $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog ;
+
+#
+# common cleanup 
+#
 
 drop table t1,t2,t3;
 
+--echo end of the tests

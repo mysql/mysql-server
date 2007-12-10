@@ -339,8 +339,13 @@ enum open_table_mode
 #define PRECISION_FOR_DOUBLE 53
 #define PRECISION_FOR_FLOAT  24
 
+/*
+  Default time to wait before aborting a new client connection
+  that does not respond to "initial server greeting" timely
+*/
+#define CONNECT_TIMEOUT		10
+
 /* The following can also be changed from the command line */
-#define CONNECT_TIMEOUT		5		// Do not wait long for connect
 #define DEFAULT_CONCURRENCY	10
 #define DELAYED_LIMIT		100		/* pause after xxx inserts */
 #define DELAYED_QUEUE_SIZE	1000
@@ -690,14 +695,13 @@ extern my_decimal decimal_zero;
 void free_items(Item *item);
 void cleanup_items(Item *item);
 class THD;
-void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
+void close_thread_tables(THD *thd);
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_single_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables, bool no_errors);
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
-bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
@@ -755,6 +759,9 @@ bool slow_log_print(THD *thd, const char *query, uint query_length,
 
 bool general_log_print(THD *thd, enum enum_server_command command,
                        const char *format,...);
+
+bool general_log_write(THD *thd, enum enum_server_command command,
+                       const char *query, uint query_length);
 
 #include "sql_class.h"
 #include "sql_acl.h"
@@ -928,18 +935,16 @@ bool init_new_connection_handler_thread();
 void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
-int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
 void thd_init_client_charset(THD *thd, uint cs_number);
 bool setup_connection_thread_globals(THD *thd);
 bool login_connection(THD *thd);
-void prepare_new_connection_state(THD* thd);
 void end_connection(THD *thd);
 
 bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
-bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db);
+bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db);
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos, ushort flags);
 void mysql_client_binlog_statement(THD *thd);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
@@ -953,8 +958,15 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
 bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
                       char *new_table_name, char *new_table_alias,
                       bool skip_error);
+
 bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
                      bool force_switch);
+
+bool mysql_opt_change_db(THD *thd,
+                         const LEX_STRING *new_db_name,
+                         LEX_STRING *saved_db_name,
+                         bool force_switch,
+                         bool *cur_db_changed);
 
 void mysql_parse(THD *thd, const char *inBuf, uint length,
                  const char ** semicolon);
@@ -982,7 +994,8 @@ bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 bool compare_record(TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
                         const char *table_name);
-
+void wait_while_table_is_used(THD *thd, TABLE *table,
+                              enum ha_extra_function function);
 bool table_cache_init(void);
 void table_cache_free(void);
 bool table_def_init(void);
@@ -1148,12 +1161,16 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
 TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 		  bool *refresh, uint flags);
+bool name_lock_locked_table(THD *thd, TABLE_LIST *tables);
 bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in);
 TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
                                       uint key_length);
 bool lock_table_name_if_not_cached(THD *thd, const char *db,
                                    const char *table_name, TABLE **table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
+void detach_merge_children(TABLE *table, bool clear_refs);
+bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
+                          TABLE_LIST *new_child_list, TABLE_LIST **new_last);
 bool reopen_table(TABLE *table);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
 void close_data_files_and_morph_locks(THD *thd, const char *db,
@@ -1295,13 +1312,9 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
 bool mysql_ha_close(THD *thd, TABLE_LIST *tables);
 bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                    List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
-int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
-                   bool is_locked);
-void mysql_ha_mark_tables_for_reopen(THD *thd, TABLE *table);
-/* mysql_ha_flush mode_flags bits */
-#define MYSQL_HA_CLOSE_FINAL        0x00
-#define MYSQL_HA_REOPEN_ON_USAGE    0x01
-#define MYSQL_HA_FLUSH_ALL          0x02
+void mysql_ha_flush(THD *thd);
+void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked);
+void mysql_ha_cleanup(THD *thd);
 
 /* sql_base.cc */
 #define TMP_TABLE_KEY_EXTRA 8
@@ -1407,8 +1420,21 @@ int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
                         pthread_cond_t *cond);
 int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
-int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
-bool open_and_lock_tables(THD *thd,TABLE_LIST *tables);
+/* open_and_lock_tables with optional derived handling */
+bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
+/* simple open_and_lock_tables without derived handling */
+inline bool simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  return open_and_lock_tables_derived(thd, tables, FALSE);
+}
+/* open_and_lock_tables with derived handling */
+inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  return open_and_lock_tables_derived(thd, tables, TRUE);
+}
+/* simple open_and_lock_tables without derived handling for single table */
+TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
+                                thr_lock_type lock_type);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
@@ -1429,7 +1455,7 @@ TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
                          bool check_alias);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list);
-bool close_temporary_table(THD *thd, TABLE_LIST *table_list);
+int drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
 void close_temporary(TABLE *table, bool free_share, bool delete_table);
@@ -1690,6 +1716,7 @@ void flush_thread_cache();
 
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
+extern enum_field_types agg_field_type(Item **items, uint nitems);
 
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
@@ -1987,7 +2014,8 @@ int format_number(uint inputflag,uint max_length,char * pos,uint length,
 /* table.cc */
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
                                uint key_length);
-void init_tmp_table_share(TABLE_SHARE *share, const char *key, uint key_length,
+void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
+                          uint key_length,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);

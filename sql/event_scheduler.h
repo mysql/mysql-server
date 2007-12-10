@@ -16,10 +16,18 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /**
+  @addtogroup Event_Scheduler
+  @{
+*/
+/**
   @file
-  This file is internal to Events module. Please do not include it directly.
-  All public declarations of Events module are in events.h and
-  event_data_objects.h.
+
+  Declarations of the scheduler thread class
+  and related functionality.
+
+  This file is internal to Event_Scheduler module. Please do not
+  include it directly.  All public declarations of Event_Scheduler
+  module are in events.h and event_data_objects.h.
 */
 
 
@@ -139,5 +147,9 @@ private:
   Event_scheduler(const Event_scheduler &);
   void operator=(Event_scheduler &);
 };
+
+/**
+  @} (End of group Event_Scheduler)
+*/
 
 #endif /* _EVENT_SCHEDULER_H_ */

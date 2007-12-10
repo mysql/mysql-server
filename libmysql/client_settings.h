@@ -63,3 +63,7 @@ int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd);
 int init_embedded_server(int argc, char **argv, char **groups);
 void end_embedded_server();
 #endif /*EMBEDDED_LIBRARY*/
+
+C_MODE_START
+extern int mysql_init_character_set(MYSQL *mysql);
+C_MODE_END

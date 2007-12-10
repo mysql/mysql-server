@@ -144,4 +144,29 @@ disconnect con1;
 disconnect con2;
 drop table t1, t2;
 
-# End of 4.1 tests
+--echo End of 4.1 tests
+
+#
+# Bug#25164 create table `a` as select * from `A` hangs
+#
+
+set storage_engine=innodb;
+
+--disable_warnings
+drop table if exists a;
+drop table if exists A;
+--enable_warnings
+
+create table A (c int);
+insert into A (c) values (0);
+--error 0,ER_LOCK_DEADLOCK,ER_UPDATE_TABLE_USED
+create table a as select * from A;
+drop table A;
+
+--disable_warnings
+drop table if exists a;
+--enable_warnings
+
+set storage_engine=default;
+
+--echo End of 5.0 tests.

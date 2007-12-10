@@ -29,6 +29,7 @@
 #define SP_NO_DB_ERROR       -8
 #define SP_BAD_IDENTIFIER    -9
 #define SP_BODY_TOO_LONG    -10
+#define SP_FLD_STORE_FAILED -11
 
 /* Drop all routines in database 'db' */
 int
@@ -84,16 +85,5 @@ extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
   we already have some tables open and locked.
 */
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup);
-
-
-/*
-  Do a "use new_db". The current db is stored at old_db.  If new_db is the
-  same as the current one, nothing is changed.  dbchangedp is set to true if
-  the db was actually changed.
-*/
-
-int
-sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
-	      bool no_access_check, bool *dbchangedp);
 
 #endif /* _SP_H_ */

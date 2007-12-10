@@ -773,6 +773,7 @@ void SSL::SetError(YasslError ye)
     // TODO: add string here
 }
 
+
 // set the quiet shutdown mode (close_nofiy not sent or received on shutdown)
 void SSL::SetQuietShutdown(bool mode)
 {

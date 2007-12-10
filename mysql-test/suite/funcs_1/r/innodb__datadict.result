@@ -10,8 +10,9 @@
 . *__datadict.test are started. This can be a result of showing e.g. maximum
 . values of the number of rows of tables.
 .
-. This .result file has been checked OK with Linux 5.0.23-bk,
-. ChangeSet@1.2211, 2006-06-28 10:11:43-07:00.
+. This .result file has been checked OK with Linux 5.0.48,
+. build tree ChangeSet@1.2477.6.3, 2007-07-30
+. except that the not fixed Bug#30020 causes a difference.
 .
 --------------------------------------------------------------------------------
 
@@ -20,10 +21,20 @@ FIXME: There are subtests that are switched off due to known bugs:
 SELECT 1 AS "have_bug_11589";
 have_bug_11589
 1
+SELECT 1 AS "have_bug_30689";
+have_bug_30689
+1
 
 There are some statements where the ps-protocol is switched off.
 This may come from the bug listed below, ir from other problems.
 Bug#11589: mysqltest, --ps-protocol, strange output, float/double/real with zerofill
+--------------------------------------------------------------------------------
+
+Selects on INFORMATION_SCHEMA.VIEWS present incomplete
+content for the column VIEW_DEFINITION in cases where
+the view selects(=is based) on an INFORMATION_SCHEMA table.
+---> VIEWS vu and vu1
+Bug#30689 Wrong content in I_S.VIEWS.VIEW_DEFINITION if VIEW is based on I_S
 --------------------------------------------------------------------------------
 SET @NO_REFRESH = IF( '' = '', 0, 1);
 DROP DATABASE IF EXISTS test1;
@@ -1035,7 +1046,8 @@ CHECKSUM	NULL
 CREATE_OPTIONS	#CO#
 TABLE_COMMENT	
 SELECT * FROM tables
-WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema')
+AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	db_datadict
 TABLE_NAME	v1
@@ -1204,90 +1216,6 @@ TABLE_COLLATION	utf8_general_ci
 CHECKSUM	NULL
 CREATE_OPTIONS	
 TABLE_COMMENT	General log
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_category
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	37
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help categories
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_keyword
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	424
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help keywords
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_relation
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	901
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	keyword-topic relation
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_topic
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Dynamic
-TABLE_ROWS	479
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help topics
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	mysql
 TABLE_NAME	host
@@ -2338,9 +2266,9 @@ NULL	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	1
 NULL	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	COLUMNS	COLUMN_TYPE	15		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	COLUMNS	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 NULL	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select	
@@ -2362,12 +2290,12 @@ NULL	information_schema	EVENTS	EVENT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	ut
 NULL	information_schema	EVENTS	DEFINER	4		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	EVENTS	TIME_ZONE	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	EVENTS	EVENT_BODY	6		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
-NULL	information_schema	EVENTS	EVENT_DEFINITION	7		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	EVENT_DEFINITION	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	EVENT_TYPE	8		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	EVENTS	EXECUTE_AT	9	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	INTERVAL_VALUE	10	NULL	YES	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select	
 NULL	information_schema	EVENTS	INTERVAL_FIELD	11	NULL	YES	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
-NULL	information_schema	EVENTS	SQL_MODE	12		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	SQL_MODE	12	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	STARTS	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	ENDS	14	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	STATUS	15		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
@@ -2505,7 +2433,7 @@ NULL	information_schema	ROUTINES	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	u
 NULL	information_schema	ROUTINES	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 NULL	information_schema	ROUTINES	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	ROUTINES	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	ROUTINES	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	ROUTINES	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	ROUTINES	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	ROUTINES	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -2582,7 +2510,7 @@ NULL	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	N
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TRIGGERS	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	TRIGGERS	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -2590,8 +2518,8 @@ NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	varchar	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	TRIGGERS	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	DEFINER	19		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -2602,7 +2530,7 @@ NULL	information_schema	USER_PRIVILEGES	IS_GRANTABLE	4		NO	varchar	3	9	NULL	NULL
 NULL	information_schema	VIEWS	TABLE_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	VIEWS	VIEW_DEFINITION	4		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	VIEWS	IS_UPDATABLE	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	VIEWS	DEFINER	7		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
@@ -2639,7 +2567,7 @@ NULL	mysql	columns_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PR
 NULL	mysql	columns_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
 NULL	mysql	columns_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	columns_priv	Column_name	5		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
-NULL	mysql	columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	columns_priv	Column_priv	7		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references	
 NULL	mysql	db	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
 NULL	mysql	db	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
@@ -2670,7 +2598,7 @@ NULL	mysql	event	definer	4		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			se
 NULL	mysql	event	execute_at	5	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
 NULL	mysql	event	interval_value	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	event	interval_field	7	NULL	YES	enum	18	54	NULL	NULL	utf8	utf8_general_ci	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')			select,insert,update,references	
-NULL	mysql	event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	event	modified	9	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
 NULL	mysql	event	last_executed	10	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
 NULL	mysql	event	starts	11	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
@@ -2689,12 +2617,12 @@ NULL	mysql	func	name	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		sel
 NULL	mysql	func	ret	2	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			select,insert,update,references	
 NULL	mysql	func	dl	3		NO	char	128	384	NULL	NULL	utf8	utf8_bin	char(128)			select,insert,update,references	
 NULL	mysql	func	type	4	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('function','aggregate')			select,insert,update,references	
-NULL	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
-NULL	mysql	general_log	user_host	2	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
-NULL	mysql	general_log	thread_id	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	general_log	server_id	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	general_log	command_type	5	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-NULL	mysql	general_log	argument	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+NULL	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
+NULL	mysql	general_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+NULL	mysql	general_log	thread_id	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+NULL	mysql	general_log	argument	6	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	help_category	help_category_id	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned	PRI		select,insert,update,references	
 NULL	mysql	help_category	name	2	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		select,insert,update,references	
 NULL	mysql	help_category	parent_category_id	3	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned			select,insert,update,references	
@@ -2747,10 +2675,10 @@ NULL	mysql	proc	sql_data_access	6	CONTAINS_SQL	NO	enum	17	51	NULL	NULL	utf8	utf8
 NULL	mysql	proc	is_deterministic	7	NO	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
 NULL	mysql	proc	security_type	8	DEFINER	NO	enum	7	21	NULL	NULL	utf8	utf8_general_ci	enum('INVOKER','DEFINER')			select,insert,update,references	
 NULL	mysql	proc	param_list	9	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
-NULL	mysql	proc	returns	10		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+NULL	mysql	proc	returns	10	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 NULL	mysql	proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 NULL	mysql	proc	definer	12		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			select,insert,update,references	
-NULL	mysql	proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	proc	modified	14	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
 NULL	mysql	proc	sql_mode	15		NO	set	431	1293	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE')			select,insert,update,references	
 NULL	mysql	proc	comment	16		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references	
@@ -2765,7 +2693,7 @@ NULL	mysql	procs_priv	Routine_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	cha
 NULL	mysql	procs_priv	Routine_type	5	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')	PRI		select,insert,update,references	
 NULL	mysql	procs_priv	Grantor	6		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references	
 NULL	mysql	procs_priv	Proc_priv	7		NO	set	27	81	NULL	NULL	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')			select,insert,update,references	
-NULL	mysql	procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	servers	Server_name	1		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	
 NULL	mysql	servers	Host	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Db	3		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
@@ -2775,23 +2703,23 @@ NULL	mysql	servers	Port	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(4)			select,inse
 NULL	mysql	servers	Socket	7		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Wrapper	8		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Owner	9		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
-NULL	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	mysql	slow_log	lock_time	4	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	mysql	slow_log	rows_sent	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	slow_log	rows_examined	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	db	7	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select,insert,update,references	
-NULL	mysql	slow_log	last_insert_id	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	insert_id	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	server_id	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	db	7	NULL	NO	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select,insert,update,references	
+NULL	mysql	slow_log	last_insert_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	slow_log	sql_text	11	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	tables_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Grantor	5		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references	
-NULL	mysql	tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	tables_priv	Table_priv	7		NO	set	98	294	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')			select,insert,update,references	
 NULL	mysql	tables_priv	Column_priv	8		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references	
 NULL	mysql	time_zone	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI	auto_increment	select,insert,update,references	
@@ -3103,7 +3031,7 @@ NULL	test	tb4	f217	42	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	N
 NULL	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
 NULL	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
-NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
@@ -3211,7 +3139,7 @@ binary	binary	Binary pseudo charset	1
 geostd8	geostd8_general_ci	GEOSTD8 Georgian	1
 cp932	cp932_japanese_ci	SJIS for Windows Japanese	2
 eucjpms	eucjpms_japanese_ci	UJIS for Windows Japanese	3
-select sum(id) from collations;
+select sum(id) from collations where collation_name <> 'utf8_general_cs';
 sum(id)
 10840
 select collation_name, character_set_name into @x,@y
@@ -3227,7 +3155,8 @@ END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh
 select count(*) from routines;
 count(*)
 1
-select * from statistics;
+select * from statistics
+where not (table_schema = 'mysql' and table_name like 'help_%');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	columns_priv	0	mysql	PRIMARY	2	Db	A	NULL	NULL	NULL		BTREE	
@@ -3241,14 +3170,6 @@ NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE
 NULL	mysql	event	0	mysql	PRIMARY	1	db	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	event	0	mysql	PRIMARY	2	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	func	0	mysql	PRIMARY	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	37	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	37	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	424	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	name	1	name	A	424	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	901	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	479	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	name	1	name	A	479	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	2	Db	A	0	NULL	NULL		BTREE	
 NULL	mysql	ndb_binlog_index	0	mysql	PRIMARY	1	epoch	A	0	NULL	NULL		BTREE	
@@ -3280,8 +3201,16 @@ NULL	mysql	user	0	mysql	PRIMARY	2	User	A	3	NULL	NULL		BTREE
 select * from views;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 NULL	db_datadict	v1	SELECT * FROM information_schema.tables	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu	SELECT DISTINCT u,	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu1	SELECT grantee AS u	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	db_datadict	vu	SELECT DISTINCT u,
+SUBSTRING( u, LENGTH(SUBSTRING_INDEX(u,'@',1))+3 )
+AS server,
+SUBSTRING( u, LENGTH(SUBSTRING_INDEX(u,'@',1))+3,
+LENGTH( SUBSTRING( u,
+LENGTH( SUBSTRING_INDEX(u, '@',1)) +3 )) - 1 )
+AS Server_Clean
+FROM db_datadict.vu1	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	db_datadict	vu1	SELECT grantee AS u
+FROM information_schema.user_privileges	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 select * from user_privileges order by grantee, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
@@ -3479,9 +3408,10 @@ NULL	mysql	PRIMARY	NULL	mysql	user	User	2	NULL	NULL	NULL	NULL
 select count(*) as max_recs from key_column_usage;
 max_recs
 45
-select max(cardinality) from statistics;
+select max(cardinality) from statistics
+where not (table_schema = 'mysql' and table_name like 'help_%');
 max(cardinality)
-901
+393
 select concat("View '",
 table_name, "' is associated with the database '", table_schema, "'.")
 AS "Who is Who for the Views"
@@ -3680,10 +3610,10 @@ NULL	information_schema	CHARACTER_SETS	CHARACTER_SET_NAME	1		NO	varchar	64	192	N
 SELECT * FROM character_sets                        LIMIT 1;
 CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
 big5	big5_chinese_ci	Big5 Traditional Chinese	2
-SELECT * FROM collations                            LIMIT 1;
+SELECT * FROM collations                            where collation_name <> 'utf8_general_cs' LIMIT 1;
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
 big5_chinese_ci	big5	1	Yes	Yes	1
-SELECT * FROM collation_character_set_applicability LIMIT 1;
+SELECT * FROM collation_character_set_applicability where collation_name <> 'utf8_general_cs' LIMIT 1;
 COLLATION_NAME	CHARACTER_SET_NAME
 big5_chinese_ci	big5
 SELECT * FROM routines                              LIMIT 1;
@@ -4371,7 +4301,8 @@ CHECKSUM	NULL
 CREATE_OPTIONS	#CO#
 TABLE_COMMENT	
 SELECT * FROM information_schema.tables
-WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema')
+AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	db_datadict
 TABLE_NAME	v1
@@ -4540,90 +4471,6 @@ TABLE_COLLATION	utf8_general_ci
 CHECKSUM	NULL
 CREATE_OPTIONS	
 TABLE_COMMENT	General log
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_category
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	37
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help categories
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_keyword
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	424
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help keywords
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_relation
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	901
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	keyword-topic relation
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_topic
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Dynamic
-TABLE_ROWS	479
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help topics
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	mysql
 TABLE_NAME	host
@@ -5689,8 +5536,16 @@ NULL	mysql	columns_priv	0	mysql	PRIMARY	5	Column_name	A	0	NULL	NULL		BTREE
 select * from information_schema.views limit 0, 5;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 NULL	db_datadict	v1	SELECT * FROM information_schema.tables	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu	SELECT DISTINCT u,	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu1	SELECT grantee AS u	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	db_datadict	vu	SELECT DISTINCT u,
+SUBSTRING( u, LENGTH(SUBSTRING_INDEX(u,'@',1))+3 )
+AS server,
+SUBSTRING( u, LENGTH(SUBSTRING_INDEX(u,'@',1))+3,
+LENGTH( SUBSTRING( u,
+LENGTH( SUBSTRING_INDEX(u, '@',1)) +3 )) - 1 )
+AS Server_Clean
+FROM db_datadict.vu1	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	db_datadict	vu1	SELECT grantee AS u
+FROM information_schema.user_privileges	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 select * from information_schema.user_privileges limit 0, 5;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'localhost'	NULL	SELECT	YES
@@ -5741,10 +5596,10 @@ COUNT(*)
 SELECT COUNT(*) FROM information_schema. character_sets                        ;
 COUNT(*)
 36
-SELECT COUNT(*) FROM information_schema. collations                            ;
+SELECT COUNT(*) FROM information_schema. collations                            where collation_name <> 'utf8_general_cs' ;
 COUNT(*)
 127
-SELECT COUNT(*) FROM information_schema. collation_character_set_applicability ;
+SELECT COUNT(*) FROM information_schema. collation_character_set_applicability where collation_name <> 'utf8_general_cs' ;
 COUNT(*)
 128
 SELECT COUNT(*) FROM information_schema. routines                              ;
@@ -5823,10 +5678,10 @@ utf8_esperanto_ci	utf8
 utf8_estonian_ci	utf8
 select routine_definition from routines;
 routine_definition
-select * from statistics group by index_name asc  limit 0, 5;
+select * from statistics where table_name not like 'help_%'
+group by index_name asc  limit 0, 5;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	mysql	procs_priv	1	mysql	Grantor	1	Grantor	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	37	NULL	NULL		BTREE	
 NULL	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE	
 select concat(table_schema, ', ', table_name, ', ', view_definition) view_info
@@ -5940,9 +5795,9 @@ NULL	test	latin1	latin1_swedish_ci	NULL
 NULL	test1	latin1	latin1_swedish_ci	NULL
 select distinct grantee from user_privileges;
 grantee
-'root'@'localhost'
-'root'@'<SERVER_NAME>'
 'root'@'127.0.0.1'
+'root'@'<SERVER_NAME>'
+'root'@'localhost'
 select all      grantee from user_privileges order by grantee, privilege_type;
 grantee
 'root'@'127.0.0.1'
@@ -7499,7 +7354,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -7650,7 +7505,7 @@ where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 res_t_401013	db_datadict	i_6_401013	BTREE
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -7787,7 +7642,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -7892,7 +7747,7 @@ Testcase 3.2.1.14:
 DROP DATABASE IF EXISTS db_datadict;
 CREATE DATABASE db_datadict;
 USE db_datadict;
-create table res_t_401014(f1 char(10), f2 text(25), f3 int);
+create table res_t_401014(f1 char(10), f2 varchar(25), f3 int);
 create view res_v_401014 as select * from res_t_401014;
 create procedure sp_6_401014() select 'db_datadict';
 create function fn_6_401014() returns int return 0;
@@ -7915,10 +7770,10 @@ from information_schema.columns
 where table_schema like 'db_datadict%';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 NULL	db_datadict	res_t_401014	f1	1	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)			select,insert,update,references	
-NULL	db_datadict	res_t_401014	f2	2	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
+NULL	db_datadict	res_t_401014	f2	2	NULL	YES	varchar	25	25	NULL	NULL	latin1	latin1_swedish_ci	varchar(25)			select,insert,update,references	
 NULL	db_datadict	res_t_401014	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	db_datadict	res_v_401014	f1	1	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)			select,insert,update,references	
-NULL	db_datadict	res_v_401014	f2	2	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
+NULL	db_datadict	res_v_401014	f2	2	NULL	YES	varchar	25	25	NULL	NULL	latin1	latin1_swedish_ci	varchar(25)			select,insert,update,references	
 NULL	db_datadict	res_v_401014	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 select table_schema, table_name, is_updatable
 from information_schema.views
@@ -7936,7 +7791,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -8037,7 +7892,7 @@ WHERE trigger_schema LIKE 'db_datadict%';
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 use db_datadict;
 alter table res_t_401014 change f1 ff1 int;
-alter table res_t_401014 engine = innodb;
+alter table res_t_401014 engine = MEMORY;
 alter table res_t_401014 change f3 f3_new bigint;
 alter view res_v_401014 as select ff1 from res_t_401014;
 alter procedure sp_6_401014 sql security invoker;
@@ -8055,14 +7910,14 @@ select table_catalog, table_schema, engine
 from information_schema.tables
 where table_schema like 'db_datadict%';
 table_catalog	table_schema	engine
-NULL	db_datadict	InnoDB
+NULL	db_datadict	MEMORY
 NULL	db_datadict	NULL
 select *
 from information_schema.columns
 where table_schema like 'db_datadict%';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 NULL	db_datadict	res_t_401014	ff1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	db_datadict	res_t_401014	f2	2	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
+NULL	db_datadict	res_t_401014	f2	2	NULL	YES	varchar	25	25	NULL	NULL	latin1	latin1_swedish_ci	varchar(25)			select,insert,update,references	
 NULL	db_datadict	res_t_401014	f3_new	3	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
 NULL	db_datadict	res_v_401014	ff1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 select table_schema, table_name, is_updatable
@@ -8081,7 +7936,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -8239,7 +8094,7 @@ where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 res_t_401015	db_datadict	i_6_401015	BTREE
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -8375,7 +8230,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -8625,7 +8480,8 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 FLUSH PRIVILEGES;
 connect(localhost,u_6_401017,,test,MYSQL_PORT,MYSQL_SOCK);
 use information_schema;
-select * from collation_character_set_applicability;
+select * from collation_character_set_applicability
+where collation_name <> 'utf8_general_cs';
 COLLATION_NAME	CHARACTER_SET_NAME
 big5_chinese_ci	big5
 big5_bin	big5
@@ -8831,7 +8687,7 @@ COLUMNS	CHARACTER_SET_NAME	varchar(64)
 COLUMNS	COLLATION_NAME	varchar(64)
 COLUMNS	COLUMN_TYPE	longtext
 COLUMNS	COLUMN_KEY	varchar(3)
-COLUMNS	EXTRA	varchar(20)
+COLUMNS	EXTRA	varchar(27)
 COLUMNS	PRIVILEGES	varchar(80)
 COLUMNS	COLUMN_COMMENT	varchar(255)
 COLUMN_PRIVILEGES	GRANTEE	varchar(81)
@@ -9407,7 +9263,7 @@ binary
 geostd8
 cp932
 eucjpms
-select collation_name from collations;
+select collation_name from collations where collation_name <> 'utf8_general_cs';
 collation_name
 big5_chinese_ci
 big5_bin
@@ -9772,7 +9628,7 @@ NULL	information_schema	collations	SORTLEN	6	0	NO	bigint	NULL	NULL	19	0	NULL	NUL
 
 Testcase 3.2.3.2:
 --------------------------------------------------------------------------------
-SELECT * FROM collations;
+SELECT * FROM collations where collation_name <> 'utf8_general_cs';
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
 big5_chinese_ci	big5	1	Yes	Yes	1
 big5_bin	big5	84		Yes	1
@@ -9934,7 +9790,8 @@ NULL	information_schema	collation_character_set_applicability	CHARACTER_SET_NAME
 
 Testcase 3.2.4.2:
 --------------------------------------------------------------------------------
-SELECT * FROM collation_character_set_applicability;
+SELECT * FROM collation_character_set_applicability
+where collation_name <> 'utf8_general_cs';
 COLLATION_NAME	CHARACTER_SET_NAME
 big5_chinese_ci	big5
 big5_bin	big5
@@ -10247,9 +10104,9 @@ NUMERIC_PRECISION	bigint(21) unsigned	YES		NULL
 NUMERIC_SCALE	bigint(21) unsigned	YES		NULL	
 CHARACTER_SET_NAME	varchar(64)	YES		NULL	
 COLLATION_NAME	varchar(64)	YES		NULL	
-COLUMN_TYPE	longtext	NO			
+COLUMN_TYPE	longtext	NO		NULL	
 COLUMN_KEY	varchar(3)	NO			
-EXTRA	varchar(20)	NO			
+EXTRA	varchar(27)	NO			
 PRIVILEGES	varchar(80)	NO			
 COLUMN_COMMENT	varchar(255)	NO			
 SHOW CREATE TABLE columns;
@@ -10271,7 +10128,7 @@ COLUMNS	CREATE TEMPORARY TABLE `COLUMNS` (
   `COLLATION_NAME` varchar(64) DEFAULT NULL,
   `COLUMN_TYPE` longtext NOT NULL,
   `COLUMN_KEY` varchar(3) NOT NULL DEFAULT '',
-  `EXTRA` varchar(20) NOT NULL DEFAULT '',
+  `EXTRA` varchar(27) NOT NULL DEFAULT '',
   `PRIVILEGES` varchar(80) NOT NULL DEFAULT '',
   `COLUMN_COMMENT` varchar(255) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
@@ -10300,9 +10157,9 @@ NULL	information_schema	columns	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	1
 NULL	information_schema	columns	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	columns	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	columns	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	columns	COLUMN_TYPE	15		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	columns	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	columns	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	columns	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	columns	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
 NULL	information_schema	columns	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	columns	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 
@@ -10355,9 +10212,9 @@ NULL	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	1
 NULL	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	COLUMNS	COLUMN_TYPE	15		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	COLUMNS	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 NULL	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select	
@@ -10379,12 +10236,12 @@ NULL	information_schema	EVENTS	EVENT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	ut
 NULL	information_schema	EVENTS	DEFINER	4		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	EVENTS	TIME_ZONE	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	EVENTS	EVENT_BODY	6		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
-NULL	information_schema	EVENTS	EVENT_DEFINITION	7		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	EVENT_DEFINITION	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	EVENT_TYPE	8		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	EVENTS	EXECUTE_AT	9	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	INTERVAL_VALUE	10	NULL	YES	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select	
 NULL	information_schema	EVENTS	INTERVAL_FIELD	11	NULL	YES	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
-NULL	information_schema	EVENTS	SQL_MODE	12		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	SQL_MODE	12	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	STARTS	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	ENDS	14	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	STATUS	15		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
@@ -10522,7 +10379,7 @@ NULL	information_schema	ROUTINES	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	u
 NULL	information_schema	ROUTINES	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 NULL	information_schema	ROUTINES	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	ROUTINES	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	ROUTINES	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	ROUTINES	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	ROUTINES	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	ROUTINES	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -10599,7 +10456,7 @@ NULL	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	N
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TRIGGERS	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	TRIGGERS	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -10607,8 +10464,8 @@ NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	varchar	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	TRIGGERS	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	DEFINER	19		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -10619,7 +10476,7 @@ NULL	information_schema	USER_PRIVILEGES	IS_GRANTABLE	4		NO	varchar	3	9	NULL	NULL
 NULL	information_schema	VIEWS	TABLE_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	VIEWS	VIEW_DEFINITION	4		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	VIEWS	IS_UPDATABLE	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	VIEWS	DEFINER	7		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
@@ -10631,7 +10488,7 @@ NULL	mysql	columns_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PR
 NULL	mysql	columns_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
 NULL	mysql	columns_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	columns_priv	Column_name	5		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
-NULL	mysql	columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	columns_priv	Column_priv	7		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references	
 NULL	mysql	db	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
 NULL	mysql	db	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
@@ -10662,7 +10519,7 @@ NULL	mysql	event	definer	4		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			se
 NULL	mysql	event	execute_at	5	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
 NULL	mysql	event	interval_value	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	event	interval_field	7	NULL	YES	enum	18	54	NULL	NULL	utf8	utf8_general_ci	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')			select,insert,update,references	
-NULL	mysql	event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	event	modified	9	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
 NULL	mysql	event	last_executed	10	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
 NULL	mysql	event	starts	11	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
@@ -10681,12 +10538,12 @@ NULL	mysql	func	name	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		sel
 NULL	mysql	func	ret	2	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			select,insert,update,references	
 NULL	mysql	func	dl	3		NO	char	128	384	NULL	NULL	utf8	utf8_bin	char(128)			select,insert,update,references	
 NULL	mysql	func	type	4	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('function','aggregate')			select,insert,update,references	
-NULL	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
-NULL	mysql	general_log	user_host	2	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
-NULL	mysql	general_log	thread_id	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	general_log	server_id	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	general_log	command_type	5	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-NULL	mysql	general_log	argument	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+NULL	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
+NULL	mysql	general_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+NULL	mysql	general_log	thread_id	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+NULL	mysql	general_log	argument	6	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	help_category	help_category_id	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned	PRI		select,insert,update,references	
 NULL	mysql	help_category	name	2	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		select,insert,update,references	
 NULL	mysql	help_category	parent_category_id	3	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned			select,insert,update,references	
@@ -10739,10 +10596,10 @@ NULL	mysql	proc	sql_data_access	6	CONTAINS_SQL	NO	enum	17	51	NULL	NULL	utf8	utf8
 NULL	mysql	proc	is_deterministic	7	NO	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
 NULL	mysql	proc	security_type	8	DEFINER	NO	enum	7	21	NULL	NULL	utf8	utf8_general_ci	enum('INVOKER','DEFINER')			select,insert,update,references	
 NULL	mysql	proc	param_list	9	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
-NULL	mysql	proc	returns	10		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+NULL	mysql	proc	returns	10	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 NULL	mysql	proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 NULL	mysql	proc	definer	12		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			select,insert,update,references	
-NULL	mysql	proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	proc	modified	14	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
 NULL	mysql	proc	sql_mode	15		NO	set	431	1293	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE')			select,insert,update,references	
 NULL	mysql	proc	comment	16		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references	
@@ -10757,7 +10614,7 @@ NULL	mysql	procs_priv	Routine_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	cha
 NULL	mysql	procs_priv	Routine_type	5	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')	PRI		select,insert,update,references	
 NULL	mysql	procs_priv	Grantor	6		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references	
 NULL	mysql	procs_priv	Proc_priv	7		NO	set	27	81	NULL	NULL	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')			select,insert,update,references	
-NULL	mysql	procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	servers	Server_name	1		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	
 NULL	mysql	servers	Host	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Db	3		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
@@ -10767,23 +10624,23 @@ NULL	mysql	servers	Port	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(4)			select,inse
 NULL	mysql	servers	Socket	7		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Wrapper	8		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Owner	9		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
-NULL	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	mysql	slow_log	lock_time	4	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	mysql	slow_log	rows_sent	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	slow_log	rows_examined	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	db	7	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select,insert,update,references	
-NULL	mysql	slow_log	last_insert_id	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	insert_id	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	server_id	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	db	7	NULL	NO	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select,insert,update,references	
+NULL	mysql	slow_log	last_insert_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	slow_log	sql_text	11	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	tables_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Grantor	5		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references	
-NULL	mysql	tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	tables_priv	Table_priv	7		NO	set	98	294	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')			select,insert,update,references	
 NULL	mysql	tables_priv	Column_priv	8		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references	
 NULL	mysql	time_zone	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI	auto_increment	select,insert,update,references	
@@ -11095,7 +10952,7 @@ NULL	test	tb4	f217	42	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	N
 NULL	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
 NULL	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
-NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
@@ -11197,9 +11054,9 @@ NULL	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	1
 NULL	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	COLUMNS	COLUMN_TYPE	15		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	COLUMNS	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 NULL	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select	
@@ -11221,12 +11078,12 @@ NULL	information_schema	EVENTS	EVENT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	ut
 NULL	information_schema	EVENTS	DEFINER	4		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	EVENTS	TIME_ZONE	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	EVENTS	EVENT_BODY	6		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
-NULL	information_schema	EVENTS	EVENT_DEFINITION	7		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	EVENT_DEFINITION	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	EVENT_TYPE	8		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	EVENTS	EXECUTE_AT	9	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	INTERVAL_VALUE	10	NULL	YES	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select	
 NULL	information_schema	EVENTS	INTERVAL_FIELD	11	NULL	YES	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
-NULL	information_schema	EVENTS	SQL_MODE	12		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	SQL_MODE	12	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	STARTS	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	ENDS	14	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	STATUS	15		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
@@ -11364,7 +11221,7 @@ NULL	information_schema	ROUTINES	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	u
 NULL	information_schema	ROUTINES	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 NULL	information_schema	ROUTINES	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	ROUTINES	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	ROUTINES	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	ROUTINES	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	ROUTINES	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	ROUTINES	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -11441,7 +11298,7 @@ NULL	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	N
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TRIGGERS	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	TRIGGERS	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -11449,8 +11306,8 @@ NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	varchar	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	TRIGGERS	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	DEFINER	19		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -11461,7 +11318,7 @@ NULL	information_schema	USER_PRIVILEGES	IS_GRANTABLE	4		NO	varchar	3	9	NULL	NULL
 NULL	information_schema	VIEWS	TABLE_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	VIEWS	VIEW_DEFINITION	4		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	VIEWS	IS_UPDATABLE	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	VIEWS	DEFINER	7		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
@@ -11724,7 +11581,7 @@ NULL	test	tb4	f217	42	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	N
 NULL	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
 NULL	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
-NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
@@ -11769,9 +11626,9 @@ NULL	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	1
 NULL	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	COLUMNS	COLUMN_TYPE	15		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	COLUMNS	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 NULL	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select	
@@ -11793,12 +11650,12 @@ NULL	information_schema	EVENTS	EVENT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	ut
 NULL	information_schema	EVENTS	DEFINER	4		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	EVENTS	TIME_ZONE	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	EVENTS	EVENT_BODY	6		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
-NULL	information_schema	EVENTS	EVENT_DEFINITION	7		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	EVENT_DEFINITION	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	EVENT_TYPE	8		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	EVENTS	EXECUTE_AT	9	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	INTERVAL_VALUE	10	NULL	YES	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select	
 NULL	information_schema	EVENTS	INTERVAL_FIELD	11	NULL	YES	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
-NULL	information_schema	EVENTS	SQL_MODE	12		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	SQL_MODE	12	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	STARTS	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	ENDS	14	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	STATUS	15		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
@@ -11936,7 +11793,7 @@ NULL	information_schema	ROUTINES	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	u
 NULL	information_schema	ROUTINES	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 NULL	information_schema	ROUTINES	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	ROUTINES	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	ROUTINES	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	ROUTINES	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	ROUTINES	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	ROUTINES	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -12013,7 +11870,7 @@ NULL	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	N
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TRIGGERS	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	TRIGGERS	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -12021,8 +11878,8 @@ NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	varchar	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	TRIGGERS	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	DEFINER	19		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -12033,7 +11890,7 @@ NULL	information_schema	USER_PRIVILEGES	IS_GRANTABLE	4		NO	varchar	3	9	NULL	NULL
 NULL	information_schema	VIEWS	TABLE_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	VIEWS	VIEW_DEFINITION	4		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	VIEWS	IS_UPDATABLE	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	VIEWS	DEFINER	7		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
@@ -12296,7 +12153,7 @@ NULL	test	tb4	f217	42	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	N
 NULL	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
 NULL	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
-NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
@@ -12441,7 +12298,7 @@ NULL	information_schema	COLUMNS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint(
 3.0000	information_schema	COLUMNS	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	COLUMNS	COLUMN_TYPE	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 3.0000	information_schema	COLUMNS	COLUMN_KEY	varchar	3	9	utf8	utf8_general_ci	varchar(3)
-3.0000	information_schema	COLUMNS	EXTRA	varchar	20	60	utf8	utf8_general_ci	varchar(20)
+3.0000	information_schema	COLUMNS	EXTRA	varchar	27	81	utf8	utf8_general_ci	varchar(27)
 3.0000	information_schema	COLUMNS	PRIVILEGES	varchar	80	240	utf8	utf8_general_ci	varchar(80)
 3.0000	information_schema	COLUMNS	COLUMN_COMMENT	varchar	255	765	utf8	utf8_general_ci	varchar(255)
 3.0000	information_schema	COLUMN_PRIVILEGES	GRANTEE	varchar	81	243	utf8	utf8_general_ci	varchar(81)
@@ -12823,7 +12680,7 @@ NULL	mysql	ndb_binlog_index	schemaops	bigint	NULL	NULL	NULL	NULL	bigint(20) unsi
 3.0000	mysql	proc	is_deterministic	enum	3	9	utf8	utf8_general_ci	enum('YES','NO')
 3.0000	mysql	proc	security_type	enum	7	21	utf8	utf8_general_ci	enum('INVOKER','DEFINER')
 1.0000	mysql	proc	param_list	blob	65535	65535	NULL	NULL	blob
-3.0000	mysql	proc	returns	char	64	192	utf8	utf8_general_ci	char(64)
+1.0000	mysql	proc	returns	longblob	4294967295	4294967295	NULL	NULL	longblob
 1.0000	mysql	proc	body	longblob	4294967295	4294967295	NULL	NULL	longblob
 3.0000	mysql	proc	definer	char	77	231	utf8	utf8_bin	char(77)
 NULL	mysql	proc	created	timestamp	NULL	NULL	NULL	NULL	timestamp
@@ -13423,7 +13280,7 @@ SQL_PATH	varchar(64)	YES		NULL
 SECURITY_TYPE	varchar(7)	NO			
 CREATED	datetime	NO		0000-00-00 00:00:00	
 LAST_ALTERED	datetime	NO		0000-00-00 00:00:00	
-SQL_MODE	longtext	NO			
+SQL_MODE	longtext	NO		NULL	
 ROUTINE_COMMENT	varchar(64)	NO			
 DEFINER	varchar(77)	NO			
 CHARACTER_SET_CLIENT	varchar(32)	NO			
@@ -13484,7 +13341,7 @@ NULL	information_schema	routines	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	u
 NULL	information_schema	routines	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 NULL	information_schema	routines	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	routines	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	routines	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	routines	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	routines	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	routines	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	routines	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -14336,7 +14193,7 @@ NULL	information_schema	TRIGGERS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#
 NULL	information_schema	USER_PRIVILEGES	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	VIEWS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 SELECT * FROM information_schema.tables
-WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema') AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 NULL	db_datadict	tb1	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	db_datadict	tb2	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
@@ -14347,10 +14204,6 @@ NULL	mysql	db	BASE TABLE	MyISAM	10	Fixed	3	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-
 NULL	mysql	event	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		Events
 NULL	mysql	func	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		User defined functions
 NULL	mysql	general_log	BASE TABLE	CSV	10	Dynamic	1	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		General log
-NULL	mysql	help_category	BASE TABLE	MyISAM	10	Fixed	37	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help categories
-NULL	mysql	help_keyword	BASE TABLE	MyISAM	10	Fixed	424	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help keywords
-NULL	mysql	help_relation	BASE TABLE	MyISAM	10	Fixed	901	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		keyword-topic relation
-NULL	mysql	help_topic	BASE TABLE	MyISAM	10	Dynamic	479	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help topics
 NULL	mysql	host	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		Host privileges;  Merged with database privileges
 NULL	mysql	ndb_binlog_index	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	mysql	plugin	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		MySQL plugins
@@ -14397,7 +14250,7 @@ Field	Type	Null	Key	Default	Extra
 TABLE_CATALOG	varchar(4096)	YES		NULL	
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
-VIEW_DEFINITION	longtext	NO			
+VIEW_DEFINITION	longtext	NO		NULL	
 CHECK_OPTION	varchar(8)	NO			
 IS_UPDATABLE	varchar(3)	NO			
 DEFINER	varchar(77)	NO			
@@ -14432,7 +14285,7 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAUL
 NULL	information_schema	views	TABLE_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	views	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	views	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	views	VIEW_DEFINITION	4		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	views	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	views	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	views	IS_UPDATABLE	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	views	DEFINER	7		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
@@ -14579,7 +14432,8 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_
 	
 root@localhost	db_datadict_2
 REVOKE SELECT ON db_datadict.tb_6_401402_1 FROM 'user_1'@'localhost';
-SELECT * FROM information_schema.statistics;
+SELECT * FROM information_schema.statistics
+WHERE NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	db_datadict	tb_6_401402_1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE	
 NULL	db_datadict	tb_6_401402_1	1	db_datadict	f2_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE	
@@ -14601,14 +14455,6 @@ NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE
 NULL	mysql	event	0	mysql	PRIMARY	1	db	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	event	0	mysql	PRIMARY	2	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	func	0	mysql	PRIMARY	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	37	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	37	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	424	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	name	1	name	A	424	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	901	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	479	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	name	1	name	A	479	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	2	Db	A	0	NULL	NULL		BTREE	
 NULL	mysql	ndb_binlog_index	0	mysql	PRIMARY	1	epoch	A	0	NULL	NULL		BTREE	
@@ -15212,7 +15058,7 @@ EVENT_OBJECT_SCHEMA	varchar(64)	NO
 EVENT_OBJECT_TABLE	varchar(64)	NO			
 ACTION_ORDER	bigint(4)	NO		0	
 ACTION_CONDITION	longtext	YES		NULL	
-ACTION_STATEMENT	longtext	NO			
+ACTION_STATEMENT	longtext	NO		NULL	
 ACTION_ORIENTATION	varchar(9)	NO			
 ACTION_TIMING	varchar(6)	NO			
 ACTION_REFERENCE_OLD_TABLE	varchar(64)	YES		NULL	
@@ -15220,8 +15066,8 @@ ACTION_REFERENCE_NEW_TABLE	varchar(64)	YES		NULL
 ACTION_REFERENCE_OLD_ROW	varchar(3)	NO			
 ACTION_REFERENCE_NEW_ROW	varchar(3)	NO			
 CREATED	datetime	YES		NULL	
-SQL_MODE	longtext	NO			
-DEFINER	longtext	NO			
+SQL_MODE	longtext	NO		NULL	
+DEFINER	longtext	NO		NULL	
 CHARACTER_SET_CLIENT	varchar(32)	NO			
 COLLATION_CONNECTION	varchar(32)	NO			
 DATABASE_COLLATION	varchar(32)	NO			
@@ -15271,7 +15117,7 @@ NULL	information_schema	triggers	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	N
 NULL	information_schema	triggers	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	triggers	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	triggers	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	triggers	ACTION_STATEMENT	10		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	triggers	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	triggers	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	triggers	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	triggers	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -15279,8 +15125,8 @@ NULL	information_schema	triggers	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	varchar	
 NULL	information_schema	triggers	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	triggers	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	triggers	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	triggers	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	triggers	DEFINER	19		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	triggers	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	triggers	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	triggers	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	triggers	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	triggers	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	

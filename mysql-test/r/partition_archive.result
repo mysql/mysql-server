@@ -1,0 +1,13 @@
+drop database if exists db99;
+create database db99;
+use db99;
+create table t1 (a int not null)
+engine=archive
+partition by list (a)
+(partition p0 values in (1), partition p1 values in (2));
+insert into t1 values (1), (2);
+create index inx on t1 (a);
+alter table t1 add partition (partition p2 values in (3));
+alter table t1 drop partition p2;
+use test;
+drop database db99;

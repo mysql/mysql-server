@@ -778,15 +778,60 @@ GRANT CREATE VIEW ON db26813.v2 TO u26813@localhost;
 GRANT DROP, CREATE VIEW ON db26813.v3 TO u26813@localhost;
 GRANT SELECT ON db26813.t1 TO u26813@localhost;
 ALTER VIEW v1 AS SELECT f2 FROM t1;
-ERROR 42000: CREATE VIEW command denied to user 'u26813'@'localhost' for table 'v1'
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
 ALTER VIEW v2 AS SELECT f2 FROM t1;
-ERROR 42000: DROP command denied to user 'u26813'@'localhost' for table 'v2'
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
 ALTER VIEW v3 AS SELECT f2 FROM t1;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
 SHOW CREATE VIEW v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`f2` AS `f2` from `t1`	latin1	latin1_swedish_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 DROP USER u26813@localhost;
 DROP DATABASE db26813;
+#
+# Bug#29908: A user can gain additional access through the ALTER VIEW.
+#
+CREATE DATABASE mysqltest_29908;
+USE mysqltest_29908;
+CREATE TABLE t1(f1 INT, f2 INT);
+CREATE USER u29908_1@localhost;
+CREATE DEFINER = u29908_1@localhost VIEW v1 AS SELECT f1 FROM t1;
+CREATE DEFINER = u29908_1@localhost SQL SECURITY INVOKER VIEW v2 AS
+SELECT f1 FROM t1;
+GRANT DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v1 TO u29908_1@localhost;
+GRANT DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v2 TO u29908_1@localhost;
+GRANT SELECT ON mysqltest_29908.t1 TO u29908_1@localhost;
+CREATE USER u29908_2@localhost;
+GRANT DROP, CREATE VIEW ON mysqltest_29908.v1 TO u29908_2@localhost;
+GRANT DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v2 TO u29908_2@localhost;
+GRANT SELECT ON mysqltest_29908.t1 TO u29908_2@localhost;
+ALTER VIEW v1 AS SELECT f2 FROM t1;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ALTER VIEW v2 AS SELECT f2 FROM t1;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u29908_1`@`localhost` SQL SECURITY INVOKER VIEW `v2` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
+ALTER VIEW v1 AS SELECT f2 FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`u29908_1`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f2` AS `f2` from `t1`	latin1	latin1_swedish_ci
+ALTER VIEW v2 AS SELECT f2 FROM t1;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u29908_1`@`localhost` SQL SECURITY INVOKER VIEW `v2` AS select `t1`.`f2` AS `f2` from `t1`	latin1	latin1_swedish_ci
+ALTER VIEW v1 AS SELECT f1 FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`u29908_1`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
+ALTER VIEW v2 AS SELECT f1 FROM t1;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u29908_1`@`localhost` SQL SECURITY INVOKER VIEW `v2` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
+DROP USER u29908_1@localhost;
+DROP USER u29908_2@localhost;
+DROP DATABASE mysqltest_29908;
+#######################################################################
 DROP DATABASE IF EXISTS mysqltest1;
 DROP DATABASE IF EXISTS mysqltest2;
 CREATE DATABASE mysqltest1;
@@ -893,6 +938,8 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VI
 Warnings:
 Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 ALTER ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
+Warnings:
+Note	1449	There is no 'no_such'@'user_1' registered
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=MERGE DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci

@@ -61,7 +61,6 @@ use File::Copy;
 use File::Temp qw /tempdir/;
 use Cwd;
 use Getopt::Long;
-use Sys::Hostname;
 use IO::Socket;
 use IO::Socket::INET;
 use strict;
@@ -83,7 +82,6 @@ require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
 require "lib/mtr_gprof.pl";
 require "lib/mtr_report.pl";
-require "lib/mtr_diff.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_stress.pl";
@@ -101,7 +99,6 @@ $Devel::Trace::TRACE= 1;
 our $mysql_version_id;
 our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
-our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
 our $glob_timers=                 undef;
 our $glob_use_embedded_server=    0;
@@ -166,6 +163,8 @@ our $exe_libtool;
 our $opt_bench= 0;
 our $opt_small_bench= 0;
 our $opt_big_test= 0;
+
+our @opt_combination;
 
 our @opt_extra_mysqld_opt;
 
@@ -235,7 +234,6 @@ my $opt_report_features;
 our $opt_check_testcases;
 our $opt_mark_progress;
 
-our $opt_skip;
 our $opt_skip_rpl;
 our $max_slave_num= 0;
 our $max_master_num= 1;
@@ -260,13 +258,13 @@ our $opt_timer= 1;
 
 our $opt_user;
 
-our $opt_valgrind= 0;
-our $opt_valgrind_mysqld= 0;
-our $opt_valgrind_mysqltest= 0;
-our $default_valgrind_options= "--show-reachable=yes";
-our $opt_valgrind_options;
-our $opt_valgrind_path;
-our $opt_callgrind;
+my $opt_valgrind= 0;
+my $opt_valgrind_mysqld= 0;
+my $opt_valgrind_mysqltest= 0;
+my @default_valgrind_args= ("--show-reachable=yes");
+my @valgrind_args;
+my $opt_valgrind_path;
+my $opt_callgrind;
 
 our $opt_stress=               "";
 our $opt_stress_suite=     "main";
@@ -278,12 +276,7 @@ our $opt_stress_test_duration=  0;
 our $opt_stress_init_file=     "";
 our $opt_stress_test_file=     "";
 
-our $opt_wait_for_master;
-our $opt_wait_for_slave;
-
 our $opt_warnings;
-
-our $opt_udiff;
 
 our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
@@ -308,7 +301,6 @@ our @data_dir_lst;
 our $used_binlog_format;
 our $used_default_engine;
 our $debug_compiled_binaries;
-our $glob_tot_real_time= 0;
 
 our %mysqld_variables;
 
@@ -472,6 +464,19 @@ sub main () {
 #
 ##############################################################################
 
+#
+# When an option is no longer used by this program, it must be explicitly
+# ignored or else it will be passed through to mysqld.  GetOptions will call
+# this subroutine once for each such option on the command line.  See
+# Getopt::Long documentation.
+#
+
+sub warn_about_removed_option {
+  my ($option, $value, $hash_value) = @_;
+
+  warn "WARNING: This option is no longer used, and is ignored: --$option\n";
+}
+
 sub command_line_setup () {
 
   # These are defaults for things that are set on the command line
@@ -508,6 +513,15 @@ sub command_line_setup () {
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
 
+  # Options that are no longer used must still be processed, because all
+  # unprocessed options are passed directly to mysqld.  The user will be
+  # warned that the option is being ignored.
+  #
+  # Put the complete option string here.  For example, to remove the --suite
+  # option, remove it from GetOptions() below and put 'suite|suites=s' here.
+  my @removed_options = (
+  );
+
   Getopt::Long::Configure("pass_through");
   GetOptions(
              # Control what engine/variation to run
@@ -541,6 +555,7 @@ sub command_line_setup () {
              'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
              'big-test'                 => \$opt_big_test,
+             'combination=s'            => \@opt_combination,
 
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
@@ -586,7 +601,18 @@ sub command_line_setup () {
              'valgrind|valgrind-all'    => \$opt_valgrind,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
              'valgrind-mysqld'          => \$opt_valgrind_mysqld,
-             'valgrind-options=s'       => \$opt_valgrind_options,
+             'valgrind-options=s'       => sub {
+	       my ($opt, $value)= @_;
+	       # Deprecated option unless it's what we know pushbuild uses
+	       if ($value eq "--gen-suppressions=all --show-reachable=yes") {
+		 push(@valgrind_args, $_) for (split(' ', $value));
+		 return;
+	       }
+	       die("--valgrind-options=s is deprecated. Use ",
+		   "--valgrind-option=s, to be specified several",
+		   " times if necessary");
+	     },
+             'valgrind-option=s'        => \@valgrind_args,
              'valgrind-path=s'          => \$opt_valgrind_path,
 	     'callgrind'                => \$opt_callgrind,
 
@@ -621,11 +647,13 @@ sub command_line_setup () {
              'start-dirty'              => \$opt_start_dirty,
              'start-and-exit'           => \$opt_start_and_exit,
              'timer!'                   => \$opt_timer,
-             'unified-diff|udiff'       => \$opt_udiff,
              'user=s'                   => \$opt_user,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
+
+             # Options which are no longer used
+             (map { $_ => \&warn_about_removed_option } @removed_options),
 
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
@@ -656,8 +684,6 @@ sub command_line_setup () {
   {
     $source_dist=  1;
   }
-
-  $glob_hostname=  mtr_short_hostname();
 
   # Find the absolute path to the test directory
   $glob_mysql_test_dir=  cwd();
@@ -698,10 +724,6 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Embedded server flag
   # --------------------------------------------------------------------------
-  if ( $opt_ndb_embedded_server )
-  {
-    $opt_embedded_server= 1;
-  }
   if ( $opt_embedded_server )
   {
     $opt_ndb_embedded_server= 1;
@@ -944,30 +966,6 @@ sub command_line_setup () {
   }
 
   # --------------------------------------------------------------------------
-  # Embedded server flag
-  # --------------------------------------------------------------------------
-  if ( $opt_embedded_server )
-  {
-    $glob_use_embedded_server= 1;
-    push(@glob_test_mode, "embedded");
-    $opt_skip_rpl= 1;              # We never run replication with embedded
-    if ( ! $opt_ndb_embedded_server )
-    {
-      $opt_skip_ndbcluster= 1;     # Turn off use of NDB cluster
-    }
-    $opt_skip_ssl= 1;              # Turn off use of SSL
-
-    # Turn off use of bin log
-    push(@opt_extra_mysqld_opt, "--skip-log-bin");
-
-    if ( $opt_extern )
-    {
-      mtr_error("Can't use --extern with --embedded-server");
-    }
-  }
-
-
-  # --------------------------------------------------------------------------
   # ps protcol flag
   # --------------------------------------------------------------------------
   if ( $opt_ps_protocol )
@@ -1023,7 +1021,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Check valgrind arguments
   # --------------------------------------------------------------------------
-  if ( $opt_valgrind or $opt_valgrind_path or defined $opt_valgrind_options)
+  if ( $opt_valgrind or $opt_valgrind_path or @valgrind_args)
   {
     mtr_report("Turning on valgrind for all executables");
     $opt_valgrind= 1;
@@ -1048,29 +1046,32 @@ sub command_line_setup () {
     $opt_valgrind_mysqld= 1;
 
     # Set special valgrind options unless options passed on command line
-    $opt_valgrind_options="--trace-children=yes"
-      unless defined $opt_valgrind_options;
+    push(@valgrind_args, "--trace-children=yes")
+      unless @valgrind_args;
   }
 
   if ( $opt_valgrind )
   {
     # Set valgrind_options to default unless already defined
-    $opt_valgrind_options=$default_valgrind_options
-      unless defined $opt_valgrind_options;
+    push(@valgrind_args, @default_valgrind_args)
+      unless @valgrind_args;
 
-    mtr_report("Running valgrind with options \"$opt_valgrind_options\"");
+    mtr_report("Running valgrind with options \"",
+	       join(" ", @valgrind_args), "\"");
   }
 
   if ( ! $opt_testcase_timeout )
   {
     $opt_testcase_timeout= $default_testcase_timeout;
     $opt_testcase_timeout*= 10 if $opt_valgrind;
+    $opt_testcase_timeout*= 10 if ($opt_debug and $glob_win32);
   }
 
   if ( ! $opt_suite_timeout )
   {
     $opt_suite_timeout= $default_suite_timeout;
     $opt_suite_timeout*= 6 if $opt_valgrind;
+    $opt_suite_timeout*= 6 if ($opt_debug and $glob_win32);
   }
 
   if ( ! $opt_user )
@@ -1400,6 +1401,7 @@ sub datadir_list_setup () {
 
 sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
+  my $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
 
   #
   # Execute "mysqld --help --verbose" to get a list
@@ -1410,7 +1412,7 @@ sub collect_mysqld_features () {
   #
   # --datadir must exist, mysqld will chdir into it
   #
-  my $list= `$exe_mysqld --no-defaults --datadir=$path_language --language=$path_language --skip-grant-tables --verbose --help`;
+  my $list= `$exe_mysqld --no-defaults --datadir=$tmpdir --language=$path_language --skip-grant-tables --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {
@@ -1465,7 +1467,7 @@ sub collect_mysqld_features () {
       }
     }
   }
-
+  rmtree($tmpdir);
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
@@ -2136,6 +2138,22 @@ sub environment_setup () {
     ($lib_example_plugin ? "--plugin_dir=" . dirname($lib_example_plugin) : "");
 
   # ----------------------------------------------------
+  # Setup env so childs can execute myisampack and myisamchk
+  # ----------------------------------------------------
+  $ENV{'MYISAMCHK'}= mtr_native_path(mtr_exe_exists(
+                       vs_config_dirs('storage/myisam', 'myisamchk'),
+                       vs_config_dirs('myisam', 'myisamchk'),
+                       "$path_client_bindir/myisamchk",
+                       "$glob_basedir/storage/myisam/myisamchk",
+                       "$glob_basedir/myisam/myisamchk"));
+  $ENV{'MYISAMPACK'}= mtr_native_path(mtr_exe_exists(
+                        vs_config_dirs('storage/myisam', 'myisampack'),
+                        vs_config_dirs('myisam', 'myisampack'),
+                        "$path_client_bindir/myisampack",
+                        "$glob_basedir/storage/myisam/myisampack",
+                        "$glob_basedir/myisam/myisampack"));
+
+  # ----------------------------------------------------
   # We are nice and report a bit about our settings
   # ----------------------------------------------------
   if (!$opt_extern)
@@ -2242,7 +2260,7 @@ sub remove_stale_vardir () {
       {
 	# Remove the directory which the link points at
 	mtr_verbose("Removing " . readlink($opt_vardir));
-	rmtree(readlink($opt_vardir));
+	mtr_rmtree(readlink($opt_vardir));
 
 	# Remove the "var" symlink
 	mtr_verbose("unlink($opt_vardir)");
@@ -2270,7 +2288,7 @@ sub remove_stale_vardir () {
 	foreach my $bin ( glob("$opt_vardir/*") )
 	{
 	  mtr_verbose("Removing bin $bin");
-	  rmtree($bin);
+	  mtr_rmtree($bin);
 	}
       }
     }
@@ -2278,7 +2296,7 @@ sub remove_stale_vardir () {
     {
       # Remove the entire "var" dir
       mtr_verbose("Removing $opt_vardir/");
-      rmtree("$opt_vardir/");
+      mtr_rmtree("$opt_vardir/");
     }
 
     if ( $opt_mem )
@@ -2287,7 +2305,7 @@ sub remove_stale_vardir () {
       # remove the $opt_mem dir to assure the symlink
       # won't point at an old directory
       mtr_verbose("Removing $opt_mem");
-      rmtree($opt_mem);
+      mtr_rmtree($opt_mem);
     }
 
   }
@@ -2300,11 +2318,11 @@ sub remove_stale_vardir () {
     # Remove the var/ dir in mysql-test dir if any
     # this could be an old symlink that shouldn't be there
     mtr_verbose("Removing $default_vardir");
-    rmtree($default_vardir);
+    mtr_rmtree($default_vardir);
 
     # Remove the "var" dir
     mtr_verbose("Removing $opt_vardir/");
-    rmtree("$opt_vardir/");
+    mtr_rmtree("$opt_vardir/");
   }
 }
 
@@ -2957,13 +2975,16 @@ sub initialize_servers () {
     }
   }
   check_running_as_root();
+
+  mtr_log_init("$opt_vardir/log/mysql-test-run.log");
+
 }
 
 sub mysql_install_db () {
 
   install_db('master', $master->[0]->{'path_myddir'});
 
-  if ($max_master_num)
+  if ($max_master_num > 1)
   {
     copy_install_db('master', $master->[1]->{'path_myddir'});
   }
@@ -3125,10 +3146,15 @@ sub install_db ($$) {
   mtr_appendfile_to_file("$path_sql_dir/fill_help_tables.sql",
 			 $bootstrap_sql_file);
 
+  # Remove anonymous users
+  mtr_tofile($bootstrap_sql_file,
+	     "DELETE FROM mysql.user where user= '';");
+
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
+
 
   if ( mtr_run($exe_mysqld_bootstrap, $args, $bootstrap_sql_file,
                $path_bootstrap_log, $path_bootstrap_log,
@@ -3254,7 +3280,7 @@ sub restore_slave_databases ($) {
     {
       my $data_dir= $slave->[$idx]->{'path_myddir'};
       my $name= basename($data_dir);
-      rmtree($data_dir);
+      mtr_rmtree($data_dir);
       mtr_copy_dir("$path_snapshot/$name", $data_dir);
     }
   }
@@ -3427,56 +3453,6 @@ sub find_testcase_skipped_reason($)
 }
 
 
-sub analyze_testcase_failure_sync_with_master($)
-{
-  my ($tinfo)= @_;
-
-  my $args;
-  mtr_init_args(\$args);
-
-  mtr_add_arg($args, "--no-defaults");
-  mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
-  mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
-  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
-
-  mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
-  mtr_add_arg($args, "--port=%d", $master->[0]->{'port'});
-  mtr_add_arg($args, "--database=test");
-  mtr_add_arg($args, "--user=%s", $opt_user);
-  mtr_add_arg($args, "--password=");
-
-  # Run the test file and append output to log file
-  mtr_run_test($exe_mysqltest,$args,
-	       "include/analyze_failure_sync_with_master.test",
-	       "$path_timefile", "$path_timefile","",
-	       { append_log_file => 1 });
-
-}
-
-sub analyze_testcase_failure($)
-{
-  my ($tinfo)= @_;
-
-  # Open mysqltest.log
-  my $F= IO::File->new($path_timefile)
-    or return;
-
-  while ( my $line= <$F> )
-  {
-    # Look for "mysqltest: At line nnn: <error>
-    if ( $line =~ /mysqltest: At line [0-9]*: (.*)/ )
-    {
-      my $error= $1;
-      # Look for "could not sync with master"
-      if ( $error =~ /could not sync with master/ )
-      {
-	analyze_testcase_failure_sync_with_master($tinfo);
-      }
-    }
-  }
-}
-
 ##############################################################################
 #
 #  Run a single test case
@@ -3576,10 +3552,6 @@ sub run_testcase ($) {
     }
     elsif ( $res == 1 )
     {
-      if ( $opt_force )
-      {
-	analyze_testcase_failure($tinfo);
-      }
       # Test case failure reported by mysqltest
       report_failure_and_restart($tinfo);
     }
@@ -3613,7 +3585,7 @@ sub run_testcase ($) {
 sub save_installed_db () {
 
   mtr_report("Saving snapshot of installed databases");
-  rmtree($path_snapshot);
+  mtr_rmtree($path_snapshot);
 
   foreach my $data_dir (@data_dir_lst)
   {
@@ -3660,7 +3632,7 @@ sub restore_installed_db ($) {
     {
       my $name= basename($data_dir);
       save_files_before_restore($test_name, $data_dir);
-      rmtree("$data_dir");
+      mtr_rmtree("$data_dir");
       mtr_copy_dir("$path_snapshot/$name", "$data_dir");
     }
 
@@ -3670,7 +3642,7 @@ sub restore_installed_db ($) {
     {
       foreach my $ndbd (@{$cluster->{'ndbds'}})
       {
-	rmtree("$ndbd->{'path_fs'}" );
+	mtr_rmtree("$ndbd->{'path_fs'}" );
       }
     }
   }
@@ -3685,7 +3657,6 @@ sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
   mtr_report_test_failed($tinfo);
-  mtr_show_failed_diff($tinfo);
   print "\n";
   if ( $opt_force )
   {
@@ -3694,13 +3665,13 @@ sub report_failure_and_restart ($) {
 
     # Restore the snapshot of the installed test db
     restore_installed_db($tinfo->{'name'});
-    print "Resuming Tests\n\n";
+    mtr_report("Resuming Tests\n");
     return;
   }
 
   my $test_mode= join(" ", @::glob_test_mode) || "default";
-  print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
-  print "To continue, re-run with '--force'.\n";
+  mtr_report("Aborting: $tinfo->{'name'} failed in $test_mode mode. ");
+  mtr_report("To continue, re-run with '--force'.");
   if ( ! $glob_debugger and
        ! $opt_extern and
        ! $glob_use_embedded_server )
@@ -3835,6 +3806,21 @@ sub mysqld_arguments ($$$$) {
   mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
+
+  # Increase default connect_timeout to avoid intermittent
+  # disconnects when test servers are put under load
+  # see BUG#28359
+  mtr_add_arg($args, "%s--connect-timeout=60", $prefix);
+
+
+  # When mysqld is run by a root user(euid is 0), it will fail
+  # to start unless we specify what user to run as. If not running
+  # as root it will be ignored, see BUG#30630
+  my $euid= $>;
+  if (!$glob_win32 and $euid == 0 and
+      grep(/^--user/, @$extra_opt, @opt_extra_mysqld_opt) == 0) {
+    mtr_add_arg($args, "%s--user=root");
+  }
 
   if ( $opt_valgrind_mysqld )
   {
@@ -4145,6 +4131,9 @@ sub mysqld_start ($$$) {
     $wait_for_pid_file= 0;
   }
 
+  # Remove the pidfile
+  unlink($mysqld->{'path_pid'});
+
   if ( defined $exe )
   {
     $pid= mtr_spawn($exe, $args, "",
@@ -4178,11 +4167,11 @@ sub mysqld_start ($$$) {
 
 sub stop_all_servers () {
 
-  print  "Stopping All Servers\n";
+  mtr_report("Stopping All Servers");
 
   if ( ! $opt_skip_im )
   {
-    print  "Shutting-down Instance Manager\n";
+    mtr_report("Shutting-down Instance Manager");
     unless (mtr_im_stop($instance_manager, "stop_all_servers"))
     {
       mtr_error("Failed to stop Instance Manager.")
@@ -4896,6 +4885,9 @@ sub run_mysqltest ($) {
 
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 
+  # Number of lines of resut to include in failure report
+  mtr_add_arg($args, "--tail-lines=20");
+
   if ( defined $tinfo->{'result_file'} ) {
     mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});
   }
@@ -5149,7 +5141,7 @@ sub valgrind_arguments {
   }
 
   # Add valgrind options, can be overriden by user
-  mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options));
+  mtr_add_arg($args, '%s', $_) for (@valgrind_args);
 
   mtr_add_arg($args, $$exe);
 
@@ -5222,16 +5214,22 @@ Options to control what test suites or cases to run
   skip-ndb[cluster]     Skip all tests that need cluster
   skip-ndb[cluster]-slave Skip all tests that need a slave cluster
   ndb-extra             Run extra tests from ndb directory
-  do-test=PREFIX        Run test cases which name are prefixed with PREFIX
+  do-test=PREFIX or REGEX
+                        Run test cases which name are prefixed with PREFIX
+                        or fulfills REGEX
+  skip-test=PREFIX or REGEX
+                        Skip test cases which name are prefixed with PREFIX
+                        or fulfills REGEX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
   suite[s]=NAME1,..,NAMEN Collect tests in suites from the comma separated
                         list of suite names.
                         The default is: "$opt_suites"
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
-  skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
   big-test              Set the environment variable BIG_TEST, which can be
                         checked from test cases.
+  combination="ARG1 .. ARG2" Specify a set of "mysqld" arguments for one 
+                        combination. 
 
 Options that specify ports
 
@@ -5287,12 +5285,14 @@ Options for coverage, profiling etc
   gcov                  FIXME
   gprof                 FIXME
   valgrind              Run the "mysqltest" and "mysqld" executables using
-                        valgrind with options($default_valgrind_options)
+                        valgrind with default options
   valgrind-all          Synonym for --valgrind
   valgrind-mysqltest    Run the "mysqltest" and "mysql_client_test" executable
                         with valgrind
   valgrind-mysqld       Run the "mysqld" executable with valgrind
-  valgrind-options=ARGS Options to give valgrind, replaces default options
+  valgrind-options=ARGS Deprecated, use --valgrind-option
+  valgrind-option=ARGS  Option to give valgrind, replaces default option(s),
+                        can be specified more then once
   valgrind-path=[EXE]   Path to the valgrind executable
   callgrind             Instruct valgrind to use callgrind
 
@@ -5309,7 +5309,6 @@ Misc options
   fast                  Don't try to clean up from earlier runs
   reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
-  unified-diff | udiff  When presenting differences, use unified diff
 
   testcase-timeout=MINUTES Max test case run time (default $default_testcase_timeout)
   suite-timeout=MINUTES Max test suite run time (default $default_suite_timeout)

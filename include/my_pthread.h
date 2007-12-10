@@ -29,25 +29,6 @@ extern "C" {
 #define EXTERNC
 #endif /* __cplusplus */ 
 
-/*
-  BUG#24507: Race conditions inside current NPTL pthread_exit() implementation.
-  
-  If macro NPTL_PTHREAD_EXIT_HACK is defined then a hack described in the bug
-  report will be implemented inside my_thread_global_init() in my_thr_init.c.
-   
-  This amounts to spawning a dummy thread which does nothing but executes 
-  pthread_exit(0). 
-  
-  This bug is fixed in version 2.5 of glibc library.
-  
-  TODO: Remove this code when fixed versions of glibc6 are in common use. 
- */
-
-#if defined(TARGET_OS_LINUX) && defined(HAVE_NPTL) && \
-    defined(__GLIBC__) && ( __GLIBC__ < 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ < 5 )
-#define NPTL_PTHREAD_EXIT_BUG	1
-#endif 
-
 #if defined(__WIN__)
 typedef CRITICAL_SECTION pthread_mutex_t;
 typedef HANDLE		 pthread_t;
@@ -120,6 +101,7 @@ struct timespec {
 
 void win_pthread_init(void);
 int win_pthread_setspecific(void *A,void *B,uint length);
+int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *,pthread_attr_t *,pthread_handler,void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
@@ -175,11 +157,11 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define pthread_equal(A,B) ((A) == (B))
 #define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
-#define pthread_mutex_trylock(A) (WaitForSingleObject((A), 0) == WAIT_TIMEOUT)
+#define pthread_mutex_trylock(A) win_pthread_mutex_trylock((A))
 #define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
 #define pthread_mutex_destroy(A) DeleteCriticalSection(A)
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
-#define pthread_kill(A,B) pthread_dummy(0)
+#define pthread_kill(A,B) pthread_dummy(ESRCH)
 
 #define pthread_join(A,B) (WaitForSingleObject((A), INFINITE) != WAIT_OBJECT_0)
 
@@ -361,14 +343,14 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define pthread_create(A,B,C,D) pthread_create((A),*(B),(C),(D))
 #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
-#define pthread_kill(A,B) pthread_dummy(0)
+#define pthread_kill(A,B) pthread_dummy(ESRCH)
 #undef	pthread_detach_this_thread
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
 #endif
 
 #ifdef HAVE_DARWIN5_THREADS
 #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
-#define pthread_kill(A,B) pthread_dummy(0)
+#define pthread_kill(A,B) pthread_dummy(ESRCH)
 #define pthread_condattr_init(A) pthread_dummy(0)
 #define pthread_condattr_destroy(A) pthread_dummy(0)
 #undef	pthread_detach_this_thread
@@ -388,7 +370,7 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #ifndef pthread_sigmask
 #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
 #endif
-#define pthread_kill(A,B) pthread_dummy(0)
+#define pthread_kill(A,B) pthread_dummy(ESRCH)
 #undef	pthread_detach_this_thread
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
 #elif !defined(__NETWARE__) /* HAVE_PTHREAD_ATTR_CREATE && !HAVE_SIGWAIT */
@@ -491,7 +473,7 @@ typedef struct st_safe_mutex_info_t
 
 int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr,
                     const char *file, uint line);
-int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line);
+int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint line);
 int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line);
 int safe_mutex_destroy(safe_mutex_t *mp,const char *file, uint line);
 int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp,const char *file,
@@ -514,12 +496,12 @@ void safe_mutex_end(FILE *file);
 #undef pthread_cond_timedwait
 #undef pthread_mutex_trylock
 #define pthread_mutex_init(A,B) safe_mutex_init((A),(B),__FILE__,__LINE__)
-#define pthread_mutex_lock(A) safe_mutex_lock((A),__FILE__,__LINE__)
+#define pthread_mutex_lock(A) safe_mutex_lock((A), FALSE, __FILE__, __LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
 #define pthread_mutex_destroy(A) safe_mutex_destroy((A),__FILE__,__LINE__)
 #define pthread_cond_wait(A,B) safe_cond_wait((A),(B),__FILE__,__LINE__)
 #define pthread_cond_timedwait(A,B,C) safe_cond_timedwait((A),(B),(C),__FILE__,__LINE__)
-#define pthread_mutex_trylock(A) pthread_mutex_lock(A)
+#define pthread_mutex_trylock(A) safe_mutex_lock((A), TRUE, __FILE__, __LINE__)
 #define pthread_mutex_t safe_mutex_t
 #define safe_mutex_assert_owner(mp) \
           DBUG_ASSERT((mp)->count > 0 && \
@@ -538,6 +520,7 @@ typedef struct st_my_pthread_fastmutex_t
   pthread_mutex_t mutex;
   uint spins;
 } my_pthread_fastmutex_t;
+void fastmutex_global_init(void);
 
 int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp, 
                               const pthread_mutexattr_t *attr);
@@ -644,6 +627,11 @@ extern pthread_mutexattr_t my_errorcheck_mutexattr;
 #define MY_MUTEX_INIT_ERRCHK &my_errorcheck_mutexattr
 #else
 #define MY_MUTEX_INIT_ERRCHK   NULL
+#endif
+
+#ifndef ESRCH
+/* Define it to something */
+#define ESRCH 1
 #endif
 
 typedef ulong my_thread_id;

@@ -225,3 +225,39 @@ connection default;
 
 set GLOBAL query_cache_size=0;
 SET GLOBAL log_bin_trust_function_creators = 0;
+
+#
+# Bug #30269 Query cache eats memory
+#
+--disable_warnings
+DROP DATABASE IF EXISTS bug30269;
+--enable_warnings
+FLUSH STATUS;
+CREATE DATABASE bug30269;
+USE bug30269;
+CREATE TABLE test1 (id int, name varchar(23));
+CREATE VIEW view1 AS SELECT * FROM test1;
+INSERT INTO test1 VALUES (5, 'testit');
+GRANT SELECT (id) ON TABLE bug30269.test1 TO 'bug30269'@'localhost';
+GRANT SELECT ON TABLE bug30269.view1 TO 'bug30269'@'localhost';
+set global query_cache_size= 81920;
+connect (bug30269, localhost, bug30269,,);
+connection bug30269;
+USE bug30269;
+show status like 'Qcache_queries_in_cache';
+--echo # Select statement not stored in query cache because of column privileges.
+SELECT id FROM test1 WHERE id>2;
+show status like 'Qcache_queries_in_cache';
+SELECT id FROM view1 WHERE id>2;
+show status like 'Qcache_queries_in_cache';
+
+connection default;
+DROP DATABASE bug30269;
+disconnect bug30269;
+DROP USER 'bug30269'@'localhost';
+
+set GLOBAL query_cache_type=default;
+set GLOBAL query_cache_limit=default;
+set GLOBAL query_cache_min_res_unit=default;
+set GLOBAL query_cache_size=default;
+

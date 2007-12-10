@@ -205,7 +205,10 @@ ClusterMgr::forceHB()
       theFacade.sendSignalUnCond(&signal, nodeId);
     }
 
-    NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
+    /* Wait for nodes to reply - if any heartbeats was sent */
+    if (!waitForHBFromNodes.isclear())
+      NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
+
     waitingForHB= false;
 #ifdef DEBUG_REG
     ndbout << "Still waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;

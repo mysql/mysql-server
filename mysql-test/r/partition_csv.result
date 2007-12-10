@@ -1,0 +1,15 @@
+drop table if exists t1;
+create table t1 (a int)
+engine = csv
+partition by list (a)
+(partition p0 values in (null));
+ERROR HY000: Engine cannot be used in partitioned tables
+USE mysql;
+SET GLOBAL general_log = 0;
+ALTER TABLE general_log ENGINE = MyISAM;
+ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
+(PARTITION p0 VALUES LESS THAN (733144),
+PARTITION p1 VALUES LESS THAN (3000000));
+ERROR HY000: Incorrect usage of PARTITION and log table
+ALTER TABLE general_log ENGINE = CSV;
+SET GLOBAL general_log = 1;

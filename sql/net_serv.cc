@@ -123,7 +123,7 @@ my_bool my_net_init(NET *net, Vio* vio)
 				     MYF(MY_WME))))
     DBUG_RETURN(1);
   net->buff_end=net->buff+net->max_packet;
-  net->no_send_ok= net->no_send_eof= net->no_send_error= 0;
+  net->no_send_ok= net->no_send_error= 0;
   net->error=0; net->return_errno=0; net->return_status=0;
   net->pkt_nr=net->compress_pkt_nr=0;
   net->write_pos=net->read_pos = net->buff;

@@ -15,8 +15,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  @file
+/**
+  @addtogroup Event_Scheduler
+  @{
+
+  @file event_db_repository.h
+
+  Data Dictionary related operations of Event Scheduler.
+
   This is a private header file of Events module. Please do not include it
   directly. All public declarations of Events module should be stored in
   events.h and event_data_objects.h.
@@ -119,4 +125,7 @@ private:
   void operator=(Event_db_repository &);
 };
 
+/**
+  @} (End of group Event_Scheduler)
+*/
 #endif /* _EVENT_DB_REPOSITORY_H_ */

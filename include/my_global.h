@@ -107,6 +107,11 @@
 #define NETWARE_SET_SCREEN_MODE(A)
 #endif
 
+/* Workaround for _LARGE_FILES and _LARGE_FILE_API incompatibility on AIX */
+#if defined(_AIX) && defined(_LARGE_FILE_API)
+#undef _LARGE_FILE_API
+#endif
+
 /*
   The macros below are used to allow build of Universal/fat binaries of
   MySQL and MySQL applications under darwin. 
@@ -562,12 +567,6 @@ int	__void__;
 #define PURIFY_OR_LINT_INIT(var)
 #endif
 
-/* Define some useful general macros */
-#if !defined(max)
-#define max(a, b)	((a) > (b) ? (a) : (b))
-#define min(a, b)	((a) < (b) ? (a) : (b))
-#endif
-
 #if !defined(HAVE_UINT)
 #undef HAVE_UINT
 #define HAVE_UINT
@@ -860,8 +859,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define DBL_MAX		1.79769313486231470e+308
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
-#ifndef SSIZE_MAX
-#define SSIZE_MAX ((~((size_t) 0)) / 2)
+#ifndef SIZE_T_MAX
+#define SIZE_T_MAX ~((size_t) 0)
 #endif
 
 #ifndef HAVE_FINITE
@@ -1507,5 +1506,11 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 
 /* Length of decimal number represented by INT64. */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21
+
+/* Define some useful general macros (should be done after all headers). */
+#if !defined(max)
+#define max(a, b)	((a) > (b) ? (a) : (b))
+#define min(a, b)	((a) < (b) ? (a) : (b))
+#endif
 
 #endif /* my_global_h */

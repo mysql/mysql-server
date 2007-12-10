@@ -267,6 +267,51 @@ b
 select * from t1 where a = 'b' and a != 'b';
 a
 drop table t1;
+set collation_connection=utf8_general_ci;
+drop table if exists t1;
+create table t1 as
+select repeat(' ', 64) as s1, repeat(' ',64) as s2
+union
+select null, null;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `s1` varchar(64) CHARACTER SET utf8 DEFAULT NULL,
+  `s2` varchar(64) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+delete from t1;
+insert into t1 values('aaa','aaa');
+insert into t1 values('aaa|qqq','qqq');
+insert into t1 values('gheis','^[^a-dXYZ]+$');
+insert into t1 values('aab','^aa?b');
+insert into t1 values('Baaan','^Ba*n');
+insert into t1 values('aaa','qqq|aaa');
+insert into t1 values('qqq','qqq|aaa');
+insert into t1 values('bbb','qqq|aaa');
+insert into t1 values('bbb','qqq');
+insert into t1 values('aaa','aba');
+insert into t1 values(null,'abc');
+insert into t1 values('def',null);
+insert into t1 values(null,null);
+insert into t1 values('ghi','ghi[');
+select HIGH_PRIORITY s1 regexp s2 from t1;
+s1 regexp s2
+1
+1
+1
+1
+1
+1
+1
+0
+0
+0
+NULL
+NULL
+NULL
+NULL
+drop table t1;
+set names utf8;
 set names utf8;
 select  'вася'  rlike '[[:<:]]вася[[:>:]]';
 'вася'  rlike '[[:<:]]вася[[:>:]]'
@@ -1538,12 +1583,12 @@ char(53647 using utf8)
 я
 select char(0xff,0x8f using utf8);
 char(0xff,0x8f using utf8)
-��
+
 Warnings:
 Warning	1300	Invalid utf8 character string: 'FF8F'
 select convert(char(0xff,0x8f) using utf8);
 convert(char(0xff,0x8f) using utf8)
-��
+
 Warnings:
 Warning	1300	Invalid utf8 character string: 'FF8F'
 set sql_mode=traditional;
@@ -1730,3 +1775,41 @@ i
 1
 н1234567890
 DROP TABLE t1, t2;
+set sql_mode=traditional;
+select hex(char(0xFF using utf8));
+hex(char(0xFF using utf8))
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF'
+select hex(convert(0xFF using utf8));
+hex(convert(0xFF using utf8))
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF'
+select hex(_utf8 0x616263FF);
+ERROR HY000: Invalid utf8 character string: 'FF'
+select hex(_utf8 X'616263FF');
+ERROR HY000: Invalid utf8 character string: 'FF'
+select hex(_utf8 B'001111111111');
+ERROR HY000: Invalid utf8 character string: 'FF'
+select (_utf8 X'616263FF');
+ERROR HY000: Invalid utf8 character string: 'FF'
+set sql_mode=default;
+select hex(char(0xFF using utf8));
+hex(char(0xFF using utf8))
+
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF'
+select hex(convert(0xFF using utf8));
+hex(convert(0xFF using utf8))
+
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF'
+select hex(_utf8 0x616263FF);
+ERROR HY000: Invalid utf8 character string: 'FF'
+select hex(_utf8 X'616263FF');
+ERROR HY000: Invalid utf8 character string: 'FF'
+select hex(_utf8 B'001111111111');
+ERROR HY000: Invalid utf8 character string: 'FF'
+select (_utf8 X'616263FF');
+ERROR HY000: Invalid utf8 character string: 'FF'

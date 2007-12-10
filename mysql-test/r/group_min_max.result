@@ -1963,20 +1963,20 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using temporary; Using filesort
 explain select a1,a2,count(a2) from t1 group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	idx_t1_1	163	NULL	128	Using index
+1	SIMPLE	t1	index	NULL	idx_t1_2	147	NULL	128	Using index
 explain extended select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	75.00	Using where; Using index
+1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	75.00	Using where; Using index
 Warnings:
 Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,count(`test`.`t1`.`a2`) AS `count(a2)` from `test`.`t1` where (`test`.`t1`.`a1` > _latin1'a') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain extended select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	75.00	Using where; Using index
+1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	75.00	Using where; Using index
 Warnings:
 Note	1003	select sum(ord(`test`.`t1`.`a1`)) AS `sum(ord(a1))` from `test`.`t1` where (`test`.`t1`.`a1` > _latin1'a') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain select distinct(a1) from t1 where ord(a2) = 98;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index
+1	SIMPLE	t1	index	NULL	idx_t1_2	147	NULL	128	Using where; Using index
 select distinct(a1) from t1 where ord(a2) = 98;
 a1
 a
@@ -2256,7 +2256,7 @@ EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE
 a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1_outer	index	NULL	a	10	NULL	15	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index	NULL	a	10	NULL	15	Using index
+2	DEPENDENT SUBQUERY	t1	index	NULL	a	10	NULL	1	Using index
 EXPLAIN SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING 
 a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2299,8 +2299,7 @@ Handler_read_next	0
 FLUSH STATUS;
 DELETE FROM t3 WHERE (SELECT (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) x 
 FROM t1) > 10000;
-Warnings:
-Error	1242	Subquery returns more than 1 row
+ERROR 21000: Subquery returns more than 1 row
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
 Handler_read_key	8

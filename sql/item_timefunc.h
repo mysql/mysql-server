@@ -68,6 +68,7 @@ public:
     maybe_null=1; 
   }
   enum_monotonicity_info get_monotonicity_info() const;
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
@@ -248,6 +249,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "year"; }
   enum_monotonicity_info get_monotonicity_info() const;
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   void fix_length_and_dec()
   { 
     decimals=0;
@@ -776,6 +778,7 @@ public:
   const char *func_name() const { return "cast_as_date"; }
   String *val_str(String *str);
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
+  bool get_time(MYSQL_TIME *ltime);
   const char *cast_type() const { return "date"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   Field *tmp_table_field(TABLE *table)
@@ -845,7 +848,9 @@ public:
   }
   void fix_length_and_dec()
   {
-    Item_typecast_maybe_null::fix_length_and_dec();
+    collation.set(&my_charset_bin);
+    maybe_null= 1;
+    max_length= MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN;
     decimals= DATETIME_DEC;
   }
   bool result_as_longlong() { return TRUE; }
@@ -936,7 +941,10 @@ class Item_func_maketime :public Item_str_timefunc
 {
 public:
   Item_func_maketime(Item *a, Item *b, Item *c)
-    :Item_str_timefunc(a, b ,c) {}
+    :Item_str_timefunc(a, b, c) 
+  {
+    maybe_null= TRUE;
+  }
   String *val_str(String *str);
   const char *func_name() const { return "maketime"; }
 };
@@ -1005,7 +1013,7 @@ class Item_func_str_to_date :public Item_str_func
   bool const_item;
 public:
   Item_func_str_to_date(Item *a, Item *b)
-    :Item_str_func(a, b)
+    :Item_str_func(a, b), const_item(false)
   {}
   String *val_str(String *str);
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);

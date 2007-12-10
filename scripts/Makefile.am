@@ -90,6 +90,9 @@ CLEANFILES =		@server_scripts@ \
 			mysql_tableinfo \
 			mysqld_multi
 
+# Default same as 'pkgdatadir', but we can override it
+pkgsuppdir =		$(datadir)/@PACKAGE@
+
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
 DISTCLEANFILES =        $(BUILT_SOURCES) mysqlbug
@@ -134,17 +137,26 @@ SUFFIXES = .sh
 	  -e 's!@''pkglibdir''@!$(pkglibdir)!g' \
 	  -e 's!@''pkgincludedir''@!$(pkgincludedir)!g' \
 	  -e 's!@''pkgdatadir''@!$(pkgdatadir)!g' \
+	  -e 's!@''pkgsuppdir''@!$(pkgsuppdir)!g' \
 	  -e 's!@''sysconfdir''@!$(sysconfdir)!g' \
+	  -e 's!@''mandir''@!$(mandir)!g' \
+	  -e 's!@''infodir''@!$(infodir)!g' \
 	  -e 's!@''CC''@!@CC@!'\
 	  -e 's!@''CXX''@!@CXX@!'\
 	  -e 's!@''GXX''@!@GXX@!'\
+	  -e 's!@''SAVE_CC''@!@SAVE_CC@!'\
+	  -e 's!@''SAVE_CXX''@!@SAVE_CXX@!'\
 	  -e 's!@''CC_VERSION''@!@CC_VERSION@!'\
 	  -e 's!@''CXX_VERSION''@!@CXX_VERSION@!'\
 	  -e 's!@''PERL''@!@PERL@!' \
-	  -e 's!@''ASFLAGS''@!@SAVE_ASFLAGS@!'\
-	  -e 's!@''CFLAGS''@!@SAVE_CFLAGS@!'\
-	  -e 's!@''CXXFLAGS''@!@SAVE_CXXFLAGS@!'\
-	  -e 's!@''LDFLAGS''@!@SAVE_LDFLAGS@!'\
+	  -e 's!@''SAVE_ASFLAGS''@!@SAVE_ASFLAGS@!'\
+	  -e 's!@''SAVE_CFLAGS''@!@SAVE_CFLAGS@!'\
+	  -e 's!@''SAVE_CXXFLAGS''@!@SAVE_CXXFLAGS@!'\
+	  -e 's!@''SAVE_LDFLAGS''@!@SAVE_LDFLAGS@!'\
+	  -e 's!@''ASFLAGS''@!@ASFLAGS@!'\
+	  -e 's!@''CFLAGS''@!@CFLAGS@!'\
+	  -e 's!@''CXXFLAGS''@!@CXXFLAGS@!'\
+	  -e 's!@''LDFLAGS''@!@LDFLAGS@!'\
 	  -e 's!@''CLIENT_LIBS''@!@CLIENT_LIBS@!' \
 	  -e 's!@''ZLIB_LIBS''@!@ZLIB_LIBS@!' \
 	  -e 's!@''LIBS''@!@LIBS@!' \
@@ -163,6 +175,7 @@ SUFFIXES = .sh
 	  -e 's!@''MYSQLD_DEFAULT_SWITCHES''@!@MYSQLD_DEFAULT_SWITCHES@!' \
 	  -e 's!@''MYSQL_UNIX_ADDR''@!@MYSQL_UNIX_ADDR@!' \
 	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \
+	  -e 's!@''MYSQL_TCP_PORT_DEFAULT''@!@MYSQL_TCP_PORT_DEFAULT@!' \
 	  -e 's!@''TARGET_LINUX''@!@TARGET_LINUX@!' \
 	  -e "s!@""CONF_COMMAND""@!@CONF_COMMAND@!" \
 	  -e 's!@''MYSQLD_USER''@!@MYSQLD_USER@!' \

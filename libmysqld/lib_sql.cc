@@ -81,8 +81,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
   {
-    strmov(net->last_error,
-	   ER(net->last_errno=CR_COMMANDS_OUT_OF_SYNC));
+    set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
     return 1;
   }
 
@@ -90,10 +89,11 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   thd->clear_error();
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
-  net->last_errno= 0;
+  net_clear_error(net);
   thd->current_stmt= stmt;
 
   thd->store_globals();				// Fix if more than one connect
+  lex_start(thd);
   /* 
      We have to call free_old_query before we start to fill mysql->fields 
      for new query. In the case of embedded server we collect field data
@@ -111,7 +111,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
 
   thd->net.no_send_error= 0;
-  result= dispatch_command(command, thd, (char *) arg, arg_length + 1);
+  result= dispatch_command(command, thd, (char *) arg, arg_length);
   thd->cur_data= 0;
 
   if (!skip_check)
@@ -245,8 +245,7 @@ static my_bool emb_read_query_result(MYSQL *mysql)
   mysql->fields= res->embedded_info->fields_list;
   mysql->affected_rows= res->embedded_info->affected_rows;
   mysql->insert_id= res->embedded_info->insert_id;
-  mysql->net.last_errno= 0;
-  mysql->net.last_error[0]= 0;
+  net_clear_error(&mysql->net);
   mysql->info= 0;
 
   if (res->embedded_info->info[0])
@@ -288,7 +287,7 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   if (res)
   {
     NET *net= &stmt->mysql->net;
-    set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
+    set_stmt_errmsg(stmt, net);
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -299,14 +298,12 @@ int emb_read_binary_rows(MYSQL_STMT *stmt)
   MYSQL_DATA *data;
   if (!(data= emb_read_rows(stmt->mysql, 0, 0)))
   {
-    set_stmt_errmsg(stmt, stmt->mysql->net.last_error,
-                    stmt->mysql->net.last_errno, stmt->mysql->net.sqlstate);
+    set_stmt_errmsg(stmt, &stmt->mysql->net);
     return 1;
   }
   stmt->result= *data;
   my_free((char *) data, MYF(0));
-  set_stmt_errmsg(stmt, stmt->mysql->net.last_error,
-                  stmt->mysql->net.last_errno, stmt->mysql->net.sqlstate);
+  set_stmt_errmsg(stmt, &stmt->mysql->net);
   return 0;
 }
 
@@ -320,16 +317,14 @@ int emb_read_rows_from_cursor(MYSQL_STMT *stmt)
   if (res->embedded_info->last_errno)
   {
     embedded_get_error(mysql, res);
-    set_stmt_errmsg(stmt, mysql->net.last_error,
-                    mysql->net.last_errno, mysql->net.sqlstate);
+    set_stmt_errmsg(stmt, &mysql->net);
     return 1;
   }
 
   thd->cur_data= res;
   mysql->warning_count= res->embedded_info->warning_count;
   mysql->server_status= res->embedded_info->server_status;
-  mysql->net.last_errno= 0;
-  mysql->net.last_error[0]= 0;
+  net_clear_error(&mysql->net);
 
   return emb_read_binary_rows(stmt);
 }
@@ -592,6 +587,7 @@ void *create_embedded_thd(int client_flag)
     fprintf(stderr,"store_globals failed.\n");
     goto err;
   }
+  lex_start(thd);
 
   /* TODO - add init_connect command execution */
 

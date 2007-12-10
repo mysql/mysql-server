@@ -569,6 +569,43 @@ public:
   virtual enum_monotonicity_info get_monotonicity_info() const
   { return NON_MONOTONIC; }
 
+  /*
+    Convert "func_arg $CMP$ const" half-interval into "FUNC(func_arg) $CMP2$ const2"
+
+    SYNOPSIS
+      val_int_endpoint()
+        left_endp  FALSE  <=> The interval is "x < const" or "x <= const"
+                   TRUE   <=> The interval is "x > const" or "x >= const"
+
+        incl_endp  IN   TRUE <=> the comparison is '<' or '>'
+                        FALSE <=> the comparison is '<=' or '>='
+                   OUT  The same but for the "F(x) $CMP$ F(const)" comparison
+
+    DESCRIPTION
+      This function is defined only for unary monotonic functions. The caller
+      supplies the source half-interval
+
+         x $CMP$ const
+
+      The value of const is supplied implicitly as the value this item's
+      argument, the form of $CMP$ comparison is specified through the
+      function's arguments. The calle returns the result interval
+         
+         F(x) $CMP2$ F(const)
+      
+      passing back F(const) as the return value, and the form of $CMP2$ 
+      through the out parameter. NULL values are assumed to be comparable and
+      be less than any non-NULL values.
+
+    RETURN
+      The output range bound, which equal to the value of val_int()
+        - If the value of the function is NULL then the bound is the 
+          smallest possible value of LONGLONG_MIN 
+  */
+  virtual longlong val_int_endpoint(bool left_endp, bool *incl_endp)
+  { DBUG_ASSERT(0); return 0; }
+
+
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
   /*
     Return double precision floating point representation of item.
@@ -964,6 +1001,9 @@ public:
   */
   virtual bool result_as_longlong() { return FALSE; }
   bool is_datetime();
+  virtual Field::geometry_type get_geometry_type() const
+    { return Field::GEOM_GEOMETRY; };
+  String *check_well_formed_result(String *str, bool send_error= 0);
 };
 
 
@@ -1206,6 +1246,8 @@ public:
   Item_name_const(Item *name_arg, Item *val):
     value_item(val), name_item(name_arg)
   {
+    if(!value_item->basic_const_item())
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
     Item::maybe_null= TRUE;
   }
 
@@ -1401,6 +1443,7 @@ public:
   {
     return MONOTONIC_STRICT_INCREASING;
   }
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
@@ -1429,7 +1472,7 @@ public:
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
   void print(String *str);
-  Field::geometry_type get_geometry_type()
+  Field::geometry_type get_geometry_type() const
   {
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
     return field->get_geometry_type();
@@ -1676,7 +1719,7 @@ public:
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
-  Item *clone_item() { return new Item_uint(name,max_length); }
+  Item *clone_item() { return new Item_uint(name, value, max_length); }
   int save_in_field(Field *field, bool no_conversions);
   void print(String *str);
   Item_num *neg ();
@@ -1981,6 +2024,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
+  void print(String *str);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
@@ -2576,8 +2620,20 @@ class Item_cache: public Item
 protected:
   Item *example;
   table_map used_table_map;
+  enum enum_field_types cached_field_type;
 public:
-  Item_cache(): example(0), used_table_map(0) {fixed= 1; null_value= 1;}
+  Item_cache(): 
+    example(0), used_table_map(0), cached_field_type(MYSQL_TYPE_STRING) 
+  {
+    fixed= 1; 
+    null_value= 1;
+  }
+  Item_cache(enum_field_types field_type_arg):
+    example(0), used_table_map(0), cached_field_type(field_type_arg)
+  {
+    fixed= 1;
+    null_value= 1;
+  }
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
@@ -2593,7 +2649,8 @@ public:
   };
   virtual void store(Item *)= 0;
   enum Type type() const { return CACHE_ITEM; }
-  static Item_cache* get_cache(Item_result type);
+  enum_field_types field_type() const { return cached_field_type; }
+  static Item_cache* get_cache(const Item *item);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
   // to prevent drop fixed flag (no need parent cleanup call)
@@ -2608,6 +2665,8 @@ protected:
   longlong value;
 public:
   Item_cache_int(): Item_cache(), value(0) {}
+  Item_cache_int(enum_field_types field_type_arg):
+    Item_cache(field_type_arg), value(0) {}
 
   void store(Item *item);
   void store(Item *item, longlong val_arg);
@@ -2655,9 +2714,16 @@ class Item_cache_str: public Item_cache
 {
   char buffer[STRING_BUFFER_USUAL_SIZE];
   String *value, value_buff;
+  bool is_varbinary;
+  
 public:
-  Item_cache_str(): Item_cache(), value(0) { }
-
+  Item_cache_str(const Item *item) :
+    Item_cache(), value(0),
+    is_varbinary(item->type() == FIELD_ITEM &&
+                 ((const Item_field *) item)->field->type() ==
+                   MYSQL_TYPE_VARCHAR &&
+                 !((const Item_field *) item)->field->has_charset())
+  {}
   void store(Item *item);
   double val_real();
   longlong val_int();
@@ -2665,6 +2731,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };
+  int save_in_field(Field *field, bool no_conversions);
 };
 
 class Item_cache_row: public Item_cache
@@ -2767,7 +2834,7 @@ public:
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
-  Field::geometry_type get_geometry_type() { return geometry_type; };
+  Field::geometry_type get_geometry_type() const { return geometry_type; };
 };
 
 

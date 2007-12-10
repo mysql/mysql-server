@@ -14,11 +14,11 @@
 ################################################################################
 
 #
-# NOTE: PLEASE DO NOT ADD NOT MYISAM SPECIFIC TESTCASES HERE !
+# NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
 #       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
 #       THE SOURCED FILES ONLY.
 #
-# Please read the README at the end of include/partition.pre before changing
+# Please read the README at the end of inc/partition.pre before changing
 # any of the variables.
 #
 
@@ -40,5 +40,3 @@ let $engine= 'INNODB';
 
 #------------------------------------------------------------------------------#
 --source suite/parts/inc/part_blocked_sql_funcs_main.inc
-# --source inc/part_blocked_sql_funcs_main.inc
-

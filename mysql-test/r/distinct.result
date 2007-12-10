@@ -209,16 +209,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
 explain SELECT distinct t1.a from t1 order by a desc limit 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	1	Using index
 explain SELECT distinct a from t3 order by a desc limit 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	index	NULL	a	5	NULL	204	Using index
+1	SIMPLE	t3	index	NULL	a	5	NULL	40	Using index
 explain SELECT distinct a,b from t3 order by a+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	204	Using temporary; Using filesort
-explain SELECT distinct a,b from t3 order by a limit 10;
+explain SELECT distinct a,b from t3 order by a limit 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	index	NULL	a	5	NULL	204	Using temporary
+1	SIMPLE	t3	index	NULL	a	5	NULL	2	Using temporary
 explain SELECT a,b from t3 group by a,b order by a+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	204	Using temporary; Using filesort
@@ -526,10 +526,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	3	Using index
 EXPLAIN SELECT a,b FROM t1 GROUP BY a,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 EXPLAIN SELECT DISTINCT a,b FROM t1 GROUP BY a,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 CREATE TABLE t2(a INT, b INT NOT NULL, c INT NOT NULL, d INT, 
 PRIMARY KEY (a,b));
 INSERT INTO t2 VALUES (1,1,1,50), (1,2,3,40), (2,1,3,4);
@@ -554,7 +554,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 CREATE UNIQUE INDEX c_b_unq ON t2 (c,b);
 EXPLAIN SELECT DISTINCT a,b,d FROM t2 GROUP BY c,b,d;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 DROP TABLE t1,t2;
 create table t1 (id int, dsc varchar(50));
 insert into t1 values (1, "line number one"), (2, "line number two"), (3, "line number three");

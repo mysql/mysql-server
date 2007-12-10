@@ -133,7 +133,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
 
 
 ***** Testing Altering table def scenario *****
@@ -441,7 +440,7 @@ f1	f2	f3	f4
 select * from t4 order by f1;
 f1	f2	f3	f4
 1	1	1	first
-select * from t31 order by f1;
+select * from t31 order by f3;
 f1	f2	f3	f4
 1	1	1	first
 1	1	2	second
@@ -510,7 +509,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
 
 ****************************************
 * columns in master at middle of table *
@@ -565,7 +563,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -583,9 +581,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1532
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -641,7 +638,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -659,9 +656,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1532
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -813,7 +809,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1091
 Last_SQL_Error	Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
-Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -900,7 +895,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1054
 Last_SQL_Error	Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
-Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -987,7 +981,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1072
 Last_SQL_Error	Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
-Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -1281,7 +1274,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
 
 
 ***** Testing Altering table def scenario *****
@@ -1589,7 +1581,7 @@ f1	f2	f3	f4
 select * from t4 order by f1;
 f1	f2	f3	f4
 1	1	1	first
-select * from t31 order by f1;
+select * from t31 order by f3;
 f1	f2	f3	f4
 1	1	1	first
 1	1	2	second
@@ -1658,7 +1650,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
 
 ****************************************
 * columns in master at middle of table *
@@ -1713,7 +1704,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -1731,9 +1722,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1532
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -1789,7 +1779,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -1807,9 +1797,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1532
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -1961,7 +1950,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1091
 Last_SQL_Error	Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
-Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -2048,7 +2036,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1054
 Last_SQL_Error	Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
-Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -2135,7 +2122,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1072
 Last_SQL_Error	Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
-Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -2429,7 +2415,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
 
 
 ***** Testing Altering table def scenario *****
@@ -2737,7 +2722,7 @@ f1	f2	f3	f4
 select * from t4 order by f1;
 f1	f2	f3	f4
 1	1	1	first
-select * from t31 order by f1;
+select * from t31 order by f3;
 f1	f2	f3	f4
 1	1	1	first
 1	1	2	second
@@ -2806,7 +2791,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
 
 ****************************************
 * columns in master at middle of table *
@@ -2861,7 +2845,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -2879,9 +2863,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1532
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -2937,7 +2920,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1532
+Last_Errno	1535
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -2955,9 +2938,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1532
+Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
-Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -3109,7 +3091,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1091
 Last_SQL_Error	Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
-Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -3196,7 +3177,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1054
 Last_SQL_Error	Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
-Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -3283,7 +3263,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1072
 Last_SQL_Error	Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
-Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 

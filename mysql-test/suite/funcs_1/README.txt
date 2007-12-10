@@ -110,3 +110,32 @@ Carsten 16.09.2005
 4. Fixed datadict_<engine>.result files after the change that added 2 columns to 
    the VIEWS table (DEFINER varchar(77), SECURITY_TYPE varchar(7)).
 ===================================================================
+Matthias 25.08.2007
+-------------------
+Data dictionary tests:
+Fixes for Bugs 30418,30420,30438,30440 
+1. Replace error numbers with error names
+2. Replace static "InnoDB" (not all time available) used within an
+   "alter table" by $OTHER_ENGINE_TYPE (set to MEMORY or MyISAM).
+   Minor adjustment of column data type.
+3. Use mysqltest result set sorting in several cases.
+4. Avoid any statistics about help tables, because their content
+   depends on configuration:
+   developer release - help tables are empty
+   build release     - help tables have content + growing with version
+5. Add two help table related tests (one for build, one for developer)
+   to ensure that informations about help tables within
+   INFORMATION_SCHEMA.TABLES/STATISTICS are checked.
+6. Note about new Bug#30689 at the beginning of the test.
+   The files with expected results contain incomplete result sets.
+7. Fix the NDB variant of the data dictionary test (ndb__datadict) as far as
+   it was necessary for the bug fixes mentioned above.
+
+
+General note:
+   Most INFORMATION_SCHEMA properties (table layout, permissions etc.)
+   are not affected by our variation of the storage engines except
+   that some properties of our tables using a specific storage
+   engine become visible. So it makes sense to decompose
+   the data dictionary test into a storage engine specific part and
+   a non storage engine specific part in future.

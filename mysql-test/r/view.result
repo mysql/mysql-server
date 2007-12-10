@@ -625,7 +625,7 @@ drop table t1;
 create table t1 (a int, b int);
 create view v1 as select a, sum(b) from t1 group by a;
 select b from v1 use index (some_index) where b=1;
-ERROR 42000: Key 'some_index' doesn't exist in table 'v1'
+ERROR HY000: Incorrect usage of index hints and VIEW
 drop view v1;
 drop table t1;
 create table t1 (col1 char(5),col2 char(5));
@@ -2701,27 +2701,26 @@ CREATE TABLE t1(
 fName varchar(25) NOT NULL,
 lName varchar(25) NOT NULL,
 DOB date NOT NULL,
+test_date date NOT NULL,
 uID int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY);
-INSERT INTO t1(fName, lName, DOB) VALUES
-('Hank', 'Hill', '1964-09-29'),
-('Tom', 'Adams', '1908-02-14'),
-('Homer', 'Simpson', '1968-03-05');
+INSERT INTO t1(fName, lName, DOB, test_date) VALUES
+('Hank', 'Hill', '1964-09-29', '2007-01-01'),
+('Tom', 'Adams', '1908-02-14', '2007-01-01'),
+('Homer', 'Simpson', '1968-03-05', '2007-01-01');
 CREATE VIEW v1 AS
-SELECT (year(now())-year(DOB)) AS Age
+SELECT (year(test_date)-year(DOB)) AS Age
 FROM t1 HAVING Age < 75;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (year(now()) - year(`t1`.`DOB`)) AS `Age` from `t1` having (`Age` < 75)	latin1	latin1_swedish_ci
-set timestamp=1136066400;
-SELECT (year(now())-year(DOB)) AS Age FROM t1 HAVING Age < 75;
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (year(`t1`.`test_date`) - year(`t1`.`DOB`)) AS `Age` from `t1` having (`Age` < 75)	latin1	latin1_swedish_ci
+SELECT (year(test_date)-year(DOB)) AS Age FROM t1 HAVING Age < 75;
 Age
-42
-38
-set timestamp=1136066400;
+43
+39
 SELECT * FROM v1;
 Age
-42
-38
+43
+39
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, a char(6) DEFAULT 'xxx');
@@ -3559,6 +3558,45 @@ table_name	is_updatable
 v1	NO
 drop view v1;
 drop table t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM v1 USE KEY(non_existant);
+ERROR HY000: Incorrect usage of index hints and VIEW
+SELECT * FROM v1 FORCE KEY(non_existant);
+ERROR HY000: Incorrect usage of index hints and VIEW
+SELECT * FROM v1 IGNORE KEY(non_existant);
+ERROR HY000: Incorrect usage of index hints and VIEW
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b INT NOT NULL DEFAULT 0,
+PRIMARY KEY(a), KEY (b));
+INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),(),(),(),(),(),();
+CREATE VIEW v1 AS SELECT * FROM t1 FORCE KEY (PRIMARY,b) ORDER BY a;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` FORCE INDEX (PRIMARY) FORCE INDEX (`b`) order by `t1`.`a`	latin1	latin1_swedish_ci
+EXPLAIN SELECT * FROM v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	15	
+CREATE VIEW v2 AS SELECT * FROM t1 USE KEY () ORDER BY a;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` USE INDEX () order by `t1`.`a`	latin1	latin1_swedish_ci
+EXPLAIN SELECT * FROM v2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	15	Using filesort
+CREATE VIEW v3 AS SELECT * FROM t1 IGNORE KEY (b) ORDER BY a;
+SHOW CREATE VIEW v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` IGNORE INDEX (`b`) order by `t1`.`a`	latin1	latin1_swedish_ci
+EXPLAIN SELECT * FROM v3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	15	Using filesort
+DROP VIEW v1;
+DROP VIEW v2;
+DROP VIEW v3;
+DROP TABLE t1;
 End of 5.0 tests.
 DROP DATABASE IF EXISTS `d-1`;
 CREATE DATABASE `d-1`;
@@ -3579,4 +3617,47 @@ DROP TABLE `t-2`;
 DROP VIEW  `v-2`;
 DROP DATABASE `d-1`;
 USE test;
+
+#
+# Bug#26676: VIEW using old table schema in a session.
+#
+
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 INT, c2 INT);
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+
+SELECT * FROM t1;
+c1	c2
+1	2
+3	4
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT * FROM v1;
+c1	c2
+1	2
+3	4
+
+ALTER TABLE t1 ADD COLUMN c3 INT AFTER c2;
+
+SELECT * FROM t1;
+c1	c2	c3
+1	2	NULL
+3	4	NULL
+
+SELECT * FROM v1;
+c1	c2
+1	2
+3	4
+
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c1` AS `c1`,`t1`.`c2` AS `c2` from `t1`	latin1	latin1_swedish_ci
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+# End of test case for Bug#26676.
+
 End of 5.1 tests.

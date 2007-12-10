@@ -353,6 +353,7 @@ public:
   virtual int rnd_end();
   virtual int rnd_next(uchar * buf);
   virtual int rnd_pos(uchar * buf, uchar * pos);
+  virtual int rnd_pos_by_record(uchar *record);
   virtual void position(const uchar * record);
 
   /*

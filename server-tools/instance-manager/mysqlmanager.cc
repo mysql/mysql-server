@@ -79,6 +79,9 @@ int main(int argc, char *argv[])
 {
   int return_value;
 
+  puts("\n"
+       "WARNING: This program is deprecated and will be removed in 6.0.\n");
+
   /* Initialize. */
 
   MY_INIT(argv[0]);

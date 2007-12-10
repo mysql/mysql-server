@@ -236,9 +236,40 @@ public:
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*str);
 
+  /**
+     @brief Performs the operation that this functions implements when the
+     result type is INT.
+
+     @return The result of the operation.
+  */
   virtual longlong int_op()= 0;
+
+  /**
+     @brief Performs the operation that this functions implements when the
+     result type is REAL.
+
+     @return The result of the operation.
+  */
   virtual double real_op()= 0;
+
+  /**
+     @brief Performs the operation that this functions implements when the
+     result type is DECIMAL.
+
+     @param A pointer where the DECIMAL value will be allocated.
+     @return 
+       - 0 If the result is NULL
+       - The same pointer it was given, with the area initialized to the
+         result of the operation.
+  */
   virtual my_decimal *decimal_op(my_decimal *)= 0;
+
+  /**
+     @brief Performs the operation that this functions implements when the
+     result type is a string type.
+
+     @return The result of the operation.
+  */
   virtual String *str_op(String *)= 0;
   bool is_null() { update_null_value(); return null_value; }
 };
@@ -436,6 +467,7 @@ public:
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "-"; }
+  virtual bool basic_const_item() const { return args[0]->basic_const_item(); }
   void fix_length_and_dec();
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
@@ -699,7 +731,8 @@ class Item_func_min_max :public Item_func
   /* An item used for issuing warnings while string to DATETIME conversion. */
   Item *datetime_item;
   THD *thd;
-
+protected:
+  enum_field_types cached_field_type;
 public:
   Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list),
     cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE),
@@ -712,6 +745,7 @@ public:
   enum Item_result result_type () const { return cmp_type; }
   bool result_as_longlong() { return compare_as_dates; };
   uint cmp_datetimes(ulonglong *value);
+  enum_field_types field_type() const { return cached_field_type; }
 };
 
 class Item_func_min :public Item_func_min_max
@@ -754,6 +788,8 @@ public:
     collation= args[0]->collation;
     max_length= args[0]->max_length;
     decimals=args[0]->decimals; 
+    /* The item could be a NULL constant. */
+    null_value= args[0]->is_null();
   }
 };
 
@@ -930,6 +966,7 @@ public:
     if (arg_count)
       max_length= args[0]->max_length;
   }
+  bool fix_fields(THD *thd, Item **ref);
 };
 
 
@@ -1535,6 +1572,11 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec(void);
   bool is_expensive() { return 1; }
+
+  inline Field *get_sp_result_field()
+  {
+    return sp_result_field;
+  }
 };
 
 

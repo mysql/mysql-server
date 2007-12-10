@@ -196,7 +196,7 @@ select f(10)|
 
 drop function f|
 
---error 1322
+--error ER_PARSE_ERROR
 create procedure p()
 begin
   declare c cursor for insert into test.t1 values ("foo", 42);
@@ -1387,6 +1387,21 @@ CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create user 'mysqltest
 CREATE FUNCTION bug_13627_f() returns int BEGIN create user 'mysqltest_1'; return 1; END |
 
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER bug21975 BEFORE INSERT ON t1 FOR EACH ROW BEGIN grant select on t1 to 'mysqltest_1'; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug21975() returns int BEGIN grant select on t1 to 'mysqltest_1'; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER bug21975 BEFORE INSERT ON t1 FOR EACH ROW BEGIN revoke select on t1 from 'mysqltest_1'; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug21975() returns int BEGIN revoke select on t1 from 'mysqltest_1'; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER bug21975 BEFORE INSERT ON t1 FOR EACH ROW BEGIN revoke all privileges on *.* from 'mysqltest_1'; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug21975() returns int BEGIN revoke all privileges on *.* from 'mysqltest_1'; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN drop user 'mysqltest_1'; END |
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE FUNCTION bug_13627_f() returns int BEGIN drop user 'mysqltest_1'; return 1; END |
@@ -1748,7 +1763,7 @@ drop procedure bug15091;
 drop function if exists bug16896;
 --enable_warnings
 
---error ER_SP_NO_AGGREGATE
+--error ER_PARSE_ERROR
 create aggregate function bug16896() returns int return 1;
 
 #
@@ -2063,10 +2078,6 @@ create function bug20701() returns varchar(25) binary return "test";
 create function bug20701() returns varchar(25) return "test";
 drop function bug20701;
 
-
---echo End of 5.1 tests
-
-
 #
 # Bug#26503 (Illegal SQL exception handler code causes the server to crash)
 #
@@ -2134,6 +2145,165 @@ retry:
 end//
 
 delimiter ;//
+
+
+#
+# Bug#28360 (RENAME DATABASE destroys routines)
+#
+
+--disable_warnings
+drop procedure if exists proc_28360;
+drop function if exists func_28360;
+--enable_warnings
+
+delimiter //;
+
+--error ER_SP_NO_DROP_SP
+CREATE PROCEDURE proc_28360()
+BEGIN
+  ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
+END//
+
+--error ER_SP_NO_DROP_SP
+CREATE FUNCTION func_28360() RETURNS int
+BEGIN
+  ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
+  RETURN 0;
+END//
+
+delimiter ;//
+
+
+#
+# Bug#29223 declare cursor c for SHOW .....
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+--delimiter |
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE c char(100);
+  DECLARE cur1 CURSOR FOR SHOW TABLES;
+
+  OPEN cur1;
+  FETCH cur1 INTO c;
+  select c;
+  CLOSE cur1;
+END|
+--delimiter ;
+
+#
+# Bug#29816 Syntactically wrong query fails with misleading error message
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+# Both ER_SP_DOES_NOT_EXIST and ER_PARSE_ERROR are valid here,
+# the result is implementation dependent:
+# See Bug#29816 for details
+--error ER_SP_DOES_NOT_EXIST
+SELECT inexistent(), 1 + ,;
+--error ER_SP_DOES_NOT_EXIST
+SELECT inexistent();
+--error ER_PARSE_ERROR
+SELECT .inexistent();
+--error ER_PARSE_ERROR
+SELECT ..inexistent();
+USE test;
+
+#
+# Bug#30904 SET PASSWORD statement is non-transactional
+#
+
+delimiter |;
+
+--error ER_SP_CANT_SET_AUTOCOMMIT
+create function f1() returns int
+begin
+  set @test = 1, password = password('foo');
+  return 1;
+end|
+
+--error ER_SP_CANT_SET_AUTOCOMMIT
+create trigger t1
+  before insert on t2 for each row set password = password('foo');|
+
+delimiter ;|
+
+#
+# Bug#30882 Dropping a temporary table inside a stored function may cause a server crash
+#
+
+--disable_warnings
+drop function if exists f1;
+drop function if exists f2;
+drop table if exists t1, t2;
+--enable_warnings
+
+delimiter |;
+create function f1() returns int
+begin
+ drop temporary table t1;
+ return 1;
+end|
+delimiter ;|
+--error ER_CANT_REOPEN_TABLE
+create temporary table t1 as select f1();
+
+delimiter |;
+create function f2() returns int
+begin
+ create temporary table t2 as select f1();
+ return 1;
+end|
+delimiter ;|
+--error ER_CANT_REOPEN_TABLE
+create temporary table t1 as select f2();
+
+drop function f1;
+drop function f2;
+
+delimiter |;
+create function f1() returns int
+begin
+ drop temporary table t2,t1;
+ return 1;
+end|
+create function f2() returns int
+begin
+ create temporary table t2 as select f1();
+ return 1;
+end|
+delimiter ;|
+--error ER_CANT_REOPEN_TABLE
+create temporary table t1 as select f2();
+
+drop function f1;
+drop function f2;
+
+create temporary table t2(a int);
+select * from t2;
+delimiter |;
+create function f2() returns int
+begin
+ drop temporary table t2;
+ return 1;
+end|
+delimiter ;|
+select f2();
+
+drop function f2;
+--error ER_BAD_TABLE_ERROR
+drop table t2;
+
+--echo End of 5.1 tests
 
 #
 # BUG#NNNN: New bug synopsis

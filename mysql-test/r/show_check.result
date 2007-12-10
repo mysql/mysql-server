@@ -228,7 +228,7 @@ show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 test_set	set('val1','val2','val3')	latin1_swedish_ci	NO				select,insert,update,references	
 name	char(20)	latin1_swedish_ci	YES		O'Brien		select,insert,update,references	O'Brien as default
-c	int(11)	NULL	NO				select,insert,update,references	int column
+c	int(11)	NULL	NO		NULL		select,insert,update,references	int column
 c-b	int(11)	NULL	YES		NULL		select,insert,update,references	name with a minus
 space 2	int(11)	NULL	YES		NULL		select,insert,update,references	name with a space
 drop table t1;
@@ -979,7 +979,7 @@ def			COLUMNS	CHARACTER_SET_NAME	CHARACTER_SET_NAME	253	192	0	Y	0	0	33
 def			COLUMNS	COLLATION_NAME	COLLATION_NAME	253	192	0	Y	0	0	33
 def			COLUMNS	COLUMN_TYPE	COLUMN_TYPE	252	589815	7	N	17	0	33
 def			COLUMNS	COLUMN_KEY	COLUMN_KEY	253	9	3	N	1	0	33
-def			COLUMNS	EXTRA	EXTRA	253	60	0	N	1	0	33
+def			COLUMNS	EXTRA	EXTRA	253	81	0	N	1	0	33
 def			COLUMNS	PRIVILEGES	PRIVILEGES	253	240	31	N	1	0	33
 def			COLUMNS	COLUMN_COMMENT	COLUMN_COMMENT	253	765	0	N	1	0	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
@@ -998,9 +998,9 @@ def			COLUMNS	COLUMN_TYPE	Type	252	589815	7	N	17	0	33
 def			COLUMNS	IS_NULLABLE	Null	253	9	2	N	1	0	33
 def			COLUMNS	COLUMN_KEY	Key	253	9	3	N	1	0	33
 def			COLUMNS	COLUMN_DEFAULT	Default	252	589815	0	Y	16	0	33
-def			COLUMNS	EXTRA	Extra	253	60	0	N	1	0	33
+def			COLUMNS	EXTRA	Extra	253	81	0	N	1	0	33
 Field	Type	Null	Key	Default	Extra
-c	int(11)	NO	PRI		
+c	int(11)	NO	PRI	NULL	
 ----------------------------------------------------------------
 SHOW TRIGGERS LIKE 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr

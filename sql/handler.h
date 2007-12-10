@@ -1418,6 +1418,17 @@ public:
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_next(uchar *buf)=0;
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
+  /*
+    one has to use this method when to find
+    random position by record as the plain
+    position() call doesn't work for some
+    handlers for random position
+  */
+  virtual int rnd_pos_by_record(uchar *record)
+    {
+      position(record);
+      return rnd_pos(record, ref);
+    }
   virtual int read_first_row(uchar *buf, uint primary_key);
   /*
     The following function is only needed for tables that may be temporary

@@ -331,6 +331,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
 
   SYNOPSIS
     init_tmp_table_share()
+    thd         thread handle
     share	Share to fill
     key		Table_cache_key, as generated from create_table_def_key.
 		must start with db name.    
@@ -348,7 +349,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     use key_length= 0 as neither table_cache_key or key_length will be used).
 */
 
-void init_tmp_table_share(TABLE_SHARE *share, const char *key,
+void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           uint key_length, const char *table_name,
                           const char *path)
 {
@@ -375,8 +376,13 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
     anyway to be able to catch errors.
    */
   share->table_map_version= ~(ulonglong)0;
-  share->table_map_id= ~0UL;
   share->cached_row_logging_check= -1;
+
+  /*
+    table_map_id is also used for MERGE tables to suppress repeated
+    compatibility checks.
+  */
+  share->table_map_id= (ulong) thd->query_id;
 
   DBUG_VOID_RETURN;
 }
@@ -968,7 +974,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
         parser_name.str= (char*) next_chunk;
         parser_name.length= strlen((char*) next_chunk);
-        next_chunk+= (parser_name.length + 1);
+        next_chunk+= parser_name.length + 1;
         keyinfo->parser= my_plugin_lock_by_name(NULL, &parser_name,
                                                 MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
@@ -1406,9 +1412,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           keyinfo->key_length+= HA_KEY_NULL_LENGTH;
         }
         if (field->type() == MYSQL_TYPE_BLOB ||
-            field->real_type() == MYSQL_TYPE_VARCHAR)
+            field->real_type() == MYSQL_TYPE_VARCHAR ||
+            field->type() == MYSQL_TYPE_GEOMETRY)
         {
-          if (field->type() == MYSQL_TYPE_BLOB)
+          if (field->type() == MYSQL_TYPE_BLOB ||
+              field->type() == MYSQL_TYPE_GEOMETRY)
             key_part->key_part_flag|= HA_BLOB_PART;
           else
             key_part->key_part_flag|= HA_VAR_LENGTH_PART;
@@ -1673,6 +1681,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                       (open_mode == OTM_OPEN)?"open":
                       ((open_mode == OTM_CREATE)?"create":"alter")));
 
+  /* Parsing of partitioning information from .frm needs thd->lex set up. */
+  DBUG_ASSERT(thd->lex->is_lex_started);
+
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
   outparam->in_use= thd;
@@ -1847,7 +1858,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                                 outparam, (open_mode != OTM_OPEN),
                                 share->default_part_db_type,
                                 &work_part_info_used);
-    outparam->part_info->is_auto_partitioned= share->auto_partitioned;
+    if (!tmp)
+      outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
     /* we should perform the fix_partition_func in either local or
        caller's arena depending on work_part_info_used value
@@ -4536,6 +4548,25 @@ void st_table::mark_columns_needed_for_insert()
   }
   if (found_next_number_field)
     mark_auto_increment_column();
+}
+
+
+/**
+  @brief Check if this is part of a MERGE table with attached children.
+
+  @return       status
+    @retval     TRUE            children are attached
+    @retval     FALSE           no MERGE part or children not attached
+
+  @detail
+    A MERGE table consists of a parent TABLE and zero or more child
+    TABLEs. Each of these TABLEs is called a part of a MERGE table.
+*/
+
+bool st_table::is_children_attached(void)
+{
+  return((child_l && children_attached) ||
+         (parent && parent->children_attached));
 }
 
 /*

@@ -483,15 +483,16 @@ static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
 			     uint key_length, uchar *page_buf, uint nod_flag)
 {
   double increase;
-  double best_incr = DBL_MAX;
+  double best_incr;
   double area;
   double best_area;
-  uchar *best_key;
+  uchar *best_key= NULL;
   uchar *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   uchar *last = rt_PAGE_END(page_buf);
 
   LINT_INIT(best_area);
   LINT_INIT(best_key);
+  LINT_INIT(best_incr);
 
   for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag))
   {
@@ -500,21 +501,12 @@ static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
                                         &area)) == -1.0)
       return NULL;
     /* The following should be safe, even if we compare doubles */
-    if (increase < best_incr)
+    if (!best_key || increase < best_incr ||
+        ((increase == best_incr) && (area < best_area)))
     {
       best_key = k;
       best_area = area;
       best_incr = increase;
-    }
-    else
-    {
-      /* The following should be safe, even if we compare doubles */
-      if ((increase == best_incr) && (area < best_area))
-      {
-        best_key = k;
-        best_area = area;
-        best_incr = increase;
-      }
     }
   }
   return best_key;

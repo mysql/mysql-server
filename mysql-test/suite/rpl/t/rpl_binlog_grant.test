@@ -1,0 +1,44 @@
+source include/master-slave.inc;
+-- source include/have_innodb.inc
+-- source include/not_embedded.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
+
+let $VERSION=`select version()`;
+
+# Bug #21975: grant/revoke statements in transaction
+# used to disappear from binlog upon rallback.
+# Now GRANT/REVOKE do implicitly commit
+# transaction
+
+--disable_warnings
+drop database if exists d1;
+--enable_warnings
+create database d1;
+use d1;
+create table t (s1 int) engine=innodb;
+set @@autocommit=0;
+start transaction;
+insert into t values (1);
+grant select on t to x@y;
+#
+# There is no active transaction here
+#
+rollback;
+show grants for x@y;
+--replace_result $VERSION VERSION
+--replace_regex /\/\* xid=.* \*\//\/* XID *\//
+show binlog events;
+start transaction;
+insert into t values (2);
+revoke select on t from x@y;
+#
+# There is no active transaction here
+#
+commit;
+select * from t;
+show grants for x@y;
+--replace_result $VERSION VERSION
+--replace_regex /\/\* xid=.* \*\//\/* XID *\//
+show binlog events;
+drop user x@y;
+drop database d1;

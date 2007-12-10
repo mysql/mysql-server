@@ -28,7 +28,7 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 			  const char *default_val);
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
 
-MASTER_INFO::MASTER_INFO()
+Master_info::Master_info()
   :Slave_reporting_capability("I/O"),
    ssl(0), fd(-1),  io_thd(0), inited(0),
    abort_slave(0),slave_running(0),
@@ -50,7 +50,7 @@ MASTER_INFO::MASTER_INFO()
   pthread_cond_init(&stop_cond, NULL);
 }
 
-MASTER_INFO::~MASTER_INFO()
+Master_info::~Master_info()
 {
   pthread_mutex_destroy(&run_lock);
   pthread_mutex_destroy(&data_lock);
@@ -60,7 +60,7 @@ MASTER_INFO::~MASTER_INFO()
 }
 
 
-void init_master_info_with_options(MASTER_INFO* mi)
+void init_master_info_with_options(Master_info* mi)
 {
   DBUG_ENTER("init_master_info_with_options");
 
@@ -119,7 +119,7 @@ enum {
   LINES_IN_MASTER_INFO= LINES_IN_MASTER_INFO_WITH_SSL_AND_BIND_ADDR
 };
 
-int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
+int init_master_info(Master_info* mi, const char* master_info_fname,
                      const char* slave_info_fname,
                      bool abort_if_no_master_info_file,
                      int thread_mask)
@@ -372,7 +372,7 @@ err:
      1 - flush master info failed
      0 - all ok
 */
-int flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
+int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
@@ -428,7 +428,7 @@ int flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
 }
 
 
-void end_master_info(MASTER_INFO* mi)
+void end_master_info(Master_info* mi)
 {
   DBUG_ENTER("end_master_info");
 

@@ -2329,11 +2329,12 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
     }
     if (unlikely(intg0+frac0 > to->len))
     {
-      stop1-=to->len-frac0-intg0;
+      stop1-=frac0+intg0-to->len;
       frac0=to->len-intg0;
       to->frac=frac0*DIG_PER_DEC1;
         error=E_DEC_TRUNCATED;
     }
+    DBUG_ASSERT(buf0 + (stop1 - start1) <= to->buf + to->len);
     while (start1 < stop1)
         *buf0++=*start1++;
   }

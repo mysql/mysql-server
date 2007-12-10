@@ -29,6 +29,7 @@ eval SET SESSION STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
 drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
+drop procedure if exists p1;
 --enable_warnings
 
 
@@ -940,6 +941,63 @@ show create table t1;
 drop table t1;
 
 #
+# Bug #28570: handler::index_read() is called with different find_flag when 
+# ORDER BY is used
+#
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  KEY (b)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,10), (2,10), (2,20), (3,30);
+
+START TRANSACTION;
+SELECT * FROM t1 WHERE b=20 FOR UPDATE;
+
+--connect (conn2, localhost, root,,test)
+
+# This statement gives a "failed: 1205: Lock wait timeout exceeded; try 
+# restarting transaction" message when the bug is present.
+START TRANSACTION;
+SELECT * FROM t1 WHERE b=10 ORDER BY A FOR UPDATE;
+ROLLBACK;
+
+--disconnect conn2
+--connection default
+
+ROLLBACK;
+DROP TABLE t1;
+
+#
+# Bug#30596: GROUP BY optimization gives wrong result order
+#  
+CREATE TABLE t1(
+  a INT, 
+  b INT NOT NULL, 
+  c INT NOT NULL, 
+  d INT, 
+  UNIQUE KEY (c,b)
+) engine=innodb;
+
+INSERT INTO t1 VALUES (1,1,1,50), (1,2,3,40), (2,1,3,4);
+
+EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d;
+SELECT c,b,d FROM t1 GROUP BY c,b,d;
+EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d ORDER BY NULL;
+SELECT c,b,d FROM t1 GROUP BY c,b,d ORDER BY NULL;
+EXPLAIN SELECT c,b,d FROM t1 ORDER BY c,b,d;
+SELECT c,b,d FROM t1 ORDER BY c,b,d;
+
+EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b;
+SELECT c,b,d FROM t1 GROUP BY c,b;
+EXPLAIN SELECT c,b   FROM t1 GROUP BY c,b;
+SELECT c,b   FROM t1 GROUP BY c,b;
+
+DROP TABLE t1;
+
+#
 # Bug #31001: ORDER BY DESC in InnoDB not working
 #
 CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a), INDEX b (b)) ENGINE=InnoDB;
@@ -961,6 +1019,64 @@ query_vertical EXPLAIN SELECT * FROM t1 ORDER BY b DESC, a ASC;
 SELECT * FROM t1 ORDER BY b DESC, a ASC;
 
 DROP TABLE t1;
+
+###########################################################################
+
+--echo
+--echo #
+--echo # Bug#27610: ALTER TABLE ROW_FORMAT=... does not rebuild the table.
+--echo #
+
+--echo
+--echo # - prepare;
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1(c INT)
+  ENGINE = InnoDB
+  ROW_FORMAT = COMPACT;
+
+--echo
+--echo # - initial check;
+--echo
+
+SELECT table_schema, table_name, row_format
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = DATABASE() AND table_name = 't1';
+
+--echo
+--echo # - change ROW_FORMAT and check;
+--echo
+
+ALTER TABLE t1 ROW_FORMAT = REDUNDANT;
+
+--echo
+
+SELECT table_schema, table_name, row_format
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = DATABASE() AND table_name = 't1';
+
+--echo
+--echo # - that's it, cleanup.
+--echo
+
+DROP TABLE t1;
+
+###########################################################################
+
+#
+# Bug #31137: Assertion failed: primary_key_no == -1 || primary_key_no == 0
+#
+create table t1(a char(10) not null, unique key aa(a(1)),
+                b char(4) not null, unique key bb(b(4))) engine=innodb;
+desc t1;
+show create table t1;
+drop table t1;
 
 --echo End of 5.0 tests
 
@@ -1087,6 +1203,171 @@ insert into t1(f1) select f1 from t1 on duplicate key update f1="1";
 --replace_column 1 #
 select @b:=f2 from t1;
 select if(@a=@b,"ok","wrong");
+drop table t1;
+
+#
+# Bug #31310: Locked rows silently skipped in read-committed isolation level.
+#
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+SET SESSION AUTOCOMMIT = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--echo # Switch to connection con1
+connection con1;
+
+eval
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(256))
+ENGINE = $engine_type;
+INSERT INTO t1 VALUES (1,2);
+
+--echo # 1. test for locking:
+
+BEGIN;
+--enable_info
+UPDATE t1 SET b = 12 WHERE a = 1;
+--disable_info
+SELECT * FROM t1;
+
+--echo # Switch to connection con2
+connection con2;
+
+--enable_info
+--disable_abort_on_error
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET b = 21 WHERE a = 1;
+--disable_info
+
+--echo # Switch to connection con1
+connection con1;
+SELECT * FROM t1;
+ROLLBACK;
+
+--echo # 2. test for serialized update:
+
+CREATE TABLE t2 (a INT);
+
+TRUNCATE t1;
+INSERT INTO t1 VALUES (1,'init');
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  UPDATE t1 SET b = CONCAT(b, '+con2')  WHERE a = 1;
+  INSERT INTO t2 VALUES ();
+END|
+DELIMITER ;|
+
+BEGIN;
+--enable_info
+UPDATE t1 SET b = CONCAT(b, '+con1') WHERE a = 1;
+--disable_info
+SELECT * FROM t1;
+
+--echo # Switch to connection con2
+connection con2;
+
+--send CALL p1;
+
+--echo # Switch to connection con1
+connection con1;
+SELECT * FROM t1;
+COMMIT;
+
+let $bug31310 = 1;
+while ($bug31310)
+{
+  let $bug31310= `SELECT 1 - COUNT(*) FROM t2`;
+}
+
+SELECT * FROM t1;
+
+--echo # Switch to connection con2
+connection con2;
+SELECT * FROM t1;
+
+--echo # Switch to connection con1
+connection con1;
+
+--echo # 3. test for updated key column:
+
+TRUNCATE t1;
+TRUNCATE t2;
+
+INSERT INTO t1 VALUES (1,'init');
+
+BEGIN;
+--enable_info
+UPDATE t1 SET a = 2, b = CONCAT(b, '+con1') WHERE a = 1;
+--disable_info
+SELECT * FROM t1;
+
+--echo # Switch to connection con2
+connection con2;
+
+--send CALL p1;
+
+--echo # Switch to connection con1
+connection con1;
+SELECT * FROM t1;
+COMMIT;
+
+let $bug31310 = 1;
+while ($bug31310)
+{
+  let $bug31310= `SELECT 1 - COUNT(*) FROM t2`;
+}
+
+SELECT * FROM t1;
+
+--echo # Switch to connection con2
+connection con2;
+SELECT * FROM t1;
+
+connection default;
+disconnect con1;
+disconnect con2;
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+# Bug#30747 Create table with identical constraint names behaves incorrectly
+#
+
+if ($test_foreign_keys)
+{
+  CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b)) engine=innodb;
+  --error ER_WRONG_FK_DEF
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  CONSTRAINT c2 FOREIGN KEY f2 (c) REFERENCES t1 (a,b) ON UPDATE NO ACTION) engine=innodb;
+  --error ER_WRONG_FK_DEF
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a,b) ON UPDATE NO ACTION) engine=innodb;
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  CONSTRAINT c1 FOREIGN KEY c2 (c) REFERENCES t1 (a) ON DELETE NO ACTION,
+                  CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION) engine=innodb;
+  ALTER TABLE t2 DROP FOREIGN KEY c2;
+  DROP TABLE t2;
+  --error ER_WRONG_FK_DEF
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  FOREIGN KEY (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
+  --error ER_WRONG_FK_DEF
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  FOREIGN KEY f1 (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
+  CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
+                  CONSTRAINT c1 FOREIGN KEY f1 (c) REFERENCES t1 (a) ON DELETE NO ACTION,
+                  CONSTRAINT c2 FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION,
+                  FOREIGN KEY f3 (c) REFERENCES t1 (a) ON UPDATE NO ACTION,
+                  FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION) engine=innodb;
+  SHOW CREATE TABLE t2;
+  DROP TABLE t2;
+  DROP TABLE t1;
+}
+
+#
+# Bug #26447: "ALTER TABLE .. ORDER" does not work with InnoDB and 
+#             auto_increment keys
+#
+create table t1 (a int auto_increment primary key) engine=innodb;
+alter table t1 order by a;
 drop table t1;
 
 --echo End of 5.1 tests

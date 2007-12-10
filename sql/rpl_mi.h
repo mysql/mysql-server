@@ -26,13 +26,13 @@
 
   Replication IO Thread
 
-  MASTER_INFO contains:
+  Master_info contains:
     - information about how to connect to a master
     - current master log name
     - current master log offset
     - misc control variables
 
-  MASTER_INFO is initialized once from the master.info file if such
+  Master_info is initialized once from the master.info file if such
   exists. Otherwise, data members corresponding to master.info fields
   are initialized with defaults specified by master-* options. The
   initialization is done through init_master_info() call.
@@ -55,11 +55,11 @@
 
 *****************************************************************************/
 
-class MASTER_INFO : public Slave_reporting_capability
+class Master_info : public Slave_reporting_capability
 {
  public:
-  MASTER_INFO();
-  ~MASTER_INFO();
+  Master_info();
+  ~Master_info();
 
   /* the variables below are needed because we can change masters on the fly */
   char master_log_name[FN_REFLEN];
@@ -81,7 +81,7 @@ class MASTER_INFO : public Slave_reporting_capability
   THD *io_thd;
   MYSQL* mysql;
   uint32 file_id;				/* for 3.23 load data infile */
-  RELAY_LOG_INFO rli;
+  Relay_log_info rli;
   uint port;
   uint connect_retry;
   float heartbeat_period;         // interface with CHANGE MASTER or master.info
@@ -108,13 +108,13 @@ class MASTER_INFO : public Slave_reporting_capability
   uint64 master_epoch;
 };
 
-void init_master_info_with_options(MASTER_INFO* mi);
-int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
+void init_master_info_with_options(Master_info* mi);
+int init_master_info(Master_info* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
 		     bool abort_if_no_master_info_file,
 		     int thread_mask);
-void end_master_info(MASTER_INFO* mi);
-int flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache);
+void end_master_info(Master_info* mi);
+int flush_master_info(Master_info* mi, bool flush_relay_log_cache);
 
 #endif /* HAVE_REPLICATION */
 #endif /* RPL_MI_H */

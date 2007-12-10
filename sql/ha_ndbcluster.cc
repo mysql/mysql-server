@@ -5552,7 +5552,7 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
  */
 
 #ifdef HAVE_NDB_BINLOG
-extern MASTER_INFO *active_mi;
+extern Master_info *active_mi;
 static int ndbcluster_update_apply_status(THD *thd, int do_update)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -10833,6 +10833,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
   if (thd->store_globals())
     goto ndb_util_thread_fail;
+  lex_start(thd);
   thd->init_for_queries();
   thd->version=refresh_version;
   thd->main_security_ctx.host_or_ip= "";

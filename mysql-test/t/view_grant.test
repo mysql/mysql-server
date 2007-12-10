@@ -1040,10 +1040,11 @@ GRANT SELECT ON db26813.t1 TO u26813@localhost;
 
 connect (u1,localhost,u26813,,db26813);
 connection u1;
---error 1142
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 ALTER VIEW v1 AS SELECT f2 FROM t1;
---error 1142
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 ALTER VIEW v2 AS SELECT f2 FROM t1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 ALTER VIEW v3 AS SELECT f2 FROM t1;
 
 connection root;
@@ -1052,6 +1053,51 @@ SHOW CREATE VIEW v3;
 DROP USER u26813@localhost;
 DROP DATABASE db26813;
 disconnect u1;
+
+--echo #
+--echo # Bug#29908: A user can gain additional access through the ALTER VIEW.
+--echo #
+connection root;
+CREATE DATABASE mysqltest_29908;
+USE mysqltest_29908;
+CREATE TABLE t1(f1 INT, f2 INT);
+CREATE USER u29908_1@localhost;
+CREATE DEFINER = u29908_1@localhost VIEW v1 AS SELECT f1 FROM t1;
+CREATE DEFINER = u29908_1@localhost SQL SECURITY INVOKER VIEW v2 AS
+  SELECT f1 FROM t1;
+GRANT DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v1 TO u29908_1@localhost;
+GRANT DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v2 TO u29908_1@localhost;
+GRANT SELECT ON mysqltest_29908.t1 TO u29908_1@localhost;
+CREATE USER u29908_2@localhost;
+GRANT DROP, CREATE VIEW ON mysqltest_29908.v1 TO u29908_2@localhost;
+GRANT DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v2 TO u29908_2@localhost;
+GRANT SELECT ON mysqltest_29908.t1 TO u29908_2@localhost;
+
+connect (u2,localhost,u29908_2,,mysqltest_29908);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER VIEW v1 AS SELECT f2 FROM t1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER VIEW v2 AS SELECT f2 FROM t1;
+SHOW CREATE VIEW v2;
+
+connect (u1,localhost,u29908_1,,mysqltest_29908);
+ALTER VIEW v1 AS SELECT f2 FROM t1;
+SHOW CREATE VIEW v1;
+ALTER VIEW v2 AS SELECT f2 FROM t1;
+SHOW CREATE VIEW v2;
+
+connection root;
+ALTER VIEW v1 AS SELECT f1 FROM t1;
+SHOW CREATE VIEW v1;
+ALTER VIEW v2 AS SELECT f1 FROM t1;
+SHOW CREATE VIEW v2;
+
+DROP USER u29908_1@localhost;
+DROP USER u29908_2@localhost;
+DROP DATABASE mysqltest_29908;
+disconnect u1;
+disconnect u2;
+--echo #######################################################################
 
 #
 # BUG#24040: Create View don't succed with "all privileges" on a database.

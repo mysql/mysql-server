@@ -64,6 +64,9 @@ dnl installation dir ($pkglibdir), so ZLIB_DEPS is set to point to
 dnl $pkglibdir.
 
 AC_DEFUN([MYSQL_CHECK_ZLIB_WITH_COMPRESS], [
+
+AC_CONFIG_FILES(zlib/Makefile)
+
 AC_MSG_CHECKING([for zlib compression library])
 case $SYSTEM_TYPE in
 *netware* | *modesto*)
@@ -124,10 +127,6 @@ case $SYSTEM_TYPE in
     fi
     ;;
 esac
-if test -n "$zlib_dir"
-then
-  AC_CONFIG_FILES(zlib/Makefile)
-fi
 ])
 
 dnl ------------------------------------------------------------------------

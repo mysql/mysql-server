@@ -666,8 +666,8 @@ bool partition_info::check_list_constants()
   if (fixed && no_list_values)
   {
     bool first= TRUE;
-    qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
-          &list_part_cmp);
+    my_qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
+             &list_part_cmp);
  
     i= 0;
     LINT_INIT(prev_value);

@@ -15,6 +15,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+
+  @file event_data_objects.h
+*/
 
 #define EVEX_GET_FIELD_FAILED   -2
 #define EVEX_BAD_PARAMS         -5
@@ -280,5 +286,8 @@ event_basic_db_equal(LEX_STRING db, Event_basic *et);
 bool
 event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b);
 
+/**
+  @} (End of group Event_Scheduler)
+*/
 
 #endif /* _EVENT_DATA_OBJECTS_H_ */

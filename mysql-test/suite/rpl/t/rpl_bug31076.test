@@ -112,5 +112,7 @@ VALUES ('3m3l4rhs6do0sf5p1i9lr94g928a272v', '', '', INET_ATON('71.118.124.98'), 
 SELECT * FROM visits;
 SELECT * FROM visits_events;
 
+# Cleanup
 DROP DATABASE track;
-# End 5.1 test case
+sync_slave_with_master;
+--echo End of 5.1 tests

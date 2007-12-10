@@ -2,12 +2,9 @@
 # in case of bi-directional replication
 -- source include/master-slave.inc
 
-#
-#  Start replication master -> slave 
-#
-# We have to sync with master, to ensure slave had time to start properly
-# before we stop it. If not, we get errors about UNIX_TIMESTAMP() in the log.
-sync_slave_with_master;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show variables like 'relay_log%';
+
 connection slave;
 --disable_warnings
 stop slave;

@@ -11,13 +11,7 @@
 #                                                                     #
 #######################################################################
 
--- source include/not_embedded.inc
 -- source include/have_innodb.inc
--- source include/have_log_bin.inc
-
-# Disabling it temporarily for statement-based logging since some
-# tests are not safe while binlog is on.
--- source include/have_binlog_format_mixed_or_row.inc
 
 #
 # Small basic test with ignore
@@ -331,39 +325,6 @@ insert into t1 select * from t2;
 select * from t1;
 select * from t2;
 drop table t1,t2;
-
-#
-# Search on unique key
-#
-
-CREATE TABLE t1 (
-  id int(11) NOT NULL auto_increment,
-  ggid varchar(32) binary DEFAULT '' NOT NULL,
-  email varchar(64) DEFAULT '' NOT NULL,
-  passwd varchar(32) binary DEFAULT '' NOT NULL,
-  PRIMARY KEY (id),
-  UNIQUE ggid (ggid)
-) ENGINE=innodb;
-
-insert into t1 (ggid,passwd) values ('test1','xxx');
-insert into t1 (ggid,passwd) values ('test2','yyy');
--- error ER_DUP_ENTRY
-insert into t1 (ggid,passwd) values ('test2','this will fail');
--- error ER_DUP_ENTRY
-insert into t1 (ggid,id) values ('this will fail',1);
-
-select * from t1 where ggid='test1';
-select * from t1 where passwd='xxx';
-select * from t1 where id=2;
-
-replace into t1 (ggid,id) values ('this will work',1);
-replace into t1 (ggid,passwd) values ('test2','this will work');
--- error ER_DUP_ENTRY
-update t1 set id=100,ggid='test2' where id=1;
-select * from t1;
-select * from t1 where id=1;
-select * from t1 where id=999;
-drop table t1;
 
 #
 # ORDER BY on not primary key
@@ -760,43 +721,36 @@ select * from t2;
 drop table t1,t2;
 
 #
-# Bug#27716  	multi-update did partially and has not binlogged
+# Bug #29136  	erred multi-delete on trans table does not rollback 
 #
 
-CREATE TABLE `t1` (
-  `a` int(11) NOT NULL auto_increment,
-  `b` int(11) default NULL,
-  PRIMARY KEY  (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+# prepare
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+CREATE TABLE t1 (a int, PRIMARY KEY (a));
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+create trigger trg_del_t2 after  delete on t2 for each row
+       insert into t1 values (1);
+insert into t1 values (1);
+insert into t2 values (1),(2);
 
-CREATE TABLE `t2` (
-  `a` int(11) NOT NULL auto_increment,
-  `b` int(11) default NULL,
-  PRIMARY KEY  (`a`)
-) ENGINE=INNODB DEFAULT CHARSET=latin1 ;
 
-# A. testing multi_update::send_eof() execution branch
-insert into t1 values (1,1),(2,2);
-insert into t2 values (1,1),(4,4);
-reset master;
+# exec cases A, B - see multi_update.test
+
+# A. send_error() w/o send_eof() branch
+
 --error ER_DUP_ENTRY
-UPDATE t2,t1 SET t2.a=t1.a+2;
+delete t2 from t2;
+
 # check
-select * from t2 /* must be (3,1), (4,4) */;
-show master status /* there must no UPDATE in binlog */;
 
-# B. testing multi_update::send_error() execution branch
-delete from t1;
-delete from t2;
-insert into t1 values (1,2),(3,4),(4,4);
-insert into t2 values (1,2),(3,4),(4,4);
-reset master;
---error ER_DUP_ENTRY
-UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
-show master status /* there must be no UPDATE query event */;
+select count(*) from t2 /* must be 2 as restored after rollback caused by the error */;
 
-# cleanup bug#27716
+# cleanup bug#29136
+
 drop table t1, t2;
+
 
 #
 # Testing of IFNULL
@@ -1175,9 +1129,8 @@ drop table t2;
 
 # Test error handling
 
-# Clean up filename -- embedded server reports whole path without .frm,
-# regular server reports relative path with .frm (argh!)
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t2.frm t2
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error ER_WRONG_FK_DEF
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
 
@@ -1369,9 +1322,8 @@ source include/varchar.inc;
 # Some errors/warnings on create
 #
 
-# Clean up filename -- embedded server reports whole path without .frm,
-# regular server reports relative path with .frm (argh!)
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . master-data/ ''
 create table t1 (v varchar(65530), key(v));
 drop table t1;
 create table t1 (v varchar(65536));
@@ -1645,6 +1597,7 @@ disconnect b;
 
 set foreign_key_checks=0;
 create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
+# Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 -- error 1005
 create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
@@ -1656,6 +1609,7 @@ drop table t2;
 
 set foreign_key_checks=0;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
+# Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 -- error 1005
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
@@ -1686,6 +1640,7 @@ drop table t2,t1;
 set foreign_key_checks=0;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
 create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
+# Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 -- error 1025
 rename table t3 to t1;
@@ -2311,7 +2266,10 @@ CREATE TABLE t2 (a INT, INDEX(a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
---replace_regex /'\.\/test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error 1025
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 DELETE FROM t1;
@@ -2363,6 +2321,67 @@ CREATE TABLE t1 (
 	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
 	) ENGINE = InnoDB;
+
+#
+# Bug #31860 InnoDB assumes AUTOINC values can only be positive.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(
+	id BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY
+	) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(-10);
+SELECT * FROM t1;
+#
+# NOTE: The server really needs to be restarted at this point
+# for the test to be useful.  
+#
+# Without the fix InnoDB would trip over an assertion here.
+INSERT INTO t1 VALUES(NULL);
+# The next value should be 1 and not -9 or a -ve number
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# 
+# Bug #21409 Incorrect result returned when in READ-COMMITTED with
+# query_cache ON
+#
+CONNECT (c1,localhost,root,,);
+CONNECT (c2,localhost,root,,);
+CONNECTION c1;
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
+CREATE TABLE t2 LIKE t1;
+SELECT * FROM t2;
+CONNECTION c2;
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+INSERT INTO t1 VALUES (1);
+COMMIT;
+CONNECTION c1;
+SELECT * FROM t1 WHERE a=1;
+DISCONNECT c1;
+DISCONNECT c2;
+CONNECT (c1,localhost,root,,);
+CONNECT (c2,localhost,root,,);
+CONNECTION c1;
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+SELECT * FROM t2;
+CONNECTION c2;
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+INSERT INTO t1 VALUES (2);
+COMMIT;
+CONNECTION c1;
+# The result set below should be the same for both selects
+SELECT * FROM t1 WHERE a=2;
+SELECT * FROM t1 WHERE a=2;
+DROP TABLE t1;
+DROP TABLE t2;
+DISCONNECT c1;
+DISCONNECT c2;
 
 #######################################################################
 #                                                                     #

@@ -55,6 +55,7 @@ static int rr_index(READ_RECORD *info);
 void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
                           bool print_error, uint idx)
 {
+  empty_record(table);
   bzero((char*) info,sizeof(*info));
   info->table= table;
   info->file=  table->file;
@@ -161,6 +162,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   }
   else
   {
+    empty_record(table);
     info->record= table->record[0];
     info->ref_length= table->file->ref_length;
   }
@@ -566,7 +568,8 @@ static int rr_from_cache(READ_RECORD *info)
       int3store(ref_position,(long) i);
       ref_position+=3;
     }
-    qsort(info->read_positions,length,info->struct_length,(qsort_cmp) rr_cmp);
+    my_qsort(info->read_positions, length, info->struct_length,
+             (qsort_cmp) rr_cmp);
 
     position=info->read_positions;
     for (i=0 ; i < length ; i++)

@@ -314,7 +314,7 @@ case "$mode" in
       fi
       exit $return_value
     else
-      log_failure_msg "Couldn't find MySQL manager or server"
+      log_failure_msg "Couldn't find MySQL manager ($manager) or server ($bindir/mysqld_safe)"
     fi
     ;;
 
@@ -385,7 +385,7 @@ case "$mode" in
       fi
     else
       # Try to find appropriate mysqld process
-      mysqld_pid=`pidof $sbindir/mysqld`
+      mysqld_pid=`pidof $libexecdir/mysqld`
       if test -z $mysqld_pid ; then 
         if test "$use_mysqld_safe" = "0" ; then 
           lockfile=/var/lock/subsys/mysqlmanager

@@ -151,6 +151,24 @@ public:
     table, which is located on disk).
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
+  virtual int compatible_field_size(uint field_metadata);
+  virtual uint pack_length_from_metadata(uint field_metadata)
+  { return field_metadata; }
+  /*
+    This method is used to return the size of the data in a row-based
+    replication row record. The default implementation of returning 0 is
+    designed to allow fields that do not use metadata to return TRUE (1)
+    from compatible_field_size() which uses this function in the comparison.
+    The default value for field metadata for fields that do not have 
+    metadata is 0. Thus, 0 == 0 means the fields are compatible in size.
+
+    Note: While most classes that override this method return pack_length(),
+    the classes Field_string, Field_varstring, and Field_blob return 
+    field_length + 1, field_length, and pack_length_no_ptr() respectfully.
+  */
+  virtual uint row_pack_length() { return 0; }
+  virtual int save_field_metadata(uchar *first_byte)
+  { return do_save_field_metadata(first_byte); }
 
   /*
     data_length() return the "real size" of the data in memory.
@@ -164,6 +182,17 @@ public:
   */
   virtual uint32 used_length() { return pack_length(); }
   virtual uint32 sort_length() const { return pack_length(); }
+
+  /**
+     Get the maximum size of the data in packed format.
+
+     @return Maximum data length of the field when packed using the
+     Field::pack() function.
+   */
+  virtual uint32 max_data_length() const {
+    return pack_length();
+  };
+
   virtual int reset(void) { bzero(ptr,pack_length()); return 0; }
   virtual void reset_fields() {}
   virtual void set_default()
@@ -282,9 +311,9 @@ public:
     if (null_ptr)
       null_ptr=ADD_TO_PTR(null_ptr,ptr_diff,uchar*);
   }
-  inline void get_image(uchar *buff,uint length, CHARSET_INFO *cs)
+  virtual void get_image(uchar *buff, uint length, CHARSET_INFO *cs)
     { memcpy(buff,ptr,length); }
-  inline void set_image(const uchar *buff,uint length, CHARSET_INFO *cs)
+  virtual void set_image(const uchar *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
 
 
@@ -346,32 +375,45 @@ public:
     return str;
   }
   virtual bool send_binary(Protocol *protocol);
-  virtual uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0)
+
+  virtual uchar *pack(uchar *to, const uchar *from,
+                      uint max_length, bool low_byte_first);
+  /**
+     @overload Field::pack(uchar*, const uchar*, uint, bool)
+  */
+  uchar *pack(uchar *to, const uchar *from)
   {
-    uint32 length=pack_length();
-    memcpy(to,from,length);
-    return to+length;
+    DBUG_ENTER("Field::pack");
+    uchar *result= this->pack(to, from, UINT_MAX, table->s->db_low_byte_first);
+    DBUG_RETURN(result);
   }
-  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
-  virtual const uchar *unpack(uchar* to, const uchar *from)
+
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first);
+  /**
+     @overload Field::unpack(uchar*, const uchar*, uint, bool)
+  */
+  const uchar *unpack(uchar* to, const uchar *from)
   {
-    uint length=pack_length();
-    memcpy(to,from,length);
-    return from+length;
+    DBUG_ENTER("Field::unpack");
+    const uchar *result= unpack(to, from, 0U, table->s->db_low_byte_first);
+    DBUG_RETURN(result);
   }
-  virtual uchar *pack_key(uchar* to, const uchar *from, uint max_length)
+
+  virtual uchar *pack_key(uchar* to, const uchar *from,
+                          uint max_length, bool low_byte_first)
   {
-    return pack(to,from,max_length);
+    return pack(to, from, max_length, low_byte_first);
   }
   virtual uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-					uint max_length)
+					uint max_length, bool low_byte_first)
   {
-    return pack(to,from,max_length);
+    return pack(to, from, max_length, low_byte_first);
   }
   virtual const uchar *unpack_key(uchar* to, const uchar *from,
-                                  uint max_length)
+                                  uint max_length, bool low_byte_first)
   {
-    return unpack(to,from);
+    return unpack(to, from, max_length, low_byte_first);
   }
   virtual uint packed_col_length(const uchar *to, uint length)
   { return length;}
@@ -483,6 +525,19 @@ private:
       overridden by subclasses.
    */
   virtual size_t do_last_null_byte() const;
+
+/**
+   Retrieve the field metadata for fields.
+
+   This default implementation returns 0 and saves 0 in the metadata_ptr
+   value.
+
+   @param   metadata_ptr   First byte of field metadata
+
+   @returns 0 no bytes written.
+*/
+  virtual int do_save_field_metadata(uchar *metadata_ptr)
+  { return 0; }
 };
 
 
@@ -556,6 +611,7 @@ public:
     {}
 
   int store_decimal(const my_decimal *d);
+  uint32 max_data_length() const;
 };
 
 /* base class for float and double and decimal (old one) */
@@ -576,6 +632,10 @@ public:
   int truncate(double *nr, double max_length);
   uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); }
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first);
+  virtual uchar *pack(uchar* to, const uchar *from,
+                      uint max_length, bool low_byte_first);
 };
 
 
@@ -604,11 +664,23 @@ public:
   void overflow(bool negative);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first)
+  {
+    return Field::unpack(to, from, param_data, low_byte_first);
+  }
+  virtual uchar *pack(uchar* to, const uchar *from,
+                      uint max_length, bool low_byte_first)
+  {
+    return Field::pack(to, from, max_length, low_byte_first);
+  }
 };
 
 
 /* New decimal/numeric field which use fixed point arithmetic */
 class Field_new_decimal :public Field_num {
+private:
+  int do_save_field_metadata(uchar *first_byte);
 public:
   /* The maximum number of decimal digits can be stored */
   uint precision;
@@ -648,8 +720,12 @@ public:
   uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
+  uint pack_length_from_metadata(uint field_metadata);
+  uint row_pack_length() { return pack_length(); }
+  int compatible_field_size(uint field_metadata);
   uint is_equal(Create_field *new_field);
-  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first);
 };
 
 
@@ -680,6 +756,20 @@ public:
   uint32 pack_length() const { return 1; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 4; }
+
+  virtual uchar *pack(uchar* to, const uchar *from,
+                      uint max_length, bool low_byte_first)
+  {
+    *to= *from;
+    return to + 1;
+  }
+
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first)
+  {
+    *to= *from;
+    return from + 1;
+  }
 };
 
 
@@ -715,8 +805,47 @@ public:
   uint32 pack_length() const { return 2; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 6; }
-};
 
+  virtual uchar *pack(uchar* to, const uchar *from,
+                      uint max_length, bool low_byte_first)
+  {
+    int16 val;
+#ifdef WORDS_BIGENDIAN
+    if (table->s->db_low_byte_first)
+      val = sint2korr(from);
+    else
+#endif
+      shortget(val, from);
+
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first)
+      int2store(to, val);
+    else
+#endif
+      shortstore(to, val);
+    return to + sizeof(val);
+  }
+
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first)
+  {
+    int16 val;
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first)
+      val = sint2korr(from);
+    else
+#endif
+      shortget(val, from);
+
+#ifdef WORDS_BIGENDIAN
+    if (table->s->db_low_byte_first)
+      int2store(to, val);
+    else
+#endif
+      shortstore(to, val);
+    return from + sizeof(val);
+  }
+};
 
 class Field_medium :public Field_num {
 public:
@@ -745,6 +874,18 @@ public:
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 8; }
+
+  virtual uchar *pack(uchar* to, const uchar *from,
+                      uint max_length, bool low_byte_first)
+  {
+    return Field::pack(to, from, max_length, low_byte_first);
+  }
+
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first)
+  {
+    return Field::unpack(to, from, param_data, low_byte_first);
+  }
 };
 
 
@@ -780,6 +921,45 @@ public:
   uint32 pack_length() const { return 4; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return MY_INT32_NUM_DECIMAL_DIGITS; }
+  virtual uchar *pack(uchar* to, const uchar *from,
+                      uint max_length, bool low_byte_first)
+  {
+    int32 val;
+#ifdef WORDS_BIGENDIAN
+    if (table->s->db_low_byte_first)
+      val = sint4korr(from);
+    else
+#endif
+      longget(val, from);
+
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first)
+      int4store(to, val);
+    else
+#endif
+      longstore(to, val);
+    return to + sizeof(val);
+  }
+
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first)
+  {
+    int32 val;
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first)
+      val = sint4korr(from);
+    else
+#endif
+      longget(val, from);
+
+#ifdef WORDS_BIGENDIAN
+    if (table->s->db_low_byte_first)
+      int4store(to, val);
+    else
+#endif
+      longstore(to, val);
+    return from + sizeof(val);
+  }
 };
 
 
@@ -822,6 +1002,45 @@ public:
   void sql_type(String &str) const;
   bool can_be_compared_as_longlong() const { return TRUE; }
   uint32 max_display_length() { return 20; }
+  virtual uchar *pack(uchar* to, const uchar *from,
+                      uint max_length, bool low_byte_first)
+  {
+    int64 val;
+#ifdef WORDS_BIGENDIAN
+    if (table->s->db_low_byte_first)
+      val = sint8korr(from);
+    else
+#endif
+      longlongget(val, from);
+
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first)
+      int8store(to, val);
+    else
+#endif
+      longlongstore(to, val);
+    return to + sizeof(val);
+  }
+
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first)
+  {
+    int64 val;
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first)
+      val = sint8korr(from);
+    else
+#endif
+      longlongget(val, from);
+
+#ifdef WORDS_BIGENDIAN
+    if (table->s->db_low_byte_first)
+      int8store(to, val);
+    else
+#endif
+      longlongstore(to, val);
+    return from + sizeof(val);
+  }
 };
 #endif
 
@@ -854,7 +1073,10 @@ public:
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
   uint32 pack_length() const { return sizeof(float); }
+  uint row_pack_length() { return pack_length(); }
   void sql_type(String &str) const;
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -891,7 +1113,10 @@ public:
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
+  uint row_pack_length() { return pack_length(); }
   void sql_type(String &str) const;
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1196,9 +1421,13 @@ public:
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
   void sql_type(String &str) const;
-  uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0);
-  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
-  const uchar *unpack(uchar* to, const uchar *from);
+  virtual uchar *pack(uchar *to, const uchar *from,
+                      uint max_length, bool low_byte_first);
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first);
+  uint pack_length_from_metadata(uint field_metadata)
+  { return (field_metadata & 0x00ff); }
+  uint row_pack_length() { return (field_length + 1); }
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
                my_bool insert_or_update);
   int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
@@ -1210,6 +1439,8 @@ public:
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
   virtual uint get_key_image(uchar *buff,uint length, imagetype type);
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1245,6 +1476,7 @@ public:
 
   enum_field_types type() const { return MYSQL_TYPE_VARCHAR; }
   enum ha_base_keytype key_type() const;
+  uint row_pack_length() { return field_length; }
   bool zero_pack() const { return 0; }
   int  reset(void) { bzero(ptr,field_length+length_bytes); return 0; }
   uint32 pack_length() const { return (uint32) field_length+length_bytes; }
@@ -1270,13 +1502,15 @@ public:
   uint get_key_image(uchar *buff,uint length, imagetype type);
   void set_key_image(const uchar *buff,uint length);
   void sql_type(String &str) const;
-  uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0);
-  uchar *pack_key(uchar *to, const uchar *from, uint max_length);
+  virtual uchar *pack(uchar *to, const uchar *from,
+                      uint max_length, bool low_byte_first);
+  uchar *pack_key(uchar *to, const uchar *from, uint max_length, bool low_byte_first);
   uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-                                 uint max_length);
-  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
-  const uchar *unpack(uchar* to, const uchar *from);
-  const uchar *unpack_key(uchar* to, const uchar *from, uint max_length);
+                                 uint max_length, bool low_byte_first);
+  virtual const uchar *unpack(uchar* to, const uchar *from,
+                              uint param_data, bool low_byte_first);
+  const uchar *unpack_key(uchar* to, const uchar *from,
+                          uint max_length, bool low_byte_first);
   int pack_cmp(const uchar *a, const uchar *b, uint key_length,
                my_bool insert_or_update);
   int pack_cmp(const uchar *b, uint key_length,my_bool insert_or_update);
@@ -1297,6 +1531,8 @@ public:
                        uint new_null_bit);
   uint is_equal(Create_field *new_field);
   void hash(ulong *nr, ulong *nr2);
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1362,12 +1598,13 @@ public:
      This is used to determine the size of the actual data in the row
      buffer.
 
-     @retval The length of the raw data itself without the pointer.
+     @returns The length of the raw data itself without the pointer.
   */
   uint32 pack_length_no_ptr() const
   { return (uint32) (packlength); }
+  uint row_pack_length() { return pack_length_no_ptr(); }
   uint32 sort_length() const;
-  inline uint32 max_data_length() const
+  virtual uint32 max_data_length() const
   {
     return (uint32) (((ulonglong) 1 << (packlength*8)) -1);
   }
@@ -1392,16 +1629,16 @@ public:
      This is used to determine the size of the data plus the 
      packed length portion in the row data.
 
-     @retval The length in the row plus the size of the data.
+     @returns The length in the row plus the size of the data.
   */
   uint32 get_packed_size(const uchar *ptr_arg, bool low_byte_first)
-    {return packlength + get_length(ptr_arg, low_byte_first);}
+    {return packlength + get_length(ptr_arg, packlength, low_byte_first);}
 
   inline uint32 get_length(uint row_offset= 0)
-  { return get_length(ptr+row_offset, table->s->db_low_byte_first); }
-  uint32 get_length(const uchar *ptr, bool low_byte_first);
+  { return get_length(ptr+row_offset, this->packlength, table->s->db_low_byte_first); }
+  uint32 get_length(const uchar *ptr, uint packlength, bool low_byte_first);
   uint32 get_length(const uchar *ptr_arg)
-  { return get_length(ptr_arg, table->s->db_low_byte_first); }
+  { return get_length(ptr_arg, this->packlength, table->s->db_low_byte_first); }
   void put_length(uchar *pos, uint32 length);
   inline void get_ptr(uchar **str)
     {
@@ -1442,13 +1679,16 @@ public:
     memcpy_fixed(ptr+packlength,&tmp,sizeof(char*));
     return 0;
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length= ~(uint) 0);
-  uchar *pack_key(uchar *to, const uchar *from, uint max_length);
+  virtual uchar *pack(uchar *to, const uchar *from,
+                      uint max_length, bool low_byte_first);
+  uchar *pack_key(uchar *to, const uchar *from,
+                  uint max_length, bool low_byte_first);
   uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-                                 uint max_length);
-  virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data);
-  const uchar *unpack(uchar *to, const uchar *from);
-  const uchar *unpack_key(uchar* to, const uchar *from, uint max_length);
+                                 uint max_length, bool low_byte_first);
+  virtual const uchar *unpack(uchar *to, const uchar *from,
+                              uint param_data, bool low_byte_first);
+  const uchar *unpack_key(uchar* to, const uchar *from,
+                          uint max_length, bool low_byte_first);
   int pack_cmp(const uchar *a, const uchar *b, uint key_length,
                my_bool insert_or_update);
   int pack_cmp(const uchar *b, uint key_length,my_bool insert_or_update);
@@ -1464,6 +1704,8 @@ public:
   uint is_equal(Create_field *new_field);
   inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
   inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1490,7 +1732,6 @@ public:
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   int  store_decimal(const my_decimal *);
-  uint get_key_image(uchar *buff,uint length,imagetype type);
   uint size_of() const { return sizeof(*this); }
   int  reset(void) { return !maybe_null() || Field_blob::reset(); }
   geometry_type get_geometry_type() { return geom_type; };
@@ -1533,12 +1774,17 @@ public:
   void sql_type(String &str) const;
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return MYSQL_TYPE_ENUM; }
+  uint pack_length_from_metadata(uint field_metadata)
+  { return (field_metadata & 0x00ff); }
+  uint row_pack_length() { return pack_length(); }
   virtual bool zero_pack() const { return 0; }
   bool optimize_range(uint idx, uint part) { return 0; }
   bool eq_def(Field *field);
   bool has_charset(void) const { return TRUE; }
   /* enum and set are sorted as integers */
   CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1559,6 +1805,7 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr) { return Field_set::store((longlong) nr, FALSE); }
   int  store(longlong nr, bool unsigned_val);
+
   virtual bool zero_pack() const { return 1; }
   String *val_str(String*,String *);
   void sql_type(String &str) const;
@@ -1593,6 +1840,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_BIT; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BIT; }
   uint32 key_length() const { return (uint32) (field_length + 7) / 8; }
+  uint32 max_data_length() const { return (field_length + 7) / 8; }
   uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); }
   Item_result result_type () const { return INT_RESULT; }
@@ -1607,7 +1855,10 @@ public:
   virtual bool str_needs_quotes() { return TRUE; }
   my_decimal *val_decimal(my_decimal *);
   int cmp(const uchar *a, const uchar *b)
-  { return cmp_binary(a, b); }
+  { 
+    DBUG_ASSERT(ptr == a);
+    return Field_bit::key_cmp(b, bytes_in_rec+test(bit_len));
+  }
   int cmp_binary_offset(uint row_offset)
   { return cmp_offset(row_offset); }
   int cmp_max(const uchar *a, const uchar *b, uint max_length);
@@ -1615,6 +1866,10 @@ public:
   { return cmp_binary((uchar *) a, (uchar *) b); }
   int key_cmp(const uchar *str, uint length);
   int cmp_offset(uint row_offset);
+  void get_image(uchar *buff, uint length, CHARSET_INFO *cs)
+  { get_key_image(buff, length, itRAW); }   
+  void set_image(const uchar *buff,uint length, CHARSET_INFO *cs)
+  { Field_bit::store((char *) buff, length, cs); }
   uint get_key_image(uchar *buff, uint length, imagetype type);
   void set_key_image(const uchar *buff, uint length)
   { Field_bit::store((char*) buff, length, &my_charset_bin); }
@@ -1622,10 +1877,15 @@ public:
   { get_key_image(buff, length, itRAW); }
   uint32 pack_length() const { return (uint32) (field_length + 7) / 8; }
   uint32 pack_length_in_rec() const { return bytes_in_rec; }
+  uint pack_length_from_metadata(uint field_metadata);
+  uint row_pack_length()
+  { return (bytes_in_rec + ((bit_len > 0) ? 1 : 0)); }
+  int compatible_field_size(uint field_metadata);
   void sql_type(String &str) const;
-  uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0);
-  virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data);
-  const uchar *unpack(uchar* to, const uchar *from);
+  virtual uchar *pack(uchar *to, const uchar *from,
+                      uint max_length, bool low_byte_first);
+  virtual const uchar *unpack(uchar *to, const uchar *from,
+                              uint param_data, bool low_byte_first);
   virtual void set_default();
 
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
@@ -1652,6 +1912,7 @@ public:
 
 private:
   virtual size_t do_last_null_byte() const;
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1767,7 +2028,12 @@ class Send_field {
 */
 
 class Copy_field :public Sql_alloc {
-  void (*get_copy_func(Field *to,Field *from))(Copy_field *);
+  /**
+    Convenience definition of a copy function returned by
+    get_copy_func.
+  */
+  typedef void Copy_func(Copy_field*);
+  Copy_func *get_copy_func(Field *to, Field *from);
 public:
   uchar *from_ptr,*to_ptr;
   uchar *from_null_ptr,*to_null_ptr;

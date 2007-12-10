@@ -129,3 +129,23 @@ insert into t1 (time, first_name, last_name) values ('2007-02-07', 'Q', 'Robert'
 SELECT * FROM t1 WHERE first_name='Andy' OR last_name='Jake';
 id	time	first_name	last_name
 drop table t1;
+CREATE TABLE t1 (a DOUBLE NOT NULL, KEY(a)) ENGINE=InnoDB
+PARTITION BY KEY(a) PARTITIONS 10;
+INSERT INTO t1 VALUES(1),(2);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+DROP TABLE t1;
+create table t1 (int_column int, char_column char(5))
+PARTITION BY RANGE (int_column) subpartition by key (char_column) subpartitions 2
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB);
+alter table t1 PARTITION BY RANGE (int_column)
+subpartition by key (char_column) subpartitions 2
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = myisam);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `int_column` int(11) DEFAULT NULL,
+  `char_column` char(5) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (int_column) SUBPARTITION BY KEY (char_column) SUBPARTITIONS 2 (PARTITION p1 VALUES LESS THAN (5) ENGINE = MyISAM) */
+drop table t1;

@@ -387,7 +387,6 @@ THD::THD()
   init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   stmt_arena= this;
   thread_stack= 0;
-  db= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
@@ -395,8 +394,8 @@ THD::THD()
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
-  db_length= col_access=0;
-  query_error= thread_specific_used= FALSE;
+  col_access=0;
+  is_slave_error= thread_specific_used= FALSE;
   hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
@@ -499,12 +498,12 @@ void THD::push_internal_handler(Internal_error_handler *handler)
 }
 
 
-bool THD::handle_error(uint sql_errno,
+bool THD::handle_error(uint sql_errno, const char *message,
                        MYSQL_ERROR::enum_warning_level level)
 {
   if (m_internal_handler)
   {
-    return m_internal_handler->handle_error(sql_errno, level, this);
+    return m_internal_handler->handle_error(sql_errno, message, level, this);
   }
 
   return FALSE;                                 // 'FALSE', as per coding style
@@ -586,6 +585,12 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
   options= thd_startup_options;
+
+  if (variables.max_join_size == HA_POS_ERROR)
+    options |= OPTION_BIG_SELECTS;
+  else
+    options &= ~OPTION_BIG_SELECTS;
+
   transaction.all.modified_non_trans_table= transaction.stmt.modified_non_trans_table= FALSE;
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
@@ -673,9 +678,7 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
-  mysql_ha_flush(this, (TABLE_LIST*) 0,
-                 MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL, FALSE);
-  hash_free(&handler_tables_hash);
+  mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
   close_temporary_tables(this);
@@ -693,6 +696,7 @@ void THD::cleanup(void)
     pthread_mutex_lock(&LOCK_user_locks);
     item_user_lock_release(ull);
     pthread_mutex_unlock(&LOCK_user_locks);
+    ull= NULL;
   }
 
   cleanup_done=1;
@@ -812,7 +816,20 @@ void THD::awake(THD::killed_state state_to_set)
     if (!slave_thread)
       thread_scheduler.post_kill_notification(this);
 #ifdef SIGNAL_WITH_VIO_CLOSE
-    close_active_vio();
+    if (this != current_thd)
+    {
+      /*
+        In addition to a signal, let's close the socket of the thread that
+        is being killed. This is to make sure it does not block if the
+        signal is lost. This needs to be done only on platforms where
+        signals are not a reliable interruption mechanism.
+
+        If we're killing ourselves, we know that we're not blocked, so this
+        hack is not used.
+      */
+
+      close_active_vio();
+    }
 #endif    
   }
   if (mysys_var)
@@ -1299,23 +1316,26 @@ bool select_send::send_fields(List<Item> &list, uint flags)
 {
   bool res;
   if (!(res= thd->protocol->send_fields(&list, flags)))
-    status= 1;
+    is_result_set_started= 1;
   return res;
 }
 
 void select_send::abort()
 {
   DBUG_ENTER("select_send::abort");
-  if (status && thd->spcont &&
+  if (is_result_set_started && thd->spcont &&
       thd->spcont->find_handler(thd, thd->net.last_errno,
                                 MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
     /*
-      Executing stored procedure without a handler.
-      Here we should actually send an error to the client,
-      but as an error will break a multiple result set, the only thing we
-      can do for now is to nicely end the current data set and remembering
-      the error so that the calling routine will abort
+      We're executing a stored procedure, have an open result
+      set, an SQL exception conditiona and a handler for it.
+      In this situation we must abort the current statement,
+      silence the error and start executing the continue/exit
+      handler.
+      Before aborting the statement, let's end the open result set, as
+      otherwise the client will hang due to the violation of the
+      client/server protocol.
     */
     thd->net.report_error= 0;
     send_eof();
@@ -1324,6 +1344,17 @@ void select_send::abort()
   DBUG_VOID_RETURN;
 }
 
+
+/** 
+  Cleanup an instance of this class for re-use
+  at next execution of a prepared statement/
+  stored procedure statement.
+*/
+
+void select_send::cleanup()
+{
+  is_result_set_started= FALSE;
+}
 
 /* Send data to client. Returns 0 if ok */
 
@@ -1362,7 +1393,7 @@ bool select_send::send_data(List<Item> &items)
   thd->sent_row_count++;
   if (!thd->vio_ok())
     DBUG_RETURN(0);
-  if (!thd->net.report_error)
+  if (! thd->is_error())
     DBUG_RETURN(protocol->write());
   protocol->remove_last_row();
   DBUG_RETURN(1);
@@ -1383,10 +1414,10 @@ bool select_send::send_eof()
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  if (!thd->net.report_error)
+  if (! thd->is_error())
   {
     ::send_eof(thd);
-    status= 0;
+    is_result_set_started= 0;
     return 0;
   }
   else
@@ -1417,7 +1448,14 @@ bool select_to_file::send_eof()
   if (my_close(file,MYF(MY_WME)))
     error= 1;
   if (!error)
+  {
+    /*
+      In order to remember the value of affected rows for ROW_COUNT()
+      function, SELECT INTO has to have an own SQLCOM.
+      TODO: split from SQLCOM_SELECT
+    */
     ::send_ok(thd,row_count);
+  }
   file= -1;
   return error;
 }
@@ -1527,6 +1565,7 @@ int
 select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   bool blob_flag=0;
+  bool string_results= FALSE, non_string_results= FALSE;
   unit= u;
   if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
@@ -1544,13 +1583,18 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 	blob_flag=1;
 	break;
       }
+      if (item->result_type() == STRING_RESULT)
+        string_results= TRUE;
+      else
+        non_string_results= TRUE;
     }
   }
   field_term_length=exchange->field_term->length();
+  field_term_char= field_term_length ? (*exchange->field_term)[0] : INT_MAX;
   if (!exchange->line_term->length())
     exchange->line_term=exchange->field_term;	// Use this if it exists
   field_sep_char= (exchange->enclosed->length() ? (*exchange->enclosed)[0] :
-		   field_term_length ? (*exchange->field_term)[0] : INT_MAX);
+                   field_term_char);
   escape_char=	(exchange->escaped->length() ? (*exchange->escaped)[0] : -1);
   is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
   is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
@@ -1562,12 +1606,25 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     exchange->opt_enclosed=1;			// A little quicker loop
   fixed_row_size= (!field_term_length && !exchange->enclosed->length() &&
 		   !blob_flag);
+  if ((is_ambiguous_field_sep && exchange->enclosed->is_empty() &&
+       (string_results || is_unsafe_field_sep)) ||
+      (exchange->opt_enclosed && non_string_results &&
+       field_term_length && strchr(NUMERIC_CHARS, field_term_char)))
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 ER_AMBIGUOUS_FIELD_TERM, ER(ER_AMBIGUOUS_FIELD_TERM));
+    is_ambiguous_field_term= TRUE;
+  }
+  else
+    is_ambiguous_field_term= FALSE;
+
   return 0;
 }
 
 
 #define NEED_ESCAPING(x) ((int) (uchar) (x) == escape_char    || \
-                          (int) (uchar) (x) == field_sep_char || \
+                          (enclosed ? (int) (uchar) (x) == field_sep_char      \
+                                    : (int) (uchar) (x) == field_term_char) || \
                           (int) (uchar) (x) == line_sep_char  || \
                           !(x))
 
@@ -1596,8 +1653,10 @@ bool select_export::send_data(List<Item> &items)
   while ((item=li++))
   {
     Item_result result_type=item->result_type();
+    bool enclosed = (exchange->enclosed->length() &&
+                     (!exchange->opt_enclosed || result_type == STRING_RESULT));
     res=item->str_result(&tmp);
-    if (res && (!exchange->opt_enclosed || result_type == STRING_RESULT))
+    if (res && enclosed)
     {
       if (my_b_write(&cache,(uchar*) exchange->enclosed->ptr(),
 		     exchange->enclosed->length()))
@@ -1688,11 +1747,16 @@ bool select_export::send_data(List<Item> &items)
             DBUG_ASSERT before the loop makes that sure.
           */
 
-          if (NEED_ESCAPING(*pos) ||
-              (check_second_byte &&
-               my_mbcharlen(character_set_client, (uchar) *pos) == 2 &&
-               pos + 1 < end &&
-               NEED_ESCAPING(pos[1])))
+          if ((NEED_ESCAPING(*pos) ||
+               (check_second_byte &&
+                my_mbcharlen(character_set_client, (uchar) *pos) == 2 &&
+                pos + 1 < end &&
+                NEED_ESCAPING(pos[1]))) &&
+              /*
+               Don't escape field_term_char by doubling - doubling is only
+               valid for ENCLOSED BY characters:
+              */
+              (enclosed || !is_ambiguous_field_term || *pos != field_term_char))
           {
 	    char tmp_buff[2];
             tmp_buff[0]= ((int) *pos == field_sep_char &&
@@ -1731,7 +1795,7 @@ bool select_export::send_data(List<Item> &items)
 	  goto err;
       }
     }
-    if (res && (!exchange->opt_enclosed || result_type == STRING_RESULT))
+    if (res && enclosed)
     {
       if (my_b_write(&cache, (uchar*) exchange->enclosed->ptr(),
                      exchange->enclosed->length()))
@@ -1860,7 +1924,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
   {
     if (!cache)
     {
-      cache= Item_cache::get_cache(val_item->result_type());
+      cache= Item_cache::get_cache(val_item);
       switch (val_item->result_type())
       {
       case REAL_RESULT:
@@ -2040,7 +2104,9 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   lex(lex_arg),
   query(0),
   query_length(0),
-  cursor(0)
+  cursor(0),
+  db(NULL),
+  db_length(0)
 {
   name.str= NULL;
 }
@@ -2330,6 +2396,11 @@ bool select_dumpvar::send_eof()
   if (! row_count)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
+  /*
+    In order to remember the value of affected rows for ROW_COUNT()
+    function, SELECT INTO has to have an own SQLCOM.
+    TODO: split from SQLCOM_SELECT
+  */
   ::send_ok(thd,row_count);
   return 0;
 }
@@ -2384,6 +2455,7 @@ void Security_context::init()
   host= user= priv_user= ip= 0;
   host_or_ip= "connecting host";
   priv_host[0]= '\0';
+  master_access= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
 #endif
@@ -2423,6 +2495,10 @@ bool Security_context::set_user(char *user_arg)
   Initialize this security context from the passed in credentials
   and activate it in the current thread.
 
+  @param       thd
+  @param       definer_user
+  @param       definer_host
+  @param       db
   @param[out]  backup  Save a pointer to the current security context
                        in the thread. In case of success it points to the
                        saved old context, otherwise it points to NULL.
@@ -2720,8 +2796,11 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
 
 void mark_transaction_to_rollback(THD *thd, bool all)
 {
-  thd->is_fatal_sub_stmt_error= TRUE;
-  thd->transaction_rollback_request= all;
+  if (thd)
+  {
+    thd->is_fatal_sub_stmt_error= TRUE;
+    thd->transaction_rollback_request= all;
+  }
 }
 /***************************************************************************
   Handling of XA id cacheing

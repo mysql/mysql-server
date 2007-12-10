@@ -23,6 +23,11 @@
 
 #include <stddef.h>
 
+/**
+  @defgroup Stored_Routines Stored Routines
+  @ingroup Runtime_Environment
+  @{
+*/
 // Values for the type enum. This reflects the order of the enum declaration
 // in the CREATE TABLE command.
 #define TYPE_ENUM_FUNCTION  1
@@ -124,16 +129,7 @@ public:
     Creates temporary sp_name object from key, used mainly
     for SP-cache lookups.
   */
-  sp_name(char *key, uint key_len)
-  {
-    m_sroutines_key.str= key;
-    m_sroutines_key.length= key_len;
-    m_name.str= m_qname.str= key + 1;
-    m_name.length= m_qname.length= key_len - 1;
-    m_db.str= 0;
-    m_db.length= 0;
-    m_explicit_name= false;
-  }
+  sp_name(THD *thd, char *key, uint key_len);
 
   // Init. the qualified name from the db and name.
   void init_qname(THD *thd);	// thd for memroot allocation
@@ -186,7 +182,7 @@ public:
   LEX_STRING m_qname;		// db.name
   /**
     Key representing routine in the set of stored routines used by statement.
-    [routine_type]db.name\0
+    [routine_type]db.name
     @sa sp_name::m_sroutines_key
   */
   LEX_STRING m_sroutines_key;
@@ -264,10 +260,10 @@ public:
   Security_context m_security_ctx;
 
   static void *
-  operator new(size_t size);
+  operator new(size_t size) throw ();
 
   static void
-  operator delete(void *ptr, size_t size);
+  operator delete(void *ptr, size_t size) throw ();
 
   sp_head();
 
@@ -330,7 +326,7 @@ public:
   }
 
   // Resets lex in 'thd' and keeps a copy of the old one.
-  void
+  bool
   reset_lex(THD *thd);
 
   // Restores lex in 'thd' from our copy, but keeps some status from the
@@ -1321,5 +1317,9 @@ sp_prepare_func_item(THD* thd, Item **it_addr);
 
 bool
 sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr);
+
+/**
+  @} (end of group Stored_Routines)
+*/
 
 #endif /* _SP_HEAD_H_ */

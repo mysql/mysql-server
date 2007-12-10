@@ -35,20 +35,20 @@ eval CREATE FUNCTION reverse_lookup
 eval CREATE AGGREGATE FUNCTION avgcost
         RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
 
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select myfunc_double();
 select myfunc_double(1);
 select myfunc_double(78654);
 --error 1305
 select myfunc_nonexist();
 select myfunc_int();
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select lookup();
 select lookup("127.0.0.1");
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select lookup(127,0,0,1);
 select lookup("localhost");
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select reverse_lookup();
 
 # These two functions should return "localhost", but it's
@@ -59,9 +59,9 @@ select reverse_lookup(127,0,0,1);
 --enable_result_log
 
 select reverse_lookup("localhost");
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select avgcost();
---error 0
+--error ER_CANT_INITIALIZE_UDF
 select avgcost(100,23.76);
 create table t1(sum int, price float(24));
 insert into t1 values(100, 50.00), (100, 100.00);
@@ -113,11 +113,11 @@ DROP TABLE bug19904;
 # Bug#21269: DEFINER-clause is allowed for UDF-functions
 #
 
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
 
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
 #
@@ -206,10 +206,11 @@ DROP FUNCTION IF EXISTS metaphon;
 CREATE FUNCTION metaphon(a int) RETURNS int
 return 0;
 
+# this currently passes, and eclipse the stored function
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
---error ER_UDF_EXISTS
 eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
 
+DROP FUNCTION metaphon;
 DROP FUNCTION metaphon;
 
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
@@ -363,5 +364,55 @@ drop table t1;
 drop function metaphon;
 set GLOBAL query_cache_size=default;
 
+#
+# Bug#28318  CREATE FUNCTION (UDF) requires a schema
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+DROP FUNCTION metaphon;
+USE test;
+
+#
+# Bug #29804  UDF parameters don't contain correct string length
+#
+
+CREATE TABLE const_len_bug (
+  str_const varchar(4000),
+  result1 varchar(4000),
+  result2 varchar(4000)
+);
+
+DELIMITER |;
+CREATE TRIGGER check_const_len_trigger BEFORE INSERT ON const_len_bug FOR EACH ROW BEGIN
+   set NEW.str_const = 'bar';
+   set NEW.result2 = check_const_len(NEW.str_const);
+END |
+
+CREATE PROCEDURE check_const_len_sp (IN str_const VARCHAR(4000))
+BEGIN
+DECLARE result VARCHAR(4000);
+SET result = check_const_len(str_const);
+insert into const_len_bug values(str_const, result, "");
+END |
+DELIMITER ;|
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION check_const_len RETURNS string SONAME "$UDF_EXAMPLE_LIB";
+
+CALL check_const_len_sp("foo");
+
+SELECT * from const_len_bug;
+
+DROP FUNCTION check_const_len;
+DROP PROCEDURE check_const_len_sp;
+DROP TRIGGER check_const_len_trigger;
+DROP TABLE const_len_bug;
 
 --echo End of 5.0 tests.

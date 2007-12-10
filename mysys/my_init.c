@@ -79,6 +79,9 @@ my_bool my_init(void)
 #if defined(THREAD) && defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
 #endif
+#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
+  fastmutex_global_init();              /* Must be called early */
+#endif
   netware_init();
 #ifdef THREAD
 #if defined(HAVE_PTHREAD_INIT)
@@ -296,7 +299,7 @@ int handle_rtc_failure(int err_type, const char *file, int line,
 
   return 0; /* Error is handled */
 }
-#pragma runtime_checks("", on)
+#pragma runtime_checks("", restore)
 #endif
 
 

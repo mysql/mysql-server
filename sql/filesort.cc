@@ -555,8 +555,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     else
       file->unlock_row();
     /* It does not make sense to read more keys in case of a fatal error */
-    if (thd->net.report_error)
-      DBUG_RETURN(HA_POS_ERROR);
+    if (thd->is_error())
+      break;
   }
   if (quick_select)
   {
@@ -573,6 +573,9 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       file->ha_rnd_end();
   }
 
+  if (thd->is_error())
+    DBUG_RETURN(HA_POS_ERROR);
+  
   /* Signal we should use orignal column read and write maps */
   sort_form->column_bitmaps_set(save_read_set, save_write_set);
 

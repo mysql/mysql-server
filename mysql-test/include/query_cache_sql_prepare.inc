@@ -275,5 +275,223 @@ drop table t1;
 --echo ---- disconnect connection con1 ----
 disconnect con1;
 
+#
+# Bug #25843 Changing default database between PREPARE and EXECUTE of statement
+# breaks binlog.
+#
+# There were actually two problems discovered by this bug:
+#
+#   1. Default (current) database is not fixed at the creation time.
+#      That leads to wrong output of DATABASE() function.
+#
+#   2. Database attributes (@@collation_database) are not fixed at the creation
+#      time. That leads to wrong resultset.
+#
+# Binlog breakage and Query Cache wrong output happened because of the first
+# problem.
+#
+
+--echo ########################################################################
+--echo #
+--echo # BUG#25843: Changing default database between PREPARE and EXECUTE of
+--echo # statement breaks binlog.
+--echo #
+--echo ########################################################################
+
+###############################################################################
+
+--echo
+--echo #
+--echo # Check that default database and its attributes are fixed at the
+--echo # creation time.
+--echo #
+
+# Prepare data structures.
+
+--echo
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+--enable_warnings
+
+--echo
+CREATE DATABASE mysqltest1 COLLATE utf8_unicode_ci;
+CREATE DATABASE mysqltest2 COLLATE utf8_general_ci;
+
+--echo
+CREATE TABLE mysqltest1.t1(msg VARCHAR(255));
+CREATE TABLE mysqltest2.t1(msg VARCHAR(255));
+
+# - Create a prepared statement with mysqltest1 as default database;
+
+--echo
+
+use mysqltest1;
+
+PREPARE stmt_a_1 FROM 'INSERT INTO t1 VALUES(DATABASE())';
+PREPARE stmt_a_2 FROM 'INSERT INTO t1 VALUES(@@collation_database)';
+
+# - Execute on mysqltest1.
+
+--echo
+
+EXECUTE stmt_a_1;
+EXECUTE stmt_a_2;
+
+# - Execute on mysqltest2.
+
+--echo
+
+use mysqltest2;
+
+EXECUTE stmt_a_1;
+EXECUTE stmt_a_2;
+
+# - Check the results;
+
+--echo
+SELECT * FROM mysqltest1.t1;
+
+--echo
+SELECT * FROM mysqltest2.t1;
+
+# - Drop prepared statements.
+
+--echo
+DROP PREPARE stmt_a_1;
+DROP PREPARE stmt_a_2;
+
+###############################################################################
+
+--echo
+--echo #
+--echo # The Query Cache test case.
+--echo #
+
+--echo
+DELETE FROM mysqltest1.t1;
+DELETE FROM mysqltest2.t1;
+
+--echo
+INSERT INTO mysqltest1.t1 VALUES('mysqltest1.t1');
+INSERT INTO mysqltest2.t1 VALUES('mysqltest2.t1');
+
+--echo
+use mysqltest1;
+PREPARE stmt_b_1 FROM 'SELECT * FROM t1';
+
+--echo
+use mysqltest2;
+PREPARE stmt_b_2 FROM 'SELECT * FROM t1';
+
+--echo
+EXECUTE stmt_b_1;
+
+--echo
+EXECUTE stmt_b_2;
+
+--echo
+use mysqltest1;
+
+--echo
+EXECUTE stmt_b_1;
+
+--echo
+EXECUTE stmt_b_2;
+
+--echo
+DROP PREPARE stmt_b_1;
+DROP PREPARE stmt_b_2;
+
+# Cleanup.
+
+--echo
+use test;
+
+--echo
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+
+###############################################################################
+
+--echo
+--echo #
+--echo # Check that prepared statements work properly when there is no current
+--echo # database.
+--echo #
+
+--echo
+CREATE DATABASE mysqltest1 COLLATE utf8_unicode_ci;
+CREATE DATABASE mysqltest2 COLLATE utf8_general_ci;
+
+--echo
+use mysqltest1;
+
+--echo
+PREPARE stmt_c_1 FROM 'SELECT DATABASE(), @@collation_database';
+
+--echo
+use mysqltest2;
+
+--echo
+PREPARE stmt_c_2 FROM 'SELECT DATABASE(), @@collation_database';
+
+--echo
+DROP DATABASE mysqltest2;
+
+--echo
+SELECT DATABASE(), @@collation_database;
+
+# -- Here we have: current db: NULL; stmt db: mysqltest1;
+--echo
+EXECUTE stmt_c_1;
+
+--echo
+SELECT DATABASE(), @@collation_database;
+
+# -- Here we have: current db: NULL; stmt db: mysqltest2 (non-existent);
+--echo
+EXECUTE stmt_c_2;
+
+--echo
+SELECT DATABASE(), @@collation_database;
+
+# -- Create prepared statement, which has no current database.
+
+--echo
+PREPARE stmt_c_3 FROM 'SELECT DATABASE(), @@collation_database';
+
+# -- Here we have: current db: NULL; stmt db: NULL;
+--echo
+EXECUTE stmt_c_3;
+
+--echo
+use mysqltest1;
+
+# -- Here we have: current db: mysqltest1; stmt db: mysqltest2 (non-existent);
+--echo
+EXECUTE stmt_c_2;
+
+--echo
+SELECT DATABASE(), @@collation_database;
+
+# -- Here we have: current db: mysqltest1; stmt db: NULL;
+--echo
+EXECUTE stmt_c_3;
+
+--echo
+SELECT DATABASE(), @@collation_database;
+
+--echo
+DROP DATABASE mysqltest1;
+
+--echo
+use test;
+
+--echo
+--echo ########################################################################
+
+###############################################################################
+
 set @@global.query_cache_size=@initial_query_cache_size;
 flush status; # reset Qcache status variables for next tests

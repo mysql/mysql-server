@@ -510,7 +510,7 @@ drop table t1;
 #
 create table t1 (a int, b int);
 create view v1 as select a, sum(b) from t1 group by a;
--- error 1176
+--error ER_WRONG_USAGE
 select b from v1 use index (some_index) where b=1;
 drop view v1;
 drop table t1;
@@ -2549,21 +2549,20 @@ CREATE TABLE t1(
   fName varchar(25) NOT NULL,
   lName varchar(25) NOT NULL,
   DOB date NOT NULL,
+  test_date date NOT NULL,
   uID int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY);
  
-INSERT INTO t1(fName, lName, DOB) VALUES
-  ('Hank', 'Hill', '1964-09-29'),
-  ('Tom', 'Adams', '1908-02-14'),
-  ('Homer', 'Simpson', '1968-03-05');
+INSERT INTO t1(fName, lName, DOB, test_date) VALUES
+  ('Hank', 'Hill', '1964-09-29', '2007-01-01'),
+  ('Tom', 'Adams', '1908-02-14', '2007-01-01'),
+  ('Homer', 'Simpson', '1968-03-05', '2007-01-01');
 
 CREATE VIEW v1 AS
-  SELECT (year(now())-year(DOB)) AS Age
+  SELECT (year(test_date)-year(DOB)) AS Age
     FROM t1 HAVING Age < 75; 
 SHOW CREATE VIEW v1;           
 
-set timestamp=1136066400;
-SELECT (year(now())-year(DOB)) AS Age FROM t1 HAVING Age < 75;
-set timestamp=1136066400;
+SELECT (year(test_date)-year(DOB)) AS Age FROM t1 HAVING Age < 75;
 SELECT * FROM v1;
 
 DROP VIEW v1;
@@ -3415,6 +3414,46 @@ select table_name, is_updatable from information_schema.views
 drop view v1;
 drop table t1;
 
+#
+# Bug #28701: SELECTs from VIEWs completely ignore USE/FORCE KEY, allowing
+# invalid statements
+#
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+--error ER_WRONG_USAGE
+SELECT * FROM v1 USE KEY(non_existant);
+--error ER_WRONG_USAGE
+SELECT * FROM v1 FORCE KEY(non_existant);
+--error ER_WRONG_USAGE
+SELECT * FROM v1 IGNORE KEY(non_existant);
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #28702: VIEWs defined with USE/FORCE KEY ignore that request
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b INT NOT NULL DEFAULT 0,
+                 PRIMARY KEY(a), KEY (b));
+INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),(),(),(),(),(),();
+CREATE VIEW v1 AS SELECT * FROM t1 FORCE KEY (PRIMARY,b) ORDER BY a;
+SHOW CREATE VIEW v1;
+EXPLAIN SELECT * FROM v1;
+CREATE VIEW v2 AS SELECT * FROM t1 USE KEY () ORDER BY a;
+SHOW CREATE VIEW v2;
+EXPLAIN SELECT * FROM v2;
+CREATE VIEW v3 AS SELECT * FROM t1 IGNORE KEY (b) ORDER BY a;
+SHOW CREATE VIEW v3;
+EXPLAIN SELECT * FROM v3;
+
+DROP VIEW v1;
+DROP VIEW v2;
+DROP VIEW v3;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests.
 
 #
@@ -3435,5 +3474,56 @@ DROP TABLE `t-2`;
 DROP VIEW  `v-2`;
 DROP DATABASE `d-1`;
 USE test;
+
+--echo
+--echo #
+--echo # Bug#26676: VIEW using old table schema in a session.
+--echo #
+--echo
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(c1 INT, c2 INT);
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+
+--echo
+
+SELECT * FROM t1;
+
+--echo
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+--echo
+
+SELECT * FROM v1;
+
+--echo
+
+ALTER TABLE t1 ADD COLUMN c3 INT AFTER c2;
+
+--echo
+
+SELECT * FROM t1;
+
+--echo
+
+SELECT * FROM v1;
+
+--echo
+
+SHOW CREATE VIEW v1;
+
+--echo
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo
+--echo # End of test case for Bug#26676.
+--echo
 
 --echo End of 5.1 tests.

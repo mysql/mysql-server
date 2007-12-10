@@ -438,12 +438,12 @@ explain t2;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 b	bigint(11)	NO		0	
-c	bigint(11)	NO		0	
+c	bigint(11) unsigned	NO		0	
 d	date	YES		NULL	
 e	varchar(1)	NO			
 f	datetime	YES		NULL	
 g	time	YES		NULL	
-h	longblob	NO			
+h	longblob	NO		NULL	
 dd	time	YES		NULL	
 select * from t2;
 a	b	c	d	e	f	g	h	dd
@@ -594,7 +594,7 @@ create table t1 (a int);
 create table t1 select * from t1;
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 create table t2 union = (t1) select * from t1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR HY000: 'test.t2' is not BASE TABLE
 flush tables with read lock;
 unlock tables;
 drop table t1;
@@ -1588,14 +1588,6 @@ CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 DROP DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-RENAME DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa TO a;
-ERROR 42000: Unknown database 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
-ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-create database mysqltest;
-RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
-ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-drop database mysqltest;
 USE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
@@ -1699,4 +1691,18 @@ ERROR 42000: Identifier name 'очень_очень_очень_очень_оче
 drop view имя_вью_кодировке_утф8_длиной_больше_чем_42;
 drop table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
 set names default;
+drop table if exists t1,t2,t3;
+drop function if exists f1;
+create function f1() returns int
+begin
+declare res int;
+create temporary table t3 select 1 i;
+set res:= (select count(*) from t1);
+drop temporary table t3;
+return res;
+end|
+create table t1 as select 1;
+create table t2 as select f1() from t1;
+drop table t1,t2;
+drop function f1;
 End of 5.1 tests

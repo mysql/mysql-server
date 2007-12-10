@@ -58,7 +58,7 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 
    Design note:
 
-   net_printf_error and net_send_error are low-level functions
+   net_send_error is a low-level functions
    that shall be used only when a new connection is being
    established or at server startup.
    For SIGNAL/RESIGNAL and GET DIAGNOSTICS functionality it's
@@ -76,6 +76,12 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
 
   DBUG_ASSERT(!thd->spcont);
 
+  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
+  {
+    thd->killed= THD::NOT_KILLED;
+    thd->mysys_var->abort= 0;
+  }
+
   if (net && net->no_send_error)
   {
     thd->clear_error();
@@ -84,7 +90,7 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
     DBUG_VOID_RETURN;
   }
 
-  thd->query_error=  1; // needed to catch query errors during replication
+  thd->is_slave_error=  1; // needed to catch query errors during replication
   if (!err)
   {
     if (sql_errno)
@@ -120,124 +126,6 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   DBUG_VOID_RETURN;
 }
 
-/*
-   Write error package and flush to client
-   It's a little too low level, but I don't want to use another buffer for
-   this
-
-   Design note:
-
-   net_printf_error and net_send_error are low-level functions
-   that shall be used only when a new connection is being
-   established or at server startup.
-   For SIGNAL/RESIGNAL and GET DIAGNOSTICS functionality it's
-   critical that every error that can be intercepted is issued in one
-   place only, my_message_sql.
-*/
-
-void
-net_printf_error(THD *thd, uint errcode, ...)
-{
-  va_list args;
-  uint length,offset;
-  const char *format;
-#ifndef EMBEDDED_LIBRARY
-  const char *text_pos;
-  int head_length= NET_HEADER_SIZE;
-#else
-  char text_pos[1024];
-#endif
-  NET *net= &thd->net;
-
-  DBUG_ENTER("net_printf_error");
-  DBUG_PRINT("enter",("message: %u",errcode));
-
-  DBUG_ASSERT(!thd->spcont);
-
-  if (net && net->no_send_error)
-  {
-    thd->clear_error();
-    thd->is_fatal_error= 0;			// Error message is given
-    DBUG_PRINT("info", ("sending error messages prohibited"));
-    DBUG_VOID_RETURN;
-  }
-
-  thd->query_error=  1; // needed to catch query errors during replication
-#ifndef EMBEDDED_LIBRARY
-  query_cache_abort(net);	// Safety
-#endif
-  va_start(args,errcode);
-  /*
-    The following is needed to make net_printf_error() work with 0 argument
-    for errorcode and use the argument after that as the format string. This
-    is useful for rare errors that are not worth the hassle to put in
-    errmsg.sys, but at the same time, the message is not fixed text
-  */
-  if (errcode)
-    format= ER(errcode);
-  else
-  {
-    format=va_arg(args,char*);
-    errcode= ER_UNKNOWN_ERROR;
-  }
-  offset= (net->return_errno ?
-	   ((thd->client_capabilities & CLIENT_PROTOCOL_41) ?
-	    2+SQLSTATE_LENGTH+1 : 2) : 0);
-#ifndef EMBEDDED_LIBRARY
-  text_pos=(char*) net->buff + head_length + offset + 1;
-  length= (uint) ((char*)net->buff_end - text_pos);
-#else
-  length=sizeof(text_pos)-1;
-#endif
-  length=my_vsnprintf(my_const_cast(char*) (text_pos),
-                      min(length, sizeof(net->last_error)),
-                      format,args);
-  va_end(args);
-
-  /* Replication slave relies on net->last_* to see if there was error */
-  net->last_errno= errcode;
-  strmake(net->last_error, text_pos, sizeof(net->last_error)-1);
-
-#ifndef EMBEDDED_LIBRARY
-  if (net->vio == 0)
-  {
-    if (thd->bootstrap)
-    {
-      /*
-	In bootstrap it's ok to print on stderr
-	This may also happen when we get an error from a slave thread
-      */
-      fprintf(stderr,"ERROR: %d  %s\n",errcode,text_pos);
-      thd->fatal_error();
-    }
-    DBUG_VOID_RETURN;
-  }
-
-  int3store(net->buff,length+1+offset);
-  net->buff[3]= (net->compress) ? 0 : (uchar) (net->pkt_nr++);
-  net->buff[head_length]=(uchar) 255;		// Error package
-  if (offset)
-  {
-    uchar *pos= net->buff+head_length+1;
-    int2store(pos, errcode);
-    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
-    {
-      pos[2]= '#';      /* To make the protocol backward compatible */
-      memcpy(pos+3, mysql_errno_to_sqlstate(errcode), SQLSTATE_LENGTH);
-    }
-  }
-  VOID(net_real_write(net, net->buff, length+head_length+1+offset));
-#else
-  net->last_errno= errcode;
-  strmake(net->last_error, text_pos, length);
-  strmake(net->sqlstate, mysql_errno_to_sqlstate(errcode), SQLSTATE_LENGTH);
-#endif
-  if (thd->killed != THD::KILL_CONNECTION)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, errcode,
-                 text_pos ? text_pos : ER(errcode));
-  thd->is_fatal_error=0;			// Error message is given
-  DBUG_VOID_RETURN;
-}
 
 /*
   Return ok to the client.
@@ -346,7 +234,7 @@ send_eof(THD *thd)
 {
   NET *net= &thd->net;
   DBUG_ENTER("send_eof");
-  if (net->vio != 0 && !net->no_send_eof)
+  if (net->vio != 0)
   {
     write_eof_packet(thd, net);
     VOID(net_flush(net));
@@ -827,6 +715,7 @@ bool Protocol_text::store(const char *from, size_t length,
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
               field_types[field_pos] == MYSQL_TYPE_BIT ||
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
+              field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
 	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;

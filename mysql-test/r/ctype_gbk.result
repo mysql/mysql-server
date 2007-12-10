@@ -52,6 +52,19 @@ SELECT c1 as want1result  from t1 where c1 like 'location%';
 want1result
 location
 DROP TABLE t1;
+create table t1 (a set('a') not null);
+insert into t1 values (),();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select cast(a as char(1)) from t1;
+cast(a as char(1))
+
+
+select a sounds like a from t1;
+a sounds like a
+1
+1
+drop table t1;
 DROP DATABASE d1;
 USE test;
 SET character_set_server= @safe_character_set_server;
