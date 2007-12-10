@@ -420,8 +420,12 @@ static struct my_option my_long_options[] =
    "Creates a consistent snapshot by dumping all tables in a single "
    "transaction. Works ONLY for tables stored in storage engines which "
    "support multiversioning (currently only InnoDB does); the dump is NOT "
-   "guaranteed to be consistent for other storage engines. Option "
-   "automatically turns off --lock-tables.",
+   "guaranteed to be consistent for other storage engines. "
+   "While a --single-transaction dump is in process, to ensure a valid "
+   "dump file (correct table contents and binary log position), no other "
+   "connection should use the following statements: ALTER TABLE, DROP "
+   "TABLE, RENAME TABLE, TRUNCATE TABLE, as consistent snapshot is not "
+   "isolated from them. Option automatically turns off --lock-tables.",
    (uchar**) &opt_single_transaction, (uchar**) &opt_single_transaction, 0,
    GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},
   {"dump-date", OPT_DUMP_DATE, "Put a dump date to the end of the output.",

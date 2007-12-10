@@ -153,7 +153,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   pos= table_arg->key_info;
   for (i= 0; i < share->keys; i++, pos++)
   {
-    keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
+    keydef[i].flag= ((uint16) pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
     keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ?
       (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :
       pos->algorithm;

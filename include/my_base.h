@@ -250,6 +250,8 @@ enum ha_base_keytype {
                          HA_BINARY_PACK_KEY | HA_FULLTEXT | HA_UNIQUE_CHECK | \
                          HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY)
 
+#define HA_KEY_HAS_PART_KEY_SEG 65536   /* Key contains partial segments */
+
 	/* Automatic bits in key-flag */
 
 #define HA_SPACE_PACK_USED	 4	/* Test for if SPACE_PACK used */
