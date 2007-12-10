@@ -112,11 +112,6 @@ grant all on mysqltest_db2.* to `mysqltest_u1`@`%`;
 create database mysqltest_db1;
 grant all on mysqltest_db1.* to `mysqltest_u1`@`%`;
 flush privileges;
-show grants for current_user();
-Grants for mysqltest_u1@%
-GRANT USAGE ON *.* TO 'mysqltest_u1'@'%'
-GRANT ALL PRIVILEGES ON `mysqltest_db2`.* TO 'mysqltest_u1'@'%'
-GRANT ALL PRIVILEGES ON `mysqltest_db1`.* TO 'mysqltest_u1'@'%'
 create database mysqltest_db2;
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 show databases like '%mysqltest_db2%';

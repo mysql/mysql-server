@@ -246,7 +246,6 @@ grant all on mysqltest_db1.* to `mysqltest_u1`@`%`;
 flush privileges;
 connect (con_bug27440,127.0.0.1,mysqltest_u1,,test,$MASTER_MYPORT,);
 connection con_bug27440;
-show grants for current_user();
 --error ER_OPTION_PREVENTS_STATEMENT
 create database mysqltest_db2;
 show databases like '%mysqltest_db2%';
