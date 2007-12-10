@@ -45,6 +45,7 @@ uint32_t       seed           = 1;
 bool           set_seed       = false;
 bool           printableonly  = false;
 bool           leadingspace   = true;
+bool           force_unique   = true;
 
 
 int main (int argc, char *argv[]) {
@@ -59,26 +60,15 @@ int main (int argc, char *argv[]) {
    
    strcpy(sort_delimiter, "");
 
-   while ((ch = getopt(argc, argv, "PfFhHTpVr:s:d:m:M:n:o:")) != EOF) {
+   while ((ch = getopt(argc, argv, "PpTo:r:m:M:n:uVhHfFd:s:")) != EOF) {
       switch (ch) {
          case ('P'): {
-            printableonly = true;
+            printableonly  = true;
             break;
          }
-         case ('h'): {
-            header = false;
-            break;
-         }
-         case ('H'): {
-            justheader = true;
-            break;
-         }
-         case ('f'): {
-            footer = false;
-            break;
-         }
-         case ('F'): {
-            justfooter = true;
+         case ('p'): {
+            g.plaintext    = true;
+            leadingspace   = true;
             break;
          }
          case ('T'): {
@@ -88,47 +78,11 @@ int main (int argc, char *argv[]) {
             footer         = false;
             break;
          }
-         case ('p'): {
-            g.plaintext    = true;
-            leadingspace   = true;
-            break;
-         }
          case ('o'): {
             if (freopen(optarg, "w", stdout) == NULL) {
                ERROR(errno, "%s: reopen\n", optarg);
                goto error;
             }
-            break;
-         }
-         case ('d'): {
-            int temp = get_delimiter(optarg);
-            if (temp == EOF) {
-               ERRORX("%s: (-d) Key (or value) delimiter must be one character.",
-                      optarg);
-               goto error;
-            }
-            if (isxdigit(temp)) {
-               ERRORX("%c: (-d) Key (or value) delimiter cannot be a hex digit.",
-                      temp);
-               goto error;
-            }
-            dbt_delimiter = (char)temp;
-            break;
-         }
-         case ('s'): {
-            int temp = get_delimiter(optarg);
-            if (temp == EOF) {
-               ERRORX("%s: (-s) Sorting (Between key/value pairs) delimiter must be one character.",
-                      optarg);
-               goto error;
-            }
-            if (isxdigit(temp)) {
-               ERRORX("%c: (-s) Sorting (Between key/value pairs) delimiter cannot be a hex digit.",
-                      temp);
-               goto error;
-            }
-            sort_delimiter[0] = (char)temp;
-            sort_delimiter[1] = '\0';
             break;
          }
          case ('r'): {
@@ -161,6 +115,57 @@ int main (int argc, char *argv[]) {
                 goto error;
             }
             set_numkeys = true;
+            break;
+         }
+         case ('u'): {
+            force_unique = false;
+            break;
+         }
+         case ('h'): {
+            header = false;
+            break;
+         }
+         case ('H'): {
+            justheader = true;
+            break;
+         }
+         case ('f'): {
+            footer = false;
+            break;
+         }
+         case ('F'): {
+            justfooter = true;
+            break;
+         }
+         case ('d'): {
+            int temp = get_delimiter(optarg);
+            if (temp == EOF) {
+               ERRORX("%s: (-d) Key (or value) delimiter must be one character.",
+                      optarg);
+               goto error;
+            }
+            if (isxdigit(temp)) {
+               ERRORX("%c: (-d) Key (or value) delimiter cannot be a hex digit.",
+                      temp);
+               goto error;
+            }
+            dbt_delimiter = (char)temp;
+            break;
+         }
+         case ('s'): {
+            int temp = get_delimiter(optarg);
+            if (temp == EOF) {
+               ERRORX("%s: (-s) Sorting (Between key/value pairs) delimiter must be one character.",
+                      optarg);
+               goto error;
+            }
+            if (isxdigit(temp)) {
+               ERRORX("%c: (-s) Sorting (Between key/value pairs) delimiter cannot be a hex digit.",
+                      temp);
+               goto error;
+            }
+            sort_delimiter[0] = (char)temp;
+            sort_delimiter[1] = '\0';
             break;
          }
          case ('V'): {
@@ -209,8 +214,8 @@ int main (int argc, char *argv[]) {
    if (justfooter || justheader) outputkeys = false;
    else if (!set_numkeys)
    {
-      ERRORX("The -n option is required.\n");
-      goto error;
+      ERRORX("Using default number of keys.  (-n 1024).\n");
+      numkeys = 1024;
    }
    if (outputkeys && !set_seed) {
       ERRORX("Using default seed.  (-r 1).\n");
@@ -252,10 +257,9 @@ error:
 int usage()
 {
    fprintf(stderr,
-           "usage: %s [-PfFhHTpV] [-r random seed] [-s delimiter]  \n"
-           "          [-d delimiter]  [-m lengthmin] [-M lengthlimit] \n"
-           "          -n numkeys [-o output_file] \n",
-           g.progname);
+           "usage: %s [-PpTuVhHfF] [-o output] [-r seed] [-m minsize] [-M limitsize]\n"
+           "       %*s[-n numpairs] [-d delimiter] [-s delimiter]\n",
+           g.progname, strlen(g.progname) + 1, "");
    return EXIT_FAILURE;
 }
 
@@ -311,13 +315,15 @@ void generate_keys()
             outputbyte(ch);
          }
          totalsize += length;
-         if (length == 0 && !usedemptykey) usedemptykey = true;
-         else {
-            /* Append identifier to ensure uniqueness. */
-            sprintf(identifier, "x%llx", numgenerated);
-            outputstring(identifier);
-            totalsize += strlen(identifier);
-         }
+        if (force_unique) {
+            if (length == 0 && !usedemptykey) usedemptykey = true;
+            else {
+                /* Append identifier to ensure uniqueness. */
+                sprintf(identifier, "x%llx", numgenerated);
+                outputstring(identifier);
+                totalsize += strlen(identifier);
+            }
+        }
       }
       printf("%c", dbt_delimiter);
 
