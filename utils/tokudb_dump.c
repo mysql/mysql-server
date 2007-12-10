@@ -178,8 +178,8 @@ cleanup:
       g.exitcode = EXIT_FAILURE;
       fprintf(stderr, "%s: %s: dbenv->close\n", g.progname, db_strerror(retval));
    }
-   resend_signals();
    if (g.subdatabase)      free(g.subdatabase);
+   resend_signals();
 
    return g.exitcode;
 }
