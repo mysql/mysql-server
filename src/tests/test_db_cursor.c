@@ -11,7 +11,7 @@
 
 #include "test.h"
 
-enum mode {
+static enum mode {
     MODE_DEFAULT, MODE_DB_CREATE, MODE_MORE
 } mode;
 
@@ -19,15 +19,11 @@ enum mode {
 
 /* Primary is a map from a UID which consists of a random number followed by the current time. */
 
-struct timestamp {
-    unsigned int tv_sec; /* in newtork order */
-    unsigned int tv_usec; /* in network order */
-};
-
+typedef unsigned int timestamp;
 
 struct primary_key {
     int rand; /* in network order */
-    struct timestamp ts;
+    timestamp ts;
 };
 
 struct name_key {
@@ -35,40 +31,39 @@ struct name_key {
 };
 
 struct primary_data {
-    struct timestamp creationtime;
-    struct timestamp expiretime; /* not valid if doesexpire==0 */
+    timestamp creationtime;
+    timestamp expiretime; /* not valid if doesexpire==0 */
     unsigned char doesexpire;
     struct name_key name;
 };
 
-void free_pd (struct primary_data *pd) {
+static void free_pd (struct primary_data *pd) {
     free(pd->name.name);
     free(pd);
 }
 
-void write_uchar_to_dbt (DBT *dbt, const unsigned char c) {
+static void write_uchar_to_dbt (DBT *dbt, const unsigned char c) {
     assert(dbt->size+1 <= dbt->ulen);
     ((char*)dbt->data)[dbt->size++]=c;
 }
 
-void write_uint_to_dbt (DBT *dbt, const unsigned int v) {
+static void write_uint_to_dbt (DBT *dbt, const unsigned int v) {
     write_uchar_to_dbt(dbt, (v>>24)&0xff);
     write_uchar_to_dbt(dbt, (v>>16)&0xff);
     write_uchar_to_dbt(dbt, (v>> 8)&0xff);
     write_uchar_to_dbt(dbt, (v>> 0)&0xff);
 }
 
-void write_timestamp_to_dbt (DBT *dbt, const struct timestamp *ts) {
-    write_uint_to_dbt(dbt, ts->tv_sec);
-    write_uint_to_dbt(dbt, ts->tv_usec);
+static void write_timestamp_to_dbt (DBT *dbt, timestamp ts) {
+    write_uint_to_dbt(dbt, ts);
 }
 
-void write_pk_to_dbt (DBT *dbt, const struct primary_key *pk) {
+static void write_pk_to_dbt (DBT *dbt, const struct primary_key *pk) {
     write_uint_to_dbt(dbt, pk->rand);
-    write_timestamp_to_dbt(dbt, &pk->ts);
+    write_timestamp_to_dbt(dbt, pk->ts);
 }
 
-void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
+static void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
     int i;
     for (i=0; 1; i++) {
 	write_uchar_to_dbt(dbt, nk->name[i]);
@@ -76,19 +71,19 @@ void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
     }
 }
 
-void write_pd_to_dbt (DBT *dbt, const struct primary_data *pd) {
-    write_timestamp_to_dbt(dbt, &pd->creationtime);
-    write_timestamp_to_dbt(dbt, &pd->expiretime);
+static void write_pd_to_dbt (DBT *dbt, const struct primary_data *pd) {
+    write_timestamp_to_dbt(dbt, pd->creationtime);
+    write_timestamp_to_dbt(dbt, pd->expiretime);
     write_uchar_to_dbt(dbt, pd->doesexpire);
     write_name_to_dbt(dbt, &pd->name);
 }
 
-void read_uchar_from_dbt (const DBT *dbt, int *off, unsigned char *uchar) {
+static void read_uchar_from_dbt (const DBT *dbt, int *off, unsigned char *uchar) {
     assert(*off < dbt->size);
     *uchar = ((unsigned char *)dbt->data)[(*off)++];
 }
 
-void read_uint_from_dbt (const DBT *dbt, int *off, unsigned int *uint) {
+static void read_uint_from_dbt (const DBT *dbt, int *off, unsigned int *uint) {
     unsigned char a,b,c,d;
     read_uchar_from_dbt(dbt, off, &a);
     read_uchar_from_dbt(dbt, off, &b);
@@ -97,12 +92,11 @@ void read_uint_from_dbt (const DBT *dbt, int *off, unsigned int *uint) {
     *uint = (a<<24)+(b<<16)+(c<<8)+d;
 }
 
-void read_timestamp_from_dbt (const DBT *dbt, int *off, struct timestamp *ts) {
-    read_uint_from_dbt(dbt, off, &ts->tv_sec);
-    read_uint_from_dbt(dbt, off, &ts->tv_usec);
+static void read_timestamp_from_dbt (const DBT *dbt, int *off, timestamp *ts) {
+    read_uint_from_dbt(dbt, off, ts);
 }
 
-void read_name_from_dbt (const DBT *dbt, int *off, struct name_key *nk) {
+static void read_name_from_dbt (const DBT *dbt, int *off, struct name_key *nk) {
     unsigned char buf[1000];
     int i;
     for (i=0; 1; i++) {
@@ -112,18 +106,18 @@ void read_name_from_dbt (const DBT *dbt, int *off, struct name_key *nk) {
     nk->name=(unsigned char*)(strdup((char*)buf));
 }
 
-void read_pd_from_dbt (const DBT *dbt, int *off, struct primary_data *pd) {
+static void read_pd_from_dbt (const DBT *dbt, int *off, struct primary_data *pd) {
     read_timestamp_from_dbt(dbt, off, &pd->creationtime);
     read_timestamp_from_dbt(dbt, off, &pd->expiretime);
     read_uchar_from_dbt(dbt, off, &pd->doesexpire);
     read_name_from_dbt(dbt, off, &pd->name);
 }
 
-int name_offset_in_pd_dbt (void) {
-    return 17;
+static int name_offset_in_pd_dbt (void) {
+    return 13;
 }
 
-int name_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
+static int name_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
     struct primary_data *pd = malloc(sizeof(*pd));
     int off=0;
     read_pd_from_dbt(data, &off, pd);
@@ -137,11 +131,11 @@ int name_callback (DB *secondary __attribute__((__unused__)), const DBT *key, co
     return 0;
 }
 
-int expire_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
+static int expire_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
     struct primary_data *d = data->data;
     if (d->doesexpire) {
 	result->flags=0;
-	result->size=sizeof(struct timestamp);
+	result->size=sizeof(timestamp);
 	result->data=&d->expiretime;
 	return 0;
     } else {
@@ -151,21 +145,28 @@ int expire_callback (DB *secondary __attribute__((__unused__)), const DBT *key, 
 
 // The expire_key is simply a timestamp.
 
-DB_ENV *dbenv;
-DB *dbp,*namedb,*expiredb;
+static DB_ENV *dbenv;
+static DB *dbp,*namedb,*expiredb;
 
-DB_TXN * const null_txn=0;
+static DB_TXN * const null_txn=0;
 
-DBC *delete_cursor=0, *name_cursor=0;
+static DBC *delete_cursor=0, *name_cursor=0;
 
 // We use a cursor to count the names.
-int cursor_count_n_items=0; // The number of items the cursor saw as it scanned over.
-int calc_n_items=0;        // The number of items we expect the cursor to acount
-int count_all_items=0;      // The total number of items
-DBT nc_key,nc_data;
+static int cursor_count_n_items=0; // The number of items the cursor saw as it scanned over.
+static int calc_n_items=0;        // The number of items we expect the cursor to acount
+static int count_all_items=0;      // The total number of items
+static DBT nc_key,nc_data;
 
+#if 0
+static struct expire_order {
+    long long ts;
+    struct primary_key pk;
+} *expire_orders;
+static int n_expire_orders=0;
+#endif
 
-void create_databases (void) {
+static void create_databases (void) {
     int r;
 
     r = db_env_create(&dbenv, 0);                                                            CKERR(r);
@@ -184,7 +185,7 @@ void create_databases (void) {
     r = dbp->associate(dbp, NULL, expiredb, expire_callback, 0);                             CKERR(r);
 }
 
-void close_databases (void) {
+static void close_databases (void) {
     int r;
     if (delete_cursor) {
 	r = delete_cursor->c_close(delete_cursor); CKERR(r);
@@ -201,39 +202,12 @@ void close_databases (void) {
 }
     
 
-void gettod (struct timestamp *ts) {
-    struct timeval tv;
-    int r = gettimeofday(&tv, 0);
-    assert(r==0);
-    ts->tv_sec  = htonl(tv.tv_sec);
-    ts->tv_usec = htonl(tv.tv_usec);
+static void gettod (timestamp *ts) {
+    static timestamp ts_counter=0;
+    *ts = ts_counter++;
 }
 
-void setup_for_db_create (void) {
-
-    // Remove name.db and then rebuild it with associate(... DB_CREATE)
-
-    int r=unlink(DIR "/name.db");
-    assert(r==0);
-
-    r = db_env_create(&dbenv, 0);                                                    CKERR(r);
-    r = dbenv->open(dbenv, DIR, DB_PRIVATE|DB_INIT_MPOOL, 0);                        CKERR(r);
-
-    r = db_create(&dbp, dbenv, 0);                                                   CKERR(r);
-    r = dbp->open(dbp, null_txn, "primary.db", NULL, DB_BTREE, 0, 0600);             CKERR(r);
-
-    r = db_create(&namedb, dbenv, 0);                                                CKERR(r);
-    r = namedb->open(namedb, null_txn, "name.db", NULL, DB_BTREE, DB_CREATE, 0600);  CKERR(r);
-
-    r = db_create(&expiredb, dbenv, 0);                                              CKERR(r);
-    r = expiredb->open(expiredb, null_txn, "expire.db", NULL, DB_BTREE, 0, 0600);    CKERR(r);
-    
-    r = dbp->associate(dbp, NULL, expiredb, expire_callback, 0);                     CKERR(r);
-    r = dbp->associate(dbp, NULL, namedb, name_callback, DB_CREATE);                 CKERR(r);
-
-}
-
-int count_entries (DB *db) {
+static int count_entries (DB *db) {
     DBC *dbc;
     int r = db->cursor(db, null_txn, &dbc, 0);                                       CKERR(r);
     DBT key,data;
@@ -250,15 +224,15 @@ int count_entries (DB *db) {
     return n_found;
 }
 
-void do_create (void) {
-    setup_for_db_create();
+static void do_create (void) {
+    create_databases();
     // Now check to see if the number of names matches the number of associated things.
     int n_named = count_entries(namedb);
     int n_prim  = count_entries(dbp);
     assert(n_named==n_prim);
 }
 
-void insert_person (void) {
+static void insert_person (void) {
     int namelen = 5+random()%245;
     struct primary_key  pk;
     struct primary_data pd;
@@ -268,7 +242,7 @@ void insert_person (void) {
     gettod(&pk.ts);
     pd.creationtime = pk.ts;
     pd.expiretime   = pk.ts;
-    pd.expiretime.tv_sec += 24*60*60*366;
+    pd.expiretime   += 24*60*60*366;
     pd.doesexpire = (random()%10==0);
     int i;
     pd.name.name = namearray;
@@ -298,8 +272,9 @@ void insert_person (void) {
     }
 }
 
-void delete_oldest_expired (void) {
+static void delete_oldest_expired (void) {
     int r;
+    printf("%s:%d deleting\n", __FILE__, __LINE__);
     if (delete_cursor==0) {
 	r = expiredb->cursor(expiredb, null_txn, &delete_cursor, 0); CKERR(r);
 	
@@ -333,7 +308,7 @@ void delete_oldest_expired (void) {
 }
 
 // Use a cursor to step through the names.
-void step_name (void) {
+static void step_name (void) {
     int r;
     if (name_cursor==0) {
 	r = namedb->cursor(namedb, null_txn, &name_cursor, 0); CKERR(r);
@@ -357,9 +332,9 @@ void step_name (void) {
     }
 }
 
-int cursor_load=2; /* Set this to a higher number to do more cursor work for every insertion.   Needed to get to the end. */
+static int cursor_load=2; /* Set this to a higher number to do more cursor work for every insertion.   Needed to get to the end. */
 
-void activity (void) {
+static void activity (void) {
     if (random()%20==0) {
 	// Delete the oldest expired one.  Keep the cursor open
 	delete_oldest_expired();
@@ -372,7 +347,7 @@ void activity (void) {
 }
 		       
 
-void usage (const char *argv1) {
+static void usage (const char *argv1) {
     fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] seed ", argv1);
     exit(1);
 }
@@ -424,8 +399,10 @@ int main (int argc, const char *argv[]) {
 	create_databases();
 	{
 	    int i;
-	    for (i=0; i<100; i++)
+	    for (i=0; i<3; i++) {
+		if (i==100) srandom(useseed);
 		activity();
+	    }
 	}
 	break;
     case MODE_MORE:
@@ -437,8 +414,10 @@ int main (int argc, const char *argv[]) {
 	    int i;
 	    cursor_load = 8*(1+2*count_all_items/n_activities);
 	    printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
-	    for (i=0; i<n_activities; i++)
+	    for (i=0; i<n_activities; i++) {
+		printf("%d.", i);
 		activity();
+	    }
 	}
 	break;
     case MODE_DB_CREATE:
