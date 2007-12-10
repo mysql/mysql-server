@@ -193,6 +193,8 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define BDB_LOG_ALLOC_BLOCK_SIZE	1024
 #define WARN_ALLOC_BLOCK_SIZE		2048
 #define WARN_ALLOC_PREALLOC_SIZE	1024
+#define PROFILE_ALLOC_BLOCK_SIZE  2048
+#define PROFILE_ALLOC_PREALLOC_SIZE 1024
 
 /*
   The following parameters is to decide when to use an extra cache to
@@ -365,6 +367,8 @@ MY_LOCALE *my_locale_by_number(uint number);
   fulltext functions when reading from it.
 */
 #define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
+#define OPTION_PROFILING                (ULL(1) << 33)
+
 
 
 /*
@@ -496,6 +500,8 @@ enum enum_parsing_place
 struct st_table;
 class THD;
 
+#define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
+
 /* Struct to handle simple linked lists */
 
 typedef struct st_sql_list {
@@ -567,6 +573,8 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "field.h"				/* Field definitions */
 #include "protocol.h"
 #include "sql_udf.h"
+#include "sql_profile.h"
+
 class user_var_entry;
 class Security_context;
 enum enum_var_type
@@ -578,6 +586,16 @@ class Comp_creator;
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #include "item.h"
 extern my_decimal decimal_zero;
+
+/**    
+  The meat of thd_proc_info(THD*, char*), a macro that packs the last
+  three calling-info parameters. 
+*/
+extern "C"
+const char *set_thd_proc_info(THD *thd, const char *info, 
+                              const char *calling_func,
+                              const char *calling_file,
+                              const unsigned int calling_line);
 
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -976,6 +994,8 @@ bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
+bool schema_table_store_record(THD *thd, TABLE *table);
+
 #define is_schema_db(X) \
   !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
 
@@ -1251,7 +1271,7 @@ void my_dbopt_free(void);
   External variables
 */
 
-extern time_t server_start_time;
+extern time_t server_start_time, flush_status_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];

@@ -145,14 +145,14 @@ static bool end_active_trans(THD *thd)
   if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
 		      OPTION_TABLE_LOCK))
   {
-    DBUG_PRINT("info",("options: 0x%lx", (ulong) thd->options));
+    DBUG_PRINT("info",("options: 0x%llx", thd->options));
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables)
       thd->options&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
-    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->options&= ~OPTION_BEGIN;
     thd->transaction.all.modified_non_trans_table= FALSE;
   }
   DBUG_RETURN(error);
@@ -178,7 +178,7 @@ static bool begin_trans(THD *thd)
   {
     LEX *lex= thd->lex;
     thd->transaction.all.modified_non_trans_table= FALSE;
-    thd->options|= (ulong) OPTION_BEGIN;
+    thd->options|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
       error= ha_start_consistent_snapshot(thd);
@@ -1066,7 +1066,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   Vio* save_vio;
   ulong save_client_capabilities;
 
-  thd->proc_info= "Execution of init_command";
+  thd_proc_info(thd, "Execution of init_command");
   /*
     We need to lock init_command_var because
     during execution of init_command_var query
@@ -1170,7 +1170,7 @@ pthread_handler_t handle_one_connection(void *arg)
       net->compress=1;				// Use compression
 
     thd->version= refresh_version;
-    thd->proc_info= 0;
+    thd_proc_info(thd, 0);
     thd->command= COM_SLEEP;
     thd->init_for_queries();
 
@@ -1186,7 +1186,7 @@ pthread_handler_t handle_one_connection(void *arg)
                           sctx->host_or_ip, "init_connect command failed");
         sql_print_warning("%s", net->last_error);
       }
-      thd->proc_info=0;
+      thd_proc_info(thd, 0);
       thd->init_for_queries();
     }
 
@@ -1278,7 +1278,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
-  thd->proc_info=0;
+  thd_proc_info(thd, 0);
   thd->version=refresh_version;
   thd->security_ctx->priv_user=
     thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
@@ -1322,6 +1322,10 @@ pthread_handler_t handle_bootstrap(void *arg)
 				  thd->db_length+1+QUERY_CACHE_FLAGS_SIZE);
     thd->query[length] = '\0';
     DBUG_PRINT("query",("%-.4096s",thd->query));
+#if defined(ENABLED_PROFILING)
+    thd->profiling.set_query_source(thd->query, length);
+#endif
+
     /*
       We don't need to obtain LOCK_thread_count here because in bootstrap
       mode we have only one thread.
@@ -1479,7 +1483,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     */
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
-    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->options&= ~OPTION_BEGIN;
     thd->transaction.all.modified_non_trans_table= FALSE;
     break;
   case COMMIT_RELEASE:
@@ -1497,7 +1501,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_rollback(thd))
       res= -1;
-    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->options&= ~OPTION_BEGIN;
     thd->transaction.all.modified_non_trans_table= FALSE;
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
@@ -1531,6 +1535,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
 
 static bool do_command(THD *thd)
 {
+  bool return_value;
   char *packet= 0;
   ulong packet_length;
   NET *net= &thd->net;
@@ -1554,7 +1559,12 @@ static bool do_command(THD *thd)
   thd->clear_error();				// Clear error message
 
   net_new_transaction(net);
-  if ((packet_length=my_net_read(net)) == packet_error)
+
+  packet_length= my_net_read(net);
+#if defined(ENABLED_PROFILING)
+  thd->profiling.start_new_query();
+#endif
+  if (packet_length == packet_error)
   {
     DBUG_PRINT("info",("Got error %d reading command from socket %s",
 		       net->error,
@@ -1563,11 +1573,13 @@ static bool do_command(THD *thd)
     /* Check if we can continue without closing the connection */
 
     if (net->error != 3)
-      DBUG_RETURN(TRUE);			// We have to close it.
+      return_value= TRUE;			// We have to close it.
+      goto out;
 
     net_send_error(thd, net->last_errno, NullS);
     net->error= 0;
-    DBUG_RETURN(FALSE);
+    return_value= FALSE;
+    goto out;
   }
   else
   {
@@ -1592,7 +1604,13 @@ static bool do_command(THD *thd)
     command == packet[0] == COM_SLEEP).
     In dispatch_command packet[packet_length] points beyond the end of packet.
   */
-  DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
+  return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length));
+
+out:
+#if defined(ENABLED_PROFILING)
+  thd->profiling.finish_current_query();
+#endif
+  DBUG_RETURN(return_value);
 }
 #endif  /* EMBEDDED_LIBRARY */
 
@@ -1814,6 +1832,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     mysql_log.write(thd,command, format, thd->query_length, thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
+#if defined(ENABLED_PROFILING)
+    thd->profiling.set_query_source(thd->query, thd->query_length);
+#endif
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
@@ -1840,6 +1861,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         next_packet++;
         length--;
       }
+
+#if defined(ENABLED_PROFILING)
+      thd->profiling.finish_current_query();
+      thd->profiling.start_new_query("continuing");
+      thd->profiling.set_query_source(next_packet, length);
+#endif
+
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_length= length;
       thd->query= next_packet;
@@ -2152,7 +2180,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (thd->lock || thd->open_tables || thd->derived_tables ||
       thd->prelocked_mode)
   {
-    thd->proc_info="closing tables";
+    thd_proc_info(thd, "closing tables");
     close_thread_tables(thd);			/* Free tables */
   }
   /*
@@ -2175,9 +2203,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   log_slow_statement(thd);
 
-  thd->proc_info="cleaning up";
+  thd_proc_info(thd, "cleaning up");
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
-  thd->proc_info=0;
+  thd_proc_info(thd, 0);
   thd->command=COM_SLEEP;
   thd->query=0;
   thd->query_length=0;
@@ -2210,7 +2238,7 @@ void log_slow_statement(THD *thd)
   */
   if (thd->enable_slow_log && !thd->user_time)
   {
-    thd->proc_info="logging slow query";
+    thd_proc_info(thd, "logging slow query");
 
     if ((ulong) (thd->start_time - thd->time_after_lock) >
 	thd->variables.long_query_time ||
@@ -2220,6 +2248,7 @@ void log_slow_statement(THD *thd)
         /* == SQLCOM_END unless this is a SHOW command */
         thd->lex->orig_sql_command == SQLCOM_END)
     {
+      thd_proc_info(thd, "logging slow query");
       thd->status_var.long_query_count++;
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
     }
@@ -2327,6 +2356,15 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       break;
     }
 #endif
+  case SCH_PROFILES:
+    /* 
+      Mark this current profiling record to be discarded.  We don't
+      wish to have SHOW commands show up in profiling.
+    */
+#ifdef ENABLED_PROFILING
+    thd->profiling.discard_current_query();
+#endif
+    break;
   case SCH_OPEN_TABLES:
   case SCH_VARIABLES:
   case SCH_STATUS:
@@ -2756,6 +2794,19 @@ mysql_execute_command(THD *thd)
   {
     res= mysqld_show_warnings(thd, (ulong)
 			      (1L << (uint) MYSQL_ERROR::WARN_LEVEL_ERROR));
+    break;
+  }
+  case SQLCOM_SHOW_PROFILES:
+  {
+#ifdef ENABLED_PROFILING
+    thd->profiling.discard_current_query();
+    res= thd->profiling.show_profiles();
+    if (res)
+      goto error;
+#else
+    my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILES", "enable-profiling");
+    goto error;
+#endif
     break;
   }
   case SQLCOM_SHOW_NEW_MASTER:
@@ -3689,7 +3740,7 @@ end_with_restore_list:
     if (add_item_to_list(thd, new Item_null()))
       goto error;
 
-    thd->proc_info="init";
+    thd_proc_info(thd, "init");
     if ((res= open_and_lock_tables(thd, all_tables)))
       break;
 
@@ -3856,7 +3907,7 @@ end_with_restore_list:
     if (thd->options & OPTION_TABLE_LOCK)
     {
       end_active_trans(thd);
-      thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+      thd->options&= ~(OPTION_TABLE_LOCK);
     }
     if (thd->global_read_lock)
       unlock_global_read_lock(thd);
@@ -3892,7 +3943,7 @@ end_with_restore_list:
         that it can't lock a table in its list
       */
       end_active_trans(thd);
-      thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+      thd->options&= ~(OPTION_TABLE_LOCK);
     }
     thd->in_lock_tables=0;
     break;
@@ -4993,7 +5044,7 @@ create_sp_error:
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
     thd->transaction.all.modified_non_trans_table= FALSE;
-    thd->options|= (ulong) OPTION_BEGIN;
+    thd->options|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
     break;
@@ -5086,7 +5137,7 @@ create_sp_error:
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->options&= ~OPTION_BEGIN;
     thd->transaction.all.modified_non_trans_table= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
@@ -5117,7 +5168,7 @@ create_sp_error:
       my_error(ER_XAER_RMERR, MYF(0));
     else
       send_ok(thd);
-    thd->options&= ~(ulong) OPTION_BEGIN;
+    thd->options&= ~OPTION_BEGIN;
     thd->transaction.all.modified_non_trans_table= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
@@ -5133,7 +5184,7 @@ create_sp_error:
     send_ok(thd);
     break;
   }
-  thd->proc_info="query end";
+  thd_proc_info(thd, "query end");
   /* Two binlog-related cleanups: */
 
   /*
@@ -5317,6 +5368,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   else
     save_priv= &dummy;
 
+  thd_proc_info(thd, "checking permissions");
   if ((!db || !db[0]) && !thd->db && !dont_check_global_grants)
   {
     DBUG_PRINT("error",("No database"));
@@ -5515,6 +5567,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
   case SCH_COLUMN_PRIVILEGES:
   case SCH_TABLE_CONSTRAINTS:
   case SCH_KEY_COLUMN_USAGE:
+  case SCH_PROFILES:
     break;
   }
 
@@ -6129,7 +6182,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
       thd->lex->sphead= 0;
     }
     lex->unit.cleanup();
-    thd->proc_info="freeing items";
+    thd_proc_info(thd, "freeing items");
     thd->end_statement();
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());

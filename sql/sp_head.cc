@@ -1092,15 +1092,36 @@ sp_head::execute(THD *thd)
   */
   thd->spcont->callers_arena= &backup_arena;
 
+#if defined(ENABLED_PROFILING)
+  /* Discard the initial part of executing routines. */
+  thd->profiling.discard_current_query();
+#endif
   do
   {
     sp_instr *i;
     uint hip;			// Handler ip
 
+#if defined(ENABLED_PROFILING)
+    /* 
+     Treat each "instr" of a routine as discrete unit that could be profiled.
+     Profiling only records information for segments of code that set the
+     source of the query, and almost all kinds of instructions in s-p do not.
+    */
+    thd->profiling.finish_current_query();
+    thd->profiling.start_new_query("continuing inside routine");
+#endif
+
     i = get_instr(ip);	// Returns NULL when we're done.
     if (i == NULL)
+    {
+#if defined(ENABLED_PROFILING)
+      thd->profiling.discard_current_query();
+#endif
       break;
+    }
+
     DBUG_PRINT("execute", ("Instruction %u", ip));
+
     /* Don't change NOW() in FUNCTION or TRIGGER */
     if (!thd->in_sub_stmt)
       thd->set_time();		// Make current_time() et al work
@@ -1177,6 +1198,10 @@ sp_head::execute(THD *thd)
     }
   } while (!err_status && !thd->killed);
 
+#if defined(ENABLED_PROFILING)
+  thd->profiling.finish_current_query();
+  thd->profiling.start_new_query("tail end of routine");
+#endif
   thd->restore_active_arena(&execute_arena, &backup_arena);
 
   thd->spcont->pop_all_cursors(); // To avoid memory leaks after an error
@@ -2497,9 +2522,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   m_lex->unit.cleanup();
 
-  thd->proc_info="closing tables";
+  thd_proc_info(thd, "closing tables");
   close_thread_tables(thd);
-  thd->proc_info= 0;
+  thd_proc_info(thd, 0);
 
   if (m_lex->query_tables_own_last)
   {
@@ -2587,6 +2612,10 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   query= thd->query;
   query_length= thd->query_length;
+#if defined(ENABLED_PROFILING)
+  /* This s-p instr is profilable and will be captured. */
+  thd->profiling.set_query_source(m_query.str, m_query.length);
+#endif
   if (!(res= alloc_query(thd, m_query.str, m_query.length+1)) &&
       !(res=subst_spvars(thd, this, &m_query)))
   {
