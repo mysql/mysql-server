@@ -192,4 +192,29 @@ int verify_library_version()
    return EXIT_SUCCESS;
 }
 
+static int last_caught = 0;
+
+static void catch_signal(int signal) {
+    last_caught = signal;
+    if (last_caught == 0) last_caught = SIGINT;
+}
+
+void init_catch_signals(void) {
+    signal(SIGHUP, catch_signal);
+    signal(SIGINT, catch_signal);
+    signal(SIGPIPE, catch_signal);
+    signal(SIGTERM, catch_signal);
+}
+
+int caught_any_signals(void) {
+    return last_caught != 0;
+}
+
+void resend_signals(void) {
+    if (last_caught) {
+        signal(last_caught, SIG_DFL);
+        raise(last_caught);
+    }
+}
+
 #endif /* #if !defined(TOKUDB_COMMON_H) */
