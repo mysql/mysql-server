@@ -112,9 +112,9 @@ unique key(a)
 ) engine=ndb;
 insert into t1 values(1, 'aAa');
 insert into t1 values(2, 'aaa');
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry 'aaa' for key 'a'
 insert into t1 values(3, 'AAA');
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry 'AAA' for key 'a'
 select * from t1 order by p;
 p	a
 1	aAa
@@ -138,9 +138,9 @@ unique key(a)
 ) engine=ndb;
 insert into t1 values (1,'A'),(2,'b '),(3,'C  '),(4,'d      '),(5,'E'),(6,'f');
 insert into t1 values(99,'b');
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry 'b' for key 'a'
 insert into t1 values(99,'a         ');
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry 'a         ' for key 'a'
 select a,length(a) from t1 order by a;
 a	length(a)
 A	1
