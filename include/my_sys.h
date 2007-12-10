@@ -712,8 +712,10 @@ extern sig_handler my_set_alarm_variable(int signo);
 extern void my_string_ptr_sort(uchar *base, uint items, size_t size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 				  size_t size_of_element,uchar *buffer[]);
-extern qsort_t qsort2(void *base_ptr, size_t total_elems, size_t size,
-		      qsort2_cmp cmp, void *cmp_argument);
+extern qsort_t my_qsort(void *base_ptr, size_t total_elems, size_t size,
+                        qsort_cmp cmp);
+extern qsort_t my_qsort2(void *base_ptr, size_t total_elems, size_t size,
+                         qsort2_cmp cmp, void *cmp_argument);
 extern qsort2_cmp get_ptr_compare(size_t);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
@@ -784,7 +786,7 @@ extern int  get_index_dynamic(DYNAMIC_ARRAY *array, uchar * element);
 #define dynamic_element(array,array_index,type) ((type)((array)->buffer) +(array_index))
 #define push_dynamic(A,B) insert_dynamic((A),(B))
 #define reset_dynamic(array) ((array)->elements= 0)
-#define sort_dynamic(A,cmp) qsort((A)->buffer, (A)->elements, (A)->size_of_element, (cmp))
+#define sort_dynamic(A,cmp) my_qsort((A)->buffer, (A)->elements, (A)->size_of_element, (cmp))
 
 extern my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
 				   size_t init_alloc,size_t alloc_increment);

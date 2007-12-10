@@ -503,6 +503,26 @@ ORDER BY c.b, c.d
 DROP TABLE t1, t2;
 
 #
+# Bug #31137: Assertion failed: primary_key_no == -1 || primary_key_no == 0
+#
+create table t1(a int not null, key aa(a), 
+                b char(10) not null, unique key bb(b(1)), 
+                c char(4) not null, unique key cc(c)); 
+desc t1;
+show create table t1;
+drop table t1;
+create table t1(a int not null, key aa(a), 
+                b char(10) not null, unique key bb(b(1)),
+                c char(4) not null);
+desc t1;
+alter table t1 add unique key cc(c);
+desc t1;
+show create table t1;
+drop table t1;
+
+--echo End of 5.0 tests
+
+#
 # Bug #31148: bool close_thread_table(THD*, TABLE**): Assertion
 # `table->key_read == 0' failed.
 #

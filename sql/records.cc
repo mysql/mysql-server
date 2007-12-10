@@ -567,7 +567,8 @@ static int rr_from_cache(READ_RECORD *info)
       int3store(ref_position,(long) i);
       ref_position+=3;
     }
-    qsort(info->read_positions,length,info->struct_length,(qsort_cmp) rr_cmp);
+    my_qsort(info->read_positions, length, info->struct_length,
+             (qsort_cmp) rr_cmp);
 
     position=info->read_positions;
     for (i=0 ; i < length ; i++)

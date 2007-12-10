@@ -845,6 +845,7 @@ size_t my_long10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
   register char *p, *e;
   long int new_val;
   uint sign=0;
+  unsigned long int uval = (unsigned long int) val;
 
   e = p = &buffer[sizeof(buffer)-1];
   *p= 0;
@@ -853,15 +854,16 @@ size_t my_long10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
   {
     if (val < 0)
     {
-      val= -(unsigned long int)val;
+      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      uval= (unsigned long int)0 - uval;
       *dst++= '-';
       len--;
       sign= 1;
     }
   }
   
-  new_val = (long) ((unsigned long int) val / 10);
-  *--p    = '0'+ (char) ((unsigned long int) val - (unsigned long) new_val * 10);
+  new_val = (long) (uval / 10);
+  *--p    = '0'+ (char) (uval - (unsigned long) new_val * 10);
   val     = new_val;
   
   while (val != 0)
@@ -885,12 +887,14 @@ size_t my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
   register char *p, *e;
   long long_val;
   uint sign= 0;
+  ulonglong uval = (ulonglong)val;
   
   if (radix < 0)
   {
     if (val < 0)
     {
-      val = -(ulonglong)val;
+      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      uval = (ulonglong)0 - uval;
       *dst++= '-';
       len--;
       sign= 1;
@@ -900,22 +904,22 @@ size_t my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
   e = p = &buffer[sizeof(buffer)-1];
   *p= 0;
   
-  if (val == 0)
+  if (uval == 0)
   {
     *--p= '0';
     len= 1;
     goto cnv;
   }
   
-  while ((ulonglong) val > (ulonglong) LONG_MAX)
+  while (uval > (ulonglong) LONG_MAX)
   {
-    ulonglong quo=(ulonglong) val/(uint) 10;
-    uint rem= (uint) (val- quo* (uint) 10);
+    ulonglong quo= uval/(uint) 10;
+    uint rem= (uint) (uval- quo* (uint) 10);
     *--p = '0' + rem;
-    val= quo;
+    uval= quo;
   }
   
-  long_val= (long) val;
+  long_val= (long) uval;
   while (long_val != 0)
   {
     long quo= long_val/10;
@@ -1561,14 +1565,18 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
       }
       else
         addon= (*str >= '5');
-      for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; str++)
+      if (!dot)
       {
-        if (!dot)
-          shift++;
+        for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; shift++, str++);
+        if (str < end && *str == '.')
+        {
+          str++;
+          for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; str++);
+        }
       }
-      if (str < end && *str == '.' && !dot)
+      else
       {
-        str++;
+        shift= dot - str;
         for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; str++);
       }
       goto exp;

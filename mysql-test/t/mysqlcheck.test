@@ -11,7 +11,7 @@
 #
 
 --disable_warnings
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1, `t``1`, `t 1`;
 drop view if exists v1;
 drop database if exists client_test_db;
 --enable_warnings
@@ -37,4 +37,26 @@ create view v1 as select * from t1;
 drop view v1;
 drop table t1;
 
+#
+# Bug #30654: mysqlcheck fails during upgrade of tables whose names include backticks
+#
+create table `t``1`(a int);
+create table `t 1`(a int);
+--replace_result 'Table is already up to date' OK
+--exec $MYSQL_CHECK --databases test
+drop table `t``1`, `t 1`;
+
 --echo End of 5.0 tests
+
+#
+# Bug #30679: 5.1 name encoding not performed for views during upgrade
+#
+create table t1(a int);
+create view v1 as select * from t1;
+show tables;
+--copy_file $MYSQLTEST_VARDIR/master-data/test/v1.frm $MYSQLTEST_VARDIR/master-data/test/v-1.frm
+show tables;
+--exec $MYSQL_CHECK --check-upgrade --fix-table-names --databases test
+show tables;
+drop view v1, `v-1`;
+drop table t1;
