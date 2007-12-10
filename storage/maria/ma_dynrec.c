@@ -1671,7 +1671,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
   uint left_len,b_type;
   uchar *to;
   MARIA_BLOCK_INFO block_info;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_read_rnd_dynamic_record");
 
   info_read=0;

@@ -71,14 +71,18 @@
  *
  */
 
+/*
+  We can't have SAFE_MUTEX defined here as this will cause recursion
+  in pthread_mutex_lock
+*/
 
+#undef SAFE_MUTEX
 #include <my_global.h>
 #include <m_string.h>
 #include <errno.h>
 #if defined(MSDOS) || defined(__WIN__)
 #include <process.h>
 #endif
-
 
 #ifndef DBUG_OFF
 
@@ -322,12 +326,12 @@ static unsigned long Clock(void);
 
 #ifdef THREAD
 #include <my_pthread.h>
-pthread_mutex_t THR_LOCK_dbug;
+static pthread_mutex_t THR_LOCK_dbug;
 
 static CODE_STATE *code_state(void)
 {
   CODE_STATE *cs=0;
-  struct st_my_thread_var *tmp;
+  my_bool error;
 
   if (!init_done)
   {
@@ -338,18 +342,15 @@ static CODE_STATE *code_state(void)
     init_done=TRUE;
   }
 
-  if ((tmp=my_thread_var))
+  if (!(cs= (CODE_STATE*) my_thread_var_get_dbug(&error)) && !error)
   {
-    if (!(cs=(CODE_STATE *) tmp->dbug))
-    {
-      cs=(CODE_STATE*) DbugMalloc(sizeof(*cs));
-      bzero((uchar*) cs,sizeof(*cs));
-      cs->process= db_process ? db_process : "dbug";
-      cs->func="?func";
-      cs->file="?file";
-      cs->stack=&init_settings;
-      tmp->dbug= (void*) cs;
-    }
+    cs=(CODE_STATE*) DbugMalloc(sizeof(*cs));
+    bzero((uchar*) cs,sizeof(*cs));
+    cs->process= db_process ? db_process : "dbug";
+    cs->func="?func";
+    cs->file="?file";
+    cs->stack=&init_settings;
+    my_thread_var_set_dbug((void*) cs);
   }
   return cs;
 }

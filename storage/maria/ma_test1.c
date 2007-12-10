@@ -452,8 +452,8 @@ end:
         Flush changed pages go to disk. That will also flush log. Recovery
         will skip REDOs and apply UNDOs.
       */
-      _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
-                            FLUSH_RELEASE);
+      _ma_flush_table_files(file, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                            FLUSH_RELEASE, FLUSH_RELEASE);
       break;
     case 2:
       /*
@@ -468,6 +468,20 @@ end:
         Flush nothing. Pages and log are likely to not be on disk. Recovery
         will then do nothing.
       */
+      break;
+    case 4:
+      /*
+        Flush changed data pages go to disk. Changed index pages are not
+        flushed. Recovery will skip some REDOs and apply UNDOs.
+      */
+      _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
+                            FLUSH_RELEASE);
+      /*
+        We have to flush log separately as the redo for the last key page
+        may not be flushed
+      */
+      if (translog_flush(file->trn->undo_lsn))
+        goto err;
       break;
     }
     printf("Dying on request without maria_commit()/maria_close()\n");

@@ -30,14 +30,15 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
 {
   uchar *tmp;
   uint page_size;
-  uint block_size= info->s->block_size;
   MARIA_PINNED_PAGE page_link;
+  MARIA_SHARE *share= info->s;
+  uint block_size= share->block_size;
   DBUG_ENTER("_ma_fetch_keypage");
   DBUG_PRINT("enter",("page: %ld", (long) page));
 
-  tmp= pagecache_read(info->s->pagecache, &info->s->kfile,
+  tmp= pagecache_read(share->pagecache, &share->kfile,
                       page / block_size, level, buff,
-                      info->s->page_type, lock, &page_link.link);
+                      share->page_type, lock, &page_link.link);
 
   if (lock != PAGECACHE_LOCK_LEFT_UNLOCKED)
   {
@@ -56,22 +57,22 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
   {
     DBUG_PRINT("error",("Got errno: %d from pagecache_read",my_errno));
     info->last_keypage=HA_OFFSET_ERROR;
-    maria_print_error(info->s, HA_ERR_CRASHED);
+    maria_print_error(share, HA_ERR_CRASHED);
     my_errno=HA_ERR_CRASHED;
     DBUG_RETURN(0);
   }
   info->last_keypage=page;
 #ifdef EXTRA_DEBUG
-  page_size= _ma_get_page_used(info, tmp);
+  page_size= _ma_get_page_used(share, tmp);
   if (page_size < 4 || page_size > block_size ||
-      _ma_get_keynr(info, tmp) != keyinfo->key_nr)
+      _ma_get_keynr(share, tmp) != keyinfo->key_nr)
   {
     DBUG_PRINT("error",("page %lu had wrong page length: %u  keynr: %u",
 			(ulong) page, page_size,
-                        _ma_get_keynr(info, tmp)));
+                        _ma_get_keynr(share, tmp)));
     DBUG_DUMP("page", (char*) tmp, page_size);
     info->last_keypage = HA_OFFSET_ERROR;
-    maria_print_error(info->s, HA_ERR_CRASHED);
+    maria_print_error(share, HA_ERR_CRASHED);
     my_errno= HA_ERR_CRASHED;
     tmp= 0;
   }
@@ -86,30 +87,38 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 		      my_off_t page, enum pagecache_page_lock lock,
                       int level, uchar *buff)
 {
-  uint block_size= info->s->block_size;
+  MARIA_SHARE *share= info->s;
   MARIA_PINNED_PAGE page_link;
+  uint block_size= share->block_size;
   int res;
   DBUG_ENTER("_ma_write_keypage");
 
 #ifdef EXTRA_DEBUG				/* Safety check */
-  if (page < info->s->base.keystart ||
-      page+block_size > info->state->key_file_length ||
-      (page & (MARIA_MIN_KEY_BLOCK_LENGTH-1)))
   {
-    DBUG_PRINT("error",("Trying to write inside key status region: "
-                        "key_start: %lu  length: %lu  page: %lu",
-			(long) info->s->base.keystart,
-			(long) info->state->key_file_length,
-			(long) page));
-    my_errno=EINVAL;
-    DBUG_RETURN((-1));
+    uint page_length, nod;
+    _ma_get_used_and_nod(share, buff, page_length, nod);
+    if (page < share->base.keystart ||
+        page+block_size > info->state->key_file_length ||
+      (page & (MARIA_MIN_KEY_BLOCK_LENGTH-1)))
+    {
+      DBUG_PRINT("error",("Trying to write inside key status region: "
+                          "key_start: %lu  length: %lu  page: %lu",
+                          (long) share->base.keystart,
+                          (long) info->state->key_file_length,
+                          (long) page));
+      my_errno=EINVAL;
+      DBUG_ASSERT(0);
+      DBUG_RETURN((-1));
+    }
+    DBUG_PRINT("page",("write page at: %lu",(long) page));
+    DBUG_DUMP("buff", buff, page_length);
+    DBUG_ASSERT(page_length >= share->keypage_header + nod +
+                keyinfo->minlength || maria_in_recovery);
   }
-  DBUG_PRINT("page",("write page at: %lu",(long) page));
-  DBUG_DUMP("buff", buff,_ma_get_page_used(info, buff));
 #endif
 
   /* Verify that keynr is correct */
-  DBUG_ASSERT(_ma_get_keynr(info, buff) == keyinfo->key_nr);
+  DBUG_ASSERT(_ma_get_keynr(share, buff) == keyinfo->key_nr);
 
 #if defined(EXTRA_DEBUG) && defined(HAVE_purify)
   {
@@ -121,19 +130,19 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
 #ifdef IDENTICAL_PAGES_AFTER_RECOVERY
   {
-    uint length= _ma_get_page_used(info, buff);
+    uint length= _ma_get_page_used(share, buff);
     DBUG_ASSERT(length <= block_size - KEYPAGE_CHECKSUM_SIZE);
     bzero(buff + length, block_size - length);
   }
 #endif
-  DBUG_ASSERT(info->s->pagecache->block_size == block_size);
-  if (!(info->s->options & HA_OPTION_PAGE_CHECKSUM))
+  DBUG_ASSERT(share->pagecache->block_size == block_size);
+  if (!(share->options & HA_OPTION_PAGE_CHECKSUM))
     bfill(buff + block_size - KEYPAGE_CHECKSUM_SIZE,
           KEYPAGE_CHECKSUM_SIZE, (uchar) 255);
 
-  res= pagecache_write(info->s->pagecache,
-                       &info->s->kfile, page / block_size,
-                       level, buff, info->s->page_type,
+  res= pagecache_write(share->pagecache,
+                       &share->kfile, page / block_size,
+                       level, buff, share->page_type,
                        lock,
                        lock == PAGECACHE_LOCK_LEFT_WRITELOCKED ?
                        PAGECACHE_PIN_LEFT_PINNED :
@@ -191,11 +200,11 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
   share->current_key_del= pos;
   page_no= pos / block_size;
   bzero(buff, share->keypage_header);
-  _ma_store_keynr(info, buff, (uchar) MARIA_DELETE_KEY_NR);
+  _ma_store_keynr(share, buff, (uchar) MARIA_DELETE_KEY_NR);
   mi_sizestore(buff + share->keypage_header, old_link);
   share->state.changed|= STATE_NOT_SORTED_PAGES;
 
-  if (info->s->now_transactional)
+  if (share->now_transactional)
   {
     LSN lsn;
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE * 2];
@@ -207,7 +216,7 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
 
     /* Store link to next unused page (the link that is written to page) */
     page= (old_link == HA_OFFSET_ERROR ? IMPOSSIBLE_PAGE_NO :
-           old_link / info->s->block_size);
+           old_link / block_size);
     page_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE, page);
 
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
@@ -315,7 +324,7 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
     else
     {
       share->current_key_del= mi_sizekorr(buff+share->keypage_header);
-      DBUG_ASSERT(share->current_key_del != info->s->state.key_del &&
+      DBUG_ASSERT(share->current_key_del != share->state.key_del &&
                   share->current_key_del);
     }
 

@@ -63,30 +63,6 @@
 #define COMPRESSED_LSN_MAX_STORE_SIZE (2 + LSN_STORE_SIZE)
 #define MAX_NUMBER_OF_LSNS_PER_RECORD 2
 
-#ifndef DBUG_OFF
-static int translog_mutex_lock(pthread_mutex_t *M)
-{
-  int rc;
-  DBUG_PRINT("info", ("Going to lock mutex 0x%lx", (ulong)M));
-  rc= pthread_mutex_lock(M);
-  DBUG_PRINT("info", ("Mutex locked 0x%lx  rc: %d", (ulong)M, rc));
-  return (rc);
-}
-
-static int translog_mutex_unlock(pthread_mutex_t *M)
-{
-  int rc;
-  DBUG_PRINT("info", ("Going to unlock mutex 0x%lx", (ulong)M));
-  rc= pthread_mutex_unlock(M);
-  DBUG_PRINT("info", ("Mutex unlocked 0x%lx  rc: %d", (ulong)M, rc));
-  return(rc);
-}
-
-#else
-#define translog_mutex_lock(M) pthread_mutex_lock(M)
-#define translog_mutex_unlock(M) pthread_mutex_unlock(M)
-#endif
-
 
 /* log write buffer descriptor */
 struct st_translog_buffer
@@ -378,8 +354,8 @@ static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_TAIL=
  write_hook_for_redo, NULL, 0,
  "redo_insert_row_tail", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
-/** @todo RECOVERY BUG unused, remove? */
-static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOB=
+/* Use this entry next time we need to add a new entry */
+static LOG_DESC INIT_LOGREC_REDO_NOT_USED=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, write_hook_for_redo, NULL, 0,
  "redo_insert_row_blob", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
@@ -566,8 +542,8 @@ static void loghandler_init()
     INIT_LOGREC_REDO_INSERT_ROW_HEAD;
   log_record_type_descriptor[LOGREC_REDO_INSERT_ROW_TAIL]=
     INIT_LOGREC_REDO_INSERT_ROW_TAIL;
-  log_record_type_descriptor[LOGREC_REDO_INSERT_ROW_BLOB]=
-    INIT_LOGREC_REDO_INSERT_ROW_BLOB;
+  log_record_type_descriptor[LOGREC_REDO_NOT_USED]=
+    INIT_LOGREC_REDO_NOT_USED;
   log_record_type_descriptor[LOGREC_REDO_INSERT_ROW_BLOBS]=
     INIT_LOGREC_REDO_INSERT_ROW_BLOBS;
   log_record_type_descriptor[LOGREC_REDO_PURGE_ROW_HEAD]=
@@ -952,7 +928,7 @@ static my_bool translog_set_lsn_for_files(uint32 from_file, uint32 to_file,
     translog_unlock();
 
   /* Checks finished files if they are */
-  translog_mutex_lock(&log_descriptor.file_header_lock);
+  pthread_mutex_lock(&log_descriptor.file_header_lock);
   for (file= from_file; file <= to_file; file++)
   {
     LOGHANDLER_FILE_INFO info;
@@ -963,7 +939,7 @@ static my_bool translog_set_lsn_for_files(uint32 from_file, uint32 to_file,
          translog_max_lsn_to_header(fd, lsn)))
       DBUG_RETURN(1);
   }
-  translog_mutex_unlock(&log_descriptor.file_header_lock);
+  pthread_mutex_unlock(&log_descriptor.file_header_lock);
 
   DBUG_RETURN(0);
 }
@@ -992,7 +968,7 @@ static void translog_mark_file_unfinished(uint32 file)
   DBUG_ENTER("translog_mark_file_unfinished");
   DBUG_PRINT("enter", ("file: %lu", (ulong) file));
 
-  translog_mutex_lock(&log_descriptor.unfinished_files_lock);
+  pthread_mutex_lock(&log_descriptor.unfinished_files_lock);
 
   if (log_descriptor.unfinished_files.elements == 0)
   {
@@ -1043,7 +1019,7 @@ static void translog_mark_file_unfinished(uint32 file)
                          place + 1, struct st_file_counter *),
          &fc, sizeof(struct st_file_counter));
 end:
-  translog_mutex_unlock(&log_descriptor.unfinished_files_lock);
+  pthread_mutex_unlock(&log_descriptor.unfinished_files_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -1064,7 +1040,7 @@ static void translog_mark_file_finished(uint32 file)
 
   LINT_INIT(fc_ptr);
 
-  translog_mutex_lock(&log_descriptor.unfinished_files_lock);
+  pthread_mutex_lock(&log_descriptor.unfinished_files_lock);
 
   DBUG_ASSERT(log_descriptor.unfinished_files.elements > 0);
   for (i= 0;
@@ -1082,7 +1058,7 @@ static void translog_mark_file_finished(uint32 file)
 
   if (! --fc_ptr->counter)
     delete_dynamic_element(&log_descriptor.unfinished_files, i);
-  translog_mutex_unlock(&log_descriptor.unfinished_files_lock);
+  pthread_mutex_unlock(&log_descriptor.unfinished_files_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -1105,7 +1081,7 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
   DBUG_PRINT("enter", ("file: %lu", (ulong)file));
   DBUG_ASSERT(translog_inited == 1);
 
-  translog_mutex_lock(&log_descriptor.unfinished_files_lock);
+  pthread_mutex_lock(&log_descriptor.unfinished_files_lock);
 
   /* find file with minimum file number "in progress" */
   if (log_descriptor.unfinished_files.elements > 0)
@@ -1115,7 +1091,7 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
                             0, struct st_file_counter *);
     limit= fc_ptr->file; /* minimal file number "in progress" */
   }
-  translog_mutex_unlock(&log_descriptor.unfinished_files_lock);
+  pthread_mutex_unlock(&log_descriptor.unfinished_files_lock);
 
   /*
     if there is no "in progress file" then unfinished file is in progress
@@ -1281,7 +1257,7 @@ static my_bool translog_buffer_lock(struct st_translog_buffer *buffer)
              ("Lock buffer #%u: (0x%lx)  mutex: 0x%lx",
               (uint) buffer->buffer_no, (ulong) buffer,
               (ulong) &buffer->mutex));
-  res= (translog_mutex_lock(&buffer->mutex) != 0);
+  res= (pthread_mutex_lock(&buffer->mutex) != 0);
   DBUG_RETURN(test(res));
 }
 #else
@@ -1312,8 +1288,8 @@ static my_bool translog_buffer_unlock(struct st_translog_buffer *buffer)
                        (uint) buffer->buffer_no, (ulong) buffer,
                        (ulong) &buffer->mutex));
 
-  res= (translog_mutex_unlock(&buffer->mutex) != 0);
-  DBUG_PRINT("enter", ("Unlocked buffer... #%u: 0x%lx  mutex: 0x%lx",
+  res= (pthread_mutex_unlock(&buffer->mutex) != 0);
+  DBUG_PRINT("exit", ("Unlocked buffer... #%u: 0x%lx  mutex: 0x%lx",
                        (uint) buffer->buffer_no, (ulong) buffer,
                        (ulong) &buffer->mutex));
   DBUG_RETURN(res);
@@ -1780,7 +1756,7 @@ static my_bool translog_buffer_next(TRANSLOG_ADDRESS *horizon,
 static void translog_set_sent_to_disk(LSN lsn, TRANSLOG_ADDRESS in_buffers)
 {
   DBUG_ENTER("translog_set_sent_to_disk");
-  translog_mutex_lock(&log_descriptor.sent_to_disk_lock);
+  pthread_mutex_lock(&log_descriptor.sent_to_disk_lock);
   DBUG_PRINT("enter", ("lsn: (%lu,0x%lx) in_buffers: (%lu,0x%lx)  "
                        "in_buffers_only: (%lu,0x%lx)",
                        LSN_IN_PARTS(lsn),
@@ -1794,7 +1770,7 @@ static void translog_set_sent_to_disk(LSN lsn, TRANSLOG_ADDRESS in_buffers)
     log_descriptor.in_buffers_only= in_buffers;
     DBUG_PRINT("info", ("set new in_buffers_only"));
   }
-  translog_mutex_unlock(&log_descriptor.sent_to_disk_lock);
+  pthread_mutex_unlock(&log_descriptor.sent_to_disk_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -1811,7 +1787,7 @@ static void translog_set_sent_to_disk(LSN lsn, TRANSLOG_ADDRESS in_buffers)
 static void translog_set_only_in_buffers(TRANSLOG_ADDRESS in_buffers)
 {
   DBUG_ENTER("translog_set_only_in_buffers");
-  translog_mutex_lock(&log_descriptor.sent_to_disk_lock);
+  pthread_mutex_lock(&log_descriptor.sent_to_disk_lock);
   DBUG_PRINT("enter", ("in_buffers: (%lu,0x%lx)  "
                        "in_buffers_only: (%lu,0x%lx)",
                        LSN_IN_PARTS(in_buffers),
@@ -1822,7 +1798,7 @@ static void translog_set_only_in_buffers(TRANSLOG_ADDRESS in_buffers)
     log_descriptor.in_buffers_only= in_buffers;
     DBUG_PRINT("info", ("set new in_buffers_only"));
   }
-  translog_mutex_unlock(&log_descriptor.sent_to_disk_lock);
+  pthread_mutex_unlock(&log_descriptor.sent_to_disk_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -1841,9 +1817,9 @@ static TRANSLOG_ADDRESS translog_only_in_buffers()
 {
   register TRANSLOG_ADDRESS addr;
   DBUG_ENTER("translog_only_in_buffers");
-  translog_mutex_lock(&log_descriptor.sent_to_disk_lock);
+  pthread_mutex_lock(&log_descriptor.sent_to_disk_lock);
   addr= log_descriptor.in_buffers_only;
-  translog_mutex_unlock(&log_descriptor.sent_to_disk_lock);
+  pthread_mutex_unlock(&log_descriptor.sent_to_disk_lock);
   DBUG_RETURN(addr);
 }
 
@@ -1862,9 +1838,9 @@ static LSN translog_get_sent_to_disk()
 {
   register LSN lsn;
   DBUG_ENTER("translog_get_sent_to_disk");
-  translog_mutex_lock(&log_descriptor.sent_to_disk_lock);
+  pthread_mutex_lock(&log_descriptor.sent_to_disk_lock);
   lsn= log_descriptor.sent_to_disk;
-  translog_mutex_unlock(&log_descriptor.sent_to_disk_lock);
+  pthread_mutex_unlock(&log_descriptor.sent_to_disk_lock);
   DBUG_RETURN(lsn);
 }
 
@@ -2076,8 +2052,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
   PAGECACHE_FILE file;
   DBUG_ENTER("translog_buffer_flush");
   DBUG_PRINT("enter",
-             ("Buffer: #%u 0x%lx: "
-              "file: %d  offset: (%lu,0x%lx)  size: %lu",
+             ("Buffer: #%u 0x%lx file: %d  offset: (%lu,0x%lx)  size: %lu",
               (uint) buffer->buffer_no, (ulong) buffer,
               buffer->file,
               LSN_IN_PARTS(buffer->offset),
@@ -3641,7 +3616,7 @@ translog_buffer_increase_writers(struct st_translog_buffer *buffer)
   DBUG_ENTER("translog_buffer_increase_writers");
   translog_buffer_lock_assert_owner(buffer);
   buffer->copy_to_buffer_in_progress++;
-  DBUG_PRINT("info", ("copy_to_buffer_in_progress. Buffer #%u 0x%lx: %d",
+  DBUG_PRINT("info", ("copy_to_buffer_in_progress. Buffer #%u  0x%lx  progress: %d",
                       (uint) buffer->buffer_no, (ulong) buffer,
                       buffer->copy_to_buffer_in_progress));
   DBUG_VOID_RETURN;
@@ -3662,9 +3637,10 @@ static void translog_buffer_decrease_writers(struct st_translog_buffer *buffer)
   DBUG_ENTER("translog_buffer_decrease_writers");
   translog_buffer_lock_assert_owner(buffer);
   buffer->copy_to_buffer_in_progress--;
-  DBUG_PRINT("info", ("copy_to_buffer_in_progress. Buffer #%u 0x%lx: %d",
-                      (uint) buffer->buffer_no, (ulong) buffer,
-                      buffer->copy_to_buffer_in_progress));
+  DBUG_PRINT("info",
+             ("copy_to_buffer_in_progress. Buffer #%u  0x%lx  progress: %d",
+              (uint) buffer->buffer_no, (ulong) buffer,
+              buffer->copy_to_buffer_in_progress));
   if (buffer->copy_to_buffer_in_progress == 0 &&
       buffer->waiting_filling_buffer.last_thread != NULL)
     wqueue_release_queue(&buffer->waiting_filling_buffer);
@@ -6578,7 +6554,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
   DBUG_ASSERT(translog_inited == 1);
   LINT_INIT(sent_to_disk);
 
-  translog_mutex_lock(&log_descriptor.log_flush_lock);
+  pthread_mutex_lock(&log_descriptor.log_flush_lock);
   translog_lock();
   flush_horizon= LSN_IMPOSSIBLE;
   old_flushed= log_descriptor.flushed;
@@ -6588,16 +6564,16 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
     uint16 buffer_start= buffer_no;
     struct st_translog_buffer *buffer_unlock= log_descriptor.bc.buffer;
     struct st_translog_buffer *buffer= log_descriptor.bc.buffer;
-    if (cmp_translog_addr(log_descriptor.flushed, lsn) >= 0 ||
-        full_circle)
+    if (cmp_translog_addr(log_descriptor.flushed, lsn) >= 0)
     {
       DBUG_PRINT("info", ("already flushed: (%lu,0x%lx)",
                           LSN_IN_PARTS(log_descriptor.flushed)));
-      goto sync;
+      translog_unlock();
+      goto out;
     }
     /* send to the file if it is not sent */
     sent_to_disk= translog_get_sent_to_disk();
-    if (cmp_translog_addr(sent_to_disk, lsn) >= 0)
+    if (cmp_translog_addr(sent_to_disk, lsn) >= 0 || full_circle)
       break;
 
     do
@@ -6637,6 +6613,8 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
           if ((log_descriptor.log_file_num[cache_index]=
                open_logfile_by_number_no_cache(fn)) == -1)
           {
+            /* We don't need translog_unlock() here */
+            translog_buffer_unlock(buffer);
             rc= 1;
             goto out;
           }
@@ -6652,13 +6630,9 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
     rc= translog_buffer_flush(buffer);
     translog_buffer_unlock(buffer);
     if (rc)
-    {
-      rc= 1;
-      goto out;
-    }
+      goto out;                                 /* rc is 1 */
     translog_lock();
   }
-sync:
   translog_unlock();
 
   {
@@ -6681,7 +6655,7 @@ sync:
     rc|= my_sync(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD));
   log_descriptor.previous_flush_horizon= flush_horizon;
 out:
-  translog_mutex_unlock(&log_descriptor.log_flush_lock);
+  pthread_mutex_unlock(&log_descriptor.log_flush_lock);
   DBUG_RETURN(rc);
 }
 
@@ -6712,7 +6686,7 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
   */
   DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
   /* re-check under mutex to avoid having 2 ids for the same share */
-  translog_mutex_lock(&share->intern_lock);
+  pthread_mutex_lock(&share->intern_lock);
   if (likely(share->id == 0))
   {
     /* Inspired by set_short_trid() of trnman.c */
@@ -6759,7 +6733,7 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
                                        log_array, log_data, NULL)))
       return 1;
   }
-  translog_mutex_unlock(&share->intern_lock);
+  pthread_mutex_unlock(&share->intern_lock);
   return 0;
 }
 
@@ -6836,14 +6810,14 @@ static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected)
   uint min_file= 1, max_file;
   DBUG_ENTER("translog_first_file");
   if (!is_protected)
-    translog_mutex_lock(&log_descriptor.purger_lock);
+    pthread_mutex_lock(&log_descriptor.purger_lock);
   if (log_descriptor.min_file_number &&
       translog_is_file(log_descriptor.min_file_number))
   {
     DBUG_PRINT("info", ("cached %lu",
                         (ulong) log_descriptor.min_file_number));
     if (!is_protected)
-      translog_mutex_unlock(&log_descriptor.purger_lock);
+      pthread_mutex_unlock(&log_descriptor.purger_lock);
     DBUG_RETURN(log_descriptor.min_file_number);
   }
 
@@ -6870,7 +6844,7 @@ static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected)
   }
   log_descriptor.min_file_number= max_file;
   if (!is_protected)
-    translog_mutex_unlock(&log_descriptor.purger_lock);
+    pthread_mutex_unlock(&log_descriptor.purger_lock);
   DBUG_RETURN(max_file);
 }
 
@@ -7060,7 +7034,7 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
   DBUG_PRINT("enter", ("low: (%lu,0x%lx)", LSN_IN_PARTS(low)));
   DBUG_ASSERT(translog_inited == 1);
 
-  translog_mutex_lock(&log_descriptor.purger_lock);
+  pthread_mutex_lock(&log_descriptor.purger_lock);
   if (LSN_FILE_NO(log_descriptor.last_lsn_checked) < last_need_file)
   {
     uint32 i;
@@ -7088,6 +7062,6 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
     }
   }
 
-  translog_mutex_unlock(&log_descriptor.purger_lock);
+  pthread_mutex_unlock(&log_descriptor.purger_lock);
   DBUG_RETURN(rc);
 }

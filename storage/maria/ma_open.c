@@ -64,7 +64,7 @@ MARIA_HA *_ma_test_if_reopen(const char *filename)
   for (pos=maria_open_list ; pos ; pos=pos->next)
   {
     MARIA_HA *info=(MARIA_HA*) pos->data;
-    MARIA_SHARE *share=info->s;
+    MARIA_SHARE *share= info->s;
     if (!strcmp(share->unique_file_name,filename) && share->last_version)
       return info;
   }

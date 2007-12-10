@@ -47,7 +47,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   int errpos,save_errno, create_mode= O_RDWR | O_TRUNC, res;
   myf create_flag;
   uint length,max_key_length,packed,pack_bytes,pointer,real_length_diff,
-       key_length,info_length,key_segs,options,min_key_length_skip,
+       key_length,info_length,key_segs,options,min_key_length,
        base_pos,long_varchar_count,varchar_length,
        unique_key_parts,fulltext_keys,offset, not_block_record_extra_length;
   uint max_field_lengths, extra_header_size, column_nr;
@@ -396,8 +396,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   for (i=0, keydef=keydefs ; i < keys ; i++ , keydef++)
   {
     share.state.key_root[i]= HA_OFFSET_ERROR;
-    min_key_length_skip=length=real_length_diff=0;
-    key_length=pointer;
+    length= real_length_diff= 0;
+    min_key_length= key_length= pointer;
     if (keydef->flag & HA_SPATIAL)
     {
 #ifdef HAVE_SPATIAL
@@ -431,7 +431,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       keydef->keysegs+=sp_segs;
       key_length+=SPLEN*sp_segs;
       length++;                              /* At least one length uchar */
-      min_key_length_skip+=SPLEN*2*SPDIMS;
+      min_key_length++;
 #else
       my_errno= HA_ERR_UNSUPPORTED;
       goto err_no_lock;
@@ -467,7 +467,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       fulltext_keys++;
       key_length+= HA_FT_MAXBYTELEN+HA_FT_WLEN;
       length++;                              /* At least one length uchar */
-      min_key_length_skip+=HA_FT_MAXBYTELEN;
+      min_key_length+= 1 + HA_FT_WLEN;
       real_length_diff=HA_FT_MAXBYTELEN-FT_MAX_WORD_LEN_FOR_SORT;
     }
     else
@@ -536,35 +536,44 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 	}
 	if (keyseg->flag & HA_SPACE_PACK)
 	{
-          DBUG_ASSERT(!(keyseg->flag & HA_VAR_LENGTH_PART));
+          DBUG_ASSERT(!(keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART)));
 	  keydef->flag |= HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY;
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
 	  length++;				/* At least one length uchar */
-	  min_key_length_skip+=keyseg->length;
+	  min_key_length++;
+          key_length+= keyseg->length;
 	  if (keyseg->length >= 255)
-	  {					/* prefix may be 3 bytes */
-	    min_key_length_skip+=2;
-	    length+=2;
+	  {
+            /* prefix may be 3 bytes */
+	    length+= 2;
 	  }
 	}
-	if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART))
+	else if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART))
 	{
           DBUG_ASSERT(!test_all_bits(keyseg->flag,
                                     (HA_VAR_LENGTH_PART | HA_BLOB_PART)));
 	  keydef->flag|=HA_VAR_LENGTH_KEY;
 	  length++;				/* At least one length uchar */
+          min_key_length++;
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
-	  min_key_length_skip+=keyseg->length;
+          key_length+= keyseg->length;
 	  if (keyseg->length >= 255)
-	  {					/* prefix may be 3 bytes */
-	    min_key_length_skip+=2;
-	    length+=2;
+	  {
+            /* prefix may be 3 bytes */
+	    length+= 2;
 	  }
 	}
-	key_length+= keyseg->length;
+        else
+        {
+          key_length+= keyseg->length;
+          if (!keyseg->null_bit)
+            min_key_length+= keyseg->length;
+        }
 	if (keyseg->null_bit)
 	{
 	  key_length++;
+          /* min key part is 1 byte */
+          min_key_length++;
 	  options|=HA_OPTION_PACK_KEYS;
 	  keyseg->flag|=HA_NULL_PART;
 	  keydef->flag|=HA_VAR_LENGTH_KEY | HA_NULL_PART_KEY;
@@ -598,7 +607,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     }
     keydef->block_length= maria_block_size;
     keydef->keylength= (uint16) key_length;
-    keydef->minlength= (uint16) (length-min_key_length_skip);
+    keydef->minlength= (uint16) min_key_length;
     keydef->maxlength= (uint16) length;
 
     if (length > max_key_length)

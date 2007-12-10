@@ -774,7 +774,7 @@ int _ma_pack_rec_unpack(register MARIA_HA *info, MARIA_BIT_BUFF *bit_buff,
   uchar *end_field;
   reg3 MARIA_COLUMNDEF *end;
   MARIA_COLUMNDEF *current_field;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_pack_rec_unpack");
 
   if (info->s->base.null_bytes)
@@ -1349,7 +1349,7 @@ int _ma_read_rnd_pack_record(MARIA_HA *info,
 {
   File file;
   MARIA_BLOCK_INFO block_info;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_read_rnd_pack_record");
 
   if (filepos >= info->state->data_file_length)
@@ -1544,7 +1544,7 @@ static int _ma_read_rnd_mempack_record(MARIA_HA*, uchar *, MARIA_RECORD_POS,
 
 my_bool _ma_memmap_file(MARIA_HA *info)
 {
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_memmap_file");
 
   if (!info->s->file_map)
@@ -1601,7 +1601,7 @@ static int _ma_read_mempack_record(MARIA_HA *info, uchar *buf,
                                    MARIA_RECORD_POS filepos)
 {
   MARIA_BLOCK_INFO block_info;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   uchar *pos;
   DBUG_ENTER("maria_read_mempack_record");
 
@@ -1627,7 +1627,7 @@ static int _ma_read_rnd_mempack_record(MARIA_HA *info,
 				       __attribute__((unused)))
 {
   MARIA_BLOCK_INFO block_info;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   uchar *pos,*start;
   DBUG_ENTER("_ma_read_rnd_mempack_record");
 

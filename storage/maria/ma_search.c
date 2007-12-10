@@ -84,13 +84,13 @@ int _ma_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                                 DFLT_INIT_HITS, info->keyread_buff,
                                 test(!(nextflag & SEARCH_SAVE_BUFF)), 0)))
     goto err;
-  DBUG_DUMP("page", buff, _ma_get_page_used(info, buff));
+  DBUG_DUMP("page", buff, _ma_get_page_used(info->s, buff));
 
   flag=(*keyinfo->bin_search)(info,keyinfo,buff,key,key_len,nextflag,
                               &keypos,lastkey, &last_key);
   if (flag == MARIA_FOUND_WRONG_KEY)
     DBUG_RETURN(-1);
-  _ma_get_used_and_nod(info, buff, used_length, nod_flag);
+  _ma_get_used_and_nod(info->s, buff, used_length, nod_flag);
   maxpos= buff + used_length -1;
 
   if (flag)
@@ -189,18 +189,21 @@ int _ma_bin_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   int flag;
   uint start, mid, end, save_end, totlength, nod_flag, used_length;
   uint not_used[2];
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_bin_search");
 
   LINT_INIT(flag);
-  _ma_get_used_and_nod(info, page, used_length, nod_flag);
+  _ma_get_used_and_nod(share, page, used_length, nod_flag);
 
   totlength= keyinfo->keylength + nod_flag;
+  DBUG_ASSERT(used_length >= share->keypage_header + nod_flag + totlength);
+
   start=0;
   mid=1;
-  save_end= end= ((used_length - nod_flag - info->s->keypage_header) /
+  save_end= end= ((used_length - nod_flag - share->keypage_header) /
                   totlength-1);
   DBUG_PRINT("test",("page_length: %u  end: %u", used_length, end));
-  page+= info->s->keypage_header + nod_flag;
+  page+= share->keypage_header + nod_flag;
 
   while (start != end)
   {
@@ -255,6 +258,7 @@ int _ma_seq_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                    uint comp_flag, uchar **ret_pos,
                    uchar *buff, my_bool *last_key)
 {
+  MARIA_SHARE *share= info->s;
   int flag;
   uint nod_flag, length, used_length, not_used[2];
   uchar t_buff[HA_MAX_KEY_BUFF], *end;
@@ -263,9 +267,9 @@ int _ma_seq_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   LINT_INIT(flag);
   LINT_INIT(length);
 
-  _ma_get_used_and_nod(info, page, used_length, nod_flag);
+  _ma_get_used_and_nod(share, page, used_length, nod_flag);
   end= page + used_length;
-  page+= info->s->keypage_header + nod_flag;
+  page+= share->keypage_header + nod_flag;
   *ret_pos= (uchar*) page;
   t_buff[0]=0;                                  /* Avoid bugs */
   while (page < end)
@@ -273,7 +277,7 @@ int _ma_seq_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     length=(*keyinfo->get_key)(keyinfo,nod_flag,&page,t_buff);
     if (length == 0 || page > end)
     {
-      maria_print_error(info->s, HA_ERR_CRASHED);
+      maria_print_error(share, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       DBUG_PRINT("error",
                  ("Found wrong key:  length: %u  page: 0x%lx  end: 0x%lx",
@@ -303,6 +307,7 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                       uint nextflag, uchar **ret_pos, uchar *buff,
                       my_bool *last_key)
 {
+  MARIA_SHARE *share= info->s;
   /*
     my_flag is raw comparison result to be changed according to
     SEARCH_NO_FIND,SEARCH_LAST and HA_REVERSE_SORT flags.
@@ -330,9 +335,9 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   LINT_INIT(saved_vseg);
 
   t_buff[0]=0;                                  /* Avoid bugs */
-  _ma_get_used_and_nod(info, page, used_length, nod_flag);
+  _ma_get_used_and_nod(share, page, used_length, nod_flag);
   end= page + used_length;
-  page+= info->s->keypage_header + nod_flag;
+  page+= share->keypage_header + nod_flag;
   *ret_pos= page;
   kseg= key;
 
@@ -434,7 +439,7 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
     if (page > end)
     {
-      maria_print_error(info->s, HA_ERR_CRASHED);
+      maria_print_error(share, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       DBUG_PRINT("error",
                  ("Found wrong key:  length: %u  page: 0x%lx  end: %lx",
@@ -1112,7 +1117,7 @@ uchar *_ma_get_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *page,
   uint nod_flag;
   DBUG_ENTER("_ma_get_key");
 
-  nod_flag=_ma_test_if_nod(info, page);
+  nod_flag=_ma_test_if_nod(info->s, page);
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
     bmove((uchar*) key,(uchar*) keypos,keyinfo->keylength+nod_flag);
@@ -1154,7 +1159,7 @@ static my_bool _ma_get_prev_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   uint nod_flag;
   DBUG_ENTER("_ma_get_prev_key");
 
-  nod_flag=_ma_test_if_nod(info, page);
+  nod_flag=_ma_test_if_nod(info->s, page);
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
     *return_key_length=keyinfo->keylength;
@@ -1200,7 +1205,7 @@ uchar *_ma_get_last_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *page,
   DBUG_PRINT("enter",("page: 0x%lx  endpos: 0x%lx", (long) page,
                       (long) endpos));
 
-  nod_flag=_ma_test_if_nod(info, page);
+  nod_flag= _ma_test_if_nod(info->s, page);
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
     lastpos=endpos-keyinfo->keylength-nod_flag;
@@ -1348,7 +1353,7 @@ int _ma_search_next(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   }
 
   /* Last used buffer is in info->keyread_buff */
-  nod_flag=_ma_test_if_nod(info, info->keyread_buff);
+  nod_flag= _ma_test_if_nod(info->s, info->keyread_buff);
 
   if (nextflag & SEARCH_BIGGER)                                 /* Next key */
   {
@@ -1400,6 +1405,7 @@ int _ma_search_first(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 {
   uint nod_flag;
   uchar *page;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_search_first");
 
   if (pos == HA_OFFSET_ERROR)
@@ -1417,8 +1423,8 @@ int _ma_search_first(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       info->cur_row.lastpos= HA_OFFSET_ERROR;
       DBUG_RETURN(-1);
     }
-    nod_flag=_ma_test_if_nod(info, info->keyread_buff);
-    page= info->keyread_buff + info->s->keypage_header + nod_flag;
+    nod_flag=_ma_test_if_nod(share, info->keyread_buff);
+    page= info->keyread_buff + share->keypage_header + nod_flag;
   } while ((pos= _ma_kpos(nod_flag,page)) != HA_OFFSET_ERROR);
 
   if (!(info->lastkey_length=(*keyinfo->get_key)(keyinfo,nod_flag,&page,
@@ -1427,7 +1433,7 @@ int _ma_search_first(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
   info->int_keypos=page;
   info->int_maxpos= (info->keyread_buff +
-                     _ma_get_page_used(info, info->keyread_buff)-1);
+                     _ma_get_page_used(share, info->keyread_buff)-1);
   info->int_nod_flag=nod_flag;
   info->int_keytree_version=keyinfo->version;
   info->last_search_keypage=info->last_keypage;
@@ -1466,7 +1472,7 @@ int _ma_search_last(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       info->cur_row.lastpos= HA_OFFSET_ERROR;
       DBUG_RETURN(-1);
     }
-    _ma_get_used_and_nod(info, buff, used_length, nod_flag);
+    _ma_get_used_and_nod(info->s, buff, used_length, nod_flag);
     end_of_page= buff + used_length;
   } while ((pos= _ma_kpos(nod_flag, end_of_page)) != HA_OFFSET_ERROR);
 

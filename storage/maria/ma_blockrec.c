@@ -212,7 +212,7 @@
   to handle DROP COLUMN, we must store in the index header the fields
   that has been dropped. When unpacking a row we will ignore dropped
   fields. When storing a row, we will mark a dropped field either with a
- null in the null bit map or in the empty_bits and not store any data
+  null in the null bit map or in the empty_bits and not store any data
   for it.
   TODO: Add code for handling dropped fields.
 

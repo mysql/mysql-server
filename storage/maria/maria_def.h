@@ -550,26 +550,26 @@ struct st_maria_handler
                                  TRANSID_SIZE)
 #define KEYPAGE_FLAG_ISNOD 1
 
-#define _ma_get_page_used(info,x) \
-  ((uint) mi_uint2korr((x) + (info)->s->keypage_header - KEYPAGE_USED_SIZE))
-#define _ma_store_page_used(info,x,y) \
-  mi_int2store((x) + (info)->s->keypage_header - KEYPAGE_USED_SIZE, (y))
-#define _ma_test_if_nod(info,x) \
-  ((_ma_get_keypage_flag(info,x) & KEYPAGE_FLAG_ISNOD) ? (info)->s->base.key_reflength : 0)
+#define _ma_get_page_used(share,x) \
+  ((uint) mi_uint2korr((x) + (share)->keypage_header - KEYPAGE_USED_SIZE))
+#define _ma_store_page_used(share,x,y) \
+  mi_int2store((x) + (share)->keypage_header - KEYPAGE_USED_SIZE, (y))
+#define _ma_test_if_nod(share,x) \
+  ((_ma_get_keypage_flag(share,x) & KEYPAGE_FLAG_ISNOD) ? (share)->base.key_reflength : 0)
 
-#define _ma_get_used_and_nod(info,buff,length,nod)                     \
+#define _ma_get_used_and_nod(share,buff,length,nod)                     \
 {                                                                      \
-  nod=    _ma_test_if_nod((info),(buff));                              \
-  length= _ma_get_page_used((info),(buff));                            \
+  nod=    _ma_test_if_nod((share),(buff));                              \
+  length= _ma_get_page_used((share),(buff));                            \
 }
-#define _ma_store_keynr(info, x, nr) x[(info)->s->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE]= (nr)
-#define _ma_get_keynr(info, x) ((uchar) x[(info)->s->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE])
+#define _ma_store_keynr(share, x, nr) x[(share)->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE]= (nr)
+#define _ma_get_keynr(share, x) ((uchar) x[(share)->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE])
 #define _ma_store_transid(buff, transid) \
   int6store((buff) + LSN_STORE_SIZE, (transid))
 #define _ma_korr_transid(buff) \
   uint6korr((buff) + LSN_STORE_SIZE)
-#define _ma_get_keypage_flag(info,x) x[(info)->s->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]
-#define _ma_store_keypage_flag(info,x,flag) x[(info)->s->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]= (flag)
+#define _ma_get_keypage_flag(share,x) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]
+#define _ma_store_keypage_flag(share,x,flag) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]= (flag)
 
 
 #define maria_mark_crashed(x) do{(x)->s->state.changed|= STATE_CRASHED; \

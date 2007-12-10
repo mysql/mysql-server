@@ -251,6 +251,7 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                            uchar *page, uchar *key,
                            uint key_length, my_off_t *new_page_offs)
 {
+  MARIA_SHARE *share= info->s;
   int n1, n2; /* Number of items in groups */
   SplitStruct *task;
   SplitStruct *cur;
@@ -262,10 +263,10 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   uchar *source_cur, *cur1, *cur2;
   uchar *new_page;
   int err_code= 0;
-  uint nod_flag= _ma_test_if_nod(info, page);
+  uint nod_flag= _ma_test_if_nod(share, page);
   uint full_length= key_length + (nod_flag ? nod_flag :
-                                  info->s->base.rec_reflength);
-  int max_keys= ((_ma_get_page_used(info, page) - info->s->keypage_header) /
+                                  share->base.rec_reflength);
+  int max_keys= ((_ma_get_page_used(share, page) - share->keypage_header) /
                  (full_length));
   MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
   DBUG_ENTER("maria_rtree_split_page");
@@ -283,10 +284,12 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   next_coord= coord_buf;
 
   stop= task + max_keys;
-  source_cur= rt_PAGE_FIRST_KEY(info, page, nod_flag);
+  source_cur= rt_PAGE_FIRST_KEY(share, page, nod_flag);
 
-  for (cur= task; cur < stop; cur++, source_cur= rt_PAGE_NEXT_KEY(source_cur,
-       key_length, nod_flag))
+  for (cur= task;
+       cur < stop;
+       cur++, source_cur= rt_PAGE_NEXT_KEY(share, source_cur, key_length,
+                                           nod_flag))
   {
     cur->coords= reserve_coords(&next_coord, n_dim);
     cur->key= source_cur;
@@ -300,7 +303,7 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   old_coord= next_coord;
 
   if (split_maria_rtree_node(task, max_keys + 1,
-                             _ma_get_page_used(info, page) + full_length + 2,
+                             _ma_get_page_used(share, page) + full_length + 2,
                              full_length,
        rt_PAGE_MIN_SIZE(keyinfo->block_length),
        2, 2, &next_coord, n_dim))
@@ -316,8 +319,8 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   }
 
   stop= task + (max_keys + 1);
-  cur1= rt_PAGE_FIRST_KEY(info, page, nod_flag);
-  cur2= rt_PAGE_FIRST_KEY(info, new_page, nod_flag);
+  cur1= rt_PAGE_FIRST_KEY(share, page, nod_flag);
+  cur2= rt_PAGE_FIRST_KEY(share, new_page, nod_flag);
 
   n1= n2= 0;
   for (cur= task; cur < stop; cur++)
@@ -326,25 +329,25 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     if (cur->n_node == 1)
     {
       to= cur1;
-      cur1= rt_PAGE_NEXT_KEY(cur1, key_length, nod_flag);
+      cur1= rt_PAGE_NEXT_KEY(share, cur1, key_length, nod_flag);
       n1++;
     }
     else
     {
       to= cur2;
-      cur2= rt_PAGE_NEXT_KEY(cur2, key_length, nod_flag);
+      cur2= rt_PAGE_NEXT_KEY(share, cur2, key_length, nod_flag);
       n2++;
     }
     if (to != cur->key)
       memcpy(to - nod_flag, cur->key - nod_flag, full_length);
   }
 
-  bzero(new_page, info->s->keypage_header);
+  bzero(new_page, share->keypage_header);
   if (nod_flag)
-    _ma_store_keypage_flag(info, new_page, KEYPAGE_FLAG_ISNOD);
-  _ma_store_keynr(info, new_page, keyinfo->key_nr);
-  _ma_store_page_used(info, page, info->s->keypage_header + n1 * full_length)
-  _ma_store_page_used(info, new_page, info->s->keypage_header +
+    _ma_store_keypage_flag(share, new_page, KEYPAGE_FLAG_ISNOD);
+  _ma_store_keynr(share, new_page, keyinfo->key_nr);
+  _ma_store_page_used(share, page, share->keypage_header + n1 * full_length)
+  _ma_store_page_used(share, new_page, share->keypage_header +
                       n2 * full_length);
 
   if ((*new_page_offs= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==

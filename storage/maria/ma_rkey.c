@@ -25,7 +25,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key,
                key_part_map keypart_map, enum ha_rkey_function search_flag)
 {
   uchar *key_buff;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   MARIA_KEYDEF *keyinfo;
   HA_KEYSEG *last_used_keyseg;
   uint pack_key_length, use_key_length, nextflag;
