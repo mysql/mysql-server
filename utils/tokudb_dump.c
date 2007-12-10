@@ -160,10 +160,13 @@ int main(int argc, char *argv[]) {
       g.exitcode = usage();
       goto cleanup;
    }
-   //TODO:  /* Handle possible interruptions/signals. */
 
+   init_catch_signals();
+   
    g.database = argv[0];
+   if (caught_any_signals()) goto cleanup;
    if (create_init_env() != 0) goto error;
+   if (caught_any_signals()) goto cleanup;
    if (dump_database() != 0) goto error;
    if (false) {
 error:
@@ -175,7 +178,7 @@ cleanup:
       g.exitcode = EXIT_FAILURE;
       fprintf(stderr, "%s: %s: dbenv->close\n", g.progname, db_strerror(retval));
    }
-   //TODO:  /* Resend any caught signal. */
+   resend_signals();
    if (g.subdatabase)      free(g.subdatabase);
 
    return g.exitcode;
@@ -200,8 +203,11 @@ int dump_database()
    }
    */
    if (open_database() != 0) goto error;
+   if (caught_any_signals()) goto cleanup;
    if (g.header && dump_header() != 0) goto error;
+   if (caught_any_signals()) goto cleanup;
    if (dump_pairs() != 0) goto error;
+   if (caught_any_signals()) goto cleanup;
    if (g.footer && dump_footer() != 0) goto error;
 
    if (false) {
@@ -299,7 +305,7 @@ int dump_header()
    /*assert(g.dbtype == DB_BTREE || (g.dbtype == DB_UNKNOWN && g.opened_dbtype == DB_BTREE));*/
    printf("type=btree\n");
    //TODO: Get page size from db.  Currently tokudb does not support db->get_pagesize.
-   printf("db_pagesize=4096\n");
+   //Don't print this out //printf("db_pagesize=4096\n");
    if (g.subdatabase) {
       printf("subdatabase=");
       outputplaintextstring(g.subdatabase);
@@ -413,6 +419,7 @@ int dump_pairs()
       goto error;
    }
    while ((retval = dbc->c_get(dbc, &key, &data, DB_NEXT)) == 0) {
+      if (caught_any_signals()) goto cleanup;
       if (dump_dbt(&key) != 0) goto error;
       if (dump_dbt(&data) != 0) goto error;
    }
