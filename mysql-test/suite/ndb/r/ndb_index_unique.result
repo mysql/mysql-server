@@ -22,7 +22,7 @@ select * from t1 where b = 4 order by a;
 a	b	c
 3	4	6
 insert into t1 values(8, 2, 3);
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '2' for key 'ib'
 select * from t1 order by a;
 a	b	c
 1	2	3
@@ -93,7 +93,7 @@ a	b	c
 1	1	1
 4	4	NULL
 insert into t1 values(5,1,1);
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '1-1' for key 'bc'
 drop table t1;
 CREATE TABLE t2 (
 a int unsigned NOT NULL PRIMARY KEY,
@@ -116,7 +116,7 @@ select * from t2 where b = 4 order by a;
 a	b	c
 3	4	6
 insert into t2 values(8, 2, 3);
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '2-3' for key 'b'
 select * from t2 order by a;
 a	b	c
 1	2	3
@@ -139,7 +139,7 @@ a	b	c
 8	2	3
 create unique index bi using hash on t2(b);
 insert into t2 values(9, 3, 1);
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '3' for key 'bi'
 alter table t2 drop index bi;
 insert into t2 values(9, 3, 1);
 select * from t2 order by a;
@@ -229,7 +229,7 @@ pk	a
 3	NULL
 4	4
 insert into t1 values (5,0);
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '0' for key 'a'
 select * from t1 order by pk;
 pk	a
 -1	NULL
@@ -262,7 +262,7 @@ pk	a	b	c
 0	NULL	18	NULL
 1	3	19	abc
 insert into t2 values(2,3,19,'abc');
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '3-abc' for key 'si'
 select * from t2 order by pk;
 pk	a	b	c
 -1	1	17	NULL
@@ -682,7 +682,7 @@ create table t1 (a int primary key, b varchar(1000) not null, unique key (b))
 engine=ndb charset=utf8;
 insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
 insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫d' for key 'b'
 select a, sha1(b) from t1;
 a	sha1(b)
 1	08f5d02c8b8bc244f275bdfc22c42c5cab0d9d7d
