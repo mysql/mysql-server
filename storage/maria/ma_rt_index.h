@@ -19,10 +19,10 @@
 
 #ifdef HAVE_RTREE_KEYS
 
-#define rt_PAGE_FIRST_KEY(info, page, nod_flag) (page + info->s->keypage_header + nod_flag)
-#define rt_PAGE_NEXT_KEY(key, key_length, nod_flag) (key + key_length + \
-              (nod_flag ? nod_flag : info->s->base.rec_reflength))
-#define rt_PAGE_END(info, page) (page + _ma_get_page_used(info, page))
+#define rt_PAGE_FIRST_KEY(share, page, nod_flag) (page + share->keypage_header + nod_flag)
+#define rt_PAGE_NEXT_KEY(share, key, key_length, nod_flag) (key + key_length +\
+              (nod_flag ? nod_flag : share->base.rec_reflength))
+#define rt_PAGE_END(share, page) (page + _ma_get_page_used(share, page))
 
 #define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length - KEYPAGE_CHECKSUM_SIZE) / 3)
 

@@ -855,7 +855,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
     }
     DBUG_RETURN(1);
   }
-  share=info->s;
+  share= info->s;
   share->tot_locks-= share->r_locks;
   share->r_locks=0;
   maria_block_size= share->base.block_size;
@@ -958,7 +958,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
 	printf("- '%s' has old table-format. Recreating index\n",filename);
       rep_quick|=T_QUICK;
     }
-    share=info->s;
+    share= info->s;
     share->tot_locks-= share->r_locks;
     share->r_locks=0;
   }
@@ -1244,7 +1244,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
   reg4 const char *text;
   char buff[160],length[10],*pos,*end;
   enum en_fieldtype type;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   char llbuff[22],llbuff2[22];
   DBUG_ENTER("describe");
 
@@ -1514,7 +1514,7 @@ static int maria_sort_records(HA_CHECK *param,
   File new_file;
   uchar *temp_buff;
   ha_rows old_record_count;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   char llbuff[22],llbuff2[22];
   MARIA_SORT_INFO sort_info;
   MARIA_SORT_PARAM sort_param;
@@ -1684,6 +1684,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
 			     my_off_t page, uchar *buff, uint sort_key,
 			     File new_file,my_bool update_index)
 {
+  MARIA_SHARE *share= info->s;
   uint	nod_flag,used_length,key_length;
   uchar *temp_buff,*keypos,*endpos;
   my_off_t next_page,rec_pos;
@@ -1693,7 +1694,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
   HA_CHECK *param=sort_info->param;
   DBUG_ENTER("sort_record_index");
 
-  nod_flag=_ma_test_if_nod(info, buff);
+  nod_flag=_ma_test_if_nod(share, buff);
   temp_buff=0;
 
   if (nod_flag)
@@ -1704,8 +1705,8 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
       DBUG_RETURN(-1);
     }
   }
-  used_length= _ma_get_page_used(info, buff);
-  keypos= buff + info->s->keypage_header + nod_flag;
+  used_length= _ma_get_page_used(share, buff);
+  keypos= buff + share->keypage_header + nod_flag;
   endpos= buff + used_length;
   for ( ;; )
   {
@@ -1713,7 +1714,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
     if (nod_flag)
     {
       next_page= _ma_kpos(nod_flag, keypos);
-      if (my_pread(info->s->kfile.file, (uchar*)temp_buff,
+      if (my_pread(share->kfile.file, (uchar*)temp_buff,
 		  (uint) keyinfo->block_length, next_page,
 		   MYF(MY_NABP+MY_WME)))
       {
@@ -1733,14 +1734,14 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
       break;
     rec_pos= _ma_dpos(info,0,lastkey+key_length);
 
-    if ((*info->s->read_record)(info,sort_param->record,rec_pos))
+    if ((*share->read_record)(info,sort_param->record,rec_pos))
     {
       _ma_check_print_error(param,"%d when reading datafile",my_errno);
       goto err;
     }
     if (rec_pos != sort_param->filepos && update_index)
     {
-      _ma_dpointer(info,keypos-nod_flag-info->s->rec_reflength,
+      _ma_dpointer(info,keypos-nod_flag-share->rec_reflength,
 		   sort_param->filepos);
       if (maria_movepoint(info,sort_param->record,rec_pos,sort_param->filepos,
 		    sort_key))
@@ -1754,7 +1755,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
   }
   /* Clear end of block to get better compression if the table is backuped */
   bzero((uchar*) buff+used_length,keyinfo->block_length-used_length);
-  if (my_pwrite(info->s->kfile.file, (uchar*)buff, (uint)keyinfo->block_length,
+  if (my_pwrite(share->kfile.file, (uchar*)buff, (uint)keyinfo->block_length,
 		page,param->myf_rw))
   {
     _ma_check_print_error(param,"%d when updating keyblock",my_errno);

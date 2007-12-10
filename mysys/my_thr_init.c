@@ -347,6 +347,9 @@ void my_thread_end(void)
     tmp->init= 0;
 #endif
 
+#if !defined(__WIN__) || defined(USE_TLS)
+    pthread_setspecific(THR_KEY_mysys,0);
+#endif
     /*
       Decrement counter for number of running threads. We are using this
       in my_thread_global_end() to wait until all threads have called
@@ -359,10 +362,12 @@ void my_thread_end(void)
       pthread_cond_signal(&THR_COND_threads);
    pthread_mutex_unlock(&THR_LOCK_threads);
   }
-  /* The following free has to be done, even if my_thread_var() is 0 */
+  else
+  {
 #if !defined(__WIN__) || defined(USE_TLS)
-  pthread_setspecific(THR_KEY_mysys,0);
+    pthread_setspecific(THR_KEY_mysys,0);
 #endif
+  }
 }
 
 struct st_my_thread_var *_my_thread_var(void)
@@ -378,6 +383,28 @@ struct st_my_thread_var *_my_thread_var(void)
   }
 #endif
   return tmp;
+}
+
+extern void *my_thread_var_get_dbug(my_bool *error)
+{
+  struct st_my_thread_var *tmp=
+    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  my_bool tmp_error;
+  if (!error)
+    error= &tmp_error;
+  if (tmp)
+  {
+    *error= 0;
+    return tmp->dbug;
+  }
+  *error= 1;                                    /* no THR_KEY_mysys */
+  return (void*) 0;
+}
+
+extern void my_thread_var_set_dbug(void *dbug)
+{
+  struct st_my_thread_var *tmp= _my_thread_var();
+  tmp->dbug= dbug;
 }
 
 

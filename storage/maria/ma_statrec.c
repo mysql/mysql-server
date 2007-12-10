@@ -208,7 +208,7 @@ int _ma_read_rnd_static_record(MARIA_HA *info, uchar *buf,
 {
   int locked,error,cache_read;
   uint cache_length;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_read_rnd_static_record");
 
   cache_read=0;

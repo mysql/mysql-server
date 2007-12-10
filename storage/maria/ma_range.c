@@ -217,7 +217,7 @@ static double _ma_search_pos(register MARIA_HA *info,
     goto err;
   flag=(*keyinfo->bin_search)(info, keyinfo, buff, key, key_len, nextflag,
 			      &keypos,info->lastkey, &after_key);
-  nod_flag=_ma_test_if_nod(info, buff);
+  nod_flag=_ma_test_if_nod(info->s, buff);
   keynr= _ma_keynr(info,keyinfo,buff,keypos,&max_keynr);
 
   if (flag)
@@ -272,7 +272,7 @@ static uint _ma_keynr(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   uint nod_flag, used_length, keynr, max_key;
   uchar t_buff[HA_MAX_KEY_BUFF],*end;
 
-  _ma_get_used_and_nod(info, page, used_length, nod_flag);
+  _ma_get_used_and_nod(info->s, page, used_length, nod_flag);
   end= page+ used_length;
   page+= info->s->keypage_header + nod_flag;
 

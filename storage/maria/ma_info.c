@@ -34,7 +34,7 @@ MARIA_RECORD_POS maria_position(MARIA_HA *info)
 int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
 {
   MY_STAT state;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_status");
 
   x->recpos= info->cur_row.lastpos;

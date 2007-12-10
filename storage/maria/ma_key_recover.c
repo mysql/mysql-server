@@ -258,7 +258,7 @@ my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
 
 #ifdef EXTRA_DEBUG_KEY_CHANGES
   {
-    int page_length= _ma_get_page_used(info, buff);
+    int page_length= _ma_get_page_used(info->s, buff);
     ha_checksum crc;
     crc= my_checksum(0, buff + LSN_STORE_SIZE, page_length - LSN_STORE_SIZE);
     log_pos[0]= KEY_OP_CHECK;
@@ -442,10 +442,11 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
 
 #ifdef EXTRA_DEBUG_KEY_CHANGES
   {
+    MARIA_SHARE *share= info->s;
     ha_checksum crc;
-    uint save_page_length= _ma_get_page_used(info, buff);
+    uint save_page_length= _ma_get_page_used(share, buff);
     uint new_length= buff_length + move_length;
-    _ma_store_page_used(info, buff, new_length);
+    _ma_store_page_used(share, buff, new_length);
     crc= my_checksum(0, buff + LSN_STORE_SIZE, new_length - LSN_STORE_SIZE);
     log_pos[0]= KEY_OP_CHECK;
     int2store(log_pos+1, new_length);
@@ -455,7 +456,7 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
     changed_length+= 7;
     translog_parts++;
-    _ma_store_page_used(info, buff, save_page_length);
+    _ma_store_page_used(share, buff, save_page_length);
   }
 #endif
 
@@ -635,7 +636,7 @@ uint _ma_apply_redo_index_free_page(MARIA_HA *info,
   }
   /* Free page */
   bzero(buff + LSN_STORE_SIZE, share->keypage_header - LSN_STORE_SIZE);
-  _ma_store_keynr(info, buff, (uchar) MARIA_DELETE_KEY_NR);
+  _ma_store_keynr(info->s, buff, (uchar) MARIA_DELETE_KEY_NR);
   mi_sizestore(buff + share->keypage_header, old_link);
   share->state.changed|= STATE_NOT_SORTED_PAGES;
 
@@ -727,7 +728,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     goto err;
   }
 
-  _ma_get_used_and_nod(info, buff, page_length, nod_flag);
+  _ma_get_used_and_nod(share, buff, page_length, nod_flag);
   keypage_header= share->keypage_header;
   org_page_length= page_length;
   DBUG_PRINT("info", ("page_length: %u", page_length));
@@ -818,7 +819,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       ha_checksum crc;
       check_page_length= uint2korr(header);
       crc=               uint4korr(header+2);
-      _ma_store_page_used(info, buff, page_length);
+      _ma_store_page_used(share, buff, page_length);
       DBUG_ASSERT(check_page_length == page_length);
       DBUG_ASSERT(crc == (uint32) my_checksum(0, buff + LSN_STORE_SIZE,
                                               page_length- LSN_STORE_SIZE));
@@ -836,7 +837,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   DBUG_ASSERT(header == header_end);
 
   /* Write modified page */
-  _ma_store_page_used(info, buff, page_length);
+  _ma_store_page_used(share, buff, page_length);
 
   /*
     Clean old stuff up. Gives us better compression of we archive things

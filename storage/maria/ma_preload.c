@@ -73,8 +73,8 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
 
     for (end= buff + length ; buff < end ; buff+= block_length)
     {
-      uint keynr= _ma_get_keynr(info, buff);
-      if ((ignore_leaves && !_ma_test_if_nod(info, buff)) ||
+      uint keynr= _ma_get_keynr(share, buff);
+      if ((ignore_leaves && !_ma_test_if_nod(share, buff)) ||
           keynr == MARIA_DELETE_KEY_NR ||
           !(key_map & ((ulonglong) 1 << keynr)))
       {
