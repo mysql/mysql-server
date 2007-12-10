@@ -1992,6 +1992,21 @@ void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
 }
 
 
+bool sys_var_character_set_client::check(THD *thd, set_var *var)
+{
+  if (sys_var_character_set::check(thd, var))
+    return 1;
+  /* Currently, UCS-2 cannot be used as a client character set */
+  if (var->save_result.charset->mbminlen > 1)
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, 
+             var->save_result.charset->csname); 
+    return 1;
+  }
+  return 0;
+}
+
+
 CHARSET_INFO **
 sys_var_character_set_results::ci_ptr(THD *thd, enum_var_type type)
 {
@@ -2355,6 +2370,13 @@ end:
 
 int set_var_collation_client::check(THD *thd)
 {
+  /* Currently, UCS-2 cannot be used as a client character set */
+  if (character_set_client->mbminlen > 1)
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+             character_set_client->csname);
+    return 1;
+  }
   return 0;
 }
 
