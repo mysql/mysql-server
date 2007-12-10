@@ -213,6 +213,24 @@ SELECT @@slow_query_log, @@log_slow_queries;
 SET GLOBAL general_log = @old_general_log_state;
 SET GLOBAL slow_query_log = @old_slow_log_state;
 
+#
+# Bug #31604: server crash when setting slow_query_log_file/general_log_file
+#
+set @old_general_log_file= @@global.general_log_file;
+set @old_slow_query_log_file= @@global.slow_query_log_file;
+
+--error 1231
+set global general_log_file= concat('/not exiting path/log.maste', 'r');
+--error 1231
+set global general_log_file= NULL;
+--error 1231
+set global slow_query_log_file= concat('/not exiting path/log.maste', 'r');
+--error 1231
+set global slow_query_log_file= NULL;
+
+set global general_log_file= @old_general_log_file;
+set global slow_query_log_file= @old_slow_query_log_file;
+
 --echo End of 5.1 tests
 
 --enable_ps_protocol

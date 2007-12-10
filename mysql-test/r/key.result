@@ -530,6 +530,51 @@ ORDER BY c.b, c.d
 a	b	c	d	e	f	g	h	i	j	a	b	c	d
 2	2	1	2004-11-30 12:00:00	1	0	0	0	0	0	2	3388000	-553000	NULL
 DROP TABLE t1, t2;
+create table t1(a int not null, key aa(a), 
+b char(10) not null, unique key bb(b(1)), 
+c char(4) not null, unique key cc(c));
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	MUL	NULL	
+b	char(10)	NO	UNI	NULL	
+c	char(4)	NO	PRI	NULL	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` char(10) NOT NULL,
+  `c` char(4) NOT NULL,
+  UNIQUE KEY `cc` (`c`),
+  UNIQUE KEY `bb` (`b`(1)),
+  KEY `aa` (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(a int not null, key aa(a), 
+b char(10) not null, unique key bb(b(1)),
+c char(4) not null);
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	MUL	NULL	
+b	char(10)	NO	UNI	NULL	
+c	char(4)	NO		NULL	
+alter table t1 add unique key cc(c);
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	MUL	NULL	
+b	char(10)	NO	UNI	NULL	
+c	char(4)	NO	PRI	NULL	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` char(10) NOT NULL,
+  `c` char(4) NOT NULL,
+  UNIQUE KEY `cc` (`c`),
+  UNIQUE KEY `bb` (`b`(1)),
+  KEY `aa` (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+End of 5.0 tests
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT);
 INSERT INTO t1 VALUES (), (), ();

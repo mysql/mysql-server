@@ -788,12 +788,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
-
-  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-  {
-    thd->killed= THD::NOT_KILLED;
-    thd->mysys_var->abort= 0;
-  }
+  DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
   thd->command=command;
   /*
@@ -6340,24 +6335,23 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 }
 
 
-/*
-  Reload/resets privileges and the different caches.
+/**
+  @brief Reload/resets privileges and the different caches.
 
-  SYNOPSIS
-    reload_acl_and_cache()
-    thd			Thread handler (can be NULL!)
-    options             What should be reset/reloaded (tables, privileges,
-    slave...)
-    tables              Tables to flush (if any)
-    write_to_binlog     Depending on 'options', it may be very bad to write the
-                        query to the binlog (e.g. FLUSH SLAVE); this is a
-                        pointer where reload_acl_and_cache() will put 0 if
-                        it thinks we really should not write to the binlog.
-                        Otherwise it will put 1.
+  @param thd Thread handler (can be NULL!)
+  @param options What should be reset/reloaded (tables, privileges, slave...)
+  @param tables Tables to flush (if any)
+  @param write_to_binlog True if we can write to the binlog.
+               
+  @note Depending on 'options', it may be very bad to write the
+    query to the binlog (e.g. FLUSH SLAVE); this is a
+    pointer where reload_acl_and_cache() will put 0 if
+    it thinks we really should not write to the binlog.
+    Otherwise it will put 1.
 
-  RETURN
-    0	 ok
-    !=0  error.  thd->killed or thd->is_error() is set
+  @return Error status code
+    @retval 0 Ok
+    @retval !=0  Error; thd->killed is set or thd->is_error() is true
 */
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
@@ -6461,7 +6455,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 
         for (; lock_p < end_p; lock_p++)
         {
-          if ((*lock_p)->type == TL_WRITE)
+          if ((*lock_p)->type >= TL_WRITE_ALLOW_WRITE)
           {
             my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
             return 1;
@@ -7031,8 +7025,15 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   bool error= TRUE;                                 // Error message is given
   DBUG_ENTER("create_table_precheck");
 
+  /*
+    Require CREATE [TEMPORARY] privilege on new table; for
+    CREATE TABLE ... SELECT, also require INSERT.
+  */
+
   want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-              CREATE_TMP_ACL : CREATE_ACL);
+              CREATE_TMP_ACL : CREATE_ACL) |
+             (select_lex->item_list.elements ? INSERT_ACL : 0);
+
   if (check_access(thd, want_priv, create_table->db,
 		   &create_table->grant.privilege, 0, 0,
                    test(create_table->schema_table)) ||
