@@ -269,7 +269,7 @@ int create_init_env()
    REMOVE_BITS(flags, DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN);
    SET_BITS(flags, DB_CREATE | DB_PRIVATE);
 
-   retval = dbenv->open(dbenv, g.homedir ? g.homedir : ".", flags, 0);
+   retval = dbenv->open(dbenv, g.homedir, flags, 0);
    if (retval) {
       ERROR(retval, "DB_ENV->open");
       goto error;
