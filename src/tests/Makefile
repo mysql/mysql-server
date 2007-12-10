@@ -139,3 +139,6 @@ make_libs:
 clean:
 	rm -f $(ALL_TESTS) *.o
 	rm -rf dir.*.tdb dir.*.bdb
+
+test_db_curs4.tdb: trace.h
+

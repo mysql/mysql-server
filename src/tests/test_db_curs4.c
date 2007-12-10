@@ -8,14 +8,12 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <ctype.h>
 
 #include "test.h"
-
-static int oppass,opnum;
+#include "trace.h"
 
 enum mode {
-    MODE_DEFAULT, MODE_DB_CREATE, MODE_MORE
+    MODE_DEFAULT, MODE_MORE
 } mode;
 
 
@@ -32,21 +30,6 @@ struct primary_key {
     int rand; /* in network order */
     struct timestamp ts;
 };
-
-void print_pkey (DBT *dbt) {
-    unsigned char *d = dbt->data;
-    int i;
-    assert(dbt->size==12);
-    printf("pkey=%u.%u.%u {",
-	   (d[0]<<24)+(d[1]<<16)+(d[2]<<8)+d[3],
-	   (d[4]<<24)+(d[5]<<16)+(d[6]<<8)+d[7],
-	   (d[8]<<24)+(d[9]<<16)+(d[10]<<8)+d[11]);
-    for (i=0; i<12; i++) {
-	if (i!=0) printf(",");
-	printf("%d", d[i]);
-    }
-    printf("}\n");
-}
 
 struct name_key {
     unsigned char* name;
@@ -182,7 +165,6 @@ int calc_n_items=0;        // The number of items we expect the cursor to acount
 int count_all_items=0;      // The total number of items
 DBT nc_key,nc_data;
 
-
 void create_databases (void) {
     int r;
 
@@ -220,9 +202,11 @@ void close_databases (void) {
     
 
 void gettod (struct timestamp *ts) {
-    int counter;
-    ts->tv_sec=0;
-    ts->tv_usec=counter++;
+    struct timeval tv;
+    int r = gettimeofday(&tv, 0);
+    assert(r==0);
+    ts->tv_sec  = htonl(tv.tv_sec);
+    ts->tv_usec = htonl(tv.tv_usec);
 }
 
 void setup_for_db_create (void) {
@@ -249,16 +233,16 @@ void setup_for_db_create (void) {
 
 }
 
-int count_entries (DB *db) {
+static int count_entries (const char *dbcname, DB *db) {
     DBC *dbc;
     int r = db->cursor(db, null_txn, &dbc, 0);                                       CKERR(r);
     DBT key,data;
     memset(&key,  0, sizeof(key));    
     memset(&data, 0, sizeof(data));
     int n_found=0;
-    for (r = dbc->c_get(dbc, &key, &data, DB_FIRST);
+    for (r = do_cget(dbcname, dbc, &key, &data, DB_FIRST);
 	 r==0;
-	 r = dbc->c_get(dbc, &key, &data, DB_NEXT)) {
+	 r = do_cget(dbcname, dbc, &key, &data, DB_NEXT)) {
 	n_found++;
     }
     assert(r==DB_NOTFOUND);
@@ -266,66 +250,25 @@ int count_entries (DB *db) {
     return n_found;
 }
 
-void do_create (void) {
-    setup_for_db_create();
-    // Now check to see if the number of names matches the number of associated things.
-    int n_named = count_entries(namedb);
-    int n_prim  = count_entries(dbp);
-    assert(n_named==n_prim);
-}
-
-int rcount=0;
-
-void insert_person (void) {
-    int namelen = 5+random()%245;
-    rcount++;
+static void insert_person (void) {
+    int namelen = 5+myrandom()%245;
     struct primary_key  pk;
     struct primary_data pd;
     char keyarray[1000], dataarray[1000]; 
-    pk.rand = random();
-    rcount++;
+    unsigned char namearray[1000];
+    pk.rand = myrandom();
     gettod(&pk.ts);
     pd.creationtime = pk.ts;
     pd.expiretime   = pk.ts;
     pd.expiretime.tv_sec += 24*60*60*366;
-    pd.doesexpire = 0;
-    random();
-    rcount++;
-    if (opnum==2 || opnum==10 || opnum==22 || opnum==86) {
-	pd.doesexpire = 1;
-    }
+    pd.doesexpire = (myrandom()%10==0);
     int i;
-    for (i=0; i<namelen; i++) { random(); rcount++; }
-    namelen=i=2;
-    char *newnamearray;
-    if (oppass==1 && opnum==1) newnamearray="Cd";
-    else if (oppass==1 && opnum==2) newnamearray="Ew";
-    else if (oppass==1 && opnum==5) newnamearray="Zq";
-    else if (oppass==1 && opnum==6) newnamearray="Ug";
-    else if (oppass==1 && opnum==9) newnamearray="Ib";
-    else if (oppass==1 && opnum==10) newnamearray="Cf";
-    else if (oppass==1 && opnum==13) newnamearray="Qf";
-    else if (oppass==1 && opnum==14) newnamearray="Pp";
-    else if (oppass==1 && opnum==15) newnamearray="Dz";
-    else if (oppass==1 && opnum==16) newnamearray="Dd";
-    else if (oppass==1 && opnum==22) newnamearray="Uy";
-    else if (oppass==1 && opnum==24) newnamearray="Wm";
-    else if (oppass==1 && opnum==25) newnamearray="Qw";
-    else if (oppass==1 && opnum==26) newnamearray="Fg";
-    else if (oppass==1 && opnum==30) newnamearray="Iv";
-    else if (oppass==2 && opnum==9) newnamearray="Dq";
-    else if (oppass==2 && opnum==15) newnamearray="Rr";
-    else if (oppass==2 && opnum==36) newnamearray="Sp";
-    else if (oppass==2 && opnum==37) newnamearray="Uo";
-    else if (oppass==2 && opnum==39) newnamearray="Je";
-    else if (oppass==2 && opnum==73) newnamearray="Kg";
-    else if (oppass==2 && opnum==74) newnamearray="Gp";
-    else if (oppass==2 && opnum==76) newnamearray="Iv";
-    else if (oppass==2 && opnum==86) newnamearray="Sk";
-    else if (oppass==2 && opnum==100) newnamearray="Tq"; 
-    else abort();
-    pd.name.name=(unsigned char*)newnamearray;
-    //printf("%2d %d: pk.rand=%u;\n", oppass, opnum, pk.rand);
+    pd.name.name = namearray;
+    pd.name.name[0] = 'A'+myrandom()%26;
+    for (i=1; i<namelen; i++) {
+	pd.name.name[i] = 'a'+myrandom()%26;
+    }
+    pd.name.name[i]=0;
     DBT key,data;
     memset(&key,0,sizeof(DBT));
     memset(&data,0,sizeof(DBT));
@@ -337,93 +280,66 @@ void insert_person (void) {
     data.size = 0;
     write_pk_to_dbt(&key, &pk);
     write_pd_to_dbt(&data, &pd);
-    int r=dbp->put(dbp, null_txn, &key, &data,0);   CKERR(r);
+    int r=do_put("dbp", dbp, &key, &data);   CKERR(r);
     // If the cursor is to the left of the current item, then increment count_items
     {
-	int compare=strcmp((char*)newnamearray, nc_key.data);
+	int compare=strcmp((char*)namearray, nc_key.data);
 	//printf("%s:%d compare=%d insert %s, cursor at %s\n", __FILE__, __LINE__, compare, namearray, (char*)nc_key.data);
 	if (compare>0) calc_n_items++;
 	count_all_items++;
     }
 }
 
-void print_dbt (DBT *dbt) {
-    int i;
-    for (i=0; i<dbt->size; i++) {
-	unsigned char c = ((char*)dbt->data)[i];
-	if (c!='\\' && isprint(c)) printf("%c", c);
-	else printf("\\%02x", c);
-    }
-}
-
-void delete_oldest_expired (void) {
-    printf("%s:%d %d:%d delete\n", __FILE__, __LINE__, oppass, opnum);
+static void delete_oldest_expired (void) {
     int r;
-    random();
-    rcount++;
+    myrandom();
     if (delete_cursor==0) {
 	r = expiredb->cursor(expiredb, null_txn, &delete_cursor, 0); CKERR(r);
 	
     }
-    DBT pkey;
+    DBT key,pkey,data, savepkey;
+    memset(&key, 0, sizeof(key));
+    memset(&pkey, 0, sizeof(pkey));
+    memset(&data, 0, sizeof(data));
+    r = do_cpget("delete_cursor", delete_cursor, &key, &pkey, &data, DB_FIRST);
+    if (r==DB_NOTFOUND) return;
+    CKERR(r);
     {
-	DBT key,data;
-	memset(&key, 0, sizeof(key));
-	memset(&pkey, 0, sizeof(pkey));
-	memset(&data, 0, sizeof(data));
-	r = delete_cursor->c_pget(delete_cursor, &key, &pkey, &data, DB_FIRST);
-	if (r==DB_NOTFOUND) return;
-	CKERR(r);
-    }
-    printf("%s:%d oppass==%d opnum==%d ", __FILE__, __LINE__, oppass, opnum);
-    {
-	if (oppass==2 && opnum==8) {
-	    static unsigned char buf[]={89,183,110,40,0,0,0,0,0,4,104,164};
-	    pkey.data=buf;
-	} else if (oppass==2 && opnum==53) {
-	    static unsigned char buf[12] = {83,183,53,213,0,0,0,0,0,58,25,115};
-	    pkey.data=buf;
+	char *deleted_key = ((char*)data.data)+name_offset_in_pd_dbt();
+	int compare=strcmp(deleted_key, nc_key.data);
+	if (compare>0) {
+	    //printf("%s:%d r3=%d compare=%d count=%d cacount=%d cucount=%d deleting %s cursor=%s\n", __FILE__, __LINE__, r3, compare, count_all_items, calc_n_items, cursor_count_n_items, deleted_key, (char*)nc_key.data);
 	    calc_n_items--;
-	} else if (oppass==2 && opnum==57) {
-	    static unsigned char buf[12] = {122,109,141,60,0,0,0,0,0,91,215,10};
-	    pkey.data=buf;
-	    calc_n_items--;
-	} else if (oppass==2 && opnum==97) {
-	    static unsigned char buf[12] = {105,239,70,116,0,0,0,0,0,97,185,202};
-	    pkey.data=buf;
-	} else {
-	    assert(0);
 	}
+	count_all_items--;
     }
-    count_all_items--;
-    DBT savepkey = pkey;
+    savepkey = pkey;
     savepkey.data = malloc(pkey.size);
     memcpy(savepkey.data, pkey.data, pkey.size);
-    r = dbp->del(dbp, null_txn, &pkey, 0);   CKERR(r);
+    r = do_del("dbp", dbp, &pkey);   CKERR(r);
     // Make sure it's really gone.
-    {
-	DBT data;
-	memset(&data, 0, sizeof(data));
-	r = dbp->get(dbp, null_txn, &savepkey, &data, 0);
-    }
+    r = do_cget("delete_cursor", delete_cursor, &key, &data, DB_CURRENT);
+    assert(r==DB_KEYEMPTY);
+    r = do_get("dbp", dbp, &savepkey, &data);
     assert(r==DB_NOTFOUND);
     free(savepkey.data);
 }
 
 // Use a cursor to step through the names.
-void step_name (void) {
+static void step_name (void) {
     int r;
     if (name_cursor==0) {
 	r = namedb->cursor(namedb, null_txn, &name_cursor, 0); CKERR(r);
     }
-    r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_NEXT); // an uninitialized cursor should do a DB_FIRST.
+    r = do_cget("name_cursor", name_cursor, &nc_key, &nc_data, DB_NEXT); // an uninitialized cursor should do a DB_FIRST.
     if (r==0) {
 	cursor_count_n_items++;
     } else if (r==DB_NOTFOUND) {
 	// Got to the end.
 	//printf("%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
 	assert(cursor_count_n_items==calc_n_items);
-	r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_FIRST);
+	r = do_cget("name_cursor", name_cursor, &nc_key, &nc_data, DB_FIRST);
+	//r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_FIRST);
 	if (r==DB_NOTFOUND) {
 	    nc_key.data = realloc(nc_key.data, 1);
 	    ((char*)nc_key.data)[0]=0;
@@ -437,27 +353,20 @@ void step_name (void) {
 
 int cursor_load=2; /* Set this to a higher number to do more cursor work for every insertion.   Needed to get to the end. */
 
-void activity (void) {
-    random();
-    rcount++;
-    if (oppass==2 && (opnum==8 || opnum==53 || opnum==57 || opnum==65 || opnum==78 || opnum==97)) {
+static void activity (void) {
+    if (myrandom()%20==0) {
 	// Delete the oldest expired one.  Keep the cursor open
 	delete_oldest_expired();
+    } else if (myrandom()%cursor_load==0) {
+	insert_person();
     } else {
-	random();
-	rcount++;
-	if ((oppass==2 && (opnum==9 || opnum==15 || opnum==36 || opnum==37 || opnum==39 || opnum==73 || opnum==74 || opnum==76 || opnum==86 || opnum==100))
-	    || (oppass==1 && (opnum==1 || opnum==2 || opnum==5 || opnum==6 || opnum==9 || opnum==10 || opnum==13 || opnum==14 || opnum==15 || opnum==16 || opnum==22 || opnum==24 || opnum==25 || opnum==26 || opnum==30))) {
-	    insert_person();
-	} else {
-	    step_name();
-	}
+	step_name();
     }
     //assert(count_all_items==count_entries(dbp));
 }
 		       
 
-void usage (const char *argv1) {
+static void usage (const char *argv1) {
     fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] seed ", argv1);
     exit(1);
 }
@@ -484,9 +393,7 @@ int main (int argc, const char *argv[]) {
     mode = MODE_DEFAULT;
     argv++; argc--;
     while (argc>0) {
-	if (strcmp(argv[0], "--DB_CREATE")==0) {
-	    mode = MODE_DB_CREATE;
-	} else if (strcmp(argv[0], "--more")==0) {
+	if (strcmp(argv[0], "--more")==0) {
 	    mode = MODE_MORE;
 	} else {
 	    errno=0;
@@ -499,42 +406,32 @@ int main (int argc, const char *argv[]) {
 	argc--; argv++;
     }
 
-    printf("seed=%d\n", useseed);
+    fprintf(stderr, "seed=%d\n", useseed);
     srandom(useseed);
 
     switch (mode) {
     case MODE_DEFAULT:
-	oppass=1;
 	system("rm -rf " DIR);
 	mkdir(DIR, 0777); 
 	create_databases();
 	{
 	    int i;
-	    for (i=0; i<31; i++) {
-		opnum=i;
+	    for (i=0; i<33; i++)
 		activity();
-	    }
 	}
 	break;
     case MODE_MORE:
-	oppass=2;
 	create_databases();
-	calc_n_items = count_all_items = count_entries(dbp);
+	calc_n_items = count_all_items = count_entries("dbc", dbp);
 	//printf("%s:%d n_items initially=%d\n", __FILE__, __LINE__, count_all_items);
 	{
-	    const int n_activities = 103;
+	    const int n_activities = 100;
 	    int i;
 	    cursor_load = 8*(1+2*count_all_items/n_activities);
-	    printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
-	    for (i=0; i<n_activities; i++) {
-		opnum=i;
-		printf("%d\n", i);
+	    //printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
+	    for (i=0; i<n_activities; i++)
 		activity();
-	    }
 	}
-	break;
-    case MODE_DB_CREATE:
-	do_create();
 	break;
     }
 
