@@ -1079,7 +1079,8 @@ shrink_again:
 
 				buf_LRU_make_block_old(&block->page);
 				dirty++;
-			} else if (!buf_LRU_free_block(&block->page, TRUE)) {
+			} else if (!buf_LRU_free_block(&block->page,
+						       TRUE, NULL)) {
 				nonfree++;
 			}
 
@@ -1513,7 +1514,7 @@ lookup:
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		/* Discard the uncompressed page frame if possible. */
-		if (buf_LRU_free_block(bpage, FALSE)) {
+		if (buf_LRU_free_block(bpage, FALSE, NULL)) {
 
 			mutex_exit(block_mutex);
 			goto lookup;
