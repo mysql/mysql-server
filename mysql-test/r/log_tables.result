@@ -605,6 +605,7 @@ DROP PROCEDURE IF EXISTS `db_17876.archiveGeneralLog`;
 DROP DATABASE IF EXISTS `db_17876`;
 SET GLOBAL general_log = @old_general_log_state;
 SET GLOBAL slow_query_log = @old_slow_log_state;
+select CONNECTION_ID() into @thread_id;
 truncate table mysql.general_log;
 set @old_general_log_state = @@global.general_log;
 set global general_log = on;
@@ -711,7 +712,7 @@ set @lparam = "000 001 002 003 004 005 006 007 008 009"
 prepare long_query from "select ? as long_query";
 execute long_query using @lparam;
 set global general_log = off;
-select command_type, argument from mysql.general_log;
+select command_type, argument from mysql.general_log where thread_id = @thread_id;
 command_type	argument
 Query	set @lparam = "000 001 002 003 004 005 006 007 008 009"
               "010 011 012 013 014 015 016 017 018 019"

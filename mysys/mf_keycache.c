@@ -3429,7 +3429,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
      As all blocks referred in 'cache' are marked by BLOCK_IN_FLUSH
      we are guarunteed no thread will change them
   */
-  qsort((uchar*) cache, count, sizeof(*cache), (qsort_cmp) cmp_sec_link);
+  my_qsort((uchar*) cache, count, sizeof(*cache), (qsort_cmp) cmp_sec_link);
 
   keycache_pthread_mutex_lock(&keycache->cache_lock);
   /*
