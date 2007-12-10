@@ -6807,7 +6807,7 @@ my_bool translog_is_file(uint file_no)
 
 static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected)
 {
-  uint min_file= 1, max_file;
+  uint min_file= 0, max_file;
   DBUG_ENTER("translog_first_file");
   if (!is_protected)
     pthread_mutex_lock(&log_descriptor.purger_lock);
