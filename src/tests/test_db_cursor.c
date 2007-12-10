@@ -22,7 +22,6 @@ typedef unsigned int timestamp;
 
 struct primary_key {
     int rand; /* in network order */
-    timestamp ts;
 };
 
 struct name_key {
@@ -59,7 +58,7 @@ static void write_timestamp_to_dbt (DBT *dbt, timestamp ts) {
 
 static void write_pk_to_dbt (DBT *dbt, const struct primary_key *pk) {
     write_uint_to_dbt(dbt, pk->rand);
-    write_timestamp_to_dbt(dbt, pk->ts);
+//    write_timestamp_to_dbt(dbt, pk->ts);
 }
 
 static void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
@@ -126,7 +125,7 @@ static int name_callback (DB *secondary __attribute__((__unused__)), const DBT *
     return 0;
 }
 
-static int expire_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
+int expire_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
     struct primary_data *d = data->data;
     if (d->doesexpire) {
 	result->flags=0;
@@ -153,14 +152,6 @@ static int calc_n_items=0;        // The number of items we expect the cursor to
 static int count_all_items=0;      // The total number of items
 static DBT nc_key,nc_data;
 
-#if 0
-static struct expire_order {
-    long long ts;
-    struct primary_key pk;
-} *expire_orders;
-static int n_expire_orders=0;
-#endif
-
 static void create_databases (void) {
     int r;
 
@@ -177,7 +168,7 @@ static void create_databases (void) {
     r = expiredb->open(expiredb, null_txn, "expire.db", NULL, DB_BTREE, DB_CREATE, 0600);    CKERR(r);
     
     r = dbp->associate(dbp, NULL, namedb, name_callback, 0);                                 CKERR(r);
-    r = dbp->associate(dbp, NULL, expiredb, expire_callback, 0);                             CKERR(r);
+//    r = dbp->associate(dbp, NULL, expiredb, expire_callback, 0);                             CKERR(r);
 }
 
 static void close_databases (void) {
@@ -202,42 +193,28 @@ static void gettod (timestamp *ts) {
     *ts = ts_counter++;
 }
 
-static int count_entries (DB *db) {
-    DBC *dbc;
-    int r = db->cursor(db, null_txn, &dbc, 0);                                       CKERR(r);
-    DBT key,data;
-    memset(&key,  0, sizeof(key));    
-    memset(&data, 0, sizeof(data));
-    int n_found=0;
-    for (r = dbc->c_get(dbc, &key, &data, DB_FIRST);
-	 r==0;
-	 r = dbc->c_get(dbc, &key, &data, DB_NEXT)) {
-	n_found++;
-    }
-    assert(r==DB_NOTFOUND);
-    r=dbc->c_close(dbc);                                                             CKERR(r);
-    return n_found;
-}
+static int oppass, opnum;
 
 static void insert_person (void) {
-    int namelen = 5+random()%245;
+    printf("insert_person\n");
     struct primary_key  pk;
     struct primary_data pd;
     char keyarray[1000], dataarray[1000]; 
     unsigned char namearray[1000];
-    pk.rand = random();
-    gettod(&pk.ts);
-    pd.creationtime = pk.ts;
-    pd.expiretime   = pk.ts;
+    if (oppass==0 && opnum==1) pk.rand = 42;  
+    else if (oppass==0 && opnum==2) pk.rand = 43;
+    else { assert(0); }
+    printf("oppass=%d opnum=%d pk.rand=%d\n", oppass, opnum, pk.rand);
+    gettod(&pd.creationtime);
+    pd.expiretime   = pd.creationtime;
     pd.expiretime   += 24*60*60*366;
-    pd.doesexpire = (random()%10==0);
-    int i;
+    pd.doesexpire = 0;
     pd.name.name = namearray;
-    pd.name.name[0] = 'A'+random()%26;
-    for (i=1; i<namelen; i++) {
-	pd.name.name[i] = 'a'+random()%26;
-    }
-    pd.name.name[i]=0;
+    if (oppass==0 && opnum==1) pd.name.name[0] = 'C';
+    else if (oppass==0 && opnum==2) pd.name.name[0] = 'E';
+    else assert(0);
+    pd.name.name[1] = 0;
+    printf("name = %s\n", pd.name.name);
     DBT key,data;
     memset(&key,0,sizeof(DBT));
     memset(&data,0,sizeof(DBT));
@@ -260,11 +237,12 @@ static void insert_person (void) {
 }
 
 static void delete_oldest_expired (void) {
+    unsigned int pkey_0 = 43;
     static int count=0;
     assert(count==0);
     count++;
     int r;
-    printf("%s:%d deleting\n", __FILE__, __LINE__);
+    printf("%s:%d deleting %d\n", __FILE__, __LINE__, pkey_0);
     DBT pkey;
     memset(&pkey, 0, sizeof(pkey));
     {
@@ -273,12 +251,9 @@ static void delete_oldest_expired (void) {
     }
     {
 	unsigned char buf[8];
-	unsigned int pkey_0 = 2053999932;
-	unsigned int pkey_1 = 1;
 	((int*)buf)[0] = htonl(pkey_0);
-	((int*)buf)[1] = htonl(pkey_1);
 	pkey.data = buf;
-	pkey.size = 8;
+	pkey.size = 4;
     }
     r = dbp->del(dbp, null_txn, &pkey, 0);   CKERR(r);
 }
@@ -287,21 +262,24 @@ static void delete_oldest_expired (void) {
 static void step_name (void) {
     int r;
     if (name_cursor==0) {
+	printf("%s:%d %d.%d namedb->cursor()\n", __FILE__, __LINE__, opnum, oppass);
 	r = namedb->cursor(namedb, null_txn, &name_cursor, 0); CKERR(r);
     }
-    r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_NEXT); // an uninitialized cursor should do a DB_FIRST.
+    r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_NEXT); // an uninitialized cursor does a DB_FIRST.
     if (r==0) {
 	cursor_count_n_items++;
+	printf("%s:%d Found %c ccount=%d\n", __FILE__, __LINE__, *(char*)nc_key.data, cursor_count_n_items);
     } else if (r==DB_NOTFOUND) {
 	// Got to the end.
-	//printf("%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
+	printf("%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
 	assert(cursor_count_n_items==calc_n_items);
 	r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_FIRST);
 	if (r==DB_NOTFOUND) {
-	    nc_key.data = realloc(nc_key.data, 1);
+	    nc_key.data = malloc(1);
 	    ((char*)nc_key.data)[0]=0;
 	    cursor_count_n_items=0;
 	} else {
+	    printf("%s:%d Found %c\n", __FILE__, __LINE__, *(char*)nc_key.data);
 	    cursor_count_n_items=1;
 	}
 	calc_n_items = count_all_items;
@@ -311,13 +289,18 @@ static void step_name (void) {
 static int cursor_load=2; /* Set this to a higher number to do more cursor work for every insertion.   Needed to get to the end. */
 
 static void activity (void) {
-    if (random()%20==0) {
+    if (oppass==1 && opnum==8) {
 	// Delete the oldest expired one.  Keep the cursor open
+	//printf("%s:%d rand20 says delete oppass==%d opnum==%d\n", __FILE__, __LINE__, oppass, opnum);
 	delete_oldest_expired();
-    } else if (random()%cursor_load==0) {
-	insert_person();
     } else {
-	step_name();
+	if ((oppass==0 && opnum==1) ||
+	    (oppass==0 && opnum==2)) {
+	    printf("%s:%d r2 says insert oppass==%d opnum==%d\n", __FILE__, __LINE__, oppass, opnum);
+	    insert_person();
+	} else {
+	    step_name();
+	}
     }
     //assert(count_all_items==count_entries(dbp));
 }
@@ -334,11 +317,11 @@ int main (int argc, const char *argv[]) {
 
     memset(&nc_key, 0, sizeof(nc_key));
     memset(&nc_data, 0, sizeof(nc_data));
-    nc_key.flags = DB_DBT_REALLOC;
-    nc_key.data = malloc(1); // Iniitalize it.
+    nc_key.flags = DB_DBT_MALLOC;
+    nc_key.data = malloc(1); // Initalize it.
     ((char*)nc_key.data)[0]=0;
-    nc_data.flags = DB_DBT_REALLOC;
-    nc_data.data = malloc(1); // Iniitalize it.
+    nc_data.flags = DB_DBT_MALLOC;
+    nc_data.data = malloc(1); // Initalize it.
 
 
     mode = MODE_DEFAULT;
@@ -357,28 +340,31 @@ int main (int argc, const char *argv[]) {
 
     switch (mode) {
     case MODE_DEFAULT:
+	opnum=0;
 	system("rm -rf " DIR);
 	mkdir(DIR, 0777); 
 	create_databases();
 	{
 	    int i;
 	    for (i=0; i<3; i++) {
+		opnum=i;
 		if (i==100) srandom(useseed);
 		activity();
 	    }
 	}
 	break;
     case MODE_MORE:
+	oppass=1;
 	create_databases();
-	calc_n_items = count_all_items = count_entries(dbp);
-	//printf("%s:%d n_items initially=%d\n", __FILE__, __LINE__, count_all_items);
+	calc_n_items = count_all_items = 2;//count_entries(dbp);
 	{
 	    const int n_activities = 10;
 	    int i;
 	    cursor_load = 8*(1+2*count_all_items/n_activities);
 	    printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
 	    for (i=0; i<n_activities; i++) {
-		printf("%d.", i);
+		opnum=i;
+		printf("%d:\n", i);
 		activity();
 	    }
 	}
