@@ -2257,4 +2257,51 @@ DROP TRIGGER IF EXISTS trg;
 --error ER_TRG_DOES_NOT_EXIST
 SHOW CREATE TRIGGER trg;
 
+#
+# Bug#23713 LOCK TABLES + CREATE TRIGGER + FLUSH TABLES WITH READ LOCK = deadlock
+#
+# Test of trigger creation and removal under LOCK TABLES
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (i int, j int);
+
+create trigger t1_bi before insert on t1 for each row begin end;
+--error ER_NOT_SUPPORTED_YET
+create trigger t1_bi before insert on t1 for each row begin end;
+drop trigger t1_bi;
+--error ER_TRG_DOES_NOT_EXIST
+drop trigger t1_bi;
+
+lock tables t1 read;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+create trigger t1_bi before insert on t1 for each row begin end;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+create trigger t1_bi before insert on t1 for each row begin end;
+--error ER_TRG_DOES_NOT_EXIST
+drop trigger t1_bi;
+unlock tables;
+
+create trigger t1_bi before insert on t1 for each row begin end;
+lock tables t1 read;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+create trigger t1_bi before insert on t1 for each row begin end;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+drop trigger t1_bi;
+unlock tables;
+drop trigger t1_bi;
+
+lock tables t1 write;
+create trigger b1_bi before insert on t1 for each row set new.i = new.i + 10;
+insert into t1 values (10, 10);
+drop trigger b1_bi;
+insert into t1 values (10, 10);
+select * from t1;
+unlock tables;
+
+drop table t1;
+
 --echo End of 5.1 tests.

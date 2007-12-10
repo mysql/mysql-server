@@ -1521,6 +1521,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       built_query.append("DROP TABLE ");
   }
 
+  mysql_ha_rm_tables(thd, tables, FALSE);
+
   pthread_mutex_lock(&LOCK_open);
 
   /*
@@ -1556,9 +1558,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   /* Don't give warnings for not found errors, as we already generate notes */
   thd->no_warnings_for_error= 1;
 
-  /* Remove the tables from the HANDLER list, if they are in it. */
-  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL, 1);
-
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
@@ -1577,13 +1576,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       tmp_table_deleted= 1;
       continue;
     case -1:
-      // table already in use
-      /*
-        XXX: This branch should never be taken outside of SF, trigger or
-             prelocked mode.
-
-        DBUG_ASSERT(thd->in_sub_stmt);
-      */
+      DBUG_ASSERT(thd->in_sub_stmt);
       error= 1;
       goto err_with_placeholders;
     default:
@@ -1805,7 +1798,8 @@ bool quick_rm_table(handlerton *base,const char *db,
 /*
   Sort keys in the following order:
   - PRIMARY KEY
-  - UNIQUE keyws where all column are NOT NULL
+  - UNIQUE keys where all column are NOT NULL
+  - UNIQUE keys that don't contain partial segments
   - Other UNIQUE keys
   - Normal keys
   - Fulltext keys
@@ -1816,26 +1810,31 @@ bool quick_rm_table(handlerton *base,const char *db,
 
 static int sort_keys(KEY *a, KEY *b)
 {
-  if (a->flags & HA_NOSAME)
+  ulong a_flags= a->flags, b_flags= b->flags;
+  
+  if (a_flags & HA_NOSAME)
   {
-    if (!(b->flags & HA_NOSAME))
+    if (!(b_flags & HA_NOSAME))
       return -1;
-    if ((a->flags ^ b->flags) & (HA_NULL_PART_KEY | HA_END_SPACE_KEY))
+    if ((a_flags ^ b_flags) & (HA_NULL_PART_KEY | HA_END_SPACE_KEY))
     {
       /* Sort NOT NULL keys before other keys */
-      return (a->flags & (HA_NULL_PART_KEY | HA_END_SPACE_KEY)) ? 1 : -1;
+      return (a_flags & (HA_NULL_PART_KEY | HA_END_SPACE_KEY)) ? 1 : -1;
     }
     if (a->name == primary_key_name)
       return -1;
     if (b->name == primary_key_name)
       return 1;
+    /* Sort keys don't containing partial segments before others */
+    if ((a_flags ^ b_flags) & HA_KEY_HAS_PART_KEY_SEG)
+      return (a_flags & HA_KEY_HAS_PART_KEY_SEG) ? 1 : -1;
   }
-  else if (b->flags & HA_NOSAME)
+  else if (b_flags & HA_NOSAME)
     return 1;					// Prefer b
 
-  if ((a->flags ^ b->flags) & HA_FULLTEXT)
+  if ((a_flags ^ b_flags) & HA_FULLTEXT)
   {
-    return (a->flags & HA_FULLTEXT) ? 1 : -1;
+    return (a_flags & HA_FULLTEXT) ? 1 : -1;
   }
   /*
     Prefer original key order.	usable_key_parts contains here
@@ -2899,6 +2898,10 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	  key_info->flags|= HA_PACK_KEY;
       }
+      /* Check if the key segment is partial, set the key flag accordingly */
+      if (length != sql_field->key_length)
+        key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+
       key_length+=length;
       key_part_info++;
 
@@ -2954,8 +2957,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(TRUE);
   }
   /* Sort keys in optimized order */
-  qsort((uchar*) *key_info_buffer, *key_count, sizeof(KEY),
-	(qsort_cmp) sort_keys);
+  my_qsort((uchar*) *key_info_buffer, *key_count, sizeof(KEY),
+	   (qsort_cmp) sort_keys);
   create_info->null_bits= null_fields;
 
   DBUG_RETURN(FALSE);
@@ -3712,13 +3715,15 @@ mysql_rename_table(handlerton *base, const char *old_db,
     Win32 clients must also have a WRITE LOCK on the table !
 */
 
-static void wait_while_table_is_used(THD *thd,TABLE *table,
-				     enum ha_extra_function function)
+void wait_while_table_is_used(THD *thd, TABLE *table,
+                              enum ha_extra_function function)
 {
   DBUG_ENTER("wait_while_table_is_used");
   DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %lu",
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
+
+  safe_mutex_assert_owner(&LOCK_open);
 
   VOID(table->file->extra(function));
   /* Mark all tables that are in use as 'old' */
@@ -4038,7 +4043,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL, FALSE);
+  mysql_ha_rm_tables(thd, tables, FALSE);
+
   for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
@@ -5801,8 +5807,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   build_table_filename(reg_path, sizeof(reg_path), db, table_name, reg_ext, 0);
   build_table_filename(path, sizeof(path), db, table_name, "", 0);
 
-
-  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL, FALSE);
+  mysql_ha_rm_tables(thd, table_list, FALSE);
 
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
@@ -6884,23 +6889,35 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   if (order)
   {
-    from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
-					      MYF(MY_FAE | MY_ZEROFILL));
-    bzero((char*) &tables,sizeof(tables));
-    tables.table= from;
-    tables.alias= tables.table_name= from->s->table_name.str;
-    tables.db=    from->s->db.str;
-    error=1;
+    if (to->s->primary_key != MAX_KEY && to->file->primary_key_is_clustered())
+    {
+      char warn_buff[MYSQL_ERRMSG_SIZE];
+      my_snprintf(warn_buff, sizeof(warn_buff), 
+                  "ORDER BY ignored as there is a user-defined clustered index"
+                  " in the table '%-.192s'", from->s->table_name.str);
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                   warn_buff);
+    }
+    else
+    {
+      from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+                                                MYF(MY_FAE | MY_ZEROFILL));
+      bzero((char *) &tables, sizeof(tables));
+      tables.table= from;
+      tables.alias= tables.table_name= from->s->table_name.str;
+      tables.db= from->s->db.str;
+      error= 1;
 
-    if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
-	setup_order(thd, thd->lex->select_lex.ref_pointer_array,
-		    &tables, fields, all_fields, order) ||
-	!(sortorder=make_unireg_sortorder(order, &length, NULL)) ||
-	(from->sort.found_records = filesort(thd, from, sortorder, length,
-					     (SQL_SELECT *) 0, HA_POS_ERROR, 1,
-					     &examined_rows)) ==
-	HA_POS_ERROR)
-      goto err;
+      if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
+          setup_order(thd, thd->lex->select_lex.ref_pointer_array,
+                      &tables, fields, all_fields, order) ||
+          !(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
+          (from->sort.found_records= filesort(thd, from, sortorder, length,
+                                              (SQL_SELECT *) 0, HA_POS_ERROR,
+                                              1, &examined_rows)) ==
+          HA_POS_ERROR)
+        goto err;
+    }
   };
 
   /* Tell handler that we have values for all columns in the to table */

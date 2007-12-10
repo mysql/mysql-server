@@ -51,13 +51,15 @@ char *longlong2str(longlong val,char *dst,int radix)
   char buffer[65];
   register char *p;
   long long_val;
+  ulonglong uval= (ulonglong) val;
 
   if (radix < 0)
   {
     if (radix < -36 || radix > -2) return (char*) 0;
     if (val < 0) {
       *dst++ = '-';
-      val = -val;
+      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      uval = (ulonglong)0 - uval;
     }
     radix = -radix;
   }
@@ -65,7 +67,7 @@ char *longlong2str(longlong val,char *dst,int radix)
   {
     if (radix > 36 || radix < 2) return (char*) 0;
   }
-  if (val == 0)
+  if (uval == 0)
   {
     *dst++='0';
     *dst='\0';
@@ -74,14 +76,14 @@ char *longlong2str(longlong val,char *dst,int radix)
   p = &buffer[sizeof(buffer)-1];
   *p = '\0';
 
-  while ((ulonglong) val > (ulonglong) LONG_MAX)
+  while (uval > (ulonglong) LONG_MAX)
   {
-    ulonglong quo=(ulonglong) val/(uint) radix;
-    uint rem= (uint) (val- quo* (uint) radix);
+    ulonglong quo= uval/(uint) radix;
+    uint rem= (uint) (uval- quo* (uint) radix);
     *--p = _dig_vec_upper[rem];
-    val= quo;
+    uval= quo;
   }
-  long_val= (long) val;
+  long_val= (long) uval;
   while (long_val != 0)
   {
     long quo= long_val/radix;
@@ -100,17 +102,19 @@ char *longlong10_to_str(longlong val,char *dst,int radix)
   char buffer[65];
   register char *p;
   long long_val;
+  ulonglong uval= (ulonglong) val;
 
   if (radix < 0)
   {
     if (val < 0)
     {
       *dst++ = '-';
-      val = -val;
+      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      uval = (ulonglong)0 - uval;
     }
   }
 
-  if (val == 0)
+  if (uval == 0)
   {
     *dst++='0';
     *dst='\0';
@@ -119,14 +123,14 @@ char *longlong10_to_str(longlong val,char *dst,int radix)
   p = &buffer[sizeof(buffer)-1];
   *p = '\0';
 
-  while ((ulonglong) val > (ulonglong) LONG_MAX)
+  while (uval > (ulonglong) LONG_MAX)
   {
-    ulonglong quo=(ulonglong) val/(uint) 10;
-    uint rem= (uint) (val- quo* (uint) 10);
+    ulonglong quo= uval/(uint) 10;
+    uint rem= (uint) (uval- quo* (uint) 10);
     *--p = _dig_vec_upper[rem];
-    val= quo;
+    uval= quo;
   }
-  long_val= (long) val;
+  long_val= (long) uval;
   while (long_val != 0)
   {
     long quo= long_val/10;

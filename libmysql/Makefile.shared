@@ -73,7 +73,7 @@ sqlobjects =		net.lo
 sql_cmn_objects =	pack.lo client.lo my_time.lo
 
 # Not needed in the minimum library
-mysysobjects2 =		my_lib.lo
+mysysobjects2 =		my_lib.lo mf_qsort.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
 target_libadd =		$(mysysobjects) $(mystringsobjects) $(dbugobjects) \
  $(sql_cmn_objects) $(vio_objects) $(sqlobjects)
