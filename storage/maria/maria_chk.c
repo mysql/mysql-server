@@ -41,6 +41,7 @@ static const char *set_collation_name, *opt_tmpdir;
 static CHARSET_INFO *set_collation;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
+static my_bool opt_transaction_logging;
 
 static const char *type_names[]=
 {
@@ -93,6 +94,7 @@ int main(int argc, char **argv)
   int error;
   MY_INIT(argv[0]);
 
+  maria_data_root= ".";
   maria_chk_init(&check_param);
   check_param.opt_lock_memory= 1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;
@@ -100,6 +102,26 @@ int main(int argc, char **argv)
   maria_quick_table_bits=decode_bits;
   error=0;
   maria_init();
+
+  /*
+    If we are doing a repair and we have requested logging (on by default),
+    enable transaction log handling.
+  */
+  if (opt_transaction_logging && (check_param.testflag & T_REP_ANY) &&
+      (ma_control_file_create_or_open() ||
+       init_pagecache(maria_log_pagecache,
+                      TRANSLOG_PAGECACHE_SIZE, 0, 0,
+                      TRANSLOG_PAGE_SIZE, MY_WME) == 0 ||
+       translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+                     0, 0, maria_log_pagecache,
+                     TRANSLOG_DEFAULT_FLAGS)))
+  {
+    _ma_check_print_error(&check_param,
+                          "Can't initialize transaction logging. Run "
+                          "recovery with switch --skip-transaction-log");
+    error= 1;
+    argc= 1;                                    /* Force loop out */
+  }
 
   while (--argc >= 0)
   {
@@ -157,7 +179,7 @@ enum options_mc {
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
-  OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD
+  OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG
 };
 
 static struct my_option my_long_options[] =
@@ -279,6 +301,10 @@ static struct my_option my_long_options[] =
    "Path for temporary files.",
    (uchar**) &opt_tmpdir,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"transaction-log", OPT_TRANSACTION_LOG,
+   "Log repair command to transaction log",
+   (uchar**) &opt_transaction_logging, (uchar**) &opt_transaction_logging,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
    "Mark tables as crashed if any errors were found.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -288,13 +314,12 @@ static struct my_option my_long_options[] =
   {"verbose", 'v',
    "Print more information. This can be used with --description and --check. Use many -v for more verbosity!",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"version", 'V',
-   "Print version and exit.",
+  {"version", 'V', "Print version and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"wait", 'w',
-   "Wait if table is locked.",
+  {"wait", 'w', "Wait if table is locked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "page_buffer_size", OPT_PAGE_BUFFER_SIZE, "",
+  { "page_buffer_size", OPT_PAGE_BUFFER_SIZE,
+    "Size of page buffer. Used by --safe-repair",
     (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) USE_BUFFER_INIT,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
@@ -308,7 +333,8 @@ static struct my_option my_long_options[] =
     (uchar**) &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
-  { "sort_buffer_size", OPT_SORT_BUFFER_SIZE, "",
+  { "sort_buffer_size", OPT_SORT_BUFFER_SIZE,
+    "Size of sort buffer. Used by --recover",
     (uchar**) &check_param.sort_buffer_length,
     (uchar**) &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
@@ -403,7 +429,7 @@ static void usage(void)
   -U  --update-state  Mark tables as crashed if you find any errors.\n\
   -T, --read-only     Don't mark table as checked.\n");
 
-  puts("Repair options (When using '-r' or '-o'):\n\
+  puts("Recover (repair)/ options (When using '-r' or '-o'):\n\
   -B, --backup	      Make a backup of the .MYD file as 'filename-time.BAK'.\n\
   --correct-checksum  Correct checksum information for table.\n\
   -D, --data-file-length=#  Max length of data file (when recreating data\n\
@@ -428,6 +454,9 @@ static void usage(void)
   -o, --safe-recover  Uses old recovery method; Slower than '-r' but can\n\
 		      handle a couple of cases where '-r' reports that it\n\
 		      can't fix the data file.\n\
+  --transaction-log   Log repair command to transaction log. This is needed\n\
+                      if one wants to use the maria_read_log to repeat the \n\
+                      repair\n\
   --character-sets-dir=...\n\
                       Directory where character sets are.\n\
   --set-collation=name\n\

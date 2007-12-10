@@ -132,6 +132,7 @@ run_repair_tests()
   row_type=$1
   $maria_path/ma_test1$suffix $silent --checksum $row_type
   $maria_path/maria_chk$suffix -se test1
+  $maria_path/maria_chk$suffix --silent -re --transaction-log test1
   $maria_path/maria_chk$suffix -rs test1
   $maria_path/maria_chk$suffix -se test1
   $maria_path/maria_chk$suffix -rqs test1
