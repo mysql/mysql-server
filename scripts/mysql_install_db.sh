@@ -378,7 +378,7 @@ fi
 
 # Don't output verbose information if running inside bootstrap or using
 # --srcdir for testing.
-if test "$windows" -eq 0 && test -z "$srcdir"
+if test "$cross_bootstrap" -eq 0 && test -z "$srcdir"
 then
   s_echo
   s_echo "To start mysqld at boot time you have to copy"
