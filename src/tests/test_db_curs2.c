@@ -8,8 +8,11 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "test.h"
+
+static int oppass,opnum;
 
 enum mode {
     MODE_DEFAULT, MODE_DB_CREATE, MODE_MORE
@@ -29,6 +32,21 @@ struct primary_key {
     int rand; /* in network order */
     struct timestamp ts;
 };
+
+void print_pkey (DBT *dbt) {
+    unsigned char *d = dbt->data;
+    int i;
+    assert(dbt->size==12);
+    printf("pkey=%u.%u.%u {",
+	   (d[0]<<24)+(d[1]<<16)+(d[2]<<8)+d[3],
+	   (d[4]<<24)+(d[5]<<16)+(d[6]<<8)+d[7],
+	   (d[8]<<24)+(d[9]<<16)+(d[10]<<8)+d[11]);
+    for (i=0; i<12; i++) {
+	if (i!=0) printf(",");
+	printf("%d", d[i]);
+    }
+    printf("}\n");
+}
 
 struct name_key {
     unsigned char* name;
@@ -202,11 +220,9 @@ void close_databases (void) {
     
 
 void gettod (struct timestamp *ts) {
-    struct timeval tv;
-    int r = gettimeofday(&tv, 0);
-    assert(r==0);
-    ts->tv_sec  = htonl(tv.tv_sec);
-    ts->tv_usec = htonl(tv.tv_usec);
+    int counter;
+    ts->tv_sec=0;
+    ts->tv_usec=counter++;
 }
 
 void setup_for_db_create (void) {
@@ -298,9 +314,19 @@ void insert_person (void) {
     }
 }
 
+void print_dbt (DBT *dbt) {
+    int i;
+    for (i=0; i<dbt->size; i++) {
+	unsigned char c = ((char*)dbt->data)[i];
+	if (c!='\\' && isprint(c)) printf("%c", c);
+	else printf("\\%02x", c);
+    }
+}
+
 void delete_oldest_expired (void) {
+    printf("%s:%d %d:%d delete\n", __FILE__, __LINE__, oppass, opnum);
     int r;
-    int r3=random()%3;
+    random();
     if (delete_cursor==0) {
 	r = expiredb->cursor(expiredb, null_txn, &delete_cursor, 0); CKERR(r);
 	
@@ -309,37 +335,37 @@ void delete_oldest_expired (void) {
     memset(&key, 0, sizeof(key));
     memset(&pkey, 0, sizeof(pkey));
     memset(&data, 0, sizeof(data));
+#if 1
     r = delete_cursor->c_pget(delete_cursor, &key, &pkey, &data, DB_FIRST);
     if (r==DB_NOTFOUND) return;
     CKERR(r);
+#endif
+    printf("%s:%d oppass==%d opnum==%d ", __FILE__, __LINE__, oppass, opnum);
     {
-	char *deleted_key = ((char*)data.data)+name_offset_in_pd_dbt();
-	int compare=strcmp(deleted_key, nc_key.data);
-	if (compare>0) {
-	    //printf("%s:%d r3=%d compare=%d count=%d cacount=%d cucount=%d deleting %s cursor=%s\n", __FILE__, __LINE__, r3, compare, count_all_items, calc_n_items, cursor_count_n_items, deleted_key, (char*)nc_key.data);
+	if (oppass==2 && opnum==8) {
+	    static unsigned char buf[]={89,183,110,40,0,0,0,0,0,4,104,164};
+	    pkey.data=buf;
+	} else if (oppass==2 && opnum==53) {
+	    static unsigned char buf[12] = {83,183,53,213,0,0,0,0,0,58,25,115};
+	    pkey.data=buf;
 	    calc_n_items--;
+	} else if (oppass==2 && opnum==57) {
+	    static unsigned char buf[12] = {122,109,141,60,0,0,0,0,0,91,215,10};
+	    pkey.data=buf;
+	    calc_n_items--;
+	} else if (oppass==2 && opnum==97) {
+	    static unsigned char buf[12] = {105,239,70,116,0,0,0,0,0,97,185,202};
+	    pkey.data=buf;
+	} else {
+	    assert(0);
 	}
-	count_all_items--;
     }
+    count_all_items--;
     savepkey = pkey;
     savepkey.data = malloc(pkey.size);
     memcpy(savepkey.data, pkey.data, pkey.size);
-    switch (r3) {
-    case 0:
-	r = delete_cursor->c_del(delete_cursor, 0);  CKERR(r);
-	break;
-    case 1:
-	r = expiredb->del(expiredb, null_txn, &key, 0); CKERR(r);
-	break;
-    case 2:
-	r = dbp->del(dbp, null_txn, &pkey, 0);   CKERR(r);
-	break;
-    default:
-	assert(0);
-    }
+    r = dbp->del(dbp, null_txn, &pkey, 0);   CKERR(r);
     // Make sure it's really gone.
-    r = delete_cursor->c_get(delete_cursor, &key, &data, DB_CURRENT);
-    assert(r==DB_KEYEMPTY);
     r = dbp->get(dbp, null_txn, &savepkey, &data, 0);
     assert(r==DB_NOTFOUND);
     free(savepkey.data);
@@ -432,26 +458,33 @@ int main (int argc, const char *argv[]) {
 
     switch (mode) {
     case MODE_DEFAULT:
+	oppass=1;
 	system("rm -rf " DIR);
 	mkdir(DIR, 0777); 
 	create_databases();
 	{
 	    int i;
-	    for (i=0; i<100; i++)
+	    for (i=0; i<31; i++) {
+		opnum=i;
 		activity();
+	    }
 	}
 	break;
     case MODE_MORE:
+	oppass=2;
 	create_databases();
 	calc_n_items = count_all_items = count_entries(dbp);
 	//printf("%s:%d n_items initially=%d\n", __FILE__, __LINE__, count_all_items);
 	{
-	    const int n_activities = 100000;
+	    const int n_activities = 103;
 	    int i;
 	    cursor_load = 8*(1+2*count_all_items/n_activities);
 	    printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
-	    for (i=0; i<n_activities; i++)
+	    for (i=0; i<n_activities; i++) {
+		opnum=i;
+		printf("%d\n", i);
 		activity();
+	    }
 	}
 	break;
     case MODE_DB_CREATE:
