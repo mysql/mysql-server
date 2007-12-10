@@ -447,6 +447,7 @@ Do not use its fields directly! The structure used in the spin lock
 implementation of a mutual exclusion semaphore. */
 
 struct mutex_struct {
+	os_event_t	event;	/* Used by sync0arr.c for the wait queue */
 	ulint	lock_word;	/* This ulint is the target of the atomic
 				test-and-set instruction in Win32 */
 #if !defined(_WIN32) || !defined(UNIV_CAN_USE_X86_ASSEMBLER)
