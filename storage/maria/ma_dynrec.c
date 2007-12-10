@@ -932,7 +932,8 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
 	  flag|=bit;
 	else
 	{
-	  memcpy((uchar*) to,from,(size_t) length); to+=length;
+          memcpy((uchar*) to,from,(size_t) length);
+          to+=length;
 	}
       }
       else if (type == FIELD_SKIP_ENDSPACE ||
@@ -1671,7 +1672,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
   uint left_len,b_type;
   uchar *to;
   MARIA_BLOCK_INFO block_info;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_read_rnd_dynamic_record");
 
   info_read=0;
@@ -1801,7 +1802,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
 	if (my_read(info->dfile.file, (uchar*)to, block_info.data_len,
                     MYF(MY_NABP)))
 	{
-	  if (my_errno == -1)
+	  if (my_errno == HA_ERR_FILE_TOO_SHORT)
 	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */
 	  goto err;
 	}

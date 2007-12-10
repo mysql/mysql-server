@@ -212,7 +212,7 @@
   to handle DROP COLUMN, we must store in the index header the fields
   that has been dropped. When unpacking a row we will ignore dropped
   fields. When storing a row, we will mark a dropped field either with a
- null in the null bit map or in the empty_bits and not store any data
+  null in the null bit map or in the empty_bits and not store any data
   for it.
   TODO: Add code for handling dropped fields.
 
@@ -5006,7 +5006,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   DBUG_ENTER("_ma_apply_redo_insert_row_head_or_tail");
 
   page=  page_korr(header);
-  rownr= dirpos_korr(header+PAGE_STORE_SIZE);
+  rownr= dirpos_korr(header + PAGE_STORE_SIZE);
 
   DBUG_PRINT("enter", ("rowid: %lu  page: %lu  rownr: %u  data_length: %u",
                        (ulong) ma_recordpos(page, rownr),
@@ -5040,13 +5040,17 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   }
   else
   {
-    if (!(buff= pagecache_read(share->pagecache, &info->dfile,
-                               page, 0, 0,
-                               PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
-                               &page_link.link)))
+    share->pagecache->readwrite_flags&= ~MY_WME;
+    buff= pagecache_read(share->pagecache, &info->dfile,
+                         page, 0, 0,
+                         PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
+                         &page_link.link);
+    share->pagecache->readwrite_flags= share->pagecache->org_readwrite_flags;
+    if (!buff)
     {
-      if (my_errno != -1)        /* If not read outside of file */
+      if (my_errno != HA_ERR_FILE_TOO_SHORT)
       {
+        /* If not read outside of file */
         pagecache_unlock_by_link(share->pagecache, page_link.link,
                                  PAGECACHE_LOCK_WRITE_UNLOCK,
                                  PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
@@ -5481,14 +5485,19 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
         }
         else
         {
-          if (!(buff= pagecache_read(share->pagecache,
-                                     &info->dfile,
-                                     page, 0, 0,
-                                     PAGECACHE_PLAIN_PAGE,
-                                     PAGECACHE_LOCK_WRITE, &page_link.link)))
+          share->pagecache->readwrite_flags&= ~MY_WME;
+          buff= pagecache_read(share->pagecache,
+                               &info->dfile,
+                               page, 0, 0,
+                               PAGECACHE_PLAIN_PAGE,
+                               PAGECACHE_LOCK_WRITE, &page_link.link);
+          share->pagecache->readwrite_flags= share->pagecache->
+            org_readwrite_flags;
+          if (!buff)
           {
-            if (my_errno != -1)        /* If not read outside of file */
+            if (my_errno != HA_ERR_FILE_TOO_SHORT)
             {
+              /* If not read outside of file */
               pagecache_unlock_by_link(share->pagecache, page_link.link,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,

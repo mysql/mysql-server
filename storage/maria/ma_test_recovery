@@ -1,5 +1,6 @@
 #!/bin/sh
 
+#set -x -v 
 set -e
 silent="-s"
 if [ -z "$maria_path" ]
@@ -121,7 +122,7 @@ for take_checkpoint in "no" "yes"
 do
 for blobs in "" "-b" # we test table without blobs and then table with blobs
 do
-  for test_undo in 1 2 3
+  for test_undo in 1 2 3 4
   do
   # first iteration tests rollback of insert, second tests rollback of delete
   set -- "ma_test1 $silent -M -T -c -N $blobs -H1" "--testflag=1" "--testflag=2 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2" "--testflag=3" "--testflag=4 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2 " "--testflag=2" "--testflag=3 --test-undo=" "ma_test2 $silent -L -K -W -P -M -T -c $blobs -H1" "-t1" "-t2 -u"
@@ -154,7 +155,7 @@ do
     rm -f $tmp/maria_log.* $tmp/maria_log_control
     cp $maria_path/maria_log* $tmp
 
-    if [ $test_undo -lt 3 ]
+    if [ "$test_undo" != "3" ]
         then
         apply_log "shouldchangelog" # should undo aborted work
         else

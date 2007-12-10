@@ -626,7 +626,8 @@ static const char *handler_error_messages[]=
   "Record is the same",
   "It is not possible to log this statement",
   "The table is of a new format not supported by this version",
-  "Got a fatal error during initialzaction of handler"
+  "Got a fatal error during initialzaction of handler",
+  "File to short; Expected more data in file"
 };
 
 

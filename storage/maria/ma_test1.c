@@ -76,11 +76,11 @@ int main(int argc,char *argv[])
   /* Maria requires that we always have a page cache */
   if (maria_init() ||
       (init_pagecache(maria_pagecache, maria_block_size * 16, 0, 0,
-                      maria_block_size) == 0) ||
+                      maria_block_size, MY_WME) == 0) ||
       ma_control_file_create_or_open() ||
       (init_pagecache(maria_log_pagecache,
                       TRANSLOG_PAGECACHE_SIZE, 0, 0,
-                      TRANSLOG_PAGE_SIZE) == 0) ||
+                      TRANSLOG_PAGE_SIZE, MY_WME) == 0) ||
       translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                     0, 0, maria_log_pagecache,
                     TRANSLOG_DEFAULT_FLAGS) ||
@@ -452,8 +452,8 @@ end:
         Flush changed pages go to disk. That will also flush log. Recovery
         will skip REDOs and apply UNDOs.
       */
-      _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
-                            FLUSH_RELEASE);
+      _ma_flush_table_files(file, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                            FLUSH_RELEASE, FLUSH_RELEASE);
       break;
     case 2:
       /*
@@ -468,6 +468,20 @@ end:
         Flush nothing. Pages and log are likely to not be on disk. Recovery
         will then do nothing.
       */
+      break;
+    case 4:
+      /*
+        Flush changed data pages go to disk. Changed index pages are not
+        flushed. Recovery will skip some REDOs and apply UNDOs.
+      */
+      _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
+                            FLUSH_RELEASE);
+      /*
+        We have to flush log separately as the redo for the last key page
+        may not be flushed
+      */
+      if (translog_flush(file->trn->undo_lsn))
+        goto err;
       break;
     }
     printf("Dying on request without maria_commit()/maria_close()\n");
@@ -840,7 +854,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     printf("test1 Ver 1.2 \n");
     exit(0);
   case '#':
-    DBUG_PUSH (argument);
+    DBUG_PUSH(argument);
     break;
   case '?':
     usage();

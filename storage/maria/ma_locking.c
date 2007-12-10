@@ -28,7 +28,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 {
   int error;
   uint count;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_lock_database");
   DBUG_PRINT("enter",("lock_type: %d  old lock %d  r_locks: %u  w_locks: %u "
                       "global_changed:  %d  open_count: %u  name: '%s'",
@@ -383,14 +383,14 @@ int _ma_readinfo(register MARIA_HA *info __attribute__ ((unused)),
 
   if (info->lock_type == F_UNLCK)
   {
-    MARIA_SHARE *share=info->s;
+    MARIA_SHARE *share= info->s;
     if (!share->tot_locks)
     {
       /* should not be done for transactional tables */
       if (_ma_state_info_read_dsk(share->kfile.file, &share->state))
       {
-	int error=my_errno ? my_errno : -1;
-	my_errno=error;
+        if (!my_errno)
+          my_errno= HA_ERR_FILE_TOO_SHORT;
 	DBUG_RETURN(1);
       }
     }
@@ -471,7 +471,7 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
 int _ma_test_if_changed(register MARIA_HA *info)
 {
 #ifdef EXTERNAL_LOCKING
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   if (share->state.process != share->last_process ||
       share->state.unique  != info->last_unique ||
       share->state.update_count != info->last_loop)
@@ -518,7 +518,7 @@ int _ma_test_if_changed(register MARIA_HA *info)
 int _ma_mark_file_changed(MARIA_HA *info)
 {
   uchar buff[3];
-  register MARIA_SHARE *share=info->s;
+  register MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_mark_file_changed");
 
   if (!(share->state.changed & STATE_CHANGED) || ! share->global_changed)
@@ -556,7 +556,7 @@ int _ma_mark_file_changed(MARIA_HA *info)
 int _ma_decrement_open_count(MARIA_HA *info)
 {
   uchar buff[2];
-  register MARIA_SHARE *share=info->s;
+  register MARIA_SHARE *share= info->s;
   int lock_error=0,write_error=0;
   if (share->global_changed)
   {

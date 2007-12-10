@@ -81,6 +81,17 @@ TYPELIB maria_stats_method_typelib=
   maria_stats_method_names, NULL
 };
 
+const char *maria_sync_log_dir_names[]=
+{
+  "NEVER", "NEWFILE", "ALWAYS", NullS
+};
+
+TYPELIB maria_sync_log_dir_typelib=
+{
+  array_elements(maria_sync_log_dir_names) - 1, "",
+  maria_sync_log_dir_names, NULL
+};
+
 /** @brief Interval between background checkpoints in seconds */
 static ulong checkpoint_interval;
 static void update_checkpoint_interval(MYSQL_THD thd,
@@ -139,6 +150,12 @@ static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,
        "Specifies how maria index statistics collection code should threat "
        "NULLs. Possible values of name are \"nulls_unequal\", \"nulls_equal\", "
        "and \"nulls_ignored\".", 0, 0, 0, &maria_stats_method_typelib);
+
+static MYSQL_SYSVAR_ENUM(sync_log_dir, sync_log_dir, PLUGIN_VAR_RQCMDARG,
+       "Controls syncing directory after log file growth and new file "
+       "creation. Possible values of are \"never\", \"newfile\" and "
+       "\"always\")", NULL, NULL, TRANSLOG_SYNC_DIR_NEWFILE,
+       &maria_sync_log_dir_typelib);
 
 /*****************************************************************************
 ** MARIA tables
@@ -1211,7 +1228,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ?
                         maria_get_mask_all_keys_active(share->base.keys) :
                         share->state.key_map);
-    uint testflag= param.testflag;
+    uint save_testflag= param.testflag;
     if (maria_test_if_sort_rep(file, file->state->records, key_map, 0) &&
         (local_testflag & T_REP_BY_SORT))
     {
@@ -1226,6 +1243,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
         /* TODO: respect maria_repair_threads variable */
         my_snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
         thd->proc_info= buf;
+        param.testflag|= T_REP_PARALLEL;
         error= maria_repair_parallel(&param, file, fixed_name,
                                      param.testflag & T_QUICK);
         thd->proc_info= "Repair done";          // to reset proc_info, as
@@ -1234,6 +1252,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       else
       {
         thd->proc_info= "Repair by sorting";
+        param.testflag|= T_REP_BY_SORT;
         error= maria_repair_by_sort(&param, file, fixed_name,
                                     param.testflag & T_QUICK);
       }
@@ -1241,7 +1260,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     else
     {
       thd->proc_info= "Repair with keycache";
-      param.testflag &= ~T_REP_BY_SORT;
+      param.testflag &= ~(T_REP_BY_SORT | T_REP_PARALLEL);
       error= maria_repair(&param, file, fixed_name, param.testflag & T_QUICK);
       /**
          @todo RECOVERY BUG we do things with the index file
@@ -1249,7 +1268,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
          record and bumped create_rename_lsn. Is it ok?
       */
     }
-    param.testflag= testflag;
+    param.testflag= save_testflag;
     optimize_done= 1;
   }
   if (!error)
@@ -2410,13 +2429,14 @@ static int ha_maria_init(void *p)
   maria_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   bzero(maria_log_pagecache, sizeof(*maria_log_pagecache));
   maria_data_root= mysql_real_data_home;
+  maria_tmpdir= &mysql_tmpdir_list;             /* For REDO */
   res= maria_init() || ma_control_file_create_or_open() ||
-    (init_pagecache(maria_pagecache,
+    !init_pagecache(maria_pagecache,
                     pagecache_buffer_size, pagecache_division_limit,
-                    pagecache_age_threshold, MARIA_KEY_BLOCK_LENGTH) == 0) ||
-    (init_pagecache(maria_log_pagecache,
+                    pagecache_age_threshold, MARIA_KEY_BLOCK_LENGTH, 0) ||
+    !init_pagecache(maria_log_pagecache,
                     TRANSLOG_PAGECACHE_SIZE, 0, 0,
-                    TRANSLOG_PAGE_SIZE) == 0) ||
+                    TRANSLOG_PAGE_SIZE, 0) ||
     translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                   MYSQL_VERSION_ID, server_id, maria_log_pagecache,
                   TRANSLOG_DEFAULT_FLAGS) ||
@@ -2512,6 +2532,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(repair_threads),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(stats_method),
+  MYSQL_SYSVAR(sync_log_dir),
   NULL
 };
 

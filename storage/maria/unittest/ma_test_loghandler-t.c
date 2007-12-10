@@ -5,6 +5,7 @@
 #include "../trnman.h"
 
 extern my_bool maria_log_remove();
+extern void example_loghandler_init();
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
@@ -170,7 +171,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
-                             TRANSLOG_PAGE_SIZE)) == 0)
+                             TRANSLOG_PAGE_SIZE, 0)) == 0)
   {
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
@@ -373,7 +374,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     read_ok(&rec);
     translog_free_record_header(&rec);
     lsn= first_lsn;
-    if (translog_init_scanner(first_lsn, 1, &scanner, 0))
+    if (translog_scanner_init(first_lsn, 1, &scanner, 0))
     {
       fprintf(stderr, "scanner init failed\n");
       goto err;

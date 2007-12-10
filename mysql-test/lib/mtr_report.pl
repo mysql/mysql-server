@@ -216,7 +216,7 @@ sub mtr_report_stats ($) {
   # the "var/log/*.err" files. We save this info in "var/log/warnings"
   # ----------------------------------------------------------------------
 
-  if ( ! $::glob_use_running_server )
+  if ( ! $::glob_use_running_server && !$::opt_extern)
   {
     # Save and report if there was any fatal warnings/errors in err logs
 

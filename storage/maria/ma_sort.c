@@ -499,7 +499,7 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
   int got_error=sort_info->got_error;
   uint i;
   MARIA_HA *info=sort_info->info;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   MARIA_SORT_PARAM *sinfo;
   uchar *mergebuf=0;
   DBUG_ENTER("_ma_thr_write_keys");

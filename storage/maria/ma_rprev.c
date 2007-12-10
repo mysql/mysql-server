@@ -26,7 +26,7 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
 {
   int error,changed;
   register uint flag;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_rprev");
 
   if ((inx = _ma_check_index(info,inx)) < 0)

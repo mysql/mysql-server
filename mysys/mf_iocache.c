@@ -1834,7 +1834,9 @@ int end_io_cache(IO_CACHE *info)
     pthread_mutex_destroy(&info->append_buffer_lock);
 #endif
   }
+#ifdef THREAD
   info->share= 0;
+#endif
   DBUG_RETURN(error);
 } /* end_io_cache */
 

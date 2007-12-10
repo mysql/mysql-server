@@ -304,9 +304,10 @@ uint _ma_ft_make_key(MARIA_HA *info, uint keynr, uchar *keybuf, FT_WORD *wptr,
 
 uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
 {
+  MARIA_SHARE *share= info->s;
   my_off_t root;
   DYNAMIC_ARRAY *da=info->ft1_to_ft2;
-  MARIA_KEYDEF *keyinfo=&info->s->ft2_keyinfo;
+  MARIA_KEYDEF *keyinfo=&share->ft2_keyinfo;
   uchar *key_ptr= (uchar*) dynamic_array_ptr(da, 0), *end;
   uint length, key_length;
   MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
@@ -328,10 +329,10 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
   }
 
   /* creating pageful of keys */
-  bzero(info->buff, info->s->keypage_header);
-  _ma_store_keynr(info, info->buff, keynr);
-  _ma_store_page_used(info, info->buff, length + info->s->keypage_header, 0);
-  memcpy(info->buff + info->s->keypage_header, key_ptr, length);
+  bzero(info->buff, share->keypage_header);
+  _ma_store_keynr(share, info->buff, keynr);
+  _ma_store_page_used(share, info->buff, length + share->keypage_header);
+  memcpy(info->buff + share->keypage_header, key_ptr, length);
   info->keyread_buff_used= info->page_changed=1;      /* info->buff is used */
   if ((root= _ma_new(info, DFLT_INIT_HITS, &page_link)) == HA_OFFSET_ERROR ||
       _ma_write_keypage(info, keyinfo, root, page_link->write_lock,
@@ -349,8 +350,8 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
   _ma_dpointer(info, key+key_length+HA_FT_WLEN, root);
 
   DBUG_RETURN(_ma_ck_real_write_btree(info,
-                                     info->s->keyinfo+keynr,
+                                     share->keyinfo+keynr,
                                      key, 0,
-                                     &info->s->state.key_root[keynr],
+                                     &share->state.key_root[keynr],
                                      SEARCH_SAME));
 }

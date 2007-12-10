@@ -29,9 +29,13 @@ const char *default_dbug_option= "d:t:i:O,\\maria_read_log.trace";
 const char *default_dbug_option= "d:t:i:o,/tmp/maria_read_log.trace";
 #endif
 #endif /* DBUG_OFF */
-static my_bool opt_display_only, opt_apply, opt_apply_undo, opt_silent,
-  opt_check;
+static my_bool opt_display_only, opt_apply, opt_apply_undo, opt_silent;
+static my_bool opt_check;
+static const char *opt_tmpdir;
 static ulong opt_page_buffer_size;
+static ulonglong opt_start_from_lsn;
+static MY_TMPDIR maria_chk_tmpdir;
+
 
 int main(int argc, char **argv)
 {
@@ -66,7 +70,7 @@ int main(int argc, char **argv)
   /* same page cache for log and data; assumes same page size... */
   DBUG_ASSERT(maria_block_size == TRANSLOG_PAGE_SIZE);
   if (init_pagecache(maria_pagecache, opt_page_buffer_size, 0, 0,
-                     TRANSLOG_PAGE_SIZE) == 0)
+                     TRANSLOG_PAGE_SIZE, MY_WME) == 0)
   {
     fprintf(stderr, "Got error in init_pagecache() (errno: %d)\n", errno);
     goto err;
@@ -101,6 +105,19 @@ int main(int argc, char **argv)
   fprintf(stdout, "The transaction log starts from lsn (%lu,0x%lx)\n",
           LSN_IN_PARTS(lsn));
 
+  if (opt_start_from_lsn)
+  {
+    if (opt_start_from_lsn < (ulonglong) lsn)
+    {
+      fprintf(stderr, "start_from_lsn is too small. Aborting\n");
+      maria_end();
+      goto err;
+    }
+    lsn= (LSN) opt_start_from_lsn;
+    fprintf(stdout, "Starting reading log from lsn (%lu,0x%lx)\n",
+            LSN_IN_PARTS(lsn));
+  }
+
   fprintf(stdout, "TRACE of the last maria_read_log\n");
   if (maria_apply_log(lsn, opt_apply ?  MARIA_LOG_APPLY :
                       (opt_check ? MARIA_LOG_CHECK :
@@ -113,17 +130,20 @@ int main(int argc, char **argv)
     fprintf(stdout, "%s: DOUBTFUL (%u warnings, check previous output)\n",
             my_progname_short, warnings_count);
 
-  goto end;
-err:
-  /* don't touch anything more, in case we hit a bug */
-  fprintf(stderr, "%s: FAILED\n", my_progname_short);
-  exit(1);
 end:
   maria_end();
+  free_tmpdir(&maria_chk_tmpdir);
   free_defaults(default_argv);
   my_end(0);
   exit(0);
   return 0;				/* No compiler warning */
+
+err:
+  /* don't touch anything more, in case we hit a bug */
+  fprintf(stderr, "%s: FAILED\n", my_progname_short);
+  free_tmpdir(&maria_chk_tmpdir);
+  free_defaults(default_argv);
+  exit(1);
 }
 
 
@@ -147,17 +167,28 @@ static struct my_option my_long_options[] =
 #endif
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"display-only", 'o', "display brief info read from records' header",
+  {"display-only", 'd', "display brief info read from records' header",
    (uchar **) &opt_display_only, (uchar **) &opt_display_only, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
   { "page_buffer_size", 'P', "",
     (uchar**) &opt_page_buffer_size, (uchar**) &opt_page_buffer_size, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT,
-    (long) MALLOC_OVERHEAD, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
+    (long) USE_BUFFER_INIT, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
     (long) IO_SIZE, 0},
+  { "start_from_lsn", 'o', "Start reading log from this lsn",
+    (uchar**) &opt_start_from_lsn, (uchar**) &opt_start_from_lsn,
+    0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
   {"silent", 's', "Print less information during apply/undo phase",
    (uchar **) &opt_silent, (uchar **) &opt_silent, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"tmpdir", 't', "Path for temporary files. Multiple paths can be specified, "
+   "separated by "
+#if defined( __WIN__) || defined(__NETWARE__)
+   "semicolon (;)"
+#else
+   "colon (:)"
+#endif
+   , (uchar**) &opt_tmpdir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"undo", 'u', "Apply UNDO records to tables. (disable with --disable-undo)",
    (uchar **) &opt_apply_undo, (uchar **) &opt_apply_undo, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -170,7 +201,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  VOID(printf("%s Ver 1.1 for %s on %s\n",
+  VOID(printf("%s Ver 1.2 for %s on %s\n",
               my_progname_short, SYSTEM_TYPE, MACHINE_TYPE));
   NETWARE_SET_SCREEN_MODE(1);
 }
@@ -230,4 +261,7 @@ static void get_options(int *argc,char ***argv)
     usage();
     exit(1);
   }
+  if (init_tmpdir(&maria_chk_tmpdir, opt_tmpdir))
+    exit(1);
+  maria_tmpdir= &maria_chk_tmpdir;
 }

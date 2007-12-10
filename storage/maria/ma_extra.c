@@ -41,11 +41,10 @@ static void maria_extra_keyflag(MARIA_HA *info,
 int maria_extra(MARIA_HA *info, enum ha_extra_function function,
                 void *extra_arg)
 {
-  int error=0;
+  int error= 0;
   ulong cache_size;
-  MARIA_SHARE *share=info->s;
-  my_bool block_records=   share->data_file_type == BLOCK_RECORD;
-
+  MARIA_SHARE *share= info->s;
+  my_bool block_records= share->data_file_type == BLOCK_RECORD;
   DBUG_ENTER("maria_extra");
   DBUG_PRINT("enter",("function: %d",(int) function));
 
@@ -53,7 +52,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   case HA_EXTRA_RESET_STATE:		/* Reset state (don't free buffers) */
     info->lastinx= 0;			/* Use first index as def */
     info->last_search_keypage= info->cur_row.lastpos= HA_OFFSET_ERROR;
-    info->page_changed=1;
+    info->page_changed= 1;
 					/* Next/prev gives first/last */
     if (info->opt_flag & READ_CACHE_USED)
     {
@@ -72,8 +71,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (info->lock_type == F_UNLCK &&
 	(share->options & HA_OPTION_PACK_RECORD))
     {
-      error=1;			/* Not possibly if not locked */
-      my_errno=EACCES;
+      error= 1;			/* Not possibly if not locked */
+      my_errno= EACCES;
       break;
     }
     if (info->s->file_map) /* Don't use cache if mmap */
@@ -97,7 +96,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (info->opt_flag & WRITE_CACHE_USED)
     {
       info->opt_flag&= ~WRITE_CACHE_USED;
-      if ((error=end_io_cache(&info->rec_cache)))
+      if ((error= end_io_cache(&info->rec_cache)))
 	break;
     }
     if (!(info->opt_flag &
@@ -111,11 +110,11 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 			  READ_CACHE,0L,(pbool) (info->lock_type != F_UNLCK),
 			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
       {
-	info->opt_flag|=READ_CACHE_USED;
-	info->update&= ~HA_STATE_ROW_CHANGED;
+	info->opt_flag|= READ_CACHE_USED;
+	info->update&=   ~HA_STATE_ROW_CHANGED;
       }
       if (share->concurrent_insert)
-	info->rec_cache.end_of_file=info->state->data_file_length;
+	info->rec_cache.end_of_file= info->state->data_file_length;
     }
     break;
   case HA_EXTRA_REINIT_CACHE:
@@ -126,13 +125,13 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 		      (pbool) test(info->update & HA_STATE_ROW_CHANGED));
       info->update&= ~HA_STATE_ROW_CHANGED;
       if (share->concurrent_insert)
-	info->rec_cache.end_of_file=info->state->data_file_length;
+	info->rec_cache.end_of_file= info->state->data_file_length;
     }
     break;
   case HA_EXTRA_WRITE_CACHE:
     if (info->lock_type == F_UNLCK)
     {
-      error=1;                        	/* Not possibly if not locked */
+      error= 1;                        	/* Not possibly if not locked */
       break;
     }
     if (block_records)
@@ -148,10 +147,10 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 			  (pbool) (info->lock_type != F_UNLCK),
 			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
       {
-	info->opt_flag|=WRITE_CACHE_USED;
-	info->update&= ~(HA_STATE_ROW_CHANGED |
-			 HA_STATE_WRITE_AT_END |
-			 HA_STATE_EXTEND_BLOCK);
+	info->opt_flag|= WRITE_CACHE_USED;
+	info->update&=   ~(HA_STATE_ROW_CHANGED |
+                           HA_STATE_WRITE_AT_END |
+                           HA_STATE_EXTEND_BLOCK);
       }
     break;
   case HA_EXTRA_PREPARE_FOR_UPDATE:
@@ -162,7 +161,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
-      error=end_io_cache(&info->rec_cache);
+      error= end_io_cache(&info->rec_cache);
       /* Sergei will insert full text index caching here */
     }
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
@@ -174,7 +173,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   case HA_EXTRA_FLUSH_CACHE:
     if (info->opt_flag & WRITE_CACHE_USED)
     {
-      if ((error=flush_io_cache(&info->rec_cache)))
+      if ((error= flush_io_cache(&info->rec_cache)))
       {
         maria_print_error(info->s, HA_ERR_CRASHED);
 	maria_mark_crashed(info);			/* Fatal error found */
@@ -189,18 +188,18 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     break;
   case HA_EXTRA_KEYREAD:			/* Read only keys to record */
   case HA_EXTRA_REMEMBER_POS:
-    info->opt_flag |= REMEMBER_OLD_POS;
+    info->opt_flag|= REMEMBER_OLD_POS;
     bmove((uchar*) info->lastkey+share->base.max_key_length*2,
 	  (uchar*) info->lastkey,info->lastkey_length);
     info->save_update=	info->update;
     info->save_lastinx= info->lastinx;
     info->save_lastpos= info->cur_row.lastpos;
-    info->save_lastkey_length=info->lastkey_length;
+    info->save_lastkey_length= info->lastkey_length;
     if (function == HA_EXTRA_REMEMBER_POS)
       break;
     /* fall through */
   case HA_EXTRA_KEYREAD_CHANGE_POS:
-    info->opt_flag |= KEY_READ_USED;
+    info->opt_flag|= KEY_READ_USED;
     info->read_record= _ma_read_key_record;
     break;
   case HA_EXTRA_NO_KEYREAD:
@@ -212,8 +211,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	    info->save_lastkey_length);
       info->update=	info->save_update | HA_STATE_WRITTEN;
       info->lastinx=	info->save_lastinx;
-      info->cur_row.lastpos=	info->save_lastpos;
-      info->lastkey_length=info->save_lastkey_length;
+      info->cur_row.lastpos= info->save_lastpos;
+      info->lastkey_length= info->save_lastkey_length;
     }
     info->read_record=	share->read_record;
     info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
@@ -222,10 +221,10 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     info->lock_type= F_EXTRA_LCK; /* Simulate as locked */
     break;
   case HA_EXTRA_WAIT_LOCK:
-    info->lock_wait=0;
+    info->lock_wait= 0;
     break;
   case HA_EXTRA_NO_WAIT_LOCK:
-    info->lock_wait=MY_DONT_WAIT;
+    info->lock_wait= MY_DONT_WAIT;
     break;
   case HA_EXTRA_NO_KEYS:
     /* we're going to modify pieces of the state, stall Checkpoint */
@@ -233,14 +232,14 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (info->lock_type == F_UNLCK)
     {
       pthread_mutex_unlock(&share->intern_lock);
-      error=1;					/* Not possibly if not lock */
+      error= 1;					/* Not possibly if not lock */
       break;
     }
     if (maria_is_any_key_active(share->state.key_map))
     {
-      MARIA_KEYDEF *key=share->keyinfo;
+      MARIA_KEYDEF *key= share->keyinfo;
       uint i;
-      for (i=0 ; i < share->base.keys ; i++,key++)
+      for (i =0 ; i < share->base.keys ; i++,key++)
       {
         if (!(key->flag & HA_NOSAME) && info->s->base.auto_key != i+1)
         {
@@ -252,10 +251,10 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       if (!share->changed)
       {
 	share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
-	share->changed=1;			/* Update on close */
+	share->changed= 1;			/* Update on close */
 	if (!share->global_changed)
 	{
-	  share->global_changed=1;
+	  share->global_changed= 1;
 	  share->state.open_count++;
 	}
       }
@@ -280,11 +279,15 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     */
     /** @todo consider porting these flush-es to MyISAM */
     error= _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
-                                 FLUSH_FORCE_WRITE, FLUSH_FORCE_WRITE) ||
-      _ma_state_info_write(share, 1|2|4);
-#ifdef ASK_MONTY
-      || (share->changed= 0);
-#endif
+                                 FLUSH_FORCE_WRITE, FLUSH_FORCE_WRITE);
+    if (!error && share->changed)
+    {
+      pthread_mutex_lock(&share->intern_lock);
+      if (!(error= _ma_state_info_write(share, 1|2)))
+        share->changed= 0;
+      pthread_mutex_unlock(&share->intern_lock);
+    }
+
     /**
        @todo RECOVERY BUG
        Though we flushed the state, IF some other thread may have the same
@@ -308,6 +311,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   case HA_EXTRA_PREPARE_FOR_RENAME:
   {
     my_bool do_flush= test(function != HA_EXTRA_PREPARE_FOR_DROP);
+    enum flush_type type;
     pthread_mutex_lock(&THR_LOCK_maria);
     /*
       This share, to have last_version=0, needs to save all its data/index
@@ -325,12 +329,12 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (share->kfile.file >= 0)
       _ma_decrement_open_count(info);
     pthread_mutex_lock(&share->intern_lock);
-    enum flush_type type= do_flush ? FLUSH_RELEASE : FLUSH_IGNORE_CHANGED;
+    type= do_flush ? FLUSH_RELEASE : FLUSH_IGNORE_CHANGED;
     if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                               type, type))
     {
       error=my_errno;
-      share->changed=1;
+      share->changed= 1;
     }
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {
@@ -378,12 +382,12 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 #endif
     if (share->not_flushed)
     {
-      share->not_flushed=0;
+      share->not_flushed= 0;
       if (_ma_sync_table_files(info))
 	error= my_errno;
       if (error)
       {
-	share->changed=1;
+	share->changed= 1;
         maria_print_error(info->s, HA_ERR_CRASHED);
 	maria_mark_crashed(info);			/* Fatal error found */
       }
@@ -397,10 +401,10 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     }
     break;
   case HA_EXTRA_NORMAL:				/* Theese isn't in use */
-    info->quick_mode=0;
+    info->quick_mode= 0;
     break;
   case HA_EXTRA_QUICK:
-    info->quick_mode=1;
+    info->quick_mode= 1;
     break;
   case HA_EXTRA_NO_ROWS:
     if (!share->state.header.uniques)
@@ -434,7 +438,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       }
       else
       {
-        share->file_read= _ma_mmap_pread;
+        share->file_read=  _ma_mmap_pread;
         share->file_write= _ma_mmap_pwrite;
       }
     }
@@ -450,10 +454,6 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   case HA_EXTRA_NO_KEY_CACHE:
   default:
     break;
-  }
-  {
-    char tmp[1];
-    tmp[0]=function;
   }
   DBUG_RETURN(error);
 } /* maria_extra */
@@ -487,7 +487,7 @@ static void maria_extra_keyflag(MARIA_HA *info,
 int maria_reset(MARIA_HA *info)
 {
   int error= 0;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_reset");
   /*
     Free buffers and reset the following flags:
@@ -514,7 +514,7 @@ int maria_reset(MARIA_HA *info)
             MADV_RANDOM);
 #endif
   info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
-  info->quick_mode=0;
+  info->quick_mode= 0;
   info->lastinx= 0;			/* Use first index as def */
   info->last_search_keypage= info->cur_row.lastpos= HA_OFFSET_ERROR;
   info->page_changed= 1;

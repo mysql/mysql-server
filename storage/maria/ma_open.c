@@ -64,7 +64,7 @@ MARIA_HA *_ma_test_if_reopen(const char *filename)
   for (pos=maria_open_list ; pos ; pos=pos->next)
   {
     MARIA_HA *info=(MARIA_HA*) pos->data;
-    MARIA_SHARE *share=info->s;
+    MARIA_SHARE *share= info->s;
     if (!strcmp(share->unique_file_name,filename) && share->last_version)
       return info;
   }
@@ -121,6 +121,10 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
 		       &info.first_mbr_key, share->base.max_key_length,
 		       &info.maria_rtree_recursion_state,
                        share->have_rtree ? 1024 : 0,
+                       &info.key_write_undo_lsn,
+                       (uint) (sizeof(LSN) * share->base.keys),
+                       &info.key_delete_undo_lsn,
+                       (uint) (sizeof(LSN) * share->base.keys),
                        &changed_fields_bitmap,
                        bitmap_buffer_size(share->base.fields),
 		       NullS))
@@ -664,15 +668,18 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       share->page_type= PAGECACHE_PLAIN_PAGE;
     share->now_transactional= share->base.born_transactional;
 
-    share->base.default_rec_buff_size= max(share->base.pack_reclength,
-                                           share->base.max_key_length);
     if (share->data_file_type == DYNAMIC_RECORD)
     {
+    /* add bits used to pack data to pack_reclength for faster allocation */
+      share->base.pack_reclength+= share->base.pack_bytes;
       share->base.extra_rec_buff_size=
         (ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER) + MARIA_SPLIT_LENGTH +
          MARIA_REC_BUFF_OFFSET);
-      share->base.default_rec_buff_size+= share->base.extra_rec_buff_size;
     }
+    share->base.default_rec_buff_size= (max(share->base.pack_reclength,
+                                            share->base.max_key_length) +
+                                        share->base.extra_rec_buff_size);
+
     if (share->data_file_type == COMPRESSED_RECORD)
     {
       /* Need some extra bytes for decode_bytes */
@@ -893,8 +900,6 @@ void _ma_setup_functions(register MARIA_SHARE *share)
     share->compare_record= _ma_cmp_dynamic_record;
     share->compare_unique= _ma_cmp_dynamic_unique;
     share->calc_checksum= share->calc_write_checksum= _ma_checksum;
-    /* add bits used to pack data to pack_reclength for faster allocation */
-    share->base.pack_reclength+= share->base.pack_bytes;
     if (share->base.blobs)
     {
       share->update_record= _ma_update_blob_record;

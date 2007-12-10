@@ -48,6 +48,7 @@ PAGECACHE *maria_pagecache= &maria_pagecache_var;
 
 PAGECACHE maria_log_pagecache_var;
 PAGECACHE *maria_log_pagecache= &maria_log_pagecache_var;
+MY_TMPDIR *maria_tmpdir;                        /* Tempdir for redo */
 
 /**
    @brief when transactionality does not matter we can use this transaction

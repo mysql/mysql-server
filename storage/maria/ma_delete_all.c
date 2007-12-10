@@ -31,7 +31,7 @@
 
 int maria_delete_all_rows(MARIA_HA *info)
 {
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   my_bool log_record;
   DBUG_ENTER("maria_delete_all_rows");
 

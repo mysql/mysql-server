@@ -41,6 +41,7 @@ static const char *set_collation_name, *opt_tmpdir;
 static CHARSET_INFO *set_collation;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
+static my_bool opt_transaction_logging;
 
 static const char *type_names[]=
 {
@@ -93,6 +94,7 @@ int main(int argc, char **argv)
   int error;
   MY_INIT(argv[0]);
 
+  maria_data_root= ".";
   maria_chk_init(&check_param);
   check_param.opt_lock_memory= 1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;
@@ -100,6 +102,26 @@ int main(int argc, char **argv)
   maria_quick_table_bits=decode_bits;
   error=0;
   maria_init();
+
+  /*
+    If we are doing a repair and we have requested logging (on by default),
+    enable transaction log handling.
+  */
+  if (opt_transaction_logging && (check_param.testflag & T_REP_ANY) &&
+      (ma_control_file_create_or_open() ||
+       init_pagecache(maria_log_pagecache,
+                      TRANSLOG_PAGECACHE_SIZE, 0, 0,
+                      TRANSLOG_PAGE_SIZE, MY_WME) == 0 ||
+       translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+                     0, 0, maria_log_pagecache,
+                     TRANSLOG_DEFAULT_FLAGS)))
+  {
+    _ma_check_print_error(&check_param,
+                          "Can't initialize transaction logging. Run "
+                          "recovery with switch --skip-transaction-log");
+    error= 1;
+    argc= 1;                                    /* Force loop out */
+  }
 
   while (--argc >= 0)
   {
@@ -157,7 +179,7 @@ enum options_mc {
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
-  OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD
+  OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG
 };
 
 static struct my_option my_long_options[] =
@@ -279,6 +301,10 @@ static struct my_option my_long_options[] =
    "Path for temporary files.",
    (uchar**) &opt_tmpdir,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"transaction-log", OPT_TRANSACTION_LOG,
+   "Log repair command to transaction log",
+   (uchar**) &opt_transaction_logging, (uchar**) &opt_transaction_logging,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
    "Mark tables as crashed if any errors were found.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -288,15 +314,14 @@ static struct my_option my_long_options[] =
   {"verbose", 'v',
    "Print more information. This can be used with --description and --check. Use many -v for more verbosity!",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"version", 'V',
-   "Print version and exit.",
+  {"version", 'V', "Print version and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"wait", 'w',
-   "Wait if table is locked.",
+  {"wait", 'w', "Wait if table is locked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "page_buffer_size", OPT_PAGE_BUFFER_SIZE, "",
+  { "page_buffer_size", OPT_PAGE_BUFFER_SIZE,
+    "Size of page buffer. Used by --safe-repair",
     (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
-    GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
+    GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) USE_BUFFER_INIT,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
   { "read_buffer_size", OPT_READ_BUFFER_SIZE, "",
     (uchar**) &check_param.read_buffer_length,
@@ -308,7 +333,8 @@ static struct my_option my_long_options[] =
     (uchar**) &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
-  { "sort_buffer_size", OPT_SORT_BUFFER_SIZE, "",
+  { "sort_buffer_size", OPT_SORT_BUFFER_SIZE,
+    "Size of sort buffer. Used by --recover",
     (uchar**) &check_param.sort_buffer_length,
     (uchar**) &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
@@ -403,7 +429,7 @@ static void usage(void)
   -U  --update-state  Mark tables as crashed if you find any errors.\n\
   -T, --read-only     Don't mark table as checked.\n");
 
-  puts("Repair options (When using '-r' or '-o'):\n\
+  puts("Recover (repair)/ options (When using '-r' or '-o'):\n\
   -B, --backup	      Make a backup of the .MYD file as 'filename-time.BAK'.\n\
   --correct-checksum  Correct checksum information for table.\n\
   -D, --data-file-length=#  Max length of data file (when recreating data\n\
@@ -428,6 +454,9 @@ static void usage(void)
   -o, --safe-recover  Uses old recovery method; Slower than '-r' but can\n\
 		      handle a couple of cases where '-r' reports that it\n\
 		      can't fix the data file.\n\
+  --transaction-log   Log repair command to transaction log. This is needed\n\
+                      if one wants to use the maria_read_log to repeat the \n\
+                      repair\n\
   --character-sets-dir=...\n\
                       Directory where character sets are.\n\
   --set-collation=name\n\
@@ -855,7 +884,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
     }
     DBUG_RETURN(1);
   }
-  share=info->s;
+  share= info->s;
   share->tot_locks-= share->r_locks;
   share->r_locks=0;
   maria_block_size= share->base.block_size;
@@ -958,7 +987,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
 	printf("- '%s' has old table-format. Recreating index\n",filename);
       rep_quick|=T_QUICK;
     }
-    share=info->s;
+    share= info->s;
     share->tot_locks-= share->r_locks;
     share->r_locks=0;
   }
@@ -998,7 +1027,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
   maria_lock_database(info, F_EXTRA_LCK);
   datafile= info->dfile.file;
   if (init_pagecache(maria_pagecache, param->use_buffers, 0, 0,
-                     maria_block_size) == 0)
+                     maria_block_size, MY_WME) == 0)
   {
     _ma_check_print_error(param, "Can't initialize page cache with %lu memory",
                           (ulong) param->use_buffers);
@@ -1244,7 +1273,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
   reg4 const char *text;
   char buff[160],length[10],*pos,*end;
   enum en_fieldtype type;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   char llbuff[22],llbuff2[22];
   DBUG_ENTER("describe");
 
@@ -1514,7 +1543,7 @@ static int maria_sort_records(HA_CHECK *param,
   File new_file;
   uchar *temp_buff;
   ha_rows old_record_count;
-  MARIA_SHARE *share=info->s;
+  MARIA_SHARE *share= info->s;
   char llbuff[22],llbuff2[22];
   MARIA_SORT_INFO sort_info;
   MARIA_SORT_PARAM sort_param;
@@ -1684,6 +1713,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
 			     my_off_t page, uchar *buff, uint sort_key,
 			     File new_file,my_bool update_index)
 {
+  MARIA_SHARE *share= info->s;
   uint	nod_flag,used_length,key_length;
   uchar *temp_buff,*keypos,*endpos;
   my_off_t next_page,rec_pos;
@@ -1693,7 +1723,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
   HA_CHECK *param=sort_info->param;
   DBUG_ENTER("sort_record_index");
 
-  nod_flag=_ma_test_if_nod(info, buff);
+  nod_flag=_ma_test_if_nod(share, buff);
   temp_buff=0;
 
   if (nod_flag)
@@ -1704,8 +1734,8 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
       DBUG_RETURN(-1);
     }
   }
-  used_length= _ma_get_page_used(info, buff);
-  keypos= buff + info->s->keypage_header + nod_flag;
+  used_length= _ma_get_page_used(share, buff);
+  keypos= buff + share->keypage_header + nod_flag;
   endpos= buff + used_length;
   for ( ;; )
   {
@@ -1713,7 +1743,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
     if (nod_flag)
     {
       next_page= _ma_kpos(nod_flag, keypos);
-      if (my_pread(info->s->kfile.file, (uchar*)temp_buff,
+      if (my_pread(share->kfile.file, (uchar*)temp_buff,
 		  (uint) keyinfo->block_length, next_page,
 		   MYF(MY_NABP+MY_WME)))
       {
@@ -1733,14 +1763,14 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
       break;
     rec_pos= _ma_dpos(info,0,lastkey+key_length);
 
-    if ((*info->s->read_record)(info,sort_param->record,rec_pos))
+    if ((*share->read_record)(info,sort_param->record,rec_pos))
     {
       _ma_check_print_error(param,"%d when reading datafile",my_errno);
       goto err;
     }
     if (rec_pos != sort_param->filepos && update_index)
     {
-      _ma_dpointer(info,keypos-nod_flag-info->s->rec_reflength,
+      _ma_dpointer(info,keypos-nod_flag-share->rec_reflength,
 		   sort_param->filepos);
       if (maria_movepoint(info,sort_param->record,rec_pos,sort_param->filepos,
 		    sort_key))
@@ -1754,7 +1784,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
   }
   /* Clear end of block to get better compression if the table is backuped */
   bzero((uchar*) buff+used_length,keyinfo->block_length-used_length);
-  if (my_pwrite(info->s->kfile.file, (uchar*)buff, (uint)keyinfo->block_length,
+  if (my_pwrite(share->kfile.file, (uchar*)buff, (uint)keyinfo->block_length,
 		page,param->myf_rw))
   {
     _ma_check_print_error(param,"%d when updating keyblock",my_errno);

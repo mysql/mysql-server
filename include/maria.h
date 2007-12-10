@@ -255,7 +255,7 @@ extern my_bool maria_delay_key_write;
 extern my_off_t maria_max_temp_length;
 extern ulong maria_bulk_insert_tree_size, maria_data_pointer_size;
 extern PAGECACHE maria_pagecache_var, *maria_pagecache;
-
+extern MY_TMPDIR *maria_tmpdir;
 
 	/* Prototypes for maria-functions */
 

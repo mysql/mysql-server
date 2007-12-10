@@ -36,6 +36,10 @@
 #include "../../../storage/maria/maria_def.h"
 #include <my_getopt.h>
 
+#define EXTRACT_DEFINITIONS
+#include "../ma_control_file.c"
+#undef EXTRACT_DEFINITIONS
+
 char file_name[FN_REFLEN];
 
 /* The values we'll set and expect the control file module to return */
@@ -61,6 +65,8 @@ static int test_2_open_and_2_close();
 static int test_bad_magic_string();
 static int test_bad_checksum();
 static int test_bad_hchecksum();
+static int test_future_size();
+static int test_bad_blocksize();
 static int test_bad_size();
 
 /* Utility */
@@ -81,12 +87,43 @@ static void get_options(int argc, char *argv[]);
   {if (!(expr)) {diag("line %d: failure: '%s'", __LINE__, #expr); return 1;}}
 
 
+/* Used to ignore error messages from ma_control_file_create_or_open */
+
+static int my_ignore_message(uint error __attribute__((unused)),
+                             const char *str __attribute__((unused)),
+                             myf MyFlags __attribute__((unused)))
+{
+  DBUG_ENTER("my_message_no_curses");
+  DBUG_PRINT("enter",("message: %s",str));
+  DBUG_RETURN(0);
+}
+
+int (*default_error_handler_hook)(uint my_err, const char *str,
+                                  myf MyFlags) = 0;
+
+
+/* like ma_control_file_create_or_open(), but without error messages */
+
+static CONTROL_FILE_ERROR local_ma_control_file_create_or_open()
+{
+  CONTROL_FILE_ERROR error;
+  error_handler_hook= my_ignore_message;
+  error= ma_control_file_create_or_open();
+  error_handler_hook= default_error_handler_hook;
+  return error;
+}
+
+
+
 int main(int argc,char *argv[])
 {
   MY_INIT(argv[0]);
-  maria_data_root= ".";
+  my_init();
 
-  plan(10);
+  maria_data_root= ".";
+  default_error_handler_hook= error_handler_hook;
+
+  plan(12);
 
   diag("Unit tests for control file");
 
@@ -108,6 +145,8 @@ int main(int argc,char *argv[])
   ok(0 == test_bad_magic_string(), "test of bad magic string");
   ok(0 == test_bad_checksum(), "test of bad checksum");
   ok(0 == test_bad_hchecksum(), "test of bad hchecksum");
+  ok(0 == test_future_size(), "test of ability to handlr future versions");
+  ok(0 == test_bad_blocksize(), "test of bad blocksize");
   ok(0 == test_bad_size(), "test of too small/big file");
 
   return exit_status();
@@ -166,7 +205,7 @@ static int close_file()
 
 static int create_or_open_file()
 {
-  RET_ERR_UNLESS(ma_control_file_create_or_open(TRUE) == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) == CONTROL_FILE_OK);
   /* Check that the module reports expected information */
   RET_ERR_UNLESS(verify_module_values_match_expected() == 0);
   return 0;
@@ -266,18 +305,18 @@ static int test_binary_content()
     future change/breakage.
   */
 
-  char buffer[43];
+  char buffer[45];
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
-  RET_ERR_UNLESS(my_read(fd, buffer, 43, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_read(fd, buffer, 45, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
-  i= uint3korr(buffer + 32 );
+  i= uint3korr(buffer + 34 );
   RET_ERR_UNLESS(i == LSN_FILE_NO(last_checkpoint_lsn));
-  i= uint4korr(buffer + 35);
+  i= uint4korr(buffer + 37);
   RET_ERR_UNLESS(i == LSN_OFFSET(last_checkpoint_lsn));
-  i= uint4korr(buffer + 39);
+  i= uint4korr(buffer + 41);
   RET_ERR_UNLESS(i == last_logno);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
@@ -322,7 +361,7 @@ static int test_bad_magic_string()
   RET_ERR_UNLESS(my_pwrite(fd, "papa", 4, 0, MYF(MY_FNABP |  MY_WME)) == 0);
 
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(ma_control_file_create_or_open(TRUE) ==
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
              CONTROL_FILE_BAD_MAGIC_STRING);
   /* Restore magic string */
   RET_ERR_UNLESS(my_pwrite(fd, buffer, 4, 0, MYF(MY_FNABP |  MY_WME)) == 0);
@@ -344,20 +383,83 @@ static int test_bad_checksum()
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
-  RET_ERR_UNLESS(my_pread(fd, buffer, 1, 28, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pread(fd, buffer, 1, 30, MYF(MY_FNABP |  MY_WME)) == 0);
   buffer[0]+= 3; /* mangle checksum */
-  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 28, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 30, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(ma_control_file_create_or_open(TRUE) ==
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
                  CONTROL_FILE_BAD_CHECKSUM);
   /* Restore checksum */
   buffer[0]-= 3;
-  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 28, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 30, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
 
   return 0;
 }
 
+
+static int test_bad_blocksize()
+{
+  maria_block_size<<= 1;
+  /* Check that control file module sees the problem */
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
+                 CONTROL_FILE_WRONG_BLOCKSIZE);
+  /* Restore blocksize */
+  maria_block_size>>= 1;
+
+  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(close_file() == 0);
+  return 0;
+}
+
+
+static int test_future_size()
+{
+  /*
+    Here we check ability to add fields only so we can use
+    defined constants
+  */
+  uint32 sum;
+  int fd;
+  char buffer[CF_CREATE_TIME_TOTAL_SIZE + CF_CHANGEABLE_TOTAL_SIZE + 2];
+  RET_ERR_UNLESS((fd= my_open(file_name,
+                          O_BINARY | O_RDWR,
+                          MYF(MY_WME))) >= 0);
+  RET_ERR_UNLESS(my_read(fd, buffer,
+                         CF_CREATE_TIME_TOTAL_SIZE + CF_CHANGEABLE_TOTAL_SIZE,
+                         MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
+  /* "add" new field of 1 byte (value 1) to header and variable part */
+  memmove(buffer + CF_CREATE_TIME_TOTAL_SIZE + 1,
+          buffer + CF_CREATE_TIME_TOTAL_SIZE,
+          CF_CHANGEABLE_TOTAL_SIZE);
+  buffer[CF_CREATE_TIME_TOTAL_SIZE - CF_CHECKSUM_SIZE]= '\1';
+  buffer[CF_CREATE_TIME_TOTAL_SIZE + CF_CHANGEABLE_TOTAL_SIZE + 1]= '\1';
+  /* fix lengths */
+  int2store(buffer + CF_CREATE_TIME_SIZE_OFFSET, CF_CREATE_TIME_TOTAL_SIZE + 1);
+  int2store(buffer + CF_CHANGEABLE_SIZE_OFFSET, CF_CHANGEABLE_TOTAL_SIZE + 1);
+  /* recalculete checksums */
+  sum= (uint32) my_checksum(0, buffer, CF_CREATE_TIME_TOTAL_SIZE -
+                            CF_CHECKSUM_SIZE + 1);
+  int4store(buffer + CF_CREATE_TIME_TOTAL_SIZE - CF_CHECKSUM_SIZE + 1, sum);
+  sum= (uint32) my_checksum(0, buffer +  CF_CREATE_TIME_TOTAL_SIZE + 1 +
+                            CF_CHECKSUM_SIZE,
+                            CF_CHANGEABLE_TOTAL_SIZE - CF_CHECKSUM_SIZE + 1);
+  int4store(buffer + CF_CREATE_TIME_TOTAL_SIZE + 1, sum);
+  /* write new file and check it */
+  RET_ERR_UNLESS((fd= my_open(file_name,
+                          O_BINARY | O_RDWR,
+                          MYF(MY_WME))) >= 0);
+  RET_ERR_UNLESS(my_pwrite(fd, buffer,
+                           CF_CREATE_TIME_TOTAL_SIZE +
+                           CF_CHANGEABLE_TOTAL_SIZE + 2,
+                           0, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
+  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(close_file() == 0);
+
+  return(0);
+}
 
 static int test_bad_hchecksum()
 {
@@ -371,15 +473,15 @@ static int test_bad_hchecksum()
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
-  RET_ERR_UNLESS(my_pread(fd, buffer, 1, 24, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pread(fd, buffer, 1, 26, MYF(MY_FNABP |  MY_WME)) == 0);
   buffer[0]+= 3; /* mangle checksum */
-  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 24, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 26, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(ma_control_file_create_or_open(TRUE) ==
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
                  CONTROL_FILE_BAD_HEAD_CHECKSUM);
   /* Restore checksum */
   buffer[0]-= 3;
-  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 24, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 26, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
 
   return 0;
@@ -388,8 +490,9 @@ static int test_bad_hchecksum()
 
 static int test_bad_size()
 {
-  char buffer[]="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-  int fd;
+  char buffer[]=
+    "123456789012345678901234567890123456789012345678901234567890123456";
+  int fd, i;
 
   /* A too short file */
   RET_ERR_UNLESS(delete_file(MYF(MY_WME)) == 0);
@@ -398,11 +501,15 @@ static int test_bad_size()
                           MYF(MY_WME))) >= 0);
   RET_ERR_UNLESS(my_write(fd, buffer, 10, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(ma_control_file_create_or_open(TRUE) ==
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
                  CONTROL_FILE_TOO_SMALL);
-  RET_ERR_UNLESS(my_write(fd, buffer, 50, MYF(MY_FNABP |  MY_WME)) == 0);
+  for (i= 0; i < 8; i++)
+  {
+    RET_ERR_UNLESS(my_write(fd, buffer, 66, MYF(MY_FNABP |  MY_WME)) == 0);
+  }
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(ma_control_file_create_or_open(TRUE) == CONTROL_FILE_TOO_BIG);
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
+                 CONTROL_FILE_TOO_BIG);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
 
   /* Leave a correct control file */

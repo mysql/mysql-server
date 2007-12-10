@@ -44,7 +44,6 @@
 #include "ma_pagecache.h"
 #include <my_bit.h>
 #include <errno.h>
-#include <stdarg.h>
 
 /*
   Some compilation flags have been added specifically for this module
@@ -95,7 +94,7 @@
 
 #define PCBLOCK_INFO(B) \
   DBUG_PRINT("info", \
-             ("block: 0x%lx  file: %lu  page: %lu  s: %0x  hshL: 0x%lx  req: %u/%u " \
+             ("block: 0x%lx  fd: %lu  page: %lu  s: %0x  hshL: 0x%lx  req: %u/%u " \
               "wrlocks: %u  pins: %u", \
               (ulong)(B), \
               (ulong)((B)->hash_link ? \
@@ -671,6 +670,8 @@ static inline uint next_power(uint value)
     division_limit		division limit (may be zero)
     age_threshold		age threshold (may be zero)
     block_size                  size of block (should be power of 2)
+    my_read_flags		Flags used for all pread/pwrite calls
+			        Usually MY_WME in case of recovery
 
   RETURN VALUE
     number of blocks in the key cache, if successful,
@@ -688,7 +689,7 @@ static inline uint next_power(uint value)
 
 ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
                      uint division_limit, uint age_threshold,
-                     uint block_size)
+                     uint block_size, myf my_readwrite_flags)
 {
   ulong blocks, hash_links, length;
   int error;
@@ -721,8 +722,9 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
   pagecache->mem_size= use_mem;
   pagecache->block_size= block_size;
   pagecache->shift= my_bit_log2(block_size);
-  DBUG_PRINT("info", ("block_size: %u",
-		      block_size));
+  pagecache->readwrite_flags= my_readwrite_flags | MY_NABP | MY_WAIT_IF_FULL;
+  pagecache->org_readwrite_flags= pagecache->readwrite_flags;
+  DBUG_PRINT("info", ("block_size: %u", block_size));
   DBUG_ASSERT(((uint)(1 << pagecache->shift)) == block_size);
 
   blocks= (ulong) (use_mem / (sizeof(PAGECACHE_BLOCK_LINK) +
@@ -733,102 +735,99 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
     We need to support page cache with just one block to be able to do
     scanning of rows-in-block files
   */
-  if (blocks >= 1)
+  for ( ; ; )
   {
-    for ( ; ; )
+    if (blocks < 8)
     {
-      if (blocks < 8)
-      {
-        my_errno= ENOMEM;
-        goto err;
-      }
-      /* Set my_hash_entries to the next bigger 2 power */
-      if ((pagecache->hash_entries= next_power(blocks)) <
-          (blocks) * 5/4)
-        pagecache->hash_entries<<= 1;
-      hash_links= 2 * blocks;
-#if defined(MAX_THREADS)
-      if (hash_links < MAX_THREADS + blocks - 1)
-        hash_links= MAX_THREADS + blocks - 1;
-#endif
-      while ((length= (ALIGN_SIZE(blocks * sizeof(PAGECACHE_BLOCK_LINK)) +
-		       ALIGN_SIZE(hash_links * sizeof(PAGECACHE_HASH_LINK)) +
-		       ALIGN_SIZE(sizeof(PAGECACHE_HASH_LINK*) *
-                                  pagecache->hash_entries))) +
-	     (blocks << pagecache->shift) > use_mem)
-        blocks--;
-      /* Allocate memory for cache page buffers */
-      if ((pagecache->block_mem=
-	   my_large_malloc((ulong) blocks * pagecache->block_size,
-			  MYF(MY_WME))))
-      {
-        /*
-	  Allocate memory for blocks, hash_links and hash entries;
-	  For each block 2 hash links are allocated
-        */
-        if ((pagecache->block_root=
-             (PAGECACHE_BLOCK_LINK*) my_malloc((size_t) length, MYF(0))))
-          break;
-        my_large_free(pagecache->block_mem, MYF(0));
-        pagecache->block_mem= 0;
-      }
-      blocks= blocks / 4*3;
+      my_errno= ENOMEM;
+      goto err;
     }
-    pagecache->blocks_unused= blocks;
-    pagecache->disk_blocks= (long) blocks;
-    pagecache->hash_links= hash_links;
-    pagecache->hash_root=
-      (PAGECACHE_HASH_LINK**) ((char*) pagecache->block_root +
-                               ALIGN_SIZE(blocks*sizeof(PAGECACHE_BLOCK_LINK)));
-    pagecache->hash_link_root=
-      (PAGECACHE_HASH_LINK*) ((char*) pagecache->hash_root +
-                              ALIGN_SIZE((sizeof(PAGECACHE_HASH_LINK*) *
-                                          pagecache->hash_entries)));
-    bzero((uchar*) pagecache->block_root,
-	  pagecache->disk_blocks * sizeof(PAGECACHE_BLOCK_LINK));
-    bzero((uchar*) pagecache->hash_root,
-          pagecache->hash_entries * sizeof(PAGECACHE_HASH_LINK*));
-    bzero((uchar*) pagecache->hash_link_root,
-	  pagecache->hash_links * sizeof(PAGECACHE_HASH_LINK));
-    pagecache->hash_links_used= 0;
-    pagecache->free_hash_list= NULL;
-    pagecache->blocks_used= pagecache->blocks_changed= 0;
-
-    pagecache->global_blocks_changed= 0;
-    pagecache->blocks_available=0;		/* For debugging */
-
-    /* The LRU chain is empty after initialization */
-    pagecache->used_last= NULL;
-    pagecache->used_ins= NULL;
-    pagecache->free_block_list= NULL;
-    pagecache->time= 0;
-    pagecache->warm_blocks= 0;
-    pagecache->min_warm_blocks= (division_limit ?
-                                 blocks * division_limit / 100 + 1 :
-                                 blocks);
-    pagecache->age_threshold= (age_threshold ?
-                               blocks * age_threshold / 100 :
-                               blocks);
-
-    pagecache->cnt_for_resize_op= 0;
-    pagecache->resize_in_flush= 0;
-    pagecache->can_be_used= 1;
-
-    pagecache->waiting_for_hash_link.last_thread= NULL;
-    pagecache->waiting_for_block.last_thread= NULL;
-    DBUG_PRINT("exit",
-	       ("disk_blocks: %ld  block_root: 0x%lx  hash_entries: %ld\
- hash_root: 0x%lx  hash_links: %ld  hash_link_root: 0x%lx",
-		pagecache->disk_blocks, (long) pagecache->block_root,
-		pagecache->hash_entries, (long) pagecache->hash_root,
-		pagecache->hash_links, (long) pagecache->hash_link_root));
-    bzero((uchar*) pagecache->changed_blocks,
-	  sizeof(pagecache->changed_blocks[0]) *
-          PAGECACHE_CHANGED_BLOCKS_HASH);
-    bzero((uchar*) pagecache->file_blocks,
-	  sizeof(pagecache->file_blocks[0]) *
-          PAGECACHE_CHANGED_BLOCKS_HASH);
+    /* Set my_hash_entries to the next bigger 2 power */
+    if ((pagecache->hash_entries= next_power(blocks)) <
+        (blocks) * 5/4)
+      pagecache->hash_entries<<= 1;
+    hash_links= 2 * blocks;
+#if defined(MAX_THREADS)
+    if (hash_links < MAX_THREADS + blocks - 1)
+      hash_links= MAX_THREADS + blocks - 1;
+#endif
+    while ((length= (ALIGN_SIZE(blocks * sizeof(PAGECACHE_BLOCK_LINK)) +
+                     ALIGN_SIZE(hash_links * sizeof(PAGECACHE_HASH_LINK)) +
+                     ALIGN_SIZE(sizeof(PAGECACHE_HASH_LINK*) *
+                                pagecache->hash_entries))) +
+           (blocks << pagecache->shift) > use_mem)
+      blocks--;
+    /* Allocate memory for cache page buffers */
+    if ((pagecache->block_mem=
+         my_large_malloc((ulong) blocks * pagecache->block_size,
+                         MYF(MY_WME))))
+    {
+      /*
+        Allocate memory for blocks, hash_links and hash entries;
+        For each block 2 hash links are allocated
+      */
+      if ((pagecache->block_root=
+           (PAGECACHE_BLOCK_LINK*) my_malloc((size_t) length, MYF(0))))
+        break;
+      my_large_free(pagecache->block_mem, MYF(0));
+      pagecache->block_mem= 0;
+    }
+    blocks= blocks / 4*3;
   }
+  pagecache->blocks_unused= blocks;
+  pagecache->disk_blocks= (long) blocks;
+  pagecache->hash_links= hash_links;
+  pagecache->hash_root=
+    (PAGECACHE_HASH_LINK**) ((char*) pagecache->block_root +
+                             ALIGN_SIZE(blocks*sizeof(PAGECACHE_BLOCK_LINK)));
+  pagecache->hash_link_root=
+    (PAGECACHE_HASH_LINK*) ((char*) pagecache->hash_root +
+                            ALIGN_SIZE((sizeof(PAGECACHE_HASH_LINK*) *
+                                        pagecache->hash_entries)));
+  bzero((uchar*) pagecache->block_root,
+        pagecache->disk_blocks * sizeof(PAGECACHE_BLOCK_LINK));
+  bzero((uchar*) pagecache->hash_root,
+        pagecache->hash_entries * sizeof(PAGECACHE_HASH_LINK*));
+  bzero((uchar*) pagecache->hash_link_root,
+        pagecache->hash_links * sizeof(PAGECACHE_HASH_LINK));
+  pagecache->hash_links_used= 0;
+  pagecache->free_hash_list= NULL;
+  pagecache->blocks_used= pagecache->blocks_changed= 0;
+
+  pagecache->global_blocks_changed= 0;
+  pagecache->blocks_available=0;		/* For debugging */
+
+  /* The LRU chain is empty after initialization */
+  pagecache->used_last= NULL;
+  pagecache->used_ins= NULL;
+  pagecache->free_block_list= NULL;
+  pagecache->time= 0;
+  pagecache->warm_blocks= 0;
+  pagecache->min_warm_blocks= (division_limit ?
+                               blocks * division_limit / 100 + 1 :
+                               blocks);
+  pagecache->age_threshold= (age_threshold ?
+                             blocks * age_threshold / 100 :
+                             blocks);
+
+  pagecache->cnt_for_resize_op= 0;
+  pagecache->resize_in_flush= 0;
+  pagecache->can_be_used= 1;
+
+  pagecache->waiting_for_hash_link.last_thread= NULL;
+  pagecache->waiting_for_block.last_thread= NULL;
+  DBUG_PRINT("exit",
+             ("disk_blocks: %ld  block_root: 0x%lx  hash_entries: %ld\
+ hash_root: 0x%lx  hash_links: %ld  hash_link_root: 0x%lx",
+              pagecache->disk_blocks, (long) pagecache->block_root,
+              pagecache->hash_entries, (long) pagecache->hash_root,
+              pagecache->hash_links, (long) pagecache->hash_link_root));
+  bzero((uchar*) pagecache->changed_blocks,
+        sizeof(pagecache->changed_blocks[0]) *
+        PAGECACHE_CHANGED_BLOCKS_HASH);
+  bzero((uchar*) pagecache->file_blocks,
+        sizeof(pagecache->file_blocks[0]) *
+        PAGECACHE_CHANGED_BLOCKS_HASH);
 
   pagecache->blocks= pagecache->disk_blocks > 0 ? pagecache->disk_blocks : 0;
   DBUG_RETURN((ulong) pagecache->disk_blocks);
@@ -981,7 +980,8 @@ ulong resize_pagecache(PAGECACHE *pagecache,
   end_pagecache(pagecache, 0);			/* Don't free mutex */
   /* The following will work even if use_mem is 0 */
   blocks= init_pagecache(pagecache, pagecache->block_size, use_mem,
-			 division_limit, age_threshold);
+			 division_limit, age_threshold,
+                         pagecache->readwrite_flags);
 
 finish:
 #ifdef THREAD
@@ -2020,7 +2020,7 @@ restart:
                                     block->buffer,
                                     block->hash_link->pageno,
                                     block->type,
-                                    MYF(MY_NABP | MY_WAIT_IF_FULL));
+                                    pagecache->readwrite_flags);
             pagecache_pthread_mutex_lock(&pagecache->cache_lock);
 	    pagecache->global_cache_write++;
           }
@@ -2417,13 +2417,13 @@ static void read_block(PAGECACHE *pagecache,
                        pagecache_disk_read_validator validator,
                        uchar* validator_data)
 {
-  uint got_length;
 
   /* On entry cache_lock is locked */
 
   DBUG_ENTER("read_block");
   if (primary)
   {
+    size_t error;
     /*
       This code is executed only by threads
       that submitted primary requests
@@ -2438,11 +2438,12 @@ static void read_block(PAGECACHE *pagecache,
       Here other threads may step in and register as secondary readers.
       They will register in block->wqueue[COND_FOR_REQUESTED].
     */
-    got_length= pagecache_fread(pagecache, &block->hash_link->file,
-                                block->buffer,
-                                block->hash_link->pageno, MYF(0));
+    error= pagecache_fread(pagecache, &block->hash_link->file,
+                           block->buffer,
+                           block->hash_link->pageno,
+                           pagecache->readwrite_flags);
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
-    if (got_length < pagecache->block_size)
+    if (error)
       block->status|= PCBLOCK_ERROR;
     else
       block->status= PCBLOCK_READ;
@@ -2796,7 +2797,6 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
     block->status&= ~PCBLOCK_DIRECT_W;
     DBUG_PRINT("info", ("Drop PCBLOCK_DIRECT_W for block: 0x%lx",
                         (ulong) block));
-
   }
 
   if (make_lock_and_pin(pagecache, block, lock, pin, 0))
@@ -2996,10 +2996,6 @@ restart:
       DBUG_PRINT("info", ("read is done"));
     }
 
-    /* PCBLOCK_DIRECT_W should be unlocked in unlock */
-    DBUG_ASSERT((block->status & PCBLOCK_DIRECT_W) == 0 ||
-                lock == PAGECACHE_LOCK_LEFT_WRITELOCKED);
-
     if (make_lock_and_pin(pagecache, block, lock, pin, file))
     {
       /*
@@ -3069,7 +3065,8 @@ no_key_cache:					/* Key cache is not used */
   /* We can't use mutex here as the key cache may not be initialized */
   pagecache->global_cache_r_requests++;
   pagecache->global_cache_read++;
-  if (pagecache_fread(pagecache, file, (uchar*) buff, pageno, MYF(MY_NABP)))
+  if (pagecache_fread(pagecache, file, (uchar*) buff, pageno,
+                      pagecache->readwrite_flags))
     error= 1;
   DBUG_RETURN(error ? (uchar*) 0 : buff);
 }
@@ -3169,7 +3166,7 @@ restart:
                                 block->buffer,
                                 block->hash_link->pageno,
                                 block->type,
-                                MYF(MY_NABP | MY_WAIT_IF_FULL));
+                                pagecache->readwrite_flags);
         pagecache_pthread_mutex_lock(&pagecache->cache_lock);
         pagecache->global_cache_write++;
 
@@ -3494,7 +3491,7 @@ no_key_cache:
     pagecache->global_cache_w_requests++;
     pagecache->global_cache_write++;
     if (pagecache_fwrite(pagecache, file, (uchar*) buff, pageno, type,
-                         MYF(MY_NABP | MY_WAIT_IF_FULL)))
+                         pagecache->readwrite_flags))
       error=1;
   }
 
@@ -3662,7 +3659,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
                             block->buffer,
                             block->hash_link->pageno,
                             block->type,
-                            MYF(MY_NABP | MY_WAIT_IF_FULL));
+                            pagecache->readwrite_flags);
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
 
     make_lock_and_pin(pagecache, block,
@@ -3744,7 +3741,7 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
   int rc= PCFLUSH_OK;
   DBUG_ENTER("flush_pagecache_blocks_int");
   DBUG_PRINT("enter",
-             ("file: %d  blocks_used: %lu  blocks_changed: %lu  type: %d",
+             ("fd: %d  blocks_used: %lu  blocks_changed: %lu  type: %d",
               file->file, pagecache->blocks_used, pagecache->blocks_changed,
               type));
 
