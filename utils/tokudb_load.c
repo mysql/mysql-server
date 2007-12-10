@@ -144,12 +144,14 @@ int main(int argc, char *argv[]) {
       g.exitcode = usage();
       goto cleanup;
    }
-   //TODO:  /* Handle possible interruptions/signals. */
+   init_catch_signals();
 
    g.database = argv[0];
    if (create_init_env() != 0) goto error;
+   if (caught_any_signals()) goto cleanup;
    while (!g.eof) {
       if (load_database() != 0) goto error;
+      if (caught_any_signals()) goto cleanup;
    }
    if (false) {
 error:
@@ -167,6 +169,7 @@ cleanup:
    if (g.read_header.data) free(g.read_header.data);
    if (g.get_dbt.data[0])  free(g.get_dbt.data[0]);
    if (g.get_dbt.data[1])  free(g.get_dbt.data[1]);
+   resend_signals();
 
    return g.exitcode;
 }
@@ -185,8 +188,10 @@ int load_database()
 
    if (g.header && read_header() != 0) goto error;
    if (g.eof) goto cleanup;
+   if (caught_any_signals()) goto cleanup;
    if (apply_commandline_options() != 0) goto error;
    if (g.eof) goto cleanup;
+   if (caught_any_signals()) goto cleanup;
 
    /*
    TODO: If/when supporting encryption
@@ -197,8 +202,10 @@ int load_database()
    */
    if (open_database() != 0) goto error;
    if (g.eof) goto cleanup;
+   if (caught_any_signals()) goto cleanup;
    if (read_keys() != 0) goto error;
    if (g.eof) goto cleanup;
+   if (caught_any_signals()) goto cleanup;
 
    if (false) {
 error:
@@ -366,13 +373,13 @@ if (!strcmp(field, match)) {                             \
       PARSE_IGNOREDNUMBER(    "db_lorder",   db->set_lorder);        \
       PARSE_IGNOREDNUMBER(    "db_pagesize", db->set_pagesize);      \
       PARSE_FLAG(             "duplicates",  DB_DUP);                \
-      PARSE_IGNOREDFLAG(      "dupsort",     DB_DUPSORT);            \
+      PARSE_FLAG(             "dupsort",     DB_DUPSORT);            \
       PARSE_UNSUPPORTEDNUMBER("extentsize",  db->set_q_extentsize);  \
       PARSE_UNSUPPORTEDNUMBER("h_ffactor",   db->set_h_ffactor);     \
       PARSE_UNSUPPORTEDNUMBER("h_nelem",     db->set_h_nelem);       \
       PARSE_UNSUPPORTEDNUMBER("re_len",      db->set_re_len);        \
       PARSE_UNSUPPORTEDCHAR(  "re_pad",      db->set_re_pad);        \
-      PARSE_IGNOREDFLAG(      "recnum",      DB_RECNUM);             \
+      PARSE_UNSUPPORTEDFLAG(  "recnum",      DB_RECNUM);             \
       PARSE_UNSUPPORTEDFLAG(  "renumber",    DB_RENUMBER);
 
 
@@ -396,6 +403,7 @@ int read_header()
       goto error;
    }
    while (!g.eof) {
+      if (caught_any_signals()) goto success;    
       g.linenumber++;
       index = 0;
       /* Read a line. */
@@ -818,6 +826,7 @@ int read_keys()
    if (!g.leadingspace) {
       assert(g.plaintext);
       while (!g.eof) {
+         if (caught_any_signals()) goto success;
          g.linenumber++;
          if (get_dbt(&key) != 0) goto error;
          if (g.eof) {
@@ -830,6 +839,7 @@ int read_keys()
       }
    }
    else while (!g.eof) {
+      if (caught_any_signals()) goto success;
       g.linenumber++;
       spacech = getchar();
       switch (spacech) {
