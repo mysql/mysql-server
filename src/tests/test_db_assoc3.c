@@ -356,7 +356,7 @@ void step_name (void) {
 	cursor_count_n_items++;
     } else if (r==DB_NOTFOUND) {
 	// Got to the end.
-	printf("%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
+	//printf("%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
 	assert(cursor_count_n_items==calc_n_items);
 	r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_FIRST);
 	if (r==DB_NOTFOUND) {
@@ -420,13 +420,15 @@ int main (int argc, const char *argv[]) {
 	    errno=0;
 	    char *endptr;
 	    useseed = strtoul(argv[0], &endptr, 10);
-	    printf("Got %d\n", useseed);
 	    if (errno!=0 || *endptr!=0 || endptr==argv[0]) {
 		usage(progname);
 	    }
 	}
 	argc--; argv++;
     }
+
+    printf("seed=%d\n", useseed);
+    srandom(useseed);
 
     switch (mode) {
     case MODE_DEFAULT:
@@ -441,8 +443,6 @@ int main (int argc, const char *argv[]) {
 	break;
     case MODE_MORE:
 	create_databases();
-	printf("seed=%d\n", useseed);
-	srandom(useseed);
 	calc_n_items = count_all_items = count_entries(dbp);
 	//printf("%s:%d n_items initially=%d\n", __FILE__, __LINE__, count_all_items);
 	{
