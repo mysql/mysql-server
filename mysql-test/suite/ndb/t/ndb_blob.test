@@ -497,3 +497,23 @@ select count(*) from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+
+# bug # 30674 :
+#   NOT NULL Blobs should default to zero-length.  Not NULL TEXT
+#   should default to zero-chars
+create table t1(
+  a int,
+  blob_nn blob not null,
+  text_nn text not null,
+  blob_nl blob,
+  text_nl text,
+  primary key(a)
+) engine=ndb;
+
+insert into t1(a) values (1);
+insert into t1(a, text_nl) values (2, 'MySQL Cluster NDB');
+
+select a, length(blob_nn), length(text_nn), blob_nl, text_nl from t1 order by a;
+
+drop table t1;
