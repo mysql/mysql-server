@@ -2958,3 +2958,13 @@ int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags __attribute__((__unused_
 
     return r;
 }
+
+int toku_brt_dbt_set_key(BRT brt, DBT *ybt, bytevec val, ITEMLEN vallen) {
+    int r = toku_dbt_set_value(ybt, val, vallen, &brt->skey);
+    return r;
+}
+
+int toku_brt_dbt_set_value(BRT brt, DBT *ybt, bytevec val, ITEMLEN vallen) {
+    int r = toku_dbt_set_value(ybt, val, vallen, &brt->sval);
+    return r;
+}

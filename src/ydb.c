@@ -683,105 +683,113 @@ static int get_main_cursor_flag(u_int32_t flag) {
     return flag;
 }
 
-static int toku_free_unneeded_dbts(DBT *key, DBT *pkey, DBT *data, u_int32_t flag_in) {
-    BOOL free_key;
-    BOOL free_pkey;
-    BOOL free_data;
-    u_int32_t flag = get_main_cursor_flag(flag_in);
+static int toku_c_pget_save_original_data(DBT* dst, DBT* src) {
+    int r;
     
-    //Find out whether to free each part, based on the flag sent to pkey.
-    switch (flag) {
-        case (DB_SET_RANGE):
-        case (DB_NEXT_DUP): //Unsure if key will not be malloced even though it COULD stay the same.. we really need to reload!
-#ifdef DB_NEXT_NODUP
-        case (DB_NEXT_NODUP):
-#endif        
-#ifdef DB_PREV_NODUP
-        case (DB_PREV_NODUP):
+    *dst = *src;
+#ifdef DB_DBT_PARTIAL
+#error toku_c_pget does not properly handle DB_DBT_PARTIAL
 #endif
-        case (DB_CURRENT):      //What happens if we already did a current?  Does everything get re-malloced?
-        case (DB_NEXT):         //What happens if next is a duplicate?  Does key really get malocced?
-        case (DB_PREV):         //What happens if prev is a duplicate?  Does key really get malocced?
-        case (DB_FIRST):
-        case (DB_LAST): {
-            //Everything is write.
-            free_key = free_pkey = free_data = TRUE;
-            break;
+    //We may use this multiple times, we'll free only once at the end.
+    dst->flags = DB_DBT_REALLOC;
+    //Not using DB_DBT_USERMEM.
+    dst->ulen = 0;
+    if (src->size) {
+        if (!src->data) return EINVAL;
+        //We are pretending this use from the user, so we use malloc and NOT toku_malloc.
+        dst->data = malloc(src->size);
+        if (!dst->data) {
+            r = ENOMEM;
+            return r;
         }
-        case (DB_SET): {
-            //Key will stay the same.
-            free_pkey = free_data = TRUE;
-            free_key = FALSE;
-            break;
-        }
-        case (DB_GET_BOTH): {
-            //Note that DB_GET_BOTH must have been given to pget (NOT c_get).
-            //Key and pkey are read, data is write.
-            free_data = TRUE;
-            free_key = free_pkey = FALSE;
-            break;
-        }
-        default: {
-            fprintf(stderr, "Unexpected flag to toku_free_unneeded dbts %u\n", flag);
-            return EINVAL;
-        }
-        
+        memcpy(dst->data, src->data, src->size);
     }
-#ifdef FREE_IF_NEEDED
-#error Rename the FREE_IF_NEEDED macro here, it is overwriting something
-#endif
-#define FREE_IF_NEEDED(dbt, free_bool)                  \
-if (free_bool && (dbt->flags & DB_DBT_MALLOC)) { \
-    free(dbt->data);                                    \
-    dbt->data = NULL;                                   \
-    dbt->ulen = 0;                                      \
-    dbt->size = 0;                                      \
-}
-    FREE_IF_NEEDED(key,  free_key);
-    FREE_IF_NEEDED(pkey, free_pkey);
-    FREE_IF_NEEDED(data, free_data);
-#undef FREE_IF_NEEDED
-
-#if defined(DB_GET_BOTH_RANGE) || defined(DB_SET_RECNO) || defined(DB_GET_RECNO) || defined(DB_JOIN_ITEM)
-#error Need to set up freeing behavior in toku_free_unneeded_dbts to prevent memory leaks.
-#endif
+    else dst->data = NULL;
     return 0;
 }
 
 static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) {
     int r;
+    int r2;
+    int r3;
     DB *db = c->i->db;
     DB *pdb = db->i->primary;
-    DBT oldkey = *key;
-    DBT oldpkey = *pkey;
-    DBT olddata = *data;
+    
+    
 
     if (!pdb) return EINVAL;  //c_pget does not work on a primary.
 	// If data and primary_key are both zeroed, the temporary storage used to fill in data is different in the two cases because they come from different trees.
 	assert(db->i->brt!=pdb->i->brt); // Make sure they realy are different trees.
     assert(db!=pdb);
 
+    DBT copied_key;
+    DBT copied_pkey;
+    DBT copied_data;
+    //Store original pointers.
+    DBT* o_key = key;
+    DBT* o_pkey = pkey;
+    DBT* o_data = data;
+    //Use copied versions for everything until/if success.
+    key  = &copied_key;
+    pkey = &copied_pkey;
+    data = &copied_data;
+
     if (0) {
 delete_silently_and_retry:
         //Free any old data.
-        r = toku_free_unneeded_dbts(key, pkey, data, flag);
-        //Restore old parameters.
-        *key = oldkey;
-        *pkey = oldpkey;
-        *data = olddata;
-        if (r != 0) return r;
+        free(key->data);
+        free(pkey->data);
+        free(data->data);
         //Silently delete and re-run.
         r = toku_c_del_noassociate(c, 0);
         if (r != 0) return r;
     }
+    if (0) {
+        died0:
+        return r;
+    }
+    //Need to save all the original data.
+    r = toku_c_pget_save_original_data(&copied_key, o_key);   if (r!=0) goto died0;
+    if (0) {
+        died1:
+        free(key->data);
+        goto died0;
+    }
+    r = toku_c_pget_save_original_data(&copied_pkey, o_pkey); if (r!=0) goto died1;
+    if (0) {
+        died2:
+        free(pkey->data);
+        goto died1;
+    }
+    r = toku_c_pget_save_original_data(&copied_data, o_data); if (r!=0) goto died2;
+    if (0) {
+        died3:
+        free(data->data);
+        goto died2;
+    }
+
     r = toku_c_get_noassociate(c, key, pkey, flag);
-    if (r != 0) return r;
+    if (r != 0) goto died3;
     r = pdb->get(pdb, c->i->txn, pkey, data, 0);
     if (r == DB_NOTFOUND)   goto delete_silently_and_retry;
-    if (r != 0) return r;
+    if (r != 0) goto died3;
     r = verify_secondary_key(db, pkey, data, key);
     if (r != 0)             goto delete_silently_and_retry;
-    return r;
+
+    //Copy everything and return.
+    assert(r==0);
+
+    r  = toku_brt_dbt_set_key(db->i->brt,  o_key,  key->data,  key->size);
+    r2 = toku_brt_dbt_set_key(pdb->i->brt, o_pkey, pkey->data, pkey->size);
+    r3 = toku_brt_dbt_set_value(pdb->i->brt, o_data, data->data, data->size);
+
+    //Cleanup.
+    free(key->data);
+    free(pkey->data);
+    free(data->data);
+    if (r!=0) return r;
+    if (r2!=0) return r2;
+    return r3;
 }
 
 static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
@@ -1285,7 +1293,6 @@ static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *,
 }
 
 static int toku_db_set_flags(DB * db, u_int32_t flags) {
-    ///////
     u_int32_t tflags = 0;
     if (flags & DB_DUP)
         tflags += TOKU_DB_DUP;
