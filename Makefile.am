@@ -53,7 +53,7 @@ bin-dist:		all
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
 	mkdir -p $(distdir)/win
-	scripts/mysql_install_db --no-defaults --windows \
+	scripts/mysql_install_db --no-defaults --cross-bootstrap \
 		--builddir=$(top_builddir) \
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
