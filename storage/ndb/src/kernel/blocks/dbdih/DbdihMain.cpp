@@ -2135,12 +2135,9 @@ void Dbdih::gcpBlockedLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
 void Dbdih::execINCL_NODECONF(Signal* signal) 
 {
-  Uint32 TsendNodeId;
-  Uint32 TstartNode_or_blockref;
-  
   jamEntry();
-  TstartNode_or_blockref = signal->theData[0];
-  TsendNodeId = signal->theData[1];
+  Uint32 TstartNode = signal->theData[0];
+  Uint32 TsendNodeId_or_blockref = signal->theData[1];
 
   Uint32 blocklist[6];
   blocklist[0] = clocallqhblockref;
@@ -2152,9 +2149,21 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   
   for (Uint32 i = 0; blocklist[i] != 0; i++)
   {
-    if (TstartNode_or_blockref == blocklist[i])
+    if (TsendNodeId_or_blockref == blocklist[i])
     {
       jam();
+
+      if (TstartNode != c_nodeStartSlave.nodeId)
+      {
+        jam();
+        warningEvent("Recevied INCL_NODECONF for %u from %s"
+                     " while %u is starting",
+                     TstartNode,
+                     getBlockName(refToBlock(TsendNodeId_or_blockref)),
+                     c_nodeStartSlave.nodeId);
+        return;
+      }
+      
       if (getNodeStatus(c_nodeStartSlave.nodeId) == NodeRecord::ALIVE && 
 	  blocklist[i+1] != 0)
       {
@@ -2182,10 +2191,21 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
       }
     }
   }
+
+  if (c_nodeStartMaster.startNode != TstartNode)
+  {
+    jam();
+    warningEvent("Recevied INCL_NODECONF for %u from %u"
+                 " while %u is starting",
+                 TstartNode,
+                 TsendNodeId_or_blockref,
+                 c_nodeStartMaster.startNode);
+    return;
+  }
   
   ndbrequire(cmasterdihref = reference());
-  receiveLoopMacro(INCL_NODEREQ, TsendNodeId);
-
+  receiveLoopMacro(INCL_NODEREQ, TsendNodeId_or_blockref);
+  
   CRASH_INSERTION(7128);
   /*-------------------------------------------------------------------------*/
   // Now that we have included the starting node in the node lists in the
@@ -6159,7 +6179,7 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
     jam();
     ndbout_c("resending GSN_MASTER_LCPREQ");
     sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
-			signal->getLength(), 50);
+			50, signal->getLength());
     return;
   }
   Uint32 failedNodeId = req->failedNodeId;
@@ -10678,6 +10698,12 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   Uint32 started = lcpReport->maxGciStarted;
   Uint32 completed = lcpReport->maxGciCompleted;
 
+  if (started > c_lcpState.lcpStopGcp)
+  {
+    jam();
+    c_lcpState.lcpStopGcp = started;
+  }
+
   if(tableDone){
     jam();
 
@@ -11218,7 +11244,12 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   signal->theData[0] = NDB_LE_LocalCheckpointCompleted; //Event type
   signal->theData[1] = SYSFILE->latestLCP_ID;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-  c_lcpState.lcpStopGcp = c_newest_restorable_gci;
+
+  if (c_newest_restorable_gci > c_lcpState.lcpStopGcp)
+  {
+    jam();
+    c_lcpState.lcpStopGcp = c_newest_restorable_gci;
+  }
   
   /**
    * Start checking for next LCP
@@ -12088,13 +12119,12 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   lcpNo = fmgReplicaPtr.p->nextLcp;
   do {
     ndbrequire(lcpNo < MAX_LCP_STORED);
-    if (fmgReplicaPtr.p->lcpStatus[lcpNo] == ZVALID &&
-	fmgReplicaPtr.p->maxGciStarted[lcpNo] < c_newest_restorable_gci)
+    if (fmgReplicaPtr.p->lcpStatus[lcpNo] == ZVALID)
     {
       jam();
       keepGci = fmgReplicaPtr.p->maxGciCompleted[lcpNo];
       oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[lcpNo];
-      ndbrequire(((int)oldestRestorableGci) >= 0);      
+      ndbassert(fmgReplicaPtr.p->maxGciStarted[lcpNo] <c_newest_restorable_gci);
       return;
     } else {
       jam();
@@ -12996,6 +13026,7 @@ void Dbdih::newCrashedReplica(Uint32 nodeId, ReplicaRecordPtr ncrReplicaPtr)
 void Dbdih::nodeResetStart()
 {
   jam();
+  c_nodeStartSlave.nodeId = 0;
   c_nodeStartMaster.startNode = RNIL;
   c_nodeStartMaster.failNr = cfailurenr;
   c_nodeStartMaster.activeState = false;
