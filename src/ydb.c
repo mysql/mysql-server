@@ -1113,9 +1113,9 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
 
     int openflags = 0;
     int r;
-    if (dbtype!=DB_BTREE) return EINVAL;
-
+    if (dbtype!=DB_BTREE && dbtype!=DB_UNKNOWN) return EINVAL;
     if ((flags & DB_EXCL) && !(flags & DB_CREATE)) return EINVAL;
+    if (dbtype==DB_UNKNOWN && (flags & DB_EXCL)) return EINVAL;
 
     if (db->i->full_fname)
         return -1;              /* It was already open. */
@@ -1159,7 +1159,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     db->i->open_mode = mode;
 
     r = toku_brt_open(db->i->brt, db->i->full_fname, fname, dbname,
-		 flags & DB_CREATE, flags & DB_EXCL,
+		 flags & DB_CREATE, flags & DB_EXCL, dbtype==DB_UNKNOWN,
 		 db->dbenv->i->cachetable,
 		 txn ? txn->i->tokutxn : NULL_TXN);
     if (r != 0)

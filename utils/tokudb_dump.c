@@ -50,8 +50,8 @@ int main(int argc, char *argv[]) {
    memset(&g, 0, sizeof(g));
    g.leadingspace   = true;
    //TODO: Uncomment when DB_UNKNOWN + db->get_type are implemented.
-   //g.dbtype         = DB_UNKNOWN;
-   g.dbtype         = DB_BTREE;
+   g.dbtype         = DB_UNKNOWN;
+   //g.dbtype         = DB_BTREE;
    g.progname       = argv[0];
    g.header         = true;
    g.footer         = true;
@@ -312,15 +312,14 @@ int dump_header()
       printf("\n");      
    }
    //TODO: Uncomment when db->get_flags is implemented
-   /*
    if ((retval = db->get_flags(db, &flags)) != 0) {
       ERROR(retval, "DB->get_flags");
       goto error;
    }
-   DUMP_IGNORED_FLAG(DB_CHKSUM,    "chksum=1");
-   DUMP_FLAG(        DB_DUP,       "duplicates=1");
-   DUMP_IGNORED_FLAG(DB_DUPSORT,   "dupsort=1");
-   DUMP_IGNORED_FLAG(DB_RECNUM,    "recnum=1");*/
+   DUMP_IGNORED_FLAG(DB_CHKSUM,    "chksum=1\n");
+   DUMP_FLAG(        DB_DUP,       "duplicates=1\n");
+   DUMP_FLAG(        DB_DUPSORT,   "dupsort=1\n");
+   DUMP_IGNORED_FLAG(DB_RECNUM,    "recnum=1\n");
    printf("HEADER=END\n");
    
    if (ferror(stdout)) goto error;

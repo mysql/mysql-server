@@ -3,7 +3,7 @@
 
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 # PROF_FLAGS = -pg
-OPTFLAGS = -O2
+OPTFLAGS = -O0
 
 ifeq ($(CYGWIN),cygwin)
 else
