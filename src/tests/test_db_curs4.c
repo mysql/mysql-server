@@ -137,9 +137,11 @@ static void close_databases (void) {
     if (delete_cursor) {
 	r = delete_cursor->c_close(delete_cursor); CKERR(r);
     }
+    delete_cursor=0;
     if (name_cursor) {
 	r = name_cursor->c_close(name_cursor);     CKERR(r);
     }
+    name_cursor=0;
     if (nc_key.data) free(nc_key.data);
     if (nc_data.data) free(nc_data.data);
     r = namedb->close(namedb, 0);     CKERR(r);
@@ -293,7 +295,8 @@ static void activity (void) {
 			  || (oppass==1 && opnum==26)
 			  || (oppass==1 && opnum==30)
 			  || (oppass==2 && opnum==9)
-			  || (oppass==2 && opnum==15));
+			  || (oppass==2 && opnum==15)
+			  );
 	if (do_insert) {
 	    insert_person();
 	} else {
@@ -315,10 +318,10 @@ int main (int argc, const char *argv[]) {
     memset(&nc_key, 0, sizeof(nc_key));
     memset(&nc_data, 0, sizeof(nc_data));
     nc_key.flags = DB_DBT_REALLOC;
-    nc_key.data = malloc(1); // Iniitalize it.
+    nc_key.data = malloc(1); // Initalize it.
     ((char*)nc_key.data)[0]=0;
     nc_data.flags = DB_DBT_REALLOC;
-    nc_data.data = malloc(1); // Iniitalize it.
+    nc_data.data = malloc(1); // Initalize it.
 
 
     mode = MODE_DEFAULT;
@@ -345,6 +348,8 @@ int main (int argc, const char *argv[]) {
 		activity();
 	    }
 	}
+	close_databases();
+	
 	break;
     case MODE_MORE:
 	oppass=2;
@@ -360,10 +365,9 @@ int main (int argc, const char *argv[]) {
 		activity();
 	    }
 	}
+	close_databases();
 	break;
     }
-
-    close_databases();
 
     return 0;
 }
