@@ -40,12 +40,13 @@ class TcKeyRef {
   friend bool printTCKEYREF(FILE *, const Uint32 *, Uint32, Uint16);
   
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
 
 private:
   Uint32 connectPtr;
   Uint32 transId[2];
   Uint32 errorCode;
+  Uint32 errorData;
 };
 
 #endif
