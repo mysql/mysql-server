@@ -1172,8 +1172,6 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
-    XID  xid;                           // transaction identifier
-    enum xa_states xa_state;            // used by external XA only
     XID_STATE xid_state;
     Rows_log_event *m_pending_rows_event;
 
