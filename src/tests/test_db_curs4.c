@@ -202,11 +202,9 @@ void close_databases (void) {
     
 
 void gettod (struct timestamp *ts) {
-    struct timeval tv;
-    int r = gettimeofday(&tv, 0);
-    assert(r==0);
-    ts->tv_sec  = htonl(tv.tv_sec);
-    ts->tv_usec = htonl(tv.tv_usec);
+    static int counter;
+    ts->tv_sec = 0;
+    ts->tv_usec = counter++;
 }
 
 void setup_for_db_create (void) {
@@ -250,26 +248,47 @@ static int count_entries (const char *dbcname, DB *db) {
     return n_found;
 }
 
+int oppass=0, opnum=0;
+
 static void insert_person (void) {
     int namelen = 5+myrandom()%245;
     struct primary_key  pk;
     struct primary_data pd;
     char keyarray[1000], dataarray[1000]; 
-    unsigned char namearray[1000];
-    pk.rand = myrandom();
+    char *namearray;
+    myrandom();
+    static int rctr=0;
+    pk.rand = rctr++;
     gettod(&pk.ts);
     pd.creationtime = pk.ts;
     pd.expiretime   = pk.ts;
     pd.expiretime.tv_sec += 24*60*60*366;
-    pd.doesexpire = (myrandom()%10==0);
+    pd.doesexpire = oppass==1 && (opnum==2 || opnum==10 || opnum==22);
     int i;
-    pd.name.name = namearray;
-    pd.name.name[0] = 'A'+myrandom()%26;
-    for (i=1; i<namelen; i++) {
-	pd.name.name[i] = 'a'+myrandom()%26;
+    for (i=0; i<namelen; i++) {
+	myrandom();
     }
-    pd.name.name[i]=0;
+//    fprintf(stderr, "%d: else if (oppass==%d && opnum==%d) pd.name=\"%s\";\n", __LINE__, oppass, opnum, pd.name.name);
+    if (oppass==1 && opnum==1)       namearray="Hc";
+    else if (oppass==1 && opnum==2)  namearray="Ku";
+    else if (oppass==1 && opnum==5)  namearray="Ub";
+    else if (oppass==1 && opnum==6)  namearray="Sx";
+    else if (oppass==1 && opnum==9)  namearray="Cc";
+    else if (oppass==1 && opnum==10) namearray="Ou";
+    else if (oppass==1 && opnum==13) namearray="Qf";
+    else if (oppass==1 && opnum==14) namearray="Ua";
+    else if (oppass==1 && opnum==15) namearray="Pu";
+    else if (oppass==1 && opnum==16) namearray="Ru";
+    else if (oppass==1 && opnum==22) namearray="Ef";
+    else if (oppass==1 && opnum==24) namearray="Mg";
+    else if (oppass==1 && opnum==25) namearray="Qr";
+    else if (oppass==1 && opnum==26) namearray="Ve";
+    else if (oppass==1 && opnum==30) namearray="Ar";
+    else if (oppass==2 && opnum==9)  namearray="Dd";
+    else if (oppass==2 && opnum==15) namearray="Ad";
+    else assert(0);
     DBT key,data;
+    pd.name.name = (unsigned char*)namearray;
     memset(&key,0,sizeof(DBT));
     memset(&data,0,sizeof(DBT));
     key.data = keyarray;
@@ -354,13 +373,35 @@ static void step_name (void) {
 int cursor_load=2; /* Set this to a higher number to do more cursor work for every insertion.   Needed to get to the end. */
 
 static void activity (void) {
-    if (myrandom()%20==0) {
+    myrandom();
+    int do_delete = (oppass==1 && opnum==32) || (oppass==2 && opnum==8);
+    if (do_delete) {
 	// Delete the oldest expired one.  Keep the cursor open
 	delete_oldest_expired();
-    } else if (myrandom()%cursor_load==0) {
-	insert_person();
     } else {
-	step_name();
+	int do_insert = ( (oppass==1 && opnum==1) 
+			  || (oppass==1 && opnum==2)
+			  || (oppass==1 && opnum==5)
+			  || (oppass==1 && opnum==6)
+			  || (oppass==1 && opnum==9)
+			  || (oppass==1 && opnum==10)
+			  || (oppass==1 && opnum==13)
+			  || (oppass==1 && opnum==14)
+			  || (oppass==1 && opnum==15)
+			  || (oppass==1 && opnum==16)
+			  || (oppass==1 && opnum==22)
+			  || (oppass==1 && opnum==24)
+			  || (oppass==1 && opnum==25)
+			  || (oppass==1 && opnum==26)
+			  || (oppass==1 && opnum==30)
+			  || (oppass==2 && opnum==9)
+			  || (oppass==2 && opnum==15));
+	myrandom();
+	if (do_insert) {
+	    insert_person();
+	} else {
+	    step_name();
+	}
     }
     //assert(count_all_items==count_entries(dbp));
 }
@@ -373,13 +414,7 @@ static void usage (const char *argv1) {
 
 int main (int argc, const char *argv[]) {
     const char *progname=argv[0];
-    int useseed;
-
-    {
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	useseed = tv.tv_sec+tv.tv_usec*997;  // magic:  997 is a prime, and a million (microseconds/second) times 997 is still 32 bits.
-    }
+    int useseed=1;
 
     memset(&nc_key, 0, sizeof(nc_key));
     memset(&nc_data, 0, sizeof(nc_data));
@@ -411,16 +446,20 @@ int main (int argc, const char *argv[]) {
 
     switch (mode) {
     case MODE_DEFAULT:
+	oppass=1;
 	system("rm -rf " DIR);
 	mkdir(DIR, 0777); 
 	create_databases();
 	{
 	    int i;
-	    for (i=0; i<33; i++)
+	    for (i=0; i<33; i++) {
+		opnum=i;
 		activity();
+	    }
 	}
 	break;
     case MODE_MORE:
+	oppass=2;
 	create_databases();
 	calc_n_items = count_all_items = count_entries("dbc", dbp);
 	//printf("%s:%d n_items initially=%d\n", __FILE__, __LINE__, count_all_items);
@@ -429,8 +468,10 @@ int main (int argc, const char *argv[]) {
 	    int i;
 	    cursor_load = 8*(1+2*count_all_items/n_activities);
 	    //printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
-	    for (i=0; i<n_activities; i++)
+	    for (i=0; i<n_activities; i++) {
+		opnum=i;
 		activity();
+	    }
 	}
 	break;
     }
