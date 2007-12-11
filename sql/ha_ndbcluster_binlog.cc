@@ -248,7 +248,7 @@ static void run_query(THD *thd, char *buf, char *end,
 {
   ulong save_thd_query_length= thd->query_length;
   char *save_thd_query= thd->query;
-  struct system_variables save_thd_variables= thd->variables;
+  ulong save_thread_id= thd->variables.pseudo_thread_id;
   struct system_status_var save_thd_status_var= thd->status_var;
   THD_TRANS save_thd_transaction_all= thd->transaction.all;
   THD_TRANS save_thd_transaction_stmt= thd->transaction.stmt;
@@ -286,7 +286,7 @@ static void run_query(THD *thd, char *buf, char *end,
   thd->options= save_thd_options;
   thd->query_length= save_thd_query_length;
   thd->query= save_thd_query;
-  thd->variables= save_thd_variables;
+  thd->variables.pseudo_thread_id= save_thread_id;
   thd->status_var= save_thd_status_var;
   thd->transaction.all= save_thd_transaction_all;
   thd->transaction.stmt= save_thd_transaction_stmt;
