@@ -259,7 +259,7 @@ int usage()
    fprintf(stderr,
            "usage: %s [-PpTuVhHfF] [-o output] [-r seed] [-m minsize] [-M limitsize]\n"
            "       %*s[-n numpairs] [-d delimiter] [-s delimiter]\n",
-           g.progname, strlen(g.progname) + 1, "");
+           g.progname, (int)strlen(g.progname) + 1, "");
    return EXIT_FAILURE;
 }
 
@@ -319,7 +319,7 @@ void generate_keys()
             if (length == 0 && !usedemptykey) usedemptykey = true;
             else {
                 /* Append identifier to ensure uniqueness. */
-                sprintf(identifier, "x%llx", numgenerated);
+                sprintf(identifier, "x%" PRIx64, numgenerated);
                 outputstring(identifier);
                 totalsize += strlen(identifier);
             }
