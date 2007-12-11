@@ -22,6 +22,7 @@
 #include "mysql_priv.h"
 #include <mysql/plugin.h>
 #include <m_ctype.h>
+#include <my_dir.h>
 #include <myisampack.h>
 #include <my_bit.h>
 #include "ha_maria.h"
@@ -81,6 +82,16 @@ TYPELIB maria_stats_method_typelib=
   maria_stats_method_names, NULL
 };
 
+/* transactions log purge mode */
+const char *maria_translog_purge_type_names[]=
+{
+  "immediate", "external", "at_flush", NullS
+};
+TYPELIB maria_translog_purge_type_typelib=
+{
+  array_elements(maria_translog_purge_type_names) - 1, "",
+  maria_translog_purge_type_names, NULL
+};
 const char *maria_sync_log_dir_names[]=
 {
   "NEVER", "NEWFILE", "ALWAYS", NullS
@@ -97,6 +108,9 @@ static ulong checkpoint_interval;
 static void update_checkpoint_interval(MYSQL_THD thd,
                                        struct st_mysql_sys_var *var,
                                        void *var_ptr, void *save);
+static void update_log_file_size(MYSQL_THD thd,
+                                 struct st_mysql_sys_var *var,
+                                 void *var_ptr, void *save);
 
 static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -109,6 +123,20 @@ static MYSQL_SYSVAR_ULONG(checkpoint_interval, checkpoint_interval,
        "Interval between automatic checkpoints, in seconds;"
        " 0 means 'no automatic checkpoints'.",
        NULL, update_checkpoint_interval, 30, 0, UINT_MAX, 1);
+
+static MYSQL_SYSVAR_ULONG(log_file_size, log_file_size,
+       PLUGIN_VAR_RQCMDARG,
+       "Limit for transaction log size",
+       NULL, update_log_file_size, TRANSLOG_FILE_SIZE,
+       TRANSLOG_MIN_FILE_SIZE, 0xffffffffL, TRANSLOG_PAGE_SIZE);
+
+static MYSQL_SYSVAR_ENUM(log_purge_type, log_purge_type,
+       PLUGIN_VAR_RQCMDARG,
+       "Specifies how maria transactional log will be purged. "
+       "Possible values of name are \"immediate\", \"external\" "
+       "and \"at_flush\"",
+       NULL, NULL, TRANSLOG_PURGE_IMMIDIATE,
+       &maria_translog_purge_type_typelib);
 
 static MYSQL_SYSVAR_ULONGLONG(max_sort_file_size,
        maria_max_temp_length, PLUGIN_VAR_RQCMDARG,
@@ -2415,6 +2443,109 @@ static int maria_rollback(handlerton *hton __attribute__ ((unused)),
 }
 
 
+
+/**
+  @brief flush log handler
+
+  @param hton            maria handlerton (unused)
+
+  @retval FALSE OK
+  @retval TRUE  Error
+*/
+
+bool maria_flush_logs(handlerton *hton)
+{
+  return test(translog_purge_at_flush());
+}
+
+
+#define SHOW_MSG_LEN (FN_REFLEN + 20)
+/**
+  @brief show status handler
+
+  @param hton            maria handlerton
+  @param thd             thread handler
+  @param print           print function
+  @param stat            type of status
+*/
+
+bool maria_show_status(handlerton *hton,
+                       THD *thd,
+                       stat_print_fn *print,
+                       enum ha_stat_type stat)
+{
+  char engine_name[]= "maria";
+  switch (stat)
+  {
+  case HA_ENGINE_LOGS:
+    {
+      TRANSLOG_ADDRESS horizon= translog_get_horizon();
+      uint32 last_file= LSN_FILE_NO(horizon);
+      uint32 first_needed= translog_get_first_needed_file();
+      uint32 first_file= translog_get_first_file(horizon);
+      uint32 i;
+      const char unknown[]= "unknown";
+      const char needed[]= "in use";
+      const char unneeded[]= "free";
+      char path[FN_REFLEN];
+
+      if (first_file == 0)
+      {
+        const char error[]= "error";
+        print(thd, engine_name, sizeof(engine_name),
+              STRING_WITH_LEN(""), error, sizeof(error));
+        break;
+      }
+
+      for (i= first_file; i <= last_file; i++)
+      {
+        char *file;
+        const char *status;
+        uint length, status_len;
+        MY_STAT stat_buff, *stat;
+        const char error[]= "can't stat";
+        char object[SHOW_MSG_LEN];
+        file= translog_filename_by_fileno(i, path);
+        if (!(stat= my_stat(file, &stat_buff, MYF(MY_WME))))
+        {
+          status= error;
+          status_len= sizeof(error);
+          length= snprintf(object, SHOW_MSG_LEN, "Size unknown ; %s", file);
+        }
+        else
+        {
+          if (first_needed == 0)
+          {
+            status= unknown;
+            status_len= sizeof(unknown);
+          }
+          else if (i < first_needed)
+          {
+            status= unneeded;
+            status_len= sizeof(unneeded);
+          }
+          else
+          {
+            status= needed;
+            status_len= sizeof(needed);
+          }
+          length= snprintf(object, SHOW_MSG_LEN, "Size %12lu ; %s",
+                           (ulong) stat->st_size, file);
+        }
+
+        print(thd, engine_name, sizeof(engine_name),
+                object, length, status, status_len);
+      }
+      break;
+    }
+  case HA_ENGINE_STATUS:
+  case HA_ENGINE_MUTEX:
+  default:
+    break;
+  }
+  return 0;
+}
+
 static int ha_maria_init(void *p)
 {
   int res;
@@ -2425,6 +2556,8 @@ static int ha_maria_init(void *p)
   maria_hton->panic= maria_hton_panic;
   maria_hton->commit= maria_commit;
   maria_hton->rollback= maria_rollback;
+  maria_hton->flush_logs= maria_flush_logs;
+  maria_hton->show_status= maria_show_status;
   /* TODO: decide if we support Maria being used for log tables */
   maria_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   bzero(maria_log_pagecache, sizeof(*maria_log_pagecache));
@@ -2437,7 +2570,7 @@ static int ha_maria_init(void *p)
     !init_pagecache(maria_log_pagecache,
                     TRANSLOG_PAGECACHE_SIZE, 0, 0,
                     TRANSLOG_PAGE_SIZE, 0) ||
-    translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+    translog_init(maria_data_root, log_file_size,
                   MYSQL_VERSION_ID, server_id, maria_log_pagecache,
                   TRANSLOG_DEFAULT_FLAGS) ||
     maria_recover() ||
@@ -2525,6 +2658,8 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(checkpoint_interval),
+  MYSQL_SYSVAR(log_file_size),
+  MYSQL_SYSVAR(log_purge_type),
   MYSQL_SYSVAR(max_sort_file_size),
   MYSQL_SYSVAR(pagecache_age_threshold),
   MYSQL_SYSVAR(pagecache_buffer_size),
@@ -2547,6 +2682,19 @@ static void update_checkpoint_interval(MYSQL_THD thd,
 {
   ma_checkpoint_end();
   ma_checkpoint_init(*(ulong *)var_ptr= (ulong)(*(long *)save));
+}
+
+/**
+   @brief Updates the transaction log file limit.
+*/
+
+static void update_log_file_size(MYSQL_THD thd,
+                                 struct st_mysql_sys_var *var,
+                                 void *var_ptr, void *save)
+{
+  uint32 size= (uint32)((ulong)(*(long *)save));
+  translog_set_file_size(size);
+  *(ulong *)var_ptr= size;
 }
 
 static SHOW_VAR status_variables[]= {

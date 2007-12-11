@@ -1,0 +1,95 @@
+-- source include/have_maria.inc
+-- source include/big_test.inc
+let $default=`select @@global.storage_engine`;
+set global storage_engine=maria;
+set session storage_engine=maria;
+let $def_logsize=`select @@global.maria_log_file_size`;
+let $def_checkinterval=`select @@global.maria_checkpoint_interval`;
+
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+SET SQL_WARNINGS=1;
+
+CREATE TABLE t1 (
+  STRING_DATA char(255) default NULL
+);
+CREATE TABLE t2 (
+  STRING_DATA char(255) default NULL
+);
+
+INSERT INTO t1 VALUES ('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+INSERT INTO t1 VALUES ('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD');
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+
+
+set global maria_checkpoint_interval=2;
+--replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+SHOW ENGINE maria logs;
+set global maria_log_file_size=16777216;
+select @@global.maria_log_file_size;
+sleep 7;
+--replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+SHOW ENGINE maria logs;
+set global maria_log_file_size=8388608;
+select @@global.maria_log_file_size;
+
+set global maria_log_purge_type=at_flush;
+insert into t1 select * from t2;
+sleep 7;
+--replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+SHOW ENGINE maria logs;
+flush logs;
+--replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+SHOW ENGINE maria logs;
+
+set global maria_log_file_size=16777216;
+set global maria_log_purge_type=external;
+insert into t1 select * from t2;
+sleep 7;
+--replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+SHOW ENGINE maria logs;
+flush logs;
+--replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+SHOW ENGINE maria logs;
+
+set global maria_log_purge_type=immediate;
+insert into t1 select * from t2;
+sleep 7;
+--replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+SHOW ENGINE maria logs;
+
+drop table t1, t2;
+
+--disable_result_log
+--disable_query_log
+set global maria_log_purge_type=immediate;
+eval set global storage_engine=$default;
+eval set global maria_log_file_size=$def_logsize;
+eval set global maria_checkpoint_interval=$def_checkinterval;
+--enable_result_log
+--enable_query_log
