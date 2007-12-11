@@ -528,26 +528,36 @@ int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **br
     struct rbuf rc;
     int size;
     int sizeagain;
+    int ret = -1;
     assert(off==0);
     //printf("%s:%d malloced %p\n", __FILE__, __LINE__, h);
     {
 	uint32_t size_n;
 	ssize_t r = pread(fd, &size_n, sizeof(size_n), off);
-	if (r==0) { toku_free(h); return -1; }
-	assert(r==sizeof(size_n));
+	if (r==0) {
+        died0:
+	    toku_free(h); return ret;
+	}
+	if (r!=sizeof(size_n)) {ret = EINVAL; goto died0;}
 	size = ntohl(size_n);
     }
     rc.buf = toku_malloc(size);
+    if (rc.buf == NULL) {ret = ENOMEM; goto died0;}
+    if (0) {
+        died1:
+        toku_free(rc.buf);
+        goto died0;
+    }
     rc.size=size;
-    assert(rc.size>0);
+    if (rc.size<=0) {ret = EINVAL; goto died1;}
     rc.ndone=0;
     {
 	ssize_t r = pread(fd, rc.buf, size, off);
-	assert(r==size);
+	if (r!=size) {ret = EINVAL; goto died1;}
     }
     h->dirty=0;
     sizeagain        = rbuf_int(&rc);
-    assert(sizeagain==size);
+    if (sizeagain!=size) {ret = EINVAL; goto died1;}
     h->flags         = rbuf_int(&rc);
     h->nodesize      = rbuf_int(&rc);
     h->freelist      = rbuf_diskoff(&rc);
@@ -556,22 +566,42 @@ int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **br
     if (h->n_named_roots>=0) {
 	int i;
 	MALLOC_N(h->n_named_roots, h->roots);
+	if (h->n_named_roots > 0 && h->roots == NULL) {ret = ENOMEM; goto died1;}
+	if (0) {
+	    died2:
+	    toku_free(h->roots);
+	    goto died1;
+	}
 	MALLOC_N(h->n_named_roots, h->names);
+	if (h->n_named_roots > 0 && h->names == NULL) {ret = ENOMEM; goto died2;}
+	if (0) {
+	    died3:
+	    toku_free(h->names);
+	    for (i = 0; i < h->n_named_roots; i++) {
+	        if (h->names[i]) toku_free(h->names[i]);
+	    }
+	    goto died2;
+	}
+	
+	
+	
 	for (i=0; i<h->n_named_roots; i++) {
 	    bytevec nameptr;
 	    unsigned int len;
 	    h->roots[i] = rbuf_diskoff(&rc);
 	    rbuf_bytes(&rc, &nameptr, &len);
-	    assert(strlen(nameptr)+1==len);
+	    if (strlen(nameptr)+1!=len) {ret = EINVAL; goto died3;}
 	    h->names[i] = toku_memdup(nameptr,len);
+	    if (len > 0 && h->names[i] == NULL) {ret = ENOMEM; goto died3;}
 	}
+	
 	h->unnamed_root = -1;
     } else {
 	h->roots = 0;
 	h->names = 0;
 	h->unnamed_root = rbuf_diskoff(&rc);
     }
-    assert(rc.ndone==rc.size);
+    if (rc.ndone!=rc.size) {ret = EINVAL; goto died3;}
     toku_free(rc.buf);
     *brth = h;
     return 0;
