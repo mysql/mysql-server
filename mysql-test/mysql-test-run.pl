@@ -129,7 +129,15 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 our $default_vardir;
 
 our $opt_usage;
-our $opt_suites= "main,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
+our $opt_suites;
+our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
+our @extra_suites=
+(
+ ["mysql-5.1-new-ndb",   "ndb_team"],
+ ["mysql-5.1-telco-6.2", "ndb_team"],
+ ["mysql-5.1-telco-6.3", "ndb_team"],
+);
+
 
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -398,6 +406,20 @@ sub main () {
   else
   {
     # Figure out which tests we are going to run
+    if (!$opt_suites)
+    {
+      # use default and add any extra_suites as defined
+      $opt_suites= $opt_suites_default;
+      my $ddd= basename(dirname($glob_mysql_test_dir));
+      foreach my $extra_suite (@extra_suites)
+      {
+	if ($extra_suite->[0] eq "$ddd")
+	{
+	  $opt_suites= "$extra_suite->[1],$opt_suites";
+	}
+      }
+    }
+
     my $tests= collect_test_cases($opt_suites);
 
     # Turn off NDB and other similar options if no tests use it
@@ -5223,7 +5245,7 @@ Options to control what test suites or cases to run
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
   suite[s]=NAME1,..,NAMEN Collect tests in suites from the comma separated
                         list of suite names.
-                        The default is: "$opt_suites"
+                        The default is: "$opt_suites_default"
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
   big-test              Set the environment variable BIG_TEST, which can be
