@@ -198,8 +198,14 @@ static void insert_person (void) {
     int r=do_put("dbp", dbp, &key, &data);   CKERR(r);
     // If the cursor is to the left of the current item, then increment count_items
     {
-	int compare=strcmp((char*)namearray, nc_key.data);
+	int compare=strcmp(namearray, nc_key.data);
+	// Verify that the first byte matches the strcmp function.
+	if (compare<0) assert(namearray[0]< ((char*)nc_key.data)[0]);
+	if (compare==0) assert(namearray[0]== ((char*)nc_key.data)[0]);
+	if (compare>0) assert(namearray[0]> ((char*)nc_key.data)[0]);
 	//printf("%s:%d compare=%d insert %s, cursor at %s\n", __FILE__, __LINE__, compare, namearray, (char*)nc_key.data);
+
+	// Update the counters
 	if (compare>0) calc_n_items++;
 	count_all_items++;
     }
