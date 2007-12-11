@@ -1637,13 +1637,22 @@ public:
   virtual int repair_partitions(THD *thd)
   { return HA_ERR_WRONG_COMMAND; }
 
-  /* lock_count() can be more than one if the table is a MERGE */
+  /**
+    @note lock_count() can return > 1 if the table is MERGE or partitioned.
+  */
   virtual uint lock_count(void) const { return 1; }
   /**
     Is not invoked for non-transactional temporary tables.
 
+    @note store_lock() can return more than one lock if the table is MERGE
+    or partitioned.
+
     @note that one can NOT rely on table->in_use in store_lock().  It may
     refer to a different thread if called from mysql_lock_abort_for_thread().
+
+    @note If the table is MERGE, store_lock() can return less locks
+    than lock_count() claimed. This can happen when the MERGE children
+    are not attached when this is called from another thread.
   */
   virtual THR_LOCK_DATA **store_lock(THD *thd,
 				     THR_LOCK_DATA **to,
