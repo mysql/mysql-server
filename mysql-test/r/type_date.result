@@ -214,4 +214,9 @@ INSERT INTO t1 VALUES ('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
 SET SQL_MODE=DEFAULT;
 DROP TABLE t1,t2;
+CREATE TABLE t1 SELECT curdate() AS f1;
+SELECT hour(f1), minute(f1), second(f1) FROM t1;
+hour(f1)	minute(f1)	second(f1)
+0	0	0
+DROP TABLE t1;
 End of 5.0 tests

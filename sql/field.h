@@ -933,6 +933,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool get_time(MYSQL_TIME *ltime);
   bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
