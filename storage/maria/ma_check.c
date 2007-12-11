@@ -5872,6 +5872,11 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
     share->now_transactional= 1;
+    /**
+      @todo RECOVERY maria_chk --transaction-log may come here; to be sure
+      that ha_maria is not using the log too, we should do a my_lock() on the
+      control file when Maria starts.
+    */
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_REPAIR_TABLE,
                                        &dummy_transaction_object, info,
                                        sizeof(log_data),
