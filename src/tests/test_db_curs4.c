@@ -115,6 +115,10 @@ static void create_databases (void) {
     r = db_env_create(&dbenv, 0);                                                            CKERR(r);
     r = dbenv->open(dbenv, DIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, 0);                      CKERR(r);
 
+#ifdef USE_BDB
+    dbenv->set_errfile(dbenv, stderr);
+#endif
+
     r = db_create(&dbp, dbenv, 0);                                                           CKERR(r);
     r = dbp->open(dbp, null_txn, "primary.db", NULL, DB_BTREE, DB_CREATE, 0600);             CKERR(r);
 
@@ -157,27 +161,27 @@ static void insert_person (void) {
     struct primary_key  pk;
     struct primary_data pd;
     char keyarray[1000], dataarray[1000]; 
-    char *namearray;
+    const char *namearray;
     gettod(&pk.ts);
     pd.expiretime   = pk.ts;
     pd.doesexpire = oppass==1 && (opnum==2 || opnum==10 || opnum==22);
     if (oppass==1 && opnum==1)       namearray="Hc";
-    else if (oppass==1 && opnum==2)  namearray="Ku";
-    else if (oppass==1 && opnum==5)  namearray="Ub";
-    else if (oppass==1 && opnum==6)  namearray="Sx";
-    else if (oppass==1 && opnum==9)  namearray="Cc";
-    else if (oppass==1 && opnum==10) namearray="Ou";
-    else if (oppass==1 && opnum==13) namearray="Qf";
-    else if (oppass==1 && opnum==14) namearray="Ua";
-    else if (oppass==1 && opnum==15) namearray="Pu";
-    else if (oppass==1 && opnum==16) namearray="Ru";
-    else if (oppass==1 && opnum==22) namearray="Ef";
-    else if (oppass==1 && opnum==24) namearray="Mg";
-    else if (oppass==1 && opnum==25) namearray="Qr";
-    else if (oppass==1 && opnum==26) namearray="Ve";
-    else if (oppass==1 && opnum==30) namearray="Ar";
-    else if (oppass==2 && opnum==9)  namearray="Dd";
-    else if (oppass==2 && opnum==15) namearray="Ad";
+    else if (oppass==1 && opnum==2)  namearray="K";
+    else if (oppass==1 && opnum==5)  namearray="V";
+    else if (oppass==1 && opnum==6)  namearray="T";
+    else if (oppass==1 && opnum==9)  namearray="C";
+    else if (oppass==1 && opnum==10) namearray="O";
+    else if (oppass==1 && opnum==13) namearray="Q";
+    else if (oppass==1 && opnum==14) namearray="U";
+    else if (oppass==1 && opnum==15) namearray="P";
+    else if (oppass==1 && opnum==16) namearray="S";
+    else if (oppass==1 && opnum==22) namearray="E";
+    else if (oppass==1 && opnum==24) namearray="M";
+    else if (oppass==1 && opnum==25) namearray="R";
+    else if (oppass==1 && opnum==26) namearray="W";
+    else if (oppass==1 && opnum==30) namearray="B";
+    else if (oppass==2 && opnum==9)  namearray="Dd"; // If we shorten this string we get corrupt secondary errors in BDB.
+    else if (oppass==2 && opnum==15) namearray="A";
     else assert(0);
     DBT key,data;
     pd.name.name = (unsigned char*)namearray;
