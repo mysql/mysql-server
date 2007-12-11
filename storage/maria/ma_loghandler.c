@@ -2099,7 +2099,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
   }
 
   file.file= buffer->file;
-  for (i= 0, pg= buffer->offset / TRANSLOG_PAGE_SIZE;
+  for (i= 0, pg= LSN_OFFSET(buffer->offset) / TRANSLOG_PAGE_SIZE;
        i < buffer->size;
        i+= TRANSLOG_PAGE_SIZE, pg++)
   {
