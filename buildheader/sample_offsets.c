@@ -70,6 +70,10 @@ void sample_db_env_offsets (void) {
     STRUCT_SETUP(DB_ENV, app_private, "void *%s");
     STRUCT_SETUP(DB_ENV, close, "int  (*%s) (DB_ENV *, u_int32_t)");
     STRUCT_SETUP(DB_ENV, err, "void (*%s) (const DB_ENV *, int, const char *, ...)");
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+    STRUCT_SETUP(DB_ENV, get_cachesize, "int (*%s) (DB_ENV *, u_int32_t *)");
+    STRUCT_SETUP(DB_ENV, get_flags, "int (*%s) (DB_ENV *, u_int32_t *)");
+#endif
     STRUCT_SETUP(DB_ENV, log_archive, "int  (*%s) (DB_ENV *, char **[], u_int32_t)");
     STRUCT_SETUP(DB_ENV, log_flush, "int  (*%s) (DB_ENV *, const DB_LSN *)");
     STRUCT_SETUP(DB_ENV, open, "int  (*%s) (DB_ENV *, const char *, u_int32_t, int)");
@@ -117,6 +121,10 @@ void sample_db_offsets (void) {
     STRUCT_SETUP(DB, dbenv,          "DB_ENV *%s");
     STRUCT_SETUP(DB, del,            "int (*%s) (DB *, DB_TXN *, DBT *, u_int32_t)");
     STRUCT_SETUP(DB, get,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+    STRUCT_SETUP(DB, get_flags,      "int (*%s) (DB *, u_int32_t *)");
+    STRUCT_SETUP(DB, get_pagesize,   "int (*%s) (DB *, u_int32_t *)");
+#endif
     STRUCT_SETUP(DB, key_range,      "int (*%s) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)");
     STRUCT_SETUP(DB, open,           "int (*%s) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)");
     STRUCT_SETUP(DB, pget,           "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, DBT *, u_int32_t)");
@@ -125,8 +133,8 @@ void sample_db_offsets (void) {
     STRUCT_SETUP(DB, rename,         "int (*%s) (DB *, const char *, const char *, const char *, u_int32_t)");
     STRUCT_SETUP(DB, set_bt_compare, "int (*%s) (DB *, int (*)(DB *, const DBT *, const DBT *))");
     STRUCT_SETUP(DB, set_dup_compare, "int (*%s) (DB *, int (*)(DB *, const DBT *, const DBT *))");
-    STRUCT_SETUP(DB, set_pagesize,   "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB, set_flags,      "int (*%s) (DB *, u_int32_t)");
+    STRUCT_SETUP(DB, set_pagesize,   "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB, stat,           "int (*%s) (DB *, void *, u_int32_t)");
     STRUCT_SETUP(DB, verify,         "int (*%s) (DB *, const char *, const char *, FILE *, u_int32_t)");
     sort_and_dump_fields("db", sizeof(DB));
