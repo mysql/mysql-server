@@ -586,6 +586,8 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
     slack = 4 * totalSizeInWords - attributeSize;
     break;
   }
+  default:
+    break;
   }
   
   if (((UintPtr)aValue & 3) != 0 || (slack != 0))
