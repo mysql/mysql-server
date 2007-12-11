@@ -35,7 +35,6 @@ struct name_key {
 };
 
 struct primary_data {
-    struct timestamp creationtime;
     struct timestamp expiretime; /* not valid if doesexpire==0 */
     unsigned char doesexpire;
     struct name_key name;
@@ -77,7 +76,6 @@ void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
 }
 
 void write_pd_to_dbt (DBT *dbt, const struct primary_data *pd) {
-    write_timestamp_to_dbt(dbt, &pd->creationtime);
     write_timestamp_to_dbt(dbt, &pd->expiretime);
     write_uchar_to_dbt(dbt, pd->doesexpire);
     write_name_to_dbt(dbt, &pd->name);
@@ -113,7 +111,6 @@ void read_name_from_dbt (const DBT *dbt, int *off, struct name_key *nk) {
 }
 
 void read_pd_from_dbt (const DBT *dbt, int *off, struct primary_data *pd) {
-    read_timestamp_from_dbt(dbt, off, &pd->creationtime);
     read_timestamp_from_dbt(dbt, off, &pd->expiretime);
     read_uchar_from_dbt(dbt, off, &pd->doesexpire);
     read_name_from_dbt(dbt, off, &pd->name);
@@ -202,11 +199,17 @@ void close_databases (void) {
     
 
 void gettod (struct timestamp *ts) {
+#if 0    
     struct timeval tv;
     int r = gettimeofday(&tv, 0);
     assert(r==0);
     ts->tv_sec  = htonl(tv.tv_sec);
     ts->tv_usec = htonl(tv.tv_usec);
+#else
+    static int counter=0;
+    ts->tv_sec  = 0;
+    ts->tv_usec = counter++;
+#endif
 }
 
 void setup_for_db_create (void) {
@@ -266,7 +269,6 @@ void insert_person (void) {
     unsigned char namearray[1000];
     pk.rand = random();
     gettod(&pk.ts);
-    pd.creationtime = pk.ts;
     pd.expiretime   = pk.ts;
     pd.expiretime.tv_sec += 24*60*60*366;
     pd.doesexpire = (random()%10==0);
@@ -288,6 +290,10 @@ void insert_person (void) {
     data.size = 0;
     write_pk_to_dbt(&key, &pk);
     write_pd_to_dbt(&data, &pd);
+    {
+	char *dt = data.data;
+	fprintf(stderr, "put %2d%c %s\n", dt[7], dt[8]?'e':' ', dt+9);
+    }
     int r=dbp->put(dbp, null_txn, &key, &data,0);   CKERR(r);
     // If the cursor is to the left of the current item, then increment count_items
     {
@@ -313,8 +319,10 @@ void delete_oldest_expired (void) {
     if (r==DB_NOTFOUND) return;
     CKERR(r);
     {
-	char *deleted_key = ((char*)data.data)+name_offset_in_pd_dbt();
+	char *dt=data.data;
+	char *deleted_key = dt+name_offset_in_pd_dbt();
 	int compare=strcmp(deleted_key, nc_key.data);
+	fprintf(stderr, "del %2d%c %s\n", dt[7], dt[8]?'e':' ', dt+9);
 	if (compare>0) {
 	    //printf("%s:%d r3=%d compare=%d count=%d cacount=%d cucount=%d deleting %s cursor=%s\n", __FILE__, __LINE__, r3, compare, count_all_items, calc_n_items, cursor_count_n_items, deleted_key, (char*)nc_key.data);
 	    calc_n_items--;
@@ -353,7 +361,9 @@ void step_name (void) {
     }
     r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_NEXT); // an uninitialized cursor should do a DB_FIRST.
     if (r==0) {
+	char *dt = nc_data.data;
 	cursor_count_n_items++;
+	fprintf(stderr, "crs %2d%c %s\n", dt[7], dt[8] ? 'e' : ' ', dt+9);
     } else if (r==DB_NOTFOUND) {
 	// Got to the end.
 	//printf("%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
@@ -365,6 +375,8 @@ void step_name (void) {
 	    cursor_count_n_items=0;
 	} else {
 	    cursor_count_n_items=1;
+	    char *dt = nc_data.data;
+	    fprintf(stderr, "crs %2d%c %s\n", dt[7], dt[8] ? 'e' : ' ', dt+9);
 	}
 	calc_n_items = count_all_items;
     }
