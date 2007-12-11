@@ -1552,7 +1552,7 @@ master_def:
         | MASTER_SSL_SYM EQ ulong_num
           {
             Lex->mi.ssl= $3 ? 
-              LEX_MASTER_INFO::LEX_MIL_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
+              LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
         | MASTER_SSL_CA_SYM EQ TEXT_STRING_sys
           {

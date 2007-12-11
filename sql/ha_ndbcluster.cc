@@ -10756,10 +10756,6 @@ ha_ndbcluster::read_multi_range_fetch_next()
       return res;
     }
   }
-  /*
-    potentially not needed call to this function
-  */
-  DBUG_ASSERT(!table->in_use->slave_thread || (m_ignore_no_key == TRUE));
   return 0;
 }
 
