@@ -1293,12 +1293,20 @@ static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *,
 }
 
 static int toku_db_set_flags(DB * db, u_int32_t flags) {
-    u_int32_t tflags = 0;
-    if (flags & DB_DUP)
-        tflags += TOKU_DB_DUP;
-    if (flags & DB_DUPSORT)
-        tflags += TOKU_DB_DUPSORT;
-    int r= toku_brt_set_flags(db->i->brt, tflags);
+    u_int32_t tflags;
+    int r = toku_brt_get_flags(db->i->brt, &tflags);
+    if (r!=0) return r;
+    
+    if (flags & DB_DUP) {
+        tflags |= TOKU_DB_DUP;
+        flags &= ~DB_DUP;
+    }
+    if (flags & DB_DUPSORT) {
+        tflags |= TOKU_DB_DUPSORT;
+        flags &= ~DB_DUPSORT;
+    }
+    if (flags != 0) return EINVAL;
+    r = toku_brt_set_flags(db->i->brt, tflags);
     return r;
 }
 
