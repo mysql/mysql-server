@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include <db.h>
+#include <inttypes.h>
 #include <signal.h>
 
 typedef uint8_t bool;

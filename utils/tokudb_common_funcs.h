@@ -78,10 +78,10 @@ error:                                                         \
    return errno;                                               \
 }
 
-DEF_STR_TO(strtoint32,  int32_t, int64_t, strtoll, "d");
-DEF_STR_TO(strtouint32, uint32_t, uint64_t, strtoull, "u");
-DEF_STR_TO(strtoint64,  int64_t, int64_t, strtoll, "lld");
-DEF_STR_TO(strtouint64,  uint64_t, uint64_t, strtoull, "llu");
+DEF_STR_TO(strtoint32,  int32_t,  int64_t,  strtoll,  PRId32);
+DEF_STR_TO(strtouint32, uint32_t, uint64_t, strtoull, PRIu32);
+DEF_STR_TO(strtoint64,  int64_t,  int64_t,  strtoll,  PRId64);
+DEF_STR_TO(strtouint64, uint64_t, uint64_t, strtoull, PRIu64);
 
 void outputbyte(uint8_t ch)
 {
