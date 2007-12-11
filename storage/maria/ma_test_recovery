@@ -22,8 +22,10 @@ check_table_is_same()
 {
     # Computes checksum of new table and compares to checksum of old table
     # Shows any difference in table's state (info from the index's header)
+    # Data/key file length is random in ma_test2 (as it uses srand() which
+    # may differ between machines).
 
-    $maria_path/maria_chk -dvv $table | grep -v "Creation time:" > $tmp/maria_chk_message.txt 2>&1
+    $maria_path/maria_chk -dvv $table | grep -v "Creation time:" | grep -v "file length"> $tmp/maria_chk_message.txt 2>&1
 
     $maria_path/maria_chk -s -e --read-only $table
     checksum2=`$maria_path/maria_chk -dss $table`
@@ -95,7 +97,7 @@ do
   $maria_path/$prog
   # derive table's name from program's name
   table=`echo $prog | sed -e 's;.*ma_\(test[0-9]\).*;\1;' `
-  $maria_path/maria_chk -dvv $table | grep -v "Creation time:"> $tmp/maria_chk_message.good.txt 2>&1
+  $maria_path/maria_chk -dvv $table | grep -v "Creation time:" | grep -v "file length"> $tmp/maria_chk_message.good.txt 2>&1
   checksum=`$maria_path/maria_chk -dss $table`
   mv $table.MAD $tmp/$table-good.MAD
   mv $table.MAI $tmp/$table-good.MAI
@@ -141,7 +143,7 @@ do
     $maria_path/$prog $commit_run_args
     # derive table's name from program's name
     table=`echo $prog | sed -e 's;.*ma_\(test[0-9]\).*;\1;' `
-    $maria_path/maria_chk -dvv $table | grep -v "Creation time:"> $tmp/maria_chk_message.good.txt 2>&1
+    $maria_path/maria_chk -dvv $table | grep -v "Creation time:" | grep -v "file length"> $tmp/maria_chk_message.good.txt 2>&1
     checksum=`$maria_path/maria_chk -dss $table`
     mv $table.MAD $tmp/$table-good.MAD
     mv $table.MAI $tmp/$table-good.MAI
@@ -149,11 +151,13 @@ do
     echo "TEST WITH $prog $abort_run_args$test_undo (additional aborted work)"
     $maria_path/$prog $abort_run_args$test_undo
     cp $table.MAD $tmp/$table.MAD.before_undo
+    cp $table.MAI $tmp/$table.MAI.before_undo
 
+    # The lines below seem unneeded, will be removed soon
     # We have to copy and restore logs, as running maria_read_log will
     # change the maria_control_file
-    rm -f $tmp/maria_log.* $tmp/maria_log_control
-    cp $maria_path/maria_log* $tmp
+#    rm -f $tmp/maria_log.* $tmp/maria_log_control
+#    cp $maria_path/maria_log* $tmp
 
     if [ "$test_undo" != "3" ]
         then
@@ -163,6 +167,7 @@ do
         apply_log "dontknow"
     fi
     cp $table.MAD $tmp/$table.MAD.after_undo
+    cp $table.MAI $tmp/$table.MAI.after_undo
 
     # It is impossible to do a "cmp" between .good and .after_undo,
     # because the UNDO phase generated log
@@ -174,12 +179,17 @@ do
     echo "testing idempotency"
     apply_log "shouldnotchangelog"
     cmp $table.MAD $tmp/$table.MAD.after_undo
+    # can't do this, creation time differs at least; enable it if you
+    # have a "cmp" which ignores the header.
+#    cmp $table.MAI $tmp/$table.MAI.after_undo
     check_table_is_same
     echo "testing applying of CLRs to recreate table"
     rm $table.MA?
-    cp $tmp/maria_log* $maria_path
-    apply_log "dontknow"
+#    cp $tmp/maria_log* $maria_path  #unneeded
+    apply_log "shouldnotchangelog"
     cmp $table.MAD $tmp/$table.MAD.after_undo
+    # can't do this, creation time differs at least
+#    cmp $table.MAI $tmp/$table.MAI.after_undo
     check_table_is_same
     shift 3
   done
