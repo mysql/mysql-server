@@ -5726,7 +5726,9 @@ ha_innobase::info(
 		stats.index_file_length = ((ulonglong)
 				ib_table->stat_sum_of_other_index_sizes)
 					* UNIV_PAGE_SIZE;
-		stats.delete_length = 0;
+		stats.delete_length =
+			fsp_get_available_space_in_free_extents(
+				ib_table->space);
 		stats.check_time = 0;
 
 		if (stats.records == 0) {
