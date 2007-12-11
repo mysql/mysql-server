@@ -2452,10 +2452,15 @@ AC_ARG_WITH(docs,
 if test "$with_docs" = "yes"
 then
   docs_dirs="Docs"
+  if test -f "$srcdir/Docs/manual.chm" ; then
+    extra_docs="manual.chm"
+  fi
 else
   docs_dirs=""
+  extra_docs=""
 fi
 AC_SUBST(docs_dirs)
+AC_SUBST(extra_docs)
 
 # Shall we build the man pages?
 AC_ARG_WITH(man,
