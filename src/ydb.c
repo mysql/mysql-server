@@ -1310,6 +1310,25 @@ static int toku_db_set_flags(DB * db, u_int32_t flags) {
     return r;
 }
 
+static int toku_db_get_flags(DB *db, u_int32_t *pflags) {
+    if (!pflags) return EINVAL;
+    u_int32_t tflags;
+    u_int32_t flags = 0;
+    int r = toku_brt_get_flags(db->i->brt, &tflags);
+    if (r!=0) return r;
+    if (tflags & TOKU_DB_DUP) {
+        tflags &= ~TOKU_DB_DUP;
+        flags  |= DB_DUP;
+    }
+    if (tflags & TOKU_DB_DUPSORT) {
+        tflags &= ~TOKU_DB_DUPSORT;
+        flags  |= DB_DUPSORT;
+    }
+    assert(tflags == 0);
+    *pflags = flags;
+    return 0;
+}
+
 static int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
     int r = toku_brt_set_nodesize(db->i->brt, pagesize);
     return r;
@@ -1366,6 +1385,7 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->set_dup_compare = toku_db_set_dup_compare;
     result->set_pagesize = toku_db_set_pagesize;
     result->set_flags = toku_db_set_flags;
+    result->get_flags = toku_db_get_flags;
     result->stat = toku_db_stat;
     MALLOC(result->i);
     if (result->i == 0) {
