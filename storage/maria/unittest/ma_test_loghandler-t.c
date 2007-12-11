@@ -18,12 +18,12 @@ static TRN *trn= &dummy_transaction_object;
 
 #ifdef LONG_LOG_TEST
 #define LOG_FLAGS 0
-#define LOG_FILE_SIZE (1024L*1024L)
+#define LOG_FILE_SIZE (1024L*1024L*8)
 #define ITERATIONS (1600*4)
 
 #else
 #define LOG_FLAGS (TRANSLOG_SECTOR_PROTECTION | TRANSLOG_PAGE_CRC)
-#define LOG_FILE_SIZE (1024L*1024L*3L)
+#define LOG_FILE_SIZE (1024L*1024L*8L)
 #define ITERATIONS 1600
 #endif
 

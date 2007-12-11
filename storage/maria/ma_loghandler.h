@@ -21,7 +21,7 @@
 /* transaction log default file size */
 #define TRANSLOG_FILE_SIZE (1024*1024*1024)
 /* minimum possible transaction log size */
-#define TRANSLOG_MIN_FILE_SIZE (1024*1024*4)
+#define TRANSLOG_MIN_FILE_SIZE (1024*1024*8)
 /* transaction log default flags (TODO: make it global variable) */
 #define TRANSLOG_DEFAULT_FLAGS 0
 
@@ -313,8 +313,7 @@ extern my_bool translog_purge_at_flush();
 extern uint32 translog_get_first_file(TRANSLOG_ADDRESS horizon);
 extern uint32 translog_get_first_needed_file();
 extern char *translog_filename_by_fileno(uint32 file_no, char *path);
-extern uint32 translog_get_file_size();
-extern uint32 translog_set_file_size(uint32 size);
+extern void translog_set_file_size(uint32 size);
 
 /* record parts descriptor */
 struct st_translog_parts

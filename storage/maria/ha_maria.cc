@@ -2693,7 +2693,7 @@ static void update_log_file_size(MYSQL_THD thd,
                                  void *var_ptr, void *save)
 {
   uint32 size= (uint32)((ulong)(*(long *)save));
-  size= translog_set_file_size(size);
+  translog_set_file_size(size);
   *(ulong *)var_ptr= size;
 }
 

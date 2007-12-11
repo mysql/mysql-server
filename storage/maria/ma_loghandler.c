@@ -29,7 +29,7 @@
 /* number of opened log files in the pagecache (should be at least 2) */
 #define OPENED_FILES_NUM 3
 
-/* records buffer size (should be LOG_PAGE_SIZE * n) */
+/* records buffer size (should be TRANSLOG_PAGE_SIZE * n) */
 #define TRANSLOG_WRITE_BUFFER (1024*1024)
 /* min chunk length */
 #define TRANSLOG_MIN_CHUNK 3
@@ -2812,18 +2812,6 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
   DBUG_RETURN(0);
 }
 
-/**
-  @brief round correctly transaction log size
-
-  @return maximum possible log size less or equal then given one
-*/
-
-static uint32 translog_round_log_size(uint32 size)
-{
-  size= (size - (size % TRANSLOG_PAGE_SIZE));
-  return max(size, TRANSLOG_MIN_FILE_SIZE);
-}
-
 /*
   Initialize transaction log
 
@@ -2857,6 +2845,9 @@ my_bool translog_init(const char *directory,
   my_bool version_changed= 0;
   DBUG_ENTER("translog_init");
   DBUG_ASSERT(translog_inited == 0);
+  compile_time_assert(TRANSLOG_MIN_FILE_SIZE >
+                      TRANSLOG_WRITE_BUFFER * TRANSLOG_BUFFERS_NO);
+  compile_time_assert(TRANSLOG_WRITE_BUFFER % TRANSLOG_PAGE_SIZE == 0);
 
   loghandler_init();                            /* Safe to do many times */
 
@@ -2890,9 +2881,12 @@ my_bool translog_init(const char *directory,
   }
 
   log_descriptor.in_buffers_only= LSN_IMPOSSIBLE;
+  DBUG_ASSERT(log_file_max_size % TRANSLOG_PAGE_SIZE == 0 &&
+              log_file_max_size >= TRANSLOG_MIN_FILE_SIZE &&
+              log_file_max_size <= 0xffffffffL);
   /* max size of one log size (for new logs creation) */
   log_file_size= log_descriptor.log_file_max_size=
-    translog_round_log_size(log_file_max_size);
+    log_file_max_size;
   /* server version */
   log_descriptor.server_version= server_version;
   /* server ID */
@@ -7218,11 +7212,15 @@ uint32 translog_get_file_size()
   @return Returns actually set transaction log size
 */
 
-uint32 translog_set_file_size(uint32 size)
+void translog_set_file_size(uint32 size)
 {
-  uint32 res;
+  DBUG_ENTER("translog_set_file_size");
   translog_lock();
-  res= log_descriptor.log_file_max_size= translog_round_log_size(size);
+  DBUG_PRINT("enter", ("Size: %lu", (ulong) size));
+  DBUG_ASSERT(size % TRANSLOG_PAGE_SIZE == 0 &&
+              size >= TRANSLOG_MIN_FILE_SIZE &&
+              size <= 0xffffffffL);
+  log_descriptor.log_file_max_size= size;
   /* if current file longer then finish it*/
   if (LSN_OFFSET(log_descriptor.horizon) >=  log_descriptor.log_file_max_size)
   {
@@ -7231,6 +7229,6 @@ uint32 translog_set_file_size(uint32 size)
     translog_buffer_unlock(old_buffer);
   }
   translog_unlock();
-  return (res);
+  DBUG_VOID_RETURN;
 }
 
