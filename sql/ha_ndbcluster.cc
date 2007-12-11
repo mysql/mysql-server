@@ -2859,7 +2859,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
                           (long) m_thd_ndb->m_unsent_bytes));
       if (m_thd_ndb->m_unsent_bytes)
       {
-        if (execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
+        if (flush_bulk_insert() != 0)
           DBUG_RETURN(-1);
       }
       contact_ndb= (local_check == 2);
@@ -5356,7 +5356,8 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
                       (int)m_rows_inserted));
   DBUG_ASSERT(trans);
 
-  if (m_thd_ndb->m_transaction_on)
+  
+  if (! (m_thd_ndb->trans_options & TNTO_TRANSACTIONS_OFF))
   {
     if (!allow_batch &&
         execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
@@ -5919,9 +5920,9 @@ static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
 {
   if (thd->lex->sql_command == SQLCOM_LOAD ||
       !thd->transaction.on)
-    thd_ndb->m_transaction_on= FALSE;
-  else
-    thd_ndb->m_transaction_on= thd->variables.ndb_use_transactions;
+    m_thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF
+  else if (!thd->variables.ndb_use_transactions)
+    m_thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF
   thd_ndb->m_force_send= thd->variables.ndb_force_send;
 }
 
