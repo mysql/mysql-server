@@ -352,7 +352,7 @@ int main (int argc, const char *argv[]) {
 	calc_n_items = count_all_items = 14;//count_entries("dbc", dbp);
 	//fprintf(stderr, "%s:%d n_items initially=%d\n", __FILE__, __LINE__, count_all_items);
 	{
-	    const int n_activities = 100;
+	    const int n_activities = 32;
 	    int i;
 	    //printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
 	    for (i=0; i<n_activities; i++) {
