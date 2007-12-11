@@ -20,15 +20,15 @@ enum mode {
 
 /* Primary is a map from a UID which consists of a random number followed by the current time. */
 
-struct timestamp {
-    unsigned int tv_sec; /* in newtork order */
+typedef struct timestamp {
+    unsigned int tv_sec; /* in network order */
     unsigned int tv_usec; /* in network order */
-};
+} TIMESTAMP;
 
 
 struct primary_key {
     int rand; /* in network order */
-    struct timestamp ts;
+    TIMESTAMP ts;
 };
 
 struct name_key {
@@ -36,8 +36,8 @@ struct name_key {
 };
 
 struct primary_data {
-    struct timestamp creationtime;
-    struct timestamp expiretime; /* not valid if doesexpire==0 */
+    TIMESTAMP creationtime;
+    TIMESTAMP expiretime; /* not valid if doesexpire==0 */
     unsigned char doesexpire;
     struct name_key name;
 };
@@ -59,14 +59,14 @@ void write_uint_to_dbt (DBT *dbt, const unsigned int v) {
     write_uchar_to_dbt(dbt, (v>> 0)&0xff);
 }
 
-void write_timestamp_to_dbt (DBT *dbt, const struct timestamp *ts) {
-    write_uint_to_dbt(dbt, ts->tv_sec);
-    write_uint_to_dbt(dbt, ts->tv_usec);
+void write_timestamp_to_dbt (DBT *dbt, const TIMESTAMP ts) {
+    write_uint_to_dbt(dbt, ts.tv_sec);
+    write_uint_to_dbt(dbt, ts.tv_usec);
 }
 
 void write_pk_to_dbt (DBT *dbt, const struct primary_key *pk) {
     write_uint_to_dbt(dbt, pk->rand);
-    write_timestamp_to_dbt(dbt, &pk->ts);
+    write_timestamp_to_dbt(dbt, pk->ts);
 }
 
 void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
@@ -78,8 +78,8 @@ void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
 }
 
 void write_pd_to_dbt (DBT *dbt, const struct primary_data *pd) {
-    write_timestamp_to_dbt(dbt, &pd->creationtime);
-    write_timestamp_to_dbt(dbt, &pd->expiretime);
+    write_timestamp_to_dbt(dbt, pd->creationtime);
+    write_timestamp_to_dbt(dbt, pd->expiretime);
     write_uchar_to_dbt(dbt, pd->doesexpire);
     write_name_to_dbt(dbt, &pd->name);
 }
@@ -98,7 +98,7 @@ void read_uint_from_dbt (const DBT *dbt, int *off, unsigned int *uint) {
     *uint = (a<<24)+(b<<16)+(c<<8)+d;
 }
 
-void read_timestamp_from_dbt (const DBT *dbt, int *off, struct timestamp *ts) {
+void read_timestamp_from_dbt (const DBT *dbt, int *off, TIMESTAMP *ts) {
     read_uint_from_dbt(dbt, off, &ts->tv_sec);
     read_uint_from_dbt(dbt, off, &ts->tv_usec);
 }
@@ -142,7 +142,7 @@ int expire_callback (DB *secondary __attribute__((__unused__)), const DBT *key, 
     struct primary_data *d = data->data;
     if (d->doesexpire) {
 	result->flags=0;
-	result->size=sizeof(struct timestamp);
+	result->size=sizeof(TIMESTAMP);
 	result->data=&d->expiretime;
 	return 0;
     } else {
@@ -201,8 +201,9 @@ void close_databases (void) {
 }
     
 
-void gettod (struct timestamp *ts) {
-    static int counter;
+void gettod (TIMESTAMP *ts) {
+    static int counter=0;
+    assert(counter<127);
     ts->tv_sec = 0;
     ts->tv_usec = counter++;
 }
