@@ -2,6 +2,12 @@
 -- The inital data for system tables of MySQL Server
 --
 
+-- When setting up a "cross bootstrap" database (e.g., creating data on a Unix
+-- host which will later be included in a Windows zip file), any lines
+-- containing "@current_hostname" are filtered out by mysql_install_db.
+set @current_hostname= @@hostname;
+
+
 -- Fill "db" table with default grants for anyone to
 -- access database 'test' and 'test_%' if "db" table didn't exist
 CREATE TEMPORARY TABLE tmp_db LIKE db;
@@ -14,11 +20,11 @@ DROP TABLE tmp_db;
 -- Fill "users" table with default users allowing root access
 -- from local machine if "users" table didn't exist before
 CREATE TEMPORARY TABLE tmp_user LIKE user;
-set @hostname= @@hostname;
+set @current_hostname= @@hostname;
 INSERT INTO tmp_user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-REPLACE INTO tmp_user VALUES (@hostname,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+REPLACE INTO tmp_user VALUES (@current_hostname,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
 REPLACE INTO tmp_user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
 INSERT INTO tmp_user (host,user) VALUES ('localhost','');
-INSERT INTO tmp_user (host,user) VALUES (@@hostname,'');
+INSERT INTO tmp_user (host,user) VALUES (@current_hostname,'');
 INSERT INTO user SELECT * FROM tmp_user WHERE @had_user_table=0;
 DROP TABLE tmp_user;
