@@ -2590,7 +2590,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
                           (long) m_thd_ndb->m_unsent_bytes));
       if (m_thd_ndb->m_unsent_bytes)
       {
-        if (execute_no_commit(this,trans,FALSE) != 0)
+        if (flush_bulk_insert() != 0)
           DBUG_RETURN(-1);
       }
       contact_ndb= (local_check == 2);
@@ -4616,7 +4616,8 @@ ha_ndbcluster::flush_bulk_insert()
   DBUG_ENTER("ha_ndbcluster::flush_bulk_insert");
   DBUG_PRINT("info", ("Sending inserts to NDB, rows_inserted: %d", 
                       (int)m_rows_inserted));
-  if (m_transaction_on)
+  
+  if (! (m_thd_ndb->trans_options & TNTO_TRANSACTIONS_OFF))
   {
     if (execute_no_commit(this,trans,FALSE) != 0)
     {
@@ -4857,15 +4858,19 @@ void ha_ndbcluster::transaction_checks(THD *thd)
 {
   if (thd->lex->sql_command == SQLCOM_LOAD)
   {
-    m_transaction_on= FALSE;
+    m_thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
     /* Would be simpler if has_transactions() didn't always say "yes" */
     thd->transaction.all.modified_non_trans_table=
       thd->transaction.stmt.modified_non_trans_table= TRUE;
   }
   else if (!thd->transaction.on)
-    m_transaction_on= FALSE;
-  else
-    m_transaction_on= thd->variables.ndb_use_transactions;
+  {
+    m_thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+  }
+  else if (!thd->variables.ndb_use_transactions)
+  {
+    m_thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+  }
 }
 
 int ha_ndbcluster::start_statement(THD *thd,
@@ -4978,7 +4983,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   if (lock_type != F_UNLCK)
   {
     DBUG_PRINT("info", ("lock_type != F_UNLCK"));
-    transaction_checks(thd);
     if (!thd_ndb->lock_count++)
     {
       if ((error= start_statement(thd, thd_ndb, ndb)))
@@ -4986,6 +4990,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     }
     if ((error= init_handler_for_statement(thd, thd_ndb)))
       goto error;
+    transaction_checks(thd);
     DBUG_RETURN(0);
   }
   else
@@ -5089,7 +5094,6 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
   DBUG_ENTER("start_stmt");
 
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  transaction_checks(thd);
   if (!thd_ndb->start_stmt_count++)
   {
     Ndb *ndb= thd_ndb->ndb;
@@ -5098,6 +5102,7 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
   }
   if ((error= init_handler_for_statement(thd, thd_ndb)))
     goto error;
+  transaction_checks(thd);
   DBUG_RETURN(0);
 error:
   thd_ndb->start_stmt_count--;
@@ -6842,7 +6847,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_dupkey((uint) -1),
   m_force_send(TRUE),
   m_autoincrement_prefetch((ha_rows) NDB_DEFAULT_AUTO_PREFETCH),
-  m_transaction_on(TRUE),
   m_cond(NULL),
   m_multi_cursor(NULL)
 {

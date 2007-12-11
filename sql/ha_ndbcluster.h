@@ -243,6 +243,7 @@ enum THD_NDB_TRANS_OPTIONS
 {
   TNTO_INJECTED_APPLY_STATUS= 1 << 0
   ,TNTO_NO_LOGGING=           1 << 1
+  ,TNTO_TRANSACTIONS_OFF=     1 << 2
 };
 
 struct Ndb_local_table_statistics {
@@ -730,7 +731,6 @@ private:
   // set from thread variables at external lock
   bool m_force_send;
   ha_rows m_autoincrement_prefetch;
-  bool m_transaction_on;
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
