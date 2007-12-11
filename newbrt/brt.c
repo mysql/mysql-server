@@ -1593,7 +1593,11 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 	    if ((r=toku_logger_log_header(txn, toku_cachefile_filenum(t->cf), t->h)))                               { goto died6; }
 	    if ((r=setup_brt_root_node(t, t->nodesize, txn))!=0) { died6: if (dbname) goto died5; else goto died2;	}
 	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0))) { goto died6; }
-	} else {
+	}
+	else if (r!=0) {
+	    goto died1;
+	}
+	else {
 	    int i;
 	    assert(r==0);
 	    assert(dbname);
