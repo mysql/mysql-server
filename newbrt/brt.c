@@ -1515,7 +1515,7 @@ int toku_brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const
     return 0;
 }
 
-int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn) {
+int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, int load_flags, CACHETABLE cachetable, TOKUTXN txn) {
 
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
@@ -1526,6 +1526,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     if (0) { died0:  assert(r); return r; }
 
     assert(is_create || !only_create);
+    assert(!load_flags || !only_create);
     if (dbname) {
 	malloced_name = toku_strdup(dbname);
 	if (malloced_name==0) {
@@ -1635,7 +1636,8 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     found_it:
         t->nodesize = t->h->nodesize;                 /* inherit the pagesize from the file */
         if (t->flags != t->h->flags) {                /* flags must match */
-            r = EINVAL; goto died1;
+            if (load_flags) t->flags = t->h->flags;
+            else {r = EINVAL; goto died1;}
         }
     }
     assert(t->h);
@@ -1696,7 +1698,8 @@ int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *ne
 	      int (*compare_fun)(DB*,const DBT*,const DBT*), DB *db) {
     BRT brt;
     int r;
-    int only_create = 0;
+    const int only_create = 0;
+    const int load_flags  = 0;
 
     r = toku_brt_create(&brt);
     if (r != 0)
@@ -1705,7 +1708,7 @@ int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *ne
     toku_brt_set_bt_compare(brt, compare_fun);
     brt->db = db;
 
-    r = toku_brt_open(brt, fname, fname, dbname, is_create, only_create, cachetable, txn);
+    r = toku_brt_open(brt, fname, fname, dbname, is_create, only_create, load_flags, cachetable, txn);
     if (r != 0) {
         return r;
     }

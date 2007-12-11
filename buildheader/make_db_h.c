@@ -14,7 +14,8 @@
 void print_dbtype(void) {
     /* DBTYPE is mentioned by db_open.html */
     printf("typedef enum {\n");
-    printf(" DB_BTREE=%d\n", DB_BTREE);
+    printf(" DB_BTREE=%d,\n", DB_BTREE);
+    printf(" DB_UNKNOWN=%d\n", DB_UNKNOWN);
     printf("} DBTYPE;\n");
 }
 #if 0

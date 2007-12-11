@@ -796,7 +796,7 @@ int insert_pair(DBT* key, DBT* data)
    if (retval != 0) {
       //TODO: Check for transaction failures/etc.. retry if necessary.
       ERROR(retval, "DB->put");
-      goto error;
+      if (!(retval == DB_KEYEXIST && g.overwritekeys)) goto error;
    }
    return EXIT_SUCCESS;
 error:

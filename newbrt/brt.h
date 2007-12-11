@@ -21,7 +21,7 @@ int toku_brt_get_nodesize(BRT, unsigned int *nodesize);
 int toku_brt_set_bt_compare(BRT, int (*bt_compare)(DB *, const DBT*, const DBT*));
 int toku_brt_set_dup_compare(BRT, int (*dup_compare)(DB *, const DBT*, const DBT*));
 int brt_set_cachetable(BRT, CACHETABLE);
-int toku_brt_open(BRT, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn);
+int toku_brt_open(BRT, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, int load_flags, CACHETABLE ct, TOKUTXN txn);
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
 int toku_brt_insert (BRT, DBT *, DBT *, TOKUTXN);
