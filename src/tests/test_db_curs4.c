@@ -16,8 +16,6 @@ static enum mode {
     MODE_DEFAULT, MODE_MORE
 } mode;
 
-
-
 /* Primary is a map from a UID which consists of a random number followed by the current time. */
 
 typedef unsigned char TIMESTAMP;
@@ -112,6 +110,14 @@ static DBT nc_key,nc_data;
 static void create_databases (void) {
     int r;
 
+    memset(&nc_key, 0, sizeof(nc_key));
+    memset(&nc_data, 0, sizeof(nc_data));
+    nc_key.flags = DB_DBT_REALLOC;
+    nc_key.data = malloc(1); // Initalize it.
+    ((char*)nc_key.data)[0]=0;
+    nc_data.flags = DB_DBT_REALLOC;
+    nc_data.data = malloc(1); // Initalize it.
+
     r = db_env_create(&dbenv, 0);                                                            CKERR(r);
     r = dbenv->open(dbenv, DIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, 0);                      CKERR(r);
 
@@ -153,11 +159,11 @@ static void close_databases (void) {
 
 static void gettod (TIMESTAMP *ts) {
     static int counter=0;
-    assert(counter<127);
+    if (counter==0 && oppass==2) counter=64;
+    assert((counter&63) < 60);
     *ts = counter++;
+    fprintf(stderr, "time=%d\n", *ts);
 }
-
-static int oppass=0, opnum=0;
 
 static void insert_person (void) {
     struct primary_key  pk;
@@ -198,6 +204,7 @@ static void insert_person (void) {
     write_pk_to_dbt(&key, &pk);
     write_pd_to_dbt(&data, &pd);
     int r=do_put("dbp", dbp, &key, &data);   CKERR(r);
+    fprintf(stderr, "put %2d%c %s\n", pd.expiretime, pd.doesexpire?'e':' ', pd.name.name);
     // If the cursor is to the left of the current item, then increment count_items
     {
 	int compare=strcmp(namearray, nc_key.data);
@@ -229,6 +236,7 @@ static void delete_oldest_expired (void) {
     {
 	char *deleted_key = ((char*)data.data)+name_offset_in_pd_dbt();
 	int compare=strcmp(deleted_key, nc_key.data);
+	fprintf(stderr, "del %2d%c %s\n", deleted_key[-2], deleted_key[-1]?'e':' ', deleted_key);
 	if (compare>0) {
 	    //printf("%s:%d r3=%d compare=%d count=%d cacount=%d cucount=%d deleting %s cursor=%s\n", __FILE__, __LINE__, r3, compare, count_all_items, calc_n_items, cursor_count_n_items, deleted_key, (char*)nc_key.data);
 	    calc_n_items--;
@@ -255,10 +263,15 @@ static void step_name (void) {
     }
     r = do_cget("name_cursor", name_cursor, &nc_key, &nc_data, DB_NEXT); // an uninitialized cursor should do a DB_FIRST.
     if (r==0) {
+	//assert(strcmp(nc_key.data, ((char*)nc_data.data)+name_offset_in_pd_dbt())==0);
+	//printf("    /* equal */\n");
+	char *dt = nc_data.data;
+	assert(strcmp(nc_key.data, dt+name_offset_in_pd_dbt())==0);
+	fprintf(stderr, "crs %2d%c %s (opnum=%d)\n", dt[0], dt[1] ? 'e' : ' ', dt+2, opnum);
 	cursor_count_n_items++;
     } else if (r==DB_NOTFOUND) {
 	// Got to the end.
-	//printf("%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
+	fprintf(stderr, "%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
 	assert(cursor_count_n_items==calc_n_items);
 	r = do_cget("name_cursor", name_cursor, &nc_key, &nc_data, DB_FIRST);
 	//r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_FIRST);
@@ -266,8 +279,13 @@ static void step_name (void) {
 	    nc_key.data = realloc(nc_key.data, 1);
 	    ((char*)nc_key.data)[0]=0;
 	    cursor_count_n_items=0;
+	    fprintf(stderr, "crs DB_FIRST (empty)\n");
 	} else {
+	    assert(r==0);
+	    char *dt = nc_data.data;
+	    assert(strcmp(nc_key.data, dt+name_offset_in_pd_dbt())==0);
 	    cursor_count_n_items=1;
+	    fprintf(stderr, "crB %2d%c %s\n", dt[0], dt[1] ? 'e' : ' ', dt+2);
 	}
 	calc_n_items = count_all_items;
     }
@@ -315,14 +333,7 @@ static void usage (const char *argv1) {
 int main (int argc, const char *argv[]) {
     const char *progname=argv[0];
 
-    memset(&nc_key, 0, sizeof(nc_key));
-    memset(&nc_data, 0, sizeof(nc_data));
-    nc_key.flags = DB_DBT_REALLOC;
-    nc_key.data = malloc(1); // Initalize it.
-    ((char*)nc_key.data)[0]=0;
-    nc_data.flags = DB_DBT_REALLOC;
-    nc_data.data = malloc(1); // Initalize it.
-
+    do_code=0;
 
     mode = MODE_DEFAULT;
     argv++; argc--;
@@ -337,6 +348,7 @@ int main (int argc, const char *argv[]) {
 
     switch (mode) {
     case MODE_DEFAULT:
+	srandom(1);
 	oppass=1;
 	system("rm -rf " DIR);
 	mkdir(DIR, 0777); 
@@ -352,8 +364,10 @@ int main (int argc, const char *argv[]) {
 	
 	break;
     case MODE_MORE:
+	srandom(1);
 	oppass=2;
 	create_databases();
+	cursor_count_n_items = 0;
 	calc_n_items = count_all_items = 14;//count_entries("dbc", dbp);
 	//fprintf(stderr, "%s:%d n_items initially=%d\n", __FILE__, __LINE__, count_all_items);
 	{
