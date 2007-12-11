@@ -187,22 +187,15 @@ static void gettod (TIMESTAMP *ts) {
 static int oppass=0, opnum=0;
 
 static void insert_person (void) {
-//    int namelen = 5+myrandom()%245;
     struct primary_key  pk;
     struct primary_data pd;
     char keyarray[1000], dataarray[1000]; 
     char *namearray;
-//    myrandom();
     gettod(&pk.ts);
     pd.creationtime = pk.ts;
     pd.expiretime   = pk.ts;
     pd.expiretime   += 128;
     pd.doesexpire = oppass==1 && (opnum==2 || opnum==10 || opnum==22);
-//    int i;
-//    for (i=0; i<namelen; i++) {
-//	myrandom();
-//    }
-//    fprintf(stderr, "%d: else if (oppass==%d && opnum==%d) pd.name=\"%s\";\n", __LINE__, oppass, opnum, pd.name.name);
     if (oppass==1 && opnum==1)       namearray="Hc";
     else if (oppass==1 && opnum==2)  namearray="Ku";
     else if (oppass==1 && opnum==5)  namearray="Ub";
@@ -245,7 +238,6 @@ static void insert_person (void) {
 
 static void delete_oldest_expired (void) {
     int r;
-    //myrandom();
     if (delete_cursor==0) {
 	r = expiredb->cursor(expiredb, null_txn, &delete_cursor, 0); CKERR(r);
 	
@@ -305,7 +297,6 @@ static void step_name (void) {
 }
 
 static void activity (void) {
-    //myrandom();
     int do_delete = (oppass==1 && opnum==32) || (oppass==2 && opnum==8);
     if (do_delete) {
 	// Delete the oldest expired one.  Keep the cursor open
@@ -328,7 +319,6 @@ static void activity (void) {
 			  || (oppass==1 && opnum==30)
 			  || (oppass==2 && opnum==9)
 			  || (oppass==2 && opnum==15));
-	//myrandom();
 	if (do_insert) {
 	    insert_person();
 	} else {
@@ -372,9 +362,6 @@ int main (int argc, const char *argv[]) {
 	}
 	argc--; argv++;
     }
-
-//    fprintf(stderr, "seed=%d\n", useseed);
-//    srandom(useseed);
 
     switch (mode) {
     case MODE_DEFAULT:
