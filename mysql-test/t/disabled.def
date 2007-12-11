@@ -16,7 +16,6 @@ ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Do
 
 federated_transactions   : Bug#29523 Transactions do not work
 events                   : Bug#32664 events.test fails randomly
-events_scheduling        : Bug#29830 Test case 'events_scheduling' fails on Mac OS X and Windows
 lowercase_table3         : Bug#32667 lowercase_table3.test reports to error log
 kill                 : Bug#29149: Test "kill" fails on Windows
 innodb_mysql         : Bug#32724: innodb_mysql.test fails randomly
