@@ -12,7 +12,6 @@
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
-ndb_binlog_basic         : Bug #32759 2007-11-27 mats ndb_binlog_basic assert failure 'thd->transaction.stmt.modified_non_trans_table'
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
