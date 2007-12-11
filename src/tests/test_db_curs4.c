@@ -165,7 +165,7 @@ static void insert_person (void) {
     gettod(&pk.ts);
     pd.expiretime   = pk.ts;
     pd.doesexpire = oppass==1 && (opnum==2 || opnum==10 || opnum==22);
-    if (oppass==1 && opnum==1)       namearray="Hc";
+    if (oppass==1 && opnum==1)       namearray="Hc"; // If we shorten this string we get corrupt secondary errors in BDB 4.3.29.
     else if (oppass==1 && opnum==2)  namearray="K";
     else if (oppass==1 && opnum==5)  namearray="V";
     else if (oppass==1 && opnum==6)  namearray="T";
