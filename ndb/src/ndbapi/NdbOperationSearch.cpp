@@ -169,6 +169,8 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
         slack = 4*totalSizeInWords - attributeSize;
         break;
       }
+      default:
+        break;
       }
       
       if (((align & 3) != 0) || (slack != 0) || (tDistrKey && (align != 0)))
