@@ -31,16 +31,10 @@ struct name_key {
 };
 
 struct primary_data {
-    TIMESTAMP creationtime;
     TIMESTAMP expiretime; /* not valid if doesexpire==0 */
     unsigned char doesexpire;
     struct name_key name;
 };
-
-static void free_pd (struct primary_data *pd) {
-    free(pd->name.name);
-    free(pd);
-}
 
 static void write_uchar_to_dbt (DBT *dbt, const unsigned char c) {
     assert(dbt->size+1 <= dbt->ulen);
@@ -64,56 +58,29 @@ static void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
 }
 
 static void write_pd_to_dbt (DBT *dbt, const struct primary_data *pd) {
-    write_timestamp_to_dbt(dbt, pd->creationtime);
     write_timestamp_to_dbt(dbt, pd->expiretime);
     write_uchar_to_dbt(dbt, pd->doesexpire);
     write_name_to_dbt(dbt, &pd->name);
 }
 
-static void read_uchar_from_dbt (const DBT *dbt, int *off, unsigned char *uchar) {
-    assert(*off < dbt->size);
-    *uchar = ((unsigned char *)dbt->data)[(*off)++];
-}
-
-static void read_timestamp_from_dbt (const DBT *dbt, int *off, TIMESTAMP *ts) {
-    read_uchar_from_dbt(dbt, off, ts);
-}
-
-static void read_name_from_dbt (const DBT *dbt, int *off, struct name_key *nk) {
-    unsigned char buf[1000];
-    int i;
-    for (i=0; 1; i++) {
-	read_uchar_from_dbt(dbt, off, &buf[i]);
-	if (buf[i]==0) break;
-    }
-    nk->name=(unsigned char*)(strdup((char*)buf));
-}
-
-static void read_pd_from_dbt (const DBT *dbt, int *off, struct primary_data *pd) {
-    read_timestamp_from_dbt(dbt, off, &pd->creationtime);
-    read_timestamp_from_dbt(dbt, off, &pd->expiretime);
-    read_uchar_from_dbt(dbt, off, &pd->doesexpire);
-    read_name_from_dbt(dbt, off, &pd->name);
-}
-
 static int name_offset_in_pd_dbt (void) {
     assert(sizeof(TIMESTAMP)==1);
-    return 1+2*sizeof(TIMESTAMP);
+    return 1+sizeof(TIMESTAMP);
 }
 
 static int name_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
-    struct primary_data *pd = malloc(sizeof(*pd));
-    int off=0;
-    read_pd_from_dbt(data, &off, pd);
-    static int buf[1000];
-
-    result->ulen=1000;
-    result->data=buf;
-    result->size=0;
-    write_name_to_dbt(result,  &pd->name);
-    free_pd(pd);
+    /* This one does work. */
+    static char buf[1000];
+    char *rdata = ((char*)data->data)+name_offset_in_pd_dbt();
+    int   rsize = data->size-name_offset_in_pd_dbt();
+    memset(result, 0, sizeof(*result));
+    result->size = rsize;
+    result->data = buf;
+    memcpy(buf, rdata, rsize);
+    //result->data=rdata; /* This breaks bdb */
     return 0;
 }
+
 
 static int expire_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
     struct primary_data *d = data->data;
@@ -192,9 +159,7 @@ static void insert_person (void) {
     char keyarray[1000], dataarray[1000]; 
     char *namearray;
     gettod(&pk.ts);
-    pd.creationtime = pk.ts;
     pd.expiretime   = pk.ts;
-    pd.expiretime   += 128;
     pd.doesexpire = oppass==1 && (opnum==2 || opnum==10 || opnum==22);
     if (oppass==1 && opnum==1)       namearray="Hc";
     else if (oppass==1 && opnum==2)  namearray="Ku";
