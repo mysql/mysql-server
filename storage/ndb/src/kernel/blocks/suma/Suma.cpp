@@ -821,8 +821,9 @@ Suma::execINCL_NODEREQ(Signal* signal){
   ndbrequire(!c_alive_nodes.get(nodeId));
   c_alive_nodes.set(nodeId);
   
-  signal->theData[0] = reference();
-  sendSignal(senderRef, GSN_INCL_NODECONF, signal, 1, JBB);
+  signal->theData[0] = nodeId;
+  signal->theData[1] = reference();
+  sendSignal(senderRef, GSN_INCL_NODECONF, signal, 2, JBB);
 }
 
 void
@@ -972,6 +973,54 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     {
       SET_ERROR_INSERT_VALUE(13030);
     }
+    return;
+  }
+
+  if (tCase == 8011)
+  {
+    jam();
+    Uint32 bucket = signal->theData[1];
+    KeyTable<Table>::Iterator it;
+    if (signal->getLength() == 1)
+    {
+      jam();
+      bucket = 0;
+      infoEvent("-- Starting dump of subscribers --");
+    }
+
+    c_tables.next(bucket, it);
+    const Uint32 RT_BREAK = 16;
+    for(Uint32 i = 0; i<RT_BREAK || it.bucket == bucket; i++)
+    {
+      jam();
+      if(it.curr.i == RNIL)
+      {
+        jam();
+        infoEvent("-- Ending dump of subscribers --");        
+        return;
+      }
+
+      infoEvent("Table: %u ver: %u #n: %u (ref,data,subscritopn)",
+                it.curr.p->m_tableId,
+                it.curr.p->m_schemaVersion,
+                it.curr.p->n_subscribers);
+
+      Ptr<Subscriber> ptr;
+      LocalDLList<Subscriber> list(c_subscriberPool, it.curr.p->c_subscribers);
+      for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
+      {
+        jam();
+        infoEvent(" [ %x %u %u ]", 
+                  ptr.p->m_senderRef,
+                  ptr.p->m_senderData,
+                  ptr.p->m_subPtrI);
+      }
+      c_tables.next(it);
+    }
+
+    signal->theData[0] = tCase;
+    signal->theData[1] = it.bucket;
+    sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 100, 2);
     return;
   }
 }
@@ -2402,6 +2451,7 @@ Suma::execSUB_START_REQ(Signal* signal){
     
   {
     jam();
+    c_subscriberPool.release(subbPtr);
     sendSubStartRef(signal, SubStartRef::PartiallyConnected);
     return;
   }
