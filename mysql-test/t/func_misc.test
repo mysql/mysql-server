@@ -214,14 +214,6 @@ SELECT NAME_CONST('test', -1.0);
 SELECT NAME_CONST('test', 'test');
 
 #
-# Bug #31349: ERROR 1062 (23000): Duplicate entry '' for key 'group_key'
-#
-create table t1 (a int not null);
-insert into t1 values (-1), (-2);
-select min(a) from t1 group by inet_ntoa(a);
-drop table t1;
-
-#
 # Bug #32559: connection hangs on query with name_const
 #
 CREATE TABLE t1(a INT);
@@ -231,6 +223,14 @@ SELECT NAME_CONST(a, '1') FROM t1;
 --error ER_WRONG_ARGUMENTS
 SET INSERT_ID= NAME_CONST(a, a);
 DROP TABLE t1;
+
+#
+# Bug #31349: ERROR 1062 (23000): Duplicate entry '' for key 'group_key'
+#
+create table t1 (a int not null);
+insert into t1 values (-1), (-2);
+select min(a) from t1 group by inet_ntoa(a);
+drop table t1;
 
 --echo End of 5.0 tests
 
