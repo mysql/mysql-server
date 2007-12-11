@@ -330,13 +330,12 @@ static void activity (void) {
 		       
 
 static void usage (const char *argv1) {
-    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] seed ", argv1);
+    fprintf(stderr, "Usage:\n %s [ --more ]\n", argv1);
     exit(1);
 }
 
 int main (int argc, const char *argv[]) {
     const char *progname=argv[0];
-    int useseed=1;
 
     memset(&nc_key, 0, sizeof(nc_key));
     memset(&nc_data, 0, sizeof(nc_data));
@@ -353,12 +352,7 @@ int main (int argc, const char *argv[]) {
 	if (strcmp(argv[0], "--more")==0) {
 	    mode = MODE_MORE;
 	} else {
-	    errno=0;
-	    char *endptr;
-	    useseed = strtoul(argv[0], &endptr, 10);
-	    if (errno!=0 || *endptr!=0 || endptr==argv[0]) {
-		usage(progname);
-	    }
+	    usage(progname);
 	}
 	argc--; argv++;
     }
