@@ -5979,7 +5979,8 @@ view_err:
     goto err;
   new_db_type= create_info->db_type;
 
-  if (new_db_type != old_db_type &&
+  if ((new_db_type != old_db_type ||
+       alter_info->flags & ALTER_PARTITION) &&
       !table->file->can_switch_engines())
   {
     my_error(ER_ROW_IS_REFERENCED, MYF(0));
