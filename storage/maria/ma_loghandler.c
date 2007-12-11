@@ -2864,8 +2864,7 @@ my_bool translog_init(const char *directory,
 
   log_descriptor.in_buffers_only= LSN_IMPOSSIBLE;
   DBUG_ASSERT(log_file_max_size % TRANSLOG_PAGE_SIZE == 0 &&
-              log_file_max_size >= TRANSLOG_MIN_FILE_SIZE &&
-              log_file_max_size <= 0xffffffffL);
+              log_file_max_size >= TRANSLOG_MIN_FILE_SIZE);
   /* max size of one log size (for new logs creation) */
   log_file_size= log_descriptor.log_file_max_size=
     log_file_max_size;
@@ -7085,7 +7084,7 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
       log_descriptor.min_need_file= i;
   }
 
-  translog_mutex_unlock(&log_descriptor.purger_lock);
+  pthread_mutex_unlock(&log_descriptor.purger_lock);
   DBUG_RETURN(rc);
 }
 
@@ -7115,12 +7114,12 @@ my_bool translog_purge_at_flush()
     DBUG_RETURN(0);
   }
 
-  translog_mutex_lock(&log_descriptor.purger_lock);
+  pthread_mutex_lock(&log_descriptor.purger_lock);
 
   if (unlikely(log_descriptor.min_need_file == 0))
   {
     DBUG_PRINT("info", ("No info about min need file => exit"));
-    translog_mutex_unlock(&log_descriptor.purger_lock);
+    pthread_mutex_unlock(&log_descriptor.purger_lock);
     DBUG_RETURN(0);
   }
 
@@ -7164,9 +7163,9 @@ uint32 translog_get_first_file(TRANSLOG_ADDRESS horizon)
 uint32 translog_get_first_needed_file()
 {
   uint32 file_no;
-  translog_mutex_lock(&log_descriptor.purger_lock);
+  pthread_mutex_lock(&log_descriptor.purger_lock);
   file_no= log_descriptor.min_need_file;
-  translog_mutex_unlock(&log_descriptor.purger_lock);
+  pthread_mutex_unlock(&log_descriptor.purger_lock);
   return file_no;
 }
 
@@ -7199,8 +7198,7 @@ void translog_set_file_size(uint32 size)
   translog_lock();
   DBUG_PRINT("enter", ("Size: %lu", (ulong) size));
   DBUG_ASSERT(size % TRANSLOG_PAGE_SIZE == 0 &&
-              size >= TRANSLOG_MIN_FILE_SIZE &&
-              size <= 0xffffffffL);
+              size >= TRANSLOG_MIN_FILE_SIZE);
   log_descriptor.log_file_max_size= size;
   /* if current file longer then finish it*/
   if (LSN_OFFSET(log_descriptor.horizon) >=  log_descriptor.log_file_max_size)

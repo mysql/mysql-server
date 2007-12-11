@@ -13,7 +13,7 @@ static const char *default_dbug_option;
 
 #define PCACHE_SIZE (1024*1024*10)
 #define PCACHE_PAGE TRANSLOG_PAGE_SIZE
-#define LOG_FILE_SIZE (4*1024L*1024L)
+#define LOG_FILE_SIZE (8*1024L*1024L)
 #define LOG_FLAGS 0
 
 
