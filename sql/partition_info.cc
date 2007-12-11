@@ -524,6 +524,13 @@ bool partition_info::check_range_constants()
         current_largest= part_range_value;
         range_int_array[i]= part_range_value;
       }
+      else if (defined_max_value &&
+               current_largest == part_range_value &&
+               part_range_value == LONGLONG_MAX &&
+               i == (no_parts - 1))
+      {
+        range_int_array[i]= part_range_value;
+      }
       else
       {
         my_error(ER_RANGE_NOT_INCREASING_ERROR, MYF(0));

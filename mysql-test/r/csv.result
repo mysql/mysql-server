@@ -5364,13 +5364,19 @@ BIN(a)
 0
 drop table t1;
 create table t1(a enum('foo','bar') default null) engine=csv;
-ERROR HY000: Can't create table 'test.t1' (errno: -1)
+ERROR 42000: The storage engine for the table doesn't support nullable columns
 create table t1(a enum('foo','bar') default 'foo') engine=csv;
-ERROR HY000: Can't create table 'test.t1' (errno: -1)
+ERROR 42000: The storage engine for the table doesn't support nullable columns
 create table t1(a enum('foo','bar') default 'foo' not null) engine=csv;
 insert into t1 values();
 select * from t1;
 a
 foo
 drop table t1;
+CREATE TABLE t1(a INT) ENGINE=CSV;
+ERROR 42000: The storage engine for the table doesn't support nullable columns
+SHOW WARNINGS;
+Level	Code	Message
+Error	1178	The storage engine for the table doesn't support nullable columns
+Error	1005	Can't create table 'test.t1' (errno: 138)
 End of 5.1 tests
