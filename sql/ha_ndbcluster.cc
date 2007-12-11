@@ -5920,9 +5920,9 @@ static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
 {
   if (thd->lex->sql_command == SQLCOM_LOAD ||
       !thd->transaction.on)
-    m_thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF
+    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
   else if (!thd->variables.ndb_use_transactions)
-    m_thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF
+    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
   thd_ndb->m_force_send= thd->variables.ndb_force_send;
 }
 
