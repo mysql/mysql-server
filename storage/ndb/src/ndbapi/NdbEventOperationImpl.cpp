@@ -838,6 +838,18 @@ NdbEventOperationImpl::receive_event()
           p = p->next();
         }
       }
+      // change the blobHandle's to refer to the new table object.
+      NdbBlob *p = theBlobList;
+      while (p)
+      {
+        int no = p->getColumn()->getColumnNo();
+        NdbColumnImpl *tAttrInfo = at->getColumn(no);
+        DBUG_PRINT("info", ("blob_handle: 0x%lx  "
+                            "switching column impl 0x%lx -> 0x%lx",
+                            (long) p, (long) p->theColumn, (long) tAttrInfo));
+        p->theColumn = tAttrInfo;
+        p = p->next();
+      }
       if (tmp_table_impl) 
         delete tmp_table_impl;
     }
