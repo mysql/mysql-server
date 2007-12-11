@@ -141,4 +141,14 @@ clean:
 	rm -rf dir.*.tdb dir.*.bdb
 
 test_db_curs4.tdb: trace.h
+test_db_curs4.bdb: trace.h
+
+# Note the "-", which means we expect and ignore an error.
+c4s.bdb: test_db_curs4.bdb
+	./test_db_curs4.bdb 1 > c4.c.a.bdb
+	./test_db_curs4.bdb 1 --more > c4.c.b.bdb	
+c4s.tdb: test_db_curs4.tdb
+	./test_db_curs4.tdb 1 > c4.c.a.tdb
+	-./test_db_curs4.tdb 1 --more > c4.c.b.tdb
+c4s: c4s.bdb c4s.tdb
 
