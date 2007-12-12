@@ -242,12 +242,17 @@ INSERT INTO t1 VALUES (1,'master,slave'), (2,'master,slave');
 sync_slave_with_master;
 UPDATE t1 SET a = 5, b = 'slave' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
+# since bug#31552/31609 idempotency is not default any longer. In
+# order the preceeding test UPDATE t1 to pass the mode is switched
+# temprorarily
+set @@global.slave_exec_mode= 'IDEMPOTENT';
 --echo **** On Master ****
 connection master;
 UPDATE t1 SET a = 5, b = 'master' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
 --echo **** On Slave ****
 sync_slave_with_master;
+set @@global.slave_exec_mode= default;
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
