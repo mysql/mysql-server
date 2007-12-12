@@ -2049,24 +2049,26 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
    @brief Initialize variables for repair
 */
 
-static void initialize_variables_for_repair(HA_CHECK *param,
-                                            MARIA_SORT_INFO *sort_info,
-                                            MARIA_SORT_PARAM *sort_param,
-                                            MARIA_HA *info,
-                                            uint rep_quick)
+static int initialize_variables_for_repair(HA_CHECK *param,
+                                           MARIA_SORT_INFO *sort_info,
+                                           MARIA_SORT_PARAM *sort_param,
+                                           MARIA_HA *info,
+                                           uint rep_quick)
 {
-  bzero((char *) sort_info,  sizeof(*sort_info));
-  bzero((char *) sort_param, sizeof(*sort_param));
+  MARIA_SHARE *share= info->s;
+
+  bzero((char*) sort_info,  sizeof(*sort_info));
+  bzero((char*) sort_param, sizeof(*sort_param));
 
   param->testflag|= T_REP;                     /* for easy checking */
-  if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
+  if (share->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|= T_CALC_CHECKSUM;
   param->glob_crc= 0;
   if (rep_quick)
     param->testflag|= T_QUICK;
   else
     param->testflag&= ~T_QUICK;
-  param->org_key_map= info->s->state.key_map;
+  param->org_key_map= share->state.key_map;
 
   sort_param->sort_info= sort_info;
   sort_param->fix_datafile= (my_bool) (! rep_quick);
@@ -2074,11 +2076,38 @@ static void initialize_variables_for_repair(HA_CHECK *param,
   sort_info->info= sort_info->new_info= info;
   sort_info->param= param;
   set_data_file_type(sort_info, info->s);
-  sort_info->org_data_file_type= info->s->data_file_type;
+  sort_info->org_data_file_type= share->data_file_type;
 
   bzero(&info->rec_cache, sizeof(info->rec_cache));
   info->rec_cache.file= info->dfile.file;
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+
+  /* calculate max_records */
+  /*
+    The physical size of the data file is sometimes used during repair (see
+    sort_info.filelength further below); We need to flush to have it exact.
+    We flush the state because our maria_open(HA_OPEN_COPY) will want to read
+    it from disk. Index file will be recreated.
+  */
+  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                            FLUSH_FORCE_WRITE,
+                            (param->testflag & T_CREATE_MISSING_KEYS) ?
+                            FLUSH_FORCE_WRITE : FLUSH_IGNORE_CHANGED) ||
+      (share->changed && _ma_state_info_write(share, 1|2|4)))
+    return(1);
+
+  sort_info->filelength= my_seek(info->dfile.file, 0L, MY_SEEK_END, MYF(0));
+  if ((param->testflag & T_CREATE_MISSING_KEYS) ||
+      sort_info->org_data_file_type == COMPRESSED_RECORD)
+    sort_info->max_records= info->state->records;
+  else
+  {
+    ulong rec_length;
+    rec_length= max(share->base.min_pack_length,
+                    share->base.min_block_length);
+    sort_info->max_records= (ha_rows) (sort_info->filelength / rec_length);
+  }
+  return 0;
 }
 
 
@@ -2107,7 +2136,7 @@ static void initialize_variables_for_repair(HA_CHECK *param,
 int maria_repair(HA_CHECK *param, register MARIA_HA *info,
                  char *name, uint rep_quick)
 {
-  int error, got_error= 1;
+  int error, got_error;
   uint i;
   ha_rows start_records,new_header_length;
   my_off_t del;
@@ -2122,29 +2151,21 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
                  MY_SYNC_DIR : 0);
   DBUG_ENTER("maria_repair");
 
-  initialize_variables_for_repair(param, &sort_info, &sort_param, info,
-                                  rep_quick);
-  start_records=info->state->records;
-  new_header_length= ((param->testflag & T_UNPACK) ? 0L :
-                      share->pack.header_length);
+  got_error= 1;
   new_file= -1;
-
+  start_records= info->state->records;
   if (!(param->testflag & T_SILENT))
   {
     printf("- recovering (with keycache) MARIA-table '%s'\n",name);
-    printf("Data records: %s\n", llstr(info->state->records,llbuff));
+    printf("Data records: %s\n", llstr(start_records, llbuff));
   }
 
-  /*
-    The physical size of the data file is sometimes used during repair (see
-    sort_info.filelength further below); we need to flush to have it exact.
-    We flush the state because our maria_open(HA_OPEN_COPY) will want to read
-    it from disk. Index file will be recreated.
-  */
-  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
-                            FLUSH_FORCE_WRITE, FLUSH_IGNORE_CHANGED) ||
-      _ma_state_info_write(share, 1|2|4))
+  if (initialize_variables_for_repair(param, &sort_info, &sort_param, info,
+                                      rep_quick))
     goto err;
+
+  new_header_length= ((param->testflag & T_UNPACK) ? 0L :
+                      share->pack.header_length);
 
   if (!rep_quick)
   {
@@ -2216,8 +2237,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   sort_param.read_cache=param->read_cache;
   sort_param.pos=sort_param.max_pos=share->pack.header_length;
   sort_param.filepos=new_header_length;
-  param->read_cache.end_of_file= sort_info.filelength=
-    my_seek(info->dfile.file, 0L, MY_SEEK_END, MYF(0));
+  param->read_cache.end_of_file= sort_info.filelength;
   sort_param.master=1;
   sort_info.max_records= ~(ha_rows) 0;
 
@@ -2881,7 +2901,6 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 {
   int got_error;
   uint i;
-  ulong length;
   ha_rows start_records;
   my_off_t new_header_length, org_header_length, del;
   File new_file;
@@ -2897,28 +2916,22 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   my_bool scan_inited= 0;
   DBUG_ENTER("maria_repair_by_sort");
 
-  start_records= info->state->records;
-  initialize_variables_for_repair(param, &sort_info, &sort_param, info,
-                                  rep_quick);
-  got_error=1;
+  got_error= 1;
   new_file= -1;
-  org_header_length= share->pack.header_length;
-  new_header_length= (param->testflag & T_UNPACK) ? 0 : org_header_length;
-  sort_param.filepos= new_header_length;
-
+  start_records= info->state->records;
   if (!(param->testflag & T_SILENT))
   {
     printf("- recovering (with sort) MARIA-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
 
-  /* Flushing of keys is done later */
-  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
-                            FLUSH_FORCE_WRITE,
-                            (param->testflag & T_CREATE_MISSING_KEYS) ?
-                            FLUSH_FORCE_WRITE : FLUSH_IGNORE_CHANGED) ||
-      _ma_state_info_write(share, 1|2|4))
+  if (initialize_variables_for_repair(param, &sort_info, &sort_param, info,
+                                      rep_quick))
     goto err;
+
+  org_header_length= share->pack.header_length;
+  new_header_length= (param->testflag & T_UNPACK) ? 0 : org_header_length;
+  sort_param.filepos= new_header_length;
 
   if (!rep_quick)
   {
@@ -2998,21 +3011,10 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   else
     key_map= ~key_map;				/* Create the missing keys */
 
-  param->read_cache.end_of_file= sort_info.filelength=
-    my_seek(info->dfile.file, 0L, MY_SEEK_END, MYF(0));
-
+  param->read_cache.end_of_file= sort_info.filelength;
   sort_param.wordlist=NULL;
   init_alloc_root(&sort_param.wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
 
-  if (sort_info.org_data_file_type == DYNAMIC_RECORD)
-    length=max(share->base.min_pack_length+1,share->base.min_block_length);
-  else if (sort_info.org_data_file_type == COMPRESSED_RECORD)
-    length=share->base.min_block_length;
-  else
-    length=share->base.pack_reclength;
-  sort_info.max_records=
-    ((param->testflag & T_CREATE_MISSING_KEYS) ? info->state->records :
-     (ha_rows) (sort_info.filelength/length+1));
   sort_param.key_cmp=sort_key_cmp;
   sort_param.lock_in_memory=maria_lock_memory;
   sort_param.tmpdir=param->tmpdir;
@@ -3352,7 +3354,6 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
 #else
   int got_error;
   uint i,key, total_key_length, istep;
-  ulong rec_length;
   ha_rows start_records;
   my_off_t new_header_length,del;
   File new_file;
@@ -3370,23 +3371,21 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     MY_SYNC_DIR : 0;
   DBUG_ENTER("maria_repair_parallel");
 
-  initialize_variables_for_repair(param, &sort_info, &tmp_sort_param, info,
-                                  rep_quick);
-
-  start_records=info->state->records;
-  got_error=1;
+  got_error= 1;
   new_file= -1;
-  new_header_length=(param->testflag & T_UNPACK) ? 0 :
-    share->pack.header_length;
+  start_records= info->state->records;
   if (!(param->testflag & T_SILENT))
   {
     printf("- parallel recovering (with sort) MARIA-table '%s'\n",name);
-    printf("Data records: %s\n", llstr(start_records,llbuff));
+    printf("Data records: %s\n", llstr(start_records, llbuff));
   }
 
-  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
-                            FLUSH_FORCE_WRITE, FLUSH_IGNORE_CHANGED))
+  if (initialize_variables_for_repair(param, &sort_info, &tmp_sort_param, info,
+                                      rep_quick))
     goto err;
+
+  new_header_length= ((param->testflag & T_UNPACK) ? 0 :
+                      share->pack.header_length);
 
   /*
     Quick repair (not touching data file, rebuilding indexes):
@@ -3489,15 +3488,8 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     key_map= ~key_map;				/* Create the missing keys */
   }
 
-  param->read_cache.end_of_file= sort_info.filelength=
-    my_seek(info->dfile.file, 0L, MY_SEEK_END, MYF(0));
+  param->read_cache.end_of_file= sort_info.filelength;
 
-  if (sort_info.org_data_file_type == DYNAMIC_RECORD)
-    rec_length=max(share->base.min_pack_length+1,share->base.min_block_length);
-  else if (sort_info.org_data_file_type == COMPRESSED_RECORD)
-    rec_length=share->base.min_block_length;
-  else
-    rec_length=share->base.pack_reclength;
   /*
     +1 below is required hack for parallel repair mode.
     The info->state->records value, that is compared later
@@ -3510,9 +3502,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     May be sort_info.max_records shold be always set to max value in
     parallel mode.
   */
-  sort_info.max_records=
-    ((param->testflag & T_CREATE_MISSING_KEYS) ? info->state->records + 1:
-     (ha_rows) (sort_info.filelength/rec_length+1));
+  sort_info.max_records++;
 
   del=info->state->del;
 

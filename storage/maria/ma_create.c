@@ -205,7 +205,10 @@ int maria_create(const char *name, enum data_file_type datafile_type,
         if (!column->null_bit)
           min_pack_length+= column->length;
         else
+        {
+          /* Only BLOCK_RECORD skips NULL fields for all field values */
           not_block_record_extra_length+= column->length;
+        }
         column->empty_pos= 0;
         column->empty_bit= 0;
       }
@@ -237,11 +240,13 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     /* We can't use checksum with static length rows */
     flags&= ~HA_CREATE_CHECKSUM;
     options&= ~HA_OPTION_CHECKSUM;
-    min_pack_length+= varchar_length;
+    min_pack_length= reclength;
     packed= 0;
   }
-  if (datafile_type != BLOCK_RECORD)
+  else if (datafile_type != BLOCK_RECORD)
     min_pack_length+= not_block_record_extra_length;
+  else
+    min_pack_length+= 5;                        /* Min row overhead */
 
   if ((packed & 7) == 1)
   {
@@ -311,8 +316,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     extra_header_size= TRANS_MAX_FIXED_HEADER_SIZE;
     DBUG_PRINT("info",("creating a transactional table"));
   }
-  share.base.min_row_length= (extra_header_size + share.base.null_bytes +
-                              pack_bytes);
+  share.base.min_block_length= (extra_header_size + share.base.null_bytes +
+                                pack_bytes);
   if (!ci->data_file_length && ci->max_rows)
   {
     if (pack_reclength == INT_MAX32 ||
@@ -731,9 +736,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     sync_dir= MY_SYNC_DIR;
   }
 
-  if (datafile_type == BLOCK_RECORD)
-    share.base.min_block_length= share.base.min_row_length;
-  else
+  if (datafile_type == DYNAMIC_RECORD)
   {
     share.base.min_block_length=
       (share.base.pack_reclength+3 < MARIA_EXTEND_BLOCK_LENGTH &&
@@ -741,6 +744,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       max(share.base.pack_reclength,MARIA_MIN_BLOCK_LENGTH) :
       MARIA_EXTEND_BLOCK_LENGTH;
   }
+  else if (datafile_type == STATIC_RECORD)
+    share.base.min_block_length= share.base.pack_reclength;
+
   if (! (flags & HA_DONT_TOUCH_DATA))
     share.state.create_time= (long) time((time_t*) 0);
 

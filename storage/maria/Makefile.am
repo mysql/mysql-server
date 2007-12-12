@@ -169,5 +169,8 @@ SUFFIXES = .sh
 	@CHMOD@ +x $@-t
 	@MV@ $@-t $@
 
+tags:
+	etags *.h *.c *.cc
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%

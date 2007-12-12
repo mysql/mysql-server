@@ -174,7 +174,6 @@ typedef struct st_ma_base_info
   uint extra_alloc_bytes;
   uint extra_alloc_procent;
   uint is_nulls_extended;               /* 1 if new null bytes */
-  uint min_row_length;			/* Min possible length of a row */
   uint default_row_flag;                /* 0 or ROW_FLAG_NULLS_EXTENDED */
   uint block_size;
   /* Size of initial record buffer */

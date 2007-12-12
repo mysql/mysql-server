@@ -1060,8 +1060,8 @@ static void calc_record_size(MARIA_HA *info, const uchar *record,
                      row->normal_length +
                      row->char_length + row->varchar_length);
   row->total_length= (row->head_length + row->blob_length);
-  if (row->total_length < share->base.min_row_length)
-    row->total_length= share->base.min_row_length;
+  if (row->total_length < share->base.min_block_length)
+    row->total_length= share->base.min_block_length;
   DBUG_PRINT("exit", ("head_length: %lu  total_length: %lu",
                       (ulong) row->head_length, (ulong) row->total_length));
   DBUG_VOID_RETURN;
@@ -2085,12 +2085,13 @@ static my_bool write_block_record(MARIA_HA *info,
     uint length= (uint) (data - row_pos->data);
     DBUG_PRINT("info", ("Used head length on page: %u", length));
     DBUG_ASSERT(data <= end_of_data);
-    if (length < info->s->base.min_row_length)
+    if (length < info->s->base.min_block_length)
     {
-      uint diff_length= info->s->base.min_row_length - length;
+      /* Extend row to be of size min_block_length */
+      uint diff_length= info->s->base.min_block_length - length;
       bzero(data, diff_length);
       data+= diff_length;
-      length= info->s->base.min_row_length;
+      length= info->s->base.min_block_length;
     }
     int2store(row_pos->dir + 2, length);
     /* update empty space at start of block */
@@ -3541,7 +3542,7 @@ static my_bool read_long_data(MARIA_HA *info, uchar *to, ulong length,
     Fields are never split in middle. This means that if length > rest-of-data
     we should start reading from the next extent.  The reason we may have
     data left on the page is that if the fixed part of the row was less than
-    min_row_length the head block was extended to min_row_length.
+    min_block_length the head block was extended to min_block_length.
 
     This may change in the future, which is why we have the loop written
     the way it's written.
@@ -3872,11 +3873,11 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
     DBUG_PRINT("info", ("Row read"));
     /*
       data should normally point to end_of_date. The only exception is if
-      the row is very short in which case we allocated 'min_row_length' data
+      the row is very short in which case we allocated 'min_block_length' data
       for allowing the row to expand.
     */
     if (data != end_of_data && (uint) (end_of_data - start_of_data) >
-        info->s->base.min_row_length)
+        info->s->base.min_block_length)
       goto err;
   }
 
@@ -5794,8 +5795,8 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
                     row.normal_length +
                     row.char_length + row.varchar_length);
   row.total_length= (row.head_length + row.blob_length);
-  if (row.total_length < share->base.min_row_length)
-    row.total_length= share->base.min_row_length;
+  if (row.total_length < share->base.min_block_length)
+    row.total_length= share->base.min_block_length;
 
   /* Row is now up to date. Time to insert the record */
 
