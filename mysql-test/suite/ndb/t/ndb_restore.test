@@ -394,10 +394,8 @@ drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 # Cleanup
 #
 
---disable_warnings
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
-drop table if exists t2_c;
---enable_warnings
+drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+drop table t2_c;
 
 #
 # Test BUG#10287

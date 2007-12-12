@@ -23,11 +23,11 @@ select count(*) from t2;
 count(*)
 0
 begin;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t2;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
 Warnings:
 Warning	1262	Row 1 was truncated; it contained more data than there were input columns
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
 Warnings:
 Warning	1262	Row 1 was truncated; it contained more data than there were input columns
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns
@@ -49,11 +49,11 @@ count(*)
 delete from t1;
 delete from t2;
 begin;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t2;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
 Warnings:
 Warning	1262	Row 1 was truncated; it contained more data than there were input columns
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
 Warnings:
 Warning	1262	Row 1 was truncated; it contained more data than there were input columns
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns
@@ -77,11 +77,11 @@ delete from t2;
 begin;
 insert into t2 values(3),(4);
 insert into t1 values(3),(4);
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t2;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
 Warnings:
 Warning	1262	Row 1 was truncated; it contained more data than there were input columns
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
 Warnings:
 Warning	1262	Row 1 was truncated; it contained more data than there were input columns
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns

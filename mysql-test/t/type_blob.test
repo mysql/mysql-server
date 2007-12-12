@@ -308,20 +308,20 @@ create table t1 (id integer auto_increment unique,imagem LONGBLOB not null defau
 insert into t1 (id) values (1);
 # We have to clean up the path in the results for safe comparison
 eval select
-  charset(load_file('../std_data_ln/words.dat')),
-  collation(load_file('../std_data_ln/words.dat')),
-  coercibility(load_file('../std_data_ln/words.dat'));
+  charset(load_file('../../std_data/words.dat')),
+  collation(load_file('../../std_data/words.dat')),
+  coercibility(load_file('../../std_data/words.dat'));
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval explain extended select
-  charset(load_file('$MYSQLTEST_VARDIR/std_data_ln/words.dat')),
-  collation(load_file('$MYSQLTEST_VARDIR/std_data_ln/words.dat')),
-  coercibility(load_file('$MYSQLTEST_VARDIR/std_data_ln/words.dat'));
+  charset(load_file('$MYSQLTEST_VARDIR/std_data/words.dat')),
+  collation(load_file('$MYSQLTEST_VARDIR/std_data/words.dat')),
+  coercibility(load_file('$MYSQLTEST_VARDIR/std_data/words.dat'));
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval update t1 set imagem=load_file('$MYSQLTEST_VARDIR/std_data_ln/words.dat') where id=1;
+eval update t1 set imagem=load_file('$MYSQLTEST_VARDIR/std_data/words.dat') where id=1;
 select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 drop table t1;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval create table t1 select load_file('$MYSQLTEST_VARDIR/std_data_ln/words.dat') l;
+eval create table t1 select load_file('$MYSQLTEST_VARDIR/std_data/words.dat') l;
 # We mask out the Privileges column because it differs for embedded server
 --replace_column 8 #
 show full fields from t1;

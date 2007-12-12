@@ -15,7 +15,7 @@ insert into t1 values(9);
 SET SESSION debug="d,crash_commit_before";
 
 # Write file to make mysql-test-run.pl expect crash and restart
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/master0.expect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Run the crashing query
 --error 2013

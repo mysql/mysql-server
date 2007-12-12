@@ -1392,13 +1392,15 @@ drop table t1, t2;
 # Bug #24633 SQL MODE "NO_DIR_IN_CREATE" does not work with partitioned tables 
 #
 
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 disable_query_log;
 eval create table t2 (i int )
 partition by range (i)
 (
     partition p01 values less than (1000)
-    data directory="$MYSQLTEST_VARDIR/master-data/test/"
-    index directory="$MYSQLTEST_VARDIR/master-data/test/"
+    data directory="$MYSQLD_DATADIR/test/"
+    index directory="$MYSQLD_DATADIR/test/"
 );
 enable_query_log;
 

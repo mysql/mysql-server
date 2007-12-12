@@ -544,7 +544,7 @@ drop procedure if exists into_outfile|
 create procedure into_outfile(x char(16), y int)
 begin
 insert into test.t1 values (x, y);
-select * into outfile "../tmp/spout" from test.t1;
+select * into outfile "MYSQLTEST_VARDIR/tmp/spout" from test.t1;
 insert into test.t1 values (concat(x, "2"), y+2);
 end|
 call into_outfile("ofile", 1)|
@@ -554,7 +554,7 @@ drop procedure if exists into_dumpfile|
 create procedure into_dumpfile(x char(16), y int)
 begin
 insert into test.t1 values (x, y);
-select * into dumpfile "../tmp/spdump" from test.t1 limit 1;
+select * into dumpfile "MYSQLTEST_VARDIR/tmp/spdump" from test.t1 limit 1;
 insert into test.t1 values (concat(x, "2"), y+2);
 end|
 call into_dumpfile("dfile", 1)|
@@ -4401,9 +4401,9 @@ drop procedure if exists bug13012|
 create procedure bug13012()
 BEGIN
 REPAIR TABLE t1;
-BACKUP TABLE t1 to '../tmp';
+BACKUP TABLE t1 to '../../tmp';
 DROP TABLE t1;
-RESTORE TABLE t1 FROM '../tmp';
+RESTORE TABLE t1 FROM '../../tmp';
 END|
 call bug13012()|
 Table	Op	Msg_type	Msg_text

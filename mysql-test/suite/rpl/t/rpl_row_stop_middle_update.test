@@ -9,7 +9,7 @@
 connection master;
 create table t1 (words varchar(20)) engine=myisam;
 
-load data infile '../std_data_ln/words.dat' into table t1 (words);
+load data infile '../../std_data/words.dat' into table t1 (words);
 select count(*) from t1;
 save_master_pos;
 
