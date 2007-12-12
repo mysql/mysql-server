@@ -225,3 +225,38 @@ connection default;
 set global read_only=0;
 drop table t1,t2;
 drop user test@localhost;
+--echo #
+--echo # Bug #27440 read_only allows create and drop database
+--echo #
+set global read_only= 1;
+--disable_warnings
+drop database if exists mysqltest_db1;
+drop database if exists mysqltest_db2;
+--enable_warnings
+
+delete from mysql.user where User like 'mysqltest_%';
+delete from mysql.db where User like 'mysqltest_%';
+delete from mysql.tables_priv where User like 'mysqltest_%';
+delete from mysql.columns_priv where User like 'mysqltest_%';
+flush privileges;
+
+grant all on mysqltest_db2.* to `mysqltest_u1`@`%`;
+create database mysqltest_db1;
+grant all on mysqltest_db1.* to `mysqltest_u1`@`%`;
+flush privileges;
+connect (con_bug27440,127.0.0.1,mysqltest_u1,,test,$MASTER_MYPORT,);
+connection con_bug27440;
+--error ER_OPTION_PREVENTS_STATEMENT
+create database mysqltest_db2;
+show databases like '%mysqltest_db2%';
+--error ER_OPTION_PREVENTS_STATEMENT
+drop database mysqltest_db1;
+disconnect con_bug27440;
+connection default;
+delete from mysql.user where User like 'mysqltest_%';
+delete from mysql.db where User like 'mysqltest_%';
+delete from mysql.tables_priv where User like 'mysqltest_%';
+delete from mysql.columns_priv where User like 'mysqltest_%';
+flush privileges;
+drop database mysqltest_db1;
+set global read_only=0;
