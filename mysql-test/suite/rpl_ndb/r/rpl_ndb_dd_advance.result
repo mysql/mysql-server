@@ -301,6 +301,7 @@ SELECT COUNT(*) FROM history;
 COUNT(*)
 400
 *** DUMP MASTER & SLAVE FOR COMPARE ********
+set @@global.slave_exec_mode='IDEMPOTENT' /* to ignore missed records in mysql.proc */;
 *************** TEST 2 CLEANUP SECTION ********************
 DROP PROCEDURE IF EXISTS tpcb.load;
 DROP PROCEDURE IF EXISTS tpcb.trans;
