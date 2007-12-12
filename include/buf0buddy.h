@@ -19,9 +19,13 @@ Created December 2006 by Marko Makela
 
 /**************************************************************************
 Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
-The buf_pool->mutex may only be released and reacquired if
-lru == BUF_BUDDY_USE_LRU. */
+buf_pool->mutex and must not hold buf_pool->zip_mutex or any
+block->mutex.  The buf_pool->mutex may only be released and reacquired
+if lru == BUF_BUDDY_USE_LRU.  This function should only be used for
+allocating compressed page frames or control blocks (buf_page_t).
+Allocated control blocks must be properly initialized immediately
+after buf_buddy_alloc() has returned the memory, before releasing
+buf_pool->mutex. */
 UNIV_INLINE
 void*
 buf_buddy_alloc(
