@@ -36,3 +36,13 @@ DBT *dbt_init_malloc(DBT *dbt) {
     dbt->flags = DB_DBT_MALLOC;
     return dbt;
 }
+
+// Simle LCG random number generator.  Not high quality, but good enough.
+static uint32_t rstate=1;
+static inline void mysrandom (int s) {
+    rstate=s;
+}
+static inline uint32_t myrandom (void) {
+    rstate = (279470275ull*(uint64_t)rstate)%4294967291ull;
+    return rstate;
+}

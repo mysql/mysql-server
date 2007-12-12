@@ -142,5 +142,14 @@ clean:
 
 test_db_curs4.tdb: trace.h
 test_db_curs4.bdb: trace.h
+test_db_assoc3.tdb test_db_assoc3.bdb: test.h
 
 
+test_db_assoc3.tdbrun: test_db_assoc3.tdb
+	./test_db_assoc3.tdb --seed=1 --count=200
+	./test_db_assoc3.tdb --seed=1 --count=200 --more
+	./test_db_assoc3.tdb --seed=1 --count=200 --more
+	./test_db_assoc3.tdb --seed=1 --count=200 --more
+	./test_db_assoc3.tdb --seed=1 --count=200 --more
+	./test_db_assoc3.tdb --seed=1 --count=200 --more
+	./test_db_assoc3.tdb --seed=1 --count=200 --more

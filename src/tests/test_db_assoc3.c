@@ -172,9 +172,11 @@ void create_databases (void) {
     r = dbp->open(dbp, null_txn, "primary.db", NULL, DB_BTREE, DB_CREATE, 0600);             CKERR(r);
 
     r = db_create(&namedb, dbenv, 0);                                                        CKERR(r);
+    r = namedb->set_flags(namedb, DB_DUP|DB_DUPSORT);
     r = namedb->open(namedb, null_txn, "name.db", NULL, DB_BTREE, DB_CREATE, 0600);          CKERR(r);
 
     r = db_create(&expiredb, dbenv, 0);                                                      CKERR(r);
+    r = expiredb->set_flags(expiredb, DB_DUP|DB_DUPSORT);
     r = expiredb->open(expiredb, null_txn, "expire.db", NULL, DB_BTREE, DB_CREATE, 0600);    CKERR(r);
     
     r = dbp->associate(dbp, NULL, namedb, name_callback, 0);                                 CKERR(r);
@@ -198,17 +200,19 @@ void close_databases (void) {
 }
     
 
+static int tod_counter=0;
+
+
 void gettod (struct timestamp *ts) {
-#if 0    
+#if 0
     struct timeval tv;
     int r = gettimeofday(&tv, 0);
     assert(r==0);
     ts->tv_sec  = htonl(tv.tv_sec);
     ts->tv_usec = htonl(tv.tv_usec);
 #else
-    static int counter=0;
     ts->tv_sec  = 0;
-    ts->tv_usec = counter++;
+    ts->tv_usec = tod_counter++;
 #endif
 }
 
@@ -253,6 +257,27 @@ int count_entries (DB *db) {
     return n_found;
 }
 
+int count_entries_and_max_tod (DB *db, int *tod) {
+    DBC *dbc;
+    int r = db->cursor(db, null_txn, &dbc, 0);                                       CKERR(r);
+    DBT key,data;
+    memset(&key,  0, sizeof(key));    
+    memset(&data, 0, sizeof(data));
+    int n_found=0;
+    *tod=0;
+    for (r = dbc->c_get(dbc, &key, &data, DB_FIRST);
+	 r==0;
+	 r = dbc->c_get(dbc, &key, &data, DB_NEXT)) {
+	int thistod = ntohl(*(2+(unsigned int*)key.data));
+	if (thistod>*tod) *tod=thistod;
+	n_found++;
+    }
+    (*tod)++;
+    assert(r==DB_NOTFOUND);
+    r=dbc->c_close(dbc);                                                             CKERR(r);
+    return n_found;
+}
+
 void do_create (void) {
     setup_for_db_create();
     // Now check to see if the number of names matches the number of associated things.
@@ -262,21 +287,21 @@ void do_create (void) {
 }
 
 void insert_person (void) {
-    int namelen = 5+random()%245;
+    int namelen = 5+myrandom()%245;
     struct primary_key  pk;
     struct primary_data pd;
     char keyarray[1000], dataarray[1000]; 
     unsigned char namearray[1000];
-    pk.rand = random();
+    pk.rand = myrandom();
     gettod(&pk.ts);
     pd.expiretime   = pk.ts;
     pd.expiretime.tv_sec += 24*60*60*366;
-    pd.doesexpire = (random()%10==0);
+    pd.doesexpire = (myrandom()%10==0);
     int i;
     pd.name.name = namearray;
-    pd.name.name[0] = 'A'+random()%26;
+    pd.name.name[0] = 'A'+myrandom()%26;
     for (i=1; i<namelen; i++) {
-	pd.name.name[i] = 'a'+random()%26;
+	pd.name.name[i] = 'a'+myrandom()%26;
     }
     pd.name.name[i]=0;
     DBT key,data;
@@ -292,7 +317,7 @@ void insert_person (void) {
     write_pd_to_dbt(&data, &pd);
     {
 	char *dt = data.data;
-	fprintf(stderr, "put %2d%c %s\n", dt[7], dt[8]?'e':' ', dt+9);
+	if (0) fprintf(stderr, "put %2d%c %s\n", dt[7], dt[8]?'e':' ', dt+9);
     }
     int r=dbp->put(dbp, null_txn, &key, &data,0);   CKERR(r);
     // If the cursor is to the left of the current item, then increment count_items
@@ -306,7 +331,7 @@ void insert_person (void) {
 
 void delete_oldest_expired (void) {
     int r;
-    int r3=random()%3;
+    int r3=myrandom()%3;
     if (delete_cursor==0) {
 	r = expiredb->cursor(expiredb, null_txn, &delete_cursor, 0); CKERR(r);
 	
@@ -322,7 +347,7 @@ void delete_oldest_expired (void) {
 	char *dt=data.data;
 	char *deleted_key = dt+name_offset_in_pd_dbt();
 	int compare=strcmp(deleted_key, nc_key.data);
-	fprintf(stderr, "del %2d%c %s\n", dt[7], dt[8]?'e':' ', dt+9);
+	if (0) fprintf(stderr, "del %2d%c %s\n", dt[7], dt[8]?'e':' ', dt+9);
 	if (compare>0) {
 	    //fprintf(stderr, "%s:%d r3=%d compare=%d count=%d cacount=%d cucount=%d deleting %s cursor=%s\n", __FILE__, __LINE__, r3, compare, count_all_items, calc_n_items, cursor_count_n_items, deleted_key, (char*)nc_key.data);
 	    calc_n_items--;
@@ -343,6 +368,7 @@ void delete_oldest_expired (void) {
 	r = dbp->del(dbp, null_txn, &pkey, 0);   CKERR(r);
 	break;
     default:
+	printf("r3=%d\n", r3);
 	assert(0);
     }
     // Make sure it's really gone.
@@ -363,7 +389,7 @@ void step_name (void) {
     if (r==0) {
 	char *dt = nc_data.data;
 	cursor_count_n_items++;
-	fprintf(stderr, "crs %2d%c %s\n", dt[7], dt[8] ? 'e' : ' ', dt+9);
+	if (0) fprintf(stderr, "crs %2d%c %s\n", dt[7], dt[8] ? 'e' : ' ', dt+9);
     } else if (r==DB_NOTFOUND) {
 	// Got to the end.
 	//fprintf(stderr, "%s:%d Got to end count=%d curscount=%d all=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items, count_all_items);
@@ -376,7 +402,7 @@ void step_name (void) {
 	} else {
 	    cursor_count_n_items=1;
 	    char *dt = nc_data.data;
-	    fprintf(stderr, "crs %2d%c %s\n", dt[7], dt[8] ? 'e' : ' ', dt+9);
+	    if (0) fprintf(stderr, "crs %2d%c %s\n", dt[7], dt[8] ? 'e' : ' ', dt+9);
 	}
 	calc_n_items = count_all_items;
     }
@@ -385,10 +411,10 @@ void step_name (void) {
 int cursor_load=2; /* Set this to a higher number to do more cursor work for every insertion.   Needed to get to the end. */
 
 void activity (void) {
-    if (random()%20==0) {
+    if (myrandom()%20==0) {
 	// Delete the oldest expired one.  Keep the cursor open
 	delete_oldest_expired();
-    } else if (random()%cursor_load==0) {
+    } else if (myrandom()%cursor_load==0) {
 	insert_person();
     } else {
 	step_name();
@@ -398,13 +424,29 @@ void activity (void) {
 		       
 
 void usage (const char *argv1) {
-    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] seed ", argv1);
+    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more | --tod=N ] SEED\n", argv1);
     exit(1);
+}
+
+int maybe_parse_intarg (const char *progname, const char *arg, const char *cmdname, int *result) {
+    int len = strlen(cmdname);
+    if (strncmp(arg, cmdname, len)==0) {
+	errno=0;
+	char *endptr;
+	*result = strtoul(arg+len, &endptr, 10);
+	if (errno!=0 || *endptr!=0 || endptr==arg+len) {
+	    usage(progname);
+	}
+	return 1;
+    } else {
+	return 0;
+    }
 }
 
 int main (int argc, const char *argv[]) {
     const char *progname=argv[0];
     int useseed;
+    int activity_count;
 
     {
 	struct timeval tv;
@@ -428,19 +470,17 @@ int main (int argc, const char *argv[]) {
 	    mode = MODE_DB_CREATE;
 	} else if (strcmp(argv[0], "--more")==0) {
 	    mode = MODE_MORE;
+	} else if (maybe_parse_intarg(progname, argv[0], "--seed=", &useseed)
+		   || maybe_parse_intarg(progname, argv[0], "--count=", &activity_count)) {
+	    /* nothing */
 	} else {
-	    errno=0;
-	    char *endptr;
-	    useseed = strtoul(argv[0], &endptr, 10);
-	    if (errno!=0 || *endptr!=0 || endptr==argv[0]) {
-		usage(progname);
-	    }
+	    usage(progname);
 	}
 	argc--; argv++;
     }
 
     printf("seed=%d\n", useseed);
-    srandom(useseed);
+    mysrandom(useseed);
 
     switch (mode) {
     case MODE_DEFAULT:
@@ -449,20 +489,19 @@ int main (int argc, const char *argv[]) {
 	create_databases();
 	{
 	    int i;
-	    for (i=0; i<100; i++)
+	    for (i=0; i<activity_count; i++)
 		activity();
 	}
 	break;
     case MODE_MORE:
 	create_databases();
-	calc_n_items = count_all_items = count_entries(dbp);
-	//printf("%s:%d n_items initially=%d\n", __FILE__, __LINE__, count_all_items);
+	calc_n_items = count_all_items = count_entries_and_max_tod(dbp, &tod_counter);
+	printf("tod=%d\n", tod_counter);
 	{
-	    const int n_activities = 100000;
 	    int i;
-	    cursor_load = 8*(1+2*count_all_items/n_activities);
+	    cursor_load = 8*(1+2*count_all_items/activity_count);
 	    printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
-	    for (i=0; i<n_activities; i++)
+	    for (i=0; i<activity_count; i++)
 		activity();
 	}
 	break;
@@ -472,6 +511,8 @@ int main (int argc, const char *argv[]) {
     }
 
     close_databases();
+
+    fprintf(stderr, "now: --tod=%d\n", tod_counter);
 
     return 0;
 }
