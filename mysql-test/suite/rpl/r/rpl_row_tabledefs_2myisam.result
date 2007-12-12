@@ -123,7 +123,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1364
-Last_Error	Error in Write_rows event: error during transaction execution on table test.t1_nodef. 
+Last_Error	Error in Write_rows event: error during transaction execution on table test.t1_nodef. Field 'x' doesn't have a default value
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -141,7 +141,7 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
 Last_SQL_Errno	1364
-Last_SQL_Error	Error in Write_rows event: error during transaction execution on table test.t1_nodef. 
+Last_SQL_Error	Error in Write_rows event: error during transaction execution on table test.t1_nodef. Field 'x' doesn't have a default value
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (2);

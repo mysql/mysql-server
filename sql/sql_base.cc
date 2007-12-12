@@ -491,9 +491,28 @@ static TABLE_SHARE
   int tmp;
   DBUG_ENTER("get_table_share_with_create");
 
-  if ((share= get_table_share(thd, table_list, key, key_length, 
-                              db_flags, error)) ||
-      thd->net.last_errno != ER_NO_SUCH_TABLE)
+  share= get_table_share(thd, table_list, key, key_length, db_flags, error);
+  /*
+    If share is not NULL, we found an existing share.
+
+    If share is NULL, and there is no error, we're inside
+    pre-locking, which silences 'ER_NO_SUCH_TABLE' errors
+    with the intention to silently drop non-existing tables 
+    from the pre-locking list. In this case we still need to try
+    auto-discover before returning a NULL share.
+
+    If share is NULL and the error is ER_NO_SUCH_TABLE, this is
+    the same as above, only that the error was not silenced by 
+    pre-locking. Once again, we need to try to auto-discover
+    the share.
+
+    Finally, if share is still NULL, it's a real error and we need
+    to abort.
+
+    @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
+  */
+  if (share || thd->is_error() && thd->main_da.sql_errno() != ER_NO_SUCH_TABLE)
+
     DBUG_RETURN(share);
 
   /* Table didn't exist. Check if some engine can provide it */
@@ -502,9 +521,13 @@ static TABLE_SHARE
   {
     /*
       No such table in any engine.
-      Hide "Table doesn't exist" errors if table belong to view
+      Hide "Table doesn't exist" errors if the table belongs to a view.
+      The check for thd->is_error() is necessary to not push an
+      unwanted error in case of pre-locking, which silences
+      "no such table" errors.
+      @todo Rework the alternative ways to deal with ER_NO_SUCH TABLE.
     */
-    if (table_list->belong_to_view)
+    if (thd->is_error() && table_list->belong_to_view)
     {
       TABLE_LIST *view= table_list->belong_to_view;
       thd->clear_error();

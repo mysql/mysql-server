@@ -166,7 +166,7 @@ int init_relay_log_info(Relay_log_info* rli,
     {
       sql_print_error("Failed to create a new relay log info file (\
 file '%s', errno %d)", fname, my_errno);
-      msg= current_thd->net.last_error;
+      msg= current_thd->main_da.message();
       goto err;
     }
     if (init_io_cache(&rli->info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
@@ -174,7 +174,7 @@ file '%s', errno %d)", fname, my_errno);
     {
       sql_print_error("Failed to create a cache on relay log info file '%s'",
                       fname);
-      msg= current_thd->net.last_error;
+      msg= current_thd->main_da.message();
       goto err;
     }
 
