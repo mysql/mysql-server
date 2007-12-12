@@ -113,4 +113,34 @@ handler t1 open;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 --> client 1
 drop table t1;
+drop table if exists t1;
+create table t1 (i int);
+connection: default
+lock tables t1 write;
+connection: flush
+flush tables with read lock;;
+connection: default
+alter table t1 add column j int;
+connection: insert
+insert into t1 values (1,2);;
+connection: default
+unlock tables;
+connection: flush
+select * from t1;
+i	j
+unlock tables;
+select * from t1;
+i	j
+1	2
+drop table t1;
+drop table if exists t1;
+create table t1 (i int);
+connection: default
+lock tables t1 write;
+connection: flush
+flush tables with read lock;;
+connection: default
+flush tables;
+unlock tables;
+drop table t1;
 End of 5.1 tests

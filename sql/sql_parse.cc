@@ -6530,8 +6530,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
 	return 1;                               // Killed
-      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
-                                 tables);
+      result= close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+                                  FALSE : TRUE, TRUE);
       if (make_global_read_lock_block_commit(thd)) // Killed
       {
         /* Don't leave things in a half-locked state */
@@ -6540,7 +6540,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       }
     }
     else
-      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
+      result= close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+                                  FALSE : TRUE, FALSE);
     my_dbopt_cleanup();
   }
   if (options & REFRESH_HOSTS)
