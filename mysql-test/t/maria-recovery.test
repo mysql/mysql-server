@@ -141,6 +141,39 @@ let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 SELECT LENGTH(b) FROM t1 WHERE i=3;
 drop table t1;
 
+# Test that INSERT's effect on auto-increment is recovered
+-- source include/maria_empty_logs.inc
+let $mms_tables=1;
+CREATE TABLE t1 (
+  i int auto_increment primary key,
+  c varchar(6),
+  key(c)
+) ENGINE=MARIA;
+insert into t1 values(null,"b");
+-- source include/maria_make_snapshot_for_feeding_recovery.inc
+insert into t1 values(null,"a"), (null,"c"), (null,"d");
+# With this DELETE we also verify that Recovery cares only about INSERTs
+delete from t1 where c="d";
+-- source include/maria_make_snapshot_for_comparison.inc
+let $mvr_restore_old_snapshot=1;
+let $mms_compare_physically=0;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+-- source include/maria_verify_recovery.inc
+show create table t1;
+
+# Test that UPDATE's effect on auto-increment is recovered
+-- source include/maria_make_snapshot_for_feeding_recovery.inc
+update t1 set i=15 where c="a";
+-- source include/maria_make_snapshot_for_comparison.inc
+let $mvr_restore_old_snapshot=1;
+let $mms_compare_physically=0;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+-- source include/maria_verify_recovery.inc
+show create table t1;
+drop table t1;
+
 # clean up everything
 let $mms_purpose=feeding_recovery;
 eval drop database mysqltest_for_$mms_purpose;

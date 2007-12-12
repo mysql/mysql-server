@@ -1647,9 +1647,53 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
 prototype_redo_exec_hook(UNDO_KEY_INSERT)
 {
   MARIA_HA *info;
+  MARIA_SHARE *share;
   if (!(info= get_MARIA_HA_from_UNDO_record(rec)))
     return 0;
+  share= info->s;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
+  {
+    const uchar *ptr= rec->header + LSN_STORE_SIZE + FILEID_STORE_SIZE;
+    uint keynr= key_nr_korr(ptr);
+    if (share->base.auto_key == (keynr + 1)) /* it's auto-increment */
+    {
+      const HA_KEYSEG *keyseg= info->s->keyinfo[keynr].seg;
+      ulonglong value;
+      char llbuf[22];
+      uchar *to;
+      tprint(tracef, "   state older than record\n");
+      /* we read the record to find the auto_increment value */
+      enlarge_buffer(rec);
+      if (log_record_buffer.str == NULL ||
+          translog_read_record(rec->lsn, 0, rec->record_length,
+                               log_record_buffer.str, NULL) !=
+          rec->record_length)
+      {
+        eprint(tracef, "Failed to read record\n");
+        return 1;
+      }
+      to= log_record_buffer.str + LSN_STORE_SIZE + FILEID_STORE_SIZE +
+        KEY_NR_STORE_SIZE;
+      if (keyseg->flag & HA_SWAP_KEY)
+      {
+        /* We put key from log record to "data record" packing format... */
+        uchar reversed[HA_MAX_KEY_BUFF];
+        uchar *key_ptr= to;
+        uchar *key_end= key_ptr + keyseg->length;
+        to= reversed + keyseg->length;
+        do
+        {
+          *--to= *key_ptr++;
+        } while (key_ptr != key_end);
+        /* ... so that we can read it with: */
+      }
+      value= ma_retrieve_auto_increment(to, keyseg->type);
+      set_if_bigger(share->state.auto_increment, value);
+      llstr(share->state.auto_increment, llbuf);
+      tprint(tracef, "   auto-inc %s\n", llbuf);
+    }
+  }
   _ma_unpin_all_pages(info, rec->lsn);
   return 0;
 }

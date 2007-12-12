@@ -18,7 +18,6 @@
 #include <my_getopt.h>
 
 #define LOG_FLAGS 0
-#define LOG_FILE_SIZE (1024L*1024L)
 
 static const char *load_default_groups[]= { "maria_read_log",0 };
 static void get_options(int *argc,char * * *argv);
@@ -67,8 +66,6 @@ int main(int argc, char **argv)
     fprintf(stderr, "Can't find any log\n");
     goto err;
   }
-  /* same page cache for log and data; assumes same page size... */
-  DBUG_ASSERT(maria_block_size == TRANSLOG_PAGE_SIZE);
   if (init_pagecache(maria_pagecache, opt_page_buffer_size, 0, 0,
                      TRANSLOG_PAGE_SIZE, MY_WME) == 0)
   {
@@ -81,8 +78,11 @@ int main(int argc, char **argv)
     But if it finds a log and this log was crashed, it will create a new log,
     which is useless. TODO: start log handler in read-only mode.
   */
-  if (translog_init(".", LOG_FILE_SIZE, 50112, 0, maria_pagecache,
-                    TRANSLOG_DEFAULT_FLAGS))
+  if (init_pagecache(maria_log_pagecache,
+                     TRANSLOG_PAGECACHE_SIZE, 0, 0,
+                     TRANSLOG_PAGE_SIZE, MY_WME) == 0 ||
+      translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+                    0, 0, maria_log_pagecache, TRANSLOG_DEFAULT_FLAGS))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
     goto err;

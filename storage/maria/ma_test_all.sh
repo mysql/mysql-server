@@ -245,23 +245,23 @@ $maria_path/maria_chk$suffix -ssm test2
 
 # Problem with re-executing CLR's
 rm -f maria_log.* maria_log_control
-ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1
+$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1
 cp maria_log_control tmp
-maria_read_log -a -s
-maria_chk -s -e test2
+$maria_path/maria_read_log -a -s
+$maria_path/maria_chk -s -e test2
 cp tmp/maria_log_control .
 rm test2.MA?
-maria_read_log -a -s
-maria_chk -s -e test2
+$maria_path/maria_read_log -a -s
+$maria_path/maria_chk -s -e test2
 
 # Problem with re-executing CLR's
 rm -f maria_log.* maria_log_control
-ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1
-maria_read_log -a -s
-maria_chk -s -e test2
+$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1
+$maria_path/maria_read_log -a -s
+$maria_path/maria_chk -s -e test2
 rm test2.MA?
-maria_read_log -a -s
-maria_chk -e -s test2
+$maria_path/maria_read_log -a -s
+$maria_path/maria_chk -e -s test2
 
 #
 # Some timing tests

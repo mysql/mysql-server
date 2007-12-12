@@ -24,7 +24,7 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
   reg3 my_off_t pos;
   uint i;
   uchar old_key[HA_MAX_KEY_BUFF],*new_key;
-  bool auto_key_changed=0;
+  my_bool auto_key_changed= 0;
   ulonglong changed;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_update");
@@ -158,9 +158,13 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
     if ((*share->update_record)(info, pos, oldrec, newrec))
       goto err;
   }
-  if (auto_key_changed)
+  if (auto_key_changed & !share->now_transactional)
+  {
+    const HA_KEYSEG *keyseg= share->keyinfo[share->base.auto_key-1].seg;
+    const uchar *key= newrec + keyseg->start;
     set_if_bigger(share->state.auto_increment,
-                  ma_retrieve_auto_increment(info, newrec));
+                  ma_retrieve_auto_increment(key, keyseg->type));
+  }
 
   /*
     We can't yet have HA_STATE_AKTIV here, as block_record dosn't support

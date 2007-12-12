@@ -538,9 +538,12 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
     {
       /* Check that auto_increment key is bigger than max key value */
       ulonglong auto_increment;
+      const HA_KEYSEG *keyseg= share->keyinfo[share->base.auto_key-1].seg;
       info->lastinx=key;
       _ma_read_key_record(info, info->rec_buff, 0);
-      auto_increment= ma_retrieve_auto_increment(info, info->rec_buff);
+      auto_increment=
+        ma_retrieve_auto_increment(info->rec_buff + keyseg->start,
+                                   keyseg->type);
       if (auto_increment > share->state.auto_increment)
       {
 	_ma_check_print_warning(param, "Auto-increment value: %s is smaller "
@@ -5369,7 +5372,9 @@ void _ma_update_auto_increment_key(HA_CHECK *param, MARIA_HA *info,
   }
   else
   {
-    ulonglong auto_increment= ma_retrieve_auto_increment(info, record);
+    const HA_KEYSEG *keyseg= share->keyinfo[share->base.auto_key-1].seg;
+    ulonglong auto_increment=
+      ma_retrieve_auto_increment(record + keyseg->start, keyseg->type);
     set_if_bigger(share->state.auto_increment,auto_increment);
     if (!repair_only)
       set_if_bigger(share->state.auto_increment, param->auto_increment_value);

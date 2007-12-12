@@ -493,22 +493,24 @@ int _ma_read_key_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
 
   SYNOPSIS
     retrieve_auto_increment()
-    info			Maria handler
-    record			Row to update
+    key                         Auto-increment key
+    key_type                    Key's type
+
+  NOTE
+    'key' should in "record" format, that is, how it is packed in a record
+    (this matters with HA_SWAP_KEY).
 
   IMPLEMENTATION
     For signed columns we don't retrieve the auto increment value if it's
     less than zero.
 */
 
-ulonglong ma_retrieve_auto_increment(MARIA_HA *info,const uchar *record)
+ulonglong ma_retrieve_auto_increment(const uchar *key, uint8 key_type)
 {
   ulonglong value= 0;			/* Store unsigned values here */
   longlong s_value= 0;			/* Store signed values here */
-  HA_KEYSEG *keyseg= info->s->keyinfo[info->s->base.auto_key-1].seg;
-  const uchar *key= record + keyseg->start;
 
-  switch (keyseg->type) {
+  switch (key_type) {
   case HA_KEYTYPE_INT8:
     s_value= (longlong) *(char*)key;
     break;

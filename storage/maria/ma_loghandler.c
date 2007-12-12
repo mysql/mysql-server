@@ -460,7 +460,7 @@ static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
 static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + KEY_NR_STORE_SIZE,
- NULL, write_hook_for_undo_key, NULL, 1,
+ NULL, write_hook_for_undo_key_insert, NULL, 1,
  "undo_key_insert", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 /* This will never be in the log, only in the clr */

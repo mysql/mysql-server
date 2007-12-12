@@ -191,6 +191,34 @@ my_bool write_hook_for_undo_key(enum translog_record_type type,
 }
 
 
+/**
+   Upates "auto_increment" and calls the generic UNDO_KEY hook
+
+   @return Operation status, always 0 (success)
+*/
+
+my_bool write_hook_for_undo_key_insert(enum translog_record_type type,
+                                       TRN *trn, MARIA_HA *tbl_info,
+                                       LSN *lsn, void *hook_arg)
+{
+  struct st_msg_to_write_hook_for_undo_key *msg=
+    (struct st_msg_to_write_hook_for_undo_key *) hook_arg;
+  MARIA_SHARE *share= tbl_info->s;
+  if (msg->auto_increment > 0)
+  {
+    /*
+      Only reason to set it here is to have a mutex protect from checkpoint
+      reading at the same time (would see a corrupted value).
+    */
+    DBUG_PRINT("info",("auto_inc: %lu new auto_inc: %lu",
+                       (ulong)share->state.auto_increment,
+                       (ulong)msg->auto_increment));
+    set_if_bigger(share->state.auto_increment, msg->auto_increment);
+  }
+  return write_hook_for_undo_key(type, trn, tbl_info, lsn, hook_arg);
+}
+
+
 /*****************************************************************************
   Functions for logging of key page changes
 *****************************************************************************/

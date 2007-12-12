@@ -208,15 +208,12 @@ int maria_write(MARIA_HA *info, uchar *record)
     info->state->checksum+= !share->now_transactional *
       info->cur_row.checksum;
   }
-  if (share->base.auto_key)
+  if ((share->base.auto_key != 0) & !share->now_transactional)
   {
-    /**
-       @todo RECOVERY BUG
-       if updated here, it's not recoverable (no mutex => checkpoint may see a
-       crazy value and flush it into the table's state on disk).
-    */
+    const HA_KEYSEG *keyseg= share->keyinfo[share->base.auto_key-1].seg;
+    const uchar *key= record + keyseg->start;
     set_if_bigger(share->state.auto_increment,
-                  ma_retrieve_auto_increment(info, record));
+                  ma_retrieve_auto_increment(key, keyseg->type));
   }
   info->update= (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_WRITTEN |
 		 HA_STATE_ROW_CHANGED);
@@ -412,6 +409,28 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
     msg.root= root;
     msg.value= new_root;
+    msg.auto_increment= 0;
+    if (share->base.auto_key == ((uint)keyinfo->key_nr + 1))
+    {
+      const HA_KEYSEG *keyseg= keyinfo->seg;
+      uchar *to= key_buff;
+      if (keyseg->flag & HA_SWAP_KEY)
+      {
+        /* We put key from log record to "data record" packing format... */
+        uchar reversed[HA_MAX_KEY_BUFF];
+        uchar *key_ptr= to;
+        uchar *key_end= key_ptr + keyseg->length;
+        to= reversed + keyseg->length;
+        do
+        {
+          *--to= *key_ptr++;
+        } while (key_ptr != key_end);
+      }
+      /* ... so that we can read it with: */
+      msg.auto_increment=
+        ma_retrieve_auto_increment(to, keyseg->type);
+      /* and write_hook_for_undo_key_insert() will pick this. */
+    }
 
     if (translog_write_record(&lsn, LOGREC_UNDO_KEY_INSERT,
                               info->trn, info,

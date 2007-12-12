@@ -851,8 +851,7 @@ extern uint _ma_pack_key(MARIA_HA *info, uint keynr, uchar *key,
 extern int _ma_read_key_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS);
 extern int _ma_read_cache(IO_CACHE *info, uchar *buff, MARIA_RECORD_POS pos,
                           uint length, int re_read_if_possibly);
-extern ulonglong ma_retrieve_auto_increment(MARIA_HA *info, const uchar *record);
-
+extern ulonglong ma_retrieve_auto_increment(const uchar *key, uint8 key_type);
 extern my_bool _ma_alloc_buffer(uchar **old_addr, size_t *old_size,
                                 size_t new_size);
 extern ulong _ma_rec_unpack(MARIA_HA *info, uchar *to, uchar *from,
