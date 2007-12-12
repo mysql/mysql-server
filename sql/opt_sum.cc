@@ -170,6 +170,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
       if(error)
       {
         tl->table->file->print_error(error, MYF(0));
+        tl->table->in_use->fatal_error();
         return error;
       }
       count*= tl->table->file->stats.records;
@@ -418,6 +419,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	      return HA_ERR_KEY_NOT_FOUND;	     // No rows matching WHERE
 	    /* HA_ERR_LOCK_DEADLOCK or some other error */
  	    table->file->print_error(error, MYF(0));
+            table->in_use->fatal_error();
             return(error);
 	  }
           removed_tables|= table->map;

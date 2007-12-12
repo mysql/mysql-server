@@ -1753,6 +1753,7 @@ partition_element *ha_partition::find_partition_element(uint part_id)
       return part_elem;
   }
   DBUG_ASSERT(0);
+  my_error(ER_OUT_OF_RESOURCES, MYF(0));
   current_thd->fatal_error();                   // Abort
   return NULL;
 }
