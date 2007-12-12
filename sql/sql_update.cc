@@ -1696,7 +1696,11 @@ void multi_update::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
   my_error(errcode, MYF(0), err);
+}
 
+
+void multi_update::abort()
+{
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
       !thd->transaction.stmt.modified_non_trans_table && !updated)
