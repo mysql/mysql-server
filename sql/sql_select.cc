@@ -898,7 +898,6 @@ JOIN::optimize()
       }
       if (res > 1)
       {
-        thd->fatal_error();
         error= res;
         DBUG_PRINT("error",("Error from opt_sum_query"));
 	DBUG_RETURN(1);
@@ -14454,6 +14453,7 @@ calc_group_buffer(JOIN *join,ORDER *group)
       default:
         /* This case should never be choosen */
         DBUG_ASSERT(0);
+        my_error(ER_OUT_OF_RESOURCES, MYF(0));
         join->thd->fatal_error();
       }
     }

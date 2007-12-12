@@ -1284,6 +1284,7 @@ set names default;
 #
 --echo FLUSH PRIVILEGES without procs_priv table.
 RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
+--error ER_NO_SUCH_TABLE
 FLUSH PRIVILEGES;
 --echo Assigning privileges without procs_priv table.
 CREATE DATABASE mysqltest1;
