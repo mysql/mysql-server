@@ -703,7 +703,7 @@ drop procedure into_test4|
 --disable_warnings
 drop procedure if exists into_outfile|
 --enable_warnings
---replace_result $MYSQLTEST_VARDIR ..
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval create procedure into_outfile(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
@@ -722,7 +722,7 @@ drop procedure into_outfile|
 --disable_warnings
 drop procedure if exists into_dumpfile|
 --enable_warnings
---replace_result $MYSQLTEST_VARDIR ..
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval create procedure into_dumpfile(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
@@ -5260,9 +5260,9 @@ drop procedure if exists bug13012|
 create procedure bug13012()
 BEGIN
   REPAIR TABLE t1;
-  BACKUP TABLE t1 to '../tmp';
+  BACKUP TABLE t1 to '../../tmp';
   DROP TABLE t1;
-  RESTORE TABLE t1 FROM '../tmp';
+  RESTORE TABLE t1 FROM '../../tmp';
 END|
 call bug13012()|
 --enable_warnings

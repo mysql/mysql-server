@@ -2174,8 +2174,19 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
 int open_file(const char *name)
 {
   char buff[FN_REFLEN];
+  size_t length;
   DBUG_ENTER("open_file");
   DBUG_PRINT("enter", ("name: %s", name));
+
+  /* Extract path from current file and try it as base first */
+  if (dirname_part(buff, cur_file->file_name, &length))
+  {
+    strxmov(buff, buff, name, NullS);
+    if (access(buff, F_OK) == 0){
+      DBUG_PRINT("info", ("The file exists"));
+      name= buff;
+    }
+  }
   if (!test_if_hard_path(name))
   {
     strxmov(buff, opt_basedir, name, NullS);

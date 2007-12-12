@@ -35,21 +35,22 @@ DROP DATABASE IF EXISTS mysqltest2;
 connect(con1,localhost,mysqltest_1,,);
 -- echo # user mysqltest_1:
   USE test;
-  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+let $MYSQLD_DATADIR= `select @@datadir`;
+  --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
   eval CREATE TABLE t1 (a INT)
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2',
+     DATA DIRECTORY '$MYSQLD_DATADIR/mysqltest2'
+     INDEX DIRECTORY '$MYSQLD_DATADIR/mysqltest2',
     PARTITION p1 VALUES IN (1)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test',
+     DATA DIRECTORY '$MYSQLD_DATADIR/test'
+     INDEX DIRECTORY '$MYSQLD_DATADIR/test',
     PARTITION p2 VALUES IN (2)
   );
   -- echo # without the patch for bug#32091 this would create
   -- echo # files mysqltest2/t1.MYD + .MYI and possible overwrite
   -- echo # the mysqltest2.t1 table (depending on bug#32111)
-  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
   ALTER TABLE t1 REMOVE PARTITIONING;
   INSERT INTO t1 VALUES (1);
   SELECT * FROM t1;
@@ -76,40 +77,41 @@ connection default;
 -- echo # user root:
   CREATE DATABASE mysqltest2;
   USE mysqltest2;
-  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
   eval CREATE TABLE t1 (a INT)
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2',
+     DATA DIRECTORY '$MYSQLD_DATADIR/mysqltest2'
+     INDEX DIRECTORY '$MYSQLD_DATADIR/mysqltest2',
     PARTITION p1 VALUES IN (1)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
+     DATA DIRECTORY '$MYSQLD_DATADIR/test'
+     INDEX DIRECTORY '$MYSQLD_DATADIR/test'
    );
 connection con1;
 -- echo # user mysqltest_1:
   USE test;
-  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
   -- error 1,1
   eval CREATE TABLE t1 (a INT)
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2',
+     DATA DIRECTORY '$MYSQLD_DATADIR/mysqltest2'
+     INDEX DIRECTORY '$MYSQLD_DATADIR/mysqltest2',
     PARTITION p1 VALUES IN (1)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
+     DATA DIRECTORY '$MYSQLD_DATADIR/test'
+     INDEX DIRECTORY '$MYSQLD_DATADIR/test'
    );
-  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+
+  --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
   -- error 1,1
   eval CREATE TABLE t1 (a INT)
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test',
+     DATA DIRECTORY '$MYSQLD_DATADIR/test'
+     INDEX DIRECTORY '$MYSQLD_DATADIR/test',
     PARTITION p1 VALUES IN (1)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
+     DATA DIRECTORY '$MYSQLD_DATADIR/mysqltest2'
+     INDEX DIRECTORY '$MYSQLD_DATADIR/mysqltest2'
   );
 connection default;
 -- echo # user root (cleanup):

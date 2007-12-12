@@ -21,46 +21,42 @@
 use strict;
 use warnings;
 
-sub mtr_report_test_name($);
-sub mtr_report_test_passed($);
-sub mtr_report_test_failed($);
+sub mtr_report_test_passed($$);
+sub mtr_report_test_failed($$);
 sub mtr_report_test_skipped($);
-sub mtr_report_test_not_skipped_though_disabled($);
-
 sub mtr_report_stats ($);
+
 sub mtr_print_line ();
-sub mtr_print_thick_line ();
+sub mtr_print_thick_line ($);
 sub mtr_print_header ();
 sub mtr_report (@);
 sub mtr_warning (@);
 sub mtr_error (@);
-sub mtr_child_error (@);
 sub mtr_debug (@);
 sub mtr_verbose (@);
 
 my $tot_real_time= 0;
 
-
-
-##############################################################################
-#
-#  
-#
-##############################################################################
-
 sub mtr_report_test_name ($) {
   my $tinfo= shift;
   my $tname= $tinfo->{name};
 
+
+  # Remove suite part of name
+  $tname =~ s/.*\.// unless SHOW_SUITE_NAME;
+
+  # Add combination name if any
   $tname.= " '$tinfo->{combination}'"
     if defined $tinfo->{combination};
 
-  _mtr_log($tname);
+  _mtr_log("$tname");
   printf "%-30s ", $tname;
 }
 
+
 sub mtr_report_test_skipped ($) {
   my $tinfo= shift;
+  mtr_report_test_name($tinfo);
 
   $tinfo->{'result'}= 'MTR_RES_SKIPPED';
   if ( $tinfo->{'disable'} )
@@ -69,36 +65,26 @@ sub mtr_report_test_skipped ($) {
   }
   elsif ( $tinfo->{'comment'} )
   {
-    mtr_report("[ skipped ]   $tinfo->{'comment'}");
+    if ( $tinfo->{skip_detected_by_test} )
+    {
+      mtr_report("[ skip.]  $tinfo->{'comment'}");
+    } else {
+      mtr_report("[ skip ]  $tinfo->{'comment'}");
+    }
   }
   else
   {
-    mtr_report("[ skipped ]");
+    mtr_report("[ skip ]");
   }
 }
 
-sub mtr_report_tests_not_skipped_though_disabled ($) {
-  my $tests= shift;
 
-  if ( $::opt_enable_disabled )
-  {
-    my @disabled_tests= grep {$_->{'dont_skip_though_disabled'}} @$tests;
-    if ( @disabled_tests )
-    {
-      print "\nTest(s) which will be run though they are marked as disabled:\n";
-      foreach my $tinfo ( sort {$a->{'name'} cmp $b->{'name'}} @disabled_tests )
-      {
-        printf "  %-20s : %s\n", $tinfo->{'name'}, $tinfo->{'comment'};
-      }
-    }
-  }
-}
-
-sub mtr_report_test_passed ($) {
-  my $tinfo= shift;
+sub mtr_report_test_passed ($$) {
+  my ($tinfo, $use_timer)= @_;
+  mtr_report_test_name($tinfo);
 
   my $timer=  "";
-  if ( $::opt_timer and -f "$::opt_vardir/log/timer" )
+  if ( $use_timer and -f "$::opt_vardir/log/timer" )
   {
     $timer= mtr_fromfile("$::opt_vardir/log/timer");
     $tot_real_time += ($timer/1000);
@@ -108,8 +94,10 @@ sub mtr_report_test_passed ($) {
   mtr_report("[ pass ]   $timer");
 }
 
-sub mtr_report_test_failed ($) {
-  my $tinfo= shift;
+
+sub mtr_report_test_failed ($$) {
+  my ($tinfo, $logfile)= @_;
+  mtr_report_test_name($tinfo);
 
   $tinfo->{'result'}= 'MTR_RES_FAILED';
   if ( defined $tinfo->{'timeout'} )
@@ -129,12 +117,12 @@ sub mtr_report_test_failed ($) {
     # failing the test is saved in "comment"
     mtr_report("\nERROR: $tinfo->{'comment'}");
   }
-  elsif ( -f $::path_timefile )
+  elsif ( defined $logfile and -f $logfile )
   {
-    # Test failure was detected by test tool and it's report
+    # Test failure was detected by test tool and its report
     # about what failed has been saved to file. Display the report.
     print "\n";
-    print mtr_fromfile($::path_timefile); # FIXME print_file() instead
+    mtr_printfile($logfile);
     print "\n";
   }
   else
@@ -144,6 +132,7 @@ sub mtr_report_test_failed ($) {
     mtr_report("\nUnexpected termination, probably when starting mysqld");;
   }
 }
+
 
 sub mtr_report_stats ($) {
   my $tests= shift;
@@ -184,28 +173,7 @@ sub mtr_report_stats ($) {
   # ----------------------------------------------------------------------
   # Print out a summary report to screen
   # ----------------------------------------------------------------------
-
-  if ( ! $tot_failed )
-  {
-    print "All $tot_tests tests were successful.\n";
-  }
-  else
-  {
-    my $ratio=  $tot_passed * 100 / $tot_tests;
-    print "Failed $tot_failed/$tot_tests tests, ";
-    printf("%.2f", $ratio);
-    print "\% were successful.\n\n";
-    print
-      "The log files in var/log may give you some hint\n",
-      "of what went wrong.\n",
-      "If you want to report this error, please read first ",
-      "the documentation at\n",
-      "http://dev.mysql.com/doc/mysql/en/mysql-test-suite.html\n";
-  }
-  if (!$::opt_extern)
-  {
-    print "The servers were restarted $tot_restarts times\n";
-  }
+  print "The servers were restarted $tot_restarts times\n";
 
   if ( $::opt_timer )
   {
@@ -220,7 +188,7 @@ sub mtr_report_stats ($) {
   # the "var/log/*.err" files. We save this info in "var/log/warnings"
   # ----------------------------------------------------------------------
 
-  if ( ! $::glob_use_running_server )
+  if ( $::opt_warnings )
   {
     # Save and report if there was any fatal warnings/errors in err logs
 
@@ -346,19 +314,11 @@ sub mtr_report_stats ($) {
 
                 # BUG#29807 - innodb_mysql.test: Cannot find table test/t2
                 #             from the internal data dictionary
-                /Cannot find or open table test\/bug29807 from/ or
+                /Cannot find table test\/bug29807 from the internal data dictionary/ or
 
                 # BUG#29839 - lowercase_table3.test: Cannot find table test/T1
                 #             from the internal data dictiona
-                /Cannot find table test\/BUG29839 from the internal data dictionary/ or
-
-		# rpl_extrColmaster_*.test, the slave thread produces warnings
-		# when it get updates to a table that has more columns on the
-		# master
-		/Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
-		/Slave: Can't DROP 'c7'.* 1091/ or
-		/Slave: Key column 'c6'.* 1072/
-
+                /Cannot find table test\/BUG29839 from the internal data dictionary/
 	       )
             {
               next;                       # Skip these lines
@@ -400,23 +360,6 @@ sub mtr_report_stats ($) {
 
   print "\n";
 
-  # Print a list of testcases that failed
-  if ( $tot_failed != 0 )
-  {
-    my $test_mode= join(" ", @::glob_test_mode) || "default";
-    print "mysql-test-run in $test_mode mode: *** Failing the test(s):";
-
-    foreach my $tinfo (@$tests)
-    {
-      if ( $tinfo->{'result'} eq 'MTR_RES_FAILED' )
-      {
-        print " $tinfo->{'name'}";
-      }
-    }
-    print "\n";
-
-  }
-
   # Print a list of check_testcases that failed(if any)
   if ( $::opt_check_testcases )
   {
@@ -438,11 +381,46 @@ sub mtr_report_stats ($) {
     }
   }
 
+  # Print a list of testcases that failed
+  if ( $tot_failed != 0 )
+  {
+    my $ratio=  $tot_passed * 100 / $tot_tests;
+    print "Failed $tot_failed/$tot_tests tests, ";
+    printf("%.2f", $ratio);
+    print "\% were successful.\n\n";
+
+    # Print the list of test that failed in a format
+    # that can be copy pasted to rerun only failing tests
+    print "Failing test(s):";
+
+    foreach my $tinfo (@$tests)
+    {
+      if ( $tinfo->{'result'} eq 'MTR_RES_FAILED' )
+      {
+        print " $tinfo->{'name'}";
+      }
+    }
+    print "\n\n";
+
+    # Print info about reporting the error
+    print
+      "The log files in var/log may give you some hint of what went wrong.\n\n",
+      "If you want to report this error, please read first ",
+      "the documentation\n",
+      "at http://dev.mysql.com/doc/mysql/en/mysql-test-suite.html\n\n";
+
+   }
+  else
+  {
+    print "All $tot_tests tests were successful.\n";
+  }
+
   if ( $tot_failed != 0 || $found_problems)
   {
     mtr_error("there were failing test cases");
   }
 }
+
 
 ##############################################################################
 #
@@ -451,22 +429,25 @@ sub mtr_report_stats ($) {
 ##############################################################################
 
 sub mtr_print_line () {
-  print '-' x 55, "\n";
+  print '-' x 60, "\n";
 }
 
-sub mtr_print_thick_line () {
-  print '=' x 55, "\n";
+
+sub mtr_print_thick_line ($) {
+  my $char= shift || '=';
+  print $char x 60, "\n";
 }
+
 
 sub mtr_print_header () {
   print "\n";
   if ( $::opt_timer )
   {
-    print "TEST                           RESULT         TIME (ms)\n";
+    print "TEST                            RESULT        TIME (ms)\n";
   }
   else
   {
-    print "TEST                           RESULT\n";
+    print "TEST                            RESULT\n";
   }
   mtr_print_line();
   print "\n";
@@ -480,6 +461,14 @@ sub mtr_print_header () {
 ##############################################################################
 
 use IO::File;
+use Time::localtime;
+
+sub _timestamp {
+  my $tm= localtime();
+  return sprintf("%02d%02d%02d %2d:%02d:%02d ",
+		 $tm->year % 100, $tm->mon+1, $tm->mday,
+		 $tm->hour, $tm->min, $tm->sec);
+}
 
 my $log_file_ref= undef;
 
@@ -492,10 +481,12 @@ sub mtr_log_init ($) {
     mtr_warning("Could not create logfile $filename: $!");
 }
 
+
 sub _mtr_log (@) {
-  print $log_file_ref join(" ", @_),"\n"
+  print $log_file_ref join(" ", _timestamp(), @_),"\n"
     if defined $log_file_ref;
 }
+
 
 sub mtr_report (@) {
   # Print message to screen and log
@@ -503,34 +494,30 @@ sub mtr_report (@) {
   print join(" ", @_),"\n";
 }
 
+
 sub mtr_warning (@) {
   # Print message to screen and log
   _mtr_log("WARNING: ", @_);
   print STDERR "mysql-test-run: WARNING: ",join(" ", @_),"\n";
 }
 
+
 sub mtr_error (@) {
   # Print message to screen and log
   _mtr_log("ERROR: ", @_);
   print STDERR "mysql-test-run: *** ERROR: ",join(" ", @_),"\n";
-  mtr_exit(1);
-}
-
-sub mtr_child_error (@) {
-  # Print message to screen and log
-  _mtr_log("ERROR(child): ", @_);
-  print STDERR "mysql-test-run: *** ERROR(child): ",join(" ", @_),"\n";
   exit(1);
 }
 
+
 sub mtr_debug (@) {
-  # Only print if --script-debug is used
-  if ( $::opt_script_debug )
+  if ( $::opt_verbose > 1 )
   {
     _mtr_log("###: ", @_);
     print STDERR "####: ",join(" ", @_),"\n";
   }
 }
+
 
 sub mtr_verbose (@) {
   # Always print to log, print to screen only when --verbose is used
@@ -540,5 +527,6 @@ sub mtr_verbose (@) {
     print STDERR "> ",join(" ", @_),"\n";
   }
 }
+
 
 1;

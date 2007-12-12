@@ -4,6 +4,7 @@ package My::Config::Option;
 
 use strict;
 use warnings;
+use Carp;
 
 
 sub new {
@@ -31,7 +32,7 @@ package My::Config::Group;
 
 use strict;
 use warnings;
-
+use Carp;
 
 sub new {
   my ($class, $group_name)= @_;
@@ -68,7 +69,7 @@ sub remove {
   return undef unless defined $option;
 
   # Remove from the hash
-  delete($self->{options_by_name}->{$option_name}) or die;
+  delete($self->{options_by_name}->{$option_name}) or croak;
 
   # Remove from the array
   @{$self->{options}}= grep { $_->name ne $option_name } @{$self->{options}};
@@ -88,6 +89,33 @@ sub name {
   return $self->{name};
 }
 
+sub suffix {
+  my ($self)= @_;
+  # Everything in name from the last .
+  my @parts= split(/\./, $self->{name});
+  my $suffix= pop(@parts);
+  return ".$suffix";
+}
+
+sub after {
+  my ($self, $prefix)= @_;
+  die unless defined $prefix;
+
+  # everything after $prefix
+  my $name= $self->{name};
+  if ($name =~ /^\Q$prefix\E(.*)$/)
+  {
+    return $1;
+  }
+  die "Failed to extract the value after '$prefix' in $name";
+}
+
+
+sub split {
+  my ($self)= @_;
+  # Return an array with name parts
+  return split(/\./, $self->{name});
+}
 
 #
 # Return a specific option in the group
@@ -100,14 +128,27 @@ sub option {
 
 
 #
-# Return a specific value for an option in the group
+# Return value for an option in the group, fail if it does not exist
 #
 sub value {
   my ($self, $option_name)= @_;
   my $option= $self->option($option_name);
 
-  die "No option named '$option_name' in this group"
+  croak "No option named '$option_name' in group '$self->{name}'"
     if ! defined($option);
+
+  return $option->value();
+}
+
+
+#
+# Return value for an option if it exist
+#
+sub if_exist {
+  my ($self, $option_name)= @_;
+  my $option= $self->option($option_name);
+
+  return undef if ! defined($option);
 
   return $option->value();
 }
@@ -117,6 +158,7 @@ package My::Config;
 
 use strict;
 use warnings;
+use Carp;
 use IO::File;
 use File::Basename;
 
@@ -132,13 +174,13 @@ sub new {
 
   my $self= bless { groups => [] }, $class;
   my $F= IO::File->new($path, "<")
-    or die "Could not open '$path': $!";
+    or croak "Could not open '$path': $!";
 
   while (  my $line= <$F> ) {
     chomp($line);
 
     # [group]
-    if ( $line =~ /\[(.*)\]/ ) {
+    if ( $line =~ /^\[(.*)\]/ ) {
       # New group found
       $group_name= $1;
       #print "group: $group_name\n";
@@ -149,7 +191,7 @@ sub new {
     # Magic #! comments
     elsif ( $line =~ /^#\!/) {
       my $magic= $line;
-      die "Found magic comment '$magic' outside of group"
+      croak "Found magic comment '$magic' outside of group"
 	unless $group_name;
 
       #print "$magic\n";
@@ -171,8 +213,13 @@ sub new {
     # !include <filename>
     elsif ( $line =~ /^\!include\s*(.*?)\s*$/ ) {
       my $include_file_name= dirname($path)."/".$1;
-      # Check that the file exists
-      die "The include file '$include_file_name' does not exist"
+
+      # Check that the file exists relative to path of first config file
+      if (! -f $include_file_name){
+	# Try to include file relativ to current dir
+	$include_file_name= $1;
+      }
+      croak "The include file '$include_file_name' does not exist"
 	unless -f $include_file_name;
 
       $self->append(My::Config->new($include_file_name));
@@ -182,7 +229,7 @@ sub new {
     elsif ( $line =~ /^([\@\w-]+)\s*$/ ) {
       my $option= $1;
 
-      die "Found option '$option' outside of group"
+      croak "Found option '$option' outside of group"
 	unless $group_name;
 
       #print "$option\n";
@@ -194,13 +241,13 @@ sub new {
       my $option= $1;
       my $value= $2;
 
-      die "Found option '$option=$value' outside of group"
+      croak "Found option '$option=$value' outside of group"
 	unless $group_name;
 
       #print "$option=$value\n";
       $self->insert($group_name, $option, $value);
     } else {
-      die "Unexpected line '$line' found in '$path'";
+      croak "Unexpected line '$line' found in '$path'";
     }
 
   }
@@ -231,6 +278,7 @@ sub insert {
     # Add the option to the group
     $group->insert($option, $value, $if_not_exist);
   }
+  return $group;
 }
 
 #
@@ -240,11 +288,11 @@ sub remove {
   my ($self, $group_name, $option_name)= @_;
   my $group= $self->group($group_name);
 
-  die "group '$group_name' does not exist"
+  croak "group '$group_name' does not exist"
     unless defined($group);
 
   $group->remove($option_name) or
-    die "option '$option_name' does not exist";
+    croak "option '$option_name' does not exist";
 }
 
 
@@ -267,10 +315,10 @@ sub group_exists {
 #
 sub _group_insert {
   my ($self, $group_name)= @_;
-  caller eq __PACKAGE__ or die;
+  caller eq __PACKAGE__ or croak;
 
   # Check that group does not already exist
-  die "Group already exists" if $self->group_exists($group_name);
+  croak "Group already exists" if $self->group_exists($group_name);
 
   my $group= My::Config::Group->new($group_name);
   push(@{$self->{groups}}, $group);
@@ -354,11 +402,11 @@ sub value {
   my ($self, $group_name, $option_name)= @_;
   my $group= $self->group($group_name);
 
-  die "group '$group_name' does not exist"
+  croak "group '$group_name' does not exist"
     unless defined($group);
 
   my $option= $group->option($option_name);
-  die "option '$option_name' does not exist"
+  croak "option '$option_name' does not exist"
     unless defined($option);
 
   return $option->value();
@@ -372,7 +420,7 @@ sub exists {
   my ($self, $group_name, $option_name)= @_;
   my $group= $self->group($group_name);
 
-  die "group '$group_name' does not exist"
+  croak "group '$group_name' does not exist"
     unless defined($group);
 
   my $option= $group->option($option_name);
@@ -412,11 +460,11 @@ sub stringify {
 # Save the config to named file
 #
 sub save {
-    my ($self, $path)= @_;
-    my $F= IO::File->new($path, ">")
-	or die "Could not open '$path': $!";
-    print $F $self;
-    undef $F; # Close the file
+  my ($self, $path)= @_;
+  my $F= IO::File->new($path, ">")
+    or croak "Could not open '$path': $!";
+  print $F $self;
+  undef $F; # Close the file
 }
 
 1;

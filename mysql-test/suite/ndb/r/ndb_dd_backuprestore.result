@@ -27,12 +27,8 @@ pk1	c2	c3	hex(c4)
 3	Sweden	498	1
 4	Sweden	497	1
 5	Sweden	496	1
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM test.backup_info;
-@the_backup_id:=backup_id
-<the_backup_id>
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 DROP TABLE test.t1;
 ALTER TABLESPACE table_space1
@@ -95,12 +91,8 @@ LENGTH(data)
 SELECT LENGTH(data) FROM test.t4 WHERE c1 = 2;
 LENGTH(data)
 16384
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM test.backup_info;
-@the_backup_id:=backup_id
-<the_backup_id>
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
@@ -308,12 +300,8 @@ pk1	c2	c3	hex(c4)
 248	TEXASTEXASTEXASTEXASTEXASTEXASTEXASTEXASTEXASTEXAS, ITALY, Kyle, JO, JBM,TU	4	1
 247	TEXASTEXASTEXASTEXASTEXASTEXASTEXASTEXASTEXASTEXAS, ITALY, Kyle, JO, JBM,TU	6	1
 246	TEXASTEXASTEXASTEXASTEXASTEXASTEXASTEXASTEXASTEXAS, ITALY, Kyle, JO, JBM,TU	8	1
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM test.backup_info;
-@the_backup_id:=backup_id
-<the_backup_id>
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 DROP TABLE test.t1;
 DROP TABLE test.t2;

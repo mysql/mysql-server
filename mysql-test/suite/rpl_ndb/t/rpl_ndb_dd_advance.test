@@ -9,8 +9,6 @@
 --source include/have_binlog_format_mixed_or_row.inc
 --source include/ndb_default_cluster.inc
 --source include/not_embedded.inc
-#--source include/big_test.inc
-#--source include/have_ndb_extra.inc
 --source include/ndb_master-slave.inc
 
 #### Test start cleanup section #####
@@ -289,25 +287,7 @@ while ($j)
 
 SELECT COUNT(*) FROM history;
 
-#RESET MASTER;
---exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "start backup" >> $NDB_TOOLS_OUTPUT
-
---exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > $MYSQLTEST_VARDIR/tmp.dat
-
-CREATE TEMPORARY TABLE IF NOT EXISTS mysql.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-
-DELETE FROM mysql.backup_info;
-
-LOAD DATA INFILE '../tmp.dat' INTO TABLE mysql.backup_info FIELDS TERMINATED BY ',';
---exec rm $MYSQLTEST_VARDIR/tmp.dat || true
---replace_column 1 <the_backup_id>
-
-SELECT @the_backup_id:=backup_id FROM mysql.backup_info;
-
-let the_backup_id=`select @the_backup_id`;
-
-DROP TABLE IF EXISTS mysql.backup_info;
-#RESET MASTER;
+--source include/ndb_backup.inc
 
 --echo ************ Restore the slave ************************
 connection slave;
@@ -424,7 +404,7 @@ diff_files $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql $MYSQLTEST_VARDIR/tmp/RPL_DD_A
 
 ## Note: Ths files should only get removed, if the above diff succeeds.
 
---exec rm $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql
---exec rm $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
+remove_file $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql;
 
 # End 5.1 test case

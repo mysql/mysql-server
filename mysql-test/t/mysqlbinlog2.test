@@ -40,34 +40,34 @@ select "--- Local --" as "";
 # We should use --short-form everywhere because in other case output will
 # be time dependent (the Start events). Better than nothing.
 #
-
+let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_regex /[[:<:]][0-9]{6} [0-9 ][0-9]:[0-9]{2}:[0-9]{2}[[:>:]]/{yymmdd} {HH:MM:SS}/  /=[0-9]+	/={integer}	/  /# at [0-9]+/# at {pos}/  /(pos:?) [0-9]+/\1 {pos}/  /binlog v [0-9]+, server v [^ ]* created/binlog v #, server v ## created/
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000001 
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 
 
 --disable_query_log
 select "--- offset --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --offset=2 $MYSQLTEST_VARDIR/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --offset=2 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=608 $MYSQLTEST_VARDIR/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --start-position=608 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --stop-position=608 $MYSQLTEST_VARDIR/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --stop-position=608 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
 select "--- start and stop positions ---" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=608 --stop-position 725 $MYSQLTEST_VARDIR/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --start-position=608 --stop-position 725 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form "--start-datetime=2020-01-21 15:32:24" $MYSQLTEST_VARDIR/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form "--start-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
 select "--- stop-datetime --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form "--stop-datetime=2020-01-21 15:32:24" $MYSQLTEST_VARDIR/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form "--stop-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 
 
 --disable_query_log
 select "--- Local with 2 binlogs on command line --" as "";
@@ -76,28 +76,28 @@ select "--- Local with 2 binlogs on command line --" as "";
 # This is to verify that some options apply only to first, or last binlog
 
 flush logs;
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 
 --disable_query_log
 select "--- offset --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --offset=2 $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --offset=2 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=608 $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --start-position=608 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --stop-position=134 $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --stop-position=134 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form "--start-datetime=2020-01-21 15:32:24" $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form "--start-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log
 select "--- stop-datetime --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form "--stop-datetime=2020-01-21 15:32:24" $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form "--stop-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 
 --disable_query_log
 select "--- Remote --" as "";
