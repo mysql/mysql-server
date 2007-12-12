@@ -1,7 +1,7 @@
 disable_query_log;
 -- source include/test_outfile.inc
-# Server are started in "var/master-data", so "../tmp" will be "var/tmp"
-eval set @tmpdir="../tmp";
+# Server are started in "var/master-data", so "../../tmp" will be "var/tmp"
+eval set @tmpdir="../../tmp";
 enable_query_log;
 -- source include/have_outfile.inc
 
@@ -16,15 +16,15 @@ drop table if exists t1;
 create table t1 (`a` blob);
 insert into t1 values("hello world"),("Hello mars"),(NULL);
 disable_query_log;
-eval select * into outfile "../tmp/outfile-test.1" from t1;
+eval select * into outfile "../../tmp/outfile-test.1" from t1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.1"));
 disable_query_log;
-eval select * into dumpfile "../tmp/outfile-test.2" from t1 limit 1;
+eval select * into dumpfile "../../tmp/outfile-test.2" from t1 limit 1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.2"));
 disable_query_log;
-eval select * into dumpfile "../tmp/outfile-test.3" from t1 where a is null;
+eval select * into dumpfile "../../tmp/outfile-test.3" from t1 where a is null;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.3"));
 
@@ -32,13 +32,13 @@ select load_file(concat(@tmpdir,"/outfile-test.3"));
 
 disable_query_log;
 --error 1086
-eval select * into outfile "../tmp/outfile-test.1" from t1;
+eval select * into outfile "../../tmp/outfile-test.1" from t1;
 
 --error 1086
-eval select * into dumpfile "../tmp/outfile-test.2" from t1;
+eval select * into dumpfile "../../tmp/outfile-test.2" from t1;
 
 --error 1086
-eval select * into dumpfile "../tmp/outfile-test.3" from t1;
+eval select * into dumpfile "../../tmp/outfile-test.3" from t1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
 --remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.1
@@ -48,7 +48,7 @@ drop table t1;
 
 # Bug#8191
 disable_query_log;
-eval select 1 into outfile "../tmp/outfile-test.4";
+eval select 1 into outfile "../../tmp/outfile-test.4";
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.4"));
 --remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
@@ -71,7 +71,7 @@ DROP TABLE t1;
 # Bug#13202  SELECT * INTO OUTFILE ... FROM information_schema.schemata now fails
 #
 disable_query_log;
-eval SELECT * INTO OUTFILE "../tmp/outfile-test.4"
+eval SELECT * INTO OUTFILE "../../tmp/outfile-test.4"
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM information_schema.schemata LIMIT 0, 5;
 # enable_query_log;
@@ -79,7 +79,7 @@ FROM information_schema.schemata LIMIT 0, 5;
 
 use information_schema;
 # disable_query_log;
-eval SELECT * INTO OUTFILE "../tmp/outfile-test.4"
+eval SELECT * INTO OUTFILE "../../tmp/outfile-test.4"
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM schemata LIMIT 0, 5;
 enable_query_log;
@@ -107,7 +107,7 @@ connect (con28181_1,localhost,user_1,,mysqltest);
 
 --error 1044
 eval select schema_name
-into outfile "../tmp/outfile-test.4"
+into outfile "../../tmp/outfile-test.4"
 fields terminated by ',' optionally enclosed by '"'
  lines terminated by '\n'
 from information_schema.schemata
@@ -118,7 +118,7 @@ grant file on *.* to user_1@localhost;
 
 connect (con28181_2,localhost,user_1,,mysqltest);
 eval select schema_name
-into outfile "../tmp/outfile-test.4"
+into outfile "../../tmp/outfile-test.4"
 fields terminated by ',' optionally enclosed by '"'
  lines terminated by '\n'
 from information_schema.schemata

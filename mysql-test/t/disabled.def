@@ -4,12 +4,10 @@
 #
 #  Separate the test case name and the comment with ':'.
 #
-#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#    <testcasename> : BUG#<xxxx> <comment>
 #
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-user_limits     : Bug#23921 random failure of user_limits.test
-
-concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
-federated_transactions   : Bug#29523 Transactions do not work
+user_limits : Bug#23921 random failure of user_limits.test
+concurrent_innodb : BUG#21579 innodb_concurrent random failures with varying differences

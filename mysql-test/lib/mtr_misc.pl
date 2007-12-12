@@ -19,18 +19,16 @@
 # same name.
 
 use strict;
-use File::Find;
 
 sub mtr_native_path($);
 sub mtr_init_args ($);
 sub mtr_add_arg ($$@);
+sub mtr_args2str($@);
 sub mtr_path_exists(@);
 sub mtr_script_exists(@);
 sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
 sub mtr_exe_maybe_exists(@);
-sub mtr_copy_dir($$);
-sub mtr_rmtree($);
 sub mtr_same_opts($$);
 sub mtr_cmp_opts($$);
 
@@ -56,7 +54,11 @@ sub mtr_native_path($)
 }
 
 
-# FIXME move to own lib
+##############################################################################
+#
+#  Args
+#
+##############################################################################
 
 sub mtr_init_args ($) {
   my $args = shift;
@@ -68,7 +70,16 @@ sub mtr_add_arg ($$@) {
   my $format= shift;
   my @fargs = @_;
 
+  # Quote args if args contain space
+  $format= "\"$format\""
+    if ($::glob_win32 and grep(/\s/, @fargs));
+
   push(@$args, sprintf($format, @fargs));
+}
+
+sub mtr_args2str($@) {
+  my $exe=   shift or die;
+  return join(" ", mtr_native_path($exe), @_);
 }
 
 ##############################################################################
@@ -141,7 +152,6 @@ sub mtr_exe_maybe_exists (@) {
   my @path= @_;
 
   map {$_.= ".exe"} @path if $::glob_win32;
-  map {$_.= ".nlm"} @path if $::glob_netware;
   foreach my $path ( @path )
   {
     if($::glob_win32)
@@ -179,79 +189,6 @@ sub mtr_exe_exists (@) {
 }
 
 
-sub mtr_copy_dir($$) {
-  my $from_dir= shift;
-  my $to_dir= shift;
-
-  # mtr_verbose("Copying from $from_dir to $to_dir");
-
-  mkpath("$to_dir");
-  opendir(DIR, "$from_dir")
-    or mtr_error("Can't find $from_dir$!");
-  for(readdir(DIR)) {
-    next if "$_" eq "." or "$_" eq "..";
-    if ( -d "$from_dir/$_" )
-    {
-      mtr_copy_dir("$from_dir/$_", "$to_dir/$_");
-      next;
-    }
-    copy("$from_dir/$_", "$to_dir/$_");
-  }
-  closedir(DIR);
-
-}
-
-
-sub mtr_rmtree($) {
-  my ($dir)= @_;
-  mtr_verbose("mtr_rmtree: $dir");
-
-  # Try to use File::Path::rmtree. Recent versions
-  # handles removal of directories and files that don't
-  # have full permissions, while older versions
-  # may have a problem with that and we use our own version
-
-  eval { rmtree($dir); };
-  if ( $@ ) {
-    mtr_warning("rmtree($dir) failed, trying with File::Find...");
-
-    my $errors= 0;
-
-    # chmod
-    find( {
-	   no_chdir => 1,
-	   wanted => sub {
-	     chmod(0777, $_)
-	       or mtr_warning("couldn't chmod(0777, $_): $!") and $errors++;
-	   }
-	  },
-	  $dir
-	);
-
-    # rm
-    finddepth( {
-	   no_chdir => 1,
-	   wanted => sub {
-	     my $file= $_;
-	     # Use special underscore (_) filehandle, caches stat info
-	     if (!-l $file and -d _ ) {
-	       rmdir($file) or
-		 mtr_warning("couldn't rmdir($file): $!") and $errors++;
-	     } else {
-	       unlink($file)
-		 or mtr_warning("couldn't unlink($file): $!") and $errors++;
-	     }
-	   }
-	  },
-	  $dir
-	);
-
-    mtr_error("Failed to remove '$dir'") if $errors;
-
-    mtr_report("OK, that worked!");
-  }
-}
-
 
 sub mtr_same_opts ($$) {
   my $l1= shift;
@@ -280,33 +217,41 @@ sub mtr_cmp_opts ($$) {
   return 0;                             # They are the same
 }
 
+
+sub mtr_milli_sleep {
+  die "usage: mtr_milli_sleep(milliseconds)" unless @_ == 1;
+  my ($millis)= @_;
+
+  select(undef, undef, undef, ($millis/1000));
+}
+
 #
 # Compare two arrays and put all unequal elements into a new one
 #
 sub mtr_diff_opts ($$) {
   my $l1= shift;
   my $l2= shift;
-  my $f;
-  my $l= [];
-  foreach my $e1 (@$l1) 
-  {    
-    $f= undef;
-    foreach my $e2 (@$l2) 
-    {
-      $f= 1 unless ($e1 ne $e2);
-    }
-    push(@$l, $e1) unless (defined $f);
-  }
-  foreach my $e2 (@$l2) 
+  my $found;
+  my @result;
+  foreach my $e1 (@$l1)
   {
-    $f= undef;
-    foreach my $e1 (@$l1) 
+    $found= undef;
+    foreach my $e2 (@$l2)
     {
-      $f= 1 unless ($e1 ne $e2);
+      $found= 1 unless ($e1 ne $e2);
     }
-    push(@$l, $e2) unless (defined $f);
+    push(@result, $e1) unless (defined $found);
   }
-  return $l;
+  foreach my $e2 (@$l2)
+  {
+    $found= undef;
+    foreach my $e1 (@$l1)
+    {
+      $found= 1 unless ($e1 ne $e2);
+    }
+    push(@result, $e2) unless (defined $found);
+  }
+  return @result;
 }
 
 1;

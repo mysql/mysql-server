@@ -144,10 +144,11 @@ select * from mysqltest.t1;
 # DISABLED FOR NOW AS chmod IS NOT PORTABLE ON NON-UNIX
 # insert into mysqltest.t1 values(10, 'should be there');
 # flush tables;
-# system chmod 500 $MYSQLTEST_VARDIR/slave-data/mysqltest/;
+let $MYSQLD_SLAVE_DATADIR= `select @@datadir`;
+# system chmod 500 $MYSQLD_SLAVE_DATADIR/mysqltest/;
 # --error 6
 # load data from master;  # should fail (errno 13)
-# system chmod 700 $MYSQLTEST_VARDIR/slave-data/mysqltest/;
+# system chmod 700 $MYSQLD_SLAVE_DATADIR/mysqltest/;
 # select * from mysqltest.t1; # should contain the row (10, ...)
 
 

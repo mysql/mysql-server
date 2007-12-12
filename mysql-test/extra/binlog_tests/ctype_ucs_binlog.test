@@ -16,7 +16,8 @@ source include/show_binlog_events.inc;
 # escaped).
 flush logs;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000001 
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001 
 drop table t2;
 
 # End of 4.1 tests

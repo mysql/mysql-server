@@ -423,7 +423,7 @@ create table t1 (word char(20) not null);
 select * from t1;
 show status like "Qcache_queries_in_cache";
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval load data infile '$MYSQLTEST_VARDIR/std_data_ln/words.dat' into table t1;
+eval load data infile '$MYSQLTEST_VARDIR/std_data/words.dat' into table t1;
 show status like "Qcache_queries_in_cache";
 select count(*) from t1;
 drop table t1;
