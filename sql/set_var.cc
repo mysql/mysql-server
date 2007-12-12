@@ -88,6 +88,16 @@ TYPELIB delay_key_write_typelib=
   delay_key_write_type_names, NULL
 };
 
+const char *slave_exec_mode_names[]=
+{ "STRICT", "IDEMPOTENT", NullS };
+static const unsigned int slave_exec_mode_names_len[]=
+{ sizeof("STRICT") - 1, sizeof("IDEMPOTENT") - 1, 0 };
+TYPELIB slave_exec_mode_typelib=
+{
+  array_elements(slave_exec_mode_names)-1, "",
+  slave_exec_mode_names, (unsigned int *) slave_exec_mode_names_len
+};
+
 static int  sys_check_ftb_syntax(THD *thd,  set_var *var);
 static bool sys_update_ftb_syntax(THD *thd, set_var * var);
 static void sys_default_ftb_syntax(THD *thd, enum_var_type type);
@@ -408,6 +418,11 @@ static sys_var_const_str_ptr sys_secure_file_priv(&vars, "secure_file_priv",
 static sys_var_long_ptr	sys_server_id(&vars, "server_id", &server_id, fix_server_id);
 static sys_var_bool_ptr	sys_slave_compressed_protocol(&vars, "slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
+static sys_var_set_slave_mode slave_exec_mode(&vars,
+                                              "slave_exec_mode",
+                                              &slave_exec_mode_options,
+                                              &slave_exec_mode_typelib,
+                                              0);
 static sys_var_long_ptr	sys_slow_launch_time(&vars, "slow_launch_time",
 					     &slow_launch_time);
 static sys_var_thd_ulong	sys_sort_buffer(&vars, "sort_buffer_size",
@@ -981,6 +996,79 @@ extern void fix_delay_key_write(THD *thd, enum_var_type type)
   }
 }
 
+bool sys_var_set::update(THD *thd, set_var *var)
+{
+  *value= var->save_result.ulong_value;
+  return 0;
+};
+
+uchar *sys_var_set::value_ptr(THD *thd, enum_var_type type,
+                              LEX_STRING *base)
+{
+  char buff[256];
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
+  ulong length;
+  ulong val= *value;
+
+  tmp.length(0);
+  for (uint i= 0; val; val>>= 1, i++)
+  {
+    if (val & 1)
+    {
+      tmp.append(enum_names->type_names[i],
+                 enum_names->type_lengths[i]);
+      tmp.append(',');
+    }
+  }
+
+  if ((length= tmp.length()))
+    length--;
+  return (uchar*) thd->strmake(tmp.ptr(), length);
+}
+
+void sys_var_set_slave_mode::set_default(THD *thd, enum_var_type type)
+{
+  slave_exec_mode_options= 0;
+  bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+}
+
+bool sys_var_set_slave_mode::check(THD *thd, set_var *var)
+{
+  bool rc=  sys_var_set::check(thd, var);
+  if (!rc &&
+      bit_is_set(var->save_result.ulong_value, SLAVE_EXEC_MODE_STRICT) == 1 &&
+      bit_is_set(var->save_result.ulong_value, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
+  {
+    rc= true;
+    my_error(ER_SLAVE_AMBIGOUS_EXEC_MODE, MYF(0), "");
+  }
+  return rc;
+}
+
+bool sys_var_set_slave_mode::update(THD *thd, set_var *var)
+{
+  bool rc;
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  rc= sys_var_set::update(thd, var);
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  return rc;
+}
+
+void fix_slave_exec_mode(enum_var_type type)
+{
+  DBUG_ENTER("fix_slave_exec_mode");
+  compile_time_assert(sizeof(slave_exec_mode_options) * CHAR_BIT
+                      > SLAVE_EXEC_MODE_LAST_BIT - 1);
+  if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT) == 1 &&
+      bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
+  {
+    sql_print_error("Ambiguous slave modes combination."
+                    " STRICT will be used");
+    bit_do_clear(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT);
+  }
+  if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 0)
+    bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+}
 
 bool sys_var_thd_binlog_format::is_readonly() const
 {
@@ -3165,7 +3253,18 @@ int set_var::light_check(THD *thd)
   return 0;
 }
 
+/**
+  Update variable
 
+  @param   thd    thread handler
+  @returns 0|1    ok or	ERROR
+
+  @note ERROR can be only due to abnormal operations involving
+  the server's execution evironment such as
+  out of memory, hard disk failure or the computer blows up.
+  Consider set_var::check() method if there is a need to return
+  an error due to logics.
+*/
 int set_var::update(THD *thd)
 {
   if (!value)
