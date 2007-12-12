@@ -2595,8 +2595,8 @@ err_exit2:
 		    && UNIV_LIKELY_NULL(buf_page_hash_get(space, offset))) {
 
 			/* The block was added by some other thread. */
-			buf_buddy_free(data, zip_size);
 			buf_buddy_free(bpage, sizeof *bpage);
+			buf_buddy_free(data, zip_size);
 			goto err_exit2;
 		}
 
