@@ -12,6 +12,7 @@ INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 SHOW STATUS LIKE 'Slave_retried_transactions';
 Variable_name	Value
 Slave_retried_transactions	0
+set @@global.slave_exec_mode= 'IDEMPOTENT';
 UPDATE t1 SET a = 5, b = 47 WHERE a = 1;
 SELECT * FROM t1;
 a	b
@@ -28,6 +29,7 @@ a	b
 3	3
 4	4
 **** On Slave ****
+set @@global.slave_exec_mode= default;
 SHOW STATUS LIKE 'Slave_retried_transactions';
 Variable_name	Value
 Slave_retried_transactions	0
