@@ -122,7 +122,6 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
               thd->net.last_error[0] != 0 ? ";" : "",
               handler_error == NULL? "<unknown>" : handler_error,
               log_name, pos);
->>>>>>>
 }
 #endif
 

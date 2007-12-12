@@ -378,7 +378,7 @@ C1	C2
 1	2
 2	4
 3	6
-set @@global.slave_exec_mode= 'STRICT';
+set @@global.slave_exec_mode= default;
 --- on slave: old values should be overwritten by replicated values ---
 SELECT * FROM t7 ORDER BY C1;
 C1	C2
@@ -430,10 +430,12 @@ START SLAVE;
 **** On Master ****
 INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
 **** On Master ****
+set @@global.slave_exec_mode= 'IDEMPOTENT';
 DELETE FROM t1 WHERE C1 = 'L';
 DELETE FROM t1;
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
+set @@global.slave_exec_mode= default;
 Last_SQL_Error
 0
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;

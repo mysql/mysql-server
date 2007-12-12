@@ -248,12 +248,17 @@ connection master;
 INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
 --echo **** On Master ****
 sync_slave_with_master;
+# since bug#31552/31609 idempotency is not default any longer. In order
+# the following test DELETE FROM t1 to pass the mode is switched
+# temprorarily
+set @@global.slave_exec_mode= 'IDEMPOTENT';
 DELETE FROM t1 WHERE C1 = 'L';
 
 connection master;
 DELETE FROM t1;
 query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 sync_slave_with_master;
+set @@global.slave_exec_mode= default;
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
