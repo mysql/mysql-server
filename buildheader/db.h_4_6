@@ -28,7 +28,8 @@ typedef struct __toku_db_txn_stat DB_TXN_STAT;
 typedef struct __toku_dbc DBC;
 typedef struct __toku_dbt DBT;
 typedef enum {
- DB_BTREE=1
+ DB_BTREE=1,
+ DB_UNKNOWN=5
 } DBTYPE;
 #ifndef _TOKUDB_WRAP_H
 #define DB_VERB_DEADLOCK 1
