@@ -478,7 +478,7 @@ ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
-const char *log_output_str= "TABLE";
+const char *log_output_str= "FILE";
 
 time_t server_start_time;
 
@@ -7483,7 +7483,7 @@ mysqld_get_one_option(int optid,
   {
     if (!argument || !argument[0])
     {
-      log_output_options= LOG_TABLE;
+      log_output_options= LOG_FILE;
       log_output_str= log_output_typelib.type_names[1];
     }
     else
