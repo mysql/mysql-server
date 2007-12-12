@@ -128,8 +128,10 @@ in the database, using tables whose size is a power of 2.
 		Lists of blocks
 		---------------
 
-There are several lists of control blocks. The free list contains
-blocks which are currently not used.
+There are several lists of control blocks.
+
+The free list (buf_pool->free) contains blocks which are currently not
+used.
 
 The LRU-list contains all the blocks holding a file page
 except those for which the bufferfix count is non-zero.
@@ -146,10 +148,25 @@ table which cannot fit in the memory. Putting the pages near the
 of the LRU list, we make sure that most of the buf_pool stays in the
 main memory, undisturbed.
 
-The chain of modified blocks contains the blocks
+The chain of modified blocks (buf_pool->flush_list) contains the blocks
 holding file pages that have been modified in the memory
 but not written to disk yet. The block with the oldest modification
 which has not yet been written to disk is at the end of the chain.
+
+The chain of unmodified compressed blocks (buf_pool->zip_clean)
+contains the control blocks (buf_page_t) of those compressed pages
+that are not in buf_pool->flush_list and for which no uncompressed
+page has been allocated in the buffer pool.  The control blocks for
+uncompressed pages are accessible via buf_block_t objects that are
+reachable via buf_pool->chunks[].
+
+The chains of free memory blocks (buf_pool->zip_free[]) are used by
+the buddy allocator (buf0buddy.c) to keep track of currently unused
+memory blocks of size sizeof(buf_page_t)..UNIV_PAGE_SIZE / 2.  These
+blocks are inside the UNIV_PAGE_SIZE-sized memory blocks of type
+BUF_BLOCK_MEMORY that the buddy allocator requests from the buffer
+pool.  The buddy allocator is solely used for allocating control
+blocks for compressed pages (buf_page_t) and compressed page frames.
 
 		Loading a file page
 		-------------------
