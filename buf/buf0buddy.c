@@ -537,6 +537,14 @@ buf_buddy_relocate(
 	is used for either compressed pages or buf_page_t
 	objects covering compressed pages. */
 
+	/* We look inside the allocated objects returned by
+	buf_buddy_alloc() and assume that anything of
+	PAGE_ZIP_MIN_SIZE or larger is a compressed page that contains
+	a valid space_id and page_no in the page header.  Should the
+	fields be invalid, we will be unable to relocate the block.
+	We also assume that anything that fits sizeof(buf_page_t)
+	actually is a properly initialized buf_page_t object. */
+
 	if (size >= PAGE_ZIP_MIN_SIZE) {
 		/* This is a compressed page. */
 		mutex_t*	mutex;
