@@ -147,18 +147,20 @@ void wqueue_release_queue(WQUEUE *wqueue)
 */
 
 void wqueue_add_and_wait(WQUEUE *wqueue,
-                         struct st_my_thread_var *thread, pthread_mutex_t *lock)
+                         struct st_my_thread_var *thread,
+                         pthread_mutex_t *lock)
 {
   DBUG_ENTER("wqueue_add_and_wait");
-  DBUG_PRINT("enter", ("thread ox%lxcond 0x%lx, mutex 0x%lx",
-                       (ulong) thread, (ulong) &thread->suspend, (ulong) lock));
+  DBUG_PRINT("enter",
+             ("thread: 0x%lx  cond: 0x%lx  mutex: 0x%lx",
+              (ulong) thread, (ulong) &thread->suspend, (ulong) lock));
   wqueue_add_to_queue(wqueue, thread);
   do
   {
-    DBUG_PRINT("info", ("wait... cond 0x%lx, mutex 0x%lx",
+    DBUG_PRINT("info", ("wait... cond:  0x%lx  mutex:  0x%lx",
                         (ulong) &thread->suspend, (ulong) lock));
     pthread_cond_wait(&thread->suspend, lock);
-    DBUG_PRINT("info", ("wait done cond 0x%lx, mutex 0x%lx, next 0x%lx",
+    DBUG_PRINT("info", ("wait done cond: 0x%lx  mutex: 0x%lx   next: 0x%lx",
                         (ulong) &thread->suspend, (ulong) lock,
                         (ulong) thread->next));
   }

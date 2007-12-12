@@ -446,7 +446,7 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 typedef struct st_safe_mutex_t
 {
   pthread_mutex_t global,mutex;
-  const char *file;
+  const char *file, *name;
   uint line,count;
   pthread_t thread;
 #ifdef SAFE_MUTEX_DETECT_DESTROY
@@ -471,7 +471,7 @@ typedef struct st_safe_mutex_info_t
 #endif /* SAFE_MUTEX_DETECT_DESTROY */
 
 int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr,
-                    const char *file, uint line);
+                    const char *file, uint line, const char *name);
 int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line);
 int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line);
 int safe_mutex_destroy(safe_mutex_t *mp,const char *file, uint line);
@@ -494,7 +494,7 @@ void safe_mutex_end(FILE *file);
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
 #undef pthread_mutex_trylock
-#define pthread_mutex_init(A,B) safe_mutex_init((A),(B),__FILE__,__LINE__)
+#define pthread_mutex_init(A,B) safe_mutex_init((A),(B),__FILE__,__LINE__,#A)
 #define pthread_mutex_lock(A) safe_mutex_lock((A),__FILE__,__LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
 #define pthread_mutex_destroy(A) safe_mutex_destroy((A),__FILE__,__LINE__)
@@ -680,8 +680,7 @@ struct st_my_thread_var
 };
 
 extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
-extern void *my_thread_var_get_dbug(my_bool *error);
-extern void my_thread_var_set_dbug(void *dbug);
+extern void **my_thread_var_dbug();
 extern uint my_thread_end_wait_time;
 #define my_thread_var (_my_thread_var())
 #define my_errno my_thread_var->thr_errno

@@ -1263,14 +1263,13 @@ static my_bool translog_create_new_file()
 #ifndef DBUG_OFF
 static my_bool translog_buffer_lock(struct st_translog_buffer *buffer)
 {
-  int res;
+  my_bool res;
   DBUG_ENTER("translog_buffer_lock");
   DBUG_PRINT("enter",
-             ("Lock buffer #%u: (0x%lx)  mutex: 0x%lx",
-              (uint) buffer->buffer_no, (ulong) buffer,
-              (ulong) &buffer->mutex));
+             ("Lock buffer #%u: (0x%lx)", (uint) buffer->buffer_no,
+              (ulong) buffer));
   res= (pthread_mutex_lock(&buffer->mutex) != 0);
-  DBUG_RETURN(test(res));
+  DBUG_RETURN(res);
 }
 #else
 #define translog_buffer_lock(B) \
@@ -1293,17 +1292,12 @@ static my_bool translog_buffer_lock(struct st_translog_buffer *buffer)
 #ifndef DBUG_OFF
 static my_bool translog_buffer_unlock(struct st_translog_buffer *buffer)
 {
-  int res;
+  my_bool res;
   DBUG_ENTER("translog_buffer_unlock");
-  DBUG_PRINT("enter", ("Unlock buffer... #%u (0x%lx)  "
-                       "mutex: 0x%lx",
-                       (uint) buffer->buffer_no, (ulong) buffer,
-                       (ulong) &buffer->mutex));
+  DBUG_PRINT("enter", ("Unlock buffer... #%u (0x%lx)",
+                       (uint) buffer->buffer_no, (ulong) buffer));
 
   res= (pthread_mutex_unlock(&buffer->mutex) != 0);
-  DBUG_PRINT("exit", ("Unlocked buffer... #%u: 0x%lx  mutex: 0x%lx",
-                       (uint) buffer->buffer_no, (ulong) buffer,
-                       (ulong) &buffer->mutex));
   DBUG_RETURN(res);
 }
 #else
@@ -1562,19 +1556,13 @@ static void translog_wait_for_writers(struct st_translog_buffer *buffer)
 
   while (buffer->copy_to_buffer_in_progress)
   {
-    DBUG_PRINT("info", ("wait for writers... "
-                        "buffer: #%u 0x%lx  "
-                        "mutex: 0x%lx",
-                        (uint) buffer->buffer_no, (ulong) buffer,
-                        (ulong) &buffer->mutex));
+    DBUG_PRINT("info", ("wait for writers... buffer: #%u  0x%lx",
+                        (uint) buffer->buffer_no, (ulong) buffer));
     DBUG_ASSERT(buffer->file != -1);
     wqueue_add_and_wait(&buffer->waiting_filling_buffer, thread,
                         &buffer->mutex);
-    DBUG_PRINT("info", ("wait for writers done  "
-                        "buffer: #%u 0x%lx  "
-                        "mutex: 0x%lx",
-                        (uint) buffer->buffer_no, (ulong) buffer,
-                        (ulong) &buffer->mutex));
+    DBUG_PRINT("info", ("wait for writers done buffer: #%u  0x%lx",
+                        (uint) buffer->buffer_no, (ulong) buffer));
   }
 
   DBUG_VOID_RETURN;
@@ -1607,18 +1595,12 @@ static void translog_wait_for_buffer_free(struct st_translog_buffer *buffer)
 
   while (buffer->file != -1)
   {
-    DBUG_PRINT("info", ("wait for writers...  "
-                        "buffer: #%u 0x%lx  "
-                        "mutex: 0x%lx",
-                        (uint) buffer->buffer_no, (ulong) buffer,
-                        (ulong) &buffer->mutex));
+    DBUG_PRINT("info", ("wait for writers... buffer: #%u  0x%lx",
+                        (uint) buffer->buffer_no, (ulong) buffer));
     wqueue_add_and_wait(&buffer->waiting_filling_buffer, thread,
                         &buffer->mutex);
-    DBUG_PRINT("info", ("wait for writers done.  "
-                        "buffer: #%u 0x%lx  "
-                        "mutex: 0x%lx",
-                        (uint) buffer->buffer_no, (ulong) buffer,
-                        (ulong) &buffer->mutex));
+    DBUG_PRINT("info", ("wait for writers done. buffer: #%u  0x%lx",
+                        (uint) buffer->buffer_no, (ulong) buffer));
   }
   DBUG_ASSERT(buffer->copy_to_buffer_in_progress == 0);
   DBUG_VOID_RETURN;

@@ -386,27 +386,13 @@ struct st_my_thread_var *_my_thread_var(void)
 }
 
 #ifndef DBUG_OFF
+/* Return pointer to DBUG for holding current state */
 
-extern void *my_thread_var_get_dbug(my_bool *error)
+extern void **my_thread_var_dbug()
 {
   struct st_my_thread_var *tmp=
     my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
-  my_bool tmp_error;
-  if (!error)
-    error= &tmp_error;
-  if (tmp)
-  {
-    *error= 0;
-    return tmp->dbug;
-  }
-  *error= 1;                                    /* no THR_KEY_mysys */
-  return (void*) 0;
-}
-
-extern void my_thread_var_set_dbug(void *dbug)
-{
-  struct st_my_thread_var *tmp= _my_thread_var();
-  tmp->dbug= dbug;
+  return tmp ? &tmp->dbug : 0;
 }
 #endif
 

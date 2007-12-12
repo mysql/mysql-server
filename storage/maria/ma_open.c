@@ -495,7 +495,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     strmov(share->data_file_name,   data_name);
     strmov(share->open_file_name,   name);
 
-    share->block_size= share->base.block_size;
+    share->block_size= share->base.block_size;   /* Convenience */
     {
       HA_KEYSEG *pos=share->keyparts;
       for (i=0 ; i < keys ; i++)
@@ -1287,7 +1287,7 @@ uint _ma_base_info_write(File file, MARIA_BASE_INFO *base)
   mi_int2store(ptr,base->null_bytes);                   ptr+= 2;
   mi_int2store(ptr,base->original_null_bytes);	        ptr+= 2;
   mi_int2store(ptr,base->field_offsets);	        ptr+= 2;
-  mi_int2store(ptr,base->min_row_length);	        ptr+= 2;
+  mi_int2store(ptr,0);				        ptr+= 2; /* reserved */
   mi_int2store(ptr,base->block_size);	        	ptr+= 2;
   *ptr++= base->rec_reflength;
   *ptr++= base->key_reflength;
@@ -1330,7 +1330,7 @@ static uchar *_ma_base_info_read(uchar *ptr, MARIA_BASE_INFO *base)
   base->null_bytes= mi_uint2korr(ptr);			ptr+= 2;
   base->original_null_bytes= mi_uint2korr(ptr);		ptr+= 2;
   base->field_offsets= mi_uint2korr(ptr);		ptr+= 2;
-  base->min_row_length= mi_uint2korr(ptr);		ptr+= 2;
+                                                        ptr+= 2;
   base->block_size= mi_uint2korr(ptr);			ptr+= 2;
 
   base->rec_reflength= *ptr++;

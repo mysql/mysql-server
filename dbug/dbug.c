@@ -330,8 +330,7 @@ static pthread_mutex_t THR_LOCK_dbug;
 
 static CODE_STATE *code_state(void)
 {
-  CODE_STATE *cs=0;
-  my_bool error;
+  CODE_STATE *cs, **cs_ptr;
 
   if (!init_done)
   {
@@ -342,7 +341,9 @@ static CODE_STATE *code_state(void)
     init_done=TRUE;
   }
 
-  if (!(cs= (CODE_STATE*) my_thread_var_get_dbug(&error)) && !error)
+  if (!(cs_ptr= (CODE_STATE**) my_thread_var_dbug()))
+    return 0;                                   /* Thread not initialised */
+  if (!(cs= *cs_ptr))
   {
     cs=(CODE_STATE*) DbugMalloc(sizeof(*cs));
     bzero((uchar*) cs,sizeof(*cs));
@@ -350,7 +351,7 @@ static CODE_STATE *code_state(void)
     cs->func="?func";
     cs->file="?file";
     cs->stack=&init_settings;
-    my_thread_var_set_dbug((void*) cs);
+    *cs_ptr= cs;
   }
   return cs;
 }

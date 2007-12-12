@@ -209,9 +209,6 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
   diff_length=(int) rec_reflength - (int) share->base.rec_reflength;
   if (fix_keys)
     share->rec_reflength=rec_reflength;
-  share->base.min_block_length=share->min_pack_length+1;
-  if (share->min_pack_length > 254)
-    share->base.min_block_length+=2;
   DBUG_PRINT("info", ("fixed header length:   %u", HEAD_LENGTH));
   DBUG_PRINT("info", ("total header length:   %lu", share->pack.header_length));
   DBUG_PRINT("info", ("pack file version:     %u", share->pack.version));
