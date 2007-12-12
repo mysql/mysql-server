@@ -386,7 +386,7 @@ create table ti (a int) engine=innodb;
 reset master;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
+master-bin.000001	107		
 begin;
 insert into ti values (1);
 insert into ti values (2) ;
@@ -399,7 +399,7 @@ count(*)
 2
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	515		
+master-bin.000001	516		
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
@@ -420,7 +420,7 @@ delete from tt where a=1;
 reset master;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
+master-bin.000001	107		
 begin;
 insert into ti values (1);
 insert into ti values (2) /* to make the dup error in the following */;
@@ -431,7 +431,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	589		
+master-bin.000001	590		
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
