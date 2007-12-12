@@ -2587,20 +2587,7 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
                           MYSQL_ERROR::WARN_LEVEL_ERROR))
       DBUG_RETURN(0);
 
-    if (thd->spcont &&
-        thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
-    {
-      DBUG_RETURN(0);
-    }
-
     thd->is_slave_error=  1; // needed to catch query errors during replication
-
-    if (!thd->no_warnings_for_error)
-    {
-      thd->no_warnings_for_error= TRUE;
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
-      thd->no_warnings_for_error= FALSE;
-    }
 
     /*
       thd->lex->current_select == 0 if lex structure is not inited
@@ -2618,14 +2605,39 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     }
     else
     {
-      NET *net= &thd->net;
-      net->report_error= 1;
-      query_cache_abort(net);
-      if (!net->last_error[0])			// Return only first message
+      if (! thd->main_da.is_error())            // Return only first message
       {
-	strmake(net->last_error, str, sizeof(net->last_error)-1);
-	net->last_errno= error ? error : ER_UNKNOWN_ERROR;
+        if (error == 0)
+          error= ER_UNKNOWN_ERROR;
+        if (str == NULL)
+          str= ER(error);
+        thd->main_da.set_error_status(thd, error, str);
       }
+      query_cache_abort(&thd->net);
+    }
+    /*
+      If a continue handler is found, the error message will be cleared
+      by the stored procedures code.
+    */
+    if (thd->spcont &&
+        thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
+    {
+      /*
+        Do not push any warnings, a handled error must be completely
+        silenced.
+      */
+      DBUG_RETURN(0);
+    }
+
+    if (!thd->no_warnings_for_error)
+    {
+      /*
+        Suppress infinite recursion if there a memory allocation error
+        inside push_warning.
+      */
+      thd->no_warnings_for_error= TRUE;
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
+      thd->no_warnings_for_error= FALSE;
     }
   }
   if (!thd || MyFlags & ME_NOREFRESH)
