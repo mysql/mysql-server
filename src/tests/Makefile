@@ -145,7 +145,8 @@ test_db_curs4.bdb: trace.h
 test_db_assoc3.tdb test_db_assoc3.bdb: test.h
 
 
-test_db_assoc3.tdbrun: test_db_assoc3.tdb
+# This one fails in both BDB and TokuDB, in the same way.  It must be a program error.
+test_db_assoc3.tdbrun.bad: test_db_assoc3.tdb
 	./test_db_assoc3.tdb --seed=1 --count=200
 	./test_db_assoc3.tdb --seed=1 --count=200 --more
 	./test_db_assoc3.tdb --seed=1 --count=200 --more
@@ -153,3 +154,11 @@ test_db_assoc3.tdbrun: test_db_assoc3.tdb
 	./test_db_assoc3.tdb --seed=1 --count=200 --more
 	./test_db_assoc3.tdb --seed=1 --count=200 --more
 	./test_db_assoc3.tdb --seed=1 --count=200 --more
+
+test_db_assoc3.tdbrun: test_db_assoc3.tdb
+	./test_db_assoc3.tdb --seed=2 --count=100000
+	./test_db_assoc3.tdb --seed=2 --count=100000 --more
+
+test_db_assoc3.bdbrun: test_db_assoc3.bdb
+	./test_db_assoc3.bdb --seed=2 --count=100000
+	./test_db_assoc3.bdb --seed=2 --count=100000 --more
