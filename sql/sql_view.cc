@@ -1540,6 +1540,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   something_wrong= error || wrong_object_name || non_existant_views.length();
   if (some_views_deleted || !something_wrong)
   {
+    DBUG_RETURN(TRUE);
+  }
     /* if something goes wrong, bin-log with possible error code,
        otherwise bin-log with error code cleared.
      */
