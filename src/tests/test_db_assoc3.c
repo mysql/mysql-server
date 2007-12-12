@@ -117,7 +117,7 @@ void read_pd_from_dbt (const DBT *dbt, int *off, struct primary_data *pd) {
 }
 
 int name_offset_in_pd_dbt (void) {
-    return 17;
+    return 9;
 }
 
 int name_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
@@ -298,7 +298,7 @@ void insert_person (void) {
     // If the cursor is to the left of the current item, then increment count_items
     {
 	int compare=strcmp((char*)namearray, nc_key.data);
-	//printf("%s:%d compare=%d insert %s, cursor at %s\n", __FILE__, __LINE__, compare, namearray, (char*)nc_key.data);
+	//fprintf(stderr, "%s:%d compare=%d insert %s, cursor at %s\n", __FILE__, __LINE__, compare, namearray, (char*)nc_key.data);
 	if (compare>0) calc_n_items++;
 	count_all_items++;
     }
@@ -324,7 +324,7 @@ void delete_oldest_expired (void) {
 	int compare=strcmp(deleted_key, nc_key.data);
 	fprintf(stderr, "del %2d%c %s\n", dt[7], dt[8]?'e':' ', dt+9);
 	if (compare>0) {
-	    //printf("%s:%d r3=%d compare=%d count=%d cacount=%d cucount=%d deleting %s cursor=%s\n", __FILE__, __LINE__, r3, compare, count_all_items, calc_n_items, cursor_count_n_items, deleted_key, (char*)nc_key.data);
+	    //fprintf(stderr, "%s:%d r3=%d compare=%d count=%d cacount=%d cucount=%d deleting %s cursor=%s\n", __FILE__, __LINE__, r3, compare, count_all_items, calc_n_items, cursor_count_n_items, deleted_key, (char*)nc_key.data);
 	    calc_n_items--;
 	}
 	count_all_items--;
@@ -366,7 +366,7 @@ void step_name (void) {
 	fprintf(stderr, "crs %2d%c %s\n", dt[7], dt[8] ? 'e' : ' ', dt+9);
     } else if (r==DB_NOTFOUND) {
 	// Got to the end.
-	//printf("%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
+	//fprintf(stderr, "%s:%d Got to end count=%d curscount=%d all=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items, count_all_items);
 	assert(cursor_count_n_items==calc_n_items);
 	r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_FIRST);
 	if (r==DB_NOTFOUND) {
