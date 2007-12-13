@@ -1,4 +1,6 @@
-if (`select (support = 'YES' or support = 'DEFAULT')=0 from information_schema.engines where engine = 'federated'`)
+if (!`SELECT count(*) FROM information_schema.engines WHERE
+      (support = 'YES' OR support = 'DEFAULT') AND
+      engine = 'federated'`)
 {
   skip Need federated engine;
 }
