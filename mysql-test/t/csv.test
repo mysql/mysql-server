@@ -1755,9 +1755,9 @@ insert into t1 values();
 select BIN(a) from t1;
 drop table t1;
 # We prevent creation of table with nullable ENUM
---error ER_CANT_CREATE_TABLE
+--error ER_CHECK_NOT_IMPLEMENTED
 create table t1(a enum('foo','bar') default null) engine=csv;
---error ER_CANT_CREATE_TABLE
+--error ER_CHECK_NOT_IMPLEMENTED
 create table t1(a enum('foo','bar') default 'foo') engine=csv;
 # Enum columns must be specified as NOT NULL
 create table t1(a enum('foo','bar') default 'foo' not null) engine=csv;
@@ -1765,5 +1765,12 @@ insert into t1 values();
 select * from t1;
 drop table t1;
 
+#
+# BUG#32817 - though CSV is marked as supported create table is rejected
+#             with error 1005.
+#
+--error ER_CHECK_NOT_IMPLEMENTED
+CREATE TABLE t1(a INT) ENGINE=CSV;
+SHOW WARNINGS;
 
 --echo End of 5.1 tests

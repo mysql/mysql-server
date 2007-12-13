@@ -1,3 +1,15 @@
+# Bug#32948
+CREATE TABLE t1 (c1 INT, PRIMARY KEY (c1)) ENGINE=INNODB;
+CREATE TABLE t2 (c1 INT, PRIMARY KEY (c1),
+FOREIGN KEY (c1) REFERENCES t1 (c1)
+ON DELETE CASCADE)
+ENGINE=INNODB;
+ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ALTER TABLE t1 ENGINE=MyISAM;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP TABLE t2;
+DROP TABLE t1;
 create table t1 (a int) engine=innodb partition by hash(a) ;
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
