@@ -257,6 +257,10 @@ static void run_query(THD *thd, char *buf, char *end,
     thd->options&= ~OPTION_BIN_LOG;
     
   DBUG_PRINT("query", ("%s", thd->query));
+
+  DBUG_ASSERT(!thd->in_sub_stmt);
+  DBUG_ASSERT(!thd->prelocked_mode);
+
   mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
 
   if (no_print_error && thd->is_slave_error)
@@ -265,14 +269,27 @@ static void run_query(THD *thd, char *buf, char *end,
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
     for (i= 0; no_print_error[i]; i++)
       if ((thd_ndb->m_error_code == no_print_error[i]) ||
-          (thd->net.last_errno == (unsigned)no_print_error[i]))
+          (thd->main_da.sql_errno() == (unsigned) no_print_error[i]))
         break;
     if (!no_print_error[i])
       sql_print_error("NDB: %s: error %s %d(ndb: %d) %d %d",
-                      buf, thd->net.last_error, thd->net.last_errno,
+                      buf,
+                      thd->main_da.message(),
+                      thd->main_da.sql_errno(),
                       thd_ndb->m_error_code,
                       (int) thd->is_error(), thd->is_slave_error);
   }
+  /*
+    XXX: this code is broken. mysql_parse()/mysql_reset_thd_for_next_command()
+    can not be called from within a statement, and
+    run_query() can be called from anywhere, including from within
+    a sub-statement.
+    This particular reset is a temporary hack to avoid an assert
+    for double assignment of the diagnostics area when run_query()
+    is called from ndbcluster_reset_logs(), which is called from
+    mysql_flush().
+  */
+  thd->main_da.reset_diagnostics_area();
 
   thd->options= save_thd_options;
   thd->query_length= save_query_length;
@@ -2301,8 +2318,8 @@ static int open_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
   if (open_tables(thd, &tables, &counter, MYSQL_LOCK_IGNORE_FLUSH))
   {
     sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
-                    thd->net.last_errno,
-                    thd->net.last_error ? thd->net.last_error : "");
+                    thd->main_da.sql_errno(),
+                    thd->main_da.message());
     thd->proc_info= save_proc_info;
     return -1;
   }
