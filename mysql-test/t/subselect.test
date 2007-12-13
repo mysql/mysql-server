@@ -32,7 +32,9 @@ SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
 -- error 1108
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
+-- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
+-- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
 SELECT (SELECT 1,2,3) = ROW(1,2,3);
 SELECT (SELECT 1,2,3) = ROW(1,2,1);
@@ -1346,17 +1348,20 @@ drop table t1,t2;
 CREATE TABLE t1 ( a int, b int );
 CREATE TABLE t2 ( c int, d int );
 INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
-SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
-INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+SELECT a AS abc, b FROM t1 outr WHERE b = 
+  (SELECT MIN(b) FROM t1 WHERE a=outr.a);
+INSERT INTO t2 SELECT a AS abc, b FROM t1 outr WHERE b = 
+  (SELECT MIN(b) FROM t1 WHERE a=outr.a);
 select * from t2;
-CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+CREATE TABLE t3 SELECT a AS abc, b FROM t1 outr WHERE b = 
+  (SELECT MIN(b) FROM t1 WHERE a=outr.a);
 select * from t3;
-prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 outr WHERE b = (SELECT MIN(b) FROM t1 WHERE a=outr.a);";
 execute stmt1;
 deallocate prepare stmt1;
 select * from t2;
 drop table t3;
-prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 outr WHERE b = (SELECT MIN(b) FROM t1 WHERE a=outr.a);";
 execute stmt1;
 select * from t3;
 deallocate prepare stmt1;
@@ -1529,7 +1534,9 @@ INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,680
 INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');
 INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','Micronesia/Caribbean',16.00,0,0,NULL,0.00,NULL,'United States Minor Outlying Islands','Dependent Territory of the US','George W. Bush',NULL,'UM');
 /*!40000 ALTER TABLE t1 ENABLE KEYS */;
-SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 WHERE Continent = c AND Population < 200);
+SELECT DISTINCT Continent AS c FROM t1 outr WHERE 
+  Code <> SOME ( SELECT Code FROM t1 WHERE Continent = outr.Continent AND 
+  Population < 200);
 drop table t1;
 
 #
@@ -2448,12 +2455,16 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (i INT);
 
 (SELECT i FROM t1) UNION (SELECT i FROM t1);
+#TODO:not supported
+--error ER_PARSE_ERROR
 SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS 
   (
    (SELECT i FROM t1) UNION 
    (SELECT i FROM t1)
   );
 
+#TODO:not supported
+--error ER_PARSE_ERROR
 SELECT * FROM t1 
 WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
 
@@ -2461,7 +2472,9 @@ WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
 --error 1064
 explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
   from t1;
-#supported
+
+#TODO:not supported
+--error ER_PARSE_ERROR
 explain select * from t1 where not exists 
   ((select t11.i from t1 t11) union (select t12.i from t1 t12));
 
@@ -2988,6 +3001,100 @@ SELECT (SELECT SUM(t1.a) FROM t2 WHERE a=1) FROM t1;
 DROP TABLE t1,t2;
 
 #
+# Bug31048: Many nested subqueries may cause server crash.
+#
+create table t1(a int,b int,key(a),key(b));
+insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
+  (6,7),(7,4),(5,3);
+# test for the stack overflow bug
+select sum(a),a from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1
+  )group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+--replace_regex /overrun.*$/overrun detected/
+--error 1436
+select sum(a),a from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+# test for the memory consumption & subquery slowness bug
+explain select sum(a),a from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 
+  )group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+--replace_regex /overrun.*$/overrun detected/
+--error 1436
+explain select sum(a),a from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+drop table t1;
+
+#
 # Bug #31884: Assertion + crash in subquery in the SELECT clause.
 #
 
@@ -3043,5 +3150,84 @@ INSERT INTO t3 VALUES (10), (20), (30);
 SELECT LEFT(t1.a1,1) FROM t1,t3 WHERE t1.b1=t3.a3;
 SELECT a2 FROM t2 WHERE t2.a2 IN (SELECT t1.a1 FROM t1,t3 WHERE t1.b1=t3.a3);
 DROP TABLE t1, t2, t3;
+
+#
+# Bug #30788: Inconsistent retrieval of char/varchar
+#
+
+CREATE TABLE t1 (a CHAR(1), b VARCHAR(10));
+INSERT INTO t1 VALUES ('a', 'aa');
+INSERT INTO t1 VALUES ('a', 'aaa');
+SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
+CREATE INDEX I1 ON t1 (a);
+CREATE INDEX I2 ON t1 (b);
+EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
+SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
+
+CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10));
+INSERT INTO t2 SELECT * FROM t1;
+CREATE INDEX I1 ON t2 (a);
+CREATE INDEX I2 ON t2 (b);
+EXPLAIN SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
+SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
+EXPLAIN
+SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
+SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
+
+DROP TABLE t1,t2;
+
+#
+# Bug #32400: Complex SELECT query returns correct result only on some
+# occasions
+#
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (2,4);
+
+--error ER_BAD_FIELD_ERROR
+EXPLAIN 
+SELECT a AS out_a, MIN(b) FROM t1
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = out_a)
+GROUP BY a;
+
+--error ER_BAD_FIELD_ERROR
+SELECT a AS out_a, MIN(b) FROM t1
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = out_a)
+GROUP BY a;
+
+EXPLAIN 
+SELECT a AS out_a, MIN(b) FROM t1 t1_outer
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = t1_outer.a)
+GROUP BY a;
+
+SELECT a AS out_a, MIN(b) FROM t1 t1_outer
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = t1_outer.a)
+GROUP BY a;
+
+DROP TABLE t1;
+
+#
+# Bug #32036: EXISTS within a WHERE clause with a UNION crashes MySQL 5.122
+#
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1),(2);
+
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
+EXPLAIN EXTENDED
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
+
+
+#TODO:not supported
+--error ER_PARSE_ERROR
+EXPLAIN EXTENDED
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a) UNION 
+                               (SELECT 1 FROM t2 WHERE t1.a = t2.a));
+
+DROP TABLE t1,t2;
+
 
 --echo End of 5.0 tests.
