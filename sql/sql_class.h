@@ -1003,7 +1003,7 @@ public:
   bool can_overwrite_status;
 
   void set_ok_status(THD *thd, ha_rows affected_rows_arg,
-                     ulong last_insert_id_arg,
+                     ulonglong last_insert_id_arg,
                      const char *message);
   void set_eof_status(THD *thd);
   void set_error_status(THD *thd, uint sql_errno_arg, const char *message_arg);
@@ -1034,7 +1034,7 @@ public:
   ha_rows affected_rows() const
   { DBUG_ASSERT(m_status == DA_OK); return m_affected_rows; }
 
-  ulong last_insert_id() const
+  ulonglong last_insert_id() const
   { DBUG_ASSERT(m_status == DA_OK); return m_last_insert_id; }
 
   uint total_warn_count() const
@@ -1080,7 +1080,7 @@ private:
     thd->first_successful_insert_id_in_prev_stmt, which is used
     to implement LAST_INSERT_ID().
   */
-  ulong      m_last_insert_id;
+  ulonglong   m_last_insert_id;
   /** The total number of warnings. */
   uint	     m_total_warn_count;
   enum_diagnostics_status m_status;
