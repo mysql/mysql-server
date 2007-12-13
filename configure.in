@@ -2243,7 +2243,7 @@ MYSQL_CHECK_SSL
 # MyISAM is declared here,not in storage/myisam/plug.in
 # because we want it to be the first in the list of plugins,
 # Maria needs it. When it'll be fixed the declaration below can
-# be removed and storage/myisam/plug.in - undeleted (bk unrm)
+# be removed and restored (uncommented) in storage/myisam/plug.in
 MYSQL_STORAGE_ENGINE(myisam,no, [MyISAM Storage Engine],
         [Traditional non-transactional MySQL tables])
 MYSQL_PLUGIN_DIRECTORY(myisam,  [storage/myisam])
