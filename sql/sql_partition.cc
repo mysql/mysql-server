@@ -1402,7 +1402,7 @@ static void set_up_partition_func_pointers(partition_info *part_info)
     NONE
 */
 
-static void set_linear_hash_mask(partition_info *part_info, uint no_parts)
+void set_linear_hash_mask(partition_info *part_info, uint no_parts)
 {
   uint mask;
 
@@ -2818,8 +2818,8 @@ int get_partition_id_range(partition_info *part_info,
       loc_part_id++;
   *part_id= (uint32)loc_part_id;
   if (loc_part_id == max_partition &&
-      range_array[loc_part_id] != LONGLONG_MAX &&
-      part_func_value >= range_array[loc_part_id])
+      part_func_value >= range_array[loc_part_id] &&
+      !part_info->defined_max_value)
     DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   DBUG_PRINT("exit",("partition: %d", *part_id));
@@ -2926,7 +2926,13 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   }
   if (left_endpoint)
   {
-    if (part_func_value >= range_array[loc_part_id])
+    longlong bound= range_array[loc_part_id];
+    /*
+      In case of PARTITION p VALUES LESS THAN MAXVALUE
+      the maximum value is in the current partition.
+    */
+    if (part_func_value > bound ||
+        (part_func_value == bound && !part_info->defined_max_value))
       loc_part_id++;
   }
   else 
