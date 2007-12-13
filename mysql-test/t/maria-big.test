@@ -1,6 +1,8 @@
 # Test of scenarios potentially too big for --valgrind or --mem
+-- source include/have_maria.inc
 enable_info;
 set storage_engine=maria;
+set global maria_log_file_size=4294967296;
 disable_warnings;
 drop table if exists t1, t2;
 enable_warnings;

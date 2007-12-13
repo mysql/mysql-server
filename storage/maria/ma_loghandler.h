@@ -25,7 +25,12 @@
 /* transaction log default flags (TODO: make it global variable) */
 #define TRANSLOG_DEFAULT_FLAGS 0
 
-/* Transaction log flags */
+/*
+  Transaction log flags.
+
+  We allow all kind protections to be switched on together for people who
+  really unsure in their hardware/OS.
+*/
 #define TRANSLOG_PAGE_CRC              1
 #define TRANSLOG_SECTOR_PROTECTION     (1<<1)
 #define TRANSLOG_RECORD_CRC            (1<<2)
@@ -81,7 +86,7 @@ struct st_maria_handler;
 #define dirpos_korr(P) (*(uchar *) (P))
 #define pagerange_korr(P) uint2korr(P)
 #define clr_type_korr(P) (*(uchar *) (P))
-#define key_nr_korr(P) ((P)[0])
+#define key_nr_korr(P) (*(uchar *) (P))
 #define ha_checksum_korr(P) uint4korr(P)
 
 /*

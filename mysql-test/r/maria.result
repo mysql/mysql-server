@@ -1,5 +1,6 @@
 set global storage_engine=maria;
 set session storage_engine=maria;
+set global maria_log_file_size=4294967296;
 drop table if exists t1,t2;
 SET SQL_WARNINGS=1;
 CREATE TABLE t1 (
@@ -2048,7 +2049,7 @@ show variables like 'maria%';
 Variable_name	Value
 maria_block_size	8192
 maria_checkpoint_interval	30
-maria_log_file_size	1073741824
+maria_log_file_size	4294959104
 maria_log_purge_type	immediate
 maria_max_sort_file_size	9223372036853727232
 maria_pagecache_age_threshold	300

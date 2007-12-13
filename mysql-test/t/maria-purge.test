@@ -6,6 +6,7 @@ set session storage_engine=maria;
 let $def_logsize=`select @@global.maria_log_file_size`;
 let $def_checkinterval=`select @@global.maria_checkpoint_interval`;
 
+set global maria_log_file_size=4294967296;
 # Initialise
 --disable_warnings
 drop table if exists t1,t2;
@@ -18,6 +19,7 @@ CREATE TABLE t1 (
 CREATE TABLE t2 (
   STRING_DATA char(255) default NULL
 );
+
 
 INSERT INTO t1 VALUES ('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
 INSERT INTO t1 VALUES ('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD');
@@ -43,16 +45,23 @@ insert into t2 select * from t1;
 insert into t1 select * from t2;
 insert into t2 select * from t1;
 insert into t1 select * from t2;
+
+set global maria_log_file_size=16777216;
+eval set global maria_checkpoint_interval=$def_checkinterval;
+--replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+SHOW ENGINE maria logs;
+
 insert into t2 select * from t1;
 insert into t1 select * from t2;
 
 
-set global maria_checkpoint_interval=2;
+
+eval set global maria_checkpoint_interval=$def_checkinterval;
 --replace_regex /Size +[0-9]+ ; .+master-data/master-data/
 SHOW ENGINE maria logs;
 set global maria_log_file_size=16777216;
 select @@global.maria_log_file_size;
-sleep 7;
+eval set global maria_checkpoint_interval=$def_checkinterval;
 --replace_regex /Size +[0-9]+ ; .+master-data/master-data/
 SHOW ENGINE maria logs;
 set global maria_log_file_size=8388608;
@@ -60,7 +69,7 @@ select @@global.maria_log_file_size;
 
 set global maria_log_purge_type=at_flush;
 insert into t1 select * from t2;
-sleep 7;
+eval set global maria_checkpoint_interval=$def_checkinterval;
 --replace_regex /Size +[0-9]+ ; .+master-data/master-data/
 SHOW ENGINE maria logs;
 flush logs;
@@ -70,7 +79,7 @@ SHOW ENGINE maria logs;
 set global maria_log_file_size=16777216;
 set global maria_log_purge_type=external;
 insert into t1 select * from t2;
-sleep 7;
+eval set global maria_checkpoint_interval=$def_checkinterval;
 --replace_regex /Size +[0-9]+ ; .+master-data/master-data/
 SHOW ENGINE maria logs;
 flush logs;
@@ -79,7 +88,7 @@ SHOW ENGINE maria logs;
 
 set global maria_log_purge_type=immediate;
 insert into t1 select * from t2;
-sleep 7;
+eval set global maria_checkpoint_interval=$def_checkinterval;
 --replace_regex /Size +[0-9]+ ; .+master-data/master-data/
 SHOW ENGINE maria logs;
 
