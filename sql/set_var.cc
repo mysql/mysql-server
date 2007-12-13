@@ -565,9 +565,10 @@ static sys_var_thd_bit	sys_log_binlog(&vars, "sql_log_bin",
                                        check_log_update,
 				       set_option_bit,
 				       OPTION_BIN_LOG);
-static sys_var_thd_bit	sys_sql_allow_batchine(&vars, "sql_allow_batching", 0,
-                                               set_option_bit,
-                                               OPTION_ALLOW_BATCH);
+static sys_var_thd_bit
+sys_transaction_allow_batchine(&vars, "transaction_allow_batching", 0,
+                               set_option_bit,
+                               OPTION_ALLOW_BATCH);
 static sys_var_thd_bit	sys_sql_warnings(&vars, "sql_warnings", 0,
 					 set_option_bit,
 					 OPTION_WARNINGS);
