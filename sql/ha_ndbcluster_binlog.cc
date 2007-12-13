@@ -3097,7 +3097,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   if (reptab->getNoOfPrimaryKeys() != 3)
   {
     error= -2;
-    error_str= "Wrong number of primary keys, expected 3";
+    error_str= "Wrong number of primary key parts, expected 3";
     goto err;
   }
   error= -1;
