@@ -2085,15 +2085,14 @@ zlib_done:
 	    (page_zip_get_trailer_len(page_zip,
 				      dict_index_is_clust(index), NULL)
 	     + page_zip->m_end >= page_zip_get_size(page_zip))) {
-		ulint	is_clust = dict_index_is_clust(index);
-
 		page_zip_fail(("page_zip_decompress_node_ptrs:"
 			       " %lu + %lu >= %lu, %lu\n",
 			       (ulong) page_zip_get_trailer_len(
-				       page_zip, is_clust, NULL),
+				       page_zip, dict_index_is_clust(index),
+				       NULL),
 			       (ulong) page_zip->m_end,
 			       (ulong) page_zip_get_size(page_zip),
-			       (ulong) is_clust));
+			       (ulong) dict_index_is_clust(index)));
 		return(FALSE);
 	}
 
