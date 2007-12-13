@@ -212,12 +212,11 @@ SELECT NAME_CONST('test', 'test');
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (5), (2);
 
---error ER_RESERVED_SYNTAX
+--error ER_WRONG_ARGUMENTS
 SELECT NAME_CONST(x,2) FROM (SELECT a x FROM t1) t;
 
 DROP TABLE t1;
 
---echo End of 5.0 tests
 
 #
 # Bug #32559: connection hangs on query with name_const
