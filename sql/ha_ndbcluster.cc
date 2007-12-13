@@ -577,7 +577,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     bzero((char*) &table_list,sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
-    close_cached_tables(thd, 0, &table_list);
+    close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
     break;
   }
   default:
@@ -8064,7 +8064,7 @@ int handle_trailing_share(NDB_SHARE *share)
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   safe_mutex_assert_owner(&LOCK_open);
-  close_cached_tables(thd, 0, &table_list, TRUE);
+  close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
 
   pthread_mutex_lock(&ndbcluster_mutex);
   /* ndb_share reference temporary free */

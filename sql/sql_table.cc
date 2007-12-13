@@ -6690,7 +6690,7 @@ view_err:
   if (thd->locked_tables && new_name == table_name && new_db == db)
   {
     thd->in_lock_tables= 1;
-    error= reopen_tables(thd, 1, 0);
+    error= reopen_tables(thd, 1, 1);
     thd->in_lock_tables= 0;
     if (error)
       goto err_with_placeholders;
