@@ -865,7 +865,88 @@ int toku_pma_cursor_set_range(PMA_CURSOR c, DBT *key) {
     return r;
 }
 
-int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize, u_int32_t rand4sem, u_int32_t *fingerprint) {
+/* find the next matching key in the pma starting from index here */
+static int pma_next_key(PMA pma, DBT *k, DBT *v, int here, int n, int *found) {
+    assert(0 <= here);
+    *found = 0;
+    while (here < n && !kv_pair_inuse(pma->pairs[here]))
+        here += 1;
+    if (here < n) {
+        struct kv_pair *kv = kv_pair_ptr(pma->pairs[here]);
+        DBT k2, v2;
+        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+        if (cmp == 0 && v) 
+            cmp = pma->dup_compare_fun(pma->db, v, toku_fill_dbt(&v2, kv_pair_val(kv), kv_pair_vallen(kv)));
+        if (cmp == 0)
+            *found = 1;
+    }
+    return here;
+}
+
+/* find the previous matching key in the pma starting from index here */
+static int pma_prev_key(PMA pma, DBT *k, DBT *v, int here, int n, int *found) {
+    assert(here < n);
+    *found = 0;
+    while (0 <= here && !kv_pair_inuse(pma->pairs[here]))
+        here -= 1;
+    if (0 <= here) {
+        struct kv_pair *kv = kv_pair_ptr(pma->pairs[here]);
+        DBT k2, v2;
+        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+        if (cmp == 0 && v)
+            cmp = pma->dup_compare_fun(pma->db, v, toku_fill_dbt(&v2, kv_pair_val(kv), kv_pair_vallen(kv)));
+        if (cmp == 0)
+            *found = 1;
+    }
+    return here;
+}
+
+/* set lastkeymatch if the kv pair under the cursor is the last one in the pma
+   compare with the next and previous valid pma entries */
+
+static void pma_cursor_key_last(PMA_CURSOR c, int *lastkeymatch) {
+    *lastkeymatch = 1;
+    PMA pma = c->pma;
+    if (pma->dup_mode & TOKU_DB_DUP) {
+        int here, found;
+
+        /* get the current key */
+        here = c->position; assert(0 <= here && here < (int) pma->N);
+        struct kv_pair *kv = kv_pair_ptr(pma->pairs[here]);
+        DBT currentkey; toku_fill_dbt(&currentkey, kv_pair_key(kv), kv_pair_keylen(kv));
+        DBT currentval, *v; 
+
+        if (pma->dup_mode & TOKU_DB_DUPSORT) {
+            toku_fill_dbt(&currentval, kv_pair_val(kv), kv_pair_vallen(kv));
+            v = &currentval;
+        } else
+            v = 0;
+
+        /* check if the next key == current key */
+        here = c->position+1;
+        for (;;) {
+            here = pma_next_key(pma, &currentkey, v, here, pma->N, &found);
+            if (!found) break; 
+            if (kv_pair_valid(pma->pairs[here])) {
+                *lastkeymatch = 0; /* next key == current key */
+                return;
+            }
+        }
+
+        /* check if the prev key == current key */
+        here = c->position-1;
+        for (;;) {
+            here = pma_prev_key(pma, &currentkey, v, here, pma->N, &found);
+            if (!found) break;
+            if (kv_pair_valid(pma->pairs[here])) {
+                *lastkeymatch = 0; /* prev key == current key */
+                return;
+            }
+        }
+    }
+}
+
+int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize, u_int32_t rand4sem, u_int32_t *fingerprint, int *lastkeymatch) {
     int r = DB_NOTFOUND;
     if (c->position >= 0) {
         PMA pma = c->pma;
@@ -877,6 +958,8 @@ int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize, u_int32_t rand4sem, 
 	    *fingerprint -= rand4sem*toku_calccrc32_kvpair (kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
             pma->pairs[c->position] = kv_pair_set_deleted(kv);
             r = 0;
+            if (lastkeymatch) 
+                pma_cursor_key_last(c, lastkeymatch);
         }
     }
     return r;
@@ -1057,21 +1140,6 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, FILENUM filenum, DISK
     }
 }    
 
-/* find the next matching key in the pma starting from index here */
-static int pma_next_key(PMA pma, DBT *k, int here, int n, int *found) {
-    assert(0 <= here);
-    *found = 0;
-    while (here < n && !kv_pair_inuse(pma->pairs[here]))
-        here += 1;
-    if (here < n) {
-        struct kv_pair *kv = kv_pair_ptr(pma->pairs[here]);
-        DBT k2;
-        if (0 == pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv))))
-            *found = 1;
-    }
-    return here;
-}
-
 static int pma_delete_dup (PMA pma, DBT *k, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
     /* find the left most matching key in the pma */
     int found;
@@ -1092,7 +1160,7 @@ static int pma_delete_dup (PMA pma, DBT *k, u_int32_t rand4sem, u_int32_t *finge
             }
         }
         /* find the next matching key in the pma */
-        righthere = pma_next_key(pma, k, righthere+1, pma->N, &rightfound);
+        righthere = pma_next_key(pma, k, 0, righthere+1, pma->N, &rightfound);
     }
     if (found) {
         /* check the density of the region centered around the deleted pairs */
