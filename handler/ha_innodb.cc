@@ -3775,6 +3775,16 @@ ha_innobase::update_row(
 
 	error = convert_error_code_to_mysql(error, user_thd);
 
+	if (error == 0 /* success */
+	    && uvect->n_fields == 0 /* no columns were updated */) {
+
+		/* This is the same as success, but instructs
+		MySQL that the row is not really updated and it
+		should not increase the count of updated rows.
+		This is fix for http://bugs.mysql.com/29157 */
+		error = HA_ERR_RECORD_IS_THE_SAME;
+	}
+
 	/* Tell InnoDB server that there might be work for
 	utility threads: */
 
