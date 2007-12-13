@@ -2113,7 +2113,6 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
         It is possible for single request for flush and destroying the
         loghandler.
       */
-      translog_buffer_unlock(buffer);
       DBUG_RETURN(0);
     }
   }
@@ -7223,6 +7222,7 @@ uint32 translog_get_file_size()
 
 void translog_set_file_size(uint32 size)
 {
+  struct st_translog_buffer *old_buffer= NULL;
   DBUG_ENTER("translog_set_file_size");
   translog_lock();
   DBUG_PRINT("enter", ("Size: %lu", (ulong) size));
@@ -7232,11 +7232,17 @@ void translog_set_file_size(uint32 size)
   /* if current file longer then finish it*/
   if (LSN_OFFSET(log_descriptor.horizon) >=  log_descriptor.log_file_max_size)
   {
-    struct st_translog_buffer *old_buffer= log_descriptor.bc.buffer;
+    old_buffer= log_descriptor.bc.buffer;
     translog_buffer_next(&log_descriptor.horizon, &log_descriptor.bc, 1);
     translog_buffer_unlock(old_buffer);
   }
   translog_unlock();
+  if (old_buffer)
+  {
+    translog_buffer_lock(old_buffer);
+    translog_buffer_flush(old_buffer);
+    translog_buffer_unlock(old_buffer);
+  }
   DBUG_VOID_RETURN;
 }
 

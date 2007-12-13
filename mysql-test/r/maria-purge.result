@@ -9,8 +9,6 @@ STRING_DATA char(255) default NULL
 CREATE TABLE t2 (
 STRING_DATA char(255) default NULL
 );
-set global maria_log_file_size=16777216;
-set global maria_checkpoint_interval=30;
 INSERT INTO t1 VALUES ('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
 INSERT INTO t1 VALUES ('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD');
 insert into t2 select * from t1;
@@ -35,12 +33,17 @@ insert into t2 select * from t1;
 insert into t1 select * from t2;
 insert into t2 select * from t1;
 insert into t1 select * from t2;
+set global maria_log_file_size=16777216;
+set global maria_checkpoint_interval=30;
+SHOW ENGINE maria logs;
+Type	Name	Status
+maria	master-data/maria_log.00000002	in use
 insert into t2 select * from t1;
 insert into t1 select * from t2;
 set global maria_checkpoint_interval=30;
 SHOW ENGINE maria logs;
 Type	Name	Status
-maria	master-data/maria_log.00000005	in use
+maria	master-data/maria_log.00000004	in use
 set global maria_log_file_size=16777216;
 select @@global.maria_log_file_size;
 @@global.maria_log_file_size
@@ -48,7 +51,7 @@ select @@global.maria_log_file_size;
 set global maria_checkpoint_interval=30;
 SHOW ENGINE maria logs;
 Type	Name	Status
-maria	master-data/maria_log.00000005	in use
+maria	master-data/maria_log.00000004	in use
 set global maria_log_file_size=8388608;
 select @@global.maria_log_file_size;
 @@global.maria_log_file_size
@@ -58,6 +61,7 @@ insert into t1 select * from t2;
 set global maria_checkpoint_interval=30;
 SHOW ENGINE maria logs;
 Type	Name	Status
+maria	master-data/maria_log.00000004	free
 maria	master-data/maria_log.00000005	free
 maria	master-data/maria_log.00000006	free
 maria	master-data/maria_log.00000007	free
