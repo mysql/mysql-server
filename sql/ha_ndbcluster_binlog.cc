@@ -2782,10 +2782,19 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
       const int fixed_cols= 4;
       bool ok=
         ex_tab->getNoOfColumns() >= fixed_cols &&
-        ex_tab->getColumn(0)->getType() == NDBCOL::Unsigned &&    /* server id */
-        ex_tab->getColumn(1)->getType() == NDBCOL::Unsigned &&    /* master_server_id */
-        ex_tab->getColumn(2)->getType() == NDBCOL::Bigunsigned && /* master_epoch */
-        ex_tab->getColumn(3)->getType() == NDBCOL::Unsigned;      /* count */
+        ex_tab->getNoOfPrimaryKeys() == 4 &&
+        /* server id */
+        ex_tab->getColumn(0)->getType() == NDBCOL::Unsigned &&
+        ex_tab->getColumn(0)->getPrimaryKey() &&
+        /* master_server_id */
+        ex_tab->getColumn(1)->getType() == NDBCOL::Unsigned &&
+        ex_tab->getColumn(1)->getPrimaryKey() &&
+        /* master_epoch */
+        ex_tab->getColumn(2)->getType() == NDBCOL::Bigunsigned &&
+        ex_tab->getColumn(2)->getPrimaryKey() &&
+        /* count */
+        ex_tab->getColumn(3)->getType() == NDBCOL::Unsigned &&
+        ex_tab->getColumn(3)->getPrimaryKey();
       if (ok)
       {
         int ncol= ndbtab->getNoOfColumns();
@@ -3085,6 +3094,12 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
     ndberror= dict->getNdbError();
     goto err;
   }
+  if (reptab->getNoOfPrimaryKeys() != 3)
+  {
+    error= -2;
+    error_str= "Wrong number of primary keys, expected 3";
+    goto err;
+  }
   error= -1;
   col_db= reptab->getColumn(error_str= nrt_db);
   if (col_db == NULL ||
@@ -3239,8 +3254,18 @@ err:
   else if (error < 0)
   {
     char msg[FN_REFLEN];
-    snprintf(msg, sizeof(msg),
-             "Missing or wrong type for column '%s'", error_str);
+    switch (error)
+    {
+      case -1:
+        snprintf(msg, sizeof(msg),
+                 "Missing or wrong type for column '%s'", error_str);
+        break;
+      case -2:
+        snprintf(msg, sizeof(msg), error_str);
+        break;
+      default:
+        abort();
+    }
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_NDB_REPLICATION_SCHEMA_ERROR,
                         ER(ER_NDB_REPLICATION_SCHEMA_ERROR),
