@@ -877,4 +877,63 @@ DROP TABLE t1;
 select @var;
 --error 1172
 (select 2) union (select 1 into @var);
+
+#
+# Bug#32858: Erro: "Incorrect usage of UNION and INTO" does not take subselects 
+# into account
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+
+SELECT a INTO @v FROM (
+  SELECT a FROM t1
+  UNION
+  SELECT a FROM t1
+) alias;
+
+SELECT a INTO OUTFILE 'union.out.file' FROM (
+  SELECT a FROM t1
+  UNION
+  SELECT a FROM t1 WHERE 0
+) alias;
+
+SELECT a INTO DUMPFILE 'union.out.file2' FROM (
+  SELECT a FROM t1
+  UNION
+  SELECT a FROM t1 WHERE 0
+) alias;
+
+#
+# INTO will not be allowed in subqueries in version 5.1 and above.
+#
+SELECT a FROM (
+  SELECT a FROM t1
+  UNION
+  SELECT a INTO @v FROM t1
+) alias;
+
+SELECT a FROM (
+  SELECT a FROM t1
+  UNION
+  SELECT a INTO OUTFILE 'union.out.file3' FROM t1
+) alias;
+
+SELECT a FROM (
+  SELECT a FROM t1
+  UNION
+  SELECT a INTO DUMPFILE 'union.out.file4' FROM t1
+) alias;
+
+SELECT a FROM t1 UNION SELECT a INTO @v FROM t1;
+SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file5' FROM t1;
+SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file6' FROM t1;
+--error ER_WRONG_USAGE
+SELECT a INTO @v FROM t1 UNION SELECT a FROM t1;
+--error ER_WRONG_USAGE
+SELECT a INTO OUTFILE 'union.out.file7' FROM t1 UNION SELECT a FROM t1;
+--error ER_WRONG_USAGE
+SELECT a INTO DUMPFILE 'union.out.file8' FROM t1 UNION SELECT a FROM t1;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
