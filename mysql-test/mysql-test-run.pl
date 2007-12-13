@@ -2818,16 +2818,15 @@ sub server_need_restart {
       ! mtr_same_opts($started_opts, $extra_opt) )
   {
     # Check if diff is binlog format only
+    # and the next test has $binlog_format_switch set
     my @diff_opts= mtr_diff_opts($started_opts, $extra_opt);
     if (@diff_opts == 2 and
 	$diff_opts[0] =~/^--binlog-format=/ and
-	 $diff_opts[1] =~/^--binlog-format=/)
+	$diff_opts[1] =~/^--binlog-format=/ and
+	defined $tinfo->{binlog_format_switch})
     {
       mtr_verbose("Using dynamic switch of binlog format from ",
 		  $diff_opts[0],"to", $diff_opts[1]);
-
-      die "Binlog format to switch to is not set"
-	unless defined $tinfo->{binlog_format_switch};
     }
     else
     {
