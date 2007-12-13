@@ -54,10 +54,12 @@ static const byte supremum_extra_data[] = {
 	0x65, 0x6d, 0x75, 0x6d	/* "supremum" */
 };
 
-#ifdef UNIV_DEBUG
-/* Array of zeros, used for debug assertions */
-static const byte zero[BTR_EXTERN_FIELD_REF_SIZE] = { 0, };
-#endif
+/** Assert that a block of memory is filled with zero bytes. */
+#define ASSERT_ZERO(b, s) \
+	ut_ad(!memcmp(b, field_ref_zero, ut_min(s, sizeof field_ref_zero)))
+/** Assert that a BLOB pointer is filled with zero bytes. */
+#define ASSERT_ZERO_BLOB(b) \
+	ut_ad(!memcmp(b, field_ref_zero, sizeof field_ref_zero))
 
 /* Enable some extra debugging output.  This code can be enabled
 independently of any UNIV_ debugging conditions. */
@@ -2868,11 +2870,8 @@ page_zip_write_rec_ext(
 
 		if (create) {
 			page_zip->n_blobs += n_ext;
-			ut_ad(!memcmp
-			      (ext_end - n_ext
-			       * BTR_EXTERN_FIELD_REF_SIZE,
-			       zero,
-			       BTR_EXTERN_FIELD_REF_SIZE));
+			ASSERT_ZERO_BLOB(ext_end - n_ext
+					 * BTR_EXTERN_FIELD_REF_SIZE);
 			memmove(ext_end - n_ext
 				* BTR_EXTERN_FIELD_REF_SIZE,
 				ext_end,
@@ -2901,9 +2900,7 @@ page_zip_write_rec_ext(
 			ut_ad(len == DATA_ROLL_PTR_LEN);
 
 			/* Log the preceding fields. */
-			ut_ad(!memcmp(data, zero,
-				      ut_min(src - start,
-					     sizeof zero)));
+			ASSERT_ZERO(data, src - start);
 			memcpy(data, start, src - start);
 			data += src - start;
 			start = src + (DATA_TRX_ID_LEN
@@ -2923,8 +2920,7 @@ page_zip_write_rec_ext(
 			      >= BTR_EXTERN_FIELD_REF_SIZE);
 			src += len - BTR_EXTERN_FIELD_REF_SIZE;
 
-			ut_ad(!memcmp(data, zero,
-				      ut_min(src - start, sizeof zero)));
+			ASSERT_ZERO(data, src - start);
 			memcpy(data, start, src - start);
 			data += src - start;
 			start = src + BTR_EXTERN_FIELD_REF_SIZE;
@@ -2939,7 +2935,7 @@ page_zip_write_rec_ext(
 	/* Log the last bytes of the record. */
 	len = rec_offs_data_size(offsets) - (start - rec);
 
-	ut_ad(!memcmp(data, zero, ut_min(len, sizeof zero)));
+	ASSERT_ZERO(data, len);
 	memcpy(data, start, len);
 	data += len;
 
@@ -3066,8 +3062,7 @@ page_zip_write_rec(
 				ut_ad(len == DATA_ROLL_PTR_LEN);
 
 				/* Log the preceding fields. */
-				ut_ad(!memcmp(data, zero,
-					      ut_min(src - rec, sizeof zero)));
+				ASSERT_ZERO(data, src - rec);
 				memcpy(data, rec, src - rec);
 				data += src - rec;
 
@@ -3084,8 +3079,7 @@ page_zip_write_rec(
 				len = rec_offs_data_size(offsets)
 					- (src - rec);
 
-				ut_ad(!memcmp(data, zero,
-					      ut_min(len, sizeof zero)));
+				ASSERT_ZERO(data, len);
 				memcpy(data, src, len);
 				data += len;
 			}
@@ -3099,7 +3093,7 @@ page_zip_write_rec(
 			/* Log the entire record. */
 			len = rec_offs_data_size(offsets);
 
-			ut_ad(!memcmp(data, zero, ut_min(len, sizeof zero)));
+			ASSERT_ZERO(data, len);
 			memcpy(data, rec, len);
 			data += len;
 		}
@@ -3115,7 +3109,7 @@ page_zip_write_rec(
 		len = rec_offs_data_size(offsets) - REC_NODE_PTR_SIZE;
 		ut_ad(data + len < storage - REC_NODE_PTR_SIZE
 		      * (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW));
-		ut_ad(!memcmp(data, zero, ut_min(len, sizeof zero)));
+		ASSERT_ZERO(data, len);
 		memcpy(data, rec, len);
 		data += len;
 
@@ -3857,19 +3851,19 @@ page_zip_dir_add_slot(
 			* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 		externs = stored
 			- page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
-		ut_ad(!memcmp(zero, externs
-			      - (PAGE_ZIP_DIR_SLOT_SIZE
-				 + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
-			      PAGE_ZIP_DIR_SLOT_SIZE
-			      + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN));
+		ASSERT_ZERO(externs
+			    - (PAGE_ZIP_DIR_SLOT_SIZE
+			       + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
+			    PAGE_ZIP_DIR_SLOT_SIZE
+			    + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 		memmove(externs - (PAGE_ZIP_DIR_SLOT_SIZE
 				   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
 			externs, stored - externs);
 	} else {
 		stored = dir
 			- page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
-		ut_ad(!memcmp(zero, stored - PAGE_ZIP_DIR_SLOT_SIZE,
-			      PAGE_ZIP_DIR_SLOT_SIZE));
+		ASSERT_ZERO(stored - PAGE_ZIP_DIR_SLOT_SIZE,
+			    PAGE_ZIP_DIR_SLOT_SIZE);
 	}
 
 	/* Move the uncompressed area backwards to make space
