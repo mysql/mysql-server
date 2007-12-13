@@ -227,7 +227,8 @@ struct __toku_dbc {
   void* __toku_dummy3[1];
   int (*c_get) (DBC *, DBT *, DBT *, u_int32_t); /* 32-bit offset=204 size=4, 64=bit offset=304 size=8 */
   int (*c_pget) (DBC *, DBT *, DBT *, DBT *, u_int32_t); /* 32-bit offset=208 size=4, 64=bit offset=312 size=8 */
-  void* __toku_dummy4[9]; /* Padding at the end */ 
+  int (*c_put) (DBC *, DBT *, DBT *, u_int32_t); /* 32-bit offset=212 size=4, 64=bit offset=320 size=8 */
+  void* __toku_dummy4[8]; /* Padding at the end */ 
 };
 struct __toku_dbt {
   void*data; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
