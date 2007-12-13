@@ -1673,13 +1673,18 @@ page_zip_apply_log_ext(
 			/* Skip trx_id and roll_ptr */
 			dst = rec_get_nth_field(rec, offsets,
 						i, &len);
-			if (UNIV_UNLIKELY(dst - next_out
-					  >= end - data)
+			if (UNIV_UNLIKELY(dst - next_out >= end - data)
 			    || UNIV_UNLIKELY
-			    (len < (DATA_TRX_ID_LEN
-				    + DATA_ROLL_PTR_LEN))
-			    || rec_offs_nth_extern(offsets,
-						   i)) {
+			    (len < (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN))
+			    || rec_offs_nth_extern(offsets, i)) {
+				page_zip_fail(("page_zip_apply_log_ext:"
+					       " trx_id len %lu,"
+					       " %p - %p >= %p - %p\n",
+					       (ulong) len,
+					       (const void*) dst,
+					       (const void*) next_out,
+					       (const void*) end,
+					       (const void*) data));
 				return(NULL);
 			}
 
@@ -1697,6 +1702,11 @@ page_zip_apply_log_ext(
 				- BTR_EXTERN_FIELD_REF_SIZE;
 
 			if (UNIV_UNLIKELY(data + len >= end)) {
+				page_zip_fail(("page_zip_apply_log_ext: "
+					       "ext %p+%lu >= %p\n",
+					       (const void*) data,
+					       (ulong) len,
+					       (const void*) end));
 				return(NULL);
 			}
 
@@ -1710,6 +1720,11 @@ page_zip_apply_log_ext(
 	/* Copy the last bytes of the record. */
 	len = rec_get_end(rec, offsets) - next_out;
 	if (UNIV_UNLIKELY(data + len >= end)) {
+		page_zip_fail(("page_zip_apply_log_ext: "
+			       "last %p+%lu >= %p\n",
+			       (const void*) data,
+			       (ulong) len,
+			       (const void*) end));
 		return(NULL);
 	}
 	memcpy(next_out, data, len);
@@ -1757,13 +1772,21 @@ page_zip_apply_log(
 		if (val & 0x80) {
 			val = (val & 0x7f) << 8 | *data++;
 			if (UNIV_UNLIKELY(!val)) {
+				page_zip_fail(("page_zip_apply_log:"
+					       " invalid val %x%x\n",
+					       data[-2], data[-1]));
 				return(NULL);
 			}
 		}
 		if (UNIV_UNLIKELY(data >= end)) {
+			page_zip_fail(("page_zip_apply_log: %p >= %p\n",
+				       (const void*) data,
+				       (const void*) end));
 			return(NULL);
 		}
 		if (UNIV_UNLIKELY((val >> 1) > n_dense)) {
+			page_zip_fail(("page_zip_apply_log: %lu>>1 > %lu\n",
+				       (ulong) val, (ulong) n_dense));
 			return(NULL);
 		}
 
@@ -1778,11 +1801,17 @@ page_zip_apply_log(
 		the free list), or a new record, with the next
 		available_heap_no. */
 		if (UNIV_UNLIKELY(hs > heap_status)) {
+			page_zip_fail(("page_zip_apply_log: %lu > %lu\n",
+				       (ulong) hs, (ulong) heap_status));
 			return(NULL);
 		} else if (hs == heap_status) {
 			/* A new record was allocated from the heap. */
 			if (UNIV_UNLIKELY(val & 1)) {
 				/* Only existing records may be cleared. */
+				page_zip_fail(("page_zip_apply_log:"
+					       " attempting to create"
+					       " deleted rec %lu\n",
+					       (ulong) hs));
 				return(NULL);
 			}
 			heap_status += 1 << REC_HEAP_NO_SHIFT;
@@ -1826,6 +1855,9 @@ page_zip_apply_log(
 			/* Non-leaf nodes should not contain any
 			externally stored columns. */
 			if (UNIV_UNLIKELY(hs & REC_STATUS_NODE_PTR)) {
+				page_zip_fail(("page_zip_apply_log: "
+					       "%lu&REC_STATUS_NODE_PTR\n",
+					       (ulong) hs));
 				return(NULL);
 			}
 
@@ -1840,6 +1872,11 @@ page_zip_apply_log(
 				- REC_NODE_PTR_SIZE;
 			/* Copy the data bytes, except node_ptr. */
 			if (UNIV_UNLIKELY(data + len >= end)) {
+				page_zip_fail(("page_zip_apply_log: "
+					       " node_ptr %p+%lu >= %p\n",
+					       (const void*) data,
+					       (ulong) len,
+					       (const void*) end));
 				return(NULL);
 			}
 			memcpy(rec, data, len);
@@ -1850,6 +1887,11 @@ page_zip_apply_log(
 			/* Copy all data bytes of
 			a record in a secondary index. */
 			if (UNIV_UNLIKELY(data + len >= end)) {
+				page_zip_fail(("page_zip_apply_log: "
+					       " sec %p+%lu >= %p\n",
+					       (const void*) data,
+					       (ulong) len,
+					       (const void*) end));
 				return(NULL);
 			}
 
@@ -1864,6 +1906,11 @@ page_zip_apply_log(
 			if (UNIV_UNLIKELY(data + l >= end)
 			    || UNIV_UNLIKELY(len < (DATA_TRX_ID_LEN
 						    + DATA_ROLL_PTR_LEN))) {
+				page_zip_fail(("page_zip_apply_log: "
+					       " trx_id %p+%lu >= %p\n",
+					       (const void*) data,
+					       (ulong) l,
+					       (const void*) end));
 				return(NULL);
 			}
 
@@ -1875,6 +1922,11 @@ page_zip_apply_log(
 			b = rec + l + (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 			len = rec_get_end(rec, offsets) - b;
 			if (UNIV_UNLIKELY(data + len >= end)) {
+				page_zip_fail(("page_zip_apply_log: "
+					       " clust %p+%lu >= %p\n",
+					       (const void*) data,
+					       (ulong) len,
+					       (const void*) end));
 				return(NULL);
 			}
 			memcpy(b, data, len);
@@ -2027,9 +2079,22 @@ zlib_done:
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
 		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
-		ut_a(page_zip_get_trailer_len(page_zip,
-					      dict_index_is_clust(index), NULL)
-		     + page_zip->m_end < page_zip_get_size(page_zip));
+	}
+
+	if (UNIV_UNLIKELY
+	    (page_zip_get_trailer_len(page_zip,
+				      dict_index_is_clust(index), NULL)
+	     + page_zip->m_end >= page_zip_get_size(page_zip))) {
+		ulint	is_clust = dict_index_is_clust(index);
+
+		page_zip_fail(("page_zip_decompress_node_ptrs:"
+			       " %lu + %lu >= %lu, %lu\n",
+			       (ulong) page_zip_get_trailer_len(
+				       page_zip, is_clust, NULL),
+			       (ulong) page_zip->m_end,
+			       (ulong) page_zip_get_size(page_zip),
+			       (ulong) is_clust));
+		return(FALSE);
 	}
 
 	/* Restore the uncompressed columns in heap_no order. */
@@ -2167,8 +2232,17 @@ zlib_done:
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
 		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
-		ut_a(page_zip_get_trailer_len(page_zip, FALSE, NULL)
-		     + page_zip->m_end < page_zip_get_size(page_zip));
+	}
+
+	if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, FALSE, NULL)
+			  + page_zip->m_end >= page_zip_get_size(page_zip))) {
+
+		page_zip_fail(("page_zip_decompress_sec: %lu + %lu >= %lu\n",
+			       (ulong) page_zip_get_trailer_len(
+				       page_zip, FALSE, NULL),
+			       (ulong) page_zip->m_end,
+			       (ulong) page_zip_get_size(page_zip)));
+		return(FALSE);
 	}
 
 	/* There are no uncompressed columns on leaf pages of
@@ -2470,8 +2544,17 @@ zlib_done:
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
 		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
-		ut_a(page_zip_get_trailer_len(page_zip, TRUE, NULL)
-		     + page_zip->m_end < page_zip_get_size(page_zip));
+	}
+
+	if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, TRUE, NULL)
+			  + page_zip->m_end >= page_zip_get_size(page_zip))) {
+
+		page_zip_fail(("page_zip_decompress_clust: %lu + %lu >= %lu\n",
+			       (ulong) page_zip_get_trailer_len(
+				       page_zip, TRUE, NULL),
+			       (ulong) page_zip->m_end,
+			       (ulong) page_zip_get_size(page_zip)));
+		return(FALSE);
 	}
 
 	storage = page_zip->data + page_zip_get_size(page_zip)
