@@ -69,3 +69,158 @@ a
 Last_SQL_Error
 0
 DROP TABLE t1, t2;
+select @@global.slave_exec_mode /* must be IDEMPOTENT */;
+@@global.slave_exec_mode
+IDEMPOTENT
+create table ti1 (b int primary key) engine = innodb;
+create table ti2 (a int primary key, b int, foreign key (b) references ti1(b))
+engine = innodb;
+set foreign_key_checks=1 /* ensure the check */;
+insert into ti1 values (1),(2),(3);
+insert into ti2 set a=2, b=2;
+select * from ti1 order by b /* must be (1),(2),(3) */;
+b
+1
+2
+3
+insert into ti2 set a=1, b=1;
+select * from ti2 order by b /* must be (1,1) (2,2) */;
+a	b
+1	1
+2	2
+set @save_binlog_format= @@session.binlog_format;
+set @@session.binlog_format= row;
+delete from ti1 where b=1;
+select * from ti1 order by b /* must be (2),(3) */;
+b
+2
+3
+select * from ti1 order by b /* must stays as were on master (1),(2),(3) */;
+b
+1
+2
+3
+delete from ti1 where b=3;
+insert into ti2 set a=3, b=3;
+select * from ti2 order by b /* must be (1,1),(2,2) - not inserted */;
+a	b
+1	1
+2	2
+set global slave_exec_mode='IDEMPOTENT';
+set global slave_exec_mode='STRICT';
+set global slave_exec_mode='IDEMPOTENT,STRICT';
+ERROR HY000: Ambiguous slave modes combination. 
+select @@global.slave_exec_mode /* must be STRICT */;
+@@global.slave_exec_mode
+STRICT
+*** foreign keys errors as above now forces to stop
+set foreign_key_checks=0;
+drop table ti2, ti1;
+create table ti1 (b int primary key) engine = innodb;
+create table ti2 (a int primary key, b int, foreign key (b) references ti1(b))
+engine = innodb;
+set foreign_key_checks=1 /* ensure the check */;
+insert into ti1 values (1),(2),(3);
+insert into ti2 set a=2, b=2;
+select * from ti1 order by b /* must be (1),(2),(3) */;
+b
+1
+2
+3
+*** conspire future problem
+insert into ti2 set a=1, b=1;
+select * from ti2 order by b /* must be (1,1) (2,2) */;
+a	b
+1	1
+2	2
+delete from ti1 where b=1 /* offending delete event */;
+select * from ti1 order by b /* must be (2),(3) */;
+b
+2
+3
+*** slave must stop
+Last_SQL_Error
+0
+select * from ti1 order by b /* must be (1),(2),(3) - not deleted */;
+b
+1
+2
+3
+set foreign_key_checks= 0;
+delete from ti2 where b=1;
+set foreign_key_checks= 1;
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+set global slave_exec_mode='STRICT';
+*** conspire the following insert failure
+*** conspire future problem
+delete from ti1 where b=3;
+insert into ti2 set a=3, b=3 /* offending write event */;
+*** slave must stop
+Last_SQL_Error
+1452
+select * from ti2 order by b /* must be (2,2) */;
+a	b
+2	2
+set foreign_key_checks= 0;
+insert into ti1 set b=3;
+set foreign_key_checks= 1;
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+set global slave_exec_mode='STRICT';
+select * from ti2 order by b /* must be (2,2),(3,3) */;
+a	b
+2	2
+3	3
+*** other errors
+*** conspiring query
+insert into ti1 set b=1;
+insert into ti1 set b=1 /* offending write event */;
+*** slave must stop
+Last_SQL_Error
+1062
+set foreign_key_checks= 0;
+delete from ti1 where b=1;
+set foreign_key_checks= 1;
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+set global slave_exec_mode='STRICT';
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (-1),(-2),(-3);
+INSERT INTO t2 VALUES (-1),(-2),(-3);
+DELETE FROM t1 WHERE a = -2;
+DELETE FROM t2 WHERE a = -2;
+DELETE FROM t1 WHERE a = -2;
+*** slave must stop
+Last_SQL_Error
+1032
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+set global slave_exec_mode='STRICT';
+DELETE FROM t2 WHERE a = -2;
+*** slave must stop
+Last_SQL_Error
+0
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+set global slave_exec_mode='STRICT';
+UPDATE t1 SET a = 1 WHERE a = -1;
+UPDATE t2 SET a = 1 WHERE a = -1;
+UPDATE t1 SET a = 1 WHERE a = -1;
+*** slave must stop
+Last_SQL_Error
+1032
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+set global slave_exec_mode='STRICT';
+UPDATE t2 SET a = 1 WHERE a = -1;
+*** slave must stop
+Last_SQL_Error
+0
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+set global slave_exec_mode='STRICT';
+set @@session.binlog_format= @save_binlog_format;
+drop table t1,t2,ti2,ti1;
+*** end of tests

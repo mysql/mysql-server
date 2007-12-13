@@ -809,6 +809,12 @@ public:
 
   bool cache_stmt;
 
+  /**
+    A storage to cache the global system variable's value.
+    Handling of a separate event will be governed its member.
+  */
+  ulong slave_exec_mode;
+
 #ifndef MYSQL_CLIENT
   THD* thd;
 

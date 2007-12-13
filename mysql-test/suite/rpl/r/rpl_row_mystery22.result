@@ -5,6 +5,7 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 create table t1(n int auto_increment primary key, s char(10));
+set @@global.slave_exec_mode= 'IDEMPOTENT';
 insert into t1 values (2,'old');
 insert into t1 values(NULL,'new');
 insert into t1 values(NULL,'new');
@@ -28,3 +29,4 @@ n	s
 1	new
 3	new
 drop table t1;
+set @@global.slave_exec_mode= default;
