@@ -1303,6 +1303,7 @@ static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *,
 
 static int toku_db_set_flags(DB * db, u_int32_t flags) {
 
+    /* the following matches BDB */
     if (db_opened(db) && flags != 0) return EINVAL;
 
     u_int32_t tflags;
