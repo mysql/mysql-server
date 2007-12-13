@@ -23,7 +23,7 @@ update t1 set a=2 /* will be "killed" after work has been done */;
 #todo: introduce a suite private macro that provides numeric values
 #      for some constants like the offset of the first real event
 #      that is different between severs versions.
---exec $MYSQL_BINLOG --start-position=106 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --start-position=107 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
