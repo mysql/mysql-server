@@ -2500,11 +2500,6 @@ static void test_dup() {
 static void pma_tests (void) {
     toku_memory_check=1;
 
-    test_pma_cursor_delete_under();  local_memory_check_all_free();    
-    test_pma_cursor_delete_under_mode(3, TOKU_DB_DUP);  local_memory_check_all_free();    
-    test_pma_cursor_delete_under_mode(3, TOKU_DB_DUP+TOKU_DB_DUPSORT);  local_memory_check_all_free();    
-    return;
-
     toku_test_keycompare();            local_memory_check_all_free();
     test_pma_compare_fun(0);      local_memory_check_all_free();
     test_pma_compare_fun(1);      local_memory_check_all_free();
@@ -2529,6 +2524,7 @@ static void pma_tests (void) {
     test_pma_cursor_set_range();  local_memory_check_all_free();    
     test_pma_cursor_delete_under();  local_memory_check_all_free();    
     test_pma_cursor_delete_under_mode(3, TOKU_DB_DUP);  local_memory_check_all_free();    
+    test_pma_cursor_delete_under_mode(3, TOKU_DB_DUP+TOKU_DB_DUPSORT);  local_memory_check_all_free();    
     test_pma_cursor_set_both();   local_memory_check_all_free();
     test_dup();
 }
