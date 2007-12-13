@@ -46,7 +46,7 @@
 #define FMT_G_BUFSIZE(PREC) (3 + (PREC) + 5 + 1)
 
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) && !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 static const char *HA_ERR(int i)
 {
   switch (i) {
