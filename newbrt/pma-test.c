@@ -1898,21 +1898,18 @@ static void test_pma_cursor_delete_under() {
     assert(error == 0);
 
     PMA_CURSOR cursor;
-    error = toku_pma_cursor(pma, &cursor, &skey, &sval);
-    assert(error == 0);
+    error = toku_pma_cursor(pma, &cursor, &skey, &sval); assert(error == 0);
 
-    int kvsize;
+    int kvsize, lastkey;
 
     /* delete under an uninitialized cursor should fail */
-    error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
+    error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, 0);
     assert(error == DB_NOTFOUND);
 
-    DBT key, val;
     int k, v;
 
-    int i;
-
     /* insert 0 .. n-1 */
+    int i;
     for (i=0; i<n; i++) {
         k = htonl(i);
         v = i;
@@ -1925,6 +1922,7 @@ static void test_pma_cursor_delete_under() {
             assert(error == DB_NOTFOUND);
             break;
         } 
+        DBT key, val;
         toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         error = toku_pma_cursor_get_current(cursor, &key, &val, 0);
@@ -1937,21 +1935,94 @@ static void test_pma_cursor_delete_under() {
         toku_free(val.data);
 
         /* delete under should succeed */
-        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
-        assert(error == 0);
+        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, &lastkey);
+        assert(error == 0 && lastkey);
 
         /* 2nd delete under should fail */
-        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
+        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, 0);
         assert(error == DB_NOTFOUND);
     }
     assert(i == n);
 
-    error = toku_pma_cursor_free(&cursor);
-    assert(error == 0);
+    error = toku_pma_cursor_free(&cursor); assert(error == 0);
     assert(toku_pma_n_entries(pma) == 0);
 
-    error = toku_pma_free(&pma);
+    error = toku_pma_free(&pma); assert(error == 0);
+}
+
+static void test_pma_cursor_delete_under_mode(int n, int dup_mode) {
+    printf("test_pma_cursor_delete_under_mode:%d %d\n", n, dup_mode);
+
+    int error;
+    PMA pma;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    error = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, n * (8 + sizeof (int) + sizeof (int)));
     assert(error == 0);
+
+    error = toku_pma_set_dup_mode(pma, dup_mode); assert(error == 0);
+
+    PMA_CURSOR cursor;
+    error = toku_pma_cursor(pma, &cursor, &skey, &sval); assert(error == 0);
+
+    int kvsize, lastkey;
+
+    /* delete under an uninitialized cursor should fail */
+    error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, &lastkey);
+    assert(error == DB_NOTFOUND);
+
+    int k, v;
+
+    k = htonl(1); v = 0;
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+
+    /* insert n-2 dups */
+    int i;
+    for (i=1; i < n-1; i++) {
+        k = htonl(2);
+        v = i;
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    }
+
+    k = htonl(3); v = i;
+    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+
+    for (i=0;;i++) {
+        error = toku_pma_cursor_set_position_next(cursor);
+        if (error != 0) {
+            assert(error == DB_NOTFOUND);
+            break;
+        } 
+        DBT key, val;
+        toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
+        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        error = toku_pma_cursor_get_current(cursor, &key, &val, 0);
+        assert(error == 0);
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == i);
+        toku_free(key.data);
+        toku_free(val.data);
+
+        /* delete under should succeed */
+        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, &lastkey);
+        assert(error == 0);
+        if (i == 0 || i >= n-2) assert(lastkey);
+
+        /* 2nd delete under should fail */
+        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, &lastkey);
+        assert(error == DB_NOTFOUND);
+    }
+    assert(i == n);
+
+    error = toku_pma_cursor_free(&cursor); assert(error == 0);
+    assert(toku_pma_n_entries(pma) == 0);
+
+    error = toku_pma_free(&pma); assert(error == 0);
 }
 
 static void test_pma_cursor_set_both() {
@@ -2428,6 +2499,12 @@ static void test_dup() {
 
 static void pma_tests (void) {
     toku_memory_check=1;
+
+    test_pma_cursor_delete_under();  local_memory_check_all_free();    
+    test_pma_cursor_delete_under_mode(3, TOKU_DB_DUP);  local_memory_check_all_free();    
+    test_pma_cursor_delete_under_mode(3, TOKU_DB_DUP+TOKU_DB_DUPSORT);  local_memory_check_all_free();    
+    return;
+
     toku_test_keycompare();            local_memory_check_all_free();
     test_pma_compare_fun(0);      local_memory_check_all_free();
     test_pma_compare_fun(1);      local_memory_check_all_free();
@@ -2451,6 +2528,7 @@ static void pma_tests (void) {
     test_pma_cursor_set_key();    local_memory_check_all_free();
     test_pma_cursor_set_range();  local_memory_check_all_free();    
     test_pma_cursor_delete_under();  local_memory_check_all_free();    
+    test_pma_cursor_delete_under_mode(3, TOKU_DB_DUP);  local_memory_check_all_free();    
     test_pma_cursor_set_both();   local_memory_check_all_free();
     test_dup();
 }

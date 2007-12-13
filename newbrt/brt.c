@@ -2947,6 +2947,76 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
     return 0;
 }
 
+/* clear the right present flag if the key matches the pivot key */
+static int brt_node_maybe_clear_right_pivot_flag(BRTNODE node, DBT *key, DBT *val, int childnum, BRT t) {
+    int match = 0;
+    if (0 <= childnum) {
+        if (0 == brt_compare_pivot(t, key, val, node->u.n.childkeys[childnum])) {
+            assert(node->u.n.pivotflags[childnum] & BRT_PIVOT_PRESENT_R);
+            node->u.n.pivotflags[childnum] &= ~BRT_PIVOT_PRESENT_R;
+            node->dirty = 1;
+            match = 1;
+        }
+    }
+    return match;
+}
+
+/* clear the left present flag if the key matches the pivot key */
+static int brt_node_maybe_clear_left_pivot_flag(BRTNODE node, DBT *key, DBT *val, int childnum, BRT t) {
+    int match = 0;
+    if (childnum < node->u.n.n_children - 1) {
+        if (0 == brt_compare_pivot(t, key, val, node->u.n.childkeys[childnum])) {
+            assert(node->u.n.pivotflags[childnum] & BRT_PIVOT_PRESENT_L);
+            node->u.n.pivotflags[childnum] &= ~BRT_PIVOT_PRESENT_L;
+            node->dirty = 1;
+            match = 1;
+        }
+    }
+    return match;
+}
+
+/* check if any subtree of this node contains the key */
+static int brt_node_any_key_present(BRTNODE node, DBT *key, DBT *val, BRT t) {
+    int i;
+    for (i=0; i<node->u.n.n_children-1; i++)
+        if (0 == brt_compare_pivot(t, key, val, node->u.n.childkeys[i]) && (node->u.n.pivotflags[i] & (BRT_PIVOT_PRESENT_L + BRT_PIVOT_PRESENT_R)))
+            return 1;
+    return 0;
+}
+
+/* clear the key present flags in the nodes along the cursor path */
+static void brt_cursor_maybe_clear_pivot_flags(BRT_CURSOR cursor) {
+    int r;
+    DBT key, *k; 
+    toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
+    k = &key;
+
+    DBT val, *v;
+    if (cursor->brt->flags & TOKU_DB_DUPSORT) {
+        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        v = &val;
+    } else 
+        v = 0;
+
+    r = toku_pma_cursor_get_current(cursor->pmacurs, k, v, 1); assert(r == 0);
+
+    int i;
+    for (i = cursor->path_len - 2; i >= 0; i -= 1) {
+        BRTNODE node = cursor->path[i];
+        int childnum = cursor->pathcnum[i];
+        int match;
+        match = brt_node_maybe_clear_left_pivot_flag(node, k, v, childnum, cursor->brt);
+        match += brt_node_maybe_clear_right_pivot_flag(node, k, v, childnum-1, cursor->brt);
+        if (!match) break;
+
+        /* if matching keys in any subtrees of this node then we are done */
+        if (brt_node_any_key_present(node, k, v, cursor->brt)) break;
+    }
+    
+    toku_free(k->data);
+    if (v) toku_free(v->data);
+}
+
 /* delete the key and value under the cursor */
 int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags __attribute__((__unused__))) {
     int r;
@@ -2954,11 +3024,12 @@ int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags __attribute__((__unused_
     if (cursor->path_len > 0) {
         BRTNODE node = cursor->path[cursor->path_len-1];
         assert(node->height == 0);
-        int kvsize;
-        r = toku_pma_cursor_delete_under(cursor->pmacurs, &kvsize, node->rand4fingerprint, &node->local_fingerprint);
+        int kvsize, lastmatch;
+        r = toku_pma_cursor_delete_under(cursor->pmacurs, &kvsize, node->rand4fingerprint, &node->local_fingerprint, &lastmatch);
         if (r == 0) {
             node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + kvsize;
             node->dirty = 1;
+            if (lastmatch) brt_cursor_maybe_clear_pivot_flags(cursor);
         }
     } else
         r = DB_NOTFOUND;

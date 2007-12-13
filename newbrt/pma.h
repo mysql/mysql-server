@@ -117,7 +117,7 @@ int toku_pma_cursor_set_key(PMA_CURSOR c, DBT *key);
 int toku_pma_cursor_set_range(PMA_CURSOR c, DBT *key);
 
 /* delete the key value pair under the cursor, return the size of the pair */
-int toku_pma_cursor_delete_under(PMA_CURSOR /*c*/, int */*kvsize*/, u_int32_t /*rand4sem*/, u_int32_t */*fingerprint*/);
+int toku_pma_cursor_delete_under(PMA_CURSOR /*c*/, int */*kvsize*/, u_int32_t /*rand4sem*/, u_int32_t */*fingerprint*/, int */*lastkeymatch*/);
 
 int toku_pma_random_pick(PMA, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 
