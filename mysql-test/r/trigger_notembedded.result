@@ -448,4 +448,18 @@ DROP TABLE t1;
 DROP DATABASE mysqltest_db1;
 USE test;
 End of 5.0 tests.
+drop table if exists t1;
+create table t1 (i int);
+connection: default
+lock tables t1 write;
+connection: flush
+flush tables with read lock;;
+connection: default
+create trigger t1_bi before insert on t1 for each row begin end;
+unlock tables;
+connection: flush
+unlock tables;
+select * from t1;
+i
+drop table t1;
 End of 5.1 tests.
