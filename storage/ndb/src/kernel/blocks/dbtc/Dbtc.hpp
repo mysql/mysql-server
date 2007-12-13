@@ -1681,6 +1681,7 @@ private:
   UintR cfailure_nr;
   UintR coperationsize;
   UintR ctcTimer;
+  UintR cDbHbInterval;
 
   ApiConnectRecordPtr tmpApiConnectptr;
   Uint64 tcheckGcpId;
