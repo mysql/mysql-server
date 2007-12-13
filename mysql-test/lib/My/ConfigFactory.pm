@@ -139,27 +139,37 @@ sub fix_std_data {
   return "$basedir/mysql-test/std_data";
 }
 
+sub ssl_supported {
+  my ($self)= @_;
+  return $self->{ARGS}->{ssl};
+}
+
 sub fix_ssl_ca {
+  return if !ssl_supported(@_);
   my $std_data= fix_std_data(@_);
   return "$std_data/cacert.pem"
 }
 
 sub fix_ssl_server_cert {
+  return if !ssl_supported(@_);
   my $std_data= fix_std_data(@_);
   return "$std_data/server-cert.pem"
 }
 
 sub fix_ssl_client_cert {
+  return if !ssl_supported(@_);
   my $std_data= fix_std_data(@_);
   return "$std_data/client-cert.pem"
 }
 
 sub fix_ssl_server_key {
+  return if !ssl_supported(@_);
   my $std_data= fix_std_data(@_);
   return "$std_data/server-key.pem"
 }
 
 sub fix_ssl_client_key {
+  return if !ssl_supported(@_);
   my $std_data= fix_std_data(@_);
   return "$std_data/client-key.pem"
 }
@@ -188,9 +198,9 @@ my @mysqld_rules=
  { 'server-id' => \&fix_server_id, },
  # By default, prevent the started mysqld to access files outside of vardir
  { 'secure-file-priv' => sub { return shift->{ARGS}->{vardir}; } },
- { 'loose-ssl-ca' => \&fix_ssl_ca },
- { 'loose-ssl-cert' => \&fix_ssl_server_cert },
- { 'loose-ssl-key' => \&fix_ssl_server_key },
+ { 'ssl-ca' => \&fix_ssl_ca },
+ { 'ssl-cert' => \&fix_ssl_server_cert },
+ { 'ssl-key' => \&fix_ssl_server_key },
   );
 
 
@@ -268,9 +278,9 @@ my @client_rules=
 #
 my @mysqltest_rules=
 (
- { 'loose-ssl-ca' => \&fix_ssl_ca },
- { 'loose-ssl-cert' => \&fix_ssl_client_cert },
- { 'loose-ssl-key' => \&fix_ssl_client_key },
+ { 'ssl-ca' => \&fix_ssl_ca },
+ { 'ssl-cert' => \&fix_ssl_client_cert },
+ { 'ssl-key' => \&fix_ssl_client_key },
 );
 
 
