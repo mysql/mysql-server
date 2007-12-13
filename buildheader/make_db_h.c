@@ -58,6 +58,8 @@ void print_defines (void) {
     dodefine(DB_DUP);
     dodefine(DB_DUPSORT);
 
+    dodefine(DB_KEYFIRST);
+    dodefine(DB_KEYLAST);
     dodefine(DB_NODUPDATA);
     dodefine(DB_NOOVERWRITE);
 
