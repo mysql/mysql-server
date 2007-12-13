@@ -250,6 +250,11 @@ SELECT HEX(a) FROM t1;
 HEX(a)
 1
 DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+INSERT DELAYED INTO t1 SET b= b();
+ERROR 42S22: Unknown column 'b' in 'field list'
+DROP TABLE t1;
+End of 5.0 tests
 DROP TABLE IF EXISTS t1,t2;
 SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
 CREATE TABLE `t1` (
@@ -279,3 +284,4 @@ ERROR 22007: Incorrect date value: '0000-00-00' for column 'f1' at row 1
 INSERT DELAYED INTO t2 VALUES (0,'2007-00-00');
 ERROR 22007: Incorrect date value: '2007-00-00' for column 'f1' at row 1
 DROP TABLE t1,t2;
+End of 5.1 tests
