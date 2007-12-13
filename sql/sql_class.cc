@@ -383,7 +383,7 @@ Diagnostics_area::reset_diagnostics_area()
 
 void
 Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
-                                ulong last_insert_id_arg,
+                                ulonglong last_insert_id_arg,
                                 const char *message_arg)
 {
   DBUG_ASSERT(! is_set());
