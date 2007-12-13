@@ -296,13 +296,21 @@ static byte* blackhole_get_key(st_blackhole_share *share, uint *length,
 }
 
 
+static void blackhole_free_key(st_blackhole_share *share)
+{
+  thr_lock_delete(&share->lock);
+  my_free((byte*) share, MYF(0));
+} 
+
+
 bool blackhole_db_init()
 {
   DBUG_ENTER("blackhole_db_init");
   if (pthread_mutex_init(&blackhole_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (hash_init(&blackhole_open_tables, &my_charset_bin, 32, 0, 0,
-                    (hash_get_key) blackhole_get_key, 0, 0))
+                    (hash_get_key) blackhole_get_key,
+                    (hash_free_key) blackhole_free_key, 0))
   {
     VOID(pthread_mutex_destroy(&blackhole_mutex));
   }
