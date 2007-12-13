@@ -574,7 +574,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool log_on= ((thd->options & OPTION_BIN_LOG) ||
                 (!(thd->security_ctx->master_access & SUPER_ACL)));
 #endif
-  thr_lock_type lock_type = table_list->lock_type;
+  thr_lock_type lock_type;
   Item *unused_conds= 0;
   DBUG_ENTER("mysql_insert");
 
@@ -609,6 +609,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (open_and_lock_tables(thd, table_list))
       DBUG_RETURN(TRUE);
   }
+  lock_type= table_list->lock_type;
 
   thd->proc_info="init";
   thd->used_tables=0;
@@ -626,7 +627,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
-  lock_type= table_list->lock_type;
 
   context= &thd->lex->select_lex.context;
   /*

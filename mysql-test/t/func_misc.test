@@ -214,6 +214,17 @@ SELECT NAME_CONST('test', -1.0);
 SELECT NAME_CONST('test', 'test');
 
 #
+# Bug #32559: connection hangs on query with name_const
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (), (), ();
+--error ER_WRONG_ARGUMENTS
+SELECT NAME_CONST(a, '1') FROM t1;
+--error ER_WRONG_ARGUMENTS
+SET INSERT_ID= NAME_CONST(a, a);
+DROP TABLE t1;
+
+#
 # Bug #31349: ERROR 1062 (23000): Duplicate entry '' for key 'group_key'
 #
 create table t1 (a int not null);
