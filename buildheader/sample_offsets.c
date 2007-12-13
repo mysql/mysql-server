@@ -167,7 +167,8 @@ void sample_dbc_offsets (void) {
     STRUCT_SETUP(DBC, c_close, "int (*%s) (DBC *)");
     STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, u_int32_t)");
     STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
-    STRUCT_SETUP(DBC, c_pget,   "int (*%s) (DBC *, DBT *, DBT *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DBC, c_pget,  "int (*%s) (DBC *, DBT *, DBT *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DBC, c_put,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
     sort_and_dump_fields("dbc", sizeof(DBC));
 }
 

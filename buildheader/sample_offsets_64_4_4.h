@@ -87,6 +87,7 @@ struct fieldinfo dbc_fields64[] = {
   {"int (*c_del) (DBC *, u_int32_t)", 288, 8},
   {"int (*c_get) (DBC *, DBT *, DBT *, u_int32_t)", 304, 8},
   {"int (*c_pget) (DBC *, DBT *, DBT *, DBT *, u_int32_t)", 312, 8},
+  {"int (*c_put) (DBC *, DBT *, DBT *, u_int32_t)", 320, 8},
   {0, 392, 392} /* size of whole struct */
 };
 struct fieldinfo dbt_fields64[] = {
