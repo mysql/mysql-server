@@ -939,6 +939,79 @@ static int toku_c_del(DBC * c, u_int32_t flags) {
     return r;    
 }
 
+static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
+    DB* db = dbc->i->db;
+    unsigned int brtflags;
+    int r;
+    DBT* put_key  = key;
+    DBT* put_data = data;
+    DBT* get_key  = key;
+    DBT* get_data = data;
+    
+    //Cannot c_put in a secondary index.
+    if (db->i->primary!=0) return EINVAL;
+    toku_brt_get_flags(db->i->brt, &brtflags);
+    //We do not support duplicates without sorting.
+    if (!(brtflags & TOKU_DB_DUPSORT) && (brtflags & TOKU_DB_DUP)) return EINVAL;
+    
+    if (flags==DB_CURRENT) {
+        DBT key_local;
+        DBT data_local;
+        memset(&key_local, 0, sizeof(DBT));
+        memset(&data_local, 0, sizeof(DBT));
+        //Can't afford to overwrite the local storage.
+        key_local.flags = DB_DBT_MALLOC;
+        data_local.flags = DB_DBT_MALLOC;
+        r = toku_c_get(dbc, &key_local, &data_local, DB_CURRENT);
+        if (0) {
+            cleanup:
+            if (flags==DB_CURRENT) {
+                free(key_local.data);
+                free(data_local.data);
+            }
+            return r;
+        }
+        if (r==DB_KEYEMPTY) return DB_NOTFOUND;
+        if (r!=0) return r;
+        if (brtflags & TOKU_DB_DUPSORT) {
+            r = db->i->brt->dup_compare(db, &data_local, data);
+            if (r!=0) {r = EINVAL; goto cleanup;}
+        }
+        //Remove old pair.
+        r = toku_c_del(dbc, 0);
+        if (r!=0) goto cleanup;
+        get_key = put_key  = &key_local;
+        //TEST: We ignore key entirely (do not return data in it either).
+        //Should we copy the data we eventually get in get_key over into the key DBT?
+        //If so, just use
+        //r  = toku_brt_dbt_set_key(db->i->brt,  key, &key_local, key_local.size);
+        //to copy at some point.
+        goto finish;
+    }
+    else if (flags==DB_KEYFIRST || flags==DB_KEYLAST) {
+        goto finish;        
+    }
+    else if (flags==DB_NODUPDATA) {
+        //Must support sorted duplicates.
+        if (!(brtflags & TOKU_DB_DUPSORT)) return EINVAL;
+        //Test: Does BDB just test for 'already exists',
+        //or does it really test using the comparison function?
+        //(i.e. like in DB_CURRENT, using dup_compare)
+        //Are they the same thing?
+        r = toku_c_get(dbc, key, data, DB_GET_BOTH);
+        if (r==0) return DB_KEYEXIST;
+        if (r!=DB_NOTFOUND) return r;
+        goto finish;
+    }
+    else return EINVAL;
+finish:
+    //Insert new data with the key we got from c_get.
+    r = db->put(db, dbc->i->txn, put_key, put_data, 0);
+    if (r!=0) goto cleanup;
+    r = toku_c_get(dbc, get_key, get_data, DB_GET_BOTH);
+    goto cleanup;
+}
+
 static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
     if (flags != 0)
         return EINVAL;
@@ -948,6 +1021,7 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
     memset(result, 0, sizeof *result);
     result->c_get = toku_c_get;
     result->c_pget = toku_c_pget;
+    result->c_put = toku_c_put;
     result->c_close = toku_c_close;
     result->c_del = toku_c_del;
     MALLOC(result->i);
