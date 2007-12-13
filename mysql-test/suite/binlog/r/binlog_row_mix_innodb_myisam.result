@@ -418,7 +418,7 @@ create table ti (a int) engine=innodb;
 reset master;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
+master-bin.000001	107		
 begin;
 insert into ti values (1);
 insert into ti values (2) ;
@@ -431,7 +431,7 @@ count(*)
 2
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	395		
+master-bin.000001	396		
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
@@ -453,7 +453,7 @@ delete from tt where a=1;
 reset master;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
+master-bin.000001	107		
 begin;
 insert into ti values (1);
 insert into ti values (2) /* to make the dup error in the following */;
@@ -462,7 +462,7 @@ ERROR 23000: Duplicate entry '2' for key 'a'
 rollback;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
+master-bin.000001	107		
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 select count(*) from ti /* zero */;
