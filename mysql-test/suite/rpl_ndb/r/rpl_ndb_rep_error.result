@@ -6,7 +6,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 create table t1 (a int key, X int) engine ndb;
 Warnings:
-Error	1610	Bad schema for mysql.ndb_replication table. Message: Missing or wrong type for column 'server_id'
+Error	1610	Bad schema for mysql.ndb_replication table. Message: Wrong number of primary key parts, expected 3
 drop table t1;
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$X(X)");
 create table t1 (a int key, X int) engine ndb;
