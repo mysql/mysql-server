@@ -724,6 +724,19 @@ set @@sort_buffer_size=default;
 DROP TABLE t1,t2;
 
 #
+# Bug #32815: query with ORDER BY and a possible ref_or_null access
+#
+
+CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES 
+  (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2); 
+
+EXPLAIN SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
+SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
+
+DROP TABLE t1;
+
+
 # Test of behaviour with CREATE ... SELECT
 #
 

@@ -5701,6 +5701,9 @@ void Field_date::sql_type(String &res) const
     1  Value was cut during conversion
     2  Wrong date string
     3  Datetime value that was cut (warning level NOTE)
+       This is used by opt_range.cc:get_mm_leaf(). Note that there is a
+       nearly-identical class Field_date doesn't ever return 3 from its
+       store function.
 */
 
 int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)

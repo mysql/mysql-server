@@ -5735,6 +5735,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     {
       tree= new (alloc) SEL_ARG(field, 0, 0);
       tree->type= SEL_ARG::IMPOSSIBLE;
+      goto end;
     }
     else
     {
@@ -5743,8 +5744,32 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
         for the cases like int_field > 999999999999999999999999 as well.
       */
       tree= 0;
+      if (err == 3 && field->type() == FIELD_TYPE_DATE && 
+          (type == Item_func::GT_FUNC || type == Item_func::GE_FUNC || 
+           type == Item_func::LT_FUNC || type == Item_func::LE_FUNC) )
+      {
+        /*
+          We were saving DATETIME into a DATE column, the conversion went ok
+          but a non-zero time part was cut off.
+
+          In MySQL's SQL dialect, DATE and DATETIME are compared as datetime
+          values. Index over a DATE column uses DATE comparison. Changing 
+          from one comparison to the other is possible:
+
+          datetime(date_col)< '2007-12-10 12:34:55' -> date_col<='2007-12-10'
+          datetime(date_col)<='2007-12-10 12:34:55' -> date_col<='2007-12-10'
+
+          datetime(date_col)> '2007-12-10 12:34:55' -> date_col>='2007-12-10'
+          datetime(date_col)>='2007-12-10 12:34:55' -> date_col>='2007-12-10'
+
+          but we'll need to convert '>' to '>=' and '<' to '<='. This will
+          be done together with other types at the end of this function
+          (grep for field_is_equal_to_item)
+        */
+      }
+      else
+        goto end;
     }
-    goto end;
   } 
   if (err < 0)
   {

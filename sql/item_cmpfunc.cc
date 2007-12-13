@@ -392,6 +392,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
 
     LINT_INIT(old_write_map);
     LINT_INIT(old_read_map);
+    LINT_INIT(orig_field_val);
 
     if (table)
     {
