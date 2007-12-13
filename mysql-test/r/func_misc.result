@@ -210,7 +210,7 @@ test
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (5), (2);
 SELECT NAME_CONST(x,2) FROM (SELECT a x FROM t1) t;
-ERROR HY000: The 'NAME_CONST' syntax is reserved for purposes internal to the MySQL server
+ERROR HY000: Incorrect arguments to NAME_CONST
 DROP TABLE t1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (), (), ();
