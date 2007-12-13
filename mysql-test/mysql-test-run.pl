@@ -2600,8 +2600,8 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "%s--log-output=table,file", $prefix);
   }
 
-  # Check if "extra_opt" contains --skip-log-bin
-  my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt, @opt_extra_mysqld_opt);
+  # Check if "extra_opt" contains skip-log-bin
+  my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/, @$extra_opt, @opt_extra_mysqld_opt);
 
   if ( $opt_debug )
   {
