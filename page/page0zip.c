@@ -2324,18 +2324,6 @@ page_zip_decompress_clust_ext(
 
 			ut_ad(d_stream->next_out == dst);
 
-			/* Reserve space for the data at
-			the end of the space reserved for
-			the compressed data and the
-			page modification log. */
-
-			if (UNIV_UNLIKELY
-			    (d_stream->avail_in
-			     <= BTR_EXTERN_FIELD_REF_SIZE)) {
-				/* out of space */
-				return(FALSE);
-			}
-
 			/* Clear the BLOB pointer in case
 			the record will be deleted and the
 			space will not be reused.  Note that
@@ -2595,13 +2583,34 @@ zlib_done:
 				continue;
 			}
 			dst = rec_get_nth_field(rec, offsets, i, &len);
-			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+			if (UNIV_UNLIKELY(len < BTR_EXTERN_FIELD_REF_SIZE)) {
+				page_zip_fail(("page_zip_decompress_clust:"
+					       " %lu < 20\n",
+					       (ulong) len));
+				return(FALSE);
+			}
+
 			dst += len - BTR_EXTERN_FIELD_REF_SIZE;
 
 			if (UNIV_LIKELY(exists)) {
 				/* Existing record:
 				restore the BLOB pointer */
 				externs -= BTR_EXTERN_FIELD_REF_SIZE;
+
+				if (UNIV_UNLIKELY
+				    (externs < page_zip->data
+				     + page_zip->m_end)) {
+					page_zip_fail(("page_zip_"
+						       "decompress_clust: "
+						       "%p < %p + %lu\n",
+						       (const void*) externs,
+						       (const void*)
+						       page_zip->data,
+						       (ulong)
+						       page_zip->m_end));
+					return(FALSE);
+				}
 
 				memcpy(dst, externs,
 				       BTR_EXTERN_FIELD_REF_SIZE);
