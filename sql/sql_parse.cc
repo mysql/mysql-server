@@ -487,7 +487,7 @@ end:
     (CREATE TABLE, ALTER TABLE ... UNION=(...)). Set TL_WRITE for
     every child. Set 'db' for every child if not present.
 */
-
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static bool check_merge_table_access(THD *thd, char *db,
                                      TABLE_LIST *table_list)
 {
@@ -508,7 +508,7 @@ static bool check_merge_table_access(THD *thd, char *db,
   }
   return error;
 }
-
+#endif
 
 /* This works because items are allocated with sql_alloc() */
 
