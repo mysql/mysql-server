@@ -3853,7 +3853,7 @@ int ha_partition::read_range_first(const key_range *start_key,
 			     start_key->key,
                              start_key->keypart_map, start_key->flag);
   }
-  DBUG_RETURN (error? error: compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+  DBUG_RETURN(error);
 }
 
 
