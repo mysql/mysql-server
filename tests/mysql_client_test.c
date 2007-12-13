@@ -16903,7 +16903,9 @@ static void test_bug20023()
   int sql_big_selects_4;
   int sql_big_selects_5;
 
+#if NOT_USED
   char query_buffer[MAX_TEST_QUERY_LENGTH];
+#endif
 
   /* Create a new connection. */
 
