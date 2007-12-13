@@ -1,5 +1,5 @@
 #
-# test of MERGE TABLES
+# Test of MERGE TABLES
 #
 
 --disable_warnings
