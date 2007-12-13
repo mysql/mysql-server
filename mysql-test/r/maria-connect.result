@@ -1,5 +1,6 @@
 set global storage_engine=maria;
 set session storage_engine=maria;
+set global maria_log_file_size=4294967296;
 drop table if exists t1;
 SET SQL_WARNINGS=1;
 RESET MASTER;

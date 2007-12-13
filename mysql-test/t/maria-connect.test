@@ -9,6 +9,8 @@ let $default=`select @@global.storage_engine`;
 set global storage_engine=maria;
 set session storage_engine=maria;
 
+set global maria_log_file_size=4294967296;
+
 # Initialise
 --disable_warnings
 drop table if exists t1;

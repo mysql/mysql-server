@@ -5,6 +5,8 @@
 --source include/have_debug.inc
 --source include/have_maria.inc
 
+set global maria_log_file_size=4294967296;
+
 --disable_warnings
 drop database if exists mysqltest;
 --enable_warnings
