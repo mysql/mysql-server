@@ -2235,6 +2235,7 @@ sub run_testcase ($) {
 	   #hosts          => [ 'host1', 'host2' ],
 	   user            => $opt_user,
 	   password        => '',
+	   ssl             => $opt_ssl_supported,
 	  }
 	);
 
@@ -3197,10 +3198,6 @@ sub start_mysqltest ($) {
   {
     # Turn on SSL for _all_ test cases if option --ssl was used
     mtr_add_arg($args, "--ssl");
-  }
-  elsif ( $opt_ssl_supported )
-  {
-    mtr_add_arg($args, "--skip-ssl");
   }
 
   # ----------------------------------------------------------------------
