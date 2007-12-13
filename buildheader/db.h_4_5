@@ -54,6 +54,8 @@ typedef enum {
 #define DB_LOCK_RANDOM 8
 #define DB_DUP 32768
 #define DB_DUPSORT 65536
+#define DB_KEYFIRST 13
+#define DB_KEYLAST 14
 #define DB_NODUPDATA 19
 #define DB_NOOVERWRITE 20
 #define DB_INIT_LOCK 32768
