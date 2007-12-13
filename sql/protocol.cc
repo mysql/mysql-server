@@ -56,7 +56,10 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 {
 #ifndef EMBEDDED_LIBRARY 
   uint length;
-  char buff[MYSQL_ERRMSG_SIZE+2], *pos;
+  /*
+    buff[]: sql_errno:2 + ('#':1 + SQLSTATE_LENGTH:5) + MYSQL_ERRMSG_SIZE:512
+  */
+  char buff[2+1+SQLSTATE_LENGTH+MYSQL_ERRMSG_SIZE], *pos;
 #endif
   const char *orig_err= err;
   NET *net= &thd->net;
