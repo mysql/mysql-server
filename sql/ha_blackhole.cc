@@ -299,7 +299,7 @@ static byte* blackhole_get_key(st_blackhole_share *share, uint *length,
 static void blackhole_free_key(st_blackhole_share *share)
 {
   thr_lock_delete(&share->lock);
-  my_free((byte*) share, MYF(0));
+  my_free((gptr) share, MYF(0));
 } 
 
 
