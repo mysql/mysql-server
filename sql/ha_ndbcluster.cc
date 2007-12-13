@@ -4040,6 +4040,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
   DBUG_ENTER("ha_ndbcluster::exec_bulk_update");
   *dup_key_found= 0;
   if (m_thd_ndb->m_unsent_bytes &&
+      !(table->in_use->options & OPTION_ALLOW_BATCH) &&
       (!m_thd_ndb->m_handler ||
        m_blobs_pending))
   {
@@ -4364,6 +4365,7 @@ int ha_ndbcluster::end_bulk_delete()
 {
   DBUG_ENTER("end_bulk_delete");
   if (m_thd_ndb->m_unsent_bytes &&
+      !(table->in_use->options & OPTION_ALLOW_BATCH) &&
       !m_thd_ndb->m_handler)
   {
     uint ignore_count= 0;
