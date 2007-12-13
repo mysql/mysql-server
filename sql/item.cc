@@ -1240,7 +1240,17 @@ bool Item_name_const::is_null()
 
 Item::Type Item_name_const::type() const
 {
-  return value_item->type();
+  /*
+    As 
+    1. one can try to create the Item_name_const passing non-constant 
+    arguments, although it's incorrect and 
+    2. the type() method can be called before the fix_fields() to get
+    type information for a further type cast, e.g. 
+    if (item->type() == FIELD_ITEM) 
+      ((Item_field *) item)->... 
+    we return NULL_ITEM in the case to avoid wrong casting.
+  */
+  return valid_args ? value_item->type() : NULL_ITEM;
 }
 
 

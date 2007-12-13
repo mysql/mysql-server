@@ -58,6 +58,7 @@ int myrg_close(MYRG_INFO *info)
   pthread_mutex_lock(&THR_LOCK_open);
   myrg_open_list=list_delete(myrg_open_list,&info->open_list);
   pthread_mutex_unlock(&THR_LOCK_open);
+  VOID(pthread_mutex_destroy(&info->mutex));
   my_free((uchar*) info,MYF(0));
   if (error)
   {

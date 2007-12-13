@@ -244,6 +244,16 @@ SELECT HEX(a) FROM t1;
 DROP TABLE t1;
 
 #
+# Bug #32676: insert delayed crash with wrong column and function specified
+#
+CREATE TABLE t1 (a INT);
+--error  ER_BAD_FIELD_ERROR
+INSERT DELAYED INTO t1 SET b= b();
+DROP TABLE t1;
+
+--echo End of 5.0 tests
+
+#
 # Bug#27358 INSERT DELAYED does not honour SQL_MODE of the client
 #
 --disable_warnings
@@ -275,3 +285,4 @@ INSERT DELAYED INTO t2 VALUES (0,'0000-00-00');
 INSERT DELAYED INTO t2 VALUES (0,'2007-00-00');
 DROP TABLE t1,t2;
 
+--echo End of 5.1 tests
