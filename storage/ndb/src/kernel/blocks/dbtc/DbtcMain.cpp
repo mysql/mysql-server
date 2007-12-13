@@ -663,6 +663,10 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &val);
   set_timeout_value(val);
 
+  val = 1500;
+  ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &val);
+  cDbHbInterval = (val < 10) ? 10 : val;
+
   val = 3000;
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_INACTIVE_TIMEOUT, &val);
   set_appl_timeout_value(val);
@@ -6462,6 +6466,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     // conditions should get us here. We ignore it.
     /*------------------------------------------------------------------*/
   case CS_PREPARE_TO_COMMIT:
+  {
     jam();
     /*------------------------------------------------------------------*/
     /*       WE ARE WAITING FOR DIH TO COMMIT THE TRANSACTION. WE SIMPLY*/
@@ -6470,12 +6475,16 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     // To ensure against strange bugs we crash the system if we have passed
     // time-out period by a factor of 10 and it is also at least 5 seconds.
     /*------------------------------------------------------------------*/
-    if (((ctcTimer - getApiConTimer(apiConnectptr.i)) > (10 * ctimeOutValue)) &&
-        ((ctcTimer - getApiConTimer(apiConnectptr.i)) > 500)) {
-        jam();
-        systemErrorLab(signal, __LINE__);
+    Uint32 time_passed = ctcTimer - getApiConTimer(apiConnectptr.i);
+    if (time_passed > 500 &&
+        time_passed > (5 * cDbHbInterval) &&
+        time_passed > (10 * ctimeOutValue))
+    {
+      jam();
+      systemErrorLab(signal, __LINE__);
     }//if
     break;
+  }
   case CS_COMMIT_SENT:
     jam();
     /*------------------------------------------------------------------*/
