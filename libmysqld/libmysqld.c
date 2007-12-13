@@ -209,8 +209,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   DBUG_RETURN(mysql);
 
 error:
-  DBUG_PRINT("error",("message: %u (%s)", mysql->net.last_errno,
-		      mysql->net.last_error));
+  DBUG_PRINT("error",("message: %u (%s)",
+                      mysql->net.client_last_errno,
+                      mysql->net.client_last_error));
   {
     /* Free alloced memory */
     my_bool free_me=mysql->free_me;
