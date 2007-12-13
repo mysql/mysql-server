@@ -937,7 +937,8 @@ static int toku_c_del(DBC * c, u_int32_t flags) {
 }
 
 static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
-    flags=flags;
+    if (flags != 0)
+        return EINVAL;
     DBC *MALLOC(result);
     if (result == 0)
         return ENOMEM;
