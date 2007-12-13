@@ -3650,6 +3650,17 @@ DROP TABLE t2;
 
 ###########################################################################
 
+#
+# Bug #32335: Error on BIGINT > NULL + 1 
+#
+
+CREATE TABLE t1 (c1 BIGINT NOT NULL);
+INSERT INTO t1 (c1) VALUES (1);
+SELECT * FROM t1 WHERE c1 > NULL + 1;
+DROP TABLE t1;
+
+--echo
+
 --echo End of 5.0 tests
 
 #

@@ -5050,7 +5050,7 @@ static struct my_option my_long_options[] =
    "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"sleep", 'T', "Sleep always this many seconds on sleep commands.",
-   (uchar**) &opt_sleep, (uchar**) &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, 0, 0,
+   (uchar**) &opt_sleep, (uchar**) &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, -1, 0,
    0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
    (uchar**) &unix_sock, (uchar**) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
