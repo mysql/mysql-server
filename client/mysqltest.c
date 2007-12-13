@@ -8018,7 +8018,6 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     if (!len)
     {
       errno=EINVAL;
-      my_message(0,"No to-string for last from-string",MYF(ME_BELL));
       DBUG_RETURN(0);
     }
     states+=len+1;
