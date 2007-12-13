@@ -214,6 +214,20 @@ SELECT NAME_CONST('test', -1.0);
 SELECT NAME_CONST('test', 'test');
 
 #
+# Bug #27545: erroneous usage of NAME_CONST with a name as the first parameter 
+#             resolved against a column name of a derived table hangs the client
+#
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (5), (2);
+
+--error ER_WRONG_ARGUMENTS
+SELECT NAME_CONST(x,2) FROM (SELECT a x FROM t1) t;
+
+DROP TABLE t1;
+
+
+#
 # Bug #32559: connection hangs on query with name_const
 #
 CREATE TABLE t1(a INT);
