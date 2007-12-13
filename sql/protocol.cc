@@ -74,7 +74,6 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 */
 void net_send_error(THD *thd, uint sql_errno, const char *err)
 {
-  NET *net= &thd->net;
   DBUG_ENTER("net_send_error");
 
   DBUG_ASSERT(!thd->spcont);
