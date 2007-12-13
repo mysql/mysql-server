@@ -117,6 +117,9 @@ static inline int db_env_opened(DB_ENV *env) {
     return env->i->cachetable != 0;
 }
 
+static inline int db_opened(DB *db) {
+    return db->i->full_fname != 0;
+}
 
 static int db_env_parse_config_line(DB_ENV* dbenv, char *command, char *value) {
     int r;
@@ -1123,7 +1126,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     if ((flags & DB_EXCL) && !(flags & DB_CREATE)) return EINVAL;
     if (dbtype==DB_UNKNOWN && (flags & DB_EXCL)) return EINVAL;
 
-    if (db->i->full_fname)
+    if (db_opened(db))
         return -1;              /* It was already open. */
     db->i->full_fname = construct_full_name(db->dbenv->i->dir, fname);
     if (db->i->full_fname == 0) {
@@ -1299,6 +1302,9 @@ static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *,
 }
 
 static int toku_db_set_flags(DB * db, u_int32_t flags) {
+
+    if (db_opened(db) && flags != 0) return EINVAL;
+
     u_int32_t tflags;
     int r = toku_brt_get_flags(db->i->brt, &tflags);
     if (r!=0) return r;
