@@ -6114,3 +6114,5 @@ ER_TRG_CANT_OPEN_TABLE
 
 ER_CANT_CREATE_SROUTINE
   eng "Cannot create stored routine `%-.64s`. Check warnings"
+ER_SLAVE_AMBIGOUS_EXEC_MODE
+  eng "Ambiguous slave modes combination. %s"
