@@ -83,7 +83,7 @@ struct st_translog_buffer
   /* File handler for this buffer */
   File file;
   /* Threads which are waiting for buffer filling/freeing */
-  WQUEUE waiting_filling_buffer;
+  pthread_cond_t waiting_filling_buffer;
   /* Number of records which are in copy progress */
   uint copy_to_buffer_in_progress;
   /* list of waiting buffer ready threads */
@@ -1182,7 +1182,8 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer)
   /* Buffer size */
   buffer->size= 0;
   /* cond of thread which is waiting for buffer filling */
-  buffer->waiting_filling_buffer.last_thread= 0;
+  if (pthread_cond_init(&buffer->waiting_filling_buffer, 0))
+    DBUG_RETURN(1);
   /* Number of records which are in copy progress */
   buffer->copy_to_buffer_in_progress= 0;
   /* list of waiting buffer ready threads */
@@ -1555,7 +1556,6 @@ static void translog_finish_page(TRANSLOG_ADDRESS *horizon,
 
 static void translog_wait_for_writers(struct st_translog_buffer *buffer)
 {
-  struct st_my_thread_var *thread= my_thread_var;
   DBUG_ENTER("translog_wait_for_writers");
   DBUG_PRINT("enter", ("Buffer #%u 0x%lx  copies in progress: %u",
                        (uint) buffer->buffer_no, (ulong) buffer,
@@ -1567,8 +1567,7 @@ static void translog_wait_for_writers(struct st_translog_buffer *buffer)
     DBUG_PRINT("info", ("wait for writers... buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
     DBUG_ASSERT(buffer->file != -1);
-    wqueue_add_and_wait(&buffer->waiting_filling_buffer, thread,
-                        &buffer->mutex);
+    pthread_cond_wait(&buffer->waiting_filling_buffer, &buffer->mutex);
     DBUG_PRINT("info", ("wait for writers done buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
   }
@@ -1591,7 +1590,6 @@ static void translog_wait_for_writers(struct st_translog_buffer *buffer)
 
 static void translog_wait_for_buffer_free(struct st_translog_buffer *buffer)
 {
-  struct st_my_thread_var *thread= my_thread_var;
   DBUG_ENTER("translog_wait_for_buffer_free");
   DBUG_PRINT("enter", ("Buffer: #%u 0x%lx  copies in progress: %u  "
                        "File: %d  size: 0x%lu",
@@ -1605,8 +1603,7 @@ static void translog_wait_for_buffer_free(struct st_translog_buffer *buffer)
   {
     DBUG_PRINT("info", ("wait for writers... buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
-    wqueue_add_and_wait(&buffer->waiting_filling_buffer, thread,
-                        &buffer->mutex);
+    pthread_cond_wait(&buffer->waiting_filling_buffer, &buffer->mutex);
     DBUG_PRINT("info", ("wait for writers done. buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
   }
@@ -2147,10 +2144,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
   /* Free buffer */
   buffer->file= -1;
   buffer->overlay= 0;
-  if (buffer->waiting_filling_buffer.last_thread)
-  {
-    wqueue_release_queue(&buffer->waiting_filling_buffer);
-  }
+  pthread_cond_broadcast(&buffer->waiting_filling_buffer);
   DBUG_RETURN(0);
 }
 
@@ -3322,7 +3316,6 @@ static void translog_buffer_destroy(struct st_translog_buffer *buffer)
               buffer->file,
               LSN_IN_PARTS(buffer->offset),
               (ulong) buffer->size));
-  DBUG_ASSERT(buffer->waiting_filling_buffer.last_thread == 0);
   if (buffer->file != -1)
   {
     /*
@@ -3335,6 +3328,7 @@ static void translog_buffer_destroy(struct st_translog_buffer *buffer)
   }
   DBUG_PRINT("info", ("Destroy mutex: 0x%lx", (ulong) &buffer->mutex));
   pthread_mutex_destroy(&buffer->mutex);
+  pthread_cond_destroy(&buffer->waiting_filling_buffer);
   DBUG_VOID_RETURN;
 }
 
@@ -3671,9 +3665,8 @@ static void translog_buffer_decrease_writers(struct st_translog_buffer *buffer)
              ("copy_to_buffer_in_progress. Buffer #%u  0x%lx  progress: %d",
               (uint) buffer->buffer_no, (ulong) buffer,
               buffer->copy_to_buffer_in_progress));
-  if (buffer->copy_to_buffer_in_progress == 0 &&
-      buffer->waiting_filling_buffer.last_thread != NULL)
-    wqueue_release_queue(&buffer->waiting_filling_buffer);
+  if (buffer->copy_to_buffer_in_progress == 0)
+    pthread_cond_broadcast(&buffer->waiting_filling_buffer);
   DBUG_VOID_RETURN;
 }
 
