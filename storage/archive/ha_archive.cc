@@ -357,7 +357,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     {
       DBUG_RETURN(NULL);
     }
-    stats.auto_increment_value= archive_tmp.auto_increment;
+    stats.auto_increment_value= archive_tmp.auto_increment + 1;
     share->rows_recorded= (ha_rows)archive_tmp.rows;
     share->crashed= archive_tmp.dirty;
     azclose(&archive_tmp);
@@ -586,9 +586,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
 
   DBUG_ENTER("ha_archive::create");
 
-  stats.auto_increment_value= (create_info->auto_increment_value ?
-                               create_info->auto_increment_value -1 :
-                               (ulonglong) 0);
+  stats.auto_increment_value= create_info->auto_increment_value;
 
   for (uint key= 0; key < table_arg->s->keys; key++)
   {
@@ -673,7 +671,8 @@ int ha_archive::create(const char *name, TABLE *table_arg,
       Yes you need to do this, because the starting value 
       for the autoincrement may not be zero.
     */
-    create_stream.auto_increment= stats.auto_increment_value;
+    create_stream.auto_increment= stats.auto_increment_value ?
+                                    stats.auto_increment_value - 1 : 0;
     if (azclose(&create_stream))
     {
       error= errno;
@@ -871,8 +870,8 @@ int ha_archive::write_row(uchar *buf)
     else
     {
       if (temp_auto > share->archive_write.auto_increment)
-        stats.auto_increment_value= share->archive_write.auto_increment= 
-          temp_auto;
+        stats.auto_increment_value=
+          (share->archive_write.auto_increment= temp_auto) + 1;
     }
   }
 
@@ -896,7 +895,7 @@ void ha_archive::get_auto_increment(ulonglong offset, ulonglong increment,
                                     ulonglong *first_value,
                                     ulonglong *nb_reserved_values)
 {
-  *nb_reserved_values= 1;
+  *nb_reserved_values= ULONGLONG_MAX;
   *first_value= share->archive_write.auto_increment + 1;
 }
 
@@ -1315,7 +1314,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     if (!rc)
     {
       share->rows_recorded= 0;
-      stats.auto_increment_value= share->archive_write.auto_increment= 0;
+      stats.auto_increment_value= 1;
+      share->archive_write.auto_increment= 0;
       my_bitmap_map *org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
 
       while (!(rc= get_row(&archive, table->record[0])))
@@ -1332,8 +1332,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
             (ulonglong) field->val_int(table->record[0] +
                                        field->offset(table->record[0]));
           if (share->archive_write.auto_increment < auto_value)
-            stats.auto_increment_value= share->archive_write.auto_increment=
-              auto_value;
+            stats.auto_increment_value=
+              (share->archive_write.auto_increment= auto_value) + 1;
         }
       }
 
@@ -1418,18 +1418,9 @@ void ha_archive::update_create_info(HA_CREATE_INFO *create_info)
   DBUG_ENTER("ha_archive::update_create_info");
 
   ha_archive::info(HA_STATUS_AUTO);
-  if (create_info->used_fields & HA_CREATE_USED_AUTO)
+  if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
-    /* 
-      Internally Archive keeps track of last used, not next used.
-      To make the output look like MyISAM we add 1 here.
-
-      This is not completely compatible with MYISAM though, since
-      MyISAM will record on "SHOW CREATE TABLE" the last position,
-      where we will report the original position the table was
-      created with.
-    */
-    create_info->auto_increment_value= stats.auto_increment_value + 1;
+    create_info->auto_increment_value= stats.auto_increment_value;
   }
 
   if (!(my_readlink(share->real_path, share->data_file_name, MYF(0))))
@@ -1494,7 +1485,7 @@ int ha_archive::info(uint flag)
     pthread_mutex_lock(&share->mutex);
     azflush(&archive, Z_SYNC_FLUSH);
     pthread_mutex_unlock(&share->mutex);
-    stats.auto_increment_value= archive.auto_increment;
+    stats.auto_increment_value= archive.auto_increment + 1;
   }
 
   DBUG_RETURN(0);

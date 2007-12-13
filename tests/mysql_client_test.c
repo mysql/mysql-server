@@ -129,7 +129,7 @@ static void die(const char *file, int line, const char *expr)
   fflush(stdout);
   fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
   fflush(stderr);
-  abort();
+  exit(1);
 }
 
 
@@ -5914,6 +5914,20 @@ DROP TABLE IF EXISTS test_multi_tab";
   (void) my_process_result_set(result);
   mysql_free_result(result);
 
+  /*
+    Check if errors in one of the queries handled properly.
+  */
+  rc= mysql_query(mysql_local, "select 1; select * from not_existing_table");
+  myquery(rc);
+  result= mysql_store_result(mysql_local);
+  mysql_free_result(result);
+
+  rc= mysql_next_result(mysql_local);
+  DIE_UNLESS(rc > 0);
+
+  rc= mysql_next_result(mysql_local);
+  DIE_UNLESS(rc < 0);
+
   mysql_close(mysql_local);
 }
 
@@ -9552,7 +9566,7 @@ static void test_subqueries_ref()
 {
   MYSQL_STMT *stmt;
   int rc, i;
-  const char *query= "SELECT a as ccc from t1 where a+1=(SELECT 1+ccc from t1 where ccc+1=a+1 and a=1)";
+  const char *query= "SELECT a as ccc from t1 outr where a+1=(SELECT 1+outr.a from t1 where outr.a+1=a+1 and a=1)";
 
   myheader("test_subqueries_ref");
 
@@ -15869,6 +15883,8 @@ static void test_status()
 
   Test that client gets updated value of insert_id on UPDATE that uses
   LAST_INSERT_ID(expr).
+  select_query added to test for bug
+    #26921 Problem in mysql_insert_id() Embedded C API function
 */
 static void test_bug21726()
 {
@@ -15881,6 +15897,8 @@ static void test_bug21726()
   const char *update_query= "UPDATE t1 SET i= LAST_INSERT_ID(i + 1)";
   int rc;
   my_ulonglong insert_id;
+  const char *select_query= "SELECT * FROM t1";
+  MYSQL_RES  *result;
 
   DBUG_ENTER("test_bug21726");
   myheader("test_bug21726");
@@ -15896,6 +15914,13 @@ static void test_bug21726()
   myquery(rc);
   insert_id= mysql_insert_id(mysql);
   DIE_UNLESS(insert_id == 3);
+
+  rc= mysql_query(mysql, select_query);
+  myquery(rc);
+  insert_id= mysql_insert_id(mysql);
+  DIE_UNLESS(insert_id == 3);
+  result= mysql_store_result(mysql);
+  mysql_free_result(result);
 
   DBUG_VOID_RETURN;
 }
@@ -16976,6 +17001,12 @@ static void test_bug20023()
     Check that SQL_BIG_SELECTS will be the original one.
   ***********************************************************************/
 
+#if NOT_USED
+  /*
+    max_join_size is a ulong or better.
+    my_snprintf() only goes up to ul.
+  */
+
   /* Restore MAX_JOIN_SIZE. */
 
   my_snprintf(query_buffer,
@@ -16984,6 +17015,11 @@ static void test_bug20023()
            (int) max_join_size_orig);
 
   DIE_IF(mysql_query(&con, query_buffer));
+
+#else
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+#endif
+
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */

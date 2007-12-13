@@ -1246,6 +1246,18 @@ select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
 ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (latin1_swedish_ci,COERCIBLE) for operation 'concat'
 set lc_time_names=en_US;
 drop table t1;
+select DATE_ADD('20071108181000', INTERVAL 1 DAY);
+DATE_ADD('20071108181000', INTERVAL 1 DAY)
+2007-11-09 18:10:00
+select DATE_ADD(20071108181000,   INTERVAL 1 DAY);
+DATE_ADD(20071108181000,   INTERVAL 1 DAY)
+2007-11-09 18:10:00
+select DATE_ADD('20071108',       INTERVAL 1 DAY);
+DATE_ADD('20071108',       INTERVAL 1 DAY)
+2007-11-09
+select DATE_ADD(20071108,         INTERVAL 1 DAY);
+DATE_ADD(20071108,         INTERVAL 1 DAY)
+2007-11-09
 End of 5.0 tests
 select date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND);
 date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND)

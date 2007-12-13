@@ -2798,8 +2798,7 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
                              bool ignore_check_option_errors)
   :table_list(table_list_par), table(table_par), fields(fields_par),
    autoinc_value_of_last_inserted_row(0),
-   insert_into_view(table_list_par && table_list_par->view != 0),
-   is_bulk_insert_mode(FALSE)
+   insert_into_view(table_list_par && table_list_par->view != 0)
 {
   bzero((char*) &info,sizeof(info));
   info.handle_duplicates= duplic;
@@ -2912,14 +2911,14 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     Is table which we are changing used somewhere in other parts of
     query
   */
-  if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-      unique_table(thd, table_list, table_list->next_global, 0))
+  if (unique_table(thd, table_list, table_list->next_global, 0))
   {
     /* Using same table for INSERT and SELECT */
     lex->current_select->options|= OPTION_BUFFER_RESULT;
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
-  else if (!thd->prelocked_mode)
+  else if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
+           !thd->prelocked_mode)
   {
     /*
       We must not yet prepare the result table if it is the same as one of the 
@@ -2985,11 +2984,8 @@ int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
   if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      !thd->prelocked_mode && !is_bulk_insert_mode)
-  {
+      !thd->prelocked_mode)
     table->file->ha_start_bulk_insert((ha_rows) 0);
-    is_bulk_insert_mode= TRUE;
-  }
   DBUG_RETURN(0);
 }
 
@@ -3109,7 +3105,6 @@ bool select_insert::send_eof()
                        trans_table, table->file->table_type()));
 
   error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert():0;
-  is_bulk_insert_mode= FALSE;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -3561,10 +3556,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (!thd->prelocked_mode)
-  {
     table->file->ha_start_bulk_insert((ha_rows) 0);
-    is_bulk_insert_mode= TRUE;
-  }
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |

@@ -29,8 +29,12 @@ int main (int argc, char **argv)
 
   MY_INIT(argv[0]);
 
-  if (argc != 2)
+  if (argc != 2 || !strcmp(argv[1], "--help"))
+  {
+    fprintf(stderr, "This program is a part of the MySQL test suite. "
+            "It is not intended to be executed directly by a user.\n");
     return -1;
+  }
 
   mysql_init(&conn);
   if (!mysql_real_connect(

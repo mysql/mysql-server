@@ -353,6 +353,13 @@ select @a:=f4, count(f4) from t1 group by 1 desc;
 2.6	1
 1.6	4
 drop table t1;
+create table t1 (f1 int);
+insert into t1 values (2), (1);
+select @i := f1 as j from t1 order by 1;
+j
+1
+2
+drop table t1;
 create table t1(a int);
 insert into t1 values(5),(4),(4),(3),(2),(2),(2),(1);
 set @rownum := 0;

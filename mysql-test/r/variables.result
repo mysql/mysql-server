@@ -279,6 +279,8 @@ NET_READ_TIMEOUT	600
 NET_RETRY_COUNT	10
 NET_WRITE_TIMEOUT	500
 set net_buffer_length=1;
+Warnings:
+Warning	1292	Truncated incorrect net_buffer_length value: '1'
 show variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1024
@@ -312,14 +314,14 @@ show variables like '%alloc%';
 Variable_name	Value
 query_alloc_block_size	8192
 query_prealloc_size	8192
-range_alloc_block_size	2048
+range_alloc_block_size	4096
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
 select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 QUERY_ALLOC_BLOCK_SIZE	8192
 QUERY_PREALLOC_SIZE	8192
-RANGE_ALLOC_BLOCK_SIZE	2048
+RANGE_ALLOC_BLOCK_SIZE	4096
 TRANSACTION_ALLOC_BLOCK_SIZE	8192
 TRANSACTION_PREALLOC_SIZE	4096
 set @@range_alloc_block_size=1024*16;
@@ -351,14 +353,14 @@ show variables like '%alloc%';
 Variable_name	Value
 query_alloc_block_size	8192
 query_prealloc_size	8192
-range_alloc_block_size	2048
+range_alloc_block_size	4096
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
 select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 QUERY_ALLOC_BLOCK_SIZE	8192
 QUERY_PREALLOC_SIZE	8192
-RANGE_ALLOC_BLOCK_SIZE	2048
+RANGE_ALLOC_BLOCK_SIZE	4096
 TRANSACTION_ALLOC_BLOCK_SIZE	8192
 TRANSACTION_PREALLOC_SIZE	4096
 SELECT @@version LIKE 'non-existent';
@@ -416,6 +418,8 @@ select @@autocommit, @@big_tables;
 @@autocommit	@@big_tables
 1	1
 set global binlog_cache_size=100;
+Warnings:
+Warning	1292	Truncated incorrect binlog_cache_size value: '100'
 set bulk_insert_buffer_size=100;
 set character set cp1251_koi8;
 set character set default;
@@ -444,6 +448,8 @@ set global flush_time=100;
 set insert_id=1;
 set interactive_timeout=100;
 set join_buffer_size=100;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '100'
 set last_insert_id=1;
 set global local_infile=1;
 set long_query_time=0.000001;
@@ -456,12 +462,20 @@ select @@long_query_time;
 100.000001
 set low_priority_updates=1;
 set max_allowed_packet=100;
+Warnings:
+Warning	1292	Truncated incorrect max_allowed_packet value: '100'
 set global max_binlog_cache_size=100;
+Warnings:
+Warning	1292	Truncated incorrect max_binlog_cache_size value: '100'
 set global max_binlog_size=100;
+Warnings:
+Warning	1292	Truncated incorrect max_binlog_size value: '100'
 set global max_connect_errors=100;
 set global max_connections=100;
 set global max_delayed_threads=100;
 set max_heap_table_size=100;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '100'
 set max_join_size=100;
 set max_sort_length=100;
 set max_tmp_tables=100;
@@ -472,17 +486,25 @@ select @@max_user_connections;
 set global max_write_lock_count=100;
 set myisam_sort_buffer_size=100;
 set net_buffer_length=100;
+Warnings:
+Warning	1292	Truncated incorrect net_buffer_length value: '100'
 set net_read_timeout=100;
 set net_write_timeout=100;
 set global query_cache_limit=100;
 set global query_cache_size=100;
 set global query_cache_type=demand;
 set read_buffer_size=100;
+Warnings:
+Warning	1292	Truncated incorrect read_buffer_size value: '100'
 set read_rnd_buffer_size=100;
+Warnings:
+Warning	1292	Truncated incorrect read_rnd_buffer_size value: '100'
 set global rpl_recovery_rank=100;
 set global server_id=100;
 set global slow_launch_time=100;
 set sort_buffer_size=100;
+Warnings:
+Warning	1292	Truncated incorrect sort_buffer_size value: '100'
 set @@max_sp_recursion_depth=10;
 select @@max_sp_recursion_depth;
 @@max_sp_recursion_depth
@@ -522,6 +544,8 @@ set storage_engine=myisam;
 set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
+Warnings:
+Warning	1292	Truncated incorrect tmp_table_size value: '100'
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set log_warnings=1;
@@ -691,6 +715,8 @@ SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'MYI
 VARIABLE_NAME	VARIABLE_VALUE
 MYISAM_DATA_POINTER_SIZE	7
 SET GLOBAL table_open_cache=-1;
+Warnings:
+Warning	1292	Truncated incorrect table_open_cache value: '0'
 SHOW VARIABLES LIKE 'table_open_cache';
 Variable_name	Value
 table_open_cache	1
