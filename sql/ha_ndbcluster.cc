@@ -5644,6 +5644,8 @@ int ha_ndbcluster::start_statement(THD *thd,
   }
   if (!trans)
   {
+    thd_ndb->trans_options= 0;
+
     DBUG_PRINT("trans",("Possibly starting transaction"));
     DBUG_ASSERT(!table_count || table_count == 1);
     /*
@@ -5678,7 +5680,6 @@ int ha_ndbcluster::start_statement(THD *thd,
 
     thd_ndb->init_open_tables();
     thd_ndb->query_state&= NDB_QUERY_NORMAL;
-    thd_ndb->trans_options= 0;
     thd_ndb->m_slow_path= FALSE;
     if (!(thd->options & OPTION_BIN_LOG) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT)
