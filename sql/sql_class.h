@@ -2692,7 +2692,7 @@ public:
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
-  int  do_updates (bool from_send_error);
+  int  do_updates();
   bool send_eof();
   virtual void abort();
 };
