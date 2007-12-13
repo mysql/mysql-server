@@ -365,4 +365,31 @@ DROP FUNCTION check_const_len;
 DROP PROCEDURE check_const_len_sp;
 DROP TRIGGER check_const_len_trigger;
 DROP TABLE const_len_bug;
+CREATE FUNCTION sequence RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (4),(3),(2),(1);
+INSERT INTO t2 SELECT * FROM t1;
+SELECT sequence() AS seq, a FROM t1 ORDER BY seq ASC;
+seq	a
+1	4
+2	3
+3	2
+4	1
+SELECT sequence() AS seq, a FROM t1 ORDER BY seq DESC;
+seq	a
+4	1
+3	2
+2	3
+1	4
+SELECT * FROM t1 WHERE a = sequence();
+a
+SELECT * FROM t2 WHERE a = sequence();
+a
+1
+2
+3
+4
+DROP FUNCTION sequence;
+DROP TABLE t1,t2;
 End of 5.0 tests.

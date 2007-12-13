@@ -200,6 +200,7 @@ double my_strtod(const char *str, char **end, int *error);
 double my_atof(const char *nptr);
 
 extern char *llstr(longlong value,char *buff);
+extern char *ullstr(longlong value,char *buff);
 #ifndef HAVE_STRTOUL
 extern long strtol(const char *str, char **ptr, int base);
 extern ulong strtoul(const char *str, char **ptr, int base);

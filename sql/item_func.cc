@@ -2961,6 +2961,12 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     func->max_length=min(initid.max_length,MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
     const_item_cache=initid.const_item;
+    /* 
+      Keep used_tables_cache in sync with const_item_cache.
+      See the comment in Item_udf_func::update_used tables.
+    */  
+    if (!const_item_cache && !used_tables_cache)
+      used_tables_cache= RAND_TABLE_BIT;
     func->decimals=min(initid.decimals,NOT_FIXED_DEC);
   }
   initialized=1;
@@ -3841,10 +3847,12 @@ Item_func_set_user_var::fix_length_and_dec()
 
 bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
 {
-  TABLE *table= (TABLE *) arg;
-  if (result_field &&
-      (!table || result_field->table == table))
-    bitmap_set_bit(result_field->table->read_set, result_field->field_index);
+  if (result_field)
+  {
+    TABLE *table= (TABLE *) arg;
+    if (result_field->table == table || !table)
+      bitmap_set_bit(result_field->table->read_set, result_field->field_index);
+  }
   return 0;
 }
 

@@ -116,13 +116,14 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, sql_errno, err);
   }
 
+  /* Abort multi-result sets */
+  thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
+
   net_send_error_packet(thd, sql_errno, err);
 
   thd->is_fatal_error= 0;			// Error message is given
   thd->net.report_error= 0;
 
-  /* Abort multi-result sets */
-  thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
   DBUG_VOID_RETURN;
 }
 
@@ -298,7 +299,10 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
 {
   NET *net= &thd->net;
   uint length;
-  uchar buff[MYSQL_ERRMSG_SIZE+2], *pos;
+  /*
+    buff[]: sql_errno:2 + ('#':1 + SQLSTATE_LENGTH:5) + MYSQL_ERRMSG_SIZE:512
+  */
+  uchar buff[2+1+SQLSTATE_LENGTH+MYSQL_ERRMSG_SIZE], *pos;
 
   DBUG_ENTER("send_error_packet");
 

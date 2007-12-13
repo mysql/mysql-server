@@ -1890,10 +1890,6 @@ mysql_execute_command(THD *thd)
   
   switch (lex->sql_command) {
   case SQLCOM_SHOW_EVENTS:
-    if ((res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
-                           is_schema_db(thd->lex->select_lex.db))))
-      break;
-    /* fall through */
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
     res= execute_sqlcom_select(thd, all_tables);
@@ -3954,14 +3950,12 @@ create_sp_error:
 	  thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
 	}
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (check_routine_access(thd, EXECUTE_ACL,
 				 sp->m_db.str, sp->m_name.str, TRUE, FALSE))
 	{
 	  thd->net.no_send_ok= save_no_send_ok;
 	  goto error;
 	}
-#endif
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
 
@@ -4641,6 +4635,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 }
 
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /*
   Check grants for commands which work only with one table.
 
@@ -4758,7 +4753,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 	     bool dont_check_global_grants, bool no_errors, bool schema_db)
 {
   Security_context *sctx= thd->security_ctx;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
   /*
     GRANT command:
@@ -4771,7 +4765,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   */
   bool  db_is_pattern= (test(want_access & GRANT_ACL) &&
                         dont_check_global_grants);
-#endif
   ulong dummy;
   DBUG_ENTER("check_access");
   DBUG_PRINT("enter",("db: %s  want_access: %lu  master_access: %lu",
@@ -4810,9 +4803,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     }
   }
 
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  DBUG_RETURN(0);
-#else
   if ((sctx->master_access & want_access) == want_access)
   {
     /*
@@ -4870,7 +4860,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                          thd->db :
                          "unknown")));          /* purecov: tested */
   DBUG_RETURN(TRUE);				/* purecov: tested */
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
@@ -4895,16 +4884,12 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
 bool check_global_access(THD *thd, ulong want_access)
 {
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  return 0;
-#else
   char command[128];
   if ((thd->security_ctx->master_access & want_access))
     return 0;
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
   return 1;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
@@ -4994,9 +4979,7 @@ bool
 check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 		   bool no_errors)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   TABLE_LIST *org_tables= tables;
-#endif
   TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
   Security_context *sctx= thd->security_ctx, *backup_ctx= thd->security_ctx;
   /*
@@ -5083,11 +5066,7 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
 			0, no_errors, 0))
     return TRUE;
   
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     return check_grant_routine(thd, want_access, tables, is_proc, no_errors);
-#else
-  return FALSE;
-#endif
 }
 
 
@@ -5157,6 +5136,7 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
   DBUG_RETURN(1);
 }
 
+#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
