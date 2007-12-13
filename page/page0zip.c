@@ -54,7 +54,8 @@ static const byte supremum_extra_data[] = {
 	0x65, 0x6d, 0x75, 0x6d	/* "supremum" */
 };
 
-/** Assert that a block of memory is filled with zero bytes. */
+/** Assert that a block of memory is filled with zero bytes.
+Compare at most sizeof(field_ref_zero) bytes. */
 #define ASSERT_ZERO(b, s) \
 	ut_ad(!memcmp(b, field_ref_zero, ut_min(s, sizeof field_ref_zero)))
 /** Assert that a BLOB pointer is filled with zero bytes. */
