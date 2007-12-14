@@ -1317,7 +1317,7 @@ sub set_mtr_build_thread_ports($) {
   }
 
   # Up to two masters, up to three slaves
-  # A magic value in command_line_setup depends on thse equations.
+  # A magic value in command_line_setup depends on these equations.
   $opt_master_myport=         $mtr_build_thread * 10 + 10000; # and 1
   $opt_slave_myport=          $opt_master_myport + 2;  # and 3 4
   $opt_ndbcluster_port=       $opt_master_myport + 5;
