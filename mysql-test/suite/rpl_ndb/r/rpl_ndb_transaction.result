@@ -1,0 +1,140 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE tmyisam (a int) ENGINE = MYISAM;
+CREATE TABLE tinnodb (a int) ENGINE = INNODB;
+CREATE TABLE tndb (a int) ENGINE = NDB;
+SHOW CREATE TABLE tmyisam;
+Table	Create Table
+tmyisam	CREATE TABLE `tmyisam` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tinnodb;
+Table	Create Table
+tinnodb	CREATE TABLE `tinnodb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tndb;
+Table	Create Table
+tndb	CREATE TABLE `tndb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+==== Test 1: Non-XA Engines ====
+--- on master ---
+SET AUTOCOMMIT = 1;
+INSERT INTO tndb VALUES (1);
+INSERT INTO tmyisam VALUES (1);
+BEGIN;
+INSERT INTO tndb VALUES (2);
+INSERT INTO tndb VALUES (3);
+COMMIT;
+BEGIN;
+INSERT INTO tmyisam VALUES (2);
+INSERT INTO tmyisam VALUES (3);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (4);
+INSERT INTO tmyisam VALUES (4);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (5);
+INSERT INTO tndb VALUES (6);
+ROLLBACK;
+BEGIN;
+INSERT INTO tmyisam VALUES (5);
+INSERT INTO tmyisam VALUES (6);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO tndb VALUES (7);
+INSERT INTO tmyisam VALUES (7);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SELECT * FROM tndb ORDER BY a;
+a
+1
+2
+3
+4
+SELECT * FROM tmyisam ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+7
+--- on slave ---
+SELECT * FROM tndb ORDER BY a;
+a
+1
+2
+3
+4
+SELECT * FROM tmyisam ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+7
+==== Test 2: Master crash before writing XID event on XA engine ====
+--- on master ---
+INSERT INTO tinnodb VALUES (1);
+SELECT * FROM tinnodb ORDER BY a;
+a
+1
+--- on slave ---
+STOP SLAVE;
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	1740
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	No
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	#
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	1579
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
+SELECT * FROM tinnodb ORDER BY a;
+a
+DROP TABLE tmyisam;
+DROP TABLE tinnodb;
+DROP TABLE tndb;
