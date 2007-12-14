@@ -22,6 +22,14 @@
 #ifdef HAVE_BLACKHOLE_DB
 #include "ha_blackhole.h"
 
+/* Static declarations for shared structures */
+
+static pthread_mutex_t blackhole_mutex;
+static HASH blackhole_open_tables;
+static int blackhole_init= FALSE;
+
+static st_blackhole_share *get_share(const char *table_name);
+static void free_share(st_blackhole_share *share);
 
 /* Blackhole storage engine handlerton */
 
@@ -30,7 +38,7 @@ handlerton blackhole_hton= {
   SHOW_OPTION_YES,
   "/dev/null storage engine (anything you write to it disappears)",
   DB_TYPE_BLACKHOLE_DB,
-  NULL,
+  blackhole_db_init,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -70,15 +78,18 @@ const char **ha_blackhole::bas_ext() const
 int ha_blackhole::open(const char *name, int mode, uint test_if_locked)
 {
   DBUG_ENTER("ha_blackhole::open");
-  thr_lock_init(&thr_lock);
-  thr_lock_data_init(&thr_lock,&lock,NULL);
+
+  if (!(share= get_share(name)))
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+
+  thr_lock_data_init(&share->lock, &lock, NULL);
   DBUG_RETURN(0);
 }
 
 int ha_blackhole::close(void)
 {
   DBUG_ENTER("ha_blackhole::close");
-  thr_lock_delete(&thr_lock);
+  free_share(share);
   DBUG_RETURN(0);
 }
 
@@ -161,17 +172,23 @@ int ha_blackhole::external_lock(THD *thd, int lock_type)
 }
 
 
-uint ha_blackhole::lock_count(void) const
-{
-  DBUG_ENTER("ha_blackhole::lock_count");
-  DBUG_RETURN(0);
-}
-
 THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
                                          THR_LOCK_DATA **to,
                                          enum thr_lock_type lock_type)
 {
   DBUG_ENTER("ha_blackhole::store_lock");
+  if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK)
+  {
+    if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
+         lock_type <= TL_WRITE) && !thd->in_lock_tables)
+      lock_type = TL_WRITE_ALLOW_WRITE;
+
+    if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables)
+      lock_type = TL_READ;
+
+    lock.type= lock_type;
+  }
+  *to++= &lock;
   DBUG_RETURN(to);
 }
 
@@ -224,6 +241,99 @@ int ha_blackhole::index_last(byte * buf)
 {
   DBUG_ENTER("ha_blackhole::index_last");
   DBUG_RETURN(HA_ERR_END_OF_FILE);
+}
+
+
+static st_blackhole_share *get_share(const char *table_name)
+{
+  st_blackhole_share *share;
+  uint length;
+
+  length= (uint) strlen(table_name);
+  pthread_mutex_lock(&blackhole_mutex);
+    
+  if (!(share= (st_blackhole_share*) hash_search(&blackhole_open_tables,
+                                                 (byte*) table_name, length)))
+  {
+    if (!(share= (st_blackhole_share*) my_malloc(sizeof(st_blackhole_share) +
+                                                 length,
+                                                 MYF(MY_WME | MY_ZEROFILL))))
+      goto error;
+
+    share->table_name_length= length;
+    strmov(share->table_name, table_name);
+    
+    if (my_hash_insert(&blackhole_open_tables, (byte*) share))
+    {
+      my_free((gptr) share, MYF(0));
+      share= NULL;
+      goto error;
+    }
+    
+    thr_lock_init(&share->lock);
+  }
+  share->use_count++;
+  
+error:
+  pthread_mutex_unlock(&blackhole_mutex);
+  return share;
+}
+
+static void free_share(st_blackhole_share *share)
+{
+  pthread_mutex_lock(&blackhole_mutex);
+  if (!--share->use_count)
+    hash_delete(&blackhole_open_tables, (byte*) share);
+  pthread_mutex_unlock(&blackhole_mutex);
+}
+
+
+static byte* blackhole_get_key(st_blackhole_share *share, uint *length,
+                               my_bool not_used __attribute__((unused)))
+{
+  *length= share->table_name_length;
+  return (byte*) share->table_name;
+}
+
+
+static void blackhole_free_key(st_blackhole_share *share)
+{
+  thr_lock_delete(&share->lock);
+  my_free((gptr) share, MYF(0));
+} 
+
+
+bool blackhole_db_init()
+{
+  DBUG_ENTER("blackhole_db_init");
+  if (pthread_mutex_init(&blackhole_mutex, MY_MUTEX_INIT_FAST))
+    goto error;
+  if (hash_init(&blackhole_open_tables, &my_charset_bin, 32, 0, 0,
+                    (hash_get_key) blackhole_get_key,
+                    (hash_free_key) blackhole_free_key, 0))
+  {
+    VOID(pthread_mutex_destroy(&blackhole_mutex));
+  }
+  else
+  {
+    blackhole_init= TRUE;
+    DBUG_RETURN(FALSE);
+  }
+error:
+  have_blackhole_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+  DBUG_RETURN(TRUE);
+}
+
+
+bool blackhole_db_end()
+{
+  if (blackhole_init)
+  {
+    hash_free(&blackhole_open_tables);
+    VOID(pthread_mutex_destroy(&blackhole_mutex));
+  }
+  blackhole_init= 0;
+  return FALSE;
 }
 
 #endif /* HAVE_BLACKHOLE_DB */
