@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
 
 select format(1.5555,0),format(123.5555,1),format(1234.5555,2),format(12345.55555,3),format(123456.5555,4),format(1234567.5555,5),format("12345.2399",2);
@@ -212,6 +212,20 @@ SELECT NAME_CONST('test', -1);
 SELECT NAME_CONST('test', 1.0);
 SELECT NAME_CONST('test', -1.0);
 SELECT NAME_CONST('test', 'test');
+
+#
+# Bug #27545: erroneous usage of NAME_CONST with a name as the first parameter 
+#             resolved against a column name of a derived table hangs the client
+#
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (5), (2);
+
+--error ER_WRONG_ARGUMENTS
+SELECT NAME_CONST(x,2) FROM (SELECT a x FROM t1) t;
+
+DROP TABLE t1;
+
 
 #
 # Bug #32559: connection hangs on query with name_const
