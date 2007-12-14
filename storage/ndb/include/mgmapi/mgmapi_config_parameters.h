@@ -123,19 +123,18 @@
 #define CFG_DB_MICRO_GCP_INTERVAL     170 /* micro gcp */
 #define CFG_DB_MICRO_GCP_TIMEOUT      171
 
+#define CFG_DB_COMPRESSED_BACKUP      172
+#define CFG_DB_COMPRESSED_LCP         173
+
 #define CFG_DB_SCHED_EXEC_TIME        174
 #define CFG_DB_SCHED_SPIN_TIME        175
 #define CFG_DB_REALTIME_SCHEDULER     176
 #define CFG_DB_EXECUTE_LOCK_CPU       177
 #define CFG_DB_MAINT_LOCK_CPU         178
 
-#define CFG_DB_COMPRESSED_BACKUP      172
-
-#define CFG_DB_COMPRESSED_LCP         173
-
-#define CFG_DB_SUBSCRIPTIONS          174
-#define CFG_DB_SUBSCRIBERS            175
-#define CFG_DB_SUB_OPERATIONS         176
+#define CFG_DB_SUBSCRIPTIONS          179
+#define CFG_DB_SUBSCRIBERS            180
+#define CFG_DB_SUB_OPERATIONS         181
 
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
