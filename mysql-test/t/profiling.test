@@ -157,12 +157,30 @@ drop procedure if exists p3;
 --enable_warnings
 
 delimiter //;
-create procedure p1 () modifies sql data begin set profiling = ON; select 'This p1 should show up in profiling'; insert into profile_log select count(*) from information_schema.profiling; end//
-create procedure p2() deterministic begin set profiling = ON; call p1(); select 'This p2 should show up in profiling'; end//
-create procedure p3 () reads sql data begin set profiling = ON; select 'This p3 should show up in profiling'; show profile; end//
+create procedure p1 () 
+  modifies sql data 
+begin 
+  set profiling = ON; 
+  select 'This p1 should show up in profiling'; 
+  insert into profile_log select count(*) from information_schema.profiling; 
+end//
+create procedure p2() 
+  deterministic 
+begin 
+  set profiling = ON; 
+  call p1(); 
+  select 'This p2 should show up in profiling'; 
+end//
+create procedure p3 () 
+  reads sql data 
+begin 
+  set profiling = ON; 
+  select 'This p3 should show up in profiling'; 
+  show profile; 
+end//
 delimiter ;//
 
-select count(*) as count_before_p1 from information_schema.profiling;
+--disable_result_log
 --echo first call to p1
 call p1;
 select * from profile_log;
@@ -175,11 +193,11 @@ select * from profile_log;
 set session profiling = OFF;
 call p2;
 set session profiling = OFF;
---replace_column 2 #
 call p3;
 
 --replace_column 1 # 2 #
 show profiles;
+--enable_result_log
 
 drop procedure if exists p1;
 drop procedure if exists p2;
@@ -235,10 +253,11 @@ drop table if exists t1, t2, t3;
 drop view if exists v1;
 drop function if exists f1;
 
-# Multiple queries in one packet.
---eval select 1; select 2; select 3;
-# two continuations, one starting
-select state from information_schema.profiling where seq=1 order by query_id desc limit 3;
+## Multiple queries in one packet.  Combo statements don't work with ps-proto.
+#--eval select 1; select 2; select 3;
+## two continuations, one starting
+#select state from information_schema.profiling where seq=1 order by query_id desc limit 3;
+
 
 ## last thing in the file
 set session profiling = OFF;
