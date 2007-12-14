@@ -271,8 +271,6 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 
           /* SOME WORD POSITIONS OF FIELDS IN SOME HEADERS */
 
-#define ZFREE_COMMON 1                    /* PAGE STATE, PAGE IN COMMON AREA                   */
-#define ZEMPTY_MM 2                       /* PAGE STATE, PAGE IN EMPTY LIST                    */
 #define ZTH_MM_FREE 3                     /* PAGE STATE, TUPLE HEADER PAGE WITH FREE AREA      */
 #define ZTH_MM_FULL 4                     /* PAGE STATE, TUPLE HEADER PAGE WHICH IS FULL       */
 
@@ -330,6 +328,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZUNMAP_PAGES 12
 #define ZFREE_VAR_PAGES 13
 #define ZFREE_PAGES 14
+#define ZREBUILD_FREE_PAGE_LIST 15
 
 #define ZSCAN_PROCEDURE 0
 #define ZCOPY_PROCEDURE 2
@@ -423,7 +422,11 @@ struct Fragoperrec {
   Uint32 attributeCount;
   Uint32 charsetIndex;
   Uint32 m_null_bits[2];
-  BlockReference lqhBlockrefFrag;
+  union {
+    BlockReference lqhBlockrefFrag;
+    Uint32 m_senderRef;
+  };
+  Uint32 m_senderData;
   bool inUse;
   bool definingFragment;
 };
@@ -704,14 +707,17 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   
   void dump_disk_alloc(Disk_alloc_info&);
 
+  STATIC_CONST( FREE_PAGE_BIT = 0x80000000 );
+  STATIC_CONST( FREE_PAGE_RNIL = RNIL + 1 );
+
 struct Fragrecord {
   Uint32 noOfPages;
   Uint32 noOfVarPages;
 
+  Uint32 m_max_page_no;
+  Uint32 m_free_page_id_list;
   DynArr256::Head m_page_map;
-  DLList<Page>::Head emptyPrimPage; // allocated pages (not init)
   DLFifoList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
-  SLList<Page>::Head m_empty_pages; // Empty pages not in logical/physical map
   
   Uint32 m_lcp_scan_op;
   Uint32 m_lcp_keep_list;
@@ -730,7 +736,6 @@ struct Fragrecord {
   Uint32 m_tablespace_id;
   Uint32 m_logfile_group_id;
   Disk_alloc_info m_disk_alloc_info;
-  Uint32 m_var_page_chunks;
 };
 typedef Ptr<Fragrecord> FragrecordPtr;
 
@@ -1671,11 +1676,10 @@ public:
   int load_diskpage_scan(Signal*, Uint32 opRec, Uint32 fragPtrI, 
 			 Uint32 local_key, Uint32 flags);
 
-  int alloc_page(Tablerec*, Fragrecord*, PagePtr*,Uint32 page_no);
-  
   void start_restore_lcp(Uint32 tableId, Uint32 fragmentId);
-  void complete_restore_lcp(Uint32 tableId, Uint32 fragmentId);
-
+  void complete_restore_lcp(Signal*, Uint32 ref, Uint32 data,
+                            Uint32 tableId, Uint32 fragmentId);
+  
   int nr_read_pk(Uint32 fragPtr, const Local_key*, Uint32* dataOut, bool&copy);
   int nr_update_gci(Uint32 fragPtr, const Local_key*, Uint32 gci);
   int nr_delete(Signal*, Uint32, Uint32 fragPtr, const Local_key*, Uint32 gci);
@@ -2879,7 +2883,9 @@ private:
   Uint32 getNoOfPages(Fragrecord* regFragPtr);
   Uint32 getEmptyPage(Fragrecord* regFragPtr);
   Uint32 allocFragPage(Fragrecord* regFragPtr);
-  void releaseFragPages(Fragrecord* regFragPtr);
+  Uint32 allocFragPage(Tablerec*, Fragrecord*, Uint32 page_no);
+  void releaseFragPage(Fragrecord* regFragPtr, Uint32 logicalPageId, PagePtr);
+  void rebuild_page_free_list(Signal*);
   Uint32 get_empty_var_page(Fragrecord* frag_ptr);
   void init_page(Fragrecord*, PagePtr, Uint32 page_no);
   
@@ -3170,6 +3176,11 @@ private:
 
   /* For debugging, dump the contents of a tuple. */
   void dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP);
+
+#ifdef VM_TRACE
+  void check_page_map(Fragrecord*);
+  bool find_page_id_in_list(Fragrecord*, Uint32 pid);
+#endif
 };
 
 #if 0

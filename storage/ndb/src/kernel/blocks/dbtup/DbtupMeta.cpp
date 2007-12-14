@@ -132,11 +132,14 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_undo_complete= false;
   regFragPtr.p->m_lcp_scan_op = RNIL; 
   regFragPtr.p->m_lcp_keep_list = RNIL;
-  regFragPtr.p->m_var_page_chunks = RNIL;  
   regFragPtr.p->noOfPages = 0;
   regFragPtr.p->noOfVarPages = 0;
+  regFragPtr.p->m_max_page_no = 0;
+  regFragPtr.p->m_free_page_id_list = FREE_PAGE_RNIL;
   ndbrequire(regFragPtr.p->m_page_map.isEmpty());
   regFragPtr.p->m_restore_lcp_id = RNIL;
+  for (Uint32 i = 0; i<MAX_FREE_LIST; i++)
+    ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
   if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
       ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId) {
@@ -527,7 +530,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       noAllocatedPages = 2;
 #endif
     
-    Uint32 noAllocatedPages = allocFragPage(regFragPtr.p);
+    Uint32 noAllocatedPages = 1; //allocFragPage(regFragPtr.p);
     
     if (noAllocatedPages == 0) {
       jam();
@@ -1874,20 +1877,21 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   
   PagePtr pagePtr;
-  if ((pagePtr.i = fragPtr.p->m_var_page_chunks) != RNIL)
+  for (Uint32 i = 0; i<MAX_FREE_LIST; i++)
   {
-    c_page_pool.getPtr(pagePtr);
-    Var_page* page = (Var_page*)pagePtr.p;
-    fragPtr.p->m_var_page_chunks = page->next_chunk;
-
-    Uint32 sz = page->chunk_size;
-    returnCommonArea(pagePtr.i, sz);
+    if (! fragPtr.p->free_var_page_array[i].isEmpty())
+    {
+      LocalDLList<Page> list(c_page_pool, fragPtr.p->free_var_page_array[i]);
+      ndbrequire(list.first(pagePtr));
+      list.remove(pagePtr);
+      returnCommonArea(pagePtr.i, 1);
     
-    signal->theData[0] = ZFREE_VAR_PAGES;
-    signal->theData[1] = tabPtr.i;
-    signal->theData[2] = fragPtr.i;
-    sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);  
-    return;
+      signal->theData[0] = ZFREE_VAR_PAGES;
+      signal->theData[1] = tabPtr.i;
+      signal->theData[2] = fragPtr.i;
+      sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);  
+      return;
+    }
   }
 
   DynArr256::ReleaseIterator iter;
@@ -1922,11 +1926,12 @@ Dbtup::drop_fragment_free_pages(Signal* signal)
       jam();
       goto done;
     case 1:
-      if (realpid != RNIL)
+      if (realpid != RNIL && ((realpid & FREE_PAGE_BIT) == 0))
       {
-	jam();
-	returnCommonArea(realpid, 1);
+        jam();
+        returnCommonArea(realpid, 1);
       }
+      break;
     case 2:
       jam();
       break;
@@ -1948,20 +1953,10 @@ done:
   }
   
   {
-    LocalDLList<Page> tmp(c_page_pool, fragPtr.p->emptyPrimPage);
-    tmp.remove();
-  }
-  
-  {
     LocalDLFifoList<Page> tmp(c_page_pool, fragPtr.p->thFreeFirst);
     tmp.remove();
   }
   
-  {
-    LocalSLList<Page> tmp(c_page_pool, fragPtr.p->m_empty_pages);
-    tmp.remove();
-  }
-
   /**
    * Finish
    */
@@ -2099,7 +2094,9 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   tabPtr.p->m_attributes[DD].m_no_of_varsize = 0;
 }
 void
-Dbtup::complete_restore_lcp(Uint32 tableId, Uint32 fragId)
+Dbtup::complete_restore_lcp(Signal* signal, 
+                            Uint32 senderRef, Uint32 senderData,
+                            Uint32 tableId, Uint32 fragId)
 {
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
@@ -2123,6 +2120,23 @@ Dbtup::complete_restore_lcp(Uint32 tableId, Uint32 fragId)
     
     tabDesc += 2;
   }
+
+  /**
+   * Rebuild free page list
+   */
+  Ptr<Fragoperrec> fragOpPtr;
+  seizeFragoperrec(fragOpPtr);
+  fragOpPtr.p->m_senderRef = senderRef;
+  fragOpPtr.p->m_senderData = senderData;
+  Ptr<Fragrecord> fragPtr;
+  getFragmentrec(fragPtr, fragId, tabPtr.p);
+  fragOpPtr.p->fragPointer = fragPtr.i;
+
+  signal->theData[0] = ZREBUILD_FREE_PAGE_LIST;
+  signal->theData[1] = fragOpPtr.i;
+  signal->theData[2] = 0; // start page
+  signal->theData[3] = RNIL; // tail
+  rebuild_page_free_list(signal);
 }
 
 bool
@@ -2138,7 +2152,7 @@ Dbtup::get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage)
   
   if (maxPage)
   {
-    * maxPage = fragPtr.p->noOfPages;
+    * maxPage = fragPtr.p->m_max_page_no;
   }
 
   return true;
