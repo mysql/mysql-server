@@ -712,12 +712,9 @@ Restore::execFSCLOSECONF(Signal * signal)
 
   if(file_ptr.p->m_outstanding_operations == 0)
   {
-    RestoreLcpConf* rep= (RestoreLcpConf*)signal->getDataPtrSend();
-    rep->senderData= file_ptr.p->m_sender_data;
-    sendSignal(file_ptr.p->m_sender_ref, 
-	       GSN_RESTORE_LCP_CONF, signal, 
-	       RestoreLcpConf::SignalLength, JBB);
-    release_file(file_ptr);
+    jam();
+    restore_lcp_conf(signal, file_ptr);
+    return;
   }
 }
 
@@ -1186,13 +1183,37 @@ Restore::execLQHKEYCONF(Signal* signal)
   file_ptr.p->m_rows_restored++;
   if(file_ptr.p->m_outstanding_operations == 0 && file_ptr.p->m_fd == RNIL)
   {
-    RestoreLcpConf* rep= (RestoreLcpConf*)signal->getDataPtrSend();
-    rep->senderData= file_ptr.p->m_sender_data;
-    sendSignal(file_ptr.p->m_sender_ref, 
-	       GSN_RESTORE_LCP_CONF, signal, 
-	       RestoreLcpConf::SignalLength, JBB);
-    release_file(file_ptr);
+    jam();
+    restore_lcp_conf(signal, file_ptr);
+    return;
   }
+}
+
+void
+Restore::restore_lcp_conf(Signal* signal, FilePtr file_ptr)
+{
+  RestoreLcpConf* rep= (RestoreLcpConf*)signal->getDataPtrSend();
+  rep->senderData= file_ptr.p->m_sender_data;
+  if(file_ptr.p->is_lcp())
+  {
+    /**
+     * Temporary reset DBTUP's #disk attributes on table
+     *
+     * TUP will send RESTORE_LCP_CONF
+     */
+    c_tup->complete_restore_lcp(signal, 
+                                file_ptr.p->m_sender_ref,
+                                file_ptr.p->m_sender_data,
+                                file_ptr.p->m_table_id,
+				file_ptr.p->m_fragment_id);
+  }
+  else
+  {
+    sendSignal(file_ptr.p->m_sender_ref, 
+               GSN_RESTORE_LCP_CONF, signal, 
+               RestoreLcpConf::SignalLength, JBB);
+  }
+  release_file(file_ptr);
 }
 
 void
@@ -1212,17 +1233,6 @@ Restore::parse_fragment_footer(Signal* signal, FilePtr file_ptr,
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->SectionLength));
     return;
   }
-
-  if(file_ptr.p->is_lcp())
-  {
-    /**
-     * Temporary reset DBTUP's #disk attributes on table
-     */
-    c_tup->complete_restore_lcp(file_ptr.p->m_table_id,
-				file_ptr.p->m_fragment_id);
-  }
-
-  file_ptr.p->m_fragment_id = RNIL;
 }
 
 void

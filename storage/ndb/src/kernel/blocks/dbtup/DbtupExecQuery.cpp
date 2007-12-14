@@ -3454,15 +3454,17 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
   if (tablePtr.p->m_bits & Tablerec::TR_RowGCI)
   {
     Local_key tmp = *key;
-    PagePtr page_ptr;
+    PagePtr pagePtr;
 
-    int ret = alloc_page(tablePtr.p, fragPtr.p, &page_ptr, tmp.m_page_no);
-
-    if (ret)
+    pagePtr.i = allocFragPage(tablePtr.p, fragPtr.p, tmp.m_page_no);
+    if (unlikely(pagePtr.i == RNIL))
+    {
       return -1;
+    }
+    c_page_pool.getPtr(pagePtr);
     
     Tuple_header* ptr = (Tuple_header*)
-      ((Fix_page*)page_ptr.p)->get_ptr(tmp.m_page_idx, 0);
+      ((Fix_page*)pagePtr.p)->get_ptr(tmp.m_page_idx, 0);
     
     ndbrequire(ptr->m_header_bits & Tuple_header::FREE);
     *ptr->get_mm_gci(tablePtr.p) = gci;
@@ -3485,19 +3487,20 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
   Local_key tmp = *key;
   
   
-  PagePtr page_ptr;
-  int ret = alloc_page(tablePtr.p, fragPtr.p, &page_ptr, tmp.m_page_no);
-  if (ret)
+  PagePtr pagePtr;
+  pagePtr.i = allocFragPage(tablePtr.p, fragPtr.p, tmp.m_page_no);
+  if (unlikely(pagePtr.i == RNIL))
     return -1;
   
+  c_page_pool.getPtr(pagePtr);
   KeyReqStruct req_struct;
-  Uint32* ptr= ((Fix_page*)page_ptr.p)->get_ptr(key->m_page_idx, 0);
+  Uint32* ptr= ((Fix_page*)pagePtr.p)->get_ptr(key->m_page_idx, 0);
   
-  req_struct.m_page_ptr = page_ptr;
+  req_struct.m_page_ptr = pagePtr;
   req_struct.m_tuple_ptr = (Tuple_header*)ptr;
   Uint32 bits = req_struct.m_tuple_ptr->m_header_bits;
 
-  ret = 0;
+  int ret = 0;
   copy = false;
   if (! (bits & Tuple_header::FREE))
   {
