@@ -12,6 +12,15 @@
 
 #include "test.h"
 
+#if USE_BDB
+#define DB_YESOVERWRITE 0
+#endif
+
+int db_put(DB *db, DB_TXN *txn, int k, int v) {
+    DBT key, val;
+    int r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
+    return r;
+}
 
 /* create a tree with 15 of 16 leaf nodes
    each of the leaves should be about 1/2 full
@@ -47,28 +56,23 @@ void test_hsoc(int pagesize, int dup_mode) {
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
     int i;
-    DBT key, val;
-    int k, v;
 
     /* force 15 leaves (14 splits)  */
     if (verbose) printf("force15\n");
     for (i=0; i<n; i++) {
-        k = htonl(i); v = i;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0); assert(r == 0);
+        r = db_put(db, null_txn, htonl(i), i); assert(r == 0);
     } 
 
     /* almost fill leaf 0 */
     if (verbose) printf("fill0\n");
     for (i=0; i<(npp/2)-4; i++) {
-        k = htonl(0); v = n+i;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0); assert(r == 0);
+        r = db_put(db, null_txn, htonl(0), n+i); assert(r == 0);
     }
 
     /* almost fill leaf 15 */
     if (verbose) printf("fill15\n");
     for (i=0; i<111; i++) { // for (i=0; i<(npp/2)-4; i++) {
-        k = htonl(n); v = i;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0); assert(r == 0);
+        r = db_put(db, null_txn, htonl(n), i); assert(r == 0);
     }
 
     /* reopen the database to force nonleaf buffering */
@@ -82,20 +86,20 @@ void test_hsoc(int pagesize, int dup_mode) {
     /* do a cursor get k=0 to pull in leaf 0 */
     DBC *cursor;
 
-    r = db->cursor(db,null_txn,  &cursor, 0); assert(r == 0);
+    r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
+
+    DBT key, val;
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_FIRST); assert(r == 0);
     free(key.data); free(val.data);
 
     /* fill up buffer 2 in the root node */
     for (i=0; i<216; i++) {
-        k = htonl(npp); v = i;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0); assert(r == 0);
+        r = db_put(db, null_txn, htonl(npp), i); assert(r == 0);
     }
 
     /* push a cmd to leaf 0 to cause it to split */
     for (i=0; i<3; i++) {
-        k = htonl(0); v = 2*n+i;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0); assert(r == 0);
+        r = db_put(db, null_txn, htonl(0), 2*n+i); assert(r == 0);
     }
 
     r = cursor->c_close(cursor); assert(r == 0);
