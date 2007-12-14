@@ -77,6 +77,10 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.start_new_query();
+#endif
+
   thd->clear_data_list();
   /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
@@ -116,6 +120,9 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.finish_current_query();
+#endif
   return result;
 }
 
