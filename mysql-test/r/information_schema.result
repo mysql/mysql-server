@@ -1611,4 +1611,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
 Warnings:
 Note	1003	select 1 AS `1` from `information_schema`.`tables`
+use information_schema;
+show events;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+show events from information_schema;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+show events where Db= 'information_schema';
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+use test;
 End of 5.1 tests.
