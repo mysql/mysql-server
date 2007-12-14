@@ -8,11 +8,10 @@
 # NOTE: PLEASE SEE ps_1general.test (bottom) 
 #       BEFORE ADDING NEW TEST CASES HERE !!!
 
+-- source include/have_maria.inc
 set global maria_log_file_size=4294967296;
 
 use test;
-
--- source include/have_maria.inc
 
 let $type= 'MARIA' ;
 -- source include/ps_create.inc
