@@ -1982,7 +1982,7 @@ static void relink_unused(TABLE *table)
 
 
 /**
-  @brief Prepare an open merge table for close.
+  Prepare an open merge table for close.
 
   @param[in]     thd             thread context
   @param[in]     table           table to prepare
@@ -2053,8 +2053,8 @@ static void unlink_open_merge(THD *thd, TABLE *table, TABLE ***prev_pp)
 
 
 /**
-    @brief  Remove all instances of table from thread's open list and
-            table cache.
+    Remove all instances of table from thread's open list and
+    table cache.
 
     @param  thd     Thread context
     @param  find    Table to remove
@@ -2117,7 +2117,7 @@ void unlink_open_table(THD *thd, TABLE *find, bool unlock)
 
 
 /**
-    @brief Auxiliary routine which closes and drops open table.
+    Auxiliary routine which closes and drops open table.
 
     @param  thd         Thread handle
     @param  table       TABLE object for table to be dropped
@@ -2324,9 +2324,9 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in)
 
 
 /**
-    @brief Create and insert into table cache placeholder for table
-           which will prevent its opening (or creation) (a.k.a lock
-           table name).
+    Create and insert into table cache placeholder for table
+    which will prevent its opening (or creation) (a.k.a lock
+    table name).
 
     @param thd         Thread context
     @param key         Table cache key for name to be locked
@@ -2375,8 +2375,8 @@ TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
 
 
 /**
-    @brief Obtain an exclusive name lock on the table if it is not cached
-           in the table cache.
+    Obtain an exclusive name lock on the table if it is not cached
+    in the table cache.
 
     @param      thd         Thread context
     @param      db          Name of database
@@ -2427,8 +2427,8 @@ bool lock_table_name_if_not_cached(THD *thd, const char *db,
 
 
 /**
-    @brief Check that table exists in table definition cache, on disk
-           or in some storage engine.
+    Check that table exists in table definition cache, on disk
+    or in some storage engine.
 
     @param       thd     Thread context
     @param       table   Table list element
@@ -3142,8 +3142,8 @@ bool reopen_table(TABLE *table)
 
 
 /**
-    @brief Close all instances of a table open by this thread and replace
-           them with exclusive name-locks.
+    Close all instances of a table open by this thread and replace
+    them with exclusive name-locks.
 
     @param thd        Thread context
     @param db         Database name for the table to be closed
@@ -3212,7 +3212,7 @@ void close_data_files_and_morph_locks(THD *thd, const char *db,
 
 
 /**
-  @brief Reattach MERGE children after reopen.
+  Reattach MERGE children after reopen.
 
   @param[in]     thd            thread context
   @param[in,out] err_tables_p   pointer to pointer of tables in error
@@ -3268,7 +3268,7 @@ static bool reattach_merge(THD *thd, TABLE **err_tables_p)
 
 
 /**
-    @brief Reopen all tables with closed data files.
+    Reopen all tables with closed data files.
 
     @param thd         Thread context
     @param get_locks   Should we get locks after reopening tables ?
@@ -3412,8 +3412,8 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
 
 
 /**
-    @brief Close handlers for tables in list, but leave the TABLE structure
-           intact so that we can re-open these quickly.
+    Close handlers for tables in list, but leave the TABLE structure
+    intact so that we can re-open these quickly.
 
     @param thd           Thread context
     @param table         Head of the list of TABLE objects

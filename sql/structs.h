@@ -209,7 +209,7 @@ typedef struct  user_conn {
   char *user;
   /* Pointer to host part of the key. */
   char *host;
-  /*
+  /**
      The moment of time when per hour counters were reset last time
      (i.e. start of "hour" for conn_per_hour, updates, questions counters).
   */

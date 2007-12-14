@@ -215,8 +215,8 @@ static void clear_all_errors(THD *thd, Relay_log_info *rli)
 }
 
 
-/*
-  Ignore error code specified on command line
+/**
+  Ignore error code specified on command line.
 */
 
 inline int ignored_error_code(int err_code)
@@ -273,21 +273,20 @@ static char *pretty_print_str(char *packet, char *str, int len)
 #endif /* !MYSQL_CLIENT */
 
 
-/*
-  Creates a temporary name for load data infile:
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
-  SYNOPSIS
-    slave_load_file_stem()
-    buf		      Store new filename here
-    file_id	      File_id (part of file name)
-    event_server_id   Event_id (part of file name)
-    ext		      Extension for file name
+/**
+  Creates a temporary name for load data infile:.
 
-  RETURN
+  @param buf		      Store new filename here
+  @param file_id	      File_id (part of file name)
+  @param event_server_id     Event_id (part of file name)
+  @param ext		      Extension for file name
+
+  @return
     Pointer to start of extension
 */
 
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 static char *slave_load_file_stem(char *buf, uint file_id,
                                   int event_server_id, const char *ext)
 {
@@ -307,14 +306,12 @@ static char *slave_load_file_stem(char *buf, uint file_id,
 #endif
 
 
-/*
-  Delete all temporary files used for SQL_LOAD.
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
-  SYNOPSIS
-    cleanup_load_tmpdir()
+/**
+  Delete all temporary files used for SQL_LOAD.
 */
 
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 static void cleanup_load_tmpdir()
 {
   MY_DIR *dirp;
@@ -382,7 +379,7 @@ static inline int read_str(const char **buf, const char *buf_end,
 }
 
 
-/*
+/**
   Transforms a string into "" or its expression in 0x... form.
 */
 
@@ -399,12 +396,14 @@ char *str_to_hex(char *to, const char *from, uint len)
   return to;                               // pointer to end 0 of 'to'
 }
 
-/*
+#ifndef MYSQL_CLIENT
+
+/**
   Append a version of the 'from' string suitable for use in a query to
   the 'to' string.  To generate a correct escaping, the character set
   information in 'csinfo' is used.
- */
-#ifndef MYSQL_CLIENT
+*/
+
 int
 append_query_string(CHARSET_INFO *csinfo,
                     String const *from, String *to)
@@ -431,7 +430,7 @@ append_query_string(CHARSET_INFO *csinfo,
 #endif
 
 
-/*
+/**
   Prints a "session_var=value" string. Used by mysqlbinlog to print some SET
   commands just before it prints a query.
 */
@@ -456,8 +455,9 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
 	Log_event methods (= the parent class of all events)
 **************************************************************************/
 
-/*
-  Log_event::get_type_str()
+/**
+  @return
+  returns the human readable name of the event's type
 */
 
 const char* Log_event::get_type_str()
@@ -505,7 +505,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 }
 
 
-/*
+/**
   This minimal constructor is for when you are not even sure that there
   is a valid THD. For example in the server when we are shutting down or
   flushing logs after receiving a SIGHUP (then we must write a Rotate to
@@ -675,12 +675,9 @@ void Log_event::pack_info(Protocol *protocol)
 }
 
 
-/*
-  Log_event::net_send()
-
+/**
   Only called by SHOW BINLOG EVENTS
 */
-
 int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
 {
   const char *p= strrchr(log_name, FN_LIBCHAR);
@@ -701,8 +698,10 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
 #endif /* HAVE_REPLICATION */
 
 
-/*
-  Log_event::init_show_field_list()
+/**
+  init_show_field_list() prepares the column names and types for the
+  output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
+  EVENTS.
 */
 
 void Log_event::init_show_field_list(List<Item>* field_list)
@@ -798,12 +797,9 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 }
 
 
-/*
-  Log_event::read_log_event()
-
+/**
   This needn't be format-tolerant, because we only read
   LOG_EVENT_MINIMAL_HEADER_LEN (we just want to read the event's length).
-
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
@@ -886,14 +882,11 @@ end:
 #define LOCK_MUTEX
 #endif
 
-/*
-  Log_event::read_log_event()
-
-  NOTE:
+#ifndef MYSQL_CLIENT
+/**
+  @note
     Allocates memory;  The caller is responsible for clean-up.
 */
-
-#ifndef MYSQL_CLIENT
 Log_event* Log_event::read_log_event(IO_CACHE* file,
 				     pthread_mutex_t* log_lock,
                                      const Format_description_log_event
@@ -991,8 +984,7 @@ err:
 }
 
 
-/*
-  Log_event::read_log_event()
+/**
   Binlog format tolerance is in (buf, event_len, description_event)
   constructors.
 */
@@ -1329,12 +1321,13 @@ Log_event::continue_group(Relay_log_info *rli)
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
-/*
-  Query_log_event::pack_info()
+/**
   This (which is used only for SHOW BINLOG EVENTS) could be updated to
   print SET @@session_var=. But this is not urgent, as SHOW BINLOG EVENTS is
   only an information, it does not produce suitable queries to replay (for
   example it does not print LOAD DATA INFILE).
+  @todo
+    show the catalog ??
 */
 
 void Query_log_event::pack_info(Protocol *protocol)
@@ -1363,7 +1356,9 @@ void Query_log_event::pack_info(Protocol *protocol)
 
 #ifndef MYSQL_CLIENT
 
-/* Utility function for the next method */
+/**
+  Utility function for the next method (Query_log_event::write()) .
+*/
 static void write_str_with_code_and_len(char **dst, const char *src,
                                         int len, uint code)
 {
@@ -1375,10 +1370,10 @@ static void write_str_with_code_and_len(char **dst, const char *src,
 }
 
 
-/*
-  Query_log_event::write()
+/**
+  Query_log_event::write().
 
-  NOTES:
+  @note
     In this event we have to modify the header to have the correct
     EVENT_LEN_OFFSET as we don't yet know how many status variables we
     will print!
@@ -1555,9 +1550,7 @@ bool Query_log_event::write(IO_CACHE* file)
           my_b_safe_write(file, (uchar*) query, q_len)) ? 1 : 0;
 }
 
-/*
-  Query_log_event::Query_log_event()
- 
+/**
   The simplest constructor that could possibly work.  This is used for
   creating static objects that have a special meaning and are invisible
   to the log.  
@@ -1755,11 +1748,10 @@ code_name(int code)
     }                                                 \
   } while (0)
 
-/*
-  Query_log_event::Query_log_event()
+
+/**
   This is used by the SQL slave thread to prepare the event before execution.
 */
-
 Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  const Format_description_log_event
                                  *description_event,
@@ -1968,11 +1960,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 }
 
 
-/*
-  Query_log_event::print()
-*/
-
 #ifdef MYSQL_CLIENT
+/**
+  Query_log_event::print().
+
+  @todo
+    print the catalog ??
+*/
 void Query_log_event::print_query_header(IO_CACHE* file,
 					 PRINT_EVENT_INFO* print_event_info)
 {
@@ -2157,6 +2151,23 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli)
 }
 
 
+/**
+  @todo
+  Compare the values of "affected rows" around here. Something
+  like:
+  @code
+     if ((uint32) affected_in_event != (uint32) affected_on_slave)
+     {
+     sql_print_error("Slave: did not get the expected number of affected \
+     rows running query from master - expected %d, got %d (this numbers \
+     should have matched modulo 4294967296).", 0, ...);
+     thd->query_error = 1;
+     }
+  @endcode
+  We may also want an option to tell the slave to ignore "affected"
+  mismatch. This mismatch could be implemented with a new ER_ code, and
+  to ignore it you would use --slave-skip-errors...
+*/
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                       const char *query_arg, uint32 q_len_arg)
 {
@@ -2612,30 +2623,31 @@ bool Start_log_event_v3::write(IO_CACHE* file)
 #endif
 
 
-/*
-  Start_log_event_v3::do_apply_event()
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
+/**
+  Start_log_event_v3::do_apply_event() .
   The master started
 
-  IMPLEMENTATION
+    IMPLEMENTATION
     - To handle the case where the master died without having time to write
-      DROP TEMPORARY TABLE, DO RELEASE_LOCK (prepared statements' deletion is
-      TODO), we clean up all temporary tables that we got, if we are sure we
-      can (see below).
+    DROP TEMPORARY TABLE, DO RELEASE_LOCK (prepared statements' deletion is
+    TODO), we clean up all temporary tables that we got, if we are sure we
+    can (see below).
 
-  TODO
+  @todo
     - Remove all active user locks.
-      Guilhem 2003-06: this is true but not urgent: the worst it can cause is
-      the use of a bit of memory for a user lock which will not be used
-      anymore. If the user lock is later used, the old one will be released. In
-      other words, no deadlock problem.
+    Guilhem 2003-06: this is true but not urgent: the worst it can cause is
+    the use of a bit of memory for a user lock which will not be used
+    anymore. If the user lock is later used, the old one will be released. In
+    other words, no deadlock problem.
 */
 
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Start_log_event_v3::do_apply_event");
-  switch (binlog_version) {
+  switch (binlog_version)
+  {
   case 3:
   case 4:
     /*
@@ -2683,23 +2695,20 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
        Format_description_log_event methods
 ****************************************************************************/
 
-/*
+/**
   Format_description_log_event 1st ctor.
 
-  SYNOPSIS
-    Format_description_log_event::Format_description_log_event
-      binlog_version              the binlog version for which we want to build
-                                  an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
-                                  x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
-                                  old 4.0 (binlog version 2) is not supported;
-                                  it should not be used for replication with
-                                  5.0.
-
-  DESCRIPTION
     Ctor. Can be used to create the event to write to the binary log (when the
     server starts or when FLUSH LOGS), or to create artificial events to parse
     binlogs from MySQL 3.23 or 4.x.
     When in a client, only the 2nd use is possible.
+
+  @param binlog_version         the binlog version for which we want to build
+                                an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
+                                x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
+                                old 4.0 (binlog version 2) is not supported;
+                                it should not be used for replication with
+                                5.0.
 */
 
 Format_description_log_event::
@@ -2807,18 +2816,20 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
 }
 
 
-/*
+/**
   The problem with this constructor is that the fixed header may have a
   length different from this version, but we don't know this length as we
   have not read the Format_description_log_event which says it, yet. This
   length is in the post-header of the event, but we don't know where the
   post-header starts.
+
   So this type of event HAS to:
   - either have the header's length at the beginning (in the header, at a
   fixed position which will never be changed), not in the post-header. That
   would make the header be "shifted" compared to other events.
   - or have a header of size LOG_EVENT_MINIMAL_HEADER_LEN (19), in all future
   versions, so that we know for sure.
+
   I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
   it is sent before Format_description_log_event).
 */
@@ -3253,14 +3264,11 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 #endif /* !MYSQL_CLIENT */
 
 
-/*
-  Load_log_event::Load_log_event()
-
-  NOTE
+/**
+  @note
     The caller must do buf[event_len] = 0 before he starts using the
     constructed event.
 */
-
 Load_log_event::Load_log_event(const char *buf, uint event_len,
                                const Format_description_log_event *description_event)
   :Log_event(buf, description_event), num_fields(0), fields(0),
@@ -3435,17 +3443,18 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
 }
 #endif /* MYSQL_CLIENT */
 
+#ifndef MYSQL_CLIENT
 
-/*
+/**
   Load_log_event::set_fields()
 
-  Note that this function can not use the member variable 
-  for the database, since LOAD DATA INFILE on the slave
-  can be for a different database than the current one.
-  This is the reason for the affected_db argument to this method.
+  @note
+    This function can not use the member variable 
+    for the database, since LOAD DATA INFILE on the slave
+    can be for a different database than the current one.
+    This is the reason for the affected_db argument to this method.
 */
 
-#ifndef MYSQL_CLIENT
 void Load_log_event::set_fields(const char* affected_db, 
 				List<Item> &field_list,
                                 Name_resolution_context *context)
@@ -3463,32 +3472,33 @@ void Load_log_event::set_fields(const char* affected_db,
 
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-/*
-  Does the data loading job when executing a LOAD DATA on the slave
+/**
+  Does the data loading job when executing a LOAD DATA on the slave.
 
-  SYNOPSIS
-    Load_log_event::do_apply_event
-      net
-      rli
-      use_rli_only_for_errors	  - if set to 1, rli is provided to
-                                  Load_log_event::do_apply_event
-                                  only for this function to have
-                                  RPL_LOG_NAME and
-                                  rli->last_slave_error, both being
-                                  used by error reports. rli's
-                                  position advancing is skipped (done
-                                  by the caller which is
-                                  Execute_load_log_event::do_apply_event).
-                                  - if set to 0, rli is provided for
-                                  full use, i.e. for error reports and
-                                  position advancing.
+  @param net
+  @param rli
+  @param use_rli_only_for_errors     If set to 1, rli is provided to
+                                     Load_log_event::exec_event only for this
+                                     function to have RPL_LOG_NAME and
+                                     rli->last_slave_error, both being used by
+                                     error reports. rli's position advancing
+                                     is skipped (done by the caller which is
+                                     Execute_load_log_event::exec_event).
+                                     If set to 0, rli is provided for full use,
+                                     i.e. for error reports and position
+                                     advancing.
 
-  DESCRIPTION
-    Does the data loading job when executing a LOAD DATA on the slave
+  @todo
+    fix this; this can be done by testing rules in
+    Create_file_log_event::exec_event() and then discarding Append_block and
+    al.
+  @todo
+    this is a bug - this needs to be moved to the I/O thread
 
-  RETURN VALUE
+  @retval
     0           Success
-    1    	Failure
+  @retval
+    1           Failure
 */
 
 int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
@@ -3864,24 +3874,21 @@ bool Rotate_log_event::write(IO_CACHE* file)
 #endif
 
 
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+
 /*
-  Rotate_log_event::do_apply_event()
+  Got a rotate log event from the master.
 
-  Got a rotate log event from the master
+  This is mainly used so that we can later figure out the logname and
+  position for the master.
 
-  IMPLEMENTATION
-    This is mainly used so that we can later figure out the logname and
-    position for the master.
+  We can't rotate the slave's BINlog as this will cause infinitive rotations
+  in a A -> B -> A setup.
+  The NOTES below is a wrong comment which will disappear when 4.1 is merged.
 
-    We can't rotate the slave's BINlog as this will cause infinitive rotations
-    in a A -> B -> A setup.
-    The NOTES below is a wrong comment which will disappear when 4.1 is merged.
-
-  RETURN VALUES
+  @retval
     0	ok
 */
-
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Rotate_log_event::do_update_pos(Relay_log_info *rli)
 {
   DBUG_ENTER("Rotate_log_event::do_update_pos");
@@ -4233,12 +4240,12 @@ void Xid_log_event::pack_info(Protocol *protocol)
 }
 #endif
 
-/*
-  NOTE it's ok not to use int8store here,
+/**
+  @note
+  It's ok not to use int8store here,
   as long as xid_t::set(ulonglong) and
-  xid_t::get_my_xid doesn't do it either
-
-  we don't care about actual values of xids as long as
+  xid_t::get_my_xid doesn't do it either.
+  We don't care about actual values of xids as long as
   identical numbers compare identically
 */
 
@@ -4717,6 +4724,10 @@ void Slave_log_event::pack_info(Protocol *protocol)
 
 
 #ifndef MYSQL_CLIENT
+/**
+  @todo
+  re-write this better without holding both locks at the same time
+*/
 Slave_log_event::Slave_log_event(THD* thd_arg,
 				 Relay_log_info* rli)
   :Log_event(thd_arg, 0, 0) , mem_pool(0), master_host(0)
@@ -4812,7 +4823,7 @@ void Slave_log_event::init_from_mem_pool(int data_size)
 }
 
 
-/* This code is not used, so has not been updated to be format-tolerant */
+/** This code is not used, so has not been updated to be format-tolerant. */
 Slave_log_event::Slave_log_event(const char* buf, uint event_len)
   :Log_event(buf,0) /*unused event*/ ,mem_pool(0),master_host(0)
 {
@@ -4860,9 +4871,8 @@ void Stop_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #endif /* MYSQL_CLIENT */
 
 
+#ifndef MYSQL_CLIENT
 /*
-  Stop_log_event::do_apply_event()
-
   The master stopped.  We used to clean up all temporary tables but
   this is useless as, as the master has shut down properly, it has
   written all DROP TEMPORARY TABLE (prepared statements' deletion is
@@ -4873,8 +4883,6 @@ void Stop_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   Start_log_event_v3::do_apply_event(), not here. Because if we come
   here, the master was sane.
 */
-
-#ifndef MYSQL_CLIENT
 int Stop_log_event::do_update_pos(Relay_log_info *rli)
 {
   /*
@@ -5698,7 +5706,9 @@ void Execute_load_query_log_event::print(FILE* file,
   print(file, print_event_info, 0);
 }
 
-
+/**
+  Prints the query as LOAD DATA LOCAL and with rewritten filename.
+*/
 void Execute_load_query_log_event::print(FILE* file,
                                          PRINT_EVENT_INFO* print_event_info,
                                          const char *local_fname)
@@ -6755,15 +6765,17 @@ void Rows_log_event::print_helper(FILE *file,
   type used is uint32. 
 */
 
+#if !defined(MYSQL_CLIENT)
 /**
   Save the field metadata based on the real_type of the field.
   The metadata saved depends on the type of the field. Some fields
   store a single byte for pack_length() while others store two bytes
   for field_length (max length).
   
-  @retval 0 Ok.
+  @retval  0  Ok.
 
-  TODO: We may want to consider changing the encoding of the information.
+  @todo
+  We may want to consider changing the encoding of the information.
   Currently, the code attempts to minimize the number of bytes written to 
   the tablemap. There are at least two other alternatives; 1) using 
   net_store_length() to store the data allowing it to choose the number of
@@ -6778,7 +6790,6 @@ void Rows_log_event::print_helper(FILE *file,
   is less wasteful for space but does waste 1 byte for every field that does
   not encode 2 parts. 
 */
-#if !defined(MYSQL_CLIENT)
 int Table_map_log_event::save_field_metadata()
 {
   DBUG_ENTER("Table_map_log_event::save_field_metadata");

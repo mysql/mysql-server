@@ -14,9 +14,12 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/*
-  This file defines the NDB Cluster handler: the interface between MySQL and
-  NDB Cluster
+/**
+  @file
+
+  @brief
+  This file defines the NDB Cluster handler: the interface between
+  MySQL and NDB Cluster
 */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -140,10 +143,10 @@ static Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
 uchar g_node_id_map[max_ndb_nodes];
 
-// Handler synchronization
+/// Handler synchronization
 pthread_mutex_t ndbcluster_mutex;
 
-// Table lock handling
+/// Table lock handling
 HASH ndbcluster_open_tables;
 
 static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
@@ -164,14 +167,14 @@ pthread_cond_t COND_ndb_util_ready;
 pthread_handler_t ndb_util_thread_func(void *arg);
 ulong ndb_cache_check_time;
 
-/*
+/**
   Dummy buffer to read zero pack_length fields
-  which are mapped to 1 char
+  which are mapped to 1 char.
 */
 static uint32 dummy_buf;
 
-/*
-  Stats that can be retrieved from ndb
+/**
+  Stats that can be retrieved from ndb.
 */
 
 struct Ndb_statistics {
@@ -607,10 +610,10 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
 }
 
 
-/*
+/**
   Override the default get_error_message in order to add the 
-  error message of NDB 
- */
+  error message of NDB .
+*/
 
 bool ha_ndbcluster::get_error_message(int error, 
                                       String *buf)
@@ -631,7 +634,7 @@ bool ha_ndbcluster::get_error_message(int error,
 
 
 #ifndef DBUG_OFF
-/*
+/**
   Check if type is supported by NDB.
 */
 
@@ -673,8 +676,8 @@ static bool ndb_supported_type(enum_field_types type)
 #endif /* !DBUG_OFF */
 
 
-/*
-  Check if MySQL field type forces var part in ndb storage
+/**
+  Check if MySQL field type forces var part in ndb storage.
 */
 static bool field_type_forces_var_part(enum_field_types type)
 {
@@ -693,8 +696,8 @@ static bool field_type_forces_var_part(enum_field_types type)
   }
 }
 
-/*
-  Instruct NDB to set the value of the hidden primary key
+/**
+  Instruct NDB to set the value of the hidden primary key.
 */
 
 bool ha_ndbcluster::set_hidden_key(NdbOperation *ndb_op,
@@ -705,8 +708,8 @@ bool ha_ndbcluster::set_hidden_key(NdbOperation *ndb_op,
 }
 
 
-/*
-  Instruct NDB to set the value of one primary key attribute
+/**
+  Instruct NDB to set the value of one primary key attribute.
 */
 
 int ha_ndbcluster::set_ndb_key(NdbOperation *ndb_op, Field *field,
@@ -726,8 +729,8 @@ int ha_ndbcluster::set_ndb_key(NdbOperation *ndb_op, Field *field,
 }
 
 
-/*
- Instruct NDB to set the value of one attribute
+/**
+  Instruct NDB to set the value of one attribute.
 */
 
 int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field, 
@@ -822,19 +825,21 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
 }
 
 
-/*
-  Callback to read all blob values.
-  - not done in unpack_record because unpack_record is valid
-    after execute(Commit) but reading blobs is not
-  - may only generate read operations; they have to be executed
-    somewhere before the data is available
-  - due to single buffer for all blobs, we let the last blob
-    process all blobs (last so that all are active)
-  - null bit is still set in unpack_record
-  - TODO allocate blob part aligned buffers
-*/
-
 NdbBlob::ActiveHook g_get_ndb_blobs_value;
+
+/**
+  Callback to read all blob values.
+    - not done in unpack_record because unpack_record is valid
+  after execute(Commit) but reading blobs is not
+    - may only generate read operations; they have to be executed
+  somewhere before the data is available
+    - due to single buffer for all blobs, we let the last blob
+  process all blobs (last so that all are active)
+    - null bit is still set in unpack_record.
+
+  @todo
+    allocate blob part aligned buffers
+*/
 
 int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 {
@@ -930,10 +935,11 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
 }
 
 
-/*
-  Instruct NDB to fetch one field
-  - data is read directly into buffer provided by field
-    if field is NULL, data is read into memory provided by NDBAPI
+/**
+  Instruct NDB to fetch one field.
+
+  Data is read directly into buffer provided by field
+  if field is NULL, data is read into memory provided by NDBAPI.
 */
 
 int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
@@ -995,7 +1001,7 @@ int ha_ndbcluster::get_ndb_partition_id(NdbOperation *ndb_op)
                                (char *)&m_part_id) == NULL);
 }
 
-/*
+/**
   Check if any set or get of blob value in current query.
 */
 
@@ -1018,15 +1024,15 @@ bool ha_ndbcluster::uses_blob_value()
 }
 
 
-/*
-  Get metadata for this table from NDB 
+/**
+  Get metadata for this table from NDB.
 
-  IMPLEMENTATION
-    - check that frm-file on disk is equal to frm-file
-      of table accessed in NDB
+  Check that frm-file on disk is equal to frm-file
+  of table accessed in NDB.
 
-  RETURN
+  @retval
     0    ok
+  @retval
     -2   Meta data has changed; Re-read data and try again
 */
 
@@ -1424,9 +1430,9 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
   DBUG_RETURN(error);
 }
 
-/*
+/**
   Decode the type of an index from information 
-  provided in table object
+  provided in table object.
 */
 NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint inx) const
 {
@@ -1568,10 +1574,10 @@ inline bool ha_ndbcluster::has_null_in_unique_index(uint idx_no) const
 }
 
 
-/*
-  Get the flags for an index
+/**
+  Get the flags for an index.
 
-  RETURN
+  @return
     flags depending on the type of the index.
 */
 
@@ -1744,8 +1750,8 @@ int ha_ndbcluster::define_read_attrs(uchar* buf, NdbOperation* op)
 } 
 
 
-/*
-  Read one record from NDB using primary key
+/**
+  Read one record from NDB using primary key.
 */
 
 int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
@@ -1812,9 +1818,9 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
   DBUG_RETURN(0);
 }
 
-/*
+/**
   Read one complementing record from NDB using primary key from old_data
-  or hidden key
+  or hidden key.
 */
 
 int ha_ndbcluster::complemented_read(const uchar *old_data, uchar *new_data,
@@ -1875,7 +1881,7 @@ int ha_ndbcluster::complemented_read(const uchar *old_data, uchar *new_data,
   unpack_record(new_data);
   table->status= 0;     
 
-  /**
+  /*
    * restore m_value
    */
   for (i= 0; i < no_fields; i++) 
@@ -1891,12 +1897,12 @@ int ha_ndbcluster::complemented_read(const uchar *old_data, uchar *new_data,
   DBUG_RETURN(0);
 }
 
-/*
- * Check that all operations between first and last all
- * have gotten the errcode
- * If checking for HA_ERR_KEY_NOT_FOUND then update m_dupkey
- * for all succeeding operations
- */
+/**
+  Check that all operations between first and last all
+  have gotten the errcode
+  If checking for HA_ERR_KEY_NOT_FOUND then update m_dupkey
+  for all succeeding operations
+*/
 bool ha_ndbcluster::check_all_operations_for_error(NdbTransaction *trans,
                                                    const NdbOperation *first,
                                                    const NdbOperation *last,
@@ -1976,9 +1982,9 @@ check_null_in_record(const KEY* key_info, const uchar *record)
   */
 }
 
-/*
- * Peek to check if any rows already exist with conflicting
- * primary key or unique index values
+/**
+  Peek to check if any rows already exist with conflicting
+  primary key or unique index values
 */
 
 int ha_ndbcluster::peek_indexed_rows(const uchar *record, 
@@ -2086,8 +2092,8 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
 }
 
 
-/*
-  Read one record from NDB using unique secondary index
+/**
+  Read one record from NDB using unique secondary index.
 */
 
 int ha_ndbcluster::unique_index_read(const uchar *key,
@@ -2229,15 +2235,14 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
   DBUG_RETURN(1);
 }
 
-/*
+/**
   Get the next record of a started scan. Try to fetch
   it locally from NdbApi cached records if possible, 
   otherwise ask NDB for more.
 
-  NOTE
-  If this is a update/delete make sure to not contact 
-  NDB before any pending ops have been sent to NDB.
-
+  @note
+    If this is a update/delete make sure to not contact
+    NDB before any pending ops have been sent to NDB.
 */
 
 inline int ha_ndbcluster::next_result(uchar *buf)
@@ -2270,7 +2275,7 @@ inline int ha_ndbcluster::next_result(uchar *buf)
   }
 }
 
-/*
+/**
   Set bounds for ordered index scan.
 */
 
@@ -2451,8 +2456,8 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
   DBUG_RETURN(op->end_of_bound(range_no));
 }
 
-/*
-  Start ordered index scan in NDB
+/**
+  Start ordered index scan in NDB.
 */
 
 int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
@@ -2636,10 +2641,9 @@ int ha_ndbcluster::unique_index_scan(const KEY* key_info,
 }
 
 
-/*
-  Start full table scan in NDB
- */
-
+/**
+  Start full table scan in NDB.
+*/
 int ha_ndbcluster::full_table_scan(uchar *buf)
 {
   int res;
@@ -2704,8 +2708,8 @@ int ha_ndbcluster::full_table_scan(uchar *buf)
   DBUG_RETURN(next_result(buf));
 }
 
-/*
-  Insert one record into NDB
+/**
+  Insert one record into NDB.
 */
 int ha_ndbcluster::write_row(uchar *record)
 {
@@ -2930,7 +2934,9 @@ int ha_ndbcluster::write_row(uchar *record)
 }
 
 
-/* Compare if a key in a row has changed */
+/**
+  Compare if a key in a row has changed.
+*/
 
 int ha_ndbcluster::key_cmp(uint keynr, const uchar * old_row,
                            const uchar * new_row)
@@ -2964,8 +2970,8 @@ int ha_ndbcluster::key_cmp(uint keynr, const uchar * old_row,
   return 0;
 }
 
-/*
-  Update one record in NDB using primary key
+/**
+  Update one record in NDB using primary key.
 */
 
 int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
@@ -3173,8 +3179,8 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
 }
 
 
-/*
-  Delete one record from NDB, using primary key 
+/**
+  Delete one record from NDB, using primary key .
 */
 
 int ha_ndbcluster::delete_row(const uchar *record)
@@ -3288,14 +3294,12 @@ int ha_ndbcluster::delete_row(const uchar *record)
   DBUG_RETURN(0);
 }
   
-/*
-  Unpack a record read from NDB 
+/**
+  Unpack a record read from NDB.
 
-  SYNOPSIS
-    unpack_record()
-    buf                 Buffer to store read row
+  @param buf       Buffer to store read row
 
-  NOTE
+  @note
     The data for each row is read directly into the
     destination buffer. This function is primarily 
     called in order to check if any fields should be 
@@ -3456,12 +3460,12 @@ void ha_ndbcluster::unpack_record(uchar *buf)
 #endif
 }
 
-/*
-  Utility function to print/dump the fetched field
-  to avoid unnecessary work, wrap in DBUG_EXECUTE as in:
+/**
+  Utility function to print/dump the fetched field.
 
+  To avoid unnecessary work, wrap in DBUG_EXECUTE as in:
     DBUG_EXECUTE("value", print_results(););
- */
+*/
 
 void ha_ndbcluster::print_results()
 {
@@ -3543,8 +3547,8 @@ int ha_ndbcluster::index_end()
 }
 
 /**
- * Check if key contains null
- */
+  Check if key contains null.
+*/
 static
 int
 check_null_in_key(const KEY* key_info, const uchar *key, uint key_len)
@@ -3817,11 +3821,10 @@ int ha_ndbcluster::rnd_next(uchar *buf)
 }
 
 
-/*
+/**
   An "interesting" record has been found and it's pk 
-  retrieved by calling position
-  Now it's time to read the record from db once 
-  again
+  retrieved by calling position. Now it's time to read
+  the record from db once again.
 */
 
 int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
@@ -3864,10 +3867,10 @@ int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
 }
 
 
-/*
+/**
   Store the primary key of this record in ref 
   variable, so that the row can be retrieved again later
-  using "reference" in rnd_pos
+  using "reference" in rnd_pos.
 */
 
 void ha_ndbcluster::position(const uchar *record)
@@ -4141,14 +4144,13 @@ int ha_ndbcluster::reset()
 }
 
 
-/* 
-   Start of an insert, remember number of rows to be inserted, it will
-   be used in write_row and get_autoincrement to send an optimal number
-   of rows in each roundtrip to the server
+/**
+  Start of an insert, remember number of rows to be inserted, it will
+  be used in write_row and get_autoincrement to send an optimal number
+  of rows in each roundtrip to the server.
 
-   SYNOPSIS
+  @param
    rows     number of rows to insert, 0 if unknown
-
 */
 
 void ha_ndbcluster::start_bulk_insert(ha_rows rows)
@@ -4198,9 +4200,9 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   DBUG_VOID_RETURN;
 }
 
-/*
-  End of an insert
- */
+/**
+  End of an insert.
+*/
 int ha_ndbcluster::end_bulk_insert()
 {
   int error= 0;
@@ -4261,8 +4263,9 @@ const char** ha_ndbcluster::bas_ext() const
   return ha_ndbcluster_exts;
 }
 
-/*
-  How many seeks it will take to read through the table
+/**
+  How many seeks it will take to read through the table.
+
   This is to be comparable to the number returned by records_in_range so
   that we can decide if we should scan the table or use keys.
 */
@@ -4610,7 +4613,7 @@ error:
   DBUG_RETURN(error);
 }
 
-/*
+/**
   Unlock the last row read in an open scan.
   Rows are unlocked by default in ndb, but
   for SELECT FOR UPDATE and SELECT LOCK WIT SHARE MODE
@@ -4626,12 +4629,12 @@ void ha_ndbcluster::unlock_row()
   DBUG_VOID_RETURN;
 }
 
-/*
+/**
   Start a transaction for running a statement if one is not
   already running in a transaction. This will be the case in
   a BEGIN; COMMIT; block
   When using LOCK TABLE's external_lock will start a transaction
-  since ndb does not currently does not support table locking
+  since ndb does not currently does not support table locking.
 */
 
 int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
@@ -4656,9 +4659,9 @@ error:
 }
 
 
-/*
-  Commit a transaction started in NDB
- */
+/**
+  Commit a transaction started in NDB.
+*/
 
 static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 {
@@ -4728,9 +4731,9 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 }
 
 
-/*
-  Rollback a transaction started in NDB
- */
+/**
+  Rollback a transaction started in NDB.
+*/
 
 static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
 {
@@ -4769,14 +4772,17 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
 }
 
 
-/*
+/**
   Define NDB column based on Field.
-  Returns 0 or mysql error code.
+
   Not member of ha_ndbcluster because NDBCOL cannot be declared.
 
   MySQL text types with character set "binary" are mapped to true
   NDB binary types without a character set.  This may change.
- */
+
+  @return
+    Returns 0 or mysql error code.
+*/
 
 static int create_ndb_column(NDBCOL &col,
                              Field *field,
@@ -5063,7 +5069,7 @@ static int create_ndb_column(NDBCOL &col,
   return 0;
 }
 
-/*
+/**
   Create a table in NDB Cluster
 */
 
@@ -5611,9 +5617,12 @@ int ha_ndbcluster::create_unique_index(const char *name,
 }
 
 
-/*
-  Create an index in NDB Cluster
- */
+/**
+  Create an index in NDB Cluster.
+
+  @todo
+    Only temporary ordered indexes supported
+*/
 
 int ha_ndbcluster::create_ndb_index(const char *name, 
                                      KEY *key_info,
@@ -5756,8 +5765,8 @@ int ha_ndbcluster::final_drop_index(TABLE *table_arg)
   DBUG_RETURN(error);
 }
 
-/*
-  Rename a table in NDB Cluster
+/**
+  Rename a table in NDB Cluster.
 */
 
 int ha_ndbcluster::rename_table(const char *from, const char *to)
@@ -5937,10 +5946,9 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 }
 
 
-/*
-  Delete table from NDB Cluster
-
- */
+/**
+  Delete table from NDB Cluster.
+*/
 
 /* static version which does not need a handler */
 
@@ -6209,9 +6217,9 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
 }
 
 
-/*
-  Constructor for the NDB Cluster table handler 
- */
+/**
+  Constructor for the NDB Cluster table handler .
+*/
 
 /*
   Normal flags for binlogging is that ndb has HA_HAS_OWN_BINLOGGING
@@ -6297,9 +6305,9 @@ int ha_ndbcluster::ha_initialise()
   DBUG_RETURN(TRUE);
 }
 
-/*
-  Destructor for NDB Cluster table handler
- */
+/**
+  Destructor for NDB Cluster table handler.
+*/
 
 ha_ndbcluster::~ha_ndbcluster() 
 {
@@ -6339,13 +6347,15 @@ ha_ndbcluster::~ha_ndbcluster()
 
 
 
-/*
-  Open a table for further use
+/**
+  Open a table for further use.
+
   - fetch metadata for this table from NDB
   - check that table exists
 
-  RETURN
+  @retval
     0    ok
+  @retval
     < 0  Table has changed
 */
 
@@ -6453,10 +6463,9 @@ void ha_ndbcluster::set_part_info(partition_info *part_info)
     m_use_partition_function= TRUE;
 }
 
-/*
-  Close the table
-  - release resources setup by open()
- */
+/**
+  Close the table; release resources setup by open().
+*/
 
 int ha_ndbcluster::close(void)
 {
@@ -6473,6 +6482,12 @@ int ha_ndbcluster::close(void)
 }
 
 
+/**
+  @todo
+  - Alt.1 If init fails because to many allocated Ndb 
+  wait on condition for a Ndb object to be released.
+  - Alt.2 Seize/release from pool, wait until next release 
+*/
 Thd_ndb* ha_ndbcluster::seize_thd_ndb()
 {
   Thd_ndb *thd_ndb;
@@ -6508,7 +6523,7 @@ void ha_ndbcluster::release_thd_ndb(Thd_ndb* thd_ndb)
 }
 
 
-/*
+/**
   If this thread already has a Thd_ndb object allocated
   in current THD, reuse it. Otherwise
   seize a Thd_ndb object, assign it to current THD and use it.
@@ -6557,9 +6572,9 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
 }
 
 
-/*
-  Try to discover one table from NDB
- */
+/**
+  Try to discover one table from NDB.
+*/
 
 int ndbcluster_discover(handlerton *hton, THD* thd, const char *db, 
                         const char *name,
@@ -6666,10 +6681,9 @@ err:
   DBUG_RETURN(error);
 }
 
-/*
-  Check if a table exists in NDB
-
- */
+/**
+  Check if a table exists in NDB.
+*/
 
 int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd, 
                                       const char *db,
@@ -6708,11 +6722,12 @@ extern "C" uchar* tables_get_key(const char *entry, size_t *length,
 }
 
 
-/*
+/**
   Drop a database in NDB Cluster
-  NOTE add a dummy void function, since stupid handlerton is returning void instead of int...
-*/
 
+  @note
+    add a dummy void function, since stupid handlerton is returning void instead of int...
+*/
 int ndbcluster_drop_database_impl(const char *path)
 {
   DBUG_ENTER("ndbcluster_drop_database");
@@ -7468,10 +7483,9 @@ void ha_ndbcluster::print_error(int error, myf errflag)
 }
 
 
-/*
-  Static error print function called from
-  static handler method ndbcluster_commit
-  and ndbcluster_rollback
+/**
+  Static error print function called from static handler method
+  ndbcluster_commit and ndbcluster_rollback.
 */
 
 void ndbcluster_print_error(int error, const NdbOperation *error_op)
@@ -7489,9 +7503,9 @@ void ndbcluster_print_error(int error, const NdbOperation *error_op)
 }
 
 /**
- * Set a given location from full pathname to database name
- *
- */
+  Set a given location from full pathname to database name.
+*/
+
 void ha_ndbcluster::set_dbname(const char *path_name, char *dbname)
 {
   char *end, *ptr, *tmp_name;
@@ -7524,9 +7538,9 @@ void ha_ndbcluster::set_dbname(const char *path_name, char *dbname)
   filename_to_tablename(tmp_name, dbname, FN_REFLEN);
 }
 
-/*
-  Set m_dbname from full pathname to table file
- */
+/**
+  Set m_dbname from full pathname to table file.
+*/
 
 void ha_ndbcluster::set_dbname(const char *path_name)
 {
@@ -7534,9 +7548,9 @@ void ha_ndbcluster::set_dbname(const char *path_name)
 }
 
 /**
- * Set a given location from full pathname to table file
- *
- */
+  Set a given location from full pathname to table file.
+*/
+
 void
 ha_ndbcluster::set_tabname(const char *path_name, char * tabname)
 {
@@ -7565,9 +7579,9 @@ ha_ndbcluster::set_tabname(const char *path_name, char * tabname)
   filename_to_tablename(tmp_name, tabname, FN_REFLEN);
 }
 
-/*
-  Set m_tabname from full pathname to table file 
- */
+/**
+  Set m_tabname from full pathname to table file.
+*/
 
 void ha_ndbcluster::set_tabname(const char *path_name)
 {
@@ -7838,31 +7852,30 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
 }
 
 
-/*
+/**
   Check if a cached query can be used.
+
   This is done by comparing the supplied engine_data to commit_count of
   the table.
+
   The commit_count is either retrieved from the share for the table, where
   it has been cached by the util thread. If the util thread is not started,
   NDB has to be contacetd to retrieve the commit_count, this will introduce
   a small delay while waiting for NDB to answer.
 
 
-  SYNOPSIS
-  ndbcluster_cache_retrieval_allowed
-    thd            thread handle
-    full_name      concatenation of database name,
-                   the null character '\0', and the table
-                   name
-    full_name_len  length of the full name,
-                   i.e. len(dbname) + len(tablename) + 1
+  @param thd            thread handle
+  @param full_name      concatenation of database name,
+                        the null character '\\0', and the table name
+  @param full_name_len  length of the full name,
+                        i.e. len(dbname) + len(tablename) + 1
+  @param engine_data    parameter retrieved when query was first inserted into
+                        the cache. If the value of engine_data is changed,
+                        all queries for this table should be invalidated.
 
-    engine_data    parameter retrieved when query was first inserted into
-                   the cache. If the value of engine_data is changed,
-                   all queries for this table should be invalidated.
-
-  RETURN VALUE
+  @retval
     TRUE  Yes, use the query from cache
+  @retval
     FALSE No, don't use the cached query, and if engine_data
           has changed, all queries for this table should be invalidated
 
@@ -7918,25 +7931,25 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
 
 
 /**
-   Register a table for use in the query cache. Fetch the commit_count
-   for the table and return it in engine_data, this will later be used
-   to check if the table has changed, before the cached query is reused.
+  Register a table for use in the query cache.
 
-   SYNOPSIS
-   ha_ndbcluster::can_query_cache_table
-    thd            thread handle
-    full_name      concatenation of database name,
-                   the null character '\0', and the table
-                   name
-    full_name_len  length of the full name,
-                   i.e. len(dbname) + len(tablename) + 1
-    qc_engine_callback  function to be called before using cache on this table
-    engine_data    out, commit_count for this table
+  Fetch the commit_count for the table and return it in engine_data,
+  this will later be used to check if the table has changed, before
+  the cached query is reused.
 
-  RETURN VALUE
+  @param thd            thread handle
+  @param full_name      concatenation of database name,
+                        the null character '\\0', and the table name
+  @param full_name_len  length of the full name,
+                        i.e. len(dbname) + len(tablename) + 1
+  @param engine_callback  function to be called before using cache on
+                          this table
+  @param[out] engine_data    commit_count for this table
+
+  @retval
     TRUE  Yes, it's ok to cahce this query
+  @retval
     FALSE No, don't cach the query
-
 */
 
 my_bool
@@ -7973,13 +7986,14 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
 }
 
 
-/*
+/**
   Handling the shared NDB_SHARE structure that is needed to
   provide table locking.
+
   It's also used for sharing data with other NDB handlers
   in the same MySQL Server. There is currently not much
   data we want to or can share.
- */
+*/
 
 static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
                                 my_bool not_used __attribute__((unused)))
@@ -8532,9 +8546,9 @@ retry:
   DBUG_RETURN(reterr);
 }
 
-/*
+/**
   Create a .ndb file to serve as a placeholder indicating 
-  that the table with this name is a ndb table
+  that the table with this name is a ndb table.
 */
 
 int ha_ndbcluster::write_ndb_file(const char *name)
@@ -8641,7 +8655,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   thd_ndb->query_state|= NDB_QUERY_MULTI_READ_RANGE;
   m_disable_multi_read= FALSE;
 
-  /**
+  /*
    * Copy arguments into member variables
    */
   m_multi_ranges= ranges;
@@ -8650,7 +8664,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   multi_range_sorted= sorted;
   multi_range_buffer= buffer;
 
-  /**
+  /*
    * read multi range will read ranges as follows (if not ordered)
    *
    * input    read order
@@ -8663,7 +8677,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
    * pk-op 6  pk-ok 6
    */   
 
-  /**
+  /*
    * Variables for loop
    */
   uchar *curr= (uchar*)buffer->buffer;
@@ -8790,7 +8804,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   
   if (multi_range_curr != multi_range_end)
   {
-    /**
+    /*
      * Mark that we're using entire buffer (even if might not) as
      *   we haven't read all ranges for some reason
      * This as we don't want mysqld to reuse the buffer when we read
@@ -8803,7 +8817,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     buffer->end_of_used_area= curr;
   }
   
-  /**
+  /*
    * Set first operation in multi range
    */
   m_current_multi_operation= 
@@ -8907,10 +8921,10 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
         continue;
       }
     }
-    else /** m_multi_cursor == 0 */
+    else /* m_multi_cursor == 0 */
     {
       DBUG_MULTI_RANGE(7);
-      /**
+      /*
        * Corresponds to range 5 in example in read_multi_range_first
        */
       (void)1;
@@ -8941,7 +8955,7 @@ close_scan:
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   
-  /**
+  /*
    * Read remaining ranges
    */
   DBUG_RETURN(read_multi_range_first(multi_range_found_p, 
@@ -8951,7 +8965,7 @@ close_scan:
                                      multi_range_buffer));
   
 found:
-  /**
+  /*
    * Found a record belonging to a scan
    */
   m_active_cursor= m_multi_cursor;
@@ -8963,7 +8977,7 @@ found:
   DBUG_RETURN(0);
   
 found_next:
-  /**
+  /*
    * Found a record belonging to a pk/index op,
    *   copy result and move to next to prepare for next call
    */
@@ -9004,6 +9018,12 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
   DBUG_RETURN(0);
 }
 
+/**
+  @param[in] comment  table comment defined by user
+
+  @return
+    table comment + additional
+*/
 char*
 ha_ndbcluster::update_table_comment(
                                 /* out: table comment + additional */
@@ -9045,7 +9065,9 @@ ha_ndbcluster::update_table_comment(
 }
 
 
-// Utility thread main loop
+/**
+  Utility thread main loop.
+*/
 pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
@@ -9333,7 +9355,7 @@ ndb_util_thread_fail:
 /*
   Condition pushdown
 */
-/*
+/**
   Push a condition to ndbcluster storage engine for evaluation 
   during table   and index scans. The conditions will be stored on a stack
   for possibly storing several conditions. The stack can be popped
@@ -9344,9 +9366,10 @@ ndb_util_thread_fail:
   expressions and function calls) and the following comparison operators:
   =, !=, >, >=, <, <=, "is null", and "is not null".
   
-  RETURN
+  @retval
     NULL The condition was supported and will be evaluated for each 
-    row found during the scan
+         row found during the scan
+  @retval
     cond The condition was not supported and all rows will be returned from
          the scan for evaluation (and thus not saved on stack)
 */
@@ -9366,7 +9389,7 @@ ha_ndbcluster::cond_push(const COND *cond)
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
 }
 
-/*
+/**
   Pop the top condition from the condition stack of the handler instance.
 */
 void 

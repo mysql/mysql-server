@@ -14,7 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Sorts a database */
+/**
+  @file
+
+  @brief
+  Sorts a database
+*/
 
 #include "mysql_priv.h"
 #ifdef HAVE_STDDEF_H
@@ -27,8 +32,7 @@
 #define SKIP_DBUG_IN_FILESORT
 #endif
 
-	/* How to write record_ref. */
-
+/// How to write record_ref.
 #define WRITE_REF(file,from) \
 if (my_b_write((file),(uchar*) (from),param->ref_length)) \
   DBUG_RETURN(1);
@@ -58,42 +62,40 @@ static SORT_ADDON_FIELD *get_addon_fields(THD *thd, Field **ptabfield,
                                           uint sortlength, uint *plength);
 static void unpack_addon_fields(struct st_sort_addon_field *addon_field,
                                 uchar *buff);
+/**
+  Sort a table.
+  Creates a set of pointers that can be used to read the rows
+  in sorted order. This should be done with the functions
+  in records.cc.
 
-/*
-  Sort a table
+  Before calling filesort, one must have done
+  table->file->info(HA_STATUS_VARIABLE)
 
-  SYNOPSIS
-    filesort()
-    table		Table to sort
-    sortorder		How to sort the table
-    s_length		Number of elements in sortorder	
-    select		Condition to apply to the rows
-    ha_maxrows		Return only this many rows
-    sort_positions	Set to 1 if we want to force sorting by position
+  The result set is stored in table->io_cache or
+  table->record_pointers.
+
+  @param thd           Current thread
+  @param table		Table to sort
+  @param sortorder	How to sort the table
+  @param s_length	Number of elements in sortorder
+  @param select		condition to apply to the rows
+  @param max_rows	Return only this many rows
+  @param sort_positions	Set to 1 if we want to force sorting by position
 			(Needed by UPDATE/INSERT or ALTER TABLE)
-    examined_rows	Store number of examined rows here
+  @param examined_rows	Store number of examined rows here
 
-  IMPLEMENTATION
-    Creates a set of pointers that can be used to read the rows
-    in sorted order. This should be done with the functions
-    in records.cc
-  
-  REQUIREMENTS
-    Before calling filesort, one must have done
-    table->file->info(HA_STATUS_VARIABLE)
-
-  NOTES
+  @todo
+    check why we do this (param.keys--)
+  @note
     If we sort by position (like if sort_positions is 1) filesort() will
     call table->prepare_for_position().
 
-  RETURN
+  @retval
     HA_POS_ERROR	Error
-    #			Number of rows
-
+  @retval
+    \#			Number of rows
+  @retval
     examined_rows	will be set to number of examined rows
-
-    The result set is stored in table->io_cache or
-    table->record_pointers
 */
 
 ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
@@ -351,7 +353,7 @@ void filesort_free_buffers(TABLE *table, bool full)
   }
 }
 
-	/* Make a array of string pointers */
+/** Make a array of string pointers. */
 
 static char **make_char_array(char **old_pos, register uint fields,
                               uint length, myf my_flag)
@@ -372,7 +374,7 @@ static char **make_char_array(char **old_pos, register uint fields,
 } /* make_char_array */
 
 
-/* Read 'count' number of buffer pointers into memory */
+/** Read 'count' number of buffer pointers into memory. */
 
 static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count)
 {
@@ -395,38 +397,40 @@ static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count)
 }
 
 
-/* 
+/**
   Search after sort_keys and write them into tempfile.
-  SYNOPSIS
-    find_all_keys()
-      param             Sorting parameter
-      select            Use this to get source data
-      sort_keys         Array of pointers to sort key + addon buffers.
-      buffpek_pointers  File to write BUFFPEKs describing sorted segments
-                        in tempfile.
-      tempfile          File to write sorted sequences of sortkeys to.
-      indexfile         If !NULL, use it for source data (contains rowids)
-  
-  NOTE
+  All produced sequences are guaranteed to be non-empty.
+
+  @param param             Sorting parameter
+  @param select            Use this to get source data
+  @param sort_keys         Array of pointers to sort key + addon buffers.
+  @param buffpek_pointers  File to write BUFFPEKs describing sorted segments
+                           in tempfile.
+  @param tempfile          File to write sorted sequences of sortkeys to.
+  @param indexfile         If !NULL, use it for source data (contains rowids)
+
+  @note
     Basic idea:
-      while (get_next_sortkey())
-      {
-        if (no free space in sort_keys buffers) 
-        {
-          sort sort_keys buffer;
-          dump sorted sequence to 'tempfile';
-          dump BUFFPEK describing sequence location into 'buffpek_pointers';
-        }
-        put sort key into 'sort_keys';
-      }
-      if (sort_keys has some elements && dumped at least once)
-        sort-dump-dump as above;
-      else
-        don't sort, leave sort_keys array to be sorted by caller.
-    
-     All produced sequences are guaranteed to be non-empty.
-  RETURN
+    @verbatim
+     while (get_next_sortkey())
+     {
+       if (no free space in sort_keys buffers)
+       {
+         sort sort_keys buffer;
+         dump sorted sequence to 'tempfile';
+         dump BUFFPEK describing sequence location into 'buffpek_pointers';
+       }
+       put sort key into 'sort_keys';
+     }
+     if (sort_keys has some elements && dumped at least once)
+       sort-dump-dump as above;
+     else
+       don't sort, leave sort_keys array to be sorted by caller.
+  @endverbatim
+
+  @retval
     Number of records written on success.
+  @retval
     HA_POS_ERROR on error.
 */
 
@@ -594,23 +598,25 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 } /* find_all_keys */
 
 
-/*
+/**
+  @details
   Sort the buffer and write:
-    1) the sorted sequence to tempfile
-    2) a BUFFPEK describing the sorted sequence position to buffpek_pointers
-  (was: Skriver en buffert med nycklar till filen)
-  SYNOPSIS
-    write_keys()
-      param             Sort parameters
-      sort_keys         Array of pointers to keys to sort
-      count             Number of elements in sort_keys array 
-      buffpek_pointers  One 'BUFFPEK' struct will be written into this file.
-                        The BUFFPEK::{file_pos, count} will indicate where 
-                        the sorted data was stored.
-      tempfile          The sorted sequence will be written into this file.
-    
-  RETURN
+  -# the sorted sequence to tempfile
+  -# a BUFFPEK describing the sorted sequence position to buffpek_pointers
+
+    (was: Skriver en buffert med nycklar till filen)
+
+  @param param             Sort parameters
+  @param sort_keys         Array of pointers to keys to sort
+  @param count             Number of elements in sort_keys array
+  @param buffpek_pointers  One 'BUFFPEK' struct will be written into this file.
+                           The BUFFPEK::{file_pos, count} will indicate where
+                           the sorted data was stored.
+  @param tempfile          The sorted sequence will be written into this file.
+
+  @retval
     0 OK
+  @retval
     1 Error
 */
 
@@ -653,8 +659,8 @@ err:
 } /* write_keys */
 
 
-/*
-  Store length as suffix in high-byte-first order
+/**
+  Store length as suffix in high-byte-first order.
 */
 
 static inline void store_length(uchar *to, uint length, uint pack_length)
@@ -676,7 +682,7 @@ static inline void store_length(uchar *to, uint length, uint pack_length)
 }
 
 
-	/* makes a sort-key from record */
+/** Make a sort-key from record. */
 
 static void make_sortkey(register SORTPARAM *param,
 			 register uchar *to, uchar *ref_pos)
@@ -990,7 +996,7 @@ static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count,
 }
 
 
-	/* Merge buffers to make < MERGEBUFF2 buffers */
+/** Merge buffers to make < MERGEBUFF2 buffers. */
 
 int merge_many_buff(SORTPARAM *param, uchar *sort_buffer,
 		    BUFFPEK *buffpek, uint *maxbuffer, IO_CACHE *t_file)
@@ -1043,8 +1049,12 @@ cleanup:
 } /* merge_many_buff */
 
 
-	/* Read data to buffer */
-	/* This returns (uint) -1 if something goes wrong */
+/**
+  Read data to buffer.
+
+  @retval
+    (uint)-1 if something goes wrong
+*/
 
 uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 		    uint rec_length)
@@ -1066,15 +1076,15 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 } /* read_to_buffer */
 
 
-/*
-    Put all room used by freed buffer to use in adjacent buffer.  Note, that
-    we can't simply distribute memory evenly between all buffers, because
-    new areas must not overlap with old ones.
-  SYNOPSIS
-    reuse_freed_buff()
-    queue      IN  list of non-empty buffers, without freed buffer
-    reuse      IN  empty buffer
-    key_length IN  key length
+/**
+  Put all room used by freed buffer to use in adjacent buffer.
+
+  Note, that we can't simply distribute memory evenly between all buffers,
+  because new areas must not overlap with old ones.
+
+  @param[in] queue      list of non-empty buffers, without freed buffer
+  @param[in] reuse      empty buffer
+  @param[in] key_length key length
 */
 
 void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length)
@@ -1099,22 +1109,22 @@ void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length)
 }
 
 
-/* 
-  Merge buffers to one buffer
-  SYNOPSIS
-    merge_buffers()
-      param        Sort parameter
-      from_file    File with source data (BUFFPEKs point to this file)
-      to_file      File to write the sorted result data.
-      sort_buffer  Buffer for data to store up to MERGEBUFF2 sort keys.
-      lastbuff     OUT Store here BUFFPEK describing data written to to_file                   
-      Fb           First element in source BUFFPEKs array
-      Tb           Last element in source BUFFPEKs array
-      flag
+/**
+  Merge buffers to one buffer.
 
-  RETURN
-    0     - OK
-    other - error
+  @param param        Sort parameter
+  @param from_file    File with source data (BUFFPEKs point to this file)
+  @param to_file      File to write the sorted result data.
+  @param sort_buffer  Buffer for data to store up to MERGEBUFF2 sort keys.
+  @param lastbuff     OUT Store here BUFFPEK describing data written to to_file
+  @param Fb           First element in source BUFFPEKs array
+  @param Tb           Last element in source BUFFPEKs array
+  @param flag
+
+  @retval
+    0      OK
+  @retval
+    other  error
 */
 
 int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
@@ -1350,23 +1360,21 @@ static uint suffix_length(ulong string_length)
 
 
 
-/*
-  Calculate length of sort key
+/**
+  Calculate length of sort key.
 
-  SYNOPSIS
-    sortlength()
-    thd			Thread handler
-    sortorder		Order of items to sort
-    uint s_length	Number of items to sort
-    multi_byte_charset  (out)
-			Set to 1 if we are using multi-byte charset
-			(In which case we have to use strxnfrm())
+  @param thd			  Thread handler
+  @param sortorder		  Order of items to sort
+  @param s_length	          Number of items to sort
+  @param[out] multi_byte_charset Set to 1 if we are using multi-byte charset
+                                 (In which case we have to use strxnfrm())
 
-  NOTES
-    sortorder->length is updated for each sort item
+  @note
+    sortorder->length is updated for each sort item.
+  @n
     sortorder->need_strxnfrm is set 1 if we have to use strxnfrm
 
-  RETURN
+  @return
     Total length of sort buffer in bytes
 */
 
@@ -1453,33 +1461,31 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
 }
 
 
-/*
+/**
   Get descriptors of fields appended to sorted fields and
-  calculate its total length
+  calculate its total length.
 
-  SYNOPSIS
-    get_addon_fields()
-    thd                 Current thread
-    ptabfields          Array of references to the table fields
-    sortlength          Total length of sorted fields
-    plength    out:     Total length of appended fields
+  The function first finds out what fields are used in the result set.
+  Then it calculates the length of the buffer to store the values of
+  these fields together with the value of sort values. 
+  If the calculated length is not greater than max_length_for_sort_data
+  the function allocates memory for an array of descriptors containing
+  layouts for the values of the non-sorted fields in the buffer and
+  fills them.
 
-  DESCRIPTION
-    The function first finds out what fields are used in the result set.
-    Then it calculates the length of the buffer to store the values of
-    these fields together with the value of sort values. 
-    If the calculated length is not greater than max_length_for_sort_data
-    the function allocates memory for an array of descriptors containing
-    layouts for the values of the non-sorted fields in the buffer and
-    fills them.
+  @param thd                 Current thread
+  @param ptabfield           Array of references to the table fields
+  @param sortlength          Total length of sorted fields
+  @param[out] plength        Total length of appended fields
 
-  NOTES
+  @note
     The null bits for the appended values are supposed to be put together
     and stored the buffer just ahead of the value of the first field.
 
-  RETURN
+  @return
     Pointer to the layout descriptors for the appended fields, if any
-    NULL - if we do not store field values with sort data.
+  @retval
+    NULL   if we do not store field values with sort data.
 */
 
 static SORT_ADDON_FIELD *
@@ -1555,20 +1561,18 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
 }
 
 
-/*
-  Copy (unpack) values appended to sorted fields from a buffer back to 
+/**
+  Copy (unpack) values appended to sorted fields from a buffer back to
   their regular positions specified by the Field::ptr pointers.
 
-  SYNOPSIS
-    unpack_addon_fields()
-    addon_field     Array of descriptors for appended fields
-    buff            Buffer which to unpack the value from
+  @param addon_field     Array of descriptors for appended fields
+  @param buff            Buffer which to unpack the value from
 
-  NOTES
+  @note
     The function is supposed to be used only as a callback function
     when getting field values for the sorted result set.
 
-  RETURN
+  @return
     void.
 */
 

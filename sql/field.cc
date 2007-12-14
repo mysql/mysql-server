@@ -14,9 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/*****************************************************************************
-** This file implements classes defined in field.h
-*****************************************************************************/
+/**
+  @file
+
+  @brief
+  This file implements classes defined in field.h
+*/
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -913,14 +916,13 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   }
 };
 
-/*
-  Return type of which can carry value of both given types in UNION result
+/**
+  Return type of which can carry value of both given types in UNION result.
 
-  SYNOPSIS
-    Field::field_type_merge()
-    a, b  types for merging
+  @param a  type for merging
+  @param b  type for merging
 
-  RETURN
+  @return
     type of field
 */
 
@@ -992,14 +994,12 @@ test_if_important_data(CHARSET_INFO *cs, const char *str, const char *strend)
 }
 
 
-/*
-  Detect Item_result by given field type of UNION merge result
+/**
+  Detect Item_result by given field type of UNION merge result.
 
-  SYNOPSIS
-    Field::result_merge_type()
-    field_type  given field type
+  @param field_type  given field type
 
-  RETURN
+  @return
     Item_result (type of internal MySQL expression result)
 */
 
@@ -1015,18 +1015,17 @@ Item_result Field::result_merge_type(enum_field_types field_type)
 *****************************************************************************/
 
 
-/*
-  Check whether a field type can be partially indexed by a key
+/**
+  Check whether a field type can be partially indexed by a key.
 
   This is a static method, rather than a virtual function, because we need
   to check the type of a non-Field in mysql_alter_table().
 
-  SYNOPSIS
-   type_can_have_key_part()
-   type                 field type
+  @param type  field type
 
-  RETURN
+  @retval
     TRUE  Type can have a prefixed key
+  @retval
     FALSE Type can not have a prefixed key
 */
 
@@ -1048,8 +1047,8 @@ bool Field::type_can_have_key_part(enum enum_field_types type)
 }
 
 
-/*
-  Numeric fields base class constructor
+/**
+  Numeric fields base class constructor.
 */
 Field_num::Field_num(uchar *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
                      uchar null_bit_arg, utype unireg_check_arg,
@@ -1080,23 +1079,25 @@ void Field_num::prepend_zeros(String *value)
   }
 }
 
-/*
+/**
   Test if given number is a int.
 
-  SYNOPSIS
-    Field_num::check_int
-    cs          Character set
-    str		String to test
-    end		Pointer to char after last used digit
-    length      String length
-    error       Error returned by strntoull10rnd()
+  @todo
+    Make this multi-byte-character safe
 
-  NOTE
+  @param str		String to test
+  @param length        Length of 'str'
+  @param int_end	Pointer to char after last used digit
+  @param cs		Character set
+
+  @note
     This is called after one has called strntoull10rnd() function.
 
-  RETURN
-    0	ok
+  @retval
+    0	OK
+  @retval
     1	error: empty string or wrong integer.
+  @retval
     2   error: garbage at the end of string.
 */
 
@@ -1191,16 +1192,15 @@ out_of_range:
   return 1;
 }
 
-/*
+/**
   Process decimal library return codes and issue warnings for overflow and
   truncation.
 
-  SYNOPSIS
-    Field::warn_if_overflow()
-    op_result  decimal library return code (E_DEC_* see include/decimal.h)
+  @param op_result  decimal library return code (E_DEC_* see include/decimal.h)
 
-  RETURN
+  @retval
     1  there was overflow
+  @retval
     0  no error or some other errors except overflow
 */
 
@@ -1275,10 +1275,10 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
 #endif
 
 
-/*
+/**
   Interpret field value as an integer but return the result as a string.
 
-  This is used for printing bit_fields as numbers while debugging
+  This is used for printing bit_fields as numbers while debugging.
 */
 
 String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
@@ -1299,6 +1299,7 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 }
 
 
+/// This is used as a table name when the table structure is not set up
 Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     uchar null_bit_arg,
 	     utype unireg_check_arg, const char *field_name_arg)
@@ -1547,17 +1548,15 @@ void Field::make_field(Send_field *field)
 }
 
 
-/*
+/**
   Conversion from decimal to longlong with checking overflow and
-  setting correct value (min/max) in case of overflow
+  setting correct value (min/max) in case of overflow.
 
-  SYNOPSIS
-    Field::convert_decimal2longlong()
-    val             value which have to be converted
-    unsigned_flag   type of integer in which we convert val
-    err             variable to pass error code
+  @param val             value which have to be converted
+  @param unsigned_flag   type of integer in which we convert val
+  @param err             variable to pass error code
 
-  RETURN
+  @return
     value converted from val
 */
 longlong Field::convert_decimal2longlong(const my_decimal *val,
@@ -1591,19 +1590,18 @@ longlong Field::convert_decimal2longlong(const my_decimal *val,
 }
 
 
-/*
+/**
   Storing decimal in integer fields.
 
-  SYNOPSIS
-    Field_num::store_decimal()
-    val       value for storing
+  @param val       value for storing
 
-  NOTE
+  @note
     This method is used by all integer fields, real/decimal redefine it
 
-  RETURN
+  @retval
     0     OK
-    != 0  error
+  @retval
+    !=0  error
 */
 
 int Field_num::store_decimal(const my_decimal *val)
@@ -1615,19 +1613,17 @@ int Field_num::store_decimal(const my_decimal *val)
 }
 
 
-/*
-  Return decimal value of integer field
+/**
+  Return decimal value of integer field.
 
-  SYNOPSIS
-    Field_num::val_decimal()
-    decimal_value     buffer for storing decimal value
+  @param decimal_value     buffer for storing decimal value
 
-  NOTE
-    This method is used by all integer fields, real/decimal redefine it
+  @note
+    This method is used by all integer fields, real/decimal redefine it.
     All longlong values fit in our decimal buffer which cal store 8*9=72
     digits of integer number
 
-  RETURN
+  @return
     pointer to decimal buffer with value of field
 */
 
@@ -1660,22 +1656,24 @@ void Field_num::make_field(Send_field *field)
   field->decimals= dec;
 }
 
-/*
-  Decimal representation of Field_str
+/**
+  Decimal representation of Field_str.
 
-  SYNOPSIS
-    Field_str::store_decimal()
-    d         value for storing
+  @param d         value for storing
 
-  NOTE
-    Field_str is the base class for fields like Field_enum, Field_date and some
-    similar.  Some dates use fraction and also string value should be
-    converted to floating point value according our rules, so we use double
-    to store value of decimal in string
+  @note
+    Field_str is the base class for fields like Field_enum,
+    Field_date and some similar. Some dates use fraction and also
+    string value should be converted to floating point value according
+    our rules, so we use double to store value of decimal in string.
 
-  RETURN
+  @todo
+    use decimal2string?
+
+  @retval
     0     OK
-    != 0  error
+  @retval
+    !=0  error
 */
 
 int Field_str::store_decimal(const my_decimal *d)
@@ -1748,11 +1746,11 @@ bool Field::get_time(MYSQL_TIME *ltime)
   return 0;
 }
 
-/*
-  This is called when storing a date in a string
+/**
+  This is called when storing a date in a string.
 
-  NOTES
-    Needs to be changed if/when we want to support different time formats
+  @note
+    Needs to be changed if/when we want to support different time formats.
 */
 
 int Field::store_time(MYSQL_TIME *ltime, timestamp_type type_arg)
@@ -2374,9 +2372,9 @@ String *Field_decimal::val_str(String *val_buffer __attribute__((unused)),
   return val_ptr;
 }
 
-/*
-** Should be able to handle at least the following fixed decimal formats:
-** 5.00 , -1.0,  05,  -05, +5 with optional pre/end space
+/**
+  Should be able to handle at least the following fixed decimal formats:
+  5.00 , -1.0,  05,  -05, +5 with optional pre/end space
 */
 
 int Field_decimal::cmp(const uchar *a_ptr,const uchar *b_ptr)
@@ -2498,13 +2496,11 @@ int Field_new_decimal::reset(void)
 }
 
 
-/*
+/**
   Generate max/min decimal value in case of overflow.
 
-  SYNOPSIS
-    Field_new_decimal::set_value_on_overflow();
-    decimal_value     buffer for value
-    sign              sign of value which caused overflow
+  @param decimal_value     buffer for value
+  @param sign              sign of value which caused overflow
 */
 
 void Field_new_decimal::set_value_on_overflow(my_decimal *decimal_value,
@@ -2523,21 +2519,19 @@ void Field_new_decimal::set_value_on_overflow(my_decimal *decimal_value,
 }
 
 
-/*
-  Store decimal value in the binary buffer
+/**
+  Store decimal value in the binary buffer.
 
-  SYNOPSIS
-    store_value(const my_decimal *decimal_value)
-    decimal_value   my_decimal
+  Checks if decimal_value fits into field size.
+  If it does, stores the decimal in the buffer using binary format.
+  Otherwise sets maximal number that can be stored in the field.
 
-  DESCRIPTION
-    checks if decimal_value fits into field size.
-    if it does, stores the decimal in the buffer using binary format.
-    Otherwise sets maximal number that can be stored in the field.
+  @param decimal_value   my_decimal
 
-  RETURN
-   0 ok
-   1 error
+  @retval
+    0 ok
+  @retval
+    1 error
 */
 
 bool Field_new_decimal::store_value(const my_decimal *decimal_value)
@@ -2645,6 +2639,12 @@ int Field_new_decimal::store(const char *from, uint length,
   DBUG_RETURN(err);
 }
 
+
+/**
+  @todo
+  Fix following when double2my_decimal when double2decimal
+  will return E_DEC_TRUNCATED always correctly
+*/
 
 int Field_new_decimal::store(double nr)
 {
@@ -4667,9 +4667,8 @@ void Field_double::sql_type(String &res) const
 }
 
 
-/*
-  TIMESTAMP type.
-  Holds datetime values in range from 1970-01-01 00:00:01 UTC to 
+/**
+  TIMESTAMP type holds datetime values in range from 1970-01-01 00:00:01 UTC to 
   2038-01-01 00:00:00 UTC stored as number of seconds since Unix 
   Epoch in UTC.
   
@@ -4702,7 +4701,7 @@ void Field_double::sql_type(String &res) const
   NONE - field which is not auto-set on update with some other than NOW() 
     default value (TIMESTAMP DEFAULT 0).
 
-  Note that TIMESTAMP_OLD_FIELD's are never created explicitly now, they are 
+  Note that TIMESTAMP_OLD_FIELDs are never created explicitly now, they are 
   left only for preserving ability to read old tables. Such fields replaced 
   with their newer analogs in CREATE TABLE and in SHOW CREATE TABLE. This is 
   because we want to prefer NONE unireg_check before TIMESTAMP_OLD_FIELD for 
@@ -4748,15 +4747,11 @@ Field_timestamp::Field_timestamp(bool maybe_null_arg,
 }
 
 
-/*
+/**
   Get auto-set type for TIMESTAMP field.
 
-  SYNOPSIS
-    get_auto_set_type()
-
-  DESCRIPTION
-    Returns value indicating during which operations this TIMESTAMP field
-    should be auto-set to current timestamp.
+  Returns value indicating during which operations this TIMESTAMP field
+  should be auto-set to current timestamp.
 */
 timestamp_auto_set_type Field_timestamp::get_auto_set_type() const
 {
@@ -5239,7 +5234,8 @@ longlong Field_time::val_int(void)
 }
 
 
-/*
+/**
+  @note
   This function is multi-byte safe as the result string is always of type
   my_charset_bin
 */
@@ -5266,7 +5262,8 @@ String *Field_time::val_str(String *val_buffer,
 }
 
 
-/*
+/**
+  @note
   Normally we would not consider 'time' as a valid date, but we allow
   get_date() here to be able to do things like
   DATE_FORMAT(time, "%l.%i %p")
@@ -6385,15 +6382,12 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 }
 
 
-/*
+/**
   Store double value in Field_string or Field_varstring.
 
-  SYNOPSIS
-    store(double nr)
-    nr            number
+  Pretty prints double number into field_length characters buffer.
 
-  DESCRIPTION
-    Pretty prints double number into field_length characters buffer.
+  @param nr            number
 */
 
 int Field_str::store(double nr)
@@ -6801,18 +6795,18 @@ int Field_string::pack_cmp(const uchar *a, const uchar *b, uint length,
 }
 
 
-/*
-  Compare a packed key against row
+/**
+  Compare a packed key against row.
 
-  SYNOPSIS
-    pack_cmp()
-     key		Original key
-     length		Key length. (May be less than field length)
-     insert_or_update	1 if this is an insert or update
+  @param key		        Original key
+  @param length		Key length. (May be less than field length)
+  @param insert_or_update	1 if this is an insert or update
 
-  RETURN
+  @return
     < 0	  row < key
+  @return
     0	  row = key
+  @return
     > 0   row > key
 */
 
@@ -7056,8 +7050,9 @@ int Field_varstring::cmp_max(const uchar *a_ptr, const uchar *b_ptr,
 }
 
 
-/*
-  NOTE: varstring and blob keys are ALWAYS stored with a 2 byte length prefix
+/**
+  @note
+    varstring and blob keys are ALWAYS stored with a 2 byte length prefix
 */
 
 int Field_varstring::key_cmp(const uchar *key_ptr, uint max_key_length)
@@ -7077,10 +7072,10 @@ int Field_varstring::key_cmp(const uchar *key_ptr, uint max_key_length)
 }
 
 
-/*
-  Compare to key segments (always 2 byte length prefix)
+/**
+  Compare to key segments (always 2 byte length prefix).
 
-  NOTE
+  @note
     This is used only to compare key segments created for index_read().
     (keys are created and compared in key.cc)
 */
@@ -7200,21 +7195,18 @@ Field_varstring::pack_key(uchar *to, const uchar *key, uint max_length,
 }
 
 
-/*
+/**
   Unpack a key into a record buffer.
 
-  SYNOPSIS
-    unpack_key()
-    to                          Pointer into the record buffer.
-    key                         Pointer to the packed key.
-    max_length                  Key length limit from key description.
+  A VARCHAR key has a maximum size of 64K-1.
+  In its packed form, the length field is one or two bytes long,
+  depending on 'max_length'.
 
-  DESCRIPTION
-    A VARCHAR key has a maximum size of 64K-1.
-    In its packed form, the length field is one or two bytes long,
-    depending on 'max_length'.
+  @param to                          Pointer into the record buffer.
+  @param key                         Pointer to the packed key.
+  @param max_length                  Key length limit from key description.
 
-  RETURN
+  @return
     Pointer to end of 'key' (To the next key part if multi-segment key)
 */
 
@@ -7236,16 +7228,14 @@ Field_varstring::unpack_key(uchar *to, const uchar *key, uint max_length,
   return key + length;
 }
 
-/*
-  Create a packed key that will be used for storage in the index tree
+/**
+  Create a packed key that will be used for storage in the index tree.
 
-  SYNOPSIS
-    pack_key_from_key_image()
-    to			Store packed key segment here
-    from		Key segment (as given to index_read())
-    max_length  	Max length of key
+  @param to		Store packed key segment here
+  @param from		Key segment (as given to index_read())
+  @param max_length  	Max length of key
 
-  RETURN
+  @return
     end of key storage
 */
 
@@ -7579,21 +7569,15 @@ uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg, bool low_by
 }
 
 
-/*
+/**
   Put a blob length field into a record buffer.
 
-  SYNOPSIS
-    Field_blob::put_length()
-    pos                         Pointer into the record buffer.
-    length                      The length value to put.
+  Depending on the maximum length of a blob, its length field is
+  put into 1 to 4 bytes. This is a property of the blob object,
+  described by 'packlength'.
 
-  DESCRIPTION
-    Depending on the maximum length of a blob, its length field is
-    put into 1 to 4 bytes. This is a property of the blob object,
-    described by 'packlength'.
-
-  RETURN
-    nothing
+  @param pos                 Pointer into the record buffer.
+  @param length              The length value to put.
 */
 
 void Field_blob::put_length(uchar *pos, uint32 length)
@@ -8094,7 +8078,7 @@ int Field_blob::pack_cmp(const uchar *b, uint key_length_arg,
                                           insert_or_update);
 }
 
-/* Create a packed key that will be used for storage from a MySQL row */
+/** Create a packed key that will be used for storage from a MySQL row. */
 
 uchar *
 Field_blob::pack_key(uchar *to, const uchar *from, uint max_length,
@@ -8120,26 +8104,24 @@ Field_blob::pack_key(uchar *to, const uchar *from, uint max_length,
 }
 
 
-/*
+/**
   Unpack a blob key into a record buffer.
 
-  SYNOPSIS
-    Field_blob::unpack_key()
-    to                          Pointer into the record buffer.
-    from                        Pointer to the packed key.
-    max_length                  Key length limit from key description.
+  A blob key has a maximum size of 64K-1.
+  In its packed form, the length field is one or two bytes long,
+  depending on 'max_length'.
+  Depending on the maximum length of a blob, its length field is
+  put into 1 to 4 bytes. This is a property of the blob object,
+  described by 'packlength'.
+  Blobs are internally stored apart from the record buffer, which
+  contains a pointer to the blob buffer.
 
-  DESCRIPTION
-    A blob key has a maximum size of 64K-1.
-    In its packed form, the length field is one or two bytes long,
-    depending on 'max_length'.
-    Depending on the maximum length of a blob, its length field is
-    put into 1 to 4 bytes. This is a property of the blob object,
-    described by 'packlength'.
-    Blobs are internally stored apart from the record buffer, which
-    contains a pointer to the blob buffer.
 
-  RETURN
+  @param to                          Pointer into the record buffer.
+  @param from                        Pointer to the packed key.
+  @param max_length                  Key length limit from key description.
+
+  @return
     Pointer into 'from' past the last byte copied from packed key.
 */
 
@@ -8166,7 +8148,7 @@ Field_blob::unpack_key(uchar *to, const uchar *from, uint max_length,
 }
 
 
-/* Create a packed key that will be used for storage from a MySQL key */
+/** Create a packed key that will be used for storage from a MySQL key. */
 
 uchar *
 Field_blob::pack_key_from_key_image(uchar *to, const uchar *from, uint max_length,
@@ -8358,9 +8340,10 @@ void Field_enum::store_type(ulonglong value)
 }
 
 
-/*
-** Note. Storing a empty string in a enum field gives a warning
-** (if there isn't a empty value in the enum)
+/**
+  @note
+    Storing a empty string in a enum field gives a warning
+    (if there isn't a empty value in the enum)
 */
 
 int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
@@ -8686,7 +8669,12 @@ void Field_set::sql_type(String &res) const
   res.append(')');
 }
 
-/* returns 1 if the fields are equally defined */
+/**
+  @retval
+    1  if the fields are equally defined
+  @retval
+    0  if the fields are unequally defined
+*/
 
 bool Field::eq_def(Field *field)
 {
@@ -8696,6 +8684,10 @@ bool Field::eq_def(Field *field)
   return 1;
 }
 
+/**
+  @return
+  returns 1 if the fields are equally defined
+*/
 bool Field_enum::eq_def(Field *field)
 {
   if (!Field::eq_def(field))
@@ -8714,6 +8706,10 @@ bool Field_enum::eq_def(Field *field)
   return 1;
 }
 
+/**
+  @return
+  returns 1 if the fields are equally defined
+*/
 bool Field_num::eq_def(Field *field)
 {
   if (!Field::eq_def(field))
@@ -9289,14 +9285,8 @@ void Field_bit_as_char::sql_type(String &res) const
   Handling of field and Create_field
 *****************************************************************************/
 
-/*
-  Convert Create_field::length from number of characters to number of bytes
-
-  SYNOPSIS
-    Create_field::create_length_to_internal_length()
-  
-  DESCRIPTION
-    Convert Create_field::length from number of characters to number of bytes.
+/**
+  Convert create_field::length from number of characters to number of bytes.
 */
 
 void Create_field::create_length_to_internal_length(void)
@@ -9346,6 +9336,9 @@ void Create_field::create_length_to_internal_length(void)
 }
 
 
+/**
+  Init for a tmp table field. To be extended if need be.
+*/
 void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       uint32 length_arg, uint32 decimals_arg,
                                       bool maybe_null, bool is_unsigned)
@@ -9364,26 +9357,26 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
 }
 
 
-/*
-  Initialize field definition for create
+/**
+  Initialize field definition for create.
 
-  SYNOPSIS
-    thd                   Thread handle
-    fld_name              Field name
-    fld_type              Field type
-    fld_length            Field length
-    fld_decimals          Decimal (if any)
-    fld_type_modifier     Additional type information
-    fld_default_value     Field default value (if any)
-    fld_on_update_value   The value of ON UPDATE clause
-    fld_comment           Field comment
-    fld_change            Field change
-    fld_interval_list     Interval list (if any)
-    fld_charset           Field charset
-    fld_geom_type         Field geometry type (if any)
+  @param thd                   Thread handle
+  @param fld_name              Field name
+  @param fld_type              Field type
+  @param fld_length            Field length
+  @param fld_decimals          Decimal (if any)
+  @param fld_type_modifier     Additional type information
+  @param fld_default_value     Field default value (if any)
+  @param fld_on_update_value   The value of ON UPDATE clause
+  @param fld_comment           Field comment
+  @param fld_change            Field change
+  @param fld_interval_list     Interval list (if any)
+  @param fld_charset           Field charset
+  @param fld_geom_type         Field geometry type (if any)
 
-  RETURN
+  @retval
     FALSE on success
+  @retval
     TRUE  on error
 */
 
@@ -9971,7 +9964,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 }
 
 
-/* Create a field suitable for create of table */
+/** Create a field suitable for create of table. */
 
 Create_field::Create_field(Field *old_field,Field *orig_field)
 {
@@ -10059,13 +10052,10 @@ Create_field::Create_field(Field *old_field,Field *orig_field)
 }
 
 
-/*
-  maximum possible display length for blob
+/**
+  maximum possible display length for blob.
 
-  SYNOPSIS
-    Field_blob::max_display_length()
-
-  RETURN
+  @return
     length
 */
 
@@ -10092,24 +10082,23 @@ uint32 Field_blob::max_display_length()
  Warning handling
 *****************************************************************************/
 
-/*
-  Produce warning or note about data saved into field
+/**
+  Produce warning or note about data saved into field.
 
-  SYNOPSIS
-    set_warning()
-      level            - level of message (Note/Warning/Error)
-      code             - error code of message to be produced
-      cuted_increment  - whenever we should increase cut fields count or not
+  @param level            - level of message (Note/Warning/Error)
+  @param code             - error code of message to be produced
+  @param cuted_increment  - whenever we should increase cut fields count or not
 
-  NOTE
+  @note
     This function won't produce warning and increase cut fields counter
     if count_cuted_fields == CHECK_FIELD_IGNORE for current thread.
 
     if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
     This allows us to avoid notes in optimisation, like convert_constant_item().
 
-  RETURN VALUE
+  @retval
     1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
+  @retval
     0 otherwise
 */
 
@@ -10133,21 +10122,19 @@ Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
 }
 
 
-/*
-  Produce warning or note about datetime string data saved into field
+/**
+  Produce warning or note about datetime string data saved into field.
 
-  SYNOPSIS
-    set_datime_warning()
-      level            - level of message (Note/Warning/Error)
-      code             - error code of message to be produced
-      str              - string value which we tried to save
-      str_len          - length of string which we tried to save
-      ts_type          - type of datetime value (datetime/date/time)
-      cuted_increment  - whenever we should increase cut fields count or not
-  
-  NOTE
-    This function will always produce some warning but won't increase cut 
-    fields counter if count_cuted_fields == FIELD_CHECK_IGNORE for current 
+  @param level            level of message (Note/Warning/Error)
+  @param code             error code of message to be produced
+  @param str              string value which we tried to save
+  @param str_length       length of string which we tried to save
+  @param ts_type          type of datetime value (datetime/date/time)
+  @param cuted_increment  whenever we should increase cut fields count or not
+
+  @note
+    This function will always produce some warning but won't increase cut
+    fields counter if count_cuted_fields ==FIELD_CHECK_IGNORE for current
     thread.
 */
 
@@ -10165,20 +10152,18 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
 }
 
 
-/*
-  Produce warning or note about integer datetime value saved into field
+/**
+  Produce warning or note about integer datetime value saved into field.
 
-  SYNOPSIS
-    set_warning()
-      level            - level of message (Note/Warning/Error)
-      code             - error code of message to be produced
-      nr               - numeric value which we tried to save
-      ts_type          - type of datetime value (datetime/date/time)
-      cuted_increment  - whenever we should increase cut fields count or not
-  
-  NOTE
-    This function will always produce some warning but won't increase cut 
-    fields counter if count_cuted_fields == FIELD_CHECK_IGNORE for current 
+  @param level            level of message (Note/Warning/Error)
+  @param code             error code of message to be produced
+  @param nr               numeric value which we tried to save
+  @param ts_type          type of datetime value (datetime/date/time)
+  @param cuted_increment  whenever we should increase cut fields count or not
+
+  @note
+    This function will always produce some warning but won't increase cut
+    fields counter if count_cuted_fields == FIELD_CHECK_IGNORE for current
     thread.
 */
 
@@ -10199,19 +10184,17 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
 }
 
 
-/*
-  Produce warning or note about double datetime data saved into field
+/**
+  Produce warning or note about double datetime data saved into field.
 
-  SYNOPSIS
-    set_warning()
-      level            - level of message (Note/Warning/Error)
-      code             - error code of message to be produced
-      nr               - double value which we tried to save
-      ts_type          - type of datetime value (datetime/date/time)
-  
-  NOTE
-    This function will always produce some warning but won't increase cut 
-    fields counter if count_cuted_fields == FIELD_CHECK_IGNORE for current 
+  @param level            level of message (Note/Warning/Error)
+  @param code             error code of message to be produced
+  @param nr               double value which we tried to save
+  @param ts_type          type of datetime value (datetime/date/time)
+
+  @note
+    This function will always produce some warning but won't increase cut
+    fields counter if count_cuted_fields == FIELD_CHECK_IGNORE for current
     thread.
 */
 
