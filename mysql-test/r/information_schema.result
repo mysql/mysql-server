@@ -1148,7 +1148,7 @@ group by column_type order by num;
 column_type	group_concat(table_schema, '.', table_name)	num
 varchar(27)	information_schema.COLUMNS	1
 varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
-varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	7
+varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
