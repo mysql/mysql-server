@@ -506,7 +506,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
     // get page
     PagePtr pagePtr;
-    if (buildPtr.p->m_pageId >= fragPtr.p->noOfPages) {
+    if (buildPtr.p->m_pageId >= fragPtr.p->m_max_page_no) {
       jam();
       buildPtr.p->m_fragNo++;
       buildPtr.p->m_pageId= 0;
@@ -518,20 +518,13 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     if (realPageId == RNIL) 
     {
       jam();
-      buildPtr.p->m_pageId++;
-      buildPtr.p->m_tupleNo= firstTupleNo;
-      break;
+      goto next_tuple;
     }
 
     c_page_pool.getPtr(pagePtr, realPageId);
     Uint32 pageState= pagePtr.p->page_state;
-    // skip empty page
-    if (pageState == ZEMPTY_MM) {
-      jam();
-      buildPtr.p->m_pageId++;
-      buildPtr.p->m_tupleNo= firstTupleNo;
-      break;
-    }
+
+next_tuple:
     // get tuple
     Uint32 pageIndex = ~0;
     const Tuple_header* tuple_ptr = 0;
@@ -542,6 +535,14 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       buildPtr.p->m_tupleNo= firstTupleNo;
       break;
     }
+    
+    if (realPageId == RNIL)
+    {
+      jam();
+      buildPtr.p->m_tupleNo++;
+      break;
+    }
+
     tuple_ptr = (Tuple_header*)&pagePtr.p->m_data[pageIndex];
     // skip over free tuple
     if (tuple_ptr->m_header_bits & Tuple_header::FREE) {
