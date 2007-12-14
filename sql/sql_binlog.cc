@@ -17,15 +17,14 @@
 #include "rpl_rli.h"
 #include "base64.h"
 
-/*
+/**
   Execute a BINLOG statement
 
-  TODO: This currently assumes a MySQL 5.x binlog.
-  When we'll have binlog with a different format, to execute the
-  BINLOG command properly the server will need to know which format
-  the BINLOG command's event is in.  mysqlbinlog should then send
-  the Format_description_log_event of the binlog it reads and the
-  server thread should cache this format into
+  To execute the BINLOG command properly the server needs to know
+  which format the BINLOG command's event is in.  Therefore, the first
+  BINLOG statement seen must be a base64 encoding of the
+  Format_description_log_event, as outputted by mysqlbinlog.  This
+  Format_description_log_event is cached in
   rli->description_event_for_exec.
 */
 
@@ -54,11 +53,24 @@ void mysql_client_binlog_statement(THD* thd)
   /*
     Allocation
   */
-  if (!thd->rli_fake)
-    thd->rli_fake= new Relay_log_info;
 
-  const Format_description_log_event *desc=
-    new Format_description_log_event(4);
+  /*
+    If we do not have a Format_description_event, we create a dummy
+    one here.  In this case, the first event we read must be a
+    Format_description_event.
+  */
+  my_bool have_fd_event= TRUE;
+  if (!thd->rli_fake)
+  {
+    thd->rli_fake= new Relay_log_info;
+    have_fd_event= FALSE;
+  }
+  if (thd->rli_fake && !thd->rli_fake->relay_log.description_event_for_exec)
+  {
+    thd->rli_fake->relay_log.description_event_for_exec=
+      new Format_description_log_event(4);
+    have_fd_event= FALSE;
+  }
 
   const char *error= 0;
   char *buf= (char *) my_malloc(decoded_len, MYF(MY_WME));
@@ -67,7 +79,9 @@ void mysql_client_binlog_statement(THD* thd)
   /*
     Out of memory check
   */
-  if (!(thd->rli_fake && desc && buf))
+  if (!(thd->rli_fake &&
+        thd->rli_fake->relay_log.description_event_for_exec &&
+        buf))
   {
     my_error(ER_OUTOFMEMORY, MYF(0), 1);  /* needed 1 bytes */
     goto end;
@@ -138,7 +152,28 @@ void mysql_client_binlog_statement(THD* thd)
         goto end;
       }
 
-      ev= Log_event::read_log_event(bufptr, event_len, &error, desc);
+      /*
+        If we have not seen any Format_description_event, then we must
+        see one; it is the only statement that can be read in base64
+        without a prior Format_description_event.
+      */
+      if (!have_fd_event)
+      {
+        if (bufptr[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+          have_fd_event= TRUE;
+        else
+        {
+          my_error(ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT,
+                   MYF(0),
+                   Log_event::get_type_str(
+                     (Log_event_type)bufptr[EVENT_TYPE_OFFSET]));
+          goto end;
+        }
+      }
+
+      ev= Log_event::read_log_event(bufptr, event_len, &error,
+                                    thd->rli_fake->relay_log.
+                                      description_event_for_exec);
 
       DBUG_PRINT("info",("binlog base64 err=%s", error));
       if (!ev)
@@ -174,11 +209,10 @@ void mysql_client_binlog_statement(THD* thd)
         Neither do we have to update the log positions, since that is
         not used at all: the rli_fake instance is used only for error
         reporting.
-       */
+      */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-      if (IF_DBUG(int err= ) ev->apply_event(thd->rli_fake))
+      if (apply_event_and_update_pos(ev, thd, thd->rli_fake, FALSE))
       {
-        DBUG_PRINT("info", ("apply_event() returned: %d", err));
         /*
           TODO: Maybe a better error message since the BINLOG statement
           now contains several events.
@@ -188,7 +222,14 @@ void mysql_client_binlog_statement(THD* thd)
       }
 #endif
 
-      delete ev;
+      /*
+        Format_description_log_event should not be deleted because it
+        will be used to read info about the relay log's format; it
+        will be deleted when the SQL thread does not need it,
+        i.e. when this thread terminates.
+      */
+      if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+        delete ev;
       ev= 0;
     }
   }
@@ -207,7 +248,6 @@ end:
   */
   thd->net.no_send_ok= nsok;
 
-  delete desc;
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_VOID_RETURN;
 }
