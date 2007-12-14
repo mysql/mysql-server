@@ -21,7 +21,7 @@ def	test	t1	t1	g	g	5	4	0	Y	32768	3	63
 def	test	t1	t1	h	h	246	7	0	Y	0	4	63
 def	test	t1	t1	i	i	13	4	0	Y	32864	0	63
 def	test	t1	t1	j	j	10	10	0	Y	128	0	63
-def	test	t1	t1	k	k	7	19	0	N	1249	0	63
+def	test	t1	t1	k	k	7	19	0	N	9441	0	63
 def	test	t1	t1	l	l	12	19	0	Y	128	0	63
 def	test	t1	t1	m	m	254	1	0	Y	256	0	8
 def	test	t1	t1	n	n	254	3	0	Y	2048	0	8

@@ -157,8 +157,8 @@ bool begin_trans(THD *thd)
 }
 
 #ifdef HAVE_REPLICATION
-/*
-  Returns true if all tables should be ignored
+/**
+  Returns true if all tables should be ignored.
 */
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
@@ -181,9 +181,10 @@ static bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
 }
 
 
-/*
-  Mark all commands that somehow changes a table
-  This is used to check number of updates / hour
+/**
+  Mark all commands that somehow changes a table.
+
+  This is used to check number of updates / hour.
 
   sql_command is actually set to SQLCOM_END sometimes
   so we need the +1 to include it in the array.
@@ -340,9 +341,10 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
 }
 
 
-/*
+/**
   Execute commands from bootstrap_file.
-  Used when creating the initial grant tables
+
+  Used when creating the initial grant tables.
 */
 
 pthread_handler_t handle_bootstrap(void *arg)
@@ -476,6 +478,46 @@ end:
 }
 
 
+/**
+  @brief Check access privs for a MERGE table and fix children lock types.
+
+  @param[in]        thd         thread handle
+  @param[in]        db          database name
+  @param[in,out]    table_list  list of child tables (merge_list)
+                                lock_type and optionally db set per table
+
+  @return           status
+    @retval         0           OK
+    @retval         != 0        Error
+
+  @detail
+    This function is used for write access to MERGE tables only
+    (CREATE TABLE, ALTER TABLE ... UNION=(...)). Set TL_WRITE for
+    every child. Set 'db' for every child if not present.
+*/
+
+static bool check_merge_table_access(THD *thd, char *db,
+                                     TABLE_LIST *table_list)
+{
+  int error= 0;
+
+  if (table_list)
+  {
+    /* Check that all tables use the current database */
+    TABLE_LIST *tlist;
+
+    for (tlist= table_list; tlist; tlist= tlist->next_local)
+    {
+      if (!tlist->db || !tlist->db[0])
+        tlist->db= db; /* purecov: inspected */
+    }
+    error= check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                              table_list,0);
+  }
+  return error;
+}
+
+
 /* This works because items are allocated with sql_alloc() */
 
 void free_items(Item *item)
@@ -500,21 +542,20 @@ void cleanup_items(Item *item)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Handle COM_TABLE_DUMP command
+/**
+  Handle COM_TABLE_DUMP command.
 
-  SYNOPSIS
-    mysql_table_dump
-      thd           thread handle
-      db            database name or an empty string. If empty,
-                    the current database of the connection is used
-      tbl_name      name of the table to dump
+  @param thd           thread handle
+  @param db            database name or an empty string. If empty,
+                       the current database of the connection is used
+  @param tbl_name      name of the table to dump
 
-  NOTES
+  @note
     This function is written to handle one specific command only.
 
-  RETURN VALUE
+  @retval
     0               success
+  @retval
     1               error, the error message is set in THD
 */
 
@@ -568,16 +609,14 @@ err:
   DBUG_RETURN(error);
 }
 
-/*
-  Ends the current transaction and (maybe) begin the next
+/**
+  Ends the current transaction and (maybe) begin the next.
 
-  SYNOPSIS
-    end_trans()
-      thd            Current thread
-      completion     Completion type
+  @param thd            Current thread
+  @param completion     Completion type
 
-  RETURN
-    0 - OK
+  @retval
+    0   OK
 */
 
 int end_trans(THD *thd, enum enum_mysql_completiontype completion)
@@ -646,16 +685,15 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
 
 #ifndef EMBEDDED_LIBRARY
 
-/*
+/**
   Read one command from connection and execute it (query or simple command).
   This function is called in loop from thread function.
 
   For profiling to work, it must never be called recursively.
 
-  SYNOPSIS
-    do_command()
-  RETURN VALUE
+  @retval
     0  success
+  @retval
     1  request of thread shutdown (see dispatch_command() description)
 */
 
@@ -752,19 +790,26 @@ out:
 #endif  /* EMBEDDED_LIBRARY */
 
 
-/*
-   Perform one connection-level (COM_XXXX) command.
+/**
+  Perform one connection-level (COM_XXXX) command.
 
-  SYNOPSIS
-    dispatch_command()
-    thd             connection handle
-    command         type of command to perform 
-    packet          data for the command, packet is always null-terminated
-    packet_length   length of packet. Can be zero, e.g. in case of COM_SLEEP.
-  RETURN VALUE
+  @param command         type of command to perform
+  @param thd             connection handle
+  @param packet          data for the command, packet is always null-terminated
+  @param packet_length   length of packet + 1 (to show that data is
+                         null-terminated) except for COM_SLEEP, where it
+                         can be zero.
+
+  @todo
+    set thd->lex->sql_command to SQLCOM_END here.
+  @todo
+    The following has to be changed to an 8 byte integer
+
+  @retval
     0   ok
+  @retval
     1   request of thread shutdown, i. e. if command is
-        COM_QUIT/COM_SHUTDOWN
+    COM_QUIT/COM_SHUTDOWN
 */
 
 bool dispatch_command(enum enum_server_command command, THD *thd,
@@ -773,12 +818,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
-
-  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-  {
-    thd->killed= THD::NOT_KILLED;
-    thd->mysys_var->abort= 0;
-  }
+  DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
   thd->command=command;
   /*
@@ -1442,32 +1482,30 @@ void log_slow_statement(THD *thd)
 }
 
 
-/*
+/**
   Create a TABLE_LIST object for an INFORMATION_SCHEMA table.
 
-  SYNOPSIS
-    prepare_schema_table()
-      thd              thread handle
-      lex              current lex
-      table_ident      table alias if it's used
-      schema_table_idx the type of the INFORMATION_SCHEMA table to be
-                       created
-
-  DESCRIPTION
     This function is used in the parser to convert a SHOW or DESCRIBE
     table_name command to a SELECT from INFORMATION_SCHEMA.
     It prepares a SELECT_LEX and a TABLE_LIST object to represent the
     given command as a SELECT parse tree.
 
-  NOTES
+  @param thd              thread handle
+  @param lex              current lex
+  @param table_ident      table alias if it's used
+  @param schema_table_idx the type of the INFORMATION_SCHEMA table to be
+                          created
+
+  @note
     Due to the way this function works with memory and LEX it cannot
     be used outside the parser (parse tree transformations outside
     the parser break PS and SP).
 
-  RETURN VALUE
+  @retval
     0                 success
+  @retval
     1                 out of memory or SHOW commands are not allowed
-                      in this version of the server.
+    in this version of the server.
 */
 
 int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
@@ -1576,17 +1614,17 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 }
 
 
-/*
-  Read query from packet and store in thd->query
-  Used in COM_QUERY and COM_STMT_PREPARE
+/**
+  Read query from packet and store in thd->query.
+  Used in COM_QUERY and COM_STMT_PREPARE.
 
-  DESCRIPTION
-    Sets the following THD variables:
-      query
-      query_length
+  Sets the following THD variables:
+  - query
+  - query_length
 
-  RETURN VALUES
+  @retval
     FALSE ok
+  @retval
     TRUE  error;  In this case thd->fatal_error is set
 */
 
@@ -1725,14 +1763,8 @@ bool sp_process_definer(THD *thd)
 }
 
 
-/*
-  Execute command saved in thd and lex->sql_command
-
-  SYNOPSIS
-    mysql_execute_command()
-      thd                       Thread handle
-
-  IMPLEMENTATION
+/**
+  Execute command saved in thd and lex->sql_command.
 
     Before every operation that can request a write lock for a table
     wait if a global read lock exists. However do not wait if this
@@ -1744,8 +1776,20 @@ bool sp_process_definer(THD *thd)
     global read lock when it succeeds. This needs to be released by
     start_waiting_global_read_lock() after the operation.
 
-  RETURN
+  @param thd                       Thread handle
+
+  @todo
+    - Invalidate the table in the query cache if something changed
+    after unlocking when changes become visible.
+    TODO: this is workaround. right way will be move invalidating in
+    the unlock procedure.
+    - TODO: use check_change_password()
+    - JOIN is not supported yet. TODO
+    - SUSPEND and FOR MIGRATE are not supported yet. TODO
+
+  @retval
     FALSE       OK
+  @retval
     TRUE        Error
 */
 
@@ -2139,7 +2183,16 @@ mysql_execute_command(THD *thd)
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     pthread_mutex_lock(&LOCK_active_mi);
-    res = show_master_info(thd,active_mi);
+    if (active_mi != NULL)
+    {
+      res = show_master_info(thd, active_mi);
+    }
+    else
+    {
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "the master info structure does not exist");
+      send_ok(thd);
+    }
     pthread_mutex_unlock(&LOCK_active_mi);
     break;
   }
@@ -2312,6 +2365,19 @@ mysql_execute_command(THD *thd)
 
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
+
+      /*
+        Disable non-empty MERGE tables with CREATE...SELECT. Too
+        complicated. See Bug #26379. Empty MERGE tables are read-only
+        and don't allow CREATE...SELECT anyway.
+      */
+      if (create_info.used_fields & HA_CREATE_USED_UNION)
+      {
+        my_error(ER_WRONG_OBJECT, MYF(0), create_table->db,
+                 create_table->table_name, "BASE TABLE");
+        res= 1;
+        goto end_with_restore_list;
+      }
 
       if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
       {
@@ -2994,6 +3060,13 @@ end_with_restore_list:
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                         OPTION_SETUP_TABLES_DONE,
 			del_result, unit, select_lex);
+      res|= thd->net.report_error;
+      if (unlikely(res))
+      {
+        /* If we had a another error reported earlier then this will be ignored */
+        del_result->send_error(ER_UNKNOWN_ERROR, "Execution of the query failed");
+        del_result->abort();
+      }
       delete del_result;
     }
     else
@@ -4635,20 +4708,19 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 }
 
 
-/*
+/**
   Check grants for commands which work only with one table.
 
-  SYNOPSIS
-    check_single_table_access()
-    thd			Thread handler
-    privilege		requested privilege
-    all_tables		global table list of query
-    no_errors           FALSE/TRUE - report/don't report error to
-                            the client (using my_error() call).
+  @param thd			Thread handler
+  @param privilege		requested privilege
+  @param all_tables		global table list of query
+  @param no_errors              FALSE/TRUE - report/don't report error to
+                                the client (using my_error() call).
 
-  RETURN
-    0 - OK
-    1 - access denied, error is sent to client
+  @retval
+    0   OK
+  @retval
+    1   access denied, error is sent to client
 */
 
 bool check_single_table_access(THD *thd, ulong privilege, 
@@ -4686,19 +4758,18 @@ deny:
   return 1;
 }
 
-/*
+/**
   Check grants for commands which work only with one table and all other
   tables belonging to subselects or implicitly opened tables.
 
-  SYNOPSIS
-    check_one_table_access()
-    thd			Thread handler
-    privilege		requested privilege
-    all_tables		global table list of query
+  @param thd			Thread handler
+  @param privilege		requested privilege
+  @param all_tables		global table list of query
 
-  RETURN
-    0 - OK
-    1 - access denied, error is sent to client
+  @retval
+    0   OK
+  @retval
+    1   access denied, error is sent to client
 */
 
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
@@ -4728,25 +4799,26 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
 }
 
 
-/****************************************************************************
-  Get the user (global) and database privileges for all used tables
+/**
+  Get the user (global) and database privileges for all used tables.
 
-  NOTES
+  @param save_priv    In this we store global and db level grants for the
+                      table. Note that we don't store db level grants if the
+                      global grants is enough to satisfy the request and the
+                      global grants contains a SELECT grant.
+
+  @note
     The idea of EXTRA_ACL is that one will be granted access to the table if
     one has the asked privilege on any column combination of the table; For
     example to be able to check a table one needs to have SELECT privilege on
     any column of the table.
 
-  RETURN
+  @retval
     0  ok
-    1  If we can't get the privileges and we don't use table/column grants.
-
-    save_priv	In this we store global and db level grants for the table
-		Note that we don't store db level grants if the global grants
-                is enough to satisfy the request and the global grants contains
-                a SELECT grant.
-****************************************************************************/
-
+  @retval
+    1  If we can't get the privileges and we don't use table/column
+    grants.
+*/
 bool
 check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 	     bool dont_check_global_grants, bool no_errors, bool schema_db)
@@ -4869,22 +4941,21 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 }
 
 
-/*
-  check for global access and give descriptive error message if it fails
+/**
+  check for global access and give descriptive error message if it fails.
 
-  SYNOPSIS
-    check_global_access()
-    thd			Thread handler
-    want_access		Use should have any of these global rights
+  @param thd			Thread handler
+  @param want_access		Use should have any of these global rights
 
-  WARNING
-    One gets access right if one has ANY of the rights in want_access
+  @warning
+    One gets access right if one has ANY of the rights in want_access.
     This is useful as one in most cases only need one global right,
     but in some case we want to check if the user has SUPER or
     REPL_CLIENT_ACL rights.
 
-  RETURN
+  @retval
     0	ok
+  @retval
     1	Access denied.  In this case an error is sent to the client
 */
 
@@ -4962,27 +5033,26 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 }
 
 
-/*
+/**
   Check the privilege for all used tables.
 
-  SYNOPSYS
-    check_table_access()
-      thd          Thread context
-      want_access  Privileges requested
-      tables       List of tables to be checked
-      no_errors    FALSE/TRUE - report/don't report error to
-                   the client (using my_error() call).
+  @param thd          Thread context
+  @param want_access  Privileges requested
+  @param tables       List of tables to be checked
+  @param no_errors    FALSE/TRUE - report/don't report error to
+                      the client (using my_error() call).
 
-  NOTES
+  @note
     Table privileges are cached in the table list for GRANT checking.
     This functions assumes that table list used and
     thd->lex->query_tables_own_last value correspond to each other
     (the latter should be either 0 or point to next_global member
     of one of elements of this table list).
 
-  RETURN VALUE
-    FALSE - OK
-    TRUE  - Access denied
+  @retval
+    FALSE   OK
+  @retval
+    TRUE    Access denied
 */
 
 bool
@@ -5086,17 +5156,16 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
 }
 
 
-/*
-  Check if the routine has any of the routine privileges
+/**
+  Check if the routine has any of the routine privileges.
 
-  SYNOPSIS
-    check_some_routine_access()
-    thd		 Thread handler
-    db           Database name
-    name         Routine name
+  @param thd	       Thread handler
+  @param db           Database name
+  @param name         Routine name
 
-  RETURN
+  @retval
     0            ok
+  @retval
     1            error
 */
 
@@ -5120,16 +5189,14 @@ bool check_some_routine_access(THD *thd, const char *db, const char *name,
 /*
   Check if the given table has any of the asked privileges
 
-  SYNOPSIS
-    check_some_access()
-    thd		 Thread handler
-    want_access	 Bitmap of possible privileges to check for
+  @param thd		 Thread handler
+  @param want_access	 Bitmap of possible privileges to check for
 
-  RETURN
+  @retval
     0  ok
+  @retval
     1  error
 */
-
 
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
 {
@@ -5153,26 +5220,6 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
 }
 
 
-bool check_merge_table_access(THD *thd, char *db,
-			      TABLE_LIST *table_list)
-{
-  int error=0;
-  if (table_list)
-  {
-    /* Check that all tables use the current database */
-    TABLE_LIST *tmp;
-    for (tmp= table_list; tmp; tmp= tmp->next_local)
-    {
-      if (!tmp->db || !tmp->db[0])
-	tmp->db=db;
-    }
-    error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-			     table_list,0);
-  }
-  return error;
-}
-
-
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
 ****************************************************************************/
@@ -5189,12 +5236,13 @@ bool check_merge_table_access(THD *thd, char *db,
 long max_stack_used;
 #endif
 
-/*
+/**
+  @note
   Note: The 'buf' parameter is necessary, even if it is unused here.
   - fix_fields functions has a "dummy" buffer large enough for the
     corresponding exec. (Thus we only have to check in fix_fields.)
   - Passing to check_stack_overrun() prevents the compiler from removing it.
- */
+*/
 bool check_stack_overrun(THD *thd, long margin,
 			 uchar *buf __attribute__((unused)))
 {
@@ -5248,17 +5296,17 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 }
 
 
-/*
- Reset THD part responsible for command processing state.
+/**
+  Reset THD part responsible for command processing state.
 
- DESCRIPTION
-   This needs to be called before execution of every statement
-   (prepared or conventional).
-   It is not called by substatements of routines.
+  This needs to be called before execution of every statement
+  (prepared or conventional).
+  It is not called by substatements of routines.
 
- TODO
+  @todo
    Make it a method of THD and align its name with the rest of
    reset/end/start/init methods.
+  @todo
    Call it after we use THD for queries, not before.
 */
 
@@ -5403,17 +5451,14 @@ mysql_new_select(LEX *lex, bool move_down)
   DBUG_RETURN(0);
 }
 
-/*
+/**
   Create a select to return the same output as 'SELECT @@var_name'.
 
-  SYNOPSIS
-    create_select_for_variable()
-    var_name		Variable name
+  Used for SHOW COUNT(*) [ WARNINGS | ERROR].
 
-  DESCRIPTION
-    Used for SHOW COUNT(*) [ WARNINGS | ERROR]
+  This will crash with a core dump if the variable doesn't exists.
 
-    This will crash with a core dump if the variable doesn't exists
+  @param var_name		Variable name
 */
 
 void create_select_for_variable(const char *var_name)
@@ -5579,8 +5624,9 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
   Usable by the replication SQL thread only: just parse a query to know if it
   can be ignored because of replicate-*-table rules.
 
-  RETURN VALUES
+  @retval
     0	cannot be ignored
+  @retval
     1	can be ignored
 */
 
@@ -5605,10 +5651,12 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 
 
 
-/*****************************************************************************
-** Store field definition for create
-** Return 0 if ok
-******************************************************************************/
+/**
+  Store field definition for create.
+
+  @return
+    Return 0 if ok
+*/
 
 bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 		       char *length, char *decimals,
@@ -5712,7 +5760,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 }
 
 
-/* Store position for column in ALTER TABLE .. ADD column */
+/** Store position for column in ALTER TABLE .. ADD column. */
 
 void store_position_for_column(const char *name)
 {
@@ -5736,10 +5784,9 @@ add_proc_to_list(THD* thd, Item *item)
 }
 
 
-/****************************************************************************
-** save order by and tables in own lists
-****************************************************************************/
-
+/**
+  save order by and tables in own lists.
+*/
 
 bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
 {
@@ -5758,24 +5805,23 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
 }
 
 
-/*
-  Add a table to list of used tables
+/**
+  Add a table to list of used tables.
 
-  SYNOPSIS
-    add_table_to_list()
-    table		Table to add
-    alias		alias for table (or null if no alias)
-    table_options	A set of the following bits:
-			TL_OPTION_UPDATING	Table will be updated
-			TL_OPTION_FORCE_INDEX	Force usage of index
-			TL_OPTION_ALIAS	        an alias in multi table DELETE
-    lock_type		How table should be locked
-    use_index		List of indexed used in USE INDEX
-    ignore_index	List of indexed used in IGNORE INDEX
+  @param table		Table to add
+  @param alias		alias for table (or null if no alias)
+  @param table_options	A set of the following bits:
+                         - TL_OPTION_UPDATING : Table will be updated
+                         - TL_OPTION_FORCE_INDEX : Force usage of index
+                         - TL_OPTION_ALIAS : an alias in multi table DELETE
+  @param lock_type	How table should be locked
+  @param use_index	List of indexed used in USE INDEX
+  @param ignore_index	List of indexed used in IGNORE INDEX
 
-    RETURN
-      0		Error
-      #		Pointer to TABLE_LIST element added to the total table list
+  @retval
+    0	Error
+  @retval
+    \#	Pointer to TABLE_LIST element added to the total table list
 */
 
 TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
@@ -5918,14 +5964,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 }
 
 
-/*
-  Initialize a new table list for a nested join
+/**
+  Initialize a new table list for a nested join.
 
-  SYNOPSIS
-    init_nested_join()
-    thd         current thread
-
-  DESCRIPTION
     The function initializes a structure of the TABLE_LIST type
     for a nested join. It sets up its nested join list as empty.
     The created structure is added to the front of the current
@@ -5934,9 +5975,12 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     created empty list after having saved the info on the old level
     in the initialized structure.
 
-  RETURN VALUE
-    0,  if success
-    1,  otherwise
+  @param thd         current thread
+
+  @retval
+    0   if success
+  @retval
+    1   otherwise
 */
 
 bool st_select_lex::init_nested_join(THD *thd)
@@ -5962,21 +6006,18 @@ bool st_select_lex::init_nested_join(THD *thd)
 }
 
 
-/*
-  End a nested join table list
+/**
+  End a nested join table list.
 
-  SYNOPSIS
-    end_nested_join()
-    thd         current thread
-
-  DESCRIPTION
     The function returns to the previous join nest level.
     If the current level contains only one member, the function
     moves it one level up, eliminating the nest.
 
-  RETURN VALUE
-    Pointer to TABLE_LIST element added to the total table list, if success
-    0, otherwise
+  @param thd         current thread
+
+  @return
+    - Pointer to TABLE_LIST element added to the total table list, if success
+    - 0, otherwise
 */
 
 TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
@@ -6008,20 +6049,17 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
 }
 
 
-/*
-  Nest last join operation
+/**
+  Nest last join operation.
 
-  SYNOPSIS
-    nest_last_join()
-    thd         current thread
+  The function nest last join operation as if it was enclosed in braces.
 
-  DESCRIPTION
-    The function nest last join operation as if it was enclosed in braces.
+  @param thd         current thread
 
-  RETURN VALUE
+  @retval
     0  Error
-    #  Pointer to TABLE_LIST element created for the new nested join
-
+  @retval
+    \#  Pointer to TABLE_LIST element created for the new nested join
 */
 
 TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
@@ -6066,20 +6104,17 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 }
 
 
-/*
-  Add a table to the current join list
+/**
+  Add a table to the current join list.
 
-  SYNOPSIS
-    add_joined_table()
-    table       the table to add
-
-  DESCRIPTION
     The function puts a table in front of the current join list
     of st_select_lex object.
     Thus, joined tables are put into this list in the reverse order
     (the most outer join operation follows first).
 
-  RETURN VALUE
+  @param table       the table to add
+
+  @return
     None
 */
 
@@ -6093,14 +6128,9 @@ void st_select_lex::add_joined_table(TABLE_LIST *table)
 }
 
 
-/*
-  Convert a right join into equivalent left join
+/**
+  Convert a right join into equivalent left join.
 
-  SYNOPSIS
-    convert_right_join()
-    thd         current thread
-
-  DESCRIPTION
     The function takes the current join list t[0],t[1] ... and
     effectively converts it into the list t[1],t[0] ...
     Although the outer_join flag for the new nested table contains
@@ -6108,21 +6138,25 @@ void st_select_lex::add_joined_table(TABLE_LIST *table)
     operation.
 
   EXAMPLES
-    SELECT * FROM t1 RIGHT JOIN t2 ON on_expr =>
-      SELECT * FROM t2 LEFT JOIN t1 ON on_expr
+  @verbatim
+     SELECT * FROM t1 RIGHT JOIN t2 ON on_expr =>
+       SELECT * FROM t2 LEFT JOIN t1 ON on_expr
 
-    SELECT * FROM t1,t2 RIGHT JOIN t3 ON on_expr =>
-      SELECT * FROM t1,t3 LEFT JOIN t2 ON on_expr
+     SELECT * FROM t1,t2 RIGHT JOIN t3 ON on_expr =>
+       SELECT * FROM t1,t3 LEFT JOIN t2 ON on_expr
 
-    SELECT * FROM t1,t2 RIGHT JOIN (t3,t4) ON on_expr =>
-      SELECT * FROM t1,(t3,t4) LEFT JOIN t2 ON on_expr
+     SELECT * FROM t1,t2 RIGHT JOIN (t3,t4) ON on_expr =>
+       SELECT * FROM t1,(t3,t4) LEFT JOIN t2 ON on_expr
 
-    SELECT * FROM t1 LEFT JOIN t2 ON on_expr1 RIGHT JOIN t3  ON on_expr2 =>
-      SELECT * FROM t3 LEFT JOIN (t1 LEFT JOIN t2 ON on_expr2) ON on_expr1
+     SELECT * FROM t1 LEFT JOIN t2 ON on_expr1 RIGHT JOIN t3  ON on_expr2 =>
+       SELECT * FROM t3 LEFT JOIN (t1 LEFT JOIN t2 ON on_expr2) ON on_expr1
+   @endverbatim
 
-  RETURN
-    Pointer to the table representing the inner table, if success
-    0, otherwise
+  @param thd         current thread
+
+  @return
+    - Pointer to the table representing the inner table, if success
+    - 0, otherwise
 */
 
 TABLE_LIST *st_select_lex::convert_right_join()
@@ -6138,14 +6172,12 @@ TABLE_LIST *st_select_lex::convert_right_join()
   DBUG_RETURN(tab1);
 }
 
-/*
-  Set lock for all tables in current select level
+/**
+  Set lock for all tables in current select level.
 
-  SYNOPSIS:
-    set_lock_for_tables()
-    lock_type			Lock to set for tables
+  @param lock_type			Lock to set for tables
 
-  NOTE:
+  @note
     If lock is a write lock, then tables->updating is set 1
     This is to get tables_ok to know that the table is updated by the
     query
@@ -6169,27 +6201,29 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
 }
 
 
-/*
-  Create a fake SELECT_LEX for a unit
+/**
+  Create a fake SELECT_LEX for a unit.
 
-  SYNOPSIS:
-    add_fake_select_lex()
-    thd			   thread handle
-
-  DESCRIPTION
     The method create a fake SELECT_LEX object for a unit.
     This object is created for any union construct containing a union
     operation and also for any single select union construct of the form
+    @verbatim
     (SELECT ... ORDER BY order_list [LIMIT n]) ORDER BY ... 
+    @endvarbatim
     or of the form
+    @varbatim
     (SELECT ... ORDER BY LIMIT n) ORDER BY ...
-  
-  NOTES
+    @endvarbatim
+
+  @param thd_arg		   thread handle
+
+  @note
     The object is used to retrieve rows from the temporary table
     where the result on the union is obtained.
 
-  RETURN VALUES
+  @retval
     1     on failure to create the object
+  @retval
     0     on success
 */
 
@@ -6231,24 +6265,22 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
 }
 
 
-/*
+/**
   Push a new name resolution context for a JOIN ... ON clause to the
   context stack of a query block.
 
-  SYNOPSIS
-    push_new_name_resolution_context()
-    thd       pointer to current thread
-    left_op   left  operand of the JOIN
-    right_op  rigth operand of the JOIN
-
-  DESCRIPTION
     Create a new name resolution context for a JOIN ... ON clause,
     set the first and last leaves of the list of table references
     to be used for name resolution, and push the newly created
     context to the stack of contexts of the query.
 
-  RETURN
+  @param thd       pointer to current thread
+  @param left_op   left  operand of the JOIN
+  @param right_op  rigth operand of the JOIN
+
+  @retval
     FALSE  if all is OK
+  @retval
     TRUE   if a memory allocation error occured
 */
 
@@ -6268,19 +6300,17 @@ push_new_name_resolution_context(THD *thd,
 }
 
 
-/*
+/**
   Add an ON condition to the second operand of a JOIN ... ON.
 
-  SYNOPSIS
-    add_join_on
-    b     the second operand of a JOIN ... ON
-    expr  the condition to be added to the ON clause
+  Add an ON condition to the right operand of a JOIN ... ON clause.
 
-  DESCRIPTION
-    Add an ON condition to the right operand of a JOIN ... ON clause.
+  @param b     the second operand of a JOIN ... ON
+  @param expr  the condition to be added to the ON clause
 
-  RETURN
+  @retval
     FALSE  if there was some error
+  @retval
     TRUE   if all is OK
 */
 
@@ -6304,18 +6334,10 @@ void add_join_on(TABLE_LIST *b, Item *expr)
 }
 
 
-/*
+/**
   Mark that there is a NATURAL JOIN or JOIN ... USING between two
   tables.
 
-  SYNOPSIS
-    add_join_natural()
-    a			Left join argument
-    b			Right join argument
-    using_fields        Field names from USING clause
-    lex                 The current st_select_lex
-  
-  IMPLEMENTATION
     This function marks that table b should be joined with a either via
     a NATURAL JOIN or via JOIN ... USING. Both join types are special
     cases of each other, so we treat them together. The function
@@ -6326,20 +6348,23 @@ void add_join_on(TABLE_LIST *b, Item *expr)
     was an outer join.
 
   EXAMPLE
-    SELECT * FROM t1 NATURAL LEFT JOIN t2
-     <=>
-    SELECT * FROM t1 LEFT JOIN t2 ON (t1.i=t2.i and t1.j=t2.j ... )
+  @verbatim
+     SELECT * FROM t1 NATURAL LEFT JOIN t2
+      <=>
+     SELECT * FROM t1 LEFT JOIN t2 ON (t1.i=t2.i and t1.j=t2.j ... )
 
-    SELECT * FROM t1 NATURAL JOIN t2 WHERE <some_cond>
-     <=>
-    SELECT * FROM t1, t2 WHERE (t1.i=t2.i and t1.j=t2.j and <some_cond>)
+     SELECT * FROM t1 NATURAL JOIN t2 WHERE <some_cond>
+      <=>
+     SELECT * FROM t1, t2 WHERE (t1.i=t2.i and t1.j=t2.j and <some_cond>)
 
-    SELECT * FROM t1 JOIN t2 USING(j) WHERE <some_cond>
-     <=>
-    SELECT * FROM t1, t2 WHERE (t1.j=t2.j and <some_cond>)
+     SELECT * FROM t1 JOIN t2 USING(j) WHERE <some_cond>
+      <=>
+     SELECT * FROM t1, t2 WHERE (t1.j=t2.j and <some_cond>)
+   @endverbatim
 
-  RETURN
-    None
+  @param a		  Left join argument
+  @param b		  Right join argument
+  @param using_fields    Field names from USING clause
 */
 
 void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
@@ -6350,24 +6375,23 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 }
 
 
-/*
+/**
   Reload/resets privileges and the different caches.
 
-  SYNOPSIS
-    reload_acl_and_cache()
-    thd			Thread handler (can be NULL!)
-    options             What should be reset/reloaded (tables, privileges,
-    slave...)
-    tables              Tables to flush (if any)
-    write_to_binlog     Depending on 'options', it may be very bad to write the
-                        query to the binlog (e.g. FLUSH SLAVE); this is a
-                        pointer where reload_acl_and_cache() will put 0 if
-                        it thinks we really should not write to the binlog.
-                        Otherwise it will put 1.
+  @param thd Thread handler (can be NULL!)
+  @param options What should be reset/reloaded (tables, privileges, slave...)
+  @param tables Tables to flush (if any)
+  @param write_to_binlog True if we can write to the binlog.
+               
+  @note Depending on 'options', it may be very bad to write the
+    query to the binlog (e.g. FLUSH SLAVE); this is a
+    pointer where reload_acl_and_cache() will put 0 if
+    it thinks we really should not write to the binlog.
+    Otherwise it will put 1.
 
-  RETURN
-    0	 ok
-    !=0  error.  thd->killed or thd->is_error() is set
+  @return Error status code
+    @retval 0 Ok
+    @retval !=0  Error; thd->killed is set or thd->is_error() is true
 */
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
@@ -6471,7 +6495,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 
         for (; lock_p < end_p; lock_p++)
         {
-          if ((*lock_p)->type == TL_WRITE)
+          if ((*lock_p)->type >= TL_WRITE_ALLOW_WRITE)
           {
             my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
             return 1;
@@ -6540,16 +6564,14 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 }
 
 
-/*
-  kills a thread
+/**
+  kill on thread.
 
-  SYNOPSIS
-    kill_one_thread()
-    thd			Thread class
-    id			Thread id
-    only_kill_query     Should it kill the query or the connection
+  @param thd			Thread class
+  @param id			Thread id
+  @param only_kill_query        Should it kill the query or the connection
 
-  NOTES
+  @note
     This is written such that we have a short lock on LOCK_thread_count
 */
 
@@ -6609,7 +6631,7 @@ void sql_kill(THD *thd, ulong id, bool only_kill_query)
 }
 
 
-	/* If pointer is not a null pointer, append filename to it */
+/** If pointer is not a null pointer, append filename to it. */
 
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name)
@@ -6636,14 +6658,12 @@ bool append_file_to_dir(THD *thd, const char **filename_ptr,
 }
 
 
-/*
-  Check if the select is a simple select (not an union)
+/**
+  Check if the select is a simple select (not an union).
 
-  SYNOPSIS
-    check_simple_select()
-
-  RETURN VALUES
+  @retval
     0	ok
+  @retval
     1	error	; In this case the error messege is sent to the client
 */
 
@@ -6700,17 +6720,15 @@ Comp_creator *comp_ne_creator(bool invert)
 }
 
 
-/*
-  Construct ALL/ANY/SOME subquery Item
+/**
+  Construct ALL/ANY/SOME subquery Item.
 
-  SYNOPSIS
-    all_any_subquery_creator()
-    left_expr - pointer to left expression
-    cmp - compare function creator
-    all - true if we create ALL subquery
-    select_lex - pointer on parsed subquery structure
+  @param left_expr   pointer to left expression
+  @param cmp         compare function creator
+  @param all         true if we create ALL subquery
+  @param select_lex  pointer on parsed subquery structure
 
-  RETURN VALUE
+  @return
     constructed Item (or 0 if out of memory)
 */
 Item * all_any_subquery_creator(Item *left_expr,
@@ -6733,16 +6751,15 @@ Item * all_any_subquery_creator(Item *left_expr,
 }
 
 
-/*
-  Multi update query pre-check
+/**
+  Multi update query pre-check.
 
-  SYNOPSIS
-    multi_update_precheck()
-    thd		Thread handler
-    tables	Global/local table list (have to be the same)
+  @param thd		Thread handler
+  @param tables	Global/local table list (have to be the same)
 
-  RETURN VALUE
+  @retval
     FALSE OK
+  @retval
     TRUE  Error
 */
 
@@ -6810,16 +6827,15 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
   DBUG_RETURN(FALSE);
 }
 
-/*
-  Multi delete query pre-check
+/**
+  Multi delete query pre-check.
 
-  SYNOPSIS
-    multi_delete_precheck()
-    thd			Thread handler
-    tables		Global/local table list
+  @param thd			Thread handler
+  @param tables		Global/local table list
 
-  RETURN VALUE
+  @retval
     FALSE OK
+  @retval
     TRUE  error
 */
 
@@ -6859,17 +6875,16 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 }
 
 
-/*
+/**
   Link tables in auxilary table list of multi-delete with corresponding
   elements in main table list, and set proper locks for them.
 
-  SYNOPSIS
-    multi_delete_set_locks_and_link_aux_tables()
-      lex - pointer to LEX representing multi-delete
+  @param lex   pointer to LEX representing multi-delete
 
-  RETURN VALUE
-    FALSE - success
-    TRUE  - error
+  @retval
+    FALSE   success
+  @retval
+    TRUE    error
 */
 
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
@@ -6912,16 +6927,15 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
 }
 
 
-/*
-  simple UPDATE query pre-check
+/**
+  simple UPDATE query pre-check.
 
-  SYNOPSIS
-    update_precheck()
-    thd		Thread handler
-    tables	Global table list
+  @param thd		Thread handler
+  @param tables	Global table list
 
-  RETURN VALUE
+  @retval
     FALSE OK
+  @retval
     TRUE  Error
 */
 
@@ -6937,16 +6951,15 @@ bool update_precheck(THD *thd, TABLE_LIST *tables)
 }
 
 
-/*
-  simple DELETE query pre-check
+/**
+  simple DELETE query pre-check.
 
-  SYNOPSIS
-    delete_precheck()
-    thd		Thread handler
-    tables	Global table list
+  @param thd		Thread handler
+  @param tables	Global table list
 
-  RETURN VALUE
+  @retval
     FALSE  OK
+  @retval
     TRUE   error
 */
 
@@ -6961,16 +6974,15 @@ bool delete_precheck(THD *thd, TABLE_LIST *tables)
 }
 
 
-/*
-  simple INSERT query pre-check
+/**
+  simple INSERT query pre-check.
 
-  SYNOPSIS
-    insert_precheck()
-    thd		Thread handler
-    tables	Global table list
+  @param thd		Thread handler
+  @param tables	Global table list
 
-  RETURN VALUE
+  @retval
     FALSE  OK
+  @retval
     TRUE   error
 */
 
@@ -7018,17 +7030,16 @@ static bool check_show_create_table_access(THD *thd, TABLE_LIST *table)
 }
 
 
-/*
-  CREATE TABLE query pre-check
+/**
+  CREATE TABLE query pre-check.
 
-  SYNOPSIS
-    create_table_precheck()
-    thd			Thread handler
-    tables		Global table list
-    create_table	Table which will be created
+  @param thd			Thread handler
+  @param tables		Global table list
+  @param create_table	        Table which will be created
 
-  RETURN VALUE
+  @retval
     FALSE   OK
+  @retval
     TRUE   Error
 */
 
@@ -7041,8 +7052,15 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   bool error= TRUE;                                 // Error message is given
   DBUG_ENTER("create_table_precheck");
 
+  /*
+    Require CREATE [TEMPORARY] privilege on new table; for
+    CREATE TABLE ... SELECT, also require INSERT.
+  */
+
   want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-              CREATE_TMP_ACL : CREATE_ACL);
+              CREATE_TMP_ACL : CREATE_ACL) |
+             (select_lex->item_list.elements ? INSERT_ACL : 0);
+
   if (check_access(thd, want_priv, create_table->db,
 		   &create_table->grant.privilege, 0, 0,
                    test(create_table->schema_table)) ||
@@ -7094,15 +7112,13 @@ err:
 }
 
 
-/*
-  negate given expression
+/**
+  negate given expression.
 
-  SYNOPSIS
-    negate_expression()
-    thd  thread handler
-    expr expression for negation
+  @param thd  thread handler
+  @param expr expression for negation
 
-  RETURN
+  @return
     negated expression
 */
 
@@ -7129,14 +7145,12 @@ Item *negate_expression(THD *thd, Item *expr)
   return new Item_func_not(expr);
 }
 
-/*
-  Set the specified definer to the default value, which is the current user in
-  the thread.
- 
-  SYNOPSIS
-    get_default_definer()
-    thd       [in] thread handler
-    definer   [out] definer
+/**
+  Set the specified definer to the default value, which is the
+  current user in the thread.
+
+  @param[in]  thd       thread handler
+  @param[out] definer   definer
 */
  
 void get_default_definer(THD *thd, LEX_USER *definer)
@@ -7151,17 +7165,15 @@ void get_default_definer(THD *thd, LEX_USER *definer)
 }
 
 
-/*
+/**
   Create default definer for the specified THD.
 
-  SYNOPSIS
-    create_default_definer()
-    thd         [in] thread handler
+  @param[in] thd         thread handler
 
-  RETURN
-    On success, return a valid pointer to the created and initialized
+  @return
+    - On success, return a valid pointer to the created and initialized
     LEX_USER, which contains definer information.
-    On error, return 0.
+    - On error, return 0.
 */
 
 LEX_USER *create_default_definer(THD *thd)
@@ -7177,19 +7189,17 @@ LEX_USER *create_default_definer(THD *thd)
 }
 
 
-/*
+/**
   Create definer with the given user and host names.
 
-  SYNOPSIS
-    create_definer()
-    thd         [in] thread handler
-    user_name   [in] user name
-    host_name   [in] host name
+  @param[in] thd          thread handler
+  @param[in] user_name    user name
+  @param[in] host_name    host name
 
-  RETURN
-    On success, return a valid pointer to the created and initialized
+  @return
+    - On success, return a valid pointer to the created and initialized
     LEX_USER, which contains definer information.
-    On error, return 0.
+    - On error, return 0.
 */
 
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
@@ -7208,18 +7218,16 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 }
 
 
-/*
+/**
   Retuns information about user or current user.
 
-  SYNOPSIS
-    get_current_user()
-    thd         [in] thread handler
-    user        [in] user
+  @param[in] thd          thread handler
+  @param[in] user         user
 
-  RETURN
-    On success, return a valid pointer to initialized
+  @return
+    - On success, return a valid pointer to initialized
     LEX_USER, which contains user information.
-    On error, return 0.
+    - On error, return 0.
 */
 
 LEX_USER *get_current_user(THD *thd, LEX_USER *user)
@@ -7231,17 +7239,16 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 }
 
 
-/*
+/**
   Check that byte length of a string does not exceed some limit.
 
-  SYNOPSIS
-  check_string_byte_length()
-      str              string to be checked
-      err_msg          error message to be displayed if the string is too long
-      max_byte_length  max length in bytes
+  @param str         string to be checked
+  @param err_msg     error message to be displayed if the string is too long
+  @param max_length  max length
 
-  RETURN
+  @retval
     FALSE   the passed string is not longer than max_length
+  @retval
     TRUE    the passed string is longer than max_length
 
   NOTE

@@ -1788,7 +1788,18 @@ then
   LDFLAGS="$LDFLAGS -rdynamic"
   AC_MSG_RESULT("-rdynamic")
 else
-  AC_MSG_RESULT("none")
+  case "$SYSTEM_TYPE$with_mysqld_ldflags " in
+  *freebsd*"-all-static "*|*dragonfly*"-all-static "*)
+    AC_MSG_RESULT("none")
+    ;;
+  *freebsd*|*dragonfly*)
+    MYSQLD_EXTRA_LDFLAGS="$MYSQLD_EXTRA_LDFLAGS -export-dynamic"
+    AC_MSG_RESULT("-export-dynamic")
+    ;;
+  *)
+    AC_MSG_RESULT("none")
+    ;;
+  esac
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.

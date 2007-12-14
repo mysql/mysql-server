@@ -1013,6 +1013,12 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     goto err;                   // mysql_parse took care of the error send
 
   thd_proc_info(thd, "Opening master dump table");
+  /*
+    Note: If this function starts to fail for MERGE tables,
+    change the next two lines to these:
+    tables.table= NULL; // was set by mysql_rm_table()
+    if (!open_n_lock_single_table(thd, &tables, TL_WRITE))
+  */
   tables.lock_type = TL_WRITE;
   if (!open_ltable(thd, &tables, TL_WRITE, 0))
   {
@@ -1510,6 +1516,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     delete thd;
     DBUG_RETURN(-1);
   }
+  lex_start(thd);
 
   if (thd_type == SLAVE_THD_SQL)
     thd_proc_info(thd, "Waiting for the next event in relay log");
@@ -1714,7 +1721,14 @@ static int has_temporary_error(THD *thd)
   DBUG_ENTER("has_temporary_error");
 
   if (thd->is_fatal_error)
+  {
+    DBUG_PRINT("info", ("thd->net.last_errno: %s", ER(thd->net.last_errno)));
     DBUG_RETURN(0);
+  }
+
+  DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
+                  if (thd->net.last_errno)
+                    thd->net.last_errno= ER_LOCK_DEADLOCK;);
 
   /*
     Temporary error codes:
@@ -1723,7 +1737,10 @@ static int has_temporary_error(THD *thd)
   */
   if (thd->net.last_errno == ER_LOCK_DEADLOCK ||
       thd->net.last_errno == ER_LOCK_WAIT_TIMEOUT)
+  {
+    DBUG_PRINT("info", ("thd->net.last_errno: %s", ER(thd->net.last_errno)));
     DBUG_RETURN(1);
+  }
 
 #ifdef HAVE_NDB_BINLOG
   /*
@@ -1794,16 +1811,12 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     int const type_code= ev->get_type_code();
     int exec_res= 0;
 
-    /*
-    */
-
     DBUG_PRINT("exec_event",("%s(type_code: %d; server_id: %d)",
                        ev->get_type_str(), type_code, ev->server_id));
     DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                         FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
                         FLAGSTR(thd->options, OPTION_BEGIN),
                         rli->last_event_start_time));
-
 
 
     /*
@@ -1853,10 +1866,13 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       // EVENT_SKIP_NOT,
       "not skipped",
       // EVENT_SKIP_IGNORE,
-      "skipped because event originated from this server",
+      "skipped because event should be ignored",
       // EVENT_SKIP_COUNT
       "skipped because event skip counter was non-zero"
     };
+    DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
+                        thd->options & OPTION_BEGIN ? 1 : 0,
+                        rli->get_flag(Relay_log_info::IN_STMT)));
     DBUG_PRINT("skip_event", ("%s event was %s",
                               ev->get_type_str(), explain[reason]));
 #endif
@@ -1905,7 +1921,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     }
     if (slave_trans_retries)
     {
-      if (exec_res && has_temporary_error(thd))
+      int temp_err;
+      if (exec_res && (temp_err= has_temporary_error(thd)))
       {
         const char *errmsg;
         /*
@@ -1953,15 +1970,19 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                           "the slave_transaction_retries variable.",
                           slave_trans_retries);
       }
-      else if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
+      else if (exec_res && !temp_err ||
+               (opt_using_transactions &&
+                rli->group_relay_log_pos == rli->event_relay_log_pos))
       {
         /*
-          Only reset the retry counter if the event succeeded or
-          failed with a non-transient error.  On a successful event,
-          the execution will proceed as usual; in the case of a
+          Only reset the retry counter if the entire group succeeded
+          or failed with a non-transient error.  On a successful
+          event, the execution will proceed as usual; in the case of a
           non-transient error, the slave will stop with an error.
          */
         rli->trans_retries= 0; // restart from fresh
+        DBUG_PRINT("info", ("Resetting retry counter, rli->trans_retries: %lu",
+                            rli->trans_retries));
       }
     }
     DBUG_RETURN(exec_res);
@@ -2450,6 +2471,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   rli->ignore_log_space_limit= 0;
   pthread_mutex_unlock(&rli->log_space_lock);
   rli->trans_retries= 0; // start from "no error"
+  DBUG_PRINT("info", ("rli->trans_retries: %lu", rli->trans_retries));
 
   if (init_relay_log_pos(rli,
                          rli->group_relay_log_name,
@@ -3581,7 +3603,16 @@ static Log_event* next_event(Relay_log_info* rli)
           a new event and is queuing it; the false "0" will exist until SQL
           finishes executing the new event; it will be look abnormal only if
           the events have old timestamps (then you get "many", 0, "many").
-          Transient phases like this can't really be fixed.
+
+          Transient phases like this can be fixed with implemeting
+          Heartbeat event which provides the slave the status of the
+          master at time the master does not have any new update to send.
+          Seconds_Behind_Master would be zero only when master has no
+          more updates in binlog for slave. The heartbeat can be sent
+          in a (small) fraction of slave_net_timeout. Until it's done
+          rli->last_master_timestamp is temporarely (for time of
+          waiting for the following event) reset whenever EOF is
+          reached.
         */
         time_t save_timestamp= rli->last_master_timestamp;
         rli->last_master_timestamp= 0;

@@ -1,3 +1,4 @@
+drop table if exists t1, t2;
 create table t1 (
 a int, b char(10), c char(10), filler char(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set utf8 engine = innodb;

@@ -30,7 +30,9 @@
 #  include <floss.h>
 #endif
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <stdio.h>
 
@@ -184,8 +186,7 @@ read_history_range (filename, from, to)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-  if ((long long) file_size != (long long) finfo.st_size ||
-      file_size + 1 < file_size)
+  if (file_size != finfo.st_size || file_size + 1 < file_size)
     {
       errno = overflow_errno;
       goto error_and_exit;
@@ -255,7 +256,11 @@ read_history_range (filename, from, to)
   for (line_end = line_start; line_end < bufend; line_end++)
     if (*line_end == '\n')
       {
-	*line_end = '\0';
+	/* Change to allow Windows-like \r\n end of line delimiter. */
+	if (line_end > line_start && line_end[-1] == '\r')
+	  line_end[-1] = '\0';
+	else
+	  *line_end = '\0';
 
 	if (*line_start)
 	  {
@@ -334,8 +339,7 @@ history_truncate_file (fname, lines)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-  if ((long long) file_size != (long long) finfo.st_size ||
-      file_size + 1 < file_size)
+  if (file_size != finfo.st_size || file_size + 1 < file_size)
     {
       close (file);
 #if defined (EFBIG)

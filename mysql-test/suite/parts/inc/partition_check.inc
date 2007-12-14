@@ -1,5 +1,5 @@
 ################################################################################
-# include/partition_check.inc                                                  #
+# inc/partition_check.inc                                                      #
 #                                                                              #
 # Purpose:                                                                     #
 #   Do some basic usability checks on table t1.                                #
@@ -27,7 +27,7 @@
 #              Records can be deleted or inserted, but the content of the      #
 #              records after a test/testsequence should follow this scheme.    #
 #                                                                              #
-#   All checks of preceeding statements via Select are so written,             #
+#   All checks of preceding statements via Select are so written,              #
 #   that they deliver a                                                        #
 #       # check <n> success:        1                                          #
 #   when everything is like expected.                                          #
@@ -47,10 +47,9 @@
 ################################################################################
 
 
---echo # Start usability test (include/partition_check.inc)
+--echo # Start usability test (inc/partition_check.inc)
 # Print the CREATE TABLE STATEMENT and store the current layout of the table
 --source suite/parts/inc/partition_layout_check1.inc
-# --source include/partition_layout_check1.inc
 
 
 #-------------------------------------------------------------------------------
@@ -160,8 +159,7 @@ if ($run)
 #             partitioning mechanism.
 #       Sideeffect: Attempt to INSERT one record
 #             DUPLICATE KEY will appear if we have UNIQUE columns
-#                 1022: ER_DUP_KEY
-#                 1062: ER_DUP_ENTRY
+#             ER_DUP_KEY, ER_DUP_ENTRY
 --disable_abort_on_error
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
@@ -174,14 +172,13 @@ if ($no_debug)
 }
 eval SET @my_errno = $mysql_errno;
 let $run_delete= `SELECT @my_errno = 0`;
-let $any_unique= `SELECT @my_errno IN (1022,1062)`;
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1022,1062)`;
+let $any_unique= `SELECT @my_errno IN ($ER_DUP_KEY,$ER_DUP_ENTRY)`;
 # DEBUG eval SELECT $run_delete AS run_delete, $any_unique AS any_unique,
-#                   $unexpected_error AS unexpected_error;
-if ($unexpected_error)
+#                   @my_errno AS sql_errno;
+if (`SELECT @my_errno NOT IN (0,$ER_DUP_KEY,$ER_DUP_ENTRY)`)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1022,1062
+   --echo #      Expected/handled SQL codes are 0,$ER_DUP_KEY,$ER_DUP_ENTRY
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;
@@ -204,8 +201,7 @@ if ($any_unique)
    ## 1.3.1  Check, if f_int1 is UNIQUE
    #       Sideeffect: Attempt to INSERT one record
    #             DUPLICATE KEY will appear if we have UNIQUE columns
-   #                 1022: ER_DUP_KEY
-   #                 1062: ER_DUP_ENTRY
+   #             ER_DUP_KEY, ER_DUP_ENTRY
    --disable_abort_on_error
    INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
    SELECT f_int1, 2 * @max_row + f_int1, CAST((2 * @max_row + f_int1) AS CHAR),
@@ -218,14 +214,13 @@ if ($any_unique)
    }
    eval SET @my_errno = $mysql_errno;
    let $run_delete= `SELECT @my_errno = 0`;
-   let $f_int1_is_unique= `SELECT @my_errno IN (1022,1062)`;
-   let $unexpected_error= `SELECT @my_errno NOT IN (0,1022,1062)`;
+   let $f_int1_is_unique= `SELECT @my_errno IN ($ER_DUP_KEY,$ER_DUP_ENTRY)`;
    # DEBUG eval SELECT $run_delete AS run_delete, $f_int1_is_unique AS any_unique,
-   #                   $unexpected_error AS unexpected_error;
-   if ($unexpected_error)
+   #                   @my_errno AS sql_errno;
+   if (`SELECT @my_errno NOT IN (0,$ER_DUP_KEY,$ER_DUP_ENTRY)`)
    {
       --echo #      The last command got an unexepected error response.
-      --echo #      Expected/handled SQL codes are 0,1022,1062
+      --echo #      Expected/handled SQL codes are 0,$ER_DUP_KEY,$ER_DUP_ENTRY
       SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
       --echo #      Sorry, have to abort.
       exit;
@@ -242,7 +237,7 @@ if ($any_unique)
       DELETE FROM t1 WHERE f_charbig = 'delete me';
    }
 
-   ## 1.3.2  Check, if f_int2 is UNIQUE
+   ## 1.3.2  Check, if f_int2 is UNIQUE (get ER_DUP_KEY or ER_DUP_ENTRY
    --disable_abort_on_error
    INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
    SELECT 2 * @max_row + f_int1, f_int1, CAST((2 * @max_row + f_int1) AS CHAR),
@@ -255,14 +250,13 @@ if ($any_unique)
    }
    eval SET @my_errno = $mysql_errno;
    let $run_delete= `SELECT @my_errno = 0`;
-   let $f_int1_is_unique= `SELECT @my_errno IN (1022,1062)`;
-   let $unexpected_error= `SELECT @my_errno NOT IN (0,1022,1062)`;
+   let $f_int1_is_unique= `SELECT @my_errno IN ($ER_DUP_KEY,$ER_DUP_ENTRY)`;
    # DEBUG eval SELECT $run_delete AS run_delete, $f_int1_is_unique AS any_unique,
-   #                   $unexpected_error AS unexpected_error;
-   if ($unexpected_error)
+   #                   @my_errno AS sql_errno;
+   if (`SELECT @my_errno NOT IN (0,$ER_DUP_KEY,$ER_DUP_ENTRY)`)
    {
       --echo #      The last command got an unexepected error response.
-      --echo #      Expected/handled SQL codes are 0,1022,1062
+      --echo #      Expected/handled SQL codes are 0,$ER_DUP_KEY,$ER_DUP_ENTRY
       SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
       --echo #      Sorry, have to abort.
       exit;
@@ -289,14 +283,11 @@ if ($any_unique)
 #       per f_int1 used in partitioning function
 let $col_to_check= f_int1;
 --source suite/parts/inc/partition_check_read.inc
-# --source include/partition_check_read.inc
 ## 2.2  Read all existing and some not existing records of table
 #       per f_int2 used in partitioning function
 let $col_to_check= f_int2;
 --source suite/parts/inc/partition_check_read.inc
 
-if ($fixed_bug18735)
-{
 
 #-------------------------------------------------------------------------------
 # 3    Some operations with multiple records
@@ -321,7 +312,7 @@ SELECT '# check multiple-2 success: ' AS "",COUNT(*) = @max_row - @max_row_div3 
 #             (Insert the records deleted in 3.2)
 INSERT INTO t1 SELECT * FROM t0_template
 WHERE MOD(f_int1,3) = 0;
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -337,7 +328,7 @@ FROM t1;
 UPDATE t1 SET f_int1 = f_int1 + @max_row
 WHERE f_int1 BETWEEN @max_row_div2 - @max_row_div4
   AND @max_row_div2 + @max_row_div4;
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -352,7 +343,7 @@ SELECT '# check multiple-4 success: ' AS "",(COUNT(*) = @max_row) AND (MIN(f_int
 DELETE FROM t1
 WHERE f_int1 BETWEEN @max_row_div2 - @max_row_div4 + @max_row
   AND @max_row_div2 + @max_row_div4 + @max_row;
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -405,7 +396,7 @@ INSERT INTO t1
 SET f_int1 = @cur_value , f_int2 = @cur_value,
     f_char1 = CAST(@cur_value AS CHAR), f_char2 = CAST(@cur_value AS CHAR),
     f_charbig = '#SINGLE#';
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -423,7 +414,7 @@ INSERT INTO t1
 SET f_int1 = @cur_value , f_int2 = @cur_value,
     f_char1 = CAST(@cur_value AS CHAR), f_char2 = CAST(@cur_value AS CHAR),
     f_charbig = '#SINGLE#';
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -443,7 +434,7 @@ SELECT MAX(f_int1) + 1 INTO @cur_value2 FROM t1;
 # Bug#18735: Partitions: NDB, UNIQUE INDEX, UPDATE, strange server response
 UPDATE t1 SET f_int1 = @cur_value2
 WHERE  f_int1 = @cur_value1 AND f_charbig = '#SINGLE#';
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -464,7 +455,7 @@ SELECT MAX(f_int1) INTO @cur_value2 FROM t1;
 # Bug#18735: Partitions: NDB, UNIQUE INDEX, UPDATE, strange server response
 UPDATE t1 SET f_int1 = @cur_value1
 WHERE  f_int1 = @cur_value2 AND f_charbig = '#SINGLE#';
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -476,7 +467,7 @@ WHERE f_int1 = @cur_value1 AND f_charbig = '#SINGLE#';
 # 4.5  Delete the record with the highest value of f_int1.
 SELECT MAX(f_int1) INTO @cur_value FROM t1;
 DELETE FROM t1 WHERE f_int1 = @cur_value AND f_charbig = '#SINGLE#';
-#      Check of preceeding statements via Select
+#      Check of preceding statements via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -487,7 +478,7 @@ WHERE f_charbig = '#SINGLE#' AND f_int1 = f_int1 = @cur_value;
 #
 # 4.6  Delete the record with f_int1 = -1
 DELETE FROM t1 WHERE f_int1 = -1 AND f_charbig = '#SINGLE#';
-#      Check of preceeding statements via Select
+#      Check of preceding statements via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -499,9 +490,9 @@ WHERE f_charbig = '#SINGLE#' AND f_int1 IN (-1,@cur_value);
 # 4.7  Insert one record with such a big value for f_int1, so that in case
 #      - f_int1 is used within the partitioning algorithm
 #      - we use range partitioning
-#      we get error ER_NO_PARTITION_FOR_GIVEN_VALUE (1525)
+#      we get error ER_NO_PARTITION_FOR_GIVEN_VALUE
 #         "Table has no partition for value ...."
-#      or ER_SAME_NAME_PARTITION (1514)
+#      or ER_SAME_NAME_PARTITION
 --disable_abort_on_error
 eval INSERT INTO t1 SET f_int1 = @max_int_4 , f_int2 = @max_int_4, f_charbig = '#$max_int_4##';
 --enable_abort_on_error
@@ -510,17 +501,16 @@ if ($no_debug)
 --disable_query_log
 }
 eval SET @my_errno = $mysql_errno;
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1514,1525)`;
-if ($unexpected_error)
+if (`SELECT @my_errno NOT IN (0,$ER_SAME_NAME_PARTITION,$ER_NO_PARTITION_FOR_GIVEN_VALUE)`)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1514,1525
+   --echo #      Expected/handled SQL codes are 0,$ER_SAME_NAME_PARTITION,$ER_NO_PARTITION_FOR_GIVEN_VALUE
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;
    --echo
 }
-#      Check of preceeding statement via Select, if the INSERT was successful
+#      Check of preceding statement via Select, if the INSERT was successful
 let $run= `SELECT @my_errno = 0`;
 if ($run)
 {
@@ -538,8 +528,6 @@ eval DELETE FROM t1 WHERE f_charbig = '#$max_int_4##';
 }
 --enable_query_log
 
-}
-# End workaround for Bug#18735
 
 #-------------------------------------------------------------------------------
 # 5    Experiments with NULL
@@ -562,14 +550,13 @@ INSERT t1 SET f_int1 = 0 , f_int2 = 0,
 #      mechanism if the result of the expression in the partitioning algorithm
 #      becomes NULL.
 #      This INSERT will fail, if f_int1 is PRIMARY KEY or UNIQUE INDEX
-#           1048: ER_BAD_NULL_ERROR
+#      with ER_BAD_NULL_ERROR.
 --disable_abort_on_error
-
 INSERT INTO t1
    SET f_int1 = NULL , f_int2 = -@max_row,
        f_char1 = CAST(-@max_row AS CHAR), f_char2 = CAST(-@max_row AS CHAR),
        f_charbig = '#NULL#';
-#      Some other NULL experiments if preceeding INSERT was successfull
+#      Some other NULL experiments if preceding INSERT was successfull
 --enable_abort_on_error
 if ($no_debug)
 {
@@ -577,13 +564,13 @@ if ($no_debug)
 }
 eval SET @my_errno = $mysql_errno;
 let $run= `SELECT @my_errno = 0`;
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1048)`;
-if ($unexpected_error)
+if (`SELECT @my_errno NOT IN (0,$ER_BAD_NULL_ERROR)`)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1048
+   --echo #      Expected/handled SQL codes are 0,$ER_BAD_NULL_ERROR
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
+   --echo #      Please check the error name to number mapping in inc/partition.pre.
    exit;
    --echo
 }
@@ -593,7 +580,7 @@ if ($unexpected_error)
 # The following checks do not make sense if f_int1 cannot be NULL
 if ($run)
 {
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -612,7 +599,7 @@ if ($no_debug)
 {
 --disable_query_log
 }
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 SELECT '# check null-2 success: ' AS "",COUNT(*) = 1 AS "" FROM t1
 WHERE f_int1 = -@max_row AND f_charbig = '#NULL#';
 --enable_query_log
@@ -624,7 +611,7 @@ if ($no_debug)
 {
 --disable_query_log
 }
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 SELECT '# check null-3 success: ' AS "",COUNT(*) = 1 AS "" FROM t1
 WHERE f_int1 IS NULL AND f_charbig = '#NULL#';
 --enable_query_log
@@ -632,7 +619,7 @@ WHERE f_int1 IS NULL AND f_charbig = '#NULL#';
 DELETE FROM t1
 WHERE f_int1 IS NULL AND f_int2 = -@max_row AND f_char1 = CAST(-@max_row AS CHAR)
   AND f_char2 = CAST(-@max_row AS CHAR) AND f_charbig = '#NULL#';
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -697,7 +684,6 @@ if ($any_unique)
       UPDATE f_int1 = 2 * @max_row + source_tab.f_int1,
              f_charbig = 'was updated';
       --source suite/parts/inc/partition_20.inc
-      # --source include/partition_20.inc
    }
 
    if ($f_int2_is_unique)
@@ -713,7 +699,6 @@ if ($any_unique)
       UPDATE f_int2 = 2 * @max_row + source_tab.f_int1,
              f_charbig = 'was updated';
       --source suite/parts/inc/partition_20.inc
-      # --source include/partition_20.inc
    }
 
    ## 6.3 f_int1, f_int2 is UNIQUE, UPDATE f_int1, f_int2 when DUPLICATE KEY
@@ -727,7 +712,6 @@ if ($any_unique)
           f_int2 = 2 * @max_row + source_tab.f_int1,
           f_charbig = 'was updated';
    --source suite/parts/inc/partition_20.inc
-      # --source include/partition_20.inc
 
    ## 6.4 REPLACE
    # Bug#16782: Partitions: crash, REPLACE .. on table with PK, DUPLICATE KEY
@@ -736,7 +720,7 @@ if ($any_unique)
    FROM t0_template source_tab
    WHERE MOD(f_int1,3) = 0 AND f_int1 BETWEEN @max_row_div2 AND @max_row;
    # DEBUG SELECT * FROM t1 ORDER BY f_int1, f_int2;
-   # Check of preceeding statement via Select
+   # Check of preceding statement via Select
    if ($no_debug)
    {
       --disable_query_log
@@ -763,10 +747,6 @@ if ($any_unique)
    # DEBUG SELECT * FROM t1 ORDER BY f_int1, f_int2;
 }
 
-if ($fixed_bug18735)
-{
-   # The following tests work cannot like intended, if we had to omit
-   # tests because of Bug#18735
 
 #-------------------------------------------------------------------------------
 # 7    Transactions
@@ -943,14 +923,12 @@ if ($debug)
    SELECT * FROM t1 ORDER BY f_int1;
 }
 
-}
-# End workaround for Bug#18735
 
 #-------------------------------------------------------------------------------
 # 8    Some special cases
 # 8.1  Dramatic increase of the record/partition/subpartition/table sizes
 UPDATE t1 SET f_charbig = REPEAT('b', 1000);
-#      partial check of preceeding statement via Select
+#      partial check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -961,7 +939,7 @@ WHERE f_int1 = 1 AND f_charbig = REPEAT('b', 1000);
 #
 # 8.2  Dramatic decrease of the record/partition/subpartition/table sizes
 UPDATE t1 SET f_charbig = '';
-#      partial check of preceeding statement via Select
+#      partial check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -977,8 +955,7 @@ if ($debug)
    SELECT * FROM t1 ORDER BY f_int1;
 }
 
-if ($fixed_bug18735)
-{
+
 #-------------------------------------------------------------------------------
 # 9    TRIGGERs
 let $num= 1;
@@ -998,28 +975,22 @@ SELECT f_int1,f_int2,f_char1,f_char2,NULL FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 - 1 AND @max_row_div2 + 1;
 let $event= BEFORE INSERT;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 let $event= AFTER INSERT;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 
 let $statement= UPDATE t0_aux SET f_int1 =  - f_int1, f_int2 = - f_int2
 WHERE f_int1 IN (- (@max_row_div2 - 1),- @max_row_div2,- (@max_row_div2 + 1));
 let $event= BEFORE UPDATE;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 let $event= AFTER UPDATE;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 
 let $statement= DELETE FROM t0_aux
 WHERE f_int1 IN (- (@max_row_div2 - 1),- @max_row_div2,- (@max_row_div2 + 1));
 let $event= BEFORE DELETE;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 let $event= AFTER DELETE;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 
 # Cleanup
 eval DELETE FROM $tab_in_trigg
@@ -1052,28 +1023,22 @@ SELECT f_int1,f_int2,f_char1,f_char2,NULL FROM t0_template
 WHERE f_int1 BETWEEN @max_row_div2 - 1 AND @max_row_div2 + 1;
 let $event= BEFORE INSERT;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 let $event= AFTER INSERT;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 
 let $statement= UPDATE t1 SET f_int1 =  - f_int1, f_int2 = - f_int2
 WHERE f_int1 IN (- (@max_row_div2 - 1),- @max_row_div2,- (@max_row_div2 + 1));
 let $event= BEFORE UPDATE;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 let $event= AFTER UPDATE;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 
 let $statement= DELETE FROM t1
 WHERE f_int1 IN (- (@max_row_div2 - 1),- @max_row_div2,- (@max_row_div2 + 1));
 let $event= BEFORE DELETE;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 let $event= AFTER DELETE;
 --source suite/parts/inc/partition_trigg1.inc
-# --source include/partition_trigg1.inc
 eval DELETE FROM $tab_in_trigg
 WHERE f_int1 BETWEEN @max_row_div2 - 1 AND @max_row_div2 + 1;
 }
@@ -1095,7 +1060,6 @@ SET f_charbig = '####updated per update statement itself####';
 let $source= old;
 let $event= BEFORE UPDATE;
 --source suite/parts/inc/partition_trigg2.inc
-# --source include/partition_trigg2.inc
 # FIXME when AFTER TRIGGER can be used
 # Currently (2006-02-23) a AFTER TRIGGER is not allowed to modify a row, which
 # was just modified: 1362: Updating of NEW row is not allowed in after trigger
@@ -1111,7 +1075,6 @@ f_charbig = '####updated per update statement itself####';
 let $source= old;
 let $event= BEFORE UPDATE;
 --source suite/parts/inc/partition_trigg2.inc
-# --source include/partition_trigg2.inc
 # FIXME when AFTER TRIGGER can be used
 # Currently (2006-02-23) a AFTER TRIGGER is not allowed to modify a row, which
 # was just modified: 1362: Updating of NEW row is not allowed in after trigger
@@ -1119,7 +1082,6 @@ let $event= BEFORE UPDATE;
 let $source= new;
 let $event= BEFORE UPDATE;
 --source suite/parts/inc/partition_trigg2.inc
-# --source include/partition_trigg2.inc
 # FIXME when AFTER TRIGGER can be used
 
 if ($debug)
@@ -1138,7 +1100,6 @@ ORDER BY f_int1;
 let $event= BEFORE INSERT;
 let $source= new;
 --source suite/parts/inc/partition_trigg3.inc
-# --source include/partition_trigg3.inc
 # FIXME when AFTER TRIGGER can be used
 
 # 9.4.2  INSERT assigns no values to the recalculate columns
@@ -1150,7 +1111,6 @@ ORDER BY f_int1;
 let $event= BEFORE INSERT;
 let $source= new;
 --source suite/parts/inc/partition_trigg3.inc
-# --source include/partition_trigg3.inc
 # FIXME when AFTER TRIGGER can be used
 
 if ($debug)
@@ -1158,8 +1118,6 @@ if ($debug)
    SELECT * FROM t1 ORDER BY f_int1;
 }
 
-}
-# End workaround for Bug#18735
 
 #-------------------------------------------------------------------------------
 # 10   ANALYZE/CHECK/CHECKSUM
@@ -1181,17 +1139,15 @@ CHECKSUM TABLE t1 EXTENDED;
 #      FIXME What will happen with NDB ?
 OPTIMIZE TABLE t1;
 --source suite/parts/inc/partition_layout_check2.inc
-# --source include/partition_layout_check2.inc
 # 10.2 REPAIR TABLE
 REPAIR   TABLE t1 EXTENDED;
 --source suite/parts/inc/partition_layout_check2.inc
-# --source include/partition_layout_check2.inc
 #
 # 11.3 Truncate
 # Manual about TRUNCATE on tables ( != InnoDB table with FOREIGN KEY ):
 # Truncate operations drop and re-create the table ....
 TRUNCATE t1;
-#      Check of preceeding statement via Select
+#      Check of preceding statement via Select
 if ($no_debug)
 {
 --disable_query_log
@@ -1199,6 +1155,5 @@ if ($no_debug)
 SELECT '# check TRUNCATE success: ' AS "",COUNT(*) = 0 AS "" FROM t1;
 --enable_query_log
 --source suite/parts/inc/partition_layout_check2.inc
-# --source include/partition_layout_check2.inc
---echo # End usability test (include/partition_check.inc)
+--echo # End usability test (inc/partition_check.inc)
 

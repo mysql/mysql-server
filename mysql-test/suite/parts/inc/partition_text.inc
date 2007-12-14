@@ -1,3 +1,5 @@
+--echo ---- Partitioning and text data type
+
 --disable_query_log
 # DATA DIRECTORY
 eval SET @data_dir = 'DATA DIRECTORY =
@@ -53,4 +55,3 @@ partition by key (a) partitions 30;
 #select count(*) from t2;
 #select * from t2;
 #drop table t2;
-

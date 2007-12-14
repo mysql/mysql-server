@@ -29,6 +29,8 @@
 #include "event_data_objects.h"
 #include <my_dir.h>
 
+#define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
@@ -3135,8 +3137,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     goto err;
   }
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
-                             lookup_field_vals.db_value.str,
-                             lookup_field_vals.table_value.str));
+                             STR_OR_NIL(lookup_field_vals.db_value.str),
+                             STR_OR_NIL(lookup_field_vals.table_value.str)));
 
   if (!lookup_field_vals.wild_db_value && !lookup_field_vals.wild_table_value)
   {
@@ -3777,8 +3779,11 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 
     end= tmp;
     if (field->unireg_check == Field::NEXT_NUMBER)
-      end=strmov(tmp,"auto_increment");
-    table->field[16]->store(tmp, (uint) (end-tmp), cs);
+      table->field[16]->store(STRING_WITH_LEN("auto_increment"), cs);
+    if (show_table->timestamp_field == field &&
+        field->unireg_check != Field::TIMESTAMP_DN_FIELD)
+      table->field[16]->store(STRING_WITH_LEN("on update CURRENT_TIMESTAMP"),
+                              cs);
 
     table->field[18]->store(field->comment.str, field->comment.length, cs);
     if (schema_table_store_record(thd, table))
@@ -5988,7 +5993,7 @@ ST_FIELD_INFO columns_fields_info[]=
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, "Collation", OPEN_FRM_ONLY},
   {"COLUMN_TYPE", 65535, MYSQL_TYPE_STRING, 0, 0, "Type", OPEN_FRM_ONLY},
   {"COLUMN_KEY", 3, MYSQL_TYPE_STRING, 0, 0, "Key", OPEN_FRM_ONLY},
-  {"EXTRA", 20, MYSQL_TYPE_STRING, 0, 0, "Extra", OPEN_FRM_ONLY},
+  {"EXTRA", 27, MYSQL_TYPE_STRING, 0, 0, "Extra", OPEN_FRM_ONLY},
   {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, "Privileges", OPEN_FRM_ONLY},
   {"COLUMN_COMMENT", 255, MYSQL_TYPE_STRING, 0, 0, "Comment", OPEN_FRM_ONLY},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
@@ -6871,6 +6876,9 @@ static TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 bool show_create_trigger(THD *thd, const sp_name *trg_name)
 {
   TABLE_LIST *lst= get_trigger_table(thd, trg_name);
+
+  if (!lst)
+    return TRUE;
 
   /*
     Open the table by name in order to load Table_triggers_list object.

@@ -1,0 +1,83 @@
+DROP TABLE IF EXISTS t1;
+DROP DATABASE IF EXISTS mysqltest2;
+# Creating two non colliding tables mysqltest2.t1 and test.t1
+# test.t1 have partitions in mysqltest2-directory!
+# user root:
+CREATE USER mysqltest_1@localhost;
+CREATE DATABASE mysqltest2;
+USE mysqltest2;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0);
+# user mysqltest_1:
+USE test;
+CREATE TABLE t1 (a INT)
+PARTITION BY LIST (a) (
+PARTITION p0 VALUES IN (0)
+DATA DIRECTORY 'MYSQLTEST_VARDIR/master-data/mysqltest2'
+     INDEX DIRECTORY 'MYSQLTEST_VARDIR/master-data/mysqltest2',
+PARTITION p1 VALUES IN (1)
+DATA DIRECTORY 'MYSQLTEST_VARDIR/master-data/test'
+     INDEX DIRECTORY 'MYSQLTEST_VARDIR/master-data/test',
+PARTITION p2 VALUES IN (2)
+);
+# without the patch for bug#32091 this would create
+# files mysqltest2/t1.MYD + .MYI and possible overwrite
+# the mysqltest2.t1 table (depending on bug#32111)
+ALTER TABLE t1 REMOVE PARTITIONING;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
+a
+1
+# user root:
+USE mysqltest2;
+FLUSH TABLES;
+# if the patch works, this should be different
+# and before the patch they were the same!
+SELECT * FROM t1;
+a
+0
+USE test;
+SELECT * FROM t1;
+a
+1
+DROP TABLE t1;
+DROP DATABASE mysqltest2;
+# test that symlinks can not overwrite files when CREATE TABLE
+# user root:
+CREATE DATABASE mysqltest2;
+USE mysqltest2;
+CREATE TABLE t1 (a INT)
+PARTITION BY LIST (a) (
+PARTITION p0 VALUES IN (0)
+DATA DIRECTORY 'MYSQLTEST_VARDIR/master-data/mysqltest2'
+     INDEX DIRECTORY 'MYSQLTEST_VARDIR/master-data/mysqltest2',
+PARTITION p1 VALUES IN (1)
+DATA DIRECTORY 'MYSQLTEST_VARDIR/master-data/test'
+     INDEX DIRECTORY 'MYSQLTEST_VARDIR/master-data/test'
+   );
+# user mysqltest_1:
+USE test;
+CREATE TABLE t1 (a INT)
+PARTITION BY LIST (a) (
+PARTITION p0 VALUES IN (0)
+DATA DIRECTORY 'MYSQLTEST_VARDIR/master-data/mysqltest2'
+     INDEX DIRECTORY 'MYSQLTEST_VARDIR/master-data/mysqltest2',
+PARTITION p1 VALUES IN (1)
+DATA DIRECTORY 'MYSQLTEST_VARDIR/master-data/test'
+     INDEX DIRECTORY 'MYSQLTEST_VARDIR/master-data/test'
+   );
+Got one of the listed errors
+CREATE TABLE t1 (a INT)
+PARTITION BY LIST (a) (
+PARTITION p0 VALUES IN (0)
+DATA DIRECTORY 'MYSQLTEST_VARDIR/master-data/test'
+     INDEX DIRECTORY 'MYSQLTEST_VARDIR/master-data/test',
+PARTITION p1 VALUES IN (1)
+DATA DIRECTORY 'MYSQLTEST_VARDIR/master-data/mysqltest2'
+     INDEX DIRECTORY 'MYSQLTEST_VARDIR/master-data/mysqltest2'
+  );
+Got one of the listed errors
+# user root (cleanup):
+DROP DATABASE mysqltest2;
+USE test;
+DROP USER mysqltest_1@localhost;

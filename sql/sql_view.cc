@@ -206,7 +206,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 
 
 /**
-  @brief Creating/altering VIEW procedure
+  Creating/altering VIEW procedure
 
   @param thd thread handler
   @param views views to create

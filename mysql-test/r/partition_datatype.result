@@ -1,0 +1,282 @@
+drop table if exists t1;
+create table t1 (a tinyint not null) partition by key (a);
+insert into t1 values (2);
+select * from t1 where a = 2;
+a
+2
+drop table t1;
+create table t1 (a smallint not null) partition by key (a);
+insert into t1 values (2);
+select * from t1 where a = 2;
+a
+2
+drop table t1;
+create table t1 (a mediumint not null) partition by key (a);
+insert into t1 values (2);
+select * from t1 where a = 2;
+a
+2
+drop table t1;
+create table t1 (a int not null) partition by key (a);
+insert into t1 values (2);
+select * from t1 where a = 2;
+a
+2
+drop table t1;
+create table t1 (a bigint not null) partition by key (a);
+insert into t1 values (2);
+select * from t1 where a = 2;
+a
+2
+drop table t1;
+create table t1 (a float not null) partition by key (a);
+insert into t1 values (2.1);
+select * from t1 where a = 2.1;
+a
+drop table t1;
+create table t1 (a double not null) partition by key (a);
+insert into t1 values (2.1);
+select * from t1 where a = 2.1;
+a
+2.1
+drop table t1;
+create table t1 (a decimal not null) partition by key (a);
+insert into t1 values (2.1);
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
+select * from t1 where a = 2.1;
+a
+drop table t1;
+create table t1 (a date not null) partition by key (a);
+insert into t1 values ('2001-01-01');
+select * from t1 where a = '2001-01-01';
+a
+2001-01-01
+drop table t1;
+create table t1 (a datetime not null) partition by key (a);
+insert into t1 values ('2001-01-01 01:02:03');
+select * from t1 where a = '2001-01-01 01:02:03';
+a
+2001-01-01 01:02:03
+drop table t1;
+create table t1 (a timestamp not null) partition by key (a);
+insert into t1 values ('2001-01-01 01:02:03');
+select * from t1 where a = '2001-01-01 01:02:03';
+a
+2001-01-01 01:02:03
+drop table t1;
+create table t1 (a time not null) partition by key (a);
+insert into t1 values ('01:02:03');
+select * from t1 where a = '01:02:03';
+a
+01:02:03
+drop table t1;
+create table t1 (a year not null) partition by key (a);
+insert into t1 values ('2001');
+select * from t1 where a = '2001';
+a
+2001
+drop table t1;
+create table t1 (a varchar(10) character set utf8 not null) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a varchar(300) character set utf8 not null) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a varchar(10) character set latin1 not null) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a varchar(300) character set latin1 not null) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a char(10) character set utf8 not null) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a char(10) character set latin1 not null) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a enum('y','n') not null) partition by key (a);
+insert into t1 values ('y');
+select * from t1 where a = 'y';
+a
+y
+drop table t1;
+create table t1 (a set('y','n') not null) partition by key (a);
+insert into t1 values ('y');
+select * from t1 where a = 'y';
+a
+y
+drop table t1;
+create table t1 (a tinyint) partition by key (a);
+insert into t1 values (2);
+select * from t1 where a = 2;
+a
+2
+drop table t1;
+create table t1 (a smallint) partition by key (a);
+insert into t1 values (2);
+select * from t1 where a = 2;
+a
+2
+drop table t1;
+create table t1 (a mediumint) partition by key (a);
+insert into t1 values (2);
+select * from t1 where a = 2;
+a
+2
+drop table t1;
+create table t1 (a int) partition by key (a);
+insert into t1 values (2);
+select * from t1 where a = 2;
+a
+2
+drop table t1;
+create table t1 (a bigint) partition by key (a);
+insert into t1 values (2);
+select * from t1 where a = 2;
+a
+2
+drop table t1;
+create table t1 (a float) partition by key (a);
+insert into t1 values (2.1);
+select * from t1 where a = 2.1;
+a
+drop table t1;
+create table t1 (a double) partition by key (a);
+insert into t1 values (2.1);
+select * from t1 where a = 2.1;
+a
+2.1
+drop table t1;
+create table t1 (a decimal) partition by key (a);
+insert into t1 values (2.1);
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
+select * from t1 where a = 2.1;
+a
+drop table t1;
+create table t1 (a date) partition by key (a);
+insert into t1 values ('2001-01-01');
+select * from t1 where a = '2001-01-01';
+a
+2001-01-01
+drop table t1;
+create table t1 (a datetime) partition by key (a);
+insert into t1 values ('2001-01-01 01:02:03');
+select * from t1 where a = '2001-01-01 01:02:03';
+a
+2001-01-01 01:02:03
+drop table t1;
+create table t1 (a timestamp null) partition by key (a);
+insert into t1 values ('2001-01-01 01:02:03');
+select * from t1 where a = '2001-01-01 01:02:03';
+a
+2001-01-01 01:02:03
+drop table t1;
+create table t1 (a time) partition by key (a);
+insert into t1 values ('01:02:03');
+select * from t1 where a = '01:02:03';
+a
+01:02:03
+drop table t1;
+create table t1 (a year) partition by key (a);
+insert into t1 values ('2001');
+select * from t1 where a = '2001';
+a
+2001
+drop table t1;
+create table t1 (a varchar(10) character set utf8) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a varchar(300) character set utf8) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a varchar(10) character set latin1) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a varchar(300) character set latin1) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a char(10) character set utf8) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a char(10) character set latin1) partition by key (a);
+insert into t1 values ('abc');
+select * from t1 where a = 'abc';
+a
+abc
+drop table t1;
+create table t1 (a enum('y','n')) partition by key (a);
+insert into t1 values ('y');
+select * from t1 where a = 'y';
+a
+y
+drop table t1;
+create table t1 (a set('y','n')) partition by key (a);
+insert into t1 values ('y');
+select * from t1 where a = 'y';
+a
+y
+drop table t1;
+create table t1 (a varchar(65531)) partition by key (a);
+insert into t1 values ('bbbb');
+insert into t1 values ('aaaa');
+select * from t1 where a = 'aaa%';
+a
+select * from t1 where a like 'aaa%';
+a
+aaaa
+drop table t1;
+create table t1 (a varchar(65532)) partition by key (a);
+insert into t1 values ('bbbb');
+insert into t1 values ('aaaa');
+select * from t1 where a = 'aaa%';
+a
+select * from t1 where a like 'aaa%';
+a
+aaaa
+drop table t1;
+create table t1 (a varchar(65533) not null) partition by key (a);
+insert into t1 values ('aaaa');
+select * from t1 where a = 'aaa%';
+a
+drop table t1;
+create table t1 (a varchar(65533)) partition by key (a);
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
+create table t1 (a varchar(65534) not null) partition by key (a);
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
+create table t1 (a varchar(65535)) partition by key (a);
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs

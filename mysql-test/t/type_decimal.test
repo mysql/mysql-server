@@ -425,5 +425,57 @@ insert into t1 values (-0.123456,0.123456);
 select group_concat(f1),group_concat(f2) from t1;
 drop table t1;
 
---echo End of 5.0 tests
+#
+# BUG#31450 "Query causes error 1048"
+#
+create table t1 (
+  ua_id decimal(22,0) not null,
+  ua_invited_by_id decimal(22,0) default NULL,
+  primary key(ua_id)
+);
+insert into t1 values (123, NULL), (456, NULL);
 
+--echo this must not produce error 1048: 
+select * from t1 where ua_invited_by_id not in (select ua_id from t1);
+
+drop table t1;
+
+#
+# Bug #30889: filesort and order by with float/numeric crashes server
+#
+--disable_warnings
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+--enable_warnings
+CREATE TABLE t1( a NUMERIC, b INT );
+INSERT INTO t1 VALUES (123456, 40), (123456, 40);
+SELECT TRUNCATE( a, b ) AS c FROM t1 ORDER BY c;
+SELECT ROUND( a, b ) AS c FROM t1 ORDER BY c;
+SELECT ROUND( a, 100 ) AS c FROM t1 ORDER BY c;
+
+CREATE TABLE t2( a NUMERIC, b INT );
+INSERT INTO t2 VALUES (123456, 100);
+SELECT TRUNCATE( a, b ) AS c FROM t2 ORDER BY c;
+SELECT ROUND( a, b ) AS c FROM t2 ORDER BY c;
+
+CREATE TABLE t3( a DECIMAL, b INT );
+INSERT INTO t3 VALUES (123456, 40), (123456, 40);
+SELECT TRUNCATE( a, b ) AS c FROM t3 ORDER BY c;
+SELECT ROUND( a, b ) AS c FROM t3 ORDER BY c;
+SELECT ROUND( a, 100 ) AS c FROM t3 ORDER BY c;
+
+CREATE TABLE t4( a DECIMAL, b INT );
+INSERT INTO t4 VALUES (123456, 40), (123456, 40);
+SELECT TRUNCATE( a, b ) AS c FROM t4 ORDER BY c;
+SELECT ROUND( a, b ) AS c FROM t4 ORDER BY c;
+SELECT ROUND( a, 100 ) AS c FROM t4 ORDER BY c;
+
+delete from t1;
+INSERT INTO t1 VALUES (1234567890, 20), (999.99, 5);
+show create table t1;
+
+select round(a,b) as c from t1 order by c;
+
+DROP TABLE t1, t2, t3, t4;
+
+--echo End of 5.0 tests

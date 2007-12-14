@@ -2268,7 +2268,7 @@ NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NU
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	COLUMNS	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 NULL	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select	
@@ -2567,7 +2567,7 @@ NULL	mysql	columns_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PR
 NULL	mysql	columns_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
 NULL	mysql	columns_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	columns_priv	Column_name	5		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
-NULL	mysql	columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	columns_priv	Column_priv	7		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references	
 NULL	mysql	db	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
 NULL	mysql	db	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
@@ -2598,7 +2598,7 @@ NULL	mysql	event	definer	4		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			se
 NULL	mysql	event	execute_at	5	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
 NULL	mysql	event	interval_value	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	event	interval_field	7	NULL	YES	enum	18	54	NULL	NULL	utf8	utf8_general_ci	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')			select,insert,update,references	
-NULL	mysql	event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	event	modified	9	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
 NULL	mysql	event	last_executed	10	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
 NULL	mysql	event	starts	11	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
@@ -2617,12 +2617,12 @@ NULL	mysql	func	name	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		sel
 NULL	mysql	func	ret	2	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			select,insert,update,references	
 NULL	mysql	func	dl	3		NO	char	128	384	NULL	NULL	utf8	utf8_bin	char(128)			select,insert,update,references	
 NULL	mysql	func	type	4	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('function','aggregate')			select,insert,update,references	
-NULL	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
-NULL	mysql	general_log	user_host	2	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
-NULL	mysql	general_log	thread_id	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	general_log	server_id	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	general_log	command_type	5	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-NULL	mysql	general_log	argument	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+NULL	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
+NULL	mysql	general_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+NULL	mysql	general_log	thread_id	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+NULL	mysql	general_log	argument	6	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	help_category	help_category_id	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned	PRI		select,insert,update,references	
 NULL	mysql	help_category	name	2	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		select,insert,update,references	
 NULL	mysql	help_category	parent_category_id	3	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned			select,insert,update,references	
@@ -2675,10 +2675,10 @@ NULL	mysql	proc	sql_data_access	6	CONTAINS_SQL	NO	enum	17	51	NULL	NULL	utf8	utf8
 NULL	mysql	proc	is_deterministic	7	NO	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
 NULL	mysql	proc	security_type	8	DEFINER	NO	enum	7	21	NULL	NULL	utf8	utf8_general_ci	enum('INVOKER','DEFINER')			select,insert,update,references	
 NULL	mysql	proc	param_list	9	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
-NULL	mysql	proc	returns	10		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+NULL	mysql	proc	returns	10	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 NULL	mysql	proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 NULL	mysql	proc	definer	12		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			select,insert,update,references	
-NULL	mysql	proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	proc	modified	14	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
 NULL	mysql	proc	sql_mode	15		NO	set	431	1293	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE')			select,insert,update,references	
 NULL	mysql	proc	comment	16		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references	
@@ -2693,7 +2693,7 @@ NULL	mysql	procs_priv	Routine_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	cha
 NULL	mysql	procs_priv	Routine_type	5	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')	PRI		select,insert,update,references	
 NULL	mysql	procs_priv	Grantor	6		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references	
 NULL	mysql	procs_priv	Proc_priv	7		NO	set	27	81	NULL	NULL	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')			select,insert,update,references	
-NULL	mysql	procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	servers	Server_name	1		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	
 NULL	mysql	servers	Host	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Db	3		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
@@ -2703,23 +2703,23 @@ NULL	mysql	servers	Port	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(4)			select,inse
 NULL	mysql	servers	Socket	7		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Wrapper	8		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Owner	9		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
-NULL	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	mysql	slow_log	lock_time	4	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	mysql	slow_log	rows_sent	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	slow_log	rows_examined	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	db	7	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select,insert,update,references	
-NULL	mysql	slow_log	last_insert_id	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	insert_id	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	server_id	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	db	7	NULL	NO	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select,insert,update,references	
+NULL	mysql	slow_log	last_insert_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	slow_log	sql_text	11	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	tables_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Grantor	5		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references	
-NULL	mysql	tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	tables_priv	Table_priv	7		NO	set	98	294	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')			select,insert,update,references	
 NULL	mysql	tables_priv	Column_priv	8		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references	
 NULL	mysql	time_zone	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI	auto_increment	select,insert,update,references	
@@ -3031,7 +3031,7 @@ NULL	test	tb4	f217	42	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	N
 NULL	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
 NULL	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
-NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
@@ -3139,9 +3139,9 @@ binary	binary	Binary pseudo charset	1
 geostd8	geostd8_general_ci	GEOSTD8 Georgian	1
 cp932	cp932_japanese_ci	SJIS for Windows Japanese	2
 eucjpms	eucjpms_japanese_ci	UJIS for Windows Japanese	3
-select sum(id) from collations;
+select sum(id) from collations where collation_name <> 'utf8_general_cs';
 sum(id)
-11094
+10840
 select collation_name, character_set_name into @x,@y
 from collation_character_set_applicability limit 1;
 select @x, @y;
@@ -3201,8 +3201,16 @@ NULL	mysql	user	0	mysql	PRIMARY	2	User	A	3	NULL	NULL		BTREE
 select * from views;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 NULL	db_datadict	v1	SELECT * FROM information_schema.tables	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu	SELECT DISTINCT u,	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu1	SELECT grantee AS u	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	db_datadict	vu	SELECT DISTINCT u,
+SUBSTRING( u, LENGTH(SUBSTRING_INDEX(u,'@',1))+3 )
+AS server,
+SUBSTRING( u, LENGTH(SUBSTRING_INDEX(u,'@',1))+3,
+LENGTH( SUBSTRING( u,
+LENGTH( SUBSTRING_INDEX(u, '@',1)) +3 )) - 1 )
+AS Server_Clean
+FROM db_datadict.vu1	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	db_datadict	vu1	SELECT grantee AS u
+FROM information_schema.user_privileges	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 select * from user_privileges order by grantee, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
@@ -3602,10 +3610,10 @@ NULL	information_schema	CHARACTER_SETS	CHARACTER_SET_NAME	1		NO	varchar	64	192	N
 SELECT * FROM character_sets                        LIMIT 1;
 CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
 big5	big5_chinese_ci	Big5 Traditional Chinese	2
-SELECT * FROM collations                            LIMIT 1;
+SELECT * FROM collations                            where collation_name <> 'utf8_general_cs' LIMIT 1;
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
 big5_chinese_ci	big5	1	Yes	Yes	1
-SELECT * FROM collation_character_set_applicability LIMIT 1;
+SELECT * FROM collation_character_set_applicability where collation_name <> 'utf8_general_cs' LIMIT 1;
 COLLATION_NAME	CHARACTER_SET_NAME
 big5_chinese_ci	big5
 SELECT * FROM routines                              LIMIT 1;
@@ -5528,8 +5536,16 @@ NULL	mysql	columns_priv	0	mysql	PRIMARY	5	Column_name	A	0	NULL	NULL		BTREE
 select * from information_schema.views limit 0, 5;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 NULL	db_datadict	v1	SELECT * FROM information_schema.tables	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu	SELECT DISTINCT u,	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu1	SELECT grantee AS u	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	db_datadict	vu	SELECT DISTINCT u,
+SUBSTRING( u, LENGTH(SUBSTRING_INDEX(u,'@',1))+3 )
+AS server,
+SUBSTRING( u, LENGTH(SUBSTRING_INDEX(u,'@',1))+3,
+LENGTH( SUBSTRING( u,
+LENGTH( SUBSTRING_INDEX(u, '@',1)) +3 )) - 1 )
+AS Server_Clean
+FROM db_datadict.vu1	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	db_datadict	vu1	SELECT grantee AS u
+FROM information_schema.user_privileges	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 select * from information_schema.user_privileges limit 0, 5;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'localhost'	NULL	SELECT	YES
@@ -5580,12 +5596,12 @@ COUNT(*)
 SELECT COUNT(*) FROM information_schema. character_sets                        ;
 COUNT(*)
 36
-SELECT COUNT(*) FROM information_schema. collations                            ;
+SELECT COUNT(*) FROM information_schema. collations                            where collation_name <> 'utf8_general_cs' ;
+COUNT(*)
+127
+SELECT COUNT(*) FROM information_schema. collation_character_set_applicability where collation_name <> 'utf8_general_cs' ;
 COUNT(*)
 128
-SELECT COUNT(*) FROM information_schema. collation_character_set_applicability ;
-COUNT(*)
-129
 SELECT COUNT(*) FROM information_schema. routines                              ;
 COUNT(*)
 1
@@ -7338,7 +7354,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -7489,7 +7505,7 @@ where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 res_t_401013	db_datadict	i_6_401013	BTREE
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -7626,7 +7642,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -7775,7 +7791,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -7920,7 +7936,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -8078,7 +8094,7 @@ where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 res_t_401015	db_datadict	i_6_401015	BTREE
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -8214,7 +8230,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -8464,7 +8480,8 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 FLUSH PRIVILEGES;
 connect(localhost,u_6_401017,,test,MYSQL_PORT,MYSQL_SOCK);
 use information_schema;
-select * from collation_character_set_applicability;
+select * from collation_character_set_applicability
+where collation_name <> 'utf8_general_cs';
 COLLATION_NAME	CHARACTER_SET_NAME
 big5_chinese_ci	big5
 big5_bin	big5
@@ -8542,7 +8559,6 @@ utf8_roman_ci	utf8
 utf8_persian_ci	utf8
 utf8_esperanto_ci	utf8
 utf8_hungarian_ci	utf8
-utf8_general_cs	utf8
 ucs2_general_ci	ucs2
 ucs2_bin	ucs2
 ucs2_unicode_ci	ucs2
@@ -8671,7 +8687,7 @@ COLUMNS	CHARACTER_SET_NAME	varchar(64)
 COLUMNS	COLLATION_NAME	varchar(64)
 COLUMNS	COLUMN_TYPE	longtext
 COLUMNS	COLUMN_KEY	varchar(3)
-COLUMNS	EXTRA	varchar(20)
+COLUMNS	EXTRA	varchar(27)
 COLUMNS	PRIVILEGES	varchar(80)
 COLUMNS	COLUMN_COMMENT	varchar(255)
 COLUMN_PRIVILEGES	GRANTEE	varchar(81)
@@ -9247,7 +9263,7 @@ binary
 geostd8
 cp932
 eucjpms
-select collation_name from collations;
+select collation_name from collations where collation_name <> 'utf8_general_cs';
 collation_name
 big5_chinese_ci
 big5_bin
@@ -9324,7 +9340,6 @@ utf8_roman_ci
 utf8_persian_ci
 utf8_esperanto_ci
 utf8_hungarian_ci
-utf8_general_cs
 ucs2_general_ci
 ucs2_bin
 ucs2_unicode_ci
@@ -9613,7 +9628,7 @@ NULL	information_schema	collations	SORTLEN	6	0	NO	bigint	NULL	NULL	19	0	NULL	NUL
 
 Testcase 3.2.3.2:
 --------------------------------------------------------------------------------
-SELECT * FROM collations;
+SELECT * FROM collations where collation_name <> 'utf8_general_cs';
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
 big5_chinese_ci	big5	1	Yes	Yes	1
 big5_bin	big5	84		Yes	1
@@ -9690,7 +9705,6 @@ utf8_roman_ci	utf8	207		Yes	8
 utf8_persian_ci	utf8	208		Yes	8
 utf8_esperanto_ci	utf8	209		Yes	8
 utf8_hungarian_ci	utf8	210		Yes	8
-utf8_general_cs	utf8	254		Yes	1
 ucs2_general_ci	ucs2	35	Yes	Yes	1
 ucs2_bin	ucs2	90		Yes	1
 ucs2_unicode_ci	ucs2	128		Yes	8
@@ -9776,7 +9790,8 @@ NULL	information_schema	collation_character_set_applicability	CHARACTER_SET_NAME
 
 Testcase 3.2.4.2:
 --------------------------------------------------------------------------------
-SELECT * FROM collation_character_set_applicability;
+SELECT * FROM collation_character_set_applicability
+where collation_name <> 'utf8_general_cs';
 COLLATION_NAME	CHARACTER_SET_NAME
 big5_chinese_ci	big5
 big5_bin	big5
@@ -9854,7 +9869,6 @@ utf8_roman_ci	utf8
 utf8_persian_ci	utf8
 utf8_esperanto_ci	utf8
 utf8_hungarian_ci	utf8
-utf8_general_cs	utf8
 ucs2_general_ci	ucs2
 ucs2_bin	ucs2
 ucs2_unicode_ci	ucs2
@@ -10092,7 +10106,7 @@ CHARACTER_SET_NAME	varchar(64)	YES		NULL
 COLLATION_NAME	varchar(64)	YES		NULL	
 COLUMN_TYPE	longtext	NO		NULL	
 COLUMN_KEY	varchar(3)	NO			
-EXTRA	varchar(20)	NO			
+EXTRA	varchar(27)	NO			
 PRIVILEGES	varchar(80)	NO			
 COLUMN_COMMENT	varchar(255)	NO			
 SHOW CREATE TABLE columns;
@@ -10114,7 +10128,7 @@ COLUMNS	CREATE TEMPORARY TABLE `COLUMNS` (
   `COLLATION_NAME` varchar(64) DEFAULT NULL,
   `COLUMN_TYPE` longtext NOT NULL,
   `COLUMN_KEY` varchar(3) NOT NULL DEFAULT '',
-  `EXTRA` varchar(20) NOT NULL DEFAULT '',
+  `EXTRA` varchar(27) NOT NULL DEFAULT '',
   `PRIVILEGES` varchar(80) NOT NULL DEFAULT '',
   `COLUMN_COMMENT` varchar(255) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
@@ -10145,7 +10159,7 @@ NULL	information_schema	columns	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NU
 NULL	information_schema	columns	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	columns	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	columns	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	columns	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	columns	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
 NULL	information_schema	columns	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	columns	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 
@@ -10200,7 +10214,7 @@ NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NU
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	COLUMNS	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 NULL	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select	
@@ -10474,7 +10488,7 @@ NULL	mysql	columns_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PR
 NULL	mysql	columns_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
 NULL	mysql	columns_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	columns_priv	Column_name	5		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
-NULL	mysql	columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	columns_priv	Column_priv	7		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references	
 NULL	mysql	db	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
 NULL	mysql	db	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
@@ -10505,7 +10519,7 @@ NULL	mysql	event	definer	4		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			se
 NULL	mysql	event	execute_at	5	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
 NULL	mysql	event	interval_value	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	event	interval_field	7	NULL	YES	enum	18	54	NULL	NULL	utf8	utf8_general_ci	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')			select,insert,update,references	
-NULL	mysql	event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	event	modified	9	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
 NULL	mysql	event	last_executed	10	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
 NULL	mysql	event	starts	11	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
@@ -10524,12 +10538,12 @@ NULL	mysql	func	name	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		sel
 NULL	mysql	func	ret	2	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			select,insert,update,references	
 NULL	mysql	func	dl	3		NO	char	128	384	NULL	NULL	utf8	utf8_bin	char(128)			select,insert,update,references	
 NULL	mysql	func	type	4	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('function','aggregate')			select,insert,update,references	
-NULL	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
-NULL	mysql	general_log	user_host	2	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
-NULL	mysql	general_log	thread_id	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	general_log	server_id	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	general_log	command_type	5	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-NULL	mysql	general_log	argument	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+NULL	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
+NULL	mysql	general_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+NULL	mysql	general_log	thread_id	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+NULL	mysql	general_log	argument	6	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	help_category	help_category_id	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned	PRI		select,insert,update,references	
 NULL	mysql	help_category	name	2	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		select,insert,update,references	
 NULL	mysql	help_category	parent_category_id	3	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned			select,insert,update,references	
@@ -10582,10 +10596,10 @@ NULL	mysql	proc	sql_data_access	6	CONTAINS_SQL	NO	enum	17	51	NULL	NULL	utf8	utf8
 NULL	mysql	proc	is_deterministic	7	NO	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
 NULL	mysql	proc	security_type	8	DEFINER	NO	enum	7	21	NULL	NULL	utf8	utf8_general_ci	enum('INVOKER','DEFINER')			select,insert,update,references	
 NULL	mysql	proc	param_list	9	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
-NULL	mysql	proc	returns	10		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+NULL	mysql	proc	returns	10	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 NULL	mysql	proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 NULL	mysql	proc	definer	12		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			select,insert,update,references	
-NULL	mysql	proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	proc	modified	14	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
 NULL	mysql	proc	sql_mode	15		NO	set	431	1293	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE')			select,insert,update,references	
 NULL	mysql	proc	comment	16		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references	
@@ -10600,7 +10614,7 @@ NULL	mysql	procs_priv	Routine_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	cha
 NULL	mysql	procs_priv	Routine_type	5	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')	PRI		select,insert,update,references	
 NULL	mysql	procs_priv	Grantor	6		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references	
 NULL	mysql	procs_priv	Proc_priv	7		NO	set	27	81	NULL	NULL	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')			select,insert,update,references	
-NULL	mysql	procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	servers	Server_name	1		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	
 NULL	mysql	servers	Host	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Db	3		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
@@ -10610,23 +10624,23 @@ NULL	mysql	servers	Port	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(4)			select,inse
 NULL	mysql	servers	Socket	7		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Wrapper	8		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
 NULL	mysql	servers	Owner	9		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
-NULL	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	mysql	slow_log	lock_time	4	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	mysql	slow_log	rows_sent	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	slow_log	rows_examined	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	db	7	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select,insert,update,references	
-NULL	mysql	slow_log	last_insert_id	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	insert_id	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	mysql	slow_log	server_id	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	db	7	NULL	NO	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select,insert,update,references	
+NULL	mysql	slow_log	last_insert_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysql	slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	mysql	slow_log	sql_text	11	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
 NULL	mysql	tables_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	tables_priv	Grantor	5		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references	
-NULL	mysql	tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	mysql	tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	mysql	tables_priv	Table_priv	7		NO	set	98	294	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')			select,insert,update,references	
 NULL	mysql	tables_priv	Column_priv	8		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references	
 NULL	mysql	time_zone	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI	auto_increment	select,insert,update,references	
@@ -10938,7 +10952,7 @@ NULL	test	tb4	f217	42	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	N
 NULL	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
 NULL	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
-NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
@@ -11042,7 +11056,7 @@ NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NU
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	COLUMNS	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 NULL	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select	
@@ -11567,7 +11581,7 @@ NULL	test	tb4	f217	42	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	N
 NULL	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
 NULL	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
-NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
@@ -11614,7 +11628,7 @@ NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NU
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	COLUMNS	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 NULL	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select	
@@ -12139,7 +12153,7 @@ NULL	test	tb4	f217	42	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	N
 NULL	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
 NULL	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
 NULL	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select,insert,update,references	
-NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
+NULL	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 NULL	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
@@ -12284,7 +12298,7 @@ NULL	information_schema	COLUMNS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint(
 3.0000	information_schema	COLUMNS	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	COLUMNS	COLUMN_TYPE	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 3.0000	information_schema	COLUMNS	COLUMN_KEY	varchar	3	9	utf8	utf8_general_ci	varchar(3)
-3.0000	information_schema	COLUMNS	EXTRA	varchar	20	60	utf8	utf8_general_ci	varchar(20)
+3.0000	information_schema	COLUMNS	EXTRA	varchar	27	81	utf8	utf8_general_ci	varchar(27)
 3.0000	information_schema	COLUMNS	PRIVILEGES	varchar	80	240	utf8	utf8_general_ci	varchar(80)
 3.0000	information_schema	COLUMNS	COLUMN_COMMENT	varchar	255	765	utf8	utf8_general_ci	varchar(255)
 3.0000	information_schema	COLUMN_PRIVILEGES	GRANTEE	varchar	81	243	utf8	utf8_general_ci	varchar(81)
@@ -12666,7 +12680,7 @@ NULL	mysql	ndb_binlog_index	schemaops	bigint	NULL	NULL	NULL	NULL	bigint(20) unsi
 3.0000	mysql	proc	is_deterministic	enum	3	9	utf8	utf8_general_ci	enum('YES','NO')
 3.0000	mysql	proc	security_type	enum	7	21	utf8	utf8_general_ci	enum('INVOKER','DEFINER')
 1.0000	mysql	proc	param_list	blob	65535	65535	NULL	NULL	blob
-3.0000	mysql	proc	returns	char	64	192	utf8	utf8_general_ci	char(64)
+1.0000	mysql	proc	returns	longblob	4294967295	4294967295	NULL	NULL	longblob
 1.0000	mysql	proc	body	longblob	4294967295	4294967295	NULL	NULL	longblob
 3.0000	mysql	proc	definer	char	77	231	utf8	utf8_bin	char(77)
 NULL	mysql	proc	created	timestamp	NULL	NULL	NULL	NULL	timestamp

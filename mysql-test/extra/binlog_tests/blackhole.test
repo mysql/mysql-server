@@ -134,6 +134,15 @@ drop table t1,t2,t3;
 #             table
 #
 CREATE TABLE t1(a INT) ENGINE=BLACKHOLE;
+# NOTE: After exchanging open_ltable() by open_and_lock_tables() in
+# handle_delayed_insert() to fix problems with MERGE tables (Bug#26379),
+# problems with INSERT DELAYED and BLACKHOLE popped up. open_ltable()
+# does not check if the binlogging capabilities of the statement and the
+# table match. So the below used to succeed. But since INSERT DELAYED
+# switches to row-based logging in mixed-mode and BLACKHOLE cannot do
+# row-based logging, it could not really work. Until this problem is
+# correctly fixed, we have that error here.
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
 INSERT DELAYED INTO t1 VALUES(1);
 DROP TABLE t1;
 

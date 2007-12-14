@@ -807,7 +807,8 @@ DROP FUNCTION func2;
 select column_type, group_concat(table_schema, '.', table_name), count(*) as num
 from information_schema.columns where
 table_schema='information_schema' and
-(column_type = 'varchar(7)' or column_type = 'varchar(20)')
+(column_type = 'varchar(7)' or column_type = 'varchar(20)'
+ or column_type = 'varchar(27)')
 group by column_type order by num;
 
 #
@@ -1142,6 +1143,7 @@ END$$
 
 DELIMITER ;$$
 
+let $wait_timeout= 300;
 let $wait_condition=select count(*) = 0 from information_schema.events where event_name='event_status';
 --source include/wait_condition.inc
 
@@ -1231,5 +1233,10 @@ select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_SCHEMA` = NULL
 select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_TABLE` = NULL;
 select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
 select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
+
+#
+# Bug#31630 debug assert with explain extended select ... from i_s
+#
+explain extended select 1 from information_schema.tables;
 
 --echo End of 5.1 tests.

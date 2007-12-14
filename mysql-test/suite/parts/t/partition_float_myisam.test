@@ -18,7 +18,7 @@
 #       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
 #       THE SOURCED FILES ONLY.
 #
-# Please read the README at the end of include/partition.pre before changing
+# Please read the README at the end of inc/partition.pre before changing
 # any of the variables.
 #
 
@@ -43,5 +43,3 @@ let $maxrows=16384;
 # Execute the tests to be applied to all storage engines
 --source suite/parts/inc/partition_float.inc
 --source suite/parts/inc/partition_double.inc
-# --source inc/partition_float.inc
-# --source inc/partition_double.inc

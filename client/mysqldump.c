@@ -420,8 +420,12 @@ static struct my_option my_long_options[] =
    "Creates a consistent snapshot by dumping all tables in a single "
    "transaction. Works ONLY for tables stored in storage engines which "
    "support multiversioning (currently only InnoDB does); the dump is NOT "
-   "guaranteed to be consistent for other storage engines. Option "
-   "automatically turns off --lock-tables.",
+   "guaranteed to be consistent for other storage engines. "
+   "While a --single-transaction dump is in process, to ensure a valid "
+   "dump file (correct table contents and binary log position), no other "
+   "connection should use the following statements: ALTER TABLE, DROP "
+   "TABLE, RENAME TABLE, TRUNCATE TABLE, as consistent snapshot is not "
+   "isolated from them. Option automatically turns off --lock-tables.",
    (uchar**) &opt_single_transaction, (uchar**) &opt_single_transaction, 0,
    GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},
   {"dump-date", OPT_DUMP_DATE, "Put a dump date to the end of the output.",
@@ -1040,8 +1044,10 @@ static int fetch_db_collation(const char *db_name,
   char query[QUERY_LENGTH];
   MYSQL_RES *db_cl_res;
   MYSQL_ROW db_cl_row;
+  char quoted_database_buf[NAME_LEN*2+3];
+  char *qdatabase= quote_name(db_name, quoted_database_buf, 1);
 
-  my_snprintf(query, sizeof (query), "use %s", db_name);
+  my_snprintf(query, sizeof (query), "use %s", qdatabase);
 
   if (mysql_query_with_error_report(mysql, NULL, query))
     return 1;

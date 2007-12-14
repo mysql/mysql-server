@@ -63,7 +63,7 @@ begin work;
 insert into t1 (a) values ("OK: create event if not exists");
 create event if not exists e1 on schedule every 2 day do select 2;
 Warnings:
-Note	1536	Event 'e1' already exists
+Note	1537	Event 'e1' already exists
 rollback work;
 select * from t1;
 a

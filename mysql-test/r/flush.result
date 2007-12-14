@@ -55,6 +55,23 @@ flush tables with read lock;
 insert into t2 values(1);
 unlock tables;
 drop table t1, t2;
+drop table if exists t1, t2;
+set session low_priority_updates=1;
+create table t1 (a int);
+create table t2 (b int);
+lock tables t1 write;
+flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+lock tables t1 read, t2 write;
+flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+lock tables t1 read;
+flush tables with read lock;
+unlock tables;
+drop table t1, t2;
+set session low_priority_updates=default;
 End of 5.0 tests
 set @old_general_log= @@general_log;
 set @old_read_only= @@read_only;

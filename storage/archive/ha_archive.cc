@@ -1241,8 +1241,8 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
   DBUG_ENTER("ha_archive::rnd_pos");
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   current_position= (my_off_t)my_get_ptr(pos, ref_length);
-  (void)azseek(&archive, current_position, SEEK_SET);
-
+  if (azseek(&archive, current_position, SEEK_SET) == (my_off_t)(-1L))
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   DBUG_RETURN(get_row(&archive, buf));
 }
 

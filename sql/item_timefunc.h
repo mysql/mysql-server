@@ -778,6 +778,7 @@ public:
   const char *func_name() const { return "cast_as_date"; }
   String *val_str(String *str);
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
+  bool get_time(MYSQL_TIME *ltime);
   const char *cast_type() const { return "date"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   Field *tmp_table_field(TABLE *table)

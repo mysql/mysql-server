@@ -170,10 +170,10 @@ int initgroups(const char *,unsigned int);
 typedef fp_except fp_except_t;
 #endif
 
-  /* We can't handle floating point exceptions with threads, so disable
-     this on freebsd
-  */
-
+/**
+  We can't handle floating point exceptions with threads, so disable
+  this on freebsd.
+*/
 inline void reset_floating_point_exceptions()
 {
   /* Don't fall for overflow, underflow,divide-by-zero or loss of precision */
@@ -325,7 +325,7 @@ static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
 static ulong max_used_connections;
-static ulong my_bind_addr;			/* the address we bind to */
+static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
 static const char *sql_mode_str= "OFF";
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
@@ -366,7 +366,7 @@ bool volatile shutdown_in_progress;
  */
 bool volatile grant_option;
 
-my_bool opt_skip_slave_start = 0; // If set, slave is not autostarted
+my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0;
 my_bool opt_local_infile, opt_slave_compressed_protocol;
@@ -430,7 +430,7 @@ TYPELIB binlog_format_typelib=
 ulong opt_binlog_format_id= (ulong) BINLOG_FORMAT_UNSPEC;
 const char *opt_binlog_format= binlog_format_names[opt_binlog_format_id];
 #ifdef HAVE_INITGROUPS
-static bool calling_initgroups= FALSE; /* Used in SIGSEGV handler. */
+static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
 #endif
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint mysqld_port_timeout;
@@ -458,12 +458,12 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 uint  max_user_connections= 0;
-/*
+/**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
 */
 ulong max_prepared_stmt_count;
-/*
+/**
   Current total number of prepared statements in the server. This number
   is exact, and therefore may not be equal to the difference between
   `com_stmt_prepare' and `com_stmt_close' (global status variables), as
@@ -499,13 +499,13 @@ uint mysql_data_home_len;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
-const char **errmesg;			/* Error messages */
+const char **errmesg;			/**< Error messages */
 const char *myisam_recover_options_str="OFF";
 const char *myisam_stats_method_str="nulls_unequal";
 
-/* name of reference on left espression in rewritten IN subquery */
+/** name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
-/* name of additional condition */
+/** name of additional condition */
 const char *in_additional_cond= "<IN COND>";
 const char *in_having_cond= "<IN HAVING>";
 
@@ -556,7 +556,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
-/*
+/**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
   set the limit and hold the current total number of prepared statements
@@ -605,7 +605,7 @@ static char **defaults_argv;
 static char *opt_bin_logname;
 
 static my_socket unix_sock,ip_sock;
-struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
+struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info;
@@ -629,7 +629,7 @@ static char **opt_argv;
 static HANDLE hEventShutdown;
 static char shutdown_event_name[40];
 #include "nt_servc.h"
-static	 NTService  Service;	      // Service object for WinNT
+static	 NTService  Service;	      ///< Service object for WinNT
 #endif /* EMBEDDED_LIBRARY */
 #endif /* __WIN__ */
 
@@ -1010,19 +1010,15 @@ void kill_mysql(void)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Force server down. Kill all connections and threads and exit
+/**
+  Force server down. Kill all connections and threads and exit.
 
-  SYNOPSIS
-  kill_server
+  @param  sig_ptr       Signal number that caused kill_server to be called.
 
-  sig_ptr       Signal number that caused kill_server to be called.
-
-  NOTE!
+  @note
     A signal number of 0 mean that the function was not called
     from a signal handler and there is thus no signal to block
     or stop, we just want to kill the server.
-
 */
 
 #if defined(__NETWARE__)
@@ -1115,21 +1111,18 @@ extern "C" sig_handler print_signal_warning(int sig)
 #endif
 }
 
-/*
-  cleanup all memory and end program nicely
+#ifndef EMBEDDED_LIBRARY
 
-  SYNOPSIS
-    unireg_end()
-
-  NOTES
-    This function never returns.
+/**
+  cleanup all memory and end program nicely.
 
     If SIGNALS_DONT_BREAK_READ is defined, this function is called
     by the main thread. To get MySQL to shut down nicely in this case
     (Mac OS X) we have to call exit() instead if pthread_exit().
-*/
 
-#ifndef EMBEDDED_LIBRARY
+  @note
+    This function never returns.
+*/
 void unireg_end(void)
 {
   clean_up(1);
@@ -1276,11 +1269,10 @@ void clean_up(bool print_message)
 
 #ifndef EMBEDDED_LIBRARY
 
-/*
+/**
   This is mainly needed when running with purify, but it's still nice to
-  know that all child threads have died when mysqld exits
+  know that all child threads have died when mysqld exits.
 */
-
 static void wait_for_signal_thread_to_end()
 {
 #ifndef __NETWARE__
@@ -1507,8 +1499,7 @@ static void set_effective_user(struct passwd *user_info_arg)
 }
 
 
-/* Change root user if started with  --chroot */
-
+/** Change root user if started with @c --chroot . */
 static void set_root(const char *path)
 {
 #if !defined(__WIN__) && !defined(__NETWARE__)
@@ -1697,19 +1688,16 @@ static void network_init(void)
 
 
 #ifndef EMBEDDED_LIBRARY
-/*
-  Close a connection
+/**
+  Close a connection.
 
-  SYNOPSIS
-    close_connection()
-    thd		Thread handle
-    errcode	Error code to print to console
-    lock	1 if we have have to lock LOCK_thread_count
+  @param thd		Thread handle
+  @param errcode	Error code to print to console
+  @param lock	        1 if we have have to lock LOCK_thread_count
 
-  NOTES
+  @note
     For the connection that is doing shutdown, this is called twice
 */
-
 void close_connection(THD *thd, uint errcode, bool lock)
 {
   st_vio *vio;
@@ -1734,9 +1722,8 @@ void close_connection(THD *thd, uint errcode, bool lock)
 #endif /* EMBEDDED_LIBRARY */
 
 
-	/* Called when a thread is aborted */
-	/* ARGSUSED */
-
+/** Called when a thread is aborted. */
+/* ARGSUSED */
 extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
 {
   THD *thd=current_thd;
@@ -1878,13 +1865,13 @@ void flush_thread_cache()
 }
 
 
-/*
-  Aborts a thread nicely. Commes here on SIGPIPE
-  TODO: One should have to fix that thr_alarm know about this
-  thread too.
-*/
-
 #ifdef THREAD_SPECIFIC_SIGPIPE
+/**
+  Aborts a thread nicely. Comes here on SIGPIPE.
+
+  @todo
+    One should have to fix that thr_alarm know about this thread too.
+*/
 extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
 {
   THD *thd=current_thd;
@@ -1932,7 +1919,7 @@ static void check_data_home(const char *path)
 
 #elif defined(__NETWARE__)
 
-// down server event callback
+/// down server event callback.
 void mysql_down_server_cb(void *, void *)
 {
   event_flag= TRUE;
@@ -1940,7 +1927,7 @@ void mysql_down_server_cb(void *, void *)
 }
 
 
-// destroy callback resources
+/// destroy callback resources.
 void mysql_cb_destroy(void *)
 {
   UnRegisterEventNotification(eh);  // cleanup down event notification
@@ -1952,7 +1939,7 @@ void mysql_cb_destroy(void *)
 }
 
 
-// initialize callbacks
+/// initialize callbacks.
 void mysql_cb_init()
 {
   // register for down server event
@@ -1975,8 +1962,7 @@ void mysql_cb_init()
 }
 
 
-/* To get the name of the NetWare volume having MySQL data folder */
-
+/** To get the name of the NetWare volume having MySQL data folder. */
 static void getvolumename()
 {
   char *p;
@@ -1990,8 +1976,8 @@ static void getvolumename()
 }
 
 
-/*
-  Registering with NEB for NSS Volume Deactivation event
+/**
+  Registering with NEB for NSS Volume Deactivation event.
 */
 
 static void registerwithneb()
@@ -2043,8 +2029,8 @@ static void registerwithneb()
 }
 
 
-/*
-  Callback for NSS Volume Deactivation event
+/**
+  Callback for NSS Volume Deactivation event.
 */
 
 ulong neb_event_callback(struct EventBlock *eblock)
@@ -2076,12 +2062,11 @@ ulong neb_event_callback(struct EventBlock *eblock)
 }
 
 
-/*
-  Function to get NSS volume ID of the MySQL data
-*/
-
 #define ADMIN_VOL_PATH					"_ADMIN:/Volumes/"
 
+/**
+  Function to get NSS volume ID of the MySQL data.
+*/
 static void getvolumeID(BYTE *volumeName)
 {
   char path[zMAX_FULL_NAME];
@@ -2156,10 +2141,10 @@ static void start_signal_handler(void)
 }
 
 
-/*
-  Warn if the data is on a Traditional volume
+/**
+  Warn if the data is on a Traditional volume.
 
-  NOTE
+  @note
     Already done by mysqld_safe
 */
 
@@ -2420,8 +2405,7 @@ static void start_signal_handler(void)
 }
 
 
-/* This threads handles all signals and alarms */
-
+/** This threads handles all signals and alarms. */
 /* ARGSUSED */
 pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 {
@@ -2559,12 +2543,10 @@ static void check_data_home(const char *path)
 #endif	/* __WIN__*/
 
 
-/*
+/**
   All global error messages are sent here where the first one is stored
-  for the client
+  for the client.
 */
-
-
 /* ARGSUSED */
 extern "C" int my_message_sql(uint error, const char *str, myf MyFlags);
 
@@ -2597,7 +2579,12 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     thd->is_slave_error=  1; // needed to catch query errors during replication
 
     if (!thd->no_warnings_for_error)
+    {
+      thd->no_warnings_for_error= TRUE;
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
+      thd->no_warnings_for_error= FALSE;
+    }
+
     /*
       thd->lex->current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
@@ -2690,20 +2677,19 @@ sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif /*!EMBEDDED_LIBRARY*/
 
 
-/*
-  Initialize one of the global date/time format variables
+/**
+  Initialize one of the global date/time format variables.
 
-  SYNOPSIS
-    init_global_datetime_format()
-    format_type		What kind of format should be supported
-    var_ptr		Pointer to variable that should be updated
+  @param format_type		What kind of format should be supported
+  @param var_ptr		Pointer to variable that should be updated
 
-  NOTES
+  @note
     The default value is taken from either opt_date_time_formats[] or
     the ISO format (ANSI SQL)
 
-  RETURN
+  @retval
     0 ok
+  @retval
     1 error
 */
 
@@ -2937,7 +2923,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.collation_connection=  default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
 
   if (!(character_set_filesystem= 
         get_charset_by_csname(character_set_filesystem_name,
@@ -4047,21 +4032,20 @@ static char *add_quoted_string(char *to, const char *from, char *to_end)
 }
 
 
-/*
-  Handle basic handling of services, like installation and removal
+/**
+  Handle basic handling of services, like installation and removal.
 
-  SYNOPSIS
-    default_service_handling()
-    argv		Pointer to argument list
-    servicename		Internal name of service
-    displayname		Display name of service (in taskbar ?)
-    file_path		Path to this program
-    startup_option	Startup option to mysqld
+  @param argv	   	        Pointer to argument list
+  @param servicename		Internal name of service
+  @param displayname		Display name of service (in taskbar ?)
+  @param file_path		Path to this program
+  @param startup_option	Startup option to mysqld
 
-  RETURN VALUES
+  @retval
     0		option handled
+  @retval
     1		Could not handle option
- */
+*/
 
 static bool
 default_service_handling(char **argv,
@@ -4210,7 +4194,7 @@ int main(int argc, char **argv)
 #endif
 
 
-/*
+/**
   Execute all commands from a file. Used by the mysql_install_db script to
   create MySQL privilege tables without having to start a full MySQL server.
 */
@@ -4339,23 +4323,17 @@ void create_thread_to_handle_connection(THD *thd)
 }
 
 
-/*
+/**
   Create new thread to handle incoming connection.
 
-  SYNOPSIS
-    create_new_thread()
-      thd in/out    Thread handle of future thread.
-
-  DESCRIPTION
     This function will create new thread to handle the incoming
     connection.  If there are idle cached threads one will be used.
     'thd' will be pushed into 'threads'.
 
-    In single-threaded mode (#define ONE_THREAD) connection will be
+    In single-threaded mode (\#define ONE_THREAD) connection will be
     handled inside this function.
 
-  RETURN VALUE
-    none
+  @param[in,out] thd    Thread handle of future thread.
 */
 
 static void create_new_thread(THD *thd)
@@ -4600,8 +4578,13 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 			  sock == unix_sock ? VIO_LOCALHOST: 0)) ||
 	my_net_init(&thd->net,vio_tmp))
     {
-      if (vio_tmp)
-	vio_delete(vio_tmp);
+      /*
+        Only delete the temporary vio if we didn't already attach it to the
+        NET object. The destructor in THD will delete any initialized net
+        structure.
+      */
+      if (vio_tmp && thd->net.vio != vio_tmp)
+        vio_delete(vio_tmp);
       else
       {
 	(void) shutdown(new_sock, SHUT_RDWR);
@@ -4704,15 +4687,13 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
 #endif /* __NT__ */
 
 
-/*
-  Thread of shared memory's service
-
-  SYNOPSIS
-    handle_connections_shared_memory()
-    arg                              Arguments of thread
-*/
-
 #ifdef HAVE_SMEM
+
+/**
+  Thread of shared memory's service.
+
+  @param arg                              Arguments of thread
+*/
 pthread_handler_t handle_connections_shared_memory(void *arg)
 {
   /* file-mapping object, use for create shared memory */
@@ -7064,13 +7045,13 @@ To see what values a running MySQL server is using, type\n\
 #endif /*!EMBEDDED_LIBRARY*/
 
 
-/*
-  Initialize all MySQL global variables to default values
+/**
+  Initialize all MySQL global variables to default values.
 
-  SYNOPSIS
-    mysql_init_variables()
+  We don't need to set numeric variables refered to in my_long_options
+  as these are initialized by my_getopt.
 
-  NOTES
+  @note
     The reason to set a lot of global variables to zero is to allow one to
     restart the embedded server with a clean environment
     It's also needed on some exotic platforms where global variables are
@@ -7769,12 +7750,13 @@ mysqld_get_one_option(int optid,
     break;
   }
   case OPT_ONE_THREAD:
-    global_system_variables.thread_handling= 2;
+    global_system_variables.thread_handling=
+      SCHEDULER_ONE_THREAD_PER_CONNECTION;
     break;
   case OPT_THREAD_HANDLING:
   {
     global_system_variables.thread_handling=
-      find_type_or_exit(argument, &thread_handling_typelib, opt->name);
+      find_type_or_exit(argument, &thread_handling_typelib, opt->name)-1;
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
@@ -7799,7 +7781,7 @@ mysqld_get_one_option(int optid,
 }
 
 
-/* Handle arguments for multiple key caches */
+/** Handle arguments for multiple key caches. */
 
 extern "C" uchar **mysql_getopt_value(const char *keyname, uint key_length,
                                       const struct my_option *option);
@@ -7850,6 +7832,10 @@ void option_error_reporter(enum loglevel level, const char *format, ...)
 }
 
 
+/**
+  @todo
+  - FIXME add EXIT_TOO_MANY_ARGUMENTS to "mysys_err.h" and return that code?
+*/
 static void get_options(int *argc,char **argv)
 {
   int ho_error;
@@ -7981,10 +7967,11 @@ static char *get_relative_path(const char *path)
 }
 
 
-/*
+/**
   Fix filename and replace extension where 'dir' is relative to
   mysql_real_data_home.
-  Return 1 if len(path) > FN_REFLEN
+  @return
+    1 if len(path) > FN_REFLEN
 */
 
 bool
@@ -8089,9 +8076,11 @@ static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
 }
 
 
-/*
-  Return a bitfield from a string of substrings separated by ','
-  returns ~(ulong) 0 on error.
+/**
+  @return
+    a bitfield from a string of substrings separated by ','
+    or
+    ~(ulong) 0 on error.
 */
 
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
@@ -8150,16 +8139,16 @@ skip: ;
 } /* find_bit_type */
 
 
-/*
-  Check if file system used for databases is case insensitive
+/**
+  Check if file system used for databases is case insensitive.
 
-  SYNOPSIS
-    test_if_case_sensitive()
-    dir_name			Directory to test
+  @param dir_name			Directory to test
 
-  RETURN
+  @retval
     -1  Don't know (Test failed)
+  @retval
     0   File system is case sensitive
+  @retval
     1   File system is case insensitive
 */
 
@@ -8190,10 +8179,11 @@ static int test_if_case_insensitive(const char *dir_name)
 }
 
 
-/* Create file to store pid number */
-
 #ifndef EMBEDDED_LIBRARY
 
+/**
+  Create file to store pid number.
+*/
 static void create_pid_file()
 {
   File file;
@@ -8215,7 +8205,7 @@ static void create_pid_file()
 }
 #endif /* EMBEDDED_LIBRARY */
 
-/* Clear most status variables */
+/** Clear most status variables. */
 void refresh_status(THD *thd)
 {
   pthread_mutex_lock(&LOCK_status);

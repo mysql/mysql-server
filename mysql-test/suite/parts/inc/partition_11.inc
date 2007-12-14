@@ -1,4 +1,4 @@
-# include/partition_11.inc
+# inc/partition_11.inc
 #
 #    Try to create a table with the given partition number
 #
@@ -13,7 +13,7 @@ let $run= `SELECT @my_errno = 0`;
 # If this operation was successfull, check + drop this table
 if ($run)
 {
-   --source include/partition_10.inc
+   --source suite/parts/inc/partition_10.inc
    eval DROP TABLE t1;
 }
 #### Try to create a table with the given subpartition number
@@ -29,6 +29,6 @@ let $run= `SELECT @my_errno = 0`;
 # If this operation was successfull, check + drop this table
 if ($run)
 {
-   --source include/partition_10.inc
+   --source suite/parts/inc/partition_10.inc
    eval DROP TABLE t1;
 }

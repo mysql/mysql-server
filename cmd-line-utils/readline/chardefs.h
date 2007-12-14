@@ -59,11 +59,7 @@
 #define largest_char 255		    /* Largest character value. */
 
 #define CTRL_CHAR(c) ((c) < control_character_threshold && (((c) & 0x80) == 0))
-#if largest_char >= 255
-#define META_CHAR(c) ((c) > meta_character_threshold)
-#else
 #define META_CHAR(c) ((c) > meta_character_threshold && (c) <= largest_char)
-#endif
 
 #define CTRL(c) ((c) & control_character_mask)
 #define META(c) ((c) | meta_character_bit)
@@ -89,6 +85,8 @@
 
 /* Some systems define these; we want our definitions. */
 #undef ISPRINT
+
+/* Beware:  these only work with single-byte ASCII characters. */
 
 #define ISALNUM(c)	(IN_CTYPE_DOMAIN (c) && isalnum (c))
 #define ISALPHA(c)	(IN_CTYPE_DOMAIN (c) && isalpha (c))

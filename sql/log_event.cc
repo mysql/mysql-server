@@ -36,6 +36,64 @@
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) && !defined(DBUG_OFF) && !defined(_lint)
+static const char *HA_ERR(int i)
+{
+  switch (i) {
+  case HA_ERR_KEY_NOT_FOUND: return "HA_ERR_KEY_NOT_FOUND";
+  case HA_ERR_FOUND_DUPP_KEY: return "HA_ERR_FOUND_DUPP_KEY";
+  case HA_ERR_RECORD_CHANGED: return "HA_ERR_RECORD_CHANGED";
+  case HA_ERR_WRONG_INDEX: return "HA_ERR_WRONG_INDEX";
+  case HA_ERR_CRASHED: return "HA_ERR_CRASHED";
+  case HA_ERR_WRONG_IN_RECORD: return "HA_ERR_WRONG_IN_RECORD";
+  case HA_ERR_OUT_OF_MEM: return "HA_ERR_OUT_OF_MEM";
+  case HA_ERR_NOT_A_TABLE: return "HA_ERR_NOT_A_TABLE";
+  case HA_ERR_WRONG_COMMAND: return "HA_ERR_WRONG_COMMAND";
+  case HA_ERR_OLD_FILE: return "HA_ERR_OLD_FILE";
+  case HA_ERR_NO_ACTIVE_RECORD: return "HA_ERR_NO_ACTIVE_RECORD";
+  case HA_ERR_RECORD_DELETED: return "HA_ERR_RECORD_DELETED";
+  case HA_ERR_RECORD_FILE_FULL: return "HA_ERR_RECORD_FILE_FULL";
+  case HA_ERR_INDEX_FILE_FULL: return "HA_ERR_INDEX_FILE_FULL";
+  case HA_ERR_END_OF_FILE: return "HA_ERR_END_OF_FILE";
+  case HA_ERR_UNSUPPORTED: return "HA_ERR_UNSUPPORTED";
+  case HA_ERR_TO_BIG_ROW: return "HA_ERR_TO_BIG_ROW";
+  case HA_WRONG_CREATE_OPTION: return "HA_WRONG_CREATE_OPTION";
+  case HA_ERR_FOUND_DUPP_UNIQUE: return "HA_ERR_FOUND_DUPP_UNIQUE";
+  case HA_ERR_UNKNOWN_CHARSET: return "HA_ERR_UNKNOWN_CHARSET";
+  case HA_ERR_WRONG_MRG_TABLE_DEF: return "HA_ERR_WRONG_MRG_TABLE_DEF";
+  case HA_ERR_CRASHED_ON_REPAIR: return "HA_ERR_CRASHED_ON_REPAIR";
+  case HA_ERR_CRASHED_ON_USAGE: return "HA_ERR_CRASHED_ON_USAGE";
+  case HA_ERR_LOCK_WAIT_TIMEOUT: return "HA_ERR_LOCK_WAIT_TIMEOUT";
+  case HA_ERR_LOCK_TABLE_FULL: return "HA_ERR_LOCK_TABLE_FULL";
+  case HA_ERR_READ_ONLY_TRANSACTION: return "HA_ERR_READ_ONLY_TRANSACTION";
+  case HA_ERR_LOCK_DEADLOCK: return "HA_ERR_LOCK_DEADLOCK";
+  case HA_ERR_CANNOT_ADD_FOREIGN: return "HA_ERR_CANNOT_ADD_FOREIGN";
+  case HA_ERR_NO_REFERENCED_ROW: return "HA_ERR_NO_REFERENCED_ROW";
+  case HA_ERR_ROW_IS_REFERENCED: return "HA_ERR_ROW_IS_REFERENCED";
+  case HA_ERR_NO_SAVEPOINT: return "HA_ERR_NO_SAVEPOINT";
+  case HA_ERR_NON_UNIQUE_BLOCK_SIZE: return "HA_ERR_NON_UNIQUE_BLOCK_SIZE";
+  case HA_ERR_NO_SUCH_TABLE: return "HA_ERR_NO_SUCH_TABLE";
+  case HA_ERR_TABLE_EXIST: return "HA_ERR_TABLE_EXIST";
+  case HA_ERR_NO_CONNECTION: return "HA_ERR_NO_CONNECTION";
+  case HA_ERR_NULL_IN_SPATIAL: return "HA_ERR_NULL_IN_SPATIAL";
+  case HA_ERR_TABLE_DEF_CHANGED: return "HA_ERR_TABLE_DEF_CHANGED";
+  case HA_ERR_NO_PARTITION_FOUND: return "HA_ERR_NO_PARTITION_FOUND";
+  case HA_ERR_RBR_LOGGING_FAILED: return "HA_ERR_RBR_LOGGING_FAILED";
+  case HA_ERR_DROP_INDEX_FK: return "HA_ERR_DROP_INDEX_FK";
+  case HA_ERR_FOREIGN_DUPLICATE_KEY: return "HA_ERR_FOREIGN_DUPLICATE_KEY";
+  case HA_ERR_TABLE_NEEDS_UPGRADE: return "HA_ERR_TABLE_NEEDS_UPGRADE";
+  case HA_ERR_TABLE_READONLY: return "HA_ERR_TABLE_READONLY";
+  case HA_ERR_AUTOINC_READ_FAILED: return "HA_ERR_AUTOINC_READ_FAILED";
+  case HA_ERR_AUTOINC_ERANGE: return "HA_ERR_AUTOINC_ERANGE";
+  case HA_ERR_GENERIC: return "HA_ERR_GENERIC";
+  case HA_ERR_RECORD_IS_THE_SAME: return "HA_ERR_RECORD_IS_THE_SAME";
+  case HA_ERR_LOGGING_IMPOSSIBLE: return "HA_ERR_LOGGING_IMPOSSIBLE";
+  case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
+  }
+  return "<unknown error>";
+}
+#endif
+
 /*
   Cache that will automatically be written to a dedicated file on
   destruction.
@@ -114,6 +172,9 @@ private:
   flag_set m_flags;
 };
 
+#ifndef DBUG_OFF
+uint debug_not_change_ts_if_art_event= 1; // bug#29309 simulation
+#endif
 
 /*
   pretty_print_str()
@@ -154,8 +215,8 @@ static void clear_all_errors(THD *thd, Relay_log_info *rli)
 }
 
 
-/*
-  Ignore error code specified on command line
+/**
+  Ignore error code specified on command line.
 */
 
 inline int ignored_error_code(int err_code)
@@ -212,21 +273,20 @@ static char *pretty_print_str(char *packet, char *str, int len)
 #endif /* !MYSQL_CLIENT */
 
 
-/*
-  Creates a temporary name for load data infile:
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
-  SYNOPSIS
-    slave_load_file_stem()
-    buf		      Store new filename here
-    file_id	      File_id (part of file name)
-    event_server_id   Event_id (part of file name)
-    ext		      Extension for file name
+/**
+  Creates a temporary name for load data infile:.
 
-  RETURN
+  @param buf		      Store new filename here
+  @param file_id	      File_id (part of file name)
+  @param event_server_id     Event_id (part of file name)
+  @param ext		      Extension for file name
+
+  @return
     Pointer to start of extension
 */
 
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 static char *slave_load_file_stem(char *buf, uint file_id,
                                   int event_server_id, const char *ext)
 {
@@ -246,14 +306,12 @@ static char *slave_load_file_stem(char *buf, uint file_id,
 #endif
 
 
-/*
-  Delete all temporary files used for SQL_LOAD.
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
-  SYNOPSIS
-    cleanup_load_tmpdir()
+/**
+  Delete all temporary files used for SQL_LOAD.
 */
 
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 static void cleanup_load_tmpdir()
 {
   MY_DIR *dirp;
@@ -321,7 +379,7 @@ static inline int read_str(const char **buf, const char *buf_end,
 }
 
 
-/*
+/**
   Transforms a string into "" or its expression in 0x... form.
 */
 
@@ -338,12 +396,14 @@ char *str_to_hex(char *to, const char *from, uint len)
   return to;                               // pointer to end 0 of 'to'
 }
 
-/*
+#ifndef MYSQL_CLIENT
+
+/**
   Append a version of the 'from' string suitable for use in a query to
   the 'to' string.  To generate a correct escaping, the character set
   information in 'csinfo' is used.
- */
-#ifndef MYSQL_CLIENT
+*/
+
 int
 append_query_string(CHARSET_INFO *csinfo,
                     String const *from, String *to)
@@ -370,7 +430,7 @@ append_query_string(CHARSET_INFO *csinfo,
 #endif
 
 
-/*
+/**
   Prints a "session_var=value" string. Used by mysqlbinlog to print some SET
   commands just before it prints a query.
 */
@@ -395,8 +455,9 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
 	Log_event methods (= the parent class of all events)
 **************************************************************************/
 
-/*
-  Log_event::get_type_str()
+/**
+  @return
+  returns the human readable name of the event's type
 */
 
 const char* Log_event::get_type_str()
@@ -444,7 +505,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 }
 
 
-/*
+/**
   This minimal constructor is for when you are not even sure that there
   is a valid THD. For example in the server when we are shutting down or
   flushing logs after receiving a SIGHUP (then we must write a Rotate to
@@ -555,8 +616,32 @@ int Log_event::do_update_pos(Relay_log_info *rli)
     Matz: I don't think we will need this check with this refactoring.
   */
   if (rli)
-    rli->stmt_done(log_pos, when);
-
+  {
+    /*
+      bug#29309 simulation: resetting the flag to force
+      wrong behaviour of artificial event to update
+      rli->last_master_timestamp for only one time -
+      the first FLUSH LOGS in the test.
+    */
+    DBUG_EXECUTE_IF("let_first_flush_log_change_timestamp",
+                    if (debug_not_change_ts_if_art_event == 1
+                        && is_artificial_event())
+                    {
+                      debug_not_change_ts_if_art_event= 0;
+                    });
+#ifndef DBUG_OFF
+    rli->stmt_done(log_pos, 
+                   is_artificial_event() &&
+                   debug_not_change_ts_if_art_event > 0 ? 0 : when);
+#else
+    rli->stmt_done(log_pos, is_artificial_event()? 0 : when);
+#endif
+    DBUG_EXECUTE_IF("let_first_flush_log_change_timestamp",
+                    if (debug_not_change_ts_if_art_event == 0)
+                    {
+                      debug_not_change_ts_if_art_event= 2;
+                    });
+  }
   return 0;                                   // Cannot fail currently
 }
 
@@ -570,7 +655,8 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       (ulong) server_id, (ulong) ::server_id,
                       rli->replicate_same_server_id,
                       rli->slave_skip_counter));
-  if (server_id == ::server_id && !rli->replicate_same_server_id)
+  if (server_id == ::server_id && !rli->replicate_same_server_id ||
+      rli->slave_skip_counter == 1 && rli->is_in_group())
     return EVENT_SKIP_IGNORE;
   else if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
@@ -589,12 +675,9 @@ void Log_event::pack_info(Protocol *protocol)
 }
 
 
-/*
-  Log_event::net_send()
-
+/**
   Only called by SHOW BINLOG EVENTS
 */
-
 int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
 {
   const char *p= strrchr(log_name, FN_LIBCHAR);
@@ -615,8 +698,10 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
 #endif /* HAVE_REPLICATION */
 
 
-/*
-  Log_event::init_show_field_list()
+/**
+  init_show_field_list() prepares the column names and types for the
+  output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
+  EVENTS.
 */
 
 void Log_event::init_show_field_list(List<Item>* field_list)
@@ -712,12 +797,9 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 }
 
 
-/*
-  Log_event::read_log_event()
-
+/**
   This needn't be format-tolerant, because we only read
   LOG_EVENT_MINIMAL_HEADER_LEN (we just want to read the event's length).
-
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
@@ -800,14 +882,11 @@ end:
 #define LOCK_MUTEX
 #endif
 
-/*
-  Log_event::read_log_event()
-
-  NOTE:
+#ifndef MYSQL_CLIENT
+/**
+  @note
     Allocates memory;  The caller is responsible for clean-up.
 */
-
-#ifndef MYSQL_CLIENT
 Log_event* Log_event::read_log_event(IO_CACHE* file,
 				     pthread_mutex_t* log_lock,
                                      const Format_description_log_event
@@ -905,8 +984,7 @@ err:
 }
 
 
-/*
-  Log_event::read_log_event()
+/**
   Binlog format tolerance is in (buf, event_len, description_event)
   constructors.
 */
@@ -1227,18 +1305,29 @@ void Log_event::print_timestamp(IO_CACHE* file, time_t* ts)
 #endif /* MYSQL_CLIENT */
 
 
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+inline Log_event::enum_skip_reason
+Log_event::continue_group(Relay_log_info *rli)
+{
+  if (rli->slave_skip_counter == 1)
+    return Log_event::EVENT_SKIP_IGNORE;
+  return Log_event::do_shall_skip(rli);
+}
+#endif
+
 /**************************************************************************
 	Query_log_event methods
 **************************************************************************/
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
-/*
-  Query_log_event::pack_info()
+/**
   This (which is used only for SHOW BINLOG EVENTS) could be updated to
   print SET @@session_var=. But this is not urgent, as SHOW BINLOG EVENTS is
   only an information, it does not produce suitable queries to replay (for
   example it does not print LOAD DATA INFILE).
+  @todo
+    show the catalog ??
 */
 
 void Query_log_event::pack_info(Protocol *protocol)
@@ -1267,7 +1356,9 @@ void Query_log_event::pack_info(Protocol *protocol)
 
 #ifndef MYSQL_CLIENT
 
-/* Utility function for the next method */
+/**
+  Utility function for the next method (Query_log_event::write()) .
+*/
 static void write_str_with_code_and_len(char **dst, const char *src,
                                         int len, uint code)
 {
@@ -1279,10 +1370,10 @@ static void write_str_with_code_and_len(char **dst, const char *src,
 }
 
 
-/*
-  Query_log_event::write()
+/**
+  Query_log_event::write().
 
-  NOTES:
+  @note
     In this event we have to modify the header to have the correct
     EVENT_LEN_OFFSET as we don't yet know how many status variables we
     will print!
@@ -1290,6 +1381,11 @@ static void write_str_with_code_and_len(char **dst, const char *src,
 
 bool Query_log_event::write(IO_CACHE* file)
 {
+  /**
+    @todo if catalog can be of length FN_REFLEN==512, then we are not
+    replicating it correctly, since the length is stored in a byte
+    /sven
+  */
   uchar buf[QUERY_HEADER_LEN+
             1+4+           // code of flags2 and flags2
             1+8+           // code of sql_mode and sql_mode
@@ -1454,9 +1550,7 @@ bool Query_log_event::write(IO_CACHE* file)
           my_b_safe_write(file, (uchar*) query, q_len)) ? 1 : 0;
 }
 
-/*
-  Query_log_event::Query_log_event()
- 
+/**
   The simplest constructor that could possibly work.  This is used for
   creating static objects that have a special meaning and are invisible
   to the log.  
@@ -1516,6 +1610,10 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   
   time(&end_time);
   exec_time = (ulong) (end_time  - thd_arg->start_time);
+  /**
+    @todo this means that if we have no catalog, then it is replicated
+    as an existing catalog of length zero. is that safe? /sven
+  */
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
   /* status_vars_len is set just before writing the event */
   db_len = (db) ? (uint32) strlen(db) : 0;
@@ -1525,7 +1623,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   /*
     If we don't use flags2 for anything else than options contained in
     thd_arg->options, it would be more efficient to flags2=thd_arg->options
-    (OPTIONS_WRITTEN_TO_BINLOG would be used only at reading time).
+    (OPTIONS_WRITTEN_TO_BIN_LOG would be used only at reading time).
     But it's likely that we don't want to use 32 bits for 3 bits; in the future
     we will probably want to reclaim the 29 bits. So we need the &.
   */
@@ -1556,18 +1654,48 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 
 /* 2 utility functions for the next method */
 
-/* 
-  Get the pointer for a string (src) that contains the length in
-  the first byte. Set the output string (dst) to the string value
-  and place the length of the string in the byte after the string.
+/**
+   Read a string with length from memory.
+
+   This function reads the string-with-length stored at
+   <code>src</code> and extract the length into <code>*len</code> and
+   a pointer to the start of the string into <code>*dst</code>. The
+   string can then be copied using <code>memcpy()</code> with the
+   number of bytes given in <code>*len</code>.
+
+   @param src Pointer to variable holding a pointer to the memory to
+              read the string from.
+   @param dst Pointer to variable holding a pointer where the actual
+              string starts. Starting from this position, the string
+              can be copied using @c memcpy().
+   @param len Pointer to variable where the length will be stored.
+   @param end One-past-the-end of the memory where the string is
+              stored.
+
+   @return    Zero if the entire string can be copied successfully,
+              @c UINT_MAX if the length could not be read from memory
+              (that is, if <code>*src >= end</code>), otherwise the
+              number of bytes that are missing to read the full
+              string, which happends <code>*dst + *len >= end</code>.
 */
-static void get_str_len_and_pointer(const Log_event::Byte **src, 
-                                    const char **dst, 
-                                    uint *len)
+static int
+get_str_len_and_pointer(const Log_event::Byte **src,
+                        const char **dst,
+                        uint *len,
+                        const Log_event::Byte *end)
 {
-  if ((*len= **src))
-    *dst= (char *)*src + 1;                          // Will be copied later
-  (*src)+= *len + 1;
+  if (*src >= end)
+    return -1;       // Will be UINT_MAX in two-complement arithmetics
+  uint length= **src;
+  if (length > 0)
+  {
+    if (*src + length >= end)
+      return *src + length - end + 1;       // Number of bytes missing
+    *dst= (char *)*src + 1;                    // Will be copied later
+  }
+  *len= length;
+  *src+= length + 1;
+  return 0;
 }
 
 static void copy_str_and_move(const char **src, 
@@ -1580,11 +1708,50 @@ static void copy_str_and_move(const char **src,
   *(*dst)++= 0;
 }
 
-/*
-  Query_log_event::Query_log_event()
+
+#ifndef DBUG_OFF
+static char const *
+code_name(int code)
+{
+  static char buf[255];
+  switch (code) {
+  case Q_FLAGS2_CODE: return "Q_FLAGS2_CODE";
+  case Q_SQL_MODE_CODE: return "Q_SQL_MODE_CODE";
+  case Q_CATALOG_CODE: return "Q_CATALOG_CODE";
+  case Q_AUTO_INCREMENT: return "Q_AUTO_INCREMENT";
+  case Q_CHARSET_CODE: return "Q_CHARSET_CODE";
+  case Q_TIME_ZONE_CODE: return "Q_TIME_ZONE_CODE";
+  case Q_CATALOG_NZ_CODE: return "Q_CATALOG_NZ_CODE";
+  case Q_LC_TIME_NAMES_CODE: return "Q_LC_TIME_NAMES_CODE";
+  case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
+  }
+  sprintf(buf, "CODE#%d", code);
+  return buf;
+}
+#endif
+
+/**
+   Macro to check that there is enough space to read from memory.
+
+   @param PTR Pointer to memory
+   @param END End of memory
+   @param CNT Number of bytes that should be read.
+ */
+#define CHECK_SPACE(PTR,END,CNT)                      \
+  do {                                                \
+    DBUG_PRINT("info", ("Read %s", code_name(pos[-1]))); \
+    DBUG_ASSERT((PTR) + (CNT) <= (END));              \
+    if ((PTR) + (CNT) > (END)) {                      \
+      DBUG_PRINT("info", ("query= 0"));               \
+      query= 0;                                       \
+      DBUG_VOID_RETURN;                               \
+    }                                                 \
+  } while (0)
+
+
+/**
   This is used by the SQL slave thread to prepare the event before execution.
 */
-
 Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  const Format_description_log_event
                                  *description_event,
@@ -1632,6 +1799,19 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   if (tmp)
   {
     status_vars_len= uint2korr(buf + Q_STATUS_VARS_LEN_OFFSET);
+    /*
+      Check if status variable length is corrupt and will lead to very
+      wrong data. We could be even more strict and require data_len to
+      be even bigger, but this will suffice to catch most corruption
+      errors that can lead to a crash.
+    */
+    if (status_vars_len > min(data_len, MAX_SIZE_LOG_EVENT_STATUS))
+    {
+      DBUG_PRINT("info", ("status_vars_len (%u) > data_len (%lu); query= 0",
+                          status_vars_len, data_len));
+      query= 0;
+      DBUG_VOID_RETURN;
+    }
     data_len-= status_vars_len;
     DBUG_PRINT("info", ("Query_log_event has status_vars_len: %u",
                         (uint) status_vars_len));
@@ -1651,6 +1831,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   {
     switch (*pos++) {
     case Q_FLAGS2_CODE:
+      CHECK_SPACE(pos, end, 4);
       flags2_inited= 1;
       flags2= uint4korr(pos);
       DBUG_PRINT("info",("In Query_log_event, read flags2: %lu", (ulong) flags2));
@@ -1661,6 +1842,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 #ifndef DBUG_OFF
       char buff[22];
 #endif
+      CHECK_SPACE(pos, end, 8);
       sql_mode_inited= 1;
       sql_mode= (ulong) uint8korr(pos); // QQ: Fix when sql_mode is ulonglong
       DBUG_PRINT("info",("In Query_log_event, read sql_mode: %s",
@@ -1669,15 +1851,24 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       break;
     }
     case Q_CATALOG_NZ_CODE:
-      get_str_len_and_pointer(&pos, &catalog, &catalog_len);
+      DBUG_PRINT("info", ("case Q_CATALOG_NZ_CODE; pos: 0x%lx; end: 0x%lx",
+                          (ulong) pos, (ulong) end));
+      if (get_str_len_and_pointer(&pos, &catalog, &catalog_len, end))
+      {
+        DBUG_PRINT("info", ("query= 0"));
+        query= 0;
+        DBUG_VOID_RETURN;
+      }
       break;
     case Q_AUTO_INCREMENT:
+      CHECK_SPACE(pos, end, 4);
       auto_increment_increment= uint2korr(pos);
       auto_increment_offset=    uint2korr(pos+2);
       pos+= 4;
       break;
     case Q_CHARSET_CODE:
     {
+      CHECK_SPACE(pos, end, 6);
       charset_inited= 1;
       memcpy(charset, pos, 6);
       pos+= 6;
@@ -1685,20 +1876,29 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
     case Q_TIME_ZONE_CODE:
     {
-      get_str_len_and_pointer(&pos, &time_zone_str, &time_zone_len);
+      if (get_str_len_and_pointer(&pos, &time_zone_str, &time_zone_len, end))
+      {
+        DBUG_PRINT("info", ("Q_TIME_ZONE_CODE: query= 0"));
+        query= 0;
+        DBUG_VOID_RETURN;
+      }
       break;
     }
     case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
+      CHECK_SPACE(pos, end, 1);
       if ((catalog_len= *pos))
         catalog= (char*) pos+1;                           // Will be copied later
+      CHECK_SPACE(pos, end, catalog_len + 2);
       pos+= catalog_len+2; // leap over end 0
       catalog_nz= 0; // catalog has end 0 in event
       break;
     case Q_LC_TIME_NAMES_CODE:
+      CHECK_SPACE(pos, end, 2);
       lc_time_names_number= uint2korr(pos);
       pos+= 2;
       break;
     case Q_CHARSET_DATABASE_CODE:
+      CHECK_SPACE(pos, end, 2);
       charset_database_number= uint2korr(pos);
       pos+= 2;
       break;
@@ -1726,6 +1926,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
+    /**
+      @todo we should clean up and do only copy_str_and_move; it
+      works for both cases.  Then we can remove the catalog_nz
+      flag. /sven
+    */
     if (likely(catalog_nz)) // true except if event comes from 5.0.0|1|2|3.
       copy_str_and_move(&catalog, &start, catalog_len);
     else
@@ -1738,6 +1943,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   if (time_zone_len)
     copy_str_and_move(&time_zone_str, &start, time_zone_len);
 
+  /**
+    if time_zone_len or catalog_len are 0, then time_zone and catalog
+    are uninitialized at this point.  shouldn't they point to the
+    zero-length null-terminated strings we allocated space for in the
+    my_alloc call above? /sven
+  */
+
   /* A 2nd variable part; this is common to all versions */ 
   memcpy((char*) start, end, data_len);          // Copy db and query
   start[data_len]= '\0';              // End query with \0 (For safetly)
@@ -1748,11 +1960,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 }
 
 
-/*
-  Query_log_event::print()
-*/
-
 #ifdef MYSQL_CLIENT
+/**
+  Query_log_event::print().
+
+  @todo
+    print the catalog ??
+*/
 void Query_log_event::print_query_header(IO_CACHE* file,
 					 PRINT_EVENT_INFO* print_event_info)
 {
@@ -1937,6 +2151,23 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli)
 }
 
 
+/**
+  @todo
+  Compare the values of "affected rows" around here. Something
+  like:
+  @code
+     if ((uint32) affected_in_event != (uint32) affected_on_slave)
+     {
+     sql_print_error("Slave: did not get the expected number of affected \
+     rows running query from master - expected %d, got %d (this numbers \
+     should have matched modulo 4294967296).", 0, ...);
+     thd->query_error = 1;
+     }
+  @endcode
+  We may also want an option to tell the slave to ignore "affected"
+  mismatch. This mismatch could be implemented with a new ER_ code, and
+  to ignore it you would use --slave-skip-errors...
+*/
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                       const char *query_arg, uint32 q_len_arg)
 {
@@ -2200,6 +2431,7 @@ end:
   */
   thd->catalog= 0;
   thd->set_db(NULL, 0);                 /* will free the current database */
+  DBUG_PRINT("info", ("end: query= 0"));
   thd->query= 0;			// just to be sure
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -2234,6 +2466,30 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
     return Log_event::do_update_pos(rli);
 }
 
+
+Log_event::enum_skip_reason
+Query_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  DBUG_ENTER("Query_log_event::do_shall_skip");
+  DBUG_PRINT("debug", ("query: %s; q_len: %d", query, q_len));
+  DBUG_ASSERT(query && q_len > 0);
+
+  if (rli->slave_skip_counter > 0)
+  {
+    if (strcmp("BEGIN", query) == 0)
+    {
+      thd->options|= OPTION_BEGIN;
+      DBUG_RETURN(Log_event::continue_group(rli));
+    }
+
+    if (strcmp("COMMIT", query) == 0 || strcmp("ROLLBACK", query) == 0)
+    {
+      thd->options&= ~OPTION_BEGIN;
+      DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
+    }
+  }
+  DBUG_RETURN(Log_event::do_shall_skip(rli));
+}
 
 #endif
 
@@ -2367,30 +2623,31 @@ bool Start_log_event_v3::write(IO_CACHE* file)
 #endif
 
 
-/*
-  Start_log_event_v3::do_apply_event()
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
+/**
+  Start_log_event_v3::do_apply_event() .
   The master started
 
-  IMPLEMENTATION
+    IMPLEMENTATION
     - To handle the case where the master died without having time to write
-      DROP TEMPORARY TABLE, DO RELEASE_LOCK (prepared statements' deletion is
-      TODO), we clean up all temporary tables that we got, if we are sure we
-      can (see below).
+    DROP TEMPORARY TABLE, DO RELEASE_LOCK (prepared statements' deletion is
+    TODO), we clean up all temporary tables that we got, if we are sure we
+    can (see below).
 
-  TODO
+  @todo
     - Remove all active user locks.
-      Guilhem 2003-06: this is true but not urgent: the worst it can cause is
-      the use of a bit of memory for a user lock which will not be used
-      anymore. If the user lock is later used, the old one will be released. In
-      other words, no deadlock problem.
+    Guilhem 2003-06: this is true but not urgent: the worst it can cause is
+    the use of a bit of memory for a user lock which will not be used
+    anymore. If the user lock is later used, the old one will be released. In
+    other words, no deadlock problem.
 */
 
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Start_log_event_v3::do_apply_event");
-  switch (binlog_version) {
+  switch (binlog_version)
+  {
   case 3:
   case 4:
     /*
@@ -2438,23 +2695,20 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
        Format_description_log_event methods
 ****************************************************************************/
 
-/*
+/**
   Format_description_log_event 1st ctor.
 
-  SYNOPSIS
-    Format_description_log_event::Format_description_log_event
-      binlog_version              the binlog version for which we want to build
-                                  an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
-                                  x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
-                                  old 4.0 (binlog version 2) is not supported;
-                                  it should not be used for replication with
-                                  5.0.
-
-  DESCRIPTION
     Ctor. Can be used to create the event to write to the binary log (when the
     server starts or when FLUSH LOGS), or to create artificial events to parse
     binlogs from MySQL 3.23 or 4.x.
     When in a client, only the 2nd use is possible.
+
+  @param binlog_version         the binlog version for which we want to build
+                                an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
+                                x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
+                                old 4.0 (binlog version 2) is not supported;
+                                it should not be used for replication with
+                                5.0.
 */
 
 Format_description_log_event::
@@ -2562,18 +2816,20 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
 }
 
 
-/*
+/**
   The problem with this constructor is that the fixed header may have a
   length different from this version, but we don't know this length as we
   have not read the Format_description_log_event which says it, yet. This
   length is in the post-header of the event, but we don't know where the
   post-header starts.
+
   So this type of event HAS to:
   - either have the header's length at the beginning (in the header, at a
   fixed position which will never be changed), not in the post-header. That
   would make the header be "shifted" compared to other events.
   - or have a header of size LOG_EVENT_MINIMAL_HEADER_LEN (19), in all future
   versions, so that we know for sure.
+
   I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
   it is sent before Format_description_log_event).
 */
@@ -2774,7 +3030,7 @@ uint Load_log_event::get_query_buffer_length()
     21 + sql_ex.field_term_len*4 + 2 +      // " FIELDS TERMINATED BY 'str'"
     23 + sql_ex.enclosed_len*4 + 2 +        // " OPTIONALLY ENCLOSED BY 'str'"
     12 + sql_ex.escaped_len*4 + 2 +         // " ESCAPED BY 'str'"
-    21 + sql_ex.line_term_len*4 + 2 +       // " FIELDS TERMINATED BY 'str'"
+    21 + sql_ex.line_term_len*4 + 2 +       // " LINES TERMINATED BY 'str'"
     19 + sql_ex.line_start_len*4 + 2 +      // " LINES STARTING BY 'str'"
     15 + 22 +                               // " IGNORE xxx  LINES"
     3 + (num_fields-1)*2 + field_block_len; // " (field1, field2, ...)"
@@ -3008,14 +3264,11 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 #endif /* !MYSQL_CLIENT */
 
 
-/*
-  Load_log_event::Load_log_event()
-
-  NOTE
+/**
+  @note
     The caller must do buf[event_len] = 0 before he starts using the
     constructed event.
 */
-
 Load_log_event::Load_log_event(const char *buf, uint event_len,
                                const Format_description_log_event *description_event)
   :Log_event(buf, description_event), num_fields(0), fields(0),
@@ -3190,17 +3443,18 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
 }
 #endif /* MYSQL_CLIENT */
 
+#ifndef MYSQL_CLIENT
 
-/*
+/**
   Load_log_event::set_fields()
 
-  Note that this function can not use the member variable 
-  for the database, since LOAD DATA INFILE on the slave
-  can be for a different database than the current one.
-  This is the reason for the affected_db argument to this method.
+  @note
+    This function can not use the member variable 
+    for the database, since LOAD DATA INFILE on the slave
+    can be for a different database than the current one.
+    This is the reason for the affected_db argument to this method.
 */
 
-#ifndef MYSQL_CLIENT
 void Load_log_event::set_fields(const char* affected_db, 
 				List<Item> &field_list,
                                 Name_resolution_context *context)
@@ -3218,32 +3472,33 @@ void Load_log_event::set_fields(const char* affected_db,
 
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-/*
-  Does the data loading job when executing a LOAD DATA on the slave
+/**
+  Does the data loading job when executing a LOAD DATA on the slave.
 
-  SYNOPSIS
-    Load_log_event::do_apply_event
-      net
-      rli
-      use_rli_only_for_errors	  - if set to 1, rli is provided to
-                                  Load_log_event::do_apply_event
-                                  only for this function to have
-                                  RPL_LOG_NAME and
-                                  rli->last_slave_error, both being
-                                  used by error reports. rli's
-                                  position advancing is skipped (done
-                                  by the caller which is
-                                  Execute_load_log_event::do_apply_event).
-                                  - if set to 0, rli is provided for
-                                  full use, i.e. for error reports and
-                                  position advancing.
+  @param net
+  @param rli
+  @param use_rli_only_for_errors     If set to 1, rli is provided to
+                                     Load_log_event::exec_event only for this
+                                     function to have RPL_LOG_NAME and
+                                     rli->last_slave_error, both being used by
+                                     error reports. rli's position advancing
+                                     is skipped (done by the caller which is
+                                     Execute_load_log_event::exec_event).
+                                     If set to 0, rli is provided for full use,
+                                     i.e. for error reports and position
+                                     advancing.
 
-  DESCRIPTION
-    Does the data loading job when executing a LOAD DATA on the slave
+  @todo
+    fix this; this can be done by testing rules in
+    Create_file_log_event::exec_event() and then discarding Append_block and
+    al.
+  @todo
+    this is a bug - this needs to be moved to the I/O thread
 
-  RETURN VALUE
+  @retval
     0           Success
-    1    	Failure
+  @retval
+    1           Failure
 */
 
 int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
@@ -3619,24 +3874,21 @@ bool Rotate_log_event::write(IO_CACHE* file)
 #endif
 
 
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+
 /*
-  Rotate_log_event::do_apply_event()
+  Got a rotate log event from the master.
 
-  Got a rotate log event from the master
+  This is mainly used so that we can later figure out the logname and
+  position for the master.
 
-  IMPLEMENTATION
-    This is mainly used so that we can later figure out the logname and
-    position for the master.
+  We can't rotate the slave's BINlog as this will cause infinitive rotations
+  in a A -> B -> A setup.
+  The NOTES below is a wrong comment which will disappear when 4.1 is merged.
 
-    We can't rotate the slave's BINlog as this will cause infinitive rotations
-    in a A -> B -> A setup.
-    The NOTES below is a wrong comment which will disappear when 4.1 is merged.
-
-  RETURN VALUES
+  @retval
     0	ok
 */
-
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Rotate_log_event::do_update_pos(Relay_log_info *rli)
 {
   DBUG_ENTER("Rotate_log_event::do_update_pos");
@@ -3871,10 +4123,7 @@ Intvar_log_event::do_shall_skip(Relay_log_info *rli)
     that we do not change the value of the slave skip counter since it
     will be decreased by the following insert event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 
 #endif
@@ -3970,10 +4219,7 @@ Rand_log_event::do_shall_skip(Relay_log_info *rli)
     that we do not change the value of the slave skip counter since it
     will be decreased by the following insert event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 
 #endif /* !MYSQL_CLIENT */
@@ -3994,12 +4240,12 @@ void Xid_log_event::pack_info(Protocol *protocol)
 }
 #endif
 
-/*
-  NOTE it's ok not to use int8store here,
+/**
+  @note
+  It's ok not to use int8store here,
   as long as xid_t::set(ulonglong) and
-  xid_t::get_my_xid doesn't do it either
-
-  we don't care about actual values of xids as long as
+  xid_t::get_my_xid doesn't do it either.
+  We don't care about actual values of xids as long as
   identical numbers compare identically
 */
 
@@ -4048,6 +4294,17 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
   return end_trans(thd, COMMIT);
+}
+
+Log_event::enum_skip_reason
+Xid_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  DBUG_ENTER("Xid_log_event::do_shall_skip");
+  if (rli->slave_skip_counter > 0) {
+    thd->options&= ~OPTION_BEGIN;
+    DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
+  }
+  DBUG_RETURN(Log_event::do_shall_skip(rli));
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -4427,10 +4684,7 @@ User_var_log_event::do_shall_skip(Relay_log_info *rli)
     that we do not change the value of the slave skip counter since it
     will be decreased by the following insert event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -4470,6 +4724,10 @@ void Slave_log_event::pack_info(Protocol *protocol)
 
 
 #ifndef MYSQL_CLIENT
+/**
+  @todo
+  re-write this better without holding both locks at the same time
+*/
 Slave_log_event::Slave_log_event(THD* thd_arg,
 				 Relay_log_info* rli)
   :Log_event(thd_arg, 0, 0) , mem_pool(0), master_host(0)
@@ -4565,7 +4823,7 @@ void Slave_log_event::init_from_mem_pool(int data_size)
 }
 
 
-/* This code is not used, so has not been updated to be format-tolerant */
+/** This code is not used, so has not been updated to be format-tolerant. */
 Slave_log_event::Slave_log_event(const char* buf, uint event_len)
   :Log_event(buf,0) /*unused event*/ ,mem_pool(0),master_host(0)
 {
@@ -4613,9 +4871,8 @@ void Stop_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #endif /* MYSQL_CLIENT */
 
 
+#ifndef MYSQL_CLIENT
 /*
-  Stop_log_event::do_apply_event()
-
   The master stopped.  We used to clean up all temporary tables but
   this is useless as, as the master has shut down properly, it has
   written all DROP TEMPORARY TABLE (prepared statements' deletion is
@@ -4626,8 +4883,6 @@ void Stop_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   Start_log_event_v3::do_apply_event(), not here. Because if we come
   here, the master was sane.
 */
-
-#ifndef MYSQL_CLIENT
 int Stop_log_event::do_update_pos(Relay_log_info *rli)
 {
   /*
@@ -5366,6 +5621,19 @@ int Begin_load_query_log_event::get_create_or_append() const
 #endif /* defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
 
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+Log_event::enum_skip_reason
+Begin_load_query_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  /*
+    If the slave skip counter is 1, then we should not start executing
+    on the next event.
+  */
+  return continue_group(rli);
+}
+#endif
+
+
 /**************************************************************************
 	Execute_load_query_log_event methods
 **************************************************************************/
@@ -5374,12 +5642,13 @@ int Begin_load_query_log_event::get_create_or_append() const
 #ifndef MYSQL_CLIENT
 Execute_load_query_log_event::
 Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
-                     ulong query_length_arg, uint fn_pos_start_arg,
-                     uint fn_pos_end_arg,
-                     enum_load_dup_handling dup_handling_arg,
-                     bool using_trans, bool suppress_use):
+                             ulong query_length_arg, uint fn_pos_start_arg,
+                             uint fn_pos_end_arg,
+                             enum_load_dup_handling dup_handling_arg,
+                             bool using_trans, bool suppress_use,
+                             THD::killed_state killed_err_arg):
   Query_log_event(thd_arg, query_arg, query_length_arg, using_trans,
-                  suppress_use),
+                  suppress_use, killed_err_arg),
   file_id(thd_arg->file_id), fn_pos_start(fn_pos_start_arg),
   fn_pos_end(fn_pos_end_arg), dup_handling(dup_handling_arg)
 {
@@ -5437,7 +5706,9 @@ void Execute_load_query_log_event::print(FILE* file,
   print(file, print_event_info, 0);
 }
 
-
+/**
+  Prints the query as LOAD DATA LOCAL and with rewritten filename.
+*/
 void Execute_load_query_log_event::print(FILE* file,
                                          PRINT_EVENT_INFO* print_event_info,
                                          const char *local_fname)
@@ -5577,6 +5848,10 @@ bool sql_ex_info::write_data(IO_CACHE* file)
   }
   else
   {
+    /**
+      @todo This is sensitive to field padding. We should write a
+      char[7], not an old_sql_ex. /sven
+    */
     old_sql_ex old_ex;
     old_ex.field_term= *field_term;
     old_ex.enclosed=   *enclosed;
@@ -6146,13 +6421,18 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       table->in_use = old_thd;
       switch (error)
       {
-        /* Some recoverable errors */
-      case HA_ERR_RECORD_CHANGED:
-      case HA_ERR_KEY_NOT_FOUND:	/* Idempotency support: OK if
-                                           tuple does not exist */
-	error= 0;
       case 0:
 	break;
+
+      /* Some recoverable errors */
+      case HA_ERR_RECORD_CHANGED:
+      case HA_ERR_RECORD_DELETED:
+      case HA_ERR_KEY_NOT_FOUND:
+      case HA_ERR_END_OF_FILE:
+        /* Idempotency support: OK if tuple does not exist */
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+        error= 0;
+        break;
 
       default:
 	rli->report(ERROR_LEVEL, thd->net.last_errno,
@@ -6170,6 +6450,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
        m_curr_row_end.
       */ 
    
+      DBUG_PRINT("info", ("error: %d", error));
+      DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
+                          (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
+
       if (!m_curr_row_end && !error)
         unpack_current_row(rli);
   
@@ -6469,17 +6753,29 @@ void Rows_log_event::print_helper(FILE *file,
   data) in the table map are initialized as zero (0). The array size is the 
   same as the columns for the table on the slave.
 
+  Additionally, values saved for field metadata on the master are saved as a 
+  string of bytes (uchar) in the binlog. A field may require 1 or more bytes
+  to store the information. In cases where values require multiple bytes 
+  (e.g. values > 255), the endian-safe methods are used to properly encode 
+  the values on the master and decode them on the slave. When the field
+  metadata values are captured on the slave, they are stored in an array of
+  type uint16. This allows the least number of casts to prevent casting bugs
+  when the field metadata is used in comparisons of field attributes. When
+  the field metadata is used for calculating addresses in pointer math, the
+  type used is uint32. 
 */
 
+#if !defined(MYSQL_CLIENT)
 /**
   Save the field metadata based on the real_type of the field.
   The metadata saved depends on the type of the field. Some fields
   store a single byte for pack_length() while others store two bytes
   for field_length (max length).
   
-  @retval 0 Ok.
+  @retval  0  Ok.
 
-  TODO: We may want to consider changing the encoding of the information.
+  @todo
+  We may want to consider changing the encoding of the information.
   Currently, the code attempts to minimize the number of bytes written to 
   the tablemap. There are at least two other alternatives; 1) using 
   net_store_length() to store the data allowing it to choose the number of
@@ -6494,7 +6790,6 @@ void Rows_log_event::print_helper(FILE *file,
   is less wasteful for space but does waste 1 byte for every field that does
   not encode 2 parts. 
 */
-#if !defined(MYSQL_CLIENT)
 int Table_map_log_event::save_field_metadata()
 {
   DBUG_ENTER("Table_map_log_event::save_field_metadata");
@@ -6866,10 +7161,7 @@ Table_map_log_event::do_shall_skip(Relay_log_info *rli)
     If the slave skip counter is 1, then we should not start executing
     on the next event.
   */
-  if (rli->slave_skip_counter == 1)
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
+  return continue_group(rli);
 }
 
 int Table_map_log_event::do_update_pos(Relay_log_info *rli)
@@ -7383,6 +7675,9 @@ static bool record_compare(TABLE *table)
     records. Check that the other engines also return correct records.
    */
 
+  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+  DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
+
   bool result= FALSE;
   uchar saved_x[2], saved_filler[2];
 
@@ -7471,7 +7766,7 @@ record_compare_exit:
 
 int Rows_log_event::find_row(const Relay_log_info *rli)
 {
-  DBUG_ENTER("find_row");
+  DBUG_ENTER("Rows_log_event::find_row");
 
   DBUG_ASSERT(m_table && m_table->in_use != NULL);
 
@@ -7700,7 +7995,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       DBUG_DUMP("record found", table->record[0], table->s->reclength);
     table->file->ha_rnd_end();
 
-    DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
+    DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == HA_ERR_RECORD_DELETED || error == 0);
     DBUG_RETURN(error);
   }
 
@@ -7900,7 +8195,15 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   int error= find_row(rli); 
   if (error)
+  {
+    /*
+      We need to read the second image in the event of error to be
+      able to skip to the next pair of updates
+    */
+    m_curr_row= m_curr_row_end;
+    unpack_current_row(rli);
     return error;
+  }
 
   /*
     This is the situation after locating BI:

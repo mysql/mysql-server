@@ -688,9 +688,7 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
-  mysql_ha_flush(this, (TABLE_LIST*) 0,
-                 MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL, FALSE);
-  hash_free(&handler_tables_hash);
+  mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
   close_temporary_tables(this);
@@ -828,7 +826,20 @@ void THD::awake(THD::killed_state state_to_set)
     if (!slave_thread)
       thread_scheduler.post_kill_notification(this);
 #ifdef SIGNAL_WITH_VIO_CLOSE
-    close_active_vio();
+    if (this != current_thd)
+    {
+      /*
+        In addition to a signal, let's close the socket of the thread that
+        is being killed. This is to make sure it does not block if the
+        signal is lost. This needs to be done only on platforms where
+        signals are not a reliable interruption mechanism.
+
+        If we're killing ourselves, we know that we're not blocked, so this
+        hack is not used.
+      */
+
+      close_active_vio();
+    }
 #endif    
   }
   if (mysys_var)
@@ -951,7 +962,7 @@ void THD::cleanup_after_query()
 
 
 /**
-  Create a LEX_STRING in this connection
+  Create a LEX_STRING in this connection.
 
   @param lex_str  pointer to LEX_STRING object to be initialized
   @param str      initializer to be copied into lex_str
@@ -1564,6 +1575,7 @@ int
 select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   bool blob_flag=0;
+  bool string_results= FALSE, non_string_results= FALSE;
   unit= u;
   if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
@@ -1581,13 +1593,18 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 	blob_flag=1;
 	break;
       }
+      if (item->result_type() == STRING_RESULT)
+        string_results= TRUE;
+      else
+        non_string_results= TRUE;
     }
   }
   field_term_length=exchange->field_term->length();
+  field_term_char= field_term_length ? (*exchange->field_term)[0] : INT_MAX;
   if (!exchange->line_term->length())
     exchange->line_term=exchange->field_term;	// Use this if it exists
   field_sep_char= (exchange->enclosed->length() ? (*exchange->enclosed)[0] :
-		   field_term_length ? (*exchange->field_term)[0] : INT_MAX);
+                   field_term_char);
   escape_char=	(exchange->escaped->length() ? (*exchange->escaped)[0] : -1);
   is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
   is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
@@ -1599,12 +1616,25 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     exchange->opt_enclosed=1;			// A little quicker loop
   fixed_row_size= (!field_term_length && !exchange->enclosed->length() &&
 		   !blob_flag);
+  if ((is_ambiguous_field_sep && exchange->enclosed->is_empty() &&
+       (string_results || is_unsafe_field_sep)) ||
+      (exchange->opt_enclosed && non_string_results &&
+       field_term_length && strchr(NUMERIC_CHARS, field_term_char)))
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 ER_AMBIGUOUS_FIELD_TERM, ER(ER_AMBIGUOUS_FIELD_TERM));
+    is_ambiguous_field_term= TRUE;
+  }
+  else
+    is_ambiguous_field_term= FALSE;
+
   return 0;
 }
 
 
 #define NEED_ESCAPING(x) ((int) (uchar) (x) == escape_char    || \
-                          (int) (uchar) (x) == field_sep_char || \
+                          (enclosed ? (int) (uchar) (x) == field_sep_char      \
+                                    : (int) (uchar) (x) == field_term_char) || \
                           (int) (uchar) (x) == line_sep_char  || \
                           !(x))
 
@@ -1633,8 +1663,10 @@ bool select_export::send_data(List<Item> &items)
   while ((item=li++))
   {
     Item_result result_type=item->result_type();
+    bool enclosed = (exchange->enclosed->length() &&
+                     (!exchange->opt_enclosed || result_type == STRING_RESULT));
     res=item->str_result(&tmp);
-    if (res && (!exchange->opt_enclosed || result_type == STRING_RESULT))
+    if (res && enclosed)
     {
       if (my_b_write(&cache,(uchar*) exchange->enclosed->ptr(),
 		     exchange->enclosed->length()))
@@ -1725,11 +1757,16 @@ bool select_export::send_data(List<Item> &items)
             DBUG_ASSERT before the loop makes that sure.
           */
 
-          if (NEED_ESCAPING(*pos) ||
-              (check_second_byte &&
-               my_mbcharlen(character_set_client, (uchar) *pos) == 2 &&
-               pos + 1 < end &&
-               NEED_ESCAPING(pos[1])))
+          if ((NEED_ESCAPING(*pos) ||
+               (check_second_byte &&
+                my_mbcharlen(character_set_client, (uchar) *pos) == 2 &&
+                pos + 1 < end &&
+                NEED_ESCAPING(pos[1]))) &&
+              /*
+               Don't escape field_term_char by doubling - doubling is only
+               valid for ENCLOSED BY characters:
+              */
+              (enclosed || !is_ambiguous_field_term || *pos != field_term_char))
           {
 	    char tmp_buff[2];
             tmp_buff[0]= ((int) *pos == field_sep_char &&
@@ -1768,7 +1805,7 @@ bool select_export::send_data(List<Item> &items)
 	  goto err;
       }
     }
-    if (res && (!exchange->opt_enclosed || result_type == STRING_RESULT))
+    if (res && enclosed)
     {
       if (my_b_write(&cache, (uchar*) exchange->enclosed->ptr(),
                      exchange->enclosed->length()))
@@ -1897,7 +1934,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
   {
     if (!cache)
     {
-      cache= Item_cache::get_cache(val_item->result_type());
+      cache= Item_cache::get_cache(val_item);
       switch (val_item->result_type())
       {
       case REAL_RESULT:

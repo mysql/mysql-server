@@ -13,9 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
+/**
+  @file
+
+  @brief
   Handling of MySQL SQL variables
 
+  @details
   To add a new variable, one has to do the following:
 
   - Use one of the 'sys_var... classes from set_var.h or write a specific
@@ -28,18 +32,19 @@
   - Don't forget to initialize new fields in global_system_variables and
     max_system_variables!
 
-  NOTES:
-    - Be careful with var->save_result: sys_var::check() only updates
+  @todo
+    Add full support for the variable character_set (for 4.1)
+
+  @todo
+    When updating myisam_delay_key_write, we should do a 'flush tables'
+    of all MyISAM tables to ensure that they are reopen with the
+    new attribute.
+
+  @note
+    Be careful with var->save_result: sys_var::check() only updates
     ulonglong_value; so other members of the union are garbage then; to use
     them you must first assign a value to them (in specific ::check() for
     example).
-
-  TODO:
-    - Add full support for the variable character_set (for 4.1)
-
-    - When updating myisam_delay_key_write, we should do a 'flush tables'
-      of all MyISAM tables to ensure that they are reopen with the
-      new attribute.
 */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -164,7 +169,8 @@ static sys_var_character_set_sv	sys_character_set_server(&vars, "character_set_s
 sys_var_const_str       sys_charset_system(&vars, "character_set_system",
                                            (char *)my_charset_utf8_general_ci.name);
 static sys_var_character_set_database	sys_character_set_database(&vars, "character_set_database");
-static sys_var_character_set_sv sys_character_set_client(&vars, "character_set_client",
+static sys_var_character_set_client sys_character_set_client(&vars, 
+                                        "character_set_client",
                                         &SV::character_set_client,
                                         &default_charset_info);
 static sys_var_character_set_sv sys_character_set_connection(&vars, "character_set_connection",
@@ -649,8 +655,14 @@ static sys_var_const_str	sys_license(&vars, "license", STRINGIFY_ARG(LICENSE));
 /* Global variables which enable|disable logging */
 static sys_var_log_state sys_var_general_log(&vars, "general_log", &opt_log,
                                       QUERY_LOG_GENERAL);
+/* Synonym of "general_log" for consistency with SHOW VARIABLES output */
+static sys_var_log_state sys_var_log(&vars, "log", &opt_log,
+                                      QUERY_LOG_GENERAL);
 static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
                                          QUERY_LOG_SLOW);
+/* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
+static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
+                                          &opt_slow_log, QUERY_LOG_SLOW);
 sys_var_str sys_var_general_log_path(&vars, "general_log_file", sys_check_log_path,
 				     sys_update_general_log_path,
 				     sys_default_general_log_path,
@@ -686,10 +698,8 @@ static SHOW_VAR fixed_vars[]= {
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_MY_BOOL},
 #endif
-  {"log",                     (char*) &opt_log,                     SHOW_MY_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
-  {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_MY_BOOL},
   {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_MY_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
@@ -827,9 +837,9 @@ static void sys_default_ftb_syntax(THD *thd, enum_var_type type)
 }
 
 
-/*
+/**
   If one sets the LOW_PRIORIY UPDATES flag, we also must change the
-  used lock type
+  used lock type.
 */
 
 static void fix_low_priority_updates(THD *thd, enum_var_type type)
@@ -851,8 +861,8 @@ fix_myisam_max_sort_file_size(THD *thd, enum_var_type type)
     (my_off_t) global_system_variables.myisam_max_sort_file_size;
 }
 
-/*
-  Set the OPTION_BIG_SELECTS flag if max_join_size == HA_POS_ERROR
+/**
+  Set the OPTION_BIG_SELECTS flag if max_join_size == HA_POS_ERROR.
 */
 
 static void fix_max_join_size(THD *thd, enum_var_type type)
@@ -867,7 +877,7 @@ static void fix_max_join_size(THD *thd, enum_var_type type)
 }
 
 
-/*
+/**
   Can't change the 'next' tx_isolation while we are already in
   a transaction
 */
@@ -883,7 +893,7 @@ static int check_tx_isolation(THD *thd, set_var *var)
 
 /*
   If one doesn't use the SESSION modifier, the isolation level
-  is only active for the next command
+  is only active for the next command.
 */
 static void fix_tx_isolation(THD *thd, enum_var_type type)
 {
@@ -1455,9 +1465,12 @@ err:
 }
 
 
-/*
-  Return an Item for a variable.  Used with @@[global.]variable_name
-  If type is not given, return local value if exists, else global
+/**
+  Return an Item for a variable.
+
+  Used with @@[global.]variable_name.
+
+  If type is not given, return local value if exists, else global.
 */
 
 Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
@@ -1619,7 +1632,7 @@ uchar *sys_var_thd_bit::value_ptr(THD *thd, enum_var_type type,
 }
 
 
-/* Update a date_time format variable based on given value */
+/** Update a date_time format variable based on given value. */
 
 void sys_var_thd_date_time_format::update2(THD *thd, enum_var_type type,
 					   DATE_TIME_FORMAT *new_value)
@@ -1869,6 +1882,21 @@ CHARSET_INFO **sys_var_character_set_sv::ci_ptr(THD *thd, enum_var_type type)
 }
 
 
+bool sys_var_character_set_client::check(THD *thd, set_var *var)
+{
+  if (sys_var_character_set_sv::check(thd, var))
+    return 1;
+  /* Currently, UCS-2 cannot be used as a client character set */
+  if (var->save_result.charset->mbminlen > 1)
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, 
+             var->save_result.charset->csname);
+    return 1;
+  }
+  return 0;
+}
+
+
 CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd,
 						       enum_var_type type)
 {
@@ -2036,6 +2064,12 @@ end:
 }
 
 
+/**
+  @todo
+  Abort if some other thread is changing the key cache.
+  This should be changed so that we wait until the previous
+  assignment is done and then do the new assign
+*/
 bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 {
   ulong tmp= (ulong) var->value->val_int();
@@ -2110,18 +2144,24 @@ void sys_var_log_state::set_default(THD *thd, enum_var_type type)
 
 static int  sys_check_log_path(THD *thd,  set_var *var)
 {
-  char path[FN_REFLEN];
+  char path[FN_REFLEN], buff[FN_REFLEN];
   MY_STAT f_stat;
-  const char *var_path= var->value->str_value.ptr();
+  String str(buff, sizeof(buff), system_charset_info), *res;
+  const char *log_file_str;
+      
+  if (!(res= var->value->val_str(&str)))
+    goto err;
+
+  log_file_str= res->c_ptr();
   bzero(&f_stat, sizeof(MY_STAT));
 
-  (void) unpack_filename(path, var_path);
+  (void) unpack_filename(path, log_file_str);
   if (my_stat(path, &f_stat, MYF(0)))
   {
     /* Check if argument is a file and we have 'write' permission */
     if (!MY_S_ISREG(f_stat.st_mode) ||
         !(f_stat.st_mode & MY_S_IWRITE))
-      return -1;
+      goto err;
   }
   else
   {
@@ -2130,11 +2170,16 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
       Check if directory exists and 
       we have permission to create file & write to file
     */
-    (void) dirname_part(path, var_path, &path_length);
+    (void) dirname_part(path, log_file_str, &path_length);
     if (my_access(path, (F_OK|W_OK)))
-      return -1;
+      goto err;
   }
   return 0;
+
+err:
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, 
+           res ? log_file_str : "NULL");
+  return 1;
 }
 
 
@@ -2287,6 +2332,13 @@ uchar *sys_var_log_output::value_ptr(THD *thd, enum_var_type type,
 
 int set_var_collation_client::check(THD *thd)
 {
+  /* Currently, UCS-2 cannot be used as a client character set */
+  if (character_set_client->mbminlen > 1)
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+             character_set_client->csname);
+    return 1;
+  }
   return 0;
 }
 
@@ -2728,23 +2780,20 @@ static uchar *get_error_count(THD *thd)
 }
 
 
-/*
-  Get the tmpdir that was specified or chosen by default
+/**
+  Get the tmpdir that was specified or chosen by default.
 
-  SYNOPSIS
-    get_tmpdir()
-    thd		thread handle
+  This is necessary because if the user does not specify a temporary
+  directory via the command line, one is chosen based on the environment
+  or system defaults.  But we can't just always use mysql_tmpdir, because
+  that is actually a call to my_tmpdir() which cycles among possible
+  temporary directories.
 
-  DESCRIPTION
-    This is necessary because if the user does not specify a temporary
-    directory via the command line, one is chosen based on the environment
-    or system defaults.  But we can't just always use mysql_tmpdir, because
-    that is actually a call to my_tmpdir() which cycles among possible
-    temporary directories.
+  @param thd		thread handle
 
-  RETURN VALUES
+  @retval
     ptr		pointer to NUL-terminated string
- */
+*/
 static uchar *get_tmpdir(THD *thd)
 {
   if (opt_mysql_tmpdir)
@@ -2759,16 +2808,16 @@ static uchar *get_tmpdir(THD *thd)
   - Update loop
 ****************************************************************************/
 
-/*
-  Find variable name in option my_getopt structure used for command line args
+/**
+  Find variable name in option my_getopt structure used for
+  command line args.
 
-  SYNOPSIS
-    find_option()
-    opt		option structure array to search in
-    name	variable name
+  @param opt	option structure array to search in
+  @param name	variable name
 
-  RETURN VALUES
+  @retval
     0		Error
+  @retval
     ptr		pointer to option structure
 */
 
@@ -2791,8 +2840,8 @@ static struct my_option *find_option(struct my_option *opt, const char *name)
 }
 
 
-/*
-  Return variable name and length for hashing of variables
+/**
+  Return variable name and length for hashing of variables.
 */
 
 static uchar *get_sys_var_length(const sys_var *var, size_t *length,
@@ -2908,7 +2957,8 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted)
 
     /* sort into order */
     if (sorted)
-      qsort(result, count + fixed_count, sizeof(SHOW_VAR), (qsort_cmp)show_cmp);
+      my_qsort(result, count + fixed_count, sizeof(SHOW_VAR),
+               (qsort_cmp) show_cmp);
     
     /* make last element empty */
     bzero(show, sizeof(SHOW_VAR));
@@ -2994,17 +3044,17 @@ int mysql_append_static_vars(const SHOW_VAR *show_vars, uint count)
 }
 
 
-/*
-  Find a user set-table variable
+/**
+  Find a user set-table variable.
 
-  SYNOPSIS
-    intern_find_sys_var()
-    str		Name of system variable to find
-    length	Length of variable.  zero means that we should use strlen()
-		on the variable
+  @param str	   Name of system variable to find
+  @param length    Length of variable.  zero means that we should use strlen()
+                   on the variable
+  @param no_error  Refuse to emit an error, even if one occurred.
 
-  RETURN VALUES
+  @retval
     pointer	pointer to variable definitions
+  @retval
     0		Unknown variable (error message is given)
 */
 
@@ -3025,25 +3075,23 @@ sys_var *intern_find_sys_var(const char *str, uint length, bool no_error)
 }
 
 
-/*
-  Execute update of all variables
+/**
+  Execute update of all variables.
 
-  SYNOPSIS
+  First run a check of all variables that all updates will go ok.
+  If yes, then execute all updates, returning an error if any one failed.
 
-  sql_set
-    THD		Thread id
-    set_var	List of variables to update
+  This should ensure that in all normal cases none all or variables are
+  updated.
 
-  DESCRIPTION
-    First run a check of all variables that all updates will go ok.
-    If yes, then execute all updates, returning an error if any one failed.
+  @param THD		Thread id
+  @param var_list       List of variables to update
 
-    This should ensure that in all normal cases none all or variables are
-    updated
-
-    RETURN VALUE
+  @retval
     0	ok
+  @retval
     1	ERROR, message sent (normally no variables was updated)
+  @retval
     -1  ERROR, message not sent
 */
 
@@ -3072,20 +3120,19 @@ err:
 }
 
 
-/*
-  Say if all variables set by a SET support the ONE_SHOT keyword (currently,
-  only character set and collation do; later timezones will).
+/**
+  Say if all variables set by a SET support the ONE_SHOT keyword
+  (currently, only character set and collation do; later timezones
+  will).
 
-  SYNOPSIS
+  @param var_list	List of variables to update
 
-  not_all_support_one_shot
-    set_var	List of variables to update
-
-  NOTES
+  @note
     It has a "not_" because it makes faster tests (no need to "!")
 
-    RETURN VALUE
+  @retval
     0	all variables of the list support ONE_SHOT
+  @retval
     1	at least one does not support ONE_SHOT
 */
 
@@ -3144,17 +3191,17 @@ int set_var::check(THD *thd)
 }
 
 
-/*
-  Check variable, but without assigning value (used by PS)
+/**
+  Check variable, but without assigning value (used by PS).
 
-  SYNOPSIS
-    set_var::light_check()
-    thd		thread handler
+  @param thd		thread handler
 
-  RETURN VALUE
+  @retval
     0	ok
+  @retval
     1	ERROR, message sent (normally no variables was updated)
-    -1  ERROR, message not sent
+  @retval
+    -1   ERROR, message not sent
 */
 int set_var::light_check(THD *thd)
 {
@@ -3201,17 +3248,17 @@ int set_var_user::check(THD *thd)
 }
 
 
-/*
-  Check variable, but without assigning value (used by PS)
+/**
+  Check variable, but without assigning value (used by PS).
 
-  SYNOPSIS
-    set_var_user::light_check()
-    thd		thread handler
+  @param thd		thread handler
 
-  RETURN VALUE
+  @retval
     0	ok
+  @retval
     1	ERROR, message sent (normally no variables was updated)
-    -1  ERROR, message not sent
+  @retval
+    -1   ERROR, message not sent
 */
 int set_var_user::light_check(THD *thd)
 {
@@ -3385,13 +3432,15 @@ bool sys_var_thd_table_type::update(THD *thd, set_var *var)
  Functions to handle sql_mode
 ****************************************************************************/
 
-/*
-  Make string representation of mode
+/**
+  Make string representation of mode.
 
-  SYNOPSIS
-    thd   in  thread handler
-    val   in  sql_mode value
-    rep   out pointer pointer to string with sql_mode representation
+  @param[in]  thd    thread handler
+  @param[in]  val    sql_mode value
+  @param[out] len    pointer on length of string
+
+  @return
+    pointer to string with sql_mode representation
 */
 
 bool
@@ -3462,7 +3511,7 @@ void fix_sql_mode_var(THD *thd, enum_var_type type)
   }
 }
 
-/* Map database specific bits to function bits */
+/** Map database specific bits to function bits. */
 
 ulong fix_sql_mode(ulong sql_mode)
 {

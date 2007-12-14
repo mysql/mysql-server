@@ -1788,6 +1788,18 @@ TRUNCATE mysql.event;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29938.sql
 SHOW EVENTS;
 
+
+--echo #
+--echo # Bug#31113 mysqldump 5.1 can't handle a dash ("-") in database names
+--echo #
+create database `test-database`;
+use `test-database`;
+create table test (a int);
+--exec $MYSQL_DUMP --compact --opt --quote-names test-database
+drop database `test-database`;
+use test;
+
+
 --echo #
 --echo # End of 5.1 tests
 --echo #

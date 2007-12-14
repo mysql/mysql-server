@@ -1,6 +1,6 @@
 /* Readline.h -- the names of functions callable from within readline. */
 
-/* Copyright (C) 1987-2004 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2005 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -40,9 +40,9 @@ extern "C" {
 #endif
 
 /* Hex-encoded Readline version number. */
-#define RL_READLINE_VERSION	0x0500		/* Readline 5.0 */
+#define RL_READLINE_VERSION	0x0502		/* Readline 5.2 */
 #define RL_VERSION_MAJOR	5
-#define RL_VERSION_MINOR	0
+#define RL_VERSION_MINOR	2
 
 /* Readline data structures. */
 
@@ -241,6 +241,7 @@ extern int rl_vi_column PARAMS((int, int));
 extern int rl_vi_delete_to PARAMS((int, int));
 extern int rl_vi_change_to PARAMS((int, int));
 extern int rl_vi_yank_to PARAMS((int, int));
+extern int rl_vi_rubout PARAMS((int, int));
 extern int rl_vi_delete PARAMS((int, int));
 extern int rl_vi_back_to_indent PARAMS((int, int));
 extern int rl_vi_first_print PARAMS((int, int));
@@ -302,6 +303,8 @@ extern int rl_bind_keyseq_in_map PARAMS((const char *, rl_command_func_t *, Keym
 extern int rl_bind_keyseq_if_unbound PARAMS((const char *, rl_command_func_t *));
 extern int rl_bind_keyseq_if_unbound_in_map PARAMS((const char *, rl_command_func_t *, Keymap));
 extern int rl_generic_bind PARAMS((int, const char *, char *, Keymap));
+
+extern char *rl_variable_value PARAMS((const char *));
 extern int rl_variable_bind PARAMS((const char *, const char *));
 
 /* Backwards compatibility, use rl_bind_keyseq_in_map instead. */
@@ -401,6 +404,7 @@ extern int rl_reset_terminal PARAMS((const char *));
 extern void rl_resize_terminal PARAMS((void));
 extern void rl_set_screen_size PARAMS((int, int));
 extern void rl_get_screen_size PARAMS((int *, int *));
+extern void rl_reset_screen_size PARAMS((void));
 
 extern char *rl_get_termcap PARAMS((const char *));
 
@@ -527,6 +531,11 @@ extern const char *rl_terminal_name;
 /* The input and output streams. */
 extern FILE *rl_instream;
 extern FILE *rl_outstream;
+
+/* If non-zero, Readline gives values of LINES and COLUMNS from the environment
+   greater precedence than values fetched from the kernel when computing the
+   screen dimensions. */
+extern int rl_prefer_env_winsize;
 
 /* If non-zero, then this is the address of a function to call just
    before readline_internal () prints the first prompt. */
@@ -748,6 +757,10 @@ extern int rl_ignore_completion_duplicates;
    completion character will be inserted as any other. */
 extern int rl_inhibit_completion;
 
+/* Input error; can be returned by (*rl_getc_function) if readline is reading
+   a top-level command (RL_ISSTATE (RL_STATE_READCMD)). */
+#define READERR			(-2)
+
 /* Definitions available for use by readline clients. */
 #define RL_PROMPT_START_IGNORE	'\001'
 #define RL_PROMPT_END_IGNORE	'\002'
@@ -759,29 +772,33 @@ extern int rl_inhibit_completion;
 #define MULT_MATCH      2
 
 /* Possible state values for rl_readline_state */
-#define RL_STATE_NONE		0x00000		/* no state; before first call */
+#define RL_STATE_NONE		0x000000		/* no state; before first call */
 
-#define RL_STATE_INITIALIZING	0x00001		/* initializing */
-#define RL_STATE_INITIALIZED	0x00002		/* initialization done */
-#define RL_STATE_TERMPREPPED	0x00004		/* terminal is prepped */
-#define RL_STATE_READCMD	0x00008		/* reading a command key */
-#define RL_STATE_METANEXT	0x00010		/* reading input after ESC */
-#define RL_STATE_DISPATCHING	0x00020		/* dispatching to a command */
-#define RL_STATE_MOREINPUT	0x00040		/* reading more input in a command function */
-#define RL_STATE_ISEARCH	0x00080		/* doing incremental search */
-#define RL_STATE_NSEARCH	0x00100		/* doing non-inc search */
-#define RL_STATE_SEARCH		0x00200		/* doing a history search */
-#define RL_STATE_NUMERICARG	0x00400		/* reading numeric argument */
-#define RL_STATE_MACROINPUT	0x00800		/* getting input from a macro */
-#define RL_STATE_MACRODEF	0x01000		/* defining keyboard macro */
-#define RL_STATE_OVERWRITE	0x02000		/* overwrite mode */
-#define RL_STATE_COMPLETING	0x04000		/* doing completion */
-#define RL_STATE_SIGHANDLER	0x08000		/* in readline sighandler */
-#define RL_STATE_UNDOING	0x10000		/* doing an undo */
-#define RL_STATE_INPUTPENDING	0x20000		/* rl_execute_next called */
-#define RL_STATE_TTYCSAVED	0x40000		/* tty special chars saved */
+#define RL_STATE_INITIALIZING	0x000001	/* initializing */
+#define RL_STATE_INITIALIZED	0x000002	/* initialization done */
+#define RL_STATE_TERMPREPPED	0x000004	/* terminal is prepped */
+#define RL_STATE_READCMD	0x000008	/* reading a command key */
+#define RL_STATE_METANEXT	0x000010	/* reading input after ESC */
+#define RL_STATE_DISPATCHING	0x000020	/* dispatching to a command */
+#define RL_STATE_MOREINPUT	0x000040	/* reading more input in a command function */
+#define RL_STATE_ISEARCH	0x000080	/* doing incremental search */
+#define RL_STATE_NSEARCH	0x000100	/* doing non-inc search */
+#define RL_STATE_SEARCH		0x000200	/* doing a history search */
+#define RL_STATE_NUMERICARG	0x000400	/* reading numeric argument */
+#define RL_STATE_MACROINPUT	0x000800	/* getting input from a macro */
+#define RL_STATE_MACRODEF	0x001000	/* defining keyboard macro */
+#define RL_STATE_OVERWRITE	0x002000	/* overwrite mode */
+#define RL_STATE_COMPLETING	0x004000	/* doing completion */
+#define RL_STATE_SIGHANDLER	0x008000	/* in readline sighandler */
+#define RL_STATE_UNDOING	0x010000	/* doing an undo */
+#define RL_STATE_INPUTPENDING	0x020000	/* rl_execute_next called */
+#define RL_STATE_TTYCSAVED	0x040000	/* tty special chars saved */
+#define RL_STATE_CALLBACK	0x080000	/* using the callback interface */
+#define RL_STATE_VIMOTION	0x100000	/* reading vi motion arg */
+#define RL_STATE_MULTIKEY	0x200000	/* reading multiple-key command */
+#define RL_STATE_VICMDONCE	0x400000	/* entered vi command mode at least once */
 
-#define RL_STATE_DONE		0x80000		/* done; accepted line */
+#define RL_STATE_DONE		0x800000	/* done; accepted line */
 
 #define RL_SETSTATE(x)		(rl_readline_state |= (x))
 #define RL_UNSETSTATE(x)	(rl_readline_state &= ~(x))

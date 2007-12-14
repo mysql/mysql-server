@@ -14,7 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* This file defines all spatial functions */
+/**
+  @file
+
+  @brief
+  This file defines all spatial functions
+*/
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -356,7 +361,7 @@ String *Item_func_point::val_str(String *str)
 }
 
 
-/*
+/**
   Concatenates various items into various collections
   with checkings for valid wkb type of items.
   For example, MultiPoint can be a collection of Points only.
@@ -538,6 +543,10 @@ longlong Item_func_isempty::val_int()
 }
 
 
+/**
+  @todo
+    Ramil or Holyfoot, add real IsSimple calculation
+*/
 longlong Item_func_issimple::val_int()
 {
   DBUG_ASSERT(fixed == 1);
