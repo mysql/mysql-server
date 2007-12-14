@@ -823,7 +823,11 @@ int toku_pma_cursor_set_key(PMA_CURSOR c, DBT *key) {
 
 int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val) {
     PMA pma = c->pma;
-    unsigned int here = toku_pmainternal_find(pma, key);
+    unsigned int here; int found;
+    if (pma->dup_mode & TOKU_DB_DUPSORT)
+        here = __pma_dup_search(pma, key, val, 0, pma->N, &found);
+    else
+        here = toku_pmainternal_find(pma, key);
     assert(here<=toku_pma_index_limit(pma));
     int r = DB_NOTFOUND;
     if (here < pma->N) {

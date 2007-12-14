@@ -2670,7 +2670,7 @@ static int brtcurs_set_key(BRT_CURSOR cursor, DISKOFF off, DBT *key, DBT *val, i
     if (node->height > 0) {
         cursor->path_len += 1;
         for (;;) {
-            childnum = brtnode_which_child(node, key, brt);
+            childnum = brtnode_left_child(node, key, flag == DB_GET_BOTH ? val : 0, brt);
             cursor->path[cursor->path_len-1] = node;
             cursor->pathcnum[cursor->path_len-1] = childnum;
             brt_node_add_cursor(node, childnum, cursor);
