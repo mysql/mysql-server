@@ -835,23 +835,18 @@ static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
     int r;
     unsigned int brtflags;
     
+    assert(flags == 0); // We aren't ready to handle flags such as DB_GET_BOTH  or DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
     toku_brt_get_flags(db->i->brt, &brtflags);
     if (brtflags & TOKU_DB_DUPSORT) {
-
-        if (flags != 0 && flags != DB_GET_BOTH)
-            assert(flags == 0); // We aren't ready to handle flags such as DB_GET_BOTH  or DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
-        
         DBC *dbc;
         r = db->cursor(db, txn, &dbc, 0);
         if (r!=0) return r;
-        r = toku_c_get_noassociate(dbc, key, data, flags == DB_GET_BOTH ? DB_GET_BOTH : DB_SET);
+        r = toku_c_get_noassociate(dbc, key, data, DB_SET);
         int r2 = dbc->c_close(dbc);
         if (r!=0) return r;
         return r2;
-    } else {
-        assert(flags == 0);
-        return toku_brt_lookup(db->i->brt, key, data);
     }
+    else return toku_brt_lookup(db->i->brt, key, data);
 }
 
 static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
@@ -1119,11 +1114,10 @@ cleanup:
 
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
-
+    assert(flags == 0); // We aren't ready to handle flags such as DB_GET_BOTH  or DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
     if (db->i->primary==0) r = toku_db_get_noassociate(db, txn, key, data, flags);
     else {
         // It's a get on a secondary.
-        assert(flags == 0); // We aren't ready to handle flags such as DB_GET_BOTH  or DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
         DBT primary_key;
         memset(&primary_key, 0, sizeof(primary_key));
         r = db->pget(db, txn, key, &primary_key, data, 0);
@@ -1270,12 +1264,12 @@ error_cleanup:
 
 static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
-
     unsigned int brtflags;
-    r = toku_brt_get_flags(db->i->brt, &brtflags); assert(r == 0);
-
-    /* limit the size of key and data */
     unsigned int nodesize;
+
+    if (flags != 0) return EINVAL;
+
+    r = toku_brt_get_flags(db->i->brt, &brtflags); assert(r == 0);
     r = toku_brt_get_nodesize(db->i->brt, &nodesize); assert(r == 0);
     if (brtflags & TOKU_DB_DUPSORT) {
         unsigned int limit = nodesize / (2*BRT_FANOUT-1);
@@ -1285,26 +1279,6 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
         unsigned int limit = nodesize / (3*BRT_FANOUT-1);
         if (key->size >= limit || data->size >= limit)
             return EINVAL;
-    }
-
-    if (flags == DB_YESOVERWRITE) {
-        /* tokudb does insert or replace */
-        ;
-    } else if (flags == DB_NOOVERWRITE) {
-        /* check if the key already exists */
-        DBT testfordata;
-        r = db->get(db, txn, key, toku_init_dbt(&testfordata), 0);
-        if (r == 0)
-            return DB_KEYEXIST;
-    } else if (flags != 0) {
-        /* no other flags are currently supported */
-        return EINVAL;
-    } else {
-        if (brtflags & TOKU_DB_DUPSORT) {
-            r = db->get(db, txn, key, data, DB_GET_BOTH);
-            if (r == 0)
-                return DB_KEYEXIST;
-        }
     }
     
     r = toku_brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
@@ -1322,7 +1296,7 @@ static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondar
 	return EINVAL; // We aren't ready for this
     }
 #endif
-    r = toku_db_put_noassociate(secondary, txn, &idx, key, DB_YESOVERWRITE);
+    r = toku_db_put_noassociate(secondary, txn, &idx, key, 0);
     if (idx.flags & DB_DBT_APPMALLOC) {
         free(idx.data);
     }
@@ -1332,6 +1306,7 @@ static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondar
 static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
 
+    if (flags != 0) return EINVAL;
     //Cannot put directly into a secondary.
     if (db->i->primary != 0) return EINVAL;
 
