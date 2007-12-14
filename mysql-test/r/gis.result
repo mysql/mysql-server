@@ -680,7 +680,7 @@ def	test	t1	t1	g	g	255	4294967295	0	Y	144	0	63
 g
 select asbinary(g) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					asbinary(g)	252	16777216	0	Y	128	0	63
+def					asbinary(g)	252	4294967295	0	Y	128	0	63
 asbinary(g)
 drop table t1;
 create table t1 (a TEXT, b GEOMETRY NOT NULL, SPATIAL KEY(b));
@@ -742,6 +742,38 @@ select geomfromtext(col9,col89) as a from t1;
 a
 NULL
 DROP TABLE t1;
+CREATE TABLE t1 (
+geomdata polygon NOT NULL,
+SPATIAL KEY index_geom (geomdata)
+) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
+CREATE TABLE t2 (
+geomdata polygon NOT NULL,
+SPATIAL KEY index_geom (geomdata)
+) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
+CREATE TABLE t3
+select 
+aswkb(ws.geomdata) AS geomdatawkb 
+from 
+t1 ws
+union 
+select 
+aswkb(ws.geomdata) AS geomdatawkb 
+from 
+t2 ws;
+describe t3;
+Field	Type	Null	Key	Default	Extra
+geomdatawkb	longblob	YES		NULL	
+drop table t1;
+drop table t2;
+drop table t3;
+create table t1(col1 geometry default null,col15 geometrycollection not
+null,spatial index(col15),index(col1(15)))engine=myisam;
+insert into t1 set col15 = GeomFromText('POINT(6 5)');
+insert into t1 set col15 = GeomFromText('POINT(6 5)');
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
 End of 4.1 tests
 create table t1 (s1 geometry not null,s2 char(100));
 create trigger t1_bu before update on t1 for each row set new.s1 = null;
@@ -934,6 +966,12 @@ COUNT(*)
 2
 DROP TABLE t1, t2;
 End of 5.0 tests
+create table `t1` (`col002` point)engine=myisam;
+insert into t1 values (),(),();
+select min(`col002`) from t1 union select `col002` from t1;
+min(`col002`)
+NULL
+drop table t1;
 End of 5.0 tests
 create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
 create view v1 as select * from t1;

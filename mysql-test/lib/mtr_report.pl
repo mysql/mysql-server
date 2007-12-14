@@ -353,6 +353,9 @@ sub mtr_report_stats ($) {
                 # BUG#29839 - lowercase_table3.test: Cannot find table test/T1
                 #             from the internal data dictiona
                 /Cannot find table test\/BUG29839 from the internal data dictionary/ or
+                # BUG#32080 - Excessive warnings on Solaris: setrlimit could not
+                #             change the size of core files
+                /setrlimit could not change the size of core files to 'infinity'/ or
 
 		# rpl_extrColmaster_*.test, the slave thread produces warnings
 		# when it get updates to a table that has more columns on the
@@ -360,7 +363,6 @@ sub mtr_report_stats ($) {
 		/Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
 		/Slave: Can't DROP 'c7'.* 1091/ or
 		/Slave: Key column 'c6'.* 1072/
-
 	       )
             {
               next;                       # Skip these lines
