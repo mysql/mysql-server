@@ -453,7 +453,7 @@ sp_head::operator new(size_t size) throw()
 }
 
 void 
-sp_head::operator delete(void *ptr, size_t size) throw()
+sp_head::operator delete(void *ptr, size_t size) throw()
 {
   DBUG_ENTER("sp_head::operator delete");
   MEM_ROOT own_root;
