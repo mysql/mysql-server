@@ -835,108 +835,158 @@ master-bin.000001	#	Format_desc	1	#	Server ver: #
 master-bin.000001	#	Query	1	#	CREATE DATABASE test_rpl
 master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE TABLE t1 (a int auto_increment not null, b char(254), PRIMARY KEY(a)) ENGINE=innodb
 master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE TABLE t2 (a int auto_increment not null, b char(254), PRIMARY KEY(a)) ENGINE=innodb
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 't1, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(2, 't1, text 2')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t2 VALUES(1, 't2, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1 WHERE a = 1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t2)
 master-bin.000001	#	Delete_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 't1, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t2 SELECT * FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t2 VALUES (1, 't1, text 1') ON DUPLICATE KEY UPDATE b = 't2, text 1'
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1 WHERE a = 2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2 WHERE a = 2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Begin_load_query	1	#	;file_id=#;block_len=#
 master-bin.000001	#	Execute_load_query	1	#	use `test_rpl`; LOAD DATA INFILE '../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;file_id=#
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 't1, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(2, 't1, text 2')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(3, 't1, text 3')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; REPLACE INTO t1 VALUES(1, 't1, text 11')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t1)
 master-bin.000001	#	Update_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; REPLACE INTO t1 SET a=3, b='t1, text 33'
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1 WHERE a = 2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 't1, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 'CCC')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(2, 'DDD')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t2 VALUES(1, 'DDD')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t2 VALUES(2, 'CCC')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 't1, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t2 VALUES(1, 't2, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 't1, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; TRUNCATE t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 't1, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t2 VALUES(1, 't2, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; UPDATE t1 SET b = 't1, text 1 updated' WHERE a = 1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; UPDATE t1, t2 SET t1.b = 'test', t2.b = 'test'
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
@@ -952,10 +1002,13 @@ master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES (6, 'after s
 master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1 WHERE a = 7
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE USER 'user_test_rpl'@'localhost' IDENTIFIED BY PASSWORD '*1111111111111111111111111111111111111111'
@@ -964,6 +1017,7 @@ master-bin.000001	#	Query	1	#	use `test_rpl`; REVOKE SELECT ON *.* FROM 'user_te
 master-bin.000001	#	Query	1	#	use `test_rpl`; SET PASSWORD FOR 'user_test_rpl'@'localhost'='*0000000000000000000000000000000000000000'
 master-bin.000001	#	Query	1	#	use `test_rpl`; RENAME USER 'user_test_rpl'@'localhost' TO 'user_test_rpl_2'@'localhost'
 master-bin.000001	#	Query	1	#	use `test_rpl`; DROP USER 'user_test_rpl_2'@'localhost'
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(100, 'test')
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; ANALYZE TABLE t1
@@ -977,50 +1031,65 @@ master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE DEFINER=`root`@`localhost` 
 BEGIN
 UPDATE t1 SET b = UUID() WHERE a = 202;
 END
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT  INTO t1 VALUES(201, 'test 201')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; UPDATE t1 SET b = 'test' WHERE a = 201
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT  INTO t1 VALUES(202, 'test 202')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t1)
 master-bin.000001	#	Update_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1 WHERE a = 202
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; ALTER PROCEDURE p1 COMMENT 'p1'
 master-bin.000001	#	Query	1	#	use `test_rpl`; DROP PROCEDURE p1
 master-bin.000001	#	Query	1	#	use `test_rpl`; DROP PROCEDURE p2
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE DEFINER=`root`@`localhost` TRIGGER tr1 BEFORE INSERT ON t1
 FOR EACH ROW BEGIN
 INSERT INTO t2 SET a = NEW.a, b = NEW.b;
 END
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t1)
 master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t2)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; DROP TRIGGER tr1
 master-bin.000001	#	Query	1	#	use `test_rpl`; GRANT EVENT ON *.* TO 'root'@'localhost'
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 'test1')
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE EVENT e1 ON SCHEDULE EVERY '1' SECOND COMMENT 'e_second_comment' DO DELETE FROM t1
 master-bin.000001	#	Query	1	#	use `test_rpl`; ALTER EVENT e1 RENAME TO e2
 master-bin.000001	#	Query	1	#	use `test_rpl`; DROP EVENT e2
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 'test1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(2, 'test2')
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT * FROM t1 WHERE a = 1
@@ -1028,8 +1097,10 @@ master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE ALGORITHM=UNDEFINED DEFINER
 master-bin.000001	#	Query	1	#	use `test_rpl`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT * FROM t1 WHERE a = 2
 master-bin.000001	#	Query	1	#	use `test_rpl`; DROP VIEW v1
 master-bin.000001	#	Query	1	#	use `test_rpl`; DROP VIEW v2
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
 drop database test_rpl;
