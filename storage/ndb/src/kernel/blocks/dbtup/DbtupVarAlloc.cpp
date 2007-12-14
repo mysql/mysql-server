@@ -118,11 +118,6 @@ Dbtup::alloc_var_part(Fragrecord* fragPtr,
     LocalDLList<Page> list(c_page_pool, 
 			   fragPtr->free_var_page_array[MAX_FREE_LIST-1]);
     list.add(pagePtr);
-    /*
-     * Tup scan and index build check ZEMPTY_MM to skip un-init()ed
-     * page.  Change state here.  For varsize it means "page in use".
-     */
-    pagePtr.p->page_state = ZTH_MM_FREE;
   } else {
     c_page_pool.getPtr(pagePtr);
     jam();
@@ -179,12 +174,11 @@ void Dbtup::free_var_rec(Fragrecord* fragPtr,
     if (pagePtr.p->free_space == Var_page::DATA_WORDS - 1)
     {
       jam();
-      /*
-        This code could be used when we release pages.
-        remove_free_page(signal,fragPtr,page_header,page_header->list_index);
-        return_empty_page(fragPtr, page_header);
-      */
-      update_free_page_list(fragPtr, pagePtr);
+      Uint32 idx = pagePtr.p->list_index;
+      LocalDLList<Page> list(c_page_pool, fragPtr->free_var_page_array[idx]);
+      list.remove(pagePtr);
+      returnCommonArea(pagePtr.i, 1);
+      fragPtr->noOfVarPages --;
     } else {
       jam();
       update_free_page_list(fragPtr, pagePtr);
@@ -303,45 +297,22 @@ Uint32
 Dbtup::get_empty_var_page(Fragrecord* fragPtr)
 {
   PagePtr ptr;
-  LocalSLList<Page> list(c_page_pool, fragPtr->m_empty_pages);
-  if (list.remove_front(ptr))
-  {
-    return ptr.i;
-  }
-
   Uint32 cnt;
-  allocConsPages(10, cnt, ptr.i);
+  allocConsPages(1, cnt, ptr.i);
   fragPtr->noOfVarPages+= cnt;
   if (unlikely(cnt == 0))
   {
     return RNIL;
   }
 
-  PagePtr ret = ptr;
-  for (Uint32 i = 0; i<cnt; i++, ptr.i++)
-  {
-    c_page_pool.getPtr(ptr);
-    ptr.p->physical_page_id = ptr.i;
-    ptr.p->page_state = ZEMPTY_MM;
-    ptr.p->nextList = ptr.i + 1;
-    ptr.p->prevList = RNIL;
-    ptr.p->frag_page_id = RNIL;
-  }
+  c_page_pool.getPtr(ptr);
+  ptr.p->physical_page_id = ptr.i;
+  ptr.p->page_state = ~0;
+  ptr.p->nextList = RNIL;
+  ptr.p->prevList = RNIL;
+  ptr.p->frag_page_id = RNIL;
   
-  if (cnt > 1)
-  {
-    ptr.p->nextList = RNIL;
-    list.add(ret.i + 1, ptr);
-  }
-
-  c_page_pool.getPtr(ret);
-  
-  Var_page* page = (Var_page*)ret.p;
-  page->chunk_size = cnt;
-  page->next_chunk = fragPtr->m_var_page_chunks;
-  fragPtr->m_var_page_chunks = ret.i;
-  
-  return ret.i;
+  return ptr.i;
 }
 
 /* ------------------------------------------------------------------------ */

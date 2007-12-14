@@ -102,11 +102,12 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       jam();
       bits |= ScanOp::SCAN_NR;
       scanPtr.p->m_endPage = req->maxPage;
-      if (req->maxPage != RNIL && req->maxPage > frag.noOfPages)
+      if (req->maxPage != RNIL && req->maxPage > frag.m_max_page_no)
       {
-         ndbout_c("%u %u endPage: %u (noOfPages: %u)", 
-                   tablePtr.i, fragId,
-                   req->maxPage, fragPtr.p->noOfPages);
+        ndbout_c("%u %u endPage: %u (noOfPages: %u maxPage: %u)", 
+                 tablePtr.i, fragId,
+                 req->maxPage, fragPtr.p->noOfPages,
+                 fragPtr.p->m_max_page_no);
       }
     }
     else
@@ -648,7 +649,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       {
         key.m_page_no++;
-        if (key.m_page_no >= frag.noOfPages) {
+        if (key.m_page_no >= frag.m_max_page_no) {
           jam();
 
           if ((bits & ScanOp::SCAN_NR) && (scan.m_endPage != RNIL))
@@ -696,20 +697,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         PagePtr pagePtr;
 	c_page_pool.getPtr(pagePtr, pos.m_realpid_mm);
 
-        if (pagePtr.p->page_state == ZEMPTY_MM) {
-          // skip empty page
-          jam();
-          if (! (bits & ScanOp::SCAN_NR))
-          {
-            pos.m_get = ScanPos::Get_next_page_mm;
-            break; // incr loop count
-          }
-          else
-          {
-            jam();
-            pos.m_realpid_mm = RNIL;
-          }
-        }
     nopage:
         pos.m_page = pagePtr.p;
         pos.m_get = ScanPos::Get_tuple;
