@@ -18,17 +18,15 @@
 
 
 #ifndef MYSQL_CLIENT
-/*
-  report result of decimal operation
+/**
+  report result of decimal operation.
 
-  SYNOPSIS
-    decimal_operation_results()
-    result  decimal library return code (E_DEC_* see include/decimal.h)
+  @param result  decimal library return code (E_DEC_* see include/decimal.h)
 
-  TODO
+  @todo
     Fix error messages
 
-  RETURN
+  @return
     result
 */
 

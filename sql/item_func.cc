@@ -14,7 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* This file defines all numerical functions */
+/**
+  @file
+
+  @brief
+  This file defines all numerical functions
+*/
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -46,7 +51,10 @@ bool check_reserved_words(LEX_STRING *name)
 }
 
 
-/* return TRUE if item is a constant */
+/**
+  @return
+    TRUE if item is a constant
+*/
 
 bool
 eval_const_cond(COND *cond)
@@ -237,25 +245,21 @@ void Item_func::traverse_cond(Cond_traverser traverser,
 }
 
 
-/*
-  Transform an Item_func object with a transformer callback function
-   
-  SYNOPSIS
-    transform()
-      transformer   the transformer callback function to be applied to the nodes
-                    of the tree of the object
-      argument      parameter to be passed to the transformer
-  
-  DESCRIPTION
+/**
+  Transform an Item_func object with a transformer callback function.
+
     The function recursively applies the transform method to each
     argument of the Item_func node.
     If the call of the method for an argument item returns a new item
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_func object. 
-     
-  RETURN VALUES
-    Item returned as the result of transformation of the root node 
+  @param transformer   the transformer callback function to be applied to
+                       the nodes of the tree of the object
+  @param argument      parameter to be passed to the transformer
+
+  @return
+    Item returned as the result of transformation of the root node
 */
 
 Item *Item_func::transform(Item_transformer transformer, uchar *argument)
@@ -285,19 +289,10 @@ Item *Item_func::transform(Item_transformer transformer, uchar *argument)
 }
 
 
-/*
-  Compile Item_func object with a processor and a transformer callback functions
-   
-  SYNOPSIS
-    compile()
-      analyzer      the analyzer callback function to be applied to the nodes
-                    of the tree of the object
-      arg_p         in/out parameter to be passed to the processor
-      transformer   the transformer callback function to be applied to the nodes
-                    of the tree of the object
-      arg_t         parameter to be passed to the transformer
-  
-  DESCRIPTION
+/**
+  Compile Item_func object with a processor and a transformer
+  callback functions.
+
     First the function applies the analyzer to the root node of
     the Item_func object. Then if the analizer succeeeds (returns TRUE)
     the function recursively applies the compile method to each argument
@@ -306,9 +301,16 @@ Item *Item_func::transform(Item_transformer transformer, uchar *argument)
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_func object. 
-     
-  RETURN VALUES
-    Item returned as the result of transformation of the root node 
+
+  @param analyzer      the analyzer callback function to be applied to the
+                       nodes of the tree of the object
+  @param[in,out] arg_p parameter to be passed to the processor
+  @param transformer   the transformer callback function to be applied to the
+                       nodes of the tree of the object
+  @param arg_t         parameter to be passed to the transformer
+
+  @return
+    Item returned as the result of transformation of the root node
 */
 
 Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
@@ -334,7 +336,9 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
   return (this->*transformer)(arg_t);
 }
 
-/* See comments in Item_cmp_func::split_sum_func() */
+/**
+  See comments in Item_cmp_func::split_sum_func()
+*/
 
 void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
                                List<Item> &fields)
@@ -523,12 +527,9 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 {}
 
 
-/*
+/**
   Set max_length/decimals of function if function is fixed point and
-  result length/precision depends on argument ones
-
-  SYNOPSIS
-    Item_func::count_decimal_length()
+  result length/precision depends on argument ones.
 */
 
 void Item_func::count_decimal_length()
@@ -548,11 +549,8 @@ void Item_func::count_decimal_length()
 }
 
 
-/*
-  Set max_length of if it is maximum length of its arguments
-
-  SYNOPSIS
-    Item_func::count_only_length()
+/**
+  Set max_length of if it is maximum length of its arguments.
 */
 
 void Item_func::count_only_length()
@@ -567,12 +565,9 @@ void Item_func::count_only_length()
 }
 
 
-/*
+/**
   Set max_length/decimals of function if function is floating point and
-  result length/precision depends on argument ones
-
-  SYNOPSIS
-    Item_func::count_real_length()
+  result length/precision depends on argument ones.
 */
 
 void Item_func::count_real_length()
@@ -655,12 +650,9 @@ bool Item_func_connection_id::fix_fields(THD *thd, Item **ref)
 }
 
 
-/*
+/**
   Check arguments here to determine result's type for a numeric
   function of two arguments.
-
-  SYNOPSIS
-    Item_num_op::find_num_type()
 */
 
 void Item_num_op::find_num_type(void)
@@ -699,13 +691,10 @@ void Item_num_op::find_num_type(void)
 }
 
 
-/*
+/**
   Set result type for a numeric function of one argument
   (can be also used by a numeric function of many arguments, if the result
   type depends only on the first argument)
-
-  SYNOPSIS
-    Item_func_num1::find_num_type()
 */
 
 void Item_func_num1::find_num_type()
@@ -1117,16 +1106,15 @@ longlong Item_func_plus::int_op()
 }
 
 
-/*
-  Calculate plus of two decimail's
+/**
+  Calculate plus of two decimals.
 
-  SYNOPSIS
-    decimal_op()
-    decimal_value	Buffer that can be used to store result
+  @param decimal_value	Buffer that can be used to store result
 
-  RETURN
-   0	Value was NULL;  In this case null_value is set
-   #	Value of operation as a decimal
+  @retval
+    0  Value was NULL;  In this case null_value is set
+  @retval
+    \# Value of operation as a decimal
 */
 
 my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
@@ -1144,11 +1132,8 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
   return 0;
 }
 
-/*
+/**
   Set precision of results for additive operations (+ and -)
-
-  SYNOPSIS
-    Item_func_additive_op::result_precision()
 */
 void Item_func_additive_op::result_precision()
 {
@@ -1167,7 +1152,7 @@ void Item_func_additive_op::result_precision()
 }
 
 
-/*
+/**
   The following function is here to allow the user to force
   subtraction of UNSIGNED BIGINT to return negative values.
 */
@@ -1199,7 +1184,9 @@ longlong Item_func_minus::int_op()
 }
 
 
-/* See Item_func_plus::decimal_op for comments */
+/**
+  See Item_func_plus::decimal_op for comments.
+*/
 
 my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
 {
@@ -1238,7 +1225,7 @@ longlong Item_func_mul::int_op()
 }
 
 
-/* See Item_func_plus::decimal_op for comments */
+/** See Item_func_plus::decimal_op for comments. */
 
 my_decimal *Item_func_mul::decimal_op(my_decimal *decimal_value)
 {
@@ -1574,7 +1561,7 @@ void Item_func_abs::fix_length_and_dec()
 }
 
 
-/* Gateway to natural LOG function */
+/** Gateway to natural LOG function. */
 double Item_func_ln::val_real()
 {
   DBUG_ASSERT(fixed == 1);
@@ -1589,10 +1576,11 @@ double Item_func_ln::val_real()
   return log(value);
 }
 
-/* 
- Extended but so slower LOG function
- We have to check if all values are > zero and first one is not one
- as these are the cases then result is not a number.
+/** 
+  Extended but so slower LOG function.
+
+  We have to check if all values are > zero and first one is not one
+  as these are the cases then result is not a number.
 */ 
 double Item_func_log::val_real()
 {
@@ -3021,8 +3009,10 @@ bool udf_handler::get_arguments()
   return 0;
 }
 
-/* This returns (String*) 0 in case of NULL values */
-
+/**
+  @return
+    (String*)NULL in case of NULL values
+*/
 String *udf_handler::val_str(String *str,String *save_str)
 {
   uchar is_null_tmp=0;
@@ -3226,10 +3216,11 @@ String *Item_func_udf_str::val_str(String *str)
 }
 
 
-/*
-   This has to come last in the udf_handler methods, or C for AIX
-   version 6.0.0.0 fails to compile with debugging enabled. (Yes, really.)
- */
+/**
+  @note
+  This has to come last in the udf_handler methods, or C for AIX
+  version 6.0.0.0 fails to compile with debugging enabled. (Yes, really.)
+*/
 
 udf_handler::~udf_handler()
 {
@@ -3327,10 +3318,10 @@ void item_user_lock_release(User_level_lock *ull)
     delete ull;
 }
 
-/*
-   Wait until we are at or past the given position in the master binlog
-   on the slave
- */
+/**
+  Wait until we are at or past the given position in the master binlog
+  on the slave.
+*/
 
 longlong Item_master_pos_wait::val_int()
 {
@@ -3432,11 +3423,15 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
 
 #endif
 
-/*
-  Get a user level lock. If the thread has an old lock this is first released.
-  Returns 1:  Got lock
-  Returns 0:  Timeout
-  Returns NULL: Error
+/**
+  Get a user level lock.  If the thread has an old lock this is first released.
+
+  @retval
+    1    : Got lock
+  @retval
+    0    : Timeout
+  @retval
+    NULL : Error
 */
 
 longlong Item_func_get_lock::val_int()
@@ -3556,12 +3551,12 @@ longlong Item_func_get_lock::val_int()
 }
 
 
-/*
+/**
   Release a user level lock.
-  Return:
-    1 if lock released
-    0 if lock wasn't held
-    (SQL) NULL if no such lock
+  @return
+    - 1 if lock released
+    - 0 if lock wasn't held
+    - (SQL) NULL if no such lock
 */
 
 longlong Item_func_release_lock::val_int()
@@ -3693,7 +3688,7 @@ void Item_func_benchmark::print(String *str)
 }
 
 
-/* This function is just used to create tests with time gaps */
+/** This function is just used to create tests with time gaps. */
 
 longlong Item_func_sleep::val_int()
 {
@@ -3849,22 +3844,22 @@ bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
 }
 
 
-/*
+/**
   Set value to user variable.
 
-  SYNOPSYS
-    update_hash()
-    entry    - pointer to structure representing variable
-    set_null - should we set NULL value ?
-    ptr      - pointer to buffer with new value
-    length   - length of new value
-    type     - type of new value
-    cs       - charset info for new value
-    dv       - derivation for new value
-    unsigned_arg - indiates if a value of type INT_RESULT is unsigned
+  @param entry          pointer to structure representing variable
+  @param set_null       should we set NULL value ?
+  @param ptr            pointer to buffer with new value
+  @param length         length of new value
+  @param type           type of new value
+  @param cs             charset info for new value
+  @param dv             derivation for new value
+  @param unsigned_arg   indiates if a value of type INT_RESULT is unsigned
 
-  RETURN VALUE
-    False - success, True - failure
+  @retval
+    false   success
+  @retval
+    true    failure
 */
 
 static bool
@@ -3949,7 +3944,7 @@ Item_func_set_user_var::update_hash(void *ptr, uint length,
 }
 
 
-/* Get the value of a variable as a double */
+/** Get the value of a variable as a double. */
 
 double user_var_entry::val_real(my_bool *null_value)
 {
@@ -3977,7 +3972,7 @@ double user_var_entry::val_real(my_bool *null_value)
 }
 
 
-/* Get the value of a variable as an integer */
+/** Get the value of a variable as an integer. */
 
 longlong user_var_entry::val_int(my_bool *null_value)
 {
@@ -4008,7 +4003,7 @@ longlong user_var_entry::val_int(my_bool *null_value)
 }
 
 
-/* Get the value of a variable as a string */
+/** Get the value of a variable as a string. */
 
 String *user_var_entry::val_str(my_bool *null_value, String *str,
 				uint decimals)
@@ -4039,7 +4034,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
   return(str);
 }
 
-/* Get the value of a variable as a decimal */
+/** Get the value of a variable as a decimal. */
 
 my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
 {
@@ -4066,18 +4061,17 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
   return(val);
 }
 
-/*
-  This functions is invoked on SET @variable or @variable:= expression.
+/**
+  This functions is invoked on SET \@variable or
+  \@variable:= expression.
+
   Evaluate (and check expression), store results.
 
-  SYNOPSYS
-    Item_func_set_user_var::check()
-
-  NOTES
+  @note
     For now it always return OK. All problem with value evaluating
     will be caught by thd->is_error() check in sql_set_variables().
 
-  RETURN
+  @retval
     FALSE OK.
 */
 
@@ -4126,18 +4120,17 @@ Item_func_set_user_var::check(bool use_result_field)
 }
 
 
-/*
-  This functions is invoked on SET @variable or @variable:= expression.
+/**
+  This functions is invoked on
+  SET \@variable or \@variable:= expression.
 
-  SYNOPSIS
-    Item_func_set_user_var::update()
-
-  NOTES
+  @note
     We have to store the expression as such in the variable, independent of
     the value method used by the user
 
-  RETURN
+  @retval
     0	OK
+  @retval
     1	EOM Error
 
 */
@@ -4446,24 +4439,23 @@ longlong Item_func_get_user_var::val_int()
 }
 
 
-/*
+/**
   Get variable by name and, if necessary, put the record of variable 
   use into the binary log.
-  
-  SYNOPSIS
-    get_var_with_binlog()
-      thd        Current thread
-      name       Variable name 
-      out_entry  [out] variable structure or NULL. The pointer is set 
-                 regardless of whether function succeeded or not.
 
   When a user variable is invoked from an update query (INSERT, UPDATE etc),
   stores this variable and its value in thd->user_var_events, so that it can be
   written to the binlog (will be written just before the query is written, see
   log.cc).
 
-  RETURN
+  @param      thd        Current thread
+  @param      name       Variable name
+  @param[out] out_entry  variable structure or NULL. The pointer is set
+                         regardless of whether function succeeded or not.
+
+  @retval
     0  OK
+  @retval
     1  Failed to put appropriate record into binary log
 
 */
@@ -5118,22 +5110,20 @@ longlong Item_func_bit_xor::val_int()
   System variables
 ****************************************************************************/
 
-/*
-  Return value of an system variable base[.name] as a constant item
+/**
+  Return value of an system variable base[.name] as a constant item.
 
-  SYNOPSIS
-    get_system_var()
-    thd			Thread handler
-    var_type		global / session
-    name		Name of base or system variable
-    component		Component
+  @param thd			Thread handler
+  @param var_type		global / session
+  @param name		        Name of base or system variable
+  @param component		Component.
 
-  NOTES
+  @note
     If component.str = 0 then the variable name is in 'name'
 
-  RETURN
-    0	error
-    #	constant item
+  @return
+    - 0  : error
+    - #  : constant item
 */
 
 
@@ -5173,16 +5163,15 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 }
 
 
-/*
+/**
   Check a user level lock.
 
-  SYNOPSIS:
-    val_int()
+  Sets null_value=TRUE on error.
 
-  RETURN VALUES
+  @retval
     1		Available
-    0		Already taken
-    NULL	Error
+  @retval
+    0		Already taken, or error
 */
 
 longlong Item_func_is_free_lock::val_int()

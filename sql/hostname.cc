@@ -14,9 +14,14 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/*
-  Get hostname for an IP.  Hostnames are checked with reverse name lookup and
-  checked that they doesn't resemble an ip.
+/**
+  @file
+
+  @brief
+  Get hostname for an IP.
+
+    Hostnames are checked with reverse name lookup and
+    checked that they doesn't resemble an ip.
 */
 
 #include "mysql_priv.h"

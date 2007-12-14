@@ -14,7 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Read language depeneded messagefile */
+/**
+  @file
+
+  @brief
+  Read language depeneded messagefile
+*/
 
 #include "mysql_priv.h"
 #include "mysys_err.h"
@@ -23,20 +28,17 @@ static bool read_texts(const char *file_name,const char ***point,
 		       uint error_messages);
 static void init_myfunc_errs(void);
 
-/*
+/**
   Read messages from errorfile.
 
-  SYNOPSIS
-    init_errmessage()
+  This function can be called multiple times to reload the messages.
+  If it fails to load the messages, it will fail softly by initializing
+  the errmesg pointer to an array of empty strings or by keeping the
+  old array if it exists.
 
-  DESCRIPTION
-    This function can be called multiple times to reload the messages.
-	If it fails to load the messages, it will fail softly by initializing
-	the errmesg pointer to an array of empty strings or by keeping the
-	old array if it exists.
-
-  RETURN
+  @retval
     FALSE       OK
+  @retval
     TRUE        Error
 */
 
@@ -75,7 +77,14 @@ bool init_errmessage(void)
 }
 
 
-	/* Read text from packed textfile in language-directory */
+/**
+  Read text from packed textfile in language-directory.
+
+  If we can't read messagefile then it's panic- we can't continue.
+
+  @todo
+    Convert the character set to server system character set
+*/
 
 static bool read_texts(const char *file_name,const char ***point,
 		       uint error_messages)
@@ -178,7 +187,9 @@ err1:
 } /* read_texts */
 
 
-	/* Initiates error-messages used by my_func-library */
+/**
+  Initiates error-messages used by my_func-library.
+*/
 
 static void init_myfunc_errs()
 {

@@ -90,25 +90,19 @@ int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
 }
 
 
-/*
+/**
   Copy part of a record that forms a key or key prefix to a buffer.
 
-  SYNOPSIS
-    key_copy()
-    to_key      buffer that will be used as a key
-    from_record full record to be copied from
-    key_info    descriptor of the index
-    key_length  specifies length of all keyparts that will be copied
-
-  DESCRIPTION
     The function takes a complete table record (as e.g. retrieved by
     handler::index_read()), and a description of an index on the same table,
     and extracts the first key_length bytes of the record which are part of a
     key into to_key. If length == 0 then copy all bytes from the record that
     form a key.
 
-  RETURN
-    None
+  @param to_key      buffer that will be used as a key
+  @param from_record full record to be copied from
+  @param key_info    descriptor of the index
+  @param key_length  specifies length of all keyparts that will be copied
 */
 
 void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
@@ -163,22 +157,16 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
 }
 
 
-/*
+/**
   Restore a key from some buffer to record.
 
-  SYNOPSIS
-    key_restore()
-    to_record   record buffer where the key will be restored to
-    from_key    buffer that contains a key
-    key_info    descriptor of the index
-    key_length  specifies length of all keyparts that will be restored
-
-  DESCRIPTION
     This function converts a key into record format. It can be used in cases
     when we want to return a key as a result row.
 
-  RETURN
-    None
+  @param to_record   record buffer where the key will be restored to
+  @param from_key    buffer that contains a key
+  @param key_info    descriptor of the index
+  @param key_length  specifies length of all keyparts that will be restored
 */
 
 void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
@@ -255,24 +243,23 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
 }
 
 
-/*
-  Compare if a key has changed
+/**
+  Compare if a key has changed.
 
-  SYNOPSIS
-    key_cmp_if_same()
-    table		TABLE
-    key			key to compare to row
-    idx			Index used
-    key_length		Length of key
+  @param table		TABLE
+  @param key		key to compare to row
+  @param idx		Index used
+  @param key_length	Length of key
 
-  NOTES
+  @note
     In theory we could just call field->cmp() for all field types,
     but as we are only interested if a key has changed (not if the key is
     larger or smaller than the previous value) we can do things a bit
     faster by using memcmp() instead.
 
-  RETURN
+  @retval
     0	If key is equal
+  @retval
     1	Key has changed
 */
 
@@ -331,17 +318,17 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
 }
 
 /*
-  unpack key-fields from record to some buffer
+  unpack key-fields from record to some buffer.
 
-  SYNOPSIS
-     key_unpack()
+  This is used mainly to get a good error message.  We temporary 
+  change the column bitmap so that all columns are readable.
+
+  @param
      to		Store value here in an easy to read form
+  @param
      table	Table to use
+  @param
      idx	Key number
-
-  NOTES
-    This is used mainly to get a good error message
-    We temporary change the column bitmap so that all columns are readable.
 */
 
 void key_unpack(String *to,TABLE *table,uint idx)
@@ -419,21 +406,18 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields)
 }
 
 
-/*
-  Compare key in row to a given key
+/**
+  Compare key in row to a given key.
 
-  SYNOPSIS
-    key_cmp()
-    key_part		Key part handler
-    key			Key to compare to value in table->record[0]
-    key_length		length of 'key'
+  @param key_part		Key part handler
+  @param key			Key to compare to value in table->record[0]
+  @param key_length		length of 'key'
 
-  RETURN
+  @return
     The return value is SIGN(key_in_row - range_key):
-
-    0			Key is equal to range or 'range' == 0 (no range)
-   -1			Key is less than range
-    1			Key is larger than range
+    -   0		Key is equal to range or 'range' == 0 (no range)
+    -  -1		Key is less than range
+    -   1		Key is larger than range
 */
 
 int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)

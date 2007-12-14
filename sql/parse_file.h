@@ -20,27 +20,27 @@
 #define PARSE_FILE_TIMESTAMPLENGTH 19
 
 enum file_opt_type {
-  FILE_OPTIONS_STRING,		/* String (LEX_STRING) */
-  FILE_OPTIONS_ESTRING,		/* Escaped string (LEX_STRING) */
-  FILE_OPTIONS_ULONGLONG,	/* ulonglong parameter (ulonglong) */
-  FILE_OPTIONS_REV,		/* Revision version number (ulonglong) */
-  FILE_OPTIONS_TIMESTAMP,	/* timestamp (LEX_STRING have to be
+  FILE_OPTIONS_STRING,		/**< String (LEX_STRING) */
+  FILE_OPTIONS_ESTRING,		/**< Escaped string (LEX_STRING) */
+  FILE_OPTIONS_ULONGLONG,	/**< ulonglong parameter (ulonglong) */
+  FILE_OPTIONS_REV,		/**< Revision version number (ulonglong) */
+  FILE_OPTIONS_TIMESTAMP,	/**< timestamp (LEX_STRING have to be
 				   allocated with length 20 (19+1) */
-  FILE_OPTIONS_STRLIST,         /* list of escaped strings
+  FILE_OPTIONS_STRLIST,         /**< list of escaped strings
                                    (List<LEX_STRING>) */
-  FILE_OPTIONS_ULLLIST          /* list of ulonglong values
+  FILE_OPTIONS_ULLLIST          /**< list of ulonglong values
                                    (List<ulonglong>) */
 };
 
 struct File_option
 {
-  LEX_STRING name;		/* Name of the option */
-  int offset;			/* offset to base address of value */
-  file_opt_type type;		/* Option type */
+  LEX_STRING name;		/**< Name of the option */
+  int offset;			/**< offset to base address of value */
+  file_opt_type type;		/**< Option type */
 };
 
 
-/*
+/**
   This hook used to catch no longer supported keys and process them for
   backward compatibility.
 */
@@ -55,7 +55,7 @@ public:
 };
 
 
-/* Dummy hook for parsers which do not need hook for unknown keys */
+/** Dummy hook for parsers which do not need hook for unknown keys. */
 
 class File_parser_dummy_hook: public Unknown_key_hook
 {

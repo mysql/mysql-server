@@ -14,7 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* classes to use when handling where clause */
+/**
+  @file
+
+  @brief
+  classes to use when handling where clause
+*/
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
@@ -25,12 +30,12 @@
 
 typedef struct keyuse_t {
   TABLE *table;
-  Item	*val;				/* or value if no field */
+  Item	*val;				/**< or value if no field */
   table_map used_tables;
   uint	key, keypart, optimize;
   key_part_map keypart_map;
   ha_rows      ref_table_rows;
-  /* 
+  /**
     If true, the comparison this value was created from will not be
     satisfied if val has NULL 'value'.
   */
@@ -53,13 +58,13 @@ class store_key;
 typedef struct st_table_ref
 {
   bool		key_err;
-  uint          key_parts;                // num of ...
-  uint          key_length;               // length of key_buff
-  int           key;                      // key no
-  uchar         *key_buff;                // value to look for with key
-  uchar         *key_buff2;               // key_buff+key_length
+  uint          key_parts;                ///< num of ...
+  uint          key_length;               ///< length of key_buff
+  int           key;                      ///< key no
+  uchar         *key_buff;                ///< value to look for with key
+  uchar         *key_buff2;               ///< key_buff+key_length
   store_key     **key_copy;               //
-  Item          **items;                  // val()'s for each keypart
+  Item          **items;                  ///< val()'s for each keypart
   /*  
     Array of pointers to trigger variables. Some/all of the pointers may be
     NULL.  The ref access can be used iff
@@ -72,18 +77,18 @@ typedef struct st_table_ref
     underlying conditions is switched off (see subquery code for more details)
   */
   bool          **cond_guards;
-  /*
+  /**
     (null_rejecting & (1<<i)) means the condition is '=' and no matching
     rows will be produced if items[i] IS NULL (see add_not_null_conds())
   */
   key_part_map  null_rejecting;
-  table_map	depend_map;		  // Table depends on these tables.
+  table_map	depend_map;		  ///< Table depends on these tables.
   /* null byte position in the key_buf. Used for REF_OR_NULL optimization */
   uchar          *null_ref_key;
 } TABLE_REF;
 
 
-/*
+/**
   CACHE_FIELD and JOIN_CACHE is used on full join to cache records in outer
   table
 */
@@ -136,18 +141,18 @@ Next_select_func setup_end_select_func(JOIN *join);
 typedef struct st_join_table {
   st_join_table() {}                          /* Remove gcc warning */
   TABLE		*table;
-  KEYUSE	*keyuse;			/* pointer to first used key */
+  KEYUSE	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
   COND		*select_cond;
   QUICK_SELECT_I *quick;
-  Item	       **on_expr_ref;   /* pointer to the associated on expression   */
-  COND_EQUAL    *cond_equal;    /* multiple equalities for the on expression */
-  st_join_table *first_inner;   /* first inner table for including outerjoin */
-  bool           found;         /* true after all matches or null complement */
-  bool           not_null_compl;/* true before null complement is added      */
-  st_join_table *last_inner;    /* last table table for embedding outer join */
-  st_join_table *first_upper;  /* first inner table for embedding outer join */
-  st_join_table *first_unmatched; /* used for optimization purposes only     */
+  Item	       **on_expr_ref;   /**< pointer to the associated on expression   */
+  COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression */
+  st_join_table *first_inner;   /**< first inner table for including outerjoin */
+  bool           found;         /**< true after all matches or null complement */
+  bool           not_null_compl;/**< true before null complement is added      */
+  st_join_table *last_inner;    /**< last table table for embedding outer join */
+  st_join_table *first_upper;  /**< first inner table for embedding outer join */
+  st_join_table *first_unmatched; /**< used for optimization purposes only     */
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
   const char	*info;
@@ -168,10 +173,10 @@ typedef struct st_join_table {
   Read_record_func save_read_first_record;/* to save read_first_record */ 
   int (*save_read_record) (READ_RECORD *);/* to save read_record.read_record */
   double	worst_seeks;
-  key_map	const_keys;			/* Keys with constant part */
-  key_map	checked_keys;			/* Keys checked in find_best */
+  key_map	const_keys;			/**< Keys with constant part */
+  key_map	checked_keys;			/**< Keys checked in find_best */
   key_map	needed_reg;
-  key_map       keys;                           /* all keys with can be used */
+  key_map       keys;                           /**< all keys with can be used */
 
   /* Either #rows in the table or 1 for const table.  */
   ha_rows	records;
@@ -189,7 +194,7 @@ typedef struct st_join_table {
   
   table_map	dependent,key_dependent;
   uint		use_quick,index;
-  uint		status;				// Save status for cache
+  uint		status;				///< Save status for cache
   uint		used_fields,used_fieldlength,used_blobs;
   enum join_type type;
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
@@ -203,7 +208,7 @@ typedef struct st_join_table {
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
-  /* Bitmap of nested joins this table is part of */
+  /** Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
 
   void cleanup();
@@ -220,7 +225,7 @@ enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
 enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
                                   end_of_records);
 
-/*
+/**
   Information about a position of table within a join order. Used in join
   optimization.
 */
@@ -264,25 +269,25 @@ typedef struct st_rollup
 
 class JOIN :public Sql_alloc
 {
-  JOIN(const JOIN &rhs);                        /* not implemented */
-  JOIN& operator=(const JOIN &rhs);             /* not implemented */
+  JOIN(const JOIN &rhs);                        /**< not implemented */
+  JOIN& operator=(const JOIN &rhs);             /**< not implemented */
 public:
   JOIN_TAB *join_tab,**best_ref;
-  JOIN_TAB **map2table;    // mapping between table indexes and JOIN_TABs
-  JOIN_TAB *join_tab_save; // saved join_tab for subquery reexecution
+  JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
+  JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
   TABLE    **table,**all_tables,*sort_by_table;
   uint	   tables,const_tables;
   uint	   send_group_parts;
   bool	   sort_and_group,first_record,full_join,group, no_field_update;
   bool	   do_send_rows;
-  /*
+  /**
     TRUE when we want to resume nested loop iterations when
     fetching data from a cursor
   */
   bool     resume_nested_loop;
   table_map const_table_map,found_const_table_map,outer_join;
   ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
-  /*
+  /**
     Used to fetch no more than given amount of rows per one
     fetch operation of server side cursor.
     The value is checked in end_send and end_send_group in fashion, similar
@@ -294,7 +299,7 @@ public:
   ha_rows  fetch_limit;
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
   
-  /* 
+  /* *
     Bitmap of nested joins embedding the position at the end of the current 
     partial join (valid only during join optimizer run).
   */
@@ -304,25 +309,25 @@ public:
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   TABLE    *tmp_table;
-  // used to store 2 possible tmp table of SELECT
+  /// used to store 2 possible tmp table of SELECT
   TABLE    *exec_tmp_table1, *exec_tmp_table2;
   THD	   *thd;
   Item_sum  **sum_funcs, ***sum_funcs_end;
-  /* second copy of sumfuncs (for queries with 2 temporary tables */
+  /** second copy of sumfuncs (for queries with 2 temporary tables */
   Item_sum  **sum_funcs2, ***sum_funcs_end2;
   Procedure *procedure;
   Item	    *having;
-  Item      *tmp_having; // To store having when processed temporary table
-  Item      *having_history; // Store having for explain
+  Item      *tmp_having; ///< To store having when processed temporary table
+  Item      *having_history; ///< Store having for explain
   ulonglong  select_options;
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
   MYSQL_LOCK *lock;
-  // unit structure (with global parameters) for this select
+  /// unit structure (with global parameters) for this select
   SELECT_LEX_UNIT *unit;
-  // select that processed
+  /// select that processed
   SELECT_LEX *select_lex;
-  /* 
+  /** 
     TRUE <=> optimizer must not mark any table as a constant table.
     This is needed for subqueries in form "a IN (SELECT .. UNION SELECT ..):
     when we optimize the select that reads the results of the union from a
@@ -331,11 +336,11 @@ public:
   */
   bool no_const_tables; 
   
-  JOIN *tmp_join; // copy of this JOIN to be used with temporary tables
-  ROLLUP rollup;				// Used with rollup
+  JOIN *tmp_join; ///< copy of this JOIN to be used with temporary tables
+  ROLLUP rollup;				///< Used with rollup
 
-  bool select_distinct;				// Set if SELECT DISTINCT
-  /*
+  bool select_distinct;				///< Set if SELECT DISTINCT
+  /**
     If we have the GROUP BY statement in the query,
     but the group_list was emptied by optimizer, this
     flag is TRUE.
@@ -350,42 +355,42 @@ public:
     It's also set if ORDER/GROUP BY is empty.
   */
   bool simple_order, simple_group;
-  /*
+  /**
     Is set only in case if we have a GROUP BY clause
     and no ORDER BY after constant elimination of 'order'.
   */
   bool no_order;
-  /* Is set if we have a GROUP BY and we have ORDER BY on a constant. */
+  /** Is set if we have a GROUP BY and we have ORDER BY on a constant. */
   bool          skip_sort_order;
 
   bool need_tmp, hidden_group_fields;
   DYNAMIC_ARRAY keyuse;
   Item::cond_result cond_value, having_value;
-  List<Item> all_fields; // to store all fields that used in query
-  //Above list changed to use temporary table
+  List<Item> all_fields; ///< to store all fields that used in query
+  ///Above list changed to use temporary table
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
-  //Part, shared with list above, emulate following list
+  ///Part, shared with list above, emulate following list
   List<Item> tmp_fields_list1, tmp_fields_list2, tmp_fields_list3;
-  List<Item> &fields_list; // hold field list passed to mysql_select
+  List<Item> &fields_list; ///< hold field list passed to mysql_select
   List<Item> procedure_fields_list;
   int error;
 
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
   COND *conds;                            // ---"---
   Item *conds_history;                    // store WHERE for explain
-  TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_select
-  List<TABLE_LIST> *join_list;       // list of joined tables in reverse order
+  TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
+  List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
   COND_EQUAL *cond_equal;
-  SQL_SELECT *select;                //created in optimisation phase
-  JOIN_TAB *return_tab;              //used only for outer joins
-  Item **ref_pointer_array; //used pointer reference for this select
+  SQL_SELECT *select;                ///<created in optimisation phase
+  JOIN_TAB *return_tab;              ///<used only for outer joins
+  Item **ref_pointer_array; ///<used pointer reference for this select
   // Copy of above to be used with different lists
   Item **items0, **items1, **items2, **items3, **current_ref_pointer_array;
-  uint ref_pointer_array_size; // size of above in bytes
-  const char *zero_result_cause; // not 0 if exec must return zero result
+  uint ref_pointer_array_size; ///< size of above in bytes
+  const char *zero_result_cause; ///< not 0 if exec must return zero result
   
-  bool union_part; // this subselect is part of union 
-  bool optimized; // flag to avoid double optimization in EXPLAIN
+  bool union_part; ///< this subselect is part of union 
+  bool optimized; ///< flag to avoid double optimization in EXPLAIN
 
   /* 
     storage for caching buffers allocated during query execution. 
@@ -494,14 +499,14 @@ public:
   int rollup_send_data(uint idx);
   int rollup_write_data(uint idx, TABLE *table);
   void remove_subq_pushed_predicates(Item **where);
-  /*
+  /**
     Release memory and, if possible, the open tables held by this execution
     plan (and nested plans). It's used to release some tables before
     the end of execution in order to increase concurrency and reduce
     memory consumption.
   */
   void join_free();
-  /* Cleanup this JOIN, possibly for reuse */
+  /** Cleanup this JOIN, possibly for reuse */
   void cleanup(bool full);
   void clear();
   bool save_join_tab();
@@ -556,7 +561,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b);
 
-/* class to copying an field/item to a key struct */
+/** class to copying an field/item to a key struct */
 
 class store_key :public Sql_alloc
 {
@@ -582,7 +587,7 @@ public:
       to_field=field_arg->new_key_field(thd->mem_root, field_arg->table,
                                         ptr, null, 1);
   }
-  virtual ~store_key() {}			/* Not actually needed */
+  virtual ~store_key() {}			/** Not actually needed */
   virtual const char *name() const=0;
 
   /**

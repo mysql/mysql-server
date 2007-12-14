@@ -14,8 +14,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* locking functions for mysql */
-/*
+/**
+  @file
+
+  Locking functions for mysql.
+
   Because of the new concurrent inserts, we must first get external locks
   before getting internal locks.  If we do it in the other order, the status
   information is not up to date when called from the lock handler.
@@ -65,7 +68,7 @@
   excluding one that caused failure. That means handler must cleanup itself
   in case external_lock() fails.
 
-TODO:
+  @todo
   Change to use my_malloc() ONLY when using LOCK TABLES command or when
   we are forced to use mysql_lock_merge.
 */
@@ -390,10 +393,11 @@ void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Unlock some of the tables locked by mysql_lock_tables
+/**
+  Unlock some of the tables locked by mysql_lock_tables.
+
   This will work even if get_lock_data fails (next unlock will free all)
-  */
+*/
 
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count)
 {
@@ -405,8 +409,8 @@ void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count)
 }
 
 
-/*
-** unlock all tables locked for read.
+/**
+  unlock all tables locked for read.
 */
 
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
@@ -567,7 +571,7 @@ void mysql_lock_downgrade_write(THD *thd, TABLE *table,
 }
 
 
-/* abort all other threads waiting to get lock in table */
+/** Abort all other threads waiting to get lock in table. */
 
 void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
 {
@@ -586,16 +590,15 @@ void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
 }
 
 
-/*
-  Abort one thread / table combination
+/**
+  Abort one thread / table combination.
 
-  SYNOPSIS
-    mysql_lock_abort_for_thread()
-    thd		Thread handler
-    table	Table that should be removed from lock queue
+  @param thd	   Thread handler
+  @param table	   Table that should be removed from lock queue
 
-  RETURN
+  @retval
     0  Table was not locked by another thread
+  @retval
     1  Table was locked by at least one other thread
 */
 
@@ -663,28 +666,27 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
 }
 
 
-/*
+/**
   Find duplicate lock in tables.
 
-  SYNOPSIS
-    mysql_lock_have_duplicate()
-    thd                         The current thread.
-    needle                      The table to check for duplicate lock.
-    haystack                    The list of tables to search for the dup lock.
+  Temporary tables are ignored here like they are ignored in
+  get_lock_data(). If we allow two opens on temporary tables later,
+  both functions should be checked.
 
-  NOTE
+  @param thd                 The current thread.
+  @param needle              The table to check for duplicate lock.
+  @param haystack            The list of tables to search for the dup lock.
+
+  @note
     This is mainly meant for MERGE tables in INSERT ... SELECT
     situations. The 'real', underlying tables can be found only after
     the MERGE tables are opened. This function assumes that the tables are
     already locked.
 
-    Temporary tables are ignored here like they are ignored in
-    get_lock_data(). If we allow two opens on temporary tables later,
-    both functions should be checked.
-
-  RETURN
-    NULL        No duplicate lock found.
-    ! NULL      First table from 'haystack' that matches a lock on 'needle'.
+  @retval
+    NULL    No duplicate lock found.
+  @retval
+    !NULL   First table from 'haystack' that matches a lock on 'needle'.
 */
 
 TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
@@ -768,7 +770,7 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
 }
 
 
-	/* unlock a set of external */
+/** Unlock a set of external. */
 
 static int unlock_external(THD *thd, TABLE **table,uint count)
 {
@@ -793,20 +795,16 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
 }
 
 
-/*
-  Get lock structures from table structs and initialize locks
+/**
+  Get lock structures from table structs and initialize locks.
 
-  SYNOPSIS
-    get_lock_data()
-    thd			Thread handler
-    table_ptr		Pointer to tables that should be locks
-    flags		One of:
-			GET_LOCK_UNLOCK:      If we should send TL_IGNORE to
-                        		      store lock
-			GET_LOCK_STORE_LOCKS: Store lock info in TABLE
-    write_lock_used	Store pointer to last table with WRITE_ALLOW_WRITE
+  @param thd		    Thread handler
+  @param table_ptr	    Pointer to tables that should be locks
+  @param flags		    One of:
+           - GET_LOCK_UNLOCK      : If we should send TL_IGNORE to store lock
+           - GET_LOCK_STORE_LOCKS : Store lock info in TABLE
+  @param write_lock_used   Store pointer to last table with WRITE_ALLOW_WRITE
 */
-
 
 static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 				 uint flags, TABLE **write_lock_used)
@@ -893,31 +891,25 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 }
 
 
-/*
+/**
   Reset lock type in lock data.
 
-  SYNOPSIS
-    reset_lock_data()
-      sql_lock                  The MySQL lock.
+  After a locking error we want to quit the locking of the table(s).
+  The test case in the bug report for Bug #18544 has the following
+  cases:
+  -# Locking error in lock_external() due to InnoDB timeout.
+  -# Locking error in get_lock_data() due to missing write permission.
+  -# Locking error in wait_if_global_read_lock() due to lock conflict.
 
-  DESCRIPTION
+  In all these cases we have already set the lock type into the lock
+  data of the open table(s). If the table(s) are in the open table
+  cache, they could be reused with the non-zero lock type set. This
+  could lead to ignoring a different lock type with the next lock.
 
-    After a locking error we want to quit the locking of the table(s).
-    The test case in the bug report for Bug #18544 has the following
-    cases: 1. Locking error in lock_external() due to InnoDB timeout.
-    2. Locking error in get_lock_data() due to missing write permission.
-    3. Locking error in wait_if_global_read_lock() due to lock conflict.
+  Clear the lock type of all lock data. This ensures that the next
+  lock request will set its lock type properly.
 
-    In all these cases we have already set the lock type into the lock
-    data of the open table(s). If the table(s) are in the open table
-    cache, they could be reused with the non-zero lock type set. This
-    could lead to ignoring a different lock type with the next lock.
-
-    Clear the lock type of all lock data. This ensures that the next
-    lock request will set its lock type properly.
-
-  RETURN
-    void
+  @param sql_lock                  The MySQL lock.
 */
 
 static void reset_lock_data(MYSQL_LOCK *sql_lock)
@@ -940,20 +932,19 @@ static void reset_lock_data(MYSQL_LOCK *sql_lock)
   This is used when we need total access to a closed, not open table
 *****************************************************************************/
 
-/*
+/**
   Lock and wait for the named lock.
 
-  SYNOPSIS
-    lock_and_wait_for_table_name()
-    thd			Thread handler
-    table_list		Lock first table in this list
+  @param thd			Thread handler
+  @param table_list		Lock first table in this list
 
 
-  NOTES
+  @note
     Works together with global read lock.
 
-  RETURN
+  @retval
     0	ok
+  @retval
     1	error
 */
 
@@ -982,30 +973,30 @@ end:
 }
 
 
-/*
+/**
   Put a not open table with an old refresh version in the table cache.
 
-  SYNPOSIS
-    lock_table_name()
-    thd			Thread handler
-    table_list		Lock first table in this list
-    check_in_use        Do we need to check if table already in use by us
+  @param thd			Thread handler
+  @param table_list		Lock first table in this list
+  @param check_in_use           Do we need to check if table already in use by us
 
-  WARNING
+  @note
+    One must have a lock on LOCK_open!
+
+  @warning
     If you are going to update the table, you should use
     lock_and_wait_for_table_name instead of this function as this works
     together with 'FLUSH TABLES WITH READ LOCK'
 
-  NOTES
+  @note
     This will force any other threads that uses the table to release it
     as soon as possible.
 
-  REQUIREMENTS
-    One must have a lock on LOCK_open !
-
-  RETURN:
+  @return
     < 0 error
+  @return
     == 0 table locked
+  @return
     > 0  table locked, but someone is using it
 */
 
@@ -1102,23 +1093,22 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
 }
 
 
-/*
-  Lock all tables in list with a name lock
+/**
+  Lock all tables in list with a name lock.
 
-  SYNOPSIS
-    lock_table_names()
-    thd			Thread handle
-    table_list		Names of tables to lock
+  REQUIREMENTS
+  - One must have a lock on LOCK_open when calling this
 
-  NOTES
+  @param thd			Thread handle
+  @param table_list		Names of tables to lock
+
+  @note
     If you are just locking one table, you should use
     lock_and_wait_for_table_name().
 
-  REQUIREMENTS
-    One must have a lock on LOCK_open when calling this
-
-  RETURN
+  @retval
     0	ok
+  @retval
     1	Fatal error (end of memory ?)
 */
 
@@ -1148,12 +1138,13 @@ end:
 
 
 /**
-  @brief Lock all tables in list with an exclusive table name lock.
+  Unlock all tables in list with a name lock.
 
-  @param thd Thread handle.
+  @param thd        Thread handle.
   @param table_list Names of tables to lock.
 
-  @note This function needs to be protected by LOCK_open. If we're 
+  @note 
+    This function needs to be protected by LOCK_open. If we're 
     under LOCK TABLES, this function does not work as advertised. Namely,
     it does not exclude other threads from using this table and does not
     put an exclusive name lock on this table into the table cache.
@@ -1183,7 +1174,7 @@ bool lock_table_names_exclusively(THD *thd, TABLE_LIST *table_list)
 
 
 /**
-  @brief Test is 'table' is protected by an exclusive name lock.
+  Test is 'table' is protected by an exclusive name lock.
 
   @param[in] thd        The current thread handler
   @param[in] table_list Table container containing the single table to be
@@ -1211,7 +1202,7 @@ is_table_name_exclusively_locked_by_this_thread(THD *thd,
 
 
 /**
-  @brief Test is 'table key' is protected by an exclusive name lock.
+  Test is 'table key' is protected by an exclusive name lock.
 
   @param[in] thd        The current thread handler.
   @param[in] key
@@ -1245,23 +1236,27 @@ is_table_name_exclusively_locked_by_this_thread(THD *thd, uchar *key,
   return FALSE;
 }
 
-/*
-  Unlock all tables in list with a name lock
+/**
+  Unlock all tables in list with a name lock.
 
-  SYNOPSIS
-    unlock_table_names()
+  @param
     thd			Thread handle
+  @param
     table_list		Names of tables to unlock
+  @param
     last_table		Don't unlock any tables after this one.
-			(default 0, which will unlock all tables)
+			        (default 0, which will unlock all tables)
 
-  NOTES
+  @note
     One must have a lock on LOCK_open when calling this.
+
+  @note
     This function will broadcast refresh signals to inform other threads
     that the name locks are removed.
 
-  RETURN
+  @retval
     0	ok
+  @retval
     1	Fatal error (end of memory ?)
 */
 
@@ -1565,14 +1560,9 @@ bool make_global_read_lock_block_commit(THD *thd)
 }
 
 
-/*
+/**
   Broadcast COND_refresh and COND_global_read_lock.
 
-  SYNOPSIS
-    broadcast_refresh()
-      void                      No parameters.
-
-  DESCRIPTION
     Due to a bug in a threading library it could happen that a signal
     did not reach its target. A condition for this was that the same
     condition variable was used with different mutexes in
@@ -1584,12 +1574,9 @@ bool make_global_read_lock_block_commit(THD *thd)
     in global read lock handling. But now it is necessary to signal
     both conditions at the same time.
 
-  NOTE
+  @note
     When signalling COND_global_read_lock within the global read lock
     handling, it is not necessary to also signal COND_refresh.
-
-  RETURN
-    void
 */
 
 void broadcast_refresh(void)

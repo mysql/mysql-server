@@ -14,12 +14,17 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Buffers to save and compare item values */
+/**
+  @file
+
+  @brief
+  Buffers to save and compare item values
+*/
 
 #include "mysql_priv.h"
 
-/*
-** Create right type of Cached_item for an item
+/**
+  Create right type of Cached_item for an item.
 */
 
 Cached_item *new_Cached_item(THD *thd, Item *item)
@@ -45,9 +50,11 @@ Cached_item *new_Cached_item(THD *thd, Item *item)
 
 Cached_item::~Cached_item() {}
 
-/*
-** Compare with old value and replace value with new value
-** Return true if values have changed
+/**
+  Compare with old value and replace value with new value.
+
+  @return
+    Return true if values have changed
 */
 
 Cached_item_str::Cached_item_str(THD *thd, Item *arg)
