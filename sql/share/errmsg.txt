@@ -6116,3 +6116,6 @@ ER_CANT_CREATE_SROUTINE
   eng "Cannot create stored routine `%-.64s`. Check warnings"
 ER_SLAVE_AMBIGOUS_EXEC_MODE
   eng "Ambiguous slave modes combination. %s"
+
+ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
+  eng "The BINLOG statement of type `%s` was not preceded by a format description BINLOG statement."
