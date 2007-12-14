@@ -449,6 +449,7 @@ public:
   
   bool setTransporter(class Ndb * ndb, class TransporterFacade * tf);
   bool setTransporter(class TransporterFacade * tf);
+  class TransporterFacade *getTransporter();
   
   // To abstract the stuff thats made in all create/drop/lists below
   int dictSignal(NdbApiSignal* signal, LinearSectionPtr ptr[3], int secs,
@@ -609,6 +610,19 @@ public:
   bool setTransporter(class TransporterFacade * tf);
 
   int createTable(NdbTableImpl &t);
+  int __optimizeTable(const NdbTableImpl &t, Uint32 delay);
+  int optimizeTable(const NdbTableImpl &t, Uint32 delay);
+  int optimizeTable(const char * name, Uint32 delay);
+  int optimizeTableGlobal(const NdbTableImpl &t, Uint32 delay);
+  int optimizeTableGlobal(const char * name, Uint32 delay);
+  int optimizeIndex(const NdbIndexImpl &index, Uint32 delay);
+  int optimizeIndex(const char * idx_name,
+                    const char * tab_name,
+                    Uint32 delay);
+  int optimizeIndexGlobal(const NdbIndexImpl &index, Uint32 delay);
+  int optimizeIndexGlobal(const char * idx_name,
+                          const char * tab_name,
+                          Uint32 delay);
   int createBlobTables(const NdbTableImpl& t);
   bool supportedAlterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
   int alterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
@@ -644,6 +658,8 @@ public:
   NdbTableImpl * getTableGlobal(const char * tableName);
   NdbIndexImpl * getIndexGlobal(const char * indexName,
                                 NdbTableImpl &ndbtab);
+  NdbIndexImpl * getIndexGlobal(const char * indexName,
+                                const char * tableName);
   int alterTableGlobal(NdbTableImpl &orig_impl, NdbTableImpl &impl);
   int dropTableGlobal(NdbTableImpl &);
   int dropIndexGlobal(NdbIndexImpl & impl);
@@ -1131,6 +1147,18 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
   }
   m_error.code= 4243;
   DBUG_RETURN(0);
+}
+
+inline
+NdbIndexImpl * 
+NdbDictionaryImpl::getIndexGlobal(const char * indexName,
+                                  const char * tableName)
+{
+  DBUG_ENTER("NdbDictionaryImpl::getIndexGlobal");
+  NdbTableImpl * t = getTableGlobal(tableName);
+  if(t == NULL)
+    DBUG_RETURN(0);
+  DBUG_RETURN(getIndexGlobal(indexName, *t));
 }
 
 inline int

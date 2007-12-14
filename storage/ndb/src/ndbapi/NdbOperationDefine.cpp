@@ -665,6 +665,12 @@ NdbOperation::setAnyValue(Uint32 any_value)
   return -1;
 }
 
+int
+NdbOperation::setOptimize(Uint32 options)
+{
+  return setValue(&NdbColumnImpl::getImpl(*NdbDictionary::Column::OPTIMIZE),
+                  (const char*)&options);
+}
 
 NdbBlob*
 NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo)

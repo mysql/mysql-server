@@ -7943,9 +7943,63 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   DBUG_RETURN(0);
 }
 
+/*
+ * Support for OPTIMIZE TABLE
+ * reclaims unused space of deleted rows
+ * and updates index statistics
+ */
 int ha_ndbcluster::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return update_stats(thd, 1);
+  ulong error, stats_error= 0;
+  uint delay= (uint) thd->variables.ndb_optimization_delay;
+
+  error= ndb_optimize_table(thd, delay);
+  stats_error= update_stats(thd, 1);
+  return (error) ? error : stats_error;
+}
+
+int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
+{
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  Ndb *ndb= thd_ndb->ndb;
+  NDBDICT *dict= ndb->getDictionary();
+  int error= 0;
+  uint i;
+  DBUG_ENTER("ndb_optimize_table");
+
+  if ((error= dict->optimizeTableGlobal(*m_table, delay)))
+  {
+    DBUG_PRINT("info",
+               ("Optimze table %s returned %u", m_tabname, error));
+    ERR_RETURN(ndb->getNdbError());
+  }
+  for (i= 0; i < MAX_KEY; i++)
+  {
+    if (m_index[i].status == ACTIVE)
+    {
+      const NdbDictionary::Index *index= m_index[i].index;
+      const NdbDictionary::Index *unique_index= m_index[i].unique_index;
+      
+      if (index &&
+          (error= dict->optimizeIndexGlobal(*index, delay)))
+      {
+        DBUG_PRINT("info",
+                   ("Optimze index %s returned %u", 
+                    index->getName(), error));
+        ERR_RETURN(ndb->getNdbError());
+        
+      }
+      if (unique_index &&
+          (error= dict->optimizeIndexGlobal(*unique_index, delay)))
+      {
+        DBUG_PRINT("info",
+                   ("Optimze index %s returned %u", 
+                    unique_index->getName(), error));
+        ERR_RETURN(ndb->getNdbError());
+      } 
+    }
+  }
+  DBUG_RETURN(0);
 }
 
 int ha_ndbcluster::analyze(THD* thd, HA_CHECK_OPT* check_opt)

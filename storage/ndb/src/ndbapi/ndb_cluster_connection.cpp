@@ -355,6 +355,8 @@ Ndb_cluster_connection_impl(const char *
       NdbColumnImpl::create_pseudo("NDB$ANY_VALUE");
     NdbDictionary::Column::COPY_ROWID= 
       NdbColumnImpl::create_pseudo("NDB$COPY_ROWID");
+    NdbDictionary::Column::OPTIMIZE=
+      NdbColumnImpl::create_pseudo("NDB$OPTIMIZE");
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
@@ -414,6 +416,7 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     delete NdbDictionary::Column::ROWID;
     delete NdbDictionary::Column::ROW_GCI;
     delete NdbDictionary::Column::ANY_VALUE;
+    delete NdbDictionary::Column::OPTIMIZE;
     NdbDictionary::Column::FRAGMENT= 0;
     NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 0;
     NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 0;
@@ -426,6 +429,7 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     NdbDictionary::Column::ROWID= 0;
     NdbDictionary::Column::ROW_GCI= 0;
     NdbDictionary::Column::ANY_VALUE= 0;
+    NdbDictionary::Column::OPTIMIZE= 0;
 
     delete NdbDictionary::Column::COPY_ROWID;
     NdbDictionary::Column::COPY_ROWID = 0;

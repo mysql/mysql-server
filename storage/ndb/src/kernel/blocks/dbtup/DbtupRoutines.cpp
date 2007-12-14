@@ -1547,6 +1547,20 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       inBufIndex += 1 + sz;
       req_struct->in_buf_index = inBufIndex;
     }
+    else if(attributeId == AttributeHeader::OPTIMIZE)
+    {
+      jam();
+      Uint32 sz= ahIn.getDataSize();
+      ndbrequire(sz == 1);
+      /**
+       * get optimize options
+       */
+      req_struct->optimize_options = * (inBuffer + inBufIndex + 1);
+      req_struct->optimize_options &=
+        AttributeHeader::OPTIMIZE_OPTIONS_MASK;
+      inBufIndex += 1 + sz;
+      req_struct->in_buf_index = inBufIndex;
+    }
     else
     {
       jam();

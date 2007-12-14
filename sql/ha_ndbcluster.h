@@ -615,6 +615,8 @@ private:
   int ndb_delete_row(const uchar *record, bool primary_key_update,
                      bool is_bulk_delete= FALSE);
 
+  int ndb_optimize_table(THD* thd, uint delay);
+
   int alter_frm(THD *thd, const char *file, NDB_ALTER_DATA *alter_data);
 
   bool check_all_operations_for_error(NdbTransaction *trans,

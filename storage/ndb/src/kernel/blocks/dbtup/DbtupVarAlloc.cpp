@@ -251,6 +251,101 @@ Dbtup::realloc_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
   return new_var_ptr;
 }
 
+void
+Dbtup::move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
+                     Var_part_ref* refptr, Uint32 size)
+{
+  jam();
+
+  ndbassert(size);
+  Uint32 *new_var_ptr;
+  Var_page* pageP = (Var_page*)pagePtr.p;
+  Local_key oldref;
+  refptr->copyout(&oldref);
+
+  /**
+   * to find destination page index of free list
+   */
+  Uint32 new_index = calculate_free_list_impl(size);
+
+  /**
+   * do not move tuple from big-free-size page list
+   * to small-free-size page list
+   */
+  if (new_index > pageP->list_index)
+    return;
+
+  PagePtr new_pagePtr;
+  new_pagePtr.i = RNIL;
+  for (int i = new_index; i < MAX_FREE_LIST; i++) {
+    jam();
+    if (!fragPtr->free_var_page_array[i].isEmpty()) {
+      jam();
+      /**
+       * get first page from free page list,
+       * the page is the desition where old varpart move to
+       */
+      new_pagePtr.i = fragPtr->free_var_page_array[i].firstItem;
+    }
+  }
+ 
+  /**
+   * do not move varpart if new var part page is same as old
+   */
+  if (new_pagePtr.i != RNIL && new_pagePtr.i != pagePtr.i) {
+    jam();
+    c_page_pool.getPtr(new_pagePtr);
+
+    Uint32 idx= ((Var_page*)new_pagePtr.p)
+      ->alloc_record(size,(Var_page*)ctemp_page, Var_page::CHAIN);
+
+    Local_key newref;
+    newref.m_page_no = new_pagePtr.i;
+    newref.m_page_idx = idx;
+
+    /**
+     * update new page into new free list after alloc_record 
+     */
+    update_free_page_list(fragPtr, new_pagePtr);
+
+    new_var_ptr = ((Var_page*)new_pagePtr.p)->get_ptr(idx);
+    Uint32 *src = pageP->get_ptr(oldref.m_page_idx);
+
+    /**
+     * copy old varpart to new position
+     */
+    memcpy(new_var_ptr, src, 4*size);
+
+    /**
+     * remove old var part of tuple
+     */
+    pageP->free_record(oldref.m_page_idx, Var_page::CHAIN);
+
+    ndbassert(pageP->free_space <= Var_page::DATA_WORDS);
+    /**
+     * if the old page is empty, then reclaim it to global page pool
+     */
+    if (unlikely(pageP->free_space == Var_page::DATA_WORDS - 1)) {
+      jam();
+      Uint32 idx = pageP->list_index;
+      LocalDLList<Page> list(c_page_pool, fragPtr->free_var_page_array[idx]);
+      list.remove(pagePtr);
+      returnCommonArea(pagePtr.i, 1);
+      fragPtr->noOfVarPages --;
+    } else {
+      jam();
+      /**
+       * update the old page into new free list after free_record
+       */
+      update_free_page_list(fragPtr, pagePtr);
+    }
+
+    /**
+     * update var part ref of fix part tuple to newref
+     */
+    refptr->assign(&newref);
+  }
+}
 
 /* ------------------------------------------------------------------------ */
 // Get a page from one of free lists. If the desired free list is empty we
