@@ -125,9 +125,6 @@ TARGET_LINK_LIBRARIES(mysqlclient)
 ADD_DEPENDENCIES(mysqlclient_notls GenError)
 TARGET_LINK_LIBRARIES(mysqlclient_notls)
 
-ADD_EXECUTABLE(myTest mytest.c)
-TARGET_LINK_LIBRARIES(myTest libmysql)
-
 IF(EMBED_MANIFESTS)
   MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
 ENDIF(EMBED_MANIFESTS)
