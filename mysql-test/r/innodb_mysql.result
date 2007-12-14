@@ -677,6 +677,8 @@ INSERT INTO t1(b,c) SELECT b,c FROM t2;
 UPDATE t2 SET c='2007-01-03';
 INSERT INTO t1(b,c) SELECT b,c FROM t2;
 set @@sort_buffer_size=8192;
+Warnings:
+Warning	1292	Truncated incorrect sort_buffer_size value: '8192'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3072
@@ -1343,6 +1345,18 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `aa` (`a`(1))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
+CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES 
+(191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2);
+EXPLAIN SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	idx	NULL	NULL	NULL	3	Using where; Using filesort
+SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
+id	type	d
+191	member	1
+NULL	member	3
+NULL	member	4
+DROP TABLE t1;
 End of 5.0 tests
 CREATE TABLE `t2` (
 `k` int(11) NOT NULL auto_increment,
