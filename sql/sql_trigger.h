@@ -14,7 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
 
 
-/*
+/**
   This class holds all information about triggers of table.
 
   QQ: Will it be merged into TABLE in the future ?
@@ -22,20 +22,20 @@
 
 class Table_triggers_list: public Sql_alloc
 {
-  /* Triggers as SPs grouped by event, action_time */
+  /** Triggers as SPs grouped by event, action_time */
   sp_head *bodies[TRG_EVENT_MAX][TRG_ACTION_MAX];
-  /*
+  /**
     Heads of the lists linking items for all fields used in triggers
     grouped by event and action_time.
   */
   Item_trigger_field *trigger_fields[TRG_EVENT_MAX][TRG_ACTION_MAX];
-  /*
+  /**
     Copy of TABLE::Field array with field pointers set to TABLE::record[1]
     buffer instead of TABLE::record[0] (used for OLD values in on UPDATE
     trigger and DELETE trigger when it is called for REPLACE).
   */
   Field             **record1_field;
-  /*
+  /**
     During execution of trigger new_field and old_field should point to the
     array of fields representing new or old version of row correspondingly
     (so it can point to TABLE::field or to Tale_triggers_list::record1_field)
@@ -45,30 +45,30 @@ class Table_triggers_list: public Sql_alloc
 
   /* TABLE instance for which this triggers list object was created */
   TABLE *trigger_table;
-  /*
+  /**
     Names of triggers.
     Should correspond to order of triggers on definitions_list,
     used in CREATE/DROP TRIGGER for looking up trigger by name.
   */
   List<LEX_STRING>  names_list;
-  /*
+  /**
     List of "ON table_name" parts in trigger definitions, used for
     updating trigger definitions during RENAME TABLE.
   */
   List<LEX_STRING>  on_table_names_list;
 
-  /*
+  /**
     Grant information for each trigger (pair: subject table, trigger definer).
   */
   GRANT_INFO        subject_table_grants[TRG_EVENT_MAX][TRG_ACTION_MAX];
 
 public:
-  /*
+  /**
     Field responsible for storing triggers definitions in file.
     It have to be public because we are using it directly from parser.
   */
   List<LEX_STRING>  definitions_list;
-  /*
+  /**
     List of sql modes for triggers
   */
   List<ulonglong> definition_modes_list;

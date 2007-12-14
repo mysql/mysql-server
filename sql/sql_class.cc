@@ -952,7 +952,7 @@ void THD::cleanup_after_query()
 
 
 /**
-  Create a LEX_STRING in this connection
+  Create a LEX_STRING in this connection.
 
   @param lex_str  pointer to LEX_STRING object to be initialized
   @param str      initializer to be copied into lex_str

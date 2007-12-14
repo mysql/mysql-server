@@ -249,19 +249,18 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
 
 /*************************************************************************/
 
-/*
+/**
   Open the mysql.proc table for read.
 
-  SYNOPSIS
-    open_proc_table_for_read()
-      thd     Thread context
-      backup  Pointer to Open_tables_state instance where information about
-              currently open tables will be saved, and from which will be
-              restored when we will end work with mysql.proc.
+  @param thd     Thread context
+  @param backup  Pointer to Open_tables_state instance where information about
+                 currently open tables will be saved, and from which will be
+                 restored when we will end work with mysql.proc.
 
-  RETURN
+  @retval
     0	Error
-    #	Pointer to TABLE object of mysql.proc
+  @retval
+    \#	Pointer to TABLE object of mysql.proc
 */
 
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
@@ -281,19 +280,18 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
 }
 
 
-/*
+/**
   Open the mysql.proc table for update.
 
-  SYNOPSIS
-    open_proc_table_for_update()
-      thd  Thread context
+  @param thd  Thread context
 
-  NOTES
+  @note
     Table opened with this call should closed using close_thread_tables().
 
-  RETURN
+  @retval
     0	Error
-    #	Pointer to TABLE object of mysql.proc
+  @retval
+    \#	Pointer to TABLE object of mysql.proc
 */
 
 static TABLE *open_proc_table_for_update(THD *thd)
@@ -310,19 +308,18 @@ static TABLE *open_proc_table_for_update(THD *thd)
 }
 
 
-/*
+/**
   Find row in open mysql.proc table representing stored routine.
 
-  SYNOPSIS
-    db_find_routine_aux()
-      thd    Thread context
-      type   Type of routine to find (function or procedure)
-      name   Name of routine
-      table  TABLE object for open mysql.proc table.
+  @param thd    Thread context
+  @param type   Type of routine to find (function or procedure)
+  @param name   Name of routine
+  @param table  TABLE object for open mysql.proc table.
 
-  RETURN VALUE
-    SP_OK           - Routine found
-    SP_KEY_NOT_FOUND- No routine with given name
+  @retval
+    SP_OK             Routine found
+  @retval
+    SP_KEY_NOT_FOUND  No routine with given name
 */
 
 static int
@@ -357,25 +354,24 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 }
 
 
-/*
+/**
   Find routine definition in mysql.proc table and create corresponding
   sp_head object for it.
 
-  SYNOPSIS
-    db_find_routine()
-      thd   Thread context
-      type  Type of routine (TYPE_ENUM_PROCEDURE/...)
-      name  Name of routine
-      sphp  Out parameter in which pointer to created sp_head
-            object is returned (0 in case of error).
+  @param thd   Thread context
+  @param type  Type of routine (TYPE_ENUM_PROCEDURE/...)
+  @param name  Name of routine
+  @param sphp  Out parameter in which pointer to created sp_head
+               object is returned (0 in case of error).
 
-  NOTE
+  @note
     This function may damage current LEX during execution, so it is good
     idea to create temporary LEX and make it active before calling it.
 
-  RETURN VALUE
-    0     - Success
-    non-0 - Error (may be one of special codes like SP_KEY_NOT_FOUND)
+  @retval
+    0       Success
+  @retval
+    non-0   Error (may be one of special codes like SP_KEY_NOT_FOUND)
 */
 
 static int
@@ -1337,22 +1333,21 @@ sp_show_create_routine(THD *thd, int type, sp_name *name)
 }
 
 
-/*
+/**
   Obtain object representing stored procedure/function by its name from
   stored procedures cache and looking into mysql.proc if needed.
 
-  SYNOPSIS
-    sp_find_routine()
-      thd        - thread context
-      type       - type of object (TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE)
-      name       - name of procedure
-      cp         - hash to look routine in
-      cache_only - if true perform cache-only lookup
-                   (Don't look in mysql.proc).
+  @param thd          thread context
+  @param type         type of object (TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE)
+  @param name         name of procedure
+  @param cp           hash to look routine in
+  @param cache_only   if true perform cache-only lookup
+                      (Don't look in mysql.proc).
 
-  RETURN VALUE
-    Non-0 pointer to sp_head object for the procedure, or
-    0 - in case of error.
+  @retval
+    NonNULL pointer to sp_head object for the procedure
+  @retval
+    NULL    in case of error.
 */
 
 sp_head *
@@ -1448,7 +1443,7 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
 }
 
 
-/*
+/**
   This is used by sql_acl.cc:mysql_routine_grant() and is used to find
   the routines in 'routines'.
 */
@@ -1497,18 +1492,17 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
 }
 
 
-/*
+/**
   Check if a routine exists in the mysql.proc table, without actually
-  parsing the definition. (Used for dropping)
+  parsing the definition. (Used for dropping).
 
-  SYNOPSIS
-    sp_routine_exists_in_table()
-      thd        - thread context
-      name       - name of procedure
+  @param thd          thread context
+  @param name         name of procedure
 
-  RETURN VALUE
-    0     - Success
-    non-0 - Error;  SP_OPEN_TABLE_FAILED or SP_KEY_NOT_FOUND
+  @retval
+    0       Success
+  @retval
+    non-0   Error;  SP_OPEN_TABLE_FAILED or SP_KEY_NOT_FOUND
 */
 
 int
@@ -1530,7 +1524,7 @@ sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
 }
 
 
-/*
+/**
   Structure that represents element in the set of stored routines
   used by statement or routine.
 */
@@ -1538,14 +1532,16 @@ struct Sroutine_hash_entry;
 
 struct Sroutine_hash_entry
 {
-  /* Set key consisting of one-byte routine type and quoted routine name. */
+  /**
+    Set key consisting of one-byte routine type and quoted routine name.
+  */
   LEX_STRING key;
-  /*
+  /**
     Next element in list linking all routines in set. See also comments
     for LEX::sroutine/sroutine_list and sp_head::m_sroutines.
   */
   Sroutine_hash_entry *next;
-  /*
+  /**
     Uppermost view which directly or indirectly uses this routine.
     0 if routine is not used in view. Note that it also can be 0 if
     statement uses routine both via view and directly.
@@ -1563,24 +1559,22 @@ extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
 }
 
 
-/*
+/**
   Check if
    - current statement (the one in thd->lex) needs table prelocking
    - first routine in thd->lex->sroutines_list needs to execute its body in
      prelocked mode.
 
-  SYNOPSIS
-    sp_get_prelocking_info()
-      thd                  Current thread, thd->lex is the statement to be
-                           checked.
-      need_prelocking      OUT TRUE  - prelocked mode should be activated
-                                       before executing the statement
-                               FALSE - Don't activate prelocking 
-      first_no_prelocking  OUT TRUE  - Tables used by first routine in
-                                       thd->lex->sroutines_list should be
-                                       prelocked.
-                               FALSE - Otherwise.
-  NOTES 
+  @param thd                  Current thread, thd->lex is the statement to be
+                              checked.
+  @param[out] need_prelocking    TRUE  - prelocked mode should be activated
+                                 before executing the statement; 
+                                 FALSE - Don't activate prelocking
+  @param[out] first_no_prelocking  TRUE  - Tables used by first routine in
+                                   thd->lex->sroutines_list should be
+                                   prelocked. FALSE - Otherwise.
+
+  @note
     This function assumes that for any "CALL proc(...)" statement routines_list 
     will have 'proc' as first element (it may have several, consider e.g.
     "proc(sp_func(...)))". This property is currently guaranted by the parser.
@@ -1600,36 +1594,37 @@ void sp_get_prelocking_info(THD *thd, bool *need_prelocking,
 }
 
 
-/*
+/**
   Auxilary function that adds new element to the set of stored routines
   used by statement.
 
-  SYNOPSIS
-    add_used_routine()
-      lex             LEX representing statement
-      arena           Arena in which memory for new element will be allocated
-      key             Key for the hash representing set
-      belong_to_view  Uppermost view which uses this routine
-                      (0 if routine is not used by view)
+  In case when statement uses stored routines but does not need
+  prelocking (i.e. it does not use any tables) we will access the
+  elements of LEX::sroutines set on prepared statement re-execution.
+  Because of this we have to allocate memory for both hash element
+  and copy of its key in persistent arena.
 
-  NOTES
+  @param lex             LEX representing statement
+  @param arena           Arena in which memory for new element will be
+                         allocated
+  @param key             Key for the hash representing set
+  @param belong_to_view  Uppermost view which uses this routine
+                         (0 if routine is not used by view)
+
+  @note
     Will also add element to end of 'LEX::sroutines_list' list.
 
-    In case when statement uses stored routines but does not need
-    prelocking (i.e. it does not use any tables) we will access the
-    elements of LEX::sroutines set on prepared statement re-execution.
-    Because of this we have to allocate memory for both hash element
-    and copy of its key in persistent arena.
-
-  TODO
+  @todo
     When we will got rid of these accesses on re-executions we will be
     able to allocate memory for hash elements in non-persitent arena
     and directly use key values from sp_head::m_sroutines sets instead
     of making their copies.
 
-  RETURN VALUE
-    TRUE  - new element was added.
-    FALSE - element was not added (because it is already present in the set).
+  @retval
+    TRUE   new element was added.
+  @retval
+    FALSE  element was not added (because it is already present in
+    the set).
 */
 
 static bool add_used_routine(LEX *lex, Query_arena *arena,
@@ -1659,24 +1654,22 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
 }
 
 
-/*
+/**
   Add routine which is explicitly used by statement to the set of stored
   routines used by this statement.
 
-  SYNOPSIS
-    sp_add_used_routine()
-      lex     - LEX representing statement
-      arena   - arena in which memory for new element of the set
-                will be allocated
-      rt      - routine name
-      rt_type - routine type (one of TYPE_ENUM_PROCEDURE/...)
+  To be friendly towards prepared statements one should pass
+  persistent arena as second argument.
 
-  NOTES
+  @param lex       LEX representing statement
+  @param arena     arena in which memory for new element of the set
+                   will be allocated
+  @param rt        routine name
+  @param rt_type   routine type (one of TYPE_ENUM_PROCEDURE/...)
+
+  @note
     Will also add element to end of 'LEX::sroutines_list' list (and will
     take into account that this is explicitly used routine).
-
-    To be friendly towards prepared statements one should pass
-    persistent arena as second argument.
 */
 
 void sp_add_used_routine(LEX *lex, Query_arena *arena,
@@ -1689,13 +1682,11 @@ void sp_add_used_routine(LEX *lex, Query_arena *arena,
 }
 
 
-/*
+/**
   Remove routines which are only indirectly used by statement from
   the set of routines used by this statement.
 
-  SYNOPSIS
-    sp_remove_not_own_routines()
-      lex  LEX representing statement
+  @param lex  LEX representing statement
 */
 
 void sp_remove_not_own_routines(LEX *lex)
@@ -1718,16 +1709,14 @@ void sp_remove_not_own_routines(LEX *lex)
 }
 
 
-/*
+/**
   Merge contents of two hashes representing sets of routines used
   by statements or by other routines.
 
-  SYNOPSIS
-    sp_update_sp_used_routines()
-      dst - hash to which elements should be added
-      src - hash from which elements merged
+  @param dst   hash to which elements should be added
+  @param src   hash from which elements merged
 
-  NOTE
+  @note
     This procedure won't create new Sroutine_hash_entry objects,
     instead it will simply add elements from source to destination
     hash. Thus time of life of elements in destination hash becomes
@@ -1747,18 +1736,17 @@ void sp_update_sp_used_routines(HASH *dst, HASH *src)
 }
 
 
-/*
+/**
   Add contents of hash representing set of routines to the set of
   routines used by statement.
 
-  SYNOPSIS
-    sp_update_stmt_used_routines()
-      thd             Thread context
-      lex             LEX representing statement
-      src             Hash representing set from which routines will be added
-      belong_to_view  Uppermost view which uses these routines, 0 if none
+  @param thd             Thread context
+  @param lex             LEX representing statement
+  @param src             Hash representing set from which routines will
+                         be added
+  @param belong_to_view  Uppermost view which uses these routines, 0 if none
 
-  NOTE
+  @note
     It will also add elements to end of 'LEX::sroutines_list' list.
 */
 
@@ -1774,18 +1762,17 @@ sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src,
 }
 
 
-/*
+/**
   Add contents of list representing set of routines to the set of
   routines used by statement.
 
-  SYNOPSIS
-    sp_update_stmt_used_routines()
-      thd             Thread context
-      lex             LEX representing statement
-      src             List representing set from which routines will be added
-      belong_to_view  Uppermost view which uses these routines, 0 if none
+  @param thd             Thread context
+  @param lex             LEX representing statement
+  @param src             List representing set from which routines will
+                         be added
+  @param belong_to_view  Uppermost view which uses these routines, 0 if none
 
-  NOTE
+  @note
     It will also add elements to end of 'LEX::sroutines_list' list.
 */
 
@@ -1798,27 +1785,28 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src,
 }
 
 
-/*
+/**
   Cache sub-set of routines used by statement, add tables used by these
   routines to statement table list. Do the same for all routines used
   by these routines.
 
-  SYNOPSIS
-    sp_cache_routines_and_add_tables_aux()
-      thd              - thread context
-      lex              - LEX representing statement
-      start            - first routine from the list of routines to be cached
-                         (this list defines mentioned sub-set).
-      first_no_prelock - If true, don't add tables or cache routines used by
-                         the body of the first routine (i.e. *start)
-                         will be executed in non-prelocked mode.
-  NOTE
+  @param thd               thread context
+  @param lex               LEX representing statement
+  @param start             first routine from the list of routines to be cached
+                           (this list defines mentioned sub-set).
+  @param first_no_prelock  If true, don't add tables or cache routines used by
+                           the body of the first routine (i.e. *start)
+                           will be executed in non-prelocked mode.
+  @param tabs_changed      Set to TRUE some tables were added, FALSE otherwise
+
+  @note
     If some function is missing this won't be reported here.
     Instead this fact will be discovered during query execution.
 
-  RETURN VALUE
-     0     - success
-     non-0 - failure
+  @retval
+    0       success
+  @retval
+    non-0   failure
 */
 
 static int
@@ -1903,21 +1891,20 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
 }
 
 
-/*
+/**
   Cache all routines from the set of used by statement, add tables used
   by those routines to statement table list. Do the same for all routines
   used by those routines.
 
-  SYNOPSIS
-    sp_cache_routines_and_add_tables()
-      thd              - thread context
-      lex              - LEX representing statement
-      first_no_prelock - If true, don't add tables or cache routines used by
-                         the body of the first routine (i.e. *start)
+  @param thd               thread context
+  @param lex               LEX representing statement
+  @param first_no_prelock  If true, don't add tables or cache routines used by
+                           the body of the first routine (i.e. *start)
 
-  RETURN VALUE
-     0     - success
-     non-0 - failure
+  @retval
+    0       success
+  @retval
+    non-0   failure
 */
 
 int
@@ -1929,20 +1916,21 @@ sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock)
 }
 
 
-/*
-  Add all routines used by view to the set of routines used by statement.
+/**
+  Add all routines used by view to the set of routines used by
+  statement.
+
   Add tables used by those routines to statement table list. Do the same
   for all routines used by these routines.
 
-  SYNOPSIS
-    sp_cache_routines_and_add_tables_for_view()
-      thd   Thread context
-      lex   LEX representing statement
-      view  Table list element representing view
+  @param thd   Thread context
+  @param lex   LEX representing statement
+  @param view  Table list element representing view
 
-  RETURN VALUE
-     0     - success
-     non-0 - failure
+  @retval
+    0       success
+  @retval
+    non-0   failure
 */
 
 int
@@ -1957,20 +1945,19 @@ sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, TABLE_LIST *view)
 }
 
 
-/*
+/**
   Add triggers for table to the set of routines used by statement.
   Add tables used by them to statement table list. Do the same for
   all implicitly used routines.
 
-  SYNOPSIS
-    sp_cache_routines_and_add_tables_for_triggers()
-      thd    thread context
-      lex    LEX respresenting statement
-      table  Table list element for table with trigger
+  @param thd    thread context
+  @param lex    LEX respresenting statement
+  @param table  Table list element for table with trigger
 
-  RETURN VALUE
-     0     - success
-     non-0 - failure
+  @retval
+    0       success
+  @retval
+    non-0   failure
 */
 
 int
@@ -2016,10 +2003,12 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
 }
 
 
-/*
- * Generates the CREATE... string from the table information.
- * Returns TRUE on success, FALSE on (alloc) failure.
- */
+/**
+  Generates the CREATE... string from the table information.
+
+  @return
+    Returns TRUE on success, FALSE on (alloc) failure.
+*/
 static bool
 create_string(THD *thd, String *buf,
 	      int type,

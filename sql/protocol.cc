@@ -13,8 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  Low level functions for storing data to be send to the MySQL client
+/**
+  @file
+
+  Low level functions for storing data to be send to the MySQL client.
   The actual communction is handled by the net_xxx functions in net_serv.cc
 */
 
@@ -53,17 +55,18 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 }
 
 
-/*
-   Send a error string to client
+/**
+  Send a error string to client.
 
-   Design note:
+  Design note:
 
-   net_send_error is a low-level functions
-   that shall be used only when a new connection is being
-   established or at server startup.
-   For SIGNAL/RESIGNAL and GET DIAGNOSTICS functionality it's
-   critical that every error that can be intercepted is issued in one
-   place only, my_message_sql.
+  net_printf_error and net_send_error are low-level functions
+  that shall be used only when a new connection is being
+  established or at server startup.
+
+  For SIGNAL/RESIGNAL and GET DIAGNOSTICS functionality it's
+  critical that every error that can be intercepted is issued in one
+  place only, my_message_sql.
 */
 void net_send_error(THD *thd, uint sql_errno, const char *err)
 {
@@ -126,32 +129,28 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   DBUG_VOID_RETURN;
 }
 
-
-/*
+/**
   Return ok to the client.
 
-  SYNOPSIS
-    send_ok()
-    thd			Thread handler
-    affected_rows	Number of rows changed by statement
-    id			Auto_increment id for first row (if used)
-    message		Message to send to the client (Used by mysql_status)
+  The ok packet has the following structure:
 
-  DESCRIPTION
-    The ok packet has the following structure
+  - 0               : Marker (1 byte)
+  - affected_rows	: Stored in 1-9 bytes
+  - id		: Stored in 1-9 bytes
+  - server_status	: Copy of thd->server_status;  Can be used by client
+  to check if we are inside an transaction.
+  New in 4.0 protocol
+  - warning_count	: Stored in 2 bytes; New in 4.1 protocol
+  - message		: Stored as packed length (1-9 bytes) + message.
+  Is not stored if no message.
 
-    0			Marker (1 byte)
-    affected_rows	Stored in 1-9 bytes
-    id			Stored in 1-9 bytes
-    server_status	Copy of thd->server_status;  Can be used by client
-			to check if we are inside an transaction
-			New in 4.0 protocol
-    warning_count	Stored in 2 bytes; New in 4.1 protocol
-    message		Stored as packed length (1-9 bytes) + message
-			Is not stored if no message
+  If net->no_send_ok return without sending packet.
 
-   If net->no_send_ok return without sending packet
-*/    
+  @param thd		   Thread handler
+  @param affected_rows	   Number of rows changed by statement
+  @param id		   Auto_increment id for first row (if used)
+  @param message	   Message to send to the client (Used by mysql_status)
+*/
 
 #ifndef EMBEDDED_LIBRARY
 void
@@ -207,27 +206,24 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
 
 static uchar eof_buff[1]= { (uchar) 254 };      /* Marker for end of fields */
 
-/*
-  Send eof (= end of result set) to the client
+/**
+  Send eof (= end of result set) to the client.
 
-  SYNOPSIS
-    send_eof()
-    thd			Thread handler
-    no_flush		Set to 1 if there will be more data to the client,
-			like in send_fields().
+  The eof packet has the following structure:
 
-  DESCRIPTION
-    The eof packet has the following structure
+  - 254		: Marker (1 byte)
+  - warning_count	: Stored in 2 bytes; New in 4.1 protocol
+  - status_flag	: Stored in 2 bytes;
+  For flags like SERVER_MORE_RESULTS_EXISTS.
 
-    254			Marker (1 byte)
-    warning_count	Stored in 2 bytes; New in 4.1 protocol
-    status_flag		Stored in 2 bytes;
-			For flags like SERVER_MORE_RESULTS_EXISTS
+  Note that the warning count will not be sent if 'no_flush' is set as
+  we don't want to report the warning count until all data is sent to the
+  client.
 
-    Note that the warning count will not be sent if 'no_flush' is set as
-    we don't want to report the warning count until all data is sent to the
-    client.
-*/    
+  @param thd		Thread handler
+  @param no_flush	Set to 1 if there will be more data to the client,
+                    like in send_fields().
+*/
 
 void
 send_eof(THD *thd)
@@ -245,7 +241,7 @@ send_eof(THD *thd)
 }
 
 
-/*
+/**
   Format EOF packet according to the current protocol and
   write it to the network output buffer.
 */
@@ -276,15 +272,15 @@ static void write_eof_packet(THD *thd, NET *net)
     VOID(my_net_write(net, eof_buff, 1));
 }
 
-/*
-    Please client to send scrambled_password in old format.
-  SYNOPSYS
-    send_old_password_request()
-    thd thread handle
-     
-  RETURN VALUE
-    0  ok
-   !0  error
+/**
+  Please client to send scrambled_password in old format.
+
+  @param thd thread handle
+
+  @retval
+    0   ok
+  @retval
+    !0  error
 */
 
 bool send_old_password_request(THD *thd)
@@ -338,14 +334,15 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
 
 #endif /* EMBEDDED_LIBRARY */
 
-/*
+/**
   Faster net_store_length when we know that length is less than 65536.
   We keep a separate version for that range because it's widely used in
   libmysql.
+
   uint is used as agrument type because of MySQL type conventions:
-  uint for 0..65536
-  ulong for 0..4294967296
-  ulonglong for bigger numbers.
+  - uint for 0..65536
+  - ulong for 0..4294967296
+  - ulonglong for bigger numbers.
 */
 
 static uchar *net_store_length_fast(uchar *packet, uint length)
@@ -418,27 +415,26 @@ bool Protocol::flush()
 #endif
 }
 
-/*
+#ifndef EMBEDDED_LIBRARY
+
+/**
   Send name and type of result to client.
 
-  SYNOPSIS
-    send_fields()
-    THD		Thread data object
-    list	List of items to send to client
-    flag	Bit mask with the following functions:
-		1 send number of rows
-		2 send default values
-                4 don't write eof packet
+  Sum fields has table name empty and field_name.
 
-  DESCRIPTION
-    Sum fields has table name empty and field_name.
+  @param THD		Thread data object
+  @param list	        List of items to send to client
+  @param flag	        Bit mask with the following functions:
+                        - 1 send number of rows
+                        - 2 send default values
+                        - 4 don't write eof packet
 
-  RETURN VALUES
+  @retval
     0	ok
-    1	Error  (Note that in this case the error is not sent to the client)
+  @retval
+    1	Error  (Note that in this case the error is not sent to the
+    client)
 */
-
-#ifndef EMBEDDED_LIBRARY
 bool Protocol::send_fields(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
@@ -592,18 +588,17 @@ bool Protocol::write()
 #endif /* EMBEDDED_LIBRARY */
 
 
-/*
-  Send \0 end terminated string
+/**
+  Send \\0 end terminated string.
 
-  SYNOPSIS
-    store()
-    from	NullS or \0 terminated string
+  @param from	NullS or \\0 terminated string
 
-  NOTES
+  @note
     In most cases one should use store(from, length) instead of this function
 
-  RETURN VALUES
+  @retval
     0		ok
+  @retval
     1		error
 */
 
@@ -616,8 +611,8 @@ bool Protocol::store(const char *from, CHARSET_INFO *cs)
 }
 
 
-/*
-  Send a set of strings as one long string with ',' in between
+/**
+  Send a set of strings as one long string with ',' in between.
 */
 
 bool Protocol::store(I_List<i_string>* str_list)
@@ -669,7 +664,7 @@ bool Protocol_text::store_null()
 #endif
 
 
-/*
+/**
   Auxilary function to convert string to the given character set
   and store in network buffer.
 */
@@ -846,12 +841,11 @@ bool Protocol_text::store(Field *field)
 }
 
 
-/*
-   TODO:
-        Second_part format ("%06") needs to change when 
-        we support 0-6 decimals for time.
+/**
+  @todo
+  Second_part format ("%06") needs to change when 
+  we support 0-6 decimals for time.
 */
-
 
 bool Protocol_text::store(MYSQL_TIME *tm)
 {
@@ -890,10 +884,10 @@ bool Protocol_text::store_date(MYSQL_TIME *tm)
 }
 
 
-/*
-   TODO:
-        Second_part format ("%06") needs to change when 
-        we support 0-6 decimals for time.
+/**
+  @todo 
+  Second_part format ("%06") needs to change when 
+  we support 0-6 decimals for time.
 */
 
 bool Protocol_text::store_time(MYSQL_TIME *tm)

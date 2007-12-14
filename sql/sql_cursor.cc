@@ -24,9 +24,9 @@
   Declarations.
 ****************************************************************************/
 
-/*
+/**
   Sensitive_cursor -- a sensitive non-materialized server side
-  cursor An instance of this class cursor has its own runtime
+  cursor.  An instance of this class cursor has its own runtime
   state -- list of used items and memory root for runtime memory,
   open and locked tables, change list for the changes of the
   parsed tree. This state is freed when the cursor is closed.
@@ -69,7 +69,7 @@ public:
 };
 
 
-/*
+/**
   Materialized_cursor -- an insensitive materialized server-side
   cursor. The result set of this cursor is saved in a temporary
   table at open. The cursor itself is simply an interface for the
@@ -96,7 +96,7 @@ public:
 };
 
 
-/*
+/**
   Select_materialize -- a mediator between a cursor query and the
   protocol. In case we were not able to open a non-materialzed
   cursor, it creates an internal temporary HEAP table, and insert
@@ -107,7 +107,7 @@ public:
 
 class Select_materialize: public select_union
 {
-  select_result *result; /* the result object of the caller (PS or SP) */
+  select_result *result; /**< the result object of the caller (PS or SP) */
 public:
   Select_materialize(select_result *result_arg) :result(result_arg) {}
   virtual bool send_fields(List<Item> &list, uint flags);
@@ -116,22 +116,21 @@ public:
 
 /**************************************************************************/
 
-/*
+/**
   Attempt to open a materialized or non-materialized cursor.
 
-  SYNOPSIS
-    mysql_open_cursor()
-      thd                thread handle
-      flags   [in]       create a materialized cursor or not
-      result  [in]       result class of the caller used as a destination
-                         for the rows fetched from the cursor
-      pcursor [out]      a pointer to store a pointer to cursor in
+  @param      thd           thread handle
+  @param[in]  flags         create a materialized cursor or not
+  @param[in]  result        result class of the caller used as a destination
+                            for the rows fetched from the cursor
+  @param[out] pcursor       a pointer to store a pointer to cursor in
 
-  RETURN VALUE
-    0                    the query has been successfully executed; in this
-                         case pcursor may or may not contain
-                         a pointer to an open cursor.
-    non-zero             an error, 'pcursor' has been left intact.
+  @retval
+    0                 the query has been successfully executed; in this
+    case pcursor may or may not contain
+    a pointer to an open cursor.
+  @retval
+    non-zero          an error, 'pcursor' has been left intact.
 */
 
 int mysql_open_cursor(THD *thd, uint flags, select_result *result,
@@ -279,6 +278,14 @@ Sensitive_cursor::Sensitive_cursor(THD *thd, select_result *result_arg)
 }
 
 
+/**
+  Save THD state into cursor.
+
+  @todo
+    - XXX: thd->locked_tables is not changed.
+    -  What problems can we have with it if cursor is open?
+    - TODO: must be fixed because of the prelocked mode.
+*/
 void
 Sensitive_cursor::post_open(THD *thd)
 {
@@ -333,6 +340,10 @@ Sensitive_cursor::post_open(THD *thd)
   */
 }
 
+
+/**
+  bzero cursor state in THD.
+*/
 
 void
 Sensitive_cursor::reset_thd(THD *thd)
@@ -393,20 +404,13 @@ Sensitive_cursor::open(JOIN *join_arg)
 }
 
 
-/*
-  SYNOPSIS
-    Sensitive_cursor::fetch()
-      num_rows           fetch up to this number of rows (maybe less)
+/**
+  Fetch next num_rows rows from the cursor and send them to the client.
 
-  DESCRIPTION
-    Fetch next num_rows rows from the cursor and send them to the client
+  Precondition:
+  - Sensitive_cursor is open
 
-    Precondition:
-    Sensitive_cursor is open
-
-  RETURN VALUES:
-    none, this function will send OK to the clinet or set an error
-    message in THD
+  @param num_rows           fetch up to this number of rows (maybe less)
 */
 
 void
@@ -478,6 +482,11 @@ Sensitive_cursor::fetch(ulong num_rows)
 }
 
 
+/**
+  @todo
+  Another hack: we need to set THD state as if in a fetch to be
+  able to call stmt close.
+*/
 void
 Sensitive_cursor::close()
 {
@@ -579,10 +588,9 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
 }
 
 
-/*
+/**
   Fetch up to the given number of rows from a materialized cursor.
 
-  DESCRIPTION
     Precondition: the cursor is open.
 
     If the cursor points after the last row, the fetch will automatically
@@ -590,10 +598,6 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
     with SERVER_STATUS_LAST_ROW_SENT). This is an extra round trip
     and probably should be improved to return
     SERVER_STATUS_LAST_ROW_SENT along with the last row.
-
-  RETURN VALUE
-    none, in case of success the row is sent to the client, otherwise
-    an error message is set in THD
 */
 
 void Materialized_cursor::fetch(ulong num_rows)

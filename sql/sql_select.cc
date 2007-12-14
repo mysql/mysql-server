@@ -14,11 +14,15 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /**
+  @file
+
+  @brief
+  mysql_select and join optimization
+
+
   @defgroup Query_Optimizer  Query Optimizer
   @{
 */
-
-/* mysql_select and join optimization */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -225,8 +229,8 @@ static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 
 
-/*
-  This handles SELECT with and without UNION
+/**
+  This handles SELECT with and without UNION.
 */
 
 bool handle_select(THD *thd, LEX *lex, select_result *result,
@@ -382,8 +386,8 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
   return res;
 }
 
-/*
-  Function to setup clauses without sum functions
+/**
+  Function to setup clauses without sum functions.
 */
 inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 			       TABLE_LIST *tables,
@@ -416,10 +420,17 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
   mysql_select assumes that all tables are already opened
 *****************************************************************************/
 
-/*
+/**
   Prepare of whole select (including sub queries in future).
-  return -1 on error
-          0 on success
+
+  @todo
+    Add check of calculation of GROUP functions and fields:
+    SELECT COUNT(*)+table.col1 from table1;
+
+  @retval
+    -1   on error
+  @retval
+    0   on success
 */
 int
 JOIN::prepare(Item ***rref_pointer_array,
@@ -750,11 +761,16 @@ static void save_index_subquery_explain_info(JOIN_TAB *join_tab, Item* where)
 }
 
 
-/*
+/**
   global select optimisation.
-  return 0 - success
-         1 - error
-  error code saved in field 'error'
+
+  @note
+    error code saved in field 'error'
+
+  @retval
+    0   success
+  @retval
+    1   error
 */
 
 int
@@ -1512,8 +1528,8 @@ JOIN::optimize()
 }
 
 
-/*
-  Restore values in temporary join
+/**
+  Restore values in temporary join.
 */
 void JOIN::restore_tmp()
 {
@@ -1601,8 +1617,16 @@ JOIN::save_join_tab()
 }
 
 
-/*
-  Exec select
+/**
+  Exec select.
+
+  @todo
+    Note, that create_sort_index calls test_if_skip_sort_order and may
+    finally replace sorting with index scan if there is a LIMIT clause in
+    the query.  It's never shown in EXPLAIN!
+
+  @todo
+    When can we have here thd->net.report_error not zero?
 */
 void
 JOIN::exec()
@@ -2174,8 +2198,11 @@ JOIN::exec()
 }
 
 
-/*
-  Clean up join. Return error that hold JOIN.
+/**
+  Clean up join.
+
+  @return
+    Return error that hold JOIN.
 */
 
 int
@@ -2209,49 +2236,48 @@ JOIN::destroy()
   DBUG_RETURN(error);
 }
 
-/*
+/**
   An entry point to single-unit select (a select without UNION).
 
-  SYNOPSIS
-    mysql_select()
+  @param thd                  thread handler
+  @param rref_pointer_array   a reference to ref_pointer_array of
+                              the top-level select_lex for this query
+  @param tables               list of all tables used in this query.
+                              The tables have been pre-opened.
+  @param wild_num             number of wildcards used in the top level 
+                              select of this query.
+                              For example statement
+                              SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
+                              has 3 wildcards.
+  @param fields               list of items in SELECT list of the top-level
+                              select
+                              e.g. SELECT a, b, c FROM t1 will have Item_field
+                              for a, b and c in this list.
+  @param conds                top level item of an expression representing
+                              WHERE clause of the top level select
+  @param og_num               total number of ORDER BY and GROUP BY clauses
+                              arguments
+  @param order                linked list of ORDER BY agruments
+  @param group                linked list of GROUP BY arguments
+  @param having               top level item of HAVING expression
+  @param proc_param           list of PROCEDUREs
+  @param select_options       select options (BIG_RESULT, etc)
+  @param result               an instance of result set handling class.
+                              This object is responsible for send result
+                              set rows to the client or inserting them
+                              into a table.
+  @param select_lex           the only SELECT_LEX of this query
+  @param unit                 top-level UNIT of this query
+                              UNIT is an artificial object created by the
+                              parser for every SELECT clause.
+                              e.g.
+                              SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
+                              has 2 unions.
 
-    thd                  thread handler
-    rref_pointer_array   a reference to ref_pointer_array of
-                         the top-level select_lex for this query
-    tables               list of all tables used in this query.
-                         The tables have been pre-opened.
-    wild_num             number of wildcards used in the top level 
-                         select of this query.
-                         For example statement
-                         SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
-                         has 3 wildcards.
-    fields               list of items in SELECT list of the top-level
-                         select
-                         e.g. SELECT a, b, c FROM t1 will have Item_field
-                         for a, b and c in this list.
-    conds                top level item of an expression representing
-                         WHERE clause of the top level select
-    og_num               total number of ORDER BY and GROUP BY clauses
-                         arguments
-    order                linked list of ORDER BY agruments
-    group                linked list of GROUP BY arguments
-    having               top level item of HAVING expression
-    proc_param           list of PROCEDUREs
-    select_options       select options (BIG_RESULT, etc)
-    result               an instance of result set handling class.
-                         This object is responsible for send result
-                         set rows to the client or inserting them
-                         into a table.
-    select_lex           the only SELECT_LEX of this query
-    unit                 top-level UNIT of this query
-                         UNIT is an artificial object created by the parser
-                         for every SELECT clause.
-                         e.g. SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
-                         has 2 unions.
-
-  RETURN VALUE
-   FALSE  success
-   TRUE   an error
+  @retval
+    FALSE  success
+  @retval
+    TRUE   an error
 */
 
 bool
@@ -2397,12 +2423,13 @@ typedef struct st_sargable_param
   uint num_values;           /* number of values in the above array      */
 } SARGABLE_PARAM;  
 
-/*
-  Calculate the best possible join and initialize the join structure
+/**
+  Calculate the best possible join and initialize the join structure.
 
-  RETURN VALUES
-  0	ok
-  1	Fatal error
+  @retval
+    0	ok
+  @retval
+    1	Fatal error
 */
 
 static bool
@@ -2843,13 +2870,14 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	  keyuse     Pointer to possible keys
 *****************************************************************************/
 
-typedef struct key_field_t {		// Used when finding key fields
+/// Used when finding key fields
+typedef struct key_field_t {
   Field		*field;
-  Item		*val;			// May be empty if diff constant
+  Item		*val;			///< May be empty if diff constant
   uint		level;
   uint		optimize;
   bool		eq_func;
-  /*
+  /**
     If true, the condition this struct represents will not be satisfied
     when val IS NULL.
   */
@@ -2861,22 +2889,28 @@ typedef struct key_field_t {		// Used when finding key fields
 #define KEY_OPTIMIZE_EXISTS		1
 #define KEY_OPTIMIZE_REF_OR_NULL	2
 
-/*
-  Merge new key definitions to old ones, remove those not used in both
+/**
+  Merge new key definitions to old ones, remove those not used in both.
 
-  This is called for OR between different levels
+  This is called for OR between different levels.
 
   To be able to do 'ref_or_null' we merge a comparison of a column
   and 'column IS NULL' to one test.  This is useful for sub select queries
-  that are internally transformed to something like:
+  that are internally transformed to something like:.
 
+  @code
   SELECT * FROM t1 WHERE t1.key=outer_ref_field or t1.key IS NULL 
+  @endcode
 
-  KEY_FIELD::null_rejecting is processed as follows:
+  KEY_FIELD::null_rejecting is processed as follows: @n
   result has null_rejecting=true if it is set for both ORed references.
   for example:
-    (t2.key = t1.field OR t2.key  =  t1.field) -> null_rejecting=true
-    (t2.key = t1.field OR t2.key <=> t1.field) -> null_rejecting=false
+  -   (t2.key = t1.field OR t2.key  =  t1.field) -> null_rejecting=true
+  -   (t2.key = t1.field OR t2.key <=> t1.field) -> null_rejecting=false
+
+  @todo
+    The result of this is that we're missing some 'ref' accesses.
+    OptimizerTeam: Fix this
 */
 
 static KEY_FIELD *
@@ -2985,25 +3019,23 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 }
 
 
-/*
+/**
   Add a possible key to array of possible keys if it's usable as a key
 
-  SYNPOSIS
-    add_key_field()
-    key_fields			Pointer to add key, if usable
-    and_level			And level, to be stored in KEY_FIELD
-    cond                        Condition predicate
-    field			Field used in comparision
-    eq_func			True if we used =, <=> or IS NULL
-    value			Value used for comparison with field
-    usable_tables		Tables which can be used for key optimization
-    sargables            IN/OUT Array of found sargable candidates
+    @param key_fields      Pointer to add key, if usable
+    @param and_level       And level, to be stored in KEY_FIELD
+    @param cond            Condition predicate
+    @param field           Field used in comparision
+    @param eq_func         True if we used =, <=> or IS NULL
+    @param value           Value used for comparison with field
+    @param usable_tables   Tables which can be used for key optimization
+    @param sargables       IN/OUT Array of found sargable candidates
 
-  NOTES
+  @note
     If we are doing a NOT NULL comparison on a NOT NULL field in a outer join
     table, we store this to be able to do not exists optimization later.
 
-  RETURN
+  @returns
     *key_fields is incremented if we stored a key in the array
 */
 
@@ -3154,26 +3186,25 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
   (*key_fields)++;
 }
 
-/*
-  Add possible keys to array of possible keys originated from a simple predicate
+/**
+  Add possible keys to array of possible keys originated from a simple
+  predicate.
 
-  SYNPOSIS
-    add_key_equal_fields()
-    key_fields			Pointer to add key, if usable
-    and_level			And level, to be stored in KEY_FIELD
-    cond                        Condition predicate
-    field			Field used in comparision
-    eq_func			True if we used =, <=> or IS NULL
-    value			Value used for comparison with field
-				Is NULL for BETWEEN and IN    
-    usable_tables		Tables which can be used for key optimization
-    sargables            IN/OUT Array of found sargable candidates
+    @param  key_fields     Pointer to add key, if usable
+    @param  and_level      And level, to be stored in KEY_FIELD
+    @param  cond           Condition predicate
+    @param  field          Field used in comparision
+    @param  eq_func        True if we used =, <=> or IS NULL
+    @param  value          Value used for comparison with field
+                           Is NULL for BETWEEN and IN    
+    @param  usable_tables  Tables which can be used for key optimization
+    @param  sargables      IN/OUT Array of found sargable candidates
 
-  NOTES
+  @note
     If field items f1 and f2 belong to the same multiple equality and
     a key is added for f1, the the same key is added for f2.
 
-  RETURN
+  @returns
     *key_fields is incremented if we stored a key in the array
 */
 
@@ -3404,9 +3435,13 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   }
 }
 
-/*
-  Add all keys with uses 'field' for some keypart
-  If field->and_level != and_level then only mark key_part as const_part
+/**
+  Add all keys with uses 'field' for some keypart.
+
+  If field->and_level != and_level then only mark key_part as const_part.
+
+  @todo
+    ft-keys in non-ft queries.   SerG
 */
 
 static uint
@@ -3539,33 +3574,37 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
 
 
 /*
-  Add to KEY_FIELD array all 'ref' access candidates within nested join
+  Add to KEY_FIELD array all 'ref' access candidates within nested join.
 
-  SYNPOSIS
-    add_key_fields_for_nj()
-      nested_join_table  IN     Nested join pseudo-table to process
-      end                INOUT  End of the key field array
-      and_level          INOUT  And-level
-      sargables          IN/OUT Array of found sargable candidates
-
-  DESCRIPTION
     This function populates KEY_FIELD array with entries generated from the 
     ON condition of the given nested join, and does the same for nested joins 
     contained within this nested join.
 
-  NOTES
+  @param[in]      nested_join_table   Nested join pseudo-table to process
+  @param[in,out]  end                 End of the key field array
+  @param[in,out]  and_level           And-level
+  @param[in,out]  sargables           Array of found sargable candidates
+
+
+  @note
     We can add accesses to the tables that are direct children of this nested 
     join (1), and are not inner tables w.r.t their neighbours (2).
     
     Example for #1 (outer brackets pair denotes nested join this function is 
     invoked for):
+    @code
      ... LEFT JOIN (t1 LEFT JOIN (t2 ... ) ) ON cond
+    @endcode
     Example for #2:
+    @code
      ... LEFT JOIN (t1 LEFT JOIN t2 ) ON cond
+    @endcode
     In examples 1-2 for condition cond, we can add 'ref' access candidates to 
     t1 only.
     Example #3:
+    @code
      ... LEFT JOIN (t1, t2 LEFT JOIN t3 ON inner_cond) ON cond
+    @endcode
     Here we can add 'ref' access candidates for t1 and t2, but not for t3.
 */
 
@@ -3591,25 +3630,25 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
 }
 
 
-/*
-  Update keyuse array with all possible keys we can use to fetch rows
+/**
+  Update keyuse array with all possible keys we can use to fetch rows.
   
-  SYNOPSIS
-    update_ref_and_keys()
-      thd 
-      keyuse     OUT Put here ordered array of KEYUSE structures
-      join_tab       Array in tablenr_order
-      tables         Number of tables in join
-      cond           WHERE condition (note that the function analyzes 
-                     join_tab[i]->on_expr too)
-      normal_tables  Tables not inner w.r.t some outer join (ones for which
-                     we can make ref access based the WHERE clause)
-      select_lex     current SELECT
-      sargables  OUT Array of found sargable candidates
+  @param       thd 
+  @param[out]  keyuse         Put here ordered array of KEYUSE structures
+  @param       join_tab       Array in tablenr_order
+  @param       tables         Number of tables in join
+  @param       cond           WHERE condition (note that the function analyzes
+                              join_tab[i]->on_expr too)
+  @param       normal_tables  Tables not inner w.r.t some outer join (ones
+                              for which we can make ref access based the WHERE
+                              clause)
+  @param       select_lex     current SELECT
+  @param[out]  sargables      Array of found sargable candidates
       
-  RETURN 
-   0 - OK
-   1 - Out of memory.
+   @retval
+     0  OK
+   @retval
+     1  Out of memory.
 */
 
 static bool
@@ -3768,8 +3807,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   return FALSE;
 }
 
-/*
-  Update some values in keyuse for faster choose_plan() loop
+/**
+  Update some values in keyuse for faster choose_plan() loop.
 */
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
@@ -3810,23 +3849,21 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
 }
 
 
-/*
+/**
   Discover the indexes that can be used for GROUP BY or DISTINCT queries.
 
-  SYNOPSIS
-    add_group_and_distinct_keys()
-    join
-    join_tab
+  If the query has a GROUP BY clause, find all indexes that contain all
+  GROUP BY fields, and add those indexes to join->const_keys.
 
-  DESCRIPTION
-    If the query has a GROUP BY clause, find all indexes that contain all
-    GROUP BY fields, and add those indexes to join->const_keys.
-    If the query has a DISTINCT clause, find all indexes that contain all
-    SELECT fields, and add those indexes to join->const_keys.
-    This allows later on such queries to be processed by a
-    QUICK_GROUP_MIN_MAX_SELECT.
+  If the query has a DISTINCT clause, find all indexes that contain all
+  SELECT fields, and add those indexes to join->const_keys.
+  This allows later on such queries to be processed by a
+  QUICK_GROUP_MIN_MAX_SELECT.
 
-  RETURN
+  @param join
+  @param join_tab
+
+  @return
     None
 */
 
@@ -3878,7 +3915,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   which uses least records
 *****************************************************************************/
 
-/* Save const tables first as used tables */
+/** Save const tables first as used tables. */
 
 static void
 set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
@@ -3901,31 +3938,28 @@ set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
 }
 
 
-/*
-  Find the best access path for an extension of a partial execution plan and
-  add this path to the plan.
+/**
+  Find the best access path for an extension of a partial execution
+  plan and add this path to the plan.
 
-  SYNOPSIS
-    best_access_path()
-    join             pointer to the structure providing all context info
-                     for the query
-    s                the table to be joined by the function
-    thd              thread for the connection that submitted the query
-    remaining_tables set of tables not included into the partial plan yet
-    idx              the length of the partial plan
-    record_count     estimate for the number of records returned by the partial
-                     plan
-    read_time        the cost of the partial plan
+  The function finds the best access path to table 's' from the passed
+  partial plan where an access path is the general term for any means to
+  access the data in 's'. An access path may use either an index or a scan,
+  whichever is cheaper. The input partial plan is passed via the array
+  'join->positions' of length 'idx'. The chosen access method for 's' and its
+  cost are stored in 'join->positions[idx]'.
 
-  DESCRIPTION
-    The function finds the best access path to table 's' from the passed
-    partial plan where an access path is the general term for any means to
-    access the data in 's'. An access path may use either an index or a scan,
-    whichever is cheaper. The input partial plan is passed via the array
-    'join->positions' of length 'idx'. The chosen access method for 's' and its
-    cost are stored in 'join->positions[idx]'.
+  @param join             pointer to the structure providing all context info
+                          for the query
+  @param s                the table to be joined by the function
+  @param thd              thread for the connection that submitted the query
+  @param remaining_tables set of tables not included into the partial plan yet
+  @param idx              the length of the partial plan
+  @param record_count     estimate for the number of records returned by the
+                          partial plan
+  @param read_time        the cost of the partial plan
 
-  RETURN
+  @return
     None
 */
 
@@ -4453,24 +4487,26 @@ best_access_path(JOIN      *join,
 }
 
 
-/*
+/**
   Selects and invokes a search strategy for an optimal query plan.
 
-  SYNOPSIS
-    choose_plan()
-    join        pointer to the structure providing all context info for
-                the query
-    join_tables set of the tables in the query
+  The function checks user-configurable parameters that control the search
+  strategy for an optimal plan, selects the search method and then invokes
+  it. Each specific optimization procedure stores the final optimal plan in
+  the array 'join->best_positions', and the cost of the plan in
+  'join->best_read'.
 
-  DESCRIPTION
-    The function checks user-configurable parameters that control the search
-    strategy for an optimal plan, selects the search method and then invokes
-    it. Each specific optimization procedure stores the final optimal plan in
-    the array 'join->best_positions', and the cost of the plan in
-    'join->best_read'.
+  @param join         pointer to the structure providing all context info for
+                      the query
+  @param join_tables  set of the tables in the query
 
-  RETURN VALUES
+  @todo
+    'MAX_TABLES+2' denotes the old implementation of find_best before
+    the greedy version. Will be removed when greedy_search is approved.
+
+  @retval
     FALSE       ok
+  @retval
     TRUE        Fatal error
 */
 
@@ -4533,13 +4569,11 @@ choose_plan(JOIN *join, table_map join_tables)
 }
 
 
-/*
+/**
   Compare two JOIN_TAB objects based on the number of accessed records.
 
-  SYNOPSIS
-    join_tab_cmp()
-    ptr1 pointer to first JOIN_TAB object
-    ptr2 pointer to second JOIN_TAB object
+  @param ptr1 pointer to first JOIN_TAB object
+  @param ptr2 pointer to second JOIN_TAB object
 
   NOTES
     The order relation implemented by join_tab_cmp() is not transitive,
@@ -4552,9 +4586,11 @@ choose_plan(JOIN *join, table_map join_tables)
       b: dependent = 0x0 table->map = 0x2 found_records = 3 ptr = 0x907e838
       c: dependent = 0x6 table->map = 0x10 found_records = 2 ptr = 0x907ecd0
      
-  RETURN
+  @retval
     1  if first is bigger
-    -1 if second is bigger
+  @retval
+    -1  if second is bigger
+  @retval
     0  if equal
 */
 
@@ -4576,7 +4612,7 @@ join_tab_cmp(const void* ptr1, const void* ptr2)
 }
 
 
-/* 
+/**
   Same as join_tab_cmp, but for use with SELECT_STRAIGHT_JOIN.
 */
 
@@ -4593,27 +4629,33 @@ join_tab_cmp_straight(const void* ptr1, const void* ptr2)
   return jt1 > jt2 ? 1 : (jt1 < jt2 ? -1 : 0);
 }
 
-/*
+/**
   Heuristic procedure to automatically guess a reasonable degree of
   exhaustiveness for the greedy search procedure.
 
-  SYNOPSIS
-    determine_search_depth()
-    join   pointer to the structure providing all context info for the query
+  The procedure estimates the optimization time and selects a search depth
+  big enough to result in a near-optimal QEP, that doesn't take too long to
+  find. If the number of tables in the query exceeds some constant, then
+  search_depth is set to this constant.
 
-  DESCRIPTION
-    The procedure estimates the optimization time and selects a search depth
-    big enough to result in a near-optimal QEP, that doesn't take too long to
-    find. If the number of tables in the query exceeds some constant, then
-    search_depth is set to this constant.
+  @param join   pointer to the structure providing all context info for
+                the query
 
-  NOTES
+  @note
     This is an extremely simplistic implementation that serves as a stub for a
     more advanced analysis of the join. Ideally the search depth should be
     determined by learning from previous query optimizations, because it will
     depend on the CPU power (and other factors).
 
-  RETURN
+  @todo
+    this value should be determined dynamically, based on statistics:
+    uint max_tables_for_exhaustive_opt= 7;
+
+  @todo
+    this value could be determined by some mapping of the form:
+    depth : table_count -> [max_tables_for_exhaustive_opt..MAX_EXHAUSTIVE]
+
+  @return
     A positive integer that specifies the search depth (and thus the
     exhaustiveness) of the depth-first search algorithm used by
     'greedy_search'.
@@ -4640,16 +4682,9 @@ determine_search_depth(JOIN *join)
 }
 
 
-/*
+/**
   Select the best ways to access the tables in a query without reordering them.
 
-  SYNOPSIS
-    optimize_straight_join()
-    join          pointer to the structure providing all context info for
-                  the query
-    join_tables   set of the tables in the query
-
-  DESCRIPTION
     Find the best access paths for each query table and compute their costs
     according to their order in the array 'join->best_ref' (thus without
     reordering the join tables). The function calls sequentially
@@ -4657,15 +4692,17 @@ determine_search_depth(JOIN *join)
     access method. The final optimal plan is stored in the array
     'join->best_positions', and the corresponding cost in 'join->best_read'.
 
-  NOTES
+  @param join          pointer to the structure providing all context info for
+                       the query
+  @param join_tables   set of the tables in the query
+
+  @note
     This function can be applied to:
     - queries with STRAIGHT_JOIN
     - internally to compute the cost of an arbitrary QEP
+  @par
     Thus 'optimize_straight_join' can be used at any stage of the query
     optimization process to finalize a QEP as it is.
-
-  RETURN
-    None
 */
 
 static void
@@ -4698,31 +4735,24 @@ optimize_straight_join(JOIN *join, table_map join_tables)
 }
 
 
-/*
+/**
   Find a good, possibly optimal, query execution plan (QEP) by a greedy search.
 
-  SYNOPSIS
-    join             pointer to the structure providing all context info
-                     for the query
-    remaining_tables set of tables not included into the partial plan yet
-    search_depth     controlls the exhaustiveness of the search
-    prune_level      the pruning heuristics that should be applied during
-                     search
-
-  DESCRIPTION
     The search procedure uses a hybrid greedy/exhaustive search with controlled
     exhaustiveness. The search is performed in N = card(remaining_tables)
     steps. Each step evaluates how promising is each of the unoptimized tables,
     selects the most promising table, and extends the current partial QEP with
     that table.  Currenly the most 'promising' table is the one with least
-    expensive extension.
+    expensive extension.\
+
     There are two extreme cases:
-    1. When (card(remaining_tables) < search_depth), the estimate finds the best
-       complete continuation of the partial QEP. This continuation can be
-       used directly as a result of the search.
-    2. When (search_depth == 1) the 'best_extension_by_limited_search'
-       consideres the extension of the current QEP with each of the remaining
-       unoptimized tables.
+    -# When (card(remaining_tables) < search_depth), the estimate finds the
+    best complete continuation of the partial QEP. This continuation can be
+    used directly as a result of the search.
+    -# When (search_depth == 1) the 'best_extension_by_limited_search'
+    consideres the extension of the current QEP with each of the remaining
+    unoptimized tables.
+
     All other cases are in-between these two extremes. Thus the parameter
     'search_depth' controlls the exhaustiveness of the search. The higher the
     value, the longer the optimizaton time and possibly the better the
@@ -4730,16 +4760,18 @@ optimize_straight_join(JOIN *join, table_map join_tables)
     estimated, but the more likely to get a bad QEP.
 
     All intermediate and final results of the procedure are stored in 'join':
-    join->positions      modified for every partial QEP that is explored
-    join->best_positions modified for the current best complete QEP
-    join->best_read      modified for the current best complete QEP
-    join->best_ref       might be partially reordered
+    - join->positions     : modified for every partial QEP that is explored
+    - join->best_positions: modified for the current best complete QEP
+    - join->best_read     : modified for the current best complete QEP
+    - join->best_ref      : might be partially reordered
+
     The final optimal plan is stored in 'join->best_positions', and its
     corresponding cost in 'join->best_read'.
 
-  NOTES
+  @note
     The following pseudocode describes the algorithm of 'greedy_search':
 
+    @code
     procedure greedy_search
     input: remaining_tables
     output: pplan;
@@ -4753,6 +4785,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
       return pplan;
     }
 
+  @endcode
     where 'best_extension' is a placeholder for a procedure that selects the
     most "promising" of all tables in 'remaining_tables'.
     Currently this estimate is performed by calling
@@ -4760,16 +4793,26 @@ optimize_straight_join(JOIN *join, table_map join_tables)
     current QEP of size 'search_depth', thus the complexity of 'greedy_search'
     mainly depends on that of 'best_extension_by_limited_search'.
 
+  @par
     If 'best_extension()' == 'best_extension_by_limited_search()', then the
     worst-case complexity of this algorithm is <=
     O(N*N^search_depth/search_depth). When serch_depth >= N, then the
     complexity of greedy_search is O(N!).
 
+  @par
     In the future, 'greedy_search' might be extended to support other
     implementations of 'best_extension', e.g. some simpler quadratic procedure.
 
-  RETURN VALUES
+  @param join             pointer to the structure providing all context info
+                          for the query
+  @param remaining_tables set of tables not included into the partial plan yet
+  @param search_depth     controlls the exhaustiveness of the search
+  @param prune_level      the pruning heuristics that should be applied during
+                          search
+
+  @retval
     FALSE       ok
+  @retval
     TRUE        Fatal error
 */
 
@@ -4845,29 +4888,10 @@ greedy_search(JOIN      *join,
 }
 
 
-/*
+/**
   Find a good, possibly optimal, query execution plan (QEP) by a possibly
   exhaustive search.
 
-  SYNOPSIS
-    best_extension_by_limited_search()
-    join             pointer to the structure providing all context info for
-                     the query
-    remaining_tables set of tables not included into the partial plan yet
-    idx              length of the partial QEP in 'join->positions';
-                     since a depth-first search is used, also corresponds to
-                     the current depth of the search tree;
-                     also an index in the array 'join->best_ref';
-    record_count     estimate for the number of records returned by the best
-                     partial plan
-    read_time        the cost of the best partial plan
-    search_depth     maximum depth of the recursion and thus size of the found
-                     optimal plan (0 < search_depth <= join->tables+1).
-    prune_level      pruning heuristics that should be applied during
-                     optimization
-                     (values: 0 = EXHAUSTIVE, 1 = PRUNE_BY_TIME_OR_ROWS)
-
-  DESCRIPTION
     The procedure searches for the optimal ordering of the query tables in set
     'remaining_tables' of size N, and the corresponding optimal access paths to
     each table. The choice of a table order and an access path for each table
@@ -4894,16 +4918,18 @@ greedy_search(JOIN      *join,
     The final optimal plan is stored in 'join->best_positions'. The
     corresponding cost of the optimal plan is in 'join->best_read'.
 
-  NOTES
+  @note
     The procedure uses a recursive depth-first search where the depth of the
     recursion (and thus the exhaustiveness of the search) is controlled by the
     parameter 'search_depth'.
 
+  @note
     The pseudocode below describes the algorithm of
     'best_extension_by_limited_search'. The worst-case complexity of this
     algorithm is O(N*N^search_depth/search_depth). When serch_depth >= N, then
     the complexity of greedy_search is O(N!).
 
+    @code
     procedure best_extension_by_limited_search(
       pplan in,             // in, partial plan of tables-joined-so-far
       pplan_cost,           // in, cost of pplan
@@ -4943,18 +4969,39 @@ greedy_search(JOIN      *join,
         }
       }
     }
+    @endcode
 
-  IMPLEMENTATION
+  @note
     When 'best_extension_by_limited_search' is called for the first time,
     'join->best_read' must be set to the largest possible value (e.g. DBL_MAX).
     The actual implementation provides a way to optionally use pruning
     heuristic (controlled by the parameter 'prune_level') to reduce the search
     space by skipping some partial plans.
+
+  @note
     The parameter 'search_depth' provides control over the recursion
     depth, and thus the size of the resulting optimal plan.
 
-  RETURN VALUES
+  @param join             pointer to the structure providing all context info
+                          for the query
+  @param remaining_tables set of tables not included into the partial plan yet
+  @param idx              length of the partial QEP in 'join->positions';
+                          since a depth-first search is used, also corresponds
+                          to the current depth of the search tree;
+                          also an index in the array 'join->best_ref';
+  @param record_count     estimate for the number of records returned by the
+                          best partial plan
+  @param read_time        the cost of the best partial plan
+  @param search_depth     maximum depth of the recursion and thus size of the
+                          found optimal plan
+                          (0 < search_depth <= join->tables+1).
+  @param prune_level      pruning heuristics that should be applied during
+                          optimization
+                          (values: 0 = EXHAUSTIVE, 1 = PRUNE_BY_TIME_OR_ROWS)
+
+  @retval
     FALSE       ok
+  @retval
     TRUE        Fatal error
 */
 
@@ -5094,8 +5141,9 @@ best_extension_by_limited_search(JOIN      *join,
 }
 
 
-/*
-  TODO: this function is here only temporarily until 'greedy_search' is
+/**
+  @todo
+  - TODO: this function is here only temporarily until 'greedy_search' is
   tested and accepted.
 
   RETURN VALUES
@@ -5176,8 +5224,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 }
 
 
-/*
-  Find how much space the prevous read not const tables takes in cache
+/**
+  Find how much space the prevous read not const tables takes in cache.
 */
 
 static void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
@@ -5321,9 +5369,9 @@ prev_record_reads(JOIN *join, uint idx, table_map found_ref)
 }
 
 
-/*****************************************************************************
+/**
   Set up join struct according to best position.
-*****************************************************************************/
+*/
 
 static bool
 get_best_combination(JOIN *join)
@@ -5564,9 +5612,11 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 			    keyuse->val);
 }
 
-/*
-  This function is only called for const items on fields which are keys
-  returns 1 if there was some conversion made when the field was stored.
+/**
+  This function is only called for const items on fields which are keys.
+
+  @return
+    returns 1 if there was some conversion made when the field was stored.
 */
 
 bool
@@ -5676,22 +5726,18 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
 }
 
 
-/*
-  Add to join_tab->select_cond[i] "table.field IS NOT NULL" conditions we've
-  inferred from ref/eq_ref access performed.
+/**
+  Add to join_tab->select_cond[i] "table.field IS NOT NULL" conditions
+  we've inferred from ref/eq_ref access performed.
 
-  SYNOPSIS
-    add_not_null_conds()
-      join  Join to process
-
-  NOTES
     This function is a part of "Early NULL-values filtering for ref access"
     optimization.
 
     Example of this optimization:
-      For query SELECT * FROM t1,t2 WHERE t2.key=t1.field
-      and plan " any-access(t1), ref(t2.key=t1.field) "
-      add "t1.field IS NOT NULL" to t1's table condition.
+    For query SELECT * FROM t1,t2 WHERE t2.key=t1.field @n
+    and plan " any-access(t1), ref(t2.key=t1.field) " @n
+    add "t1.field IS NOT NULL" to t1's table condition. @n
+
     Description of the optimization:
     
       We look through equalities choosen to perform ref/eq_ref access,
@@ -5703,8 +5749,10 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
       Exception from that is the case when referred_tab->join != join.
       I.e. don't add NOT NULL constraints from any embedded subquery.
       Consider this query:
+      @code
       SELECT A.f2 FROM t1 LEFT JOIN t2 A ON A.f2 = f1
       WHERE A.f3=(SELECT MIN(f3) FROM  t2 C WHERE A.f4 = C.f4) OR A.f3 IS NULL;
+      @endocde
       Here condition A.f3 IS NOT NULL is going to be added to the WHERE
       condition of the embedding query.
       Another example:
@@ -5775,25 +5823,21 @@ static void add_not_null_conds(JOIN *join)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Build a predicate guarded by match variables for embedding outer joins
+/**
+  Build a predicate guarded by match variables for embedding outer joins.
+  The function recursively adds guards for predicate cond
+  assending from tab to the first inner table  next embedding
+  nested outer join and so on until it reaches root_tab
+  (root_tab can be 0).
 
-  SYNOPSIS
-    add_found_match_trig_cond()
-    tab       the first inner table for most nested outer join
-    cond      the predicate to be guarded (must be set)
-    root_tab  the first inner table to stop
+  @param tab       the first inner table for most nested outer join
+  @param cond      the predicate to be guarded (must be set)
+  @param root_tab  the first inner table to stop
 
-  DESCRIPTION
-    The function recursively adds guards for predicate cond
-    assending from tab to the first inner table  next embedding
-    nested outer join and so on until it reaches root_tab
-    (root_tab can be 0).
-
-  RETURN VALUE
-    pointer to the guarded predicate, if success
-    0, otherwise
-*/ 
+  @return
+    -  pointer to the guarded predicate, if success
+    -  0, otherwise
+*/
 
 static COND*
 add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
@@ -5813,14 +5857,9 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
 }
 
 
-/*
-   Fill in outer join related info for the execution plan structure
+/**
+  Fill in outer join related info for the execution plan structure.
 
-  SYNOPSIS
-    make_outerjoin_info()
-    join - reference to the info fully describing the query
-
-  DESCRIPTION
     For each outer join operation left after simplification of the
     original query the function set up the following pointers in the linear
     structure join->join_tab representing the selected execution plan.
@@ -5835,21 +5874,25 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
     corresponding first inner table through the field t0->on_expr_ref.
     Here ti are structures of the JOIN_TAB type.
 
-  EXAMPLE
-    For the query: 
-      SELECT * FROM t1
-                    LEFT JOIN
-                    (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
-                    ON (t1.a=t2.a AND t1.b=t3.b)
-        WHERE t1.c > 5,
+  EXAMPLE. For the query: 
+  @code
+        SELECT * FROM t1
+                      LEFT JOIN
+                      (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
+                      ON (t1.a=t2.a AND t1.b=t3.b)
+          WHERE t1.c > 5,
+  @endcode
+
     given the execution plan with the table order t1,t2,t3,t4
     is selected, the following references will be set;
     t4->last_inner=[t4], t4->first_inner=[t4], t4->first_upper=[t2]
     t2->last_inner=[t4], t2->first_inner=t3->first_inner=[t2],
     on expression (t1.a=t2.a AND t1.b=t3.b) will be attached to 
     *t2->on_expr_ref, while t3.a=t4.a will be attached to *t4->on_expr_ref.
-            
-  NOTES
+
+  @param join   reference to the info fully describing the query
+
+  @note
     The function assumes that the simplification procedure has been
     already applied to the join query (see simplify_joins).
     This function can be called only after the execution plan
@@ -6480,20 +6523,18 @@ make_join_readinfo(JOIN *join, ulonglong options)
 }
 
 
-/*
-  Give error if we some tables are done with a full join
+/**
+  Give error if we some tables are done with a full join.
 
-  SYNOPSIS
-    error_if_full_join()
-    join		Join condition
+  This is used by multi_table_update and multi_table_delete when running
+  in safe mode.
 
-  USAGE
-   This is used by multi_table_update and multi_table_delete when running
-   in safe mode
+  @param join		Join condition
 
- RETURN VALUES
-   0	ok
-   1	Error (full join used)
+  @retval
+    0	ok
+  @retval
+    1	Error (full join used)
 */
 
 bool error_if_full_join(JOIN *join)
@@ -6513,11 +6554,8 @@ bool error_if_full_join(JOIN *join)
 }
 
 
-/*
-  cleanup JOIN_TAB
-
-  SYNOPSIS
-    JOIN_TAB::cleanup()
+/**
+  cleanup JOIN_TAB.
 */
 
 void JOIN_TAB::cleanup()
@@ -6547,11 +6585,10 @@ void JOIN_TAB::cleanup()
 }
 
 
-/*
+/**
   Partially cleanup JOIN after it has executed: close index or rnd read
   (table cursors), free quick selects.
 
-  DESCRIPTION
     This function is called in the end of execution of a JOIN, before the used
     tables are unlocked and closed.
 
@@ -6571,23 +6608,24 @@ void JOIN_TAB::cleanup()
 
     If a JOIN is executed for a subquery or if it has a subquery, we can't
     do the full cleanup and need to do a partial cleanup only.
-      o If a JOIN is not the top level join, we must not unlock the tables
-        because the outer select may not have been evaluated yet, and we
-        can't unlock only selected tables of a query.
+    - If a JOIN is not the top level join, we must not unlock the tables
+    because the outer select may not have been evaluated yet, and we
+    can't unlock only selected tables of a query.
+    - Additionally, if this JOIN corresponds to a correlated subquery, we
+    should not free quick selects and join buffers because they will be
+    needed for the next execution of the correlated subquery.
+    - However, if this is a JOIN for a [sub]select, which is not
+    a correlated subquery itself, but has subqueries, we can free it
+    fully and also free JOINs of all its subqueries. The exception
+    is a subquery in SELECT list, e.g: @n
+    SELECT a, (select max(b) from t1) group by c @n
+    This subquery will not be evaluated at first sweep and its value will
+    not be inserted into the temporary table. Instead, it's evaluated
+    when selecting from the temporary table. Therefore, it can't be freed
+    here even though it's not correlated.
 
-      o Additionally, if this JOIN corresponds to a correlated subquery, we
-        should not free quick selects and join buffers because they will be
-        needed for the next execution of the correlated subquery.
-
-      o However, if this is a JOIN for a [sub]select, which is not
-        a correlated subquery itself, but has subqueries, we can free it
-        fully and also free JOINs of all its subqueries. The exception
-        is a subquery in SELECT list, e.g:
-        SELECT a, (select max(b) from t1) group by c
-        This subquery will not be evaluated at first sweep and its value will
-        not be inserted into the temporary table. Instead, it's evaluated
-        when selecting from the temporary table. Therefore, it can't be freed
-        here even though it's not correlated.
+  @todo
+    Unlock tables even if the join isn't top level select in the tree
 */
 
 void JOIN::join_free()
@@ -6647,15 +6685,15 @@ void JOIN::join_free()
 }
 
 
-/*
-  Free resources of given join
+/**
+  Free resources of given join.
 
-  SYNOPSIS
-    JOIN::cleanup()
-    fill - true if we should free all resources, call with full==1 should be
-           last, before it this function can be called with full==0
+  @param fill   true if we should free all resources, call with full==1
+                should be last, before it this function can be called with
+                full==0
 
-  NOTE: with subquery this function definitely will be called several times,
+  @note
+    With subquery this function definitely will be called several times,
     but even for simple query it can be called several times.
 */
 
@@ -6725,21 +6763,25 @@ void JOIN::cleanup(bool full)
 }
 
 
-/*****************************************************************************
+/**
   Remove the following expressions from ORDER BY and GROUP BY:
-  Constant expressions
+  Constant expressions @n
   Expression that only uses tables that are of type EQ_REF and the reference
   is in the ORDER list or if all refereed tables are of the above type.
 
   In the following, the X field can be removed:
+  @code
   SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t1.a,t2.X
   SELECT * FROM t1,t2,t3 WHERE t1.a=t2.a AND t2.b=t3.b ORDER BY t1.a,t3.X
+  @endcode
 
   These can't be optimized:
+  @code
   SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t2.X,t1.a
   SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b ORDER BY t1.a,t2.c
   SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t2.b,t1.a
-*****************************************************************************/
+  @endcode
+*/
 
 static bool
 eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
@@ -6807,7 +6849,7 @@ only_eq_ref_tables(JOIN *join,ORDER *order,table_map tables)
 }
 
 
-/* Update the dependency map for the tables */
+/** Update the dependency map for the tables. */
 
 static void update_depend_map(JOIN *join)
 {
@@ -6834,7 +6876,7 @@ static void update_depend_map(JOIN *join)
 }
 
 
-/* Update the dependency map for the sort order */
+/** Update the dependency map for the sort order. */
 
 static void update_depend_map(JOIN *join, ORDER *order)
 {
@@ -6859,25 +6901,23 @@ static void update_depend_map(JOIN *join, ORDER *order)
 }
 
 
-/*
-  Remove all constants and check if ORDER only contains simple expressions
+/**
+  Remove all constants and check if ORDER only contains simple
+  expressions.
 
-  SYNOPSIS
-   remove_const()
-   join			Join handler
-   first_order		List of SORT or GROUP order
-   cond			WHERE statement
-   change_list		Set to 1 if we should remove things from list
-			If this is not set, then only simple_order is
-                        calculated   
-   simple_order		Set to 1 if we are only using simple expressions
+  simple_order is set to 1 if sort_order only uses fields from head table
+  and the head table is not a LEFT JOIN table.
 
-  RETURN
+  @param join			Join handler
+  @param first_order		List of SORT or GROUP order
+  @param cond			WHERE statement
+  @param change_list		Set to 1 if we should remove things from list.
+                               If this is not set, then only simple_order is
+                               calculated.
+  @param simple_order		Set to 1 if we are only using simple expressions
+
+  @return
     Returns new sort order
-
-    simple_order is set to 1 if sort_order only uses fields from head table
-    and the head table is not a LEFT JOIN table
-
 */
 
 static ORDER *
@@ -7033,25 +7073,23 @@ template class List_iterator<Item_func_match>;
 #endif
 
 
-/* 
-  Find the multiple equality predicate containing a field
- 
-  SYNOPSIS
-    find_item_equal()
-    cond_equal          multiple equalities to search in
-    field               field to look for
-    inherited_fl  :out  set up to TRUE if multiple equality is found
-                        on upper levels (not on current level of cond_equal) 
+/**
+  Find the multiple equality predicate containing a field.
 
-  DESCRIPTION
-    The function retrieves the multiple equalities accessed through
-    the con_equal structure from current level and up looking for
-    an equality containing field. It stops retrieval as soon as the equality
-    is found and set up inherited_fl to TRUE if it's found on upper levels.
+  The function retrieves the multiple equalities accessed through
+  the con_equal structure from current level and up looking for
+  an equality containing field. It stops retrieval as soon as the equality
+  is found and set up inherited_fl to TRUE if it's found on upper levels.
 
-  RETURN
-    Item_equal for the found multiple equality predicate if a success;
-    NULL - otherwise.
+  @param cond_equal          multiple equalities to search in
+  @param field               field to look for
+  @param[out] inherited_fl   set up to TRUE if multiple equality is found
+                             on upper levels (not on current level of
+                             cond_equal)
+
+  @return
+    - Item_equal for the found multiple equality predicate if a success;
+    - NULL otherwise.
 */
 
 Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
@@ -7077,18 +7115,9 @@ finish:
 }
 
   
-/* 
-  Check whether an equality can be used to build multiple equalities
+/**
+  Check whether an equality can be used to build multiple equalities.
 
-  SYNOPSIS
-    check_simple_equality()
-      left_item   left term of the quality to be checked
-      right_item  right term of the equality to be checked
-      item        equality item if the equality originates from a condition
-                  predicate, 0 if the equality is the result of row elimination
-      cond_equal  multiple equalities that must hold together with the equality
-
-  DESCRIPTION
     This function first checks whether the equality (left_item=right_item)
     is a simple equality i.e. the one that equates a field with another field
     or a constant (field=field_item or field=const_item).
@@ -7103,22 +7132,24 @@ finish:
     This guarantees that the set of multiple equalities covering equality
     predicates will be minimal.
 
-  EXAMPLE
+  EXAMPLE:
     For the where condition
-    WHERE a=b AND b=c AND
-          (b=2 OR f=e)
+    @code
+      WHERE a=b AND b=c AND
+            (b=2 OR f=e)
+    @endcode
     the check_equality will be called for the following equality
     predicates a=b, b=c, b=2 and f=e.
-    For a=b it will be called with *cond_equal=(0,[]) and will transform
-    *cond_equal into (0,[Item_equal(a,b)]). 
-    For b=c it will be called with *cond_equal=(0,[Item_equal(a,b)])
-    and will transform *cond_equal into CE=(0,[Item_equal(a,b,c)]).
-    For b=2 it will be called with *cond_equal=(ptr(CE),[])
-    and will transform *cond_equal into (ptr(CE),[Item_equal(2,a,b,c)]).
-    For f=e it will be called with *cond_equal=(ptr(CE), [])
-    and will transform *cond_equal into (ptr(CE),[Item_equal(f,e)]).
+    - For a=b it will be called with *cond_equal=(0,[]) and will transform
+      *cond_equal into (0,[Item_equal(a,b)]). 
+    - For b=c it will be called with *cond_equal=(0,[Item_equal(a,b)])
+      and will transform *cond_equal into CE=(0,[Item_equal(a,b,c)]).
+    - For b=2 it will be called with *cond_equal=(ptr(CE),[])
+      and will transform *cond_equal into (ptr(CE),[Item_equal(2,a,b,c)]).
+    - For f=e it will be called with *cond_equal=(ptr(CE), [])
+      and will transform *cond_equal into (ptr(CE),[Item_equal(f,e)]).
 
-  NOTES
+  @note
     Now only fields that have the same type definitions (verified by
     the Field::eq_def method) are placed to the same multiple equalities.
     Because of this some equality predicates are not eliminated and
@@ -7130,8 +7161,8 @@ finish:
     equality. But at the same time it would allow us to get rid
     of constant propagation completely: it would be done by the call
     to build_equal_items_for_cond.
-    
-  IMPLEMENTATION
+
+
     The implementation does not follow exactly the above rules to
     build a new multiple equality for the equality predicate.
     If it processes the equality of the form field1=field2, it
@@ -7151,9 +7182,18 @@ finish:
     acceptable, as this happens rarely. The implementation without
     copying would be much more complicated.
 
-  RETURN
+  @param left_item   left term of the quality to be checked
+  @param right_item  right term of the equality to be checked
+  @param item        equality item if the equality originates from a condition
+                     predicate, 0 if the equality is the result of row
+                     elimination
+  @param cond_equal  multiple equalities that must hold together with the
+                     equality
+
+  @retval
     TRUE    if the predicate is a simple equality predicate to be used
-            for building multiple equalities
+    for building multiple equalities
+  @retval
     FALSE   otherwise
 */
 
@@ -7322,30 +7362,30 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
 }
 
 
-/* 
-  Convert row equalities into a conjunction of regular equalities
+/**
+  Convert row equalities into a conjunction of regular equalities.
 
-  SYNOPSIS
-    check_row_equality()
-      thd        thread handle
-      left_row   left term of the row equality to be processed     
-      right_row  right term of the row equality to be processed
-      cond_equal multiple equalities that must hold together with the predicate
-      eq_list    results of conversions of row equalities that are not simple
-                 enough to form multiple equalities
-
-  DESCRIPTION
     The function converts a row equality of the form (E1,...,En)=(E'1,...,E'n)
     into a list of equalities E1=E'1,...,En=E'n. For each of these equalities
-    Ei=E'i the function checks whether it is a simple equality or a row equality.
-    If it is a simple equality it is used to expand multiple equalities of
-    cond_equal. If it is a row equality it converted to a sequence of equalities
-    between row elements. If Ei=E'i is neither a simple equality nor a row
-    equality the item for this predicate is added to eq_list.
+    Ei=E'i the function checks whether it is a simple equality or a row
+    equality. If it is a simple equality it is used to expand multiple
+    equalities of cond_equal. If it is a row equality it converted to a
+    sequence of equalities between row elements. If Ei=E'i is neither a
+    simple equality nor a row equality the item for this predicate is added
+    to eq_list.
 
-  RETURN
-    TRUE    if conversion has succeeded (no fatal error) 
-    FALSE   otherwise  
+  @param thd        thread handle
+  @param left_row   left term of the row equality to be processed
+  @param right_row  right term of the row equality to be processed
+  @param cond_equal multiple equalities that must hold together with the
+                    predicate
+  @param eq_list    results of conversions of row equalities that are not
+                    simple enough to form multiple equalities
+
+  @retval
+    TRUE    if conversion has succeeded (no fatal error)
+  @retval
+    FALSE   otherwise
 */
  
 static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
@@ -7387,18 +7427,9 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
 }
 
 
-/* 
-  Eliminate row equalities and form multiple equalities predicates 
+/**
+  Eliminate row equalities and form multiple equalities predicates.
 
-  SYNOPSIS
-    check_equality()
-      thd        thread handle
-      item       predicate to process     
-      cond_equal multiple equalities that must hold together with the predicate
-      eq_list    results of conversions of row equalities that are not simple
-                 enough to form multiple equalities
-
-  DESCRIPTION
     This function checks whether the item is a simple equality
     i.e. the one that equates a field with another field or a constant
     (field=field_item or field=constant_item), or, a row equality.
@@ -7406,11 +7437,20 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
     in the lists referenced directly or indirectly by cond_equal inferring
     the given simple equality. If it doesn't find any, it builds/expands
     multiple equality that covers the predicate.
-    Row equalities are eliminated substituted for conjunctive regular equalities
-    which are treated in the same way as original equality predicates.
+    Row equalities are eliminated substituted for conjunctive regular
+    equalities which are treated in the same way as original equality
+    predicates.
 
-  RETURN
+  @param thd        thread handle
+  @param item       predicate to process
+  @param cond_equal multiple equalities that must hold together with the
+                    predicate
+  @param eq_list    results of conversions of row equalities that are not
+                    simple enough to form multiple equalities
+
+  @retval
     TRUE   if re-writing rules have been applied
+  @retval
     FALSE  otherwise, i.e.
            if the predicate is not an equality,
            or, if the equality is neither a simple one nor a row equality,
@@ -7442,16 +7482,9 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
 }
 
                           
-/* 
-  Replace all equality predicates in a condition by multiple equality items
+/**
+  Replace all equality predicates in a condition by multiple equality items.
 
-  SYNOPSIS
-    build_equal_items_for_cond()
-      thd        thread handle
-      cond       condition(expression) where to make replacement
-      inherited  path to all inherited multiple equality items
-
-  DESCRIPTION
     At each 'and' level the function detects items for equality predicates
     and replaced them by a set of multiple equality items of class Item_equal,
     taking into account inherited equalities from upper levels. 
@@ -7470,7 +7503,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     equality lists of each Item_cond_and object assigning it to
     thd->lex->current_select->max_equal_elems.
 
-  NOTES
+  @note
     Multiple equality predicate =(f1,..fn) is equivalent to the conjuction of
     f1=f2, .., fn-1=fn. It substitutes any inference from these
     equality predicates that is equivalent to the conjunction.
@@ -7488,7 +7521,6 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     but if additionally =(t4.d,t2.b) is inherited, it
     will be replaced by (=(t1.a,t2.b,t3.c,t4.d) AND t2.b>5)
 
-  IMPLEMENTATION
     The function performs the substitution in a recursive descent by
     the condtion tree, passing to the next AND level a chain of multiple
     equality predicates which have been built at the upper levels.
@@ -7502,10 +7534,15 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     - join them into disjoint Item_equal() groups
     - process the included OR conditions recursively to do the same for 
       lower AND levels. 
+
     We need to do things in this order as lower AND levels need to know about
     all possible Item_equal objects in upper levels.
 
-  RETURN
+  @param thd        thread handle
+  @param cond       condition(expression) where to make replacement
+  @param inherited  path to all inherited multiple equality items
+
+  @return
     pointer to the transformed condition
 */
 
@@ -7653,19 +7690,10 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
 }
 
 
-/* 
+/**
   Build multiple equalities for a condition and all on expressions that
-  inherit these multiple equalities
+  inherit these multiple equalities.
 
-  SYNOPSIS
-    build_equal_items()
-    thd			thread handle
-    cond                condition to build the multiple equalities for
-    inherited           path to all inherited multiple equality items
-    join_list           list of join tables to which the condition refers to
-    cond_equal_ref :out pointer to the structure to place built equalities in
-
-  DESCRIPTION
     The function first applies the build_equal_items_for_cond function
     to build all multiple equalities for condition cond utilizing equalities
     referred through the parameter inherited. The extended set of
@@ -7674,14 +7702,16 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
     all on expressions whose direct references can be found in join_list
     and who inherit directly the multiple equalities just having built.
 
-  NOTES
+  @note
     The on expression used in an outer join operation inherits all equalities
-    from the on expression of the embedding join, if there is any, or 
+    from the on expression of the embedding join, if there is any, or
     otherwise - from the where condition.
     This fact is not obvious, but presumably can be proved.
     Consider the following query:
+    @code
       SELECT * FROM (t1,t2) LEFT JOIN (t3,t4) ON t1.a=t3.a AND t2.a=t4.a
         WHERE t1.a=t2.a;
+    @endcode
     If the on expression in the query inherits =(t1.a,t2.a), then we
     can build the multiple equality =(t1.a,t2.a,t3.a,t4.a) that infers
     the equality t3.a=t4.a. Although the on expression
@@ -7691,23 +7721,38 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
 
     Interesting that multiple equality =(t1.a,t2.a,t3.a,t4.a) allows us
     to use t1.a=t3.a AND t3.a=t4.a under the on condition:
+    @code
       SELECT * FROM (t1,t2) LEFT JOIN (t3,t4) ON t1.a=t3.a AND t3.a=t4.a
         WHERE t1.a=t2.a
+    @endcode
     This query equivalent to:
+    @code
       SELECT * FROM (t1 LEFT JOIN (t3,t4) ON t1.a=t3.a AND t3.a=t4.a),t2
         WHERE t1.a=t2.a
+    @endcode
     Similarly the original query can be rewritten to the query:
+    @code
       SELECT * FROM (t1,t2) LEFT JOIN (t3,t4) ON t2.a=t4.a AND t3.a=t4.a
         WHERE t1.a=t2.a
+    @endcode
     that is equivalent to:   
+    @code
       SELECT * FROM (t2 LEFT JOIN (t3,t4)ON t2.a=t4.a AND t3.a=t4.a), t1
         WHERE t1.a=t2.a
+    @endcode
     Thus, applying equalities from the where condition we basically
     can get more freedom in performing join operations.
     Althogh we don't use this property now, it probably makes sense to use 
     it in the future.    
-         
-  RETURN
+  @param thd		      Thread handler
+  @param cond                condition to build the multiple equalities for
+  @param inherited           path to all inherited multiple equality items
+  @param join_list           list of join tables to which the condition
+                             refers to
+  @param[out] cond_equal_ref pointer to the structure to place built
+                             equalities in
+
+  @return
     pointer to the transformed condition containing multiple equalities
 */
    
@@ -7765,25 +7810,24 @@ static COND *build_equal_items(THD *thd, COND *cond,
 }    
 
 
-/* 
-  Compare field items by table order in the execution plan
- 
-  SYNOPSIS
-    compare_fields_by_table_order()
-    field1          first field item to compare
-    field2          second field item to compare
-    table_join_idx  index to tables determining table order    
+/**
+  Compare field items by table order in the execution plan.
 
-  DESCRIPTION
     field1 considered as better than field2 if the table containing
     field1 is accessed earlier than the table containing field2.   
     The function finds out what of two fields is better according
     this criteria.
 
-  RETURN
-     1, if field1 is better than field2 
-    -1, if field2 is better than field1
-     0, otherwise
+  @param field1          first field item to compare
+  @param field2          second field item to compare
+  @param table_join_idx  index to tables determining table order
+
+  @retval
+    1  if field1 is better than field2
+  @retval
+    -1  if field2 is better than field1
+  @retval
+    0  otherwise
 */
 
 static int compare_fields_by_table_order(Item_field *field1,
@@ -7810,16 +7854,9 @@ static int compare_fields_by_table_order(Item_field *field1,
 }
 
 
-/* 
-  Generate minimal set of simple equalities equivalent to a multiple equality
- 
-  SYNOPSIS
-    eliminate_item_equal()
-    cond            condition to add the generated equality to
-    upper_levels    structure to access multiple equality of upper levels
-    item_equal      multiple equality to generate simple equality from     
+/**
+  Generate minimal set of simple equalities equivalent to a multiple equality.
 
-  DESCRIPTION
     The function retrieves the fields of the multiple equality item
     item_equal and  for each field f:
     - if item_equal contains const it generates the equality f=const_item;
@@ -7827,7 +7864,11 @@ static int compare_fields_by_table_order(Item_field *field1,
       f=item_equal->get_first().
     All generated equality are added to the cond conjunction.
 
-  NOTES
+  @param cond            condition to add the generated equality to
+  @param upper_levels    structure to access multiple equality of upper levels
+  @param item_equal      multiple equality to generate simple equality from
+
+  @note
     Before generating an equality function checks that it has not
     been generated for multiple equalities of the upper levels.
     E.g. for the following where condition
@@ -7847,10 +7888,10 @@ static int compare_fields_by_table_order(Item_field *field1,
     If cond is equal to 0, then not more then one equality is generated
     and a pointer to it is returned as the result of the function.
 
-  RETURN
-    The condition with generated simple equalities or
+  @return
+    - The condition with generated simple equalities or
     a pointer to the simple generated equality, if success.
-    0, otherwise.
+    - 0, otherwise.
 */
 
 static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
@@ -7925,17 +7966,10 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
 }
 
 
-/* 
-  Substitute every field reference in a condition by the best equal field 
-  and eliminate all multiple equality predicates
- 
-  SYNOPSIS
-    substitute_for_best_equal_field()
-    cond            condition to process
-    cond_equal      multiple equalities to take into consideration
-    table_join_idx  index to tables determining field preference
+/**
+  Substitute every field reference in a condition by the best equal field
+  and eliminate all multiple equality predicates.
 
-  DESCRIPTION
     The function retrieves the cond condition and for each encountered
     multiple equality predicate it sorts the field references in it
     according to the order of tables specified by the table_join_idx
@@ -7946,14 +7980,17 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
     After this the function retrieves all other conjuncted
     predicates substitute every field reference by the field reference
     to the first equal field or equal constant if there are any.
- 
-  NOTES
+  @param cond            condition to process
+  @param cond_equal      multiple equalities to take into consideration
+  @param table_join_idx  index to tables determining field preference
+
+  @note
     At the first glance full sort of fields in multiple equality
     seems to be an overkill. Yet it's not the case due to possible
     new fields in multiple equality item of lower levels. We want
     the order in them to comply with the order of upper levels.
 
-  RETURN
+  @return
     The transformed condition
 */
 
@@ -8028,20 +8065,17 @@ static COND* substitute_for_best_equal_field(COND *cond,
 }
 
 
-/* 
+/**
   Check appearance of new constant items in multiple equalities
-  of a condition after reading a constant table
- 
-  SYNOPSIS
-    update_const_equal_items()
-    cond       condition whose multiple equalities are to be checked
-    table      constant table that has been read 
+  of a condition after reading a constant table.
 
-  DESCRIPTION
     The function retrieves the cond condition and for each encountered
     multiple equality checks whether new constants have appeared after
     reading the constant (single row) table tab. If so it adjusts
     the multiple equality appropriately.
+
+  @param cond       condition whose multiple equalities are to be checked
+  @param table      constant table that has been read
 */
 
 static void update_const_equal_items(COND *cond, JOIN_TAB *tab)
@@ -8180,14 +8214,12 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
   }
 }
 
-/*
-  Remove additional condition inserted by IN/ALL/ANY transformation
+/**
+  Remove additional condition inserted by IN/ALL/ANY transformation.
 
-  SYNOPSIS
-    remove_additional_cond()
-      conds  Condition for processing
+  @param conds   condition for processing
 
-  RETURN VALUES
+  @return
     new conditions
 */
 
@@ -8275,17 +8307,10 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
 }
 
 
-/*
-  Simplify joins replacing outer joins by inner joins whenever it's possible
+/**
+  Simplify joins replacing outer joins by inner joins whenever it's
+  possible.
 
-  SYNOPSIS
-    simplify_joins()
-    join        reference to the query info
-    join_list   list representation of the join to be converted
-    conds       conditions to add on expressions for converted joins
-    top         true <=> conds is the where condition  
-
-  DESCRIPTION
     The function, during a retrieval of join_list,  eliminates those
     outer joins that can be converted into inner join, possibly nested.
     It also moves the on expressions for the converted outer joins
@@ -8309,26 +8334,39 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
     The function also removes all braces that can be removed from the join
     expression without changing its meaning.
 
-  NOTES
+  @note
     An outer join can be replaced by an inner join if the where condition
     or the on expression for an embedding nested join contains a conjunctive
     predicate rejecting null values for some attribute of the inner tables.
 
     E.g. in the query:    
+    @code
       SELECT * FROM t1 LEFT JOIN t2 ON t2.a=t1.a WHERE t2.b < 5
+    @endcode
     the predicate t2.b < 5 rejects nulls.
     The query is converted first to:
+    @code
       SELECT * FROM t1 INNER JOIN t2 ON t2.a=t1.a WHERE t2.b < 5
+    @endcode
     then to the equivalent form:
-      SELECT * FROM t1, t2 ON t2.a=t1.a WHERE t2.b < 5 AND t2.a=t1.a.
+    @code
+      SELECT * FROM t1, t2 ON t2.a=t1.a WHERE t2.b < 5 AND t2.a=t1.a
+    @endcode
+
 
     Similarly the following query:
+    @code
       SELECT * from t1 LEFT JOIN (t2, t3) ON t2.a=t1.a t3.b=t1.b
         WHERE t2.c < 5  
+    @endcode
     is converted to:
+    @code
       SELECT * FROM t1, (t2, t3) WHERE t2.c < 5 AND t2.a=t1.a t3.b=t1.b 
 
+    @endcode
+
     One conversion might trigger another:
+    @code
       SELECT * FROM t1 LEFT JOIN t2 ON t2.a=t1.a
                        LEFT JOIN t3 ON t3.b=t2.b
         WHERE t3 IS NOT NULL =>
@@ -8336,16 +8374,26 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
         WHERE t3 IS NOT NULL AND t3.b=t2.b => 
       SELECT * FROM t1, t2, t3
         WHERE t3 IS NOT NULL AND t3.b=t2.b AND t2.a=t1.a
-   
+  @endcode
+
     The function removes all unnecessary braces from the expression
     produced by the conversions.
-    E.g. SELECT * FROM t1, (t2, t3) WHERE t2.c < 5 AND t2.a=t1.a AND t3.b=t1.b
+    E.g.
+    @code
+      SELECT * FROM t1, (t2, t3) WHERE t2.c < 5 AND t2.a=t1.a AND t3.b=t1.b
+    @endcode
     finally is converted to: 
+    @code
       SELECT * FROM t1, t2, t3 WHERE t2.c < 5 AND t2.a=t1.a AND t3.b=t1.b
 
+    @endcode
+
+
     It also will remove braces from the following queries:
+    @code
       SELECT * from (t1 LEFT JOIN t2 ON t2.a=t1.a) LEFT JOIN t3 ON t3.b=t2.b
       SELECT * from (t1, (t2,t3)) WHERE t1.a=t2.a AND t2.b=t3.b.
+    @endcode
 
     The benefit of this simplification procedure is that it might return 
     a query for which the optimizer can evaluate execution plan with more
@@ -8353,20 +8401,26 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
     consider any plan where one of the inner tables is before some of outer
     tables.
 
-  IMPLEMENTATION.
+
     The function is implemented by a recursive procedure.  On the recursive
     ascent all attributes are calculated, all outer joins that can be
     converted are replaced and then all unnecessary braces are removed.
     As join list contains join tables in the reverse order sequential
     elimination of outer joins does not require extra recursive calls.
 
-  EXAMPLES
     Here is an example of a join query with invalid cross references:
+    @code
       SELECT * FROM t1 LEFT JOIN t2 ON t2.a=t3.a LEFT JOIN t3 ON t3.b=t1.b 
-     
-  RETURN VALUE
-    The new condition, if success
-    0, otherwise  
+    @endcode
+
+  @param join        reference to the query info
+  @param join_list   list representation of the join to be converted
+  @param conds       conditions to add on expressions for converted joins
+  @param top         true <=> conds is the where condition
+
+  @return
+    - The new condition, if success
+    - 0, otherwise
 */
 
 static COND *
@@ -8528,26 +8582,23 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
 }
 
 
-/*
-  Assign each nested join structure a bit in nested_join_map
+/**
+  Assign each nested join structure a bit in nested_join_map.
 
-  SYNOPSIS
-    build_bitmap_for_nested_joins()
-      join          Join being processed
-      join_list     List of tables
-      first_unused  Number of first unused bit in nested_join_map before the
-                    call
-
-  DESCRIPTION
     Assign each nested join structure (except "confluent" ones - those that
     embed only one element) a bit in nested_join_map.
 
-  NOTE
+  @param join          Join being processed
+  @param join_list     List of tables
+  @param first_unused  Number of first unused bit in nested_join_map before the
+                       call
+
+  @note
     This function is called after simplify_joins(), when there are no
     redundant nested joins, #non_confluent_nested_joins <= #tables_in_join so
     we will not run out of bits in nested_join_map.
 
-  RETURN
+  @return
     First unused bit in nested_join_map after the call.
 */
 
@@ -8583,17 +8634,14 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
 }
 
 
-/*
-  Set NESTED_JOIN::counter=0 in all nested joins in passed list
+/**
+  Set NESTED_JOIN::counter=0 in all nested joins in passed list.
 
-  SYNOPSIS
-    reset_nj_counters()
-      join_list  List of nested joins to process. It may also contain base
-                 tables which will be ignored.
-
-  DESCRIPTION
     Recursively set NESTED_JOIN::counter=0 for all nested joins contained in
     the passed join_list.
+
+  @param join_list  List of nested joins to process. It may also contain base
+                    tables which will be ignored.
 */
 
 static void reset_nj_counters(List<TABLE_LIST> *join_list)
@@ -8614,95 +8662,96 @@ static void reset_nj_counters(List<TABLE_LIST> *join_list)
 }
 
 
-/*
-  Check interleaving with an inner tables of an outer join for extension table 
+/**
+  Check interleaving with an inner tables of an outer join for
+  extension table.
 
-  SYNOPSIS
-    check_interleaving_with_nj()
-      join       Join being processed
-      last_tab   Last table in current partial join order (this function is
-                 not called for empty partial join orders)
-      next_tab   Table we're going to extend the current partial join with
-
-  DESCRIPTION
     Check if table next_tab can be added to current partial join order, and 
     if yes, record that it has been added.
 
     The function assumes that both current partial join order and its
     extension with next_tab are valid wrt table dependencies.
 
-  IMPLEMENTATION
-    LIMITATIONS ON JOIN ORDER
-      The nested [outer] joins executioner algorithm imposes these limitations
-      on join order:
-      1. "Outer tables first" -  any "outer" table must be before any 
-          corresponding "inner" table.
-      2. "No interleaving" - tables inside a nested join must form a continuous
-         sequence in join order (i.e. the sequence must not be interrupted by 
-         tables that are outside of this nested join).
+  @verbatim
+     IMPLEMENTATION 
+       LIMITATIONS ON JOIN ORDER
+         The nested [outer] joins executioner algorithm imposes these limitations
+         on join order:
+         1. "Outer tables first" -  any "outer" table must be before any 
+             corresponding "inner" table.
+         2. "No interleaving" - tables inside a nested join must form a continuous
+            sequence in join order (i.e. the sequence must not be interrupted by 
+            tables that are outside of this nested join).
 
-      #1 is checked elsewhere, this function checks #2 provided that #1 has
-      been already checked.
+         #1 is checked elsewhere, this function checks #2 provided that #1 has
+         been already checked.
 
-    WHY NEED NON-INTERLEAVING
-      Consider an example: 
-       
-        select * from t0 join t1 left join (t2 join t3) on cond1
-      
-      The join order "t1 t2 t0 t3" is invalid:
+       WHY NEED NON-INTERLEAVING
+         Consider an example: 
 
-      table t0 is outside of the nested join, so WHERE condition for t0 is
-      attached directly to t0 (without triggers, and it may be used to access
-      t0). Applying WHERE(t0) to (t2,t0,t3) record is invalid as we may miss
-      combinations of (t1, t2, t3) that satisfy condition cond1, and produce a
-      null-complemented (t1, t2.NULLs, t3.NULLs) row, which should not have
-      been produced.
-      
-      If table t0 is not between t2 and t3, the problem doesn't exist:
-      * If t0 is located after (t2,t3), WHERE(t0) is applied after nested join
-        processing has finished.
-      * If t0 is located before (t2,t3), predicates like WHERE_cond(t0, t2) are
-        wrapped into condition triggers, which takes care of correct nested
-        join processing.
-      
-    HOW IT IS IMPLEMENTED
-      The limitations on join order can be rephrased as follows: for valid
-      join order one must be able to:
-        1. write down the used tables in the join order on one line.
-        2. for each nested join, put one '(' and one ')' on the said line        
-        3. write "LEFT JOIN" and "ON (...)" where appropriate
-        4. get a query equivalent to the query we're trying to execute.
-      
-      Calls to check_interleaving_with_nj() are equivalent to writing the
-      above described line from left to right. 
-      A single check_interleaving_with_nj(A,B) call is equivalent to writing 
-      table B and appropriate brackets on condition that table A and
-      appropriate brackets is the last what was written. Graphically the
-      transition is as follows:
+           select * from t0 join t1 left join (t2 join t3) on cond1
 
-                           +---- current position
-                           |
-          ... last_tab ))) | ( next_tab )  )..) | ...
-                             X          Y   Z   |
-                                                +- need to move to this
-                                                   position.
+         The join order "t1 t2 t0 t3" is invalid:
 
-      Notes about the position:
-        The caller guarantees that there is no more then one X-bracket by 
-        checking "!(remaining_tables & s->dependent)" before calling this 
-        function. X-bracket may have a pair in Y-bracket.
-       
-      When "writing" we store/update this auxilary info about the current
-      position:
-       1. join->cur_embedding_map - bitmap of pairs of brackets (aka nested
-          joins) we've opened but didn't close.
-       2. {each NESTED_JOIN structure not simplified away}->counter - number
-          of this nested join's children that have already been added to to
-          the partial join order.
-      
-  RETURN
-    FALSE  Join order extended, nested joins info about current join order
-           (see NOTE section) updated.
+         table t0 is outside of the nested join, so WHERE condition for t0 is
+         attached directly to t0 (without triggers, and it may be used to access
+         t0). Applying WHERE(t0) to (t2,t0,t3) record is invalid as we may miss
+         combinations of (t1, t2, t3) that satisfy condition cond1, and produce a
+         null-complemented (t1, t2.NULLs, t3.NULLs) row, which should not have
+         been produced.
+
+         If table t0 is not between t2 and t3, the problem doesn't exist:
+          If t0 is located after (t2,t3), WHERE(t0) is applied after nested join
+           processing has finished.
+          If t0 is located before (t2,t3), predicates like WHERE_cond(t0, t2) are
+           wrapped into condition triggers, which takes care of correct nested
+           join processing.
+
+       HOW IT IS IMPLEMENTED
+         The limitations on join order can be rephrased as follows: for valid
+         join order one must be able to:
+           1. write down the used tables in the join order on one line.
+           2. for each nested join, put one '(' and one ')' on the said line        
+           3. write "LEFT JOIN" and "ON (...)" where appropriate
+           4. get a query equivalent to the query we're trying to execute.
+
+         Calls to check_interleaving_with_nj() are equivalent to writing the
+         above described line from left to right. 
+         A single check_interleaving_with_nj(A,B) call is equivalent to writing 
+         table B and appropriate brackets on condition that table A and
+         appropriate brackets is the last what was written. Graphically the
+         transition is as follows:
+
+                              +---- current position
+                              |
+             ... last_tab ))) | ( next_tab )  )..) | ...
+                                X          Y   Z   |
+                                                   +- need to move to this
+                                                      position.
+
+         Notes about the position:
+           The caller guarantees that there is no more then one X-bracket by 
+           checking "!(remaining_tables & s->dependent)" before calling this 
+           function. X-bracket may have a pair in Y-bracket.
+
+         When "writing" we store/update this auxilary info about the current
+         position:
+          1. join->cur_embedding_map - bitmap of pairs of brackets (aka nested
+             joins) we've opened but didn't close.
+          2. {each NESTED_JOIN structure not simplified away}->counter - number
+             of this nested join's children that have already been added to to
+             the partial join order.
+  @endverbatim
+
+  @param join       Join being processed
+  @param last_tab   Last table in current partial join order (this function is
+                    not called for empty partial join orders)
+  @param next_tab   Table we're going to extend the current partial join with
+
+  @retval
+    FALSE  Join order extended, nested joins info about current join
+    order (see NOTE section) updated.
+  @retval
     TRUE   Requested join order extension not allowed.
 */
 
@@ -8751,19 +8800,16 @@ static bool check_interleaving_with_nj(JOIN_TAB *last_tab, JOIN_TAB *next_tab)
 }
 
 
-/*
-  Nested joins perspective: Remove the last table from the join order
+/**
+  Nested joins perspective: Remove the last table from the join order.
 
-  SYNOPSIS
-    restore_prev_nj_state()
-      last  join table to remove, it is assumed to be the last in current 
-            partial join order.
-     
-  DESCRIPTION
     Remove the last table from the partial join order and update the nested
     joins counters and join->cur_embedding_map. It is ok to call this 
     function for the first table in join order (for which 
     check_interleaving_with_nj has not been called)
+
+  @param last  join table to remove, it is assumed to be the last in current
+               partial join order.
 */
 
 static void restore_prev_nj_state(JOIN_TAB *last)
@@ -8822,12 +8868,15 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
 }
 
 
-/*
-  Remove const and eq items. Return new item, or NULL if no condition
-  cond_value is set to according:
-  COND_OK    query is possible (field = constant)
-  COND_TRUE  always true	( 1 = 1 )
-  COND_FALSE always false	( 1 = 2 )
+/**
+  Remove const and eq items.
+
+  @return
+    Return new item, or NULL if no condition @n
+    cond_value is set to according:
+    - COND_OK     : query is possible (field = constant)
+    - COND_TRUE   : always true	( 1 = 1 )
+    - COND_FALSE  : always false	( 1 = 2 )
 */
 
 COND *
@@ -9018,8 +9067,8 @@ test_if_equality_guarantees_uniqueness(Item *l, Item *r)
         l->collation.collation == r->collation.collation)));
 }
 
-/*
-  Return 1 if the item is a const value in all the WHERE clause
+/**
+  Return TRUE if the item is a const value in all the WHERE clause.
 */
 
 static bool
@@ -9080,26 +9129,25 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
   Create internal temporary table
 ****************************************************************************/
 
-/*
-  Create field for temporary table from given field
-  
-  SYNOPSIS
-    create_tmp_field_from_field()
-    thd			Thread handler
-    org_field           field from which new field will be created
-    name                New field name
-    table		Temporary table
-    item	        !=NULL if item->result_field should point to new field.
-			This is relevant for how fill_record() is going to work:
-			If item != NULL then fill_record() will update
-			the record in the original table.
-			If item == NULL then fill_record() will update
-			the temporary table
-    convert_blob_length If >0 create a varstring(convert_blob_length) field 
-                        instead of blob.
+/**
+  Create field for temporary table from given field.
 
-  RETURN
-    0			on error
+  @param thd	       Thread handler
+  @param org_field    field from which new field will be created
+  @param name         New field name
+  @param table	       Temporary table
+  @param item	       !=NULL if item->result_field should point to new field.
+                      This is relevant for how fill_record() is going to work:
+                      If item != NULL then fill_record() will update
+                      the record in the original table.
+                      If item == NULL then fill_record() will update
+                      the temporary table
+  @param convert_blob_length   If >0 create a varstring(convert_blob_length)
+                               field instead of blob.
+
+  @retval
+    NULL		on error
+  @retval
     new_created field
 */
 
@@ -9142,28 +9190,27 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
   return new_field;
 }
 
-/*
-  Create field for temporary table using type of given item
-  
-  SYNOPSIS
-    create_tmp_field_from_item()
-    thd			Thread handler
-    item		Item to create a field for
-    table		Temporary table
-    copy_func		If set and item is a function, store copy of item
-			in this array
-    modify_item		1 if item->result_field should point to new item.
-			This is relevent for how fill_record() is going to
-			work:
-			If modify_item is 1 then fill_record() will update
-			the record in the original table.
-			If modify_item is 0 then fill_record() will update
-			the temporary table
-    convert_blob_length If >0 create a varstring(convert_blob_length) field 
-                        instead of blob.
+/**
+  Create field for temporary table using type of given item.
 
-  RETURN
-    0			on error
+  @param thd                   Thread handler
+  @param item                  Item to create a field for
+  @param table                 Temporary table
+  @param copy_func             If set and item is a function, store copy of
+                               item in this array
+  @param modify_item           1 if item->result_field should point to new
+                               item. This is relevent for how fill_record()
+                               is going to work:
+                               If modify_item is 1 then fill_record() will
+                               update the record in the original table.
+                               If modify_item is 0 then fill_record() will
+                               update the temporary table
+  @param convert_blob_length   If >0 create a varstring(convert_blob_length)
+                               field instead of blob.
+
+  @retval
+    0  on error
+  @retval
     new_created field
 */
 
@@ -9276,17 +9323,16 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 }
 
 
-/*
-  Create field for information schema table
+/**
+  Create field for information schema table.
 
-  SYNOPSIS
-    create_tmp_field_for_schema()
-    thd			Thread handler
-    table		Temporary table
-    item		Item to create a field for
+  @param thd		Thread handler
+  @param table		Temporary table
+  @param item		Item to create a field for
 
-  RETURN
+  @retval
     0			on error
+  @retval
     new_created field
 */
 
@@ -9310,33 +9356,32 @@ Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
 }
 
 
-/*
-  Create field for temporary table
+/**
+  Create field for temporary table.
 
-  SYNOPSIS
-    create_tmp_field()
-    thd			Thread handler
-    table		Temporary table
-    item		Item to create a field for
-    type		Type of item (normally item->type)
-    copy_func		If set and item is a function, store copy of item
-			in this array
-    from_field          if field will be created using other field as example,
-                        pointer example field will be written here
-    default_field	If field has a default value field, store it here
-    group		1 if we are going to do a relative group by on result
-    modify_item		1 if item->result_field should point to new item.
-			This is relevent for how fill_record() is going to
-			work:
-			If modify_item is 1 then fill_record() will update
-			the record in the original table.
-			If modify_item is 0 then fill_record() will update
-			the temporary table
-    convert_blob_length If >0 create a varstring(convert_blob_length) field 
-                        instead of blob.
+  @param thd		Thread handler
+  @param table		Temporary table
+  @param item		Item to create a field for
+  @param type		Type of item (normally item->type)
+  @param copy_func	If set and item is a function, store copy of item
+                       in this array
+  @param from_field    if field will be created using other field as example,
+                       pointer example field will be written here
+  @param default_field	If field has a default value field, store it here
+  @param group		1 if we are going to do a relative group by on result
+  @param modify_item	1 if item->result_field should point to new item.
+                       This is relevent for how fill_record() is going to
+                       work:
+                       If modify_item is 1 then fill_record() will update
+                       the record in the original table.
+                       If modify_item is 0 then fill_record() will update
+                       the temporary table
+  @param convert_blob_length If >0 create a varstring(convert_blob_length)
+                             field instead of blob.
 
-  RETURN
+  @retval
     0			on error
+  @retval
     new_created field
 */
 
@@ -9497,33 +9542,30 @@ void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
 }
 
 
-/*
+/**
   Create a temp table according to a field list.
 
-  SYNOPSIS
-    create_tmp_table()
-    thd                  thread handle
-    param                a description used as input to create the table
-    fields               list of items that will be used to define
-                         column types of the table (also see NOTES)
-    group                TODO document
-    distinct             should table rows be distinct
-    save_sum_fields      see NOTES
-    select_options
-    rows_limit
-    table_alias          possible name of the temporary table that can be used
-                         for name resolving; can be "".
+  Given field pointers are changed to point at tmp_table for
+  send_fields. The table object is self contained: it's
+  allocated in its own memory root, as well as Field objects
+  created for table columns.
+  This function will replace Item_sum items in 'fields' list with
+  corresponding Item_field items, pointing at the fields in the
+  temporary table, unless this was prohibited by TRUE
+  value of argument save_sum_fields. The Item_field objects
+  are created in THD memory root.
 
-  DESCRIPTION
-    Given field pointers are changed to point at tmp_table for
-    send_fields. The table object is self contained: it's
-    allocated in its own memory root, as well as Field objects
-    created for table columns.
-    This function will replace Item_sum items in 'fields' list with
-    corresponding Item_field items, pointing at the fields in the
-    temporary table, unless this was prohibited by TRUE
-    value of argument save_sum_fields. The Item_field objects
-    are created in THD memory root.
+  @param thd                  thread handle
+  @param param                a description used as input to create the table
+  @param fields               list of items that will be used to define
+                              column types of the table (also see NOTES)
+  @param group                TODO document
+  @param distinct             should table rows be distinct
+  @param save_sum_fields      see NOTES
+  @param select_options
+  @param rows_limit
+  @param table_alias          possible name of the temporary table that can
+                              be used for name resolving; can be "".
 */
 
 #define STRING_TOTAL_LENGTH_TO_PACK_ROWS 128
@@ -10194,16 +10236,10 @@ err:
 
 /****************************************************************************/
 
-/*
+/**
   Create a reduced TABLE object with properly set up Field list from a
   list of field definitions.
 
-  SYNOPSIS
-    create_virtual_tmp_table()
-      thd         connection handle
-      field_list  list of column definitions
-
-  DESCRIPTION
     The created table doesn't have a table handler associated with
     it, has no keys, no group/distinct, no copy_funcs array.
     The sole purpose of this TABLE object is to use the power of Field
@@ -10212,7 +10248,10 @@ err:
     The table is created in THD mem_root, so are the table's fields.
     Consequently, if you don't BLOB fields, you don't need to free it.
 
-  RETURN
+  @param thd         connection handle
+  @param field_list  list of column definitions
+
+  @return
     0 if out of memory, TABLE object in case of success
 */
 
@@ -10485,8 +10524,9 @@ free_tmp_table(THD *thd, TABLE *entry)
   DBUG_VOID_RETURN;
 }
 
-/*
-* If a HEAP table gets full, create a MyISAM table and copy all rows to this
+/**
+  If a HEAP table gets full, create a MyISAM table and copy all rows
+  to this.
 */
 
 bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
@@ -10596,17 +10636,15 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 }
 
 
-/*
-  SYNOPSIS
-    setup_end_select_func()
-    join   join to setup the function for.
+/**
+  @details
+  Rows produced by a join sweep may end up in a temporary table or be sent
+  to a client. Setup the function of the nested loop join algorithm which
+  handles final fully constructed and matched records.
 
-  DESCRIPTION
-    Rows produced by a join sweep may end up in a temporary table or be sent
-    to a client. Setup the function of the nested loop join algorithm which
-    handles final fully constructed and matched records.
+  @param join   join to setup the function for.
 
-  RETURN
+  @return
     end_select function to use. This function can't fail.
 */
 
@@ -10670,12 +10708,16 @@ Next_select_func setup_end_select_func(JOIN *join)
 }
 
 
-/****************************************************************************
-  Make a join of all tables and write it on socket or to table
-  Return:  0 if ok
-           1 if error is sent
-          -1 if error should be sent
-****************************************************************************/
+/**
+  Make a join of all tables and write it on socket or to table.
+
+  @retval
+    0  if ok
+  @retval
+    1  if error is sent
+  @retval
+    -1  if error should be sent
+*/
 
 static int
 do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
@@ -10822,30 +10864,25 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   return rc;
 }
 
-/*
-  Retrieve records ends with a given beginning from the result of a join  
+/**
+  Retrieve records ends with a given beginning from the result of a join.
 
-  SYNPOSIS
-    sub_select()
-    join      pointer to the structure providing all context info for the query
-    join_tab  the first next table of the execution plan to be retrieved
-    end_records  true when we need to perform final steps of retrival   
-
-  DESCRIPTION
     For a given partial join record consisting of records from the tables 
     preceding the table join_tab in the execution plan, the function
     retrieves all matching full records from the result set and
     send them to the result set stream. 
 
-  NOTES
+  @note
     The function effectively implements the  final (n-k) nested loops
     of nested loops join algorithm, where k is the ordinal number of
     the join_tab table and n is the total number of tables in the join query.
     It performs nested loops joins with all conjunctive predicates from
     the where condition pushed as low to the tables as possible.
     E.g. for the query
-      SELECT * FROM t1,t2,t3 
-        WHERE t1.a=t2.a AND t2.b=t3.b AND t1.a BETWEEN 5 AND 9
+    @code
+      SELECT * FROM t1,t2,t3
+      WHERE t1.a=t2.a AND t2.b=t3.b AND t1.a BETWEEN 5 AND 9
+    @endcode
     the predicate (t1.a BETWEEN 5 AND 9) will be pushed to table t1,
     given the selected plan prescribes to nest retrievals of the
     joined tables in the following order: t1,t2,t3.
@@ -10861,9 +10898,11 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     the execution plan. In this case the pushed down predicates can be
     checked only at certain conditions.
     Suppose for the query
-      SELECT * FROM t1 LEFT JOIN (t2,t3) ON t3.a=t1.a 
-        WHERE t1>2 AND (t2.b>5 OR t2.b IS NULL)
-    the optimizer has chosen a plan with the table order t1,t2,t3.  
+    @code
+      SELECT * FROM t1 LEFT JOIN (t2,t3) ON t3.a=t1.a
+      WHERE t1>2 AND (t2.b>5 OR t2.b IS NULL)
+    @endcode
+    the optimizer has chosen a plan with the table order t1,t2,t3.
     The predicate P1=t1>2 will be pushed down to the table t1, while the
     predicate P2=(t2.b>5 OR t2.b IS NULL) will be attached to the table
     t2. But the second predicate can not be unconditionally tested right
@@ -10891,7 +10930,9 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     been done for the first row with a match. The only difference is
     the predicates from on expressions are not checked. 
 
-  IMPLEMENTATION
+  @par
+  @b IMPLEMENTATION
+  @par
     The function forms output rows for a current partial join of k
     tables tables recursively.
     For each partial join record ending with a certain row from
@@ -10907,11 +10948,13 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     To carry out a return to a nested loop level of join table t the pointer 
     to t is remembered in the field 'return_tab' of the join structure.
     Consider the following query:
-      SELECT * FROM t1,
-                    LEFT JOIN
-                    (t2, t3 LEFT JOIN (t4,t5) ON t5.a=t3.a)
-                    ON t4.a=t2.a
-         WHERE (t2.b=5 OR t2.b IS NULL) AND (t4.b=2 OR t4.b IS NULL)
+    @code
+        SELECT * FROM t1,
+                      LEFT JOIN
+                      (t2, t3 LEFT JOIN (t4,t5) ON t5.a=t3.a)
+                      ON t4.a=t2.a
+           WHERE (t2.b=5 OR t2.b IS NULL) AND (t4.b=2 OR t4.b IS NULL)
+    @endcode
     Suppose the chosen execution plan dictates the order t1,t2,t3,t4,t5
     and suppose for a given joined rows from tables t1,t2,t3 there are
     no rows in the result set yet.
@@ -10926,11 +10969,18 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     Thus, when the first row from t5 with t5.a=t3.a is found
     this pointer for t5 is changed from t4 to t2.             
 
-  STRUCTURE NOTES
+    @par
+    @b STRUCTURE @b NOTES
+    @par
     join_tab->first_unmatched points always backwards to the first inner
     table of the embedding nested join, if any.
 
-  RETURN
+  @param join      pointer to the structure providing all context info for
+                   the query
+  @param join_tab  the first next table of the execution plan to be retrieved
+  @param end_records  true when we need to perform final steps of retrival   
+
+  @return
     return one of enum_nested_loop_state, except NESTED_LOOP_NO_MORE_ROWS.
 */
 
@@ -10993,10 +11043,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 }
 
 
-/*
+/**
   Process one record of the nested loop join.
 
-  DESCRIPTION
     This function will evaluate parts of WHERE/ON clauses that are
     applicable to the partial record on hand and in case of success
     submit this record to the next level of the nested loop.
@@ -11120,8 +11169,9 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 }
 
 
-/*
-  DESCRIPTION
+/**
+
+  @details
     Construct a NULL complimented partial join record and feed it to the next
     level of the nested loop. This function is used in case we have
     an OUTER join and no matching record was found.
@@ -11265,7 +11315,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
   Returns -1 if row was not found, 0 if row was found and 1 on errors
 *****************************************************************************/
 
-/* Help function when we get some an error from the table handler */
+/** Help function when we get some an error from the table handler. */
 
 int report_error(TABLE *table, int error)
 {
@@ -11404,17 +11454,17 @@ join_read_system(JOIN_TAB *tab)
 }
 
 
-/*
-  Read a table when there is at most one matching row
+/**
+  Read a table when there is at most one matching row.
 
-  SYNOPSIS
-    join_read_const()
-    tab			Table to read
+  @param tab			Table to read
 
-  RETURN
+  @retval
     0	Row was found
-    -1  Row was not found
-   1    Got an error (other than row not found) during read
+  @retval
+    -1   Row was not found
+  @retval
+    1   Got an error (other than row not found) during read
 */
 
 static int
@@ -11515,9 +11565,9 @@ join_read_always_key(JOIN_TAB *tab)
 }
 
 
-/*
+/**
   This function is used when optimizing away ORDER BY in 
-  SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
+  SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC.
 */
   
 static int
@@ -11732,8 +11782,8 @@ join_ft_read_next(READ_RECORD *info)
 }
 
 
-/*
-  Reading of key with key reference and one part that may be NULL
+/**
+  Reading of key with key reference and one part that may be NULL.
 */
 
 int
@@ -12042,8 +12092,8 @@ end:
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
-/* Group by searching after group record and updating it if possible */
 /* ARGSUSED */
+/** Group by searching after group record and updating it if possible. */
 
 static enum_nested_loop_state
 end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
@@ -12118,7 +12168,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 }
 
 
-/* Like end_update, but this is done with unique constraints instead of keys */
+/** Like end_update, but this is done with unique constraints instead of keys.  */
 
 static enum_nested_loop_state
 end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
@@ -12249,7 +12299,10 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   in sorted order.
 *****************************************************************************/
 
-/* Return 1 if right_item is used removable reference key on left_item */
+/**
+  @return
+    1 if right_item is used removable reference key on left_item
+*/
 
 static bool test_if_ref(Item_field *left_item,Item *right_item)
 {
@@ -12399,26 +12452,26 @@ part_of_refkey(TABLE *table,Field *field)
 }
 
 
-/*****************************************************************************
-  Test if one can use the key to resolve ORDER BY
+/**
+  Test if one can use the key to resolve ORDER BY.
 
-  SYNOPSIS
-    test_if_order_by_key()
-    order		Sort order
-    table		Table to sort
-    idx			Index to check
-    used_key_parts	Return value for used key parts.
+  @param order                 Sort order
+  @param table                 Table to sort
+  @param idx                   Index to check
+  @param used_key_parts        Return value for used key parts.
 
 
-  NOTES
+  @note
     used_key_parts is set to correct key parts used if return value != 0
     (On other cases, used_key_part may be changed)
 
-  RETURN
+  @retval
     1   key is ok.
+  @retval
     0   Key can't be used
-    -1  Reverse key can be used
-*****************************************************************************/
+  @retval
+    -1   Reverse key can be used
+*/
 
 static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 				uint *used_key_parts)
@@ -12513,20 +12566,19 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
   return best;
 }
 
-/*
+/**
   Test if a second key is the subkey of the first one.
 
-  SYNOPSIS
-    is_subkey()
-    key_part		First key parts
-    ref_key_part	Second key parts
-    ref_key_part_end	Last+1 part of the second key
+  @param key_part              First key parts
+  @param ref_key_part          Second key parts
+  @param ref_key_part_end      Last+1 part of the second key
 
-  NOTE
+  @note
     Second key MUST be shorter than the first one.
 
-  RETURN
+  @retval
     1	is a subkey
+  @retval
     0	no sub key
 */
 
@@ -12540,17 +12592,16 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
   return 1;
 }
 
-/*
-  Test if we can use one of the 'usable_keys' instead of 'ref' key for sorting
+/**
+  Test if we can use one of the 'usable_keys' instead of 'ref' key
+  for sorting.
 
-  SYNOPSIS
-    test_if_subkey()
-    ref			Number of key, used for WHERE clause
-    usable_keys		Keys for testing
+  @param ref			Number of key, used for WHERE clause
+  @param usable_keys		Keys for testing
 
-  RETURN
-    MAX_KEY			If we can't use other key
-    the number of found key	Otherwise
+  @return
+    - MAX_KEY			If we can't use other key
+    - the number of found key	Otherwise
 */
 
 static uint
@@ -12581,24 +12632,19 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
 }
 
 
-/*
+/**
   Check if GROUP BY/DISTINCT can be optimized away because the set is
   already known to be distinct.
-  
-  SYNOPSIS
-    list_contains_unique_index ()
-    table                The table to operate on.
-    find_func            function to iterate over the list and search
-                         for a field
 
-  DESCRIPTION
-    Used in removing the GROUP BY/DISTINCT of the following types of
-    statements:
-      SELECT [DISTINCT] <unique_key_cols>... FROM <single_table_ref>
-        [GROUP BY <unique_key_cols>,...]
+  Used in removing the GROUP BY/DISTINCT of the following types of
+  statements:
+  @code
+    SELECT [DISTINCT] <unique_key_cols>... FROM <single_table_ref>
+      [GROUP BY <unique_key_cols>,...]
+  @endcode
 
     If (a,b,c is distinct)
-      then <any combination of a,b,c>,{whatever} is also distinct
+    then <any combination of a,b,c>,{whatever} is also distinct
 
     This function checks if all the key parts of any of the unique keys
     of the table are referenced by a list : either the select list
@@ -12607,9 +12653,14 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
     If the above holds and the key parts cannot contain NULLs then we 
     can safely remove the GROUP BY/DISTINCT,
     as no result set can be more distinct than an unique key.
- 
-  RETURN VALUE
+
+  @param table                The table to operate on.
+  @param find_func            function to iterate over the list and search
+                              for a field
+
+  @retval
     1                    found
+  @retval
     0                    not found.
 */
 
@@ -12642,20 +12693,17 @@ list_contains_unique_index(TABLE *table,
 }
 
 
-/*
+/**
   Helper function for list_contains_unique_index.
   Find a field reference in a list of ORDER structures.
-  
-  SYNOPSIS
-    find_field_in_order_list ()
-    field                The field to search for.
-    data                 ORDER *.The list to search in
-  
-  DESCRIPTION
-    Finds a direct reference of the Field in the list.
-  
-  RETURN VALUE
+  Finds a direct reference of the Field in the list.
+
+  @param field                The field to search for.
+  @param data                 ORDER *.The list to search in
+
+  @retval
     1                    found
+  @retval
     0                    not found.
 */
 
@@ -12678,20 +12726,17 @@ find_field_in_order_list (Field *field, void *data)
 }
 
 
-/*
+/**
   Helper function for list_contains_unique_index.
   Find a field reference in a dynamic list of Items.
-  
-  SYNOPSIS
-    find_field_in_item_list ()
-    field in             The field to search for.
-    data  in             List<Item> *.The list to search in
-  
-  DESCRIPTION
-    Finds a direct reference of the Field in the list.
-  
-  RETURN VALUE
+  Finds a direct reference of the Field in the list.
+
+  @param[in] field             The field to search for.
+  @param[in] data              List<Item> *.The list to search in
+
+  @retval
     1                    found
+  @retval
     0                    not found.
 */
 
@@ -12716,7 +12761,7 @@ find_field_in_item_list (Field *field, void *data)
 }
 
 
-/*
+/**
   Test if we can skip the ORDER BY by using an index.
 
   If we can use an index, the JOIN_TAB / tab->select struct
@@ -12724,9 +12769,14 @@ find_field_in_item_list (Field *field, void *data)
 
   The index must cover all fields in <order>, or it will not be considered.
 
-  Return:
-     0 We have to use filesort to do the sorting
-     1 We can use an index.
+  @todo
+    - sergeyp: Results of all index merge selects actually are ordered 
+    by clustered PK values.
+
+  @retval
+    0    We have to use filesort to do the sorting
+  @retval
+    1    We can use an index.
 */
 
 static bool
@@ -13265,11 +13315,11 @@ err:
   DBUG_RETURN(-1);
 }
 
-/*
-  Add the HAVING criteria to table->select
+#ifdef NOT_YET
+/**
+  Add the HAVING criteria to table->select.
 */
 
-#ifdef NOT_YET
 static bool fix_having(JOIN *join, Item **having)
 {
   (*having)->update_used_tables();	// Some tables may have been const
@@ -13476,9 +13526,11 @@ err:
 }
 
 
-/*
-  Generate a hash index for each row to quickly find duplicate rows
-  Note that this will not work on tables with blobs!
+/**
+  Generate a hash index for each row to quickly find duplicate rows.
+
+  @note
+    Note that this will not work on tables with blobs!
 */
 
 static int remove_dup_with_hash_index(THD *thd, TABLE *table,
@@ -13915,37 +13967,37 @@ cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
   Group and order functions
 *****************************************************************************/
 
-/*
+/**
   Resolve an ORDER BY or GROUP BY column reference.
 
-  SYNOPSIS
-    find_order_in_list()
-    thd		      [in]     Pointer to current thread structure
-    ref_pointer_array [in/out] All select, group and order by fields
-    tables            [in]     List of tables to search in (usually FROM clause)
-    order             [in]     Column reference to be resolved
-    fields            [in]     List of fields to search in (usually SELECT list)
-    all_fields        [in/out] All select, group and order by fields
-    is_group_field    [in]     True if order is a GROUP field, false if
-                               ORDER by field
+  Given a column reference (represented by 'order') from a GROUP BY or ORDER
+  BY clause, find the actual column it represents. If the column being
+  resolved is from the GROUP BY clause, the procedure searches the SELECT
+  list 'fields' and the columns in the FROM list 'tables'. If 'order' is from
+  the ORDER BY clause, only the SELECT list is being searched.
 
-  DESCRIPTION
-    Given a column reference (represented by 'order') from a GROUP BY or ORDER
-    BY clause, find the actual column it represents. If the column being
-    resolved is from the GROUP BY clause, the procedure searches the SELECT
-    list 'fields' and the columns in the FROM list 'tables'. If 'order' is from
-    the ORDER BY clause, only the SELECT list is being searched.
+  If 'order' is resolved to an Item, then order->item is set to the found
+  Item. If there is no item for the found column (that is, it was resolved
+  into a table field), order->item is 'fixed' and is added to all_fields and
+  ref_pointer_array.
 
-    If 'order' is resolved to an Item, then order->item is set to the found
-    Item. If there is no item for the found column (that is, it was resolved
-    into a table field), order->item is 'fixed' and is added to all_fields and
-    ref_pointer_array.
+  ref_pointer_array and all_fields are updated.
 
-  RETURN
+  @param[in] thd		     Pointer to current thread structure
+  @param[in,out] ref_pointer_array  All select, group and order by fields
+  @param[in] tables                 List of tables to search in (usually
+    FROM clause)
+  @param[in] order                  Column reference to be resolved
+  @param[in] fields                 List of fields to search in (usually
+    SELECT list)
+  @param[in,out] all_fields         All select, group and order by fields
+  @param[in] is_group_field         True if order is a GROUP field, false if
+    ORDER by field
+
+  @retval
     FALSE if OK
+  @retval
     TRUE  if error occurred
-
-    ref_pointer_array and all_fields are updated
 */
 
 static bool
@@ -14079,9 +14131,11 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 }
 
 
-/*
-  Change order to point at item in select list. If item isn't a number
-  and doesn't exits in the select list, add it the the field list.
+/**
+  Change order to point at item in select list.
+
+  If item isn't a number and doesn't exits in the select list, add it the
+  the field list.
 */
 
 int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
@@ -14098,27 +14152,30 @@ int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 }
 
 
-/*
+/**
   Intitialize the GROUP BY list.
 
-  SYNOPSIS
-   setup_group()
-   thd			Thread handler
-   ref_pointer_array	We store references to all fields that was not in
-			'fields' here.
-   fields		All fields in the select part. Any item in 'order'
-			that is part of these list is replaced by a pointer
-			to this fields.
-   all_fields		Total list of all unique fields used by the select.
-			All items in 'order' that was not part of fields will
-			be added first to this list.
-  order			The fields we should do GROUP BY on.
-  hidden_group_fields	Pointer to flag that is set to 1 if we added any fields
-			to all_fields.
+  @param thd			Thread handler
+  @param ref_pointer_array	We store references to all fields that was
+                               not in 'fields' here.
+  @param fields		All fields in the select part. Any item in
+                               'order' that is part of these list is replaced
+                               by a pointer to this fields.
+  @param all_fields		Total list of all unique fields used by the
+                               select. All items in 'order' that was not part
+                               of fields will be added first to this list.
+  @param order			The fields we should do GROUP BY on.
+  @param hidden_group_fields	Pointer to flag that is set to 1 if we added
+                               any fields to all_fields.
 
-  RETURN
-   0  ok
-   1  error (probably out of memory)
+  @todo
+    change ER_WRONG_FIELD_WITH_GROUP to more detailed
+    ER_NON_GROUPING_FIELD_USED
+
+  @retval
+    0  ok
+  @retval
+    1  error (probably out of memory)
 */
 
 int
@@ -14211,8 +14268,11 @@ next_field:
   return 0;
 }
 
-/*
-  Add fields with aren't used at start of field list. Return FALSE if ok
+/**
+  Add fields with aren't used at start of field list.
+
+  @return
+    FALSE if ok
 */
 
 static bool
@@ -14242,10 +14302,11 @@ setup_new_fields(THD *thd, List<Item> &fields,
   DBUG_RETURN(0);
 }
 
-/*
-  Create a group by that consist of all non const fields. Try to use
-  the fields in the order given by 'order' to allow one to optimize
-  away 'order by'.
+/**
+  Create a group by that consist of all non const fields.
+
+  Try to use the fields in the order given by 'order' to allow one to
+  optimize away 'order by'.
 */
 
 static ORDER *
@@ -14332,9 +14393,9 @@ next_item:
 }
 
 
-/*****************************************************************************
-  Update join with count of the different type of fields
-*****************************************************************************/
+/**
+  Update join with count of the different type of fields.
+*/
 
 void
 count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
@@ -14384,8 +14445,9 @@ count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param,
 }
 
 
-/*
-  Return 1 if second is a subpart of first argument
+/**
+  Return 1 if second is a subpart of first argument.
+
   If first parts has different direction, change it to second part
   (group is sorted like order)
 */
@@ -14403,10 +14465,9 @@ test_if_subpart(ORDER *a,ORDER *b)
   return test(!b);
 }
 
-/*
+/**
   Return table number if there is only one table in sort order
-  and group and order is compatible
-  else return 0;
+  and group and order is compatible, else return 0.
 */
 
 static TABLE *
@@ -14437,7 +14498,9 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
 }
 
 
-	/* calc how big buffer we need for comparing group entries */
+/**
+  calc how big buffer we need for comparing group entries.
+*/
 
 static void
 calc_group_buffer(JOIN *join,ORDER *group)
@@ -14521,17 +14584,17 @@ calc_group_buffer(JOIN *join,ORDER *group)
 }
 
 
-/*
-  allocate group fields or take prepared (cached)
+/**
+  allocate group fields or take prepared (cached).
 
-  SYNOPSIS
-    make_group_fields()
-    main_join - join of current select
-    curr_join - current join (join of current select or temporary copy of it)
+  @param main_join   join of current select
+  @param curr_join   current join (join of current select or temporary copy
+                     of it)
 
-  RETURN
-    0 - ok
-    1 - failed
+  @retval
+    0   ok
+  @retval
+    1   failed
 */
 
 static bool
@@ -14552,9 +14615,10 @@ make_group_fields(JOIN *main_join, JOIN *curr_join)
 }
 
 
-/*
-  Get a list of buffers for saveing last group
-  Groups are saved in reverse order for easyer check loop
+/**
+  Get a list of buffers for saveing last group.
+
+  Groups are saved in reverse order for easyer check loop.
 */
 
 static bool
@@ -14592,27 +14656,33 @@ test_if_group_changed(List<Cached_item> &list)
 }
 
 
-/*
+/**
+  Setup copy_fields to save fields at start of new group.
+
   Setup copy_fields to save fields at start of new group
 
-  setup_copy_fields()
-    thd - THD pointer
-    param - temporary table parameters
-    ref_pointer_array - array of pointers to top elements of filed list
-    res_selected_fields - new list of items of select item list
-    res_all_fields - new list of all items
-    elements - number of elements in select item list
-    all_fields - all fields list
+  Only FIELD_ITEM:s and FUNC_ITEM:s needs to be saved between groups.
+  Change old item_field to use a new field with points at saved fieldvalue
+  This function is only called before use of send_fields.
 
-  DESCRIPTION
-    Setup copy_fields to save fields at start of new group
-    Only FIELD_ITEM:s and FUNC_ITEM:s needs to be saved between groups.
-    Change old item_field to use a new field with points at saved fieldvalue
-    This function is only called before use of send_fields
-  
-  RETURN
-    0 - ok
-    !=0 - error
+  @param thd                   THD pointer
+  @param param                 temporary table parameters
+  @param ref_pointer_array     array of pointers to top elements of filed list
+  @param res_selected_fields   new list of items of select item list
+  @param res_all_fields        new list of all items
+  @param elements              number of elements in select item list
+  @param all_fields            all fields list
+
+  @todo
+    In most cases this result will be sent to the user.
+    This should be changed to use copy_int or copy_real depending
+    on how the value is to be used: In some cases this may be an
+    argument in a group function, like: IF(ISNULL(col),0,COUNT(*))
+
+  @retval
+    0     ok
+  @retval
+    !=0   error
 */
 
 bool
@@ -14746,8 +14816,8 @@ err2:
 }
 
 
-/*
-  Make a copy of all simple SELECT'ed items
+/**
+  Make a copy of all simple SELECT'ed items.
 
   This is done at the start of a new group so that we can retrieve
   these later when the group changes.
@@ -14769,14 +14839,13 @@ copy_fields(TMP_TABLE_PARAM *param)
 }
 
 
-/*
-  Make an array of pointers to sum_functions to speed up sum_func calculation
+/**
+  Make an array of pointers to sum_functions to speed up
+  sum_func calculation.
 
-  SYNOPSIS
-    alloc_func_list()
-
-  RETURN
+  @retval
     0	ok
+  @retval
     1	Error
 */
 
@@ -14821,18 +14890,17 @@ bool JOIN::alloc_func_list()
 }
 
 
-/*
-  Initialize 'sum_funcs' array with all Item_sum objects
+/**
+  Initialize 'sum_funcs' array with all Item_sum objects.
 
-  SYNOPSIS
-    make_sum_func_list()
-    field_list		All items
-    send_fields		Items in select list
-    before_group_by	Set to 1 if this is called before GROUP BY handling
-    recompute           Set to TRUE if sum_funcs must be recomputed
+  @param field_list        All items
+  @param send_fields       Items in select list
+  @param before_group_by   Set to 1 if this is called before GROUP BY handling
+  @param recompute         Set to TRUE if sum_funcs must be recomputed
 
-  RETURN
+  @retval
     0  ok
+  @retval
     1  error
 */
 
@@ -14873,21 +14941,21 @@ bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
 }
 
 
-/*
+/**
   Change all funcs and sum_funcs to fields in tmp table, and create
   new list of all items.
 
-  change_to_use_tmp_fields()
-    thd - THD pointer
-    ref_pointer_array - array of pointers to top elements of filed list
-    res_selected_fields - new list of items of select item list
-    res_all_fields - new list of all items
-    elements - number of elements in select item list
-    all_fields - all fields list
+  @param thd                   THD pointer
+  @param ref_pointer_array     array of pointers to top elements of filed list
+  @param res_selected_fields   new list of items of select item list
+  @param res_all_fields        new list of all items
+  @param elements              number of elements in select item list
+  @param all_fields            all fields list
 
-   RETURN
-    0 - ok
-    !=0 - error
+  @retval
+    0     ok
+  @retval
+    !=0   error
 */
 
 static bool
@@ -14964,20 +15032,20 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 }
 
 
-/*
-  Change all sum_func refs to fields to point at fields in tmp table
-  Change all funcs to be fields in tmp table
+/**
+  Change all sum_func refs to fields to point at fields in tmp table.
+  Change all funcs to be fields in tmp table.
 
-  change_refs_to_tmp_fields()
-    thd - THD pointer
-    ref_pointer_array - array of pointers to top elements of filed list
-    res_selected_fields - new list of items of select item list
-    res_all_fields - new list of all items
-    elements - number of elements in select item list
-    all_fields - all fields list
+  @param thd                   THD pointer
+  @param ref_pointer_array     array of pointers to top elements of filed list
+  @param res_selected_fields   new list of items of select item list
+  @param res_all_fields        new list of all items
+  @param elements              number of elements in select item list
+  @param all_fields            all fields list
 
-   RETURN
+  @retval
     0	ok
+  @retval
     1	error
 */
 
@@ -15015,16 +15083,15 @@ change_refs_to_tmp_fields(THD *thd, Item **ref_pointer_array,
 ******************************************************************************/
 
 
-/*
-  Call ::setup for all sum functions
+/**
+  Call ::setup for all sum functions.
 
-  SYNOPSIS
-    setup_sum_funcs()
-    thd           thread handler
-    func_ptr      sum function list
+  @param thd           thread handler
+  @param func_ptr      sum function list
 
-  RETURN
+  @retval
     FALSE  ok
+  @retval
     TRUE   error
 */
 
@@ -15050,7 +15117,7 @@ init_tmptable_sum_functions(Item_sum **func_ptr)
 }
 
 
-	/* Update record 0 in tmp_table from record 1 */
+/** Update record 0 in tmp_table from record 1. */
 
 static void
 update_tmptable_sum_func(Item_sum **func_ptr,
@@ -15062,7 +15129,7 @@ update_tmptable_sum_func(Item_sum **func_ptr,
 }
 
 
-	/* Copy result of sum functions to record in tmp_table */
+/** Copy result of sum functions to record in tmp_table. */
 
 static void
 copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr)
@@ -15101,7 +15168,7 @@ update_sum_func(Item_sum **func_ptr)
   return 0;
 }
 
-	/* Copy result of functions to record in tmp_table */
+/** Copy result of functions to record in tmp_table. */
 
 void
 copy_funcs(Item **func_ptr)
@@ -15112,9 +15179,9 @@ copy_funcs(Item **func_ptr)
 }
 
 
-/*
+/**
   Create a condition for a const reference and add this to the
-  currenct select for the table
+  currenct select for the table.
 */
 
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
@@ -15154,12 +15221,11 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 }
 
 
-/*
+/**
   Free joins of subselect of this select.
 
-  free_underlaid_joins()
-    thd - THD pointer
-    select - pointer to st_select_lex which subselects joins we will free
+  @param thd      THD pointer
+  @param select   pointer to st_select_lex which subselects joins we will free
 */
 
 void free_underlaid_joins(THD *thd, SELECT_LEX *select)
@@ -15174,41 +15240,43 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
   ROLLUP handling
 ****************************************************************************/
 
-/*
-  Replace occurences of group by fields in an expression by ref items
+/**
+  Replace occurences of group by fields in an expression by ref items.
 
-  SYNOPSIS
-    change_group_ref()
-    thd                  reference to the context
-    expr                 expression to make replacement
-    group_list           list of references to group by items
-    changed        out:  returns 1 if item contains a replaced field item
+  The function replaces occurrences of group by fields in expr
+  by ref objects for these fields unless they are under aggregate
+  functions.
+  The function also corrects value of the the maybe_null attribute
+  for the items of all subexpressions containing group by fields.
 
-  DESCRIPTION
-    The function replaces occurrences of group by fields in expr
-    by ref objects for these fields unless they are under aggregate
-    functions.
-    The function also corrects value of the the maybe_null attribute
-    for the items of all subexpressions containing group by fields.
+  @b EXAMPLES
+    @code
+      SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
+      SELECT SUM(a)+a FROM t1 GROUP BY a WITH ROLLUP 
+  @endcode
 
-  IMPLEMENTATION
+  @b IMPLEMENTATION
+
     The function recursively traverses the tree of the expr expression,
     looks for occurrences of the group by fields that are not under
     aggregate functions and replaces them for the corresponding ref items.
 
-  NOTES
+  @note
     This substitution is needed GROUP BY queries with ROLLUP if
     SELECT list contains expressions over group by attributes.
 
-  TODO: Some functions are not null-preserving. For those functions
+  @param thd                  reference to the context
+  @param expr                 expression to make replacement
+  @param group_list           list of references to group by items
+  @param changed        out:  returns 1 if item contains a replaced field item
+
+  @todo
+    - TODO: Some functions are not null-preserving. For those functions
     updating of the maybe_null attribute is an overkill. 
 
-  EXAMPLES
-    SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
-    SELECT SUM(a)+a FROM t1 GROUP BY a WITH ROLLUP 
-    
-  RETURN
+  @retval
     0	if ok
+  @retval
     1   on error
 */
 
@@ -15257,7 +15325,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
 }
 
 
-/* Allocate memory needed for other rollup functions */
+/** Allocate memory needed for other rollup functions. */
 
 bool JOIN::rollup_init()
 {
@@ -15360,22 +15428,20 @@ bool JOIN::rollup_init()
 }
   
 
-/*
-  Fill up rollup structures with pointers to fields to use
+/**
+  Fill up rollup structures with pointers to fields to use.
 
-  SYNOPSIS
-    rollup_make_fields()
-    fields_arg			List of all fields (hidden and real ones)
-    sel_fields			Pointer to selected fields
-    func			Store here a pointer to all fields
+  Creates copies of item_sum items for each sum level.
 
-  IMPLEMENTATION:
-    Creates copies of item_sum items for each sum level
+  @param fields_arg		List of all fields (hidden and real ones)
+  @param sel_fields		Pointer to selected fields
+  @param func			Store here a pointer to all fields
 
-  RETURN
-    0	if ok
-	In this case func is pointing to next not used element.
-    1   on error
+  @retval
+    0	if ok;
+    In this case func is pointing to next not used element.
+  @retval
+    1    on error
 */
 
 bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
@@ -15493,21 +15559,22 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
   return 0;
 }
 
-/*
-  Send all rollup levels higher than the current one to the client
+/**
+  Send all rollup levels higher than the current one to the client.
 
-  SYNOPSIS:
-    rollup_send_data()
-    idx			Level we are on:
-			0 = Total sum level
-			1 = First group changed  (a)
-			2 = Second group changed (a,b)
+  @b SAMPLE
+    @code
+      SELECT a, b, c SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP
+  @endcode
 
-  SAMPLE
-    SELECT a, b, c SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP
+  @param idx		Level we are on:
+                        - 0 = Total sum level
+                        - 1 = First group changed  (a)
+                        - 2 = Second group changed (a,b)
 
-  RETURN
-    0	ok
+  @retval
+    0   ok
+  @retval
     1   If send_data_failed()
 */
 
@@ -15533,22 +15600,23 @@ int JOIN::rollup_send_data(uint idx)
   return 0;
 }
 
-/*
-  Write all rollup levels higher than the current one to a temp table
+/**
+  Write all rollup levels higher than the current one to a temp table.
 
-  SYNOPSIS:
-    rollup_write_data()
-    idx                 Level we are on:
-                        0 = Total sum level
-                        1 = First group changed  (a)
-                        2 = Second group changed (a,b)
-    table               reference to temp table
+  @b SAMPLE
+    @code
+      SELECT a, b, SUM(c) FROM t1 GROUP BY a,b WITH ROLLUP
+  @endcode
 
-  SAMPLE
-    SELECT a, b, SUM(c) FROM t1 GROUP BY a,b WITH ROLLUP
+  @param idx                 Level we are on:
+                               - 0 = Total sum level
+                               - 1 = First group changed  (a)
+                               - 2 = Second group changed (a,b)
+  @param table               reference to temp table
 
-  RETURN
-    0	ok
+  @retval
+    0   ok
+  @retval
     1   if write_data_failed()
 */
 
@@ -15585,12 +15653,9 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
   return 0;
 }
 
-/*
+/**
   clear results if there are not rows found for group
   (end_send_group/end_write_group)
-
-  SYNOPSYS
-     JOIN::clear()
 */
 
 void JOIN::clear()
@@ -15606,11 +15671,11 @@ void JOIN::clear()
   }
 }
 
-/****************************************************************************
-  EXPLAIN handling
+/**
+  EXPLAIN handling.
 
-  Send a description about what how the select will be done to stdout
-****************************************************************************/
+  Send a description about what how the select will be done to stdout.
+*/
 
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 			    bool distinct,const char *message)
@@ -16129,14 +16194,12 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 }
 
 
-/*
-  Print joins from the FROM clause
+/**
+  Print joins from the FROM clause.
 
-  SYNOPSIS
-    print_join()
-    thd     thread handler
-    str     string where table should be printed
-    tables  list of tables in join
+  @param thd     thread handler
+  @param str     string where table should be printed
+  @param tables  list of tables in join
 */
 
 static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
@@ -16215,12 +16278,10 @@ Index_hint::print(THD *thd, String *str)
 }
 
 
-/*
-  Print table as it should be in join list
+/**
+  Print table as it should be in join list.
 
-  SYNOPSIS
-    TABLE_LIST::print();
-    str   string where table should bbe printed
+  @param str   string where table should bbe printed
 */
 
 void TABLE_LIST::print(THD *thd, String *str)
@@ -16431,16 +16492,15 @@ void st_select_lex::print(THD *thd, String *str)
 }
 
 
-/*
-  change select_result object of JOIN
+/**
+  change select_result object of JOIN.
 
-  SYNOPSIS
-    JOIN::change_result()
-    res		new select_result object
+  @param res		new select_result object
 
-  RETURN
-    FALSE - OK
-    TRUE  - error
+  @retval
+    FALSE   OK
+  @retval
+    TRUE    error
 */
 
 bool JOIN::change_result(select_result *res)

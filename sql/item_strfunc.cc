@@ -14,9 +14,15 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* This file defines all string functions
-** Warning: Some string functions doesn't always put and end-null on a String
-** (This shouldn't be needed)
+/**
+  @file
+
+  @brief
+  This file defines all string functions
+
+  @warning
+    Some string functions don't always put and end-null on a String.
+    (This shouldn't be needed)
 */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -267,9 +273,9 @@ void Item_func_aes_decrypt::fix_length_and_dec()
 }
 
 
-/*
+/**
   Concatenate args with the following premises:
-  If only one arg (which is ok), return value of arg
+  If only one arg (which is ok), return value of arg;
   Don't reallocate val_str() if not absolute necessary.
 */
 
@@ -425,13 +431,15 @@ void Item_func_concat::fix_length_and_dec()
   max_length= (ulong) max_result_length;
 }
 
-/*
+/**
+  @details
   Function des_encrypt() by tonu@spam.ee & monty
   Works only if compiled with OpenSSL library support.
-  This returns a binary string where first character is CHAR(128 | key-number).
-  If one uses a string key key_number is 127.
-  Encryption result is longer than original by formula:
-  new_length= org_length + (8-(org_length % 8))+1
+  @return
+    A binary string where first character is CHAR(128 | key-number).
+    If one uses a string key key_number is 127.
+    Encryption result is longer than original by formula:
+  @code new_length= org_length + (8-(org_length % 8))+1 @endcode
 */
 
 String *Item_func_des_encrypt::val_str(String *str)
@@ -604,7 +612,7 @@ wrong_key:
 }
 
 
-/*
+/**
   concat with separator. First arg is the separator
   concat_ws takes at least two arguments.
 */
@@ -826,12 +834,14 @@ void Item_func_reverse::fix_length_and_dec()
   max_length = args[0]->max_length;
 }
 
-/*
-** Replace all occurences of string2 in string1 with string3.
-** Don't reallocate val_str() if not needed
-*/
+/**
+  Replace all occurences of string2 in string1 with string3.
 
-/* TODO: Fix that this works with binary strings when using USE_MB */
+  Don't reallocate val_str() if not needed.
+
+  @todo
+    Fix that this works with binary strings when using USE_MB 
+*/
 
 String *Item_func_replace::val_str(String *str)
 {
@@ -1796,8 +1806,9 @@ String *Item_func_database::val_str(String *str)
 }
 
 
-/*
-  TODO: make USER() replicate properly (currently it is replicated to "")
+/**
+  @todo
+  make USER() replicate properly (currently it is replicated to "")
 */
 bool Item_func_user::init(const char *user, const char *host)
 {
@@ -1857,7 +1868,7 @@ void Item_func_soundex::fix_length_and_dec()
 }
 
 
-/*
+/**
   If alpha, map input letter to soundex code.
   If not alpha and remove_garbage is set then skip to next char
   else return 0
@@ -2001,9 +2012,10 @@ String *Item_func_soundex::val_str(String *str)
 }
 
 
-/*
-** Change a number to format '3,333,333,333.000'
-** This should be 'internationalized' sometimes.
+/**
+  Change a number to format '3,333,333,333.000'.
+
+  This should be 'internationalized' sometimes.
 */
 
 const int FORMAT_MAX_DECIMALS= 30;
@@ -2022,8 +2034,9 @@ void Item_func_format::fix_length_and_dec()
 }
 
 
-/*
-  TODO: This needs to be fixed for multi-byte character set where numbers
+/**
+  @todo
+  This needs to be fixed for multi-byte character set where numbers
   are stored in more than one byte
 */
 
@@ -2370,9 +2383,9 @@ void Item_func_repeat::fix_length_and_dec()
   }
 }
 
-/*
-** Item_func_repeat::str is carefully written to avoid reallocs
-** as much as possible at the cost of a local buffer
+/**
+  Item_func_repeat::str is carefully written to avoid reallocs
+  as much as possible at the cost of a local buffer
 */
 
 String *Item_func_repeat::val_str(String *str)
@@ -2848,7 +2861,7 @@ String *Item_func_hex::val_str(String *str)
   return &tmp_value;
 }
 
-  /* Convert given hex string to a binary string */
+  /** Convert given hex string to a binary string. */
 
 String *Item_func_unhex::val_str(String *str)
 {
@@ -3081,26 +3094,26 @@ String* Item_func_inet_ntoa::val_str(String* str)
 }
 
 
-/*
+#define get_esc_bit(mask, num) (1 & (*((mask) + ((num) >> 3))) >> ((num) & 7))
+
+/**
   QUOTE() function returns argument string in single quotes suitable for
   using in a SQL statement.
 
-  DESCRIPTION
-    Adds a \ before all characters that needs to be escaped in a SQL string.
-    We also escape '^Z' (END-OF-FILE in windows) to avoid probelms when
-    running commands from a file in windows.
+  Adds a \\ before all characters that needs to be escaped in a SQL string.
+  We also escape '^Z' (END-OF-FILE in windows) to avoid probelms when
+  running commands from a file in windows.
 
-    This function is very useful when you want to generate SQL statements
+  This function is very useful when you want to generate SQL statements.
 
-  NOTE
+  @note
     QUOTE(NULL) returns the string 'NULL' (4 letters, without quotes).
 
-  RETURN VALUES
-    str		Quoted string
-    NULL	Out of memory.
+  @retval
+    str	   Quoted string
+  @retval
+    NULL	   Out of memory.
 */
-
-#define get_esc_bit(mask, num) (1 & (*((mask) + ((num) >> 3))) >> ((num) & 7))
 
 String *Item_func_quote::val_str(String *str)
 {
@@ -3347,8 +3360,10 @@ static uint nanoseq;
 static ulonglong uuid_time=0;
 static char clock_seq_and_node_str[]="-0000-000000000000";
 
-/* number of 100-nanosecond intervals between
-   1582-10-15 00:00:00.00 and 1970-01-01 00:00:00.00 */
+/**
+  number of 100-nanosecond intervals between
+  1582-10-15 00:00:00.00 and 1970-01-01 00:00:00.00.
+*/
 #define UUID_TIME_OFFSET ((ulonglong) 141427 * 24 * 60 * 60 * 1000 * 10 )
 
 #define UUID_VERSION      0x1000

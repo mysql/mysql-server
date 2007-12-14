@@ -77,10 +77,10 @@ typedef struct st_user_var_events
       was actually changed or not.
 */
 typedef struct st_copy_info {
-  ha_rows records; /* Number of processed records */
-  ha_rows deleted; /* Number of deleted records */
-  ha_rows updated; /* Number of updated records */
-  ha_rows copied;  /* Number of copied records */
+  ha_rows records; /**< Number of processed records */
+  ha_rows deleted; /**< Number of deleted records */
+  ha_rows updated; /**< Number of updated records */
+  ha_rows copied;  /**< Number of copied records */
   ha_rows error_count;
   ha_rows touched; /* Number of touched records */
   enum enum_duplicates handle_duplicates;
@@ -1046,14 +1046,17 @@ public:
   */
   char *catalog;
 
-  /*
-    WARNING: some members of THD (currently 'Statement::db',
+  /**
+    @note
+    Some members of THD (currently 'Statement::db',
     'catalog' and 'query')  are set and alloced by the slave SQL thread
     (for the THD of that thread); that thread is (and must remain, for now)
     the only responsible for freeing these 3 members. If you add members
     here, and you add code to set them in replication, don't forget to
     free_them_and_set_them_to_0 in replication properly. For details see
     the 'err:' label of the handle_slave_sql() in sql/slave.cc.
+
+    @see handle_slave_sql
   */
 
   Security_context main_security_ctx;

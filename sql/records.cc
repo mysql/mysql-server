@@ -14,7 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Functions for easy reading of records, possible through a cache */
+/**
+  @file
+
+  @brief
+  Functions for easy reading of records, possible through a cache
+*/
 
 #include "mysql_priv.h"
 
@@ -31,25 +36,20 @@ static int rr_index_first(READ_RECORD *info);
 static int rr_index(READ_RECORD *info);
 
 
-/*
-  Initialize READ_RECORD structure to perform full index scan
+/**
+  Initialize READ_RECORD structure to perform full index scan (in forward
+  direction) using read_record.read_record() interface.
 
-  SYNOPSIS 
-    init_read_record_idx()
-      info         READ_RECORD structure to initialize.
-      thd          Thread handle
-      table        Table to be accessed 
-      print_error  If true, call table->file->print_error() if an error
-                   occurs (except for end-of-records error)
-      idx          index to scan
-  
-  DESCRIPTION
-    Initialize READ_RECORD structure to perform full index scan (in forward
-    direction) using read_record.read_record() interface.
-    
     This function has been added at late stage and is used only by
     UPDATE/DELETE. Other statements perform index scans using
     join_read_first/next functions.
+
+  @param info         READ_RECORD structure to initialize.
+  @param thd          Thread handle
+  @param table        Table to be accessed
+  @param print_error  If true, call table->file->print_error() if an error
+                      occurs (except for end-of-records error)
+  @param idx          index to scan
 */
 
 void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
@@ -286,7 +286,7 @@ static int rr_handle_error(READ_RECORD *info, int error)
 }
 
 
-	/* Read a record from head-database */
+/** Read a record from head-database. */
 
 static int rr_quick(READ_RECORD *info)
 {
@@ -308,19 +308,18 @@ static int rr_quick(READ_RECORD *info)
 }
 
 
-/*
-  Reads first row in an index scan
+/**
+  Reads first row in an index scan.
 
-  SYNOPSIS
-    rr_index_first()
-    info  	Scan info
-  
-  RETURN
+  @param info  	Scan info
+
+  @retval
     0   Ok
-    -1  End of records 
-    1   Error   
+  @retval
+    -1   End of records
+  @retval
+    1   Error
 */
-
 
 static int rr_index_first(READ_RECORD *info)
 {
@@ -332,23 +331,21 @@ static int rr_index_first(READ_RECORD *info)
 }
 
 
-/*
-  Reads index sequentially after first row
+/**
+  Reads index sequentially after first row.
 
-  SYNOPSIS
-    rr_index()
-      info  Scan info
-  
-  DESCRIPTION
-    Read the next index record (in forward direction) and translate return
-    value.
-    
-  RETURN
+  Read the next index record (in forward direction) and translate return
+  value.
+
+  @param info  Scan info
+
+  @retval
     0   Ok
-    -1  End of records 
-    1   Error   
+  @retval
+    -1   End of records
+  @retval
+    1   Error
 */
-
 
 static int rr_index(READ_RECORD *info)
 {
@@ -403,22 +400,20 @@ static int rr_from_tempfile(READ_RECORD *info)
 } /* rr_from_tempfile */
 
 
-/*
-  Read a result set record from a temporary file after sorting
+/**
+  Read a result set record from a temporary file after sorting.
 
-  SYNOPSIS
-    rr_unpack_from_tempfile()
-    info                Reference to the context including record descriptors
+  The function first reads the next sorted record from the temporary file.
+  into a buffer. If a success it calls a callback function that unpacks 
+  the fields values use in the result set from this buffer into their
+  positions in the regular record buffer.
 
-  DESCRIPTION
-    The function first reads the next sorted record from the temporary file.
-    into a buffer. If a success it calls a callback function that unpacks 
-    the fields values use in the result set from this buffer into their
-    positions in the regular record buffer.
+  @param info          Reference to the context including record descriptors
 
-  RETURN
-     0 - Record successfully read.
-    -1 - There is no record to be read anymore. 
+  @retval
+    0   Record successfully read.
+  @retval
+    -1   There is no record to be read anymore.
 */
 
 static int rr_unpack_from_tempfile(READ_RECORD *info)
@@ -456,22 +451,20 @@ static int rr_from_pointers(READ_RECORD *info)
   return tmp;
 }
 
-/*
-  Read a result set record from a buffer after sorting
+/**
+  Read a result set record from a buffer after sorting.
 
-  SYNOPSIS
-    rr_unpack_from_buffer()
-    info                   Reference to the context including record descriptors
+  The function first reads the next sorted record from the sort buffer.
+  If a success it calls a callback function that unpacks 
+  the fields values use in the result set from this buffer into their
+  positions in the regular record buffer.
 
-  DESCRIPTION
-    The function first reads the next sorted record from the sort buffer.
-    If a success it calls a callback function that unpacks 
-    the fields values use in the result set from this buffer into their
-    positions in the regular record buffer.
+  @param info          Reference to the context including record descriptors
 
-  RETURN
-     0 - Record successfully read.
-    -1 - There is no record to be read anymore. 
+  @retval
+    0   Record successfully read.
+  @retval
+    -1   There is no record to be read anymore.
 */
 
 static int rr_unpack_from_buffer(READ_RECORD *info)

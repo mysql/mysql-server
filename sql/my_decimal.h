@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
+/**
+  @file
+
   It is interface module to fixed precision decimals library.
 
   Most functions use 'uint mask' as parameter, if during operation error
@@ -34,14 +36,14 @@ C_MODE_END
 #define DECIMAL_LONG_DIGITS 10
 #define DECIMAL_LONG3_DIGITS 8
 
-/* maximum length of buffer in our big digits (uint32) */
+/** maximum length of buffer in our big digits (uint32). */
 #define DECIMAL_BUFF_LENGTH 9
 
 /* the number of digits that my_decimal can possibly contain */
 #define DECIMAL_MAX_POSSIBLE_PRECISION (DECIMAL_BUFF_LENGTH * 9)
 
 
-/*
+/**
   maximum guaranteed precision of number in decimal digits (number of our
   digits * number of decimal digits in one our big digit - number of decimal
   digits in one our big digit decreased by 1 (because we always put decimal
@@ -51,13 +53,14 @@ C_MODE_END
 #define DECIMAL_MAX_SCALE 30
 #define DECIMAL_NOT_SPECIFIED 31
 
-/*
+/**
   maximum length of string representation (number of maximum decimal
   digits + 1 position for sign + 1 position for decimal point)
 */
 #define DECIMAL_MAX_STR_LENGTH (DECIMAL_MAX_POSSIBLE_PRECISION + 2)
-/*
-  maximum size of packet length
+
+/**
+  maximum size of packet length.
 */
 #define DECIMAL_MAX_FIELD_SIZE DECIMAL_MAX_PRECISION
 
@@ -78,11 +81,12 @@ inline int my_decimal_int_part(uint precision, uint decimals)
 }
 
 
-/*
-  my_decimal class limits 'decimal_t' type to what we need in MySQL
+/**
+  my_decimal class limits 'decimal_t' type to what we need in MySQL.
+
   It contains internally all necessary space needed by the instance so
   no extra memory is needed. One should call fix_buffer_pointer() function
-  when he moves my_decimal objects in memory
+  when he moves my_decimal objects in memory.
 */
 
 class my_decimal :public decimal_t
@@ -384,7 +388,10 @@ int my_decimal_mod(uint mask, my_decimal *res, const my_decimal *a,
 }
 
 
-/* Returns -1 if a<b, 1 if a>b and 0 if a==b */
+/**
+  @return
+    -1 if a<b, 1 if a>b and 0 if a==b
+*/
 inline
 int my_decimal_cmp(const my_decimal *a, const my_decimal *b)
 {

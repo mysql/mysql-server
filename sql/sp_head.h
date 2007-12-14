@@ -109,7 +109,7 @@ public:
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_qname;
-  /*
+  /**
     Key representing routine in the set of stored routines used by statement.
     Consists of 1-byte routine type and m_qname (which usually refences to
     same buffer). Note that one must complete initialization of the key by
@@ -125,7 +125,7 @@ public:
     m_qname.length= m_sroutines_key.length= 0;
   }
 
-  /*
+  /**
     Creates temporary sp_name object from key, used mainly
     for SP-cache lookups.
   */
@@ -149,12 +149,12 @@ check_routine_name(LEX_STRING *ident);
 
 class sp_head :private Query_arena
 {
-  sp_head(const sp_head &);	/* Prevent use of these */
+  sp_head(const sp_head &);	/**< Prevent use of these */
   void operator=(sp_head &);
 
   MEM_ROOT main_mem_root;
 public:
-  /* Possible values of m_flags */
+  /** Possible values of m_flags */
   enum {
     HAS_RETURN= 1,              // For FUNCTIONs only: is set if has RETURN
     MULTI_RESULTS= 8,           // Is set if a procedure with SELECT(s)
@@ -170,16 +170,16 @@ public:
     HAS_SQLCOM_FLUSH= 4096
   };
 
-  /* TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
+  /** TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
   int m_type;
   uint m_flags;                 // Boolean attributes of a stored routine
 
-  Create_field m_return_field_def; /* This is used for FUNCTIONs only. */
+  Create_field m_return_field_def; /**< This is used for FUNCTIONs only. */
 
-  const char *m_tmp_query;	// Temporary pointer to sub query string
+  const char *m_tmp_query;	///< Temporary pointer to sub query string
   st_sp_chistics *m_chistics;
-  ulong m_sql_mode;		// For SHOW CREATE and execution
-  LEX_STRING m_qname;		// db.name
+  ulong m_sql_mode;		///< For SHOW CREATE and execution
+  LEX_STRING m_qname;		///< db.name
   /**
     Key representing routine in the set of stored routines used by statement.
     [routine_type]db.name
@@ -211,20 +211,20 @@ public:
 
   longlong m_created;
   longlong m_modified;
-  /* Recursion level of the current SP instance. The levels are numbered from 0 */
+  /** Recursion level of the current SP instance. The levels are numbered from 0 */
   ulong m_recursion_level;
-  /*
+  /**
     A list of diferent recursion level instances for the same procedure.
     For every recursion level we have a sp_head instance. This instances
     connected in the list. The list ordered by increasing recursion level
     (m_recursion_level).
   */
   sp_head *m_next_cached_sp;
-  /*
+  /**
     Pointer to the first element of the above list
   */
   sp_head *m_first_instance;
-  /*
+  /**
     Pointer to the first free (non-INVOKED) routine in the list of
     cached instances for this SP. This pointer is set only for the first
     SP in the list of instences (see above m_first_cached_sp pointer).
@@ -232,12 +232,12 @@ public:
     For non-first instance value of this pointer meanless (point to itself);
   */
   sp_head *m_first_free_instance;
-  /*
+  /**
     Pointer to the last element in the list of instances of the SP.
     For non-first instance value of this pointer meanless (point to itself);
   */
   sp_head *m_last_cached_sp;
-  /*
+  /**
     Set containing names of stored routines used by this routine.
     Note that unlike elements of similar set for statement elements of this
     set are not linked in one list. Because of this we are able save memory
@@ -267,11 +267,11 @@ public:
 
   sp_head();
 
-  // Initialize after we have reset mem_root
+  /// Initialize after we have reset mem_root
   void
   init(LEX *lex);
 
-  /* Copy sp name from parser. */
+  /** Copy sp name from parser. */
   void
   init_sp_name(THD *thd, sp_name *spname);
 
@@ -288,7 +288,7 @@ public:
 
   virtual ~sp_head();
 
-  // Free memory
+  /// Free memory
   void
   destroy();
 
@@ -325,33 +325,41 @@ public:
     return i;
   }
 
-  // Resets lex in 'thd' and keeps a copy of the old one.
+  /*
+    Resets lex in 'thd' and keeps a copy of the old one.
+
+    @todo Conflicting comment in sp_head.cc
+  */
   bool
   reset_lex(THD *thd);
 
-  // Restores lex in 'thd' from our copy, but keeps some status from the
-  // one in 'thd', like ptr, tables, fields, etc.
+  /**
+    Restores lex in 'thd' from our copy, but keeps some status from the
+    one in 'thd', like ptr, tables, fields, etc.
+
+    @todo Conflicting comment in sp_head.cc
+  */
   void
   restore_lex(THD *thd);
 
-  // Put the instruction on the backpatch list, associated with the label.
+  /// Put the instruction on the backpatch list, associated with the label.
   void
   push_backpatch(sp_instr *, struct sp_label *);
 
-  // Update all instruction with this label in the backpatch list to
-  // the current position.
+  /// Update all instruction with this label in the backpatch list to
+  /// the current position.
   void
   backpatch(struct sp_label *);
 
-  // Start a new cont. backpatch level. If 'i' is NULL, the level is just incr.
+  /// Start a new cont. backpatch level. If 'i' is NULL, the level is just incr.
   void
   new_cont_backpatch(sp_instr_opt_meta *i);
 
-  // Add an instruction to the current level
+  /// Add an instruction to the current level
   void
   add_cont_backpatch(sp_instr_opt_meta *i);
 
-  // Backpatch (and pop) the current level to the current position.
+  /// Backpatch (and pop) the current level to the current position.
   void
   do_cont_backpatch();
 
@@ -414,7 +422,7 @@ public:
                                      TABLE_LIST ***query_tables_last_ptr,
                                      TABLE_LIST *belong_to_view);
 
-  /*
+  /**
     Check if this stored routine contains statements disallowed
     in a stored function or trigger, and set an appropriate error message
     if this is the case.
@@ -463,19 +471,19 @@ public:
 
 private:
 
-  MEM_ROOT *m_thd_root;		// Temp. store for thd's mem_root
-  THD *m_thd;			// Set if we have reset mem_root
+  MEM_ROOT *m_thd_root;		///< Temp. store for thd's mem_root
+  THD *m_thd;			///< Set if we have reset mem_root
 
-  sp_pcontext *m_pcont;		// Parse context
-  List<LEX> m_lex;		// Temp. store for the other lex
-  DYNAMIC_ARRAY m_instr;	// The "instructions"
+  sp_pcontext *m_pcont;		///< Parse context
+  List<LEX> m_lex;		///< Temp. store for the other lex
+  DYNAMIC_ARRAY m_instr;	///< The "instructions"
   typedef struct
   {
     struct sp_label *lab;
     sp_instr *instr;
   } bp_t;
-  List<bp_t> m_backpatch;	// Instructions needing backpatching
-  /*
+  List<bp_t> m_backpatch;	///< Instructions needing backpatching
+  /**
     We need a special list for backpatching of instructions with a continue
     destination (in the case of a continue handler catching an error in
     the test), since it would otherwise interfere with the normal backpatch
@@ -483,15 +491,16 @@ private:
     which are to be patched differently.
     Since these occur in a more restricted way (always the same "level" in
     the code), we don't need the label.
-   */
+  */
   List<sp_instr_opt_meta> m_cont_backpatch;
   uint m_cont_level;            // The current cont. backpatch level
 
-  /*
+  /**
     Multi-set representing optimized list of tables to be locked by this
     routine. Does not include tables which are used by invoked routines.
 
-    Note: for prelocking-free SPs this multiset is constructed too.
+    @note
+    For prelocking-free SPs this multiset is constructed too.
     We do so because the same instance of sp_head may be called both
     in prelocked mode and in non-prelocked mode.
   */
@@ -506,7 +515,7 @@ private:
   */
   void opt_mark();
 
-  /*
+  /**
     Merge the list of tables used by query into the multi-set of tables used
     by routine.
   */
@@ -520,16 +529,16 @@ private:
 
 class sp_instr :public Query_arena, public Sql_alloc
 {
-  sp_instr(const sp_instr &);	/* Prevent use of these */
+  sp_instr(const sp_instr &);	/**< Prevent use of these */
   void operator=(sp_instr &);
 
 public:
 
   uint marked;
-  uint m_ip;			// My index
-  sp_pcontext *m_ctx;		// My parse context
+  uint m_ip;			///< My index
+  sp_pcontext *m_ctx;		///< My parse context
 
-  // Should give each a name or type code for debugging purposes?
+  /// Should give each a name or type code for debugging purposes?
   sp_instr(uint ip, sp_pcontext *ctx)
     :Query_arena(0, INITIALIZED_FOR_SP), marked(0), m_ip(ip), m_ctx(ctx)
   {}
@@ -538,21 +547,19 @@ public:
   { free_items(); }
 
 
-  /*
+  /**
     Execute this instruction
 
-    SYNOPSIS
-       execute()
-         thd        Thread handle
-         nextp  OUT index of the next instruction to execute. (For most
-                    instructions this will be the instruction following this
-                    one). Note that this parameter is undefined in case of
-                    errors, use get_cont_dest() to find the continuation
-                    instruction for CONTINUE error handlers.
-
-     RETURN
-       0      on success,
-       other  if some error occurred
+   
+    @param thd         Thread handle
+    @param[out] nextp  index of the next instruction to execute. (For most
+                       instructions this will be the instruction following this
+                       one). Note that this parameter is undefined in case of
+                       errors, use get_cont_dest() to find the continuation
+                       instruction for CONTINUE error handlers.
+   
+    @retval 0      on success, 
+    @retval other  if some error occured
   */
 
   virtual int execute(THD *thd, uint *nextp) = 0;
@@ -590,7 +597,7 @@ public:
   virtual void backpatch(uint dest, sp_pcontext *dst_ctx)
   {}
 
-  /*
+  /**
     Mark this instruction as reachable during optimization and return the
     index to the next instruction. Jump instruction will add their
     destination to the leads list.
@@ -601,7 +608,7 @@ public:
     return m_ip+1;
   }
 
-  /*
+  /**
     Short-cut jumps to jumps during optimization. This is used by the
     jump instructions' opt_mark() methods. 'start' is the starting point,
     used to prevent the mark sweep from looping for ever. Return the
@@ -612,7 +619,7 @@ public:
     return m_ip;
   }
 
-  /*
+  /**
     Inform the instruction that it has been moved during optimization.
     Most instructions will simply update its index, but jump instructions
     must also take care of their destination pointers. Forward jumps get
@@ -626,7 +633,7 @@ public:
 }; // class sp_instr : public Sql_alloc
 
 
-/*
+/**
   Auxilary class to which instructions delegate responsibility
   for handling LEX and preparations before executing statement
   or calculating complex expression.
@@ -634,13 +641,14 @@ public:
   Exist mainly to avoid having double hierarchy between instruction
   classes.
 
-  TODO: Add ability to not store LEX and do any preparations if
-        expression used is simple.
+  @todo
+    Add ability to not store LEX and do any preparations if
+    expression used is simple.
 */
 
 class sp_lex_keeper
 {
-  /* Prevent use of these */
+  /** Prevent use of these */
   sp_lex_keeper(const sp_lex_keeper &);
   void operator=(sp_lex_keeper &);
 public:
@@ -660,10 +668,12 @@ public:
     }
   }
 
-  /*
+  /**
     Prepare execution of instruction using LEX, if requested check whenever
     we have read access to tables used and open/lock them, call instruction's
     exec_core() method, perform cleanup afterwards.
+   
+    @todo Conflicting comment in sp_head.cc
   */
   int reset_lex_and_exec_core(THD *thd, uint *nextp, bool open_tables,
                               sp_instr* instr);
@@ -680,7 +690,7 @@ public:
 private:
 
   LEX *m_lex;
-  /*
+  /**
     Indicates whenever this sp_lex_keeper instance responsible
     for LEX deletion.
   */
@@ -693,13 +703,13 @@ private:
        prelocked mode itself.
   */
   
-  /*
+  /**
     List of additional tables this statement needs to lock when it
     enters/leaves prelocked mode on its own.
   */
   TABLE_LIST *prelocking_tables;
 
-  /*
+  /**
     The value m_lex->query_tables_own_last should be set to this when the
     statement enters/leaves prelocked mode on its own.
   */
@@ -707,17 +717,17 @@ private:
 };
 
 
-//
-// Call out to some prepared SQL statement.
-//
+/**
+  Call out to some prepared SQL statement.
+*/
 class sp_instr_stmt : public sp_instr
 {
-  sp_instr_stmt(const sp_instr_stmt &);	/* Prevent use of these */
+  sp_instr_stmt(const sp_instr_stmt &);	/**< Prevent use of these */
   void operator=(sp_instr_stmt &);
 
 public:
 
-  LEX_STRING m_query;		// For thd->query
+  LEX_STRING m_query;		///< For thd->query
 
   sp_instr_stmt(uint ip, sp_pcontext *ctx, LEX *lex)
     : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE)
@@ -744,7 +754,7 @@ private:
 
 class sp_instr_set : public sp_instr
 {
-  sp_instr_set(const sp_instr_set &);	/* Prevent use of these */
+  sp_instr_set(const sp_instr_set &);	/**< Prevent use of these */
   void operator=(sp_instr_set &);
 
 public:
@@ -767,15 +777,15 @@ public:
 
 private:
 
-  uint m_offset;		// Frame offset
+  uint m_offset;		///< Frame offset
   Item *m_value;
-  enum enum_field_types m_type;	// The declared type
+  enum enum_field_types m_type;	///< The declared type
   sp_lex_keeper m_lex_keeper;
 
 }; // class sp_instr_set : public sp_instr
 
 
-/*
+/**
   Set NEW/OLD row field value instruction. Used in triggers.
 */
 class sp_instr_set_trigger_field : public sp_instr
@@ -809,18 +819,19 @@ private:
 }; // class sp_instr_trigger_field : public sp_instr
 
 
-/*
+/**
   An abstract class for all instructions with destinations that
   needs to be updated by the optimizer.
+
   Even if not all subclasses will use both the normal destination and
   the continuation destination, we put them both here for simplicity.
- */
+*/
 class sp_instr_opt_meta : public sp_instr
 {
 public:
 
-  uint m_dest;			// Where we will go
-  uint m_cont_dest;             // Where continue handlers will go
+  uint m_dest;			///< Where we will go
+  uint m_cont_dest;             ///< Where continue handlers will go
 
   sp_instr_opt_meta(uint ip, sp_pcontext *ctx)
     : sp_instr(ip, ctx),
@@ -842,14 +853,14 @@ public:
 
 protected:
 
-  sp_instr *m_optdest;		// Used during optimization
-  sp_instr *m_cont_optdest;     // Used during optimization
+  sp_instr *m_optdest;		///< Used during optimization
+  sp_instr *m_cont_optdest;     ///< Used during optimization
 
 }; // class sp_instr_opt_meta : public sp_instr
 
 class sp_instr_jump : public sp_instr_opt_meta
 {
-  sp_instr_jump(const sp_instr_jump &);	/* Prevent use of these */
+  sp_instr_jump(const sp_instr_jump &);	/**< Prevent use of these */
   void operator=(sp_instr_jump &);
 
 public:
@@ -881,7 +892,7 @@ public:
       m_dest= dest;
   }
 
-  /*
+  /**
     Update the destination; used by the optimizer.
   */
   virtual void set_destination(uint old_dest, uint new_dest)
@@ -895,7 +906,7 @@ public:
 
 class sp_instr_jump_if_not : public sp_instr_jump
 {
-  sp_instr_jump_if_not(const sp_instr_jump_if_not &); /* Prevent use of these */
+  sp_instr_jump_if_not(const sp_instr_jump_if_not &); /**< Prevent use of these */
   void operator=(sp_instr_jump_if_not &);
 
 public:
@@ -921,7 +932,7 @@ public:
 
   virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
-  /* Override sp_instr_jump's shortcut; we stop here */
+  /** Override sp_instr_jump's shortcut; we stop here */
   virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
   {
     return m_ip;
@@ -938,7 +949,7 @@ public:
 
 private:
 
-  Item *m_expr;			// The condition
+  Item *m_expr;			///< The condition
   sp_lex_keeper m_lex_keeper;
 
 }; // class sp_instr_jump_if_not : public sp_instr_jump
@@ -946,7 +957,7 @@ private:
 
 class sp_instr_freturn : public sp_instr
 {
-  sp_instr_freturn(const sp_instr_freturn &);	/* Prevent use of these */
+  sp_instr_freturn(const sp_instr_freturn &);	/**< Prevent use of these */
   void operator=(sp_instr_freturn &);
 
 public:
@@ -983,7 +994,7 @@ protected:
 
 class sp_instr_hpush_jump : public sp_instr_jump
 {
-  sp_instr_hpush_jump(const sp_instr_hpush_jump &); /* Prevent use of these */
+  sp_instr_hpush_jump(const sp_instr_hpush_jump &); /**< Prevent use of these */
   void operator=(sp_instr_hpush_jump &);
 
 public:
@@ -1005,7 +1016,7 @@ public:
 
   virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
-  /* Override sp_instr_jump's shortcut; we stop here. */
+  /** Override sp_instr_jump's shortcut; we stop here. */
   virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
   {
     return m_ip;
@@ -1018,7 +1029,7 @@ public:
 
 private:
 
-  int m_type;			// Handler type
+  int m_type;			///< Handler type
   uint m_frame;
   List<struct sp_cond_type> m_cond;
 
@@ -1027,7 +1038,7 @@ private:
 
 class sp_instr_hpop : public sp_instr
 {
-  sp_instr_hpop(const sp_instr_hpop &);	/* Prevent use of these */
+  sp_instr_hpop(const sp_instr_hpop &);	/**< Prevent use of these */
   void operator=(sp_instr_hpop &);
 
 public:
@@ -1052,7 +1063,7 @@ private:
 
 class sp_instr_hreturn : public sp_instr_jump
 {
-  sp_instr_hreturn(const sp_instr_hreturn &);	/* Prevent use of these */
+  sp_instr_hreturn(const sp_instr_hreturn &);	/**< Prevent use of these */
   void operator=(sp_instr_hreturn &);
 
 public:
@@ -1083,10 +1094,10 @@ private:
 }; // class sp_instr_hreturn : public sp_instr_jump
 
 
-/* This is DECLARE CURSOR */
+/** This is DECLARE CURSOR */
 class sp_instr_cpush : public sp_instr
 {
-  sp_instr_cpush(const sp_instr_cpush &); /* Prevent use of these */
+  sp_instr_cpush(const sp_instr_cpush &); /**< Prevent use of these */
   void operator=(sp_instr_cpush &);
 
 public:
@@ -1102,7 +1113,7 @@ public:
 
   virtual void print(String *str);
 
-  /*
+  /**
     This call is used to cleanup the instruction when a sensitive
     cursor is closed. For now stored procedures always use materialized
     cursors and the call is not used.
@@ -1111,14 +1122,14 @@ public:
 private:
 
   sp_lex_keeper m_lex_keeper;
-  uint m_cursor;                /* Frame offset (for debugging) */
+  uint m_cursor;                /**< Frame offset (for debugging) */
 
 }; // class sp_instr_cpush : public sp_instr
 
 
 class sp_instr_cpop : public sp_instr
 {
-  sp_instr_cpop(const sp_instr_cpop &); /* Prevent use of these */
+  sp_instr_cpop(const sp_instr_cpop &); /**< Prevent use of these */
   void operator=(sp_instr_cpop &);
 
 public:
@@ -1143,7 +1154,7 @@ private:
 
 class sp_instr_copen : public sp_instr
 {
-  sp_instr_copen(const sp_instr_copen &); /* Prevent use of these */
+  sp_instr_copen(const sp_instr_copen &); /**< Prevent use of these */
   void operator=(sp_instr_copen &);
 
 public:
@@ -1163,14 +1174,14 @@ public:
 
 private:
 
-  uint m_cursor;		// Stack index
+  uint m_cursor;		///< Stack index
 
 }; // class sp_instr_copen : public sp_instr_stmt
 
 
 class sp_instr_cclose : public sp_instr
 {
-  sp_instr_cclose(const sp_instr_cclose &); /* Prevent use of these */
+  sp_instr_cclose(const sp_instr_cclose &); /**< Prevent use of these */
   void operator=(sp_instr_cclose &);
 
 public:
@@ -1195,7 +1206,7 @@ private:
 
 class sp_instr_cfetch : public sp_instr
 {
-  sp_instr_cfetch(const sp_instr_cfetch &); /* Prevent use of these */
+  sp_instr_cfetch(const sp_instr_cfetch &); /**< Prevent use of these */
   void operator=(sp_instr_cfetch &);
 
 public:
@@ -1228,7 +1239,7 @@ private:
 
 class sp_instr_error : public sp_instr
 {
-  sp_instr_error(const sp_instr_error &); /* Prevent use of these */
+  sp_instr_error(const sp_instr_error &); /**< Prevent use of these */
   void operator=(sp_instr_error &);
 
 public:

@@ -14,7 +14,15 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* This file defines all time functions */
+/**
+  @file
+
+  @brief
+  This file defines all time functions
+
+  @todo
+    Move month and days to language files
+*/
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -24,17 +32,16 @@
 #include <m_ctype.h>
 #include <time.h>
 
-/* TODO: Move month and days to language files */
-
-/* Day number for Dec 31st, 9999 */
+/** Day number for Dec 31st, 9999. */
 #define MAX_DAY_NUMBER 3652424L
 
-/*
-  OPTIMIZATION TODO:
-   - Replace the switch with a function that should be called for each
-     date type.
-   - Remove sprintf and opencode the conversion, like we do in
-     Field_datetime.
+/**
+  @todo
+  OPTIMIZATION
+  - Replace the switch with a function that should be called for each
+  date type.
+  - Remove sprintf and opencode the conversion, like we do in
+  Field_datetime.
 
   The reason for this functions existence is that as we don't have a
   way to know if a datetime/time value has microseconds in them
@@ -226,37 +233,37 @@ static DATE_TIME_FORMAT time_ampm_format= {{0}, '\0', 0,
 static DATE_TIME_FORMAT time_24hrs_format= {{0}, '\0', 0,
                                             {(char *)"%H:%i:%S", 8}};
 
-/*
+/**
   Extract datetime value to MYSQL_TIME struct from string value
-  according to format string. 
+  according to format string.
 
-  SYNOPSIS
-    extract_date_time()
-    format		date/time format specification
-    val			String to decode
-    length		Length of string
-    l_time		Store result here
-    cached_timestamp_type 
-                       It uses to get an appropriate warning
-                       in the case when the value is truncated.
-    sub_pattern_end    if non-zero then we are parsing string which
-                       should correspond compound specifier (like %T or
-                       %r) and this parameter is pointer to place where
-                       pointer to end of string matching this specifier
-                       should be stored.
-    NOTE
-     Possibility to parse strings matching to patterns equivalent to compound
-     specifiers is mainly intended for use from inside of this function in
-     order to understand %T and %r conversion specifiers, so number of
-     conversion specifiers that can be used in such sub-patterns is limited.
-     Also most of checks are skipped in this case.
+  @param format		date/time format specification
+  @param val			String to decode
+  @param length		Length of string
+  @param l_time		Store result here
+  @param cached_timestamp_type  It uses to get an appropriate warning
+                                in the case when the value is truncated.
+  @param sub_pattern_end    if non-zero then we are parsing string which
+                            should correspond compound specifier (like %T or
+                            %r) and this parameter is pointer to place where
+                            pointer to end of string matching this specifier
+                            should be stored.
 
-     If one adds new format specifiers to this function he should also
-     consider adding them to get_date_time_result_type() function.
+  @note
+    Possibility to parse strings matching to patterns equivalent to compound
+    specifiers is mainly intended for use from inside of this function in
+    order to understand %T and %r conversion specifiers, so number of
+    conversion specifiers that can be used in such sub-patterns is limited.
+    Also most of checks are skipped in this case.
 
-    RETURN
-      0	ok
-      1	error
+  @note
+    If one adds new format specifiers to this function he should also
+    consider adding them to get_date_time_result_type() function.
+
+  @retval
+    0	ok
+  @retval
+    1	error
 */
 
 static bool extract_date_time(DATE_TIME_FORMAT *format,
@@ -603,8 +610,8 @@ err:
 }
 
 
-/*
-  Create a formated date/time value in a string
+/**
+  Create a formated date/time value in a string.
 */
 
 bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
@@ -838,7 +845,8 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 }
 
 
-/*
+/**
+  @details
   Get a array of positive numbers from a string object.
   Each number is separated by 1 non digit character
   Return error if there is too many numbers.
@@ -846,16 +854,14 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
   from the high end. This allows one to give:
   DAY_TO_SECOND as "D MM:HH:SS", "MM:HH:SS" "HH:SS" or as seconds.
 
-  SYNOPSIS
-    str:            string value
-    length:         length of str
-    cs:             charset of str
-    values:         array of results
-    count:          count of elements in result array
-    transform_msec: if value is true we suppose
-                    that the last part of string value is microseconds
-                    and we should transform value to six digit value.
-                    For example, '1.1' -> '1.100000'
+  @param length:         length of str
+  @param cs:             charset of str
+  @param values:         array of results
+  @param count:          count of elements in result array
+  @param transform_msec: if value is true we suppose
+                         that the last part of string value is microseconds
+                         and we should transform value to six digit value.
+                         For example, '1.1' -> '1.100000'
 */
 
 static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
@@ -1046,7 +1052,9 @@ String* Item_func_monthname::val_str(String* str)
 }
 
 
-// Returns the quarter of the year
+/**
+  Returns the quarter of the year.
+*/
 
 longlong Item_func_quarter::val_int()
 {
@@ -1072,8 +1080,10 @@ longlong Item_func_minute::val_int()
   (void) get_arg0_time(&ltime);
   return ltime.minute;
 }
-// Returns the second in time_exp in the range of 0 - 59
 
+/**
+  Returns the second in time_exp in the range of 0 - 59.
+*/
 longlong Item_func_second::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -1091,7 +1101,8 @@ uint week_mode(uint mode)
   return week_format;
 }
 
-/*
+/**
+ @verbatim
   The bits in week_format(for calc_week() function) has the following meaning:
    WEEK_MONDAY_FIRST (0)  If not set	Sunday is first day of week
       		   	  If set	Monday is first day of week
@@ -1118,6 +1129,7 @@ uint week_mode(uint mode)
 	four or more days in the new year, then it is week 1;
 	Otherwise it is the last week of the previous year, and the
 	next week is week 1.
+ @endverbatim
 */
 
 longlong Item_func_week::val_int()
@@ -1281,8 +1293,9 @@ longlong Item_func_time_to_sec::val_int()
 }
 
 
-/*
-  Convert a string to a interval value
+/**
+  Convert a string to a interval value.
+
   To make code easy, allow interval objects without separators.
 */
 
@@ -1506,7 +1519,7 @@ String *Item_func_curdate::val_str(String *str)
   return str;
 }
 
-/*
+/**
     Converts current time in my_time_t to MYSQL_TIME represenatation for local
     time zone. Defines time zone (local) used for whole CURDATE function.
 */
@@ -1519,7 +1532,7 @@ void Item_func_curdate_local::store_now_in_TIME(MYSQL_TIME *now_time)
 }
 
 
-/*
+/**
     Converts current time in my_time_t to MYSQL_TIME represenatation for UTC
     time zone. Defines time zone (UTC) used for whole UTC_DATE function.
 */
@@ -1563,7 +1576,7 @@ void Item_func_curtime::fix_length_and_dec()
 }
 
 
-/*
+/**
     Converts current time in my_time_t to MYSQL_TIME represenatation for local
     time zone. Defines time zone (local) used for whole CURTIME function.
 */
@@ -1576,7 +1589,7 @@ void Item_func_curtime_local::store_now_in_TIME(MYSQL_TIME *now_time)
 }
 
 
-/*
+/**
     Converts current time in my_time_t to MYSQL_TIME represenatation for UTC
     time zone. Defines time zone (UTC) used for whole UTC_TIME function.
 */
@@ -1612,7 +1625,7 @@ void Item_func_now::fix_length_and_dec()
 }
 
 
-/*
+/**
     Converts current time in my_time_t to MYSQL_TIME represenatation for local
     time zone. Defines time zone (local) used for whole NOW function.
 */
@@ -1625,7 +1638,7 @@ void Item_func_now_local::store_now_in_TIME(MYSQL_TIME *now_time)
 }
 
 
-/*
+/**
     Converts current time in my_time_t to MYSQL_TIME represenatation for UTC
     time zone. Defines time zone (UTC) used for whole UTC_TIMESTAMP function.
 */
@@ -1655,7 +1668,7 @@ int Item_func_now::save_in_field(Field *to, bool no_conversions)
 }
 
 
-/*
+/**
     Converts current time in my_time_t to MYSQL_TIME represenatation for local
     time zone. Defines time zone (local) used for whole SYSDATE function.
 */
@@ -2618,7 +2631,7 @@ longlong Item_date_typecast::val_int()
   return (longlong) (ltime.year * 10000L + ltime.month * 100 + ltime.day);
 }
 
-/*
+/**
   MAKEDATE(a,b) is a date function that creates a date value 
   from a year and day value.
 
@@ -2728,7 +2741,7 @@ void Item_func_add_time::fix_length_and_dec()
     cached_field_type= MYSQL_TYPE_TIME;
 }
 
-/*
+/**
   ADDTIME(t,a) and SUBTIME(t,a) are time functions that calculate a
   time/datetime value 
 
@@ -2830,7 +2843,7 @@ void Item_func_add_time::print(String *str)
 }
 
 
-/*
+/**
   TIMEDIFF(t,s) is a time function that calculates the 
   time value between a start and end time.
 
@@ -2880,7 +2893,7 @@ null_date:
   return 0;
 }
 
-/*
+/**
   MAKETIME(h,m,s) is a time function that calculates a time value 
   from the total number of hours, minutes, and seconds.
   Result: Time value
@@ -2947,7 +2960,7 @@ String *Item_func_maketime::val_str(String *str)
 }
 
 
-/*
+/**
   MICROSECOND(a) is a function ( extraction) that extracts the microseconds
   from a.
 
@@ -3173,25 +3186,28 @@ void Item_func_get_format::print(String *str)
 }
 
 
-/*
+/**
   Get type of datetime value (DATE/TIME/...) which will be produced
   according to format string.
 
-  SYNOPSIS
-    get_date_time_result_type()
-      format - format string
-      length - length of format string
+  @param format   format string
+  @param length   length of format string
 
-  NOTE
+  @note
     We don't process day format's characters('D', 'd', 'e') because day
     may be a member of all date/time types.
 
+  @note
     Format specifiers supported by this function should be in sync with
     specifiers supported by extract_date_time() function.
 
-  RETURN VALUE
+  @return
     One of date_time_format_types values:
-    DATE_TIME_MICROSECOND, DATE_TIME, DATE_ONLY, TIME_MICROSECOND, TIME_ONLY
+    - DATE_TIME_MICROSECOND
+    - DATE_TIME
+    - DATE_ONLY
+    - TIME_MICROSECOND
+    - TIME_ONLY
 */
 
 static date_time_format_types
