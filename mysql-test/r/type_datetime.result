@@ -505,6 +505,61 @@ select sum(a) from t1 group by convert(a, datetime);
 sum(a)
 NULL
 drop table t1;
+create table t1 (id int(10) not null, cur_date datetime not null);
+create table t2 (id int(10) not null, cur_date date not null);
+insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
+insert into t2 (id, cur_date) values (1, '2007-04-25');
+explain extended
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
+Note	1003	select '1' AS `id`,'2007-04-25 18:30:22' AS `cur_date` from `test`.`t1` where <in_optimizer>('1',<exists>(select 1 AS `Not_used` from `test`.`t1` `x1` where 0))
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+id	cur_date
+explain extended
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
+Note	1003	select '1' AS `id`,'2007-04-25' AS `cur_date` from `test`.`t2` where <in_optimizer>('1',<exists>(select 1 AS `Not_used` from `test`.`t2` `x1` where 0))
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+id	cur_date
+insert into t1 (id, cur_date) values (2, '2007-04-26 18:30:22');
+insert into t2 (id, cur_date) values (2, '2007-04-26');
+explain extended
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	x1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(select 1 AS `Not_used` from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = 0) and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+id	cur_date
+explain extended
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	x1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(select 1 AS `Not_used` from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = 0) and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+id	cur_date
+drop table t1,t2;
 End of 5.0 tests
 set @org_mode=@@sql_mode;
 create table t1 (da date default '1962-03-03 23:33:34', dt datetime default '1962-03-03');

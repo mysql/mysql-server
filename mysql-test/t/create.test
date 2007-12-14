@@ -1328,4 +1328,17 @@ create table t2 as select f1() from t1;
 drop table t1,t2;
 drop function f1;
 
+#
+# Bug#25629 CREATE TABLE LIKE does not work with INFORMATION_SCHEMA
+#
+create table t1 like information_schema.processlist;
+show create table t1;
+drop table t1;
+create temporary table t1 like information_schema.processlist;
+show create table t1;
+drop table t1;
+create table t1 like information_schema.character_sets;
+show create table t1;
+drop table t1;
+
 --echo End of 5.1 tests
