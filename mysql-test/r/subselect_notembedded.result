@@ -1,3 +1,104 @@
 purge master logs before (select adddate(current_timestamp(), interval -4 day));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select adddate(current_timestamp(), interval -4 day))' at line 1
 purge master logs before adddate(current_timestamp(), interval -4 day);
+create table t1(a int,b int,key(a),key(b));
+insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
+(6,7),(7,4),(5,3);
+select sum(a),a from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1
+)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+sum(a)	a
+select sum(a),a from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+ERROR HY000: Thread stack overrun detected
+explain select sum(a),a from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 
+)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	a	a	5	NULL	9	Using where; Using index
+2	SUBQUERY	t1	index	a	b	5	NULL	9	Using where; Using filesort
+3	SUBQUERY	t1	index	a	b	5	NULL	9	Using where; Using filesort
+4	SUBQUERY	t1	index	a	b	5	NULL	9	Using where; Using filesort
+5	SUBQUERY	t1	index	a	b	5	NULL	9	Using where; Using filesort
+6	SUBQUERY	t1	index	a	b	5	NULL	9	Using where; Using filesort
+7	SUBQUERY	t1	index	a	b	5	NULL	9	Using where; Using filesort
+8	SUBQUERY	t1	index	a	b	5	NULL	9	Using where; Using filesort
+9	SUBQUERY	t1	index	a	b	5	NULL	9	Using where; Using filesort
+10	SUBQUERY	t1	index	a	b	5	NULL	9	Using where; Using filesort
+11	SUBQUERY	t1	index	a	b	5	NULL	9	Using where; Using filesort
+12	SUBQUERY	t1	range	a	a	5	NULL	1	Using where; Using temporary; Using filesort
+13	SUBQUERY	t1	index	NULL	a	5	NULL	9	Using index
+explain select sum(a),a from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+ERROR HY000: Thread stack overrun detected
+drop table t1;

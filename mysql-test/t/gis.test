@@ -440,6 +440,48 @@ INSERT INTO `t1` VALUES ('','0000-00-00');
 select geomfromtext(col9,col89) as a from t1;
 DROP TABLE t1;
 
+#
+# Bug #31158 Spatial, Union, LONGBLOB vs BLOB bug (crops data) 
+#
+
+CREATE TABLE t1 (
+  geomdata polygon NOT NULL,
+  SPATIAL KEY index_geom (geomdata)
+) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
+
+CREATE TABLE t2 (
+  geomdata polygon NOT NULL,
+  SPATIAL KEY index_geom (geomdata)
+) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
+
+CREATE TABLE t3
+select 
+    aswkb(ws.geomdata) AS geomdatawkb 
+  from 
+    t1 ws
+union 
+  select 
+    aswkb(ws.geomdata) AS geomdatawkb 
+  from 
+    t2 ws;
+
+describe t3;
+
+drop table t1;
+drop table t2;
+drop table t3;
+
+#
+# Bug #30284 spatial key corruption 
+#
+
+create table t1(col1 geometry default null,col15 geometrycollection not
+null,spatial index(col15),index(col1(15)))engine=myisam;
+insert into t1 set col15 = GeomFromText('POINT(6 5)');
+insert into t1 set col15 = GeomFromText('POINT(6 5)');
+check table t1 extended;
+drop table t1;
+
 --echo End of 4.1 tests
 
 #
@@ -600,6 +642,15 @@ SELECT AsText(GeometryFromText(CONCAT(
 SELECT 1;
 
 -- source include/gis_keys.inc
+
+#
+# Bug #31155 gis types in union'd select cause crash
+#
+
+create table `t1` (`col002` point)engine=myisam;
+insert into t1 values (),(),();
+select min(`col002`) from t1 union select `col002` from t1;
+drop table t1;
 
 --echo End of 5.0 tests
 

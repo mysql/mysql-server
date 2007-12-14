@@ -1793,13 +1793,18 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                                 outparam, is_create_table,
                                 share->default_part_db_type,
                                 &work_part_info_used);
-    if (!tmp)
-      outparam->part_info->is_auto_partitioned= share->auto_partitioned;
+    if (tmp)
+    {
+      thd->stmt_arena= backup_stmt_arena_ptr;
+      thd->restore_active_arena(&part_func_arena, &backup_arena);
+      goto partititon_err;
+    }
+    outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
     /* we should perform the fix_partition_func in either local or
        caller's arena depending on work_part_info_used value
     */
-    if (!tmp && !work_part_info_used)
+    if (!work_part_info_used)
       tmp= fix_partition_func(thd, outparam, is_create_table);
     thd->stmt_arena= backup_stmt_arena_ptr;
     thd->restore_active_arena(&part_func_arena, &backup_arena);
@@ -1809,6 +1814,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
         tmp= fix_partition_func(thd, outparam, is_create_table);
       outparam->part_info->item_free_list= part_func_arena.free_list;
     }
+partititon_err:
     if (tmp)
     {
       if (is_create_table)
