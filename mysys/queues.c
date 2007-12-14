@@ -382,7 +382,7 @@ void queue_fix(QUEUE *queue)
    make test_priority_queue
    ./test_priority_queue
 
-   Written by Mikael Ronström, 2005
+   Written by Mikael RonstrÃ¶m, 2005
  */
 
 static uint num_array[1025];

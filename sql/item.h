@@ -1719,7 +1719,7 @@ public:
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
-  Item *clone_item() { return new Item_uint(name,max_length); }
+  Item *clone_item() { return new Item_uint(name, value, max_length); }
   int save_in_field(Field *field, bool no_conversions);
   void print(String *str);
   Item_num *neg ();
@@ -2620,8 +2620,20 @@ class Item_cache: public Item
 protected:
   Item *example;
   table_map used_table_map;
+  enum enum_field_types cached_field_type;
 public:
-  Item_cache(): example(0), used_table_map(0) {fixed= 1; null_value= 1;}
+  Item_cache(): 
+    example(0), used_table_map(0), cached_field_type(MYSQL_TYPE_STRING) 
+  {
+    fixed= 1; 
+    null_value= 1;
+  }
+  Item_cache(enum_field_types field_type_arg):
+    example(0), used_table_map(0), cached_field_type(field_type_arg)
+  {
+    fixed= 1;
+    null_value= 1;
+  }
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
@@ -2637,7 +2649,8 @@ public:
   };
   virtual void store(Item *)= 0;
   enum Type type() const { return CACHE_ITEM; }
-  static Item_cache* get_cache(Item_result type);
+  enum_field_types field_type() const { return cached_field_type; }
+  static Item_cache* get_cache(const Item *item);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
   // to prevent drop fixed flag (no need parent cleanup call)
@@ -2652,6 +2665,8 @@ protected:
   longlong value;
 public:
   Item_cache_int(): Item_cache(), value(0) {}
+  Item_cache_int(enum_field_types field_type_arg):
+    Item_cache(field_type_arg), value(0) {}
 
   void store(Item *item);
   void store(Item *item, longlong val_arg);
@@ -2699,9 +2714,16 @@ class Item_cache_str: public Item_cache
 {
   char buffer[STRING_BUFFER_USUAL_SIZE];
   String *value, value_buff;
+  bool is_varbinary;
+  
 public:
-  Item_cache_str(): Item_cache(), value(0) { }
-
+  Item_cache_str(const Item *item) :
+    Item_cache(), value(0),
+    is_varbinary(item->type() == FIELD_ITEM &&
+                 ((const Item_field *) item)->field->type() ==
+                   MYSQL_TYPE_VARCHAR &&
+                 !((const Item_field *) item)->field->has_charset())
+  {}
   void store(Item *item);
   double val_real();
   longlong val_int();
@@ -2709,6 +2731,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };
+  int save_in_field(Field *field, bool no_conversions);
 };
 
 class Item_cache_row: public Item_cache

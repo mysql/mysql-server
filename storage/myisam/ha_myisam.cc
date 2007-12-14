@@ -119,6 +119,10 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
     definition for further use in mi_create or for a check for underlying
     table conformance in merge engine.
 
+    The caller needs to free *recinfo_out after use. Since *recinfo_out
+    and *keydef_out are allocated with a my_multi_malloc, *keydef_out
+    is freed automatically when *recinfo_out is freed.
+
   RETURN VALUE
     0  OK
     !0 error code
@@ -149,7 +153,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   pos= table_arg->key_info;
   for (i= 0; i < share->keys; i++, pos++)
   {
-    keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
+    keydef[i].flag= ((uint16) pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
     keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ?
       (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :
       pos->algorithm;

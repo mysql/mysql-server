@@ -180,7 +180,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   result->number_off_files= dir_entries_storage->elements;
   
   if (!(MyFlags & MY_DONT_SORT))
-    qsort((void *) result->dir_entry, result->number_off_files,
+    my_qsort((void *) result->dir_entry, result->number_off_files,
           sizeof(FILEINFO), (qsort_cmp) comp_names);
   DBUG_RETURN(result);
 
@@ -491,7 +491,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   result->number_off_files= dir_entries_storage->elements;
 
   if (!(MyFlags & MY_DONT_SORT))
-    qsort((void *) result->dir_entry, result->number_off_files,
+    my_qsort((void *) result->dir_entry, result->number_off_files,
           sizeof(FILEINFO), (qsort_cmp) comp_names);
   DBUG_PRINT("exit", ("found %d files", result->number_off_files));
   DBUG_RETURN(result);

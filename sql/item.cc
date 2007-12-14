@@ -95,6 +95,10 @@ void Hybrid_type_traits_decimal::add(Hybrid_type *val, Field *f) const
 }
 
 
+/**
+  @todo
+  what is '4' for scale?
+*/
 void Hybrid_type_traits_decimal::div(Hybrid_type *val, ulonglong u) const
 {
   int2my_decimal(E_DEC_FATAL_ERROR, u, TRUE, &val->dec_buf[2]);
@@ -156,7 +160,9 @@ Hybrid_type_traits_integer::fix_length_and_dec(Item *item, Item *arg) const
 ** Item functions
 *****************************************************************************/
 
-/* Init all special items */
+/**
+  Init all special items.
+*/
 
 void item_init(void)
 {
@@ -165,8 +171,9 @@ void item_init(void)
 }
 
 
-/*
-TODO: make this functions class dependent
+/**
+  @todo
+    Make this functions class dependent
 */
 
 bool Item::val_bool()
@@ -396,10 +403,12 @@ Item::Item():
   }
 }
 
-/*
-  Constructor used by Item_field, Item_*_ref & aggregate (sum) functions.
+/**
+  Constructor used by Item_field, Item_ref & aggregate (sum)
+  functions.
+
   Used for duplicating lists in processing queries with temporary
-  tables
+  tables.
 */
 Item::Item(THD *thd, Item *item):
   rsize(0),
@@ -456,12 +465,10 @@ void Item::cleanup()
 }
 
 
-/*
-  cleanup() item if it is 'fixed'
+/**
+  cleanup() item if it is 'fixed'.
 
-  SYNOPSIS
-    cleanup_processor()
-    arg - a dummy parameter, is not used here
+  @param arg   a dummy parameter, is not used here
 */
 
 bool Item::cleanup_processor(uchar *arg)
@@ -472,12 +479,10 @@ bool Item::cleanup_processor(uchar *arg)
 }
 
 
-/*
-  rename item (used for views, cleanup() return original name)
+/**
+  rename item (used for views, cleanup() return original name).
 
-  SYNOPSIS
-    Item::rename()
-    new_name	new name of item;
+  @param new_name	new name of item;
 */
 
 void Item::rename(char *new_name)
@@ -492,36 +497,30 @@ void Item::rename(char *new_name)
 }
 
 
-/*
+/**
   Traverse item tree possibly transforming it (replacing items).
 
-  SYNOPSIS
-    Item::transform()
-      transformer    functor that performs transformation of a subtree
-      arg            opaque argument passed to the functor
+  This function is designed to ease transformation of Item trees.
+  Re-execution note: every such transformation is registered for
+  rollback by THD::change_item_tree() and is rolled back at the end
+  of execution by THD::rollback_item_tree_changes().
 
-  DESCRIPTION
-    This function is designed to ease transformation of Item trees.
+  Therefore:
+  - this function can not be used at prepared statement prepare
+  (in particular, in fix_fields!), as only permanent
+  transformation of Item trees are allowed at prepare.
+  - the transformer function shall allocate new Items in execution
+  memory root (thd->mem_root) and not anywhere else: allocated
+  items will be gone in the end of execution.
 
-    Re-execution note: every such transformation is registered for
-    rollback by THD::change_item_tree() and is rolled back at the end
-    of execution by THD::rollback_item_tree_changes().
-
-    Therefore:
-
-      - this function can not be used at prepared statement prepare
-        (in particular, in fix_fields!), as only permanent
-        transformation of Item trees are allowed at prepare.
-
-      - the transformer function shall allocate new Items in execution
-        memory root (thd->mem_root) and not anywhere else: allocated
-        items will be gone in the end of execution.
-
-    If you don't need to transform an item tree, but only traverse
-    it, please use Item::walk() instead.
+  If you don't need to transform an item tree, but only traverse
+  it, please use Item::walk() instead.
 
 
-  RETURN VALUE
+  @param transformer    functor that performs transformation of a subtree
+  @param arg            opaque argument passed to the functor
+
+  @return
     Returns pointer to the new subtree root.  THD::change_item_tree()
     should be called for it if transformation took place, i.e. if a
     pointer to newly allocated item is returned.
@@ -549,7 +548,9 @@ Item_ident::Item_ident(Name_resolution_context *context_arg,
 }
 
 
-/* Constructor used by Item_field & Item_*_ref (see Item comment) */
+/**
+  Constructor used by Item_field & Item_*_ref (see Item comment)
+*/
 
 Item_ident::Item_ident(THD *thd, Item_ident *item)
   :Item(thd, item),
@@ -594,26 +595,22 @@ bool Item_ident::remove_dependence_processor(uchar * arg)
 }
 
 
-/*
+/**
   Store the pointer to this item field into a list if not already there.
 
-  SYNOPSIS
-    Item_field::collect_item_field_processor()
-    arg  pointer to a List<Item_field>
+  The method is used by Item::walk to collect all unique Item_field objects
+  from a tree of Items into a set of items represented as a list.
 
-  DESCRIPTION
-    The method is used by Item::walk to collect all unique Item_field objects
-    from a tree of Items into a set of items represented as a list.
+  Item_cond::walk() and Item_func::walk() stop the evaluation of the
+  processor function for its arguments once the processor returns
+  true.Therefore in order to force this method being called for all item
+  arguments in a condition the method must return false.
 
-  IMPLEMENTATION
-    Item_cond::walk() and Item_func::walk() stop the evaluation of the
-    processor function for its arguments once the processor returns
-    true.Therefore in order to force this method being called for all item
-    arguments in a condition the method must return false.
+  @param arg  pointer to a List<Item_field>
 
-  RETURN
+  @return
     FALSE to force the evaluation of collect_item_field_processor
-          for the subsequent items.
+    for the subsequent items.
 */
 
 bool Item_field::collect_item_field_processor(uchar *arg)
@@ -633,21 +630,19 @@ bool Item_field::collect_item_field_processor(uchar *arg)
 }
 
 
-/*
+/**
   Check if an Item_field references some field from a list of fields.
 
-  SYNOPSIS
-    Item_field::find_item_in_field_list_processor
-    arg   Field being compared, arg must be of type Field
+  Check whether the Item_field represented by 'this' references any
+  of the fields in the keyparts passed via 'arg'. Used with the
+  method Item::walk() to test whether any keypart in a sequence of
+  keyparts is referenced in an expression.
 
-  DESCRIPTION
-    Check whether the Item_field represented by 'this' references any
-    of the fields in the keyparts passed via 'arg'. Used with the
-    method Item::walk() to test whether any keypart in a sequence of
-    keyparts is referenced in an expression.
+  @param arg   Field being compared, arg must be of type Field
 
-  RETURN
+  @retval
     TRUE  if 'this' references the field 'arg'
+  @retval
     FALSE otherwise
 */
 
@@ -739,7 +734,8 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
 }
 
 
-/*
+/**
+  @details
   This function is called when:
   - Comparing items in the WHERE clause (when doing where optimization)
   - When trying to find an ORDER BY/GROUP BY item in the SELECT part
@@ -764,7 +760,8 @@ Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 }
 
 
-/*
+/**
+  @details
   Created mostly for mysql_prepare_table(). Important
   when a string ENUM/SET column is described with a numeric default value:
 
@@ -891,10 +888,10 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 }
 
 
-/*
+/**
   Get the value of the function as a MYSQL_TIME structure.
   As a extra convenience the time structure is reset on error!
- */
+*/
 
 bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
@@ -928,10 +925,11 @@ err:
   return 1;
 }
 
-/*
-  Get time of first argument.
+/**
+  Get time of first argument.\
+
   As a extra convenience the time structure is reset on error!
- */
+*/
 
 bool Item::get_time(MYSQL_TIME *ltime)
 {
@@ -1300,26 +1298,24 @@ public:
 };
 
 
-/*
-  Move SUM items out from item tree and replace with reference
+/**
+  Move SUM items out from item tree and replace with reference.
 
-  SYNOPSIS
-    split_sum_func2()
-    thd			Thread handler
-    ref_pointer_array	Pointer to array of reference fields
-    fields		All fields in select
-    ref			Pointer to item
-    skip_registered     <=> function be must skipped for registered SUM items
+  @param thd			Thread handler
+  @param ref_pointer_array	Pointer to array of reference fields
+  @param fields		All fields in select
+  @param ref			Pointer to item
+  @param skip_registered       <=> function be must skipped for registered
+                               SUM items
 
-  NOTES
-   This is from split_sum_func2() for items that should be split
+  @note
+    This is from split_sum_func2() for items that should be split
 
-   All found SUM items are added FIRST in the fields list and
-   we replace the item with a reference.
+    All found SUM items are added FIRST in the fields list and
+    we replace the item with a reference.
 
-   thd->fatal_error() may be called if we are out of memory
+    thd->fatal_error() may be called if we are out of memory
 */
-
 
 void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
                            List<Item> &fields, Item **ref, 
@@ -1387,41 +1383,42 @@ left_is_superset(DTCollation *left, DTCollation *right)
   return FALSE;
 }
 
-/*
-   Aggregate two collations together taking
-   into account their coercibility (aka derivation):
+/**
+  Aggregate two collations together taking
+  into account their coercibility (aka derivation):.
 
-   0 == DERIVATION_EXPLICIT  - an explicitly written COLLATE clause
-   1 == DERIVATION_NONE      - a mix of two different collations
-   2 == DERIVATION_IMPLICIT  - a column
-   3 == DERIVATION_COERCIBLE - a string constant
+  0 == DERIVATION_EXPLICIT  - an explicitly written COLLATE clause @n
+  1 == DERIVATION_NONE      - a mix of two different collations @n
+  2 == DERIVATION_IMPLICIT  - a column @n
+  3 == DERIVATION_COERCIBLE - a string constant.
 
-   The most important rules are:
-
-   1. If collations are the same:
-      chose this collation, and the strongest derivation.
-
-   2. If collations are different:
-     - Character sets may differ, but only if conversion without
-       data loss is possible. The caller provides flags whether
-       character set conversion attempts should be done. If no
-       flags are substituted, then the character sets must be the same.
-       Currently processed flags are:
-         MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
-         MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
-     - two EXPLICIT collations produce an error, e.g. this is wrong:
-       CONCAT(expr1 collate latin1_swedish_ci, expr2 collate latin1_german_ci)
-     - the side with smaller derivation value wins,
-       i.e. a column is stronger than a string constant,
-       an explicit COLLATE clause is stronger than a column.
-     - if derivations are the same, we have DERIVATION_NONE,
-       we'll wait for an explicit COLLATE clause which possibly can
-       come from another argument later: for example, this is valid,
-       but we don't know yet when collecting the first two arguments:
-         CONCAT(latin1_swedish_ci_column,
-                latin1_german1_ci_column,
-                expr COLLATE latin1_german2_ci)
+  The most important rules are:
+  -# If collations are the same:
+  chose this collation, and the strongest derivation.
+  -# If collations are different:
+  - Character sets may differ, but only if conversion without
+  data loss is possible. The caller provides flags whether
+  character set conversion attempts should be done. If no
+  flags are substituted, then the character sets must be the same.
+  Currently processed flags are:
+  MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
+  MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
+  - two EXPLICIT collations produce an error, e.g. this is wrong:
+  CONCAT(expr1 collate latin1_swedish_ci, expr2 collate latin1_german_ci)
+  - the side with smaller derivation value wins,
+  i.e. a column is stronger than a string constant,
+  an explicit COLLATE clause is stronger than a column.
+  - if derivations are the same, we have DERIVATION_NONE,
+  we'll wait for an explicit COLLATE clause which possibly can
+  come from another argument later: for example, this is valid,
+  but we don't know yet when collecting the first two arguments:
+     @code
+       CONCAT(latin1_swedish_ci_column,
+              latin1_german1_ci_column,
+              expr COLLATE latin1_german2_ci)
+  @endcode
 */
+
 bool DTCollation::aggregate(DTCollation &dt, uint flags)
 {
   if (!my_charset_same(collation, dt.collation))
@@ -1585,8 +1582,9 @@ bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
 }
 
 
-/* 
+/**
   Collect arguments' character sets together.
+
   We allow to apply automatic character set conversion in some cases.
   The conditions when conversion is possible are:
   - arguments A and B have different charsets
@@ -1602,17 +1600,17 @@ bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
   to the collation of A.
   
   For functions with more than two arguments:
-
+  @code
     collect(A,B,C) ::= collect(collect(A,B),C)
-
+  @endcode
   Since this function calls THD::change_item_tree() on the passed Item **
   pointers, it is necessary to pass the original Item **'s, not copies.
   Otherwise their values will not be properly restored (see BUG#20769).
   If the items are not consecutive (eg. args[2] and args[5]), use the
   item_sep argument, ie.
-
+  @code
     agg_item_charsets(coll, fname, &args[2], 2, flags, 3)
-
+  @endcode
 */
 
 bool agg_item_charsets(DTCollation &coll, const char *fname,
@@ -1734,6 +1732,13 @@ Item_field::Item_field(Field *f)
 }
 
 
+/**
+  Constructor used inside setup_wild().
+
+  Ensures that field, table, and database names will live as long as
+  Item_field (this is important in prepared statements).
+*/
+
 Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Field *f)
   :Item_ident(context_arg, f->table->s->db.str, *f->table_name, f->field_name),
@@ -1785,7 +1790,10 @@ Item_field::Item_field(Name_resolution_context *context_arg,
       select->select_n_where_fields++;
 }
 
-// Constructor need to process subselect with temporary tables (see Item)
+/**
+  Constructor need to process subselect with temporary tables (see Item)
+*/
+
 Item_field::Item_field(THD *thd, Item_field *item)
   :Item_ident(thd, item),
    field(item->field),
@@ -1816,7 +1824,7 @@ void Item_field::set_field(Field *field_par)
 }
 
 
-/*
+/**
   Reset this item to point to a field from the new temporary table.
   This is used when we create a new temporary table for each execution
   of prepared statement.
@@ -2085,9 +2093,9 @@ longlong Item_field::val_int_endpoint(bool left_endp, bool *incl_endp)
   return null_value? LONGLONG_MIN : res;
 }
 
-/*
+/**
   Create an item from a string we KNOW points to a valid longlong
-  end \0 terminated number string.
+  end \\0 terminated number string.
   This is always 'signed'. Unsigned values are created with Item_uint()
 */
 
@@ -2328,6 +2336,10 @@ double Item_string::val_real()
 }
 
 
+/**
+  @todo
+  Give error if we wanted a signed integer and we got an unsigned one
+*/
 longlong Item_string::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -2401,9 +2413,9 @@ Item *Item_null::safe_charset_converter(CHARSET_INFO *tocs)
 
 /*********************** Item_param related ******************************/
 
-/* 
+/** 
   Default function of Item_param::set_param_func, so in case
-  of malformed packet the server won't SIGSEGV
+  of malformed packet the server won't SIGSEGV.
 */
 
 static void
@@ -2477,16 +2489,14 @@ void Item_param::set_double(double d)
 }
 
 
-/*
+/**
   Set decimal parameter value from string.
 
-  SYNOPSIS
-    set_decimal()
-      str    - character string
-      length - string length
+  @param str      character string
+  @param length   string length
 
-  NOTE
-    as we use character strings to send decimal values in
+  @note
+    As we use character strings to send decimal values in
     binary protocol, we use str2my_decimal to convert it to
     internal decimal value.
 */
@@ -2507,16 +2517,14 @@ void Item_param::set_decimal(const char *str, ulong length)
 }
 
 
-/*
+/**
   Set parameter value from MYSQL_TIME value.
 
-  SYNOPSIS
-    set_time()
-      tm             - datetime value to set (time_type is ignored)
-      type           - type of datetime value
-      max_length_arg - max length of datetime value as string
+  @param tm              datetime value to set (time_type is ignored)
+  @param type            type of datetime value
+  @param max_length_arg  max length of datetime value as string
 
-  NOTE
+  @note
     If we value to be stored is not normalized, zero value will be stored
     instead and proper warning will be produced. This function relies on
     the fact that even wrong value sent over binary protocol fits into
@@ -2592,16 +2600,15 @@ bool Item_param::set_longdata(const char *str, ulong length)
 }
 
 
-/*
+/**
   Set parameter value from user variable value.
 
-  SYNOPSIS
-   set_from_user_var
-     thd   Current thread
-     entry User variable structure (NULL means use NULL value)
+  @param thd   Current thread
+  @param entry User variable structure (NULL means use NULL value)
 
-  RETURN
+  @retval
     0 OK
+  @retval
     1 Out of memory
 */
 
@@ -2670,14 +2677,11 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   DBUG_RETURN(0);
 }
 
-/*
-    Resets parameter after execution.
-  
-  SYNOPSIS
-     Item_param::reset()
- 
-  NOTES
-    We clear null_value here instead of setting it in set_* methods, 
+/**
+  Resets parameter after execution.
+
+  @note
+    We clear null_value here instead of setting it in set_* methods,
     because we want more easily handle case for long data.
 */
 
@@ -2896,11 +2900,15 @@ String *Item_param::val_str(String* str)
   return str;
 }
 
-/*
+/**
   Return Param item values in string format, for generating the dynamic 
-  query used in update/binary logs
-  TODO: change interface and implementation to fill log data in place
-  and avoid one more memcpy/alloc between str and log string.
+  query used in update/binary logs.
+
+  @todo
+    - Change interface and implementation to fill log data in place
+    and avoid one more memcpy/alloc between str and log string.
+    - In case of error we need to notify replication
+    that binary log contains wrong statement 
 */
 
 const String *Item_param::query_val_str(String* str) const
@@ -2953,7 +2961,7 @@ const String *Item_param::query_val_str(String* str) const
 }
 
 
-/*
+/**
   Convert string from client character set to the character set of
   connection.
 */
@@ -3177,17 +3185,16 @@ bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 }
 
 
-/*
-  Mark item and SELECT_LEXs as dependent if item was resolved in outer SELECT
+/**
+  Mark item and SELECT_LEXs as dependent if item was resolved in
+  outer SELECT.
 
-  SYNOPSIS
-    mark_as_dependent()
-    thd - thread handler
-    last - select from which current item depend
-    current  - current select
-    resolved_item - item which was resolved in outer SELECT(for warning)
-    mark_item - item which should be marked (can be differ in case of
-                substitution)
+  @param thd             thread handler
+  @param last            select from which current item depend
+  @param current         current select
+  @param resolved_item   item which was resolved in outer SELECT(for warning)
+  @param mark_item       item which should be marked (can be differ in case of
+                         substitution)
 */
 
 static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
@@ -3216,21 +3223,19 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 }
 
 
-/*
-  Mark range of selects and resolved identifier (field/reference) item as
-  dependent
+/**
+  Mark range of selects and resolved identifier (field/reference)
+  item as dependent.
 
-  SYNOPSIS
-    mark_select_range_as_dependent()
-    thd           - thread handler
-    last_select   - select where resolved_item was resolved
-    current_sel   - current select (select where resolved_item was placed)
-    found_field   - field which was found during resolving
-    found_item    - Item which was found during resolving (if resolved
-                    identifier belongs to VIEW)
-    resolved_item - Identifier which was resolved
+  @param thd             thread handler
+  @param last_select     select where resolved_item was resolved
+  @param current_sel     current select (select where resolved_item was placed)
+  @param found_field     field which was found during resolving
+  @param found_item      Item which was found during resolving (if resolved
+                         identifier belongs to VIEW)
+  @param resolved_item   Identifier which was resolved
 
-  NOTE:
+  @note
     We have to mark all items between current_sel (including) and
     last_select (excluding) as dependend (select before last_select should
     be marked with actual table mask used by resolved item, all other with
@@ -3282,20 +3287,17 @@ void mark_select_range_as_dependent(THD *thd,
 }
 
 
-/*
+/**
   Search a GROUP BY clause for a field with a certain name.
 
-  SYNOPSIS
-    find_field_in_group_list()
-    find_item  the item being searched for
-    group_list GROUP BY clause
+  Search the GROUP BY list for a column named as find_item. When searching
+  preference is given to columns that are qualified with the same table (and
+  database) name as the one being searched for.
 
-  DESCRIPTION
-    Search the GROUP BY list for a column named as find_item. When searching
-    preference is given to columns that are qualified with the same table (and
-    database) name as the one being searched for.
+  @param find_item     the item being searched for
+  @param group_list    GROUP BY clause
 
-  RETURN
+  @return
     - the found item on success
     - NULL if find_item is not in group_list
 */
@@ -3349,7 +3351,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
       if (cur_field->table_name && table_name)
       {
         /* If field_name is qualified by a table name. */
-        if (strcmp(cur_field->table_name, table_name))
+        if (my_strcasecmp(table_alias_charset, cur_field->table_name, table_name))
           /* Same field names, different tables. */
           return NULL;
 
@@ -3391,43 +3393,40 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
 }
 
 
-/*
+/**
   Resolve a column reference in a sub-select.
 
-  SYNOPSIS
-    resolve_ref_in_select_and_group()
-    thd     current thread
-    ref     column reference being resolved
-    select  the sub-select that ref is resolved against
+  Resolve a column reference (usually inside a HAVING clause) against the
+  SELECT and GROUP BY clauses of the query described by 'select'. The name
+  resolution algorithm searches both the SELECT and GROUP BY clauses, and in
+  case of a name conflict prefers GROUP BY column names over SELECT names. If
+  both clauses contain different fields with the same names, a warning is
+  issued that name of 'ref' is ambiguous. We extend ANSI SQL in that when no
+  GROUP BY column is found, then a HAVING name is resolved as a possibly
+  derived SELECT column. This extension is allowed only if the
+  MODE_ONLY_FULL_GROUP_BY sql mode isn't enabled.
 
-  DESCRIPTION
-    Resolve a column reference (usually inside a HAVING clause) against the
-    SELECT and GROUP BY clauses of the query described by 'select'. The name
-    resolution algorithm searches both the SELECT and GROUP BY clauses, and in
-    case of a name conflict prefers GROUP BY column names over SELECT names. If
-    both clauses contain different fields with the same names, a warning is
-    issued that name of 'ref' is ambiguous. We extend ANSI SQL in that when no
-    GROUP BY column is found, then a HAVING name is resolved as a possibly
-    derived SELECT column. This extension is allowed only if the
-    MODE_ONLY_FULL_GROUP_BY sql mode isn't enabled.
+  @param thd     current thread
+  @param ref     column reference being resolved
+  @param select  the sub-select that ref is resolved against
 
-  NOTES
+  @note
     The resolution procedure is:
     - Search for a column or derived column named col_ref_i [in table T_j]
-      in the SELECT clause of Q.
+    in the SELECT clause of Q.
     - Search for a column named col_ref_i [in table T_j]
-      in the GROUP BY clause of Q.
+    in the GROUP BY clause of Q.
     - If found different columns with the same name in GROUP BY and SELECT
-      - issue a warning and return the GROUP BY column,
-      - otherwise
-        - if the MODE_ONLY_FULL_GROUP_BY mode is enabled return error
-        - else return the found SELECT column.
+    - issue a warning and return the GROUP BY column,
+    - otherwise
+    - if the MODE_ONLY_FULL_GROUP_BY mode is enabled return error
+    - else return the found SELECT column.
 
 
-  RETURN
-    NULL - there was an error, and the error was already reported
-    not_found_item - the item was not resolved, no error was reported
-    resolved item - if the item was resolved
+  @return
+    - NULL - there was an error, and the error was already reported
+    - not_found_item - the item was not resolved, no error was reported
+    - resolved item - if the item was resolved
 */
 
 static Item**
@@ -3503,44 +3502,45 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
 }
 
 
-/*
+/**
   Resolve the name of an outer select column reference.
 
-  SYNOPSIS
-    Item_field::fix_outer_field()
-    thd        [in]      current thread
-    from_field [in/out]  found field reference or (Field*)not_found_field
-    reference  [in/out]  view column if this item was resolved to a view column
+  The method resolves the column reference represented by 'this' as a column
+  present in outer selects that contain current select.
 
-  DESCRIPTION
-    The method resolves the column reference represented by 'this' as a column
-    present in outer selects that contain current select.
+  In prepared statements, because of cache, find_field_in_tables()
+  can resolve fields even if they don't belong to current context.
+  In this case this method only finds appropriate context and marks
+  current select as dependent. The found reference of field should be
+  provided in 'from_field'.
 
-  NOTES
+  @param[in] thd             current thread
+  @param[in,out] from_field  found field reference or (Field*)not_found_field
+  @param[in,out] reference   view column if this item was resolved to a
+    view column
+
+  @note
     This is the inner loop of Item_field::fix_fields:
+  @code
+        for each outer query Q_k beginning from the inner-most one
+        {
+          search for a column or derived column named col_ref_i
+          [in table T_j] in the FROM clause of Q_k;
 
-      for each outer query Q_k beginning from the inner-most one
-      {
-        search for a column or derived column named col_ref_i
-        [in table T_j] in the FROM clause of Q_k;
+          if such a column is not found
+            Search for a column or derived column named col_ref_i
+            [in table T_j] in the SELECT and GROUP clauses of Q_k.
+        }
+  @endcode
 
-        if such a column is not found
-          Search for a column or derived column named col_ref_i
-          [in table T_j] in the SELECT and GROUP clauses of Q_k.
-      }
-
-  IMPLEMENTATION
-    In prepared statements, because of cache, find_field_in_tables()
-    can resolve fields even if they don't belong to current context.
-    In this case this method only finds appropriate context and marks
-    current select as dependent. The found reference of field should be
-    provided in 'from_field'.
-
-  RETURN
-     1 - column succefully resolved and fix_fields() should continue.
-     0 - column fully fixed and fix_fields() should return FALSE
-    -1 - error occured
+  @retval
+    1   column succefully resolved and fix_fields() should continue.
+  @retval
+    0   column fully fixed and fix_fields() should return FALSE
+  @retval
+    -1  error occured
 */
+
 int
 Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
 {
@@ -3801,48 +3801,48 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
 }
 
 
-/*
+/**
   Resolve the name of a column reference.
 
-  SYNOPSIS
-    Item_field::fix_fields()
-    thd       [in]      current thread
-    reference [in/out]  view column if this item was resolved to a view column
+  The method resolves the column reference represented by 'this' as a column
+  present in one of: FROM clause, SELECT clause, GROUP BY clause of a query
+  Q, or in outer queries that contain Q.
 
-  DESCRIPTION
-    The method resolves the column reference represented by 'this' as a column
-    present in one of: FROM clause, SELECT clause, GROUP BY clause of a query
-    Q, or in outer queries that contain Q.
+  The name resolution algorithm used is (where [T_j] is an optional table
+  name that qualifies the column name):
 
-  NOTES
-    The name resolution algorithm used is (where [T_j] is an optional table
-    name that qualifies the column name):
+  @code
+    resolve_column_reference([T_j].col_ref_i)
+    {
+      search for a column or derived column named col_ref_i
+      [in table T_j] in the FROM clause of Q;
 
-      resolve_column_reference([T_j].col_ref_i)
+      if such a column is NOT found AND    // Lookup in outer queries.
+         there are outer queries
       {
-        search for a column or derived column named col_ref_i
-        [in table T_j] in the FROM clause of Q;
-
-        if such a column is NOT found AND    // Lookup in outer queries.
-           there are outer queries
+        for each outer query Q_k beginning from the inner-most one
         {
-          for each outer query Q_k beginning from the inner-most one
-          {
-            search for a column or derived column named col_ref_i
-            [in table T_j] in the FROM clause of Q_k;
+          search for a column or derived column named col_ref_i
+          [in table T_j] in the FROM clause of Q_k;
 
-            if such a column is not found
-              Search for a column or derived column named col_ref_i
-              [in table T_j] in the SELECT and GROUP clauses of Q_k.
-          }
+          if such a column is not found
+            Search for a column or derived column named col_ref_i
+            [in table T_j] in the SELECT and GROUP clauses of Q_k.
         }
       }
+    }
+  @endcode
 
     Notice that compared to Item_ref::fix_fields, here we first search the FROM
     clause, and then we search the SELECT and GROUP BY clauses.
 
-  RETURN
+  @param[in]     thd        current thread
+  @param[in,out] reference  view column if this item was resolved to a
+    view column
+
+  @retval
     TRUE  if error
+  @retval
     FALSE on success
 */
 
@@ -4058,26 +4058,24 @@ void Item_field::cleanup()
   DBUG_VOID_RETURN;
 }
 
-/*
-  Find a field among specified multiple equalities 
+/**
+  Find a field among specified multiple equalities.
 
-  SYNOPSIS
-    find_item_equal()
-    cond_equal   reference to list of multiple equalities where
-                 the field (this object) is to be looked for
-  
-  DESCRIPTION
-    The function first searches the field among multiple equalities
-    of the current level (in the cond_equal->current_level list).
-    If it fails, it continues searching in upper levels accessed
-    through a pointer cond_equal->upper_levels.
-    The search terminates as soon as a multiple equality containing 
-    the field is found. 
+  The function first searches the field among multiple equalities
+  of the current level (in the cond_equal->current_level list).
+  If it fails, it continues searching in upper levels accessed
+  through a pointer cond_equal->upper_levels.
+  The search terminates as soon as a multiple equality containing 
+  the field is found. 
 
-  RETURN VALUES
-    First Item_equal containing the field, if success
-    0, otherwise
+  @param cond_equal   reference to list of multiple equalities where
+                      the field (this object) is to be looked for
+
+  @return
+    - First Item_equal containing the field, if success
+    - 0, otherwise
 */
+
 Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 {
   Item_equal *item= 0;
@@ -4099,32 +4097,33 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 }
 
 
-/*
-  Check whether a field can be substituted by an equal item
+/**
+  Check whether a field can be substituted by an equal item.
 
-  SYNOPSIS
-    equal_fields_propagator()
-      arg - *arg != NULL <-> the field is in the context where
-            substitution for an equal item is valid
-   
-  DESCRIPTION
-    The function checks whether a substitution of the field
-    occurrence for an equal item is valid.
+  The function checks whether a substitution of the field
+  occurrence for an equal item is valid.
 
-  NOTES
+  @param arg   *arg != NULL <-> the field is in the context where
+               substitution for an equal item is valid
+
+  @note
     The following statement is not always true:
+  @n
     x=y => F(x)=F(x/y).
+  @n
     This means substitution of an item for an equal item not always
-    yields an equavalent condition.
-    Here's an example:
-      'a'='a '
-      (LENGTH('a')=1) != (LENGTH('a ')=2)
+    yields an equavalent condition. Here's an example:
+    @code
+    'a'='a '
+    (LENGTH('a')=1) != (LENGTH('a ')=2)
+  @endcode
     Such a substitution is surely valid if either the substituted
     field is not of a STRING type or if it is an argument of
-    a comparison  predicate.  
+    a comparison predicate.
 
-  RETURN
+  @retval
     TRUE   substitution is valid
+  @retval
     FALSE  otherwise
 */
 
@@ -4134,30 +4133,28 @@ bool Item_field::subst_argument_checker(uchar **arg)
 }
 
 
-/*
+/**
   Set a pointer to the multiple equality the field reference belongs to
-  (if any)
-   
-  SYNOPSIS
-    equal_fields_propagator()
-      arg - reference to list of multiple equalities where
-            the field (this object) is to be looked for
-  
-  DESCRIPTION
-    The function looks for a multiple equality containing the field item
-    among those referenced by arg.
-    In the case such equality exists the function does the following.
-    If the found multiple equality contains a constant, then the field
-    reference is substituted for this constant, otherwise it sets a pointer
-    to the multiple equality in the field item.
+  (if any).
 
-  NOTES
+  The function looks for a multiple equality containing the field item
+  among those referenced by arg.
+  In the case such equality exists the function does the following.
+  If the found multiple equality contains a constant, then the field
+  reference is substituted for this constant, otherwise it sets a pointer
+  to the multiple equality in the field item.
+
+
+  @param arg    reference to list of multiple equalities where
+                the field (this object) is to be looked for
+
+  @note
     This function is supposed to be called as a callback parameter in calls
-    of the compile method.  
+    of the compile method.
 
-  RETURN VALUES
-    pointer to the replacing constant item, if the field item was substituted 
-    pointer to the field item, otherwise.
+  @return
+    - pointer to the replacing constant item, if the field item was substituted
+    - pointer to the field item, otherwise.
 */
 
 Item *Item_field::equal_fields_propagator(uchar *arg)
@@ -4186,9 +4183,10 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
 }
 
 
-/*
-  Mark the item to not be part of substitution if it's not a binary item
-  See comments in Arg_comparator::set_compare_func() for details
+/**
+  Mark the item to not be part of substitution if it's not a binary item.
+
+  See comments in Arg_comparator::set_compare_func() for details.
 */
 
 bool Item_field::set_no_const_sub(uchar *arg)
@@ -4199,31 +4197,29 @@ bool Item_field::set_no_const_sub(uchar *arg)
 }
 
 
-/*
+/**
   Replace an Item_field for an equal Item_field that evaluated earlier
-  (if any)
-   
-  SYNOPSIS
-    replace_equal_field_()
-    arg - a dummy parameter, is not used here
-  
-  DESCRIPTION
-    The function returns a pointer to an item that is taken from
-    the very beginning of the item_equal list which the Item_field
-    object refers to (belongs to) unless item_equal contains  a constant
-    item. In this case the function returns this constant item, 
-    (if the substitution does not require conversion).   
-    If the Item_field object does not refer any Item_equal object
-    'this' is returned 
+  (if any).
 
-  NOTES
+  The function returns a pointer to an item that is taken from
+  the very beginning of the item_equal list which the Item_field
+  object refers to (belongs to) unless item_equal contains  a constant
+  item. In this case the function returns this constant item, 
+  (if the substitution does not require conversion).   
+  If the Item_field object does not refer any Item_equal object
+  'this' is returned .
+
+  @param arg   a dummy parameter, is not used here
+
+
+  @note
     This function is supposed to be called as a callback parameter in calls
-    of the thransformer method.  
+    of the thransformer method.
 
-  RETURN VALUES
-    pointer to a replacement Item_field if there is a better equal item or
-    a pointer to a constant equal item;
-    this - otherwise.
+  @return
+    - pointer to a replacement Item_field if there is a better equal item or
+      a pointer to a constant equal item;
+    - this - otherwise.
 */
 
 Item *Item_field::replace_equal_field(uchar *arg)
@@ -4360,19 +4356,15 @@ String *Item::check_well_formed_result(String *str, bool send_error)
 }
 
 
-/*
-  Create a field to hold a string value from an item
+/**
+  Create a field to hold a string value from an item.
 
-  SYNOPSIS
-    make_string_field()
-    table		Table for which the field is created
+  If max_length > CONVERT_IF_BIGGER_TO_BLOB create a blob @n
+  If max_length > 0 create a varchar @n
+  If max_length == 0 create a CHAR(0) 
 
-  IMPLEMENTATION
-    If max_length > CONVERT_IF_BIGGER_TO_BLOB create a blob
-    If max_length > 0 create a varchar
-    If max_length == 0 create a CHAR(0) 
+  @param table		Table for which the field is created
 */
-
 
 Field *Item::make_string_field(TABLE *table)
 {
@@ -4395,15 +4387,16 @@ Field *Item::make_string_field(TABLE *table)
 }
 
 
-/*
-  Create a field based on field_type of argument
+/**
+  Create a field based on field_type of argument.
 
   For now, this is only used to create a field for
   IFNULL(x,something) and time functions
 
-  RETURN
-    0  error
-    #  Created field
+  @retval
+    NULL  error
+  @retval
+    \#    Created field
 */
 
 Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
@@ -4529,8 +4522,8 @@ void Item_field::make_field(Send_field *tmp_field)
 }
 
 
-/*
-  Set a field:s value from a item
+/**
+  Set a field's value from a item.
 */
 
 void Item_field::save_org_in_field(Field *to)
@@ -4566,21 +4559,19 @@ int Item_field::save_in_field(Field *to, bool no_conversions)
 }
 
 
-/*
-  Store null in field
+/**
+  Store null in field.
 
-  SYNOPSIS
-    save_in_field()
-    field		Field where we want to store NULL
+  This is used on INSERT.
+  Allow NULL to be inserted in timestamp and auto_increment values.
 
-  DESCRIPTION
-    This is used on INSERT.
-    Allow NULL to be inserted in timestamp and auto_increment values
+  @param field		Field where we want to store NULL
 
-  RETURN VALUES
-    0	 ok
-    1	 Field doesn't support NULL values and can't handle 'field = NULL'
-*/   
+  @retval
+    0   ok
+  @retval
+    1   Field doesn't support NULL values and can't handle 'field = NULL'
+*/
 
 int Item_null::save_in_field(Field *field, bool no_conversions)
 {
@@ -4588,17 +4579,16 @@ int Item_null::save_in_field(Field *field, bool no_conversions)
 }
 
 
-/*
-  Store null in field
+/**
+  Store null in field.
 
-  SYNOPSIS
-    save_safe_in_field()
-    field		Field where we want to store NULL
+  @param field		Field where we want to store NULL
 
-  RETURN VALUES
+  @retval
     0	 OK
+  @retval
     1	 Field doesn't support NULL values
-*/   
+*/
 
 int Item_null::save_safe_in_field(Field *field)
 {
@@ -4649,7 +4639,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
     my_decimal decimal_value;
     my_decimal *value= val_decimal(&decimal_value);
     if (null_value)
-      return set_field_to_null(field);
+      return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
     error=field->store_decimal(value);
   }
@@ -4756,7 +4746,7 @@ static uint nr_of_decimals(const char *str, const char *end)
 }
 
 
-/*
+/**
   This function is only called during parsing. We will signal an error if
   value is not a true double value (overflow)
 */
@@ -4986,8 +4976,8 @@ Item_bin_string::Item_bin_string(const char *str, uint str_length)
 }
 
 
-/*
-  Pack data in buffer for sending
+/**
+  Pack data in buffer for sending.
 */
 
 bool Item_null::send(Protocol *protocol, String *packet)
@@ -4995,8 +4985,8 @@ bool Item_null::send(Protocol *protocol, String *packet)
   return protocol->store_null();
 }
 
-/*
-  This is only called from items that is not of type item_field
+/**
+  This is only called from items that is not of type item_field.
 */
 
 bool Item::send(Protocol *protocol, String *buffer)
@@ -5205,60 +5195,67 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
 }
 
 
-/*
+/**
   Resolve the name of a reference to a column reference.
 
-  SYNOPSIS
-    Item_ref::fix_fields()
-    thd       [in]      current thread
-    reference [in/out]  view column if this item was resolved to a view column
+  The method resolves the column reference represented by 'this' as a column
+  present in one of: GROUP BY clause, SELECT clause, outer queries. It is
+  used typically for columns in the HAVING clause which are not under
+  aggregate functions.
 
-  DESCRIPTION
-    The method resolves the column reference represented by 'this' as a column
-    present in one of: GROUP BY clause, SELECT clause, outer queries. It is
-    used typically for columns in the HAVING clause which are not under
-    aggregate functions.
+  POSTCONDITION @n
+  Item_ref::ref is 0 or points to a valid item.
 
-  NOTES
+  @note
     The name resolution algorithm used is (where [T_j] is an optional table
     name that qualifies the column name):
 
-      resolve_extended([T_j].col_ref_i)
-      {
-        Search for a column or derived column named col_ref_i [in table T_j]
-        in the SELECT and GROUP clauses of Q.
-
-        if such a column is NOT found AND    // Lookup in outer queries.
-           there are outer queries
+  @code
+        resolve_extended([T_j].col_ref_i)
         {
-          for each outer query Q_k beginning from the inner-most one
-         {
-            Search for a column or derived column named col_ref_i
-            [in table T_j] in the SELECT and GROUP clauses of Q_k.
+          Search for a column or derived column named col_ref_i [in table T_j]
+          in the SELECT and GROUP clauses of Q.
 
-            if such a column is not found AND
-               - Q_k is not a group query AND
-               - Q_k is not inside an aggregate function
-               OR
-               - Q_(k-1) is not in a HAVING or SELECT clause of Q_k
-            {
-              search for a column or derived column named col_ref_i
-              [in table T_j] in the FROM clause of Q_k;
+          if such a column is NOT found AND    // Lookup in outer queries.
+             there are outer queries
+          {
+            for each outer query Q_k beginning from the inner-most one
+           {
+              Search for a column or derived column named col_ref_i
+              [in table T_j] in the SELECT and GROUP clauses of Q_k.
+
+              if such a column is not found AND
+                 - Q_k is not a group query AND
+                 - Q_k is not inside an aggregate function
+                 OR
+                 - Q_(k-1) is not in a HAVING or SELECT clause of Q_k
+              {
+                search for a column or derived column named col_ref_i
+                [in table T_j] in the FROM clause of Q_k;
+              }
             }
           }
         }
-      }
-
+  @endcode
+  @n
     This procedure treats GROUP BY and SELECT clauses as one namespace for
     column references in HAVING. Notice that compared to
     Item_field::fix_fields, here we first search the SELECT and GROUP BY
     clauses, and then we search the FROM clause.
 
-  POSTCONDITION
-    Item_ref::ref is 0 or points to a valid item
+  @param[in]     thd        current thread
+  @param[in,out] reference  view column if this item was resolved to a
+    view column
 
-  RETURN
+  @todo
+    Here we could first find the field anyway, and then test this
+    condition, so that we can give a better error message -
+    ER_WRONG_FIELD_WITH_GROUP, instead of the less informative
+    ER_BAD_FIELD_ERROR which we produce now.
+
+  @retval
     TRUE  if error
+  @retval
     FALSE on success
 */
 
@@ -5785,16 +5782,15 @@ bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 }
 
 
-/*
-  Prepare referenced field then call usual Item_direct_ref::fix_fields
+/**
+  Prepare referenced field then call usual Item_direct_ref::fix_fields .
 
-  SYNOPSIS
-    Item_direct_view_ref::fix_fields()
-    thd         thread handler
-    reference   reference on reference where this item stored
+  @param thd         thread handler
+  @param reference   reference on reference where this item stored
 
-  RETURN
+  @retval
     FALSE   OK
+  @retval
     TRUE    Error
 */
 
@@ -5837,24 +5833,22 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
 }
 
 
-/*
+/**
   Compare two view column references for equality.
 
-  SYNOPSIS
-    Item_direct_view_ref::eq()
-    item        item to compare with
-    binary_cmp  make binary comparison
+  A view column reference is considered equal to another column
+  reference if the second one is a view column and if both column
+  references resolve to the same item. It is assumed that both
+  items are of the same type.
 
-  DESCRIPTION
-    A view column reference is considered equal to another column
-    reference if the second one is a view column and if both column
-    references resolve to the same item.
+  @param item        item to compare with
+  @param binary_cmp  make binary comparison
 
-  RETURN
+  @retval
     TRUE    Referenced item is equal to given item
+  @retval
     FALSE   otherwise
 */
-
 
 bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
 {
@@ -5974,9 +5968,9 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 }
 
 
-/* 
+/**
   This method like the walk method traverses the item tree, but at the
-  same time it can replace some nodes in the tree
+  same time it can replace some nodes in the tree.
 */ 
 
 Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
@@ -6073,17 +6067,15 @@ void Item_insert_value::print(String *str)
 }
 
 
-/*
+/**
   Find index of Field object which will be appropriate for item
   representing field of row being changed in trigger.
 
-  SYNOPSIS
-    setup_field()
-      thd   - current thread context
-      table - table of trigger (and where we looking for fields)
-      table_grant_info - GRANT_INFO of the subject table
+  @param thd     current thread context
+  @param table   table of trigger (and where we looking for fields)
+  @param table_grant_info   GRANT_INFO of the subject table
 
-  NOTE
+  @note
     This function does almost the same as fix_fields() for Item_field
     but is invoked right after trigger definition parsing. Since at
     this stage we can't say exactly what Field object (corresponding
@@ -6317,8 +6309,10 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     thd->change_item_tree(ref, new_item);
 }
 
-/*
-  Return true if the value stored in the field is equal to the const item
+/**
+  Return true if the value stored in the field is equal to the const
+  item.
+
   We need to use this on the range optimizer because in some cases
   we can't store the value in the field without some precision/character loss.
 */
@@ -6358,9 +6352,9 @@ bool field_is_equal_to_item(Field *field,Item *item)
   return result == field->val_real();
 }
 
-Item_cache* Item_cache::get_cache(Item_result type)
+Item_cache* Item_cache::get_cache(const Item *item)
 {
-  switch (type) {
+  switch (item->result_type()) {
   case INT_RESULT:
     return new Item_cache_int();
   case REAL_RESULT:
@@ -6368,7 +6362,7 @@ Item_cache* Item_cache::get_cache(Item_result type)
   case DECIMAL_RESULT:
     return new Item_cache_decimal();
   case STRING_RESULT:
-    return new Item_cache_str();
+    return new Item_cache_str(item);
   case ROW_RESULT:
     return new Item_cache_row();
   default:
@@ -6546,6 +6540,14 @@ my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 }
 
 
+int Item_cache_str::save_in_field(Field *field, bool no_conversions)
+{
+  int res= Item_cache::save_in_field(field, no_conversions);
+  return (is_varbinary && field->type() == MYSQL_TYPE_STRING &&
+          value->length() < field->field_length) ? 1 : res;
+}
+
+
 bool Item_cache_row::allocate(uint num)
 {
   item_count= num;
@@ -6564,7 +6566,7 @@ bool Item_cache_row::setup(Item * item)
   {
     Item *el= item->element_index(i);
     Item_cache *tmp;
-    if (!(tmp= values[i]= Item_cache::get_cache(el->result_type())))
+    if (!(tmp= values[i]= Item_cache::get_cache(el)))
       return 1;
     tmp->setup(el);
   }
@@ -6651,14 +6653,11 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
 }
 
 
-/*
-  Return expression type of Item_type_holder
+/**
+  Return expression type of Item_type_holder.
 
-  SYNOPSIS
-    Item_type_holder::result_type()
-
-  RETURN
-     Item_result (type of internal MySQL expression result)
+  @return
+    Item_result (type of internal MySQL expression result)
 */
 
 Item_result Item_type_holder::result_type() const
@@ -6667,13 +6666,10 @@ Item_result Item_type_holder::result_type() const
 }
 
 
-/*
-  Find real field type of item
+/**
+  Find real field type of item.
 
-  SYNOPSIS
-    Item_type_holder::get_real_type()
-
-  RETURN
+  @return
     type of field which should be created to store item value
 */
 
@@ -6736,17 +6732,16 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
   return item->field_type();
 }
 
-/*
+/**
   Find field type which can carry current Item_type_holder type and
   type of given Item.
 
-  SYNOPSIS
-    Item_type_holder::join_types()
-    thd     thread handler
-    item    given item to join its parameters with this item ones
+  @param thd     thread handler
+  @param item    given item to join its parameters with this item ones
 
-  RETURN
+  @retval
     TRUE   error - types are incompatible
+  @retval
     FALSE  OK
 */
 
@@ -6847,14 +6842,12 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   DBUG_RETURN(FALSE);
 }
 
-/*
-  Calculate lenth for merging result for given Item type
+/**
+  Calculate lenth for merging result for given Item type.
 
-  SYNOPSIS
-    Item_type_holder::real_length()
-    item  Item for lrngth detection
+  @param item  Item for length detection
 
-  RETURN
+  @return
     length
 */
 
@@ -6908,15 +6901,13 @@ uint32 Item_type_holder::display_length(Item *item)
 }
 
 
-/*
+/**
   Make temporary table field according collected information about type
-  of UNION result
+  of UNION result.
 
-  SYNOPSIS
-    Item_type_holder::make_field_by_type()
-    table  temporary table for which we create fields
+  @param table  temporary table for which we create fields
 
-  RETURN
+  @return
     created field
 */
 
@@ -6954,13 +6945,11 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
 }
 
 
-/*
+/**
   Get full information from Item about enum/set fields to be able to create
-  them later
+  them later.
 
-  SYNOPSIS
-    Item_type_holder::get_full_info
-    item    Item for information collection
+  @param item    Item for information collection
 */
 void Item_type_holder::get_full_info(Item *item)
 {
@@ -7023,26 +7012,21 @@ void Item_result_field::cleanup()
   DBUG_VOID_RETURN;
 }
 
-/*
-  Dummy error processor used by default by Name_resolution_context
+/**
+  Dummy error processor used by default by Name_resolution_context.
 
-  SYNOPSIS
-    dummy_error_processor()
-
-  NOTE
+  @note
     do nothing
 */
 
 void dummy_error_processor(THD *thd, void *data)
 {}
 
-/*
-  Wrapper of hide_view_error call for Name_resolution_context error processor
+/**
+  Wrapper of hide_view_error call for Name_resolution_context error
+  processor.
 
-  SYNOPSIS
-    view_error_processor()
-
-  NOTE
+  @note
     hide view underlying tables details in error messages
 */
 

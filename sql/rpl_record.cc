@@ -65,6 +65,8 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   my_ptrdiff_t const rec_offset= record - table->record[0];
   my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
 
+  DBUG_ENTER("pack_row");
+
   /*
     We write the null bits and the packed records using one pass
     through all the fields. The null bytes are written little-endian,
@@ -96,26 +98,17 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
           For big-endian machines, we have to make sure that the
           length is stored in little-endian format, since this is the
           format used for the binlog.
-
-          We do this by setting the db_low_byte_first, which is used
-          inside some store_length() to decide what order to write the
-          bytes in.
-
-          In reality, db_log_byte_first is only set for legacy table
-          type Isam, but in the event of a bug, we need to guarantee
-          the endianess when writing to the binlog.
-
-          This is currently broken for NDB due to BUG#29549, so we
-          will fix it when NDB has fixed their way of handling BLOBs.
         */
-#if 0
-        bool save= table->s->db_low_byte_first;
-        table->s->db_low_byte_first= TRUE;
+#ifndef DBUG_OFF
+        const uchar *old_pack_ptr= pack_ptr;
 #endif
-        pack_ptr= field->pack(pack_ptr, field->ptr + offset);
-#if 0
-        table->s->db_low_byte_first= save;
-#endif
+        pack_ptr= field->pack(pack_ptr, field->ptr + offset,
+                              field->max_data_length(), TRUE);
+        DBUG_PRINT("debug", ("field: %s; pack_ptr: 0x%lx;"
+                             " pack_ptr':0x%lx; bytes: %d",
+                             field->field_name, (ulong) old_pack_ptr,
+                             (ulong) pack_ptr,
+                             (int) (pack_ptr - old_pack_ptr)));
       }
 
       null_mask <<= 1;
@@ -143,8 +136,8 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
     packed data. If it doesn't, something is very wrong.
   */
   DBUG_ASSERT(null_ptr == row_data + null_byte_count);
-
-  return static_cast<size_t>(pack_ptr - row_data);
+  DBUG_DUMP("row_data", row_data, pack_ptr - row_data);
+  DBUG_RETURN(static_cast<size_t>(pack_ptr - row_data));
 }
 #endif
 
@@ -242,18 +235,16 @@ unpack_row(Relay_log_info const *rli,
           Use the master's size information if available else call
           normal unpack operation.
         */
-#if 0
-        bool save= table->s->db_low_byte_first;
-        table->s->db_low_byte_first= TRUE;
-#endif
         uint16 const metadata= tabledef->field_metadata(i);
-        if (tabledef && metadata)
-          pack_ptr= f->unpack(f->ptr, pack_ptr, metadata);
-        else
-          pack_ptr= f->unpack(f->ptr, pack_ptr);
-#if 0
-        table->s->db_low_byte_first= save;
+#ifndef DBUG_OFF
+        uchar const *const old_pack_ptr= pack_ptr;
 #endif
+        pack_ptr= f->unpack(f->ptr, pack_ptr, metadata, TRUE);
+	DBUG_PRINT("debug", ("field: %s; metadata: 0x%x;"
+                             " pack_ptr: 0x%lx; pack_ptr': 0x%lx; bytes: %d",
+                             f->field_name, metadata,
+                             (ulong) old_pack_ptr, (ulong) pack_ptr,
+                             (int) (pack_ptr - old_pack_ptr)));
       }
 
       null_mask <<= 1;
@@ -288,6 +279,8 @@ unpack_row(Relay_log_info const *rli,
     really wrong.
    */
   DBUG_ASSERT(null_ptr == row_data + master_null_byte_count);
+
+  DBUG_DUMP("row_data", row_data, pack_ptr - row_data);
 
   *row_end = pack_ptr;
   if (master_reclength)

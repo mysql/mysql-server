@@ -119,7 +119,7 @@ create table t1Aa (col1 int);
 create view v1Aa as select col1 from t1Aa as AaA;
 show create view v1AA;
 View	Create View	character_set_client	collation_connection
-v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `AaA`	latin1	latin1_swedish_ci
+v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `aaa`	latin1	latin1_swedish_ci
 drop view v1AA;
 select Aaa.col1 from t1Aa as AaA;
 col1
@@ -128,6 +128,23 @@ drop view v1AA;
 create view v1Aa as select AaA.col1 from t1Aa as AaA;
 show create view v1AA;
 View	Create View	character_set_client	collation_connection
-v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `AaA`	latin1	latin1_swedish_ci
+v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `aaa`	latin1	latin1_swedish_ci
 drop view v1AA;
 drop table t1Aa;
+CREATE TABLE  t1 (a int, b int);
+select X.a from t1 AS X group by X.b having (X.a = 1);
+a
+select X.a from t1 AS X group by X.b having (x.a = 1);
+a
+select X.a from t1 AS X group by X.b having (x.b = 1);
+a
+CREATE OR REPLACE VIEW v1 AS
+select X.a from t1 AS X group by X.b having (X.a = 1);
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `x`.`a` AS `a` from `t1` `x` group by `x`.`b` having (`x`.`a` = 1)	latin1	latin1_swedish_ci
+SELECT * FROM v1;
+a
+DROP VIEW v1;
+DROP TABLE t1;
+End of 5.0 tests.

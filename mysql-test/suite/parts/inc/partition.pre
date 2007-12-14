@@ -1,5 +1,5 @@
 ################################################################################
-# include/partition.pre                                                        #
+# inc/partition.pre                                                            #
 #                                                                              #
 # Purpose:                                                                     #
 #   Auxiliary script creating prerequisites needed by the partitioning tests   #
@@ -26,27 +26,21 @@
 eval SET @@session.storage_engine = $engine;
 
 ##### Disabled/affected testcases, because of open bugs #####
---echo
---echo #------------------------------------------------------------------------
---echo # There are several testcases disabled because of the open bugs
---echo # #15890
-if (`SELECT @@session.storage_engine IN('ndbcluster')`)
-{
---echo # #18730, Bug#18735
-}
---echo #------------------------------------------------------------------------
-# Attention: Only bugs appearing in all storage engines should be mentioned above.
-#            The top level test wrapper (example: t/partition_basic_ndb.test)
-#            may set the $fixed_bug<nnnnn> variable to 0 after sourcing
-#            this file.
-# Bug#15890 Partitions: Strange interpretation of partition number
-let $fixed_bug15890= 0;
-# Bug#18730: Partitions: NDB, crash on SELECT MIN(<unique column>)
-# Attention: NDB testcases set this variable later to 0
-let $fixed_bug18730= 1;
-# Bug#18735: Partitions: NDB, UNIQUE INDEX, UPDATE, strange server response
-# Attention: NDB testcases set this variable later to 0
-let $fixed_bug18735= 1;
+# --echo
+# --echo #------------------------------------------------------------------------
+# --echo # There are several testcases disabled because of the open bugs
+# if (`SELECT @@session.storage_engine IN('ndbcluster')`)
+# {
+# --echo # #18730
+# }
+# --echo #------------------------------------------------------------------------
+# # Attention: Only bugs appearing in all storage engines should be mentioned above.
+# #            The top level test wrapper (example: t/partition_basic_ndb.test)
+# #            may set the $fixed_bug<nnnnn> variable to 0 after sourcing
+# #            this file.
+# # Bug#18730: Partitions: NDB, crash on SELECT MIN(<unique column>)
+# # Attention: NDB testcases set this variable later to 0
+# let $fixed_bug18730= 1;
 
 --echo
 --echo #------------------------------------------------------------------------
@@ -66,6 +60,17 @@ if ($debug)
 --echo #       It is to be expected, that we get huge differences.
 }
 
+let $ER_DUP_KEY=                          1022;
+let $ER_GET_ERRNO=                        1030;
+let $ER_BAD_NULL_ERROR=                   1048;
+let $ER_DUP_ENTRY=                        1062;
+let $ER_PARSE_ERROR=                      1064;
+let $ER_TOO_MANY_PARTITIONS_ERROR=        1499;
+let $ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF= 1503;
+let $ER_NO_PARTS_ERROR=                   1504;
+let $ER_DROP_PARTITION_NON_EXISTENT=      1507;
+let $ER_SAME_NAME_PARTITION=              1517;
+let $ER_NO_PARTITION_FOR_GIVEN_VALUE=     1526;
 
 # Set the variable $engine_other to a storage engine <> $engine
 --disable_query_log
@@ -308,23 +313,23 @@ if (0)
 #      (t/partition_<feature>_<engine>.test)
 #      a) General not engine specific settings and requirements
 #         $debug, $ls, @max_row, $more_trigger_tests, .....
-#         --source include/have_partition.inc
+#         --source inc/have_partition.inc
 #      b) Engine specific settings and requirements
 #         $do_pk_tests, $MAX_VALUE, $engine
 #         SET SESSION storage_engine
 #         $engine_other
 #      c) Generate the prerequisites ($variables, @variables, tables) needed
 #         via
-#         --source include/partition.pre
+#         --source inc/partition.pre
 #      d) Set "fixed_bug<number>" variables to 1 if there are open engine
 #         specific bugs which need worarounds.
 #      e) Execute the feature specific testscript via
-#         --source include/partition_<feature>.inc
+#         --source inc/partition_<feature>.inc
 #      f) Perform a cleanup by removing all objects created within the tests
-#         --source include/partition_cleanup.inc
+#         --source inc/partition_cleanup.inc
 #
 # 2.2. script generating the prerequisites needed in all tests
-#      (include/partition.pre)
+#      (inc/partition.pre)
 #      a) Message about open bugs causing that
 #         - some testcases are disabled
 #         - it cannot be avoided that the file with expected results suffers
@@ -340,36 +345,70 @@ if (0)
 #      c) Setting of auxiliary variables
 #      d) Creation of auxiliary tables ....
 #
-# 3. script checking a feature
-#    (include/partition_<feature.inc>.inc)
-#    Example:
-#    a) "set/compute" a CREATE TABLE t1 .. and an ALTER TABLE ... statement
-#    b) CREATE TABLE t1 ...
-#    c) INSERT INTO t1 (.....) SELECT .... FROM t0_template WHERE ...
-#       The first 50 % of all t0_template rows will be inserted into t1.
-#    d) ALTER TABLE t1 (Example: ADD/DROP UNIQUE INDEX)
-#    e) INSERT INTO t1 (.....) SELECT .... FROM t0_template WHERE ...
-#       The second 50 % of all t0_template rows will be inserted into t1.
-#    Now t1 and t0_template should have the same content.
-#    f) Check the "usability" of the current table t1
-#       via
-#       --source include/partition_check.pre
-#    g) DROP TABLE t1
-#    Switch to other CREATE and ALTER statements and run sequence a)-g) again
-#    ...
+# 2.3. script checking a feature
+#      (inc/partition_<feature.inc>.inc)
+#      Example:
+#      a) "set/compute" a CREATE TABLE t1 .. and an ALTER TABLE ... statement
+#      b) CREATE TABLE t1 ...
+#      c) INSERT INTO t1 (.....) SELECT .... FROM t0_template WHERE ...
+#         The first 50 % of all t0_template rows will be inserted into t1.
+#      d) ALTER TABLE t1 (Example: ADD/DROP UNIQUE INDEX)
+#      e) INSERT INTO t1 (.....) SELECT .... FROM t0_template WHERE ...
+#         The second 50 % of all t0_template rows will be inserted into t1.
+#      Now t1 and t0_template should have the same content.
+#      f) Check the "usability" of the current table t1
+#         via
+#         --source inc/partition_check.pre
+#      g) DROP TABLE t1
+#      Switch to other CREATE and ALTER statements and run sequence a)-g) again
+#      ...
 #
-# 4. script checking if a certain table shows the expected behaviour
-#    ("usability" check):   include/partition_check.inc
-#    - SELECT/INSERT/UPDATE/DELETE affecting single and multiple records
-#    - check of values of special interest like NULL etc.
-#    - INSERT/UPDATE with BEFORE/AFTER triggers
-#    - violations of UNIQUE constraints, if there are any defined
-#    - transactions ...
-#    - TRUNCATE/OPTIMIZE/..
-#    - ...
+# 2.4. script checking if a certain table shows the expected behaviour
+#      ("usability" check):   inc/partition_check.inc
+#      - SELECT/INSERT/UPDATE/DELETE affecting single and multiple records
+#      - check of values of special interest like NULL etc.
+#      - INSERT/UPDATE with BEFORE/AFTER triggers
+#      - violations of UNIQUE constraints, if there are any defined
+#      - transactions ...
+#      - TRUNCATE/OPTIMIZE/..
+#      - ...
+#
+#
+# 2.5. There are some auxiliary scripts with sub tests where we cannot predict
+#      if we get an error and if we get one, which one.
+#      Example: INSERT a record where the value for a certain column equals
+#         some existing record.
+#         Depending on existing/not existing PRIMARY KEYs, UNIQUE INDEXes
+#         the response might be "no error", ER_DUP_KEY, ER_DUP_ENTRY.
+#      Our requirements:
+#      1. We cannot abort whenever get an error message from the server.
+#      2. We want the exact server message into the protocol.
+#      3. We want abort testing if we know that a certain error must not happen.
+#      Common but unusable Solutions:
+#      a) --error 0, ER_DUP_KEY, ER_DUP_ENTRY
+#         <statment>
+#         We get no error message even if the statement fails.
+#      b) --error ER_DUP_KEY, ER_DUP_ENTRY
+#         <statment>
+#         We might get "got one of the expected errors".
+#         There are situations where the statement must be successful.
+#      c) --disable_abort_on_error
+#         <statment>
+#         --enable_abort_on_error
+#         And nothing extra
+#         We do not abort in case of unexpected server errors.
+#
+#      Final solution:
+#         --disable_abort_on_error
+#         <statment>
+#         --enable_abort_on_error
+#         Check via error number if the error is not totally unexpected.
+#         The sub tests use $ER_DUP_KEY, $ER_DUP_ENTRY, etc.
+#         Assignment of values happen in this file.
+#
 #
 # 3. How to analyze a partitioning bug revealed with these tests/ How to build
-# a small replay script from the monstrous protocols ?
+#    a small replay script from the monstrous protocols ?
 #------------------------------------------------------------------------------#
 # a) crash    -- use the file var/master-data/mysql/general_log.CSV
 # b) no crash, but unexpected server response (there is no "reject file)
@@ -382,19 +421,19 @@ if (0)
 #                protocolling of some queries.
 # In most cases you will find that the r/<testcase>.<log/reject> contains at
 # least a line "#       # check <something>:       0".
-# That means that a check within include/partition_check did not got the
+# That means that a check within inc/partition_check did not got the
 # expected result.
 # A good start for a replay script would be
 #   1. Copy t/partition_<feature>_<engine>.test to t/my_test.test
 #   2. Edit t/my_test.test
 #      - set $debug to 1
 #      - replace the line
-#        "--source include/partition_<feature>.inc"
+#        "--source inc/partition_<feature>.inc"
 #        with all statements between the last
 #        CREATE TABLE t1 statement (included this)
 #        and the line
-#        "# Start usability test (include/partition_check.inc)"
-#      - add the content of include/partition_check.inc at the end.
+#        "# Start usability test (inc/partition_check.inc)"
+#      - add the content of inc/partition_check.inc at the end.
 #
 # Please excuse that the partitioning tests generate such huge protocols which
 # and are not very handy when it comes to bug analysis. I tried to squeez out

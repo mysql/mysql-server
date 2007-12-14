@@ -1521,6 +1521,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       built_query.append("DROP TABLE ");
   }
 
+  mysql_ha_rm_tables(thd, tables, FALSE);
+
   pthread_mutex_lock(&LOCK_open);
 
   /*
@@ -1562,7 +1564,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     handlerton *table_type;
     enum legacy_db_type frm_db_type;
 
-    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, 1);
+    DBUG_PRINT("table", ("table_l: '%s'.'%s'  table: 0x%lx  s: 0x%lx",
+                         table->db, table->table_name, (long) table->table,
+                         table->table ? (long) table->table->s : (long) -1));
 
     error= drop_temporary_table(thd, table);
 
@@ -1572,13 +1576,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       tmp_table_deleted= 1;
       continue;
     case -1:
-      // table already in use
-      /*
-        XXX: This branch should never be taken outside of SF, trigger or
-             prelocked mode.
-
-        DBUG_ASSERT(thd->in_sub_stmt);
-      */
+      DBUG_ASSERT(thd->in_sub_stmt);
       error= 1;
       goto err_with_placeholders;
     default:
@@ -1690,6 +1688,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 	wrong_tables.append(',');
       wrong_tables.append(String(table->table_name,system_charset_info));
     }
+    DBUG_PRINT("table", ("table: 0x%lx  s: 0x%lx", (long) table->table,
+                         table->table ? (long) table->table->s : (long) -1));
   }
   /*
     It's safe to unlock LOCK_open: we have an exclusive lock
@@ -1798,7 +1798,8 @@ bool quick_rm_table(handlerton *base,const char *db,
 /*
   Sort keys in the following order:
   - PRIMARY KEY
-  - UNIQUE keyws where all column are NOT NULL
+  - UNIQUE keys where all column are NOT NULL
+  - UNIQUE keys that don't contain partial segments
   - Other UNIQUE keys
   - Normal keys
   - Fulltext keys
@@ -1809,26 +1810,31 @@ bool quick_rm_table(handlerton *base,const char *db,
 
 static int sort_keys(KEY *a, KEY *b)
 {
-  if (a->flags & HA_NOSAME)
+  ulong a_flags= a->flags, b_flags= b->flags;
+  
+  if (a_flags & HA_NOSAME)
   {
-    if (!(b->flags & HA_NOSAME))
+    if (!(b_flags & HA_NOSAME))
       return -1;
-    if ((a->flags ^ b->flags) & (HA_NULL_PART_KEY | HA_END_SPACE_KEY))
+    if ((a_flags ^ b_flags) & (HA_NULL_PART_KEY | HA_END_SPACE_KEY))
     {
       /* Sort NOT NULL keys before other keys */
-      return (a->flags & (HA_NULL_PART_KEY | HA_END_SPACE_KEY)) ? 1 : -1;
+      return (a_flags & (HA_NULL_PART_KEY | HA_END_SPACE_KEY)) ? 1 : -1;
     }
     if (a->name == primary_key_name)
       return -1;
     if (b->name == primary_key_name)
       return 1;
+    /* Sort keys don't containing partial segments before others */
+    if ((a_flags ^ b_flags) & HA_KEY_HAS_PART_KEY_SEG)
+      return (a_flags & HA_KEY_HAS_PART_KEY_SEG) ? 1 : -1;
   }
-  else if (b->flags & HA_NOSAME)
+  else if (b_flags & HA_NOSAME)
     return 1;					// Prefer b
 
-  if ((a->flags ^ b->flags) & HA_FULLTEXT)
+  if ((a_flags ^ b_flags) & HA_FULLTEXT)
   {
-    return (a->flags & HA_FULLTEXT) ? 1 : -1;
+    return (a_flags & HA_FULLTEXT) ? 1 : -1;
   }
   /*
     Prefer original key order.	usable_key_parts contains here
@@ -2892,6 +2898,10 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	  key_info->flags|= HA_PACK_KEY;
       }
+      /* Check if the key segment is partial, set the key flag accordingly */
+      if (length != sql_field->key_length)
+        key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+
       key_length+=length;
       key_part_info++;
 
@@ -2947,8 +2957,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(TRUE);
   }
   /* Sort keys in optimized order */
-  qsort((uchar*) *key_info_buffer, *key_count, sizeof(KEY),
-	(qsort_cmp) sort_keys);
+  my_qsort((uchar*) *key_info_buffer, *key_count, sizeof(KEY),
+	   (qsort_cmp) sort_keys);
   create_info->null_bits= null_fields;
 
   DBUG_RETURN(FALSE);
@@ -3705,13 +3715,15 @@ mysql_rename_table(handlerton *base, const char *old_db,
     Win32 clients must also have a WRITE LOCK on the table !
 */
 
-static void wait_while_table_is_used(THD *thd,TABLE *table,
-				     enum ha_extra_function function)
+void wait_while_table_is_used(THD *thd, TABLE *table,
+                              enum ha_extra_function function)
 {
   DBUG_ENTER("wait_while_table_is_used");
   DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %lu",
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
+
+  safe_mutex_assert_owner(&LOCK_open);
 
   VOID(table->file->extra(function));
   /* Mark all tables that are in use as 'old' */
@@ -3836,6 +3848,8 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
     DBUG_RETURN(send_check_errmsg(thd, table, "restore",
                                   "Failed to open partially restored table"));
   }
+  /* A MERGE table must not come here. */
+  DBUG_ASSERT(!table->table || !table->table->child_l);
   pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
@@ -3878,6 +3892,10 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     table= &tmp_table;
     pthread_mutex_unlock(&LOCK_open);
   }
+
+  /* A MERGE table must not come here. */
+  DBUG_ASSERT(!table->child_l);
+
   /*
     REPAIR TABLE ... USE_FRM for temporary tables makes little sense.
   */
@@ -4025,13 +4043,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL, FALSE);
+  mysql_ha_rm_tables(thd, tables, FALSE);
+
   for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
     char* db = table->db;
     bool fatal_error=0;
 
+    DBUG_PRINT("admin", ("table: '%s'.'%s'", table->db, table->table_name));
+    DBUG_PRINT("admin", ("extra_open_options: %u", extra_open_options));
     strxmov(table_name, db, ".", table->table_name, NullS);
     thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
@@ -4062,16 +4083,24 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
     }
+    DBUG_PRINT("admin", ("table: 0x%lx", (long) table->table));
+
     if (prepare_func)
     {
+      DBUG_PRINT("admin", ("calling prepare_func"));
       switch ((*prepare_func)(thd, table, check_opt)) {
       case  1:           // error, message written to net
         ha_autocommit_or_rollback(thd, 1);
         close_thread_tables(thd);
+        DBUG_PRINT("admin", ("simple error, admin next table"));
         continue;
       case -1:           // error, message could be written to net
+        /* purecov: begin inspected */
+        DBUG_PRINT("admin", ("severe error, stop"));
         goto err;
+        /* purecov: end */
       default:           // should be 0 otherwise
+        DBUG_PRINT("admin", ("prepare_func succeeded"));
         ;
       }
     }
@@ -4086,6 +4115,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     */
     if (!table->table)
     {
+      DBUG_PRINT("admin", ("open table failed"));
       if (!thd->warn_list.elements)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
@@ -4100,14 +4130,17 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     if (table->view)
     {
+      DBUG_PRINT("admin", ("calling view_operator_func"));
       result_code= (*view_operator_func)(thd, table);
       goto send_result;
     }
 
     if ((table->table->db_stat & HA_READ_ONLY) && open_for_modify)
     {
+      /* purecov: begin inspected */
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
       uint length;
+      DBUG_PRINT("admin", ("sending error message"));
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
@@ -4122,11 +4155,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (protocol->write())
 	goto err;
       continue;
+      /* purecov: end */
     }
 
     /* Close all instances of the table to allow repair to rename files */
     if (lock_type == TL_WRITE && table->table->s->version)
     {
+      DBUG_PRINT("admin", ("removing table from cache"));
       pthread_mutex_lock(&LOCK_open);
       const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
 					      "Waiting to get writelock");
@@ -4146,6 +4181,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     if (table->table->s->crashed && operator_func == &handler::ha_check)
     {
+      /* purecov: begin inspected */
+      DBUG_PRINT("admin", ("sending crashed warning"));
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
@@ -4154,6 +4191,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                       system_charset_info);
       if (protocol->write())
         goto err;
+      /* purecov: end */
     }
 
     if (operator_func == &handler::ha_repair &&
@@ -4164,6 +4202,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
            HA_ADMIN_NEEDS_ALTER))
       {
         my_bool save_no_send_ok= thd->net.no_send_ok;
+        DBUG_PRINT("admin", ("recreating table"));
         ha_autocommit_or_rollback(thd, 1);
         close_thread_tables(thd);
         tmp_disable_binlog(thd); // binlogging is done by caller if wanted
@@ -4176,7 +4215,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     }
 
+    DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
     result_code = (table->table->file->*operator_func)(thd, check_opt);
+    DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
 
 send_result:
 
@@ -5766,8 +5807,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   build_table_filename(reg_path, sizeof(reg_path), db, table_name, reg_ext, 0);
   build_table_filename(path, sizeof(path), db, table_name, "", 0);
 
-
-  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL, FALSE);
+  mysql_ha_rm_tables(thd, table_list, FALSE);
 
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
@@ -5834,9 +5874,24 @@ view_err:
     start_waiting_global_read_lock(thd);
     DBUG_RETURN(error);
   }
-  if (!(table=open_ltable(thd, table_list, TL_WRITE_ALLOW_READ, 0)))
+
+  if (!(table= open_n_lock_single_table(thd, table_list, TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(TRUE);
   table->use_all_columns();
+
+  /*
+    Prohibit changing of the UNION list of a non-temporary MERGE table
+    under LOCK tables. It would be quite difficult to reuse a shrinked
+    set of tables from the old table or to open a new TABLE object for
+    an extended list and verify that they belong to locked tables.
+  */
+  if (thd->locked_tables &&
+      (create_info->used_fields & HA_CREATE_USED_UNION) &&
+      (table->s->tmp_table == NO_TMP_TABLE))
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   /* Check that we are not trying to rename to an existing table */
   if (new_name)
@@ -6305,6 +6360,7 @@ view_err:
     goto err;
 
   /* Open the table if we need to copy the data. */
+  DBUG_PRINT("info", ("need_copy_table: %u", need_copy_table));
   if (need_copy_table != ALTER_TABLE_METADATA_ONLY)
   {
     if (table->s->tmp_table)
@@ -6328,6 +6384,10 @@ view_err:
     }
     if (!new_table)
       goto err1;
+    /*
+      Note: In case of MERGE table, we do not attach children. We do not
+      copy data for MERGE tables. Only the children have data.
+    */
   }
 
   /* Copy the data if necessary. */
@@ -6335,6 +6395,10 @@ view_err:
   thd->cuted_fields=0L;
   thd_proc_info(thd, "copy to tmp table");
   copied=deleted=0;
+  /*
+    We do not copy data for MERGE tables. Only the children have data.
+    MERGE tables have HA_NO_COPY_ON_ALTER set.
+  */
   if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
   {
     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
@@ -6472,7 +6536,10 @@ view_err:
 
   if (new_table)
   {
-    /* Close the intermediate table that will be the new table */
+    /*
+      Close the intermediate table that will be the new table.
+      Note that MERGE tables do not have their children attached here.
+    */
     intern_close_table(new_table);
     my_free(new_table,MYF(0));
   }
@@ -6565,6 +6632,7 @@ view_err:
     /*
       Now we have to inform handler that new .FRM file is in place.
       To do this we need to obtain a handler object for it.
+      NO need to tamper with MERGE tables. The real open is done later.
     */
     TABLE *t_table;
     if (new_name != table_name || new_db != db)
@@ -6632,7 +6700,7 @@ view_err:
     /*
       For the alter table to be properly flushed to the logs, we
       have to open the new table.  If not, we get a problem on server
-      shutdown.
+      shutdown. But we do not need to attach MERGE children.
     */
     char path[FN_REFLEN];
     TABLE *t_table;
@@ -6821,23 +6889,35 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   if (order)
   {
-    from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
-					      MYF(MY_FAE | MY_ZEROFILL));
-    bzero((char*) &tables,sizeof(tables));
-    tables.table= from;
-    tables.alias= tables.table_name= from->s->table_name.str;
-    tables.db=    from->s->db.str;
-    error=1;
+    if (to->s->primary_key != MAX_KEY && to->file->primary_key_is_clustered())
+    {
+      char warn_buff[MYSQL_ERRMSG_SIZE];
+      my_snprintf(warn_buff, sizeof(warn_buff), 
+                  "ORDER BY ignored as there is a user-defined clustered index"
+                  " in the table '%-.192s'", from->s->table_name.str);
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                   warn_buff);
+    }
+    else
+    {
+      from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+                                                MYF(MY_FAE | MY_ZEROFILL));
+      bzero((char *) &tables, sizeof(tables));
+      tables.table= from;
+      tables.alias= tables.table_name= from->s->table_name.str;
+      tables.db= from->s->db.str;
+      error= 1;
 
-    if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
-	setup_order(thd, thd->lex->select_lex.ref_pointer_array,
-		    &tables, fields, all_fields, order) ||
-	!(sortorder=make_unireg_sortorder(order, &length, NULL)) ||
-	(from->sort.found_records = filesort(thd, from, sortorder, length,
-					     (SQL_SELECT *) 0, HA_POS_ERROR, 1,
-					     &examined_rows)) ==
-	HA_POS_ERROR)
-      goto err;
+      if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
+          setup_order(thd, thd->lex->select_lex.ref_pointer_array,
+                      &tables, fields, all_fields, order) ||
+          !(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
+          (from->sort.found_records= filesort(thd, from, sortorder, length,
+                                              (SQL_SELECT *) 0, HA_POS_ERROR,
+                                              1, &examined_rows)) ==
+          HA_POS_ERROR)
+        goto err;
+    }
   };
 
   /* Tell handler that we have values for all columns in the to table */
@@ -6962,6 +7042,12 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   Alter_info alter_info;
 
   DBUG_ENTER("mysql_recreate_table");
+  DBUG_ASSERT(!table_list->next_global);
+  /*
+    table_list->table has been closed and freed. Do not reference
+    uninitialized data. open_tables() could fail.
+  */
+  table_list->table= NULL;
 
   bzero((char*) &create_info, sizeof(create_info));
   create_info.db_type= 0;
@@ -6993,6 +7079,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
+  /* Open one table after the other to keep lock time as short as possible. */
   for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
@@ -7000,7 +7087,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
     strxmov(table_name, table->db ,".", table->table_name, NullS);
 
-    t= table->table= open_ltable(thd, table, TL_READ, 0);
+    t= table->table= open_n_lock_single_table(thd, table, TL_READ);
     thd->clear_error();			// these errors shouldn't get client
 
     protocol->prepare_for_resend();

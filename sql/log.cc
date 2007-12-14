@@ -14,8 +14,15 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* logging of commands */
-/* TODO: Abort logging when we get an error in reading or writing log files */
+/**
+  @file
+
+  @brief
+  logging of commands
+
+  @todo
+    Abort logging when we get an error in reading or writing log files
+*/
 
 #include "mysql_priv.h"
 #include "sql_repl.h"
@@ -689,7 +696,7 @@ void Log_to_file_event_handler::init_pthread_objects()
 }
 
 
-/* Wrapper around MYSQL_LOG::write() for slow log */
+/** Wrapper around MYSQL_LOG::write() for slow log. */
 
 bool Log_to_file_event_handler::
   log_slow(THD *thd, time_t current_time, time_t query_start_arg,
@@ -704,7 +711,7 @@ bool Log_to_file_event_handler::
 }
 
 
-/*
+/**
    Wrapper around MYSQL_LOG::write() for general log. We need it since we
    want all log event handlers to have the same signature.
 */
@@ -806,7 +813,7 @@ void LOGGER::cleanup_end()
 }
 
 
-/*
+/**
   Perform basic log initialization: create file-based log handler and
   init error log.
 */
@@ -1458,9 +1465,12 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_RETURN(error);
 }
 
-/*
-  NOTE: how do we handle this (unlikely but legal) case:
-  [transaction] + [update to non-trans table] + [rollback to savepoint] ?
+/**
+  @note
+  How do we handle this (unlikely but legal) case:
+  @verbatim
+    [transaction] + [update to non-trans table] + [rollback to savepoint] ?
+  @endverbatim
   The problem occurs when a savepoint is before the update to the
   non-transactional table. Then when there's a rollback to the savepoint, if we
   simply truncate the binlog cache, we lose the part of the binlog cache where
@@ -1607,11 +1617,14 @@ static void setup_windows_event_source()
 #endif /* __NT__ */
 
 
-/****************************************************************************
-** Find a uniq filename for 'filename.#'.
-** Set # to a number as low as possible
-** returns != 0 if not possible to get uniq filename
-****************************************************************************/
+/**
+  Find a unique filename for 'filename.#'.
+
+  Set '#' to a number as low as possible.
+
+  @return
+    nonzero if not possible to get unique filename
+*/
 
 static int find_uniq_filename(char *name)
 {
@@ -1825,7 +1838,7 @@ void MYSQL_LOG::close(uint exiting)
   DBUG_VOID_RETURN;
 }
 
-/* this is called only once */
+/** This is called only once. */
 
 void MYSQL_LOG::cleanup()
 {
@@ -2152,19 +2165,20 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
 }
 
 
+/**
+  @todo
+  The following should be using fn_format();  We just need to
+  first change fn_format() to cut the file name if it's too long.
+*/
 const char *MYSQL_LOG::generate_name(const char *log_name,
                                       const char *suffix,
                                       bool strip_ext, char *buff)
 {
   if (!log_name || !log_name[0])
   {
-    /*
-      TODO: The following should be using fn_format();  We just need to
-      first change fn_format() to cut the file name if it's too long.
-    */
-    strmake(buff, pidfile_name, FN_REFLEN - 5);
-    strmov(fn_ext(buff), suffix);
-    return (const char *)buff;
+    strmake(buff, pidfile_name, FN_REFLEN - strlen(suffix) - 1);
+    return (const char *)
+      fn_format(buff, buff, "", suffix, MYF(MY_REPLACE_EXT|MY_REPLACE_DIR));
   }
   // get rid of extension if the log is binary to avoid problems
   if (strip_ext)
@@ -2270,17 +2284,17 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 }
 
 
-/*
+/**
   Open a (new) binlog file.
 
-  DESCRIPTION
   - Open the log file and the index file. Register the new
-    file name in it
+  file name in it
   - When calling this when the file is in use, you must have a locks
-    on LOCK_log and LOCK_index.
+  on LOCK_log and LOCK_index.
 
-  RETURN VALUES
+  @retval
     0	ok
+  @retval
     1	error
 */
 
@@ -2432,24 +2446,20 @@ int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO* linfo)
   return 0;
 }
 
-/*
-  Move all data up in a file in an filename index file
+/**
+  Move all data up in a file in an filename index file.
 
-  SYNOPSIS
-    copy_up_file_and_fill()
-    index_file			File to move
-    offset			Move everything from here to beginning
-
-  NOTE
-    File will be truncated to be 'offset' shorter or filled up with
-    newlines
-
-  IMPLEMENTATION
     We do the copy outside of the IO_CACHE as the cache buffers would just
     make things slower and more complicated.
     In most cases the copy loop should only do one read.
 
-  RETURN VALUES
+  @param index_file			File to move
+  @param offset			Move everything from here to beginning
+
+  @note
+    File will be truncated to be 'offset' shorter or filled up with newlines
+
+  @retval
     0	ok
 */
 
@@ -2490,25 +2500,25 @@ err:
 
 #endif /* HAVE_REPLICATION */
 
-/*
-  Find the position in the log-index-file for the given log name
+/**
+  Find the position in the log-index-file for the given log name.
 
-  SYNOPSIS
-    find_log_pos()
-    linfo		Store here the found log file name and position to
-			the NEXT log file name in the index file.
-    log_name		Filename to find in the index file.
-			Is a null pointer if we want to read the first entry
-    need_lock		Set this to 1 if the parent doesn't already have a
-			lock on LOCK_index
+  @param linfo		Store here the found log file name and position to
+                       the NEXT log file name in the index file.
+  @param log_name	Filename to find in the index file.
+                       Is a null pointer if we want to read the first entry
+  @param need_lock	Set this to 1 if the parent doesn't already have a
+                       lock on LOCK_index
 
-  NOTE
+  @note
     On systems without the truncate function the file will end with one or
     more empty lines.  These will be ignored when reading the file.
 
-  RETURN VALUES
+  @retval
     0			ok
-    LOG_INFO_EOF	End of log-index-file found
+  @retval
+    LOG_INFO_EOF	        End of log-index-file found
+  @retval
     LOG_INFO_IO		Got IO error while reading file
 */
 
@@ -2564,25 +2574,27 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
 }
 
 
-/*
-  Find the position in the log-index-file for the given log name
+/**
+  Find the position in the log-index-file for the given log name.
 
-  SYNOPSIS
-    find_next_log()
+  @param
     linfo		Store here the next log file name and position to
 			the file name after that.
+  @param
     need_lock		Set this to 1 if the parent doesn't already have a
 			lock on LOCK_index
 
-  NOTE
+  @note
     - Before calling this function, one has to call find_log_pos()
-      to set up 'linfo'
+    to set up 'linfo'
     - Mutex needed because we need to make sure the file pointer does not move
-      from under our feet
+    from under our feet
 
-  RETURN VALUES
+  @retval
     0			ok
-    LOG_INFO_EOF	End of log-index-file found
+  @retval
+    LOG_INFO_EOF	        End of log-index-file found
+  @retval
     LOG_INFO_IO		Got IO error while reading file
 */
 
@@ -2616,21 +2628,20 @@ err:
 }
 
 
-/*
-  Delete all logs refered to in the index file
-  Start writing to a new log file.  The new index file will only contain
-  this file.
+/**
+  Delete all logs refered to in the index file.
+  Start writing to a new log file.
 
-  SYNOPSIS
-     reset_logs()
-     thd		Thread
+  The new index file will only contain this file.
 
-  NOTE
+  @param thd		Thread
+
+  @note
     If not called from slave thread, write start event to new log
 
-
-  RETURN VALUES
+  @retval
     0	ok
+  @retval
     1   error
 */
 
@@ -2694,38 +2705,40 @@ err:
 }
 
 
-/*
+/**
   Delete relay log files prior to rli->group_relay_log_name
   (i.e. all logs which are not involved in a non-finished group
-  (transaction)), remove them from the index file and start on next relay log.
-
-  SYNOPSIS
-    purge_first_log()
-    rli		 Relay log information
-    included     If false, all relay logs that are strictly before
-                 rli->group_relay_log_name are deleted ; if true, the latter is
-                 deleted too (i.e. all relay logs
-                 read by the SQL slave thread are deleted).
-
-  NOTE
-    - This is only called from the slave-execute thread when it has read
-      all commands from a relay log and want to switch to a new relay log.
-    - When this happens, we can be in an active transaction as
-      a transaction can span over two relay logs
-      (although it is always written as a single block to the master's binary 
-      log, hence cannot span over two master's binary logs).
+  (transaction)), remove them from the index file and start on next
+  relay log.
 
   IMPLEMENTATION
-    - Protects index file with LOCK_index
-    - Delete relevant relay log files
-    - Copy all file names after these ones to the front of the index file
-    - If the OS has truncate, truncate the file, else fill it with \n'
-    - Read the next file name from the index file and store in rli->linfo
+  - Protects index file with LOCK_index
+  - Delete relevant relay log files
+  - Copy all file names after these ones to the front of the index file
+  - If the OS has truncate, truncate the file, else fill it with \n'
+  - Read the next file name from the index file and store in rli->linfo
 
-  RETURN VALUES
+  @param rli	       Relay log information
+  @param included     If false, all relay logs that are strictly before
+                      rli->group_relay_log_name are deleted ; if true, the
+                      latter is deleted too (i.e. all relay logs
+                      read by the SQL slave thread are deleted).
+
+  @note
+    - This is only called from the slave-execute thread when it has read
+    all commands from a relay log and want to switch to a new relay log.
+    - When this happens, we can be in an active transaction as
+    a transaction can span over two relay logs
+    (although it is always written as a single block to the master's binary
+    log, hence cannot span over two master's binary logs).
+
+  @retval
     0			ok
-    LOG_INFO_EOF	End of log-index-file found
+  @retval
+    LOG_INFO_EOF	        End of log-index-file found
+  @retval
     LOG_INFO_SEEK	Could not allocate IO cache
+  @retval
     LOG_INFO_IO		Got IO error while reading file
 */
 
@@ -2803,8 +2816,8 @@ err:
   DBUG_RETURN(error);
 }
 
-/*
-  Update log index_file
+/**
+  Update log index_file.
 */
 
 int MYSQL_BIN_LOG::update_log_index(LOG_INFO* log_info, bool need_update_threads)
@@ -2818,25 +2831,24 @@ int MYSQL_BIN_LOG::update_log_index(LOG_INFO* log_info, bool need_update_threads
   return 0;
 }
 
-/*
+/**
   Remove all logs before the given log from disk and from the index file.
 
-  SYNOPSIS
-    purge_logs()
-    to_log	        Delete all log file name before this file. 
-    included            If true, to_log is deleted too.
-    need_mutex
-    need_update_threads If we want to update the log coordinates of
-                        all threads. False for relay logs, true otherwise.
-    freed_log_space     If not null, decrement this variable of
-                        the amount of log space freed
+  @param to_log	      Delete all log file name before this file.
+  @param included            If true, to_log is deleted too.
+  @param need_mutex
+  @param need_update_threads If we want to update the log coordinates of
+                             all threads. False for relay logs, true otherwise.
+  @param freed_log_space     If not null, decrement this variable of
+                             the amount of log space freed
 
-  NOTES
+  @note
     If any of the logs before the deleted one is in use,
     only purge logs up to this one.
 
-  RETURN VALUES
-    0				ok
+  @retval
+    0			ok
+  @retval
     LOG_INFO_EOF		to_log not found
 */
 
@@ -2920,21 +2932,20 @@ err:
   DBUG_RETURN(error);
 }
 
-/*
+/**
   Remove all logs before the given file date from disk and from the
   index file.
 
-  SYNOPSIS
-    purge_logs_before_date()
-    thd		Thread pointer
-    before_date	Delete all log files before given date.
+  @param thd		Thread pointer
+  @param before_date	Delete all log files before given date.
 
-  NOTES
+  @note
     If any of the logs before the deleted one is in use,
     only purge logs up to this one.
 
-  RETURN VALUES
+  @retval
     0				ok
+  @retval
     LOG_INFO_PURGE_NO_ROTATE	Binary file that can't be rotated
 */
 
@@ -2984,14 +2995,12 @@ err:
 #endif /* HAVE_REPLICATION */
 
 
-/*
-  Create a new log file name
+/**
+  Create a new log file name.
 
-  SYNOPSIS
-    make_log_name()
-    buf			buf of at least FN_REFLEN where new name is stored
+  @param buf		buf of at least FN_REFLEN where new name is stored
 
-  NOTE
+  @note
     If file name will be longer then FN_REFLEN it will be truncated
 */
 
@@ -3005,8 +3014,8 @@ void MYSQL_BIN_LOG::make_log_name(char* buf, const char* log_ident)
 }
 
 
-/*
-  Check if we are writing/reading to the given log file
+/**
+  Check if we are writing/reading to the given log file.
 */
 
 bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg)
@@ -3035,14 +3044,12 @@ void MYSQL_BIN_LOG::new_file_without_locking()
 }
 
 
-/*
-  Start writing to a new log file or reopen the old file
+/**
+  Start writing to a new log file or reopen the old file.
 
-  SYNOPSIS
-    new_file_impl()
-    need_lock		Set to 1 if caller has not locked LOCK_log
+  @param need_lock		Set to 1 if caller has not locked LOCK_log
 
-  NOTE
+  @note
     The new file name is stored last in the index file
 */
 
@@ -3513,8 +3520,8 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   DBUG_RETURN(error);
 }
 
-/*
-  Write an event to the binary log
+/**
+  Write an event to the binary log.
 */
 
 bool MYSQL_BIN_LOG::write(Log_event *event_info)
@@ -3569,9 +3576,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 	(!binlog_filter->db_ok(local_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
-      DBUG_PRINT("info",("OPTION_BIN_LOG is %s, db_ok('%s') == %d",
-                         (thd->options & OPTION_BIN_LOG) ? "set" : "clear",
-                         local_db, binlog_filter->db_ok(local_db)));
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
@@ -3956,27 +3960,25 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
   return 0;                                     // All OK
 }
 
-/*
-  Write a cached log entry to the binary log
+/**
+  Write a cached log entry to the binary log.
+  - To support transaction over replication, we wrap the transaction
+  with BEGIN/COMMIT or BEGIN/ROLLBACK in the binary log.
+  We want to write a BEGIN/ROLLBACK block when a non-transactional table
+  was updated in a transaction which was rolled back. This is to ensure
+  that the same updates are run on the slave.
 
-  SYNOPSIS
-    write()
-    thd
-    cache		The cache to copy to the binlog
-    commit_event        The commit event to print after writing the
+  @param thd
+  @param cache		The cache to copy to the binlog
+  @param commit_event   The commit event to print after writing the
                         contents of the cache.
 
-  NOTE
-    - We only come here if there is something in the cache.
-    - The thing in the cache is always a complete transaction
-    - 'cache' needs to be reinitialized after this functions returns.
-
-  IMPLEMENTATION
-    - To support transaction over replication, we wrap the transaction
-      with BEGIN/COMMIT or BEGIN/ROLLBACK in the binary log.
-      We want to write a BEGIN/ROLLBACK block when a non-transactional table
-      was updated in a transaction which was rolled back. This is to ensure
-      that the same updates are run on the slave.
+  @note
+    We only come here if there is something in the cache.
+  @note
+    The thing in the cache is always a complete transaction.
+  @note
+    'cache' needs to be reinitialized after this functions returns.
 */
 
 bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
@@ -4073,17 +4075,15 @@ err:
 }
 
 
-/*
-  Wait until we get a signal that the binary log has been updated
+/**
+  Wait until we get a signal that the binary log has been updated.
 
-  SYNOPSIS
-    wait_for_update()
-    thd			Thread variable
-    is_slave            If 0, the caller is the Binlog_dump thread from master;
-                        if 1, the caller is the SQL thread from the slave. This
-                        influences only thd->proc_info.
+  @param thd		Thread variable
+  @param is_slave      If 0, the caller is the Binlog_dump thread from master;
+                       if 1, the caller is the SQL thread from the slave. This
+                       influences only thd->proc_info.
 
-  NOTES
+  @note
     One must have a lock on LOCK_log before calling this function.
     This lock will be released before return! That's required by
     THD::enter_cond() (see NOTES in sql_class.h).
@@ -4106,18 +4106,16 @@ void MYSQL_BIN_LOG::wait_for_update(THD* thd, bool is_slave)
 }
 
 
-/*
-  Close the log file
+/**
+  Close the log file.
 
-  SYNOPSIS
-    close()
-    exiting     Bitmask for one or more of the following bits:
-                LOG_CLOSE_INDEX if we should close the index file
-                LOG_CLOSE_TO_BE_OPENED if we intend to call open
-                at once after close.
-                LOG_CLOSE_STOP_EVENT write a 'stop' event to the log
+  @param exiting     Bitmask for one or more of the following bits:
+          - LOG_CLOSE_INDEX : if we should close the index file
+          - LOG_CLOSE_TO_BE_OPENED : if we intend to call open
+                                     at once after close.
+          - LOG_CLOSE_STOP_EVENT : write a 'stop' event to the log
 
-  NOTES
+  @note
     One can do an open on the object at once after doing a close.
     The internal structures are not freed until cleanup() is called
 */
@@ -4197,21 +4195,20 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
 }
 
 
-/*
-  Check if a string is a valid number
+/**
+  Check if a string is a valid number.
 
-  SYNOPSIS
-    test_if_number()
-    str			String to test
-    res			Store value here
-    allow_wildcards	Set to 1 if we should ignore '%' and '_'
+  @param str			String to test
+  @param res			Store value here
+  @param allow_wildcards	Set to 1 if we should ignore '%' and '_'
 
-  NOTE
+  @note
     For the moment the allow_wildcards argument is not used
     Should be move to some other file.
 
-  RETURN VALUES
+  @retval
     1	String is a number
+  @retval
     0	Error
 */
 
@@ -4352,23 +4349,18 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
 #endif /* __NT__ */
 
 
-/*
+/**
   Prints a printf style message to the error log and, under NT, to the
   Windows event log.
 
-  SYNOPSIS
-    vprint_msg_to_log()
-    event_type             Type of event to write (Error, Warning, or Info)
-    format                 Printf style format of message
-    args                   va_list list of arguments for the message
+  This function prints the message into a buffer and then sends that buffer
+  to other functions to write that message to other logging sources.
 
-  NOTE
+  @param event_type          Type of event to write (Error, Warning, or Info)
+  @param format              Printf style format of message
+  @param args                va_list list of arguments for the message
 
-  IMPLEMENTATION
-    This function prints the message into a buffer and then sends that buffer
-    to other functions to write that message to other logging sources.
-
-  RETURN VALUES
+  @returns
     The function always returns 0. The return value is present in the
     signature to be compatible with other logging routines, which could
     return an error (e.g. logging to the log tables)
@@ -4622,16 +4614,18 @@ err:
   return 1;
 }
 
-/*
-  there is no active page, let's got one from the pool
+/**
+  there is no active page, let's got one from the pool.
 
-  two strategies here:
-  1. take the first from the pool
-  2. if there're waiters - take the one with the most free space
+  Two strategies here:
+    -# take the first from the pool
+    -# if there're waiters - take the one with the most free space.
 
-  TODO page merging. try to allocate adjacent page first,
-  so that they can be flushed both in one sync
+  @todo
+    TODO page merging. try to allocate adjacent page first,
+    so that they can be flushed both in one sync
 */
+
 void TC_LOG_MMAP::get_active_from_pool()
 {
   PAGE **p, **best_p=0;
@@ -4674,6 +4668,10 @@ void TC_LOG_MMAP::get_active_from_pool()
     pthread_mutex_unlock(&LOCK_pool);
 }
 
+/**
+  @todo
+  perhaps, increase log size ?
+*/
 int TC_LOG_MMAP::overflow()
 {
   /*
@@ -4686,10 +4684,9 @@ int TC_LOG_MMAP::overflow()
   return 1; // always return 1
 }
 
-/*
-  Record that transaction XID is committed on the persistent storage
+/**
+  Record that transaction XID is committed on the persistent storage.
 
-  NOTES
     This function is called in the middle of two-phase commit:
     First all resources prepare the transaction, then tc_log->log() is called,
     then all resources commit the transaction, then tc_log->unlog() is called.
@@ -4700,18 +4697,18 @@ int TC_LOG_MMAP::overflow()
     threads waiting for a page, but then all these threads will be waiting
     for a fsync() anyway
 
-  IMPLEMENTATION
    If tc_log == MYSQL_LOG then tc_log writes transaction to binlog and
    records XID in a special Xid_log_event.
    If tc_log = TC_LOG_MMAP then xid is written in a special memory-mapped
    log.
 
-  RETURN
-    0  Error
-    #  "cookie", a number that will be passed as an argument
-       to unlog() call. tc_log can define it any way it wants,
-       and use for whatever purposes. TC_LOG_MMAP sets it
-       to the position in memory where xid was logged to.
+  @retval
+    0  - error
+  @retval
+    \# - otherwise, "cookie", a number that will be passed as an argument
+    to unlog() call. tc_log can define it any way it wants,
+    and use for whatever purposes. TC_LOG_MMAP sets it
+    to the position in memory where xid was logged to.
 */
 
 int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
@@ -4819,9 +4816,9 @@ int TC_LOG_MMAP::sync()
   return err;
 }
 
-/*
+/**
   erase xid from the page, update page free space counters/pointers.
-  cookie points directly to the memory where xid was logged
+  cookie points directly to the memory where xid was logged.
 */
 
 void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
@@ -4932,16 +4929,17 @@ TC_LOG *tc_log;
 TC_LOG_DUMMY tc_log_dummy;
 TC_LOG_MMAP  tc_log_mmap;
 
-/*
-  Perform heuristic recovery, if --tc-heuristic-recover was used
+/**
+  Perform heuristic recovery, if --tc-heuristic-recover was used.
 
-  RETURN VALUE
-    0	no heuristic recovery was requested
-    1   heuristic recovery was performed
-
-  NOTE
+  @note
     no matter whether heuristic recovery was successful or not
     mysqld must exit. So, return value is the same in both cases.
+
+  @retval
+    0	no heuristic recovery was requested
+  @retval
+    1   heuristic recovery was performed
 */
 
 int TC_LOG::using_heuristic_recover()
@@ -4959,8 +4957,9 @@ int TC_LOG::using_heuristic_recover()
 /****** transaction coordinator log for 2pc - binlog() based solution ******/
 #define TC_LOG_BINLOG MYSQL_BIN_LOG
 
-/*
-  TODO keep in-memory list of prepared transactions
+/**
+  @todo
+  keep in-memory list of prepared transactions
   (add to list in log(), remove on unlog())
   and copy it to the new binlog if rotated
   but let's check the behaviour of tc_log_page_waits first!
@@ -5051,7 +5050,7 @@ err:
   return error;
 }
 
-/* this is called on shutdown, after ha_panic */
+/** This is called on shutdown, after ha_panic. */
 void TC_LOG_BINLOG::close()
 {
   DBUG_ASSERT(prepared_xids==0);
@@ -5059,12 +5058,14 @@ void TC_LOG_BINLOG::close()
   pthread_cond_destroy (&COND_prep_xids);
 }
 
-/*
-  TODO group commit
+/**
+  @todo
+  group commit
 
-  RETURN
-         0  - error
-         1  - success
+  @retval
+    0    error
+  @retval
+    1    success
 */
 int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid)
 {

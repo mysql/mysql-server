@@ -1,18 +1,18 @@
 ################################################################################
-# include/partition_layout_check2.inc                                          #
+# inc/partition_layout_check2.inc                                              #
 #                                                                              #
 # Purpose:                                                                     #
 #   Store the SHOW CREATE TABLE output and the list of files belonging to      #
 #   this table + Check if the layout of the table was not modified             #
-#   since the call of include/partition_layout_check1.inc                      #
+#   since the call of inc/partition_layout_check1.inc                          #
 #   This script is only usefule when sourced within the partitioning tests.    #
 #                                                                              #
-# Attention: The routine include/partition_layout_check1.inc is very similar   #
+# Attention: The routine inc/partition_layout_check1.inc is very similar   #
 #            to this one. So if something has to be changed here it            #
 #            might be necessary to do it also there                            #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #

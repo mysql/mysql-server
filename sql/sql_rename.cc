@@ -51,6 +51,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     DBUG_RETURN(1);
   }
 
+  mysql_ha_rm_tables(thd, table_list, FALSE);
+
   if (wait_if_global_read_lock(thd,0,1))
     DBUG_RETURN(1);
 

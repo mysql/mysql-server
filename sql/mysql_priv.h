@@ -13,10 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
+/**
+  @file
+
+  @details
   Mostly this file is used in the server. But a little part of it is used in
   mysqlbinlog too (definition of SELECT_DISTINCT and others).
-  The consequence is that 90% of the file is wrapped in #ifndef MYSQL_CLIENT,
+  The consequence is that 90% of the file is wrapped in \#ifndef MYSQL_CLIENT,
   except the part which must be in the server and in the client.
 */
 
@@ -253,12 +256,12 @@ protected:
  Feel free to raise this by the smallest amount you can to get the
  "execution_constants" test to pass.
  */
-#define STACK_MIN_SIZE          12000   // Abort if less stack during eval.
+#define STACK_MIN_SIZE          12000   ///< Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
-#define STACK_BUFF_ALLOC        352     // For stack overrun checks
+#define STACK_BUFF_ALLOC        352     ///< For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
-#define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
+#define MYSQLD_NET_RETRY_COUNT  10	///< Abort read after this many int.
 #endif
 #define TEMP_POOL_SIZE          128
 
@@ -284,14 +287,14 @@ protected:
 #define MIN_ROWS_TO_USE_TABLE_CACHE	 100
 #define MIN_ROWS_TO_USE_BULK_INSERT	 100
 
-/*
+/**
   The following is used to decide if MySQL should use table scanning
   instead of reading with keys.  The number says how many evaluation of the
   WHERE clause is comparable to reading one extra row from a table.
 */
 #define TIME_FOR_COMPARE   5	// 5 compares == one read
 
-/*
+/**
   Number of comparisons of table rowids equivalent to reading one row from a 
   table.
 */
@@ -311,17 +314,17 @@ protected:
 #define DISK_SEEK_PROP_COST ((double)0.5/BLOCKS_IN_AVG_SEEK)
 
 
-/*
+/**
   Number of rows in a reference table when refereed through a not unique key.
   This value is only used when we don't know anything about the key
   distribution.
 */
 #define MATCHING_ROWS_IN_OTHER_TABLE 10
 
-/* Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used) */
+/** Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used). */
 #define KEY_DEFAULT_PACK_LENGTH 8
 
-/* Characters shown for the command in 'show processlist' */
+/** Characters shown for the command in 'show processlist'. */
 #define PROCESS_LIST_WIDTH 100
 /* Characters shown for the command in 'information_schema.processlist' */
 #define PROCESS_LIST_INFO_WIDTH 65535
@@ -337,11 +340,11 @@ protected:
 
 /* The following can also be changed from the command line */
 #define DEFAULT_CONCURRENCY	10
-#define DELAYED_LIMIT		100		/* pause after xxx inserts */
+#define DELAYED_LIMIT		100		/**< pause after xxx inserts */
 #define DELAYED_QUEUE_SIZE	1000
-#define DELAYED_WAIT_TIMEOUT	5*60		/* Wait for delayed insert */
-#define FLUSH_TIME		0		/* Don't flush tables */
-#define MAX_CONNECT_ERRORS	10		// errors before disabling host
+#define DELAYED_WAIT_TIMEOUT	5*60		/**< Wait for delayed insert */
+#define FLUSH_TIME		0		/**< Don't flush tables */
+#define MAX_CONNECT_ERRORS	10		///< errors before disabling host
 
 #ifdef __NETWARE__
 #define IF_NETWARE(A,B) A
@@ -351,7 +354,7 @@ protected:
 
 #if defined(__WIN__)
 #undef	FLUSH_TIME
-#define FLUSH_TIME	1800			/* Flush every half hour */
+#define FLUSH_TIME	1800			/**< Flush every half hour */
 
 #define INTERRUPT_PRIOR -2
 #define CONNECT_PRIOR	-1
@@ -370,12 +373,12 @@ protected:
 #define TEST_MIT_THREAD		4
 #define TEST_BLOCKING		8
 #define TEST_KEEP_TMP_TABLES	16
-#define TEST_READCHECK		64	/* Force use of readcheck */
+#define TEST_READCHECK		64	/**< Force use of readcheck */
 #define TEST_NO_EXTRA		128
-#define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
+#define TEST_CORE_ON_SIGNAL	256	/**< Give core if signal */
 #define TEST_NO_STACKTRACE	512
-#define TEST_SIGINT		1024	/* Allow sigint on threads */
-#define TEST_SYNCHRONIZATION    2048    /* get server to do sleep in
+#define TEST_SIGINT		1024	/**< Allow sigint on threads */
+#define TEST_SYNCHRONIZATION    2048    /**< get server to do sleep in
                                            some places */
 #endif
 
@@ -425,19 +428,19 @@ protected:
 /* The following is used to detect a conflict with DISTINCT */
 #define SELECT_ALL              (ULL(1) << 24)    // SELECT, user, parser
 
-/* The following can be set when importing tables in a 'wrong order'
+/** The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
 #define OPTION_NO_FOREIGN_KEY_CHECKS    (ULL(1) << 26) // THD, user, binlog
-/* The following speeds up inserts to InnoDB tables by suppressing unique
+/** The following speeds up inserts to InnoDB tables by suppressing unique
    key checks in some cases */
 #define OPTION_RELAXED_UNIQUE_CHECKS    (ULL(1) << 27) // THD, user, binlog
 #define SELECT_NO_UNLOCK                (ULL(1) << 28) // SELECT, intern
 #define OPTION_SCHEMA_TABLE             (ULL(1) << 29) // SELECT, intern
-/* Flag set if setup_tables already done */
+/** Flag set if setup_tables already done */
 #define OPTION_SETUP_TABLES_DONE        (ULL(1) << 30) // intern
-/* If not set then the thread will ignore all warnings with level notes. */
+/** If not set then the thread will ignore all warnings with level notes. */
 #define OPTION_SQL_NOTES                (ULL(1) << 31) // THD, user
-/* 
+/**
   Force the used temporary table to be a MyISAM table (because we will use
   fulltext functions when reading from it.
 */
@@ -446,7 +449,7 @@ protected:
 
 
 
-/*
+/**
   Maximum length of time zone name that we support
   (Time zone name is char(64) in db). mysqlbinlog needs it.
 */
@@ -509,9 +512,9 @@ protected:
 #define UNCACHEABLE_DEPENDENT   1
 #define UNCACHEABLE_RAND        2
 #define UNCACHEABLE_SIDEEFFECT	4
-// forcing to save JOIN for explain
+/// forcing to save JOIN for explain
 #define UNCACHEABLE_EXPLAIN     8
-/* Don't evaluate subqueries in prepare even if they're not correlated */
+/** Don't evaluate subqueries in prepare even if they're not correlated */
 #define UNCACHEABLE_PREPARE    16
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
 #define UNCACHEABLE_UNITED     32
@@ -519,7 +522,7 @@ protected:
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
 #ifdef EXTRA_DEBUG
-/*
+/**
   Sync points allow us to force the server to reach a certain line of code
   and block there until the client tells the server it is ok to go on.
   The client tells the server to block with SELECT GET_LOCK()
@@ -555,7 +558,7 @@ void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
 
 #define portable_sizeof_char_ptr 8
 
-#define tmp_file_prefix "#sql"			/* Prefix for tmp tables */
+#define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
 #define tmp_file_prefix_length 4
 
 /* Flags for calc_week() function.  */
@@ -592,9 +595,9 @@ enum enum_check_fields
   CHECK_FIELD_WARN,
   CHECK_FIELD_ERROR_FOR_NULL
 };
-                                  
-/* Struct to handle simple linked lists */
 
+                                  
+/** Struct to handle simple linked lists. */
 typedef struct st_sql_list {
   uint elements;
   uchar *first;
@@ -702,7 +705,6 @@ bool check_single_table_access(THD *thd, ulong privilege,
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
-bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
@@ -995,7 +997,8 @@ bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 bool compare_record(TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
                         const char *table_name);
-
+void wait_while_table_is_used(THD *thd, TABLE *table,
+                              enum ha_extra_function function);
 bool table_cache_init(void);
 void table_cache_free(void);
 bool table_def_init(void);
@@ -1158,12 +1161,16 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
 TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 		  bool *refresh, uint flags);
+bool name_lock_locked_table(THD *thd, TABLE_LIST *tables);
 bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in);
 TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
                                       uint key_length);
 bool lock_table_name_if_not_cached(THD *thd, const char *db,
                                    const char *table_name, TABLE **table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
+void detach_merge_children(TABLE *table, bool clear_refs);
+bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
+                          TABLE_LIST *new_child_list, TABLE_LIST **new_last);
 bool reopen_table(TABLE *table);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
 void close_data_files_and_morph_locks(THD *thd, const char *db,
@@ -1305,12 +1312,9 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
 bool mysql_ha_close(THD *thd, TABLE_LIST *tables);
 bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                    List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
-int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
-                   bool is_locked);
-/* mysql_ha_flush mode_flags bits */
-#define MYSQL_HA_CLOSE_FINAL        0x00
-#define MYSQL_HA_REOPEN_ON_USAGE    0x01
-#define MYSQL_HA_FLUSH_ALL          0x02
+void mysql_ha_flush(THD *thd);
+void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked);
+void mysql_ha_cleanup(THD *thd);
 
 /* sql_base.cc */
 #define TMP_TABLE_KEY_EXTRA 8
@@ -1414,8 +1418,21 @@ int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
                         pthread_cond_t *cond);
 int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
-int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
-bool open_and_lock_tables(THD *thd,TABLE_LIST *tables);
+/* open_and_lock_tables with optional derived handling */
+bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
+/* simple open_and_lock_tables without derived handling */
+inline bool simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  return open_and_lock_tables_derived(thd, tables, FALSE);
+}
+/* open_and_lock_tables with derived handling */
+inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  return open_and_lock_tables_derived(thd, tables, TRUE);
+}
+/* simple open_and_lock_tables without derived handling for single table */
+TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
+                                thr_lock_type lock_type);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
@@ -1994,7 +2011,8 @@ int format_number(uint inputflag,uint max_length,char * pos,uint length,
 /* table.cc */
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
                                uint key_length);
-void init_tmp_table_share(TABLE_SHARE *share, const char *key, uint key_length,
+void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
+                          uint key_length,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
@@ -2212,15 +2230,14 @@ Item * all_any_subquery_creator(Item *left_expr,
 				bool all,
 				SELECT_LEX *select_lex);
 
-/*
-  clean/setup table fields and map
+/**
+  clean/setup table fields and map.
 
-  SYNOPSYS
-    setup_table_map()
-    table - TABLE structure pointer (which should be setup)
-    table_list TABLE_LIST structure pointer (owner of TABLE)
-    tablenr - table number
+  @param table        TABLE structure pointer (which should be setup)
+  @param table_list   TABLE_LIST structure pointer (owner of TABLE)
+  @param tablenr     table number
 */
+
 
 inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
 {
@@ -2243,10 +2260,8 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
 }
 
 
-/*
-  SYNOPSYS
-    hexchar_to_int()
-    convert a hex digit into number
+/**
+  convert a hex digit into number.
 */
 
 inline int hexchar_to_int(char c)
@@ -2259,11 +2274,9 @@ inline int hexchar_to_int(char c)
   return -1;
 }
 
-/*
-  is_user_table()
-  return true if the table was created explicitly
+/**
+  return true if the table was created explicitly.
 */
-
 inline bool is_user_table(TABLE * table)
 {
   const char *name= table->s->table_name.str;

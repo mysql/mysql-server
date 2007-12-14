@@ -606,24 +606,6 @@ select count(*) from t1 where a is null;
 count(*)
 2
 drop table t1;
-create table t1 (c1 int, index(c1));
-create table t2 (c1 int, index(c1)) engine=merge union=(t1);
-insert into t1 values (1);
-flush tables;
-select * from t2;
-c1
-1
-flush tables;
-truncate table t1;
-insert into t1 values (1);
-flush tables;
-select * from t2;
-c1
-1
-truncate table t1;
-ERROR HY000: MyISAM table 't1' is in use (most likely by a MERGE table). Try FLUSH TABLES.
-insert into t1 values (1);
-drop table t1,t2;
 create table t1 (c1 int, c2 varchar(4) not null default '',
 key(c2(3))) default charset=utf8;
 insert into t1 values (1,'A'), (2, 'B'), (3, 'A');
@@ -1793,6 +1775,39 @@ ALTER TABLE t1 ENABLE KEYS;
 SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
 a
 1
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT, c2 INT, UNIQUE INDEX (c1), INDEX (c2)) ENGINE=MYISAM;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	0	#	#	#	1024	#	#	#	#	#	#	#		
+INSERT INTO t1 VALUES (1,1);
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+ALTER TABLE t1 DISABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+ALTER TABLE t1 ENABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+ALTER TABLE t1 DISABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+ALTER TABLE t1 ENABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	#	#	#	3072	#	#	#	#	#	#	#		
+# Enable keys with parallel repair
+SET @@myisam_repair_threads=2;
+ALTER TABLE t1 DISABLE KEYS;
+ALTER TABLE t1 ENABLE KEYS;
+SET @@myisam_repair_threads=1;
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 DROP TABLE t1;
 End of 5.0 tests
 create table t1 (a int not null, key `a` (a) key_block_size=1024);

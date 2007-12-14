@@ -314,7 +314,7 @@ case "$mode" in
       fi
       exit $return_value
     else
-      log_failure_msg "Couldn't find MySQL manager or server"
+      log_failure_msg "Couldn't find MySQL manager ($manager) or server ($bindir/mysqld_safe)"
     fi
     ;;
 

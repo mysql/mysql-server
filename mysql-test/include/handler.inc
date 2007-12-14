@@ -598,3 +598,97 @@ handler a2 read a last;
 handler a2 read a prev;
 handler a2 close;
 drop table t1;
+
+#
+# Bug#31397 Inconsistent drop table behavior of handler tables.
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (a int);
+handler t1 open as t1_alias;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+flush tables;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias close;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias read first;
+drop table t1;
+--error ER_UNKNOWN_TABLE
+handler t1_alias read next;
+
+# Test that temporary tables associated with handlers are properly dropped.
+
+create table t1 (a int);
+create temporary table t2 (a int, key(a));
+handler t1 open as a1;
+handler t2 open as a2;
+handler a2 read a first;
+drop table t1, t2;
+--error ER_UNKNOWN_TABLE
+handler a2 read a next;
+--error ER_UNKNOWN_TABLE
+handler a1 close;
+
+# Alter table drop handlers
+
+create table t1 (a int, key(a));
+create table t2 like t1;
+handler t1 open as a1;
+handler t2 open as a2;
+handler a1 read a first;
+handler a2 read a first;
+alter table t1 add b int;
+--error ER_UNKNOWN_TABLE
+handler a1 close;
+handler a2 close;
+drop table t1, t2;
+
+# Rename table drop handlers
+
+create table t1 (a int, key(a));
+handler t1 open as a1;
+handler a1 read a first;
+rename table t1 to t2;
+--error ER_UNKNOWN_TABLE
+handler a1 read a first;
+drop table t2;
+
+# Optimize table drop handlers
+
+create table t1 (a int, key(a));
+create table t2 like t1;
+handler t1 open as a1;
+handler t2 open as a2;
+handler a1 read a first;
+handler a2 read a first;
+optimize table t1;
+--error ER_UNKNOWN_TABLE
+handler a1 close;
+handler a2 close;
+drop table t1, t2;
+
+# Flush tables causes handlers reopen
+
+create table t1 (a int, b char(1), key a(a), key b(a,b));
+insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
+                      (5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+handler t1 open;
+handler t1 read a first;
+handler t1 read a next;
+flush tables;
+handler t1 read a next;
+handler t1 read a next;
+flush tables with read lock;
+handler t1 read a next;
+unlock tables;
+drop table t1;
+--error ER_UNKNOWN_TABLE
+handler t1 read a next;

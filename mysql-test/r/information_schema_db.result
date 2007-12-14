@@ -142,7 +142,7 @@ Warnings:
 Warning	1356	View 'testdb_1.v7' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show fields from testdb_1.v7;
 Field	Type	Null	Key	Default	Extra
-f1	null	YES		NULL	
+f1	char(4)	YES		NULL	
 Warnings:
 Note	1449	There is no 'no_such_user'@'no_such_host' registered
 create table t3 (f1 char(4), f2 char(4));
@@ -162,7 +162,7 @@ View	Create View	character_set_client	collation_connection
 v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v6` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	latin1	latin1_swedish_ci
 show fields from testdb_1.v7;
 Field	Type	Null	Key	Default	Extra
-f1	null	YES		NULL	
+f1	char(4)	YES		NULL	
 Warnings:
 Note	1449	There is no 'no_such_user'@'no_such_host' registered
 show create view testdb_1.v7;
@@ -190,7 +190,7 @@ show create view v4;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show fields from v4;
 Field	Type	Null	Key	Default	Extra
-f1	null	YES		NULL	
+f1	char(4)	YES		NULL	
 f2	char(4)	YES		NULL	
 show fields from v2;
 Field	Type	Null	Key	Default	Extra

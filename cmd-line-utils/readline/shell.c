@@ -22,7 +22,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <sys/types.h>
 
@@ -46,8 +48,12 @@
 #  include <limits.h>
 #endif
 
+#if defined (HAVE_FCNTL_H)
 #include <fcntl.h>
+#endif
+#if defined (HAVE_PWD_H)
 #include <pwd.h>
+#endif
 
 #include <stdio.h>
 
@@ -55,9 +61,9 @@
 #include "rlshell.h"
 #include "xmalloc.h"
 
-#if !defined (HAVE_GETPW_DECLS)
+#if defined (HAVE_GETPWUID) && !defined (HAVE_GETPW_DECLS)
 extern struct passwd *getpwuid PARAMS((uid_t));
-#endif /* !HAVE_GETPW_DECLS */
+#endif /* HAVE_GETPWUID && !HAVE_GETPW_DECLS */
 
 #ifndef NULL
 #  define NULL 0
@@ -120,16 +126,7 @@ sh_set_lines_and_columns (lines, cols)
 {
   char *b;
 
-#if defined (HAVE_PUTENV)
-  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + sizeof ("LINES=") + 1);
-  sprintf (b, "LINES=%d", lines);
-  putenv (b);
-
-  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + sizeof ("COLUMNS=") + 1);
-  sprintf (b, "COLUMNS=%d", cols);
-  putenv (b);
-#else /* !HAVE_PUTENV */
-#  if defined (HAVE_SETENV)
+#if defined (HAVE_SETENV)
   b = (char *)xmalloc (INT_STRLEN_BOUND (int) + 1);
   sprintf (b, "%d", lines);
   setenv ("LINES", b, 1);
@@ -139,8 +136,17 @@ sh_set_lines_and_columns (lines, cols)
   sprintf (b, "%d", cols);
   setenv ("COLUMNS", b, 1);
   free (b);
-#  endif /* HAVE_SETENV */
-#endif /* !HAVE_PUTENV */
+#else /* !HAVE_SETENV */
+#  if defined (HAVE_PUTENV)
+  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + sizeof ("LINES=") + 1);
+  sprintf (b, "LINES=%d", lines);
+  putenv (b);
+
+  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + sizeof ("COLUMNS=") + 1);
+  sprintf (b, "COLUMNS=%d", cols);
+  putenv (b);
+#  endif /* HAVE_PUTENV */
+#endif /* !HAVE_SETENV */
 }
 
 char *
@@ -157,9 +163,11 @@ sh_get_home_dir ()
   struct passwd *entry;
 
   home_dir = (char *)NULL;
+#if defined (HAVE_GETPWUID)
   entry = getpwuid (getuid ());
   if (entry)
     home_dir = entry->pw_dir;
+#endif
   return (home_dir);
 }
 
@@ -173,6 +181,7 @@ int
 sh_unset_nodelay_mode (fd)
      int fd;
 {
+#if defined (HAVE_FCNTL)
   int flags, bflags;
 
   if ((flags = fcntl (fd, F_GETFL, 0)) < 0)
@@ -193,6 +202,7 @@ sh_unset_nodelay_mode (fd)
       flags &= ~bflags;
       return (fcntl (fd, F_SETFL, flags));
     }
+#endif
 
   return 0;
 }

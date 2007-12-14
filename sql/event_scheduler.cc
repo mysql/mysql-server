@@ -127,6 +127,7 @@ post_init_event_thread(THD *thd)
     thd->cleanup();
     return TRUE;
   }
+  lex_start(thd);
 
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);

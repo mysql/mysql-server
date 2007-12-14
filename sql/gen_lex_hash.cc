@@ -13,8 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
+/**
+  @file
 
+  @details
+@verbatim
 The idea of presented algorithm see in 
 "The Art of Computer Programming" by Donald E. Knuth
 Volume 3 "Sorting and searching"
@@ -63,12 +66,14 @@ for optimization, link is the 16-bit index in 'symbols' or 'sql_functions'
 or search-array..
 
 So, we can read full search-structure as 32-bit word
+@endverbatim
 
-TODO:
-1. use instead to_upper_lex, special array 
-   (substitute chars) without skip codes..
-2. try use reverse order of comparing..
-       
+@todo
+    use instead to_upper_lex, special array 
+    (substitute chars) without skip codes..
+@todo
+    try use reverse order of comparing..
+
 */
 
 #define NO_YACC_SYMBOLS

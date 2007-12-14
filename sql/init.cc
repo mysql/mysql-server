@@ -14,7 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Init and dummy functions for interface with unireg */
+/**
+  @file
+
+  @brief
+  Init and dummy functions for interface with unireg
+*/
 
 #include "mysql_priv.h"
 #include <m_ctype.h>

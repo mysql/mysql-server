@@ -1,5 +1,6 @@
 ################################################################################
-# t/part_supported_sql_funcs_delete.inc                                   #           #                                                                              #
+# t/part_supported_sql_funcs_delete.inc                                        #
+#                                                                              #
 # Purpose:                                                                     #
 #  Delete access of the tests frame for allowed sql functions                  #
 #                                                                              #

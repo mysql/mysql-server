@@ -161,7 +161,7 @@ select * from information_schema.session_variables where variable_name like 'net
 set net_buffer_length=1;
 show variables like 'net_buffer_length';
 select * from information_schema.session_variables where variable_name like 'net_buffer_length';
---warning 1292
+#warning 1292
 set net_buffer_length=2000000000;
 show variables like 'net_buffer_length';
 select * from information_schema.session_variables where variable_name like 'net_buffer_length';

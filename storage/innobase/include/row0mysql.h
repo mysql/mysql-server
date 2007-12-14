@@ -319,9 +319,11 @@ row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
-Does a table creation operation for MySQL. If the name of the created
-table ends to characters INNODB_MONITOR, then this also starts
-printing of monitor output by the master thread. */
+Drops a table for MySQL. If the name of the table ends in
+one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
+"innodb_table_monitor", then this will also start the printing of monitor
+output by the master thread. If the table name ends in "innodb_mem_validate",
+InnoDB will try to invoke mem_validate(). */
 
 int
 row_create_table_for_mysql(
@@ -399,8 +401,9 @@ row_truncate_table_for_mysql(
 	dict_table_t*	table,	/* in: table handle */
 	trx_t*		trx);	/* in: transaction handle */
 /*************************************************************************
-Drops a table for MySQL. If the name of the dropped table ends to
-characters INNODB_MONITOR, then this also stops printing of monitor
+Drops a table for MySQL. If the name of the dropped table ends in
+one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
+"innodb_table_monitor", then this will also stop the printing of monitor
 output by the master thread. */
 
 int

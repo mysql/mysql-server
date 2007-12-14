@@ -1,17 +1,17 @@
 ################################################################################
-# include/partition_layout_check1.inc                                          #
+# inc/partition_layout_check1.inc                                          #
 #                                                                              #
 # Purpose:                                                                     #
 #   Store the SHOW CREATE TABLE output and the list of files belonging to      #
 #   this table + print this into the protocol                                  #
 #   This script is only usefule when sourced within the partitioning tests.    #
 #                                                                              #
-# Attention: The routine include/partition_layout_check2.inc is very similar   #
+# Attention: The routine inc/partition_layout_check2.inc is very similar   #
 #            to this one. So if something has to be changed here it            #
 #            might be necessary to do it also there                            #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
+# Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
 # Change Author:                                                               #
 # Change Date:                                                                 #

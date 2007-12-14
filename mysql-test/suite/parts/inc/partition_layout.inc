@@ -1,4 +1,4 @@
-# include/partition_layout.inc
+# inc/partition_layout.inc
 #
 # Print partitioning related informations about the table t1
 #

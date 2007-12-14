@@ -14,7 +14,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/*
+/**
+  @file
+
   Optimising of MIN(), MAX() and COUNT(*) queries without 'group by' clause
   by replacing the aggregate expression with a constant.  
 
@@ -22,6 +24,7 @@
   types of queries are optimised (assuming the table handler supports
   the required methods)
 
+  @verbatim
   SELECT COUNT(*) FROM t1[,t2,t3,...]
   SELECT MIN(b) FROM t1 WHERE a=const
   SELECT MAX(c) FROM t1 WHERE a=const AND b=const
@@ -29,6 +32,7 @@
   SELECT MIN(b) FROM t1 WHERE a=const AND b>const
   SELECT MIN(b) FROM t1 WHERE a=const AND b BETWEEN const AND const
   SELECT MAX(b) FROM t1 WHERE a=const AND b BETWEEN const AND const
+  @endverbatim
 
   Instead of '<' one can use '<=', '>', '>=' and '=' as well.
   Instead of 'a=const' the condition 'a IS NULL' can be used.
@@ -36,10 +40,11 @@
   If all selected fields are replaced then we will also remove all
   involved tables and return the answer without any join. Thus, the
   following query will be replaced with a row of two constants:
+  @verbatim
   SELECT MAX(b), MIN(d) FROM t1,t2 
     WHERE a=const AND b<const AND d>const
+  @endverbatim
   (assuming a index for column d of table t2 is defined)
-
 */
 
 #include "mysql_priv.h"
@@ -83,25 +88,25 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
 }
 
 
-/*
+/**
   Substitutes constants for some COUNT(), MIN() and MAX() functions.
 
-  SYNOPSIS
-    opt_sum_query()
-    tables                list of leaves of join table tree
-    all_fields            All fields to be returned
-    conds                 WHERE clause
+  @param tables                list of leaves of join table tree
+  @param all_fields            All fields to be returned
+  @param conds                 WHERE clause
 
-  NOTE:
+  @note
     This function is only called for queries with sum functions and no
     GROUP BY part.
 
-  RETURN VALUES
+  @retval
     0                    no errors
+  @retval
     1                    if all items were resolved
+  @retval
     HA_ERR_KEY_NOT_FOUND on impossible conditions
-    OR an error number from my_base.h HA_ERR_... if a deadlock or a lock
-       wait timeout happens, for example
+  @retval
+    HA_ERR_... if a deadlock or a lock wait timeout happens, for example
 */
 
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
@@ -295,14 +300,15 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
                  Check if case 1 from above holds. If it does, we should read
                  the skipped tuple.
               */
-              if (ref.key_buff[prefix_len] == 1 && 
-                  /* 
+              if (item_field->field->real_maybe_null() &&
+                  ref.key_buff[prefix_len] == 1 &&
+                  /*
                      Last keypart (i.e. the argument to MIN) is set to NULL by
                      find_key_for_maxmin only if all other keyparts are bound
                      to constants in a conjunction of equalities. Hence, we
                      can detect this by checking only if the last keypart is
                      NULL.
-                  */                     
+                  */
                   (error == HA_ERR_KEY_NOT_FOUND ||
                    key_cmp_if_same(table, ref.key_buff, ref.key, prefix_len)))
               {
@@ -472,19 +478,18 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 }
 
 
-/*
-  Test if the predicate compares a field with constants
+/**
+  Test if the predicate compares a field with constants.
 
-  SYNOPSIS
-    simple_pred()
-    func_item        Predicate item
-    args        out: Here we store the field followed by constants
-    inv_order   out: Is set to 1 if the predicate is of the form
-	             'const op field' 
+  @param func_item        Predicate item
+  @param[out] args        Here we store the field followed by constants
+  @param[out] inv_order   Is set to 1 if the predicate is of the form
+                          'const op field'
 
-  RETURN
+  @retval
     0        func_item is a simple predicate: a field is compared with
-             constants
+    constants
+  @retval
     1        Otherwise
 */
 
@@ -556,34 +561,33 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
 }
 
 
-/* 
-   Check whether a condition matches a key to get {MAX|MIN}(field):
+/**
+  Check whether a condition matches a key to get {MAX|MIN}(field):.
 
-   SYNOPSIS
-     matching_cond()
-     max_fl         in:     Set to 1 if we are optimising MAX()              
-     ref            in/out: Reference to the structure we store the key value
-     keyinfo        in      Reference to the key info
-     field_part     in:     Pointer to the key part for the field
-     cond           in      WHERE condition
-     key_part_used  in/out: Map of matchings parts
-     range_fl       in/out: Says whether including key will be used
-     prefix_len     out:    Length of common key part for the range
-                            where MAX/MIN is searched for
-
-   DESCRIPTION
      For the index specified by the keyinfo parameter, index that
      contains field as its component (field_part), the function
      checks whether the condition cond is a conjunction and all its
      conjuncts referring to the columns of the same table as column
      field are one of the following forms:
      - f_i= const_i or const_i= f_i or f_i is null,
-       where f_i is part of the index
+     where f_i is part of the index
      - field {<|<=|>=|>|=} const or const {<|<=|>=|>|=} field
      - field between const1 and const2
 
-  RETURN
+  @param[in]     max_fl         Set to 1 if we are optimising MAX()
+  @param[in,out] ref            Reference to the structure we store the key
+    value
+  @param[in]     keyinfo        Reference to the key info
+  @param[in]     field_part     Pointer to the key part for the field
+  @param[in]     cond           WHERE condition
+  @param[in,out] key_part_used  Map of matchings parts
+  @param[in,out] range_fl       Says whether including key will be used
+  @param[out]    prefix_len     Length of common key part for the range
+    where MAX/MIN is searched for
+
+  @retval
     0        Index can't be used.
+  @retval
     1        We can use index to get MIN/MAX value
 */
 
@@ -748,31 +752,21 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 }
 
 
-/*
+/**
   Check whether we can get value for {max|min}(field) by using a key.
 
-  SYNOPSIS
-    find_key_for_maxmin()
-    max_fl      in:     0 for MIN(field) / 1 for MAX(field)
-    ref         in/out  Reference to the structure we store the key value
-    field       in:     Field used inside MIN() / MAX()
-    cond        in:     WHERE condition
-    range_fl    out:    Bit flags for how to search if key is ok
-    prefix_len  out:    Length of prefix for the search range
+     If where-condition is not a conjunction of 0 or more conjuct the
+     function returns false, otherwise it checks whether there is an
+     index including field as its k-th component/part such that:
 
-  DESCRIPTION
-    If where condition is not a conjunction of 0 or more conjuct the
-    function returns false, otherwise it checks whether there is an
-    index including field as its k-th component/part such that:
-
-     1. for each previous component f_i there is one and only one conjunct
+     -# for each previous component f_i there is one and only one conjunct
         of the form: f_i= const_i or const_i= f_i or f_i is null
-     2. references to field occur only in conjucts of the form:
+     -# references to field occur only in conjucts of the form:
         field {<|<=|>=|>|=} const or const {<|<=|>=|>|=} field or 
         field BETWEEN const1 AND const2
-     3. all references to the columns from the same table as column field
+     -# all references to the columns from the same table as column field
         occur only in conjucts mentioned above.
-     4. each of k first components the index is not partial, i.e. is not
+     -# each of k first components the index is not partial, i.e. is not
         defined on a fixed length proper prefix of the field.
 
      If such an index exists the function through the ref parameter
@@ -780,17 +774,26 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
      the length of first (k-1) components of the key and flags saying
      how to apply the key for the search max/min value.
      (if we have a condition field = const, prefix_len contains the length
-      of the whole search key)
+     of the whole search key)
 
-  NOTE
+  @param[in]     max_fl      0 for MIN(field) / 1 for MAX(field)
+  @param[in,out] ref         Reference to the structure we store the key value
+  @param[in]     field       Field used inside MIN() / MAX()
+  @param[in]     cond        WHERE condition
+  @param[out]    range_fl    Bit flags for how to search if key is ok
+  @param[out]    prefix_len  Length of prefix for the search range
+
+  @note
     This function may set table->key_read to 1, which must be reset after
     index is used! (This can only happen when function returns 1)
 
-  RETURN
+  @retval
     0   Index can not be used to optimize MIN(field)/MAX(field)
-    1   Can use key to optimize MIN()/MAX()
-        In this case ref, range_fl and prefix_len are updated
-*/ 
+  @retval
+    1   Can use key to optimize MIN()/MAX().
+    In this case ref, range_fl and prefix_len are updated
+*/
+
       
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 Field* field, COND *cond,
@@ -883,20 +886,19 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
 }
 
 
-/*
-  Check whether found key is in range specified by conditions
+/**
+  Check whether found key is in range specified by conditions.
 
-  SYNOPSIS
-    reckey_in_range()
-    max_fl      in:     0 for MIN(field) / 1 for MAX(field)
-    ref         in:     Reference to the key value and info
-    field       in:     Field used the MIN/MAX expression
-    cond        in:     WHERE condition
-    range_fl    in:     Says whether there is a condition to to be checked
-    prefix_len  in:     Length of the constant part of the key
+  @param[in] max_fl         0 for MIN(field) / 1 for MAX(field)
+  @param[in] ref            Reference to the key value and info
+  @param[in] field          Field used the MIN/MAX expression
+  @param[in] cond           WHERE condition
+  @param[in] range_fl       Says whether there is a condition to to be checked
+  @param[in] prefix_len     Length of the constant part of the key
 
-  RETURN
+  @retval
     0        ok
+  @retval
     1        WHERE was not true for the found row
 */
 
@@ -911,16 +913,16 @@ static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
 }
 
 
-/*
-  Check whether {MAX|MIN}(field) is in range specified by conditions
-  SYNOPSIS
-    maxmin_in_range()
-    max_fl      in:     0 for MIN(field) / 1 for MAX(field)
-    field       in:     Field used the MIN/MAX expression
-    cond        in:     WHERE condition
+/**
+  Check whether {MAX|MIN}(field) is in range specified by conditions.
 
-  RETURN
+  @param[in] max_fl          0 for MIN(field) / 1 for MAX(field)
+  @param[in] field           Field used the MIN/MAX expression
+  @param[in] cond            WHERE condition
+
+  @retval
     0        ok
+  @retval
     1        WHERE was not true for the found row
 */
 

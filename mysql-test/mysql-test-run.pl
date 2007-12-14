@@ -164,6 +164,8 @@ our $opt_bench= 0;
 our $opt_small_bench= 0;
 our $opt_big_test= 0;
 
+our @opt_combination;
+
 our @opt_extra_mysqld_opt;
 
 our $opt_compress;
@@ -255,13 +257,13 @@ our $opt_timer= 1;
 
 our $opt_user;
 
-our $opt_valgrind= 0;
-our $opt_valgrind_mysqld= 0;
-our $opt_valgrind_mysqltest= 0;
-our $default_valgrind_options= "--show-reachable=yes";
-our $opt_valgrind_options;
-our $opt_valgrind_path;
-our $opt_callgrind;
+my $opt_valgrind= 0;
+my $opt_valgrind_mysqld= 0;
+my $opt_valgrind_mysqltest= 0;
+my @default_valgrind_args= ("--show-reachable=yes");
+my @valgrind_args;
+my $opt_valgrind_path;
+my $opt_callgrind;
 
 our $opt_stress=               "";
 our $opt_stress_suite=     "main";
@@ -461,6 +463,19 @@ sub main () {
 #
 ##############################################################################
 
+#
+# When an option is no longer used by this program, it must be explicitly
+# ignored or else it will be passed through to mysqld.  GetOptions will call
+# this subroutine once for each such option on the command line.  See
+# Getopt::Long documentation.
+#
+
+sub warn_about_removed_option {
+  my ($option, $value, $hash_value) = @_;
+
+  warn "WARNING: This option is no longer used, and is ignored: --$option\n";
+}
+
 sub command_line_setup () {
 
   # These are defaults for things that are set on the command line
@@ -497,6 +512,15 @@ sub command_line_setup () {
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
 
+  # Options that are no longer used must still be processed, because all
+  # unprocessed options are passed directly to mysqld.  The user will be
+  # warned that the option is being ignored.
+  #
+  # Put the complete option string here.  For example, to remove the --suite
+  # option, remove it from GetOptions() below and put 'suite|suites=s' here.
+  my @removed_options = (
+  );
+
   Getopt::Long::Configure("pass_through");
   GetOptions(
              # Control what engine/variation to run
@@ -529,6 +553,7 @@ sub command_line_setup () {
              'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
              'big-test'                 => \$opt_big_test,
+             'combination=s'            => \@opt_combination,
 
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
@@ -574,7 +599,18 @@ sub command_line_setup () {
              'valgrind|valgrind-all'    => \$opt_valgrind,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
              'valgrind-mysqld'          => \$opt_valgrind_mysqld,
-             'valgrind-options=s'       => \$opt_valgrind_options,
+             'valgrind-options=s'       => sub {
+	       my ($opt, $value)= @_;
+	       # Deprecated option unless it's what we know pushbuild uses
+	       if ($value eq "--gen-suppressions=all --show-reachable=yes") {
+		 push(@valgrind_args, $_) for (split(' ', $value));
+		 return;
+	       }
+	       die("--valgrind-options=s is deprecated. Use ",
+		   "--valgrind-option=s, to be specified several",
+		   " times if necessary");
+	     },
+             'valgrind-option=s'        => \@valgrind_args,
              'valgrind-path=s'          => \$opt_valgrind_path,
 	     'callgrind'                => \$opt_callgrind,
 
@@ -613,6 +649,9 @@ sub command_line_setup () {
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
+
+             # Options which are no longer used
+             (map { $_ => \&warn_about_removed_option } @removed_options),
 
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
@@ -977,7 +1016,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Check valgrind arguments
   # --------------------------------------------------------------------------
-  if ( $opt_valgrind or $opt_valgrind_path or defined $opt_valgrind_options)
+  if ( $opt_valgrind or $opt_valgrind_path or @valgrind_args)
   {
     mtr_report("Turning on valgrind for all executables");
     $opt_valgrind= 1;
@@ -1002,17 +1041,18 @@ sub command_line_setup () {
     $opt_valgrind_mysqld= 1;
 
     # Set special valgrind options unless options passed on command line
-    $opt_valgrind_options="--trace-children=yes"
-      unless defined $opt_valgrind_options;
+    push(@valgrind_args, "--trace-children=yes")
+      unless @valgrind_args;
   }
 
   if ( $opt_valgrind )
   {
     # Set valgrind_options to default unless already defined
-    $opt_valgrind_options=$default_valgrind_options
-      unless defined $opt_valgrind_options;
+    push(@valgrind_args, @default_valgrind_args)
+      unless @valgrind_args;
 
-    mtr_report("Running valgrind with options \"$opt_valgrind_options\"");
+    mtr_report("Running valgrind with options \"",
+	       join(" ", @valgrind_args), "\"");
   }
 
   if ( ! $opt_testcase_timeout )
@@ -2091,6 +2131,22 @@ sub environment_setup () {
     ($lib_example_plugin ? basename($lib_example_plugin) : "");
   $ENV{'EXAMPLE_PLUGIN_OPT'}=
     ($lib_example_plugin ? "--plugin_dir=" . dirname($lib_example_plugin) : "");
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute myisampack and myisamchk
+  # ----------------------------------------------------
+  $ENV{'MYISAMCHK'}= mtr_native_path(mtr_exe_exists(
+                       vs_config_dirs('storage/myisam', 'myisamchk'),
+                       vs_config_dirs('myisam', 'myisamchk'),
+                       "$path_client_bindir/myisamchk",
+                       "$glob_basedir/storage/myisam/myisamchk",
+                       "$glob_basedir/myisam/myisamchk"));
+  $ENV{'MYISAMPACK'}= mtr_native_path(mtr_exe_exists(
+                        vs_config_dirs('storage/myisam', 'myisampack'),
+                        vs_config_dirs('myisam', 'myisampack'),
+                        "$path_client_bindir/myisampack",
+                        "$glob_basedir/storage/myisam/myisampack",
+                        "$glob_basedir/myisam/myisampack"));
 
   # ----------------------------------------------------
   # We are nice and report a bit about our settings
@@ -3751,10 +3807,13 @@ sub mysqld_arguments ($$$$) {
   # see BUG#28359
   mtr_add_arg($args, "%s--connect-timeout=60", $prefix);
 
+
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as. If not running
   # as root it will be ignored, see BUG#30630
-  if (!(grep(/^--user/, @$extra_opt, @opt_extra_mysqld_opt))) {
+  my $euid= $>;
+  if (!$glob_win32 and $euid == 0 and
+      grep(/^--user/, @$extra_opt, @opt_extra_mysqld_opt) == 0) {
     mtr_add_arg($args, "%s--user=root");
   }
 
@@ -5054,7 +5113,7 @@ sub valgrind_arguments {
   }
 
   # Add valgrind options, can be overriden by user
-  mtr_add_arg($args, '%s', $opt_valgrind_options);
+  mtr_add_arg($args, '%s', $_) for (@valgrind_args);
 
   mtr_add_arg($args, $$exe);
 
@@ -5141,6 +5200,8 @@ Options to control what test suites or cases to run
   skip-im               Don't start IM, and skip the IM test cases
   big-test              Set the environment variable BIG_TEST, which can be
                         checked from test cases.
+  combination="ARG1 .. ARG2" Specify a set of "mysqld" arguments for one 
+                        combination. 
 
 Options that specify ports
 
@@ -5196,12 +5257,14 @@ Options for coverage, profiling etc
   gcov                  FIXME
   gprof                 FIXME
   valgrind              Run the "mysqltest" and "mysqld" executables using
-                        valgrind with options($default_valgrind_options)
+                        valgrind with default options
   valgrind-all          Synonym for --valgrind
   valgrind-mysqltest    Run the "mysqltest" and "mysql_client_test" executable
                         with valgrind
   valgrind-mysqld       Run the "mysqld" executable with valgrind
-  valgrind-options=ARGS Options to give valgrind, replaces default options
+  valgrind-options=ARGS Deprecated, use --valgrind-option
+  valgrind-option=ARGS  Option to give valgrind, replaces default option(s),
+                        can be specified more then once
   valgrind-path=[EXE]   Path to the valgrind executable
   callgrind             Instruct valgrind to use callgrind
 
