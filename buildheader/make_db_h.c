@@ -62,6 +62,8 @@ void print_defines (void) {
     dodefine(DB_KEYLAST);
     dodefine(DB_NODUPDATA);
     dodefine(DB_NOOVERWRITE);
+    printf("#define DB_YESOVERWRITE 254\n"); // tokudb
+    dodefine(DB_OPFLAGS_MASK);
 
     dodefine(DB_INIT_LOCK);
     dodefine(DB_INIT_LOG);

@@ -58,6 +58,8 @@ typedef enum {
 #define DB_KEYLAST 16
 #define DB_NODUPDATA 21
 #define DB_NOOVERWRITE 22
+#define DB_YESOVERWRITE 254
+#define DB_OPFLAGS_MASK 255
 #define DB_INIT_LOCK 8192
 #define DB_INIT_LOG 16384
 #define DB_INIT_MPOOL 32768
