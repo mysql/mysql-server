@@ -2968,6 +2968,12 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     func->max_length=min(initid.max_length,MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
     const_item_cache=initid.const_item;
+    /* 
+      Keep used_tables_cache in sync with const_item_cache.
+      See the comment in Item_udf_func::update_used tables.
+    */  
+    if (!const_item_cache && !used_tables_cache)
+      used_tables_cache= RAND_TABLE_BIT;
     func->decimals=min(initid.decimals,NOT_FIXED_DEC);
   }
   initialized=1;
@@ -4596,6 +4602,8 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   if (var_entry)
   {
+    unsigned_flag= var_entry->unsigned_flag;
+
     collation.set(var_entry->collation);
     switch (var_entry->type) {
     case REAL_RESULT:

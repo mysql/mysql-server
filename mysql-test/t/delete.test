@@ -235,50 +235,6 @@ DELETE FROM t1 ORDER BY (SELECT x);
 DROP TABLE t1;
 
 #
-# Bug #30234: Unexpected behavior using DELETE with AS and USING
-# '
-CREATE TABLE t1 (
-  a INT
-);
-
-CREATE TABLE t2 (
-  a INT
-);
-
-CREATE DATABASE db1;
-CREATE TABLE db1.t1 (
-  a INT
-);
-INSERT INTO db1.t1 (a) SELECT * FROM t1;
-
-CREATE DATABASE db2;
-CREATE TABLE db2.t1 (
-  a INT
-);
-INSERT INTO db2.t1 (a) SELECT * FROM t2;
-
---error ER_PARSE_ERROR
-DELETE FROM t1 alias USING t1, t2 alias WHERE t1.a = alias.a;
-DELETE FROM alias USING t1, t2 alias WHERE t1.a = alias.a;
-DELETE FROM t1, alias USING t1, t2 alias WHERE t1.a = alias.a;
---error ER_UNKNOWN_TABLE
-DELETE FROM t1, t2 USING t1, t2 alias WHERE t1.a = alias.a;
---error ER_PARSE_ERROR
-DELETE FROM db1.t1 alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
---error ER_UNKNOWN_TABLE
-DELETE FROM alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
-DELETE FROM db2.alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
-DELETE FROM t1 USING t1 WHERE a = 1;
-SELECT * FROM t1;
---error ER_PARSE_ERROR
-DELETE FROM t1 alias USING t1 alias WHERE a = 2;
-SELECT * FROM t1;
-
-DROP TABLE t1, t2;
-DROP DATABASE db1;
-DROP DATABASE db2;
-
-#
 # Bug 31742: delete from ... order by function call that causes an error, 
 #            asserts server
 #
