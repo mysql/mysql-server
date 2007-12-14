@@ -1384,15 +1384,12 @@ static int toku_db_set_flags(DB * db, u_int32_t flags) {
     int r = toku_brt_get_flags(db->i->brt, &tflags);
     if (r!=0) return r;
     
-    if (flags & DB_DUP) {
-        tflags |= TOKU_DB_DUP;
-        flags &= ~DB_DUP;
+    /* we support no duplicates and sorted duplicates */
+    if (flags) {
+        if (flags != (DB_DUP + DB_DUPSORT))
+            return EINVAL;
+        tflags += TOKU_DB_DUP + TOKU_DB_DUPSORT;
     }
-    if (flags & DB_DUPSORT) {
-        tflags |= TOKU_DB_DUPSORT;
-        flags &= ~DB_DUPSORT;
-    }
-    if (flags != 0) return EINVAL;
     r = toku_brt_set_flags(db->i->brt, tflags);
     return r;
 }

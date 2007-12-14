@@ -40,8 +40,8 @@ int main(int argc, const char *argv[]) {
     
     test_db_set_flags(0, 0, 0, 0);
     test_db_set_flags(0, 0, DB_DUP, EINVAL);
-    test_db_set_flags(DB_DUP, 0, DB_DUP, EINVAL);
-    test_db_set_flags(DB_DUP, 0, 0, 0);
+    test_db_set_flags(DB_DUP+DB_DUPSORT, 0, DB_DUP+DB_DUPSORT, EINVAL);
+    test_db_set_flags(DB_DUP+DB_DUPSORT, 0, 0, 0);
 
     return 0;
 }

@@ -41,6 +41,13 @@ void test_dup_dup(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdup
     r = db_create(&db, null_env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
+#if USE_TDB
+    if (r != 0 && dup_mode == DB_DUP) {
+        printf("%s:%d:WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+        r = db->close(db, 0); assert(r == 0);
+        return;
+    }
+#endif
     assert(r == 0);
     r = db->set_pagesize(db, 4096);
     assert(r == 0);

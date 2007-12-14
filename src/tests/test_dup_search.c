@@ -333,16 +333,29 @@ int main(int argc, const char *argv[]) {
     mkdir(DIR, 0777);
 
     /* dup search */
+#if USE_TDB
+    printf("%s:%d:WARNING:tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+#else
     for (i = 1; i <= (1<<16); i *= 2) {
          test_ici_search(i, DB_DUP);
          test_icdi_search(i, DB_DUP);
          test_i0i1ci0_search(i, DB_DUP);
     }
+#endif
+
+    /* dupsort search */
+    for (i = 1; i <= (1<<16); i *= 2) {
+         test_ici_search(i, DB_DUP + DB_DUPSORT);
+         test_icdi_search(i, DB_DUP + DB_DUPSORT);
+         test_i0i1ci0_search(i, DB_DUP + DB_DUPSORT);
+    }
 
     /* insert data in descending order */
     for (i = 1; i <= (1<<16); i *= 2) {
         test_reverse_search(i, 0);
+#if USE_BDB
         test_reverse_search(i, DB_DUP);
+#endif
         test_reverse_search(i, DB_DUP + DB_DUPSORT);
     }
 

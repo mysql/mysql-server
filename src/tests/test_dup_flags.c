@@ -28,6 +28,13 @@ void test_dup_flags(int dup_flags) {
     r = db_create(&db, null_env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_flags);
+#if USE_TDB
+    if (r != 0 && dup_flags == DB_DUP) {
+        printf("%s:%d: WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+        r = db->close(db, 0); assert(r == 0);
+        return;
+    }
+#endif
     assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
