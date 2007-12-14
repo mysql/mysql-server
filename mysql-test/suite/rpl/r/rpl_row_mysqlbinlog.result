@@ -155,6 +155,7 @@ c1	c3	c4	c5
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
+ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
@@ -295,6 +296,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
+ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
