@@ -269,6 +269,8 @@ a+0	b+0
 56	379
 68	454
 set @@max_length_for_sort_data=0;
+Warnings:
+Warning	1292	Truncated incorrect max_length_for_sort_data value: '0'
 select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
 a+0	b+0
 57	135
@@ -672,6 +674,16 @@ COUNT(DISTINCT b,c)
 2
 2
 DROP TABLE t2;
+CREATE TABLE t1(a BIT(13), KEY(a));
+INSERT INTO t1(a) VALUES
+(65535),(65525),(65535),(65535),(65535),(65535),(65535),(65535),(65535),(65535);
+EXPLAIN SELECT 1 FROM t1 GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	NULL	a	3	NULL	6	Using index for group-by
+SELECT 1 FROM t1 GROUP BY a;
+1
+1
+DROP TABLE t1;
 End of 5.0 tests
 create table t1(a bit(7));
 insert into t1 values(0x40);
