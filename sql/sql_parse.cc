@@ -2232,15 +2232,7 @@ mysql_execute_command(THD *thd)
     /* Might have been updated in create_table_precheck */
     create_info.alias= create_table->alias;
 
-#ifndef HAVE_READLINK
-    if (create_info.data_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "DATA DIRECTORY option ignored");
-    if (create_info.index_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "INDEX DIRECTORY option ignored");
-    create_info.data_file_name= create_info.index_file_name= NULL;
-#else
+#ifdef HAVE_READLINK
     /* Fix names if symlinked tables */
     if (append_file_to_dir(thd, &create_info.data_file_name,
 			   create_table->table_name) ||
