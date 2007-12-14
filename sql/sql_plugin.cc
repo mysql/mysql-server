@@ -1876,11 +1876,26 @@ err:
 static int check_func_int(THD *thd, struct st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
+  bool fixed;
   long long tmp;
   struct my_option options;
   value->val_int(value, &tmp);
   plugin_opt_set_limits(&options, var);
-  *(int *)save= (int) getopt_ull_limit_value(tmp, &options);
+
+  if (var->flags & PLUGIN_VAR_UNSIGNED)
+    *(uint *)save= (uint) getopt_ull_limit_value((ulonglong) tmp, &options,
+                                                   &fixed);
+  else
+    *(int *)save= (int) getopt_ll_limit_value(tmp, &options, &fixed);
+
+  if (fixed)
+  {
+    char buf[22];
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), var->name,
+                        ullstr(tmp, buf));
+  }
   return (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) &&
          (*(int *)save != (int) tmp);
 }
@@ -1889,24 +1904,55 @@ static int check_func_int(THD *thd, struct st_mysql_sys_var *var,
 static int check_func_long(THD *thd, struct st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
+  bool fixed;
   long long tmp;
   struct my_option options;
   value->val_int(value, &tmp);
   plugin_opt_set_limits(&options, var);
-  *(long *)save= (long) getopt_ull_limit_value(tmp, &options);
+
+  if (var->flags & PLUGIN_VAR_UNSIGNED)
+    *(ulong *)save= (ulong) getopt_ull_limit_value((ulonglong) tmp, &options,
+                                                   &fixed);
+  else
+    *(long *)save= (long) getopt_ll_limit_value(tmp, &options, &fixed);
+
+  if (fixed)
+  {
+    char buf[22];
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), var->name,
+                        ullstr(tmp, buf));
+  }
   return (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) &&
          (*(long *)save != (long) tmp);
 }
 
 
 static int check_func_longlong(THD *thd, struct st_mysql_sys_var *var,
-                          void *save, st_mysql_value *value)
+                               void *save, st_mysql_value *value)
 {
+  bool fixed;
   long long tmp;
   struct my_option options;
   value->val_int(value, &tmp);
   plugin_opt_set_limits(&options, var);
-  *(ulonglong *)save= getopt_ull_limit_value(tmp, &options);
+  *(ulonglong *)save= getopt_ull_limit_value(tmp, &options, &fixed);
+
+  if (var->flags & PLUGIN_VAR_UNSIGNED)
+    *(ulonglong *)save= getopt_ull_limit_value((ulonglong) tmp, &options,
+                                               &fixed);
+  else
+    *(longlong *)save= getopt_ll_limit_value(tmp, &options, &fixed);
+
+  if (fixed)
+  {
+    char buf[22];
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), var->name,
+                        ullstr(tmp, buf));
+  }
   return (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) &&
          (*(long long *)save != tmp);
 }
@@ -2685,6 +2731,8 @@ bool sys_var_pluginvar::update(THD *thd, set_var *var)
 static void plugin_opt_set_limits(struct my_option *options,
                                   const struct st_mysql_sys_var *opt)
 {
+  options->sub_size= 0;
+
   switch (opt->flags & (PLUGIN_VAR_TYPEMASK |
                         PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_THDLOCAL)) {
   /* global system variables */

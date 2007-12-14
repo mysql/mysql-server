@@ -37,7 +37,7 @@ void Item_geometry_func::fix_length_and_dec()
 {
   collation.set(&my_charset_bin);
   decimals=0;
-  max_length=MAX_BLOB_WIDTH;
+  max_length= max_field_size;
   maybe_null= 1;
 }
 

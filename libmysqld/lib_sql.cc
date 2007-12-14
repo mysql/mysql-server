@@ -64,6 +64,7 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
   net->client_last_errno= ei->last_errno;
   strmake(net->client_last_error, ei->info, sizeof(net->client_last_error)-1);
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
+  mysql->server_status= ei->server_status;
   my_free(data, MYF(0));
 }
 
@@ -242,9 +243,11 @@ static my_bool emb_read_query_result(MYSQL *mysql)
   mysql->warning_count= res->embedded_info->warning_count;
   mysql->server_status= res->embedded_info->server_status;
   mysql->field_count= res->fields;
-  mysql->fields= res->embedded_info->fields_list;
-  mysql->affected_rows= res->embedded_info->affected_rows;
-  mysql->insert_id= res->embedded_info->insert_id;
+  if (!(mysql->fields= res->embedded_info->fields_list))
+  {
+    mysql->affected_rows= res->embedded_info->affected_rows;
+    mysql->insert_id= res->embedded_info->insert_id;
+  }
   net_clear_error(&mysql->net);
   mysql->info= 0;
 
@@ -546,7 +549,6 @@ void end_embedded_server()
 {
   my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
   copy_arguments_ptr=0;
-  release_ddl_log();
   clean_up(0);
 }
 
@@ -1057,6 +1059,7 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
   ei->last_errno= sql_errno;
   strmake(ei->info, err, sizeof(ei->info)-1);
   strmov(ei->sqlstate, mysql_errno_to_sqlstate(sql_errno));
+  ei->server_status= thd->server_status;
   thd->cur_data= 0;
 }
 
