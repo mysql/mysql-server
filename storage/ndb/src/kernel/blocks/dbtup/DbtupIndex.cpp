@@ -522,7 +522,6 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     }
 
     c_page_pool.getPtr(pagePtr, realPageId);
-    Uint32 pageState= pagePtr.p->page_state;
 
 next_tuple:
     // get tuple
