@@ -2362,7 +2362,7 @@ static void test_dupsort_key_insert(int n, int dup_data) {
     int values[n];
     int i;
     for (i=0; i<n; i++)
-        values[i] = (i==0 || dup_data) ? (int) htonl(random()) : values[i-1];
+        values[i] = (!dup_data || i==0) ? (int) htonl(random()) : values[i-1];
 
     /* insert 2->n-i */
     for (i=0; i<n; i++) {
@@ -2489,8 +2489,10 @@ static void test_dup() {
     test_dup_key_delete(1000, TOKU_DB_DUP);              local_memory_check_all_free();
     test_dupsort_key_insert(2, 0);                       local_memory_check_all_free();
     test_dupsort_key_insert(1000, 0);                    local_memory_check_all_free();
+#if PMA_DUP_DUP
     test_dupsort_key_insert(2, 1);                       local_memory_check_all_free();
     test_dupsort_key_insert(1000, 1);                    local_memory_check_all_free();
+#endif
     test_dup_key_delete(0, TOKU_DB_DUP+TOKU_DB_DUPSORT);           local_memory_check_all_free();
     test_dup_key_delete(1000, TOKU_DB_DUP+TOKU_DB_DUPSORT);        local_memory_check_all_free();
     test_dup_key_lookup(32, TOKU_DB_DUP);                          local_memory_check_all_free();

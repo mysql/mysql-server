@@ -1096,12 +1096,10 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, FILENUM filenum, DISK
 
     if (pma->dup_mode & TOKU_DB_DUPSORT) {
         idx = __pma_dup_search(pma, k, v, 0, pma->N, &found);
-        if (found)
-            idx += 1;
+        if (found) return BRT_ALREADY_THERE;
     } else if (pma->dup_mode & TOKU_DB_DUP) {
         idx = __pma_right_search(pma, k, 0, pma->N, &found);
-        if (found)
-            idx += 1;
+        if (found) idx += 1;
     } else {
         idx = toku_pmainternal_find(pma, k);
         if (idx < toku_pma_index_limit(pma) && pma->pairs[idx]) {
@@ -1282,24 +1280,29 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 				u_int32_t rand4fingerprint, u_int32_t *fingerprint) {
     //printf("%s:%d v->size=%d\n", __FILE__, __LINE__, v->size);
     int r;
+    struct kv_pair *kv;
     unsigned int idx;
     int found;
     if (pma->dup_mode & TOKU_DB_DUPSORT) {
         idx = __pma_dup_search(pma, k, v, 0, pma->N, &found);
-        if (found)
-            idx += 1;
+#if PMA_DUP_DUP
+        if (found) idx += 1;
+#else
+        if (found) {
+            kv = pma->pairs[idx]; goto replaceit;
+        }
+#endif
     } else if (pma->dup_mode & TOKU_DB_DUP) {
         idx = __pma_right_search(pma, k, 0, pma->N, &found);
-        if (found)
-            idx += 1;
+        if (found) idx += 1;
     } else {
         idx = toku_pmainternal_find(pma, k);
-        struct kv_pair *kv;
         if (idx < toku_pma_index_limit(pma) && (kv = pma->pairs[idx])) {
             DBT k2;
             // printf("%s:%d\n", __FILE__, __LINE__);
             kv = kv_pair_ptr(kv);
             if (0==pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv->key, kv->keylen))) {
+            replaceit:
                 if (!kv_pair_deleted(pma->pairs[idx])) {
                     *replaced_v_size = kv->vallen;
                     *fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
