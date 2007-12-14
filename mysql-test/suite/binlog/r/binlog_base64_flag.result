@@ -1,0 +1,60 @@
+==== Test BUG#32407 ====
+select * from t1;
+a
+1
+1
+==== Test BINLOG statement w/o FD event ====
+BINLOG '
+SVtYRxMBAAAAKQAAADQBAAAAABAAAAAAAAAABHRlc3QAAnQxAAEDAAE=
+SVtYRxcBAAAAIgAAAFYBAAAQABAAAAAAAAEAAf/+AgAAAA==
+';
+ERROR HY000: The BINLOG statement of type `Table_map` was not preceded by a format description BINLOG statement.
+select * from t1;
+a
+1
+1
+==== Test BINLOG statement with FD event ====
+BINLOG '
+ODdYRw8BAAAAZgAAAGoAAAABAAQANS4xLjIzLXJjLWRlYnVnLWxvZwAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA4N1hHEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
+';
+BINLOG '
+TFtYRxMBAAAAKQAAAH8BAAAAABAAAAAAAAAABHRlc3QAAnQxAAEDAAE=
+TFtYRxcBAAAAIgAAAKEBAAAQABAAAAAAAAEAAf/+AwAAAA==
+';
+select * from t1;
+a
+1
+1
+3
+==== Test --base64-output=never on a binlog with row events ====
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+# at 4
+#ROLLBACK/*!*/;
+# at 102
+#use test/*!*/;
+SET TIMESTAMP=1196959712/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+create table t1 (a int) engine= myisam/*!*/;
+# at 203
+==== Test non-matching FD event and Row event ====
+BINLOG '
+4CdYRw8BAAAAYgAAAGYAAAAAAAQANS4xLjE1LW5kYi02LjEuMjQtZGVidWctbG9nAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAADgJ1hHEzgNAAgAEgAEBAQEEgAATwAEGggICAg=
+';
+BINLOG '
+Dl1YRxMBAAAAKQAAADQBAAAAABAAAAAAAAAABHRlc3QAAnQxAAEDAAE=
+Dl1YRxcBAAAAIgAAAFYBAAAQABAAAAAAAAEAAf/+BQAAAA==
+';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+select * from t1;
+a
+1
+1
+3
+drop table t1;
