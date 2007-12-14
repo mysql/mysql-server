@@ -168,7 +168,7 @@ static const LEX_STRING triggers_file_type=
 
 const char * const TRG_EXT= ".TRG";
 
-/*
+/**
   Table of .TRG file field descriptors.
   We have here only one field now because in nearest future .TRG
   files will be merged into .FRM files (so we don't need something
@@ -216,7 +216,7 @@ File_option sql_modes_parameters=
   FILE_OPTIONS_ULLLIST
 };
 
-/*
+/**
   This must be kept up to date whenever a new option is added to the list
   above, as it specifies the number of required parameters of the trigger in
   .trg file.
@@ -292,23 +292,27 @@ private:
 };
 
 
-/*
+/**
   Create or drop trigger for table.
 
-  SYNOPSIS
-    mysql_create_or_drop_trigger()
-      thd    - current thread context (including trigger definition in LEX)
-      tables - table list containing one table for which trigger is created.
-      create - whenever we create (TRUE) or drop (FALSE) trigger
+  @param thd     current thread context (including trigger definition in LEX)
+  @param tables  table list containing one table for which trigger is created.
+  @param create  whenever we create (TRUE) or drop (FALSE) trigger
 
-  NOTE
+  @note
     This function is mainly responsible for opening and locking of table and
     invalidation of all its instances in table cache after trigger creation.
     Real work on trigger creation/dropping is done inside Table_triggers_list
     methods.
 
-  RETURN VALUE
+  @todo
+    TODO: We should check if user has TRIGGER privilege for table here.
+    Now we just require SUPER privilege for creating/dropping because
+    we don't have proper privilege checking for triggers in place yet.
+
+  @retval
     FALSE Success
+  @retval
     TRUE  error
 */
 bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
@@ -323,6 +327,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   TABLE *table;
   bool result= TRUE;
   String stmt_query;
+  bool need_start_waiting= FALSE;
 
   DBUG_ENTER("mysql_create_or_drop_trigger");
 
@@ -374,10 +379,12 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   /*
     We don't want perform our operations while global read lock is held
     so we have to wait until its end and then prevent it from occurring
-    again until we are done. (Acquiring LOCK_open is not enough because
-    global read lock is held without holding LOCK_open).
+    again until we are done, unless we are under lock tables. (Acquiring
+    LOCK_open is not enough because global read lock is held without holding
+    LOCK_open).
   */
-  if (wait_if_global_read_lock(thd, 0, 1))
+  if (!thd->locked_tables &&
+      !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     DBUG_RETURN(TRUE);
 
   VOID(pthread_mutex_lock(&LOCK_open));
@@ -433,16 +440,30 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     goto end;
   }
 
-  if (lock_table_names(thd, tables))
-    goto end;
-
   /* We also don't allow creation of triggers on views. */
   tables->required_type= FRMTYPE_TABLE;
 
-  if (reopen_name_locked_table(thd, tables, TRUE))
+  /* Keep consistent with respect to other DDL statements */
+  mysql_ha_rm_tables(thd, tables, TRUE);
+
+  if (thd->locked_tables)
   {
-    unlock_table_name(thd, tables);
-    goto end;
+    /* Table must be write locked */
+    if (name_lock_locked_table(thd, tables))
+      goto end;
+  }
+  else
+  {
+    /* Grab the name lock and insert the placeholder*/
+    if (lock_table_names(thd, tables))
+      goto end;
+
+    /* Convert the placeholder to a real table */
+    if (reopen_name_locked_table(thd, tables, TRUE))
+    {
+      unlock_table_name(thd, tables);
+      goto end;
+    }
   }
   table= tables->table;
 
@@ -462,6 +483,26 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
            table->triggers->create_trigger(thd, tables, &stmt_query):
            table->triggers->drop_trigger(thd, tables, &stmt_query));
 
+  /* Under LOCK TABLES we must reopen the table to activate the trigger. */
+  if (!result && thd->locked_tables)
+  {
+    /* Make table suitable for reopening */
+    close_data_files_and_morph_locks(thd, tables->db, tables->table_name);
+    thd->in_lock_tables= 1;
+    if (reopen_tables(thd, 1, 1))
+    {
+      /* To be safe remove this table from the set of LOCKED TABLES */
+      unlink_open_table(thd, tables->table, FALSE);
+
+      /*
+        Ignore reopen_tables errors for now. It's better not leave master/slave
+        in a inconsistent state.
+      */
+      thd->clear_error();
+    }
+    thd->in_lock_tables= 0;
+  }
+
 end:
 
   if (!result)
@@ -470,7 +511,9 @@ end:
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
-  start_waiting_global_read_lock(thd);
+
+  if (need_start_waiting)
+    start_waiting_global_read_lock(thd);
 
   if (!result)
     send_ok(thd);
@@ -479,29 +522,28 @@ end:
 }
 
 
-/*
+/**
   Create trigger for table.
 
-  SYNOPSIS
-    create_trigger()
-      thd          - current thread context (including trigger definition in
-                     LEX)
-      tables       - table list containing one open table for which the
-                     trigger is created.
-      stmt_query   - [OUT] after successful return, this string contains
-                     well-formed statement for creating this trigger.
+  @param thd           current thread context (including trigger definition in
+                       LEX)
+  @param tables        table list containing one open table for which the
+                       trigger is created.
+  @param[out] stmt_query    after successful return, this string contains
+                            well-formed statement for creation this trigger.
 
-  NOTE
+  @note
     - Assumes that trigger name is fully qualified.
     - NULL-string means the following LEX_STRING instance:
-      { str = 0; length = 0 }.
+    { str = 0; length = 0 }.
     - In other words, definer_user and definer_host should contain
-      simultaneously NULL-strings (non-SUID/old trigger) or valid strings
-      (SUID/new trigger).
+    simultaneously NULL-strings (non-SUID/old trigger) or valid strings
+    (SUID/new trigger).
 
-  RETURN VALUE
-    False - success
-    True  - error
+  @retval
+    False   success
+  @retval
+    True    error
 */
 bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                                          String *stmt_query)
@@ -767,19 +809,18 @@ err_with_cleanup:
 }
 
 
-/*
-  Deletes the .TRG file for a table
+/**
+  Deletes the .TRG file for a table.
 
-  SYNOPSIS
-    rm_trigger_file()
-      path       - char buffer of size FN_REFLEN to be used
-                   for constructing path to .TRG file.
-      db         - table's database name
-      table_name - table's name
+  @param path         char buffer of size FN_REFLEN to be used
+                      for constructing path to .TRG file.
+  @param db           table's database name
+  @param table_name   table's name
 
-  RETURN VALUE
-    False - success
-    True  - error
+  @retval
+    False   success
+  @retval
+    True    error
 */
 
 static bool rm_trigger_file(char *path, const char *db,
@@ -790,19 +831,18 @@ static bool rm_trigger_file(char *path, const char *db,
 }
 
 
-/*
-  Deletes the .TRN file for a trigger
+/**
+  Deletes the .TRN file for a trigger.
 
-  SYNOPSIS
-    rm_trigname_file()
-      path       - char buffer of size FN_REFLEN to be used
-                   for constructing path to .TRN file.
-      db         - trigger's database name
-      table_name - trigger's name
+  @param path         char buffer of size FN_REFLEN to be used
+                      for constructing path to .TRN file.
+  @param db           trigger's database name
+  @param table_name   trigger's name
 
-  RETURN VALUE
-    False - success
-    True  - error
+  @retval
+    False   success
+  @retval
+    True    error
 */
 
 static bool rm_trigname_file(char *path, const char *db,
@@ -813,17 +853,16 @@ static bool rm_trigname_file(char *path, const char *db,
 }
 
 
-/*
+/**
   Helper function that saves .TRG file for Table_triggers_list object.
 
-  SYNOPSIS
-    save_trigger_file()
-      triggers    Table_triggers_list object for which file should be saved
-      db          Name of database for subject table
-      table_name  Name of subject table
+  @param triggers    Table_triggers_list object for which file should be saved
+  @param db          Name of database for subject table
+  @param table_name  Name of subject table
 
-  RETURN VALUE
+  @retval
     FALSE  Success
+  @retval
     TRUE   Error
 */
 
@@ -842,21 +881,26 @@ static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
 }
 
 
-/*
+/**
   Drop trigger for table.
 
-  SYNOPSIS
-    drop_trigger()
-      thd         - current thread context
-                    (including trigger definition in LEX)
-      tables      - table list containing one open table for which trigger
-                    is dropped.
-      stmt_query  - [OUT] after successful return, this string contains
-                    well-formed statement for deleting this trigger.
+  @param thd           current thread context
+                       (including trigger definition in LEX)
+  @param tables        table list containing one open table for which trigger
+                       is dropped.
+  @param[out] stmt_query    after successful return, this string contains
+                            well-formed statement for creation this trigger.
 
-  RETURN VALUE
-    False - success
-    True  - error
+  @todo
+    Probably instead of removing .TRG file we should move
+    to archive directory but this should be done as part of
+    parse_file.cc functionality (because we will need it
+    elsewhere).
+
+  @retval
+    False   success
+  @retval
+    True    error
 */
 bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables,
                                        String *stmt_query)
@@ -939,18 +983,17 @@ Table_triggers_list::~Table_triggers_list()
 }
 
 
-/*
+/**
   Prepare array of Field objects referencing to TABLE::record[1] instead
   of record[0] (they will represent OLD.* row values in ON UPDATE trigger
   and in ON DELETE trigger which will be called during REPLACE execution).
 
-  SYNOPSIS
-    prepare_record1_accessors()
-      table - pointer to TABLE object for which we are creating fields.
+  @param table   pointer to TABLE object for which we are creating fields.
 
-  RETURN VALUE
-    False - success
-    True  - error
+  @retval
+    False   success
+  @retval
+    True    error
 */
 bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
 {
@@ -979,12 +1022,10 @@ bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
 }
 
 
-/*
+/**
   Adjust Table_triggers_list with new TABLE pointer.
 
-  SYNOPSIS
-    set_table()
-      new_table - new pointer to TABLE instance
+  @param new_table   new pointer to TABLE instance
 */
 
 void Table_triggers_list::set_table(TABLE *new_table)
@@ -998,20 +1039,26 @@ void Table_triggers_list::set_table(TABLE *new_table)
 }
 
 
-/*
+/**
   Check whenever .TRG file for table exist and load all triggers it contains.
 
-  SYNOPSIS
-    check_n_load()
-      thd        - current thread context
-      db         - table's database name
-      table_name - table's name
-      table      - pointer to table object
-      names_only - stop after loading trigger names
+  @param thd          current thread context
+  @param db           table's database name
+  @param table_name   table's name
+  @param table        pointer to table object
+  @param names_only   stop after loading trigger names
 
-  RETURN VALUE
-    False - success
-    True  - error
+  @todo
+    A lot of things to do here e.g. how about other funcs and being
+    more paranoical ?
+
+  @todo
+    This could be avoided if there is no triggers for UPDATE and DELETE.
+
+  @retval
+    False   success
+  @retval
+    True    error
 */
 
 bool Table_triggers_list::check_n_load(THD *thd, const char *db,
@@ -1394,24 +1441,23 @@ err_with_lex_cleanup:
 }
 
 
-/*
-  Obtains and returns trigger metadata
+/**
+  Obtains and returns trigger metadata.
 
-  SYNOPSIS
-    get_trigger_info()
-      thd       - current thread context
-      event     - trigger event type
-      time_type - trigger action time
-      name      - returns name of trigger
-      stmt      - returns statement of trigger
-      sql_mode  - returns sql_mode of trigger
-      definer_user - returns definer/creator of trigger. The caller is
-                  responsible to allocate enough space for storing definer
-                  information.
+  @param thd           current thread context
+  @param event         trigger event type
+  @param time_type     trigger action time
+  @param trigger_name  returns name of trigger
+  @param trigger_stmt  returns statement of trigger
+  @param sql_mode      returns sql_mode of trigger
+  @param definer       returns definer/creator of trigger. The caller is
+                       responsible to allocate enough space for storing
+                       definer information.
 
-  RETURN VALUE
-    False - success
-    True  - error
+  @retval
+    False   success
+  @retval
+    True    error
 */
 
 bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
@@ -1577,21 +1623,20 @@ bool add_table_for_trigger(THD *thd,
 }
 
 
-/*
+/**
   Drop all triggers for table.
 
-  SYNOPSIS
-    drop_all_triggers()
-      thd    - current thread context
-      db     - schema for table
-      name   - name for table
+  @param thd      current thread context
+  @param db       schema for table
+  @param name     name for table
 
-  NOTE
+  @note
     The calling thread should hold the LOCK_open mutex;
 
-  RETURN VALUE
-    False - success
-    True  - error
+  @retval
+    False   success
+  @retval
+    True    error
 */
 
 bool Table_triggers_list::drop_all_triggers(THD *thd, char *db, char *name)
@@ -1641,19 +1686,18 @@ end:
 }
 
 
-/*
+/**
   Update .TRG file after renaming triggers' subject table
   (change name of table in triggers' definitions).
 
-  SYNOPSIS
-    change_table_name_in_triggers()
-      thd                 Thread context
-      db_name             Database of subject table
-      old_table_name      Old subject table's name
-      new_table_name      New subject table's name
+  @param thd                 Thread context
+  @param db_name             Database of subject table
+  @param old_table_name      Old subject table's name
+  @param new_table_name      New subject table's name
 
-  RETURN VALUE
+  @retval
     FALSE  Success
+  @retval
     TRUE   Failure
 */
 
@@ -1723,21 +1767,20 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
 }
 
 
-/*
-  Iterate though Table_triggers_list::names_list list and update .TRN files
-  after renaming triggers' subject table.
+/**
+  Iterate though Table_triggers_list::names_list list and update
+  .TRN files after renaming triggers' subject table.
 
-  SYNOPSIS
-    change_table_name_in_trignames()
-      db_name             Database of subject table
-      new_table_name      New subject table's name
-      stopper             Pointer to Table_triggers_list::names_list at
-                          which we should stop updating.
+  @param db_name             Database of subject table
+  @param new_table_name      New subject table's name
+  @param stopper             Pointer to Table_triggers_list::names_list at
+                             which we should stop updating.
 
-  RETURN VALUE
+  @retval
     0      Success
+  @retval
     non-0  Failure, pointer to Table_triggers_list::names_list element
-           for which update failed.
+    for which update failed.
 */
 
 LEX_STRING*
@@ -1771,7 +1814,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
 
 
 /**
-  @brief Update .TRG and .TRN files after renaming triggers' subject table.
+  Update .TRG and .TRN files after renaming triggers' subject table.
 
   @param[in,out] thd Thread context
   @param[in] db Old database of subject table
@@ -1933,19 +1976,17 @@ bool Table_triggers_list::process_triggers(THD *thd,
 }
 
 
-/*
-  Mark fields of subject table which we read/set in its triggers as such.
+/**
+  Mark fields of subject table which we read/set in its triggers
+  as such.
 
-  SYNOPSIS
-    mark_fields_used()
-      thd    Current thread context
-      event  Type of event triggers for which we are going to ins
+  This method marks fields of subject table which are read/set in its
+  triggers as such (by properly updating TABLE::read_set/write_set)
+  and thus informs handler that values for these fields should be
+  retrieved/stored during execution of statement.
 
-  DESCRIPTION
-    This method marks fields of subject table which are read/set in its
-    triggers as such (by properly updating TABLE::read_set/write_set)
-    and thus informs handler that values for these fields should be
-    retrieved/stored during execution of statement.
+  @param thd    Current thread context
+  @param event  Type of event triggers for which we are going to inspect
 */
 
 void Table_triggers_list::mark_fields_used(trg_event_type event)
@@ -1971,23 +2012,23 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
 }
 
 
-/*
-  Trigger BUG#14090 compatibility hook
+/**
+  Trigger BUG#14090 compatibility hook.
 
-  SYNOPSIS
-    Handle_old_incorrect_sql_modes_hook::process_unknown_string()
-    unknown_key          [in/out] reference on the line with unknown
-                                  parameter and the parsing point
-    base                 [in] base address for parameter writing (structure
-                              like TABLE)
-    mem_root             [in] MEM_ROOT for parameters allocation
-    end                  [in] the end of the configuration
+  @param[in,out] unknown_key       reference on the line with unknown
+    parameter and the parsing point
+  @param[in]     base              base address for parameter writing
+    (structure like TABLE)
+  @param[in]     mem_root          MEM_ROOT for parameters allocation
+  @param[in]     end               the end of the configuration
 
-  NOTE: this hook process back compatibility for incorrectly written
-  sql_modes parameter (see BUG#14090).
+  @note
+    NOTE: this hook process back compatibility for incorrectly written
+    sql_modes parameter (see BUG#14090).
 
-  RETURN
+  @retval
     FALSE OK
+  @retval
     TRUE  Error
 */
 
@@ -2029,13 +2070,12 @@ Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
   DBUG_RETURN(FALSE);
 }
 
-/*
+#define INVALID_TRIGGER_TABLE_LENGTH 15
+
+/**
   Trigger BUG#15921 compatibility hook. For details see
   Handle_old_incorrect_sql_modes_hook::process_unknown_string().
 */
-
-#define INVALID_TRIGGER_TABLE_LENGTH 15
-
 bool
 Handle_old_incorrect_trigger_table_hook::
 process_unknown_string(char *&unknown_key, uchar* base, MEM_ROOT *mem_root,
@@ -2074,9 +2114,9 @@ process_unknown_string(char *&unknown_key, uchar* base, MEM_ROOT *mem_root,
 /**
   Contruct path to TRN-file.
 
-  @param[in]  thd        Thread context.
-  @param[in]  trg_name   Trigger name.
-  @param[out] trn_path   Variable to store constructed path
+  @param thd[in]        Thread context.
+  @param trg_name[in]   Trigger name.
+  @param trn_path[out]  Variable to store constructed path
 */
 
 void build_trn_path(THD *thd, const sp_name *trg_name, LEX_STRING *trn_path)
@@ -2109,10 +2149,10 @@ bool check_trn_exists(const LEX_STRING *trn_path)
 /**
   Retrieve table name for given trigger.
 
-  @param[in]  thd        Thread context.
-  @param[in]  trg_name   Trigger name.
-  @param[in]  trn_path   Path to the corresponding TRN-file.
-  @param[out] tbl_name  Variable to store retrieved table name.
+  @param thd[in]        Thread context.
+  @param trg_name[in]   Trigger name.
+  @param trn_path[in]   Path to the corresponding TRN-file.
+  @param tbl_name[out]  Variable to store retrieved table name.
 
   @return Error status.
     @retval FALSE on success.

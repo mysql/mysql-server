@@ -14,7 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* This file defines all compare functions */
+/**
+  @file
+
+  @brief
+  This file defines all compare functions
+*/
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -104,7 +109,7 @@ static int cmp_row_type(Item* item1, Item* item2)
 }
 
 
-/*
+/**
   Aggregates result types from the array of items.
 
   SYNOPSIS:
@@ -117,11 +122,13 @@ static int cmp_row_type(Item* item1, Item* item2)
     This function aggregates result types from the array of items. Found type
     supposed to be used later for comparison of values of these items.
     Aggregation itself is performed by the item_cmp_type() function.
-    The function also checks compatibility of row signatures for the
-    submitted items (see the spec for the cmp_row_type function). 
+  @param[out] type    the aggregated type
+  @param      items        array of items to aggregate the type from
+  @param      nitems       number of items in the array
 
-  RETURN VALUES
+  @retval
     1  type incompatibility has been detected
+  @retval
     0  otherwise
 */
 
@@ -286,9 +293,10 @@ void Item_func_not::print(String *str)
   str->append(')');
 }
 
-/*
-  special NOT for ALL subquery
+/**
+  special NOT for ALL subquery.
 */
+
 
 longlong Item_func_not_all::val_int()
 {
@@ -322,10 +330,13 @@ void Item_func_not_all::print(String *str)
 }
 
 
-/*
-  Special NOP (No OPeration) for ALL subquery it is like  Item_func_not_all
-  (return TRUE if underlying subquery do not return rows) but if subquery
-  returns some rows it return same value as argument (TRUE/FALSE).
+/**
+  Special NOP (No OPeration) for ALL subquery. It is like
+  Item_func_not_all.
+
+  @return
+    (return TRUE if underlying subquery do not return rows) but if subquery
+    returns some rows it return same value as argument (TRUE/FALSE).
 */
 
 longlong Item_func_nop_all::val_int()
@@ -345,16 +356,9 @@ longlong Item_func_nop_all::val_int()
 }
 
 
-/*
-  Convert a constant item to an int and replace the original item
+/**
+  Convert a constant item to an int and replace the original item.
 
-  SYNOPSIS
-    convert_constant_item()
-    thd             thread handle
-    field           item will be converted using the type of this field
-    item  [in/out]  reference to the item to convert
-
-  DESCRIPTION
     The function converts a constant expression or string to an integer.
     On successful conversion the original item is substituted for the
     result of the item evaluation.
@@ -362,16 +366,21 @@ longlong Item_func_nop_all::val_int()
     also when comparing bigint to strings (in which case strings
     are converted to bigints).
 
-  NOTES
+  @param  thd             thread handle
+  @param  field           item will be converted using the type of this field
+  @param[in,out] item     reference to the item to convert
+
+  @note
     This function is called only at prepare stage.
     As all derived tables are filled only after all derived tables
     are prepared we do not evaluate items with subselects here because
     they can contain derived tables and thus we may attempt to use a
     table that has not been populated yet.
 
-  RESULT VALUES
-  0	Can't convert item
-  1	Item was replaced with an integer version of the item
+  @retval
+    0	Can't convert item
+  @retval
+    1	Item was replaced with an integer version of the item
 */
 
 static bool convert_constant_item(THD *thd, Field *field, Item **item)
@@ -604,26 +613,26 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 }
 
 
-/*
-  Convert date provided in a string to the int representation.
+/**
+  @brief Convert date provided in a string to the int representation.
 
-  SYNOPSIS
-    get_date_from_str()
-    thd              Thread handle
-    str              a string to convert
-    warn_type        type of the timestamp for issuing the warning
-    warn_name        field name for issuing the warning
-    error_arg  [out] TRUE if string isn't a DATETIME or clipping occur
+  @param[in]   thd        thread handle
+  @param[in]   str        a string to convert
+  @param[in]   warn_type  type of the timestamp for issuing the warning
+  @param[in]   warn_name  field name for issuing the warning
+  @param[out]  error_arg  could not extract a DATE or DATETIME
 
-  DESCRIPTION
-    Convert date provided in the string str to the int representation.
-    if the string contains wrong date or doesn't contain it at all
-    then the warning is issued and TRUE returned in the error_arg argument.
-    The warn_type and the warn_name arguments are used as the name and the
-    type of the field when issuing the warning.
+  @details Convert date provided in the string str to the int
+    representation.  If the string contains wrong date or doesn't
+    contain it at all then a warning is issued.  The warn_type and
+    the warn_name arguments are used as the name and the type of the
+    field when issuing the warning.  If any input was discarded
+    (trailing or non-timestampy characters), was_cut will be non-zero.
+    was_type will return the type str_to_datetime() could correctly
+    extract.
 
-  RETURN
-    converted value.
+  @return
+    converted value. 0 on error and on zero-dates -- check 'failure'
 */
 
 static ulonglong
@@ -634,26 +643,33 @@ get_date_from_str(THD *thd, String *str, timestamp_type warn_type,
   int error;
   MYSQL_TIME l_time;
   enum_mysql_timestamp_type ret;
-  *error_arg= TRUE;
 
   ret= str_to_datetime(str->ptr(), str->length(), &l_time,
                        (TIME_FUZZY_DATE | MODE_INVALID_DATES |
                         (thd->variables.sql_mode &
                          (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE))),
                        &error);
-  if ((ret == MYSQL_TIMESTAMP_DATETIME || ret == MYSQL_TIMESTAMP_DATE))
+
+  if (ret == MYSQL_TIMESTAMP_DATETIME || ret == MYSQL_TIMESTAMP_DATE)
   {
-    value= TIME_to_ulonglong_datetime(&l_time);
+    /*
+      Do not return yet, we may still want to throw a "trailing garbage"
+      warning.
+    */
     *error_arg= FALSE;
+    value= TIME_to_ulonglong_datetime(&l_time);
+  }
+  else
+  {
+    *error_arg= TRUE;
+    error= 1;                                   /* force warning */
   }
 
-  if (error || *error_arg)
-  {
+  if (error > 0)
     make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  str->ptr(), str->length(),
                                  warn_type, warn_name);
-    *error_arg= TRUE;
-  }
+
   return value;
 }
 
@@ -926,12 +942,15 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   {
     value= item->val_int();
     *is_null= item->null_value;
+    enum_field_types f_type= item->field_type();
     /*
       Item_date_add_interval may return MYSQL_TYPE_STRING as the result
       field type. To detect that the DATE value has been returned we
-      compare it with 1000000L - any DATE value should be less than it.
+      compare it with 100000000L - any DATE value should be less than it.
+      Don't shift cached DATETIME values up for the second time.
     */
-    if (item->field_type() == MYSQL_TYPE_DATE || value < 100000000L)
+    if (f_type == MYSQL_TYPE_DATE ||
+        (f_type != MYSQL_TYPE_DATETIME && value < 100000000L))
       value*= 1000000L;
   }
   else
@@ -954,6 +973,12 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     timestamp_type t_type= f_type ==
       MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME;
     value= get_date_from_str(thd, str, t_type, warn_item->name, &error);
+    /*
+      If str did not contain a valid date according to the current
+      SQL_MODE, get_date_from_str() has already thrown a warning,
+      and we don't want to throw NULL on invalid date (see 5.2.6
+      "SQL modes" in the manual), so we're done here.
+    */
   }
   /*
     Do not cache GET_USER_VAR() function as its const_item() may return TRUE
@@ -962,7 +987,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
-    Item_cache_int *cache= new Item_cache_int();
+    Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
     cache->store(item, value);
@@ -1042,13 +1067,15 @@ int Arg_comparator::compare_string()
 }
 
 
-/*
+/**
   Compare strings byte by byte. End spaces are also compared.
 
-  RETURN
-   < 0	*a < *b
-   0	*b == *b
-   > 0	*a > *b
+  @retval
+    <0	*a < *b
+  @retval
+    0	*b == *b
+  @retval
+    >0	*a > *b
 */
 
 int Arg_comparator::compare_binary_string()
@@ -1070,9 +1097,10 @@ int Arg_comparator::compare_binary_string()
 }
 
 
-/*
-  Compare strings, but take into account that NULL == NULL
+/**
+  Compare strings, but take into account that NULL == NULL.
 */
+
 
 int Arg_comparator::compare_e_string()
 {
@@ -1214,7 +1242,7 @@ int Arg_comparator::compare_int_signed()
 }
 
 
-/*
+/**
   Compare values as BIGINT UNSIGNED.
 */
 
@@ -1237,7 +1265,7 @@ int Arg_comparator::compare_int_unsigned()
 }
 
 
-/*
+/**
   Compare signed (*a) with unsigned (*B)
 */
 
@@ -1262,7 +1290,7 @@ int Arg_comparator::compare_int_signed_unsigned()
 }
 
 
-/*
+/**
   Compare unsigned (*a) with signed (*B)
 */
 
@@ -1298,7 +1326,7 @@ int Arg_comparator::compare_e_int()
   return test(val1 == val2);
 }
 
-/*
+/**
   Compare unsigned *a with signed *b or signed *a with unsigned *b.
 */
 int Arg_comparator::compare_e_int_diff_signedness()
@@ -1425,7 +1453,7 @@ longlong Item_func_truth::val_int()
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
   if (!args[0]->fixed && args[0]->fix_fields(thd, args) ||
-      !cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
+      !cache && !(cache= Item_cache::get_cache(args[0])))
     return 1;
 
   cache->setup(args[0]);
@@ -1587,7 +1615,7 @@ longlong Item_func_eq::val_int()
 }
 
 
-/* Same as Item_func_eq, but NULL = NULL */
+/** Same as Item_func_eq, but NULL = NULL. */
 
 void Item_func_equal::fix_length_and_dec()
 {
@@ -1678,26 +1706,29 @@ bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const
 
 void Item_func_interval::fix_length_and_dec()
 {
+  uint rows= row->cols();
+  
   use_decimal_comparison= ((row->element_index(0)->result_type() ==
                             DECIMAL_RESULT) ||
                            (row->element_index(0)->result_type() ==
                             INT_RESULT));
-  if (row->cols() > 8)
+  if (rows > 8)
   {
-    bool consts=1;
+    bool not_null_consts= TRUE;
 
-    for (uint i=1 ; consts && i < row->cols() ; i++)
+    for (uint i= 1; not_null_consts && i < rows; i++)
     {
-      consts&= row->element_index(i)->const_item();
+      Item *el= row->element_index(i);
+      not_null_consts&= el->const_item() & !el->is_null();
     }
 
-    if (consts &&
+    if (not_null_consts &&
         (intervals=
-          (interval_range*) sql_alloc(sizeof(interval_range)*(row->cols()-1))))
+          (interval_range*) sql_alloc(sizeof(interval_range) * (rows - 1))))
     {
       if (use_decimal_comparison)
       {
-        for (uint i=1 ; i < row->cols(); i++)
+        for (uint i= 1; i < rows; i++)
         {
           Item *el= row->element_index(i);
           interval_range *range= intervals + (i-1);
@@ -1722,7 +1753,7 @@ void Item_func_interval::fix_length_and_dec()
       }
       else
       {
-        for (uint i=1 ; i < row->cols(); i++)
+        for (uint i= 1; i < rows; i++)
         {
           intervals[i-1].dbl= row->element_index(i)->val_real();
         }
@@ -1738,21 +1769,18 @@ void Item_func_interval::fix_length_and_dec()
 }
 
 
-/*
-  Execute Item_func_interval()
+/**
+  Execute Item_func_interval().
 
-  SYNOPSIS
-    Item_func_interval::val_int()
+  @note
+    If we are doing a decimal comparison, we are evaluating the first
+    item twice.
 
-  NOTES
-    If we are doing a decimal comparison, we are
-    evaluating the first item twice.
-
-  RETURN
-    -1 if null value,
-    0 if lower than lowest
-    1 - arg_count-1 if between args[n] and args[n+1]
-    arg_count if higher than biggest argument
+  @return
+    - -1 if null value,
+    - 0 if lower than lowest
+    - 1 - arg_count-1 if between args[n] and args[n+1]
+    - arg_count if higher than biggest argument
 */
 
 longlong Item_func_interval::val_int()
@@ -1813,43 +1841,52 @@ longlong Item_func_interval::val_int()
         ((el->result_type() == DECIMAL_RESULT) ||
          (el->result_type() == INT_RESULT)))
     {
-      my_decimal e_dec_buf, *e_dec= row->element_index(i)->val_decimal(&e_dec_buf);
+      my_decimal e_dec_buf, *e_dec= el->val_decimal(&e_dec_buf);
+      /* Skip NULL ranges. */
+      if (el->null_value)
+        continue;
       if (my_decimal_cmp(e_dec, dec) > 0)
-        return i-1;
+        return i - 1;
     }
-    else if (row->element_index(i)->val_real() > value)
-      return i-1;
+    else 
+    {
+      double val= el->val_real();
+      /* Skip NULL ranges. */
+      if (el->null_value)
+        continue;
+      if (val > value)
+        return i - 1;
+    }
   }
   return i-1;
 }
 
 
-/*
-  Perform context analysis of a BETWEEN item tree
+/**
+  Perform context analysis of a BETWEEN item tree.
 
-  SYNOPSIS:
-    fix_fields()
-    thd     reference to the global context of the query thread
-    tables  list of all open tables involved in the query
-    ref     pointer to Item* variable where pointer to resulting "fixed"
-            item is to be assigned
-
-  DESCRIPTION
     This function performs context analysis (name resolution) and calculates
     various attributes of the item tree with Item_func_between as its root.
     The function saves in ref the pointer to the item or to a newly created
     item that is considered as a replacement for the original one.
 
-  NOTES
+  @param thd     reference to the global context of the query thread
+  @param ref     pointer to Item* variable where pointer to resulting "fixed"
+                 item is to be assigned
+
+  @note
     Let T0(e)/T1(e) be the value of not_null_tables(e) when e is used on
     a predicate/function level. Then it's easy to show that:
+    @verbatim
       T0(e BETWEEN e1 AND e2)     = union(T1(e),T1(e1),T1(e2))
       T1(e BETWEEN e1 AND e2)     = union(T1(e),intersection(T1(e1),T1(e2)))
       T0(e NOT BETWEEN e1 AND e2) = union(T1(e),intersection(T1(e1),T1(e2)))
       T1(e NOT BETWEEN e1 AND e2) = union(T1(e),intersection(T1(e1),T1(e2)))
+    @endverbatim
 
-  RETURN
+  @retval
     0   ok
+  @retval
     1   got error
 */
 
@@ -2193,30 +2230,29 @@ Item_func_ifnull::str_op(String *str)
 }
 
 
-/*
-  Perform context analysis of an IF item tree
+/**
+  Perform context analysis of an IF item tree.
 
-  SYNOPSIS:
-    fix_fields()
-    thd     reference to the global context of the query thread
-    tables  list of all open tables involved in the query
-    ref     pointer to Item* variable where pointer to resulting "fixed"
-            item is to be assigned
-
-  DESCRIPTION
     This function performs context analysis (name resolution) and calculates
     various attributes of the item tree with Item_func_if as its root.
     The function saves in ref the pointer to the item or to a newly created
     item that is considered as a replacement for the original one.
 
-  NOTES
+  @param thd     reference to the global context of the query thread
+  @param ref     pointer to Item* variable where pointer to resulting "fixed"
+                 item is to be assigned
+
+  @note
     Let T0(e)/T1(e) be the value of not_null_tables(e) when e is used on
     a predicate/function level. Then it's easy to show that:
+    @verbatim
       T0(IF(e,e1,e2)  = T1(IF(e,e1,e2))
       T1(IF(e,e1,e2)) = intersection(T1(e1),T1(e2))
+    @endverbatim
 
-  RETURN
+  @retval
     0   ok
+  @retval
     1   got error
 */
 
@@ -2361,11 +2397,14 @@ Item_func_nullif::fix_length_and_dec()
 }
 
 
-/*
-  nullif () returns NULL if arguments are equal, else it returns the
-  first argument.
+/**
+  @note
   Note that we have to evaluate the first argument twice as the compare
   may have been done with a different type than return value
+  @return
+    NULL  if arguments are equal
+  @return
+    the first argument if not equal
 */
 
 double
@@ -2437,14 +2476,7 @@ Item_func_nullif::is_null()
 }
 
 
-/*
-  Return the matching ITEM or NULL if all compares (including else) failed
-
-  SYNOPSIS
-    find_item()
-      str      Buffer string
-
-  DESCRIPTION
+/**
     Find and return matching items for CASE or ELSE item if all compares
     are failed or NULL if ELSE item isn't defined.
 
@@ -2458,9 +2490,10 @@ Item_func_nullif::is_null()
     to it according to their int values i.e. STRING_RESULT is mapped to bit
     0, REAL_RESULT to bit 1, so on.
 
-  RETURN
-    NULL - Nothing found and there is no ELSE expression defined
-    item - Found item or ELSE item if defined and all comparisons are
+  @retval
+    NULL  Nothing found and there is no ELSE expression defined
+  @retval
+    item  Found item or ELSE item if defined and all comparisons are
            failed
 */
 
@@ -2597,6 +2630,23 @@ bool Item_func_case::fix_fields(THD *thd, Item **ref)
 }
 
 
+void Item_func_case::agg_str_lengths(Item* arg)
+{
+  set_if_bigger(max_length, arg->max_length);
+  set_if_bigger(decimals, arg->decimals);
+  unsigned_flag= unsigned_flag && arg->unsigned_flag;
+}
+
+
+void Item_func_case::agg_num_lengths(Item *arg)
+{
+  uint len= my_decimal_length_to_precision(arg->max_length, arg->decimals,
+                                           arg->unsigned_flag) - arg->decimals;
+  set_if_bigger(max_length, len); 
+  set_if_bigger(decimals, arg->decimals);
+  unsigned_flag= unsigned_flag && arg->unsigned_flag; 
+}
+
 
 void Item_func_case::fix_length_and_dec()
 {
@@ -2660,15 +2710,22 @@ void Item_func_case::fix_length_and_dec()
   
   max_length=0;
   decimals=0;
-  for (uint i=0 ; i < ncases ; i+=2)
+  unsigned_flag= TRUE;
+  if (cached_result_type == STRING_RESULT)
   {
-    set_if_bigger(max_length,args[i+1]->max_length);
-    set_if_bigger(decimals,args[i+1]->decimals);
+    for (uint i= 0; i < ncases; i+= 2)
+      agg_str_lengths(args[i + 1]);
+    if (else_expr_num != -1)
+      agg_str_lengths(args[else_expr_num]);
   }
-  if (else_expr_num != -1) 
+  else
   {
-    set_if_bigger(max_length,args[else_expr_num]->max_length);
-    set_if_bigger(decimals,args[else_expr_num]->decimals);
+    for (uint i= 0; i < ncases; i+= 2)
+      agg_num_lengths(args[i + 1]);
+    if (else_expr_num != -1) 
+      agg_num_lengths(args[else_expr_num]);
+    max_length= my_decimal_precision_to_length(max_length + decimals, decimals,
+                                               unsigned_flag);
   }
 }
 
@@ -2685,7 +2742,10 @@ uint Item_func_case::decimal_precision() const
 }
 
 
-/* TODO:  Fix this so that it prints the whole CASE expression */
+/**
+  @todo
+    Fix this so that it prints the whole CASE expression
+*/
 
 void Item_func_case::print(String *str)
 {
@@ -2727,7 +2787,7 @@ void Item_func_case::cleanup()
 }
 
 
-/*
+/**
   Coalesce - return first not NULL argument.
 */
 
@@ -2872,7 +2932,7 @@ static inline int cmp_ulongs (ulonglong a_val, ulonglong b_val)
 
   SYNOPSIS
     cmp_longlong()
-      cmp_arg   an argument passed to the calling function (qsort2)
+      cmp_arg   an argument passed to the calling function (my_qsort2)
       a         left argument
       b         right argument
 
@@ -3346,32 +3406,31 @@ bool Item_func_in::nulls_in_row()
 }
 
 
-/*
-  Perform context analysis of an IN item tree
+/**
+  Perform context analysis of an IN item tree.
 
-  SYNOPSIS:
-    fix_fields()
-    thd     reference to the global context of the query thread
-    tables  list of all open tables involved in the query
-    ref     pointer to Item* variable where pointer to resulting "fixed"
-            item is to be assigned
-
-  DESCRIPTION
     This function performs context analysis (name resolution) and calculates
     various attributes of the item tree with Item_func_in as its root.
     The function saves in ref the pointer to the item or to a newly created
     item that is considered as a replacement for the original one.
 
-  NOTES
+  @param thd     reference to the global context of the query thread
+  @param ref     pointer to Item* variable where pointer to resulting "fixed"
+                 item is to be assigned
+
+  @note
     Let T0(e)/T1(e) be the value of not_null_tables(e) when e is used on
     a predicate/function level. Then it's easy to show that:
+    @verbatim
       T0(e IN(e1,...,en))     = union(T1(e),intersection(T1(ei)))
       T1(e IN(e1,...,en))     = union(T1(e),intersection(T1(ei)))
       T0(e NOT IN(e1,...,en)) = union(T1(e),union(T1(ei)))
       T1(e NOT IN(e1,...,en)) = union(T1(e),intersection(T1(ei)))
+    @endverbatim
 
-  RETURN
+  @retval
     0   ok
+  @retval
     1   got error
 */
 
@@ -3846,25 +3905,22 @@ bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 }
 
 
-/*
-  Transform an Item_cond object with a transformer callback function
-   
-  SYNOPSIS
-    transform()
-      transformer   the transformer callback function to be applied to the nodes
-                    of the tree of the object
-      arg           parameter to be passed to the transformer
-  
-  DESCRIPTION
+/**
+  Transform an Item_cond object with a transformer callback function.
+
     The function recursively applies the transform method to each
-     member item of the condition list.
+    member item of the condition list.
     If the call of the method for a member item returns a new item
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
-    of the Item_cond object. 
-     
-  RETURN VALUES
-    Item returned as the result of transformation of the root node 
+    of the Item_cond object.
+ 
+  @param transformer   the transformer callback function to be applied to
+                       the nodes of the tree of the object
+  @param arg           parameter to be passed to the transformer
+
+  @return
+    Item returned as the result of transformation of the root node
 */
 
 Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
@@ -3892,19 +3948,10 @@ Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
 }
 
 
-/*
-  Compile Item_cond object with a processor and a transformer callback functions
-   
-  SYNOPSIS
-    compile()
-      analyzer      the analyzer callback function to be applied to the nodes
-                    of the tree of the object
-      arg_p         in/out parameter to be passed to the analyzer
-      transformer   the transformer callback function to be applied to the nodes
-                    of the tree of the object
-      arg_t         parameter to be passed to the transformer
-  
-  DESCRIPTION
+/**
+  Compile Item_cond object with a processor and a transformer
+  callback functions.
+
     First the function applies the analyzer to the root node of
     the Item_func object. Then if the analyzer succeeeds (returns TRUE)
     the function recursively applies the compile method to member
@@ -3913,9 +3960,16 @@ Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_cond object. 
-     
-  RETURN VALUES
-    Item returned as the result of transformation of the root node 
+
+  @param analyzer      the analyzer callback function to be applied to the
+                       nodes of the tree of the object
+  @param[in,out] arg_p parameter to be passed to the analyzer
+  @param transformer   the transformer callback function to be applied to the
+                       nodes of the tree of the object
+  @param arg_t         parameter to be passed to the transformer
+
+  @return
+    Item returned as the result of transformation of the root node
 */
 
 Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
@@ -3964,23 +4018,21 @@ void Item_cond::traverse_cond(Cond_traverser traverser,
   }
 }
 
-/*
-  Move SUM items out from item tree and replace with reference
+/**
+  Move SUM items out from item tree and replace with reference.
 
-  SYNOPSIS
-    split_sum_func()
-    thd			Thread handler
-    ref_pointer_array	Pointer to array of reference fields
-    fields		All fields in select
+  The split is done to get an unique item for each SUM function
+  so that we can easily find and calculate them.
+  (Calculation done by update_sum_func() and copy_sum_funcs() in
+  sql_select.cc)
 
-  NOTES
-   This function is run on all expression (SELECT list, WHERE, HAVING etc)
-   that have or refer (HAVING) to a SUM expression.
+  @param thd			Thread handler
+  @param ref_pointer_array	Pointer to array of reference fields
+  @param fields		All fields in select
 
-   The split is done to get an unique item for each SUM function
-   so that we can easily find and calculate them.
-   (Calculation done by update_sum_func() and copy_sum_funcs() in
-   sql_select.cc)
+  @note
+    This function is run on all expression (SELECT list, WHERE, HAVING etc)
+    that have or refer (HAVING) to a SUM expression.
 */
 
 void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
@@ -4051,20 +4103,22 @@ void Item_cond::neg_arguments(THD *thd)
 }
 
 
-/*
-  Evaluation of AND(expr, expr, expr ...)
+/**
+  Evaluation of AND(expr, expr, expr ...).
 
-  NOTES:
+  @note
     abort_if_null is set for AND expressions for which we don't care if the
     result is NULL or 0. This is set for:
     - WHERE clause
     - HAVING clause
     - IF(expression)
 
-  RETURN VALUES
+  @retval
     1  If all expressions are true
+  @retval
     0  If all expressions are false or if we find a NULL expression and
-       'abort_on_null' is set.
+    'abort_on_null' is set.
+  @retval
     NULL if all expression are either 1 or NULL
 */
 
@@ -4106,24 +4160,23 @@ longlong Item_cond_or::val_int()
   return 0;
 }
 
-/*
-  Create an AND expression from two expressions
+/**
+  Create an AND expression from two expressions.
 
-  SYNOPSIS
-   and_expressions()
-   a		expression or NULL
-   b    	expression.
-   org_item	Don't modify a if a == *org_item
-		If a == NULL, org_item is set to point at b,
-		to ensure that future calls will not modify b.
+  @param a	expression or NULL
+  @param b    	expression.
+  @param org_item	Don't modify a if a == *org_item.
+                       If a == NULL, org_item is set to point at b,
+                       to ensure that future calls will not modify b.
 
-  NOTES
+  @note
     This will not modify item pointed to by org_item or b
     The idea is that one can call this in a loop and create and
     'and' over all items without modifying any of the original items.
 
-  RETURN
+  @retval
     NULL	Error
+  @retval
     Item
 */
 
@@ -4181,7 +4234,9 @@ longlong Item_is_not_null_test::val_int()
     DBUG_RETURN(1);
 }
 
-/* Optimize case of not_null_column IS NULL */
+/**
+  Optimize case of not_null_column IS NULL.
+*/
 void Item_is_not_null_test::update_used_tables()
 {
   if (!args[0]->maybe_null)
@@ -4241,7 +4296,9 @@ longlong Item_func_like::val_int()
 }
 
 
-/* We can optimize a where if first character isn't a wildcard */
+/**
+  We can optimize a where if first character isn't a wildcard
+*/
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
@@ -4381,6 +4438,51 @@ void Item_func_like::cleanup()
 #ifdef USE_REGEX
 
 bool
+Item_func_regex::regcomp(bool send_error)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String tmp(buff,sizeof(buff),&my_charset_bin);
+  String *res= args[1]->val_str(&tmp);
+  int error;
+
+  if (args[1]->null_value)
+    return TRUE;
+
+  if (regex_compiled)
+  {
+    if (!stringcmp(res, &prev_regexp))
+      return FALSE;
+    prev_regexp.copy(*res);
+    my_regfree(&preg);
+    regex_compiled= 0;
+  }
+
+  if (cmp_collation.collation != regex_lib_charset)
+  {
+    /* Convert UCS2 strings to UTF8 */
+    uint dummy_errors;
+    if (conv.copy(res->ptr(), res->length(), res->charset(),
+                  regex_lib_charset, &dummy_errors))
+      return TRUE;
+    res= &conv;
+  }
+
+  if ((error= my_regcomp(&preg, res->c_ptr_safe(),
+                         regex_lib_flags, regex_lib_charset)))
+  {
+    if (send_error)
+    {
+      (void) my_regerror(error, &preg, buff, sizeof(buff));
+      my_error(ER_REGEXP_ERROR, MYF(0), buff);
+    }
+    return TRUE;
+  }
+  regex_compiled= 1;
+  return FALSE;
+}
+
+
+bool
 Item_func_regex::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
@@ -4396,35 +4498,34 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
   if (agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1))
     return TRUE;
 
+  regex_lib_flags= (cmp_collation.collation->state &
+                    (MY_CS_BINSORT | MY_CS_CSSORT)) ?
+                   REG_EXTENDED | REG_NOSUB :
+                   REG_EXTENDED | REG_NOSUB | REG_ICASE;
+  /*
+    If the case of UCS2 and other non-ASCII character sets,
+    we will convert patterns and strings to UTF8.
+  */
+  regex_lib_charset= (cmp_collation.collation->mbminlen > 1) ?
+                     &my_charset_utf8_general_ci :
+                     cmp_collation.collation;
+
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   not_null_tables_cache= (args[0]->not_null_tables() |
 			  args[1]->not_null_tables());
   const_item_cache=args[0]->const_item() && args[1]->const_item();
   if (!regex_compiled && args[1]->const_item())
   {
-    char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),&my_charset_bin);
-    String *res=args[1]->val_str(&tmp);
     if (args[1]->null_value)
     {						// Will always return NULL
       maybe_null=1;
       fixed= 1;
       return FALSE;
     }
-    int error;
-    if ((error= my_regcomp(&preg,res->c_ptr(),
-                           ((cmp_collation.collation->state &
-                             (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                            REG_EXTENDED | REG_NOSUB :
-                            REG_EXTENDED | REG_NOSUB | REG_ICASE),
-                           cmp_collation.collation)))
-    {
-      (void) my_regerror(error,&preg,buff,sizeof(buff));
-      my_error(ER_REGEXP_ERROR, MYF(0), buff);
+    if (regcomp(TRUE))
       return TRUE;
-    }
-    regex_compiled=regex_is_const=1;
-    maybe_null=args[0]->maybe_null;
+    regex_is_const= 1;
+    maybe_null= args[0]->maybe_null;
   }
   else
     maybe_null=1;
@@ -4437,47 +4538,25 @@ longlong Item_func_regex::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
-  String *res, tmp(buff,sizeof(buff),&my_charset_bin);
+  String tmp(buff,sizeof(buff),&my_charset_bin);
+  String *res= args[0]->val_str(&tmp);
 
-  res=args[0]->val_str(&tmp);
-  if (args[0]->null_value)
-  {
-    null_value=1;
+  if ((null_value= (args[0]->null_value ||
+                    (!regex_is_const && regcomp(FALSE)))))
     return 0;
-  }
-  if (!regex_is_const)
-  {
-    char buff2[MAX_FIELD_WIDTH];
-    String *res2, tmp2(buff2,sizeof(buff2),&my_charset_bin);
 
-    res2= args[1]->val_str(&tmp2);
-    if (args[1]->null_value)
+  if (cmp_collation.collation != regex_lib_charset)
+  {
+    /* Convert UCS2 strings to UTF8 */
+    uint dummy_errors;
+    if (conv.copy(res->ptr(), res->length(), res->charset(),
+                  regex_lib_charset, &dummy_errors))
     {
-      null_value=1;
+      null_value= 1;
       return 0;
     }
-    if (!regex_compiled || stringcmp(res2,&prev_regexp))
-    {
-      prev_regexp.copy(*res2);
-      if (regex_compiled)
-      {
-	my_regfree(&preg);
-	regex_compiled=0;
-      }
-      if (my_regcomp(&preg,res2->c_ptr_safe(),
-                     ((cmp_collation.collation->state &
-                       (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                      REG_EXTENDED | REG_NOSUB :
-                      REG_EXTENDED | REG_NOSUB | REG_ICASE),
-                     cmp_collation.collation))
-      {
-	null_value=1;
-	return 0;
-      }
-      regex_compiled=1;
-    }
+    res= &conv;
   }
-  null_value=0;
   return my_regexec(&preg,res->c_ptr_safe(),0,(my_regmatch_t*) 0,0) ? 0 : 1;
 }
 
@@ -4505,10 +4584,9 @@ void Item_func_regex::cleanup()
 #endif
 
 
-/**********************************************************************
-  turboBM_compute_suffixes()
+/**
   Precomputation dependent only on pattern_len.
-**********************************************************************/
+*/
 
 void Item_func_like::turboBM_compute_suffixes(int *suff)
 {
@@ -4562,10 +4640,9 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
 }
 
 
-/**********************************************************************
-   turboBM_compute_good_suffix_shifts()
-   Precomputation dependent only on pattern_len.
-**********************************************************************/
+/**
+  Precomputation dependent only on pattern_len.
+*/
 
 void Item_func_like::turboBM_compute_good_suffix_shifts(int *suff)
 {
@@ -4607,10 +4684,9 @@ void Item_func_like::turboBM_compute_good_suffix_shifts(int *suff)
 }
 
 
-/**********************************************************************
-   turboBM_compute_bad_character_shifts()
-   Precomputation dependent on pattern_len.
-**********************************************************************/
+/**
+  Precomputation dependent on pattern_len.
+*/
 
 void Item_func_like::turboBM_compute_bad_character_shifts()
 {
@@ -4636,10 +4712,12 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
 }
 
 
-/**********************************************************************
-  turboBM_matches()
-  Search for pattern in text, returns true/false for match/no match
-**********************************************************************/
+/**
+  Search for pattern in text.
+
+  @return
+    returns true/false for match/no match
+*/
 
 bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 {
@@ -4719,24 +4797,20 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 }
 
 
-/*
+/**
   Make a logical XOR of the arguments.
 
-  SYNOPSIS
-    val_int()
-
-  DESCRIPTION
   If either operator is NULL, return NULL.
 
-  NOTE
-    As we don't do any index optimization on XOR this is not going to be
-    very fast to use.
-
-  TODO (low priority)
-    Change this to be optimized as:
-      A XOR B   ->  (A) == 1 AND (B) <> 1) OR (A <> 1 AND (B) == 1)
+  @todo
+    (low priority) Change this to be optimized as: @n
+    A XOR B   ->  (A) == 1 AND (B) <> 1) OR (A <> 1 AND (B) == 1) @n
     To be able to do this, we would however first have to extend the MySQL
     range optimizer to handle OR better.
+
+  @note
+    As we don't do any index optimization on XOR this is not going to be
+    very fast to use.
 */
 
 longlong Item_cond_xor::val_int()
@@ -4758,15 +4832,12 @@ longlong Item_cond_xor::val_int()
   return (longlong) result;
 }
 
-/*
+/**
   Apply NOT transformation to the item and return a new one.
 
-  SYNOPSIS
-    neg_transformer()
-    thd		thread handler
 
-  DESCRIPTION
     Transform the item using next rules:
+    @verbatim
        a AND b AND ...    -> NOT(a) OR NOT(b) OR ...
        a OR b OR ...      -> NOT(a) AND NOT(b) AND ...
        NOT(a)             -> a
@@ -4778,8 +4849,11 @@ longlong Item_cond_xor::val_int()
        a <= b             -> a > b
        IS NULL(a)         -> IS NOT NULL(a)
        IS NOT NULL(a)     -> IS NULL(a)
+    @endverbatim
 
-  RETURN
+  @param thd		thread handler
+
+  @return
     New item or
     NULL if we cannot apply NOT transformation (see Item::neg_transformer()).
 */
@@ -4797,7 +4871,9 @@ Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 }
 
 
-/* a IS NULL  ->  a IS NOT NULL */
+/**
+  a IS NULL  ->  a IS NOT NULL.
+*/
 Item *Item_func_isnull::neg_transformer(THD *thd)
 {
   Item *item= new Item_func_isnotnull(args[0]);
@@ -4805,7 +4881,9 @@ Item *Item_func_isnull::neg_transformer(THD *thd)
 }
 
 
-/* a IS NOT NULL  ->  a IS NULL */
+/**
+  a IS NOT NULL  ->  a IS NULL.
+*/
 Item *Item_func_isnotnull::neg_transformer(THD *thd)
 {
   Item *item= new Item_func_isnull(args[0]);
@@ -4888,7 +4966,9 @@ Item *Item_func_le::negated_item()		/* a <= b  ->  a > b */
   return new Item_func_gt(args[0], args[1]);
 }
 
-// just fake method, should never be called
+/**
+  just fake method, should never be called.
+*/
 Item *Item_bool_rowready_func2::negated_item()
 {
   DBUG_ASSERT(0);
@@ -4953,19 +5033,17 @@ uint Item_equal::members()
 }
 
 
-/*
-  Check whether a field is referred in the multiple equality 
+/**
+  Check whether a field is referred in the multiple equality.
 
-  SYNOPSIS
-    contains()
-    field   field whose occurrence is to be checked
-  
-  DESCRIPTION
-    The function checks whether field is occurred in the Item_equal object 
-    
-  RETURN VALUES
+  The function checks whether field is occurred in the Item_equal object .
+
+  @param field   field whose occurrence is to be checked
+
+  @retval
     1       if nultiple equality contains a reference to field
-    0       otherwise    
+  @retval
+    0       otherwise
 */
 
 bool Item_equal::contains(Field *field)
@@ -4981,22 +5059,15 @@ bool Item_equal::contains(Field *field)
 }
 
 
-/*
-  Join members of another Item_equal object  
+/**
+  Join members of another Item_equal object.
 
-  SYNOPSIS
-    merge()
-    item    multiple equality whose members are to be joined
-  
-  DESCRIPTION
     The function actually merges two multiple equalities.
     After this operation the Item_equal object additionally contains
     the field items of another item of the type Item_equal.
     If the optional constant items are not equal the cond_false flag is
     set to 1.  
-       
-  RETURN VALUES
-    none    
+  @param item    multiple equality whose members are to be joined
 */
 
 void Item_equal::merge(Item_equal *item)
@@ -5016,28 +5087,21 @@ void Item_equal::merge(Item_equal *item)
 } 
 
 
-/*
-  Order field items in multiple equality according to a sorting criteria 
+/**
+  Order field items in multiple equality according to a sorting criteria.
 
-  SYNOPSIS
-    sort()
-    cmp          function to compare field item 
-    arg          context extra parameter for the cmp function
-  
-  DESCRIPTION
     The function perform ordering of the field items in the Item_equal
     object according to the criteria determined by the cmp callback parameter.
     If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
     placed after item_fiel2.
 
-  IMPLEMENTATION
     The function sorts field items by the exchange sort algorithm.
     The list of field items is looked through and whenever two neighboring
     members follow in a wrong order they are swapped. This is performed
     again and again until we get all members in a right order.
-         
-  RETURN VALUES
-    None    
+
+  @param cmp          function to compare field item
+  @param arg          context extra parameter for the cmp function
 */
 
 void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
@@ -5072,21 +5136,14 @@ void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
 }
 
 
-/*
-  Check appearance of new constant items in the multiple equality object
+/**
+  Check appearance of new constant items in the multiple equality object.
 
-  SYNOPSIS
-    update_const()
-  
-  DESCRIPTION
     The function checks appearance of new constant items among
     the members of multiple equalities. Each new constant item is
     compared with the designated constant item if there is any in the
     multiple equality. If there is none the first new constant item
     becomes designated.
-      
-  RETURN VALUES
-    none    
 */
 
 void Item_equal::update_const()

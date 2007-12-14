@@ -503,14 +503,14 @@ sp_cursor::fetch(THD *thd, List<struct sp_variable> *vars)
 */
 
 Item_cache *
-sp_rcontext::create_case_expr_holder(THD *thd, Item_result result_type)
+sp_rcontext::create_case_expr_holder(THD *thd, const Item *item)
 {
   Item_cache *holder;
   Query_arena current_arena;
 
   thd->set_n_backup_active_arena(thd->spcont->callers_arena, &current_arena);
 
-  holder= Item_cache::get_cache(result_type);
+  holder= Item_cache::get_cache(item);
 
   thd->restore_active_arena(thd->spcont->callers_arena, &current_arena);
 
@@ -559,7 +559,7 @@ sp_rcontext::set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr
         case_expr_item->result_type())
   {
     m_case_expr_holders[case_expr_id]=
-      create_case_expr_holder(thd, case_expr_item->result_type());
+      create_case_expr_holder(thd, case_expr_item);
   }
 
   m_case_expr_holders[case_expr_id]->store(case_expr_item);

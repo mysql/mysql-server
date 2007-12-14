@@ -199,8 +199,8 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
 }
 
 
-/** @brief
-  Use other database handler if databasehandler is not compiled in
+/**
+  Use other database handler if databasehandler is not compiled in.
 */
 handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                           bool no_substitute, bool report_error)
@@ -280,15 +280,13 @@ handler *get_ha_partition(partition_info *part_info)
 #endif
 
 
-/** @brief
+/**
   Register handler error messages for use with my_error().
 
-  SYNOPSIS
-    ha_init_errors()
-
-  RETURN
+  @retval
     0           OK
-    != 0        Error
+  @retval
+    !=0         Error
 */
 static int ha_init_errors(void)
 {
@@ -349,15 +347,13 @@ static int ha_init_errors(void)
 }
 
 
-/** @brief
+/**
   Unregister handler error messages.
 
-  SYNOPSIS
-    ha_finish_errors()
-
-  RETURN
+  @retval
     0           OK
-    != 0        Error
+  @retval
+    !=0         Error
 */
 static int ha_finish_errors(void)
 {
@@ -567,8 +563,9 @@ static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
 }
 
 
-/** @brief
-  don't bother to rollback here, it's done already
+/**
+  @note
+    don't bother to rollback here, it's done already
 */
 void ha_close_connection(THD* thd)
 {
@@ -578,17 +575,16 @@ void ha_close_connection(THD* thd)
 /* ========================================================================
  ======================= TRANSACTIONS ===================================*/
 
-/** @brief
-  Register a storage engine for a transaction
+/**
+  Register a storage engine for a transaction.
 
-  DESCRIPTION
-    Every storage engine MUST call this function when it starts
-    a transaction or a statement (that is it must be called both for the
-    "beginning of transaction" and "beginning of statement").
-    Only storage engines registered for the transaction/statement
-    will know when to commit/rollback it.
+  Every storage engine MUST call this function when it starts
+  a transaction or a statement (that is it must be called both for the
+  "beginning of transaction" and "beginning of statement").
+  Only storage engines registered for the transaction/statement
+  will know when to commit/rollback it.
 
-  NOTE
+  @note
     trans_register_ha is idempotent - storage engine may register many
     times per transaction.
 
@@ -620,10 +616,11 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   DBUG_VOID_RETURN;
 }
 
-/** @brief
-  RETURN
-      0  - ok
-      1  - error, transaction was rolled back
+/**
+  @retval
+    0   ok
+  @retval
+    1   error, transaction was rolled back
 */
 int ha_prepare(THD *thd)
 {
@@ -660,11 +657,19 @@ int ha_prepare(THD *thd)
   DBUG_RETURN(error);
 }
 
-/** @brief
-  RETURN
-      0  - ok
-      1  - transaction was rolled back
-      2  - error during commit, data may be inconsistent
+/**
+  @retval
+    0   ok
+  @retval
+    1   transaction was rolled back
+  @retval
+    2   error during commit, data may be inconsistent
+
+  @todo
+    Since we don't support nested statement transactions in 5.0,
+    we can't commit or rollback stmt transactions while we are inside
+    stored functions or triggers. So we simply do nothing now.
+    TODO: This should be fixed in later ( >= 5.1) releases.
 */
 int ha_commit_trans(THD *thd, bool all)
 {
@@ -757,9 +762,9 @@ end:
   DBUG_RETURN(error);
 }
 
-/** @brief
-  NOTE - this function does not care about global read lock.
-  A caller should.
+/**
+  @note
+  This function does not care about global read lock. A caller should.
 */
 int ha_commit_one_phase(THD *thd, bool all)
 {
@@ -869,13 +874,16 @@ int ha_rollback_trans(THD *thd, bool all)
   DBUG_RETURN(error);
 }
 
-/** @brief
-  This is used to commit or rollback a single statement depending on the value
-  of error. Note that if the autocommit is on, then the following call inside
-  InnoDB will commit or rollback the whole transaction (= the statement). The
-  autocommit mechanism built into InnoDB is based on counting locks, but if
-  the user has used LOCK TABLES then that mechanism does not know to do the
-  commit.
+/**
+  This is used to commit or rollback a single statement depending on
+  the value of error.
+
+  @note
+    Note that if the autocommit is on, then the following call inside
+    InnoDB will commit or rollback the whole transaction (= the statement). The
+    autocommit mechanism built into InnoDB is based on counting locks, but if
+    the user has used LOCK TABLES then that mechanism does not know to do the
+    commit.
 */
 int ha_autocommit_or_rollback(THD *thd, int error)
 {
@@ -944,7 +952,10 @@ int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 
 
 #ifndef DBUG_OFF
-/* this does not need to be multi-byte safe or anything */
+/**
+  @note
+    This does not need to be multi-byte safe or anything
+*/
 static char* xid_to_str(char *buf, XID *xid)
 {
   int i;
@@ -996,24 +1007,21 @@ static char* xid_to_str(char *buf, XID *xid)
 }
 #endif
 
-/** @brief
-  recover() step of xa
+/**
+  recover() step of xa.
 
-  NOTE
-   there are three modes of operation:
-
-   - automatic recover after a crash
-     in this case commit_list != 0, tc_heuristic_recover==0
-     all xids from commit_list are committed, others are rolled back
-
-   - manual (heuristic) recover
-     in this case commit_list==0, tc_heuristic_recover != 0
-     DBA has explicitly specified that all prepared transactions should
-     be committed (or rolled back).
-
-   - no recovery (MySQL did not detect a crash)
-     in this case commit_list==0, tc_heuristic_recover == 0
-     there should be no prepared transactions in this case.
+  @note
+    there are three modes of operation:
+    - automatic recover after a crash
+    in this case commit_list != 0, tc_heuristic_recover==0
+    all xids from commit_list are committed, others are rolled back
+    - manual (heuristic) recover
+    in this case commit_list==0, tc_heuristic_recover != 0
+    DBA has explicitly specified that all prepared transactions should
+    be committed (or rolled back).
+    - no recovery (MySQL did not detect a crash)
+    in this case commit_list==0, tc_heuristic_recover == 0
+    there should be no prepared transactions in this case.
 */
 struct xarecover_st
 {
@@ -1146,10 +1154,10 @@ int ha_recover(HASH *commit_list)
   DBUG_RETURN(0);
 }
 
-/** @brief
-  return the list of XID's to a client, the same way SHOW commands do
+/**
+  return the list of XID's to a client, the same way SHOW commands do.
 
-  NOTE
+  @note
     I didn't find in XA specs that an RM cannot return the same XID twice,
     so mysql_xa_recover does not filter XID's to ensure uniqueness.
     It can be easily fixed later, if necessary.
@@ -1195,7 +1203,8 @@ bool mysql_xa_recover(THD *thd)
   DBUG_RETURN(0);
 }
 
-/** @brief
+/**
+  @details
   This function should be called when MySQL sends rows of a SELECT result set
   or the EOF mark to the client. It releases a possible adaptive hash index
   S-latch held by thd in InnoDB and also releases a possible InnoDB query
@@ -1207,9 +1216,10 @@ bool mysql_xa_recover(THD *thd)
   performs another SQL query. In MySQL-4.1 this is even more important because
   there a connection can have several SELECT queries open at the same time.
 
-  arguments:
-  thd:           the thread handle of the current connection
-  return value:  always 0
+  @param thd           the thread handle of the current connection
+
+  @return
+    always 0
 */
 static my_bool release_temporary_latches(THD *thd, plugin_ref plugin,
                                  void *unused)
@@ -1276,8 +1286,9 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   DBUG_RETURN(error);
 }
 
-/** @brief
-  note, that according to the sql standard (ISO/IEC 9075-2:2003)
+/**
+  @note
+  according to the sql standard (ISO/IEC 9075-2:2003)
   section "4.33.4 SQL-statements and transaction states",
   SAVEPOINT is *not* transaction-initiating SQL-statement
 */
@@ -1593,8 +1604,9 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 }
 
 
-/** @brief
-  Read first row (only) from a table
+/**
+  Read first row (only) from a table.
+
   This is never called for InnoDB tables, as these table types
   has the HA_STATS_RECORDS_IS_EXACT set.
 */
@@ -1627,16 +1639,16 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   DBUG_RETURN(error);
 }
 
-/** @brief
-  Generate the next auto-increment number based on increment and offset:
+/**
+  Generate the next auto-increment number based on increment and offset.
   computes the lowest number
   - strictly greater than "nr"
   - of the form: auto_increment_offset + N * auto_increment_increment
 
   In most cases increment= offset= 1, in which case we get:
-  1,2,3,4,5,...
-  If increment=10 and offset=5 and previous number is 1, we get:
-  1,5,15,25,35,...
+  @verbatim 1,2,3,4,5,... @endverbatim
+    If increment=10 and offset=5 and previous number is 1, we get:
+  @verbatim 1,5,15,25,35,... @endverbatim
 */
 inline ulonglong
 compute_next_insert_id(ulonglong nr,struct system_variables *variables)
@@ -1702,23 +1714,10 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
 }
 
 
-/*
-  Update the auto_increment field if necessary
+/**
+  Update the auto_increment field if necessary.
 
-  SYNOPSIS
-    update_auto_increment()
-
-  RETURN
-    0	ok
-    HA_ERR_AUTOINC_READ_FAILED
-     	get_auto_increment() was called and returned ~(ulonglong) 0
-    HA_ERR_AUTOINC_ERANGE
-        storing value in field caused strict mode failure.
-    
-
-  IMPLEMENTATION
-
-    Updates the record's Field of type NEXT_NUMBER if:
+  Updates columns with type NEXT_NUMBER if:
 
   - If column value is set to NULL (in which case
     auto_increment_field_not_null is 0)
@@ -1769,13 +1768,20 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
     present in thd->auto_inc_intervals_in_cur_stmt_for_binlog it is added to
     this list.
 
-   TODO
-
+  @todo
     Replace all references to "next number" or NEXT_NUMBER to
     "auto_increment", everywhere (see below: there is
     table->auto_increment_field_not_null, and there also exists
     table->next_number_field, it's not consistent).
 
+  @retval
+    0	ok
+  @retval
+    HA_ERR_AUTOINC_READ_FAILED  get_auto_increment() was called and
+    returned ~(ulonglong) 0
+  @retval
+    HA_ERR_AUTOINC_ERANGE storing value in field caused strict mode
+    failure.
 */
 
 #define AUTO_INC_DEFAULT_NB_ROWS 1 // Some prefer 1024 here
@@ -2079,14 +2085,14 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
 }
 
 
-/** @brief
-  Print error that we got from handler function
+/**
+  Print error that we got from handler function.
 
-  NOTE
-   In case of delete table it's only safe to use the following parts of
-   the 'table' structure:
-     table->s->path
-     table->alias
+  @note
+    In case of delete table it's only safe to use the following parts of
+    the 'table' structure:
+    - table->s->path
+    - table->alias
 */
 void handler::print_error(int error, myf errflag)
 {
@@ -2273,14 +2279,14 @@ void handler::print_error(int error, myf errflag)
 }
 
 
-/** @brief
-   Return an error message specific to this handler
+/**
+  Return an error message specific to this handler.
 
-   SYNOPSIS
-   error        error code previously returned by handler
-   buf          Pointer to String where to add error message
+  @param error  error code previously returned by handler
+  @param buf    pointer to String where to add error message
 
-   Returns true if this is a temporary error
+  @return
+    Returns true if this is a temporary error
 */
 bool handler::get_error_message(int error, String* buf)
 {
@@ -2387,8 +2393,10 @@ err:
 
 
 
-/** @brief
-  Return key if error because of duplicated keys */
+/**
+  @return
+    key if error because of duplicated keys
+*/
 uint handler::get_dup_key(int error)
 {
   DBUG_ENTER("handler::get_dup_key");
@@ -2401,21 +2409,20 @@ uint handler::get_dup_key(int error)
 }
 
 
-/** @brief
-  Delete all files with extension from bas_ext()
+/**
+  Delete all files with extension from bas_ext().
 
-  SYNOPSIS
-    delete_table()
-    name		Base name of table
+  @param name		Base name of table
 
-  NOTES
+  @note
     We assume that the handler may return more extensions than
     was actually used for the file.
 
-  RETURN
+  @retval
     0   If we successfully deleted at least one file from base_ext and
-	didn't get any other errors than ENOENT
-    #   Error
+    didn't get any other errors than ENOENT
+  @retval
+    !0  Error
 */
 int handler::delete_table(const char *name)
 {
@@ -2462,21 +2469,20 @@ void handler::drop_table(const char *name)
 }
 
 
-/** @brief
-   Performs checks upon the table.
+/**
+  Performs checks upon the table.
 
-   SYNOPSIS
-   check()
-   thd                thread doing CHECK TABLE operation
-   check_opt          options from the parser
+  @param thd                thread doing CHECK TABLE operation
+  @param check_opt          options from the parser
 
-   NOTES
-
-   RETURN
-   HA_ADMIN_OK                 Successful upgrade
-   HA_ADMIN_NEEDS_UPGRADE      Table has structures requiring upgrade
-   HA_ADMIN_NEEDS_ALTER        Table has structures requiring ALTER TABLE
-   HA_ADMIN_NOT_IMPLEMENTED
+  @retval
+    HA_ADMIN_OK               Successful upgrade
+  @retval
+    HA_ADMIN_NEEDS_UPGRADE    Table has structures requiring upgrade
+  @retval
+    HA_ADMIN_NEEDS_ALTER      Table has structures requiring ALTER TABLE
+  @retval
+    HA_ADMIN_NOT_IMPLEMENTED
 */
 int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
 {
@@ -2511,7 +2517,7 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
-/** @brief
+/**
   Tell the storage engine that it is allowed to "disable transaction" in the
   handler. It is a hint that ACID is not required - it is used in NDB for
   ALTER TABLE, for example, when data are copied to temporary table.
@@ -2542,15 +2548,56 @@ int ha_enable_transaction(THD *thd, bool on)
 int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
 {
   int error;
+  DBUG_ENTER("index_next_same");
   if (!(error=index_next(buf)))
   {
+    my_ptrdiff_t ptrdiff= buf - table->record[0];
+    uchar *save_record_0;
+    KEY *key_info;
+    KEY_PART_INFO *key_part;
+    KEY_PART_INFO *key_part_end;
+    LINT_INIT(save_record_0);
+    LINT_INIT(key_info);
+    LINT_INIT(key_part);
+    LINT_INIT(key_part_end);
+
+    /*
+      key_cmp_if_same() compares table->record[0] against 'key'.
+      In parts it uses table->record[0] directly, in parts it uses
+      field objects with their local pointers into table->record[0].
+      If 'buf' is distinct from table->record[0], we need to move
+      all record references. This is table->record[0] itself and
+      the field pointers of the fields used in this key.
+    */
+    if (ptrdiff)
+    {
+      save_record_0= table->record[0];
+      table->record[0]= buf;
+      key_info= table->key_info + active_index;
+      key_part= key_info->key_part;
+      key_part_end= key_part + key_info->key_parts;
+      for (; key_part < key_part_end; key_part++)
+      {
+        DBUG_ASSERT(key_part->field);
+        key_part->field->move_field_offset(ptrdiff);
+      }
+    }
+
     if (key_cmp_if_same(table, key, active_index, keylen))
     {
       table->status=STATUS_NOT_FOUND;
       error=HA_ERR_END_OF_FILE;
     }
+
+    /* Move back if necessary. */
+    if (ptrdiff)
+    {
+      table->record[0]= save_record_0;
+      for (key_part= key_info->key_part; key_part < key_part_end; key_part++)
+        key_part->field->move_field_offset(-ptrdiff);
+    }
   }
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -2579,15 +2626,12 @@ void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info,
 ** Some general functions that isn't in the handler class
 ****************************************************************************/
 
-/** @brief
-  Initiates table-file and calls appropriate database-creator
+/**
+  Initiates table-file and calls appropriate database-creator.
 
-  NOTES
-    We must have a write lock on LOCK_open to be sure no other thread
-    interferes with table
-    
-  RETURN
+  @retval
    0  ok
+  @retval
    1  error
 */
 int ha_create_table(THD *thd, const char *path,
@@ -2602,7 +2646,7 @@ int ha_create_table(THD *thd, const char *path,
   TABLE_SHARE share;
   DBUG_ENTER("ha_create_table");
   
-  init_tmp_table_share(&share, db, 0, table_name, path);
+  init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0) ||
       open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
                             TRUE))
@@ -2625,17 +2669,18 @@ err:
   DBUG_RETURN(error != 0);
 }
 
-/** @brief
-  Try to discover table from engine
+/**
+  Try to discover table from engine.
 
-  NOTES
+  @note
     If found, write the frm file to disk.
 
-  RETURN VALUES:
+  @retval
   -1    Table did not exists
+  @retval
    0    Table created ok
+  @retval
    > 0  Error, table existed but could not be created
-
 */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 {
@@ -2668,7 +2713,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   if (error)
     DBUG_RETURN(2);
 
-  init_tmp_table_share(&share, db, 0, name, path);
+  init_tmp_table_share(thd, &share, db, 0, name, path);
   if (open_table_def(thd, &share, 0))
   {
     DBUG_RETURN(3);
@@ -2706,8 +2751,8 @@ void st_ha_check_opt::init()
   call to ha_init_key_cache() (probably out of memory)
 *****************************************************************************/
 
-/** @brief
-  Init a key cache if it has not been initied before
+/**
+  Init a key cache if it has not been initied before.
 */
 int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
 {
@@ -2730,8 +2775,8 @@ int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
 }
 
 
-/** @brief
-  Resize key cache
+/**
+  Resize key cache.
 */
 int ha_resize_key_cache(KEY_CACHE *key_cache)
 {
@@ -2753,7 +2798,7 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
 }
 
 
-/** @brief
+/**
   Change parameters for key cache (like size)
 */
 int ha_change_key_cache_param(KEY_CACHE *key_cache)
@@ -2769,8 +2814,8 @@ int ha_change_key_cache_param(KEY_CACHE *key_cache)
   return 0;
 }
 
-/** @brief
-  Free memory allocated by a key cache
+/**
+  Free memory allocated by a key cache.
 */
 int ha_end_key_cache(KEY_CACHE *key_cache)
 {
@@ -2778,8 +2823,8 @@ int ha_end_key_cache(KEY_CACHE *key_cache)
   return 0;
 }
 
-/** @brief
-  Move all tables from one key cache to another one
+/**
+  Move all tables from one key cache to another one.
 */
 int ha_change_key_cache(KEY_CACHE *old_key_cache,
 			KEY_CACHE *new_key_cache)
@@ -2789,13 +2834,15 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 }
 
 
-/** @brief
-  Try to discover one table from handler(s)
+/**
+  Try to discover one table from handler(s).
 
-  RETURN
-   -1  : Table did not exists
-    0  : OK. In this case *frmblob and *frmlen are set
-    >0 : error.  frmblob and frmlen may not be set
+  @retval
+    -1   Table did not exists
+  @retval
+    0   OK. In this case *frmblob and *frmlen are set
+  @retval
+    >0   error.  frmblob and frmlen may not be set
 */
 struct st_discover_args
 {
@@ -2840,9 +2887,9 @@ int ha_discover(THD *thd, const char *db, const char *name,
 }
 
 
-/** @brief
-  Call this function in order to give the handler the possibility 
-  to ask engine if there are any new tables that should be written to disk 
+/**
+  Call this function in order to give the handler the possiblity
+  to ask engine if there are any new tables that should be written to disk
   or any dropped tables that need to be removed from disk
 */
 struct st_find_files_args
@@ -2885,16 +2932,15 @@ ha_find_files(THD *thd,const char *db,const char *path,
   DBUG_RETURN(error);
 }
 
-/*
-  Ask handler if the table exists in engine
-
-  RETURN
+/**
+  Ask handler if the table exists in engine.
+  @retval
     HA_ERR_NO_SUCH_TABLE     Table does not exist
+  @retval
     HA_ERR_TABLE_EXIST       Table exists
-    #                        Error code
-
- */
-
+  @retval
+    \#                  Error code
+*/
 struct st_table_exists_in_engine_args
 {
   const char *db;
@@ -3069,29 +3115,29 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
 }
 #endif
 
-/** @brief
+/**
   Read the first row of a multi-range set.
 
-  SYNOPSIS
-    read_multi_range_first()
-    found_range_p       Returns a pointer to the element in 'ranges' that
-                        corresponds to the returned row.
-    ranges              An array of KEY_MULTI_RANGE range descriptions.
-    range_count         Number of ranges in 'ranges'.
-    sorted		If result should be sorted per key.
-    buffer              A HANDLER_BUFFER for internal handler usage.
+  @param found_range_p       Returns a pointer to the element in 'ranges' that
+                             corresponds to the returned row.
+  @param ranges              An array of KEY_MULTI_RANGE range descriptions.
+  @param range_count         Number of ranges in 'ranges'.
+  @param sorted	      If result should be sorted per key.
+  @param buffer              A HANDLER_BUFFER for internal handler usage.
 
-  NOTES
-    Record is read into table->record[0].
-    *found_range_p returns a valid value only if read_multi_range_first()
+  @note
+    - Record is read into table->record[0].
+    - *found_range_p returns a valid value only if read_multi_range_first()
     returns 0.
-    Sorting is done within each range. If you want an overall sort, enter
+    - Sorting is done within each range. If you want an overall sort, enter
     'ranges' with sorted ranges.
 
-  RETURN
+  @retval
     0			OK, found a row
+  @retval
     HA_ERR_END_OF_FILE	No rows in range
-    #			Error code
+  @retval
+    \#			Error code
 */
 int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                     KEY_MULTI_RANGE *ranges, uint range_count,
@@ -3125,23 +3171,23 @@ int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 }
 
 
-/** @brief
+/**
   Read the next row of a multi-range set.
 
-  SYNOPSIS
-    read_multi_range_next()
-    found_range_p       Returns a pointer to the element in 'ranges' that
-                        corresponds to the returned row.
+  @param found_range_p       Returns a pointer to the element in 'ranges' that
+                             corresponds to the returned row.
 
-  NOTES
-    Record is read into table->record[0].
-    *found_range_p returns a valid value only if read_multi_range_next()
+  @note
+    - Record is read into table->record[0].
+    - *found_range_p returns a valid value only if read_multi_range_next()
     returns 0.
 
-  RETURN
+  @retval
     0			OK, found a row
+  @retval
     HA_ERR_END_OF_FILE	No (more) rows in range
-    #			Error code
+  @retval
+    \#			Error code
 */
 int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
 {
@@ -3197,25 +3243,24 @@ scan_it_again:
 }
 
 
-/** @brief
+/**
   Read first row between two ranges.
-  Store ranges for future calls to read_range_next
+  Store ranges for future calls to read_range_next.
 
-  SYNOPSIS
-    read_range_first()
-    start_key		Start key. Is 0 if no min range
-    end_key		End key.  Is 0 if no max range
-    eq_range_arg	Set to 1 if start_key == end_key and the range endpoints
-                        will not change during query execution.
-    sorted		Set to 1 if result should be sorted per key
+  @param start_key		Start key. Is 0 if no min range
+  @param end_key		End key.  Is 0 if no max range
+  @param eq_range_arg	        Set to 1 if start_key == end_key
+  @param sorted		Set to 1 if result should be sorted per key
 
-  NOTES
+  @note
     Record is read into table->record[0]
 
-  RETURN
+  @retval
     0			Found row
+  @retval
     HA_ERR_END_OF_FILE	No rows in range
-    #			Error code
+  @retval
+    \#			Error code
 */
 int handler::read_range_first(const key_range *start_key,
 			      const key_range *end_key,
@@ -3251,19 +3296,18 @@ int handler::read_range_first(const key_range *start_key,
 }
 
 
-/** @brief
+/**
   Read next row between two ranges.
 
-  SYNOPSIS
-    read_range_next()
-
-  NOTES
+  @note
     Record is read into table->record[0]
 
-  RETURN
+  @retval
     0			Found row
+  @retval
     HA_ERR_END_OF_FILE	No rows in range
-    #			Error code
+  @retval
+    \#			Error code
 */
 int handler::read_range_next()
 {
@@ -3284,22 +3328,20 @@ int handler::read_range_next()
 }
 
 
-/** @brief
-  Compare if found key (in row) is over max-value
+/**
+  Compare if found key (in row) is over max-value.
 
-  SYNOPSIS
-    compare_key
-    range		range to compare to row. May be 0 for no range
- 
-  NOTES
-    See key.cc::key_cmp() for details
+  @param range		range to compare to row. May be 0 for no range
 
-  RETURN
+  @seealso
+    key.cc::key_cmp()
+
+  @return
     The return value is SIGN(key_in_row - range_key):
 
-    0			Key is equal to range or 'range' == 0 (no range)
-   -1			Key is less than range
-    1			Key is larger than range
+    - 0   : Key is equal to range or 'range' == 0 (no range)
+    - -1  : Key is less than range
+    - 1   : Key is larger than range
 */
 int handler::compare_key(key_range *range)
 {
@@ -3328,18 +3370,14 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
 }
 
 
-/** @brief
+/**
   Returns a list of all known extensions.
 
-  SYNOPSIS
-    ha_known_exts()
-
-  NOTES
     No mutexes, worst case race is a minor surplus memory allocation
     We have to recreate the extension map if mysqld is restarted (for example
     within libmysqld)
 
-  RETURN VALUE
+  @retval
     pointer		pointer to TYPELIB structure
 */
 static my_bool exts_handlerton(THD *unused, plugin_ref plugin,
@@ -3676,11 +3714,12 @@ int handler::ha_reset()
 int handler::ha_write_row(uchar *buf)
 {
   int error;
+  DBUG_ENTER("handler::ha_write_row");
   if (unlikely(error= write_row(buf)))
-    return error;
+    DBUG_RETURN(error);
   if (unlikely(error= binlog_log_row<Write_rows_log_event>(table, 0, buf)))
-    return error;
-  return 0;
+    DBUG_RETURN(error); /* purecov: inspected */
+  DBUG_RETURN(0);
 }
 
 

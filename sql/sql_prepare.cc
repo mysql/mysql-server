@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
 
-/**********************************************************************
+/**
+  @file
+
 This file contains the implementation of prepared statements.
 
 When one prepares a statement:
@@ -28,11 +30,13 @@ When one prepares a statement:
   - Without executing the query, return back to client the total
     number of parameters along with result-set metadata information
     (if any) in the following format:
+    @verbatim
     [STMT_ID:4]
     [Column_count:2]
     [Param_count:2]
     [Params meta info (stubs only for now)]  (if Param_count > 0)
     [Columns meta info] (if Column_count > 0)
+    @endverbatim
 
   During prepare the tables used in a statement are opened, but no
   locks are acquired.  Table opening will block any DDL during the
@@ -45,12 +49,14 @@ When one executes a statement:
   - Server gets the command 'COM_STMT_EXECUTE' to execute the
     previously prepared query. If there are any parameter markers, then the
     client will send the data in the following format:
+    @verbatim
     [COM_STMT_EXECUTE:1]
     [STMT_ID:4]
     [NULL_BITS:(param_count+7)/8)]
     [TYPES_SUPPLIED_BY_CLIENT(0/1):1]
     [[length]data]
     [[length]data] .. [[length]data].
+    @endverbatim
     (Note: Except for string/binary types; all other types will not be
     supplied with length field)
   - If it is a first execute or types of parameters were altered by client,
@@ -75,8 +81,7 @@ When one supplies long data for a placeholder:
     server doesn't care; also, the server doesn't notify the client whether
     it got the data or not; if there is any error, then it will be returned
     at statement execute.
-
-***********************************************************************/
+*/
 
 #include "mysql_priv.h"
 #include "sql_select.h" // for JOIN
@@ -91,7 +96,9 @@ When one supplies long data for a placeholder:
 #include <mysql_com.h>
 #endif
 
-/* A result class used to send cursor rows using the binary protocol. */
+/**
+  A result class used to send cursor rows using the binary protocol.
+*/
 
 class Select_fetch_protocol_binary: public select_send
 {
@@ -112,7 +119,7 @@ public:
 /****************************************************************************/
 
 /**
-  @brief Prepared_statement: a statement that can contain placeholders
+  Prepared_statement: a statement that can contain placeholders.
 */
 
 class Prepared_statement: public Statement
@@ -176,20 +183,17 @@ inline bool is_param_null(const uchar *pos, ulong param_no)
   return pos[param_no/8] & (1 << (param_no & 7));
 }
 
-/*
+/**
   Find a prepared statement in the statement map by id.
 
-  SYNOPSIS
-    find_prepared_statement()
-      thd                thread handle
-      id                 statement id
-      where              the place from which this function is called (for
-                         error reporting).
-
-  DESCRIPTION
     Try to find a prepared statement and set THD error if it's not found.
 
-  RETURN VALUE
+  @param thd                thread handle
+  @param id                 statement id
+  @param where              the place from which this function is called (for
+                            error reporting).
+
+  @return
     0 if the statement was not found, a pointer otherwise.
 */
 
@@ -214,13 +218,13 @@ find_prepared_statement(THD *thd, ulong id, const char *where)
 }
 
 
-/*
+/**
   Send prepared statement id and metadata to the client after prepare.
 
-  SYNOPSIS
-    send_prep_stmt()
+  @todo
+    Fix this nasty upcast from List<Item_param> to List<Item>
 
-  RETURN VALUE
+  @return
     0 in case of success, 1 otherwise
 */
 
@@ -265,24 +269,22 @@ static bool send_prep_stmt(Prepared_statement *stmt,
 #endif /*!EMBEDDED_LIBRARY*/
 
 
-/*
+#ifndef EMBEDDED_LIBRARY
+
+/**
   Read the length of the parameter data and return it back to
   the caller.
 
-  SYNOPSIS
-    get_param_length()
-      packet             a pointer to the data
-      len                remaining packet length
-
-  DESCRIPTION
     Read data length, position the packet to the first byte after it,
     and return the length to the caller.
 
-  RETURN VALUE
+  @param packet             a pointer to the data
+  @param len                remaining packet length
+
+  @return
     Length of data piece.
 */
 
-#ifndef EMBEDDED_LIBRARY
 static ulong get_param_length(uchar **packet, ulong len)
 {
   reg1 uchar *pos= *packet;
@@ -323,16 +325,9 @@ static ulong get_param_length(uchar **packet, ulong len)
 #define get_param_length(packet, len) len
 #endif /*!EMBEDDED_LIBRARY*/
 
- /*
-   Data conversion routines.
+/**
+  Data conversion routines.
 
-   SYNOPSIS
-     set_param_xx()
-       param             parameter item
-       pos               input data buffer
-       len               length of data in the buffer
-
-  DESCRIPTION
     All these functions read the data from pos, convert it to requested
     type and assign to param; pos is advanced to predefined length.
 
@@ -340,8 +335,9 @@ static ulong get_param_length(uchar **packet, ulong len)
     (i.e. when input types altered) and for all subsequent executions
     we don't read any values for this.
 
-  RETURN VALUE
-    none
+  @param  param             parameter item
+  @param  pos               input data buffer
+  @param  len               length of data in the buffer
 */
 
 static void set_param_tiny(Item_param *param, uchar **pos, ulong len)
@@ -443,6 +439,10 @@ static void set_param_decimal(Item_param *param, uchar **pos, ulong len)
   libmysql.c (store_param_{time,date,datetime}).
 */
 
+/**
+  @todo
+    Add warning 'Data truncated' here
+*/
 static void set_param_time(Item_param *param, uchar **pos, ulong len)
 {
   MYSQL_TIME tm;
@@ -532,6 +532,10 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
 }
 
 #else/*!EMBEDDED_LIBRARY*/
+/**
+  @todo
+    Add warning 'Data truncated' here
+*/
 void set_param_time(Item_param *param, uchar **pos, ulong len)
 {
   MYSQL_TIME tm= *((MYSQL_TIME*)*pos);
@@ -684,14 +688,13 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
 }
 
 #ifndef EMBEDDED_LIBRARY
-/*
+/**
   Routines to assign parameters from data supplied by the client.
 
-  DESCRIPTION
     Update the parameter markers by reading data from the packet and
     and generate a valid query for logging.
 
-  NOTES
+  @note
     This function, along with other _with_log functions is called when one of
     binary, slow or general logs is open. Logging of prepared statements in
     all cases is performed by means of conventional queries: if parameter
@@ -699,21 +702,28 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
     replaced with its actual value; if we're logging a [Dynamic] SQL
     prepared statement, parameter markers are replaced with variable names.
     Example:
+    @verbatim
      mysql_stmt_prepare("UPDATE t1 SET a=a*1.25 WHERE a=?")
        --> general logs gets [Prepare] UPDATE t1 SET a*1.25 WHERE a=?"
      mysql_stmt_execute(stmt);
        --> general and binary logs get
                              [Execute] UPDATE t1 SET a*1.25 WHERE a=1"
-     If a statement has been prepared using SQL syntax:
+    @endverbatim
+
+    If a statement has been prepared using SQL syntax:
+    @verbatim
      PREPARE stmt FROM "UPDATE t1 SET a=a*1.25 WHERE a=?"
        --> general log gets
                                  [Query]   PREPARE stmt FROM "UPDATE ..."
      EXECUTE stmt USING @a
        --> general log gets
-                                 [Query]   EXECUTE stmt USING @a;
+                             [Query]   EXECUTE stmt USING @a;
+    @endverbatim
 
-  RETURN VALUE
-   0 if success, 1 otherwise
+  @retval
+    0  if success
+  @retval
+    1  otherwise
 */
 
 static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
@@ -829,12 +839,12 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
 
 #else
 
-/*
+/**
   Embedded counterparts of parameter assignment routines.
 
-  DESCRIPTION
     The main difference between the embedded library and the server is
     that in embedded case we don't serialize/deserialize parameters data.
+
     Additionally, for unknown reason, the client-side flag raised for
     changed types of placeholders is ignored and we simply setup conversion
     functions at each execute (TODO: fix).
@@ -928,15 +938,14 @@ static bool emb_insert_params_with_log(Prepared_statement *stmt,
 #endif /*!EMBEDDED_LIBRARY*/
 
 
-/*
+/**
   Assign prepared statement parameters from user variables.
 
-  SYNOPSIS
-    insert_params_from_vars()
-      stmt      Statement
-      varnames  List of variables. Caller must ensure that number of variables
-                in the list is equal to number of statement parameters
-      query     Ignored
+  @param stmt      Statement
+  @param varnames  List of variables. Caller must ensure that number
+                   of variables in the list is equal to number of statement
+                   parameters
+  @param query     Ignored
 */
 
 static bool insert_params_from_vars(Prepared_statement *stmt,
@@ -965,17 +974,16 @@ static bool insert_params_from_vars(Prepared_statement *stmt,
 }
 
 
-/*
+/**
   Do the same as insert_params_from_vars but also construct query text for
   binary log.
 
-  SYNOPSIS
-    insert_params_from_vars()
-      stmt      Prepared statement
-      varnames  List of variables. Caller must ensure that number of variables
-                in the list is equal to number of statement parameters
-      query     The query with parameter markers replaced with corresponding
-                user variables that were used to execute the query.
+  @param stmt      Prepared statement
+  @param varnames  List of variables. Caller must ensure that number of
+                   variables in the list is equal to number of statement
+                   parameters
+  @param query     The query with parameter markers replaced with corresponding
+                   user variables that were used to execute the query.
 */
 
 static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
@@ -1024,17 +1032,16 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   DBUG_RETURN(0);
 }
 
-/*
+/**
   Validate INSERT statement.
 
-  SYNOPSIS
-    mysql_test_insert()
-      stmt               prepared statement
-      tables             global/local table list
+  @param stmt               prepared statement
+  @param tables             global/local table list
 
-  RETURN VALUE
-    FALSE                success
-    TRUE                 error, error message is set in THD
+  @retval
+    FALSE             success
+  @retval
+    TRUE              error, error message is set in THD
 */
 
 static bool mysql_test_insert(Prepared_statement *stmt,
@@ -1112,18 +1119,21 @@ error:
 }
 
 
-/*
-  Validate UPDATE statement
+/**
+  Validate UPDATE statement.
 
-  SYNOPSIS
-    mysql_test_update()
-      stmt               prepared statement
-      tables             list of tables used in this query
+  @param stmt               prepared statement
+  @param tables             list of tables used in this query
 
-  RETURN VALUE
-    0                    success
-    1                    error, error message is set in THD
-    2                    convert to multi_update
+  @todo
+    - here we should send types of placeholders to the client.
+
+  @retval
+    0                 success
+  @retval
+    1                 error, error message is set in THD
+  @retval
+    2                 convert to multi_update
 */
 
 static int mysql_test_update(Prepared_statement *stmt,
@@ -1196,17 +1206,16 @@ error:
 }
 
 
-/*
+/**
   Validate DELETE statement.
 
-  SYNOPSIS
-    mysql_test_delete()
-      stmt               prepared statement
-      tables             list of tables used in this query
+  @param stmt               prepared statement
+  @param tables             list of tables used in this query
 
-  RETURN VALUE
-    FALSE                success
-    TRUE                 error, error message is set in THD
+  @retval
+    FALSE             success
+  @retval
+    TRUE              error, error message is set in THD
 */
 
 static bool mysql_test_delete(Prepared_statement *stmt,
@@ -1233,22 +1242,21 @@ error:
 }
 
 
-/*
+/**
   Validate SELECT statement.
 
-  SYNOPSIS
-    mysql_test_select()
-      stmt               prepared statement
-      tables             list of tables used in the query
-
-  DESCRIPTION
     In case of success, if this query is not EXPLAIN, send column list info
     back to the client.
 
-  RETURN VALUE
-    0                    success
-    1                    error, error message is set in THD
-    2                    success, and statement metadata has been sent
+  @param stmt               prepared statement
+  @param tables             list of tables used in the query
+
+  @retval
+    0                 success
+  @retval
+    1                 error, error message is set in THD
+  @retval
+    2                 success, and statement metadata has been sent
 */
 
 static int mysql_test_select(Prepared_statement *stmt,
@@ -1313,18 +1321,17 @@ error:
 }
 
 
-/*
+/**
   Validate and prepare for execution DO statement expressions.
 
-  SYNOPSIS
-    mysql_test_do_fields()
-      stmt               prepared statement
-      tables             list of tables used in this query
-      values             list of expressions
+  @param stmt               prepared statement
+  @param tables             list of tables used in this query
+  @param values             list of expressions
 
-  RETURN VALUE
-    FALSE                success
-    TRUE                 error, error message is set in THD
+  @retval
+    FALSE             success
+  @retval
+    TRUE              error, error message is set in THD
 */
 
 static bool mysql_test_do_fields(Prepared_statement *stmt,
@@ -1343,18 +1350,17 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
 }
 
 
-/*
-  Validate and prepare for execution SET statement expressions
+/**
+  Validate and prepare for execution SET statement expressions.
 
-  SYNOPSIS
-    mysql_test_set_fields()
-      stmt               prepared statement
-      tables             list of tables used in this query
-      values             list of expressions
+  @param stmt               prepared statement
+  @param tables             list of tables used in this query
+  @param values             list of expressions
 
-  RETURN VALUE
-    FALSE                success
-    TRUE                 error, error message is set in THD
+  @retval
+    FALSE             success
+  @retval
+    TRUE              error, error message is set in THD
 */
 
 static bool mysql_test_set_fields(Prepared_statement *stmt,
@@ -1381,23 +1387,22 @@ error:
 }
 
 
-/*
-  Check internal SELECT of the prepared command
+/**
+  Check internal SELECT of the prepared command.
 
-  SYNOPSIS
-    select_like_stmt_test()
-      stmt                      prepared statement
-      specific_prepare          function of command specific prepare
-      setup_tables_done_option  options to be passed to LEX::unit.prepare()
+  @param stmt                      prepared statement
+  @param specific_prepare          function of command specific prepare
+  @param setup_tables_done_option  options to be passed to LEX::unit.prepare()
 
-  NOTE
+  @note
     This function won't directly open tables used in select. They should
     be opened either by calling function (and in this case you probably
     should use select_like_stmt_test_with_open()) or by
     "specific_prepare" call (like this happens in case of multi-update).
 
-  RETURN VALUE
+  @retval
     FALSE                success
+  @retval
     TRUE                 error, error message is set in THD
 */
 
@@ -1420,20 +1425,19 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   DBUG_RETURN(lex->unit.prepare(thd, 0, setup_tables_done_option));
 }
 
-/*
+/**
   Check internal SELECT of the prepared command (with opening of used
   tables).
 
-  SYNOPSIS
-    select_like_stmt_test_with_open()
-      stmt                      prepared statement
-      tables                    list of tables to be opened before calling
-                                specific_prepare function
-      specific_prepare          function of command specific prepare
-      setup_tables_done_option  options to be passed to LEX::unit.prepare()
+  @param stmt                      prepared statement
+  @param tables                    list of tables to be opened
+                                   before calling specific_prepare function
+  @param specific_prepare          function of command specific prepare
+  @param setup_tables_done_option  options to be passed to LEX::unit.prepare()
 
-  RETURN VALUE
+  @retval
     FALSE                success
+  @retval
     TRUE                 error
 */
 
@@ -1459,17 +1463,16 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
 }
 
 
-/*
-  Validate and prepare for execution CREATE TABLE statement
+/**
+  Validate and prepare for execution CREATE TABLE statement.
 
-  SYNOPSIS
-    mysql_test_create_table()
-      stmt               prepared statement
-      tables             list of tables used in this query
+  @param stmt               prepared statement
+  @param tables             list of tables used in this query
 
-  RETURN VALUE
-    FALSE                success
-    TRUE                 error, error message is set in THD
+  @retval
+    FALSE             success
+  @retval
+    TRUE              error, error message is set in THD
 */
 
 static bool mysql_test_create_table(Prepared_statement *stmt)
@@ -1512,18 +1515,17 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 }
 
 
-/*
+/**
   Validate and prepare for execution a multi update statement.
 
-  SYNOPSIS
-    mysql_test_multiupdate()
-      stmt               prepared statement
-      tables             list of tables used in this query
-      converted          converted to multi-update from usual update
+  @param stmt               prepared statement
+  @param tables             list of tables used in this query
+  @param converted          converted to multi-update from usual update
 
-  RETURN VALUE
-    FALSE                success
-    TRUE                 error, error message is set in THD
+  @retval
+    FALSE             success
+  @retval
+    TRUE              error, error message is set in THD
 */
 
 static bool mysql_test_multiupdate(Prepared_statement *stmt,
@@ -1539,17 +1541,16 @@ static bool mysql_test_multiupdate(Prepared_statement *stmt,
 }
 
 
-/*
+/**
   Validate and prepare for execution a multi delete statement.
 
-  SYNOPSIS
-    mysql_test_multidelete()
-      stmt               prepared statement
-      tables             list of tables used in this query
+  @param stmt               prepared statement
+  @param tables             list of tables used in this query
 
-  RETURN VALUE
-    FALSE                success
-    TRUE                 error, error message in THD is set.
+  @retval
+    FALSE             success
+  @retval
+    TRUE              error, error message in THD is set.
 */
 
 static bool mysql_test_multidelete(Prepared_statement *stmt,
@@ -1579,15 +1580,13 @@ error:
 }
 
 
-/*
+/**
   Wrapper for mysql_insert_select_prepare, to make change of local tables
   after open_normal_and_derived_tables() call.
 
-  SYNOPSIS
-    mysql_insert_select_prepare_tester()
-      thd                thread handle
+  @param thd                thread handle
 
-  NOTE
+  @note
     We need to remove the first local table after
     open_normal_and_derived_tables(), because mysql_handle_derived
     uses local tables lists.
@@ -1608,17 +1607,16 @@ static bool mysql_insert_select_prepare_tester(THD *thd)
 }
 
 
-/*
+/**
   Validate and prepare for execution INSERT ... SELECT statement.
 
-  SYNOPSIS
-    mysql_test_insert_select()
-      stmt               prepared statement
-      tables             list of tables used in this query
+  @param stmt               prepared statement
+  @param tables             list of tables used in this query
 
-  RETURN VALUE
-    FALSE                success
-    TRUE                 error, error message is set in THD
+  @retval
+    FALSE             success
+  @retval
+    TRUE              error, error message is set in THD
 */
 
 static bool mysql_test_insert_select(Prepared_statement *stmt,
@@ -1651,23 +1649,21 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
 }
 
 
-/*
+/**
   Perform semantic analysis of the parsed tree and send a response packet
   to the client.
 
-  SYNOPSIS
-    check_prepared_statement()
-      stmt               prepared statement
-
-  DESCRIPTION
     This function
     - opens all tables and checks access rights
     - validates semantics of statement columns and SQL functions
       by calling fix_fields.
 
-  RETURN VALUE
-    FALSE                success, statement metadata is sent to client
-    TRUE                 error, error message is set in THD (but not sent)
+  @param stmt               prepared statement
+
+  @retval
+    FALSE             success, statement metadata is sent to client
+  @retval
+    TRUE              error, error message is set in THD (but not sent)
 */
 
 static bool check_prepared_statement(Prepared_statement *stmt,
@@ -1834,7 +1830,7 @@ error:
   DBUG_RETURN(TRUE);
 }
 
-/*
+/**
   Initialize array of parameters in statement from LEX.
   (We need to have quick access to items by number in mysql_stmt_get_longdata).
   This is to avoid using malloc/realloc in the parser.
@@ -1870,31 +1866,28 @@ static bool init_param_array(Prepared_statement *stmt)
 }
 
 
-/*
+/**
   COM_STMT_PREPARE handler.
 
-  SYNOPSIS
-    mysql_stmt_prepare()
-      packet             query to be prepared
-      packet_length      query string length, including ignored
-                         trailing NULL or quote char.
-
-  DESCRIPTION
     Given a query string with parameter markers, create a prepared
     statement from it and send PS info back to the client.
-
-  NOTES
-    This function parses the query and sends the total number of parameters
-    and resultset metadata information back to client (if any), without
-    executing the query i.e. without any log/disk writes. This allows the
-    queries to be re-executed without re-parsing during execute.
 
     If parameter markers are found in the query, then store the information
     using Item_param along with maintaining a list in lex->param_array, so
     that a fast and direct retrieval can be made without going through all
     field items.
 
-  RETURN VALUE
+  @param packet             query to be prepared
+  @param packet_length      query string length, including ignored
+                            trailing NULL or quote char.
+
+  @note
+    This function parses the query and sends the total number of parameters
+    and resultset metadata information back to client (if any), without
+    executing the query i.e. without any log/disk writes. This allows the
+    queries to be re-executed without re-parsing during execute.
+
+  @return
     none: in case of success a new statement id and metadata is sent
     to the client, otherwise an error message is set in THD.
 */
@@ -1944,22 +1937,22 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   DBUG_VOID_RETURN;
 }
 
-/*
-  SYNOPSIS
-    get_dynamic_sql_string()
-      lex       in      main lex
-      query_len out     length of the SQL statement (is set only
-                        in case of success)
+/**
+  Get an SQL statement text from a user variable or from plain text.
 
-  DESCRIPTION
-    Get an SQL statement text from a user variable or from plain
-    text. If the statement is plain text, just assign the
-    pointers, otherwise allocate memory in thd->mem_root and copy
-    the contents of the variable, possibly with character
-    set conversion.
+  If the statement is plain text, just assign the
+  pointers, otherwise allocate memory in thd->mem_root and copy
+  the contents of the variable, possibly with character
+  set conversion.
 
-  RETURN VALUE
-    non-zero success, 0 in case of error (out of memory)
+  @param[in]  lex               main lex
+  @param[out] query_len         length of the SQL statement (is set only
+    in case of success)
+
+  @retval
+    non-zero  success
+  @retval
+    0         in case of error (out of memory)
 */
 
 static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
@@ -2037,7 +2030,7 @@ end:
 }
 
 
-/* Init PS/SP specific parse tree members.  */
+/** Init PS/SP specific parse tree members.  */
 
 static void init_stmt_after_parse(LEX *lex)
 {
@@ -2050,19 +2043,16 @@ static void init_stmt_after_parse(LEX *lex)
    sl->uncacheable&= ~UNCACHEABLE_PREPARE;
 }
 
-/*
+/**
   SQLCOM_PREPARE implementation.
 
-  SYNOPSIS
-    mysql_sql_stmt_prepare()
-      thd     thread handle
-
-  DESCRIPTION
     Prepare an SQL prepared statement. This is called from
     mysql_execute_command and should therefore behave like an
     ordinary query (e.g. should not reset any global THD data).
 
-  RETURN VALUE
+  @param thd     thread handle
+
+  @return
     none: in case of success, OK packet is sent to the client,
     otherwise an error message is set in THD
 */
@@ -2118,7 +2108,14 @@ void mysql_sql_stmt_prepare(THD *thd)
   DBUG_VOID_RETURN;
 }
 
-/* Reinit prepared statement/stored procedure before execution */
+/**
+  Reinit prepared statement/stored procedure before execution.
+
+  @todo
+    When the new table structure is ready, then have a status bit
+    to indicate the table is altered, and re-do the setup_*
+    and open the tables back.
+*/
 
 void reinit_stmt_before_use(THD *thd, LEX *lex)
 {
@@ -2224,13 +2221,11 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
 }
 
 
-/*
-  Clears parameters from data left from previous execution or long data
+/**
+  Clears parameters from data left from previous execution or long data.
 
-  SYNOPSIS
-    reset_stmt_params()
-      stmt               prepared statement for which parameters should
-                         be reset
+  @param stmt               prepared statement for which parameters should
+                            be reset
 */
 
 static void reset_stmt_params(Prepared_statement *stmt)
@@ -2242,22 +2237,19 @@ static void reset_stmt_params(Prepared_statement *stmt)
 }
 
 
-/*
+/**
   COM_STMT_EXECUTE handler: execute a previously prepared statement.
 
-  SYNOPSIS
-    mysql_stmt_execute()
-      thd                current thread
-      packet             parameter types and data, if any
-      packet_length      packet length, including the terminator character.
-
-  DESCRIPTION
     If there are any parameters, then replace parameter markers with the
     data supplied from the client, and then execute the statement.
     This function uses binary protocol to send a possible result set
     to the client.
 
-  RETURN VALUE
+  @param thd                current thread
+  @param packet_arg         parameter types and data, if any
+  @param packet_length      packet length, including the terminator character.
+
+  @return
     none: in case of success OK packet or a result set is sent to the
     client, otherwise an error message is set in THD.
 */
@@ -2334,14 +2326,9 @@ set_params_data_err:
 }
 
 
-/*
+/**
   SQLCOM_EXECUTE implementation.
 
-  SYNOPSIS
-    mysql_sql_stmt_execute()
-      thd                thread handle
-
-  DESCRIPTION
     Execute prepared statement using parameter values from
     lex->prepared_stmt_params and send result to the client using
     text protocol. This is called from mysql_execute_command and
@@ -2349,7 +2336,9 @@ set_params_data_err:
     global THD data, such as warning count, server status, etc).
     This function uses text protocol to send a possible result set.
 
-  RETURN
+  @param thd                thread handle
+
+  @return
     none: in case of success, OK (or result set) packet is sent to the
     client, otherwise an error is set in THD
 */
@@ -2401,14 +2390,12 @@ set_params_data_err:
 }
 
 
-/*
-  COM_STMT_FETCH handler: fetches requested amount of rows from cursor
+/**
+  COM_STMT_FETCH handler: fetches requested amount of rows from cursor.
 
-  SYNOPSIS
-    mysql_stmt_fetch()
-      thd                Thread handle
-      packet             Packet from client (with stmt_id & num_rows)
-      packet_length      Length of packet
+  @param thd                Thread handle
+  @param packet             Packet from client (with stmt_id & num_rows)
+  @param packet_length      Length of packet
 */
 
 void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
@@ -2459,22 +2446,20 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
 }
 
 
-/*
+/**
   Reset a prepared statement in case there was a recoverable error.
-  SYNOPSIS
-    mysql_stmt_reset()
-      thd                Thread handle
-      packet             Packet with stmt id
 
-  DESCRIPTION
     This function resets statement to the state it was right after prepare.
     It can be used to:
-     - clear an error happened during mysql_stmt_send_long_data
-     - cancel long data stream for all placeholders without
-       having to call mysql_stmt_execute.
-     - close an open cursor
+    - clear an error happened during mysql_stmt_send_long_data
+    - cancel long data stream for all placeholders without
+      having to call mysql_stmt_execute.
+    - close an open cursor
     Sends 'OK' packet in case of success (statement was reset)
     or 'ERROR' packet (unrecoverable error/statement not found/etc).
+
+  @param thd                Thread handle
+  @param packet             Packet with stmt id
 */
 
 void mysql_stmt_reset(THD *thd, char *packet)
@@ -2507,9 +2492,11 @@ void mysql_stmt_reset(THD *thd, char *packet)
 }
 
 
-/*
+/**
   Delete a prepared statement from memory.
-  Note: we don't send any reply to this command.
+
+  @note
+    we don't send any reply to this command.
 */
 
 void mysql_stmt_close(THD *thd, char *packet)
@@ -2533,15 +2520,14 @@ void mysql_stmt_close(THD *thd, char *packet)
 }
 
 
-/*
+/**
   SQLCOM_DEALLOCATE implementation.
 
-  DESCRIPTION
     Close an SQL prepared statement. As this can be called from Dynamic
     SQL, we should be careful to not close a statement that is currently
     being executed.
 
-  RETURN VALUE
+  @return
     none: OK packet is sent in case of success, otherwise an error
     message is set in THD
 */
@@ -2564,21 +2550,18 @@ void mysql_sql_stmt_close(THD *thd)
     send_ok(thd);
 }
 
-/*
+/**
   Handle long data in pieces from client.
 
-  SYNOPSIS
-    mysql_stmt_get_longdata()
-      thd                Thread handle
-      packet             String to append
-      packet_length      Length of string (including end \0)
-
-  DESCRIPTION
     Get a part of a long data. To make the protocol efficient, we are
     not sending any return packets here. If something goes wrong, then
     we will send the error on 'execute' We assume that the client takes
     care of checking that all parts are sent to the server. (No checking
     that we get a 'end of column' in the server is performed).
+
+  @param thd                Thread handle
+  @param packet             String to append
+  @param packet_length      Length of string (including end \\0)
 */
 
 void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
@@ -2703,7 +2686,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
   last_errno(0),
   flags((uint) IS_IN_USE)
 {
-  init_alloc_root(&main_mem_root, thd_arg->variables.query_alloc_block_size,
+  init_sql_alloc(&main_mem_root, thd_arg->variables.query_alloc_block_size,
                   thd_arg->variables.query_prealloc_size);
   *last_error= '\0';
 }
@@ -2745,12 +2728,12 @@ void Prepared_statement::setup_set_params()
 }
 
 
-/*
-  DESCRIPTION
-    Destroy this prepared statement, cleaning up all used memory
-    and resources. This is called from ::deallocate() to
-    handle COM_STMT_CLOSE and DEALLOCATE PREPARE or when
-    THD ends and all prepared statements are freed.
+/**
+  Destroy this prepared statement, cleaning up all used memory
+  and resources.
+
+  This is called from ::deallocate() to handle COM_STMT_CLOSE and
+  DEALLOCATE PREPARE or when THD ends and all prepared statements are freed.
 */
 
 Prepared_statement::~Prepared_statement()
@@ -2807,28 +2790,24 @@ bool Prepared_statement::set_name(LEX_STRING *name_arg)
   global THD state management to the caller.
 ***************************************************************************/
 
-/*
+/**
   Parse statement text, validate the statement, and prepare it for execution.
 
-  SYNOPSIS
-    Prepared_statement::prepare()
-      packet             statement text
-      packet_len
-
-  DESCRIPTION
     You should not change global THD state in this function, if at all
     possible: it may be called from any context, e.g. when executing
     a COM_* command, and SQLCOM_* command, or a stored procedure.
 
-  NOTES
-      Precondition.
-      -------------
+  @param packet             statement text
+  @param packet_len
+
+  @note
+    Precondition:
     The caller must ensure that thd->change_list and thd->free_list
     is empty: this function will not back them up but will free
     in the end of its execution.
 
-      Postcondition.
-      --------------
+  @note
+    Postcondition:
     thd->mem_root contains unused memory allocated during validation.
 */
 
@@ -2955,28 +2934,25 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   DBUG_RETURN(error);
 }
 
-/*
+/**
   Execute a prepared statement.
 
-  SYNOPSIS
-    Prepared_statement::execute()
-      expanded_query     A query for binlogging which has all parameter
-                         markers ('?') replaced with their actual values.
-      open_cursor        True if an attempt to open a cursor should be made.
-                         Currenlty used only in the binary protocol.
-
-  DESCRIPTION
     You should not change global THD state in this function, if at all
     possible: it may be called from any context, e.g. when executing
     a COM_* command, and SQLCOM_* command, or a stored procedure.
 
-  NOTES
-      Preconditions, postconditions.
-      ------------------------------
-      See the comment for Prepared_statement::prepare().
+  @param expanded_query     A query for binlogging which has all parameter
+                            markers ('?') replaced with their actual values.
+  @param open_cursor        True if an attempt to open a cursor should be made.
+                            Currenlty used only in the binary protocol.
 
-  RETURN
-    FALSE		ok
+  @note
+    Preconditions, postconditions.
+    - See the comment for Prepared_statement::prepare().
+
+  @retval
+    FALSE	    ok
+  @retval
     TRUE		Error
 */
 
@@ -3156,7 +3132,7 @@ error:
 }
 
 
-/* Common part of DEALLOCATE PREPARE and mysql_stmt_close */
+/** Common part of DEALLOCATE PREPARE and mysql_stmt_close. */
 
 bool Prepared_statement::deallocate()
 {

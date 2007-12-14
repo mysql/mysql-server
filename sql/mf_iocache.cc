@@ -13,8 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  Cashing of files with only does (sequential) read or writes of fixed-
+/**
+  @file
+
+  @details
+  Caching of files with only does (sequential) read or writes of fixed-
   length records. A read isn't allowed to go over file-length. A read is ok
   if it ends at file-length and next read can try to read after file-length
   (and get a EOF-error).
@@ -34,11 +37,15 @@
 
 extern "C" {
 
-	/*
-	** Read buffered from the net.
-	** Returns 1 if can't read requested characters
-	** Returns 0 if record read
-	*/
+/**
+  Read buffered from the net.
+
+  @retval
+    1   if can't read requested characters
+  @retval
+    0   if record read
+*/
+
 
 int _my_b_net_read(register IO_CACHE *info, uchar *Buffer,
 		   size_t Count __attribute__((unused)))

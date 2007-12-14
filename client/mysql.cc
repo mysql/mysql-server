@@ -144,6 +144,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool column_types_flag;
+static my_bool preserve_comments= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static uint my_end_arg;
@@ -778,6 +779,10 @@ static struct my_option my_long_options[] =
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     (uchar**) &show_warnings, (uchar**) &show_warnings, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
+  {"comments", 'c', "Preserve comments. Send comments to the server."
+   " Comments are discarded by default, enable with --enable-comments",
+   (uchar**) &preserve_comments, (uchar**) &preserve_comments,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1087,6 +1092,17 @@ static int read_and_execute(bool interactive)
     if (!interactive)
     {
       line=batch_readline(status.line_buff);
+      /*
+        Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
+        Editors like "notepad" put this marker in
+        the very beginning of a text file when
+        you save the file using "Unicode UTF-8" format.
+      */
+      if (!line_number &&
+           (uchar) line[0] == 0xEF &&
+           (uchar) line[1] == 0xBB &&
+           (uchar) line[2] == 0xBF)
+        line+= 3;
       line_number++;
       if (!glob_buffer.length())
 	status.query_start_line=line_number;
@@ -1154,10 +1170,6 @@ static int read_and_execute(bool interactive)
       status.exit_status=0;
       break;
     }
-    if (!in_string && (line[0] == '#' ||
-		       (line[0] == '-' && line[1] == '-') ||
-		       line[0] == 0))
-      continue;					// Skip comment lines
 
     /*
       Check if line is a mysql command line
@@ -1283,15 +1295,21 @@ static bool add_line(String &buffer,char *line,char *in_string,
 
   for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
   {
-    if (my_isspace(charset_info,inchar) && out == line && 
-        buffer.is_empty())
-      continue;
+    if (!preserve_comments)
+    {
+      // Skip spaces at the beggining of a statement
+      if (my_isspace(charset_info,inchar) && (out == line) &&
+          buffer.is_empty())
+        continue;
+    }
+        
 #ifdef USE_MB
+    // Accept multi-byte characters as-is
     int length;
     if (use_mb(charset_info) &&
         (length= my_ismbchar(charset_info, pos, end_of_line)))
     {
-      if (!*ml_comment)
+      if (!*ml_comment || preserve_comments)
       {
         while (length--)
           *out++ = *pos++;
@@ -1317,8 +1335,13 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
       if ((com=find_command(NullS,(char) inchar)))
       {
-        const String tmp(line,(uint) (out-line), charset_info);
-        buffer.append(tmp);
+        // Flush previously accepted characters
+        if (out != line)
+        {
+          buffer.append(line, (uint) (out-line));
+          out= line;
+        }
+        
         if ((*com->func)(&buffer,pos-1) > 0)
           DBUG_RETURN(1);                       // Quit
         if (com->takes_params)
@@ -1346,7 +1369,6 @@ static bool add_line(String &buffer,char *line,char *in_string,
               pos+= delimiter_length - 1; // Point at last delim char
           }
         }
-        out=line;
       }
       else
       {
@@ -1359,46 +1381,105 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
     }
     else if (!*ml_comment && !*in_string &&
-             (*pos == *delimiter && is_prefix(pos + 1, delimiter + 1) ||
-              buffer.length() == 0 && (out - line) >= 9 &&
-              !my_strcasecmp(charset_info, line, "delimiter")))
-    {					
-      uint old_delimiter_length= delimiter_length;
+             strlen(pos) >= 10 &&
+             !my_strnncoll(charset_info, (uchar*) pos, 10,
+                           (const uchar*) "delimiter ", 10))
+    {
+      // Flush previously accepted characters
       if (out != line)
-	buffer.append(line, (uint) (out - line));	// Add this line
+      {
+        buffer.append(line, (uint32) (out - line));
+        out= line;
+      }
+
+      // Flush possible comments in the buffer
+      if (!buffer.is_empty())
+      {
+        if (com_go(&buffer, 0) > 0) // < 0 is not fatal
+          DBUG_RETURN(1);
+        buffer.length(0);
+      }
+
+      /*
+        Delimiter wants the get rest of the given line as argument to
+        allow one to change ';' to ';;' and back
+      */
+      buffer.append(pos);
+      if (com_delimiter(&buffer, pos) > 0)
+        DBUG_RETURN(1);
+
+      buffer.length(0);
+      break;
+    }
+    else if (!*ml_comment && !*in_string && is_prefix(pos, delimiter))
+    {
+      // Found a statement. Continue parsing after the delimiter
+      pos+= delimiter_length;
+
+      if (preserve_comments)
+      {
+        while (my_isspace(charset_info, *pos))
+          *out++= *pos++;
+      }
+      // Flush previously accepted characters
+      if (out != line)
+      {
+        buffer.append(line, (uint32) (out-line));
+        out= line;
+      }
+
+      if (preserve_comments && ((*pos == '#') ||
+                                ((*pos == '-') &&
+                                 (pos[1] == '-') &&
+                                 my_isspace(charset_info, pos[2]))))
+      {
+        // Add trailing single line comments to this statement
+        buffer.append(pos);
+        pos+= strlen(pos);
+      }
+
+      pos--;
+
       if ((com= find_command(buffer.c_ptr(), 0)))
       {
-        if (com->func == com_delimiter)
-        {
-          /*
-            Delimiter wants the get rest of the given line as argument to
-            allow one to change ';' to ';;' and back
-          */
-          char *end= strend(pos);
-          buffer.append(pos, (uint) (end - pos));
-          /* Ensure pos will point at \0 after the pos+= below */
-          pos= end - old_delimiter_length + 1;
-        }
-	if ((*com->func)(&buffer, buffer.c_ptr()) > 0)
-	  DBUG_RETURN(1);                       // Quit
+          
+        if ((*com->func)(&buffer, buffer.c_ptr()) > 0)
+          DBUG_RETURN(1);                       // Quit 
       }
       else
       {
-	if (com_go(&buffer, 0) > 0)             // < 0 is not fatal
-	  DBUG_RETURN(1);
+        if (com_go(&buffer, 0) > 0)             // < 0 is not fatal
+          DBUG_RETURN(1);
       }
       buffer.length(0);
-      out= line;
-      pos+= old_delimiter_length - 1;
     }
     else if (!*ml_comment && (!*in_string && (inchar == '#' ||
 			      inchar == '-' && pos[1] == '-' &&
 			      my_isspace(charset_info,pos[2]))))
-      break;					// comment to end of line
+    {
+      // Flush previously accepted characters
+      if (out != line)
+      {
+        buffer.append(line, (uint32) (out - line));
+        out= line;
+      }
+
+      // comment to end of line
+      if (preserve_comments)
+        buffer.append(pos);
+
+      break;
+    }
     else if (!*in_string && inchar == '/' && *(pos+1) == '*' &&
 	     *(pos+2) != '!')
     {
-      pos++;
+      if (preserve_comments)
+      {
+        *out++= *pos++;                       // copy '/'
+        *out++= *pos;                         // copy '*'
+      }
+      else
+        pos++;
       *ml_comment= 1;
       if (out != line)
       {
@@ -1408,8 +1489,21 @@ static bool add_line(String &buffer,char *line,char *in_string,
     }
     else if (*ml_comment && !ss_comment && inchar == '*' && *(pos + 1) == '/')
     {
-      pos++;
+      if (preserve_comments)
+      {
+        *out++= *pos++;                       // copy '*'
+        *out++= *pos;                         // copy '/'
+      }
+      else
+        pos++;
       *ml_comment= 0;
+      if (out != line)
+      {
+        buffer.append(line, (uint32) (out - line));
+        out= line;
+      }
+      // Consumed a 2 chars or more, and will add 1 at most,
+      // so using the 'line' buffer to edit data in place is ok.
       need_space= 1;
     }      
     else
@@ -1424,14 +1518,12 @@ static bool add_line(String &buffer,char *line,char *in_string,
       else if (!*ml_comment && !*in_string &&
 	       (inchar == '\'' || inchar == '"' || inchar == '`'))
 	*in_string= (char) inchar;
-      if (!*ml_comment)
+      if (!*ml_comment || preserve_comments)
       {
         if (need_space && !my_isspace(charset_info, (char)inchar))
-        {
           *out++= ' ';
-          need_space= 0;
-        }
-	*out++= (char) inchar;
+        need_space= 0;
+        *out++= (char) inchar;
       }
     }
   }
@@ -1441,7 +1533,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
     uint length=(uint) (out-line);
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.realloc(buffer.length()+length+IO_SIZE);
-    if (!(*ml_comment) && buffer.append(line,length))
+    if ((!*ml_comment || preserve_comments) && buffer.append(line, length))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2074,7 +2166,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 {
   char		buff[200], time_buff[32], *pos;
   MYSQL_RES	*result;
-  ulong		timer, warnings;
+  ulong		timer, warnings= 0;
   uint		error= 0;
   int           err= 0;
 
@@ -2126,14 +2218,10 @@ com_go(String *buffer,char *line __attribute__((unused)))
   }
 #endif
 
-  if (error)
-  {
-    executing_query= 0;
-    buffer->length(0); // Remove query on error
-    return error;
-  }
-  error=0;
   buffer->length(0);
+
+  if (error)
+    goto end;
 
   do
   {
@@ -2141,18 +2229,15 @@ com_go(String *buffer,char *line __attribute__((unused)))
     {
       if (!(result=mysql_use_result(&mysql)) && mysql_field_count(&mysql))
       {
-        executing_query= 0;
-        return put_error(&mysql);
+        error= put_error(&mysql);
+        goto end;
       }
     }
     else
     {
       error= mysql_store_result_for_lazy(&result);
       if (error)
-      {
-        executing_query= 0;
-        return error;
-      }
+        goto end;
     }
 
     if (verbose >= 3 || !opt_silent)
@@ -2229,12 +2314,11 @@ com_go(String *buffer,char *line __attribute__((unused)))
   if (err >= 1)
     error= put_error(&mysql);
 
-  if (show_warnings == 1 && warnings >= 1) /* Show warnings if any */
-  {
-    init_pager();
+end:
+
+ /* Show warnings if any or error occured */
+  if (show_warnings == 1 && (warnings >= 1 || error))
     print_warnings();
-    end_pager();
-  }
 
   if (!error && !status.batch && 
       (mysql.server_status & SERVER_STATUS_DB_DROPPED))
@@ -2366,6 +2450,7 @@ static char *fieldflags2str(uint f) {
   ff2s_check_flag(GROUP);
   ff2s_check_flag(UNIQUE);
   ff2s_check_flag(BINCMP);
+  ff2s_check_flag(ON_UPDATE_NOW);
 #undef ff2s_check_flag
   if (f)
     sprintf(s, " unknows=0x%04x", f);
@@ -2658,6 +2743,9 @@ static void print_warnings()
   MYSQL_RES    *result;
   MYSQL_ROW    cur;
   my_ulonglong num_rows;
+  
+  /* Save current error before calling "show warnings" */
+  uint error= mysql_errno(&mysql);
 
   /* Get the warnings */
   query= "show warnings";
@@ -2666,16 +2754,28 @@ static void print_warnings()
 
   /* Bail out when no warnings */
   if (!(num_rows= mysql_num_rows(result)))
-  {
-    mysql_free_result(result);
-    return;
-  }
+    goto end;
+
+  cur= mysql_fetch_row(result);
+
+  /*
+    Don't print a duplicate of the current error.  It is possible for SHOW
+    WARNINGS to return multiple errors with the same code, but different
+    messages.  To be safe, skip printing the duplicate only if it is the only
+    warning.
+  */
+  if (!cur || num_rows == 1 && error == (uint) strtoul(cur[1], NULL, 10))
+    goto end;
 
   /* Print the warnings */
-  while ((cur= mysql_fetch_row(result)))
+  init_pager();
+  do
   {
     tee_fprintf(PAGER, "%s (Code %s): %s\n", cur[0], cur[1], cur[2]);
-  }
+  } while ((cur= mysql_fetch_row(result)));
+  end_pager();
+
+end:
   mysql_free_result(result);
 }
 

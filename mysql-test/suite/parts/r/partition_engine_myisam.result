@@ -2,11 +2,6 @@ SET @max_row = 20;
 SET @@session.storage_engine = 'MyISAM';
 
 #------------------------------------------------------------------------
-# There are several testcases disabled because of the open bugs
-# #15890
-#------------------------------------------------------------------------
-
-#------------------------------------------------------------------------
 #  0. Setting of auxiliary variables + Creation of an auxiliary tables
 #     needed in many testcases
 #------------------------------------------------------------------------
@@ -62,7 +57,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY HASH(f_int1) PARTITIONS 2;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -507,7 +502,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #------------------------------------------------------------------------
 # 2 Assignment of storage engine just after partition or subpartition
@@ -526,7 +521,7 @@ PARTITION part2 STORAGE ENGINE = 'MyISAM'
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -971,7 +966,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -991,7 +986,7 @@ SUBPARTITION subpart22 STORAGE ENGINE = 'MyISAM')
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1438,7 +1433,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #------------------------------------------------------------------------
 # 3 Some but not all named partitions or subpartitions get a storage
@@ -1457,7 +1452,7 @@ PARTITION part2
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1902,7 +1897,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -1917,7 +1912,7 @@ PARTITION part2 STORAGE ENGINE = 'MyISAM'
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2362,7 +2357,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -2382,7 +2377,7 @@ SUBPARTITION subpart22 STORAGE ENGINE = 'MyISAM')
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2829,7 +2824,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -2849,7 +2844,7 @@ SUBPARTITION subpart22 )
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3296,7 +3291,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #------------------------------------------------------------------------
 # 4 Storage engine assignment after partition name + after name of
@@ -3320,7 +3315,7 @@ SUBPARTITION subpart22 STORAGE ENGINE = 'MyISAM')
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3767,7 +3762,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -3787,7 +3782,7 @@ SUBPARTITION subpart22)
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -4234,7 +4229,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #------------------------------------------------------------------------
 # 5 Precedence of storage engine assignments (if there is any)
@@ -4254,7 +4249,7 @@ PARTITION part2 STORAGE ENGINE = 'MyISAM'
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -4699,7 +4694,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -4719,7 +4714,7 @@ SUBPARTITION subpart22 STORAGE ENGINE = 'MyISAM')
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -5166,7 +5161,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 # 6.2 Storage engine assignment after partition name + after
 #     subpartition name
@@ -5188,7 +5183,7 @@ SUBPARTITION subpart22 STORAGE ENGINE = 'MyISAM')
 );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -5635,7 +5630,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 #------------------------------------------------------------------------
 # 6 Session default engine differs from engine used within create table
@@ -5651,7 +5646,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY HASH(f_int1) ( PARTITION part1 ENGINE = 'MyISAM');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -6094,7 +6089,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -6110,7 +6105,7 @@ SUBPARTITION BY HASH(f_int1)
 SUBPARTITION subpart12 STORAGE ENGINE = 'MyISAM'));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-# Start usability test (include/partition_check.inc)
+# Start usability test (inc/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -6553,7 +6548,7 @@ TRUNCATE t1;
 	
 # check TRUNCATE success: 	1
 # check layout success:    1
-# End usability test (include/partition_check.inc)
+# End usability test (inc/partition_check.inc)
 DROP TABLE t1;
 SET SESSION storage_engine='MyISAM';
 DROP VIEW  IF EXISTS v1;

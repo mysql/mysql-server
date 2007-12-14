@@ -138,3 +138,26 @@ create view v1Aa as select AaA.col1 from t1Aa as AaA;
 show create view v1AA;
 drop view v1AA;
 drop table t1Aa;
+
+
+#
+# Bug #31562: HAVING and lower case
+#
+
+CREATE TABLE  t1 (a int, b int);
+
+select X.a from t1 AS X group by X.b having (X.a = 1);
+select X.a from t1 AS X group by X.b having (x.a = 1);
+select X.a from t1 AS X group by X.b having (x.b = 1);
+
+CREATE OR REPLACE VIEW v1 AS
+select X.a from t1 AS X group by X.b having (X.a = 1);
+
+SHOW CREATE VIEW v1;
+
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo End of 5.0 tests.

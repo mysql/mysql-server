@@ -1142,11 +1142,13 @@ DROP FUNCTION func2;
 select column_type, group_concat(table_schema, '.', table_name), count(*) as num
 from information_schema.columns where
 table_schema='information_schema' and
-(column_type = 'varchar(7)' or column_type = 'varchar(20)')
+(column_type = 'varchar(7)' or column_type = 'varchar(20)'
+ or column_type = 'varchar(27)')
 group by column_type order by num;
 column_type	group_concat(table_schema, '.', table_name)	num
+varchar(27)	information_schema.COLUMNS	1
 varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
-varchar(20)	information_schema.COLUMNS,information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	7
+varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	7
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
@@ -1608,4 +1610,9 @@ select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+explain extended select 1 from information_schema.tables;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
+Warnings:
+Note	1003	select 1 AS `1` from `information_schema`.`tables`
 End of 5.1 tests.

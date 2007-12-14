@@ -2619,7 +2619,7 @@ auto	fld1	companynr	fld3	fld4	fld5	fld6
 INSERT INTO t2 VALUES (2,011401,37,'breaking','dreaded','Steinberg','W');
 INSERT INTO t2 VALUES (3,011402,37,'Romans','scholastics','jarring','');
 INSERT INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
-OPTIMIZE TABLE t2 EXTENDED;
+OPTIMIZE TABLE t2;
 Table	Op	Msg_type	Msg_text
 test.t2	optimize	status	OK
 SELECT * FROM t2;
@@ -12683,3 +12683,7 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+CREATE TABLE t1(a VARCHAR(510)) ENGINE = ARCHIVE;
+INSERT INTO t1(a) VALUES ('');
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;

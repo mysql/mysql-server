@@ -1,3 +1,5 @@
+--echo ---- Partitioning and enum data type
+
 --disable_query_log
 # DATA DIRECTORY
 eval SET @data_dir = 'DATA DIRECTORY =
@@ -47,6 +49,9 @@ select count(*) from t2;
 select * from t2;
 drop table t2;
 
+# mleich: Several partitioning functions are no more allowed.
+if (0)
+{
 eval create table t3 (a enum (
 '1','2','3','4','5','6','7','8','9','0',
 'A','B','C','D','E','F','G','H','I','J','K','L',
@@ -71,4 +76,5 @@ dec $letter;
 select count(*) from t3;
 select * from t3;
 drop table t3;
-
+}
+# End of tests with disallowed partitioning functions.

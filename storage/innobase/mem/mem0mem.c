@@ -512,9 +512,9 @@ mem_heap_block_free(
 	of hex 0xDE and 0xAD. */
 
 	mem_erase_buf((byte*)block, len);
-
-#endif
-	UNIV_MEM_FREE(block, len);
+#else /* UNIV_MEM_DEBUG */
+	UNIV_MEM_ASSERT_AND_FREE(block, len);
+#endif /* UNIV_MEM_DEBUG */
 
 	if (init_block) {
 		/* Do not have to free: do nothing */

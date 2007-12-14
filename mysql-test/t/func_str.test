@@ -782,6 +782,19 @@ explain extended select encode(f1,'zxcv') as 'enc' from t1;
 explain extended select decode(f1,'zxcv') as 'enc' from t1;
 drop table t1;
 
+#
+# Bug #31758 inet_ntoa, oct, crashes server with null + filesort 
+#
+create table t1 (a bigint not null)engine=myisam;
+insert into t1 set a = 1024*1024*1024*4;
+delete from t1 order by (inet_ntoa(a)) desc limit 10;
+drop table t1;
+create table t1 (a char(36) not null)engine=myisam;
+insert ignore into t1 set a = ' ';
+insert ignore into t1 set a = ' ';
+select * from t1 order by (oct(a));
+drop table t1;
+
 --echo End of 4.1 tests
 
 #

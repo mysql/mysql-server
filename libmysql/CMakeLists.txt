@@ -75,7 +75,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../mysys/hash.c ../mysys/my_sleep.c ../mysys/default_modify.c
                      get_password.c ../strings/int2str.c ../strings/is_prefix.c 
                      libmysql.c ../mysys/list.c ../strings/llstr.c
-                     ../strings/longlong2str.c manager.c ../mysys/mf_cache.c 
+                     ../strings/longlong2str.c manager.c ../mysys/mf_arr_appstr.c ../mysys/mf_cache.c
                      ../mysys/mf_dirname.c ../mysys/mf_fn_ext.c ../mysys/mf_format.c 
                      ../mysys/mf_iocache.c ../mysys/mf_iocache2.c ../mysys/mf_loadpath.c 
                      ../mysys/mf_pack.c ../mysys/mf_path.c ../mysys/mf_tempfile.c ../mysys/mf_unixpath.c 
@@ -97,7 +97,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../strings/strmov.c ../strings/strnlen.c ../strings/strnmov.c ../strings/strtod.c
                      ../strings/strtoll.c ../strings/strtoull.c ../strings/strxmov.c ../strings/strxnmov.c 
                      ../mysys/thr_mutex.c ../mysys/typelib.c ../vio/vio.c ../vio/viosocket.c 
-                     ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c
+                     ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c ../mysys/mf_qsort.c
 		     ../mysys/my_getsystime.c ${LIB_SOURCES})
 
 # Need to set USE_TLS for building the DLL, since __declspec(thread)

@@ -547,6 +547,26 @@ select quote(name) from bug20536;
 
 drop table bug20536;
 
+#
+# Bug #31615: crash after set names ucs2 collate xxx
+#
+--error 1231
+set names ucs2;
+--error 1231
+set names ucs2 collate ucs2_bin;
+--error 1231
+set character_set_client= ucs2;
+--error 1231
+set character_set_client= concat('ucs', substr('2', 1));
+
+#
+# BUG#31159 - fulltext search on ucs2 column crashes server
+#
+CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci);
+INSERT INTO t1 VALUES('abcd');
+SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
+DROP TABLE t1;
+
 --echo End of 4.1 tests
 
 #
@@ -651,6 +671,9 @@ select * from t1 where a=if(b<10,_ucs2 0x00C0,_ucs2 0x0062);
 select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
 drop table t1;
 
+set collation_connection=ucs2_general_ci;
+--source include/ctype_regex.inc
+set names latin1;
 #
 # Bug#30981 CHAR(0x41 USING ucs2) doesn't add leading zero
 #

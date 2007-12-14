@@ -13,8 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  Set MYSQL_SERVER_SUFFIX_STR
+/**
+  @file
+
+  Set MYSQL_SERVER_SUFFIX_STR.
+
   The following code is quite ugly as there is no portable way to easily set a
   string to the value of a macro
 */

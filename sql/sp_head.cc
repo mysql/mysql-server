@@ -80,19 +80,20 @@ sp_map_item_type(enum enum_field_types type)
 }
 
 
-/*
+/**
   Return a string representation of the Item value.
 
-  NOTE: If the item has a string result type, the string is escaped
-  according to its character set.
+  @param thd     thread handle
+  @param str     string buffer for representation of the value
 
-  SYNOPSIS
-    item    a pointer to the Item
-    str     string buffer for representation of the value
+  @note
+    If the item has a string result type, the string is escaped
+    according to its character set.
 
-  RETURN
-    NULL  on error
-    a pointer to valid a valid string on success
+  @retval
+    NULL      on error
+  @retval
+    non-NULL  a pointer to valid a valid string on success
 */
 
 static String *
@@ -102,8 +103,9 @@ sp_get_item_value(THD *thd, Item *item, String *str)
   case REAL_RESULT:
   case INT_RESULT:
   case DECIMAL_RESULT:
-    return item->val_str(str);
-
+    if (item->field_type() != MYSQL_TYPE_BIT)
+      return item->val_str(str);
+    else {/* Bit type is handled as binary string */}
   case STRING_RESULT:
     {
       String *result= item->val_str(str);
@@ -137,16 +139,12 @@ sp_get_item_value(THD *thd, Item *item, String *str)
 }
 
 
-/*
-  SYNOPSIS
-    sp_get_flags_for_command()
-
-  DESCRIPTION
-    Returns a combination of:
-    * sp_head::MULTI_RESULTS: added if the 'cmd' is a command that might
-      result in multiple result sets being sent back.
-    * sp_head::CONTAINS_DYNAMIC_SQL: added if 'cmd' is one of PREPARE,
-      EXECUTE, DEALLOCATE.
+/**
+   Returns a combination of:
+   - sp_head::MULTI_RESULTS: added if the 'cmd' is a command that might
+     result in multiple result sets being sent back.
+   - sp_head::CONTAINS_DYNAMIC_SQL: added if 'cmd' is one of PREPARE,
+     EXECUTE, DEALLOCATE.
 */
 
 uint
@@ -286,17 +284,16 @@ sp_get_flags_for_command(LEX *lex)
   return flags;
 }
 
-/*
+/**
   Prepare an Item for evaluation (call of fix_fields).
 
-  SYNOPSIS
-    sp_prepare_func_item()
-    thd       thread handler
-    it_addr   pointer on item refernce
+  @param thd       thread handler
+  @param it_addr   pointer on item refernce
 
-  RETURN
-    NULL  error
-    prepared item
+  @retval
+    NULL      error
+  @retval
+    non-NULL  prepared item
 */
 
 Item *
@@ -316,17 +313,16 @@ sp_prepare_func_item(THD* thd, Item **it_addr)
 }
 
 
-/*
+/**
   Evaluate an expression and store the result in the field.
 
-  SYNOPSIS
-    sp_eval_expr()
-      thd                   - current thread object
-      expr_item             - the root item of the expression
-      result_field          - the field to store the result
+  @param thd                    current thread object
+  @param result_field           the field to store the result
+  @param expr_item_ptr          the root item of the expression
 
-  RETURN VALUES
+  @retval
     FALSE  on success
+  @retval
     TRUE   on error
 */
 
@@ -409,6 +405,10 @@ sp_name::sp_name(THD *thd, char *key, uint key_len)
   m_explicit_name= false;
 }
 
+
+/**
+  Init the qualified name from the db and name.
+*/
 void
 sp_name::init_qname(THD *thd)
 {
@@ -426,16 +426,17 @@ sp_name::init_qname(THD *thd)
 }
 
 
-/*
-  Check that the name 'ident' is ok. It's assumed to be an 'ident'
+/**
+  Check that the name 'ident' is ok.  It's assumed to be an 'ident'
   from the parser, so we only have to check length and trailing spaces.
   The former is a standard requirement (and 'show status' assumes a
   non-empty name), the latter is a mysql:ism as trailing spaces are
   removed by get_field().
- 
-  RETURN
-   TRUE  - bad name
-   FALSE - name is ok
+
+  @retval
+    TRUE    bad name
+  @retval
+    FALSE   name is ok
 */
 
 bool
@@ -443,7 +444,7 @@ check_routine_name(LEX_STRING *ident)
 {
   if (!ident || !ident->str || !ident->str[0] ||
       ident->str[ident->length-1] == ' ')
-  {
+  { 
     my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);
     return TRUE;
   }
@@ -465,14 +466,16 @@ check_routine_name(LEX_STRING *ident)
  */
 
 void *
-sp_head::operator new(size_t size)
+sp_head::operator new(size_t size) throw()
 {
   DBUG_ENTER("sp_head::operator new");
   MEM_ROOT own_root;
   sp_head *sp;
 
-  init_alloc_root(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+  init_sql_alloc(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
   sp= (sp_head *) alloc_root(&own_root, size);
+  if (sp == NULL)
+    return NULL;
   sp->main_mem_root= own_root;
   DBUG_PRINT("info", ("mem_root 0x%lx", (ulong) &sp->mem_root));
   DBUG_RETURN(sp);
@@ -483,6 +486,10 @@ sp_head::operator delete(void *ptr, size_t size)
 {
   DBUG_ENTER("sp_head::operator delete");
   MEM_ROOT own_root;
+
+  if (ptr == NULL)
+    DBUG_VOID_RETURN;
+
   sp_head *sp= (sp_head *) ptr;
 
   /* Make a copy of main_mem_root as free_root will free the sp */
@@ -535,6 +542,9 @@ sp_head::init(LEX *lex)
   DBUG_ENTER("sp_head::init");
 
   lex->spcont= m_pcont= new sp_pcontext();
+
+  if (!lex->spcont)
+    DBUG_VOID_RETURN;
 
   /*
     Altough trg_table_fields list is used only in triggers we init for all
@@ -768,7 +778,7 @@ sp_head::destroy()
 }
 
 
-/*
+/**
   This is only used for result fields from functions (both during
   fix_length_and_dec() and evaluation).
 */
@@ -887,29 +897,23 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
 */
 
 
-/*
-  Replace thd->query{_length} with a string that one can write to the binlog
-  or the query cache.
- 
-  SYNOPSIS
-    subst_spvars()
-      thd        Current thread. 
-      instr      Instruction (we look for Item_splocal instances in
-                 instr->free_list)
-      query_str  Original query string
-     
-  DESCRIPTION
+/**
+  Replace thd->query{_length} with a string that one can write to
+  the binlog.
 
   The binlog-suitable string is produced by replacing references to SP local 
-  variables with NAME_CONST('sp_var_name', value) calls. To make this string
-  suitable for the query cache this function allocates some additional space
-  for the query cache flags.
- 
-  RETURN
-    FALSE  on success
-           thd->query{_length} either has been appropriately replaced or there
-           is no need for replacements.
-    TRUE   out of memory error.
+  variables with NAME_CONST('sp_var_name', value) calls.
+
+  @param thd        Current thread.
+  @param instr      Instruction (we look for Item_splocal instances in
+                    instr->free_list)
+  @param query_str  Original query string
+
+  @return
+    - FALSE  on success.
+    thd->query{_length} either has been appropriately replaced or there
+    is no need for replacements.
+    - TRUE   out of memory error.
 */
 
 static bool
@@ -1028,14 +1032,17 @@ void sp_head::recursion_level_error(THD *thd)
 }
 
 
-/*
-  Execute the routine. The main instruction jump loop is there 
+/**
+  Execute the routine. The main instruction jump loop is there.
   Assume the parameters already set.
-  
-  RETURN
-    FALSE  on success
-    TRUE   on error
+  @todo
+    - Will write this SP statement into binlog separately 
+    (TODO: consider changing the condition to "not inside event union")
 
+  @retval
+    FALSE  on success
+  @retval
+    TRUE   on error
 */
 
 bool
@@ -1069,7 +1076,7 @@ sp_head::execute(THD *thd)
     DBUG_RETURN(TRUE);
 
   /* init per-instruction memroot */
-  init_alloc_root(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  init_sql_alloc(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
 
   DBUG_ASSERT(!(m_flags & IS_INVOKED));
   m_flags|= IS_INVOKED;
@@ -1351,22 +1358,26 @@ sp_head::execute(THD *thd)
 
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-/*
+/**
   set_routine_security_ctx() changes routine security context, and
   checks if there is an EXECUTE privilege in new context.  If there is
   no EXECUTE privilege, it changes the context back and returns a
   error.
 
-  SYNOPSIS
-    set_routine_security_ctx()
-      thd         thread handle
-      sp          stored routine to change the context for
-      is_proc     TRUE is procedure, FALSE if function
-      save_ctx    pointer to an old security context
-   
-  RETURN
-    TRUE if there was a error, and the context wasn't changed.
-    FALSE if the context was changed.
+  @param thd         thread handle
+  @param sp          stored routine to change the context for
+  @param is_proc     TRUE is procedure, FALSE if function
+  @param save_ctx    pointer to an old security context
+
+  @todo
+    - Cache if the definer has the right to use the object on the
+    first usage and only reset the cache if someone does a GRANT
+    statement that 'may' affect this.
+
+  @retval
+    TRUE   if there was a error, and the context wasn't changed.
+  @retval
+    FALSE  if the context was changed.
 */
 
 bool
@@ -1408,22 +1419,27 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
 /**
   Execute trigger stored program.
 
-  Execute a trigger:
-   - changes security context for triggers;
-   - switch to new memroot;
-   - call sp_head::execute;
-   - restore old memroot;
-   - restores security context.
+  - changes security context for triggers
+  - switch to new memroot
+  - call sp_head::execute
+  - restore old memroot
+  - restores security context
 
-  @param thd        Thread context.
-  @param db_name    Database name.
-  @param table_name Table name.
-  @param grant_info GRANT_INFO structure to be filled with information
-                    about definer's privileges on subject table.
+  @param thd               Thread handle
+  @param db                database name
+  @param table             table name
+  @param grant_info        GRANT_INFO structure to be filled with
+                           information about definer's privileges
+                           on subject table
 
-  @return Error status.
-    @retval FALSE on success.
-    @retval TRUE  on error.
+  @todo
+    - TODO: we should create sp_rcontext once per command and reuse it
+    on subsequent executions of a trigger.
+
+  @retval
+    FALSE  on success
+  @retval
+    TRUE   on error
 */
 
 bool
@@ -1531,8 +1547,9 @@ err_with_cleanup:
 }
 
 
-/*
-  Execute a function:
+/**
+  Execute a function.
+
    - evaluate parameters
    - changes security context for SUID routines
    - switch to new memroot
@@ -1541,17 +1558,25 @@ err_with_cleanup:
    - evaluate the return value
    - restores security context
 
-  SYNOPSIS
-    sp_head::execute_function()
-      thd               Thread handle
-      argp              Passed arguments (these are items from containing
-                        statement?)
-      argcount          Number of passed arguments. We need to check if this is
-                        correct.
-      return_value_fld  Save result here.
-   
-  RETURN
+  @param thd               Thread handle
+  @param argp              Passed arguments (these are items from containing
+                           statement?)
+  @param argcount          Number of passed arguments. We need to check if
+                           this is correct.
+  @param return_value_fld  Save result here.
+
+  @todo
+    We should create sp_rcontext once per command and reuse
+    it on subsequent executions of a function/trigger.
+
+  @todo
+    In future we should associate call arena/mem_root with
+    sp_rcontext and allocate all these objects (and sp_rcontext
+    itself) on it directly rather than juggle with arenas.
+
+  @retval
     FALSE  on success
+  @retval
     TRUE   on error
 */
 
@@ -1768,14 +1793,8 @@ err_with_cleanup:
 }
 
 
-/*
+/**
   Execute a procedure. 
-  SYNOPSIS
-    sp_head::execute_procedure()
-      thd    Thread handle
-      args   List of values passed as arguments.
-      
-  DESCRIPTION
 
   The function does the following steps:
    - Set all parameters 
@@ -1784,8 +1803,12 @@ err_with_cleanup:
    - copy back values of INOUT and OUT parameters
    - restores security context
 
-  RETURN
+  @param thd    Thread handle
+  @param args   List of values passed as arguments.
+
+  @retval
     FALSE  on success
+  @retval
     TRUE   on error
 */
 
@@ -1987,16 +2010,29 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 }
 
 
-// Reset lex during parsing, before we parse a sub statement.
-void
+/**
+  Reset lex during parsing, before we parse a sub statement.
+
+  @param thd Thread handler.
+
+  @return Error state
+    @retval true An error occurred.
+    @retval false Success.
+*/
+
+bool
 sp_head::reset_lex(THD *thd)
 {
   DBUG_ENTER("sp_head::reset_lex");
   LEX *sublex;
   LEX *oldlex= thd->lex;
 
+  sublex= new (thd->mem_root)st_lex_local;
+  if (sublex == 0)
+    DBUG_RETURN(TRUE);
+
+  thd->lex= sublex;
   (void)m_lex.push_front(oldlex);
-  thd->lex= sublex= new st_lex;
 
   /* Reset most stuff. */
   lex_start(thd);
@@ -2017,10 +2053,10 @@ sp_head::reset_lex(THD *thd)
   sublex->interval_list.empty();
   sublex->type= 0;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
-// Restore lex during parsing, after we have parsed a sub statement.
+/// Restore lex during parsing, after we have parsed a sub statement.
 void
 sp_head::restore_lex(THD *thd)
 {
@@ -2063,6 +2099,9 @@ sp_head::restore_lex(THD *thd)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Put the instruction on the backpatch list, associated with the label.
+*/
 void
 sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
 {
@@ -2076,6 +2115,10 @@ sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
   }
 }
 
+/**
+  Update all instruction with this label in the backpatch list to
+  the current position.
+*/
 void
 sp_head::backpatch(sp_label_t *lab)
 {
@@ -2090,19 +2133,18 @@ sp_head::backpatch(sp_label_t *lab)
   }
 }
 
-/*
+/**
   Prepare an instance of Create_field for field creation (fill all necessary
   attributes).
 
-  SYNOPSIS
-    sp_head::fill_field_definition()
-      thd         [IN] Thread handle
-      lex         [IN] Yacc parsing context
-      field_type  [IN] Field type
-      field_def   [OUT] An instance of Create_field to be filled
+  @param[in]  thd          Thread handle
+  @param[in]  lex          Yacc parsing context
+  @param[in]  field_type   Field type
+  @param[out] field_def    An instance of create_field to be filled
 
-  RETURN
+  @retval
     FALSE  on success
+  @retval
     TRUE   on error
 */
 
@@ -2248,18 +2290,17 @@ sp_head::restore_thd_mem_root(THD *thd)
 }
 
 
-/*
-  Check if a user has access right to a routine
+/**
+  Check if a user has access right to a routine.
 
-  SYNOPSIS
-    check_show_routine_access()
-    thd			Thread handler
-    sp			SP
-    full_access		Set to 1 if the user has SELECT right to the
-			'mysql.proc' able or is the owner of the routine
-  RETURN
-    0  ok
-    1  error
+  @param thd		    Thread handler
+  @param sp		    SP
+  @param full_access       Set to 1 if the user has SELECT right to the
+                           'mysql.proc' able or is the owner of the routine
+  @retval
+    false ok
+  @retval
+    true  error
 */
 
 bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
@@ -2386,12 +2427,10 @@ sp_head::show_create_routine(THD *thd, int type)
 
 
 
-/*
-  Add instruction to SP
+/**
+  Add instruction to SP.
 
-  SYNOPSIS
-    sp_head::add_instr()
-    instr   Instruction
+  @param instr   Instruction
 */
 
 void sp_head::add_instr(sp_instr *instr)
@@ -2409,20 +2448,20 @@ void sp_head::add_instr(sp_instr *instr)
 }
 
 
-/*
+/**
   Do some minimal optimization of the code:
-    1) Mark used instructions
-       1.1) While doing this, shortcut jumps to jump instructions
-    2) Compact the code, removing unused instructions
+    -# Mark used instructions
+    -# While doing this, shortcut jumps to jump instructions
+    -# Compact the code, removing unused instructions.
 
   This is the main mark and move loop; it relies on the following methods
   in sp_instr and its subclasses:
 
-  opt_mark()           Mark instruction as reachable
-  opt_shortcut_jump()  Shortcut jumps to the final destination;
-                       used by opt_mark().
-  opt_move()           Update moved instruction
-  set_destination()    Set the new destination (jump instructions only)
+    - opt_mark()         :  Mark instruction as reachable
+    - opt_shortcut_jump():  Shortcut jumps to the final destination;
+                           used by opt_mark().
+    - opt_move()         :  Update moved instruction
+    - set_destination()  :  Set the new destination (jump instructions only)
 */
 
 void sp_head::optimize()
@@ -2513,9 +2552,10 @@ sp_head::opt_mark()
 
 
 #ifndef DBUG_OFF
-/*
+/**
   Return the routine instructions as a result set.
-  Returns 0 if ok, !=0 on error.
+  @return
+    0 if ok, !=0 on error.
 */
 int
 sp_head::show_routine_code(THD *thd)
@@ -2578,27 +2618,25 @@ sp_head::show_routine_code(THD *thd)
 #endif // ifndef DBUG_OFF
 
 
-/*
+/**
   Prepare LEX and thread for execution of instruction, if requested open
   and lock LEX's tables, execute instruction's core function, perform
   cleanup afterwards.
 
-  SYNOPSIS
-    reset_lex_and_exec_core()
-      thd         - thread context
-      nextp       - out - next instruction
-      open_tables - if TRUE then check read access to tables in LEX's table
-                    list and open and lock them (used in instructions which
-                    need to calculate some expression and don't execute
-                    complete statement).
-      sp_instr    - instruction for which we prepare context, and which core
-                    function execute by calling its exec_core() method.
+  @param thd           thread context
+  @param nextp         out - next instruction
+  @param open_tables   if TRUE then check read access to tables in LEX's table
+                       list and open and lock them (used in instructions which
+                       need to calculate some expression and don't execute
+                       complete statement).
+  @param sp_instr      instruction for which we prepare context, and which core
+                       function execute by calling its exec_core() method.
 
-  NOTE
+  @note
     We are not saving/restoring some parts of THD which may need this because
     we do this once for whole routine execution in sp_head::execute().
 
-  RETURN VALUE
+  @return
     0/non-0 - Success/Failure
 */
 
@@ -3356,6 +3394,11 @@ sp_instr_cpop::print(String *str)
   sp_instr_copen class functions
 */
 
+/**
+  @todo
+    Assert that we either have an error or a cursor
+*/
+
 int
 sp_instr_copen::execute(THD *thd, uint *nextp)
 {
@@ -3677,24 +3720,23 @@ uchar *sp_table_key(const uchar *ptr, size_t *plen, my_bool first)
 }
 
 
-/*
+/**
   Merge the list of tables used by some query into the multi-set of
   tables used by routine.
 
-  SYNOPSIS
-    merge_table_list()
-      thd               - thread context
-      table             - table list
-      lex_for_tmp_check - LEX of the query for which we are merging
-                          table list.
+  @param thd                 thread context
+  @param table               table list
+  @param lex_for_tmp_check   LEX of the query for which we are merging
+                             table list.
 
-  NOTE
+  @note
     This method will use LEX provided to check whenever we are creating
     temporary table and mark it as such in target multi-set.
 
-  RETURN VALUE
-    TRUE  - Success
-    FALSE - Error
+  @retval
+    TRUE    Success
+  @retval
+    FALSE   Error
 */
 
 bool
@@ -3782,27 +3824,26 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 }
 
 
-/*
+/**
   Add tables used by routine to the table list.
 
-  SYNOPSIS
-    add_used_tables_to_table_list()
-      thd                    [in]     Thread context
-      query_tables_last_ptr  [in/out] Pointer to the next_global member of
-                                      last element of the list where tables
-                                      will be added (or to its root).
-      belong_to_view         [in]     Uppermost view which uses this routine,
-                                      0 if none.
-
-  DESCRIPTION
     Converts multi-set of tables used by this routine to table list and adds
     this list to the end of table list specified by 'query_tables_last_ptr'.
 
     Elements of list will be allocated in PS memroot, so this list will be
     persistent between PS executions.
 
-  RETURN VALUE
-    TRUE - if some elements were added, FALSE - otherwise.
+  @param[in] thd                        Thread context
+  @param[in,out] query_tables_last_ptr  Pointer to the next_global member of
+    last element of the list where tables
+    will be added (or to its root).
+  @param[in] belong_to_view             Uppermost view which uses this routine,
+    0 if none.
+
+  @retval
+    TRUE    if some elements were added
+  @retval
+    FALSE   otherwise.
 */
 
 bool
@@ -3872,7 +3913,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
 }
 
 
-/*
+/**
   Simple function for adding an explicetly named (systems) table to
   the global table list, e.g. "mysql", "proc".
 */
@@ -3886,7 +3927,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
 
   if (!(table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(TABLE_LIST));
+    thd->fatal_error();
     return NULL;
   }
   table->db_length= strlen(db);

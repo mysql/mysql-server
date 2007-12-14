@@ -24,9 +24,14 @@
 #endif
 
 typedef struct st_key_part {
-  uint16           key,part, store_length, length;
+  uint16           key,part;
+  /* See KEY_PART_INFO for meaning of the next two: */
+  uint16           store_length, length;
   uint8            null_bit;
-  /* Keypart flags (0 if partition pruning is used) */
+  /*
+    Keypart flags (0 when this structure is used by partition pruning code
+    for fake partitioning index description)
+  */
   uint8 flag;
   Field            *field;
   Field::imagetype image_type;

@@ -237,3 +237,24 @@ select @a:=f2, count(f2) from t1 group by 1 desc;
 select @a:=f3, count(f3) from t1 group by 1 desc;
 select @a:=f4, count(f4) from t1 group by 1 desc;
 drop table t1;
+
+#
+# Bug #32260: User variables in query cause server crash
+#
+create table t1(a int);
+insert into t1 values(5),(4),(4),(3),(2),(2),(2),(1);
+set @rownum := 0;
+set @rank := 0;
+set @prev_score := NULL;
+# Disable the result log as we assign a value to a user variable in one part 
+# of a statement and use the same variable in other part of the same statement,
+# so we can get unexpected results.
+--disable_result_log
+select @rownum := @rownum + 1 as row,
+ @rank := IF(@prev_score!=a, @rownum, @rank) as rank,
+ @prev_score := a as score
+from t1 order by score desc;
+--enable_result_log
+drop table t1;
+
+--echo End of 5.1 tests

@@ -65,9 +65,6 @@
 static enum enum_ha_read_modes rkey_to_rnext[]=
 { RNEXT_SAME, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV, RPREV };
 
-static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags);
-
-
 /*
   Get hash key and hash key length.
 
@@ -119,13 +116,15 @@ static void mysql_ha_hash_free(TABLE_LIST *tables)
 
   @param thd Thread identifier.
   @param tables A list of tables with the first entry to close.
+  @param is_locked If LOCK_open is locked.
 
   @note Though this function takes a list of tables, only the first list entry
   will be closed.
-  @note Broadcasts refresh if it closed the table.
+  @note Broadcasts refresh if it closed a table with old version.
 */
 
-static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
+static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
+                                 bool is_locked)
 {
   TABLE **table_ptr;
 
@@ -143,13 +142,15 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
   if (*table_ptr)
   {
     (*table_ptr)->file->ha_index_or_rnd_end();
-    VOID(pthread_mutex_lock(&LOCK_open));
+    if (! is_locked)
+      VOID(pthread_mutex_lock(&LOCK_open));
     if (close_thread_table(thd, table_ptr))
     {
       /* Tell threads waiting for refresh that something has happened */
       broadcast_refresh();
     }
-    VOID(pthread_mutex_unlock(&LOCK_open));
+    if (! is_locked)
+      VOID(pthread_mutex_unlock(&LOCK_open));
   }
   else if (tables->table)
   {
@@ -305,7 +306,7 @@ err:
   if (hash_tables)
     my_free((char*) hash_tables, MYF(0));
   if (tables->table)
-    mysql_ha_close_table(thd, tables);
+    mysql_ha_close_table(thd, tables, FALSE);
   DBUG_PRINT("exit",("ERROR"));
   DBUG_RETURN(TRUE);
 }
@@ -339,7 +340,7 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
                                               (uchar*) tables->alias,
                                               strlen(tables->alias) + 1)))
   {
-    mysql_ha_close_table(thd, hash_tables);
+    mysql_ha_close_table(thd, hash_tables, FALSE);
     hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
   }
   else
@@ -478,7 +479,7 @@ retry:
 
   if (need_reopen)
   {
-    mysql_ha_close_table(thd, tables);
+    mysql_ha_close_table(thd, tables, FALSE);
     hash_tables->table= NULL;
     /*
       The lock might have been aborted, we need to manually reset
@@ -669,163 +670,130 @@ err0:
 }
 
 
-/*
-  Flush (close) a list of HANDLER tables.
+/**
+  Scan the handler tables hash for matching tables.
 
-  SYNOPSIS
-    mysql_ha_flush()
-    thd                         Thread identifier.
-    tables                      The list of tables to close. If NULL,
-                                close all HANDLER tables [marked as flushed].
-    mode_flags                  MYSQL_HA_CLOSE_FINAL finally close the table.
-                                MYSQL_HA_REOPEN_ON_USAGE mark for reopen.
-                                MYSQL_HA_FLUSH_ALL flush all tables, not only
-                                those marked for flush.
-    is_locked                   If LOCK_open is locked.
+  @param thd Thread identifier.
+  @param tables The list of tables to remove.
 
-  DESCRIPTION
-    The list of HANDLER tables may be NULL, in which case all HANDLER
-    tables are closed (if MYSQL_HA_FLUSH_ALL) is set.
-    If 'tables' is NULL and MYSQL_HA_FLUSH_ALL is not set,
-    all HANDLER tables marked for flush are closed.
-    Broadcasts refresh for every table closed.
-
-  NOTE
-    Since mysql_ha_flush() is called when the base table has to be closed,
-    we compare real table names, not aliases. Hence, database names matter.
-
-  RETURN
-    0  ok
+  @return Pointer to head of linked list (TABLE_LIST::next_local) of matching
+          TABLE_LIST elements from handler_tables_hash. Otherwise, NULL if no
+          table was matched.
 */
 
-int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
-                   bool is_locked)
+static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables)
 {
-  TABLE_LIST    *tmp_tables;
-  TABLE         **table_ptr;
-  bool          did_lock= FALSE;
-  DBUG_ENTER("mysql_ha_flush");
-  DBUG_PRINT("enter", ("tables: 0x%lx  mode_flags: 0x%02x",
-                       (long) tables, mode_flags));
+  TABLE_LIST *hash_tables, *head= NULL, *first= tables;
+  DBUG_ENTER("mysql_ha_find");
 
-  if (tables)
+  /* search for all handlers with matching table names */
+  for (uint i= 0; i < thd->handler_tables_hash.records; i++)
   {
-    /* Close all tables in the list. */
-    for (tmp_tables= tables ; tmp_tables; tmp_tables= tmp_tables->next_local)
+    hash_tables= (TABLE_LIST*) hash_element(&thd->handler_tables_hash, i);
+    for (tables= first; tables; tables= tables->next_local)
     {
-      DBUG_PRINT("info-in-tables-list",("'%s'.'%s' as '%s'",
-                                        tmp_tables->db, tmp_tables->table_name,
-                                        tmp_tables->alias));
-      /* Close all currently open handler tables with the same base table. */
-      table_ptr= &(thd->handler_tables);
-      while (*table_ptr)
-      {
-        if ((!*tmp_tables->db ||
-             !my_strcasecmp(&my_charset_latin1, (*table_ptr)->s->db.str,
-                             tmp_tables->db)) &&
-            ! my_strcasecmp(&my_charset_latin1,
-                            (*table_ptr)->s->table_name.str,
-                            tmp_tables->table_name))
-        {
-          DBUG_PRINT("info",("*table_ptr '%s'.'%s' as '%s'",
-                             (*table_ptr)->s->db.str,
-                             (*table_ptr)->s->table_name.str,
-                             (*table_ptr)->alias));
-          /* The first time it is required, lock for close_thread_table(). */
-          if (! did_lock && ! is_locked)
-          {
-            VOID(pthread_mutex_lock(&LOCK_open));
-            did_lock= TRUE;
-          }
-          mysql_ha_flush_table(thd, table_ptr, mode_flags);
-          continue;
-        }
-        table_ptr= &(*table_ptr)->next;
-      }
-      /* end of handler_tables list */
+      if ((! *tables->db ||
+          ! my_strcasecmp(&my_charset_latin1, hash_tables->db, tables->db)) &&
+          ! my_strcasecmp(&my_charset_latin1, hash_tables->table_name,
+                          tables->table_name))
+        break;
     }
-    /* end of flush tables list */
-  }
-  else
-  {
-    /* Close all currently open tables [which are marked for flush]. */
-    table_ptr= &(thd->handler_tables);
-    while (*table_ptr)
+    if (tables)
     {
-      if ((mode_flags & MYSQL_HA_FLUSH_ALL) ||
-          (*table_ptr)->needs_reopen_or_name_lock())
-      {
-        /* The first time it is required, lock for close_thread_table(). */
-        if (! did_lock && ! is_locked)
-        {
-          VOID(pthread_mutex_lock(&LOCK_open));
-          did_lock= TRUE;
-        }
-        mysql_ha_flush_table(thd, table_ptr, mode_flags);
-        continue;
-      }
-      table_ptr= &(*table_ptr)->next;
+      hash_tables->next_local= head;
+      head= hash_tables;
     }
   }
 
-  /* Release the lock if it was taken by this function. */
-  if (did_lock)
-    VOID(pthread_mutex_unlock(&LOCK_open));
-
-  DBUG_RETURN(0);
+  DBUG_RETURN(head);
 }
 
-/*
-  Flush (close) a table.
 
-  SYNOPSIS
-    mysql_ha_flush_table()
-    thd                         Thread identifier.
-    table                       The table to close.
-    mode_flags                  MYSQL_HA_CLOSE_FINAL finally close the table.
-                                MYSQL_HA_REOPEN_ON_USAGE mark for reopen.
+/**
+  Remove matching tables from the HANDLER's hash table.
 
-  DESCRIPTION
-    Broadcasts refresh if it closed the table.
-    The caller must lock LOCK_open.
+  @param thd Thread identifier.
+  @param tables The list of tables to remove.
+  @param is_locked If LOCK_open is locked.
 
-  RETURN
-    0  ok
+  @note Broadcasts refresh if it closed a table with old version.
 */
 
-static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
+void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked)
 {
-  TABLE_LIST    *hash_tables;
-  TABLE         *table= *table_ptr;
-  DBUG_ENTER("mysql_ha_flush_table");
-  DBUG_PRINT("enter",("'%s'.'%s' as '%s'  flags: 0x%02x",
-                      table->s->db.str, table->s->table_name.str,
-                      table->alias, mode_flags));
+  TABLE_LIST *hash_tables, *next;
+  DBUG_ENTER("mysql_ha_rm_tables");
 
-  if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
-                                              (uchar*) table->alias,
-                                              strlen(table->alias) + 1)))
+  DBUG_ASSERT(tables);
+
+  hash_tables= mysql_ha_find(thd, tables);
+
+  while (hash_tables)
   {
-    if (! (mode_flags & MYSQL_HA_REOPEN_ON_USAGE))
+    next= hash_tables->next_local;
+    if (hash_tables->table)
+      mysql_ha_close_table(thd, hash_tables, is_locked);
+    hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
+    hash_tables= next;
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Flush (close and mark for re-open) all tables that should be should
+  be reopen.
+
+  @param thd Thread identifier.
+
+  @note Broadcasts refresh if it closed a table with old version.
+*/
+
+void mysql_ha_flush(THD *thd)
+{
+  TABLE_LIST *hash_tables;
+  DBUG_ENTER("mysql_ha_flush");
+
+  safe_mutex_assert_owner(&LOCK_open);
+
+  for (uint i= 0; i < thd->handler_tables_hash.records; i++)
+  {
+    hash_tables= (TABLE_LIST*) hash_element(&thd->handler_tables_hash, i);
+    if (hash_tables->table && hash_tables->table->needs_reopen_or_name_lock())
     {
-      /* This is a final close. Remove from hash. */
-      hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
-    }
-    else
-    {
+      mysql_ha_close_table(thd, hash_tables, TRUE);
       /* Mark table as closed, ready for re-open. */
       hash_tables->table= NULL;
     }
-  }    
-
-  safe_mutex_assert_owner(&LOCK_open);
-  (*table_ptr)->file->ha_index_or_rnd_end();
-  safe_mutex_assert_owner(&LOCK_open);
-  if (close_thread_table(thd, table_ptr))
-  {
-    /* Tell threads waiting for refresh that something has happened */
-    broadcast_refresh();
   }
 
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
+
+
+/**
+  Close all HANDLER's tables.
+
+  @param thd Thread identifier.
+
+  @note Broadcasts refresh if it closed a table with old version.
+*/
+
+void mysql_ha_cleanup(THD *thd)
+{
+  TABLE_LIST *hash_tables;
+  DBUG_ENTER("mysql_ha_cleanup");
+
+  for (uint i= 0; i < thd->handler_tables_hash.records; i++)
+  {
+    hash_tables= (TABLE_LIST*) hash_element(&thd->handler_tables_hash, i);
+    if (hash_tables->table)
+      mysql_ha_close_table(thd, hash_tables, FALSE);
+   }
+
+  hash_free(&thd->handler_tables_hash);
+
+  DBUG_VOID_RETURN;
+}
+

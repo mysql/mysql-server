@@ -14,7 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Sum functions (COUNT, MIN...) */
+/**
+  @file
+
+  @brief
+  Sum functions (COUNT, MIN...)
+*/
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -23,28 +28,25 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-/* 
-  Prepare an aggregate function item for checking context conditions
+/**
+  Prepare an aggregate function item for checking context conditions.
 
-  SYNOPSIS
-    init_sum_func_check()
-    thd      reference to the thread context info
-
-  DESCRIPTION
     The function initializes the members of the Item_sum object created
     for a set function that are used to check validity of the set function
     occurrence.
     If the set function is not allowed in any subquery where it occurs
     an error is reported immediately.
 
-  NOTES
+  @param thd      reference to the thread context info
+
+  @note
     This function is to be called for any item created for a set function
     object when the traversal of trees built for expressions used in the query
     is performed at the phase of context analysis. This function is to
     be invoked at the descent of this traversal.
-  
-  RETURN
-    TRUE   if an error is reported     
+  @retval
+    TRUE   if an error is reported
+  @retval
     FALSE  otherwise
 */
  
@@ -69,15 +71,9 @@ bool Item_sum::init_sum_func_check(THD *thd)
   return FALSE;
 }
 
-/* 
-  Check constraints imposed on a usage of a set function
+/**
+  Check constraints imposed on a usage of a set function.
 
-  SYNOPSIS
-    check_sum_func()
-    thd      reference to the thread context info
-    ref      location of the pointer to this item in the embedding expression 
-
-  DESCRIPTION
     The method verifies whether context conditions imposed on a usage
     of any set function are met for this occurrence.
     It checks whether the set function occurs in the position where it
@@ -89,13 +85,6 @@ bool Item_sum::init_sum_func_check(THD *thd)
     adds it to the chain of items for such set functions that is attached
     to the the st_select_lex structure for this subquery.
 
-  NOTES
-    This function is to be called for any item created for a set function
-    object when the traversal of trees built for expressions used in the query
-    is performed at the phase of context analysis. This function is to
-    be invoked at the ascent of this traversal.
-
-  IMPLEMENTATION
     A number of designated members of the object are used to check the
     conditions. They are specified in the comment before the Item_sum
     class declaration.
@@ -106,16 +95,28 @@ bool Item_sum::init_sum_func_check(THD *thd)
     of set functions are allowed (i.e either in the SELECT list or
     in the HAVING clause of the corresponding subquery)
     Consider the query:
-      SELECT SUM(t1.b) FROM t1 GROUP BY t1.a
-        HAVING t1.a IN (SELECT t2.c FROM t2 WHERE AVG(t1.b) > 20) AND
-               t1.a > (SELECT MIN(t2.d) FROM t2);
+    @code
+       SELECT SUM(t1.b) FROM t1 GROUP BY t1.a
+         HAVING t1.a IN (SELECT t2.c FROM t2 WHERE AVG(t1.b) > 20) AND
+                t1.a > (SELECT MIN(t2.d) FROM t2);
+    @endcode
     allow_sum_func will contain: 
-    for SUM(t1.b) - 1 at the first position 
-    for AVG(t1.b) - 1 at the first position, 0 at the second position
-    for MIN(t2.d) - 1 at the first position, 1 at the second position.
+    - for SUM(t1.b) - 1 at the first position 
+    - for AVG(t1.b) - 1 at the first position, 0 at the second position
+    - for MIN(t2.d) - 1 at the first position, 1 at the second position.
 
-  RETURN
-    TRUE   if an error is reported     
+  @param thd  reference to the thread context info
+  @param ref  location of the pointer to this item in the embedding expression
+
+  @note
+    This function is to be called for any item created for a set function
+    object when the traversal of trees built for expressions used in the query
+    is performed at the phase of context analysis. This function is to
+    be invoked at the ascent of this traversal.
+
+  @retval
+    TRUE   if an error is reported
+  @retval
     FALSE  otherwise
 */
  
@@ -200,15 +201,9 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
   return FALSE;
 }
 
-/* 
-  Attach a set function to the subquery where it must be aggregated
+/**
+  Attach a set function to the subquery where it must be aggregated.
 
-  SYNOPSIS
-    register_sum_func()
-    thd      reference to the thread context info
-    ref      location of the pointer to this item in the embedding expression
- 
-  DESCRIPTION
     The function looks for an outer subquery where the set function must be
     aggregated. If it finds such a subquery then aggr_level is set to
     the nest level of this subquery and the item for the set function
@@ -216,14 +211,18 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     inner_sum_func_list defined for each subquery. When the item is placed 
     there the field 'ref_by' is set to ref.
 
-  NOTES.
+  @note
     Now we 'register' only set functions that are aggregated in outer
     subqueries. Actually it makes sense to link all set function for
     a subquery in one chain. It would simplify the process of 'splitting'
     for set functions.
 
-  RETURN
+  @param thd  reference to the thread context info
+  @param ref  location of the pointer to this item in the embedding expression
+
+  @retval
     FALSE  if the executes without failures (currently always)
+  @retval
     TRUE   otherwise
 */  
 
@@ -311,8 +310,8 @@ Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements),
 }
 
 
-/*
-  Constructor used in processing select with temporary tebles
+/**
+  Constructor used in processing select with temporary tebles.
 */
 
 Item_sum::Item_sum(THD *thd, Item_sum *item):
@@ -655,6 +654,10 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
 ** reset and add of sum_func
 ***********************************************************************/
 
+/**
+  @todo
+  check if the following assignments are really needed
+*/
 Item_sum_sum::Item_sum_sum(THD *thd, Item_sum_sum *item) 
   :Item_sum_num(thd, item), hybrid_type(item->hybrid_type),
    curr_dec_buff(item->curr_dec_buff)
@@ -833,7 +836,7 @@ Item_sum_distinct::Item_sum_distinct(THD *thd, Item_sum_distinct *original)
 }
 
 
-/*
+/**
   Behaves like an Integer except to fix_length_and_dec().
   Additionally div() converts val with this traits to a val with true
   decimal traits along with conversion of integer value to decimal value.
@@ -910,6 +913,10 @@ void Item_sum_distinct::fix_length_and_dec()
 }
 
 
+/**
+  @todo
+  check that the case of CHAR(0) works OK
+*/
 bool Item_sum_distinct::setup(THD *thd)
 {
   List<Create_field> field_list;
@@ -2004,8 +2011,8 @@ void Item_sum_bit::update_field()
 }
 
 
-/*
-** calc next value and merge it with field_value
+/**
+  calc next value and merge it with field_value.
 */
 
 void Item_sum_sum::update_field()
@@ -2181,6 +2188,10 @@ Item_sum_hybrid::min_max_update_int_field()
 }
 
 
+/**
+  @todo
+  optimize: do not get result_field in case of args[0] is NULL
+*/
 void
 Item_sum_hybrid::min_max_update_decimal_field()
 {
@@ -2369,7 +2380,7 @@ int simple_str_key_cmp(void* arg, uchar* key1, uchar* key2)
   return f->cmp(key1, key2);
 }
 
-/*
+/**
   Did not make this one static - at least gcc gets confused when
   I try to declare a static function as a friend. If you can figure
   out the syntax to make a static function a friend, make this one
@@ -2436,7 +2447,10 @@ void Item_sum_count_distinct::cleanup()
 }
 
 
-/* This is used by rollup to create a separate usable copy of the function */
+/**
+  This is used by rollup to create a separate usable copy of
+  the function.
+*/
 
 void Item_sum_count_distinct::make_unique()
 {
@@ -2804,7 +2818,7 @@ my_decimal *Item_sum_udf_int::val_decimal(my_decimal *dec)
 }
 
 
-/* Default max_length is max argument length */
+/** Default max_length is max argument length. */
 
 void Item_sum_udf_str::fix_length_and_dec()
 {
@@ -2854,9 +2868,8 @@ String *Item_sum_udf_str::val_str(String *str)
    Blobs doesn't work with DISTINCT or ORDER BY
 *****************************************************************************/
 
-/*
-  function of sort for syntax:
-  GROUP_CONCAT(DISTINCT expr,...)
+/**
+  function of sort for syntax: GROUP_CONCAT(DISTINCT expr,...)
 */
 
 int group_concat_key_cmp_with_distinct(void* arg, uchar* key1,
@@ -2893,9 +2906,8 @@ int group_concat_key_cmp_with_distinct(void* arg, uchar* key1,
 }
 
 
-/*
-  function of sort for syntax:
-  GROUP_CONCAT(expr,... ORDER BY col,... )
+/**
+  function of sort for syntax: GROUP_CONCAT(expr,... ORDER BY col,... )
 */
 
 int group_concat_key_cmp_with_order(void* arg, uchar* key1, uchar* key2)
@@ -2937,11 +2949,11 @@ int group_concat_key_cmp_with_order(void* arg, uchar* key1, uchar* key2)
 }
 
 
-/*
+/**
   function of sort for syntax:
-  GROUP_CONCAT(DISTINCT expr,... ORDER BY col,... )
+  GROUP_CONCAT(DISTINCT expr,... ORDER BY col,... ).
 
-  BUG:
+  @bug
     This doesn't work in the case when the order by contains data that
     is not part of the field list because tree-insert will not notice
     the duplicated values when inserting things sorted by ORDER BY
@@ -2956,8 +2968,8 @@ int group_concat_key_cmp_with_distinct_and_order(void* arg,uchar* key1,
 }
 
 
-/*
-  Append data from current leaf to item->result
+/**
+  Append data from current leaf to item->result.
 */
 
 int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
@@ -3028,12 +3040,13 @@ int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
 }
 
 
-/*
-  Constructor of Item_func_group_concat
-  distinct_arg - distinct
-  select_list - list of expression for show values
-  order_list - list of sort columns
-  separator_arg - string value of separator
+/**
+  Constructor of Item_func_group_concat.
+
+  @param distinct_arg   distinct
+  @param select_list    list of expression for show values
+  @param order_list     list of sort columns
+  @param separator_arg  string value of separator.
 */
 
 Item_func_group_concat::
@@ -3427,7 +3440,7 @@ String* Item_func_group_concat::val_str(String* str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  if (!result.length() && tree)
+  if (no_appended && tree)
     /* Tree is used for sorting as in ORDER BY */
     tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
               left_root_right);

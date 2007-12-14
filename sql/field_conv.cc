@@ -14,11 +14,15 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/*
- Functions to copy data to or from fields
- This could be done with a single short function but opencoding this
- gives much more speed.
- */
+/**
+  @file
+
+  @brief
+  Functions to copy data to or from fields
+
+    This could be done with a single short function but opencoding this
+    gives much more speed.
+*/
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
@@ -129,22 +133,21 @@ set_field_to_null(Field *field)
 }
 
 
-/*
-  Set field to NULL or TIMESTAMP or to next auto_increment number
+/**
+  Set field to NULL or TIMESTAMP or to next auto_increment number.
 
-  SYNOPSIS
-    set_field_to_null_with_conversions()
-    field		Field to update
-    no_conversion	Set to 1 if we should return 1 if field can't
-			take null values.
-			If set to 0 we will do store the 'default value'
-			if the field is a special field. If not we will
-			give an error.
+  @param field           Field to update
+  @param no_conversions  Set to 1 if we should return 1 if field can't
+                         take null values.
+                         If set to 0 we will do store the 'default value'
+                         if the field is a special field. If not we will
+                         give an error.
 
-  RETURN VALUES
-    0		Field could take 0 or an automatic conversion was used
-    -1		Field could not take NULL and no conversion was used.
-		If no_conversion was not set, an error message is printed
+  @retval
+    0    Field could take 0 or an automatic conversion was used
+  @retval
+    -1   Field could not take NULL and no conversion was used.
+    If no_conversion was not set, an error message is printed
 */
 
 int
@@ -283,7 +286,7 @@ static void do_conv_blob(Copy_field *copy)
 					 copy->tmp.charset());
 }
 
-/* Save blob in copy->tmp for GROUP BY */
+/** Save blob in copy->tmp for GROUP BY. */
 
 static void do_save_blob(Copy_field *copy)
 {
@@ -352,9 +355,9 @@ static void do_field_decimal(Copy_field *copy)
 }
 
 
-/*
+/**
   string copy for single byte characters set when to string is shorter than
-  from string
+  from string.
 */
 
 static void do_cut_string(Copy_field *copy)
@@ -374,9 +377,9 @@ static void do_cut_string(Copy_field *copy)
 }
 
 
-/*
+/**
   string copy for multi byte characters set when to string is shorter than
-  from string
+  from string.
 */
 
 static void do_cut_string_complex(Copy_field *copy)
@@ -507,7 +510,7 @@ static void do_varstring2_mb(Copy_field *copy)
 ** The different functions that fills in a Copy_field class
 ***************************************************************************/
 
-/*
+/**
   copy of field to maybe null string.
   If field is null then the all bytes are set to 0.
   if field is not null then the first byte is set to 1 and the rest of the
@@ -748,7 +751,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
 }
 
 
-/* Simple quick field convert that is called on insert */
+/** Simple quick field convert that is called on insert. */
 
 int field_conv(Field *to,Field *from)
 {

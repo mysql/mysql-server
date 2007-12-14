@@ -342,11 +342,19 @@ sub mtr_report_stats ($) {
 
                 # BUG#29807 - innodb_mysql.test: Cannot find table test/t2
                 #             from the internal data dictionary
-                /Cannot find table test\/bug29807 from the internal data dictionary/ or
+                /Cannot find or open table test\/bug29807 from/ or
 
                 # BUG#29839 - lowercase_table3.test: Cannot find table test/T1
                 #             from the internal data dictiona
-                /Cannot find table test\/BUG29839 from the internal data dictionary/
+                /Cannot find table test\/BUG29839 from the internal data dictionary/ or
+
+		# rpl_extrColmaster_*.test, the slave thread produces warnings
+		# when it get updates to a table that has more columns on the
+		# master
+		/Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
+		/Slave: Can't DROP 'c7'.* 1091/ or
+		/Slave: Key column 'c6'.* 1072/
+
 	       )
             {
               next;                       # Skip these lines

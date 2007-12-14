@@ -584,9 +584,7 @@ insert into t1 values (1);
 insert into t2 values (2);
 create temporary table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
 select * from t3;
-a
-1
-2
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 create temporary table t4 (a int not null);
 create temporary table t5 (a int not null);
 insert into t4 values (1);
@@ -597,6 +595,54 @@ a
 1
 2
 drop table t6, t3, t1, t2, t4, t5;
+create temporary table t1 (a int not null);
+create temporary table t2 (a int not null);
+insert into t1 values (1);
+insert into t2 values (2);
+create table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+select * from t3;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+drop table t3, t2, t1;
+create table t1 (a int not null);
+create temporary table t2 (a int not null);
+insert into t1 values (1);
+insert into t2 values (2);
+create table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+select * from t3;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+drop table t3;
+create temporary table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+select * from t3;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+drop table t3, t2, t1;
+# CREATE...SELECT is not implemented for MERGE tables.
+CREATE TEMPORARY TABLE t1 (c1 INT NOT NULL);
+CREATE TEMPORARY TABLE t2 (c1 INT NOT NULL);
+CREATE TABLE t3 (c1 INT NOT NULL);
+INSERT INTO t3 VALUES (3), (33);
+LOCK TABLES t3 READ;
+CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL) ENGINE=MERGE UNION=(t1,t2)
+INSERT_METHOD=LAST SELECT * FROM t3;
+ERROR HY000: 'test.t4' is not BASE TABLE
+SELECT * FROM t4;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+UNLOCK TABLES;
+CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL) ENGINE=MERGE UNION=(t1,t2)
+INSERT_METHOD=LAST;
+INSERT INTO t4 SELECT * FROM t3;
+# Alter temporary MERGE table.
+ALTER TABLE t4 UNION=(t1);
+LOCK TABLES t4 WRITE;
+# Alter temporary MERGE table under LOCk tables.
+ALTER TABLE t4 UNION=(t1,t2);
+UNLOCK TABLES;
+# MERGE table and function.
+CREATE FUNCTION f1 () RETURNS INT RETURN (SELECT max(c1) FROM t3);
+SELECT * FROM t4 WHERE c1 < f1();
+c1
+3
+DROP FUNCTION f1;
+DROP TABLE t4, t3, t2, t1;
 CREATE TABLE t1 (
 fileset_id tinyint(3) unsigned NOT NULL default '0',
 file_code varchar(32) NOT NULL default '',
@@ -650,11 +696,11 @@ create table t2 (a int);
 insert into t1 values (0);
 insert into t2 values (1);
 create table t3 engine=merge union=(t1, t2) select * from t1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR HY000: 'test.t3' is not BASE TABLE
 create table t3 engine=merge union=(t1, t2) select * from t2;
-ERROR HY000: You can't specify target table 't2' for update in FROM clause
+ERROR HY000: 'test.t3' is not BASE TABLE
 create table t3 engine=merge union=(t1, t2) select (select max(a) from t2);
-ERROR HY000: You can't specify target table 't2' for update in FROM clause
+ERROR HY000: 'test.t3' is not BASE TABLE
 drop table t1, t2;
 create table t1 (
 a double(14,4),
@@ -784,7 +830,7 @@ ERROR HY000: Unable to open underlying table which is differently defined or of 
 DROP TABLE t1, t2;
 CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
 SELECT * FROM t2;
-ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ERROR 42S02: Table 'test.t3' doesn't exist
 DROP TABLE t2;
 CREATE TABLE t1(a INT, b TEXT);
 CREATE TABLE tm1(a TEXT, b INT) ENGINE=MERGE UNION=(t1);
@@ -849,20 +895,17 @@ drop table t2;
 drop table t1;
 CREATE TABLE tm1(a INT) ENGINE=MERGE UNION=(t1, t2);
 SELECT * FROM tm1;
-ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ERROR 42S02: Table 'test.t1' doesn't exist
 CHECK TABLE tm1;
 Table	Op	Msg_type	Msg_text
-test.tm1	check	Error	Table 'test.t1' is differently defined or of non-MyISAM type or doesn't exist
-test.tm1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
-test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Table 'test.t1' doesn't exist
 test.tm1	check	error	Corrupt
 CREATE TABLE t1(a INT);
 SELECT * FROM tm1;
-ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ERROR 42S02: Table 'test.t2' doesn't exist
 CHECK TABLE tm1;
 Table	Op	Msg_type	Msg_text
-test.tm1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
-test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Table 'test.t2' doesn't exist
 test.tm1	check	error	Corrupt
 CREATE TABLE t2(a BLOB);
 SELECT * FROM tm1;
@@ -885,3 +928,1022 @@ CREATE TABLE IF NOT EXISTS t1 SELECT * FROM t2;
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 DROP TABLE t1, t2;
 End of 5.0 tests
+create table t1 (c1 int, index(c1));
+create table t2 (c1 int, index(c1)) engine=merge union=(t1);
+insert into t1 values (1);
+flush tables;
+select * from t2;
+c1
+1
+flush tables;
+truncate table t1;
+insert into t1 values (1);
+flush tables;
+select * from t2;
+c1
+1
+truncate table t1;
+insert into t1 values (1);
+drop table t1,t2;
+#
+# Extra tests for TRUNCATE.
+#
+# Truncate MERGE table.
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1));
+CREATE TABLE t3 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1,t2);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t3;
+c1
+1
+2
+TRUNCATE TABLE t3;
+SELECT * FROM t3;
+c1
+#
+# Truncate child table.
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+c1
+2
+#
+# Truncate MERGE table under locked tables.
+LOCK TABLE t1 WRITE, t2 WRITE, t3 WRITE;
+INSERT INTO t1 VALUES (1);
+TRUNCATE TABLE t3;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SELECT * FROM t3;
+c1
+1
+2
+#
+# Truncate child table under locked tables.
+TRUNCATE TABLE t1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SELECT * FROM t3;
+c1
+1
+2
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3;
+#
+# Truncate temporary MERGE table.
+CREATE TEMPORARY TABLE t1 (c1 INT, INDEX(c1));
+CREATE TEMPORARY TABLE t2 (c1 INT, INDEX(c1));
+CREATE TEMPORARY TABLE t3 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1,t2);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t3;
+c1
+1
+2
+TRUNCATE TABLE t3;
+SELECT * FROM t3;
+c1
+#
+# Truncate temporary child table.
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+c1
+2
+#
+# Truncate temporary MERGE table under locked tables.
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t4 (c1 INT, INDEX(c1));
+LOCK TABLE t4 WRITE;
+TRUNCATE TABLE t3;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SELECT * FROM t3;
+c1
+1
+2
+#
+# Truncate temporary child table under locked tables.
+TRUNCATE TABLE t1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SELECT * FROM t3;
+c1
+1
+2
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1) INSERT_METHOD= LAST;
+REPAIR TABLE t1;
+INSERT INTO t2 VALUES (1);
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+DROP TABLE t1, t2;
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1) INSERT_METHOD= LAST;
+LOCK TABLE t1 WRITE;
+INSERT INTO t2 VALUES (1);
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+LOCK TABLE t1 WRITE;
+INSERT INTO t1 VALUES (1);
+FLUSH TABLES;
+FLUSH TABLES;
+SELECT * FROM t1;
+c1
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# Extra tests for Bug#26379 - Combination of FLUSH TABLE and
+#                             REPAIR TABLE corrupts a MERGE table
+#
+# CREATE ... SELECT is disabled for MERGE tables.
+#
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+CREATE TABLE t3 ENGINE=MRG_MYISAM INSERT_METHOD=LAST SELECT * FROM t2;
+ERROR HY000: Table 't3' is read only
+SHOW CREATE TABLE t3;
+ERROR 42S02: Table 'test.t3' doesn't exist
+CREATE TABLE t3 ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST
+SELECT * FROM t2;
+ERROR HY000: 'test.t3' is not BASE TABLE
+SHOW CREATE TABLE t3;
+ERROR 42S02: Table 'test.t3' doesn't exist
+DROP TABLE t1, t2;
+#
+# CREATE ... LIKE
+#
+# 1. Create like.
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+CREATE TABLE t3 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2)
+INSERT_METHOD=LAST;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+CREATE TABLE t4 LIKE t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=()
+INSERT INTO t4 VALUES (4);
+ERROR HY000: Table 't4' is read only
+DROP TABLE t4;
+#
+# 1. Create like with locked tables.
+LOCK TABLES t3 WRITE, t2 WRITE, t1 WRITE;
+CREATE TABLE t4 LIKE t3;
+SHOW CREATE TABLE t4;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+INSERT INTO t4 VALUES (4);
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+UNLOCK TABLES;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=()
+INSERT INTO t4 VALUES (4);
+ERROR HY000: Table 't4' is read only
+DROP TABLE t4;
+#
+# Rename child.
+#
+# 1. Normal rename of non-MERGE table.
+CREATE TABLE t4 (c1 INT);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+c1
+4
+RENAME TABLE t4 TO t5;
+SELECT * FROM t5 ORDER BY c1;
+c1
+4
+RENAME TABLE t5 TO t4;
+SELECT * FROM t4 ORDER BY c1;
+c1
+4
+DROP TABLE t4;
+#
+# 2. Normal rename.
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+RENAME TABLE t2 TO t5;
+SELECT * FROM t3 ORDER BY c1;
+ERROR 42S02: Table 'test.t2' doesn't exist
+RENAME TABLE t5 TO t2;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+#
+# 3. Normal rename with locked tables.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+RENAME TABLE t2 TO t5;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+RENAME TABLE t5 TO t2;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+#
+# 4. Alter table rename.
+ALTER TABLE t2 RENAME TO t5;
+SELECT * FROM t3 ORDER BY c1;
+ERROR 42S02: Table 'test.t2' doesn't exist
+ALTER TABLE t5 RENAME TO t2;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+#
+# 5. Alter table rename with locked tables.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+ALTER TABLE t2 RENAME TO t5;
+SELECT * FROM t3 ORDER BY c1;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+ALTER TABLE t5 RENAME TO t2;
+ERROR HY000: Table 't5' was not locked with LOCK TABLES
+UNLOCK TABLES;
+ALTER TABLE t5 RENAME TO t2;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+#
+# Rename parent.
+#
+# 1. Normal rename with locked tables.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+RENAME TABLE t3 TO t5;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+RENAME TABLE t5 TO t3;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+#
+# 5. Alter table rename with locked tables.
+ALTER TABLE t3 RENAME TO t5;
+SELECT * FROM t5 ORDER BY c1;
+ERROR HY000: Table 't5' was not locked with LOCK TABLES
+ALTER TABLE t5 RENAME TO t3;
+ERROR HY000: Table 't5' was not locked with LOCK TABLES
+UNLOCK TABLES;
+ALTER TABLE t5 RENAME TO t3;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+DROP TABLE t1, t2, t3;
+#
+# Drop locked tables.
+#
+# 1. Drop parent.
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+LOCK TABLES t1 WRITE, t2 WRITE;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t2;
+SELECT * FROM t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+SELECT * FROM t1;
+c1
+1
+UNLOCK TABLES;
+# 2. Drop child.
+CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+LOCK TABLES t1 WRITE, t2 WRITE;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+UNLOCK TABLES;
+DROP TABLE t2;
+#
+# ALTER TABLE. Change child list.
+#
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1));
+CREATE TABLE t3 (c1 INT, INDEX(c1));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+CREATE TABLE t4 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t3,t2)
+INSERT_METHOD=LAST;
+# Shrink child list.
+ALTER TABLE t4 UNION=(t3);
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t3`)
+SELECT * FROM t4 ORDER BY c1;
+c1
+3
+# Extend child list.
+ALTER TABLE t4 UNION=(t3,t2);
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t3`,`t2`)
+SELECT * FROM t4 ORDER BY c1;
+c1
+2
+3
+#
+# ALTER TABLE under LOCK TABLES. Change child list.
+#
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE;
+# Shrink child list.
+ALTER TABLE t4 UNION=(t3);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+# Extend child list within locked tables.
+ALTER TABLE t4 UNION=(t3,t2);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+# Extend child list beyond locked tables.
+ALTER TABLE t4 UNION=(t3,t2,t1);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t3`,`t2`)
+SELECT * FROM t4 ORDER BY c1;
+c1
+2
+3
+UNLOCK TABLES;
+DROP TABLE t4;
+#
+# ALTER TABLE under LOCK TABLES. Grave change, table re-creation.
+#
+CREATE TABLE t4 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1,t2,t3)
+INSERT_METHOD=LAST;
+# Lock parent first and then children.
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE, t1 WRITE;
+ALTER TABLE t4 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock children first and then parent.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE;
+ALTER TABLE t4 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock parent between children.
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+ALTER TABLE t4 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4;
+#
+# ALTER TABLE under LOCK TABLES. Simple change, no re-creation.
+#
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+CREATE TABLE t3 (c1 INT);
+CREATE TABLE t4 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2,t3)
+INSERT_METHOD=LAST;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+# Lock parent first and then children.
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE, t1 WRITE;
+ALTER TABLE t4 ALTER COLUMN c1 SET DEFAULT 44;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 ALTER COLUMN c1 SET DEFAULT 22;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock children first and then parent.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE;
+ALTER TABLE t4 ALTER COLUMN c1 SET DEFAULT 44;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 ALTER COLUMN c1 SET DEFAULT 22;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock parent between children.
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+ALTER TABLE t4 ALTER COLUMN c1 SET DEFAULT 44;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 ALTER COLUMN c1 SET DEFAULT 22;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+#
+# FLUSH TABLE under LOCK TABLES.
+#
+# Lock parent first and then children.
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE, t1 WRITE;
+FLUSH TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLES;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock children first and then parent.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE;
+FLUSH TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLES;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock parent between children.
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+FLUSH TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLES;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+#
+# Triggers
+#
+# Trigger on parent
+DELETE FROM t4 WHERE c1 = 4;
+CREATE TRIGGER t4_ai AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+@a
+1
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+DROP TRIGGER t4_ai;
+# Trigger on parent under LOCK TABLES
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CREATE TRIGGER t4_ai AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+@a
+1
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+DROP TRIGGER t4_ai;
+UNLOCK TABLES;
+#
+# Trigger on child
+DELETE FROM t4 WHERE c1 = 4;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+@a
+0
+INSERT INTO t3 VALUES (33);
+SELECT @a;
+@a
+1
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+33
+DROP TRIGGER t3_ai;
+# Trigger on child under LOCK TABLES
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+@a
+0
+INSERT INTO t3 VALUES (33);
+SELECT @a;
+@a
+1
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+33
+33
+DELETE FROM t4 WHERE c1 = 33;
+DROP TRIGGER t3_ai;
+#
+# Trigger with table use on child
+DELETE FROM t4 WHERE c1 = 4;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+INSERT INTO t3 VALUES (33);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+22
+33
+DELETE FROM t4 WHERE c1 = 22;
+DELETE FROM t4 WHERE c1 = 33;
+DROP TRIGGER t3_ai;
+# Trigger with table use on child under LOCK TABLES
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+INSERT INTO t3 VALUES (33);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+22
+33
+DROP TRIGGER t3_ai;
+DELETE FROM t4 WHERE c1 = 22;
+DELETE FROM t4 WHERE c1 = 33;
+UNLOCK TABLES;
+#
+# Repair
+#
+REPAIR TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	repair	note	The storage engine for the table doesn't support repair
+REPAIR TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+REPAIR TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	repair	note	The storage engine for the table doesn't support repair
+REPAIR TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+UNLOCK TABLES;
+#
+# Optimize
+#
+OPTIMIZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	optimize	note	The storage engine for the table doesn't support optimize
+OPTIMIZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	optimize	status	OK
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+OPTIMIZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	optimize	note	The storage engine for the table doesn't support optimize
+OPTIMIZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	optimize	status	Table is already up to date
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+UNLOCK TABLES;
+#
+# Checksum
+#
+CHECKSUM TABLE t4;
+Table	Checksum
+test.t4	46622073
+CHECKSUM TABLE t2;
+Table	Checksum
+test.t2	3700403066
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CHECKSUM TABLE t4;
+Table	Checksum
+test.t4	46622073
+CHECKSUM TABLE t2;
+Table	Checksum
+test.t2	3700403066
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+UNLOCK TABLES;
+#
+# Insert delayed
+#
+INSERT DELAYED INTO t4 VALUES(44);
+DELETE FROM t4 WHERE c1 = 44;
+INSERT DELAYED INTO t3 VALUES(33);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+33
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+INSERT DELAYED INTO t4 VALUES(444);
+Got one of the listed errors
+INSERT DELAYED INTO t3 VALUES(333);
+Got one of the listed errors
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+33
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4;
+#
+# Recursive inclusion of merge tables in their union clauses.
+#
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+CREATE TABLE t3 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t2,t1)
+INSERT_METHOD=LAST;
+ALTER TABLE t2 UNION=(t3,t1);
+SELECT * FROM t2;
+ERROR HY000: Table 't3' is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE= MyISAM;
+CREATE TABLE t3 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1, t2);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t3;
+c1
+1
+2
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+c1
+2
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (id INTEGER, grp TINYINT, id_rev INTEGER);
+SET @rnd_max= 2147483647;
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+set @@read_buffer_size=2*1024*1024;
+CREATE TABLE t2 SELECT * FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+CREATE TABLE t3 (id INTEGER, grp TINYINT, id_rev INTEGER)
+ENGINE= MRG_MYISAM UNION= (t1, t2);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+130
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+80
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+210
+SELECT COUNT(DISTINCT a1.id) FROM t3 AS a1, t3 AS a2
+WHERE a1.id = a2.id GROUP BY a2.grp;
+TRUNCATE TABLE t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+80
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+80
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+INSERT INTO t2 VALUES (1);
+SELECT * FROM t2;
+c1
+1
+LOCK TABLES t2 WRITE, t1 WRITE;
+FLUSH TABLES;
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+UNLOCK TABLES;
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+LOCK TABLES t2 WRITE, t1 WRITE;
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+UNLOCK TABLES;
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1, t2;
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+CREATE TABLE m1 ( a INT ) ENGINE=MRG_MYISAM UNION=(t1);
+LOCK TABLES t1 WRITE, m1 WRITE;
+FLUSH TABLE t1;
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+CREATE TABLE m1 ( a INT ) ENGINE=MRG_MYISAM UNION=(t1);
+LOCK TABLES m1 WRITE, t1 WRITE;
+FLUSH TABLE t1;
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+CREATE TABLE t1 (c1 INT, c2 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT, c2 INT) ENGINE= MyISAM;
+CREATE TABLE t3 (c1 INT, c2 INT) ENGINE= MRG_MYISAM UNION(t1, t2);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+SELECT * FROM t3;
+c1	c2
+1	1
+2	2
+ALTER TABLE t1 ENGINE= MEMORY;
+INSERT INTO t1 VALUES (0, 0);
+SELECT * FROM t3;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (c1 INT, KEY(c1));
+CREATE TABLE t2 (c1 INT, KEY(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=FIRST;
+LOCK TABLE t1 WRITE, t2 WRITE;
+FLUSH TABLES t2, t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	Table is already up to date
+FLUSH TABLES t1;
+UNLOCK TABLES;
+FLUSH TABLES;
+INSERT INTO t1 VALUES (1);
+LOCK TABLE t1 WRITE, t2 WRITE;
+FLUSH TABLES t2, t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+FLUSH TABLES t1;
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (ID INT) ENGINE=MYISAM;
+CREATE TABLE m1 (ID INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=FIRST;
+INSERT INTO t1 VALUES ();
+INSERT INTO m1 VALUES ();
+LOCK TABLE t1 WRITE, m1 WRITE;
+FLUSH TABLES m1, t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+FLUSH TABLES m1, t1;
+UNLOCK TABLES;
+DROP TABLE t1, m1;

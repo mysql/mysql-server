@@ -17,3 +17,13 @@ UNINSTALL PLUGIN EXAMPLE;
 ERROR 42000: PLUGIN EXAMPLE does not exist
 UNINSTALL PLUGIN non_exist;
 ERROR 42000: PLUGIN non_exist does not exist
+#
+# Bug#32034: check_func_enum() does not check correct values but set it
+#            to impossible int val
+#
+INSTALL PLUGIN example SONAME 'ha_example.so';
+SET GLOBAL example_enum_var= e1;
+SET GLOBAL example_enum_var= e2;
+SET GLOBAL example_enum_var= impossible;
+ERROR 42000: Variable 'enum_var' can't be set to the value of 'impossible'
+UNINSTALL PLUGIN example;

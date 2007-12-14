@@ -650,8 +650,8 @@ static int NEAR_F write_keys(MI_SORT_PARAM *info, register uchar **sort_keys,
   uint sort_length=info->key_length;
   DBUG_ENTER("write_keys");
 
-  qsort2((uchar*) sort_keys,count,sizeof(uchar*),(qsort2_cmp) info->key_cmp,
-         info);
+  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*),(qsort2_cmp) info->key_cmp,
+            info);
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
                        DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
@@ -693,8 +693,8 @@ static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info,
   int err;
   DBUG_ENTER("write_keys_varlen");
 
-  qsort2((uchar*) sort_keys,count,sizeof(uchar*),(qsort2_cmp) info->key_cmp,
-         info);
+  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*),(qsort2_cmp) info->key_cmp,
+            info);
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
                        DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
@@ -736,8 +736,8 @@ static int NEAR_F write_index(MI_SORT_PARAM *info, register uchar **sort_keys,
 {
   DBUG_ENTER("write_index");
 
-  qsort2((uchar*) sort_keys,(size_t) count,sizeof(uchar*),
-        (qsort2_cmp) info->key_cmp,info);
+  my_qsort2((uchar*) sort_keys,(size_t) count,sizeof(uchar*),
+           (qsort2_cmp) info->key_cmp,info);
   while (count--)
   {
     if ((*info->key_write)(info,*sort_keys++))

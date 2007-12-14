@@ -742,7 +742,7 @@ public:
   virtual uchar *get_value(Item *item)=0;
   void sort()
   {
-    qsort2(base,used_count,size,compare,collation);
+    my_qsort2(base,used_count,size,compare,collation);
   }
   int find(Item *item);
   
@@ -1145,6 +1145,8 @@ public:
   Item *find_item(String *str);
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   void cleanup();
+  void agg_str_lengths(Item *arg);
+  void agg_num_lengths(Item *arg);
 };
 
 /*
@@ -1382,6 +1384,10 @@ class Item_func_regex :public Item_bool_func
   bool regex_is_const;
   String prev_regexp;
   DTCollation cmp_collation;
+  CHARSET_INFO *regex_lib_charset;
+  int regex_lib_flags;
+  String conv;
+  bool regcomp(bool send_error);
 public:
   Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b),
     regex_compiled(0),regex_is_const(0) {}

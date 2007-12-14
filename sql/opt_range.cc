@@ -3344,17 +3344,15 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   {
     key_part->key=          0;
     key_part->part=	    part;
-    key_part->length=       (uint16) (*field)->pack_length_in_rec();
-    /* 
-      psergey-todo: check yet again if this is correct for tricky field types,
-      e.g. see "Fix a fatal error in decimal key handling" in open_binary_frm()
-    */
-    key_part->store_length= (uint16) (*field)->pack_length();
+    key_part->store_length= key_part->length= (uint16) (*field)->key_length();
     if ((*field)->real_maybe_null())
       key_part->store_length+= HA_KEY_NULL_LENGTH;
     if ((*field)->type() == MYSQL_TYPE_BLOB || 
         (*field)->real_type() == MYSQL_TYPE_VARCHAR)
       key_part->store_length+= HA_KEY_BLOB_LENGTH;
+
+    DBUG_PRINT("info", ("part %u length %u store_length %u", part,
+                         key_part->length, key_part->store_length));
 
     key_part->field=        (*field);
     key_part->image_type =  Field::itRAW;
@@ -4465,8 +4463,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     ROR_SCAN_INFO's.
     Step 2: Get best ROR-intersection using an approximate algorithm.
   */
-  qsort(tree->ror_scans, tree->n_ror_scans, sizeof(ROR_SCAN_INFO*),
-        (qsort_cmp)cmp_ror_scan_info);
+  my_qsort(tree->ror_scans, tree->n_ror_scans, sizeof(ROR_SCAN_INFO*),
+           (qsort_cmp)cmp_ror_scan_info);
   DBUG_EXECUTE("info",print_ror_scans_arr(param->table, "ordered",
                                           tree->ror_scans,
                                           tree->ror_scans_end););
@@ -4658,8 +4656,8 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
         bitmap_get_first(&(*scan)->covered_fields);
     }
 
-    qsort(ror_scan_mark, ror_scans_end-ror_scan_mark, sizeof(ROR_SCAN_INFO*),
-          (qsort_cmp)cmp_ror_scan_info_covering);
+    my_qsort(ror_scan_mark, ror_scans_end-ror_scan_mark, sizeof(ROR_SCAN_INFO*),
+             (qsort_cmp)cmp_ror_scan_info_covering);
 
     DBUG_EXECUTE("info", print_ror_scans_arr(param->table,
                                              "remaining scans",
@@ -7352,6 +7350,9 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
     tmp_max_flag= max_key_flag | key_tree->max_flag;
   }
 
+  if (unlikely(param->thd->killed != 0))
+    return HA_POS_ERROR;
+  
   keynr=param->real_keynr[idx];
   param->range_count++;
   if (!tmp_min_flag && ! tmp_max_flag &&

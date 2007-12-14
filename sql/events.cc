@@ -146,7 +146,7 @@ bool
 Events::set_opt_event_scheduler(char *argument)
 {
   if (argument == NULL)
-    opt_event_scheduler= Events::EVENTS_DISABLED;
+    opt_event_scheduler= Events::EVENTS_ON;
   else
   {
     int type;
@@ -884,6 +884,7 @@ Events::init(my_bool opt_noacl)
   */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+  lex_start(thd);
 
   /*
     We will need Event_db_repository anyway, even if the scheduler is
