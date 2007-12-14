@@ -601,6 +601,10 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
 {
   DBUG_ENTER("pagecache_fwrite");
   DBUG_ASSERT(type != PAGECACHE_READ_UNKNOWN_PAGE);
+  /**
+    @todo RECOVERY BUG Here, we should call a callback get_lsn(): it will use
+    lsn_korr() for LSN pages, and translog_get_horizon() for bitmap pages.
+  */
   if (type == PAGECACHE_LSN_PAGE)
   {
     LSN lsn;
@@ -4185,18 +4189,8 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       */
       DBUG_ASSERT(block->hash_link != NULL);
       DBUG_ASSERT(block->status & PCBLOCK_CHANGED);
-      /**
-         @todo RECOVERY BUG
-         REDO phase uses PAGECACHE_PLAIN_PAGE, so the lines below would
-         confuse the indirect Checkpoint taken at the end of the REDO phase.
-         So we below collect even dirty pages of temporary tables as a result
-         :( Soon we should have the MARIA_SHARE accessible from the
-         pagecache's block and then we can test born_transactional.
-      */
-#ifdef TRANS_TABLES_ALWAYS_USE_LSN_PAGE
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it */
-#endif
       stored_list_size++;
     }
   }
@@ -4221,10 +4215,8 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
          block;
          block= block->next_changed)
     {
-#ifdef TRANS_TABLES_ALWAYS_USE_LSN_PAGE
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it in the checkpoint record */
-#endif
       compile_time_assert(sizeof(block->hash_link->file.file) <= 4);
       compile_time_assert(sizeof(block->hash_link->pageno) <= 4);
       int4store(ptr, block->hash_link->file.file);

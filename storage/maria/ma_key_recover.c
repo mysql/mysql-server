@@ -175,7 +175,7 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
 
 
 /**
-  @brief write hook for undo key insert
+  @brief write hook for undo key
 */
 
 my_bool write_hook_for_undo_key(enum translog_record_type type,

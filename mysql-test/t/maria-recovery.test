@@ -122,6 +122,7 @@ drop table t1;
 # the rewrite was ignored.
 #
 
+--echo * TEST of two REDOs for same page in one REDO group
 -- source include/maria_empty_logs.inc
 let $mms_tables=1;
 CREATE TABLE t1 (
@@ -144,6 +145,7 @@ SELECT LENGTH(b) FROM t1 WHERE i=3;
 drop table t1;
 
 # Test that INSERT's effect on auto-increment is recovered
+--echo * TEST of INSERT vs state.auto_increment
 -- source include/maria_empty_logs.inc
 let $mms_tables=1;
 CREATE TABLE t1 (
@@ -165,6 +167,7 @@ let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 show create table t1;
 
 # Test that UPDATE's effect on auto-increment is recovered
+--echo * TEST of UPDATE vs state.auto_increment
 -- source include/maria_make_snapshot_for_feeding_recovery.inc
 update t1 set i=15 where c="a";
 -- source include/maria_make_snapshot_for_comparison.inc

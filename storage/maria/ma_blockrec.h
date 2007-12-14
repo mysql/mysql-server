@@ -171,6 +171,7 @@ my_bool _ma_compare_block_record(register MARIA_HA *info,
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
 my_bool _ma_bitmap_end(MARIA_SHARE *share);
 my_bool _ma_bitmap_flush(MARIA_SHARE *share);
+my_bool _ma_bitmap_flush_all(MARIA_SHARE *share);
 void _ma_bitmap_reset_cache(MARIA_SHARE *share);
 my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
                               MARIA_BITMAP_BLOCKS *result_blocks);
@@ -198,6 +199,7 @@ my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
                                        uint *bitmap_pattern);
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
 int  _ma_bitmap_create_first(MARIA_SHARE *share);
+void _ma_bitmap_flushable(MARIA_SHARE *share, my_bool flushable);
 #ifndef DBUG_OFF
 void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
                       ulonglong page);
