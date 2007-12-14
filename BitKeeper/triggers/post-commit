@@ -4,11 +4,10 @@
 if [ -n "$BK_USER" ]
 then
   COMMITTER=$BK_USER
-  FROM=$BK_USER@mysql.com
 else
   COMMITTER=$USER
-  FROM=$USER@mysql.com
 fi
+FROM=$COMMITTER@mysql.com
 COMMITS=commits@lists.mysql.com
 DOCS=docs-commit@mysql.com
 LIMIT=10000
