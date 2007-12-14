@@ -104,8 +104,8 @@ int main(int argc, char **argv)
   maria_init();
 
   /*
-    If we are doing a repair and we have requested logging (on by default),
-    enable transaction log handling.
+    If we are doing a repair, user may want to store this repair into the log
+    so that the log has a complete history and can be used to replay.
   */
   if (opt_transaction_logging && (check_param.testflag & T_REP_ANY) &&
       (ma_control_file_create_or_open() ||

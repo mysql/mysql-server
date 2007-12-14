@@ -348,11 +348,14 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
      REDO phase does not fill blocks' rec_lsn, so a checkpoint now would be
      wrong: if a future recovery used it, the REDO phase would always
      start from the checkpoint and never from before, wrongly skipping REDOs
-     (tested).
+     (tested). Another problem is that the REDO phase uses
+     PAGECACHE_PLAIN_PAGE, while Checkpoint only collects PAGECACHE_LSN_PAGE.
 
-     @todo fix this; pagecache_write() now can have a rec_lsn argument.
+     @todo fix this. pagecache_write() now can have a rec_lsn argument. And we
+     could make a function which goes through pages at end of REDO phase and
+     changes their type.
   */
-#if 0
+#ifdef FIX_AND_ENABLE_LATER
   if (take_checkpoints && checkpoint_useful)
   {
     /*
@@ -478,14 +481,11 @@ prototype_redo_exec_hook(LONG_TRANSACTION_ID)
 {
   uint16 sid= rec->short_trid;
   TrID long_trid= all_active_trans[sid].long_trid;
-  /* abort group of this trn (must be of before a crash) */
-  LSN gslsn= all_active_trans[sid].group_start_lsn;
-  if (gslsn != LSN_IMPOSSIBLE)
-  {
-    tprint(tracef, "Group at LSN (%lu,0x%lx) short_trid %u incomplete\n",
-           LSN_IN_PARTS(gslsn), sid);
-    all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
-  }
+  /*
+    Any incomplete group should be of an old crash which already had a
+    recovery and thus has logged INCOMPLETE_GROUP which we must have seen.
+  */
+  DBUG_ASSERT(all_active_trans[sid].group_start_lsn == LSN_IMPOSSIBLE);
   if (long_trid != 0)
   {
     LSN ulsn= all_active_trans[sid].undo_lsn;
@@ -1160,6 +1160,7 @@ static int new_table(uint16 sid, const char *name,
   }
   if (maria_is_crashed(info))
   {
+    /** @todo what should we do? how to continue recovery? */
     tprint(tracef, "Table is crashed, can't apply log records to it\n");
     goto end;
   }
@@ -1566,10 +1567,6 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    /**
-       @todo some bits below will rather be set when executing UNDOs related
-       to keys
-    */
     info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
@@ -1605,8 +1602,8 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
-                            STATE_NOT_OPTIMIZED_ROWS);
+    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+      STATE_NOT_OPTIMIZED_ROWS;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
   _ma_unpin_all_pages(info, rec->lsn);
@@ -1743,6 +1740,7 @@ prototype_redo_exec_hook(COMMIT)
   {
     tprint(tracef, "We don't know about transaction with short_trid %u;"
            "it probably committed long ago, forget it\n", sid);
+    bzero(&all_active_trans[sid], sizeof(all_active_trans[sid]));
     return 0;
   }
   llstr(long_trid, llbuf);
@@ -1792,6 +1790,7 @@ prototype_redo_exec_hook(CLR_END)
       break;
     case LOGREC_UNDO_ROW_INSERT:
       share->state.state.records--;
+      share->state.changed|= STATE_NOT_OPTIMIZED_ROWS;
       row_entry= 1;
       break;
     case LOGREC_UNDO_ROW_UPDATE:
@@ -1865,7 +1864,8 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT)
     return 1;
   }
   share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+    STATE_NOT_OPTIMIZED_ROWS;
 
   record_ptr= rec->header;
   if (share->calc_checksum)
@@ -2205,8 +2205,9 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
         if (log_desc->record_in_group == LOGREC_IS_GROUP_ITSELF)
         {
           /*
-            can happen if the transaction got a table write error, then
-            unlocked tables thus wrote a COMMIT record.
+            Can happen if the transaction got a table write error, then
+            unlocked tables thus wrote a COMMIT record. Or can be an
+            INCOMPLETE_GROUP record written by a previous recovery.
           */
           tprint(tracef, "\nDiscarding incomplete group before this record\n");
           all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
@@ -2677,6 +2678,8 @@ static LSN parse_checkpoint_record(LSN lsn)
   tprint(tracef, "%u active transactions\n", nb_active_transactions);
   LSN minimum_rec_lsn_of_active_transactions= lsn_korr(ptr);
   ptr+= LSN_STORE_SIZE;
+  max_long_trid= transid_korr(ptr);
+  ptr+= TRANSID_SIZE;
 
   /*
     how much brain juice and discussions there was to come to writing this

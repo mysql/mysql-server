@@ -598,6 +598,7 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
   pthread_mutex_lock(&LOCK_trn_list);
   str_act->length= 2 + /* number of active transactions */
     LSN_STORE_SIZE + /* minimum of their rec_lsn */
+    TRANSID_SIZE + /* current TrID generator value */
     (2 + /* short id */
      6 + /* long id */
      LSN_STORE_SIZE + /* undo_lsn */
@@ -618,6 +619,8 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
     goto err;
   /* First, the active transactions */
   ptr= str_act->str + 2 + LSN_STORE_SIZE;
+  transid_store(ptr, global_trid_generator);
+  ptr+= TRANSID_SIZE;
   for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
   {
     /*

@@ -389,8 +389,6 @@ static LOG_DESC INIT_LOGREC_REDO_NOT_USED=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, write_hook_for_redo, NULL, 0,
  "redo_insert_row_blob", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
-/** @todo RECOVERY BUG handle it in recovery */
-/*QQ:TODO:header???*/
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOBS=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, FILEID_STORE_SIZE, NULL,
  write_hook_for_redo, NULL, 0,

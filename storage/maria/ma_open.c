@@ -1100,7 +1100,6 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
 
 uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
 {
-  /** @todo RECOVERY write it only at checkpoint time */
   uchar  buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
   uchar *ptr=buff;
   uint	i, keys= (uint) state->header.keys;
@@ -1143,7 +1142,6 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   {
     mi_sizestore(ptr,state->key_root[i]);		ptr+= 8;
   }
-  /** @todo RECOVERY BUG key_del is a problem for recovery */
   mi_sizestore(ptr,state->key_del);	        	ptr+= 8;
   if (pWrite & 2)				/* From maria_chk */
   {
