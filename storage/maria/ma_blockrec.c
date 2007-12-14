@@ -2033,6 +2033,7 @@ static my_bool write_block_record(MARIA_HA *info,
       break;
     default:                                    /* Wrong data */
       DBUG_ASSERT(0);
+      length=0;
       break;
     }
     if (!tmp_data_used && tmp_data + length > end_of_data)

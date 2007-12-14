@@ -29,7 +29,7 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
                          MARIA_PINNED_PAGE **page_link_res)
 {
   uchar *tmp;
-  uint page_size;
+  uint page_size __attribute__((unused));
   MARIA_PINNED_PAGE page_link;
   MARIA_SHARE *share= info->s;
   uint block_size= share->block_size;
@@ -83,7 +83,8 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
 
 /* Write a key-page on disk */
 
-int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
+int _ma_write_keypage(register MARIA_HA *info,
+                      register MARIA_KEYDEF *keyinfo __attribute__((unused)),
 		      my_off_t page, enum pagecache_page_lock lock,
                       int level, uchar *buff)
 {

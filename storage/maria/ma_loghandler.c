@@ -676,7 +676,8 @@ const char *maria_data_root;
     cursor               cursor which will be checked
 */
 
-static void translog_check_cursor(struct st_buffer_cursor *cursor)
+static void translog_check_cursor(struct st_buffer_cursor *cursor
+                                 __attribute__((unused)))
 {
   DBUG_ASSERT(cursor->chaser ||
               ((ulong) (cursor->ptr - cursor->buffer->buffer) ==
