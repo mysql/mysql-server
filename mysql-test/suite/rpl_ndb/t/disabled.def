@@ -15,7 +15,6 @@ rpl_ndb_2innodb          : Bug #32648  	Test failure between NDB Cluster and oth
 rpl_ndb_2myisam          : Bug #32648  	Test failure between NDB Cluster and other engines
 rpl_ndb_2other           : Bug #32648  	Test failure between NDB Cluster and other engines
 rpl_ndb_ddl              : BUG#28798 2007-05-31  lars  Valgrind failure in NDB
-rpl_ndb_ctype_ucs2_def   : BUG#27404 util thd mysql_parse sig11 when mysqld default multibyte charset
 rpl_ndb_extraColMaster   : BUG#30854 : Tables name show as binary in slave err msg on vm-win2003-64-b and Solaris
 rpl_ndb_mix_innodb       : Bug #32720   Test rpl_ndb_mix_innodb fails on SPARC and PowerPC
 
