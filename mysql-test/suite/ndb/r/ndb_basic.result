@@ -30,6 +30,7 @@ ndb_index_stat_enable	#
 ndb_index_stat_update_freq	#
 ndb_log_update_as_write	#
 ndb_log_updated_only	#
+ndb_optimization_delay	#
 ndb_optimized_node_selection	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
