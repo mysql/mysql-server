@@ -728,6 +728,7 @@ int main(int argc, const char *argv[]) {
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
 
+#if USE_BDB
     /* dup tests */
     for (i = 1; i <= (1<<16); i *= 2) {
         test_dup_delete(i, DB_DUP);
@@ -735,15 +736,14 @@ int main(int argc, const char *argv[]) {
         test_all_dup_delete_insert(i);
         test_walk_empty(i, DB_DUP);
     }
+#endif
 
-#if USE_TDB
     /* dupsort tests */
     for (i = 1; i <= (1<<16); i *= 2) {
         test_dup_delete(i, DB_DUP + DB_DUPSORT);
         test_dup_delete_insert(i, DB_DUP + DB_DUPSORT);
         test_walk_empty(i, DB_DUP + DB_DUPSORT);
     }
-#endif
 
     return 0;
 }

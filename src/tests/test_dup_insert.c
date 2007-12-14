@@ -57,7 +57,7 @@ void test_insert(int n, int dup_mode) {
 
     int values[n];
     for (i=0; i<n; i++)
-        values[i] = htonl(random());
+        values[i] = htonl((random() << 16) + i);
     int sortvalues[n];
     for (i=0; i<n; i++)
         sortvalues[i] = values[i];
@@ -65,10 +65,7 @@ void test_insert(int n, int dup_mode) {
         return memcmp(a, b, sizeof (int));
     }
     qsort(sortvalues, n, sizeof sortvalues[0], mycmp);
-#if USE_BDB
-    for (i=1; i<n; i++) 
-        if (sortvalues[i-1] == sortvalues[i]) printf("dup %d\n", i);
-#endif
+
     /* insert n-1 unique keys {0, 1,  n-1} - {n/2} */
     for (i=0; i<n; i++) {
         if (i == n/2)
@@ -86,18 +83,6 @@ void test_insert(int n, int dup_mode) {
         int v = values[i];
         DBT key, val;
         r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-#if USE_BDB
-        if (r != 0) {
-            void find_dup_val(int v, int m) {
-                int i;
-                printf("dup values[%d]=%d: ", m, v);
-                for (i=0; i<m; i++)
-                    if (values[i] == v) printf("%d ", i);
-                printf("\n");
-            }
-            find_dup_val(values[i], i);
-        }
-#endif
         assert(r == 0);
     } 
 
@@ -175,7 +160,7 @@ void test_nonleaf_insert(int n, int dup_mode) {
 
     int values[n];
     for (i=0; i<n; i++)
-        values[i] = htonl(random());
+        values[i] = htonl((random() << 16) + i);
     int sortvalues[n];
     for (i=0; i<n; i++)
         sortvalues[i] = values[i];
@@ -280,18 +265,20 @@ int main(int argc, const char *argv[]) {
     }
 
     /* dup tests */
+#if USE_TDB
+    printf("%s:%d:WARNING:tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+#else
     for (i = 1; i <= (1<<16); i *= 2) {
         test_insert(i, DB_DUP);
         test_nonleaf_insert(i, DB_DUP);
     }
+#endif
 
-#if USE_TDB
     /* dupsort tests */
     for (i = 1; i <= (1<<16); i *= 2) {
         test_insert(i, DB_DUP + DB_DUPSORT);
         test_nonleaf_insert(i, DB_DUP + DB_DUPSORT);
     }
-#endif
 
     return 0;
 }

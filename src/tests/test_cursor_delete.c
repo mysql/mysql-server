@@ -30,6 +30,12 @@ void cursor_expect(DBC *cursor, int k, int v, int op) {
     free(val.data);
 }
 
+void cursor_expect_fail(DBC *cursor, int op, int expectr) {
+    DBT key, val;
+    int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), op);
+    assert(r == expectr);
+}
+ 
 /* generate a multi-level tree and delete all entries with a cursor
    verify that the pivot flags are toggled (currently by inspection) */
 
@@ -79,9 +85,8 @@ void test_cursor_delete(int dup_mode) {
 }
 
 /* insert duplicate duplicates into a sorted duplicate tree */
-
-void test_cursor_delete_dupsort(int dup_mode) {
-    if (verbose) printf("test_cursor_delete_dupsort:%d\n", dup_mode);
+void test_cursor_delete_dupsort() {
+    if (verbose) printf("test_cursor_delete_dupsort\n");
 
     int pagesize = 4096;
     int elementsize = 32;
@@ -98,7 +103,7 @@ void test_cursor_delete_dupsort(int dup_mode) {
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
-    r = db->set_flags(db, dup_mode); assert(r == 0);
+    r = db->set_flags(db, DB_DUP + DB_DUPSORT); assert(r == 0);
     r = db->set_pagesize(db, pagesize); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
@@ -107,18 +112,22 @@ void test_cursor_delete_dupsort(int dup_mode) {
         int k = htonl(1);
         int v = htonl(1);
         DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0); assert(r == 0);
+        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
+        if (i == 0) 
+            assert(r == 0); 
+        else 
+            assert(r == DB_KEYEXIST);
     }
 
     /* verify the sort order with a cursor */
     DBC *cursor;
     r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
 
-    for (i=0; i<n; i++) {
-        cursor_expect(cursor, htonl(1), htonl(1), DB_NEXT); 
+    cursor_expect(cursor, htonl(1), htonl(1), DB_NEXT); 
         
-        r = cursor->c_del(cursor, 0); assert(r == 0);
-     }
+    r = cursor->c_del(cursor, 0); assert(r == 0);
+
+    cursor_expect_fail(cursor, DB_NEXT, DB_NOTFOUND);
 
     r = cursor->c_close(cursor); assert(r == 0);
 
@@ -133,9 +142,11 @@ int main(int argc, const char *argv[]) {
     mkdir(DIR, 0777);
     
     test_cursor_delete(0);
+#if USE_BDB
     test_cursor_delete(DB_DUP);
+#endif
     test_cursor_delete(DB_DUP + DB_DUPSORT);
-    test_cursor_delete_dupsort(DB_DUP + DB_DUPSORT);
+    test_cursor_delete_dupsort();
 
     return 0;
 }
