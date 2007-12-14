@@ -57,7 +57,7 @@ void test_insert(int n, int dup_mode) {
 
     int values[n];
     for (i=0; i<n; i++)
-        values[i] = htonl((random() << 16) + i);
+        values[i] = htonl((i << 16) + (random() & 0xffff));
     int sortvalues[n];
     for (i=0; i<n; i++)
         sortvalues[i] = values[i];
@@ -160,7 +160,7 @@ void test_nonleaf_insert(int n, int dup_mode) {
 
     int values[n];
     for (i=0; i<n; i++)
-        values[i] = htonl((random() << 16) + i);
+        values[i] = htonl((i << 16) + (random() & 0xffff));
     int sortvalues[n];
     for (i=0; i<n; i++)
         sortvalues[i] = values[i];
