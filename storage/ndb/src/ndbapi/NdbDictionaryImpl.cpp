@@ -43,6 +43,7 @@
 #include <NdbEnv.h>
 #include <NdbMem.h>
 #include <util/version.h>
+#include <NdbSleep.h>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -400,6 +401,11 @@ NdbColumnImpl::create_pseudo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::COPY_ROWID;
     col->m_impl.m_attrSize = 4;
     col->m_impl.m_arraySize = 2;
+  } else if(!strcmp(name, "NDB$OPTIMIZE")){
+    col->setType(NdbDictionary::Column::Unsigned);
+    col->m_impl.m_attrId = AttributeHeader::OPTIMIZE;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 1;
   } else {
     abort();
   }
@@ -1585,6 +1591,12 @@ NdbDictInterface::setTransporter(class Ndb* ndb, class TransporterFacade * tf)
   return true;
 }
 
+TransporterFacade *
+NdbDictInterface::getTransporter()
+{
+  return m_transporter;
+}
+
 NdbDictInterface::~NdbDictInterface()
 {
 }
@@ -2381,6 +2393,313 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
   // not entered in cache
   delete t2;
   DBUG_RETURN(0);
+}
+
+/**
+ * this function depends on whether t is global object 
+ */
+int
+NdbDictionaryImpl::__optimizeTable(const NdbTableImpl &t, Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionaryImpl::__optimizeTable(const NdbTableImpl)");
+  int check;
+  int retryAttempt = 0;
+  const int retryMax = 100;
+  const int sleep_retry = 50;
+  Uint32 sleep_load = delay;
+  NdbTransaction * myTrans;
+  NdbScanOperation * myScanOp;
+
+  /**
+   * search whether there are var size columns in the table,
+   * in first step, we only optimize var part, then if the
+   * table has no var size columns, we donot do optimizing
+   */
+  Uint32 sz = t.m_columns.size();
+  bool found_varpart = false;
+  for (Uint32 i = 0; i < sz; i++) {
+    const NdbColumnImpl *col = t.m_columns[i];
+    if (col != 0 && col->m_storageType == NDB_STORAGETYPE_MEMORY &&
+        (col->m_dynamic || col->m_arrayType != NDB_ARRAYTYPE_FIXED)) {
+      found_varpart= true;
+      break;
+    }
+  }
+  if (!found_varpart)
+    DBUG_RETURN(0);
+
+  do {
+next_retry:
+    if (retryAttempt) {
+      if (retryAttempt >= retryMax) {
+        ndbout << "ERROR: optimizeTableGlobal() has retried this operation "
+               << retryAttempt << " times, failing!" << endl;
+        goto do_error;
+      }
+      if (myTrans)
+        m_ndb.closeTransaction(myTrans);
+      NdbSleep_MilliSleep(sleep_retry);
+    }
+    retryAttempt++;
+    myTrans = m_ndb.startTransaction();
+
+    if (myTrans == NULL) {
+      if (m_ndb.getNdbError().status == NdbError::TemporaryError)
+        continue;  /* goto next_retry */
+      goto do_error;
+    }
+
+    /**
+     * Get a scan operation.
+     */
+    myScanOp = myTrans->getNdbScanOperation(t.m_facade);
+    if (myScanOp == NULL) {
+      m_ndb.getNdbError(myTrans->getNdbError().code);
+      goto do_error;
+    }
+
+    /**
+     * Define a result set for the scan.
+     */ 
+    if (myScanOp->readTuples(NdbOperation::LM_Exclusive)) {
+      m_ndb.getNdbError(myTrans->getNdbError().code);
+      goto do_error;
+    }
+
+    /**
+     * Start scan    (NoCommit since we are only reading at this stage);
+     */
+    if (myTrans->execute(NdbTransaction::NoCommit) != 0) {
+      if (myTrans->getNdbError().status == NdbError::TemporaryError)
+        continue;  /* goto next_retry */
+      m_ndb.getNdbError(myTrans->getNdbError().code);
+      goto do_error;
+    }
+
+    /**
+     * start of loop: nextResult(true) means that "parallelism" number of
+     * rows are fetched from NDB and cached in NDBAPI
+     */
+    while ((check = myScanOp->nextResult(true)) == 0) {
+      do {
+        /** 
+         * Get update operation
+         */
+        NdbOperation * myUpdateOp = myScanOp->updateCurrentTuple();
+        if (myUpdateOp == 0) {
+          m_ndb.getNdbError(myTrans->getNdbError().code);
+          goto do_error;
+        }
+
+        /**
+         * optimize a tuple through doing the update
+         * first step, move varpart
+         */
+        Uint32 options = 0 | AttributeHeader::OPTIMIZE_MOVE_VARPART;
+        myUpdateOp->setOptimize(options);
+        /**
+         * nextResult(false) means that the records
+         * cached in the NDBAPI are modified before
+         * fetching more rows from NDB.
+         */
+      } while ((check = myScanOp->nextResult(false)) == 0);
+
+      /**
+       * NoCommit when all cached tuple have been updated
+       */
+      if (check != -1)
+        check = myTrans->execute(NdbTransaction::Commit);
+
+      if (check == -1) {
+        if (myTrans->getNdbError().status == NdbError::TemporaryError)
+          goto next_retry;
+        m_ndb.getNdbError(myTrans->getNdbError().code);
+        goto do_error;
+      }
+
+      if (myTrans->restart() != 0) {
+        m_ndb.getNdbError(myTrans->getNdbError().code);
+        goto do_error;
+      }
+
+      /**
+       * sleep here to decrease the load of optimization 
+       */
+      if (sleep_load > 0)
+        NdbSleep_MilliSleep(sleep_load);
+    } /* end while(nextResult(true) == 0) */
+
+    /**
+     * Commit all prepared operations
+     */
+    if (myTrans->execute(NdbTransaction::Commit) == -1) {
+      if (myTrans->getNdbError().status == NdbError::TemporaryError)
+        continue;  /* goto next_retry */
+      m_ndb.getNdbError(myTrans->getNdbError().code);
+      goto do_error;
+    }
+
+    m_ndb.closeTransaction(myTrans);
+    DBUG_RETURN(0);
+  } while(true);
+
+do_error:
+  if(myTrans != NULL)
+    m_ndb.closeTransaction(myTrans);
+
+  DBUG_RETURN(-1);
+}
+
+/**
+ * optimize main table and blob tables possibly
+ */
+int
+NdbDictionaryImpl::optimizeTable(const NdbTableImpl &t, Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionaryImpl::optimizeTable(const NdbTableImpl)");
+  /**
+   * to optimize main table first
+   */
+  int res = __optimizeTable(t, delay);
+  if (res)
+    DBUG_RETURN(-1);
+  
+  /**
+   * to optimize all blob tables if possible
+   */
+  int num = t.m_noOfBlobs;
+  for (int i = t.m_columns.size(); i > 0 && num > 0;) {
+    i--;
+    NdbColumnImpl & c = *t.m_columns[i];
+    if (! c.getBlobType() || c.getPartSize() == 0)
+      continue;
+    
+    num--;
+    const NdbTableImpl * blob_table = 
+      (const NdbTableImpl *)getBlobTable(t, c.m_attrId);
+    if (blob_table == NULL)
+      DBUG_RETURN(-1);
+    res = __optimizeTable(*blob_table, delay);
+    if (res)
+      DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+int
+NdbDictionaryImpl::optimizeTable(const char *name, Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionaryImpl::optimizeTable(const char*)");
+  /**
+   * first we get table object from local cache,
+   * if cache hit, then we get local object, else 
+   * we get global object through m_receiver.
+   */
+  NdbTableImpl *t = getTable(name);
+  if (t == NULL) {
+    m_ndb.getNdbError(getNdbError().code);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(optimizeTable(*t, delay));
+}
+
+int
+NdbDictionaryImpl::optimizeTableGlobal(const NdbTableImpl &t, Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionaryImpl::optimizeTableGlobal(const NdbTableImpl)");
+  /**
+   * make sure we get global table object here
+   */
+  NdbTableImpl *g_table = getTableGlobal(t.getName());
+  if (g_table == NULL) {
+    m_ndb.getNdbError(getNdbError().code);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(optimizeTable(*g_table, delay));
+}
+
+int
+NdbDictionaryImpl::optimizeTableGlobal(const char *name, Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionaryImpl::optimizeTableGlobal(const char*)");
+  /**
+   * make sure we get global table object here
+   */
+  NdbTableImpl *t = getTableGlobal(name);
+  if (t == NULL) {
+    m_ndb.getNdbError(getNdbError().code);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(optimizeTable(*t, delay));
+}
+
+int
+NdbDictionaryImpl::optimizeIndex(const NdbIndexImpl &index, Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionaryImpl::optimizeIndex(const NdbIndexImpl)");
+  /**
+   * NOTE: we only optimize unique index
+   */
+  if (index.m_facade->getType() != NdbDictionary::Index::UniqueHashIndex)
+    DBUG_RETURN(0);
+  /**
+   * this function depends on whether index table is global
+   */
+  const NdbTableImpl * index_table = index.getIndexTable();
+  DBUG_RETURN(optimizeTable(*index_table, delay));
+}
+
+int
+NdbDictionaryImpl::optimizeIndex(const char * idx_name,
+                                 const char * tab_name,
+                                 Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionaryImpl::optimizeIndex(const char*, const char*)");
+  /**
+   * get index table from local cache
+   */
+  const NdbIndexImpl * index = getIndex(idx_name,
+                                        tab_name);
+  if (index == NULL) {
+    m_ndb.getNdbError(getNdbError().code);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(optimizeIndex(*index, delay));
+}
+
+int
+NdbDictionaryImpl::optimizeIndexGlobal(const NdbIndexImpl &index, Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionaryImpl::optimizeIndexGlobal(const NdbIndexImpl)");
+  /**
+   * make sure we get global index object here
+   */
+  const NdbIndexImpl * g_index = getIndexGlobal(index.getName(),
+                                                index.getTable());
+  if (g_index == NULL) {
+    m_ndb.getNdbError(getNdbError().code);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(optimizeIndex(*g_index, delay));
+}
+
+int
+NdbDictionaryImpl::optimizeIndexGlobal(const char * idx_name,
+                                       const char * tab_name,
+                                       Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionaryImpl::optimizeIndexGlobal(const char*, const char*)");
+  /**
+   * make sure we get global index object here
+   */
+  const NdbIndexImpl * index = getIndexGlobal(idx_name,
+                                              tab_name);
+  if (index == NULL) {
+    m_ndb.getNdbError(getNdbError().code);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(optimizeIndex(*index, delay));
 }
 
 int
@@ -4280,7 +4599,6 @@ NdbDictInterface::execDROP_EVNT_REF(NdbApiSignal * signal,
 }
 
 #include <NdbScanOperation.hpp>
-#include <NdbSleep.h>
 static int scanEventTable(Ndb* pNdb, 
                           const NdbDictionary::Table* pTab,
                           NdbDictionary::Dictionary::List &list)
@@ -5979,3 +6297,4 @@ const NdbDictionary::Column * NdbDictionary::Column::ROWID = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_GCI = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ANY_VALUE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COPY_ROWID = 0;
+const NdbDictionary::Column * NdbDictionary::Column::OPTIMIZE = 0;

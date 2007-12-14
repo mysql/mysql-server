@@ -1513,6 +1513,62 @@ NdbDictionary::Dictionary::createTable(const Table & t)
 }
 
 int
+NdbDictionary::Dictionary::optimizeTable(const Table &t, Uint32 delay){
+  DBUG_ENTER("NdbDictionary::Dictionary::optimzeTable");
+  DBUG_RETURN(m_impl.optimizeTable(NdbTableImpl::getImpl(t), delay));
+}
+
+int
+NdbDictionary::Dictionary::optimizeTable(const char * name, Uint32 delay){
+  DBUG_ENTER("NdbDictionary::Dictionary::optimzeTable");
+  DBUG_RETURN(m_impl.optimizeTable(name, delay));
+}
+
+int
+NdbDictionary::Dictionary::optimizeTableGlobal(const Table &t, Uint32 delay){
+  DBUG_ENTER("NdbDictionary::Dictionary::optimzeTable");
+  DBUG_RETURN(m_impl.optimizeTableGlobal(NdbTableImpl::getImpl(t), delay));
+}
+
+int
+NdbDictionary::Dictionary::optimizeTableGlobal(const char * name, Uint32 delay){
+  DBUG_ENTER("NdbDictionary::Dictionary::optimzeTable");
+  DBUG_RETURN(m_impl.optimizeTableGlobal(name, delay));
+}
+
+int
+NdbDictionary::Dictionary::optimizeIndex(const Index &ind, Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionary::Dictionary::optimzeIndex");
+  DBUG_RETURN(m_impl.optimizeIndex(NdbIndexImpl::getImpl(ind), delay));
+}
+
+int
+NdbDictionary::Dictionary::optimizeIndex(const char * idx_name,
+                                         const char * tab_name,
+                                         Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionary::Dictionary::optimzeIndex");
+  DBUG_RETURN(m_impl.optimizeIndex(idx_name, tab_name, delay));
+}
+
+int
+NdbDictionary::Dictionary::optimizeIndexGlobal(const Index &ind, Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionary::Dictionary::optimzeIndex");
+  DBUG_RETURN(m_impl.optimizeIndexGlobal(NdbIndexImpl::getImpl(ind), delay));
+}
+
+int
+NdbDictionary::Dictionary::optimizeIndexGlobal(const char * idx_name,
+                                               const char * tab_name,
+                                               Uint32 delay)
+{
+  DBUG_ENTER("NdbDictionary::Dictionary::optimzeIndex");
+  DBUG_RETURN(m_impl.optimizeIndexGlobal(idx_name, tab_name, delay));
+}
+
+int
 NdbDictionary::Dictionary::dropTable(Table & t){
   return m_impl.dropTable(NdbTableImpl::getImpl(t));
 }
@@ -1564,6 +1620,17 @@ NdbDictionary::Dictionary::getIndexGlobal(const char * indexName,
 {
   NdbIndexImpl * i = m_impl.getIndexGlobal(indexName,
                                            NdbTableImpl::getImpl(ndbtab));
+  if(i)
+    return i->m_facade;
+  return 0;
+}
+
+const NdbDictionary::Index *
+NdbDictionary::Dictionary::getIndexGlobal(const char * indexName,
+                                          const char * tableName) const
+{
+  NdbIndexImpl * i = m_impl.getIndexGlobal(indexName,
+                                           tableName);
   if(i)
     return i->m_facade;
   return 0;

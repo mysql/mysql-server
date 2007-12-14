@@ -1565,6 +1565,7 @@ struct KeyReqStruct {
   PagePtr m_varpart_page_ptr;    // could be same as m_page_ptr_p
   PagePtr m_disk_page_ptr;       //
   Local_key m_row_id;
+  Uint32 optimize_options;
   
   bool            dirty_op;
   bool            interpreted_exec;
@@ -2928,6 +2929,9 @@ private:
   Uint32 *realloc_var_part(Fragrecord*, Tablerec*, 
                            PagePtr, Var_part_ref*, Uint32, Uint32);
   
+  void move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
+                     Var_part_ref* refptr, Uint32 size);
+ 
   void validate_page(Tablerec*, Var_page* page);
   
   Uint32* alloc_fix_rec(Fragrecord*const, Tablerec*const, Local_key*,
@@ -3167,6 +3171,11 @@ private:
 				      Fragrecord* regFragPtr,
 				      Tablerec* regTabPtr,
 				      Uint32 sizes[4]);
+  int optimize_var_part(KeyReqStruct* req_struct,
+                        Tuple_header* org,
+                        Operationrec* regOperPtr,
+                        Fragrecord* regFragPtr,
+                        Tablerec* regTabPtr);
 
   /**
    * Setup all pointer on keyreqstruct to prepare for read

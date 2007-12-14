@@ -565,6 +565,7 @@ public:
     static const Column * ROW_GCI;
     static const Column * ANY_VALUE;
     static const Column * COPY_ROWID;
+    static const Column * OPTIMIZE;
     
     int getSizeInBytes() const;
 
@@ -1880,6 +1881,76 @@ public:
     int createTable(const Table &table);
 
     /**
+     * Optimize table given defined table object
+     * @param t Object of table to optimize
+     * @param delay in milliseconds for each batch of rows 
+     * @return 0 if successful otherwise -1.
+     */
+    int optimizeTable(const Table &t, Uint32 delay = 0);
+
+    /**
+     * Optimize table given table name
+     * @param name Name of table to optimize
+     * @param delay in milliseconds for each batch of rows 
+     * @return 0 if successful otherwise -1.
+     */
+    int optimizeTable(const char * name, Uint32 delay = 0);
+
+    /**
+     * Optimize table given defined table object
+     * @param t Object of global table to optimize
+     * @param delay in milliseconds for each batch of rows 
+     * @return 0 if successful otherwise -1.
+     */
+    int optimizeTableGlobal(const Table &t, Uint32 delay = 0);
+
+    /**
+     * Optimize table given table name
+     * @param name Name of global table to optimize
+     * @param delay in milliseconds for each batch of rows 
+     * @return 0 if successful otherwise -1.
+     */
+    int optimizeTableGlobal(const char * name, Uint32 delay = 0);
+
+    /**
+     * Optimize index given defined index object
+     * @param ind Object of index to optimize
+     * @param delay in milliseconds for each batch of rows 
+     * @return 0 if successful otherwise -1.
+     */
+    int optimizeIndex(const Index &ind, Uint32 delay = 0);
+
+    /**
+     * Optimize index given table name and index name
+     * @param idx_name Internal name of index
+     * @param tab_name Name of table
+     * @param delay in milliseconds for each batch of rows 
+     * @return 0 if successful otherwise -1.
+     */
+    int optimizeIndex(const char * idx_name, 
+                      const char * tab_name,
+                      Uint32 delay = 0);
+
+    /**
+     * Optimize index given defined global index object
+     * @param ind Object of index to optimize
+     * @param delay in milliseconds for each batch of rows 
+     * @return 0 if successful otherwise -1.
+     */
+    int optimizeIndexGlobal(const Index &ind, Uint32 delay = 0);
+
+    /**
+     * Optimize index given table name and index name
+     * @param idx_name Internal name of global index
+     * @param tab_name Name of table
+     * @param delay in milliseconds for each batch of rows 
+     * @return 0 if successful otherwise -1.
+     */
+    int optimizeIndexGlobal(const char * idx_name,
+                            const char * tab_name, 
+                            Uint32 delay = 0);
+
+    /**
      * Drop table given retrieved Table instance
      * @param table Table to drop
      * @return 0 if successful otherwise -1.
@@ -2022,6 +2093,8 @@ public:
 
     const Index * getIndexGlobal(const char * indexName,
                                  const Table &ndbtab) const;
+    const Index * getIndexGlobal(const char * indexName,
+                                 const char * tableName) const;
     const Table * getTableGlobal(const char * tableName) const;
     int alterTableGlobal(const Table &f, const Table &t);
     int dropTableGlobal(const Table &ndbtab);

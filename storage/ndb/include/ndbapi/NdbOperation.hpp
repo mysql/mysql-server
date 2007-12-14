@@ -419,6 +419,7 @@ public:
   int  setValue(const char* anAttrName, double aValue);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int  setAnyValue(Uint32 aValue);
+  int  setOptimize(Uint32 options);
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED

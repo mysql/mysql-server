@@ -1062,6 +1062,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
   
   tup_version= (tup_version + 1) & ZTUP_VERSION_MASK;
   operPtrP->tupVersion= tup_version;
+
+  req_struct->optimize_options = 0;
   
   if (!req_struct->interpreted_exec) {
     jam();
@@ -1076,6 +1078,23 @@ int Dbtup::handleUpdateReq(Signal* signal,
       return -1;
   }
   
+  switch (req_struct->optimize_options) {
+    case AttributeHeader::OPTIMIZE_MOVE_VARPART:
+      /**
+       * optimize varpart of tuple,  move varpart of tuple from
+       * big-free-size page list into small-free-size page list
+       */
+      if(base->m_header_bits & Tuple_header::VAR_PART)
+        optimize_var_part(req_struct, base, operPtrP,
+                          regFragPtr, regTabPtr);
+      break;
+    case AttributeHeader::OPTIMIZE_MOVE_FIXPART:
+      //TODO: move fix part of tuple
+      break;
+    default:
+      break;
+  }
+
   if (regTabPtr->need_shrink())
   {  
     shrink_tuple(req_struct, sizes+2, regTabPtr, disk);
@@ -3438,6 +3457,50 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
       setChecksum(org, regTabPtr);
     }
   }
+  return 0;
+}
+
+int
+Dbtup::optimize_var_part(KeyReqStruct* req_struct,
+                         Tuple_header* org,
+                         Operationrec* regOperPtr,
+                         Fragrecord* regFragPtr,
+                         Tablerec* regTabPtr)
+{
+  jam();
+  Var_part_ref* refptr = org->get_var_part_ref_ptr(regTabPtr);
+
+  Local_key ref;
+  refptr->copyout(&ref);
+  Uint32 idx = ref.m_page_idx;
+
+  Ptr<Page> pagePtr;
+  c_page_pool.getPtr(pagePtr, ref.m_page_no);
+
+  Var_page* pageP = (Var_page*)pagePtr.p;
+  Uint32 var_part_size = pageP->get_entry_len(idx);
+
+  /**
+   * if the size of page list_index is MAX_FREE_LIST,
+   * we think it as full page, then need not optimize
+   */
+  if(pageP->list_index != MAX_FREE_LIST)
+  {
+    jam();
+    /*
+     * optimize var part of tuple by moving varpart, 
+     * then we possibly reclaim free pages
+     */
+    move_var_part(regFragPtr, regTabPtr, pagePtr,
+                  refptr, var_part_size);
+
+    if (regTabPtr->m_bits & Tablerec::TR_Checksum)
+    {
+      jam();
+      setChecksum(org, regTabPtr);
+    }
+  }
+
   return 0;
 }
 

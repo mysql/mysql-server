@@ -50,6 +50,14 @@ public:
   STATIC_CONST( COPY_ROWID   = 0xFFF1 );
   STATIC_CONST( READ_ALL     = 0xFFF0 );
   
+  /**
+   * Optimize pseudo column and optimization options
+   */
+  STATIC_CONST( OPTIMIZE     = 0xFFE0 );          //pseudo column id to optimize
+  STATIC_CONST( OPTIMIZE_OPTIONS_MASK = 0xFFFF ); //bitmask AND column value
+  STATIC_CONST( OPTIMIZE_MOVE_VARPART = 0x0001 ); //option to move varpart
+  STATIC_CONST( OPTIMIZE_MOVE_FIXPART = 0x0002 ); //option to move fixpart
+
   // NOTE: in 5.1 ctors and init take size in bytes
 
   /** Initialize AttributeHeader at location aHeaderPtr */
