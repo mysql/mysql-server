@@ -4219,6 +4219,10 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
         continue; /* no need to store it in the checkpoint record */
       compile_time_assert(sizeof(block->hash_link->file.file) <= 4);
       compile_time_assert(sizeof(block->hash_link->pageno) <= 4);
+      /**
+         @todo RECOVERY when we have a pointer to MARIA_SHARE, store share->id
+         instead of this file.
+      */
       int4store(ptr, block->hash_link->file.file);
       ptr+= 4;
       int4store(ptr, block->hash_link->pageno);

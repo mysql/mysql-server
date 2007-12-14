@@ -155,7 +155,7 @@ static int really_execute_checkpoint(void)
   LEX_STRING record_pieces[4]; /**< only malloc-ed pieces */
   LSN min_page_rec_lsn, min_trn_rec_lsn, min_first_undo_lsn;
   TRANSLOG_ADDRESS checkpoint_start_log_horizon;
-  uchar checkpoint_start_log_horizon_char[LSN_STORE_SIZE];
+  char checkpoint_start_log_horizon_char[LSN_STORE_SIZE];
   DBUG_ENTER("really_execute_checkpoint");
   bzero(&record_pieces, sizeof(record_pieces));
 
@@ -262,18 +262,20 @@ static int really_execute_checkpoint(void)
                            (uint)pages_to_flush_before_next_checkpoint));
 
   /* compute log's low-water mark */
-  TRANSLOG_ADDRESS log_low_water_mark= min_page_rec_lsn;
-  set_if_smaller(log_low_water_mark, min_trn_rec_lsn);
-  set_if_smaller(log_low_water_mark, min_first_undo_lsn);
-  set_if_smaller(log_low_water_mark, checkpoint_start_log_horizon);
-  /**
-     Now purge unneeded logs.
-     As some systems have an unreliable fsync (drive lying), we could try to
-     be robust against that: remember a few previous checkpoints in the
-     control file, and not purge logs immediately... Think about it.
-  */
-  if (translog_purge(log_low_water_mark))
-    ma_message_no_user(0, "log purging failed");
+  {
+    TRANSLOG_ADDRESS log_low_water_mark= min_page_rec_lsn;
+    set_if_smaller(log_low_water_mark, min_trn_rec_lsn);
+    set_if_smaller(log_low_water_mark, min_first_undo_lsn);
+    set_if_smaller(log_low_water_mark, checkpoint_start_log_horizon);
+    /**
+       Now purge unneeded logs.
+       As some systems have an unreliable fsync (drive lying), we could try to
+       be robust against that: remember a few previous checkpoints in the
+       control file, and not purge logs immediately... Think about it.
+    */
+    if (translog_purge(log_low_water_mark))
+      ma_message_no_user(0, "log purging failed");
+  }
 
   goto end;
 
@@ -758,9 +760,11 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
     *state_copies_end, /**< cache ends here */
     *state_copy; /**< iterator in cache */
   TRANSLOG_ADDRESS state_copies_horizon; /**< horizon of states' _copies_ */
-  LINT_INIT(state_copies_horizon);
+  struct st_filter_param filter_param;
+  PAGECACHE_FLUSH_FILTER filter;
   DBUG_ENTER("collect_tables");
 
+  LINT_INIT(state_copies_horizon);
   /* let's make a list of distinct shares */
   pthread_mutex_lock(&THR_LOCK_maria);
   for (nb= 0, pos= maria_open_list; pos; pos= pos->next)
@@ -831,10 +835,8 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   ptr= str->str;
   ptr+= 4; /* real number of stored tables is not yet know */
 
-  struct st_filter_param filter_param;
   /* only possible checkpointer, so can do the read below without mutex */
   filter_param.up_to_lsn= last_checkpoint_lsn;
-  PAGECACHE_FLUSH_FILTER filter;
   switch(checkpoint_in_progress)
   {
   case CHECKPOINT_MEDIUM:
