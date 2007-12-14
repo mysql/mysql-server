@@ -2931,7 +2931,7 @@ int group_concat_key_cmp_with_order(void* arg, const void* key1,
       int res;
       uint offset= (field->offset(field->table->record[0]) -
                     table->s->null_bytes);
-      if ((res= field->cmp(key1 + offset, key2 + offset)))
+      if ((res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset)))
         return (*order_item)->asc ? res : -res;
     }
   }
