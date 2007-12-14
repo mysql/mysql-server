@@ -308,88 +308,41 @@ create table profile_log (how_many int);
 drop procedure if exists p1;
 drop procedure if exists p2;
 drop procedure if exists p3;
-create procedure p1 () modifies sql data begin set profiling = ON; select 'This p1 should show up in profiling'; insert into profile_log select count(*) from information_schema.profiling; end//
-create procedure p2() deterministic begin set profiling = ON; call p1(); select 'This p2 should show up in profiling'; end//
-create procedure p3 () reads sql data begin set profiling = ON; select 'This p3 should show up in profiling'; show profile; end//
-select count(*) as count_before_p1 from information_schema.profiling;
-count_before_p1
-535
+create procedure p1 () 
+modifies sql data 
+begin 
+set profiling = ON; 
+select 'This p1 should show up in profiling'; 
+insert into profile_log select count(*) from information_schema.profiling; 
+end//
+create procedure p2() 
+deterministic 
+begin 
+set profiling = ON; 
+call p1(); 
+select 'This p2 should show up in profiling'; 
+end//
+create procedure p3 () 
+reads sql data 
+begin 
+set profiling = ON; 
+select 'This p3 should show up in profiling'; 
+show profile; 
+end//
 first call to p1
 call p1;
-This p1 should show up in profiling
-This p1 should show up in profiling
 select * from profile_log;
-how_many
-528
 second call to p1
 call p1;
-This p1 should show up in profiling
-This p1 should show up in profiling
 select * from profile_log;
-how_many
-528
-478
 third call to p1
 call p1;
-This p1 should show up in profiling
-This p1 should show up in profiling
 select * from profile_log;
-how_many
-528
-478
-443
 set session profiling = OFF;
 call p2;
-This p1 should show up in profiling
-This p1 should show up in profiling
-This p2 should show up in profiling
-This p2 should show up in profiling
 set session profiling = OFF;
 call p3;
-This p3 should show up in profiling
-This p3 should show up in profiling
-Status	Duration
-continuing inside routine	#
-checking permissions	#
-Opening tables	#
-init	#
-optimizing	#
-executing	#
-end	#
-query end	#
-closing tables	#
 show profiles;
-Query_ID	Duration	Query
-#	#	create table t3 (id int not null primary key)
-#	#	insert into t1 values (1), (2), (3)
-#	#	insert into t2 values (1), (2), (3)
-#	#	insert into t3 values (1), (2), (3)
-#	#	select * from t1
-#	#	delete from t1
-#	#	insert into t1 values (1), (2), (3)
-#	#	insert into t1 values (1), (2), (3)
-#	#	select * from t1
-#	#	select @@profiling
-#	#	create function f1() returns varchar(50) return 'hello'
-#	#	select @@profiling
-#	#	select @@profiling
-#	#	select 'This p1 should show up in profiling'
-#	#	insert into profile_log select count(*) from information_schema.profiling
-#	#	select * from profile_log
-#	#	SET profiling = ON
-#	#	select 'This p1 should show up in profiling'
-#	#	insert into profile_log select count(*) from information_schema.profiling
-#	#	select * from profile_log
-#	#	SET profiling = ON
-#	#	select 'This p1 should show up in profiling'
-#	#	insert into profile_log select count(*) from information_schema.profiling
-#	#	select * from profile_log
-#	#	SET profiling = ON
-#	#	select 'This p1 should show up in profiling'
-#	#	insert into profile_log select count(*) from information_schema.profiling
-#	#	select 'This p2 should show up in profiling'
-#	#	select 'This p3 should show up in profiling'
-#	#	show profile
 drop procedure if exists p1;
 drop procedure if exists p2;
 drop procedure if exists p3;
@@ -458,17 +411,5 @@ drop view if exists v1;
 Warnings:
 Note	1051	Unknown table 'test.v1'
 drop function if exists f1;
-select 1; select 2; select 3;;
-1
-1
-2
-2
-3
-3
-select state from information_schema.profiling where seq=1 order by query_id desc limit 3;
-state
-continuing
-continuing
-starting
 set session profiling = OFF;
 End of 5.0 tests

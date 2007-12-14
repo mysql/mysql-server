@@ -42,16 +42,16 @@ int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
 int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 
-#define PROFILE_NONE         0
-#define PROFILE_CPU          (1<<0)
-#define PROFILE_MEMORY       (1<<1)
-#define PROFILE_BLOCK_IO     (1<<2)
-#define PROFILE_CONTEXT      (1<<3)
-#define PROFILE_PAGE_FAULTS  (1<<4)
-#define PROFILE_IPC          (1<<5)
-#define PROFILE_SWAPS        (1<<6)
-#define PROFILE_SOURCE       (1<<16)
-#define PROFILE_ALL          (~0)
+#define PROFILE_NONE         (uint)0
+#define PROFILE_CPU          (uint)(1<<0)
+#define PROFILE_MEMORY       (uint)(1<<1)
+#define PROFILE_BLOCK_IO     (uint)(1<<2)
+#define PROFILE_CONTEXT      (uint)(1<<3)
+#define PROFILE_PAGE_FAULTS  (uint)(1<<4)
+#define PROFILE_IPC          (uint)(1<<5)
+#define PROFILE_SWAPS        (uint)(1<<6)
+#define PROFILE_SOURCE       (uint)(1<<16)
+#define PROFILE_ALL          (uint)(~0)
 
 
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
