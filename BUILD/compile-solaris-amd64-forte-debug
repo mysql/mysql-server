@@ -1,0 +1,54 @@
+#! /bin/sh
+
+gmake -k clean || true
+/bin/rm -f */.deps/*.P config.cache
+ 
+path=`dirname $0`
+. "$path/autorun.sh"
+
+# To compile 64 bit, add -xarch=amd64 to EXTRA_64_BIT
+EXTRA_64_BIT="-xarch=amd64"
+
+# For "optimal" code for this computer add -fast to EXTRA. Note that
+# this causes problem with debugging the program since -fast implies
+# -xO5.
+EXTRA=""
+
+#
+# The following should not need to be touched
+#
+
+export CC CXX CFLAGS CXXFLAGS
+STD="-g -mt -D_FORTEC_ $EXTRA $EXTRA_64_BIT $debug_cflags"
+ASFLAGS="$EXTRA_64_BIT"
+CC=cc-5.0
+CFLAGS="-Xa -xstrconst $STD"
+CXX=CC
+CXXFLAGS="-noex $STD"
+./configure \
+    --prefix=/usr/local/mysql \
+    --localstatedir=/usr/local/mysql/data \
+    --libexecdir=/usr/local/mysql/bin \
+    --with-extra-charsets=complex \
+    --enable-thread-safe-client \
+    --enable-local-infile \
+    --with-zlib-dir=bundled \
+    --with-big-tables \
+    --with-readline \
+    --with-archive-storage-engine \
+    --with-named-curses=-lcurses \
+    --with-big-tables \
+    --with-innodb \
+    --with-example-storage-engine \
+    --with-blackhole-storage-engine \
+    --with-federated-storage-engine \
+    --with-csv-storage-engine \
+    --with-ssl \
+    --with-debug \
+    --enable-assembler
+
+# Not including:
+#     --with-ndbcluster
+#     --with-berkeley-db
+
+gmake -j4
