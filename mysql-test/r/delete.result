@@ -234,43 +234,6 @@ ERROR 42S22: Unknown column 't2.x' in 'order clause'
 DELETE FROM t1 ORDER BY (SELECT x);
 ERROR 42S22: Unknown column 'x' in 'field list'
 DROP TABLE t1;
-CREATE TABLE t1 (
-a INT
-);
-CREATE TABLE t2 (
-a INT
-);
-CREATE DATABASE db1;
-CREATE TABLE db1.t1 (
-a INT
-);
-INSERT INTO db1.t1 (a) SELECT * FROM t1;
-CREATE DATABASE db2;
-CREATE TABLE db2.t1 (
-a INT
-);
-INSERT INTO db2.t1 (a) SELECT * FROM t2;
-DELETE FROM t1 alias USING t1, t2 alias WHERE t1.a = alias.a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'alias USING t1, t2 alias WHERE t1.a = alias.a' at line 1
-DELETE FROM alias USING t1, t2 alias WHERE t1.a = alias.a;
-DELETE FROM t1, alias USING t1, t2 alias WHERE t1.a = alias.a;
-DELETE FROM t1, t2 USING t1, t2 alias WHERE t1.a = alias.a;
-ERROR 42S02: Unknown table 't2' in MULTI DELETE
-DELETE FROM db1.t1 alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a' at line 1
-DELETE FROM alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
-ERROR 42S02: Unknown table 'alias' in MULTI DELETE
-DELETE FROM db2.alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
-DELETE FROM t1 USING t1 WHERE a = 1;
-SELECT * FROM t1;
-a
-DELETE FROM t1 alias USING t1 alias WHERE a = 2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'alias USING t1 alias WHERE a = 2' at line 1
-SELECT * FROM t1;
-a
-DROP TABLE t1, t2;
-DROP DATABASE db1;
-DROP DATABASE db2;
 CREATE FUNCTION f1() RETURNS INT RETURN 1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (0);
