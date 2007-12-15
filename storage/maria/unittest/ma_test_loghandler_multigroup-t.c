@@ -189,7 +189,6 @@ int main(int argc __attribute__((unused)), char *argv[])
                                0, 0, &translog_example_table_init))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
-    translog_destroy();
     exit(1);
   }
   /* Suppressing of automatic record writing */
@@ -354,7 +353,6 @@ int main(int argc __attribute__((unused)), char *argv[])
                                0, READONLY, &translog_example_table_init))
   {
     fprintf(stderr, "pass2: Can't init loghandler (%d)\n", errno);
-    translog_destroy();
     exit(1);
   }
 

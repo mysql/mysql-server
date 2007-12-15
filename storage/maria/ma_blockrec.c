@@ -1242,9 +1242,7 @@ static void make_empty_page(MARIA_HA *info, uchar *buff, uint page_type)
   buff[DIR_FREE_OFFSET]=  END_OF_DIR_FREE_LIST;
   int2store(buff + block_size - PAGE_SUFFIX_SIZE - DIR_ENTRY_SIZE,
             PAGE_HEADER_SIZE);
-  if (!(info->s->options & HA_OPTION_PAGE_CHECKSUM))
-    bfill(buff + block_size - KEYPAGE_CHECKSUM_SIZE,
-          KEYPAGE_CHECKSUM_SIZE, (uchar) 255);
+
   DBUG_VOID_RETURN;
 }
 
@@ -1554,10 +1552,6 @@ static my_bool write_full_pages(MARIA_HA *info,
       bzero(buff + block_size - PAGE_SUFFIX_SIZE - (data_size - copy_length),
             (data_size - copy_length) + PAGE_SUFFIX_SIZE);
 #endif
-
-    if (!(info->s->options & HA_OPTION_PAGE_CHECKSUM))
-      bfill(buff + block_size - KEYPAGE_CHECKSUM_SIZE,
-            KEYPAGE_CHECKSUM_SIZE, (uchar) 255);
 
     DBUG_ASSERT(share->pagecache->block_size == block_size);
     if (pagecache_write(share->pagecache,

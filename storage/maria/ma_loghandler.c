@@ -28,6 +28,21 @@
 
 /* number of opened log files in the pagecache (should be at least 2) */
 #define OPENED_FILES_NUM 3
+#define CACHED_FILES_NUM 5
+#define CACHED_FILES_NUM_DIRECT_SEARCH_LIMIT 7
+#if CACHED_FILES_NUM > CACHED_FILES_NUM_DIRECT_SEARCH_LIMIT
+#include <hash.h>
+#include <m_ctype.h>
+#endif
+
+/* transaction log file descriptor */
+typedef struct st_translog_file
+{
+  uint32 number;
+  PAGECACHE_FILE handler;
+  my_bool was_recovered;
+  my_bool is_sync;
+} TRANSLOG_FILE;
 
 /* records buffer size (should be TRANSLOG_PAGE_SIZE * n) */
 #define TRANSLOG_WRITE_BUFFER (1024*1024)
@@ -72,7 +87,7 @@ struct st_translog_buffer
   */
   translog_size_t size;
   /* File handler for this buffer */
-  File file;
+  TRANSLOG_FILE *file;
   /* Threads which are waiting for buffer filling/freeing */
   pthread_cond_t waiting_filling_buffer;
   /* Number of records which are in copy progress */
@@ -181,8 +196,13 @@ struct st_translog_descriptor
   char directory[FN_REFLEN];
 
   /* *** Current state of the log handler *** */
-  /* Current and (OPENED_FILES_NUM-1) last logs number in the page cache */
-  File log_file_num[OPENED_FILES_NUM];
+  /* list of opened files */
+  DYNAMIC_ARRAY open_files;
+  /* min/max number of file in the array */
+  uint32 max_file, min_file;
+  /* the opened files list guard */
+  rw_lock_t open_files_lock;
+
   /*
     File descriptor of the directory where we store log files for syncing
     it.
@@ -274,9 +294,16 @@ static MARIA_SHARE **id_to_share= NULL;
 /* lock for id_to_share */
 static my_atomic_rwlock_t LOCK_id_to_share;
 
-static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr);
+static my_bool translog_dummy_callback(uchar *page,
+                                       pgcache_page_no_t page_no,
+                                       uchar* data_ptr);
+static my_bool translog_page_validator(uchar *page,
+                                       pgcache_page_no_t page_no,
+                                       uchar* data_ptr);
 
 static my_bool translog_get_next_chunk(TRANSLOG_SCANNER_DATA *scanner);
+static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected);
+
 
 /*
   Initialize log_record_type_descriptors
@@ -789,6 +816,53 @@ static File open_logfile_by_number_no_cache(uint32 file_no)
 }
 
 
+/**
+  @brief get file descriptor by given number using cache
+
+  @param file_no         Number of the log we want to open
+
+  retval # file descriptor
+*/
+
+static TRANSLOG_FILE *get_logfile_by_number(uint32 file_no)
+{
+  TRANSLOG_FILE *file;
+  DBUG_ENTER("get_logfile_by_number");
+  rw_rdlock(&log_descriptor.open_files_lock);
+  DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
+              log_descriptor.open_files.elements);
+  DBUG_ASSERT(log_descriptor.max_file >= file_no);
+  DBUG_ASSERT(log_descriptor.min_file <= file_no);
+  DBUG_ASSERT(log_descriptor.max_file - file_no <
+              log_descriptor.open_files.elements);
+  file= *dynamic_element(&log_descriptor.open_files,
+                         log_descriptor.max_file - file_no, TRANSLOG_FILE **);
+  rw_unlock(&log_descriptor.open_files_lock);
+  DBUG_PRINT("info", ("File 0x%lx File no: %lu, File handler: %d",
+                      (ulong)file, (ulong)file_no,
+                      (file ? file->handler.file : -1)));
+  DBUG_ASSERT(!file || file->number == file_no);
+  DBUG_RETURN(file);
+}
+
+
+/**
+  @brief get current file descriptor
+
+  retval # file descriptor
+*/
+
+static TRANSLOG_FILE *get_current_logfile()
+{
+  TRANSLOG_FILE *file;
+  rw_rdlock(&log_descriptor.open_files_lock);
+  DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
+              log_descriptor.open_files.elements);
+  file= *dynamic_element(&log_descriptor.open_files, 0, TRANSLOG_FILE **);
+  rw_unlock(&log_descriptor.open_files_lock);
+  return (file);
+}
+
 uchar	NEAR maria_trans_file_magic[]=
 { (uchar) 254, (uchar) 254, (uchar) 11, '\001', 'M', 'A', 'R', 'I', 'A',
  'L', 'O', 'G' };
@@ -813,8 +887,10 @@ uchar	NEAR maria_trans_file_magic[]=
 
 static my_bool translog_write_file_header()
 {
+  TRANSLOG_FILE *file;
   ulonglong timestamp;
   uchar page_buff[TRANSLOG_PAGE_SIZE], *page= page_buff;
+  my_bool rc;
   DBUG_ENTER("translog_write_file_header");
 
   /* file tag */
@@ -843,8 +919,16 @@ static my_bool translog_write_file_header()
   page+= LSN_STORE_SIZE;
   memset(page, TRANSLOG_FILLER, sizeof(page_buff) - (page- page_buff));
 
-  DBUG_RETURN(my_pwrite(log_descriptor.log_file_num[0], page_buff,
-                        sizeof(page_buff), 0, log_write_flags) != 0);
+  file= get_current_logfile();
+  rc= my_pwrite(file->handler.file, page_buff, sizeof(page_buff), 0,
+                log_write_flags) != 0;
+  /*
+    Dropping the flag in such way can make false alarm: signalling than the
+    file in not sync when it is sync, but the situation is quite rare and
+    protections with mutexes give much more overhead to the whole engine
+  */
+  file->is_sync= 0;
+  DBUG_RETURN(rc);
 }
 
 /*
@@ -931,6 +1015,15 @@ my_bool translog_read_file_header(LOGHANDLER_FILE_INFO *desc, File file)
   desc->file_number= uint3korr(ptr);
   ptr+=3;
   desc->max_lsn= lsn_korr(ptr);
+  DBUG_PRINT("info", ("timestamp: %llu  maria ver: %lu mysql ver: %lu  "
+                      "server id %lu page size %u file number %lu  "
+                      "max lsn: (%lu,0x%lx)",
+                      (ulonglong) desc->timestamp,
+                      (ulong) desc->maria_version,
+                      (ulong) desc->mysql_version,
+                      (ulong) desc->server_id,
+                      desc->page_size, (ulong) desc->file_number,
+                      LSN_IN_PARTS(desc->max_lsn)));
   DBUG_RETURN(0);
 }
 
@@ -1167,7 +1260,7 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
       DBUG_PRINT("error", ("Can't read file header"));
       DBUG_RETURN(LSN_ERROR);
     }
-    DBUG_PRINT("error", ("Max lsn: (%lu,0x%lx)",
+    DBUG_PRINT("info", ("Max lsn: (%lu,0x%lx)",
                          LSN_IN_PARTS(info.max_lsn)));
     DBUG_RETURN(info.max_lsn);
   }
@@ -1190,7 +1283,7 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer)
   DBUG_ENTER("translog_buffer_init");
   buffer->last_lsn= LSN_IMPOSSIBLE;
   /* This Buffer File */
-  buffer->file= -1;
+  buffer->file= NULL;
   buffer->overlay= 0;
   /* cache for current log */
   memset(buffer->buffer, TRANSLOG_FILLER, TRANSLOG_WRITE_BUFFER);
@@ -1211,30 +1304,48 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer)
 
 
 /*
-  Close transaction log file by descriptor
+  @brief close transaction log file by descriptor
 
-  SYNOPSIS
-    translog_close_log_file()
-    file                 file descriptor
+  @param file            pagegecache file descriptor reference
 
-  RETURN
-    0  OK
-    1  Error
+  @return Operation status
+    @retval 0  OK
+    @retval 1  Error
 */
 
-static my_bool translog_close_log_file(File file)
+static my_bool translog_close_log_file(TRANSLOG_FILE *file)
 {
-  int rc;
-  PAGECACHE_FILE fl;
-  fl.file= file;
-  flush_pagecache_blocks(log_descriptor.pagecache, &fl, FLUSH_RELEASE);
+  int rc= 0;
+  flush_pagecache_blocks(log_descriptor.pagecache, &file->handler,
+                         FLUSH_RELEASE);
   /*
     Sync file when we close it
     TODO: sync only we have changed the log
   */
-  rc= my_sync(file, MYF(MY_WME));
-  rc|= my_close(file, MYF(MY_WME));
+  if (!file->is_sync)
+    rc= my_sync(file->handler.file, MYF(MY_WME));
+  rc|= my_close(file->handler.file, MYF(MY_WME));
+  my_free(file, MYF(0));
   return test(rc);
+}
+
+
+/**
+  @brief Initializes TRANSLOG_FILE structure
+
+  @param file            reference on the file to initialize
+  @param number          file number
+  @param is_sync         is file synced on disk
+*/
+
+static void translog_file_init(TRANSLOG_FILE *file, uint32 number,
+                               my_bool is_sync)
+{
+  pagecache_file_init(file->handler, &translog_page_validator,
+                      &translog_dummy_callback, file);
+  file->number= number;
+  file->was_recovered= 0;
+  file->is_sync= is_sync;
 }
 
 
@@ -1252,9 +1363,15 @@ static my_bool translog_close_log_file(File file)
 
 static my_bool translog_create_new_file()
 {
-  int i;
+  TRANSLOG_FILE *file= (TRANSLOG_FILE*)my_malloc(sizeof(TRANSLOG_FILE),
+                                                 MYF(0));
+
+  TRANSLOG_FILE *old= get_current_logfile();
   uint32 file_no= LSN_FILE_NO(log_descriptor.horizon);
   DBUG_ENTER("translog_create_new_file");
+
+  if (file == NULL)
+    goto error;
 
   /*
     Writes max_lsn to the file header before finishing it (there is no need
@@ -1262,37 +1379,41 @@ static my_bool translog_create_new_file()
     one thread can finish the file and nobody interested of LSN of current
     (unfinished) file, because no one can purge it).
   */
-  if (translog_max_lsn_to_header(log_descriptor.log_file_num[0],
-                                 log_descriptor.max_lsn))
-  {
-    translog_stop_writing();
-    DBUG_RETURN(1);
-  }
+  if (translog_max_lsn_to_header(old->handler.file, log_descriptor.max_lsn))
+    goto error;
 
-  log_descriptor.max_lsn= LSN_IMPOSSIBLE;
+  rw_wrlock(&log_descriptor.open_files_lock);
+  DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
+              log_descriptor.open_files.elements);
+  DBUG_ASSERT(file_no == log_descriptor.max_file + 1);
+  if (allocate_dynamic(&log_descriptor.open_files,
+                       log_descriptor.max_file - log_descriptor.min_file + 2))
+    goto error_lock;
+  if ((file->handler.file=
+       create_logfile_by_number_no_cache(file_no)) == -1)
+    goto error_lock;
+  translog_file_init(file, file_no, 0);
 
-  if (log_descriptor.log_file_num[OPENED_FILES_NUM - 1] != -1 &&
-      translog_close_log_file(log_descriptor.log_file_num[OPENED_FILES_NUM -
-                                                          1]))
+  /* this call just expand the array */
+  insert_dynamic(&log_descriptor.open_files, (uchar*)&file);
+  log_descriptor.max_file++;
   {
-    translog_stop_writing();
-    /*
-      This should not be possible because we have not writing something
-      after last sync
-    */
-    DBUG_ASSERT(0);
-    DBUG_RETURN(1);
+    char *start= (char*) dynamic_element(&log_descriptor.open_files, 0,
+                                         TRANSLOG_FILE**);
+    memmove(start + sizeof(TRANSLOG_FILE*), start,
+            sizeof(TRANSLOG_FILE*) *
+            (log_descriptor.max_file - log_descriptor.min_file + 1 - 1));
   }
-  for (i= OPENED_FILES_NUM - 1; i > 0; i--)
-    log_descriptor.log_file_num[i]= log_descriptor.log_file_num[i - 1];
+  /* can't fail we because we expanded array */
+  set_dynamic(&log_descriptor.open_files, (uchar*)&file, 0);
+  DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
+              log_descriptor.open_files.elements);
+  rw_unlock(&log_descriptor.open_files_lock);
 
-  if ((log_descriptor.log_file_num[0]=
-       create_logfile_by_number_no_cache(file_no)) == -1 ||
-      translog_write_file_header())
-  {
-    translog_stop_writing();
+  DBUG_PRINT("info", ("file_no: %lu", (ulong)file_no));
+
+  if (translog_write_file_header())
     DBUG_RETURN(1);
-  }
 
   if (ma_control_file_write_and_force(LSN_IMPOSSIBLE, file_no,
                                       CONTROL_FILE_UPDATE_ONLY_LOGNO))
@@ -1302,6 +1423,12 @@ static my_bool translog_create_new_file()
   }
 
   DBUG_RETURN(0);
+
+error_lock:
+  rw_unlock(&log_descriptor.open_files_lock);
+error:
+  translog_stop_writing();
+  DBUG_RETURN(1);
 }
 
 
@@ -1393,7 +1520,7 @@ static void translog_new_page_header(TRANSLOG_ADDRESS *horizon,
     int4store(ptr, 0x11223344);
 #endif
     /* CRC will be put when page is finished */
-    ptr+= CRC_LENGTH;
+    ptr+= CRC_SIZE;
   }
   if (log_descriptor.flags & TRANSLOG_SECTOR_PROTECTION)
   {
@@ -1600,7 +1727,7 @@ static void translog_wait_for_writers(struct st_translog_buffer *buffer)
   {
     DBUG_PRINT("info", ("wait for writers... buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
-    DBUG_ASSERT(buffer->file != -1);
+    DBUG_ASSERT(buffer->file != NULL);
     pthread_cond_wait(&buffer->waiting_filling_buffer, &buffer->mutex);
     DBUG_PRINT("info", ("wait for writers done buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
@@ -1626,14 +1753,15 @@ static void translog_wait_for_buffer_free(struct st_translog_buffer *buffer)
 {
   DBUG_ENTER("translog_wait_for_buffer_free");
   DBUG_PRINT("enter", ("Buffer: #%u 0x%lx  copies in progress: %u  "
-                       "File: %d  size: 0x%lu",
+                       "File: %d  size: %lu",
                        (uint) buffer->buffer_no, (ulong) buffer,
                        (int) buffer->copy_to_buffer_in_progress,
-                       buffer->file, (ulong) buffer->size));
+                       (buffer->file ? buffer->file->handler.file : -1),
+                       (ulong) buffer->size));
 
   translog_wait_for_writers(buffer);
 
-  while (buffer->file != -1)
+  while (buffer->file != NULL)
   {
     DBUG_PRINT("info", ("wait for writers... buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
@@ -1687,20 +1815,22 @@ static void translog_start_buffer(struct st_translog_buffer *buffer,
 {
   DBUG_ENTER("translog_start_buffer");
   DBUG_PRINT("enter",
-             ("Assign buffer: #%u (0x%lx)  to file: %d  offset: 0x%lx(%lu)",
+             ("Assign buffer: #%u (0x%lx) offset: 0x%lx(%lu)",
               (uint) buffer->buffer_no, (ulong) buffer,
-              log_descriptor.log_file_num[0],
               (ulong) LSN_OFFSET(log_descriptor.horizon),
               (ulong) LSN_OFFSET(log_descriptor.horizon)));
   DBUG_ASSERT(buffer_no == buffer->buffer_no);
   buffer->last_lsn= LSN_IMPOSSIBLE;
   buffer->offset= log_descriptor.horizon;
   buffer->next_buffer_offset= LSN_IMPOSSIBLE;
-  buffer->file= log_descriptor.log_file_num[0];
+  buffer->file= get_current_logfile();
   buffer->overlay= 0;
   buffer->size= 0;
   translog_cursor_init(cursor, buffer, buffer_no);
-  DBUG_PRINT("info", ("init cursor #%u: 0x%lx  chaser: %d  Size: %lu (%lu)",
+  DBUG_PRINT("info", ("file: #%ld (%d)  init cursor #%u: 0x%lx  "
+                      "chaser: %d  Size: %lu (%lu)",
+                      (long) (buffer->file ? buffer->file->number : 0),
+                      (buffer->file ? buffer->file->handler.file : -1),
                       (uint) cursor->buffer->buffer_no, (ulong) cursor->buffer,
                       cursor->chaser, (ulong) cursor->buffer->size,
                       (ulong) (cursor->ptr - cursor->buffer->buffer)));
@@ -1747,7 +1877,7 @@ static my_bool translog_buffer_next(TRANSLOG_ADDRESS *horizon,
     translog_wait_for_buffer_free(new_buffer);
   }
   else
-    DBUG_ASSERT(new_buffer->file != 0);
+    DBUG_ASSERT(new_buffer->file != NULL);
 
   if (new_file)
   {
@@ -2084,17 +2214,17 @@ static uint16 translog_get_total_chunk_length(uchar *page, uint16 offset)
 static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
 {
   uint32 i, pg;
-  PAGECACHE_FILE file;
+  TRANSLOG_FILE *file;
   DBUG_ENTER("translog_buffer_flush");
+  DBUG_ASSERT(buffer->file != NULL);
   DBUG_PRINT("enter",
              ("Buffer: #%u 0x%lx file: %d  offset: (%lu,0x%lx)  size: %lu",
               (uint) buffer->buffer_no, (ulong) buffer,
-              buffer->file,
+              buffer->file->handler.file,
               LSN_IN_PARTS(buffer->offset),
               (ulong) buffer->size));
   translog_buffer_lock_assert_owner(buffer);
 
-  DBUG_ASSERT(buffer->file != -1);
 
   translog_wait_for_writers(buffer);
 
@@ -2108,11 +2238,11 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
     */
     struct st_translog_buffer *overlay= buffer->overlay;
     TRANSLOG_ADDRESS buffer_offset= buffer->offset;
-    File file= buffer->file;
+    TRANSLOG_FILE *fl= buffer->file;
     translog_buffer_unlock(buffer);
     translog_buffer_lock(overlay);
     /* rechecks under mutex protection that overlay is still our overlay */
-    if (buffer->overlay->file == file &&
+    if (buffer->overlay->file == fl &&
         cmp_translog_addr(buffer->overlay->offset + buffer->overlay->size,
                           buffer_offset) > 0)
     {
@@ -2120,7 +2250,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
     }
     translog_buffer_unlock(overlay);
     translog_buffer_lock(buffer);
-    if (buffer->file != -1 && buffer_offset == buffer->offset)
+    if (buffer->file != NULL && buffer_offset == buffer->offset)
     {
       /*
         This means that somebody else flushed the buffer while we was
@@ -2149,13 +2279,12 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
     if (translog_status != TRANSLOG_OK && translog_status != TRANSLOG_SHUTDOWN)
       DBUG_RETURN(1);
     if (pagecache_inject(log_descriptor.pagecache,
-                        &file, pg, 3,
+                        &file->handler, pg, 3,
                         buffer->buffer + i,
                         PAGECACHE_PLAIN_PAGE,
                         PAGECACHE_LOCK_LEFT_UNLOCKED,
                         PAGECACHE_PIN_LEFT_UNPINNED, 0,
-                        LSN_IMPOSSIBLE,
-                        &translog_page_validator, (uchar*) &data))
+                        LSN_IMPOSSIBLE))
     {
       DBUG_PRINT("error", ("Can't write page (%lu,0x%lx) to pagecache",
                            (ulong) buffer->file,
@@ -2164,18 +2293,25 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
       DBUG_RETURN(1);
     }
   }
-  if (my_pwrite(buffer->file, (char*) buffer->buffer,
+  file->is_sync= 0;
+  if (my_pwrite(file->handler.file, (char*) buffer->buffer,
                 buffer->size, LSN_OFFSET(buffer->offset),
                 log_write_flags))
   {
     DBUG_PRINT("error", ("Can't write buffer (%lu,0x%lx) size %lu "
                          "to the disk (%d)",
-                         (ulong) buffer->file,
+                         (ulong) file->handler.file,
                          (ulong) LSN_OFFSET(buffer->offset),
                          (ulong) buffer->size, errno));
     translog_stop_writing();
     DBUG_RETURN(1);
   }
+  /*
+    Dropping the flag in such way can make false alarm: signalling than the
+    file in not sync when it is sync, but the situation is quite rare and
+    protections with mutexes give much more overhead to the whole engine
+  */
+  file->is_sync= 0;
 
   if (LSN_OFFSET(buffer->last_lsn) != 0)    /* if buffer->last_lsn is set */
     translog_set_sent_to_disk(buffer->last_lsn,
@@ -2183,7 +2319,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
   else
     translog_set_only_in_buffers(buffer->next_buffer_offset);
   /* Free buffer */
-  buffer->file= -1;
+  buffer->file= NULL;
   buffer->overlay= 0;
   pthread_cond_broadcast(&buffer->waiting_filling_buffer);
   DBUG_RETURN(0);
@@ -2258,39 +2394,59 @@ static my_bool translog_recover_page_up_to_sector(uchar *page, uint16 offset)
 }
 
 
-/*
-  Log page validator
-
-  SYNOPSIS
-    translog_page_validator()
-    page_addr            The page to check
-    data                 data, need for validation (address in this case)
-
-  RETURN
-    0  OK
-    1  Error
+/**
+  @brief Dummy write callback.
 */
-static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr)
+
+static my_bool
+translog_dummy_callback(__attribute__((unused)) uchar *page,
+                        __attribute__((unused)) pgcache_page_no_t page_no,
+                        __attribute__((unused)) uchar* data_ptr)
+{
+  return 0;
+}
+
+
+/**
+  @brief Log page validator (read callback)
+
+  @param page            The page data to check
+  @param page_no         The page number (<offset>/<page length>)
+  @param data_ptr        Read callback data pointer (pointer to TRANSLOG_FILE)
+
+
+  @todo: add turning loghandler to read-only mode after merging with
+  that patch.
+
+  @retval 0 OK
+  @retval 1 Error
+*/
+
+static my_bool translog_page_validator(uchar *page,
+                                       pgcache_page_no_t page_no,
+                                       uchar* data_ptr)
 {
   uint this_page_page_overhead;
   uint flags;
-  uchar *page= (uchar*) page_addr, *page_pos;
-  TRANSLOG_VALIDATOR_DATA *data= (TRANSLOG_VALIDATOR_DATA *) data_ptr;
-  TRANSLOG_ADDRESS addr= *(data->addr);
+  uchar *page_pos;
+  TRANSLOG_FILE *data= (TRANSLOG_FILE *) data_ptr;
+#ifndef DBUG_OFF
+  uint32 offset= page_no * TRANSLOG_PAGE_SIZE;
+#endif
   DBUG_ENTER("translog_page_validator");
 
   data->was_recovered= 0;
 
-  if (uint3korr(page) != LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE ||
-      uint3korr(page + 3) != LSN_FILE_NO(addr))
+  if (uint3korr(page) != page_no ||
+      uint3korr(page + 3) != data->number)
   {
     DBUG_PRINT("error", ("Page (%lu,0x%lx): "
                          "page address written in the page is incorrect: "
                          "File %lu instead of %lu or page %lu instead of %lu",
-                         LSN_IN_PARTS(addr),
-                         (ulong) uint3korr(page + 3), (ulong) LSN_FILE_NO(addr),
+                         (ulong) data->number, (ulong) offset,
+                         (ulong) uint3korr(page + 3), (ulong) data->number,
                          (ulong) uint3korr(page),
-                         (ulong) LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE));
+                         (ulong) page_no));
     DBUG_RETURN(1);
   }
   flags= (uint)(page[TRANSLOG_PAGE_FLAGS]);
@@ -2300,7 +2456,8 @@ static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr)
   {
     DBUG_PRINT("error", ("Page (%lu,0x%lx): "
                          "Garbage in the page flags field detected : %x",
-                         LSN_IN_PARTS(addr), (uint) flags));
+                         (ulong) data->number, (ulong) offset,
+                         (uint) flags));
     DBUG_RETURN(1);
   }
   page_pos= page + (3 + 3 + 1);
@@ -2313,11 +2470,11 @@ static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr)
     {
       DBUG_PRINT("error", ("Page (%lu,0x%lx): "
                            "CRC mismatch: calculated: %lx on the page %lx",
-                           LSN_IN_PARTS(addr),
+                           (ulong) data->number, (ulong) offset,
                            (ulong) crc, (ulong) uint4korr(page_pos)));
       DBUG_RETURN(1);
     }
-    page_pos+= CRC_LENGTH;                      /* Skip crc */
+    page_pos+= CRC_SIZE;                      /* Skip crc */
   }
   if (flags & TRANSLOG_SECTOR_PROTECTION)
   {
@@ -2440,8 +2597,8 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
                                 PAGECACHE_BLOCK_LINK **direct_link)
 {
   TRANSLOG_ADDRESS addr= *(data->addr), in_buffers;
-  uint cache_index;
   uint32 file_no= LSN_FILE_NO(addr);
+  TRANSLOG_FILE *file;
   DBUG_ENTER("translog_get_page");
   DBUG_PRINT("enter", ("File: %lu  Offset: %lu(0x%lx)",
                        (ulong) file_no,
@@ -2477,7 +2634,7 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
           if the page is in the buffer and it is the last version of the
           page (in case of division the page by buffer flush)
         */
-        if (curr_buffer->file != -1 &&
+        if (curr_buffer->file != NULL &&
             cmp_translog_addr(addr, curr_buffer->offset) >= 0 &&
             cmp_translog_addr(addr,
                               (curr_buffer->next_buffer_offset ?
@@ -2487,10 +2644,21 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
           int is_last_unfinished_page;
           uint last_protected_sector= 0;
           uchar *from, *table= NULL;
+          TRANSLOG_FILE file_copy;
           translog_wait_for_writers(curr_buffer);
           DBUG_ASSERT(LSN_FILE_NO(addr) ==  LSN_FILE_NO(curr_buffer->offset));
           from= curr_buffer->buffer + (addr - curr_buffer->offset);
           memcpy(buffer, from, TRANSLOG_PAGE_SIZE);
+          /*
+            We can use copy then in translog_page_validator() because it
+            do not put it permanently somewhere.
+            We have to use copy because after releasing log lock we can't
+            guaranty that the file still be present (in real life it will be
+            present but theoretically possible that it will be released
+            already from last files cache);
+          */
+          file_copy= *(curr_buffer->file);
+          file_copy.handler.callback_data= (uchar*) &file_copy;
           is_last_unfinished_page= ((log_descriptor.bc.buffer ==
                                      curr_buffer) &&
                                     (log_descriptor.bc.ptr >= from) &&
@@ -2538,10 +2706,12 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
               This IF should be true because we use in-memory data which
               supposed to be correct.
             */
-            if (translog_page_validator((uchar*) buffer, (uchar*) data))
+            if (translog_page_validator((uchar*) buffer,
+                                        LSN_OFFSET(addr),
+                                        (uchar*) &file_copy))
             {
+              DBUG_ASSERT(0);
               buffer= NULL;
-              DBUG_ASSERT(FALSE);
             }
           }
           DBUG_RETURN(buffer);
@@ -2557,21 +2727,9 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
     }
     translog_unlock();
   }
-  if ((cache_index= LSN_FILE_NO(log_descriptor.horizon) - file_no) <
-      OPENED_FILES_NUM)
-  {
-    PAGECACHE_FILE file;
-    /* file in the cache */
-    if (log_descriptor.log_file_num[cache_index] == -1)
-    {
-      if ((log_descriptor.log_file_num[cache_index]=
-           open_logfile_by_number_no_cache(file_no)) == -1)
-        DBUG_RETURN(NULL);
-    }
-    file.file= log_descriptor.log_file_num[cache_index];
-
-    buffer=
-      (uchar*) pagecache_valid_read(log_descriptor.pagecache, &file,
+  file= get_logfile_by_number(file_no);
+  buffer=
+      (uchar*) pagecache_valid_read(log_descriptor.pagecache, &file->handler,
                                      LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
                                      3, (direct_link ? NULL : (char*) buffer),
                                      PAGECACHE_PLAIN_PAGE,
@@ -2580,30 +2738,10 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
                                       PAGECACHE_LOCK_LEFT_UNLOCKED),
                                      direct_link,
                                      &translog_page_validator, (uchar*) data);
-    DBUG_PRINT("info", ("Direct link is assigned to : 0x%lx * 0x%lx",
-                        (ulong) direct_link,
-                        (ulong)(direct_link ? *direct_link : NULL)));
-  }
-  else
-  {
-    /*
-      TODO: WE KEEP THE LAST OPENED_FILES_NUM FILES IN THE LOG CACHE, NOT
-      THE LAST USED FILES.  THIS WILL BE A NOTABLE PROBLEM IF WE ARE
-      FOLLOWING AN UNDO CHAIN THAT GOES OVER MANY OLD LOG FILES.  WE WILL
-      PROBABLY NEED SPECIAL HANDLING OF THIS OR HAVE A FILO FOR THE LOG
-      FILES.
-    */
-
-    File file= open_logfile_by_number_no_cache(file_no);
-    if (file == -1)
-        DBUG_RETURN(NULL);
-    if (my_pread(file, (char*) buffer, TRANSLOG_PAGE_SIZE,
-                 LSN_OFFSET(addr), MYF(MY_FNABP | MY_WME)))
-      buffer= NULL;
-    else if (translog_page_validator((uchar*) buffer, (uchar*) data))
-      buffer= NULL;
-    my_close(file, MYF(MY_WME));
-  }
+  DBUG_PRINT("info", ("Direct link is assigned to : 0x%lx * 0x%lx",
+                      (ulong) direct_link,
+                      (ulong)(direct_link ? *direct_link : NULL)));
+  data->was_recovered= file->was_recovered;
   DBUG_RETURN(buffer);
 }
 
@@ -2825,6 +2963,47 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
   DBUG_RETURN(0);
 }
 
+
+/**
+  @brief Check log files presence
+
+  @retval 0 no log files.
+  @retval 1 there is at least 1 log file in the directory
+*/
+
+my_bool translog_is_log_files()
+{
+  MY_DIR *dirp;
+  uint i;
+  my_bool rc= FALSE;
+
+  /* Finds and removes transaction log files */
+  if (!(dirp = my_dir(log_descriptor.directory, MYF(MY_DONT_SORT))))
+    return 1;
+
+  for (i= 0; i < dirp->number_off_files; i++)
+  {
+    char *file= dirp->dir_entry[i].name;
+    if (strncmp(file, "maria_log.", 10) == 0 &&
+        file[10] >= '0' && file[10] <= '9' &&
+        file[11] >= '0' && file[11] <= '9' &&
+        file[12] >= '0' && file[12] <= '9' &&
+        file[13] >= '0' && file[13] <= '9' &&
+        file[14] >= '0' && file[14] <= '9' &&
+        file[15] >= '0' && file[15] <= '9' &&
+        file[16] >= '0' && file[16] <= '9' &&
+        file[17] >= '0' && file[17] <= '9' &&
+        file[18] == '\0')
+    {
+      rc= TRUE;
+      break;
+    }
+  }
+  my_dirend(dirp);
+  return FALSE;
+}
+
+
 /**
   @brief Initialize transaction log
 
@@ -2855,6 +3034,7 @@ my_bool translog_init_with_table(const char *directory,
   int i;
   int old_log_was_recovered= 0, logs_found= 0;
   uint old_flags= flags;
+  uint32 start_file_num= 1;
   TRANSLOG_ADDRESS sure_page, last_page, last_valid_page;
   my_bool version_changed= 0;
   DBUG_ENTER("translog_init_with_table");
@@ -2877,6 +3057,10 @@ my_bool translog_init_with_table(const char *directory,
                          MY_MUTEX_INIT_FAST) ||
       pthread_mutex_init(&log_descriptor.log_flush_lock,
                          MY_MUTEX_INIT_FAST) ||
+      my_rwlock_init(&log_descriptor.open_files_lock,
+                     NULL) ||
+      my_init_dynamic_array(&log_descriptor.open_files,
+                            sizeof(TRANSLOG_FILE*), 10, 10) ||
       my_init_dynamic_array(&log_descriptor.unfinished_files,
                             sizeof(struct st_file_counter),
                             10, 10))
@@ -2918,7 +3102,7 @@ my_bool translog_init_with_table(const char *directory,
   {
      page_overhead[i]= 7;
      if (i & TRANSLOG_PAGE_CRC)
-       page_overhead[i]+= CRC_LENGTH;
+       page_overhead[i]+= CRC_SIZE;
      if (i & TRANSLOG_SECTOR_PROTECTION)
        page_overhead[i]+= TRANSLOG_PAGE_SIZE /
                            DISK_DRIVE_SECTOR_SIZE;
@@ -2939,14 +3123,21 @@ my_bool translog_init_with_table(const char *directory,
               log_descriptor.buffer_capacity_chunk_2,
               log_descriptor.half_buffer_capacity_chunk_2));
 
-  /* *** Current state of the log handler *** */
+  /*
+    last_logno and last_checkpoint_lsn were set in
+    ma_control_file_create_or_open()
+  */
+  logs_found= (last_logno != FILENO_IMPOSSIBLE);
 
-  /* Init log handler file handlers cache */
-  for (i= 0; i < OPENED_FILES_NUM; i++)
-    log_descriptor.log_file_num[i]= -1;
 
-  /* just to init it somehow */
-  translog_start_buffer(log_descriptor.buffers, &log_descriptor.bc, 0);
+  /* Just to init it somehow (hack for bootstrap)*/
+  {
+    TRANSLOG_FILE *file= 0;
+    log_descriptor.min_file = log_descriptor.max_file= 1;
+    insert_dynamic(&log_descriptor.open_files, (uchar *)&file);
+    translog_start_buffer(log_descriptor.buffers, &log_descriptor.bc, 0);
+    pop_dynamic(&log_descriptor.open_files);
+  }
 
   /* Buffers for log writing */
   for (i= 0; i < TRANSLOG_BUFFERS_NO; i++)
@@ -2994,8 +3185,17 @@ my_bool translog_init_with_table(const char *directory,
     /* Set horizon to the beginning of the last file first */
     log_descriptor.horizon= last_page= MAKE_LSN(last_logno, 0);
     if (translog_get_last_page_addr(&last_page, &pageok))
-      DBUG_RETURN(1);
-    if (LSN_OFFSET(last_page) == 0)
+    {
+      if (!translog_is_log_files())
+      {
+        /* files was deleted, just start from the next log number */
+        start_file_num= last_logno + 1;
+        logs_found= 0;
+      }
+      else
+        DBUG_RETURN(1);
+    }
+    else if (LSN_OFFSET(last_page) == 0)
     {
       if (LSN_FILE_NO(last_page) == 1)
       {
@@ -3008,6 +3208,52 @@ my_bool translog_init_with_table(const char *directory,
         if (translog_get_last_page_addr(&last_page, &pageok))
           DBUG_RETURN(1);
       }
+    }
+    if (logs_found)
+    {
+      uint32 i;
+      log_descriptor.min_file= translog_first_file(log_descriptor.horizon, 1);
+      log_descriptor.max_file= last_logno;
+      /* Open all files */
+      if (allocate_dynamic(&log_descriptor.open_files,
+                           log_descriptor.max_file -
+                           log_descriptor.min_file + 1))
+        DBUG_RETURN(1);
+      for (i = log_descriptor.max_file; i >= log_descriptor.min_file; i--)
+      {
+        /*
+          We can't allocate all file together because they will be freed
+          one by one
+        */
+        TRANSLOG_FILE *file= (TRANSLOG_FILE *)my_malloc(sizeof(TRANSLOG_FILE),
+                                                        MYF(0));
+        if (file == NULL ||
+            (file->handler.file=
+             open_logfile_by_number_no_cache(i)) < 0)
+        {
+          int j;
+          for (j= i - log_descriptor.min_file - 1; j > 0; j--)
+          {
+            TRANSLOG_FILE *el=
+              *dynamic_element(&log_descriptor.open_files, j,
+                               TRANSLOG_FILE **);
+            my_close(el->handler.file, MYF(MY_WME));
+            my_free(el, MYF(0));
+          }
+          if (file)
+          {
+            free(file);
+            DBUG_RETURN(1);
+          }
+          else
+            DBUG_RETURN(1);
+        }
+        translog_file_init(file, i, 1);
+        /* we allocated space so it can't fail */
+        insert_dynamic(&log_descriptor.open_files, (uchar *)&file);
+      }
+      DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
+                  log_descriptor.open_files.elements);
     }
   }
   else if (readonly)
@@ -3150,7 +3396,15 @@ my_bool translog_init_with_table(const char *directory,
     if (!old_log_was_recovered && old_flags == flags)
     {
       LOGHANDLER_FILE_INFO info;
-      if (translog_read_file_header(&info, log_descriptor.log_file_num[0]))
+      /*
+        Accessing &log_descriptor.open_files without mutex is safe
+        because it is initialization
+      */
+      if (translog_read_file_header(&info,
+                                    (*dynamic_element(&log_descriptor.
+                                                      open_files,
+                                                      0, TRANSLOG_FILE **))->
+                                    handler.file))
         DBUG_RETURN(1);
       version_changed= (info.maria_version != TRANSLOG_VERSION_ID);
     }
@@ -3159,15 +3413,26 @@ my_bool translog_init_with_table(const char *directory,
                       logs_found, old_log_was_recovered));
   if (!logs_found)
   {
+    TRANSLOG_FILE *file= (TRANSLOG_FILE*)my_malloc(sizeof(TRANSLOG_FILE),
+                                                   MYF(0));
     DBUG_PRINT("info", ("The log is not found => we will create new log"));
+    if (file == NULL)
+       DBUG_RETURN(1);
     /* Start new log system from scratch */
-    /* Used space */
-    log_descriptor.horizon= MAKE_LSN(1, TRANSLOG_PAGE_SIZE); /* header page */
-    /* Current logs file number in page cache */
-    if ((log_descriptor.log_file_num[0]=
-         create_logfile_by_number_no_cache(1)) == -1 ||
-        translog_write_file_header())
+    log_descriptor.horizon= MAKE_LSN(start_file_num,
+                                     TRANSLOG_PAGE_SIZE); /* header page */
+    if ((file->handler.file=
+         create_logfile_by_number_no_cache(start_file_num)) == -1)
       DBUG_RETURN(1);
+    translog_file_init(file, start_file_num, 0);
+    if (insert_dynamic(&log_descriptor.open_files, (uchar*)&file))
+      DBUG_RETURN(1);
+    log_descriptor.min_file= log_descriptor.max_file= start_file_num;
+    if (translog_write_file_header())
+      DBUG_RETURN(1);
+    DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
+                log_descriptor.open_files.elements);
+
     if (ma_control_file_write_and_force(LSN_IMPOSSIBLE, 1,
                                         CONTROL_FILE_UPDATE_ONLY_LOGNO))
       DBUG_RETURN(1);
@@ -3375,10 +3640,10 @@ static void translog_buffer_destroy(struct st_translog_buffer *buffer)
   DBUG_PRINT("enter",
              ("Buffer #%u: 0x%lx  file: %d  offset: (%lu,0x%lx)  size: %lu",
               (uint) buffer->buffer_no, (ulong) buffer,
-              buffer->file,
+              (buffer->file ? buffer->file->handler.file : -1),
               LSN_IN_PARTS(buffer->offset),
               (ulong) buffer->size));
-  if (buffer->file != -1)
+  if (buffer->file != NULL)
   {
     /*
        We ignore errors here, because we can't do something about it
@@ -3404,6 +3669,7 @@ static void translog_buffer_destroy(struct st_translog_buffer *buffer)
 
 void translog_destroy()
 {
+  TRANSLOG_FILE **file;
   uint i;
   DBUG_ENTER("translog_destroy");
 
@@ -3413,7 +3679,7 @@ void translog_destroy()
   translog_status= (translog_status == TRANSLOG_READONLY ?
                     TRANSLOG_UNINITED :
                     TRANSLOG_SHUTDOWN);
-  if (log_descriptor.bc.buffer->file != -1)
+  if (log_descriptor.bc.buffer->file != NULL)
     translog_finish_page(&log_descriptor.horizon, &log_descriptor.bc);
   translog_unlock();
 
@@ -3425,16 +3691,15 @@ void translog_destroy()
   translog_status= TRANSLOG_UNINITED;
 
   /* close files */
-  for (i= 0; i < OPENED_FILES_NUM; i++)
-  {
-    if (log_descriptor.log_file_num[i] != -1)
-      translog_close_log_file(log_descriptor.log_file_num[i]);
-  }
+  while ((file= (TRANSLOG_FILE **)pop_dynamic(&log_descriptor.open_files)))
+    translog_close_log_file(*file);
   pthread_mutex_destroy(&log_descriptor.sent_to_disk_lock);
   pthread_mutex_destroy(&log_descriptor.file_header_lock);
   pthread_mutex_destroy(&log_descriptor.unfinished_files_lock);
   pthread_mutex_destroy(&log_descriptor.purger_lock);
   pthread_mutex_destroy(&log_descriptor.log_flush_lock);
+  rwlock_destroy(&log_descriptor.open_files_lock);
+  delete_dynamic(&log_descriptor.open_files);
   delete_dynamic(&log_descriptor.unfinished_files);
 
   my_close(log_descriptor.directory_fd, MYF(MY_WME));
@@ -4963,15 +5228,20 @@ translog_write_variable_record_mgroup(LSN *lsn,
   if (translog_set_lsn_for_files(file_of_the_first_group, LSN_FILE_NO(*lsn),
                                  *lsn, FALSE))
     goto err;
-  translog_mark_file_finished(file_of_the_first_group);
 
+  translog_mark_file_finished(file_of_the_first_group);
 
   delete_dynamic(&groups);
   DBUG_RETURN(rc);
 
 err_unlock:
+
   translog_unlock();
+
 err:
+
+  translog_mark_file_finished(file_of_the_first_group);
+
   delete_dynamic(&groups);
   DBUG_RETURN(1);
 }
@@ -5613,7 +5883,7 @@ my_bool translog_scanner_init(LSN lsn,
                       LSN_IN_PARTS(scanner->horizon)));
 
   /* lsn < horizon */
-  DBUG_ASSERT(lsn < scanner->horizon);
+  DBUG_ASSERT(lsn <= scanner->horizon);
 
   scanner->page_addr= lsn;
   scanner->page_addr-= scanner->page_offset; /*decrease offset */
@@ -6647,7 +6917,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
   TRANSLOG_ADDRESS flush_horizon;
   int rc= 0;
   /* We can't have more different files then buffers */
-  File file_handlers[TRANSLOG_BUFFERS_NO];
+  TRANSLOG_FILE *file_handlers[TRANSLOG_BUFFERS_NO];
   int current_file_handler= -1;
   uint32 prev_file= 0;
   my_bool full_circle= 0;
@@ -6691,7 +6961,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
       translog_buffer_lock(buffer);
       translog_buffer_unlock(buffer_unlock);
       buffer_unlock= buffer;
-      if (buffer->file != -1)
+      if (buffer->file != NULL)
       {
         buffer_unlock= NULL;
         if (buffer_start == buffer_no)
@@ -6709,27 +6979,14 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
 
     if (prev_file != LSN_FILE_NO(buffer->offset))
     {
-      uint cache_index;
+      TRANSLOG_FILE *file;
       uint32 fn= LSN_FILE_NO(buffer->offset);
       prev_file= fn;
-      if ((cache_index= LSN_FILE_NO(log_descriptor.horizon) - fn) <
-          OPENED_FILES_NUM)
+      file= get_logfile_by_number(fn);
+      if (!file->is_sync)
       {
-        /* file in the cache */
-        if (log_descriptor.log_file_num[cache_index] == -1)
-        {
-          if ((log_descriptor.log_file_num[cache_index]=
-               open_logfile_by_number_no_cache(fn)) == -1)
-          {
-            /* We don't need translog_unlock() here */
-            translog_buffer_unlock(buffer);
-            rc= 1;
-            goto out;
-          }
-        }
         current_file_handler++;
-        file_handlers[current_file_handler]=
-          log_descriptor.log_file_num[cache_index];
+        file_handlers[current_file_handler]= file;
       }
       /* We sync file when we are closing it => do nothing if file closed */
     }
@@ -6744,11 +7001,12 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
   translog_unlock();
 
   {
-    File *handler= file_handlers;
-    File *end= file_handlers + current_file_handler;
-    for (; handler <= end; handler++)
+    TRANSLOG_FILE **cur= file_handlers;
+    TRANSLOG_FILE **end= file_handlers + current_file_handler;
+    for (; cur <= end; cur++)
     {
-      if (my_sync(*handler, MYF(MY_WME)))
+      (*cur)->is_sync= 1;
+      if (my_sync((*cur)->handler.file, MYF(MY_WME)))
       {
         rc= 1;
         translog_stop_writing();
@@ -6938,12 +7196,6 @@ static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected)
 
   max_file= LSN_FILE_NO(horizon);
 
-  if (MAKE_LSN(1, TRANSLOG_PAGE_SIZE) >= horizon)
-  {
-    /* there is no first page yet */
-    DBUG_RETURN(0);
-  }
-
   /* binary search for last file */
   while (min_file != max_file && min_file != (max_file - 1))
   {
@@ -6960,6 +7212,8 @@ static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected)
   log_descriptor.min_file_number= max_file;
   if (!is_protected)
     pthread_mutex_unlock(&log_descriptor.purger_lock);
+  DBUG_PRINT("info", ("first file :%lu", (ulong) max_file));
+  DBUG_ASSERT(max_file >= 1);
   DBUG_RETURN(max_file);
 }
 
@@ -7170,7 +7424,30 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
       }
       if (cmp_translog_addr(lsn, low) >= 0)
         break;
+
       DBUG_PRINT("info", ("purge file %lu", (ulong) i));
+
+      /* remove file descriptor from the cache */
+      /*
+        log_descriptor.min_file can be changed only here during execution
+        and the function is serialized, so we can access it without problems
+      */
+      if (i >= log_descriptor.min_file)
+      {
+        TRANSLOG_FILE *file;
+        rw_wrlock(&log_descriptor.open_files_lock);
+        DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
+                    log_descriptor.open_files.elements);
+        DBUG_ASSERT(log_descriptor.min_file == i);
+        file= *((TRANSLOG_FILE **)pop_dynamic(&log_descriptor.open_files));
+        DBUG_PRINT("info", ("Files : %d", log_descriptor.open_files.elements));
+        DBUG_ASSERT(i == file->number);
+        log_descriptor.min_file++;
+        DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
+                    log_descriptor.open_files.elements);
+        rw_unlock(&log_descriptor.open_files_lock);
+        translog_close_log_file(file);
+      }
       if (log_purge_type == TRANSLOG_PURGE_IMMIDIATE)
       {
         char path[FN_REFLEN], *file_name;

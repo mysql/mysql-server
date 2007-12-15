@@ -1049,6 +1049,10 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       DROP+CREATE happened (applying REDOs to the wrong table).
     */
     share.kfile.file= file;
+    pagecache_file_init(share.kfile, &maria_page_crc_check_index,
+                        (share.options & HA_OPTION_PAGE_CHECKSUM ?
+                         &maria_page_crc_set_index :
+                         &maria_page_filler_set_normal), &share);
     if (_ma_update_create_rename_lsn_sub(&share, lsn, FALSE))
       goto err;
     my_free(log_data, MYF(0));
@@ -1241,6 +1245,10 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
   {
     share->bitmap.block_size= share->base.block_size;
     share->bitmap.file.file = dfile;
+    pagecache_file_init(share->bitmap.file, &maria_page_crc_check_bitmap,
+                        (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                         &maria_page_crc_set_normal :
+                         &maria_page_filler_set_bitmap), share);
     return _ma_bitmap_create_first(share);
   }
   /*

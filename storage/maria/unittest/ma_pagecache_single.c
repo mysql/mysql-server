@@ -60,6 +60,19 @@ static struct file_desc  simple_delete_flush_test_file[]=
   { 0, 0}
 };
 
+/**
+  @brief Dummy pagecache callback.
+*/
+
+static my_bool
+dummy_callback(__attribute__((unused)) uchar *page,
+               __attribute__((unused)) pgcache_page_no_t page_no,
+               __attribute__((unused)) uchar* data_ptr)
+{
+  return 0;
+}
+
+
 
 /*
   Recreate and reopen a file for test
@@ -496,7 +509,6 @@ int main(int argc __attribute__((unused)),
 #endif
   DBUG_ENTER("main");
   DBUG_PRINT("info", ("Main thread: %s\n", my_thread_name()));
-
   if ((tmp_file= my_open(file2_name, O_CREAT | O_TRUNC | O_RDWR,
                          MYF(MY_WME))) < 0)
     exit(1);
@@ -508,6 +520,7 @@ int main(int argc __attribute__((unused)),
 	    errno);
     exit(1);
   }
+  pagecache_file_init(file1, &dummy_callback, &dummy_callback, NULL);
   my_close(tmp_file, MYF(0));
   my_delete(file2_name, MYF(0));
 
