@@ -3013,5 +3013,6 @@ vio/viotest.cpp
 win/configure.data
 win/vs71cache.txt
 win/vs8cache.txt
+ylwrap
 zlib/*.ds?
 zlib/*.vcproj

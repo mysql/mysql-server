@@ -1240,7 +1240,17 @@ bool Item_name_const::is_null()
 
 Item::Type Item_name_const::type() const
 {
-  return value_item->type();
+  /*
+    As 
+    1. one can try to create the Item_name_const passing non-constant 
+    arguments, although it's incorrect and 
+    2. the type() method can be called before the fix_fields() to get
+    type information for a further type cast, e.g. 
+    if (item->type() == FIELD_ITEM) 
+      ((Item_field *) item)->... 
+    we return NULL_ITEM in the case to avoid wrong casting.
+  */
+  return valid_args ? value_item->type() : NULL_ITEM;
 }
 
 
@@ -1252,14 +1262,14 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
   s.length(0);
 
   if (value_item->fix_fields(thd, &value_item) ||
-      name_item->fix_fields(thd, &name_item))
+      name_item->fix_fields(thd, &name_item) ||
+      !value_item->const_item() ||
+      !name_item->const_item() ||
+      !(item_name= name_item->val_str(&s))) // Can't have a NULL name 
+  {
+    my_error(ER_RESERVED_SYNTAX, MYF(0), "NAME_CONST");
     return TRUE;
-  if (!(value_item->const_item() && name_item->const_item()))
-    return TRUE;
-
-  if (!(item_name= name_item->val_str(&s)))
-    return TRUE; /* Can't have a NULL name */
-
+  }
   set_name(item_name->ptr(), (uint) item_name->length(), system_charset_info);
   max_length= value_item->max_length;
   decimals= value_item->decimals;
@@ -3683,7 +3693,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     }
 
     /* Search in SELECT and GROUP lists of the outer select. */
-    if (outer_context->resolve_in_select_list)
+    if (place != IN_WHERE && place != IN_ON)
     {
       if (!(ref= resolve_ref_in_select_and_group(thd, this, select)))
         return -1; /* Some error occurred (e.g. ambiguous names). */

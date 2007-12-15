@@ -127,19 +127,6 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
 		   key_part->null_bit);
       key_length--;
     }
-    if (key_part->type == HA_KEYTYPE_BIT)
-    {
-      Field_bit *field= (Field_bit *) (key_part->field);
-      if (field->bit_len)
-      {
-        uchar bits= get_rec_bits(from_record +
-                                 key_part->null_offset +
-                                 (key_part->null_bit == 128),
-                                 field->bit_ofs, field->bit_len);
-        *to_key++= bits;
-        key_length--;
-      }
-    }
     if (key_part->key_part_flag & HA_BLOB_PART ||
         key_part->key_part_flag & HA_VAR_LENGTH_PART)
     {

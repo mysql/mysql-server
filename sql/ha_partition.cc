@@ -1531,6 +1531,14 @@ int ha_partition::copy_partitions(ulonglong *copied, ulonglong *deleted)
   longlong func_value;
   DBUG_ENTER("ha_partition::copy_partitions");
 
+  if (m_part_info->linear_hash_ind)
+  {
+    if (m_part_info->part_type == HASH_PARTITION)
+      set_linear_hash_mask(m_part_info, m_part_info->no_parts);
+    else
+      set_linear_hash_mask(m_part_info, m_part_info->no_subparts);
+  }
+
   while (reorg_part < m_reorged_parts)
   {
     handler *file= m_reorged_file[reorg_part];
@@ -1598,7 +1606,11 @@ error:
 
 void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 {
-  m_file[0]->update_create_info(create_info);
+  info(HA_STATUS_AUTO);
+
+  if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
+    create_info->auto_increment_value= stats.auto_increment_value;
+
   create_info->data_file_name= create_info->index_file_name = NULL;
   return;
 }
@@ -3413,14 +3425,17 @@ int ha_partition::index_init(uint inx, bool sorted)
   */
   if (m_lock_type == F_WRLCK)
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
-  else if (sorted && m_table_flags & HA_PARTIAL_COLUMN_READ)
+  else if (sorted)
   {
     /*
-      An ordered scan is requested and necessary fields aren't in read_set.
-      This may happen e.g. with SELECT COUNT(*) FROM t1. We must ensure
-      that all fields of current key are included into read_set, as
-      partitioning requires them for sorting
-      (see ha_partition::handle_ordered_index_scan).
+      An ordered scan is requested. We must make sure all fields of the 
+      used index are in the read set, as partitioning requires them for
+      sorting (see ha_partition::handle_ordered_index_scan).
+
+      The SQL layer may request an ordered index scan without having index
+      fields in the read set when
+       - it needs to do an ordered scan over an index prefix.
+       - it evaluates ORDER BY with SELECT COUNT(*) FROM t1.
 
       TODO: handle COUNT(*) queries via unordered scan.
     */
@@ -3986,7 +4001,8 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
   }
   else if (!(error= file->index_next(buf)))
   {
-    if (compare_key(end_range) <= 0)
+    if (!(file->table_flags() & HA_READ_ORDER) ||
+        compare_key(end_range) <= 0)
     {
       m_last_part= m_part_spec.start_part;
       DBUG_RETURN(0);                           // Row was in range
@@ -4063,7 +4079,8 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
     }
     if (!error)
     {
-      if (compare_key(end_range) <= 0)
+      if (!(file->table_flags() & HA_READ_ORDER) ||
+          compare_key(end_range) <= 0)
       {
         m_last_part= i;
         DBUG_RETURN(0);

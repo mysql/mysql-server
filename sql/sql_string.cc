@@ -846,7 +846,7 @@ outp:
   with optional left padding (for binary -> UCS2 conversion)
   
   SYNOPSIS
-    well_formed_copy_nhars()
+    well_formed_copy_nchars()
     to			     Store result here
     to_length                Maxinum length of "to" string
     to_cs		     Character set of "to" string
@@ -983,7 +983,10 @@ outp:
         goto outp;
       }
       else
+      {
+        from= from_prev;
         break;
+      }
     }
     *from_end_pos= from;
     res= to - to_start;

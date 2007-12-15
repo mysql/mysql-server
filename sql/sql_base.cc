@@ -8461,7 +8461,7 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
     We also downgrade locks after the upgrade to WRITE_ONLY
 */
 
-/* purecov: begin unused */
+/* purecov: begin deadcode */
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   VOID(pthread_mutex_lock(&LOCK_open));

@@ -1099,6 +1099,7 @@ struct TABLE_LIST
     ... SELECT implementation).
   */
   bool          create;
+  bool          internal_tmp_table;
 
 
   /* View creation context. */

@@ -74,6 +74,7 @@ typedef struct st_myrg_info
   LIST	 open_list;
   QUEUE  by_key;
   ulong *rec_per_key_part;			/* for sql optimizing */
+  pthread_mutex_t mutex;
 } MYRG_INFO;
 
 
