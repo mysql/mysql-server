@@ -80,7 +80,7 @@ int main(int argc, char **argv)
     which is useless. TODO: start log handler in read-only mode.
   */
   if (translog_init(".", LOG_FILE_SIZE, 50112, 0, maria_pagecache,
-                    TRANSLOG_DEFAULT_FLAGS))
+                    TRANSLOG_DEFAULT_FLAGS, opt_only_display))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
     goto err;

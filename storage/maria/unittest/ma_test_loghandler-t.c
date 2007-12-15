@@ -175,13 +175,13 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init(".", LOG_FILE_SIZE, 50112, 0, &pagecache, LOG_FLAGS))
+  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+                               LOG_FLAGS, 0, &translog_example_table_init))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
     translog_destroy();
     exit(1);
   }
-  example_loghandler_init();
   /* Suppressing of automatic record writing */
   trn->first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
@@ -337,7 +337,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   if (translog_flush(translog_get_horizon()))
   {
-    fprintf(stderr, "Can't flush up to horizon\n", (ulong) i);
+    fprintf(stderr, "Can't flush up to horizon\n");
     translog_destroy();
     ok(0, "flush");
     exit(1);

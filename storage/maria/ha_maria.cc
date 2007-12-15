@@ -2450,7 +2450,7 @@ static int ha_maria_init(void *p)
                     TRANSLOG_PAGE_SIZE) == 0) ||
     translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                   MYSQL_VERSION_ID, server_id, maria_log_pagecache,
-                  TRANSLOG_DEFAULT_FLAGS) ||
+                  TRANSLOG_DEFAULT_FLAGS, 0) ||
     maria_recover() ||
     ma_checkpoint_init(checkpoint_interval);
   maria_multi_threaded= TRUE;

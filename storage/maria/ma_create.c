@@ -692,7 +692,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   /* max_data_file_length and max_key_file_length are recalculated on open */
   if (tmp_table)
     share.base.max_data_file_length= (my_off_t) ci->data_file_length;
-  else if (ci->transactional && translog_inited && !maria_in_recovery)
+  else if (ci->transactional && translog_status == TRANSLOG_OK &&
+           !maria_in_recovery)
   {
     /*
       we have checked translog_inited above, because maria_chk may call us
