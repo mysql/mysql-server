@@ -1642,7 +1642,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   if (open_system_tables_for_read(thd, tz_tables, &open_tables_state_backup))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
-                      "trying to live without them", thd->net.last_error);
+                      "trying to live without them", thd->main_da.message());
     /* We will try emulate that everything is ok */
     return_val= time_zone_tables_exist= 0;
     goto end_with_setting_default_tz;
