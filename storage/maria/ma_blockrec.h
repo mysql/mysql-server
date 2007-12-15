@@ -199,7 +199,7 @@ my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
                                        uint *bitmap_pattern);
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
 int  _ma_bitmap_create_first(MARIA_SHARE *share);
-void _ma_bitmap_flushable(MARIA_SHARE *share, my_bool flushable);
+void _ma_bitmap_flushable(MARIA_SHARE *share, int non_flushable_inc);
 #ifndef DBUG_OFF
 void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
                       ulonglong page);

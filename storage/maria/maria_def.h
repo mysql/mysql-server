@@ -217,7 +217,8 @@ typedef struct st_maria_file_bitmap
   ulonglong page;                      /* Page number for current bitmap */
   uint used_size;                      /* Size of bitmap head that is not 0 */
   my_bool changed;                     /* 1 if page needs to be flushed */
-  my_bool flushable;                   /**< If bitmap and log are in sync */
+  my_bool flush_all_requested;         /**< If _ma_bitmap_flush_all waiting */
+  uint non_flushable;                  /**< 0 if bitmap and log are in sync */
   PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
 
 #ifdef THREAD

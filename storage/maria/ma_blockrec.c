@@ -2692,7 +2692,7 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
   MARIA_BITMAP_BLOCKS *blocks= &row->insert_blocks;
   DBUG_ENTER("allocate_and_write_block_record");
 
-  _ma_bitmap_flushable(info->s, FALSE);
+  _ma_bitmap_flushable(info->s, 1);
   if (_ma_bitmap_find_place(info, row, blocks))
     goto err;                         /* Error reading bitmap */
 
@@ -2729,7 +2729,7 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
   DBUG_EXECUTE_IF("maria_over_alloc_bitmap", sleep(1000););
   DBUG_RETURN(0);
 err:
-  _ma_bitmap_flushable(info->s, TRUE);
+  _ma_bitmap_flushable(info->s, -1);
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
   DBUG_RETURN(1);
 }
@@ -2801,7 +2801,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_write_abort_block_record");
 
-  _ma_bitmap_flushable(share, FALSE);
+  _ma_bitmap_flushable(share, 1);
   if (delete_head_or_tail(info,
                           ma_recordpos_to_page(info->cur_row.lastpos),
                           ma_recordpos_to_dir_entry(info->cur_row.lastpos), 1,
@@ -2836,7 +2836,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
                       &lsn, (void*) 0))
       res= 1;
   }
-  _ma_bitmap_flushable(share, TRUE);
+  _ma_bitmap_flushable(share, -1);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
@@ -2886,7 +2886,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   calc_record_size(info, record, new_row);
   page= ma_recordpos_to_page(record_pos);
 
-  _ma_bitmap_flushable(share, FALSE);
+  _ma_bitmap_flushable(share, 1);
   DBUG_ASSERT(share->pagecache->block_size == block_size);
   if (!(buff= pagecache_read(share->pagecache,
                              &info->dfile, (pgcache_page_no_t) page, 0,
@@ -2978,7 +2978,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   DBUG_RETURN(res);
 
 err:
-  _ma_bitmap_flushable(share, TRUE);
+  _ma_bitmap_flushable(share, -1);
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
   DBUG_RETURN(1);
 }
@@ -3287,7 +3287,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
   DBUG_PRINT("enter", ("Rowid: %lu (%lu:%u)", (ulong) info->cur_row.lastpos,
                        (ulong) page, record_number));
 
-  _ma_bitmap_flushable(share, FALSE);
+  _ma_bitmap_flushable(share, 1);
   if (delete_head_or_tail(info, page, record_number, 1, 0) ||
       delete_tails(info, info->cur_row.tail_positions))
     goto err;
@@ -3334,12 +3334,12 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
 
   }
 
-  _ma_bitmap_flushable(share, TRUE);
+  _ma_bitmap_flushable(share, -1);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(0);
 
 err:
-  _ma_bitmap_flushable(share, TRUE);
+  _ma_bitmap_flushable(share, -1);
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
   DBUG_RETURN(1);
 }
@@ -5648,7 +5648,7 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
   if (read_row_extent_info(info, buff, rownr))
     DBUG_RETURN(1);
 
-  _ma_bitmap_flushable(share, FALSE);
+  _ma_bitmap_flushable(share, 1);
   if (delete_head_or_tail(info, page, rownr, 1, 1) ||
       delete_tails(info, info->cur_row.tail_positions))
     goto err;
@@ -5665,7 +5665,7 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
 
   res= 0;
 err:
-  _ma_bitmap_flushable(share, TRUE);
+  _ma_bitmap_flushable(share, -1);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
