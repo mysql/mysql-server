@@ -50,15 +50,6 @@
 
 #define TRANSLOG_PAGE_FLAGS 6 /* transaction log page flags offset */
 
-/* QQ:  For temporary debugging */
-#define UNRECOVERABLE_ERROR(E) \
-  do { \
-    DBUG_PRINT("error", E); \
-    printf E; \
-    putchar('\n'); \
-    DBUG_ASSERT(0); \
-  } while(0);
-
 /* Maximum length of compressed LSNs (the worst case of whole LSN storing) */
 #define COMPRESSED_LSN_MAX_STORE_SIZE (2 + LSN_STORE_SIZE)
 #define MAX_NUMBER_OF_LSNS_PER_RECORD 2
@@ -163,6 +154,8 @@ struct st_translog_descriptor
   /* Page cache for the log reads */
   PAGECACHE *pagecache;
   uint flags;
+  /* File open flags */
+  uint open_flags;
   /* max size of one log size (for new logs creation) */
   uint32 log_file_max_size;
   uint32 server_version;
@@ -260,7 +253,7 @@ ulong sync_log_dir= TRANSLOG_SYNC_DIR_NEWFILE;
 static uchar end_of_log= 0;
 #define END_OF_LOG &end_of_log
 
-my_bool translog_inited= 0;
+enum enum_translog_status translog_status= TRANSLOG_UNINITED;
 
 /* chunk types */
 #define TRANSLOG_CHUNK_LSN   0x00      /* 0 chunk refer as LSN (head or tail */
@@ -566,7 +559,7 @@ static LOG_DESC INIT_LOGREC_INCOMPLETE_GROUP=
 
 const myf log_write_flags= MY_WME | MY_NABP | MY_WAIT_IF_FULL;
 
-static void loghandler_init()
+void translog_table_init()
 {
   int i;
   log_record_type_descriptor[LOGREC_RESERVED_FOR_CHUNKS23]=
@@ -688,6 +681,18 @@ static void translog_check_cursor(struct st_buffer_cursor *cursor
   DBUG_ASSERT(cursor->current_page_fill <= TRANSLOG_PAGE_SIZE);
 }
 
+
+/**
+  @brief switch the loghandler in read only mode in case of write error
+*/
+
+void translog_stop_writing()
+{
+  translog_status= TRANSLOG_READONLY;
+  log_descriptor.open_flags= O_BINARY | O_RDONLY;
+}
+
+
 /*
   @brief Get file name of the log by log number
 
@@ -730,6 +735,9 @@ static File create_logfile_by_number_no_cache(uint32 file_no)
   char path[FN_REFLEN];
   DBUG_ENTER("create_logfile_by_number_no_cache");
 
+  if (translog_status != TRANSLOG_OK)
+    return -1;
+
   /* TODO: add O_DIRECT to open flags (when buffer is aligned) */
   if ((file= my_create(translog_filename_by_fileno(file_no, path),
                        0, O_BINARY | O_RDWR, MYF(MY_WME))) < 0)
@@ -766,10 +774,10 @@ static File open_logfile_by_number_no_cache(uint32 file_no)
   /* TODO: add O_DIRECT to open flags (when buffer is aligned) */
   /* TODO: use my_create() */
   if ((file= my_open(translog_filename_by_fileno(file_no, path),
-                     O_BINARY | O_RDWR,
+                     log_descriptor.open_flags,
                      MYF(MY_WME))) < 0)
   {
-    UNRECOVERABLE_ERROR(("Error %d during opening file '%s'", errno, path));
+    DBUG_PRINT("error", ("Error %d during opening file '%s'", errno, path));
     DBUG_RETURN(-1);
   }
   DBUG_PRINT("info", ("File: '%s'  handler: %d", path, file));
@@ -970,7 +978,10 @@ static my_bool translog_set_lsn_for_files(uint32 from_file, uint32 to_file,
         translog_read_file_header(&info, fd) ||
         (cmp_translog_addr(lsn, info.max_lsn) > 0 &&
          translog_max_lsn_to_header(fd, lsn)))
+    {
+      translog_stop_writing();
       DBUG_RETURN(1);
+    }
   }
   pthread_mutex_unlock(&log_descriptor.file_header_lock);
 
@@ -1112,7 +1123,8 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
   uint32 limit= FILENO_IMPOSSIBLE;
   DBUG_ENTER("translog_get_file_max_lsn_stored");
   DBUG_PRINT("enter", ("file: %lu", (ulong)file));
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
 
   pthread_mutex_lock(&log_descriptor.unfinished_files_lock);
 
@@ -1246,25 +1258,44 @@ static my_bool translog_create_new_file()
     one thread can finish the file and nobody interested of LSN of current
     (unfinished) file, because no one can purge it).
   */
-  translog_max_lsn_to_header(log_descriptor.log_file_num[0],
-                             log_descriptor.max_lsn);
+  if (translog_max_lsn_to_header(log_descriptor.log_file_num[0],
+                                 log_descriptor.max_lsn))
+  {
+    translog_stop_writing();
+    DBUG_RETURN(1);
+  }
+
   log_descriptor.max_lsn= LSN_IMPOSSIBLE;
 
   if (log_descriptor.log_file_num[OPENED_FILES_NUM - 1] != -1 &&
       translog_close_log_file(log_descriptor.log_file_num[OPENED_FILES_NUM -
                                                           1]))
+  {
+    translog_stop_writing();
+    /*
+      This should not be possible because we have not writing something
+      after last sync
+    */
+    DBUG_ASSERT(0);
     DBUG_RETURN(1);
+  }
   for (i= OPENED_FILES_NUM - 1; i > 0; i--)
     log_descriptor.log_file_num[i]= log_descriptor.log_file_num[i - 1];
 
   if ((log_descriptor.log_file_num[0]=
        create_logfile_by_number_no_cache(file_no)) == -1 ||
       translog_write_file_header())
+  {
+    translog_stop_writing();
     DBUG_RETURN(1);
+  }
 
   if (ma_control_file_write_and_force(LSN_IMPOSSIBLE, file_no,
                                       CONTROL_FILE_UPDATE_ONLY_LOGNO))
+  {
+    translog_stop_writing();
     DBUG_RETURN(1);
+  }
 
   DBUG_RETURN(0);
 }
@@ -1793,6 +1824,8 @@ static void translog_set_only_in_buffers(TRANSLOG_ADDRESS in_buffers)
   /* LSN_IMPOSSIBLE == 0 => it will work for very first time */
   if (cmp_translog_addr(in_buffers, log_descriptor.in_buffers_only) > 0)
   {
+    if (translog_status != TRANSLOG_OK)
+      DBUG_VOID_RETURN;
     log_descriptor.in_buffers_only= in_buffers;
     DBUG_PRINT("info", ("set new in_buffers_only"));
   }
@@ -2109,6 +2142,8 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
     data.addr= &addr;
     DBUG_ASSERT(log_descriptor.pagecache->block_size == TRANSLOG_PAGE_SIZE);
     DBUG_ASSERT(i + TRANSLOG_PAGE_SIZE <= buffer->size);
+    if (translog_status != TRANSLOG_OK)
+      DBUG_RETURN(1);
     if (pagecache_inject(log_descriptor.pagecache,
                         &file, pg, 3,
                         buffer->buffer + i,
@@ -2118,20 +2153,23 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
                         LSN_IMPOSSIBLE,
                         &translog_page_validator, (uchar*) &data))
     {
-      UNRECOVERABLE_ERROR(("Can't write page (%lu,0x%lx) to pagecache",
+      DBUG_PRINT("error", ("Can't write page (%lu,0x%lx) to pagecache",
                            (ulong) buffer->file,
                            (ulong) (LSN_OFFSET(buffer->offset)+ i)));
+      translog_stop_writing();
+      DBUG_RETURN(1);
     }
   }
   if (my_pwrite(buffer->file, (char*) buffer->buffer,
                 buffer->size, LSN_OFFSET(buffer->offset),
                 log_write_flags))
   {
-    UNRECOVERABLE_ERROR(("Can't write buffer (%lu,0x%lx) size %lu "
+    DBUG_PRINT("error", ("Can't write buffer (%lu,0x%lx) size %lu "
                          "to the disk (%d)",
                          (ulong) buffer->file,
                          (ulong) LSN_OFFSET(buffer->offset),
                          (ulong) buffer->size, errno));
+    translog_stop_writing();
     DBUG_RETURN(1);
   }
 
@@ -2174,7 +2212,7 @@ static my_bool translog_recover_page_up_to_sector(uchar *page, uint16 offset)
     if ((chunk_length=
          translog_get_total_chunk_length(page, chunk_offset)) == 0)
     {
-      UNRECOVERABLE_ERROR(("cant get chunk length (offset %u)",
+      DBUG_PRINT("error", ("cant get chunk length (offset %u)",
                            (uint) chunk_offset));
       DBUG_RETURN(1);
     }
@@ -2182,7 +2220,7 @@ static my_bool translog_recover_page_up_to_sector(uchar *page, uint16 offset)
                         (uint) chunk_offset, (uint) chunk_length));
     if (((ulong) chunk_offset) + ((ulong) chunk_length) > TRANSLOG_PAGE_SIZE)
     {
-      UNRECOVERABLE_ERROR(("damaged chunk (offset %u) in trusted area",
+      DBUG_PRINT("error", ("damaged chunk (offset %u) in trusted area",
                            (uint) chunk_offset));
       DBUG_RETURN(1);
     }
@@ -2242,7 +2280,7 @@ static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr)
   if (uint3korr(page) != LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE ||
       uint3korr(page + 3) != LSN_FILE_NO(addr))
   {
-    UNRECOVERABLE_ERROR(("Page (%lu,0x%lx): "
+    DBUG_PRINT("error", ("Page (%lu,0x%lx): "
                          "page address written in the page is incorrect: "
                          "File %lu instead of %lu or page %lu instead of %lu",
                          LSN_IN_PARTS(addr),
@@ -2256,7 +2294,7 @@ static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr)
   if (flags & ~(TRANSLOG_PAGE_CRC | TRANSLOG_SECTOR_PROTECTION |
                 TRANSLOG_RECORD_CRC))
   {
-    UNRECOVERABLE_ERROR(("Page (%lu,0x%lx): "
+    DBUG_PRINT("error", ("Page (%lu,0x%lx): "
                          "Garbage in the page flags field detected : %x",
                          LSN_IN_PARTS(addr), (uint) flags));
     DBUG_RETURN(1);
@@ -2269,7 +2307,7 @@ static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr)
                              this_page_page_overhead);
     if (crc != uint4korr(page_pos))
     {
-      UNRECOVERABLE_ERROR(("Page (%lu,0x%lx): "
+      DBUG_PRINT("error", ("Page (%lu,0x%lx): "
                            "CRC mismatch: calculated: %lx on the page %lx",
                            LSN_IN_PARTS(addr),
                            (ulong) crc, (ulong) uint4korr(page_pos)));
@@ -2783,31 +2821,32 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
   DBUG_RETURN(0);
 }
 
-/*
-  Initialize transaction log
+/**
+  @brief Initialize transaction log
 
-  SYNOPSIS
-    translog_init()
-    directory            Directory where log files are put
-    log_file_max_size    max size of one log size (for new logs creation)
-    server_version       version of MySQL server (MYSQL_VERSION_ID)
-    server_id            server ID (replication & Co)
-    pagecache            Page cache for the log reads
-    flags                flags (TRANSLOG_PAGE_CRC, TRANSLOG_SECTOR_PROTECTION
+  @param directory       Directory where log files are put
+  @param log_file_max_size max size of one log size (for new logs creation)
+  @param server_version  version of MySQL server (MYSQL_VERSION_ID)
+  @param server_id       server ID (replication & Co)
+  @param pagecache       Page cache for the log reads
+  @param flags           flags (TRANSLOG_PAGE_CRC, TRANSLOG_SECTOR_PROTECTION
                            TRANSLOG_RECORD_CRC)
+  @param read_only       Put transaction log in read-only mode
+  @param init_table_func function to initialize record descriptors table
 
-  TODO
+  @todo
     Free used resources in case of error.
 
-  RETURN
-    0  OK
-    1  Error
+  @retval 0 OK
+  @retval 1 Error
 */
 
-my_bool translog_init(const char *directory,
-                      uint32 log_file_max_size,
-                      uint32 server_version,
-                      uint32 server_id, PAGECACHE *pagecache, uint flags)
+my_bool translog_init_with_table(const char *directory,
+                                 uint32 log_file_max_size,
+                                 uint32 server_version,
+                                 uint32 server_id, PAGECACHE *pagecache,
+                                 uint flags, my_bool readonly,
+                                 void (*init_table_func)())
 {
   int i;
   int old_log_was_recovered= 0, logs_found= 0;
@@ -2815,13 +2854,10 @@ my_bool translog_init(const char *directory,
   TRANSLOG_ADDRESS sure_page, last_page, last_valid_page;
   my_bool version_changed= 0;
   DBUG_ENTER("translog_init");
-  DBUG_ASSERT(translog_inited == 0);
-  compile_time_assert(TRANSLOG_MIN_FILE_SIZE >
-                      TRANSLOG_WRITE_BUFFER * TRANSLOG_BUFFERS_NO);
-  compile_time_assert(TRANSLOG_WRITE_BUFFER % TRANSLOG_PAGE_SIZE == 0);
-
-  loghandler_init();                            /* Safe to do many times */
-
+  if (readonly)
+    log_descriptor.open_flags= O_BINARY | O_RDONLY;
+  else
+    log_descriptor.open_flags= O_BINARY | O_RDWR;
   if (pthread_mutex_init(&log_descriptor.sent_to_disk_lock,
                          MY_MUTEX_INIT_FAST) ||
       pthread_mutex_init(&log_descriptor.file_header_lock,
@@ -2846,7 +2882,8 @@ my_bool translog_init(const char *directory,
   if ((log_descriptor.directory_fd= my_open(log_descriptor.directory,
                                             O_RDONLY, MYF(MY_WME))) < 0)
   {
-    UNRECOVERABLE_ERROR(("Error %d during opening directory '%s'",
+    my_errno= errno;
+    DBUG_PRINT("error", ("Error %d during opening directory '%s'",
                          errno, log_descriptor.directory));
     DBUG_RETURN(1);
   }
@@ -2960,6 +2997,13 @@ my_bool translog_init(const char *directory,
       }
     }
   }
+  else if (readonly)
+  {
+    /* There is no logs and there is read-only mode => nothing to read */
+    DBUG_PRINT("error", ("No logs and read-only mode"));
+    DBUG_RETURN(1);
+  }
+
   if (logs_found)
   {
     TRANSLOG_ADDRESS current_page= sure_page;
@@ -3116,7 +3160,8 @@ my_bool translog_init(const char *directory,
     translog_start_buffer(log_descriptor.buffers, &log_descriptor.bc, 0);
     translog_new_page_header(&log_descriptor.horizon, &log_descriptor.bc);
   }
-  else if (old_log_was_recovered || old_flags != flags || version_changed)
+  else if ((old_log_was_recovered || old_flags != flags || version_changed) &&
+           !readonly)
   {
     /* leave the damaged file untouched */
     log_descriptor.horizon+= LSN_ONE_FILE;
@@ -3160,7 +3205,7 @@ my_bool translog_init(const char *directory,
     DBUG_RETURN(1);
   id_to_share--; /* min id is 1 */
 
-  translog_inited= 1;
+  translog_status= (readonly ? TRANSLOG_READONLY : TRANSLOG_OK);
   /* Check the last LSN record integrity */
   if (logs_found)
   {
@@ -3268,7 +3313,9 @@ my_bool translog_init(const char *directory,
         DBUG_PRINT("error", ("unexpected end of log or record during "
                              "reading record header: (%lu,0x%lx)  len: %d",
                              LSN_IN_PARTS(last_lsn), len));
-        if (translog_truncate_log(last_lsn))
+        if (readonly)
+          log_descriptor.horizon= last_lsn;
+        else if (translog_truncate_log(last_lsn))
           DBUG_RETURN(1);
       }
       else
@@ -3288,7 +3335,9 @@ my_bool translog_init(const char *directory,
                                  "reading record body: (%lu,0x%lx)  len: %d",
                                  LSN_IN_PARTS(rec.lsn),
                                  len));
-            if (translog_truncate_log(last_lsn))
+            if (readonly)
+              log_descriptor.horizon= last_lsn;
+            else if (translog_truncate_log(last_lsn))
               DBUG_RETURN(1);
           }
         }
@@ -3346,7 +3395,7 @@ void translog_destroy()
 
   DBUG_ASSERT(translog_inited);
   translog_lock();
-  translog_inited= 0;
+  translog_status= TRANSLOG_UNINITED;
   if (log_descriptor.bc.buffer->file != -1)
     translog_finish_page(&log_descriptor.horizon, &log_descriptor.bc);
   translog_unlock();
@@ -3375,9 +3424,6 @@ void translog_destroy()
   my_free((uchar*)(id_to_share + 1), MYF(MY_ALLOW_ZERO_PTR));
   DBUG_VOID_RETURN;
 }
-
-
-
 
 
 /*
@@ -4534,7 +4580,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
                             10, 10))
   {
     translog_unlock();
-    UNRECOVERABLE_ERROR(("init array failed"));
+    DBUG_PRINT("error", ("init array failed"));
     DBUG_RETURN(1);
   }
 
@@ -4577,7 +4623,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
     group.num= full_pages;
     if (insert_dynamic(&groups, (uchar*) &group))
     {
-      UNRECOVERABLE_ERROR(("insert into array failed"));
+      DBUG_PRINT("error", ("insert into array failed"));
       goto err_unlock;
     }
 
@@ -4607,7 +4653,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
     }
     if (rc)
     {
-      UNRECOVERABLE_ERROR(("flush of unlock buffer failed"));
+      DBUG_PRINT("error", ("flush of unlock buffer failed"));
       goto err;
     }
 
@@ -4650,7 +4696,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
     }
     if (rc)
     {
-      UNRECOVERABLE_ERROR(("flush of unlock buffer failed"));
+      DBUG_PRINT("error", ("flush of unlock buffer failed"));
       goto err;
     }
     rc= translog_buffer_lock(cursor.buffer);
@@ -4672,7 +4718,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
   group.num= 0;                       /* 0 because it does not matter */
   if (insert_dynamic(&groups, (uchar*) &group))
   {
-    UNRECOVERABLE_ERROR(("insert into array failed"));
+    DBUG_PRINT("error", ("insert into array failed"));
     goto err_unlock;
   }
   record_rest= parts->record_length - done;
@@ -4828,7 +4874,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
       }
       if (rc)
       {
-        UNRECOVERABLE_ERROR(("flush of unlock buffer failed"));
+        DBUG_PRINT("error", ("flush of unlock buffer failed"));
         goto err;
       }
     }
@@ -5193,7 +5239,14 @@ my_bool translog_write_record(LSN *lsn,
   DBUG_ENTER("translog_write_record");
   DBUG_PRINT("enter", ("type: %u  ShortTrID: %u  rec_len: %lu",
                        (uint) type, (uint) short_trid, (ulong) rec_len));
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
+  if (unlikely(translog_status != TRANSLOG_OK))
+  {
+    DBUG_PRINT("error", ("Transaction log is write protected"));
+    DBUG_RETURN(1);
+  }
+
 
   if (tbl_info)
   {
@@ -5397,7 +5450,6 @@ static int translog_fixed_length_header(uchar *page,
 void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff)
 {
   DBUG_ENTER("translog_free_record_header");
-  DBUG_ASSERT(translog_inited == 1);
   if (buff->groups_no != 0)
   {
     my_free((uchar*) buff->groups, MYF(0));
@@ -5411,12 +5463,15 @@ void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff)
    @brief Returns the current horizon at the end of the current log
 
    @return Horizon
+   @retval LSN_ERROR     error
+   @retvar #             Horizon
 */
 
 TRANSLOG_ADDRESS translog_get_horizon()
 {
   TRANSLOG_ADDRESS res;
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
   translog_lock();
   res= log_descriptor.horizon;
   translog_unlock();
@@ -5429,11 +5484,14 @@ TRANSLOG_ADDRESS translog_get_horizon()
    assumed to already hold the lock
 
    @return Horizon
+   @retval LSN_ERROR     error
+   @retvar #             Horizon
 */
 
 TRANSLOG_ADDRESS translog_get_horizon_no_lock()
 {
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
   translog_lock_assert_owner();
   return log_descriptor.horizon;
 }
@@ -5520,7 +5578,8 @@ my_bool translog_scanner_init(LSN lsn,
   DBUG_ENTER("translog_scanner_init");
   DBUG_PRINT("enter", ("Scanner: 0x%lx  LSN: (0x%lu,0x%lx)",
                        (ulong) scanner, LSN_IN_PARTS(lsn)));
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
 
   data.addr= &scanner->page_addr;
   data.was_recovered= 0;
@@ -5940,7 +5999,8 @@ int translog_read_record_header_from_buffer(uchar *page,
               TRANSLOG_CHUNK_LSN ||
               (page[page_offset] & TRANSLOG_CHUNK_TYPE) ==
               TRANSLOG_CHUNK_FIXED);
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
   buff->type= (page[page_offset] & TRANSLOG_REC_TYPE);
   buff->short_trid= uint2korr(page + page_offset + 1);
   DBUG_PRINT("info", ("Type %u, Short TrID %u, LSN (%lu,0x%lx)",
@@ -5993,7 +6053,8 @@ int translog_read_record_header(LSN lsn, TRANSLOG_HEADER_BUFFER *buff)
   DBUG_ENTER("translog_read_record_header");
   DBUG_PRINT("enter", ("LSN: (0x%lu,0x%lx)", LSN_IN_PARTS(lsn)));
   DBUG_ASSERT(LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE != 0);
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
 
   buff->lsn= lsn;
   buff->groups_no= 0;
@@ -6042,7 +6103,8 @@ int translog_read_record_header_scan(TRANSLOG_SCANNER_DATA *scanner,
                        LSN_IN_PARTS(scanner->last_file_page),
                        (uint) scanner->page_offset,
                        (uint) scanner->page_offset, scanner->fixed_horizon));
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
   buff->groups_no= 0;
   buff->lsn= scanner->page_addr;
   buff->lsn+= scanner->page_offset; /* offset increasing */
@@ -6089,7 +6151,8 @@ int translog_read_next_record_header(TRANSLOG_SCANNER_DATA *scanner,
                       LSN_IN_PARTS(scanner->last_file_page),
                       (uint) scanner->page_offset,
                       (uint) scanner->page_offset, scanner->fixed_horizon));
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
 
   do
   {
@@ -6297,7 +6360,8 @@ translog_size_t translog_read_record(LSN lsn,
   translog_size_t end= offset + length;
   TRANSLOG_READER_DATA internal_data;
   DBUG_ENTER("translog_read_record");
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
 
   if (data == NULL)
   {
@@ -6571,7 +6635,8 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
   my_bool full_circle= 0;
   DBUG_ENTER("translog_flush");
   DBUG_PRINT("enter", ("Flush up to LSN: (%lu,0x%lx)", LSN_IN_PARTS(lsn)));
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
   LINT_INIT(sent_to_disk);
 
   pthread_mutex_lock(&log_descriptor.log_flush_lock);
@@ -6592,6 +6657,11 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
       goto out;
     }
     /* send to the file if it is not sent */
+    if (translog_status != TRANSLOG_OK)
+    {
+      rc= 1;
+      goto out;
+    }
     sent_to_disk= translog_get_sent_to_disk();
     if (cmp_translog_addr(sent_to_disk, lsn) >= 0 || full_circle)
       break;
@@ -6659,7 +6729,14 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
     File *handler= file_handlers;
     File *end= file_handlers + current_file_handler;
     for (; handler <= end; handler++)
-      rc|= my_sync(*handler, MYF(MY_WME));
+    {
+      if (my_sync(*handler, MYF(MY_WME)))
+      {
+        rc= 1;
+        translog_stop_writing();
+        goto out;
+      }
+    }
   }
   log_descriptor.flushed= sent_to_disk;
   /*
@@ -6978,7 +7055,8 @@ LSN translog_first_lsn_in_log()
   uchar *page;
   DBUG_ENTER("translog_first_lsn_in_log");
   DBUG_PRINT("info", ("Horizon: (%lu,0x%lx)", LSN_IN_PARTS(addr)));
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
 
   if (!(file= translog_first_file(horizon, 0)))
   {
@@ -7015,7 +7093,8 @@ LSN translog_first_theoretical_lsn()
   TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_first_theoretical_lsn");
   DBUG_PRINT("info", ("Horizon: (%lu,0x%lx)", LSN_IN_PARTS(addr)));
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
 
   if (!translog_is_file(1))
     DBUG_RETURN(LSN_IMPOSSIBLE);
@@ -7052,7 +7131,8 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
   int rc= 0;
   DBUG_ENTER("translog_purge");
   DBUG_PRINT("enter", ("low: (%lu,0x%lx)", LSN_IN_PARTS(low)));
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
 
   pthread_mutex_lock(&log_descriptor.purger_lock);
   if (LSN_FILE_NO(log_descriptor.last_lsn_checked) < last_need_file)

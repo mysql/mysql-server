@@ -1062,7 +1062,7 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
   {
     safe_mutex_assert_owner(&share->intern_lock);
   }
-  if (share->base.born_transactional && translog_inited &&
+  if (share->base.born_transactional && translog_status == TRANSLOG_OK &&
       !maria_in_recovery)
   {
     /*

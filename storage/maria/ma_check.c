@@ -5829,7 +5829,7 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
 {
   MARIA_SHARE *share= info->s;
   /* in case this is maria_chk or recovery... */
-  if (translog_inited && !maria_in_recovery &&
+  if (translog_status == TRANSLOG_OK && !maria_in_recovery &&
       share->base.born_transactional)
   {
     my_bool save_now_transactional= share->now_transactional;

@@ -12,15 +12,27 @@ static const char *default_dbug_option;
 #endif
 static TRN *trn= &dummy_transaction_object;
 
+
+#ifndef READONLY_TEST
+
 #define PCACHE_SIZE (1024*1024*10)
-
 #define LONG_BUFFER_SIZE ((1024L*1024L*1024L) + (1024L*1024L*512))
-
 #define MIN_REC_LENGTH (1024L*1024L + 1024L*512L + 1)
-
 #define LOG_FILE_SIZE (1024L*1024L*1024L + 1024L*1024L*512)
 #define ITERATIONS 2
-/*#define ITERATIONS 63 */
+#define READONLY 0
+
+#else
+
+#define PCACHE_SIZE (1024*1024*10)
+#define LONG_BUFFER_SIZE (1024L*1024L)
+#define MIN_REC_LENGTH (1024L)
+#define LOG_FILE_SIZE (1024L*1024L*1024L + 1024L*1024L*512)
+#define ITERATIONS 2
+#define READONLY 1
+
+#endif /*READONLY_TEST*/
+
 
 /*
 #define LOG_FILE_SIZE 1024L*1024L*3L
@@ -173,13 +185,13 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init(".", LOG_FILE_SIZE, 50112, 0, &pagecache, 0))
+  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+                               0, 0, &translog_example_table_init))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
     translog_destroy();
     exit(1);
   }
-  example_loghandler_init();
   /* Suppressing of automatic record writing */
   trn->first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
@@ -338,13 +350,13 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "pass2: Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init(".", LOG_FILE_SIZE, 50112, 0, &pagecache, 0))
+  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+                               0, READONLY, &translog_example_table_init))
   {
     fprintf(stderr, "pass2: Can't init loghandler (%d)\n", errno);
     translog_destroy();
     exit(1);
   }
-  example_loghandler_init();
 
   srandom(122334817L);
 
