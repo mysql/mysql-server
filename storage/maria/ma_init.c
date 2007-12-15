@@ -59,7 +59,7 @@ void maria_end(void)
     ft_free_stopwords();
     ma_checkpoint_end();
     trnman_destroy();
-    if (translog_inited)
+    if (translog_status == TRANSLOG_OK)
       translog_destroy();
     end_pagecache(maria_log_pagecache, TRUE);
     end_pagecache(maria_pagecache, TRUE);

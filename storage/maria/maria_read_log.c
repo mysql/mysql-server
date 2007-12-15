@@ -83,7 +83,7 @@ int main(int argc, char **argv)
                      TRANSLOG_PAGE_SIZE, MY_WME) == 0 ||
       translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                     0, 0, maria_log_pagecache, TRANSLOG_DEFAULT_FLAGS,
-                    opt_only_display))
+                    opt_display_only))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
     goto err;

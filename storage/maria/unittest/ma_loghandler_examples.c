@@ -27,7 +27,7 @@ static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE=
 "variable2example", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 
-void example_loghandler_init()
+void translog_example_table_init()
 {
   int i;
   log_record_type_descriptor[LOGREC_FIXED_RECORD_0LSN_EXAMPLE]=

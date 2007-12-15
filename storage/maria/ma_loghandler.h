@@ -316,7 +316,8 @@ enum enum_translog_status
 {
   TRANSLOG_UNINITED, /* no initialization done or error during initialization */
   TRANSLOG_OK,       /* transaction log is functioning */
-  TRANSLOG_READONLY  /* read only mode due to write errors */
+  TRANSLOG_READONLY, /* read only mode due to write errors */
+  TRANSLOG_SHUTDOWN  /* going to shutdown the loghandler */
 };
 extern enum enum_translog_status translog_status;
 

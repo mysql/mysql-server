@@ -688,7 +688,9 @@ static void translog_check_cursor(struct st_buffer_cursor *cursor
 
 void translog_stop_writing()
 {
-  translog_status= TRANSLOG_READONLY;
+  translog_status= (translog_status == TRANSLOG_SHUTDOWN ?
+                    TRANSLOG_UNINITED :
+                    TRANSLOG_READONLY);
   log_descriptor.open_flags= O_BINARY | O_RDONLY;
 }
 
@@ -736,20 +738,22 @@ static File create_logfile_by_number_no_cache(uint32 file_no)
   DBUG_ENTER("create_logfile_by_number_no_cache");
 
   if (translog_status != TRANSLOG_OK)
-    return -1;
+     DBUG_RETURN(-1);
 
   /* TODO: add O_DIRECT to open flags (when buffer is aligned) */
   if ((file= my_create(translog_filename_by_fileno(file_no, path),
                        0, O_BINARY | O_RDWR, MYF(MY_WME))) < 0)
   {
-    UNRECOVERABLE_ERROR(("Error %d during creating file '%s'", errno, path));
+    DBUG_PRINT("error", ("Error %d during creating file '%s'", errno, path));
+    translog_stop_writing();
     DBUG_RETURN(-1);
   }
   if (sync_log_dir >= TRANSLOG_SYNC_DIR_NEWFILE &&
       my_sync(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD)))
   {
-    UNRECOVERABLE_ERROR(("Error %d during syncing directory '%s'",
+    DBUG_PRINT("error", ("Error %d during syncing directory '%s'",
                          errno, log_descriptor.directory));
+    translog_stop_writing();
     DBUG_RETURN(-1);
   }
   DBUG_PRINT("info", ("File: '%s'  handler: %d", path, file));
@@ -2142,7 +2146,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
     data.addr= &addr;
     DBUG_ASSERT(log_descriptor.pagecache->block_size == TRANSLOG_PAGE_SIZE);
     DBUG_ASSERT(i + TRANSLOG_PAGE_SIZE <= buffer->size);
-    if (translog_status != TRANSLOG_OK)
+    if (translog_status != TRANSLOG_OK && translog_status != TRANSLOG_SHUTDOWN)
       DBUG_RETURN(1);
     if (pagecache_inject(log_descriptor.pagecache,
                         &file, pg, 3,
@@ -2853,7 +2857,12 @@ my_bool translog_init_with_table(const char *directory,
   uint old_flags= flags;
   TRANSLOG_ADDRESS sure_page, last_page, last_valid_page;
   my_bool version_changed= 0;
-  DBUG_ENTER("translog_init");
+  DBUG_ENTER("translog_init_with_table");
+
+  id_to_share= NULL;
+
+  (*init_table_func)();
+
   if (readonly)
     log_descriptor.open_flags= O_BINARY | O_RDONLY;
   else
@@ -2957,9 +2966,12 @@ my_bool translog_init_with_table(const char *directory,
   */
   logs_found= (last_logno != FILENO_IMPOSSIBLE);
 
+  translog_status= (readonly ? TRANSLOG_READONLY : TRANSLOG_OK);
+
   if (logs_found)
   {
     my_bool pageok;
+    DBUG_PRINT("info", ("log found..."));
     /*
       TODO: scan directory for maria_log.XXXXXXXX files and find
        highest XXXXXXXX & set logs_found
@@ -2988,6 +3000,7 @@ my_bool translog_init_with_table(const char *directory,
       if (LSN_FILE_NO(last_page) == 1)
       {
         logs_found= 0;                          /* file #1 has no pages */
+        DBUG_PRINT("info", ("log found. But is is empty => no log assumed"));
       }
       else
       {
@@ -3009,6 +3022,7 @@ my_bool translog_init_with_table(const char *directory,
     TRANSLOG_ADDRESS current_page= sure_page;
     my_bool pageok;
 
+    DBUG_PRINT("info", ("The log is really present"));
     DBUG_ASSERT(sure_page <= last_page);
 
     /* TODO: check page size */
@@ -3145,6 +3159,7 @@ my_bool translog_init_with_table(const char *directory,
                       logs_found, old_log_was_recovered));
   if (!logs_found)
   {
+    DBUG_PRINT("info", ("The log is not found => we will create new log"));
     /* Start new log system from scratch */
     /* Used space */
     log_descriptor.horizon= MAKE_LSN(1, TRANSLOG_PAGE_SIZE); /* header page */
@@ -3205,7 +3220,6 @@ my_bool translog_init_with_table(const char *directory,
     DBUG_RETURN(1);
   id_to_share--; /* min id is 1 */
 
-  translog_status= (readonly ? TRANSLOG_READONLY : TRANSLOG_OK);
   /* Check the last LSN record integrity */
   if (logs_found)
   {
@@ -3393,9 +3407,12 @@ void translog_destroy()
   uint i;
   DBUG_ENTER("translog_destroy");
 
-  DBUG_ASSERT(translog_inited);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
   translog_lock();
-  translog_status= TRANSLOG_UNINITED;
+  translog_status= (translog_status == TRANSLOG_READONLY ?
+                    TRANSLOG_UNINITED :
+                    TRANSLOG_SHUTDOWN);
   if (log_descriptor.bc.buffer->file != -1)
     translog_finish_page(&log_descriptor.horizon, &log_descriptor.bc);
   translog_unlock();
@@ -3405,6 +3422,7 @@ void translog_destroy()
     struct st_translog_buffer *buffer= log_descriptor.buffers + i;
     translog_buffer_destroy(buffer);
   }
+  translog_status= TRANSLOG_UNINITED;
 
   /* close files */
   for (i= 0; i < OPENED_FILES_NUM; i++)
@@ -7188,7 +7206,14 @@ my_bool translog_purge_at_flush()
   uint32 i, min_file;
   int rc= 0;
   DBUG_ENTER("translog_purge_at_flush");
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ASSERT(translog_status == TRANSLOG_OK ||
+              translog_status == TRANSLOG_READONLY);
+
+  if (unlikely(translog_status == TRANSLOG_READONLY))
+  {
+    DBUG_PRINT("info", ("The log is read onlyu => exit"));
+    DBUG_RETURN(0);
+  }
 
   if (log_purge_type != TRANSLOG_PURGE_ONDEMAND)
   {
