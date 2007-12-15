@@ -2704,6 +2704,20 @@ err2:
 } /* maria_sort_index */
 
 
+/**
+  @brief put CRC on the page
+
+  @param buff            reference on the page buffer.
+  @param pos             position of the page in the file.
+  @param length          length of the page
+*/
+
+static void put_crc(char *buff, my_off_t pos, MARIA_SHARE *share)
+{
+  maria_page_crc_set_index(buff, pos / share->block_size, (uchar*) share);
+}
+
+
 	 /* Sort records recursive using one index */
 
 static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
@@ -2781,6 +2795,7 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
   /* Fill block with zero and write it to the new index file */
   length= _ma_get_page_used(share, buff);
   bzero((uchar*) buff+length,keyinfo->block_length-length);
+  put_crc(buff, new_page_pos, share);
   if (my_pwrite(new_file,(uchar*) buff,(uint) keyinfo->block_length,
 		new_page_pos,MYF(MY_NABP | MY_WAIT_IF_FULL)))
   {
@@ -4869,9 +4884,13 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
                           DFLT_INIT_HITS, anc_buff))
       DBUG_RETURN(1);
   }
-  else if (my_pwrite(share->kfile.file, anc_buff,
-		     (uint) keyinfo->block_length,filepos, param->myf_rw))
-    DBUG_RETURN(1);
+  else
+  {
+    put_crc(anc_buff, filepos, share);
+    if (my_pwrite(share->kfile.file, anc_buff,
+                  (uint) keyinfo->block_length, filepos, param->myf_rw))
+      DBUG_RETURN(1);
+  }
   DBUG_DUMP("buff", anc_buff, _ma_get_page_used(share, anc_buff));
 
 	/* Write separator-key to block in next level */
@@ -4989,9 +5008,13 @@ int _ma_flush_pending_blocks(MARIA_SORT_PARAM *sort_param)
                             DFLT_INIT_HITS, key_block->buff))
 	DBUG_RETURN(1);
     }
-    else if (my_pwrite(info->s->kfile.file, key_block->buff,
-		       (uint) keyinfo->block_length,filepos, myf_rw))
+    else
+    {
+      put_crc(key_block->buff, filepos, info->s);
+      if (my_pwrite(info->s->kfile.file, key_block->buff,
+                    (uint) keyinfo->block_length,filepos, myf_rw))
       DBUG_RETURN(1);
+    }
     DBUG_DUMP("buff",key_block->buff,length);
     nod_flag=1;
   }
@@ -5576,6 +5599,14 @@ my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file)
     DBUG_RETURN(1);
 
   new_info= sort_info->new_info;
+  pagecache_file_init(new_info->s->bitmap.file, &maria_page_crc_check_bitmap,
+                      (new_info->s->options & HA_OPTION_PAGE_CHECKSUM ?
+                       &maria_page_crc_set_normal :
+                       &maria_page_filler_set_bitmap), new_info->s);
+  pagecache_file_init(new_info->dfile, &maria_page_crc_check_data,
+                      (new_info->s->options & HA_OPTION_PAGE_CHECKSUM ?
+                       &maria_page_crc_set_normal :
+                       &maria_page_filler_set_normal), new_info->s);
   change_data_file_descriptor(new_info, new_file);
   maria_lock_database(new_info, F_EXTRA_LCK);
   if ((sort_info->param->testflag & T_UNPACK) &&

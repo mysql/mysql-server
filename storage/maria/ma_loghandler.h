@@ -54,7 +54,6 @@ struct st_maria_handler;
 /* Length of CRC at end of pages */
 #define ROW_EXTENT_PAGE_SIZE	5
 #define ROW_EXTENT_COUNT_SIZE   2
-#define CRC_LENGTH 4
 /* Size of file id in logs */
 #define FILEID_STORE_SIZE 2
 /* Size of page reference in log */

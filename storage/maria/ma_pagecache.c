@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  These functions handle page cacheing for Maria tables.
+  These functions handle page caching for Maria tables.
 
   One cache can handle many files.
   It must contain buffers of the same blocksize.
@@ -608,8 +608,18 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
     /* TODO: integrate with page format */
     lsn= lsn_korr(buffer + PAGE_LSN_OFFSET);
     DBUG_ASSERT(LSN_VALID(lsn));
-    translog_flush(lsn);
+    if (translog_flush(lsn))
+      DBUG_RETURN(1);
   }
+  DBUG_PRINT("info", ("write_callback: 0x%lx  data: 0x%lx",
+                      (ulong) filedesc->write_callback,
+                      (ulong) filedesc->callback_data));
+  if ((filedesc->write_callback)(buffer, pageno, filedesc->callback_data))
+  {
+    DBUG_PRINT("error", ("write callback problem"));
+    DBUG_RETURN(1);
+  }
+
   DBUG_RETURN(my_pwrite(filedesc->file, buffer, pagecache->block_size,
                         (pageno)<<(pagecache->shift), flags));
 }
@@ -2398,8 +2408,6 @@ retry:
       pagecache           pointer to a page cache data structure
       block               block to which buffer the data is to be read
       primary             <-> the current thread will read the data
-      validator           validator of read from the disk data
-      validator_data      pointer to the data need by the validator
 
   RETURN VALUE
     None
@@ -2413,9 +2421,7 @@ retry:
 
 static void read_block(PAGECACHE *pagecache,
                        PAGECACHE_BLOCK_LINK *block,
-                       my_bool primary,
-                       pagecache_disk_read_validator validator,
-                       uchar* validator_data)
+                       my_bool primary)
 {
 
   /* On entry cache_lock is locked */
@@ -2448,9 +2454,18 @@ static void read_block(PAGECACHE *pagecache,
     else
       block->status= PCBLOCK_READ;
 
-    if (validator != NULL &&
-        (*validator)(block->buffer, validator_data))
+    DBUG_PRINT("info", ("read_callback: 0x%lx  data: 0x%lx",
+                        (ulong) block->hash_link->file.read_callback,
+                        (ulong) block->hash_link->file.callback_data));
+    if ((*block->hash_link->file.read_callback)(block->buffer,
+                                                block->hash_link->pageno,
+                                                block->hash_link->
+                                                file.callback_data))
+    {
+      DBUG_PRINT("error", ("read callback problem"));
       block->status|= PCBLOCK_ERROR;
+    }
+
 
     DBUG_PRINT("read_block",
                ("primary request: new page in cache"));
@@ -2881,25 +2896,20 @@ void pagecache_unpin_by_link(PAGECACHE *pagecache,
 
 
 /*
-  Read a block of data from a cached file into a buffer;
+  @brief Read a block of data from a cached file into a buffer;
 
-  SYNOPSIS
-    pagecache_valid_read()
-    pagecache           pointer to a page cache data structure
-    file                handler for the file for the block of data to be read
-    pageno              number of the block of data in the file
-    level               determines the weight of the data
-    buff                buffer to where the data must be placed
-    type                type of the page
-    lock                lock change
-    link                link to the page if we pin it
-    validator           validator of read from the disk data
-    validator_data      pointer to the data need by the validator
+  @param pagecache      pointer to a page cache data structure
+  @param file           handler for the file for the block of data to be read
+  @param pageno         number of the block of data in the file
+  @param level          determines the weight of the data
+  @param buff           buffer to where the data must be placed
+  @param type           type of the page
+  @param lock           lock change
+  @param link           link to the page if we pin it
 
-  RETURN VALUE
-    Returns address from where the data is placed if successful, 0 - otherwise.
+  @return address from where the data is placed if successful, 0 - otherwise.
 
-    Pin will be chosen according to lock parameter (see lock_to_pin)
+  @note Pin will be chosen according to lock parameter (see lock_to_pin)
 */
 static enum pagecache_page_pin lock_to_pin[2][8]=
 {
@@ -2925,16 +2935,14 @@ static enum pagecache_page_pin lock_to_pin[2][8]=
   }
 };
 
-uchar *pagecache_valid_read(PAGECACHE *pagecache,
-                           PAGECACHE_FILE *file,
-                           pgcache_page_no_t pageno,
-                           uint level,
-                           uchar *buff,
-                           enum pagecache_page_type type,
-                           enum pagecache_page_lock lock,
-                           PAGECACHE_BLOCK_LINK **page_link,
-                           pagecache_disk_read_validator validator,
-                           uchar* validator_data)
+uchar *pagecache_read(PAGECACHE *pagecache,
+                      PAGECACHE_FILE *file,
+                      pgcache_page_no_t pageno,
+                      uint level,
+                      uchar *buff,
+                      enum pagecache_page_type type,
+                      enum pagecache_page_lock lock,
+                      PAGECACHE_BLOCK_LINK **page_link)
 {
   int error= 0;
   enum pagecache_page_pin pin= lock_to_pin[test(buff==0)][lock];
@@ -2991,8 +2999,7 @@ restart:
       DBUG_PRINT("info", ("read block 0x%lx", (ulong)block));
       /* The requested page is to be read into the block buffer */
       read_block(pagecache, block,
-                 (my_bool)(page_st == PAGE_TO_BE_READ),
-                 validator, validator_data);
+                 (my_bool)(page_st == PAGE_TO_BE_READ));
       DBUG_PRINT("info", ("read is done"));
     }
 
@@ -3309,9 +3316,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
                              enum pagecache_write_mode write_mode,
                              PAGECACHE_BLOCK_LINK **page_link,
                              LSN first_REDO_LSN_for_page,
-                             uint offset, uint size,
-                             pagecache_disk_read_validator validator,
-                             uchar* validator_data)
+                             uint offset, uint size)
 {
   PAGECACHE_BLOCK_LINK *block= NULL;
   PAGECACHE_BLOCK_LINK *fake_link;
@@ -3412,12 +3417,20 @@ restart:
           memcpy(block->buffer + offset, buff, size);
         block->status= PCBLOCK_READ;
         /*
-          The validator can change the page content (removing page
+          The read_callback can change the page content (removing page
           protection) so it have to be called
         */
-        if (validator != NULL &&
-            (*validator)(block->buffer, validator_data))
+        DBUG_PRINT("info", ("read_callback: 0x%lx  data: 0x%lx",
+                            (ulong) block->hash_link->file.read_callback,
+                            (ulong) block->hash_link->file.callback_data));
+        if ((*block->hash_link->file.read_callback)(block->buffer,
+                                                    block->hash_link->pageno,
+                                                    block->hash_link->
+                                                    file.callback_data))
+        {
+          DBUG_PRINT("error", ("read callback problem"));
           block->status|= PCBLOCK_ERROR;
+        }
         KEYCACHE_DBUG_PRINT("key_cache_insert",
                             ("Page injection"));
 #ifdef THREAD
@@ -3429,7 +3442,6 @@ restart:
     }
     else
     {
-      DBUG_ASSERT(validator == 0 && validator_data == 0);
       if (! (block->status & PCBLOCK_CHANGED))
           link_to_changed_list(pagecache, block);
 

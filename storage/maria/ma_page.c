@@ -136,9 +136,6 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   }
 #endif
   DBUG_ASSERT(share->pagecache->block_size == block_size);
-  if (!(share->options & HA_OPTION_PAGE_CHECKSUM))
-    bfill(buff + block_size - KEYPAGE_CHECKSUM_SIZE,
-          KEYPAGE_CHECKSUM_SIZE, (uchar) 255);
 
   res= pagecache_write(share->pagecache,
                        &share->kfile, page / block_size,
@@ -247,7 +244,7 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
                            lock_method, pin_method,
                            PAGECACHE_WRITE_DELAY, &page_link.link,
 			   LSN_IMPOSSIBLE,
-                           0, share->keypage_header+8, 0, 0))
+                           0, share->keypage_header + 8))
     result= 1;
 
 #ifdef IDENTICAL_PAGES_AFTER_RECOVERY

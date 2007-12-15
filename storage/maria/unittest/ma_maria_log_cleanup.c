@@ -37,9 +37,13 @@ my_bool maria_log_remove()
       if (fn_format(file_name, file,
                     maria_data_root, "", MYF(MY_WME)) == NullS ||
           my_delete(file_name, MYF(MY_WME)) != 0)
+      {
+        my_dirend(dirp);
         return 1;
+      }
     }
   }
+  my_dirend(dirp);
   return 0;
 }
 

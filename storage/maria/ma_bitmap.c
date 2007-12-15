@@ -127,12 +127,6 @@
 #define FULL_HEAD_PAGE 4
 #define FULL_TAIL_PAGE 7
 
-/* If we don't have page checksum enabled, the bitmap page ends with this */
-uchar maria_bitmap_marker[4]=
-{(uchar) 255, (uchar) 255, (uchar) 255, (uchar) 254};
-uchar maria_normal_page_marker[4]=
-{(uchar) 255, (uchar) 255, (uchar) 255, (uchar) 255};
-
 static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
                                     MARIA_FILE_BITMAP *bitmap,
                                     ulonglong page);
@@ -144,6 +138,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
                                            MARIA_FILE_BITMAP *bitmap)
 {
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
+  DBUG_ASSERT(bitmap->file.write_callback != 0);
   return (pagecache_write(share->pagecache,
                           &bitmap->file, bitmap->page, 0,
                           (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
@@ -185,7 +180,11 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
 
   bitmap->file.file= file;
   bitmap->block_size= share->block_size;
-  /* Size needs to be alligned on 6 */
+  pagecache_file_init(bitmap->file,  &maria_page_crc_check_bitmap,
+                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                       &maria_page_crc_set_normal :
+                       &maria_page_filler_set_bitmap), share);
+  /* Size needs to be aligned on 6 */
   aligned_bit_blocks= (share->block_size - PAGE_SUFFIX_SIZE) / 6;
   bitmap->total_size= aligned_bit_blocks * 6;
   /*
@@ -290,8 +289,6 @@ void _ma_bitmap_delete_all(MARIA_SHARE *share)
   if (bitmap->map)                              /* Not in create */
   {
     bzero(bitmap->map, bitmap->block_size);
-    memcpy(bitmap->map + bitmap->block_size - sizeof(maria_bitmap_marker),
-           maria_bitmap_marker, sizeof(maria_bitmap_marker));
     bitmap->changed= 1;
     bitmap->page= 0;
     bitmap->used_size= bitmap->total_size;
@@ -616,8 +613,6 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
     */
     share->state.state.data_file_length= end_of_page;
     bzero(bitmap->map, bitmap->block_size);
-    memcpy(bitmap->map + bitmap->block_size - sizeof(maria_bitmap_marker),
-           maria_bitmap_marker, sizeof(maria_bitmap_marker));
     bitmap->used_size= 0;
 #ifndef DBUG_OFF
     memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
@@ -627,9 +622,9 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
   bitmap->used_size= bitmap->total_size;
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
   res= pagecache_read(share->pagecache,
-                       (PAGECACHE_FILE*)&bitmap->file, page, 0,
-                       (uchar*) bitmap->map,
-                       PAGECACHE_PLAIN_PAGE,
+                      &bitmap->file, page, 0,
+                      (uchar*) bitmap->map,
+                      PAGECACHE_PLAIN_PAGE,
                       PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == NULL;
 
   /*
@@ -641,15 +636,6 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
     when running without any checksums.
   */
 
-  if (!res && !(share->options & HA_OPTION_PAGE_CHECKSUM) &&
-      !memcmp(bitmap->map + bitmap->block_size -
-              sizeof(maria_normal_page_marker),
-              maria_normal_page_marker,
-              sizeof(maria_normal_page_marker)))
-  {
-    res= 1;
-    my_errno= HA_ERR_WRONG_IN_RECORD;             /* File crashed */
-  }
 #ifndef DBUG_OFF
   if (!res)
     memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
@@ -2257,17 +2243,18 @@ int _ma_bitmap_create_first(MARIA_SHARE *share)
 {
   uint block_size= share->bitmap.block_size;
   File file= share->bitmap.file.file;
-  char marker[sizeof(maria_bitmap_marker)];
+  char marker[CRC_SIZE];
 
-  if (share->options & HA_OPTION_PAGE_CHECKSUM)
-    bzero(marker, sizeof(marker));
-  else
-    bmove(marker, maria_bitmap_marker, sizeof(marker));
+  /*
+    Next write operation of the page will write correct CRC
+    if it is needed
+  */
+  int4store(marker, MARIA_NO_CRC_BITMAP_PAGE);
 
-  if (my_chsize(file, block_size - sizeof(maria_bitmap_marker),
+  if (my_chsize(file, block_size - sizeof(marker),
                 0, MYF(MY_WME)) ||
-      my_pwrite(file, marker, sizeof(maria_bitmap_marker),
-                block_size - sizeof(maria_bitmap_marker),
+      my_pwrite(file, marker, sizeof(marker),
+                block_size - sizeof(marker),
                 MYF(MY_NABP | MY_WME)))
     return 1;
   share->state.state.data_file_length= block_size;

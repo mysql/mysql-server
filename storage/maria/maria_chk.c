@@ -1670,6 +1670,10 @@ static int maria_sort_records(HA_CHECK *param,
   VOID(my_close(info->dfile.file, MYF(MY_WME)));
   param->out_flag|=O_NEW_DATA;			/* Data in new file */
   info->dfile.file= new_file;				/* Use new datafile */
+  pagecache_file_init(info->dfile, &maria_page_crc_check_data,
+                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                       &maria_page_crc_set_normal :
+                       &maria_page_filler_set_normal), share);
   info->state->del=0;
   info->state->empty=0;
   share->state.dellink= HA_OFFSET_ERROR;

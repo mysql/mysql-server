@@ -44,7 +44,9 @@
 struct st_transaction;
 
 /* undef map from my_nosys; We need test-if-disk full */
-#undef my_write	
+#undef my_write
+
+#define CRC_SIZE 4
 
 typedef struct st_maria_status_info
 {
@@ -572,7 +574,17 @@ struct st_maria_handler
 #define _ma_store_keypage_flag(share,x,flag) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]= (flag)
 
 
+/*
+  TODO: write int4store_aligned as *((uint32 *) (T))= (uint32) (A) for
+  architectures where it is possible
+*/
+#define int4store_aligned(A,B) int4store((A),(B))
+
 #define maria_mark_crashed(x) do{(x)->s->state.changed|= STATE_CRASHED; \
+    DBUG_PRINT("error", ("Marked table crashed"));                      \
+  }while(0)
+#define maria_mark_crashed_share(x)                                     \
+  do{(x)->state.changed|= STATE_CRASHED;                                \
     DBUG_PRINT("error", ("Marked table crashed"));                      \
   }while(0)
 #define maria_mark_crashed_on_repair(x) do{(x)->s->state.changed|=      \
@@ -1039,4 +1051,27 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
   { if (((S)->now_transactional= (S)->base.born_transactional))  \
       (S)->page_type= PAGECACHE_LSN_PAGE; }
 
+#define MARIA_NO_CRC_NORMAL_PAGE 0xffffffff
+#define MARIA_NO_CRC_BITMAP_PAGE 0xfffffffe
+extern my_bool maria_page_crc_set_index(uchar *page,
+                                        pgcache_page_no_t page_no,
+                                        uchar* data_ptr);
+extern my_bool maria_page_crc_set_normal(uchar *page,
+                                         pgcache_page_no_t page_no,
+                                         uchar* data_ptr);
+extern my_bool maria_page_crc_check_bitmap(uchar *page,
+                                           pgcache_page_no_t page_no,
+                                           uchar* data_ptr);
+extern my_bool maria_page_crc_check_data(uchar *page,
+                                           pgcache_page_no_t page_no,
+                                           uchar* data_ptr);
+extern my_bool maria_page_crc_check_index(uchar *page,
+                                           pgcache_page_no_t page_no,
+                                           uchar* data_ptr);
+extern my_bool maria_page_filler_set_bitmap(uchar *page,
+                                            pgcache_page_no_t page_no,
+                                            uchar* data_ptr);
+extern my_bool maria_page_filler_set_normal(uchar *page,
+                                            pgcache_page_no_t page_no,
+                                            uchar* data_ptr);
 extern PAGECACHE *maria_log_pagecache;

@@ -176,7 +176,6 @@ int main(int argc __attribute__((unused)), char *argv[])
   if (translog_init(".", LOG_FILE_SIZE, 50112, 0, &pagecache, 0))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
-    translog_destroy();
     exit(1);
   }
   example_loghandler_init();
@@ -341,7 +340,6 @@ int main(int argc __attribute__((unused)), char *argv[])
   if (translog_init(".", LOG_FILE_SIZE, 50112, 0, &pagecache, 0))
   {
     fprintf(stderr, "pass2: Can't init loghandler (%d)\n", errno);
-    translog_destroy();
     exit(1);
   }
   example_loghandler_init();
