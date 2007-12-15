@@ -313,7 +313,6 @@ static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int
 
 static int toku_db_env_close(DB_ENV * env, u_int32_t flags) {
     int r0=0,r1=0;
-    if (flags) return EINVAL;
     if (env->i->cachetable)
         r0=toku_cachetable_close(&env->i->cachetable);
     if (env->i->logger)
