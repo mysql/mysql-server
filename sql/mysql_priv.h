@@ -1631,7 +1631,8 @@ TABLE *open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
                                      Open_tables_state *backup);
 void close_performance_schema_table(THD *thd, Open_tables_state *backup);
 
-bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables, bool have_lock = FALSE);
+bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
+                         bool wait_for_refresh, bool wait_for_placeholders);
 bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
                                     LEX_STRING *connect_string,
                                     bool have_lock = FALSE);

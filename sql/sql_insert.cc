@@ -1916,7 +1916,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
             main thread. Use of my_message will enable stored
             procedures continue handlers.
           */
-          my_message(di->thd.net.last_errno, di->thd.net.last_error,
+          my_message(di->thd.main_da.sql_errno(), di->thd.main_da.message(),
                      MYF(0));
 	}
 	di->unlock();
@@ -1993,7 +1993,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
       goto error;
     if (dead)
     {
-      my_message(thd.net.last_errno, thd.net.last_error, MYF(0));
+      my_message(thd.main_da.sql_errno(), thd.main_da.message(), MYF(0));
       goto error;
     }
   }
@@ -2252,7 +2252,9 @@ pthread_handler_t handle_delayed_insert(void *arg)
 #if !defined( __WIN__) /* Win32 calls this in pthread_create */
   if (my_thread_init())
   {
-    strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
+    /* Can't use my_error since store_globals has not yet been called */
+    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                  ER(ER_OUT_OF_RESOURCES));
     goto end;
   }
 #endif
@@ -2261,8 +2263,10 @@ pthread_handler_t handle_delayed_insert(void *arg)
   thd->thread_stack= (char*) &thd;
   if (init_thr_lock() || thd->store_globals())
   {
+    /* Can't use my_error since store_globals has perhaps failed */
+    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                  ER(ER_OUT_OF_RESOURCES));
     thd->fatal_error();
-    strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
     goto err;
   }
 
@@ -2665,7 +2669,7 @@ bool Delayed_insert::handle_inserts(void)
 	{
 	  /* This should never happen */
 	  table->file->print_error(error,MYF(0));
-	  sql_print_error("%s",thd.net.last_error);
+	  sql_print_error("%s", thd.main_da.message());
           DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed in loop"));
 	  goto err;
 	}
@@ -2706,7 +2710,7 @@ bool Delayed_insert::handle_inserts(void)
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen
     table->file->print_error(error,MYF(0));
-    sql_print_error("%s",thd.net.last_error);
+    sql_print_error("%s", thd.main_da.message());
     DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed after loop"));
     goto err;
   }

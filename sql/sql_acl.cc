@@ -695,7 +695,7 @@ my_bool acl_reload(THD *thd)
   if (simple_open_n_lock_tables(thd, tables))
   {
     sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
-		    thd->net.last_error);
+		    thd->main_da.message());
     goto end;
   }
 
@@ -3800,11 +3800,11 @@ my_bool grant_reload(THD *thd)
   close_thread_tables(thd);
 
   /*
-    It is ok failing to load procs_priv table because we may be
+    It is OK failing to load procs_priv table because we may be
     working with 4.1 privilege tables.
   */
   if (grant_reload_procs_priv(thd))
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "mysql.procs_priv");
+    return_val= 1;
 
   rw_wrlock(&LOCK_grant);
   grant_version++;
@@ -5692,9 +5692,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   if (result)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
-
-  DBUG_PRINT("info", ("thd->net.last_errno: %d", thd->net.last_errno));
-  DBUG_PRINT("info", ("thd->net.last_error: %s", thd->net.last_error));
 
   write_bin_log(thd, FALSE, thd->query, thd->query_length);
 
