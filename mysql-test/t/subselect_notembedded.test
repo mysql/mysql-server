@@ -7,3 +7,99 @@
 --error 1064
 purge master logs before (select adddate(current_timestamp(), interval -4 day));
 purge master logs before adddate(current_timestamp(), interval -4 day);
+
+#
+# Bug31048: Many nested subqueries may cause server crash.
+#
+create table t1(a int,b int,key(a),key(b));
+insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
+  (6,7),(7,4),(5,3);
+# test for the stack overflow bug
+select sum(a),a from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1
+  )group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+--replace_regex /overrun.*$/overrun detected/
+--error 1436
+select sum(a),a from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+# test for the memory consumption & subquery slowness bug
+explain select sum(a),a from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 
+  )group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+--replace_regex /overrun.*$/overrun detected/
+--error 1436
+explain select sum(a),a from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+  select sum(a) from t1 
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1
+  )group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+drop table t1;
+
+

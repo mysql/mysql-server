@@ -919,7 +919,7 @@ uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
   key_blocks=state->header.max_block_size_index;
 
   state->open_count = mi_uint2korr(ptr);	ptr +=2;
-  state->changed= (bool) *ptr++;
+  state->changed= *ptr++;
   state->sortkey = (uint) *ptr++;
   state->state.records= mi_rowkorr(ptr);	ptr +=8;
   state->state.del = mi_rowkorr(ptr);		ptr +=8;

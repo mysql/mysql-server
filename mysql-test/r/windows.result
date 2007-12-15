@@ -19,6 +19,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 End of 5.0 tests.
+drop procedure if exists proc_1;
 create procedure proc_1() install plugin my_plug soname '\\root\\some_plugin.dll';
 call proc_1();
 ERROR HY000: No paths allowed for shared library
