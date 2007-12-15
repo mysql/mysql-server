@@ -907,10 +907,14 @@ event_thread_run(void* p)
   {
     do_event_thread= 1;
     do {
-      if (ndb_logevent_get_next(log_handle, &log_event, 2000) <= 0)
-        continue;
-      Guard g(printmutex);
-      printLogEvent(&log_event);
+      int res= ndb_logevent_get_next(log_handle, &log_event, 2000);
+      if (res > 0)
+      {
+        Guard g(printmutex);
+        printLogEvent(&log_event);
+      }
+      else if (res < 0)
+        break;
     } while(do_event_thread);
     ndb_mgm_destroy_logevent_handle(&log_handle);
   }
@@ -2796,8 +2800,9 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   {
     int count = 0;
     int retry = 0;
+    int res;
     do {
-      if (ndb_logevent_get_next(log_handle, &log_event, 60000) > 0)
+      if ((res= ndb_logevent_get_next(log_handle, &log_event, 60000)) > 0)
       {
         int print = 0;
         switch (log_event.type) {
@@ -2827,7 +2832,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
       {
         retry++;
       }
-    } while(count < 2 && retry < 3);
+    } while(res >= 0 && count < 2 && retry < 3);
 
     if (retry >= 3)
       ndbout << "get backup event failed for " << retry << " times" << endl;
