@@ -180,7 +180,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     {
       if ((lock_error=my_lock(kfile,F_RDLCK,0L,F_TO_EOF,
 			      MYF(open_flags & HA_OPEN_WAIT_IF_LOCKED ?
-				  0 : MY_DONT_WAIT))) &&
+				  0 : MY_SHORT_WAIT))) &&
 	  !(open_flags & HA_OPEN_IGNORE_IF_LOCKED))
 	goto err;
     }

@@ -289,12 +289,12 @@ my_bool my_thread_init(void)
 #endif
   pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&tmp->suspend, NULL);
-  tmp->init= 1;
 
   pthread_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;
   ++THR_thread_count;
   pthread_mutex_unlock(&THR_LOCK_threads);
+  tmp->init= 1;
 #ifndef DBUG_OFF
   /* Generate unique name for thread */
   (void) my_thread_name();
@@ -392,7 +392,7 @@ extern void **my_thread_var_dbug()
 {
   struct st_my_thread_var *tmp=
     my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
-  return tmp ? &tmp->dbug : 0;
+  return tmp && tmp->init ? &tmp->dbug : 0;
 }
 #endif
 

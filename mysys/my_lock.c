@@ -54,7 +54,7 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 #ifdef VMS
   DBUG_RETURN(0);
 #else
-  if (my_disable_locking)
+  if (my_disable_locking && ! (MyFlags & MY_FORCE_LOCK))
     DBUG_RETURN(0);
 
 #if defined(__NETWARE__)
@@ -131,10 +131,16 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
     lock.l_start=  (off_t) start;
     lock.l_len=    (off_t) length;
 
-    if (MyFlags & MY_DONT_WAIT)
+    if (MyFlags & (MY_NO_WAIT | MY_SHORT_WAIT))
     {
       if (fcntl(fd,F_SETLK,&lock) != -1)	/* Check if we can lock */
-	DBUG_RETURN(0);			/* Ok, file locked */
+	DBUG_RETURN(0);                         /* Ok, file locked */
+      if (MyFlags & MY_NO_WAIT)
+      {
+        my_errno= (errno == EACCES) ? EAGAIN : errno ? errno : -1;
+        DBUG_RETURN(-1);
+      }
+
       DBUG_PRINT("info",("Was locked, trying with alarm"));
       ALARM_INIT;
       while ((value=fcntl(fd,F_SETLKW,&lock)) && ! ALARM_TEST &&

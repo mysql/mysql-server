@@ -147,8 +147,17 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
     reclength+= column->length;
     type= column->type;
-    if (type == FIELD_SKIP_PRESPACE && datafile_type == BLOCK_RECORD)
-      type= FIELD_NORMAL;                /* SKIP_PRESPACE not supported */
+    if (datafile_type == BLOCK_RECORD)
+    {
+      if (type == FIELD_SKIP_PRESPACE)
+        type= FIELD_NORMAL;                /* SKIP_PRESPACE not supported */
+      if (type == FIELD_NORMAL &&
+          column->length > FULL_PAGE_SIZE(maria_block_size))
+      {
+        /* FIELD_NORMAL can't be split over many blocks, convert to a CHAR */
+        type= column->type= FIELD_SKIP_ENDSPACE;
+      }
+    }
 
     if (type != FIELD_NORMAL && type != FIELD_CHECK)
     {
@@ -623,7 +632,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   }
 
   unique_key_parts=0;
-  offset=reclength-uniques*MARIA_UNIQUE_HASH_LENGTH;
   for (i=0, uniquedef=uniquedefs ; i < uniques ; i++ , uniquedef++)
   {
     uniquedef->key=keys+i;
@@ -869,7 +877,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 #endif
   }
   /* Create extra keys for unique definitions */
-  offset=reclength-uniques*MARIA_UNIQUE_HASH_LENGTH;
+  offset= real_reclength - uniques*MARIA_UNIQUE_HASH_LENGTH;
   bzero((char*) &tmp_keydef,sizeof(tmp_keydef));
   bzero((char*) &tmp_keyseg,sizeof(tmp_keyseg));
   for (i=0; i < uniques ; i++)
@@ -1199,7 +1207,7 @@ uint maria_get_pointer_length(ulonglong file_length, uint def)
    For same kind of fields, keep fields in original order
 */
 
-static inline int sign(longlong a)
+static inline int sign(long a)
 {
   return a < 0 ? -1 : (a > 0 ? 1 : 0);
 }
@@ -1219,12 +1227,12 @@ static int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
   {
     if (b_type != FIELD_NORMAL || b->null_bit)
       return -1;
-    return sign((long) (a->offset - b->offset));
+    return sign((long) a->offset - (long) b->offset);
   }
   if (b_type == FIELD_NORMAL && !b->null_bit)
     return 1;
   if (a_type == b_type)
-    return sign((long) (a->offset - b->offset));
+    return sign((long) a->offset - (long) b->offset);
   if (a_type == FIELD_NORMAL)
     return -1;
   if (b_type == FIELD_NORMAL)
@@ -1233,7 +1241,7 @@ static int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
     return 1;
   if (b_type == FIELD_BLOB)
     return -1;
-  return sign((long) (a->offset - b->offset));
+  return sign((long) a->offset - (long) b->offset);
 }
 
 

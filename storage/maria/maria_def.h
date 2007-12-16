@@ -40,6 +40,7 @@
 
 #define MAX_NONMAPPED_INSERTS 1000
 #define MARIA_MAX_TREE_LEVELS 32
+#define MARIA_MAX_CONTROL_FILE_LOCK_RETRY 30     /* Retry this many times */
 
 struct st_transaction;
 
@@ -126,7 +127,7 @@ typedef struct st_maria_state_info
 #define MARIA_KEYDEF_SIZE	(2+ 5*2)
 #define MARIA_UNIQUEDEF_SIZE	(2+1+1)
 #define HA_KEYSEG_SIZE		(6+ 2*2 + 4*2)
-#define MARIA_COLUMNDEF_SIZE	(6+2+2+2+2+2+1+1)
+#define MARIA_COLUMNDEF_SIZE	(2*7+1+1+4)
 #define MARIA_BASE_INFO_SIZE	(MY_UUID_SIZE + 5*8 + 6*4 + 11*2 + 6 + 5*2 + 1 + 16)
 #define MARIA_INDEX_BLOCK_MARGIN 16	/* Safety margin for .MYI tables */
 /* Internal management bytes needed to store 2 keys on an index page */
@@ -277,6 +278,8 @@ typedef struct st_maria_share
   int (*scan)(MARIA_HA *, uchar *, MARIA_RECORD_POS, my_bool);
   /* End scan */
   void (*scan_end)(MARIA_HA *);
+  int (*scan_remember_pos)(MARIA_HA *, MARIA_RECORD_POS*);
+  void (*scan_restore_pos)(MARIA_HA *, MARIA_RECORD_POS);
   /* Pre-write of row (some handlers may do the actual write here) */
   MARIA_RECORD_POS (*write_record_init)(MARIA_HA *, const uchar *);
   /* Write record (or accept write_record_init) */
@@ -430,7 +433,7 @@ struct st_maria_handler
   MARIA_STATUS_INFO *state, save_state;
   MARIA_ROW cur_row;                    /* The active row that we just read */
   MARIA_ROW new_row;			/* Storage for a row during update */
-  MARIA_BLOCK_SCAN scan;
+  MARIA_BLOCK_SCAN scan, *scan_save;
   MARIA_BLOB *blobs;			/* Pointer to blobs */
   MARIA_BIT_BUFF bit_buff;
   DYNAMIC_ARRAY bitmap_blocks;
@@ -483,7 +486,7 @@ struct st_maria_handler
   enum ha_rkey_function last_key_func;	/* CONTAIN, OVERLAP, etc */
   uint save_lastkey_length;
   uint pack_key_length;			/* For MARIAMRG */
-  myf lock_wait;			/* is 0 or MY_DONT_WAIT */
+  myf lock_wait;			/* is 0 or MY_SHORT_WAIT */
   int errkey;				/* Got last error on this key */
   int lock_type;			/* How database was locked */
   int tmp_lock_type;			/* When locked by readinfo */
@@ -999,6 +1002,9 @@ void _ma_restore_status(void *param);
 void _ma_copy_status(void *to, void *from);
 my_bool _ma_check_status(void *param);
 void _ma_reset_status(MARIA_HA *maria);
+int _ma_def_scan_remember_pos(MARIA_HA *info, MARIA_RECORD_POS *lastpos);
+void _ma_def_scan_restore_pos(MARIA_HA *info, MARIA_RECORD_POS lastpos);
+
 #include "ma_commit.h"
 
 extern MARIA_HA *_ma_test_if_reopen(const char *filename);

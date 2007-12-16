@@ -225,7 +225,7 @@ struct st_mi_bit_buff;
 
 typedef struct st_columndef		/* column information */
 {
-  int16  type;				/* en_fieldtype */
+  enum en_fieldtype type;
   uint16 length;			/* length of field */
   uint32 offset;			/* Offset to position in row */
   uint8  null_bit;			/* If column may be 0 */

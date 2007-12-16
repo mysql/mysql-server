@@ -192,7 +192,11 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
       log_type= LOGREC_UNDO_KEY_DELETE_WITH_ROOT;
     }
 
-    key_length+= share->rec_reflength;
+    /*
+      Note that for delete key, we don't log the reference to the record.
+      This is because the row may be inserted at a different place when
+      we exceute the undo
+    */
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) key_buff;

@@ -1359,14 +1359,18 @@ public:
     }
   virtual int read_first_row(uchar *buf, uint primary_key);
   /*
-    The following function is only needed for tables that may be temporary
-    tables during joins
+    The following 3 function is only needed for tables that may be
+    internal temporary tables during joins
   */
-  virtual int restart_rnd_next(uchar *buf, uchar *pos)
+  virtual int remember_rnd_pos()
+    { return HA_ERR_WRONG_COMMAND; }
+  virtual int restart_rnd_next(uchar *buf)
     { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_same(uchar *buf, uint inx)
     { return HA_ERR_WRONG_COMMAND; }
-  virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
+
+  virtual ha_rows records_in_range(uint inx, key_range *min_key,
+                                   key_range *max_key)
     { return (ha_rows) 10; }
   virtual void position(const uchar *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description

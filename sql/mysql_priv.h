@@ -1888,6 +1888,7 @@ extern TYPELIB log_output_typelib;
 extern SHOW_COMP_OPTION have_maria_db;
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
+extern handlerton *maria_hton;
 extern handlerton *heap_hton;
 
 extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;

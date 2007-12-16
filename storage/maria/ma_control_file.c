@@ -214,6 +214,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
   const char *errmsg;
   MY_STAT stat_buff;
   uint new_cf_create_time_size, new_cf_changeable_size, new_block_size;
+  uint retry;
   int open_flags= O_BINARY | /*O_DIRECT |*/ O_RDWR;
   int error= CONTROL_FILE_UNKNOWN_ERROR;
   DBUG_ENTER("ma_control_file_create_or_open");
@@ -347,6 +348,29 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
                                 CF_LSN_OFFSET);
   last_logno= uint4korr(buffer + new_cf_create_time_size + CF_FILENO_OFFSET);
 
+  retry= 0;
+
+  /*
+    We can't here use the automatic wait in my_lock() as the alarm thread
+    may not yet exists.
+  */
+
+  while (my_lock(control_file_fd, F_WRLCK, 0L, F_TO_EOF,
+                 MYF(MY_SEEK_NOT_DONE | MY_FORCE_LOCK | MY_NO_WAIT)))
+  {
+    if (retry == 0)
+      my_printf_error(HA_ERR_INITIALIZATION,
+                      "Can't lock maria control file '%s' for exclusive use, "
+                      "error: %d. Will retry for %d seconds", 0,
+                      name, my_errno, MARIA_MAX_CONTROL_FILE_LOCK_RETRY);
+    if (retry++ > MARIA_MAX_CONTROL_FILE_LOCK_RETRY)
+    {
+      errmsg= "Could not get an exclusive lock; File is probably in use by another process";
+      goto err;
+    }
+    sleep(1);
+  }
+
   DBUG_RETURN(0);
 
 err:
@@ -462,6 +486,9 @@ int ma_control_file_end()
 
   if (control_file_fd < 0) /* already closed */
     DBUG_RETURN(0);
+
+  (void) my_lock(control_file_fd, F_UNLCK, 0L, F_TO_EOF,
+                 MYF(MY_SEEK_NOT_DONE | MY_FORCE_LOCK));
 
   close_error= my_close(control_file_fd, MYF(MY_WME));
   /*
