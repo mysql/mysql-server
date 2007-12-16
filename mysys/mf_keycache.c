@@ -105,6 +105,7 @@
 #include <keycache.h>
 #include "my_static.h"
 #include <m_string.h>
+#include <my_bit.h>
 #include <errno.h>
 #include <stdarg.h>
 
@@ -1262,12 +1263,12 @@ static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block)
 
   KEYCACHE_THREAD_TRACE("unlink_block");
 #if defined(KEYCACHE_DEBUG)
+  KEYCACHE_DBUG_ASSERT(keycache->blocks_available != 0);
   keycache->blocks_available--;
   KEYCACHE_DBUG_PRINT("unlink_block",
     ("unlinked block %u  status=%x   #requests=%u  #available=%u",
      BLOCK_NUMBER(block), block->status,
      block->requests, keycache->blocks_available));
-  KEYCACHE_DBUG_ASSERT(keycache->blocks_available >= 0);
 #endif
 }
 
@@ -2360,9 +2361,9 @@ restart:
                (block->hash_link->diskpos == filepos)));
   *page_st=page_status;
   KEYCACHE_DBUG_PRINT("find_key_block",
-                      ("fd: %d  pos: %lu  block->status: %u  page_status: %u",
+                      ("fd: %d  pos: %lu  block->status: %u  page_status: %d",
                        file, (ulong) filepos, block->status,
-                       (uint) page_status));
+                       page_status));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache2",
@@ -2513,10 +2514,10 @@ static void read_block(KEY_CACHE *keycache,
 */
 
 uchar *key_cache_read(KEY_CACHE *keycache,
-                     File file, my_off_t filepos, int level,
-                     uchar *buff, uint length,
-		     uint block_length __attribute__((unused)),
-		     int return_buffer __attribute__((unused)))
+                      File file, my_off_t filepos, int level,
+                      uchar *buff, uint length,
+                      uint block_length __attribute__((unused)),
+                      int return_buffer __attribute__((unused)))
 {
   my_bool locked_and_incremented= FALSE;
   int error=0;
@@ -2534,12 +2535,13 @@ uchar *key_cache_read(KEY_CACHE *keycache,
     uint status;
     int page_st;
 
-  /*
+
+    /*
       When the key cache is once initialized, we use the cache_lock to
       reliably distinguish the cases of normal operation, resizing, and
       disabled cache. We always increment and decrement
       'cnt_for_resize_op' so that a resizer can wait for pending I/O.
-  */
+    */
     keycache_pthread_mutex_lock(&keycache->cache_lock);
     /*
       Cache resizing has two phases: Flushing and re-initializing. In
@@ -2566,7 +2568,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
     do
     {
       /* Cache could be disabled in a later iteration. */
-
+      
       if (!keycache->can_be_used)
 	goto no_key_cache;
       /* Start reading at the beginning of the cache block. */
@@ -2976,9 +2978,10 @@ int key_cache_write(KEY_CACHE *keycache,
   int error=0;
   DBUG_ENTER("key_cache_write");
   DBUG_PRINT("enter",
-	     ("fd: %u  pos: %lu  length: %u  block_length: %u  key_block_length: %u",
-	      (uint) file, (ulong) filepos, length, block_length,
-	      keycache ? keycache->key_cache_block_size : 0));
+             ("fd: %u  pos: %lu  length: %u  block_length: %u"
+              "  key_block_length: %u",
+              (uint) file, (ulong) filepos, length, block_length,
+              keycache ? keycache->key_cache_block_size : 0));
 
   if (!dont_write)
   {
@@ -3170,7 +3173,7 @@ int key_cache_write(KEY_CACHE *keycache,
 
       if (!dont_write)
       {
-	/* Not used in the server. buff has been written to disk at start. */
+        /* Not used in the server. buff has been written to disk at start. */
         if ((block->status & BLOCK_CHANGED) &&
             (!offset && read_length >= keycache->key_cache_block_size))
              link_to_file_list(keycache, block, block->hash_link->file, 1);
@@ -3184,7 +3187,6 @@ int key_cache_write(KEY_CACHE *keycache,
         a flush.
       */
       block->status&= ~BLOCK_FOR_UPDATE;
-
       set_if_smaller(block->offset, offset);
       set_if_bigger(block->length, read_length+offset);
 
@@ -3555,10 +3557,11 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
               file, keycache->blocks_used, keycache->blocks_changed));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-    DBUG_EXECUTE("check_keycache",
-                 test_key_cache(keycache, "start of flush_key_blocks", 0););
+  DBUG_EXECUTE("check_keycache",
+               test_key_cache(keycache, "start of flush_key_blocks", 0););
 #endif
 
+  DBUG_ASSERT(type != FLUSH_KEEP_LAZY);
   cache= cache_buff;
   if (keycache->disk_blocks > 0 &&
       (!my_disable_flush_key_blocks || type != FLUSH_KEEP))

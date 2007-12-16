@@ -111,7 +111,7 @@ test-embedded:
 	  echo "no program found for 'embedded' tests - skipped testing" ; \
 	fi
 
-test:	test-unit test-ns test-pr
+test:	test-ns test-pr
 
 test-full:	test test-nr test-ps
 

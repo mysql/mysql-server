@@ -440,6 +440,7 @@ THD::THD()
   cleanup_done= abort_on_warning= no_warnings_for_error= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
+  transaction.on= 1;
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
@@ -478,7 +479,7 @@ THD::THD()
 
   tablespace_op=FALSE;
   tmp= sql_rnd_with_mutex();
-  randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
+  my_rnd_init(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
   thr_lock_owner_init(&main_lock_id, &lock_info);

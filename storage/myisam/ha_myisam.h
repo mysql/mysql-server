@@ -21,6 +21,7 @@
 /* class for the the myisam handler */
 
 #include <myisam.h>
+#include <myisamchk.h>
 #include <ft_global.h>
 
 #define HA_RECOVER_NONE		0	/* No automatic recover */
@@ -39,7 +40,7 @@ class ha_myisam: public handler
   ulonglong int_table_flags;
   char    *data_file_name, *index_file_name;
   bool can_enable_indexes;
-  int repair(THD *thd, MI_CHECK &param, bool optimize);
+  int repair(THD *thd, HA_CHECK &param, bool optimize);
 
  public:
   ha_myisam(handlerton *hton, TABLE_SHARE *table_arg);
@@ -56,8 +57,8 @@ class ha_myisam: public handler
             HA_READ_ORDER | HA_KEYREAD_ONLY);
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
-  uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
-  uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
+  uint max_supported_key_length()    const { return HA_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const { return HA_MAX_KEY_LENGTH; }
   uint checksum() const;
 
   int open(const char *name, int mode, uint test_if_locked);

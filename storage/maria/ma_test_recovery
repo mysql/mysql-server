@@ -1,0 +1,213 @@
+#!/bin/sh
+
+#set -x -v 
+set -e
+silent="-s"
+if [ -z "$maria_path" ]
+then
+    maria_path="."
+fi
+
+# test data is always put in the current directory or a tmp subdirectory of it
+tmp="./tmp"
+
+if test '!' -d $tmp
+then
+  mkdir $tmp
+fi
+
+echo "MARIA RECOVERY TESTS"
+
+check_table_is_same()
+{
+    # Computes checksum of new table and compares to checksum of old table
+    # Shows any difference in table's state (info from the index's header)
+    # Data/key file length is random in ma_test2 (as it uses srand() which
+    # may differ between machines).
+
+    $maria_path/maria_chk -dvv $table | grep -v "Creation time:" | grep -v "file length"> $tmp/maria_chk_message.txt 2>&1
+
+    $maria_path/maria_chk -s -e --read-only $table
+    checksum2=`$maria_path/maria_chk -dss $table`
+    if test "$checksum" != "$checksum2"
+        then
+        echo "checksum differs for $table before and after recovery"
+        return 1;
+    fi
+
+    diff $tmp/maria_chk_message.good.txt $tmp/maria_chk_message.txt > $tmp/maria_chk_diff.txt || true
+    if [ -s $tmp/maria_chk_diff.txt ]
+        then
+        echo "Differences in maria_chk -dvv, recovery not yet perfect !"
+        echo "========DIFF START======="
+        cat $tmp/maria_chk_diff.txt
+        echo "========DIFF END======="
+    fi
+}
+
+apply_log()
+{
+    # applies log, can verify if applying did write to log or not
+
+    shouldchangelog=$1
+    if [ "$shouldchangelog" != "shouldnotchangelog" ] &&
+        [ "$shouldchangelog" != "shouldchangelog" ] &&
+        [ "$shouldchangelog" != "dontknow" ]
+        then
+        echo "bad argument '$shouldchangelog'"
+        return 1
+    fi
+    log_md5=`md5sum maria_log.*`
+    echo "applying log"
+    $maria_path/maria_read_log -a > $tmp/maria_read_log_$table.txt
+    log_md5_2=`md5sum maria_log.*`
+    if [ "$log_md5" != "$log_md5_2" ]
+        then
+        if [ "$shouldchangelog" == "shouldnotchangelog" ]
+            then
+            echo "maria_read_log should not have modified the log"
+            return 1
+        fi
+        else
+        if [ "$shouldchangelog" == "shouldchangelog" ]
+            then
+            echo "maria_read_log should have modified the log"
+            return 1
+        fi
+    fi
+}
+
+# To not flood the screen, we redirect all the commands below to a text file
+# and just give a final error if their output is not as expected
+
+(
+
+echo "Testing the REDO PHASE ALONE"
+# runs a program inserting/deleting rows, then moves the resulting table
+# elsewhere; applies the log and checks that the data file is
+# identical to the saved original.
+# Does not test the index file as we don't have logging for it yet.
+
+set -- "ma_test1 $silent -M -T -c" "ma_test2 $silent -L -K -W -P -M -T -c" "ma_test2 $silent -M -T -c -b65000"
+while [ $# != 0 ]
+do
+  prog=$1
+  rm -f maria_log.* maria_log_control
+  echo "TEST WITH $prog"
+  $maria_path/$prog
+  # derive table's name from program's name
+  table=`echo $prog | sed -e 's;.*ma_\(test[0-9]\).*;\1;' `
+  $maria_path/maria_chk -dvv $table | grep -v "Creation time:" | grep -v "file length"> $tmp/maria_chk_message.good.txt 2>&1
+  checksum=`$maria_path/maria_chk -dss $table`
+  mv $table.MAD $tmp/$table-good.MAD
+  mv $table.MAI $tmp/$table-good.MAI
+  apply_log "shouldnotchangelog"
+  cmp $table.MAD $tmp/$table-good.MAD
+  cmp $table.MAI $tmp/$table-good.MAI
+  check_table_is_same
+  echo "testing idempotency"
+  apply_log "shouldnotchangelog"
+  cmp $table.MAD $tmp/$table-good.MAD
+  cmp $table.MAI $tmp/$table-good.MAI
+  check_table_is_same
+  shift
+done
+
+echo "Testing the REDO AND UNDO PHASE"
+# The test programs look like:
+# work; commit (time T1); work; exit-without-commit (time T2)
+# We first run the test program and let it exit after T1's commit.
+# Then we run it again and let it exit at T2. Then we compare
+# and expect identity.
+
+for take_checkpoint in "no" "yes"
+do
+for blobs in "" "-b" # we test table without blobs and then table with blobs
+do
+  for test_undo in 1 2 3 4
+  do
+  # first iteration tests rollback of insert, second tests rollback of delete
+  set -- "ma_test1 $silent -M -T -c -N $blobs -H1" "--testflag=1" "--testflag=2 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2" "--testflag=3" "--testflag=4 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2 " "--testflag=2" "--testflag=3 --test-undo=" "ma_test2 $silent -L -K -W -P -M -T -c $blobs -H1" "-t1" "-t2 -u"
+  # -N (create NULL fields) is needed because --test-undo adds it anyway
+  while [ $# != 0 ]
+    do
+    prog=$1
+    if [ "$take_checkpoint" == "no" ]
+        then
+        prog=`echo $prog | sed 's/ -H[0-9]//'`
+        fi
+    commit_run_args=$2
+    abort_run_args=$3;
+    rm -f maria_log.* maria_log_control
+    echo "TEST WITH $prog $commit_run_args (commit at end)"
+    $maria_path/$prog $commit_run_args
+    # derive table's name from program's name
+    table=`echo $prog | sed -e 's;.*ma_\(test[0-9]\).*;\1;' `
+    $maria_path/maria_chk -dvv $table | grep -v "Creation time:" | grep -v "file length"> $tmp/maria_chk_message.good.txt 2>&1
+    checksum=`$maria_path/maria_chk -dss $table`
+    mv $table.MAD $tmp/$table-good.MAD
+    mv $table.MAI $tmp/$table-good.MAI
+    rm maria_log.* maria_log_control
+    echo "TEST WITH $prog $abort_run_args$test_undo (additional aborted work)"
+    $maria_path/$prog $abort_run_args$test_undo
+    cp $table.MAD $tmp/$table.MAD.before_undo
+    cp $table.MAI $tmp/$table.MAI.before_undo
+
+    # The lines below seem unneeded, will be removed soon
+    # We have to copy and restore logs, as running maria_read_log will
+    # change the maria_control_file
+#    rm -f $tmp/maria_log.* $tmp/maria_log_control
+#    cp $maria_path/maria_log* $tmp
+
+    if [ "$test_undo" != "3" ]
+        then
+        apply_log "shouldchangelog" # should undo aborted work
+        else
+        # probably nothing to undo went to log or data file
+        apply_log "dontknow"
+    fi
+    cp $table.MAD $tmp/$table.MAD.after_undo
+    cp $table.MAI $tmp/$table.MAI.after_undo
+
+    # It is impossible to do a "cmp" between .good and .after_undo,
+    # because the UNDO phase generated log
+    # records whose LSN tagged pages. Another reason is that rolling back
+    # INSERT only marks the rows free, does not empty them (optimization), so
+    # traces of the INSERT+rollback remain.
+
+    check_table_is_same
+    echo "testing idempotency"
+    apply_log "shouldnotchangelog"
+    cmp $table.MAD $tmp/$table.MAD.after_undo
+    # can't do this, creation time differs at least; enable it if you
+    # have a "cmp" which ignores the header.
+#    cmp $table.MAI $tmp/$table.MAI.after_undo
+    check_table_is_same
+    echo "testing applying of CLRs to recreate table"
+    rm $table.MA?
+#    cp $tmp/maria_log* $maria_path  #unneeded
+    apply_log "shouldnotchangelog"
+    cmp $table.MAD $tmp/$table.MAD.after_undo
+    # can't do this, creation time differs at least
+#    cmp $table.MAI $tmp/$table.MAI.after_undo
+    check_table_is_same
+    shift 3
+  done
+  rm -f $table.* $tmp/$table* $tmp/maria_chk_*.txt $tmp/maria_read_log_$table.txt
+done
+done
+done
+
+) 2>&1 > $tmp/ma_test_recovery.output
+
+# also note that maria_chk -dvv shows differences for ma_test2 in UNDO phase,
+# this is normal: removing records does not shrink the data/key file,
+# does not put back the "analyzed,optimized keys"(etc) index state.
+diff $maria_path/ma_test_recovery.expected $tmp/ma_test_recovery.output > /dev/null || diff_failed=1
+if [ "$diff_failed" == "1" ]
+    then
+    echo "UNEXPECTED OUTPUT OF TESTS, FAILED"
+    echo "For more info, do diff $maria_path/ma_test_recovery.expected $tmp/ma_test_recovery.output"
+    exit 1
+    fi
+echo "ALL RECOVERY TESTS OK"

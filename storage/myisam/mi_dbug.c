@@ -45,6 +45,7 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
 	fprintf(stream,"NULL");
 	continue;
       }
+      end++;
     }
 
     switch (keyseg->type) {
@@ -91,7 +92,7 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
       key=end;
       break;
     case HA_KEYTYPE_ULONG_INT:
-      l_1=mi_sint4korr(key);
+      l_1=mi_uint4korr(key);
       VOID(fprintf(stream,"%lu",(ulong) l_1));
       key=end;
       break;

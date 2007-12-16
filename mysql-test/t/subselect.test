@@ -337,8 +337,8 @@ select * from t12;
 drop table t11, t12, t2;
 
 #insert with subselects
-CREATE TABLE t1 (x int);
-create table t2 (a int);
+CREATE TABLE t1 (x int) ENGINE=MyISAM;
+create table t2 (a int) ENGINE=MyISAM;
 create table t3 (b int);
 insert into t2 values (1);
 insert into t3 values (1),(2);
@@ -369,7 +369,7 @@ select * from t1;
 drop table t1, t2, t3;
 
 #replace with subselects
-CREATE TABLE t1 (x int not null, y int, primary key (x));
+CREATE TABLE t1 (x int not null, y int, primary key (x)) ENGINE=MyISAM;
 create table t2 (a int);
 create table t3 (a int);
 insert into t2 values (1);

@@ -181,8 +181,9 @@ int packfrm(uchar *data, size_t len,
   if (my_compress((uchar*)data, &org_len, &comp_len))
     goto err;
 
-  DBUG_PRINT("info", ("org_len: %lu  comp_len: %lu", (ulong) org_len, (ulong) comp_len));
-  DBUG_DUMP("compressed", data, org_len);
+  DBUG_PRINT("info", ("org_len: %lu  comp_len: %lu", (ulong) org_len,
+                      (ulong) comp_len));
+  DBUG_DUMP("compressed", (char*)data, org_len);
 
   error= 2;
   blob_len= BLOB_HEADER + org_len;

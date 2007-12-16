@@ -56,9 +56,15 @@ int mi_lock_database(MI_INFO *info, int lock_type)
     case F_UNLCK:
       ftparser_call_deinitializer(info);
       if (info->lock_type == F_RDLCK)
+      {
 	count= --share->r_locks;
+        mi_restore_status(info);
+      }
       else
+      {
 	count= --share->w_locks;
+        mi_update_status(info);
+      }
       --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks &&
 	  !share->delay_key_write && flush_key_blocks(share->key_cache,
@@ -84,16 +90,16 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	if (share->changed && !share->w_locks)
 	{
 #ifdef HAVE_MMAP
-    if ((info->s->mmaped_length != info->s->state.state.data_file_length) &&
-        (info->s->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
-    {
-      if (info->s->concurrent_insert)
-        rw_wrlock(&info->s->mmap_lock);
-      mi_remap_file(info, info->s->state.state.data_file_length);
-      info->s->nonmmaped_inserts= 0;
-      if (info->s->concurrent_insert)
-        rw_unlock(&info->s->mmap_lock);
-    }
+          if ((info->s->mmaped_length != info->s->state.state.data_file_length) &&
+              (info->s->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
+          {
+            if (info->s->concurrent_insert)
+              rw_wrlock(&info->s->mmap_lock);
+            mi_remap_file(info, info->s->state.state.data_file_length);
+            info->s->nonmmaped_inserts= 0;
+            if (info->s->concurrent_insert)
+              rw_unlock(&info->s->mmap_lock);
+          }
 #endif
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
@@ -300,6 +306,7 @@ void mi_get_status(void* param, int concurrent_insert)
 void mi_update_status(void* param)
 {
   MI_INFO *info=(MI_INFO*) param;
+  DBUG_ENTER("mi_update_status");
   /*
     Because someone may have closed the table we point at, we only
     update the state if its our own state.  This isn't a problem as
@@ -336,20 +343,32 @@ void mi_update_status(void* param)
     }
     info->opt_flag&= ~WRITE_CACHE_USED;
   }
+  DBUG_VOID_RETURN;
 }
 
 
 void mi_restore_status(void *param)
 {
   MI_INFO *info= (MI_INFO*) param;
+  DBUG_ENTER("mi_restore_status");
+  DBUG_PRINT("info",("key_file: %ld  data_file: %ld",
+		     (long) info->s->state.state.key_file_length,
+		     (long) info->s->state.state.data_file_length));
   info->state= &info->s->state.state;
   info->append_insert_at_end= 0;
+  DBUG_VOID_RETURN;
 }
 
 
 void mi_copy_status(void* to,void *from)
 {
-  ((MI_INFO*) to)->state= &((MI_INFO*) from)->save_state;
+  MI_INFO *info= (MI_INFO*) to;
+  DBUG_ENTER("mi_copy_status");
+  info->state= &((MI_INFO*) from)->save_state;
+  DBUG_PRINT("info",("key_file: %ld  data_file: %ld",
+		     (long) info->state->key_file_length,
+		     (long) info->state->data_file_length));
+  DBUG_VOID_RETURN;
 }
 
 
@@ -377,17 +396,18 @@ void mi_copy_status(void* to,void *from)
 my_bool mi_check_status(void *param)
 {
   MI_INFO *info=(MI_INFO*) param;
+  DBUG_ENTER("mi_check_status");
+  DBUG_PRINT("info",("dellink: %ld  r_locks: %u  w_locks: %u",
+                     (long) info->s->state.dellink, (uint) info->s->r_locks,
+                     (uint) info->s->w_locks));
   /*
     The test for w_locks == 1 is here because this thread has already done an
     external lock (in other words: w_locks == 1 means no other threads has
     a write lock)
   */
-  DBUG_PRINT("info",("dellink: %ld  r_locks: %u  w_locks: %u",
-                     (long) info->s->state.dellink, (uint) info->s->r_locks,
-                     (uint) info->s->w_locks));
-  return (my_bool) !(info->s->state.dellink == HA_OFFSET_ERROR ||
+  DBUG_RETURN((my_bool) !(info->s->state.dellink == HA_OFFSET_ERROR ||
                      (myisam_concurrent_insert == 2 && info->s->r_locks &&
-                      info->s->w_locks == 1));
+                      info->s->w_locks == 1)));
 }
 
 
@@ -409,10 +429,10 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
 	DBUG_RETURN(1);
       if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
       {
-	int error=my_errno ? my_errno : -1;
+	int error= my_errno ? my_errno : HA_ERR_FILE_TOO_SHORT;
 	VOID(my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
 		     MYF(MY_SEEK_NOT_DONE)));
-	my_errno=error;
+	my_errno= error;
 	DBUG_RETURN(1);
       }
     }

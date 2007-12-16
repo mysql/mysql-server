@@ -4763,8 +4763,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     (see SQLCOM_GRANT case, mysql_execute_command() function) and
     set db_is_pattern according to 'dont_check_global_grants' value.
   */
-  bool  db_is_pattern= (test(want_access & GRANT_ACL) &&
-                        dont_check_global_grants);
+  bool  db_is_pattern= ((want_access & GRANT_ACL) && dont_check_global_grants);
   ulong dummy;
   DBUG_ENTER("check_access");
   DBUG_PRINT("enter",("db: %s  want_access: %lu  master_access: %lu",
@@ -5166,10 +5165,10 @@ bool check_stack_overrun(THD *thd, long margin,
   long stack_used;
   DBUG_ASSERT(thd == current_thd);
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
-      (long) (thread_stack - margin))
+      (long) (my_thread_stack_size - margin))
   {
     sprintf(errbuff[0],ER(ER_STACK_OVERRUN_NEED_MORE),
-            stack_used,thread_stack,margin);
+            stack_used,my_thread_stack_size,margin);
     my_message(ER_STACK_OVERRUN_NEED_MORE,errbuff[0],MYF(0));
     thd->fatal_error();
     return 1;

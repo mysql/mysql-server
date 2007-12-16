@@ -15,6 +15,7 @@
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
+#include "my_base.h"
 #include <errno.h>
 #ifdef HAVE_PREAD
 #include <unistd.h>
@@ -63,12 +64,16 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
     pthread_mutex_unlock(&my_file_info[Filedes].mutex);
 #else
     if ((error= ((readbytes= pread(Filedes, Buffer, Count, offset)) != Count)))
+    {
       my_errno= errno;
+      if (errno == 0 || (errno == -1 && (MyFlags & (MY_NABP | MY_FNABP))))
+        my_errno= HA_ERR_FILE_TOO_SHORT;
+    }
 #endif
     if (error || readbytes != Count)
     {
       DBUG_PRINT("warning",("Read only %d bytes off %u from %d, errno: %d",
-			    (int) readbytes, (uint) Count,Filedes,my_errno));
+                            (int) readbytes, (uint) Count,Filedes,my_errno));
 #ifdef THREAD
       if ((readbytes == 0 || readbytes == (size_t) -1) && errno == EINTR)
       {
@@ -115,7 +120,7 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
   RETURN
     (size_t) -1   Error
     #             Number of bytes read
- */
+*/
 
 size_t my_pwrite(int Filedes, const uchar *Buffer, size_t Count,
                  my_off_t offset, myf MyFlags)

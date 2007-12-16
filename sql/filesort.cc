@@ -457,7 +457,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   ref_pos= ref_buff;
   quick_select=select && select->quick;
   record=0;
-  flag= ((!indexfile && file->ha_table_flags() & HA_REC_NOT_IN_SEQ)
+  flag= ((!indexfile && (file->ha_table_flags() & HA_REC_NOT_IN_SEQ))
 	 || quick_select);
   if (indexfile || flag)
     ref_pos= &file->ref[0];
@@ -1151,7 +1151,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   offset= rec_length-res_length;
   maxcount= (ulong) (param->keys/((uint) (Tb-Fb) +1));
   to_start_filepos= my_b_tell(to_file);
-  strpos= (uchar*) sort_buffer;
+  strpos= sort_buffer;
   org_max_rows=max_rows= param->max_rows;
 
   /* The following will fire if there is not enough space in sort_buffer */
@@ -1175,7 +1175,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     buffpek->base= strpos;
     buffpek->max_keys= maxcount;
     strpos+= (uint) (error= (int) read_to_buffer(from_file, buffpek,
-                                                                         rec_length));
+                                                 rec_length));
     if (error == -1)
       goto err;					/* purecov: inspected */
     buffpek->max_keys= buffpek->mem_count;	// If less data in buffers than expected
@@ -1264,7 +1264,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     }
   }
   buffpek= (BUFFPEK*) queue_top(&queue);
-  buffpek->base= sort_buffer;
+  buffpek->base= (uchar*) sort_buffer;
   buffpek->max_keys= param->keys;
 
   /*
@@ -1304,7 +1304,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
            strpos != end ;
            strpos+= rec_length)
       {     
-        if (my_b_write(to_file, (uchar *) strpos, res_length))
+        if (my_b_write(to_file, strpos, res_length))
         {
           error=1; goto err;                        
         }

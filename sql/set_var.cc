@@ -248,7 +248,7 @@ static sys_var_bool_ptr	sys_local_infile(&vars, "local_infile",
 static sys_var_trust_routine_creators
 sys_trust_routine_creators(&vars, "log_bin_trust_routine_creators",
                            &trust_function_creators);
-static sys_var_bool_ptr       
+static sys_var_bool_ptr
 sys_trust_function_creators(&vars, "log_bin_trust_function_creators",
                             &trust_function_creators);
 static sys_var_bool_ptr
@@ -331,12 +331,10 @@ static sys_var_thd_ulong       sys_myisam_repair_threads(&vars, "myisam_repair_t
 static sys_var_thd_ulong	sys_myisam_sort_buffer_size(&vars, "myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
 static sys_var_bool_ptr	sys_myisam_use_mmap(&vars, "myisam_use_mmap",
                                             &opt_myisam_use_mmap);
-
 static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_method",
                                                 &SV::myisam_stats_method,
                                                 &myisam_stats_method_typelib,
                                                 NULL);
-
 static sys_var_thd_ulong	sys_net_buffer_length(&vars, "net_buffer_length",
 					      &SV::net_buffer_length);
 static sys_var_thd_ulong	sys_net_read_timeout(&vars, "net_read_timeout",
@@ -633,6 +631,7 @@ static sys_var_have_plugin sys_have_csv(&vars, "have_csv", C_STRING_WITH_LEN("cs
 static sys_var_have_variable sys_have_dlopen(&vars, "have_dynamic_loading", &have_dlopen);
 static sys_var_have_variable sys_have_geometry(&vars, "have_geometry", &have_geometry);
 static sys_var_have_plugin sys_have_innodb(&vars, "have_innodb", C_STRING_WITH_LEN("innodb"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_plugin sys_have_maria(&vars, "have_maria", C_STRING_WITH_LEN("maria"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRING_WITH_LEN("ndbcluster"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
 static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);
@@ -715,7 +714,7 @@ static SHOW_VAR fixed_vars[]= {
 #ifdef HAVE_THR_SETCONCURRENCY
   {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
 #endif
-  {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
+  {"thread_stack",            (char*) &my_thread_stack_size,        SHOW_LONG},
 };
 
 
@@ -1983,15 +1982,15 @@ LEX_STRING default_key_cache_base= {(char *) "default", 7 };
 
 static KEY_CACHE zero_key_cache;
 
+
 KEY_CACHE *get_key_cache(LEX_STRING *cache_name)
 {
   safe_mutex_assert_owner(&LOCK_global_system_variables);
   if (!cache_name || ! cache_name->length)
     cache_name= &default_key_cache_base;
   return ((KEY_CACHE*) find_named(&key_caches,
-                                      cache_name->str, cache_name->length, 0));
+                                  cache_name->str, cache_name->length, 0));
 }
-
 
 uchar *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
 					 LEX_STRING *base)
@@ -3701,6 +3700,7 @@ void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
   WARN_DEPRECATED(thd, "5.2", "log_bin_trust_routine_creators",
                       "'log_bin_trust_function_creators'");
 }
+
 
 void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)
 {

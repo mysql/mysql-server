@@ -3736,8 +3736,9 @@ mysql_rename_table(handlerton *base, const char *old_db,
     wait_while_table_is_used()
     thd			Thread handler
     table		Table to remove from cache
-    function		HA_EXTRA_PREPARE_FOR_DELETE if table is to be deleted
+    function		HA_EXTRA_PREPARE_FOR_DROP if table is to be deleted
 			HA_EXTRA_FORCE_REOPEN if table is not be used
+                        HA_EXTRA_PREPARE_FOR_REANME if table is to be renamed
   NOTES
    When returning, the table will be unusable for other threads until
    the table is closed.
@@ -3747,7 +3748,7 @@ mysql_rename_table(handlerton *base, const char *old_db,
     Win32 clients must also have a WRITE LOCK on the table !
 */
 
-void wait_while_table_is_used(THD *thd, TABLE *table,
+void wait_while_table_is_used(THD *thd,TABLE *table,
                               enum ha_extra_function function)
 {
   DBUG_ENTER("wait_while_table_is_used");
@@ -3756,8 +3757,7 @@ void wait_while_table_is_used(THD *thd, TABLE *table,
                        table->db_stat, table->s->version));
 
   safe_mutex_assert_owner(&LOCK_open);
-
-  VOID(table->file->extra(function));
+  
   /* Mark all tables that are in use as 'old' */
   mysql_lock_abort(thd, table, TRUE);	/* end threads waiting on lock */
 
@@ -3765,6 +3765,7 @@ void wait_while_table_is_used(THD *thd, TABLE *table,
   remove_table_from_cache(thd, table->s->db.str,
                           table->s->table_name.str,
                           RTFC_WAIT_OTHER_THREAD_FLAG);
+  VOID(table->file->extra(function));
   DBUG_VOID_RETURN;
 }
 
@@ -3789,7 +3790,7 @@ void close_cached_table(THD *thd, TABLE *table)
 {
   DBUG_ENTER("close_cached_table");
 
-  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DELETE);
+  wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
   /* Close lock if this is not got with LOCK TABLES */
   if (thd->lock)
   {
@@ -6663,7 +6664,7 @@ view_err:
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, old_name);
 
-  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DELETE);
+  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME);
   close_data_files_and_morph_locks(thd, db, table_name);
 
   error=0;
@@ -7140,7 +7141,6 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   table_list->table= NULL;
 
   bzero((char*) &create_info, sizeof(create_info));
-  create_info.db_type= 0;
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
@@ -7232,6 +7232,9 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
 	      Field *f= t->field[i];
+              if (! thd->variables.old_mode &&
+                  f->is_real_null(0))
+                continue;
 	      if ((f->type() == MYSQL_TYPE_BLOB) ||
                   (f->type() == MYSQL_TYPE_VARCHAR))
 	      {

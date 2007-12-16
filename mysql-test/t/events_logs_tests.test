@@ -75,12 +75,10 @@ create event ev_log_general on schedule at now() on completion not preserve
 --replace_column 1 USER_HOST
 select user_host, db, sql_text from mysql.slow_log
   where sql_text like 'select \'events_logs_test\'%';
-
 drop database events_test;
 set global event_scheduler=off;
 set @@global.long_query_time=default;
 set @@session.long_query_time=default;
-
 #
 # Safety
 #

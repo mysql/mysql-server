@@ -70,6 +70,11 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 .*/ndb/.* : .*defined but not used.*
 
 #
+# Maria warning that is ok in debug builds
+#
+storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
+
+#
 # Unexplanable (?) stuff
 #
 listener.cc : .*conversion from 'SOCKET' to 'int'.*

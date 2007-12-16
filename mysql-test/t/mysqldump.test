@@ -199,7 +199,7 @@ DROP TABLE t1;
 --echo # Test for --insert-ignore
 --echo #
 
-CREATE TABLE t1 (a int);
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1),(2),(3);
 INSERT INTO t1 VALUES (4),(5),(6);
 --exec $MYSQL_DUMP --skip-comments --insert-ignore test t1
@@ -1463,8 +1463,8 @@ DROP TABLE t1;
 # Bug #25993: crashe with a merge table and -c
 #
 
-CREATE TABLE t2 (a int);
-CREATE TABLE t3 (a int);
+CREATE TABLE t2 (a int) ENGINE=MyISAM;
+CREATE TABLE t3 (a int) ENGINE=MyISAM;
 CREATE TABLE t1 (a int) ENGINE=merge UNION=(t2, t3);
 --exec $MYSQL_DUMP --skip-comments -c test
 DROP TABLE t1, t2, t3;

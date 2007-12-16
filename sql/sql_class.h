@@ -232,18 +232,18 @@ struct system_variables
 {
   /*
     How dynamically allocated system variables are handled:
-    
+
     The global_system_variables and max_system_variables are "authoritative"
     They both should have the same 'version' and 'size'.
     When attempting to access a dynamic variable, if the session version
     is out of date, then the session version is updated and realloced if
     neccessary and bytes copied from global to make up for missing data.
-  */ 
+  */
   ulong dynamic_variables_version;
   char* dynamic_variables_ptr;
   uint dynamic_variables_head;  /* largest valid variable offset */
   uint dynamic_variables_size;  /* how many bytes are in use */
-  
+
   ulonglong myisam_max_extra_sort_file_size;
   ulonglong myisam_max_sort_file_size;
   ulonglong max_heap_table_size;
@@ -308,9 +308,9 @@ struct system_variables
 
   my_bool low_priority_updates;
   my_bool new_mode;
-  /* 
+  /*
     compatibility option:
-      - index usage hints (USE INDEX without a FOR clause) behave as in 5.0 
+      - index usage hints (USE INDEX without a FOR clause) behave as in 5.0
   */
   my_bool old_mode;
   my_bool query_cache_wlock_invalidate;
@@ -534,7 +534,7 @@ class Server_side_cursor;
    - prepared, that is, contain placeholders,
    - opened as cursors. We maintain 1 to 1 relationship between
      statement and cursor - if user wants to create another cursor for his
-     query, we create another statement for it. 
+     query, we create another statement for it.
   To perform some action with statement we reset THD part to the state  of
   that statement, do the action, and then save back modified state from THD
   to the statement. It will be changed in near future, and Statement will
@@ -585,7 +585,7 @@ public:
       it. We will see the query_length field as either 0, or the right value
       for it.
     Assuming that the write and read of an n-bit memory field in an n-bit
-    computer is atomic, we can avoid races in the above way. 
+    computer is atomic, we can avoid races in the above way.
     This printing is needed at least in SHOW PROCESSLIST and SHOW INNODB
     STATUS.
   */
@@ -737,7 +737,7 @@ public:
   {
     return (*priv_host ? priv_host : (char *)"%");
   }
-  
+
   bool set_user(char *user_arg);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1024,7 +1024,7 @@ public:
   String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions
   struct  sockaddr_in remote;		// client socket address
-  struct  rand_struct rand;		// used for authentication
+  struct  my_rnd_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
   struct  system_status_var *initial_status_var; /* used by show status */
@@ -1081,7 +1081,7 @@ public:
   /*
     One thread can hold up to one named user-level lock. This variable
     points to a lock object if the lock is present. See item_func.cc and
-    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
+    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK.
   */
   User_level_lock *ull;
 #ifndef DBUG_OFF
@@ -1100,7 +1100,7 @@ public:
   time_t     start_time, user_time;
   ulonglong  connect_utime, thr_create_utime; // track down slow pthread_create
   ulonglong  start_utime, utime_after_lock;
-  
+
   thr_lock_type update_lock_default;
   Delayed_insert *di;
 
@@ -1490,7 +1490,7 @@ public:
   */
   bool       is_slave_error;
   bool       bootstrap, cleanup_done;
-  
+
   /**  is set if some thread specific value(s) used in a statement. */
   bool       thread_specific_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
@@ -1522,10 +1522,10 @@ public:
     ulong     ulong_value;
     ulonglong ulonglong_value;
   } sys_var_tmp;
-  
+
   struct {
-    /* 
-      If true, mysql_bin_log::write(Log_event) call will not write events to 
+    /*
+      If true, mysql_bin_log::write(Log_event) call will not write events to
       binlog, and maintain 2 below variables instead (use
       mysql_bin_log.start_union_events to turn this on)
     */
@@ -1536,13 +1536,13 @@ public:
     */
     bool unioned_events;
     /*
-      If TRUE, at least one mysql_bin_log::write(Log_event e), where 
-      e.cache_stmt == TRUE call has been made after last 
+      If TRUE, at least one mysql_bin_log::write(Log_event e), where
+      e.cache_stmt == TRUE call has been made after last
       mysql_bin_log.start_union_events() call.
     */
     bool unioned_events_trans;
-    
-    /* 
+
+    /*
       'queries' (actually SP statements) that run under inside this binlog
       union have thd->query_id >= first_query_id.
     */
@@ -1573,7 +1573,7 @@ public:
     killing mysqld) where it's vital to not allocate excessive and not used
     memory. Note, that we still don't return error from init_for_queries():
     if preallocation fails, we should notice that at the first call to
-    alloc_root. 
+    alloc_root.
   */
   void init_for_queries();
   void change_user(void);
@@ -1603,12 +1603,12 @@ public:
       The query can be logged row-based or statement-based
     */
     ROW_QUERY_TYPE,
-    
+
     /*
       The query has to be logged statement-based
     */
     STMT_QUERY_TYPE,
-    
+
     /*
       The query represents a change to a table in the "mysql"
       database and is currently mapped to ROW_QUERY_TYPE.
@@ -1616,7 +1616,7 @@ public:
     MYSQL_QUERY_TYPE,
     QUERY_TYPE_COUNT
   };
-  
+
   int binlog_query(enum_binlog_query_type qtype,
                    char const *query, ulong query_len,
                    bool is_trans, bool suppress_use,
@@ -1852,7 +1852,7 @@ public:
     if ((temporary_tables == NULL) && (in_sub_stmt == 0) &&
         (system_thread != SYSTEM_THREAD_NDBCLUSTER_BINLOG))
     {
-      current_stmt_binlog_row_based= 
+      current_stmt_binlog_row_based=
         test(variables.binlog_format == BINLOG_FORMAT_ROW);
     }
   }
@@ -2216,8 +2216,8 @@ public:
 
 #include <myisam.h>
 
-/* 
-  Param to create temporary tables when doing SELECT:s 
+/*
+  Param to create temporary tables when doing SELECT:s
   NOTE
     This structure is copied using memcpy as a part of JOIN.
 */
@@ -2245,8 +2245,8 @@ public:
   uint	quick_group;
   bool  using_indirect_summary_function;
   /* If >0 convert all blob fields to varchar(convert_blob_length) */
-  uint  convert_blob_length; 
-  CHARSET_INFO *table_charset; 
+  uint  convert_blob_length;
+  CHARSET_INFO *table_charset;
   bool schema_table;
   /*
     True if GROUP BY and its aggregate functions are already computed
@@ -2380,7 +2380,7 @@ public:
     else
       db= db_arg;
   }
-  inline Table_ident(LEX_STRING table_arg) 
+  inline Table_ident(LEX_STRING table_arg)
     :table(table_arg), sel((SELECT_LEX_UNIT *)0)
   {
     db.str=0;
@@ -2426,7 +2426,7 @@ class user_var_entry
 };
 
 /*
-   Unique -- class for unique (removing of duplicates). 
+   Unique -- class for unique (removing of duplicates).
    Puts all values to the TREE. If the tree becomes too big,
    it's dumped to the file. User can request sorted values, or
    just iterate through them. In the last case tree merging is performed in
@@ -2460,9 +2460,9 @@ public:
   }
 
   bool get(TABLE *table);
-  static double get_use_cost(uint *buffer, uint nkeys, uint key_size, 
+  static double get_use_cost(uint *buffer, uint nkeys, uint key_size,
                              ulonglong max_in_memory_size);
-  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size, 
+  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size,
                                             ulonglong max_in_memory_size)
   {
     register ulonglong max_elems_in_tree=
@@ -2522,7 +2522,7 @@ class multi_update :public select_result_interceptor
   uint table_count;
   /*
    List of tables referenced in the CHECK OPTION condition of
-   the updated view excluding the updated table. 
+   the updated view excluding the updated table.
   */
   List <TABLE> unupdated_check_opt_tables;
   Copy_field *copy_field;

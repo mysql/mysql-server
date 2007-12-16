@@ -135,7 +135,7 @@ execute stmt1 using @string;
 deallocate prepare stmt1;
 insert into t1 values(concat("for_23_",UUID()));
 insert into t1 select "yesterday_24_";
-create table t2 select rpad(UUID(),100,' ');
+create table t2 ENGINE=MyISAM select rpad(UUID(),100,' ');
 create table t3 select 1 union select UUID();
 create table t4 select * from t1 where 3 in (select 1 union select 2 union select UUID() union select 3);
 create table t5 select * from t1 where 3 in (select 1 union select 2 union select curdate() union select 3);
@@ -473,7 +473,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select "yesterday_24_"
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE TABLE `t2` (
   `rpad(UUID(),100,' ')` varchar(100) CHARACTER SET utf8 NOT NULL DEFAULT ''
-)
+) ENGINE=MyISAM
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE TABLE `t3` (
@@ -801,7 +801,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 select "yesterday_24_"
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE TABLE `t2` (
   `rpad(UUID(),100,' ')` varchar(100) CHARACTER SET utf8 NOT NULL DEFAULT ''
-)
+) ENGINE=MyISAM
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE TABLE `t3` (

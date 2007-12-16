@@ -27,6 +27,7 @@
 #include <hash.h>
 #include <time.h>
 #include <ft_global.h>
+#include <my_bit.h>
 
 #include "sp_head.h"
 #include "sp_rcontext.h"
@@ -2128,7 +2129,7 @@ void Item_func_rand::seed_random(Item *arg)
     args[0] is a constant.
   */
   uint32 tmp= (uint32) arg->val_int();
-  randominit(rand, (uint32) (tmp*0x10001L+55555555L),
+  my_rnd_init(rand, (uint32) (tmp*0x10001L+55555555L),
              (uint32) (tmp*0x10000001L));
 }
 
@@ -2148,7 +2149,7 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
       No need to send a Rand log event if seed was given eg: RAND(seed),
       as it will be replicated in the query as such.
     */
-    if (!rand && !(rand= (struct rand_struct*)
+    if (!rand && !(rand= (struct my_rnd_struct*)
                    thd->stmt_arena->alloc(sizeof(*rand))))
       return TRUE;
 

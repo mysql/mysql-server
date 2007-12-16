@@ -20,6 +20,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
 
@@ -322,6 +323,7 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_CONNECTION       (1L << 18)
 #define HA_CREATE_USED_KEY_BLOCK_SIZE   (1L << 19)
 #define HA_CREATE_USED_TRANSACTIONAL    (1L << 20)
+#define HA_CREATE_USED_PAGE_CHECKSUM    (1L << 21)
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
@@ -818,6 +820,7 @@ typedef struct st_ha_create_information
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
+  enum ha_choice page_checksum;         /* If we have page_checksums */
 } HA_CREATE_INFO;
 
 
@@ -892,7 +895,7 @@ typedef struct st_ha_check_opt
   ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
-  KEY_CACHE *key_cache;	/* new key cache when changing key cache */
+  KEY_CACHE *key_cache; /* new key cache when changing key cache */
   void init();
 } HA_CHECK_OPT;
 
@@ -1554,7 +1557,8 @@ public:
   */
   virtual const char **bas_ext() const =0;
 
-  virtual int get_default_no_partitions(HA_CREATE_INFO *info) { return 1;}
+  virtual int get_default_no_partitions(HA_CREATE_INFO *create_info)
+  { return 1;}
   virtual void set_auto_partitions(partition_info *part_info) { return; }
   virtual bool get_no_parts(const char *name,
                             uint *no_parts)
@@ -1614,7 +1618,8 @@ public:
 #define CHF_INDEX_FLAG  3
 
   virtual int create_handler_files(const char *name, const char *old_name,
-                                   int action_flag, HA_CREATE_INFO *info)
+                                   int action_flag,
+                                   HA_CREATE_INFO *create_info)
   { return FALSE; }
 
   virtual int change_partitions(HA_CREATE_INFO *create_info,
@@ -1860,6 +1865,7 @@ static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 }
 
 /* basic stuff */
+int ha_init_errors(void);
 int ha_init(void);
 int ha_end(void);
 int ha_initialize_handlerton(st_plugin_int *plugin);

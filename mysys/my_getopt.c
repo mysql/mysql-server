@@ -27,15 +27,11 @@ typedef void (*init_func_p)(const struct my_option *option, uchar* *variable,
 static void default_reporter(enum loglevel level, const char *format, ...);
 my_error_reporter my_getopt_error_reporter= &default_reporter;
 
-static int findopt(char *optpat, uint length,
-		   const struct my_option **opt_res,
-		   char **ffname);
-my_bool getopt_compare_strings(const char *s,
-			       const char *t,
-			       uint length);
+static int findopt(char *, uint, const struct my_option **, char **);
+my_bool getopt_compare_strings(const char *, const char *, uint);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
-static ulonglong getopt_ull(char *arg, const struct my_option *optp,
-			    int *err);
+static longlong getopt_ll_limit_value(longlong, const struct my_option *);
+static ulonglong getopt_ull(char *, const struct my_option *, int *);
 static double getopt_double(char *arg, const struct my_option *optp, int *err);
 static void init_variables(const struct my_option *options,
                            init_func_p init_one_value);
@@ -43,8 +39,7 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
 			   longlong value);
 static void fini_one_value(const struct my_option *option, uchar* *variable,
 			   longlong value);
-static int setval(const struct my_option *opts, uchar* *value, char *argument,
-		  my_bool set_maximum_value);
+static int setval(const struct my_option *, uchar **, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
 
 /*
@@ -770,7 +765,7 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
   return num;
 }
 
-/* 
+/*
   function: getopt_ll
 
   Evaluates and returns the value that user gave as an argument
@@ -794,8 +789,8 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
   Returns "fixed" value.
 */
 
-longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
-                               bool *fix)
+static longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
+                                      bool *fix)
 {
   longlong old= num;
   bool adjusted= FALSE;
@@ -864,7 +859,7 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
-                                 bool *fix)
+                                 bool *fix);
 {
   bool adjusted= FALSE;
   ulonglong old= num;
@@ -917,7 +912,6 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
     my_getopt_error_reporter(WARNING_LEVEL,
                              "option '%s': unsigned value %s adjusted to %s",
                              optp->name, ullstr(old, buf1), ullstr(num, buf2));
-
   return num;
 }
 
@@ -958,35 +952,39 @@ static double getopt_double(char *arg, const struct my_option *optp, int *err)
 
   SYNOPSIS
     init_one_value()
-    option		Option to initialize
-    value		Pointer to variable
+    optp                Option to initialize
+    value               Pointer to variable
 */
 
-static void init_one_value(const struct my_option *option, uchar* *variable,
+static void init_one_value(const struct my_option *optp, uchar* *variable,
 			   longlong value)
 {
   DBUG_ENTER("init_one_value");
-  switch ((option->var_type & GET_TYPE_MASK)) {
+  switch ((optp->var_type & GET_TYPE_MASK)) {
   case GET_BOOL:
     *((my_bool*) variable)= (my_bool) value;
     break;
   case GET_INT:
-    *((int*) variable)= (int) value;
+    *((int*) variable)= (int) getopt_ll_limit_value(value, optp);
     break;
   case GET_UINT:
+    *((uint*) variable)= (uint) getopt_ull_limit_value(value, optp);
+    break;
   case GET_ENUM:
     *((uint*) variable)= (uint) value;
     break;
   case GET_LONG:
-    *((long*) variable)= (long) value;
+    *((long*) variable)= (long) getopt_ll_limit_value(value, optp);
     break;
   case GET_ULONG:
-    *((ulong*) variable)= (ulong) value;
+    *((ulong*) variable)= (ulong) getopt_ull_limit_value(value, optp);
     break;
   case GET_LL:
-    *((longlong*) variable)= (longlong) value;
+    *((longlong*) variable)= (longlong) getopt_ll_limit_value(value, optp);
     break;
   case GET_ULL:
+    *((ulonglong*) variable)=  (ulonglong) getopt_ull_limit_value(value, optp);
+    break;
   case GET_SET:
     *((ulonglong*) variable)=  (ulonglong) value;
     break;
@@ -1054,7 +1052,7 @@ void my_cleanup_options(const struct my_option *options)
 }
 
 
-/* 
+/*
   initialize all variables to their default values
 
   SYNOPSIS

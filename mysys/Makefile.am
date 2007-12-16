@@ -20,18 +20,21 @@ INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
 			-I$(top_srcdir)/include -I$(srcdir)
 pkglib_LIBRARIES =	libmysys.a
 LDADD =			libmysys.a $(top_builddir)/strings/libmystrings.a $(top_builddir)/dbug/libdbug.a
-noinst_HEADERS =	mysys_priv.h my_static.h
+noinst_HEADERS =	mysys_priv.h my_static.h my_safehash.h
 libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_path.c mf_loadpath.c my_file.c \
 			my_open.c my_create.c my_dup.c my_seek.c my_read.c \
 			my_pread.c my_write.c my_getpagesize.c \
+			my_safehash.c \
 			mf_keycache.c mf_keycaches.c my_crc32.c \
 			mf_iocache.c mf_iocache2.c mf_cache.c mf_tempfile.c \
 			mf_tempdir.c my_lock.c mf_brkhant.c my_alarm.c \
 			my_malloc.c my_realloc.c my_once.c mulalloc.c \
 			my_alloc.c safemalloc.c my_new.cc \
-			my_vle.c my_atomic.c \
+			my_vle.c my_atomic.c lf_hash.c \
+			lf_dynarray.c lf_alloc-pin.c \
 			my_fopen.c my_fstream.c my_getsystime.c \
+			my_rnd.c my_uuid.c \
 			my_error.c errors.c my_div.c my_messnc.c \
 			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
 			my_symlink.c my_symlink2.c \
@@ -52,7 +55,8 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
 			my_handler.c my_netware.c my_largepage.c \
 			my_memmem.c \
-			my_windac.c my_access.c base64.c my_libwrap.c
+			my_windac.c my_access.c base64.c my_libwrap.c \
+		        wqueue.c
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c \
 			CMakeLists.txt mf_soundex.c \
@@ -125,6 +129,7 @@ test_base64$(EXEEXT): base64.c $(LIBRARIES)
 	$(CP) $(srcdir)/base64.c ./test_base64.c
 	$(LINK) $(FLAGS) -DMAIN  ./test_base64.c $(LDADD) $(LIBS)
 	$(RM) -f ./test_base64.c
+
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

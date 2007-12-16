@@ -84,6 +84,8 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
     if (MyFlags & MY_WME)
       my_error(EE_CANT_SYMLINK, MYF(0), linkname, content, errno);
   }
+  else if ((MyFlags & MY_SYNC_DIR) && my_sync_dir_by_file(linkname, MyFlags))
+    result= -1;
   DBUG_RETURN(result);
 #endif /* HAVE_READLINK */
 }
