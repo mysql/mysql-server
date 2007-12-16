@@ -104,8 +104,8 @@ int main(int argc, char **argv)
   maria_init();
 
   /*
-    If we are doing a repair and we have requested logging (on by default),
-    enable transaction log handling.
+    If we are doing a repair, user may want to store this repair into the log
+    so that the log has a complete history and can be used to replay.
   */
   if (opt_transaction_logging && (check_param.testflag & T_REP_ANY) &&
       (ma_control_file_create_or_open() ||
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
                       TRANSLOG_PAGE_SIZE, MY_WME) == 0 ||
        translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                      0, 0, maria_log_pagecache,
-                     TRANSLOG_DEFAULT_FLAGS)))
+                     TRANSLOG_DEFAULT_FLAGS, 0)))
   {
     _ma_check_print_error(&check_param,
                           "Can't initialize transaction logging. Run "
@@ -1670,6 +1670,10 @@ static int maria_sort_records(HA_CHECK *param,
   VOID(my_close(info->dfile.file, MYF(MY_WME)));
   param->out_flag|=O_NEW_DATA;			/* Data in new file */
   info->dfile.file= new_file;				/* Use new datafile */
+  pagecache_file_init(info->dfile, &maria_page_crc_check_data,
+                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                       &maria_page_crc_set_normal :
+                       &maria_page_filler_set_normal), share);
   info->state->del=0;
   info->state->empty=0;
   share->state.dellink= HA_OFFSET_ERROR;

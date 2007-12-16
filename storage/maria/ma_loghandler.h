@@ -59,7 +59,6 @@ struct st_maria_handler;
 /* Length of CRC at end of pages */
 #define ROW_EXTENT_PAGE_SIZE	5
 #define ROW_EXTENT_COUNT_SIZE   2
-#define CRC_LENGTH 4
 /* Size of file id in logs */
 #define FILEID_STORE_SIZE 2
 /* Size of page reference in log */
@@ -255,9 +254,18 @@ C_MODE_START
 #define LOGREC_FIXED_RECORD_2LSN_EXAMPLE 5
 #define LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE 6
 
-extern my_bool translog_init(const char *directory, uint32 log_file_max_size,
-			     uint32 server_version, uint32 server_id,
-			     PAGECACHE *pagecache, uint flags);
+extern void translog_example_table_init();
+extern void translog_table_init();
+#define translog_init(D,M,V,I,C,F,R) \
+  translog_init_with_table(D,M,V,I,C,F,R,&translog_table_init)
+extern my_bool translog_init_with_table(const char *directory,
+                                        uint32 log_file_max_size,
+                                        uint32 server_version,
+                                        uint32 server_id,
+                                        PAGECACHE *pagecache,
+                                        uint flags,
+                                        my_bool readonly,
+                                        void (*init_table_func)());
 
 extern my_bool
 translog_write_record(LSN *lsn, enum translog_record_type type, TRN *trn,
@@ -303,7 +311,14 @@ extern void translog_deassign_id_from_share(struct st_maria_share *share);
 extern void
 translog_assign_id_to_share_from_recovery(struct st_maria_share *share,
                                           uint16 id);
-extern my_bool translog_inited;
+enum enum_translog_status
+{
+  TRANSLOG_UNINITED, /* no initialization done or error during initialization */
+  TRANSLOG_OK,       /* transaction log is functioning */
+  TRANSLOG_READONLY, /* read only mode due to write errors */
+  TRANSLOG_SHUTDOWN  /* going to shutdown the loghandler */
+};
+extern enum enum_translog_status translog_status;
 
 /*
   all the rest added because of recovery; should we make

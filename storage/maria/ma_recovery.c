@@ -133,7 +133,11 @@ static my_bool close_one_table(const char *name, TRANSLOG_ADDRESS addr);
 static void print_redo_phase_progress(TRANSLOG_ADDRESS addr);
 
 /** @brief global [out] buffer for translog_read_record(); never shrinks */
-static LEX_STRING log_record_buffer;
+static struct
+{
+  uchar *str;
+  size_t length;
+} log_record_buffer;
 static void enlarge_buffer(const TRANSLOG_HEADER_BUFFER *rec)
 {
   if (log_record_buffer.length < rec->record_length)
@@ -348,11 +352,14 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
      REDO phase does not fill blocks' rec_lsn, so a checkpoint now would be
      wrong: if a future recovery used it, the REDO phase would always
      start from the checkpoint and never from before, wrongly skipping REDOs
-     (tested).
+     (tested). Another problem is that the REDO phase uses
+     PAGECACHE_PLAIN_PAGE, while Checkpoint only collects PAGECACHE_LSN_PAGE.
 
-     @todo fix this; pagecache_write() now can have a rec_lsn argument.
+     @todo fix this. pagecache_write() now can have a rec_lsn argument. And we
+     could make a function which goes through pages at end of REDO phase and
+     changes their type.
   */
-#if 0
+#ifdef FIX_AND_ENABLE_LATER
   if (take_checkpoints && checkpoint_useful)
   {
     /*
@@ -478,14 +485,11 @@ prototype_redo_exec_hook(LONG_TRANSACTION_ID)
 {
   uint16 sid= rec->short_trid;
   TrID long_trid= all_active_trans[sid].long_trid;
-  /* abort group of this trn (must be of before a crash) */
-  LSN gslsn= all_active_trans[sid].group_start_lsn;
-  if (gslsn != LSN_IMPOSSIBLE)
-  {
-    tprint(tracef, "Group at LSN (%lu,0x%lx) short_trid %u incomplete\n",
-           LSN_IN_PARTS(gslsn), sid);
-    all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
-  }
+  /*
+    Any incomplete group should be of an old crash which already had a
+    recovery and thus has logged INCOMPLETE_GROUP which we must have seen.
+  */
+  DBUG_ASSERT(all_active_trans[sid].group_start_lsn == LSN_IMPOSSIBLE);
   if (long_trid != 0)
   {
     LSN ulsn= all_active_trans[sid].undo_lsn;
@@ -590,8 +594,9 @@ prototype_redo_exec_hook(INCOMPLETE_LOG)
 prototype_redo_exec_hook(REDO_CREATE_TABLE)
 {
   File dfile= -1, kfile= -1;
-  char *linkname_ptr, filename[FN_REFLEN];
-  char *name, *ptr;
+  char *linkname_ptr, filename[FN_REFLEN], *name, *ptr, *data_file_name,
+    *index_file_name;
+  uchar *kfile_header;
   myf create_flag;
   uint flags;
   int error= 1, create_mode= O_RDWR | O_TRUNC;
@@ -612,7 +617,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     eprint(tracef, "Failed to read record\n");
     goto end;
   }
-  name= log_record_buffer.str;
+  name= (char *)log_record_buffer.str;
   /*
     TRUNCATE TABLE and REPAIR USE_FRM call maria_create(), so below we can
     find a REDO_CREATE_TABLE for a table which we have open, that's why we
@@ -680,16 +685,16 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   ptr+= 2;
   keystart= uint2korr(ptr);
   ptr+= 2;
-  uchar *kfile_header= ptr;
+  kfile_header= (uchar *)ptr;
   ptr+= kfile_size_before_extension;
   /* set create_rename_lsn (for maria_read_log to be idempotent) */
   lsn_store(kfile_header + sizeof(info->s->state.header) + 2, rec->lsn);
   /* we also set is_of_horizon, like maria_create() does */
   lsn_store(kfile_header + sizeof(info->s->state.header) + 2 + LSN_STORE_SIZE,
             rec->lsn);
-  uchar *data_file_name= ptr;
+  data_file_name= ptr;
   ptr+= strlen(data_file_name) + 1;
-  uchar *index_file_name= ptr;
+  index_file_name= ptr;
   ptr+= strlen(index_file_name) + 1;
   /** @todo handle symlinks */
   if (data_file_name[0] || index_file_name[0])
@@ -775,7 +780,7 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
     eprint(tracef, "Failed to read record\n");
     goto end;
   }
-  old_name= log_record_buffer.str;
+  old_name= (char *)log_record_buffer.str;
   new_name= old_name + strlen(old_name) + 1;
   tprint(tracef, "Table '%s' to rename to '%s'; old-name table ", old_name,
          new_name);
@@ -1023,7 +1028,7 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
     eprint(tracef, "Failed to read record\n");
     return 1;
   }
-  name= log_record_buffer.str;
+  name= (char *)log_record_buffer.str;
   tprint(tracef, "Table '%s'", name);
   info= maria_open(name, O_RDONLY, HA_OPEN_FOR_REPAIR);
   if (info)
@@ -1115,7 +1120,7 @@ prototype_redo_exec_hook(FILE_ID)
     }
     all_tables[sid].info= NULL;
   }
-  name= log_record_buffer.str + FILEID_STORE_SIZE;
+  name= (char *)log_record_buffer.str + FILEID_STORE_SIZE;
   if (new_table(sid, name, -1, -1, rec->lsn))
     goto end;
   error= 0;
@@ -1136,6 +1141,7 @@ static int new_table(uint16 sid, const char *name,
   int error= 1;
   MARIA_HA *info;
   MARIA_SHARE *share;
+  my_off_t dfile_len, kfile_len;
 
   checkpoint_useful= TRUE;
   if ((name == NULL) || (name[0] == 0))
@@ -1160,6 +1166,7 @@ static int new_table(uint16 sid, const char *name,
   }
   if (maria_is_crashed(info))
   {
+    /** @todo what should we do? how to continue recovery? */
     tprint(tracef, "Table is crashed, can't apply log records to it\n");
     goto end;
   }
@@ -1197,8 +1204,8 @@ static int new_table(uint16 sid, const char *name,
   /* _ma_unpin_all_pages() reads info->trn: */
   info->trn= &dummy_transaction_object;
   /* execution of some REDO records relies on data_file_length */
-  my_off_t dfile_len= my_seek(info->dfile.file, 0, SEEK_END, MYF(MY_WME));
-  my_off_t kfile_len= my_seek(info->s->kfile.file, 0, SEEK_END, MYF(MY_WME));
+  dfile_len= my_seek(info->dfile.file, 0, SEEK_END, MYF(MY_WME));
+  kfile_len= my_seek(info->s->kfile.file, 0, SEEK_END, MYF(MY_WME));
   if ((dfile_len == MY_FILEPOS_ERROR) ||
       (kfile_len == MY_FILEPOS_ERROR))
   {
@@ -1566,10 +1573,6 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    /**
-       @todo some bits below will rather be set when executing UNDOs related
-       to keys
-    */
     info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
@@ -1605,8 +1608,8 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
-                            STATE_NOT_OPTIMIZED_ROWS);
+    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+      STATE_NOT_OPTIMIZED_ROWS;
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
   _ma_unpin_all_pages(info, rec->lsn);
@@ -1743,6 +1746,7 @@ prototype_redo_exec_hook(COMMIT)
   {
     tprint(tracef, "We don't know about transaction with short_trid %u;"
            "it probably committed long ago, forget it\n", sid);
+    bzero(&all_active_trans[sid], sizeof(all_active_trans[sid]));
     return 0;
   }
   llstr(long_trid, llbuf);
@@ -1792,6 +1796,7 @@ prototype_redo_exec_hook(CLR_END)
       break;
     case LOGREC_UNDO_ROW_INSERT:
       share->state.state.records--;
+      share->state.changed|= STATE_NOT_OPTIMIZED_ROWS;
       row_entry= 1;
       break;
     case LOGREC_UNDO_ROW_UPDATE:
@@ -1865,7 +1870,8 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT)
     return 1;
   }
   share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+    STATE_NOT_OPTIMIZED_ROWS;
 
   record_ptr= rec->header;
   if (share->calc_checksum)
@@ -2205,8 +2211,9 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
         if (log_desc->record_in_group == LOGREC_IS_GROUP_ITSELF)
         {
           /*
-            can happen if the transaction got a table write error, then
-            unlocked tables thus wrote a COMMIT record.
+            Can happen if the transaction got a table write error, then
+            unlocked tables thus wrote a COMMIT record. Or can be an
+            INCOMPLETE_GROUP record written by a previous recovery.
           */
           tprint(tracef, "\nDiscarding incomplete group before this record\n");
           all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
@@ -2442,12 +2449,13 @@ static int run_undo_phase(uint uncommitted)
     tprint(tracef, "%u transactions will be rolled back\n", uncommitted);
     for( ; ; )
     {
+      char llbuf[22];
+      TRN *trn;
       if (recovery_message_printed == REC_MSG_UNDO)
         fprintf(stderr, " %u", uncommitted);
       if ((uncommitted--) == 0)
         break;
-      char llbuf[22];
-      TRN *trn= trnman_get_any_trn();
+      trn= trnman_get_any_trn();
       DBUG_ASSERT(trn != NULL);
       llstr(trn->trid, llbuf);
       tprint(tracef, "Rolling back transaction of long id %s\n", llbuf);
@@ -2643,15 +2651,18 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
 
 static LSN parse_checkpoint_record(LSN lsn)
 {
-  ulong i;
+  ulong i, nb_dirty_pages;
   TRANSLOG_HEADER_BUFFER rec;
   TRANSLOG_ADDRESS start_address;
+  int len;
+  uint nb_active_transactions, nb_committed_transactions, nb_tables;
+  uchar *ptr;
+  LSN minimum_rec_lsn_of_active_transactions, minimum_rec_lsn_of_dirty_pages;
+  struct st_dirty_page *next_dirty_page_in_pool;
 
   tprint(tracef, "Loading data from checkpoint record at LSN (%lu,0x%lx)\n",
          LSN_IN_PARTS(lsn));
-  int len= translog_read_record_header(lsn, &rec);
-
-  if (len == RECHEADER_READ_ERROR)
+  if ((len= translog_read_record_header(lsn, &rec)) == RECHEADER_READ_ERROR)
   {
     tprint(tracef, "Cannot find checkpoint record where it should be\n");
     return LSN_ERROR;
@@ -2667,16 +2678,18 @@ static LSN parse_checkpoint_record(LSN lsn)
     return LSN_ERROR;
   }
 
-  char *ptr= log_record_buffer.str;
+  ptr= log_record_buffer.str;
   start_address= lsn_korr(ptr);
   ptr+= LSN_STORE_SIZE;
 
   /* transactions */
-  uint nb_active_transactions= uint2korr(ptr);
+  nb_active_transactions= uint2korr(ptr);
   ptr+= 2;
   tprint(tracef, "%u active transactions\n", nb_active_transactions);
-  LSN minimum_rec_lsn_of_active_transactions= lsn_korr(ptr);
+  minimum_rec_lsn_of_active_transactions= lsn_korr(ptr);
   ptr+= LSN_STORE_SIZE;
+  max_long_trid= transid_korr(ptr);
+  ptr+= TRANSID_SIZE;
 
   /*
     how much brain juice and discussions there was to come to writing this
@@ -2687,17 +2700,19 @@ static LSN parse_checkpoint_record(LSN lsn)
   for (i= 0; i < nb_active_transactions; i++)
   {
     uint16 sid= uint2korr(ptr);
+    TrID long_id;
+    LSN undo_lsn, first_undo_lsn;
     ptr+= 2;
-    TrID long_id= uint6korr(ptr);
+    long_id= uint6korr(ptr);
     ptr+= 6;
     DBUG_ASSERT(sid > 0 && long_id > 0);
-    LSN undo_lsn= lsn_korr(ptr);
+    undo_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
-    LSN first_undo_lsn= lsn_korr(ptr);
+    first_undo_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
     new_transaction(sid, long_id, undo_lsn, first_undo_lsn);
   }
-  uint nb_committed_transactions= uint4korr(ptr);
+  nb_committed_transactions= uint4korr(ptr);
   ptr+= 4;
   tprint(tracef, "%lu committed transactions\n",
          (ulong)nb_committed_transactions);
@@ -2705,30 +2720,33 @@ static LSN parse_checkpoint_record(LSN lsn)
   ptr+= (6 + LSN_STORE_SIZE) * nb_committed_transactions;
 
   /* tables  */
-  uint nb_tables= uint4korr(ptr);
+  nb_tables= uint4korr(ptr);
   ptr+= 4;
   tprint(tracef, "%u open tables\n", nb_tables);
   for (i= 0; i< nb_tables; i++)
   {
     char name[FN_REFLEN];
+    File kfile, dfile;
+    LSN first_log_write_lsn;
+    uint name_len;
     uint16 sid= uint2korr(ptr);
     ptr+= 2;
     DBUG_ASSERT(sid > 0);
-    File kfile= uint4korr(ptr);
+    kfile= uint4korr(ptr);
     ptr+= 4;
-    File dfile= uint4korr(ptr);
+    dfile= uint4korr(ptr);
     ptr+= 4;
-    LSN first_log_write_lsn= lsn_korr(ptr);
+    first_log_write_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
-    uint name_len= strlen(ptr) + 1;
-    strmake(name, ptr, sizeof(name)-1);
+    name_len= strlen((char *)ptr) + 1;
+    strmake(name, (char *)ptr, sizeof(name)-1);
     ptr+= name_len;
     if (new_table(sid, name, kfile, dfile, first_log_write_lsn))
       return LSN_ERROR;
   }
 
   /* dirty pages */
-  ulong nb_dirty_pages= uint8korr(ptr);
+  nb_dirty_pages= uint8korr(ptr);
   ptr+= 8;
   tprint(tracef, "%lu dirty pages\n", nb_dirty_pages);
   if (hash_init(&all_dirty_pages, &my_charset_bin, nb_dirty_pages,
@@ -2742,15 +2760,17 @@ static LSN parse_checkpoint_record(LSN lsn)
                                       MYF(MY_WME));
   if (unlikely(dirty_pages_pool == NULL))
     return LSN_ERROR;
-  struct st_dirty_page *next_dirty_page_in_pool= dirty_pages_pool;
-  LSN minimum_rec_lsn_of_dirty_pages= LSN_MAX;
+  next_dirty_page_in_pool= dirty_pages_pool;
+  minimum_rec_lsn_of_dirty_pages= LSN_MAX;
   for (i= 0; i < nb_dirty_pages ; i++)
   {
+    pgcache_page_no_t pageid;
+    LSN rec_lsn;
     File fileid= uint4korr(ptr);
     ptr+= 4;
-    pgcache_page_no_t pageid= uint4korr(ptr);
+    pageid= uint4korr(ptr);
     ptr+= 4;
-    LSN rec_lsn= lsn_korr(ptr);
+    rec_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
     if (new_page(fileid, pageid, rec_lsn, next_dirty_page_in_pool++))
       return LSN_ERROR;
@@ -2800,6 +2820,7 @@ static int close_all_tables(void)
   uint count= 0;
   LIST *list_element, *next_open;
   MARIA_HA *info;
+  TRANSLOG_ADDRESS addr;
   pthread_mutex_lock(&THR_LOCK_maria);
   if (maria_open_list == NULL)
     goto end;
@@ -2818,7 +2839,7 @@ static int close_all_tables(void)
     (if UNDO phase ran)  and thus the state is newer than at
     end_of_redo_phase(), we need to bump is_of_horizon again.
   */
-  TRANSLOG_ADDRESS addr= translog_get_horizon();
+  addr= translog_get_horizon();
   for (list_element= maria_open_list ; ; list_element= next_open)
   {
     if (recovery_message_printed == REC_MSG_FLUSH)

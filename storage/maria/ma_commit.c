@@ -51,12 +51,6 @@ int ma_commit(TRN *trn)
     So we need to go the first way.
   */
 
-  /**
-     @todo RECOVERY share's state is written to disk only in
-     maria_lock_database(), so COMMIT record is not the last record of the
-     transaction! It is probably an issue. Recovery of the state is a problem
-     not yet solved.
-  */
   /*
     We do not store "thd->transaction.xid_state.xid" for now, it will be
     needed only when we support XA.

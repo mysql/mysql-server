@@ -1,3 +1,4 @@
+set global maria_log_file_size=4294967296;
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
@@ -118,6 +119,7 @@ a
 00000000
 00000000
 drop table t1;
+* TEST of two REDOs for same page in one REDO group
 * shut down mysqld, removed logs, restarted it
 use mysqltest;
 CREATE TABLE t1 (
@@ -150,6 +152,7 @@ SELECT LENGTH(b) FROM t1 WHERE i=3;
 LENGTH(b)
 5001
 drop table t1;
+* TEST of INSERT vs state.auto_increment
 * shut down mysqld, removed logs, restarted it
 use mysqltest;
 CREATE TABLE t1 (
@@ -184,6 +187,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`i`),
   KEY `c` (`c`)
 ) ENGINE=MARIA AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
+* TEST of UPDATE vs state.auto_increment
 * copied t1 for feeding_recovery
 update t1 set i=15 where c="a";
 flush table t1;

@@ -55,6 +55,8 @@ my_bool trnman_has_locked_tables(TRN *trn);
 void trnman_reset_locked_tables(TRN *trn);
 TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid);
 TRN *trnman_get_any_trn();
-
+#define TRANSID_SIZE		6
+#define transid_store(dst, id) int6store(dst,id)
+#define transid_korr(P) uint6korr(P)
 C_MODE_END
 #endif

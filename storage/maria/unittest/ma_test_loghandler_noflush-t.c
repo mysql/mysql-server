@@ -5,7 +5,7 @@
 #include "../trnman.h"
 
 extern my_bool maria_log_remove();
-extern void example_loghandler_init();
+extern void translog_example_table_init();
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
@@ -68,13 +68,12 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init(".", LOG_FILE_SIZE, 50112, 0, &pagecache, LOG_FLAGS))
+  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+                               LOG_FLAGS, 0, &translog_example_table_init))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
-    translog_destroy();
     exit(1);
   }
-  example_loghandler_init();
   /* Suppressing of automatic record writing */
   dummy_transaction_object.first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 

@@ -59,9 +59,7 @@ static uint checkpoints_total= 0, /**< all checkpoint requests made */
 
 struct st_filter_param
 {
-  my_bool is_data_file; /**< is the file about data or index */
   LSN up_to_lsn; /**< only pages with rec_lsn < this LSN */
-  ulong pages_covered_by_bitmap; /**< to know which page is a bitmap page */
   uint max_pages; /**< stop after flushing this number pages */
 }; /**< information to determine which dirty pages should be flushed */
 
@@ -73,10 +71,6 @@ static enum pagecache_flush_filter_result
 filter_flush_file_full(enum pagecache_page_type type,
                        pgcache_page_no_t page,
                        LSN rec_lsn, void *arg);
-static enum pagecache_flush_filter_result
-filter_flush_file_indirect(enum pagecache_page_type type,
-                           pgcache_page_no_t page,
-                           LSN rec_lsn, void *arg);
 static enum pagecache_flush_filter_result
 filter_flush_file_evenly(enum pagecache_page_type type,
                          pgcache_page_no_t pageno,
@@ -161,7 +155,7 @@ static int really_execute_checkpoint(void)
   LEX_STRING record_pieces[4]; /**< only malloc-ed pieces */
   LSN min_page_rec_lsn, min_trn_rec_lsn, min_first_undo_lsn;
   TRANSLOG_ADDRESS checkpoint_start_log_horizon;
-  uchar checkpoint_start_log_horizon_char[LSN_STORE_SIZE];
+  char checkpoint_start_log_horizon_char[LSN_STORE_SIZE];
   DBUG_ENTER("really_execute_checkpoint");
   bzero(&record_pieces, sizeof(record_pieces));
 
@@ -264,22 +258,24 @@ static int really_execute_checkpoint(void)
   /* checkpoint succeeded */
   ptr= record_pieces[3].str;
   pages_to_flush_before_next_checkpoint= uint4korr(ptr);
-  DBUG_PRINT("info",("%u pages to flush before next checkpoint",
-                     (uint)pages_to_flush_before_next_checkpoint));
+  DBUG_PRINT("checkpoint",("%u pages to flush before next checkpoint",
+                           (uint)pages_to_flush_before_next_checkpoint));
 
   /* compute log's low-water mark */
-  TRANSLOG_ADDRESS log_low_water_mark= min_page_rec_lsn;
-  set_if_smaller(log_low_water_mark, min_trn_rec_lsn);
-  set_if_smaller(log_low_water_mark, min_first_undo_lsn);
-  set_if_smaller(log_low_water_mark, checkpoint_start_log_horizon);
-  /**
-     Now purge unneeded logs.
-     As some systems have an unreliable fsync (drive lying), we could try to
-     be robust against that: remember a few previous checkpoints in the
-     control file, and not purge logs immediately... Think about it.
-  */
-  if (translog_purge(log_low_water_mark))
-    ma_message_no_user(0, "log purging failed");
+  {
+    TRANSLOG_ADDRESS log_low_water_mark= min_page_rec_lsn;
+    set_if_smaller(log_low_water_mark, min_trn_rec_lsn);
+    set_if_smaller(log_low_water_mark, min_first_undo_lsn);
+    set_if_smaller(log_low_water_mark, checkpoint_start_log_horizon);
+    /**
+       Now purge unneeded logs.
+       As some systems have an unreliable fsync (drive lying), we could try to
+       be robust against that: remember a few previous checkpoints in the
+       control file, and not purge logs immediately... Think about it.
+    */
+    if (translog_purge(log_low_water_mark))
+      ma_message_no_user(0, "log purging failed");
+  }
 
   goto end;
 
@@ -350,9 +346,11 @@ int ma_checkpoint_init(ulong interval)
 
    @param  what_to_flush   0: current bitmap and all data pages
                            1: state
+                           2: all bitmap pages
 */
 static void flush_all_tables(int what_to_flush)
 {
+  int res= 0;
   LIST *pos; /**< to iterate over open tables */
   pthread_mutex_lock(&THR_LOCK_maria);
   for (pos= maria_open_list; pos; pos= pos->next)
@@ -363,17 +361,21 @@ static void flush_all_tables(int what_to_flush)
       switch (what_to_flush)
       {
       case 0:
-        _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+        res= _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                               FLUSH_KEEP, FLUSH_KEEP);
         break;
       case 1:
-        _ma_state_info_write(info->s, 1|4);
+        res= _ma_state_info_write(info->s, 1|4);
         DBUG_PRINT("maria_flush_states",
                    ("is_of_horizon: LSN (%lu,0x%lx)",
                     LSN_IN_PARTS(info->s->state.is_of_horizon)));
         break;
+      case 2:
+        res= _ma_bitmap_flush_all(info->s);
+        break;
       }
     }
+    DBUG_ASSERT(res == 0);
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
 }
@@ -387,6 +389,11 @@ static void flush_all_tables(int what_to_flush)
 void ma_checkpoint_end(void)
 {
   DBUG_ENTER("ma_checkpoint_end");
+  DBUG_EXECUTE_IF("maria_flush_bitmap",
+                  {
+                    DBUG_PRINT("maria_flush_bitmap", ("now"));
+                    flush_all_tables(2);
+                  });
   DBUG_EXECUTE_IF("maria_flush_whole_page_cache",
                   {
                     DBUG_PRINT("maria_flush_whole_page_cache", ("now"));
@@ -447,8 +454,8 @@ void ma_checkpoint_end(void)
 
    We flush data/index pages which have been dirty since the previous
    checkpoint (this is the two-checkpoint rule: the REDO phase will not have
-   to start from earlier than the next-to-last checkpoint), and all dirty
-   bitmap pages.
+   to start from earlier than the next-to-last checkpoint).
+   Bitmap pages are handled by _ma_bitmap_flush_all().
 
    @param  type                Page's type
    @param  pageno              Page's number
@@ -458,21 +465,20 @@ void ma_checkpoint_end(void)
 
 static enum pagecache_flush_filter_result
 filter_flush_file_medium(enum pagecache_page_type type,
-                         pgcache_page_no_t pageno,
+                         pgcache_page_no_t pageno __attribute__ ((unused)),
                          LSN rec_lsn, void *arg)
 {
   struct st_filter_param *param= (struct st_filter_param *)arg;
-  return ((type == PAGECACHE_LSN_PAGE) &&
-          (cmp_translog_addr(rec_lsn, param->up_to_lsn) <= 0)) ||
-    (param->is_data_file &&
-     ((pageno % param->pages_covered_by_bitmap) == 0));
+  return (type == PAGECACHE_LSN_PAGE) &&
+    (cmp_translog_addr(rec_lsn, param->up_to_lsn) <= 0);
 }
 
 
 /**
    @brief dirty-page filtering criteria for FULL checkpoint.
 
-   We flush all dirty data/index pages and all dirty bitmap pages.
+   We flush all dirty data/index pages.
+   Bitmap pages are handled by _ma_bitmap_flush_all().
 
    @param  type                Page's type
    @param  pageno              Page's number
@@ -482,39 +488,11 @@ filter_flush_file_medium(enum pagecache_page_type type,
 
 static enum pagecache_flush_filter_result
 filter_flush_file_full(enum pagecache_page_type type,
-                       pgcache_page_no_t pageno,
+                       pgcache_page_no_t pageno __attribute__ ((unused)),
                        LSN rec_lsn __attribute__ ((unused)),
-                       void *arg)
+                       void *arg __attribute__ ((unused)))
 {
-  struct st_filter_param *param= (struct st_filter_param *)arg;
-  return (type == PAGECACHE_LSN_PAGE) ||
-    (param->is_data_file &&
-     ((pageno % param->pages_covered_by_bitmap) == 0));
-}
-
-
-/**
-   @brief dirty-page filtering criteria for INDIRECT checkpoint.
-
-   We flush all dirty bitmap pages.
-
-   @param  type                Page's type
-   @param  pageno              Page's number
-   @param  rec_lsn             Page's rec_lsn
-   @param  arg                 filter_param
-*/
-
-static enum pagecache_flush_filter_result
-filter_flush_file_indirect(enum pagecache_page_type type
-                           __attribute__ ((unused)),
-                           pgcache_page_no_t pageno,
-                           LSN rec_lsn __attribute__ ((unused)),
-                           void *arg)
-{
-  struct st_filter_param *param= (struct st_filter_param *)arg;
-  return
-    (param->is_data_file &&
-     ((pageno % param->pages_covered_by_bitmap) == 0));
+  return (type == PAGECACHE_LSN_PAGE);
 }
 
 
@@ -526,6 +504,8 @@ filter_flush_file_indirect(enum pagecache_page_type type
    to start from earlier than the next-to-last checkpoint), and no
    bitmap pages. But we flush no more than a certain number of pages (to have
    an even flushing, no write burst).
+   The reason to not flush bitmap pages is that they may not be in a flushable
+   state at this moment and we don't want to wait for them.
 
    @param  type                Page's type
    @param  pageno              Page's number
@@ -574,9 +554,11 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     about the interval's value when it started.
   */
   const ulong interval= (ulong)arg;
-  uint sleeps;
-  TRANSLOG_ADDRESS log_horizon_at_last_checkpoint= LSN_IMPOSSIBLE;
-  ulonglong pagecache_flushes_at_last_checkpoint= 0;
+  uint sleeps, sleep_time;
+  TRANSLOG_ADDRESS log_horizon_at_last_checkpoint=
+    translog_get_horizon();
+  ulonglong pagecache_flushes_at_last_checkpoint=
+    maria_pagecache->global_cache_write;
   uint pages_bunch_size;
   struct st_filter_param filter_param;
   PAGECACHE_FILE *dfile; /**< data file currently being flushed */
@@ -602,7 +584,7 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     sleeps=0;
 #endif
     struct timespec abstime;
-    switch((sleeps++) % interval)
+    switch (sleeps % interval)
     {
     case 0:
       /*
@@ -626,8 +608,10 @@ pthread_handler_t ma_checkpoint_background(void *arg)
       {
         /* don't take checkpoint, so don't know what to flush */
         pages_to_flush_before_next_checkpoint= 0;
+        sleep_time= interval;
         break;
       }
+      sleep_time= 1;
       ma_checkpoint_execute(CHECKPOINT_MEDIUM, TRUE);
       /*
         Snapshot this kind of "state" of the engine. Note that the value below
@@ -653,11 +637,11 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     default:
       if (pages_bunch_size > 0)
       {
-        DBUG_PRINT("info", ("Maria background checkpoint thread: %u pages",
-                            pages_bunch_size));
+        DBUG_PRINT("checkpoint",
+                   ("Maria background checkpoint thread: %u pages",
+                    pages_bunch_size));
         /* flush a bunch of dirty pages */
         filter_param.max_pages= pages_bunch_size;
-        filter_param.is_data_file= TRUE;
         while (dfile != dfiles_end)
         {
           /*
@@ -683,7 +667,6 @@ pthread_handler_t ma_checkpoint_background(void *arg)
             we wrote enough pages.
           */
         }
-        filter_param.is_data_file= FALSE;
         while (kfile != kfiles_end)
         {
           int res=
@@ -697,6 +680,12 @@ pthread_handler_t ma_checkpoint_background(void *arg)
             break; /* and we will continue with the same file */
           kfile++; /* otherwise all this file is flushed, move to next file */
         }
+        sleep_time= 1;
+      }
+      else
+      {
+        /* Can directly sleep until the next checkpoint moment */
+        sleep_time= interval - (sleeps % interval);
       }
     }
     pthread_mutex_lock(&LOCK_checkpoint);
@@ -708,12 +697,14 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     pthread_mutex_lock(&LOCK_checkpoint);
 #else
     /* To have a killable sleep, we use timedwait like our SQL GET_LOCK() */
-    set_timespec(abstime, 1);
+    DBUG_PRINT("info", ("sleeping %u seconds", sleep_time));
+    set_timespec(abstime, sleep_time);
     pthread_cond_timedwait(&COND_checkpoint, &LOCK_checkpoint, &abstime);
 #endif
     if (checkpoint_thread_die == 1)
       break;
     pthread_mutex_unlock(&LOCK_checkpoint);
+    sleeps+= sleep_time;
   }
   pthread_mutex_unlock(&LOCK_checkpoint);
   DBUG_PRINT("info",("Maria background checkpoint thread ends"));
@@ -769,9 +760,11 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
     *state_copies_end, /**< cache ends here */
     *state_copy; /**< iterator in cache */
   TRANSLOG_ADDRESS state_copies_horizon; /**< horizon of states' _copies_ */
-  LINT_INIT(state_copies_horizon);
+  struct st_filter_param filter_param;
+  PAGECACHE_FLUSH_FILTER filter;
   DBUG_ENTER("collect_tables");
 
+  LINT_INIT(state_copies_horizon);
   /* let's make a list of distinct shares */
   pthread_mutex_lock(&THR_LOCK_maria);
   for (nb= 0, pos= maria_open_list; pos; pos= pos->next)
@@ -842,10 +835,8 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   ptr= str->str;
   ptr+= 4; /* real number of stored tables is not yet know */
 
-  struct st_filter_param filter_param;
   /* only possible checkpointer, so can do the read below without mutex */
   filter_param.up_to_lsn= last_checkpoint_lsn;
-  PAGECACHE_FLUSH_FILTER filter;
   switch(checkpoint_in_progress)
   {
   case CHECKPOINT_MEDIUM:
@@ -855,7 +846,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
     filter= &filter_flush_file_full;
     break;
   case CHECKPOINT_INDIRECT:
-    filter= &filter_flush_file_indirect;
+    filter= NULL;
     break;
   default:
     DBUG_ASSERT(0);
@@ -888,6 +879,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   {
     MARIA_SHARE *share= distinct_shares[i];
     PAGECACHE_FILE kfile, dfile;
+    my_bool ignore_share;
     if (!(share->in_checkpoint & MARIA_CHECKPOINT_LOOKS_AT_ME))
     {
       /* No need for a mutex to read the above, only us can write this flag */
@@ -957,7 +949,6 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
     for ( ; state_copy->index != i; state_copy++)
       DBUG_ASSERT(state_copy < state_copies_end);
 
-    filter_param.pages_covered_by_bitmap= share->bitmap.pages_covered;
     /* OS file descriptors are ints which we stored in 4 bytes */
     compile_time_assert(sizeof(int) <= 4);
     pthread_mutex_lock(&share->intern_lock);
@@ -978,7 +969,9 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       onto a newer one (assuming the table has been reopened with a different
       share but of course same physical index file).
     */
-    if ((share->id != 0) && (share->last_version != 0))
+    ignore_share= (share->id == 0) | (share->last_version == 0);
+    DBUG_PRINT("info", ("ignore_share: %d", ignore_share));
+    if (!ignore_share)
     {
       /** @todo avoid strlen */
       uint open_file_name_len= strlen(share->open_file_name) + 1;
@@ -1061,14 +1054,12 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
           each checkpoint if the table was once written and then not anymore.
         */
       }
-      /**
-         @todo RECOVERY BUG this is going to flush the bitmap page possibly to
-         disk even though it could be over-allocated with not yet any
-         REDO-UNDO complete group (WAL violation: no way to undo the
-         over-allocation if crash); see also _ma_change_bitmap_page().
-      */
-      sync_error|=
-        _ma_bitmap_flush(share); /* after that, all is in page cache */
+      if (_ma_bitmap_flush_all(share))
+      {
+        sync_error= 1;
+        /** @todo all write failures should mark table corrupted */
+        ma_message_no_user(0, "checkpoint bitmap page flush failed");
+      }
       DBUG_ASSERT(share->pagecache == maria_pagecache);
     }
     if (share->in_checkpoint & MARIA_CHECKPOINT_SHOULD_FREE_ME)
@@ -1135,37 +1126,33 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       the evicter will fail to write their page: corruption.
     */
 
-    /*
-      We do NOT use FLUSH_KEEP_LAZY because we must be sure that bitmap pages
-      have been flushed. That's a condition of correctness of Recovery: data
-      pages may have been all flushed, if we write the checkpoint record
-      Recovery will start from after their REDOs. If bitmap page was not
-      flushed, as the REDOs about it will be skipped, it will wrongly not be
-      recovered. If bitmap pages had a rec_lsn it would be different.
-    */
-    if ((filter_param.is_data_file= TRUE),
-        (flush_pagecache_blocks_with_filter(maria_pagecache,
-                                            &dfile, FLUSH_KEEP,
-                                            filter, &filter_param) &
-         PCFLUSH_ERROR))
-      ma_message_no_user(0, "checkpoint data page flush failed");
-    if ((filter_param.is_data_file= FALSE),
-        (flush_pagecache_blocks_with_filter(maria_pagecache,
-                                            &kfile, FLUSH_KEEP,
-                                            filter, &filter_param) &
-         PCFLUSH_ERROR))
-      ma_message_no_user(0, "checkpoint index page flush failed");
+    if (!ignore_share)
+    {
+      if (filter != NULL)
+      {
+        if ((flush_pagecache_blocks_with_filter(maria_pagecache,
+                                                &dfile, FLUSH_KEEP_LAZY,
+                                                filter, &filter_param) &
+             PCFLUSH_ERROR))
+          ma_message_no_user(0, "checkpoint data page flush failed");
+        if ((flush_pagecache_blocks_with_filter(maria_pagecache,
+                                                &kfile, FLUSH_KEEP_LAZY,
+                                                filter, &filter_param) &
+             PCFLUSH_ERROR))
+          ma_message_no_user(0, "checkpoint index page flush failed");
+      }
       /*
         fsyncs the fd, that's the loooong operation (e.g. max 150 fsync
         per second, so if you have touched 1000 files it's 7 seconds).
       */
-    sync_error|=
-      my_sync(dfile.file, MYF(MY_WME | MY_IGNORE_BADFD)) |
-      my_sync(kfile.file, MYF(MY_WME | MY_IGNORE_BADFD));
-    /*
-      in case of error, we continue because writing other tables to disk is
-      still useful.
-    */
+      sync_error|=
+        my_sync(dfile.file, MYF(MY_WME | MY_IGNORE_BADFD)) |
+        my_sync(kfile.file, MYF(MY_WME | MY_IGNORE_BADFD));
+      /*
+        in case of error, we continue because writing other tables to disk is
+        still useful.
+      */
+    }
   }
 
   if (sync_error)

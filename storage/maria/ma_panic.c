@@ -99,12 +99,19 @@ int maria_panic(enum ha_panic_function flag)
       {					/* Open closed files */
 	char name_buff[FN_REFLEN];
 	if (info->s->kfile.file < 0)
+        {
+
 	  if ((info->s->kfile.file= my_open(fn_format(name_buff,
                                                       info->filename, "",
                                                       N_NAME_IEXT,4),
                                             info->mode,
                                             MYF(MY_WME))) < 0)
 	    error = my_errno;
+          pagecache_file_init(info->s->kfile, &maria_page_crc_check_index,
+                              (info->s->options & HA_OPTION_PAGE_CHECKSUM ?
+                               &maria_page_crc_set_index :
+                               &maria_page_filler_set_normal), info->s);
+        }
 	if (info->dfile.file < 0)
 	{
 	  if ((info->dfile.file= my_open(fn_format(name_buff, info->filename,
@@ -112,6 +119,10 @@ int maria_panic(enum ha_panic_function flag)
                                          info->mode,
                                          MYF(MY_WME))) < 0)
 	    error = my_errno;
+          pagecache_file_init(info->dfile, &maria_page_crc_check_data,
+                              (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                               &maria_page_crc_set_normal:
+                               &maria_page_filler_set_normal), share);
 	  info->rec_cache.file= info->dfile.file;
 	}
       }

@@ -5,7 +5,7 @@
 #include "../trnman.h"
 
 extern my_bool maria_log_remove();
-extern void example_loghandler_init();
+extern void translog_example_table_init();
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
@@ -19,6 +19,19 @@ static const char *default_dbug_option;
 static char *first_translog_file= (char*)"maria_log.00000001";
 static char *file1_name= (char*)"page_cache_test_file_1";
 static PAGECACHE_FILE file1;
+
+/**
+  @brief Dummy pagecache callback.
+*/
+
+static my_bool
+dummy_callback(__attribute__((unused)) uchar *page,
+               __attribute__((unused)) pgcache_page_no_t page_no,
+               __attribute__((unused)) uchar* data_ptr)
+{
+  return 0;
+}
+
 
 int main(int argc __attribute__((unused)), char *argv[])
 {
@@ -68,13 +81,12 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init(".", LOG_FILE_SIZE, 50112, 0, &pagecache, LOG_FLAGS))
+  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+                               LOG_FLAGS, 0, &translog_example_table_init))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
-    translog_destroy();
     exit(1);
   }
-  example_loghandler_init();
   /* Suppressing of automatic record writing */
   dummy_transaction_object.first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
@@ -112,6 +124,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 	    errno);
     exit(1);
   }
+  pagecache_file_init(file1, &dummy_callback, &dummy_callback, NULL);
   if (chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
   {
     fprintf(stderr, "Got error during file1 chmod() (errno: %d)\n",

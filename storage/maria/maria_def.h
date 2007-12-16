@@ -44,7 +44,9 @@
 struct st_transaction;
 
 /* undef map from my_nosys; We need test-if-disk full */
-#undef my_write	
+#undef my_write
+
+#define CRC_SIZE 4
 
 typedef struct st_maria_status_info
 {
@@ -217,16 +219,20 @@ typedef struct st_maria_file_bitmap
   ulonglong page;                      /* Page number for current bitmap */
   uint used_size;                      /* Size of bitmap head that is not 0 */
   my_bool changed;                     /* 1 if page needs to be flushed */
+  my_bool flush_all_requested;         /**< If _ma_bitmap_flush_all waiting */
+  uint non_flushable;                  /**< 0 if bitmap and log are in sync */
   PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
 
 #ifdef THREAD
   pthread_mutex_t bitmap_lock;
+  pthread_cond_t bitmap_cond;          /**< When bitmap becomes flushable */
 #endif
   /* Constants, allocated when initiating bitmaps */
   uint sizes[8];                      /* Size per bit combination */
   uint total_size;		      /* Total usable size of bitmap page */
   uint block_size;                    /* Block size of file */
   ulong pages_covered;                /* Pages covered by bitmap + 1 */
+  DYNAMIC_ARRAY pinned_pages;         /**< not-yet-flushable bitmap pages */
 } MARIA_FILE_BITMAP;
 
 #define MARIA_CHECKPOINT_LOOKS_AT_ME 1
@@ -511,7 +517,6 @@ struct st_maria_handler
 
 #define USE_WHOLE_KEY	65535         /* Use whole key in _search() */
 #define F_EXTRA_LCK	-1
-#define TRANSID_SIZE		6
 
 /* bits in opt_flag */
 #define MEMMAP_USED	32
@@ -571,7 +576,17 @@ struct st_maria_handler
 #define _ma_store_keypage_flag(share,x,flag) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]= (flag)
 
 
+/*
+  TODO: write int4store_aligned as *((uint32 *) (T))= (uint32) (A) for
+  architectures where it is possible
+*/
+#define int4store_aligned(A,B) int4store((A),(B))
+
 #define maria_mark_crashed(x) do{(x)->s->state.changed|= STATE_CRASHED; \
+    DBUG_PRINT("error", ("Marked table crashed"));                      \
+  }while(0)
+#define maria_mark_crashed_share(x)                                     \
+  do{(x)->state.changed|= STATE_CRASHED;                                \
     DBUG_PRINT("error", ("Marked table crashed"));                      \
   }while(0)
 #define maria_mark_crashed_on_repair(x) do{(x)->s->state.changed|=      \
@@ -1037,4 +1052,27 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
   { if (((S)->now_transactional= (S)->base.born_transactional))  \
       (S)->page_type= PAGECACHE_LSN_PAGE; }
 
+#define MARIA_NO_CRC_NORMAL_PAGE 0xffffffff
+#define MARIA_NO_CRC_BITMAP_PAGE 0xfffffffe
+extern my_bool maria_page_crc_set_index(uchar *page,
+                                        pgcache_page_no_t page_no,
+                                        uchar* data_ptr);
+extern my_bool maria_page_crc_set_normal(uchar *page,
+                                         pgcache_page_no_t page_no,
+                                         uchar* data_ptr);
+extern my_bool maria_page_crc_check_bitmap(uchar *page,
+                                           pgcache_page_no_t page_no,
+                                           uchar* data_ptr);
+extern my_bool maria_page_crc_check_data(uchar *page,
+                                           pgcache_page_no_t page_no,
+                                           uchar* data_ptr);
+extern my_bool maria_page_crc_check_index(uchar *page,
+                                           pgcache_page_no_t page_no,
+                                           uchar* data_ptr);
+extern my_bool maria_page_filler_set_bitmap(uchar *page,
+                                            pgcache_page_no_t page_no,
+                                            uchar* data_ptr);
+extern my_bool maria_page_filler_set_normal(uchar *page,
+                                            pgcache_page_no_t page_no,
+                                            uchar* data_ptr);
 extern PAGECACHE *maria_log_pagecache;

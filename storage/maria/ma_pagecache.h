@@ -74,14 +74,19 @@ enum pagecache_write_mode
   PAGECACHE_WRITE_DONE
 };
 
+/* page number for maria */
+typedef uint32 pgcache_page_no_t;
+
 /* file descriptor for Maria */
 typedef struct st_pagecache_file
 {
   File file;
+  my_bool (*read_callback)(uchar *page, pgcache_page_no_t offset,
+                           uchar *data);
+  my_bool (*write_callback)(uchar *page, pgcache_page_no_t offset,
+                            uchar *data);
+  uchar *callback_data;
 } PAGECACHE_FILE;
-
-/* page number for maria */
-typedef uint32 pgcache_page_no_t;
 
 /* declare structures that is used by  st_pagecache */
 
@@ -93,8 +98,6 @@ struct st_pagecache_hash_link;
 typedef struct st_pagecache_hash_link PAGECACHE_HASH_LINK;
 
 #include <wqueue.h>
-
-typedef my_bool (*pagecache_disk_read_validator)(uchar *page, uchar *data);
 
 #define PAGECACHE_CHANGED_BLOCKS_HASH 128  /* must be power of 2 */
 #define PAGECACHE_PRIORITY_LOW 0
@@ -192,26 +195,21 @@ extern ulong resize_pagecache(PAGECACHE *pagecache,
 extern void change_pagecache_param(PAGECACHE *pagecache, uint division_limit,
                                    uint age_threshold);
 
-#define pagecache_read(P,F,N,L,B,T,K,I) \
-  pagecache_valid_read(P,F,N,L,B,T,K,I,0,0)
-
-extern uchar *pagecache_valid_read(PAGECACHE *pagecache,
-                                  PAGECACHE_FILE *file,
-                                  pgcache_page_no_t pageno,
-                                  uint level,
-                                  uchar *buff,
-                                  enum pagecache_page_type type,
-                                  enum pagecache_page_lock lock,
-                                  PAGECACHE_BLOCK_LINK **link,
-                                  pagecache_disk_read_validator validator,
-                                  uchar* validator_data);
+extern uchar *pagecache_read(PAGECACHE *pagecache,
+                             PAGECACHE_FILE *file,
+                             pgcache_page_no_t pageno,
+                             uint level,
+                             uchar *buff,
+                             enum pagecache_page_type type,
+                             enum pagecache_page_lock lock,
+                             PAGECACHE_BLOCK_LINK **link);
 
 #define  pagecache_write(P,F,N,L,B,T,O,I,M,K,R) \
-   pagecache_write_part(P,F,N,L,B,T,O,I,M,K,R,0,(P)->block_size,0,0)
+   pagecache_write_part(P,F,N,L,B,T,O,I,M,K,R,0,(P)->block_size)
 
-#define  pagecache_inject(P,F,N,L,B,T,O,I,K,R,V,D) \
+#define  pagecache_inject(P,F,N,L,B,T,O,I,K,R) \
    pagecache_write_part(P,F,N,L,B,T,O,I,PAGECACHE_WRITE_DONE, \
-                        K,R,0,(P)->block_size,V,D)
+                        K,R,0,(P)->block_size)
 
 extern my_bool pagecache_write_part(PAGECACHE *pagecache,
                                     PAGECACHE_FILE *file,
@@ -225,9 +223,7 @@ extern my_bool pagecache_write_part(PAGECACHE *pagecache,
                                     PAGECACHE_BLOCK_LINK **link,
                                     LSN first_REDO_LSN_for_page,
                                     uint offset,
-                                    uint size,
-                                    pagecache_disk_read_validator validator,
-                                    uchar* validator_data);
+                                    uint size);
 extern void pagecache_unlock(PAGECACHE *pagecache,
                              PAGECACHE_FILE *file,
                              pgcache_page_no_t pageno,
@@ -261,6 +257,11 @@ extern void pagecache_unpin_by_link(PAGECACHE *pagecache,
 /* PCFLUSH_ERROR and PCFLUSH_PINNED. */
 #define PCFLUSH_PINNED_AND_ERROR (PCFLUSH_ERROR|PCFLUSH_PINNED)
 
+#define pagecache_file_init(F,RC,WC,D) \
+  do{ \
+    (F).read_callback= (RC); (F).write_callback= (WC); \
+    (F).callback_data= (uchar*)(D); \
+  } while(0)
 
 #define flush_pagecache_blocks(A,B,C)                   \
   flush_pagecache_blocks_with_filter(A,B,C,NULL,NULL)

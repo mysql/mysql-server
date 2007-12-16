@@ -5,7 +5,7 @@
 #include "../trnman.h"
 
 extern my_bool maria_log_remove();
-extern void translog_example_table_init();
+extern void example_loghandler_init();
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
@@ -30,7 +30,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   MY_INIT(argv[0]);
 
-  plan(4);
+  plan(2);
 
   bzero(&pagecache, sizeof(pagecache));
   bzero(long_buffer, LONG_BUFFER_SIZE);
@@ -87,15 +87,6 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
 
-  translog_purge(lsn);
-  if (!translog_is_file(1))
-  {
-    fprintf(stderr, "First file was removed after first record\n");
-    translog_destroy();
-    exit(1);
-  }
-  ok(1, "First is not removed");
-
   for(i= 0; i < LOG_FILE_SIZE/6 && LSN_FILE_NO(lsn) == 1; i++)
   {
     if (translog_write_record(&lsn,
@@ -110,38 +101,51 @@ int main(int argc __attribute__((unused)), char *argv[])
     }
   }
 
-  translog_purge(lsn);
-  if (translog_is_file(1))
+  translog_destroy();
+  end_pagecache(&pagecache, 1);
+  ma_control_file_end();
+
   {
-    fprintf(stderr, "First file was not removed.\n");
-    translog_destroy();
-    exit(1);
+    MY_STAT stat_buff;
+    char file_name[FN_REFLEN];
+    for (i= 1; i <= 2; i++)
+    {
+      translog_filename_by_fileno(i, file_name);
+      if (my_stat(file_name, &stat_buff, MY_WME) == NULL)
+      {
+        fprintf(stderr, "No file '%s'\n", file_name);
+        exit(1);
+      }
+      if (my_delete(file_name, MYF(MY_WME)) != 0)
+      {
+        fprintf(stderr, "Error %d during removing file'%s'\n",
+                errno, file_name);
+        exit(1);
+      }
+    }
   }
 
-  ok(1, "First file is removed");
-
-  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_buffer;
-  parts[TRANSLOG_INTERNAL_PARTS + 0].length= LONG_BUFFER_SIZE;
-  if (translog_write_record(&lsn,
-			    LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE,
-			    &dummy_transaction_object, NULL, LONG_BUFFER_SIZE,
-			    TRANSLOG_INTERNAL_PARTS + 1, parts, NULL, NULL))
+  if (ma_control_file_create_or_open(TRUE))
   {
-    fprintf(stderr, "Can't write variable record\n");
-    translog_destroy();
+    fprintf(stderr, "Can't init control file (%d)\n", errno);
     exit(1);
   }
-
-  translog_purge(lsn);
-  if (!translog_is_file(2) || !translog_is_file(3))
+  if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
+                             PCACHE_PAGE, 0)) == 0)
   {
-    fprintf(stderr, "Second file (%d) or third file (%d) is not present.\n",
-	    translog_is_file(2), translog_is_file(3));
-    translog_destroy();
+    fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
+  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+                               LOG_FLAGS, 0, &translog_example_table_init))
+  {
+    fprintf(stderr, "Can't init loghandler (%d)\n", errno);
+    exit(1);
+  }
+  /* Suppressing of automatic record writing */
+  dummy_transaction_object.first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
-  ok(1, "Second and third files are not removed");
+  ok(1, "Log init OK");
 
   int4store(long_tr_id, 0);
   parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
@@ -152,24 +156,23 @@ int main(int argc __attribute__((unused)), char *argv[])
                             TRANSLOG_INTERNAL_PARTS + 1,
                             parts, NULL, NULL))
   {
-    fprintf(stderr, "Can't write last record\n");
+    fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
     translog_destroy();
     exit(1);
   }
-
-  translog_purge(lsn);
-  if (translog_is_file(2))
-  {
-    fprintf(stderr, "Second file is not removed\n");
-    translog_destroy();
-    exit(1);
-  }
-
-  ok(1, "Second file is removed");
 
   translog_destroy();
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
+
+  if (!translog_is_file(3))
+  {
+    fprintf(stderr, "No file #3\n");
+    exit(1);
+  }
+
+  ok(1, "New log is OK");
+
   if (maria_log_remove())
     exit(1);
   exit(0);

@@ -151,6 +151,10 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   info.errkey= -1;
   info.page_changed=1;
   info.keyread_buff= info.buff + share->base.max_key_block_length;
+  pagecache_file_init(info.dfile, &maria_page_crc_check_data,
+                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                       &maria_page_crc_set_normal :
+                       &maria_page_filler_set_normal), share);
   bitmap_init(&info.changed_fields, changed_fields_bitmap,
               share->base.fields, 0);
   if ((*share->init)(&info))
@@ -714,6 +718,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     errpos= 5;
 
     share->kfile.file= kfile;
+    pagecache_file_init(share->kfile, &maria_page_crc_check_index,
+                        (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                         &maria_page_crc_set_index :
+                         &maria_page_filler_set_normal), share);
     share->this_process=(ulong) getpid();
     share->last_process= share->state.process;
     share->base.key_parts=key_parts;
@@ -1062,7 +1070,7 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
   {
     safe_mutex_assert_owner(&share->intern_lock);
   }
-  if (share->base.born_transactional && translog_inited &&
+  if (share->base.born_transactional && translog_status == TRANSLOG_OK &&
       !maria_in_recovery)
   {
     /*
@@ -1100,7 +1108,6 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
 
 uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
 {
-  /** @todo RECOVERY write it only at checkpoint time */
   uchar  buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
   uchar *ptr=buff;
   uint	i, keys= (uint) state->header.keys;
@@ -1143,7 +1150,6 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   {
     mi_sizestore(ptr,state->key_root[i]);		ptr+= 8;
   }
-  /** @todo RECOVERY BUG key_del is a problem for recovery */
   mi_sizestore(ptr,state->key_del);	        	ptr+= 8;
   if (pWrite & 2)				/* From maria_chk */
   {
@@ -1535,6 +1541,14 @@ int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share,
   info->dfile.file= share->bitmap.file.file=
     my_open(share->data_file_name, share->mode | O_SHARE,
             MYF(MY_WME));
+  pagecache_file_init(share->bitmap.file, &maria_page_crc_check_bitmap,
+                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                       &maria_page_crc_set_normal :
+                       &maria_page_filler_set_bitmap), share);
+  pagecache_file_init(info->dfile, &maria_page_crc_check_data,
+                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                       &maria_page_crc_set_normal :
+                       &maria_page_filler_set_normal), share);
   return info->dfile.file >= 0 ? 0 : 1;
 }
 
@@ -1549,6 +1563,10 @@ int _ma_open_keyfile(MARIA_SHARE *share)
   share->kfile.file= my_open(share->unique_file_name,
                              share->mode | O_SHARE,
                              MYF(MY_WME));
+  pagecache_file_init(share->kfile, &maria_page_crc_check_index,
+                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                       &maria_page_crc_set_index :
+                       &maria_page_filler_set_normal), share);
   pthread_mutex_unlock(&share->intern_lock);
   return (share->kfile.file < 0);
 }

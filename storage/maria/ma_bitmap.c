@@ -127,11 +127,8 @@
 #define FULL_HEAD_PAGE 4
 #define FULL_TAIL_PAGE 7
 
-/* If we don't have page checksum enabled, the bitmap page ends with this */
-uchar maria_bitmap_marker[4]=
-{(uchar) 255, (uchar) 255, (uchar) 255, (uchar) 254};
-uchar maria_normal_page_marker[4]=
-{(uchar) 255, (uchar) 255, (uchar) 255, (uchar) 255};
+/*#define WRONG_BITMAP_FLUSH 1*/ /*define only for provoking bugs*/
+#undef WRONG_BITMAP_FLUSH
 
 static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
                                     MARIA_FILE_BITMAP *bitmap,
@@ -143,14 +140,49 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
 static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
                                            MARIA_FILE_BITMAP *bitmap)
 {
+  DBUG_ENTER("write_changed_bitmap");
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
-  return (pagecache_write(share->pagecache,
-                          &bitmap->file, bitmap->page, 0,
-                          (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
-                          PAGECACHE_LOCK_LEFT_UNLOCKED,
-                          PAGECACHE_PIN_LEFT_UNPINNED,
-                          PAGECACHE_WRITE_DELAY, 0,
-                          LSN_IMPOSSIBLE));
+  DBUG_ASSERT(bitmap->file.write_callback != 0);
+  DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
+  if ((bitmap->non_flushable == 0)
+#ifdef WRONG_BITMAP_FLUSH
+      || 1
+#endif
+      )
+  {
+    my_bool res= pagecache_write(share->pagecache,
+                                 &bitmap->file, bitmap->page, 0,
+                                 (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
+                                 PAGECACHE_LOCK_LEFT_UNLOCKED,
+                                 PAGECACHE_PIN_LEFT_UNPINNED,
+                                 PAGECACHE_WRITE_DELAY, 0, LSN_IMPOSSIBLE);
+    DBUG_RETURN(res);
+  }
+  else
+  {
+    /**
+      @todo RECOVERY BUG
+      Not flushable: its content is not reflected by the log, to honour WAL we
+      must keep the bitmap page pinned. Scenario of INSERT:
+      REDO - UNDO (written to log but not forced)
+      bitmap goes to page cache (because other INSERT needs to)
+      and then to disk (pagecache eviction)
+      crash: recovery will not find REDO-UNDO, table is corrupted.
+      Solutions:
+      give LSNs to bitmap pages or change pagecache to flush all log when
+      flushing a bitmap page or keep bitmap page pinned until checkpoint.
+    */
+    MARIA_PINNED_PAGE page_link;
+    int res= pagecache_write(share->pagecache,
+                             &bitmap->file, bitmap->page, 0,
+                             (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
+                             PAGECACHE_LOCK_READ, PAGECACHE_PIN,
+                             PAGECACHE_WRITE_DELAY, &page_link.link,
+                             LSN_IMPOSSIBLE);
+    page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+    push_dynamic(&bitmap->pinned_pages, (void*) &page_link);
+    DBUG_RETURN(res);
+  }
 }
 
 /*
@@ -180,12 +212,18 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   size*= 2;
 #endif
 
-  if (!(bitmap->map= (uchar*) my_malloc(size, MYF(MY_WME))))
+  if (((bitmap->map= (uchar*) my_malloc(size, MYF(MY_WME))) == NULL) ||
+      my_init_dynamic_array(&bitmap->pinned_pages,
+                            sizeof(MARIA_PINNED_PAGE), 1, 1))
     return 1;
 
   bitmap->file.file= file;
   bitmap->block_size= share->block_size;
-  /* Size needs to be alligned on 6 */
+  pagecache_file_init(bitmap->file,  &maria_page_crc_check_bitmap,
+                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
+                       &maria_page_crc_set_normal :
+                       &maria_page_filler_set_bitmap), share);
+  /* Size needs to be aligned on 6 */
   aligned_bit_blocks= (share->block_size - PAGE_SUFFIX_SIZE) / 6;
   bitmap->total_size= aligned_bit_blocks * 6;
   /*
@@ -193,6 +231,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
     The +1 is to add the bitmap page, as this doesn't have to be covered
   */
   bitmap->pages_covered= aligned_bit_blocks * 16 + 1;
+  bitmap->flush_all_requested= bitmap->non_flushable= 0;
 
   /* Update size for bits */
   /* TODO; Make this dependent of the row size */
@@ -207,6 +246,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   bitmap->sizes[7]= 0;
 
   pthread_mutex_init(&share->bitmap.bitmap_lock, MY_MUTEX_INIT_SLOW);
+  pthread_cond_init(&share->bitmap.bitmap_cond, 0);
 
   _ma_bitmap_reset_cache(share);
 
@@ -231,6 +271,8 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
 {
   my_bool res= _ma_bitmap_flush(share);
   pthread_mutex_destroy(&share->bitmap.bitmap_lock);
+  pthread_cond_destroy(&share->bitmap.bitmap_cond);
+  delete_dynamic(&share->bitmap.pinned_pages);
   my_free((uchar*) share->bitmap.map, MYF(MY_ALLOW_ZERO_PTR));
   share->bitmap.map= 0;
   return res;
@@ -273,6 +315,112 @@ my_bool _ma_bitmap_flush(MARIA_SHARE *share)
 }
 
 
+/**
+   Dirty-page filtering criteria for bitmap pages
+
+   @param  type                Page's type
+   @param  pageno              Page's number
+   @param  rec_lsn             Page's rec_lsn
+   @param  arg                 pages_covered of bitmap
+*/
+
+static enum pagecache_flush_filter_result
+filter_flush_bitmap_pages(enum pagecache_page_type type
+                          __attribute__ ((unused)),
+                          pgcache_page_no_t pageno,
+                          LSN rec_lsn __attribute__ ((unused)),
+                          void *arg)
+{
+  return ((pageno % (*(ulong*)arg)) == 0);
+}
+
+
+/**
+   Flushes current bitmap page to the pagecache, and then all bitmap pages
+   from pagecache to the file. Used by Checkpoint.
+
+   @param  share               Table's share
+*/
+
+my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
+{
+  my_bool res= 0;
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  DBUG_ENTER("_ma_bitmap_flush_all");
+  pthread_mutex_lock(&bitmap->bitmap_lock);
+  if (bitmap->changed)
+  {
+    bitmap->flush_all_requested= TRUE;
+#ifndef WRONG_BITMAP_FLUSH
+    while (bitmap->non_flushable > 0)
+    {
+      DBUG_PRINT("info", ("waiting for bitmap to be flushable"));
+      pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
+    }
+#endif
+    /*
+      Bitmap is in a flushable state: its contents in memory are reflected by
+      log records (complete REDO-UNDO groups) and all bitmap pages are
+      unpinned. We keep the mutex to preserve this situation, and flush to the
+      file.
+    */
+    res= write_changed_bitmap(share, bitmap);
+    bitmap->changed= FALSE;
+    /*
+      We do NOT use FLUSH_KEEP_LAZY because we must be sure that bitmap
+      pages have been flushed. That's a condition of correctness of
+      Recovery: data pages may have been all flushed, if we write the
+      checkpoint record Recovery will start from after their REDOs. If
+      bitmap page was not flushed, as the REDOs about it will be skipped, it
+      will wrongly not be recovered. If bitmap pages had a rec_lsn it would
+      be different.
+      There should be no pinned pages as bitmap->non_flushable==0.
+    */
+    if (flush_pagecache_blocks_with_filter(share->pagecache,
+                                           &bitmap->file, FLUSH_KEEP,
+                                           filter_flush_bitmap_pages,
+                                           &bitmap->pages_covered) &
+        PCFLUSH_PINNED_AND_ERROR)
+      res= TRUE;
+    bitmap->flush_all_requested= FALSE;
+    /*
+      Some well-behaved threads may be waiting for flush_all_requested to
+      become false, wake them up.
+    */
+    DBUG_PRINT("info", ("bitmap flusher waking up others"));
+    pthread_cond_broadcast(&bitmap->bitmap_cond);
+  }
+  pthread_mutex_unlock(&bitmap->bitmap_lock);
+  DBUG_RETURN(res);
+}
+
+
+/**
+  @brief Unpin all pinned bitmap pages
+
+  @param  share            Table's share
+
+  @return Operation status
+    @retval   0   ok
+*/
+
+static void _ma_bitmap_unpin_all(MARIA_SHARE *share)
+{
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  MARIA_PINNED_PAGE *page_link= ((MARIA_PINNED_PAGE*)
+                                 dynamic_array_ptr(&bitmap->pinned_pages, 0));
+  MARIA_PINNED_PAGE *pinned_page= page_link + bitmap->pinned_pages.elements;
+  DBUG_ENTER("_ma_bitmap_unpin_all");
+  DBUG_PRINT("info", ("pinned: %u", bitmap->pinned_pages.elements));
+  while (pinned_page-- != page_link)
+    pagecache_unlock_by_link(share->pagecache, pinned_page->link,
+                             pinned_page->unlock, PAGECACHE_UNPIN,
+                             LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, TRUE);
+  bitmap->pinned_pages.elements= 0;
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Intialize bitmap in memory to a zero bitmap
 
@@ -290,8 +438,6 @@ void _ma_bitmap_delete_all(MARIA_SHARE *share)
   if (bitmap->map)                              /* Not in create */
   {
     bzero(bitmap->map, bitmap->block_size);
-    memcpy(bitmap->map + bitmap->block_size - sizeof(maria_bitmap_marker),
-           maria_bitmap_marker, sizeof(maria_bitmap_marker));
     bitmap->changed= 1;
     bitmap->page= 0;
     bitmap->used_size= bitmap->total_size;
@@ -616,8 +762,6 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
     */
     share->state.state.data_file_length= end_of_page;
     bzero(bitmap->map, bitmap->block_size);
-    memcpy(bitmap->map + bitmap->block_size - sizeof(maria_bitmap_marker),
-           maria_bitmap_marker, sizeof(maria_bitmap_marker));
     bitmap->used_size= 0;
 #ifndef DBUG_OFF
     memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
@@ -627,9 +771,9 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
   bitmap->used_size= bitmap->total_size;
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
   res= pagecache_read(share->pagecache,
-                       (PAGECACHE_FILE*)&bitmap->file, page, 0,
-                       (uchar*) bitmap->map,
-                       PAGECACHE_PLAIN_PAGE,
+                      &bitmap->file, page, 0,
+                      (uchar*) bitmap->map,
+                      PAGECACHE_PLAIN_PAGE,
                       PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == NULL;
 
   /*
@@ -641,15 +785,6 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
     when running without any checksums.
   */
 
-  if (!res && !(share->options & HA_OPTION_PAGE_CHECKSUM) &&
-      !memcmp(bitmap->map + bitmap->block_size -
-              sizeof(maria_normal_page_marker),
-              maria_normal_page_marker,
-              sizeof(maria_normal_page_marker)))
-  {
-    res= 1;
-    my_errno= HA_ERR_WRONG_IN_RECORD;             /* File crashed */
-  }
 #ifndef DBUG_OFF
   if (!res)
     memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
@@ -684,12 +819,6 @@ static my_bool _ma_change_bitmap_page(MARIA_HA *info,
 
   if (bitmap->changed)
   {
-    /**
-       @todo RECOVERY BUG this is going to flush the bitmap page possibly to
-       disk even though it could be over-allocated with not yet any REDO-UNDO
-       complete group (WAL violation: no way to undo the over-allocation if
-       crash). See also collect_tables().
-    */
     if (write_changed_bitmap(info->s, bitmap))
       DBUG_RETURN(1);
     bitmap->changed= 0;
@@ -1973,6 +2102,73 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
 }
 
 
+/**
+   Make a transition of MARIA_FILE_BITMAP::non_flushable.
+   If the bitmap becomes flushable, which requires that REDO-UNDO has been
+   logged and all bitmap pages touched by the thread have a correct
+   allocation, it unpins all bitmap pages, and if _ma_bitmap_flush_all() is
+   waiting (in practice it is a checkpoint), it wakes it up.
+   If the bitmap becomes or stays unflushable, the function merely records it
+   unless a concurrent _ma_bitmap_flush_all() is happening, in which case the
+   function first waits for the flush to be done.
+
+   @param  share               Table's share
+   @param  non_flushable_inc   Increment of MARIA_FILE_BITMAP::non_flushable
+                               (-1 or +1).
+*/
+
+void _ma_bitmap_flushable(MARIA_SHARE *share, int non_flushable_inc)
+{
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  if (non_flushable_inc == -1)
+  {
+    pthread_mutex_lock(&bitmap->bitmap_lock);
+    DBUG_ASSERT(bitmap->non_flushable > 0);
+    if (--bitmap->non_flushable == 0)
+    {
+      _ma_bitmap_unpin_all(share);
+      if (unlikely(bitmap->flush_all_requested))
+      {
+        DBUG_PRINT("info", ("bitmap flushable waking up flusher"));
+        pthread_cond_broadcast(&bitmap->bitmap_cond);
+      }
+    }
+    DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
+    pthread_mutex_unlock(&bitmap->bitmap_lock);
+    return;
+  }
+  DBUG_ASSERT(non_flushable_inc == 1);
+  /* It is a read without mutex because only an optimization */
+  if (unlikely(bitmap->flush_all_requested))
+  {
+    /*
+      _ma_bitmap_flush_all() is waiting for the bitmap to become
+      flushable. Not the moment to make the bitmap unflushable or more
+      unflushable; let's rather back off and wait. If we didn't do this, with
+      multiple writers, there may always be one thread causing the bitmap to
+      be unflushable and _ma_bitmap_flush_all() would wait for long.
+      There should not be a deadlock because if our thread increased
+      non_flushable (and thus _ma_bitmap_flush_all() is waiting for at least
+      our thread), it is not going to increase it more so is not going to come
+      here.
+    */
+    pthread_mutex_lock(&bitmap->bitmap_lock);
+    while (bitmap->flush_all_requested)
+    {
+      DBUG_PRINT("info", ("waiting for bitmap flusher"));
+      pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
+    }
+    pthread_mutex_unlock(&bitmap->bitmap_lock);
+  }
+  /*
+    Ok to set without mutex: we didn't touch the bitmap's content yet; when we
+    touch it we will take the mutex.
+  */
+  bitmap->non_flushable++;
+  DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
+}
+
+
 /*
   Correct bitmap pages to reflect the true allocation
 
@@ -2015,7 +2211,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
   */
   current_bitmap_value= FULL_HEAD_PAGE;
 
-  pthread_mutex_lock(&info->s->bitmap.bitmap_lock);
+  pthread_mutex_lock(&bitmap->bitmap_lock);
 
   /* First handle head block */
   if (block->used & BLOCKUSED_USED)
@@ -2065,11 +2261,23 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
                                         block->page, page_count))
       goto err;
   }
-  pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);
+
+  if (--bitmap->non_flushable == 0)
+  {
+    _ma_bitmap_unpin_all(info->s);
+    if (unlikely(bitmap->flush_all_requested))
+    {
+      DBUG_PRINT("info", ("bitmap flushable waking up flusher"));
+      pthread_cond_broadcast(&bitmap->bitmap_cond);
+    }
+  }
+  DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
+
+  pthread_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_RETURN(0);
 
 err:
-  pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);
+  pthread_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_RETURN(1);
 }
 
@@ -2257,17 +2465,18 @@ int _ma_bitmap_create_first(MARIA_SHARE *share)
 {
   uint block_size= share->bitmap.block_size;
   File file= share->bitmap.file.file;
-  char marker[sizeof(maria_bitmap_marker)];
+  char marker[CRC_SIZE];
 
-  if (share->options & HA_OPTION_PAGE_CHECKSUM)
-    bzero(marker, sizeof(marker));
-  else
-    bmove(marker, maria_bitmap_marker, sizeof(marker));
+  /*
+    Next write operation of the page will write correct CRC
+    if it is needed
+  */
+  int4store(marker, MARIA_NO_CRC_BITMAP_PAGE);
 
-  if (my_chsize(file, block_size - sizeof(maria_bitmap_marker),
+  if (my_chsize(file, block_size - sizeof(marker),
                 0, MYF(MY_WME)) ||
-      my_pwrite(file, marker, sizeof(maria_bitmap_marker),
-                block_size - sizeof(maria_bitmap_marker),
+      my_pwrite(file, marker, sizeof(marker),
+                block_size - sizeof(marker),
                 MYF(MY_NABP | MY_WME)))
     return 1;
   share->state.state.data_file_length= block_size;

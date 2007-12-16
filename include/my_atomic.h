@@ -66,7 +66,16 @@
   v=tmp;
 #endif
 
-#ifdef __GNUC__
+/*
+  transparent_union doesn't work in g++
+  Bug ?
+
+  Darwin's gcc doesn't want to put pointers in a transparent_union
+  when built with -arch ppc64. Complains:
+  warning: 'transparent_union' attribute ignored
+*/
+#if defined(__GNUC__) && !defined(__cplusplus) && \
+      ! (defined(__APPLE__) && defined(_ARCH_PPC64))
 /*
   we want to be able to use my_atomic_xxx functions with
   both signed and unsigned integers. But gcc will issue a warning
