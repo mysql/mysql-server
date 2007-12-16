@@ -1429,7 +1429,7 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info,int extend)
     then recrate all indexes.
 */
 
-static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
+static int mi_drop_all_indexes(HA_CHECK *param, MI_INFO *info, my_bool force)
 {
   MYISAM_SHARE *share= info->s;
   MI_STATE_INFO *state= &share->state;
@@ -2671,14 +2671,14 @@ int mi_repair_parallel(HA_CHECK *param, register MI_INFO *info,
   /*
     Quick repair (not touching data file, rebuilding indexes):
     {
-      Read  cache is (MI_CHECK *param)->read_cache using info->dfile.
+      Read  cache is (HA_CHECK *param)->read_cache using info->dfile.
     }
 
     Non-quick repair (rebuilding data file and indexes):
     {
       Master thread:
 
-        Read  cache is (MI_CHECK *param)->read_cache using info->dfile.
+        Read  cache is (HA_CHECK *param)->read_cache using info->dfile.
         Write cache is (MI_INFO   *info)->rec_cache  using new_file.
 
       Slave threads:

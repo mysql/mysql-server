@@ -30,7 +30,6 @@ my_error_reporter my_getopt_error_reporter= &default_reporter;
 static int findopt(char *, uint, const struct my_option **, char **);
 my_bool getopt_compare_strings(const char *, const char *, uint);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
-static longlong getopt_ll_limit_value(longlong, const struct my_option *);
 static ulonglong getopt_ull(char *, const struct my_option *, int *);
 static double getopt_double(char *arg, const struct my_option *optp, int *err);
 static void init_variables(const struct my_option *options,
@@ -789,8 +788,8 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
   Returns "fixed" value.
 */
 
-static longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
-                                      bool *fix)
+longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
+                               bool *fix)
 {
   longlong old= num;
   bool adjusted= FALSE;
@@ -859,7 +858,7 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
-                                 bool *fix);
+                                 bool *fix)
 {
   bool adjusted= FALSE;
   ulonglong old= num;
@@ -965,25 +964,27 @@ static void init_one_value(const struct my_option *optp, uchar* *variable,
     *((my_bool*) variable)= (my_bool) value;
     break;
   case GET_INT:
-    *((int*) variable)= (int) getopt_ll_limit_value(value, optp);
+    *((int*) variable)= (int) getopt_ll_limit_value(value, optp, NULL);
     break;
   case GET_UINT:
-    *((uint*) variable)= (uint) getopt_ull_limit_value(value, optp);
+    *((uint*) variable)= (uint) getopt_ull_limit_value(value, optp, NULL);
     break;
   case GET_ENUM:
     *((uint*) variable)= (uint) value;
     break;
   case GET_LONG:
-    *((long*) variable)= (long) getopt_ll_limit_value(value, optp);
+    *((long*) variable)= (long) getopt_ll_limit_value(value, optp, NULL);
     break;
   case GET_ULONG:
-    *((ulong*) variable)= (ulong) getopt_ull_limit_value(value, optp);
+    *((ulong*) variable)= (ulong) getopt_ull_limit_value(value, optp, NULL);
     break;
   case GET_LL:
-    *((longlong*) variable)= (longlong) getopt_ll_limit_value(value, optp);
+    *((longlong*) variable)= (longlong) getopt_ll_limit_value(value, optp,
+                                                              NULL);
     break;
   case GET_ULL:
-    *((ulonglong*) variable)=  (ulonglong) getopt_ull_limit_value(value, optp);
+    *((ulonglong*) variable)=  (ulonglong) getopt_ull_limit_value(value, optp,
+                                                                  NULL);
     break;
   case GET_SET:
     *((ulonglong*) variable)=  (ulonglong) value;

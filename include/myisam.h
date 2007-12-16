@@ -341,7 +341,7 @@ typedef struct st_mi_sort_param
   uchar *rec_buff;
   void *wordlist, *wordptr;
   MEM_ROOT wordroot;
-  char *record;
+  uchar *record;
   MY_TMPDIR *tmpdir;
 
   /* 

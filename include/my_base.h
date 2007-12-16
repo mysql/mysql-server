@@ -193,7 +193,7 @@ enum ha_extra_function {
     begin and end of a statement.
   */
   HA_EXTRA_ATTACH_CHILDREN,
-  HA_EXTRA_DETACH_CHILDREN
+  HA_EXTRA_DETACH_CHILDREN,
   /* Inform handler that we will do a rename */
   HA_EXTRA_PREPARE_FOR_RENAME
 };
