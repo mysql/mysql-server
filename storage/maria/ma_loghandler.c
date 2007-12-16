@@ -2266,7 +2266,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
     Send page by page in the pagecache what we are going to write on the
     disk
   */
-  file.file= buffer->file;
+  file= buffer->file;
   for (i= 0, pg= LSN_OFFSET(buffer->offset) / TRANSLOG_PAGE_SIZE;
        i < buffer->size;
        i+= TRANSLOG_PAGE_SIZE, pg++)
@@ -2408,6 +2408,68 @@ translog_dummy_callback(__attribute__((unused)) uchar *page,
 
 
 /**
+  @brief Checks and removes sector protection.
+
+  @param page            reference on the page content.
+  @param file            transaction log descriptor.
+
+  @retvat 0 OK
+  @retval 1 Error
+*/
+
+static my_bool
+translog_check_sector_protection(uchar *page, TRANSLOG_FILE *file)
+{
+  uint i, offset;
+  uchar *table= page + page_overhead[page[TRANSLOG_PAGE_FLAGS]] -
+    TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE; ;
+  uint8 current= table[0];
+  DBUG_ENTER("translog_check_sector_protection");
+
+  for (i= 1, offset= DISK_DRIVE_SECTOR_SIZE;
+       i < TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE;
+       i++, offset+= DISK_DRIVE_SECTOR_SIZE)
+  {
+    /*
+      TODO: add chunk counting for "suspecting" sectors (difference is
+      more than 1-2), if difference more then present chunks then it is
+      the problem.
+    */
+    uint8 test= page[offset];
+    DBUG_PRINT("info", ("sector: #%u  offset: %u  current: %lx "
+                        "read: 0x%x  stored: 0x%x%x",
+                        i, offset, (ulong) current,
+                        (uint) uint2korr(page + offset), (uint) table[i],
+                        (uint) table[i + 1]));
+    /*
+      3 is minimal possible record length. So we can have "distance"
+      between 2 sectors value more then DISK_DRIVE_SECTOR_SIZE / 3
+      only if it is old value, i.e. the sector was not written.
+    */
+    if (((test < current) &&
+         (0xFFL - current + test > DISK_DRIVE_SECTOR_SIZE / 3)) ||
+        ((test >= current) &&
+         (test - current > DISK_DRIVE_SECTOR_SIZE / 3)))
+    {
+      if (translog_recover_page_up_to_sector(page, offset))
+        DBUG_RETURN(1);
+      file->was_recovered= 1;
+      DBUG_RETURN(0);
+    }
+
+    /* Restore value on the page */
+    page[offset]= table[i];
+    current= test;
+    DBUG_PRINT("info", ("sector: #%u  offset: %u  current: %lx  "
+                        "read: 0x%x  stored: 0x%x",
+                        i, offset, (ulong) current,
+                        (uint) page[offset], (uint) table[i]));
+  }
+  DBUG_RETURN(0);
+}
+
+
+/**
   @brief Log page validator (read callback)
 
   @param page            The page data to check
@@ -2476,50 +2538,10 @@ static my_bool translog_page_validator(uchar *page,
     }
     page_pos+= CRC_SIZE;                      /* Skip crc */
   }
-  if (flags & TRANSLOG_SECTOR_PROTECTION)
+  if (flags & TRANSLOG_SECTOR_PROTECTION &&
+      translog_check_sector_protection(page, data))
   {
-    uint i, offset;
-    uchar *table= page_pos;
-    uint8 current= table[0];
-    for (i= 1, offset= DISK_DRIVE_SECTOR_SIZE;
-         i < TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE;
-         i++, offset+= DISK_DRIVE_SECTOR_SIZE)
-    {
-      /*
-         TODO: add chunk counting for "suspecting" sectors (difference is
-         more than 1-2), if difference more then present chunks then it is
-         the problem.
-      */
-      uint8 test= page[offset];
-      DBUG_PRINT("info", ("sector: #%u  offset: %u  current: %lx "
-                          "read: 0x%x  stored: 0x%x%x",
-                          i, offset, (ulong) current,
-                          (uint) uint2korr(page + offset), (uint) table[i],
-                          (uint) table[i + 1]));
-      /*
-        3 is minimal possible record length. So we can have "distance"
-        between 2 sectors value more then DISK_DRIVE_SECTOR_SIZE / 3
-        only if it is old value, i.e. the sector was not written.
-      */
-      if (((test < current) &&
-           (0xFFL - current + test > DISK_DRIVE_SECTOR_SIZE / 3)) ||
-          ((test >= current) &&
-           (test - current > DISK_DRIVE_SECTOR_SIZE / 3)))
-      {
-        if (translog_recover_page_up_to_sector(page, offset))
-          DBUG_RETURN(1);
-        data->was_recovered= 1;
-        DBUG_RETURN(0);
-      }
-
-      /* Restore value on the page */
-      page[offset]= table[i];
-      current= test;
-      DBUG_PRINT("info", ("sector: #%u  offset: %u  current: %lx  "
-                          "read: 0x%x  stored: 0x%x",
-                          i, offset, (ulong) current,
-                          (uint) page[offset], (uint) table[i]));
-    }
+    DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
@@ -2729,15 +2751,14 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
   }
   file= get_logfile_by_number(file_no);
   buffer=
-      (uchar*) pagecache_valid_read(log_descriptor.pagecache, &file->handler,
-                                     LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
-                                     3, (direct_link ? NULL : (char*) buffer),
-                                     PAGECACHE_PLAIN_PAGE,
-                                     (direct_link ?
-                                      PAGECACHE_LOCK_READ :
-                                      PAGECACHE_LOCK_LEFT_UNLOCKED),
-                                     direct_link,
-                                     &translog_page_validator, (uchar*) data);
+    (uchar*) pagecache_read(log_descriptor.pagecache, &file->handler,
+                            LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
+                            3, (direct_link ? NULL : (char*) buffer),
+                            PAGECACHE_PLAIN_PAGE,
+                            (direct_link ?
+                             PAGECACHE_LOCK_READ :
+                             PAGECACHE_LOCK_LEFT_UNLOCKED),
+                            direct_link);
   DBUG_PRINT("info", ("Direct link is assigned to : 0x%lx * 0x%lx",
                       (ulong) direct_link,
                       (ulong)(direct_link ? *direct_link : NULL)));
