@@ -1293,7 +1293,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
         if (found) idx += 1;
 #else
         if (found) {
-            kv = pma->pairs[idx]; goto replaceit;
+            kv = kv_pair_ptr(pma->pairs[idx]); goto replaceit;
         }
 #endif
     } else if (pma->dup_mode & TOKU_DB_DUP) {
@@ -1307,7 +1307,10 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
             kv = kv_pair_ptr(kv);
             if (0==pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv->key, kv->keylen))) {
             replaceit:
-                if (!kv_pair_deleted(pma->pairs[idx])) {
+                if (kv_pair_deleted(pma->pairs[idx])) {
+                    *replaced_v_size = -1;
+                    pma->pairs[idx] = kv;
+                } else {
                     *replaced_v_size = kv->vallen;
                     *fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
                     r=toku_logger_log_phys_add_or_delete_in_leaf(pma->db, txn, diskoff, 0, kv);
