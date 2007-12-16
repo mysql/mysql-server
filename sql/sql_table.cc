@@ -3137,8 +3137,9 @@ bool mysql_create_table_no_lock(THD *thd,
   if (check_engine(thd, table_name, create_info))
     DBUG_RETURN(TRUE);
   db_options= create_info->table_options;
-  if (create_info->row_type == ROW_TYPE_DYNAMIC)
-    db_options|=HA_OPTION_PACK_RECORD;
+  if (create_info->row_type != ROW_TYPE_FIXED &&
+      create_info->row_type != ROW_TYPE_DEFAULT)
+    db_options|= HA_OPTION_PACK_RECORD;
   alias= table_case_name(create_info, table_name);
   if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root,
                               create_info->db_type)))
@@ -5015,8 +5016,7 @@ compare_tables(TABLE *table,
     }
 
     /* Don't pack rows in old tables if the user has requested this. */
-    if (create_info->row_type == ROW_TYPE_DYNAMIC ||
-	(new_field->flags & BLOB_FLAG) ||
+    if ((new_field->flags & BLOB_FLAG) ||
 	new_field->sql_type == MYSQL_TYPE_VARCHAR &&
 	create_info->row_type != ROW_TYPE_FIXED)
       create_info->table_options|= HA_OPTION_PACK_RECORD;

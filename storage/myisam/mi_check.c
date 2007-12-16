@@ -2028,7 +2028,7 @@ int lock_file(HA_CHECK *param, File file, my_off_t start, int lock_type,
 {
   if (my_lock(file,lock_type,start,F_TO_EOF,
 	      param->testflag & T_WAIT_FOREVER ? MYF(MY_SEEK_NOT_DONE) :
-	      MYF(MY_SEEK_NOT_DONE |  MY_DONT_WAIT)))
+	      MYF(MY_SEEK_NOT_DONE |  MY_SHORT_WAIT)))
   {
     mi_check_print_error(param," %d when locking %s '%s'",my_errno,filetype,filename);
     param->error_printed=2;		/* Don't give that data is crashed */

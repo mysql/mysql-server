@@ -36,6 +36,7 @@ class ha_maria :public handler
 {
   MARIA_HA *file;
   ulonglong int_table_flags;
+  MARIA_RECORD_POS remember_pos;
   char *data_file_name, *index_file_name;
   enum data_file_type data_file_type;
   bool can_enable_indexes;
@@ -101,7 +102,8 @@ public:
   int rnd_end(void);
   int rnd_next(uchar * buf);
   int rnd_pos(uchar * buf, uchar * pos);
-  int restart_rnd_next(uchar * buf, uchar * pos);
+  int remember_rnd_pos();
+  int restart_rnd_next(uchar * buf);
   void position(const uchar * record);
   int info(uint);
   int extra(enum ha_extra_function operation);

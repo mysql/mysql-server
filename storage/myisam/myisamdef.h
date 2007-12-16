@@ -284,7 +284,7 @@ struct st_myisam_info
   LIST open_list;
   IO_CACHE rec_cache;                   /* When cacheing records */
   uint preload_buff_size;               /* When preloading indexes */
-  myf lock_wait;                        /* is 0 or MY_DONT_WAIT */
+  myf lock_wait;                        /* is 0 or MY_SHORT_WAIT */
   my_bool was_locked;                   /* Was locked in panic */
   my_bool append_insert_at_end;         /* Set if concurrent insert */
   my_bool quick_mode;

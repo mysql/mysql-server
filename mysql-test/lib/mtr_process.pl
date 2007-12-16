@@ -474,12 +474,6 @@ sub mtr_kill_leftovers () {
 	  }
 	}
       }
-      else
-      {
-	mtr_warning("Found non pid file $elem in $rundir")
-	  if -f "$rundir/$elem";
-	next;
-      }
     }
     closedir(RUNDIR);
 

@@ -1761,6 +1761,24 @@ prototype_redo_exec_hook(COMMIT)
 }
 
 
+/*
+  Set position for next active record that will have key inserted
+*/
+
+static void set_lastpos(MARIA_HA *info, uchar *pos)
+{
+  ulonglong page;
+  uint dir_entry;
+
+  /* If we have checksum, it's before rowid */
+  if (info->s->calc_checksum)
+    pos+= HA_CHECKSUM_STORE_SIZE;
+  page= page_korr(pos);
+  dir_entry= dirpos_korr(pos + PAGE_STORE_SIZE);
+  info->cur_row.lastpos= ma_recordpos(page, dir_entry);
+}
+
+
 prototype_redo_exec_hook(CLR_END)
 {
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
@@ -1769,6 +1787,7 @@ prototype_redo_exec_hook(CLR_END)
   enum translog_record_type undone_record_type;
   const LOG_DESC *log_desc;
   my_bool row_entry= 0;
+  uchar *logpos;
   DBUG_ENTER("exec_REDO_LOGREC_CLR_END");
 
   if (info == NULL)
@@ -1782,6 +1801,19 @@ prototype_redo_exec_hook(CLR_END)
   set_undo_lsn_for_active_trans(rec->short_trid, previous_undo_lsn);
   tprint(tracef, "   CLR_END was about %s, undo_lsn now LSN (%lu,0x%lx)\n",
          log_desc->name, LSN_IN_PARTS(previous_undo_lsn));
+
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+      rec->record_length)
+  {
+    eprint(tracef, "Failed to read record\n");
+    return 1;
+  }
+  logpos= (log_record_buffer.str + LSN_STORE_SIZE + FILEID_STORE_SIZE +
+           CLR_TYPE_STORE_SIZE);
+
   if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
     tprint(tracef, "   state older than record\n");
@@ -1789,6 +1821,7 @@ prototype_redo_exec_hook(CLR_END)
     case LOGREC_UNDO_ROW_DELETE:
       row_entry= 1;
       share->state.state.records++;
+      set_lastpos(info, logpos);
       break;
     case LOGREC_UNDO_ROW_INSERT:
       share->state.state.records--;
@@ -1796,6 +1829,7 @@ prototype_redo_exec_hook(CLR_END)
       break;
     case LOGREC_UNDO_ROW_UPDATE:
       row_entry= 1;
+      set_lastpos(info, logpos);
       break;
     case LOGREC_UNDO_KEY_INSERT:
     case LOGREC_UNDO_KEY_DELETE:
@@ -1805,18 +1839,8 @@ prototype_redo_exec_hook(CLR_END)
     {
       uint key_nr;
       my_off_t page;
-      uchar buff[KEY_NR_STORE_SIZE + PAGE_STORE_SIZE];
-      if (translog_read_record(rec->lsn, LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                               CLR_TYPE_STORE_SIZE,
-                               KEY_NR_STORE_SIZE + PAGE_STORE_SIZE,
-                               buff, NULL) !=
-          KEY_NR_STORE_SIZE + PAGE_STORE_SIZE)
-      {
-        eprint(tracef, "Failed to read record\n");
-        DBUG_RETURN(1);
-      }
-      key_nr= key_nr_korr(buff);
-      page=  page_korr(buff + KEY_NR_STORE_SIZE);
+      key_nr= key_nr_korr(logpos);
+      page=  page_korr(logpos + KEY_NR_STORE_SIZE);
       share->state.key_root[key_nr]= (page == IMPOSSIBLE_PAGE_NO ?
                                       HA_OFFSET_ERROR :
                                       page * share->block_size);
@@ -1826,18 +1850,20 @@ prototype_redo_exec_hook(CLR_END)
       DBUG_ASSERT(0);
     }
     if (row_entry && share->calc_checksum)
-    {
-      uchar buff[HA_CHECKSUM_STORE_SIZE];
-      if (translog_read_record(rec->lsn, LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                               CLR_TYPE_STORE_SIZE, HA_CHECKSUM_STORE_SIZE,
-                               buff, NULL) != HA_CHECKSUM_STORE_SIZE)
-      {
-        eprint(tracef, "Failed to read record\n");
-        DBUG_RETURN(1);
-      }
-      share->state.state.checksum+= ha_checksum_korr(buff);
-    }
+      share->state.state.checksum+= ha_checksum_korr(logpos);
     share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+  }
+  else
+  {
+    /* We must set lastpos for upcoming undo delete keys */
+    switch (undone_record_type) {
+    case LOGREC_UNDO_ROW_DELETE:
+    case LOGREC_UNDO_ROW_UPDATE:
+      set_lastpos(info, logpos);
+      break;
+    default:
+      break;
+    }
   }
   if (row_entry)
     tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);

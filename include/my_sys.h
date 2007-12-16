@@ -62,12 +62,14 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_HOLD_ORIGINAL_MODES 128  /* my_copy() holds to file modes */
 #define MY_REDEL_MAKE_BACKUP 256
 #define MY_SEEK_NOT_DONE 32	/* my_lock may have to do a seek */
-#define MY_DONT_WAIT	64	/* my_lock() don't wait if can't lock */
+#define MY_SHORT_WAIT	64	/* my_lock() don't wait if can't lock */
+#define MY_FORCE_LOCK   128     /* use my_lock() even if disable_locking */
+#define MY_NO_WAIT      256	/* my_lock() don't wait at all */
 #define MY_ZEROFILL	32	/* my_malloc(), fill array with zero */
 #define MY_ALLOW_ZERO_PTR 64	/* my_realloc() ; zero ptr -> malloc */
 #define MY_FREE_ON_ERROR 128	/* my_realloc() ; Free old ptr on error */
 #define MY_HOLD_ON_ERROR 256	/* my_realloc() ; Return old ptr on error */
-#define MY_DONT_OVERWRITE_FILE 1024	/* my_copy: Don't overwrite file */
+#define MY_DONT_OVERWRITE_FILE 2048 /* my_copy: Don't overwrite file */
 #define MY_THREADSAFE 2048      /* my_seek(): lock fd mutex */
 
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */

@@ -94,7 +94,8 @@ class ha_myisam: public handler
   int rnd_init(bool scan);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar * buf, uchar *pos);
-  int restart_rnd_next(uchar *buf, uchar *pos);
+  int remember_rnd_pos();
+  int restart_rnd_next(uchar *buf);
   void position(const uchar *record);
   int info(uint);
   int extra(enum ha_extra_function operation);

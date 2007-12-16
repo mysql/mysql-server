@@ -871,6 +871,9 @@ void _ma_setup_functions(register MARIA_SHARE *share)
   share->end=       	     maria_scan_end_dummy;
   share->scan_init=          maria_scan_init_dummy;/* Compat. dummy function */
   share->scan_end=           maria_scan_end_dummy;/* Compat. dummy function */
+  share->scan_remember_pos=  _ma_def_scan_remember_pos;
+  share->scan_restore_pos=   _ma_def_scan_restore_pos;
+
   share->write_record_init=  _ma_write_init_default;
   share->write_record_abort= _ma_write_abort_default;
   share->keypos_to_recpos=   _ma_transparent_recpos;
@@ -936,8 +939,10 @@ void _ma_setup_functions(register MARIA_SHARE *share)
     share->write_record_abort= _ma_write_abort_block_record;
     share->scan_init=   _ma_scan_init_block_record;
     share->scan_end=    _ma_scan_end_block_record;
-    share->read_record= _ma_read_block_record;
     share->scan=        _ma_scan_block_record;
+    share->scan_remember_pos=  _ma_scan_remember_block_record;
+    share->scan_restore_pos=   _ma_scan_restore_block_record;
+    share->read_record= _ma_read_block_record;
     share->delete_record= _ma_delete_block_record;
     share->compare_record= _ma_compare_block_record;
     share->update_record= _ma_update_block_record;
@@ -994,7 +999,8 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
     if (keyinfo->seg[0].flag & HA_PACK_KEY)
     {						/* Prefix compression */
       if (!keyinfo->seg->charset || use_strnxfrm(keyinfo->seg->charset) ||
-          (keyinfo->seg->flag & HA_NULL_PART))
+          (keyinfo->seg->flag & HA_NULL_PART) ||
+          keyinfo->seg->charset->mbminlen > 1)
         keyinfo->bin_search= _ma_seq_search;
       else
         keyinfo->bin_search= _ma_prefix_search;
@@ -1468,12 +1474,14 @@ my_bool _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef)
   uchar buff[MARIA_COLUMNDEF_SIZE];
   uchar *ptr=buff;
 
-  mi_int2store(ptr,(ulong) columndef->offset);	ptr+= 2;
-  mi_int2store(ptr,columndef->type);		ptr+= 2;
-  mi_int2store(ptr,columndef->length);		ptr+= 2;
-  mi_int2store(ptr,columndef->fill_length);	ptr+= 2;
-  mi_int2store(ptr,columndef->null_pos);	ptr+= 2;
-  mi_int2store(ptr,columndef->empty_pos);	ptr+= 2;
+  mi_int2store(ptr,(ulong) columndef->column_nr); ptr+= 2;
+  mi_int2store(ptr,(ulong) columndef->offset);	  ptr+= 2;
+  mi_int2store(ptr,columndef->type);		  ptr+= 2;
+  mi_int2store(ptr,columndef->length);		  ptr+= 2;
+  mi_int2store(ptr,columndef->fill_length);	  ptr+= 2;
+  mi_int2store(ptr,columndef->null_pos);	  ptr+= 2;
+  mi_int2store(ptr,columndef->empty_pos);	  ptr+= 2;
+
   (*ptr++)= columndef->null_bit;
   (*ptr++)= columndef->empty_bit;
   ptr[0]= ptr[1]= ptr[2]= ptr[3]= 0;            ptr+= 4;  /* For future */
@@ -1482,6 +1490,7 @@ my_bool _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef)
 
 uchar *_ma_columndef_read(uchar *ptr, MARIA_COLUMNDEF *columndef)
 {
+  columndef->column_nr= mi_uint2korr(ptr);      ptr+= 2;
   columndef->offset= mi_uint2korr(ptr);         ptr+= 2;
   columndef->type=   mi_sint2korr(ptr);		ptr+= 2;
   columndef->length= mi_uint2korr(ptr);		ptr+= 2;
