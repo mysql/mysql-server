@@ -703,9 +703,7 @@ you must call this function before reserving the InnoDB kernel_mutex, to
 protect MySQL from setting thd->query NULL. If you print a thd of the current
 thread, we know that MySQL cannot modify thd->query, and it is not necessary
 to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
-the kernel_mutex.
-NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
-function! */
+the kernel_mutex. */
 extern "C"
 void
 innobase_mysql_prepare_print_arbitrary_thd(void)
@@ -716,8 +714,7 @@ innobase_mysql_prepare_print_arbitrary_thd(void)
 
 /*****************************************************************
 Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
-NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
-function! */
+*/
 extern "C"
 void
 innobase_mysql_end_print_arbitrary_thd(void)

@@ -95,5 +95,25 @@ get_innobase_type_from_mysql_type(
 	const void*	field)		/* in: MySQL Field */
 	__attribute__((nonnull));
 
+/*****************************************************************
+If you want to print a thd that is not associated with the current thread,
+you must call this function before reserving the InnoDB kernel_mutex, to
+protect MySQL from setting thd->query NULL. If you print a thd of the current
+thread, we know that MySQL cannot modify thd->query, and it is not necessary
+to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
+the kernel_mutex. */
+
+void
+innobase_mysql_prepare_print_arbitrary_thd(void);
+/*============================================*/
+
+/*****************************************************************
+Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
+*/
+
+void
+innobase_mysql_end_print_arbitrary_thd(void);
+/*========================================*/
+
 #endif
 #endif
