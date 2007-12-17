@@ -60,5 +60,5 @@ TokuDB allows at most a few thousand databases per file.
 @c man end
 
 @include everyman.texi
-@bye
+
 

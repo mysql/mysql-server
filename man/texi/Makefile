@@ -1,4 +1,4 @@
-MANPAGES = tdb_create
+MANPAGES = tdb_create tdb_del
 MANPAGES_TEXI = $(patsubst %,%.texi,$(MANPAGES))
 MANPAGES_POD = $(patsubst %,%.pod,$(MANPAGES))
 MANPAGES_3   = $(patsubst %,%.3,$(MANPAGES))

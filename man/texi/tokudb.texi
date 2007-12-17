@@ -35,6 +35,8 @@ Copyright @copyright{} 2007, Tokutek, Inc.
 
 @include tdb_create.texi
 
+@include tdb_del.texi
+
 @node Index
 @unnumbered Index
 
