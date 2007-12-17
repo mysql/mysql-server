@@ -1799,7 +1799,7 @@ static void test_pma_cursor_set_key() {
     for (i=0; i<n; i += 1) {
         k = htonl(i);
         toku_fill_dbt(&key, &k, sizeof k);
-        error = toku_pma_cursor_set_key(cursor, &key);
+        error = toku_pma_cursor_set_both(cursor, &key, 0);
         if (i % 10 == 0) {
             assert(error == 0);
             toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
@@ -1856,7 +1856,7 @@ static void test_pma_cursor_set_range() {
     for (i=0; i<100; i += 1) {
         k = htonl(i);
         toku_fill_dbt(&key, &k, sizeof k);
-        error = toku_pma_cursor_set_range(cursor, &key);
+        error = toku_pma_cursor_set_range_both(cursor, &key, 0);
         if (error != 0) {
             assert(error == DB_NOTFOUND);
             assert(i > largest_key);
@@ -2039,6 +2039,7 @@ static void test_pma_cursor_set_both() {
 
     error = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, n * (8 + sizeof (int) + sizeof (int)));
     assert(error == 0);
+    error = toku_pma_set_dup_compare(pma, toku_default_compare_fun); assert(error == 0); 
 
     PMA_CURSOR cursor;
     error = toku_pma_cursor(pma, &cursor, &skey, &sval);
@@ -2184,7 +2185,7 @@ static void test_dup_key_insert(int n) {
 
     k = htonl(2);
     toku_fill_dbt(&key, &k, sizeof k);
-    r = toku_pma_cursor_set_key(cursor, &key);
+    r = toku_pma_cursor_set_both(cursor, &key, 0);
     if (r != 0) {
         assert(n == 0);
     } else {
@@ -2376,7 +2377,7 @@ static void test_dupsort_key_insert(int n, int dup_data) {
     assert(r == 0);
 
     toku_fill_dbt(&key, &k, sizeof k);
-    r = toku_pma_cursor_set_key(cursor, &key);
+    r = toku_pma_cursor_set_both(cursor, &key, 0);
     if (r != 0) {
         assert(n == 0);
     } else {

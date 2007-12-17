@@ -107,14 +107,11 @@ int toku_pma_cursor_set_position_prev (PMA_CURSOR c);
    it has been deleted previously */
 int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val, int even_deleted);
 
-/* set the cursor to the matching key and value pair */
+/* move the cursor to the kv pair matching the key and the val if nonzero*/
 int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val);
 
-/* move the cursor to the kv pair matching the key */
-int toku_pma_cursor_set_key(PMA_CURSOR c, DBT *key);
-
-/* set the cursor to the smallest key in the pma >= key */
-int toku_pma_cursor_set_range(PMA_CURSOR c, DBT *key);
+/* set the cursor to the smallest key in the pma >= key and the val if nonzero*/
+int toku_pma_cursor_set_range_both(PMA_CURSOR c, DBT *key, DBT *val);
 
 /* delete the key value pair under the cursor, return the size of the pair */
 int toku_pma_cursor_delete_under(PMA_CURSOR /*c*/, int */*kvsize*/, u_int32_t /*rand4sem*/, u_int32_t */*fingerprint*/, int */*lastkeymatch*/);
