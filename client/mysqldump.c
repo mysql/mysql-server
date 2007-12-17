@@ -586,7 +586,9 @@ static void write_header(FILE *sql_file, char *db_name)
   {
     if (opt_comments)
     {
-      fprintf(sql_file, "-- MySQL dump %s\n--\n", DUMP_VERSION);
+      fprintf(sql_file,
+              "-- MySQL dump %s  Distrib %s, for %s (%s)\n--\n",
+              DUMP_VERSION, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
       fprintf(sql_file, "-- Host: %s    Database: %s\n",
               current_host ? current_host : "localhost", db_name ? db_name :
               "");
