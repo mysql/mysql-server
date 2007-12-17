@@ -4880,7 +4880,7 @@ lock_rec_insert_check_and_lock(
 
 	lock_mutex_enter_kernel();
 
-	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
+	ut_ad(lock_table_has(trx, index->table, LOCK_IX));
 
 	next_rec_heap_no = page_rec_get_heap_no(next_rec);
 
@@ -4895,7 +4895,7 @@ lock_rec_insert_check_and_lock(
 			/* Update the page max trx id field */
 			page_update_max_trx_id(block,
 					       buf_block_get_page_zip(block),
-					       thr_get_trx(thr)->id);
+					       trx->id);
 		}
 
 		*inherit = FALSE;
@@ -4934,7 +4934,7 @@ lock_rec_insert_check_and_lock(
 		/* Update the page max trx id field */
 		page_update_max_trx_id(block,
 				       buf_block_get_page_zip(block),
-				       thr_get_trx(thr)->id);
+				       trx->id);
 	}
 
 #ifdef UNIV_DEBUG
