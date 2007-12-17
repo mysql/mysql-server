@@ -33,8 +33,16 @@ Either @code{NULL} or a @code{TXNID}.
 The key to be deleted.
 @item flags
 Must be zero or @code{DB_DELETE_ANY}.
-Using @code{DB_DELETE_ANY} causes @code{DB->del()} to return 0 even if
+Using @code{DB_DELETE_ANY} causes @code{DB->del()} to possibly return @code{0} even if
 there are no matching key/data pairs.
+
+Note: @code{DB_DELETE_ANY} is a Tokutek extension to the
+Berkeley@tie{}DB API.  A program developed for TokuDB can be used with Berkeley@tie{}DB by adding this to the code:
+@example
+#ifndef TOKUDB
+#define DB_DELETE_ANY 0
+#endif
+@end example
 
 @end table
 
@@ -50,6 +58,13 @@ The following non-zero values can be returned:
 @item DB_NOTFOUND
 If the flags do not include @code{BDB_DELETE_ANY} and there was no
 matching key/data pair, then @code{DB->del} returns @code{BDB_NOTFOUND}.
+
+It is allowed for TokuDB to return @code{DB_NOTFOUND} even if
+@code{BDB_DELETE_ANY} is specified.  Using @code{DB_DELETE_ANY} means
+that the caller does not care whether the result is @code{0} or
+@code{DB_NOTFOUND}.
+
+
 @item DB_DEADLOCK
 The system discovered deadlock cycle involving this and other transactions.
 This operation was killed.
