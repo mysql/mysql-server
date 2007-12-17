@@ -4880,7 +4880,12 @@ lock_rec_insert_check_and_lock(
 
 	lock_mutex_enter_kernel();
 
-	ut_ad(lock_table_has(trx, index->table, LOCK_IX));
+	/* When inserting a record into an index, the table must be at
+	least IX-locked or we must be building an index, in which case
+	the table must be at least IS-locked. */
+	ut_ad(lock_table_has(trx, index->table, LOCK_IX)
+	      || (*index->name == TEMP_INDEX_PREFIX
+		  && lock_table_has(trx, index->table, LOCK_IS)));
 
 	next_rec_heap_no = page_rec_get_heap_no(next_rec);
 

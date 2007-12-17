@@ -20,6 +20,7 @@ Created 13/06/2005 Jan Lindstrom
 #include "read0types.h"
 #include "btr0types.h"
 #include "row0mysql.h"
+#include "lock0types.h"
 
 /* This structure holds index field definitions */
 
@@ -50,7 +51,8 @@ row_merge_lock_table(
 /*=================*/
 					/* out: error code or DB_SUCCESS */
 	trx_t*		trx,		/* in/out: transaction */
-	dict_table_t*	table);		/* in: table to LOCK_X */
+	dict_table_t*	table,		/* in: table to lock */
+	enum lock_mode	mode);		/* in: LOCK_X or LOCK_S */
 /*************************************************************************
 Drop an index from the InnoDB system tables. */
 

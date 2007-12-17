@@ -260,4 +260,57 @@ length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a),d from t1;
 show create table t1;
 check table t1;
 explain select * from t1 where b like 'adfd%';
+
+#
+# Test locking
+#
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+begin;
+# Obtain an IX lock on the table
+select a from t1 limit 1 for update;
+connection b;
+# This would require an S lock on the table, conflicting with the IX lock.
+--error ER_LOCK_WAIT_TIMEOUT
+create index t1ba on t1 (b(10),a);
+connection a;
+commit;
+begin;
+# Obtain an IS lock on the table
+select a from t1 limit 1 lock in share mode;
+connection b;
+# This will require an S lock on the table.  No conflict with the IS lock.
+create index t1ba on t1 (b(10),a);
+# This would require an X lock on the table, conflicting with the IS lock.
+--error ER_LOCK_WAIT_TIMEOUT
+drop index t1ba on t1;
+connection a;
+commit;
+explain select a from t1 order by b;
+--send
+select a,sleep(2+a/100) from t1 order by b limit 3;
+
+# The following DROP INDEX will succeed, altough the SELECT above has
+# opened a read view.  However, during the execution of the SELECT,
+# MySQL should hold a table lock that should block the execution
+# of the DROP INDEX below.
+
+connection b;
+select sleep(1);
+drop index t1ba on t1;
+
+# After the index was dropped, subsequent SELECTs will use the same
+# read view, but they should not be accessing the dropped index any more.
+
+connection a;
+reap;
+explain select a from t1 order by b;
+select a from t1 order by b limit 3;
+commit;
+
+connection default;
+disconnect a;
+disconnect b;
+
 drop table t1;
