@@ -403,9 +403,10 @@ ERROR 42S02: Table 'mysql.event' doesn't exist
 DROP DATABASE IF EXISTS mysqltest_no_such_database;
 Warnings:
 Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
-Error	1146	Table 'mysql.event' doesn't exist
 CREATE DATABASE mysqltest_db2;
 DROP DATABASE mysqltest_db2;
+Warnings:
+Error	1146	Table 'mysql.event' doesn't exist
 OK, there is an unnecessary warning about the non-existent table 
 but it's not easy to fix and no one complained about it.
 A similar warning is printed if mysql.proc is missing.

@@ -1696,7 +1696,11 @@ void multi_update::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
   my_error(errcode, MYF(0), err);
+}
 
+
+void multi_update::abort()
+{
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
       !thd->transaction.stmt.modified_non_trans_table && !updated)
@@ -1725,7 +1729,7 @@ void multi_update::send_error(uint errcode,const char *err)
          todo/fixme: do_update() is never called with the arg 1.
          should it change the signature to become argless?
       */
-      VOID(do_updates(0));
+      VOID(do_updates());
     }
   }
   if (thd->transaction.stmt.modified_non_trans_table)
@@ -1756,7 +1760,7 @@ void multi_update::send_error(uint errcode,const char *err)
 }
 
 
-int multi_update::do_updates(bool from_send_error)
+int multi_update::do_updates()
 {
   TABLE_LIST *cur_table;
   int local_error= 0;
@@ -1903,7 +1907,6 @@ int multi_update::do_updates(bool from_send_error)
   DBUG_RETURN(0);
 
 err:
-  if (!from_send_error)
   {
     thd->fatal_error();
     prepare_record_for_error_message(local_error, table);
@@ -1945,7 +1948,7 @@ bool multi_update::send_eof()
      Does updates for the last n - 1 tables, returns 0 if ok;
      error takes into account killed status gained in do_updates()
   */
-  int local_error = (table_count) ? do_updates(0) : 0;
+  int local_error = (table_count) ? do_updates() : 0;
   /*
     if local_error is not set ON until after do_updates() then
     later carried out killing should not affect binlogging.

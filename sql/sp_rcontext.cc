@@ -287,7 +287,6 @@ sp_rcontext::find_handler(THD *thd, uint sql_errno,
     sql_errno     The error code
     level         Warning level
     thd           The current thread
-                  - thd->net.report_error is an optional output.
 
   RETURN
     TRUE       if a handler was found.
@@ -298,7 +297,6 @@ sp_rcontext::handle_error(uint sql_errno,
                           MYSQL_ERROR::enum_warning_level level,
                           THD *thd)
 {
-  bool handled= FALSE;
   MYSQL_ERROR::enum_warning_level elevated_level= level;
 
 
@@ -310,25 +308,7 @@ sp_rcontext::handle_error(uint sql_errno,
     elevated_level= MYSQL_ERROR::WARN_LEVEL_ERROR;
   }
 
-  if (find_handler(thd, sql_errno, elevated_level))
-  {
-    if (elevated_level == MYSQL_ERROR::WARN_LEVEL_ERROR)
-    {
-      /*
-         Forces to abort the current instruction execution.
-         NOTE: This code is altering the original meaning of
-         the net.report_error flag (send an error to the client).
-         In the context of stored procedures with error handlers,
-         the flag is reused to cause error propagation,
-         until the error handler is reached.
-         No messages will be sent to the client in that context.
-      */
-      thd->net.report_error= 1;
-    }
-    handled= TRUE;
-  }
-
-  return handled;
+  return find_handler(thd, sql_errno, elevated_level);
 }
 
 void
