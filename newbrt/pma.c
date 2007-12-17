@@ -758,40 +758,6 @@ int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val, int even_delet
     return 0;
 }
 
-int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val) {
-    PMA pma = c->pma;
-    unsigned int here; int found;
-    here = pma_left_search(pma, key, val, 0, pma->N, &found);
-    assert(here<=toku_pma_index_limit(pma));
-    int r = DB_NOTFOUND;
-    if (found && kv_pair_valid(pma->pairs[here])) {
-        __pma_delete_resume(c->pma, c->position);
-        c->position = here;
-        r = 0;
-    } 
-    return r;
-}
-
-int toku_pma_cursor_set_range_both(PMA_CURSOR c, DBT *key, DBT *val) {
-    PMA pma = c->pma;
-    unsigned int here; int found;
-    here = pma_left_search(pma, key, val, 0, pma->N, &found);
-    assert(here<=toku_pma_index_limit(pma));
-
-    /* find the first valid pair where key[here] >= key */
-    int r = DB_NOTFOUND;
-    while (here < pma->N) {
-        if (kv_pair_valid(pma->pairs[here])) {
-            __pma_delete_resume(c->pma, c->position);
-            c->position = here;
-            r = 0;
-            break;
-        }
-        here += 1;
-    }
-    return r;
-}
-
 /* find the next matching key in the pma starting from index here */
 static int pma_next_key(PMA pma, DBT *k, DBT *v, int here, int n, int *found) {
     assert(0 <= here);
@@ -819,6 +785,48 @@ static int pma_prev_key(PMA pma, DBT *k, DBT *v, int here, int n, int *found) {
     }
     return here;
 }
+
+int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val) {
+    PMA pma = c->pma;
+    unsigned int here; int found;
+    here = pma_left_search(pma, key, val, 0, pma->N, &found);
+    assert(here<=toku_pma_index_limit(pma));
+    int r = DB_NOTFOUND;
+#if 1
+    /* skip any deleted pairs that match */
+    while (found && !kv_pair_valid(pma->pairs[here]))
+        here = pma_next_key(pma, key, val, here+1, pma->N, &found);
+    if (found) {
+#else
+    if (found && kv_pair_valid(pma->pairs[here])) {
+#endif
+        __pma_delete_resume(c->pma, c->position);
+        c->position = here;
+        r = 0;
+    } 
+    return r;
+}
+
+int toku_pma_cursor_set_range_both(PMA_CURSOR c, DBT *key, DBT *val) {
+    PMA pma = c->pma;
+    unsigned int here; int found;
+    here = pma_left_search(pma, key, val, 0, pma->N, &found);
+    assert(here<=toku_pma_index_limit(pma));
+
+    /* find the first valid pair where key[here] >= key */
+    int r = DB_NOTFOUND;
+    while (here < pma->N) {
+        if (kv_pair_valid(pma->pairs[here])) {
+            __pma_delete_resume(c->pma, c->position);
+            c->position = here;
+            r = 0;
+            break;
+        }
+        here += 1;
+    }
+    return r;
+}
+
 
 /* set lastkeymatch if the kv pair under the cursor is the last one in the pma
    compare with the next and previous valid pma entries */
