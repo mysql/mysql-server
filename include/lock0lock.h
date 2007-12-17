@@ -25,18 +25,6 @@ extern ibool	lock_print_waits;
 /* Buffer for storing information about the most recent deadlock error */
 extern FILE*	lock_latest_err_file;
 
-/* Basic lock modes */
-enum lock_mode {
-	LOCK_IS = 0,	/* intention shared */
-	LOCK_IX,	/* intention exclusive */
-	LOCK_S,		/* shared */
-	LOCK_X,		/* exclusive */
-	LOCK_AUTO_INC,	/* locks the auto-inc counter of a table
-			in an exclusive mode */
-	LOCK_NONE,	/* this is used elsewhere to note consistent read */
-	LOCK_NUM = LOCK_NONE/* number of lock modes */
-};
-
 /*************************************************************************
 Gets the size of a lock struct. */
 

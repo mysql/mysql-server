@@ -24,7 +24,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "lock0types.h"
 #include "hash0hash.h"
 #include "que0types.h"
-#include "row0types.h"
 
 /* Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -312,14 +311,6 @@ struct dict_table_struct{
 				innodb_file_per_table is defined in my.cnf;
 				in Unix this is usually /tmp/..., in Windows
 				\temp\... */
-	unsigned	version_number:32;
-				/* version number of this table definition.
-				Version number is 0 when table is created.
-				Every schema change implemented without
-				creating a new table and copying rows from
-				the old table to new table will increase this
-				number. For example adding or removing index,
-				adding or removing a column. */
 	unsigned	space:32;
 				/* space where the clustered index of the
 				table is placed */
@@ -333,8 +324,6 @@ struct dict_table_struct{
 				calls DISCARD TABLESPACE on this
 				table, and reset to FALSE in IMPORT
 				TABLESPACE */
-	unsigned	to_be_dropped:1; /* if set then this table will
-				dropped when n_mysql_handles_opened is 0 */
 	unsigned	cached:1;/* TRUE if the table object has been added
 				to the dictionary cache */
 	unsigned	flags:8;/* DICT_TF_COMPACT, ... */
@@ -443,9 +432,6 @@ struct dict_table_struct{
 				column. Value must be greater than or equal
 				to 1 */
 	/*----------------------*/
-	UT_LIST_BASE_NODE_T(row_prebuilt_t) prebuilts;
-				/* base node for the prebuilts defined
-				for the table */
 	ulong		n_waiting_or_granted_auto_inc_locks;
 				/* This counter is used to track the number
 				of granted and pending autoinc locks on this

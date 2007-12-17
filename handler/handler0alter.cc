@@ -704,9 +704,9 @@ err_exit:
 	warnings if row_merge_lock_table() results in a lock wait. */
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX_MAY_WAIT);
 
-	/* Acquire an exclusive lock on the table
-	before creating any indexes. */
-	error = row_merge_lock_table(trx, innodb_table);
+	/* Acquire a lock on the table before creating any indexes. */
+	error = row_merge_lock_table(trx, innodb_table,
+				     new_primary ? LOCK_X : LOCK_S);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
@@ -719,6 +719,10 @@ err_exit:
 	to drop the original table and rebuild all indexes. */
 
 	if (UNIV_UNLIKELY(new_primary)) {
+		/* This transaction should be the only one
+		operating on the table. */
+		ut_a(innodb_table->n_mysql_handles_opened == 1);
+
 		char*	new_table_name = innobase_create_temporary_tablename(
 			heap, '1', innodb_table->name);
 
@@ -766,11 +770,6 @@ err_exit:
 
 	ut_ad(error == DB_SUCCESS);
 
-	/* Raise version number of the table to track this table's
-	definition changes. */
-
-	indexed_table->version_number++;
-
 	row_mysql_unlock_data_dictionary(trx);
 	dict_locked = FALSE;
 
@@ -782,7 +781,7 @@ err_exit:
 		table lock also on the table that is being created. */
 		ut_ad(indexed_table != innodb_table);
 
-		error = row_merge_lock_table(trx, indexed_table);
+		error = row_merge_lock_table(trx, indexed_table, LOCK_X);
 
 		if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
@@ -860,17 +859,10 @@ error_handling:
 			break;
 		}
 
-		row_prebuilt_table_obsolete(innodb_table);
-
 		row_prebuilt_free(prebuilt, TRUE);
 		prebuilt = row_create_prebuilt(indexed_table);
 
-		prebuilt->table->n_mysql_handles_opened++;
-
-		/* Drop the old table if there are no open views
-		referring to it.  If there are such views, we will
-		drop the table when we free the prebuilts and there
-		are no more references to it. */
+		indexed_table->n_mysql_handles_opened++;
 
 		error = row_merge_drop_table(trx, innodb_table);
 		goto convert_error;
@@ -1075,6 +1067,7 @@ ha_innobase::final_drop_index(
 {
 	dict_index_t*	index;		/* Index to be dropped */
 	trx_t*		trx;		/* Transaction */
+	int		err;
 
 	DBUG_ENTER("ha_innobase::final_drop_index");
 	ut_ad(table);
@@ -1105,6 +1098,17 @@ ha_innobase::final_drop_index(
 	the data dictionary will be locked in crash recovery. */
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
+	/* Lock the table exclusively, to ensure that no active
+	transaction depends on an index that is being dropped. */
+	err = convert_error_code_to_mysql(
+		row_merge_lock_table(trx, prebuilt->table, LOCK_X),
+		user_thd);
+
+	if (UNIV_UNLIKELY(err)) {
+
+		goto func_exit;
+	}
+
 	index = dict_table_get_first_index(prebuilt->table);
 
 	while (index) {
@@ -1120,12 +1124,11 @@ ha_innobase::final_drop_index(
 		index = next_index;
 	}
 
-	prebuilt->table->version_number++;
-
 #ifdef UNIV_DEBUG
 	dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
 
+func_exit:
 	trx_commit_for_mysql(trx);
 	row_mysql_unlock_data_dictionary(trx);
 
@@ -1142,5 +1145,5 @@ ha_innobase::final_drop_index(
 
 	srv_active_wake_master_thread();
 
-	DBUG_RETURN(0);
+	DBUG_RETURN(err);
 }
