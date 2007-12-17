@@ -837,8 +837,8 @@ static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
     toku_brt_get_flags(db->i->brt, &brtflags);
     if (brtflags & TOKU_DB_DUPSORT) {
 
-        if (flags != 0 && flags != DB_GET_BOTH)
-            assert(flags == 0); // We aren't ready to handle flags such as DB_GET_BOTH  or DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
+        if (flags != 0 && flags != DB_GET_BOTH) return EINVAL;
+        // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
         
         DBC *dbc;
         r = db->cursor(db, txn, &dbc, 0);
@@ -848,7 +848,7 @@ static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
         if (r!=0) return r;
         return r2;
     } else {
-        assert(flags == 0);
+        if (flags != 0) return EINVAL;
         return toku_brt_lookup(db->i->brt, key, data);
     }
 }
