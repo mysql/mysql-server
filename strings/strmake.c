@@ -27,23 +27,25 @@
 #include <my_global.h>
 #include "m_string.h"
 
-#ifdef BAD_STRING_COMPILER
-
-char *strmake(char *dst,const char *src,uint length)
+char *strmake(register char *dst, register const char *src, uint length)
 {
-  reg1 char *res;
-
-  if ((res=memccpy(dst,src,0,length)))
-    return res-1;
-  dst[length]=0;
-  return dst+length;
-}
-
-#define strmake strmake_overlapp	/* Use orginal for overlapping str */
+#ifdef EXTRA_DEBUG
+  /*
+    'length' is the maximum length of the string; the buffer needs
+    to be one character larger to accomodate the terminating '\0'.
+    This is easy to get wrong, so we make sure we write to the
+    entire length of the buffer to identify incorrect buffer-sizes.
+    We only initialise the "unused" part of the buffer here, a) for
+    efficiency, and b) because dst==src is allowed, so initialising
+    the entire buffer would overwrite the source-string. Also, we
+    write a character rather than '\0' as this makes spotting these
+    problems in the results easier.
+  */
+  uint n= strlen(src) + 1;
+  if (n <= length)
+    memset(dst + n, (int) 'Z', length - n + 1);
 #endif
 
-char *strmake(register char *dst, register const char *src, size_t length)
-{
   while (length--)
     if (! (*dst++ = *src++))
       return dst-1;
