@@ -328,7 +328,6 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   */
   save_vio= thd->net.vio;
   thd->net.vio= 0;
-  thd->net.no_send_error= 0;
   dispatch_command(COM_QUERY, thd,
                    init_command_var->value,
                    init_command_var->value_length);
@@ -397,8 +396,8 @@ pthread_handler_t handle_bootstrap(void *arg)
       /* purecov: begin tested */
       if (net_realloc(&(thd->net), 2 * thd->net.max_packet))
       {
-        net_send_error(thd, ER_NET_PACKET_TOO_LARGE, NullS);
-        thd->fatal_error();
+        net_end_statement(thd);
+        bootstrap_error= 1;
         break;
       }
       buff= (char*) thd->net.buff;
@@ -406,7 +405,7 @@ pthread_handler_t handle_bootstrap(void *arg)
       length+= (ulong) strlen(buff + length);
       /* purecov: end */
     }
-    if (thd->is_fatal_error)
+    if (bootstrap_error)
       break;                                    /* purecov: inspected */
 
     while (length && (my_isspace(thd->charset(), buff[length-1]) ||
@@ -433,16 +432,11 @@ pthread_handler_t handle_bootstrap(void *arg)
     mysql_parse(thd, thd->query, length, & found_semicolon);
     close_thread_tables(thd);			// Free tables
 
-    if (thd->is_fatal_error)
-      break;
+    bootstrap_error= thd->is_error();
+    net_end_statement(thd);
 
-    if (thd->is_error())
-    {
-      /* The query failed, send error to log and abort bootstrap */
-      net_send_error(thd);
-      thd->fatal_error();
+    if (bootstrap_error)
       break;
-    }
 
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 #ifdef USING_TRANSACTIONS
@@ -451,9 +445,6 @@ pthread_handler_t handle_bootstrap(void *arg)
   }
 
 end:
-  /* Remember the exit code of bootstrap */
-  bootstrap_error= thd->is_fatal_error;
-
   net_end(&thd->net);
   thd->cleanup();
   delete thd;
@@ -487,7 +478,7 @@ end:
     (CREATE TABLE, ALTER TABLE ... UNION=(...)). Set TL_WRITE for
     every child. Set 'db' for every child if not present.
 */
-
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static bool check_merge_table_access(THD *thd, char *db,
                                      TABLE_LIST *table_list)
 {
@@ -508,7 +499,7 @@ static bool check_merge_table_access(THD *thd, char *db,
   }
   return error;
 }
-
+#endif
 
 /* This works because items are allocated with sql_alloc() */
 
@@ -712,7 +703,12 @@ bool do_command(THD *thd)
   */
   my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
 
+  /*
+    XXX: this code is here only to clear possible errors of init_connect. 
+    Consider moving to init_connect() instead.
+  */
   thd->clear_error();				// Clear error message
+  thd->main_da.reset_diagnostics_area();
 
   net_new_transaction(net);
   if ((packet_length=my_net_read(net)) == packet_error)
@@ -723,10 +719,13 @@ bool do_command(THD *thd)
 
     /* Check if we can continue without closing the connection */
 
+    /* The error must be set. */
+    DBUG_ASSERT(thd->is_error());
+    net_end_statement(thd);
+
     if (net->error != 3)
       DBUG_RETURN(TRUE);			// We have to close it.
 
-    net_send_error(thd, net->last_errno, NullS);
     net->error= 0;
     DBUG_RETURN(FALSE);
   }
@@ -766,6 +765,74 @@ bool do_command(THD *thd)
 }
 #endif  /* EMBEDDED_LIBRARY */
 
+
+/**
+  @brief Determine if an attempt to update a non-temporary table while the
+    read-only option was enabled has been made.
+
+  This is a helper function to mysql_execute_command.
+
+  @note SQLCOM_MULTI_UPDATE is an exception and delt with elsewhere.
+
+  @see mysql_execute_command
+  @returns Status code
+    @retval TRUE The statement should be denied.
+    @retval FALSE The statement isn't updating any relevant tables.
+*/
+
+static my_bool deny_updates_if_read_only_option(THD *thd,
+                                                TABLE_LIST *all_tables)
+{
+  DBUG_ENTER("deny_updates_if_read_only_option");
+
+  if (!opt_readonly)
+    DBUG_RETURN(FALSE);
+
+  LEX *lex= thd->lex;
+
+  const my_bool user_is_super=
+    ((ulong)(thd->security_ctx->master_access & SUPER_ACL) ==
+     (ulong)SUPER_ACL);
+
+  if (user_is_super)
+    DBUG_RETURN(FALSE);
+
+  if (!(sql_command_flags[lex->sql_command] & CF_CHANGES_DATA))
+    DBUG_RETURN(FALSE);
+
+  /* Multi update is an exception and is dealt with later. */
+  if (lex->sql_command == SQLCOM_UPDATE_MULTI)
+    DBUG_RETURN(FALSE);
+
+  const my_bool create_temp_tables= 
+    (lex->sql_command == SQLCOM_CREATE_TABLE) &&
+    (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
+
+  const my_bool drop_temp_tables= 
+    (lex->sql_command == SQLCOM_DROP_TABLE) &&
+    lex->drop_temporary;
+
+  const my_bool update_real_tables=
+    some_non_temp_table_to_be_updated(thd, all_tables) &&
+    !(create_temp_tables || drop_temp_tables);
+
+
+  const my_bool create_or_drop_databases=
+    (lex->sql_command == SQLCOM_CREATE_DB) ||
+    (lex->sql_command == SQLCOM_DROP_DB);
+
+  if (update_real_tables || create_or_drop_databases)
+  {
+      /*
+        An attempt was made to modify one or more non-temporary tables.
+      */
+      DBUG_RETURN(TRUE);
+  }
+
+
+  /* Assuming that only temporary tables are modified. */
+  DBUG_RETURN(FALSE);
+}
 
 /*
    Perform one connection-level (COM_XXXX) command.
@@ -860,7 +927,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     db.length= db_len;
     tbl_name= strmake(db.str, packet + 1, db_len)+1;
     strmake(tbl_name, packet + db_len + 2, tbl_len);
-    mysql_table_dump(thd, &db, tbl_name);
+    if (mysql_table_dump(thd, &db, tbl_name) == 0)
+      thd->main_da.disable_status();
     break;
   }
   case COM_CHANGE_USER:
@@ -1024,7 +1092,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     while (!thd->killed && found_semicolon && ! thd->is_error())
     {
       char *next_packet= (char*) found_semicolon;
-      net->no_send_error= 0;
+
+      net_end_statement(thd);
+      query_cache_end_of_result(thd);
       /*
         Multiple queries exits, execute them individually
       */
@@ -1125,6 +1195,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* We don't calculate statistics for this command */
     general_log_print(thd, command, NullS);
     net->error=0;				// Don't give 'abort' message
+    thd->main_da.disable_status();              // Don't send anything back
     error=TRUE;					// End server
     break;
 
@@ -1241,16 +1312,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     DBUG_PRINT("quit",("Got shutdown command for level %u", level));
     general_log_print(thd, command, NullS);
     send_eof(thd);
-#ifdef __WIN__
-    sleep(1);					// must wait after eof()
-#endif
-    /*
-      The client is next going to send a COM_QUIT request (as part of
-      mysql_close()). Make the life simpler for the client by sending
-      the response for the coming COM_QUIT in advance
-    */
-    send_eof(thd);
-    close_connection(thd, 0, 1);
     close_thread_tables(thd);			// Free before kill
     kill_mysql();
     error=TRUE;
@@ -1263,13 +1324,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     ulong uptime;
     uint length;
     ulonglong queries_per_second1000;
-#ifndef EMBEDDED_LIBRARY
     char buff[250];
     uint buff_len= sizeof(buff);
-#else
-    char *buff= thd->net.last_error;
-    uint buff_len= sizeof(thd->net.last_error);
-#endif
 
     general_log_print(thd, command, NullS);
     status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS]);
@@ -1291,6 +1347,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         cached_open_tables(),
                         (uint) (queries_per_second1000 / 1000),
                         (uint) (queries_per_second1000 % 1000));
+#ifdef EMBEDDED_LIBRARY
+    /* Store the buffer in permanent memory */
+    send_ok(thd, 0, 0, buff);
+#endif
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
     {
@@ -1303,7 +1363,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
 #ifndef EMBEDDED_LIBRARY
     VOID(my_net_write(net, (uchar*) buff, length));
-      VOID(net_flush(net));
+    VOID(net_flush(net));
+    thd->main_da.disable_status();
 #endif
     break;
   }
@@ -1383,10 +1444,19 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->transaction.xid_state.xid.null();
 
   /* report error issued during command execution */
-  if (thd->killed_errno() && ! thd->is_error())
-    thd->send_kill_message();
-  if (thd->is_error())
-    net_send_error(thd);
+  if (thd->killed_errno())
+  {
+    if (! thd->main_da.is_set())
+      thd->send_kill_message();
+  }
+  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
+  {
+    thd->killed= THD::NOT_KILLED;
+    thd->mysys_var->abort= 0;
+  }
+
+  net_end_statement(thd);
+  query_cache_end_of_result(thd);
 
   log_slow_statement(thd);
 
@@ -1756,7 +1826,6 @@ mysql_execute_command(THD *thd)
   SELECT_LEX_UNIT *unit= &lex->unit;
   /* Saved variable value */
   DBUG_ENTER("mysql_execute_command");
-  thd->net.no_send_error= 0;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
 #endif
@@ -1869,14 +1938,7 @@ mysql_execute_command(THD *thd)
       When option readonly is set deny operations which change non-temporary
       tables. Except for the replication thread and the 'super' users.
     */
-    if (opt_readonly &&
-	!(thd->security_ctx->master_access & SUPER_ACL) &&
-	(sql_command_flags[lex->sql_command] & CF_CHANGES_DATA) &&
-        !((lex->sql_command == SQLCOM_CREATE_TABLE) &&
-          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
-        !((lex->sql_command == SQLCOM_DROP_TABLE) && lex->drop_temporary) &&
-        ((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
-          some_non_temp_table_to_be_updated(thd, all_tables)))
+    if (deny_updates_if_read_only_option(thd, all_tables))
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       DBUG_RETURN(-1);
@@ -1890,10 +1952,6 @@ mysql_execute_command(THD *thd)
   
   switch (lex->sql_command) {
   case SQLCOM_SHOW_EVENTS:
-    if ((res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
-                           is_schema_db(thd->lex->select_lex.db))))
-      break;
-    /* fall through */
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
     res= execute_sqlcom_select(thd, all_tables);
@@ -2992,13 +3050,9 @@ end_with_restore_list:
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                         OPTION_SETUP_TABLES_DONE,
 			del_result, unit, select_lex);
-      res|= thd->net.report_error;
-      if (unlikely(res))
-      {
-        /* If we had a another error reported earlier then this will be ignored */
-        del_result->send_error(ER_UNKNOWN_ERROR, "Execution of the query failed");
+      res|= thd->is_error();
+      if (res)
         del_result->abort();
-      }
       delete del_result;
     }
     else
@@ -3931,8 +3985,6 @@ create_sp_error:
             goto error;
         }
 
-	my_bool save_no_send_ok= thd->net.no_send_ok;
-	thd->net.no_send_ok= TRUE;
 	if (sp->m_flags & sp_head::MULTI_RESULTS)
 	{
 	  if (! (thd->client_capabilities & CLIENT_MULTI_RESULTS))
@@ -3942,7 +3994,6 @@ create_sp_error:
               back
             */
 	    my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
-	    thd->net.no_send_ok= save_no_send_ok;
 	    goto error;
 	  }
           /*
@@ -3954,14 +4005,11 @@ create_sp_error:
 	  thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
 	}
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (check_routine_access(thd, EXECUTE_ACL,
 				 sp->m_db.str, sp->m_name.str, TRUE, FALSE))
 	{
-	  thd->net.no_send_ok= save_no_send_ok;
 	  goto error;
 	}
-#endif
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
 
@@ -3983,7 +4031,6 @@ create_sp_error:
 
 	thd->variables.select_limit= select_limit;
 
-	thd->net.no_send_ok= save_no_send_ok;
         thd->server_status&= ~bits_to_be_cleared;
 
 	if (!res)
@@ -4624,7 +4671,10 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                      ER_YES, str.ptr());
       }
-      result->send_eof();
+      if (res)
+        result->abort();
+      else
+        result->send_eof();
       delete result;
     }
     else
@@ -4641,6 +4691,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 }
 
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /*
   Check grants for commands which work only with one table.
 
@@ -4758,7 +4809,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 	     bool dont_check_global_grants, bool no_errors, bool schema_db)
 {
   Security_context *sctx= thd->security_ctx;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
   /*
     GRANT command:
@@ -4771,7 +4821,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   */
   bool  db_is_pattern= (test(want_access & GRANT_ACL) &&
                         dont_check_global_grants);
-#endif
   ulong dummy;
   DBUG_ENTER("check_access");
   DBUG_PRINT("enter",("db: %s  want_access: %lu  master_access: %lu",
@@ -4810,9 +4859,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     }
   }
 
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  DBUG_RETURN(0);
-#else
   if ((sctx->master_access & want_access) == want_access)
   {
     /*
@@ -4870,7 +4916,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                          thd->db :
                          "unknown")));          /* purecov: tested */
   DBUG_RETURN(TRUE);				/* purecov: tested */
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
@@ -4895,16 +4940,12 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
 bool check_global_access(THD *thd, ulong want_access)
 {
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  return 0;
-#else
   char command[128];
   if ((thd->security_ctx->master_access & want_access))
     return 0;
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
   return 1;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
 
@@ -4994,9 +5035,7 @@ bool
 check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 		   bool no_errors)
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   TABLE_LIST *org_tables= tables;
-#endif
   TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
   Security_context *sctx= thd->security_ctx, *backup_ctx= thd->security_ctx;
   /*
@@ -5083,11 +5122,7 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
 			0, no_errors, 0))
     return TRUE;
   
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
     return check_grant_routine(thd, want_access, tables, is_proc, no_errors);
-#else
-  return FALSE;
-#endif
 }
 
 
@@ -5157,6 +5192,7 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
   DBUG_RETURN(1);
 }
 
+#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
@@ -5251,6 +5287,7 @@ void mysql_reset_thd_for_next_command(THD *thd)
 {
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
+  DBUG_ASSERT(! thd->in_sub_stmt);
   thd->free_list= 0;
   thd->select_number= 1;
   /*
@@ -5277,18 +5314,18 @@ void mysql_reset_thd_for_next_command(THD *thd)
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->thread_specific_used= FALSE;
-  if (!thd->in_sub_stmt)
+
+  if (opt_bin_log)
   {
-    if (opt_bin_log)
-    {
-      reset_dynamic(&thd->user_var_events);
-      thd->user_var_events_alloc= thd->mem_root;
-    }
-    thd->clear_error();
-    thd->total_warn_count=0;			// Warnings for this query
-    thd->rand_used= 0;
-    thd->sent_row_count= thd->examined_row_count= 0;
+    reset_dynamic(&thd->user_var_events);
+    thd->user_var_events_alloc= thd->mem_root;
   }
+  thd->clear_error();
+  thd->main_da.reset_diagnostics_area();
+  thd->total_warn_count=0;			// Warnings for this query
+  thd->rand_used= 0;
+  thd->sent_row_count= thd->examined_row_count= 0;
+
   /*
     Because we come here only for start of top-statements, binlog format is
     constant inside a complex statement (using stored functions) etc.
@@ -5526,7 +5563,6 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
           /* Actually execute the query */
           lex->set_trg_event_type_for_tables();
           mysql_execute_command(thd);
-          query_cache_end_of_result(thd);
 	}
       }
     }
@@ -6378,8 +6414,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     }
     if (thd)
     {
-      (void)acl_reload(thd);
-      (void)grant_reload(thd);
+      if (acl_reload(thd))
+        result= 1;
+      if (grant_reload(thd))
+        result= 1;
     }
     if (tmp_thd)
     {
@@ -6469,8 +6507,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
 	return 1;                               // Killed
-      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
-                                 tables);
+      result= close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+                                  FALSE : TRUE, TRUE);
       if (make_global_read_lock_block_commit(thd)) // Killed
       {
         /* Don't leave things in a half-locked state */
@@ -6479,7 +6517,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       }
     }
     else
-      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
+      result= close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+                                  FALSE : TRUE, FALSE);
     my_dbopt_cleanup();
   }
   if (options & REFRESH_HOSTS)
@@ -6496,7 +6535,6 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if (reset_master(thd))
     {
       result=1;
-      thd->fatal_error();                       // Ensure client get error
     }
   }
 #endif

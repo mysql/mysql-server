@@ -266,7 +266,7 @@ protected:
 #define QUERY_ALLOC_PREALLOC_SIZE   	8192
 #define TRANS_ALLOC_BLOCK_SIZE		4096
 #define TRANS_ALLOC_PREALLOC_SIZE	4096
-#define RANGE_ALLOC_BLOCK_SIZE		2048
+#define RANGE_ALLOC_BLOCK_SIZE		4096
 #define ACL_ALLOC_BLOCK_SIZE		1024
 #define UDF_ALLOC_BLOCK_SIZE		1024
 #define TABLE_ALLOC_BLOCK_SIZE		1024
@@ -680,6 +680,8 @@ void free_items(Item *item);
 void cleanup_items(Item *item);
 class THD;
 void close_thread_tables(THD *thd);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_single_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables, bool no_errors);
@@ -687,6 +689,24 @@ bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
+#else
+inline bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables)
+{ return false; }
+inline bool check_single_table_access(THD *thd, ulong privilege,
+			   TABLE_LIST *tables, bool no_errors)
+{ return false; }
+inline bool check_routine_access(THD *thd,ulong want_access,char *db,
+                                 char *name, bool is_proc, bool no_errors)
+{ return false; }
+inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
+{ return false; }
+inline bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
+{ return false; }
+inline bool check_some_routine_access(THD *thd, const char *db,
+                                      const char *name, bool is_proc)
+{ return false; }
+#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
+
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
 bool mysql_multi_update_prepare(THD *thd);
@@ -991,11 +1011,27 @@ void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
                           bool *write_to_binlog);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
 		  bool no_grant, bool no_errors, bool schema_db);
 bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
 			bool no_errors);
 bool check_global_access(THD *thd, ulong want_access);
+#else
+inline bool check_access(THD *thd, ulong access, const char *db,
+                         ulong *save_priv, bool no_grant, bool no_errors,
+                         bool schema_db)
+{
+  if (save_priv)
+    *save_priv= GLOBAL_ACLS;
+  return false;
+}
+inline bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
+			bool no_errors)
+{ return false; }
+inline bool check_global_access(THD *thd, ulong want_access)
+{ return false; }
+#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
 /*
   Support routine for SQL parser on partitioning syntax
@@ -1595,7 +1631,8 @@ TABLE *open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
                                      Open_tables_state *backup);
 void close_performance_schema_table(THD *thd, Open_tables_state *backup);
 
-bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables, bool have_lock = FALSE);
+bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
+                         bool wait_for_refresh, bool wait_for_placeholders);
 bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
                                     LEX_STRING *connect_string,
                                     bool have_lock = FALSE);
