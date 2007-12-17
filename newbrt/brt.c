@@ -2722,7 +2722,7 @@ static int brtcurs_set_search(BRT_CURSOR cursor, DISKOFF off, int op, DBT *key, 
         if (r == 0) {
             if (op == DB_SET || op == DB_GET_BOTH)
                 r = toku_pma_cursor_set_both(cursor->pmacurs, key, val);
-            else if (op == DB_SET_RANGE /* || op == DB_GET_BOTH_RANGE */ )
+            else if (op == DB_SET_RANGE || op == DB_GET_BOTH_RANGE)
                 r = toku_pma_cursor_set_range_both(cursor->pmacurs, key, val);
             else 
                 assert(0);
@@ -2895,6 +2895,13 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
         r = unpin_cursor(cursor);
         assert(r == 0);
         r = brtcurs_set_search(cursor, *rootp, DB_SET_RANGE, kbt, 0, txn, null_brtnode);
+        if (r != 0) goto died0;
+        r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt, 0);
+        if (r != 0) goto died0;
+        break;
+    case DB_GET_BOTH_RANGE:
+        r = unpin_cursor(cursor); assert(r == 0);
+        r = brtcurs_set_search(cursor, *rootp, DB_GET_BOTH_RANGE, kbt, vbt, txn, null_brtnode);
         if (r != 0) goto died0;
         r = toku_pma_cursor_get_current(cursor->pmacurs, kbt, vbt, 0);
         if (r != 0) goto died0;

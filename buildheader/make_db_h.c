@@ -86,6 +86,7 @@ void print_defines (void) {
 
     dodefine(DB_FIRST);
     dodefine(DB_GET_BOTH);
+    dodefine(DB_GET_BOTH_RANGE);
     dodefine(DB_LAST);
     dodefine(DB_CURRENT);
     dodefine(DB_NEXT);
