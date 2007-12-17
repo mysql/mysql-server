@@ -141,10 +141,10 @@ void test_icdi_search(int n, int dup_mode) {
         r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
         expect_cursor_get_both_range(cursor, k, v, 0);
         expect_cursor_get_current(cursor, k, v);
-
+#if USE_TDB
         expect_cursor_get_both_range(cursor, 0, 0, 0);
         expect_cursor_get_current(cursor, k, v);
-
+#endif
         r = cursor->c_close(cursor); assert(r == 0);
     } 
 
@@ -152,7 +152,10 @@ void test_icdi_search(int n, int dup_mode) {
     r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
     expect_cursor_get_both_range(cursor, 0, 0, 0);
     expect_cursor_get_both_range(cursor, htonl(n), 0, DB_NOTFOUND);
-
+#if USE_BDB
+    r = cursor->c_close(cursor); assert(r == 0);
+    r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
+#endif
     for (i=0; i<n; i++) {
         expect_cursor_get(cursor, htonl(n/2), htonl(n+i));
     }
