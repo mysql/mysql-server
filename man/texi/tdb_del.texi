@@ -2,7 +2,7 @@
 @setfilename tokudb
 @settitle DB->del
 
-@c man title db_create tokudb
+@c man title db_del tokudb
 @unnumberedsubsec Synopsis
 @c man begin SYNOPSIS
 @code{#include <db.h>}
