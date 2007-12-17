@@ -105,13 +105,12 @@ void my_uuid_init(ulong seed1, ulong seed2)
       randominit() here.
     */
     /* purecov: begin inspected */
-    my_rnd_init(&uuid_rand, (ulong) (seed2+ now/2), (seed1 + now)+random());
+    my_rnd_init(&uuid_rand, (ulong) (seed2+ now/2), now+random());
     for (i=0; i < sizeof(mac); i++)
       mac[i]= (uchar)(my_rnd(&uuid_rand)*255);
-    /* purecov: end */    
+    /* purecov: end */
   }
-  my_rnd_init(&uuid_rand, (ulong) (seed1 + now),
-              (ulong) (now/2+ seed2 + getpid()));
+  my_rnd_init(&uuid_rand, (ulong) (seed1 + now), (ulong) (now/2+ getpid()));
   set_clock_seq();
   pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
 }
