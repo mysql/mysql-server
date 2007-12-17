@@ -424,7 +424,7 @@ void activity (void) {
 		       
 
 void usage (const char *argv1) {
-    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more | --tod=N ] SEED\n", argv1);
+    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] [ --tod=N ] [ --seed=SEED ] [ --count=count ] \n", argv1);
     exit(1);
 }
 
@@ -446,7 +446,7 @@ int maybe_parse_intarg (const char *progname, const char *arg, const char *cmdna
 int main (int argc, const char *argv[]) {
     const char *progname=argv[0];
     int useseed;
-    int activity_count;
+    int activity_count = 100000;
 
     {
 	struct timeval tv;
@@ -496,7 +496,7 @@ int main (int argc, const char *argv[]) {
     case MODE_MORE:
 	create_databases();
 	calc_n_items = count_all_items = count_entries_and_max_tod(dbp, &tod_counter);
-	printf("tod=%d\n", tod_counter);
+	//printf("tod=%d\n", tod_counter);
 	{
 	    int i;
 	    cursor_load = 8*(1+2*count_all_items/activity_count);
@@ -512,7 +512,7 @@ int main (int argc, const char *argv[]) {
 
     close_databases();
 
-    fprintf(stderr, "now: --tod=%d\n", tod_counter);
+    //fprintf(stderr, "now: --tod=%d\n", tod_counter);
 
     return 0;
 }
