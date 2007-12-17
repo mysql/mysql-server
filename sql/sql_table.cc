@@ -3475,8 +3475,18 @@ bool mysql_create_table_no_lock(THD *thd,
   thd->proc_info="creating table";
   create_info->table_existed= 0;		// Mark that table is created
 
-  if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
+#ifdef HAVE_READLINK
+  if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
+#endif
+  {
+    if (create_info->data_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "DATA DIRECTORY option ignored");
+    if (create_info->index_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "INDEX DIRECTORY option ignored");
     create_info->data_file_name= create_info->index_file_name= 0;
+  }
   create_info->table_options=db_options;
 
   path[path_length - reg_ext_length]= '\0'; // Remove .frm extension
