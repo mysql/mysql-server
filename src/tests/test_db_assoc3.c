@@ -146,6 +146,40 @@ int expire_callback (DB *secondary __attribute__((__unused__)), const DBT *key, 
     }
 }
 
+
+#if 0
+// Calculate things with an in-memory database.
+static int n_names=0;
+static unsigned char **names=0; // An unsorted array of all the names.
+
+static void dbg_name_insert (unsigned char *name) {
+    name = (unsigned char*)strdup((char*)name);
+    n_names++;
+    if (names==0) {
+	names=malloc(sizeof(*names));
+    } else {
+	names = realloc(names, n_names*sizeof(*names));
+    }
+    names[n_names-1]=name;
+}
+static void dbg_name_delete (char *name) {
+    int i;
+    for (i=0; i<n_names; i++) {
+	if (strcmp((char*)name, (char*)names[i])==0) {
+	    names[i] = names[n_names-1];
+	    n_names--;
+	    return;
+	}
+    }
+    assert(0);
+}
+#else
+inline static void dbg_name_insert(unsigned char*name __attribute__((__unused__))) {}
+inline static void dbg_name_delete(char*name __attribute__((__unused__))) {}
+#endif
+
+
+
 // The expire_key is simply a timestamp.
 
 DB_ENV *dbenv;
@@ -271,6 +305,7 @@ int count_entries_and_max_tod (DB *db, int *tod) {
 	int thistod = ntohl(*(2+(unsigned int*)key.data));
 	if (thistod>*tod) *tod=thistod;
 	n_found++;
+	dbg_name_insert(name_offset_in_pd_dbt()+data.data);
     }
     (*tod)++;
     assert(r==DB_NOTFOUND);
@@ -287,7 +322,8 @@ void do_create (void) {
 }
 
 void insert_person (void) {
-    int namelen = 5+myrandom()%245;
+    const int extrafortod = 20;
+    int namelen = 5+extrafortod+myrandom()%245;
     struct primary_key  pk;
     struct primary_data pd;
     char keyarray[1000], dataarray[1000]; 
@@ -303,7 +339,8 @@ void insert_person (void) {
     for (i=1; i<namelen; i++) {
 	pd.name.name[i] = 'a'+myrandom()%26;
     }
-    pd.name.name[i]=0;
+    int count=snprintf((char*)&pd.name.name[i], extrafortod, "%d.%d", pk.ts.tv_sec, pk.ts.tv_usec);
+    assert(count<extrafortod);
     DBT key,data;
     memset(&key,0,sizeof(DBT));
     memset(&data,0,sizeof(DBT));
@@ -320,6 +357,7 @@ void insert_person (void) {
 	if (0) fprintf(stderr, "put %2d%c %s\n", dt[7], dt[8]?'e':' ', dt+9);
     }
     int r=dbp->put(dbp, null_txn, &key, &data,0);   CKERR(r);
+    dbg_name_insert(namearray);
     // If the cursor is to the left of the current item, then increment count_items
     {
 	int compare=strcmp((char*)namearray, nc_key.data);
@@ -347,6 +385,7 @@ void delete_oldest_expired (void) {
 	char *dt=data.data;
 	char *deleted_key = dt+name_offset_in_pd_dbt();
 	int compare=strcmp(deleted_key, nc_key.data);
+	dbg_name_delete(deleted_key);
 	if (0) fprintf(stderr, "del %2d%c %s\n", dt[7], dt[8]?'e':' ', dt+9);
 	if (compare>0) {
 	    //fprintf(stderr, "%s:%d r3=%d compare=%d count=%d cacount=%d cucount=%d deleting %s cursor=%s\n", __FILE__, __LINE__, r3, compare, count_all_items, calc_n_items, cursor_count_n_items, deleted_key, (char*)nc_key.data);
@@ -389,10 +428,11 @@ void step_name (void) {
     if (r==0) {
 	char *dt = nc_data.data;
 	cursor_count_n_items++;
-	if (0) fprintf(stderr, "crs %2d%c %s\n", dt[7], dt[8] ? 'e' : ' ', dt+9);
+	if (0) fprintf(stderr, "%4d %4d crs %2d%c %s\n", cursor_count_n_items, calc_n_items, dt[7], dt[8] ? 'e' : ' ', dt+name_offset_in_pd_dbt());
     } else if (r==DB_NOTFOUND) {
 	// Got to the end.
-	//fprintf(stderr, "%s:%d Got to end count=%d curscount=%d all=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items, count_all_items);
+	// fprintf(stderr, "%s:%d Got to end count=%d curscount=%d all=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items, count_all_items);
+	//printf("n_names=%d cursor_count_n_items=%d calc_n_items=%d\n", n_names, cursor_count_n_items, calc_n_items);
 	assert(cursor_count_n_items==calc_n_items);
 	r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_FIRST);
 	if (r==DB_NOTFOUND) {
