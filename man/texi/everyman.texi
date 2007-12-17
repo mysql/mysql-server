@@ -11,5 +11,9 @@ database with one library's tool and load it with the other's.
 @c man begin COPYRIGHT
 Copyright @copyright{} 2007 Tokutek, Inc.  All rights reserved.
 @c man end
+
+@c man begin AUTHOR
+Tokutek, Inc.
+@c man end
 @end ifnottex
 
