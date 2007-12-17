@@ -12,17 +12,12 @@
 
 #include "test.h"
 
-#ifndef DB_DELETE_ANY
-#define DB_DELETE_ANY 0
-#endif
-#ifndef DB_YESOVERWRITE
-#define DB_YESOVERWRITE 0
-#endif
+
 
 void db_put(DB *db, int k, int v) {
     DB_TXN * const null_txn = 0;
     DBT key, val;
-    int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
+    int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
     assert(r == 0);
 }
 
@@ -41,7 +36,7 @@ void db_get(DB *db, int k) {
 void db_del(DB *db, int k) {
     DB_TXN * const null_txn = 0;
     DBT key;
-    int r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), DB_DELETE_ANY);
+    int r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
     assert(r == 0);
 }
 
@@ -55,6 +50,18 @@ void expect_db_get(DB *db, int k, int v) {
     memcpy(&vv, val.data, val.size);
     assert(vv == v);
     free(val.data);
+}
+
+int cursor_get(DBC *cursor, int *k, int *v, int op) {
+    DBT key, val;
+    int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), op);
+    if (r == 0) {
+        assert(key.size == sizeof *k); memcpy(k, key.data, key.size);
+        assert(val.size == sizeof *v); memcpy(v, val.data, val.size);
+    }
+    if (key.data) free(key.data);
+    if (val.data) free(val.data);
+    return r;
 }
 
 void expect_cursor_get(DBC *cursor, int k, int v) {
@@ -75,18 +82,11 @@ void expect_cursor_get(DBC *cursor, int k, int v) {
     free(val.data);
 }
 
-void expect_cursor_set(DBC *cursor, int k) {
+void expect_cursor_set(DBC *cursor, int k, int expectr) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), DB_SET);
-    assert(r == 0);
-    free(val.data);
-}
-
-void expect_cursor_set_range(DBC *cursor, int k) {
-    DBT key, val;
-    int r = cursor->c_get(cursor, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), DB_SET_RANGE);
-    assert(r == 0);
-    free(val.data);
+    assert(r == expectr);
+    if (val.data) free(val.data);
 }
 
 void expect_cursor_get_both(DBC *cursor, int k, int v) {
@@ -106,14 +106,13 @@ void expect_cursor_get_current(DBC *cursor, int k, int v) {
 }
 
 
-/* insert, close, delete, insert, search */
-void test_icdi_search(int n, int dup_mode) {
-    if (verbose) printf("test_icdi_search:%d %d\n", n, dup_mode);
+void test_cursor_sticky(int n, int dup_mode) {
+    if (verbose) printf("test_cursor_sticky:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_icdi_search.brt";
+    const char * const fname = DIR "/" "test_cursor_sticky.brt";
     int r;
 
     unlink(fname);
@@ -124,44 +123,23 @@ void test_icdi_search(int n, int dup_mode) {
     r = db->set_pagesize(db, 4096); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
-    /* insert n duplicates */
     int i;
+    int k, v;
     for (i=0; i<n; i++) {
-        int k = htonl(n/2);
-        int v = htonl(i);
-        db_put(db, k, v);
-
-        expect_db_get(db, k, htonl(0));
+        db_put(db, htonl(i), htonl(i));
     } 
 
-    /* reopen the database to force nonleaf buffering */
-    r = db->close(db, 0); assert(r == 0);
-    r = db_create(&db, null_env, 0); assert(r == 0);
-    r = db->set_flags(db, dup_mode); assert(r == 0);
-    r = db->set_pagesize(db, 4096); assert(r == 0);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666); assert(r == 0);
-
-    db_del(db, htonl(n/2));
-
-    /* insert n duplicates */
-    for (i=n-1; i >= 0; i--) {
-        int k = htonl(n/2);
-        int v = htonl(n+i);
-        db_put(db, k, v);
-
-        DBC *cursor;
-        r = db->cursor(db, 0, &cursor, 0); assert(r == 0);
-        expect_cursor_set_range(cursor, k);
-        expect_cursor_get_current(cursor, k, htonl(n+i));
-        r = cursor->c_close(cursor); assert(r == 0);
-    } 
-
+    /* walk the tree */
     DBC *cursor;
-    r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
-
+    r = db->cursor(db, 0, &cursor, 0); assert(r == 0);
     for (i=0; i<n; i++) {
-        expect_cursor_get(cursor, htonl(n/2), htonl(n+i));
+        r = cursor_get(cursor, &k, &v, DB_NEXT); assert(r == 0);
+        assert(k == htonl(i)); assert(v == htonl(i));
     }
+
+    r = cursor_get(cursor, &k, &v, DB_NEXT); assert(r == DB_NOTFOUND);
+
+    r = cursor_get(cursor, &k, &v, DB_CURRENT); assert(r == 0); assert(k == htonl(n-1)); assert(v == htonl(n-1));
 
     r = cursor->c_close(cursor); assert(r == 0);
 
@@ -178,7 +156,7 @@ int main(int argc, const char *argv[]) {
     mkdir(DIR, 0777);
 
     for (i=1; i<65537; i *= 2) {
-        test_icdi_search(i, DB_DUP + DB_DUPSORT);
+        test_cursor_sticky(i, 0);
     }
     return 0;
 }
