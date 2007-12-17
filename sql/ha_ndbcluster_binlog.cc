@@ -2131,7 +2131,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           bzero((char*) &table_list,sizeof(table_list));
           table_list.db= schema->db;
           table_list.alias= table_list.table_name= schema->name;
-          close_cached_tables(thd, 0, &table_list, FALSE);
+          close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
         }
         break;
       case SOT_RENAME_TABLE:
@@ -2191,7 +2191,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           bzero((char*) &table_list,sizeof(table_list));
           table_list.db= schema->db;
           table_list.alias= table_list.table_name= schema->name;
-          close_cached_tables(thd, 0, &table_list, FALSE);
+          close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
         }
         if (share)
         {
@@ -2268,7 +2268,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         bzero((char*) &table_list,sizeof(table_list));
         table_list.db= (char *)schema->db;
         table_list.alias= table_list.table_name= (char *)schema->name;
-        close_cached_tables(thd, 0, &table_list, TRUE);
+        close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
 
         if (schema->node_id != g_ndb_cluster_connection->node_id())
         {
@@ -4430,7 +4430,7 @@ restart:
 
   if (ndb_extra_logging)
     sql_print_information("NDB Binlog: ndb tables writable");
-  close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, FALSE);
+  close_cached_tables((THD*) 0, (TABLE_LIST*) 0, FALSE, FALSE, FALSE);
 
   {
     static char db[]= "";
