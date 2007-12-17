@@ -77,6 +77,7 @@ typedef enum {
 #define DB_DELETE_ANY 65536
 #define DB_FIRST 7
 #define DB_GET_BOTH 8
+#define DB_GET_BOTH_RANGE 10
 #define DB_LAST 15
 #define DB_CURRENT 6
 #define DB_NEXT 16
