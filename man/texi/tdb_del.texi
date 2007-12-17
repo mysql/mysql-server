@@ -1,3 +1,4 @@
+@page
 @section @code{DB->del}
 @setfilename tokudb
 @settitle DB->del
@@ -7,6 +8,7 @@
 @c man begin SYNOPSIS
 @code{#include <db.h>}
 
+@noindent
 @code{int DB->del(DB *}@var{db}@code{, DB_TXN *}@var{txnid}@code{, DBT*}@var{key}@code{, u_int32_t }@var{flags}@code{);}
 @c man end
 @unnumberedsubsec Description
