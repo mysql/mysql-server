@@ -70,8 +70,6 @@ static void __pma_delete_resume(PMA pma, int here);
  */
 static int __pma_count_cursor_refs(PMA pma, int here);
 
-static int __pma_compare_kv(PMA pma, struct kv_pair *a, struct kv_pair *b);
-
 
 /**************************** end of static functions forward declarations. *********************/
 
@@ -262,8 +260,25 @@ void toku_pma_show_stats (void) {
     printf("%d finds, %d divides, %d scans\n", pma_count_finds, pma_count_divides, pma_count_scans);
 }
 
+static int pma_compare_kv_kv(PMA pma, struct kv_pair *a, struct kv_pair *b) {
+    DBT dbta, dbtb;;
+    int cmp = pma->compare_fun(pma->db, toku_fill_dbt(&dbta, kv_pair_key(a), kv_pair_keylen(a)), toku_fill_dbt(&dbtb, kv_pair_key(b), kv_pair_keylen(b)));
+    if (cmp == 0 && (pma->dup_mode & TOKU_DB_DUPSORT)) {
+        cmp = pma->dup_compare_fun(pma->db, toku_fill_dbt(&dbta, kv_pair_val(a), kv_pair_vallen(b)), toku_fill_dbt(&dbtb, kv_pair_val(b), kv_pair_vallen(b)));
+    }
+    return cmp;
+}
+
+static int pma_compare_dbt_kv(PMA pma, DBT *k, DBT *v, struct kv_pair *kv) {
+    DBT k2, v2;
+    int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+    if (cmp == 0 && v)
+        cmp = pma->dup_compare_fun(pma->db, v, toku_fill_dbt(&v2, kv_pair_val(kv), kv_pair_vallen(kv)));
+    return cmp;
+}
+
 /* search the index for a matching key */
-static int __pma_search(PMA pma, DBT *k, int lo, int hi, int *found) {
+static unsigned int __pma_search(PMA pma, DBT *k, int lo, int hi, int *found) {
     assert(0 <= lo && lo <= hi);
     if (lo >= hi) {
         *found = 0;
@@ -276,9 +291,7 @@ static int __pma_search(PMA pma, DBT *k, int lo, int hi, int *found) {
             mi++;
         if (mi >= hi)
             return __pma_search(pma, k, lo, omi, found);
-        struct kv_pair *kv = kv_pair_ptr(pma->pairs[mi]);
-        DBT k2;
-        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+        int cmp = pma_compare_dbt_kv(pma, k, 0, kv_pair_ptr(pma->pairs[mi]));
         if (cmp > 0)
             return __pma_search(pma, k, mi+1, hi, found);
         if (cmp < 0)
@@ -289,7 +302,7 @@ static int __pma_search(PMA pma, DBT *k, int lo, int hi, int *found) {
 }
 
 /* search the index for the rightmost matching key */
-static int __pma_right_search(PMA pma, DBT *k, int lo, int hi, int *found) {
+static unsigned int pma_right_search(PMA pma, DBT *k, DBT *v, int lo, int hi, int *found) {
     assert(0 <= lo && lo <= hi);
     if (lo >= hi) {
         *found = 0;
@@ -301,18 +314,16 @@ static int __pma_right_search(PMA pma, DBT *k, int lo, int hi, int *found) {
         while (mi < hi && !kv_pair_inuse(pma->pairs[mi]))
             mi++;
         if (mi >= hi)
-            return __pma_right_search(pma, k, lo, omi, found);
-        struct kv_pair *kv = kv_pair_ptr(pma->pairs[mi]);
-        DBT k2;
-        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+            return pma_right_search(pma, k, v, lo, omi, found);
+        int cmp = pma_compare_dbt_kv(pma, k, v, kv_pair_ptr(pma->pairs[mi]));
         if (cmp > 0)
-            return __pma_right_search(pma, k, mi+1, hi, found);
+            return pma_right_search(pma, k, v, mi+1, hi, found);
         if (cmp < 0)
-            return __pma_right_search(pma, k, lo, mi, found);
+            return pma_right_search(pma, k, v, lo, mi, found);
 
         /* we have a match, try to find a match on the right tree */
         int here;
-        here = __pma_right_search(pma, k, mi+1, hi, found);
+        here = pma_right_search(pma, k, v, mi+1, hi, found);
         if (*found == 0)
             here = mi;
         *found = 1;
@@ -321,7 +332,7 @@ static int __pma_right_search(PMA pma, DBT *k, int lo, int hi, int *found) {
 }
 
 /* search the index for the left most matching key */
-static unsigned int pma_left_search(PMA pma, DBT *k, int lo, int hi, int *found) {
+static unsigned int pma_left_search(PMA pma, DBT *k, DBT *v, int lo, int hi, int *found) {
     assert(0 <= lo && lo <= hi);
     if (lo >= hi) {
         *found = 0;
@@ -333,52 +344,16 @@ static unsigned int pma_left_search(PMA pma, DBT *k, int lo, int hi, int *found)
         while (mi < hi && !kv_pair_inuse(pma->pairs[mi]))
             mi++;
         if (mi >= hi)
-            return pma_left_search(pma, k, lo, omi, found);
-        struct kv_pair *kv = kv_pair_ptr(pma->pairs[mi]);
-        DBT k2;
-        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
+            return pma_left_search(pma, k, v, lo, omi, found);
+        int cmp = pma_compare_dbt_kv(pma, k, v, kv_pair_ptr(pma->pairs[mi]));
         if (cmp > 0)
-            return pma_left_search(pma, k, mi+1, hi, found);
+            return pma_left_search(pma, k, v, mi+1, hi, found);
         if (cmp < 0)
-            return pma_left_search(pma, k, lo, mi, found);
+            return pma_left_search(pma, k, v, lo, mi, found);
 
         /* we have a match, try to find a match on the left tree */
         int here;
-        here = pma_left_search(pma, k, lo, mi, found);
-        if (*found == 0)
-            here = mi;
-        *found = 1;
-        return here;
-    }
-}
-
-/* search the index for the right most matching key and value */
-static int __pma_dup_search(PMA pma, DBT *k, DBT *v, int lo, int hi, int *found) {
-    assert(0 <= lo && lo <= hi);
-    if (lo >= hi) {
-        *found = 0;
-        return lo;
-    } else {
-        int mi = (lo + hi)/2;
-        assert(lo <= mi && mi < hi);
-        int omi = mi;
-        while (mi < hi && !kv_pair_inuse(pma->pairs[mi]))
-            mi++;
-        if (mi >= hi)
-            return __pma_dup_search(pma, k, v, lo, omi, found);
-        struct kv_pair *kv = kv_pair_ptr(pma->pairs[mi]);
-        DBT k2, v2;
-        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
-        if (cmp == 0)
-            cmp = pma->dup_compare_fun(pma->db, v, toku_fill_dbt(&v2, kv_pair_val(kv), kv_pair_vallen(kv)));
-        if (cmp > 0)
-            return __pma_dup_search(pma, k, v, mi+1, hi, found);
-        if (cmp < 0)
-            return __pma_dup_search(pma, k, v, lo, mi, found);
-
-        /* we have a match, try to find a match on the right tree */
-        int here;
-        here = __pma_dup_search(pma, k, v, mi+1, hi, found);
+        here = pma_left_search(pma, k, v, lo, mi, found);
         if (*found == 0)
             here = mi;
         *found = 1;
@@ -432,24 +407,10 @@ int toku_pmainternal_find (PMA pma, DBT *k) {
     assert(0<=lo);
     assert(lo==hi);
     assert((unsigned)hi <= toku_pma_index_limit(pma));
-#if 0
-    /* If lo points at something, the something should not be smaller than key. */
-    if (lo>0 && lo < toku_pma_index_limit(pma) && pma->pairs[lo]) {
-	//printf("lo=%d\n", lo);
-	DBT k2;
-	assert(0 >= pma->compare_fun(db, k, toku_fill_dbt(&k2, pma->pairs[lo]->key, pma->pairs[lo]->keylen)));
-    }
-#endif
     return lo;
 #else
-    int found, lo;
-
-    lo = __pma_search(pma, k, db, 0, pma->N, &found);
-    if (lo>0 && lo < toku_pma_index_limit(pma) && pma->pairs[lo]) {
-	//printf("lo=%d\n", lo);
-	DBT k2;
-	assert(0 >= pma->compare_fun(db, k, toku_fill_dbt(&k2, pma->pairs[lo]->key, pma->pairs[lo]->keylen)));
-    }
+    int found;
+    int lo = __pma_search(pma, k, 0, pma->N, &found);
     return lo;
 #endif
 }
@@ -694,7 +655,6 @@ int toku_pma_set_dup_mode(PMA pma, int dup_mode) {
 }
 
 int toku_pma_set_dup_compare(PMA pma, pma_compare_fun_t dup_compare_fun) {
-    assert(pma->dup_mode & TOKU_DB_DUPSORT);
     pma->dup_compare_fun = dup_compare_fun;
     return 0;
 }
@@ -798,67 +758,30 @@ int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val, int even_delet
     return 0;
 }
 
-int toku_pma_cursor_set_key(PMA_CURSOR c, DBT *key) {
-    PMA pma = c->pma;
-    unsigned int here;
-    int  found;
-    if (pma->dup_mode & TOKU_DB_DUP) {
-        here = pma_left_search(pma, key, 0, pma->N, &found);
-    } else
-        here = toku_pmainternal_find(pma, key);
-    assert(here<=toku_pma_index_limit(pma));
-    int r = DB_NOTFOUND;
-    if (here < (unsigned)pma->N) {
-        DBT k2;
-        struct kv_pair *pair = pma->pairs[here];
-        if (kv_pair_valid(pair) && 
-            pma->compare_fun(pma->db, key, toku_fill_dbt(&k2, kv_pair_key(pair), kv_pair_keylen(pair)))==0) {
-            __pma_delete_resume(c->pma, c->position);
-            c->position = here;
-            r = 0;
-        }
-    } 
-    return r;
-}
-
 int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val) {
     PMA pma = c->pma;
     unsigned int here; int found;
-    if (pma->dup_mode & TOKU_DB_DUPSORT)
-        here = __pma_dup_search(pma, key, val, 0, pma->N, &found);
-    else
-        here = toku_pmainternal_find(pma, key);
+    here = pma_left_search(pma, key, val, 0, pma->N, &found);
     assert(here<=toku_pma_index_limit(pma));
     int r = DB_NOTFOUND;
-    if (here < pma->N) {
-        DBT k2, v2;
-        struct kv_pair *pair = pma->pairs[here];
-        if (kv_pair_valid(pair) && 
-            pma->compare_fun(pma->db, key, toku_fill_dbt(&k2, kv_pair_key(pair), kv_pair_keylen(pair))) == 0 &&
-            pma->compare_fun(pma->db, val, toku_fill_dbt(&v2, kv_pair_val(pair), kv_pair_vallen(pair))) == 0) {
-            __pma_delete_resume(c->pma, c->position);
-            c->position = here;
-            r = 0;
-        }
+    if (found && kv_pair_valid(pma->pairs[here])) {
+        __pma_delete_resume(c->pma, c->position);
+        c->position = here;
+        r = 0;
     } 
     return r;
 }
 
-int toku_pma_cursor_set_range(PMA_CURSOR c, DBT *key) {
+int toku_pma_cursor_set_range_both(PMA_CURSOR c, DBT *key, DBT *val) {
     PMA pma = c->pma;
-    unsigned int here;
-    int found;
-    if (pma->dup_mode & TOKU_DB_DUP)
-        here = pma_left_search(pma, key, 0, pma->N, &found);
-    else
-        here = toku_pmainternal_find(pma, key);
+    unsigned int here; int found;
+    here = pma_left_search(pma, key, val, 0, pma->N, &found);
     assert(here<=toku_pma_index_limit(pma));
 
     /* find the first valid pair where key[here] >= key */
     int r = DB_NOTFOUND;
     while (here < pma->N) {
-        struct kv_pair *pair = pma->pairs[here];
-        if (kv_pair_valid(pair)) {
+        if (kv_pair_valid(pma->pairs[here])) {
             __pma_delete_resume(c->pma, c->position);
             c->position = here;
             r = 0;
@@ -876,11 +799,7 @@ static int pma_next_key(PMA pma, DBT *k, DBT *v, int here, int n, int *found) {
     while (here < n && !kv_pair_inuse(pma->pairs[here]))
         here += 1;
     if (here < n) {
-        struct kv_pair *kv = kv_pair_ptr(pma->pairs[here]);
-        DBT k2, v2;
-        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
-        if (cmp == 0 && v) 
-            cmp = pma->dup_compare_fun(pma->db, v, toku_fill_dbt(&v2, kv_pair_val(kv), kv_pair_vallen(kv)));
+        int cmp = pma_compare_dbt_kv(pma, k, v, kv_pair_ptr(pma->pairs[here]));
         if (cmp == 0)
             *found = 1;
     }
@@ -894,11 +813,7 @@ static int pma_prev_key(PMA pma, DBT *k, DBT *v, int here, int n, int *found) {
     while (0 <= here && !kv_pair_inuse(pma->pairs[here]))
         here -= 1;
     if (0 <= here) {
-        struct kv_pair *kv = kv_pair_ptr(pma->pairs[here]);
-        DBT k2, v2;
-        int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
-        if (cmp == 0 && v)
-            cmp = pma->dup_compare_fun(pma->db, v, toku_fill_dbt(&v2, kv_pair_val(kv), kv_pair_vallen(kv)));
+        int cmp = pma_compare_dbt_kv(pma, k, v, kv_pair_ptr(pma->pairs[here]));
         if (cmp == 0)
             *found = 1;
     }
@@ -1045,7 +960,7 @@ enum pma_errors toku_pma_lookup (PMA pma, DBT *k, DBT *v) {
     unsigned int here;
     int found;
     if (pma->dup_mode & TOKU_DB_DUP) {
-        here = pma_left_search(pma, k, 0, pma->N, &found);
+        here = pma_left_search(pma, k, 0, 0, pma->N, &found);
     } else
         here = toku_pmainternal_find(pma, k);
     assert(here<=toku_pma_index_limit(pma));
@@ -1099,10 +1014,10 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, FILENUM filenum, DISK
     unsigned int idx;
 
     if (pma->dup_mode & TOKU_DB_DUPSORT) {
-        idx = __pma_dup_search(pma, k, v, 0, pma->N, &found);
+        idx = pma_right_search(pma, k, v, 0, pma->N, &found);
         if (found) return BRT_ALREADY_THERE;
     } else if (pma->dup_mode & TOKU_DB_DUP) {
-        idx = __pma_right_search(pma, k, 0, pma->N, &found);
+        idx = pma_right_search(pma, k, 0, 0, pma->N, &found);
         if (found) idx += 1;
     } else {
         idx = toku_pmainternal_find(pma, k);
@@ -1146,7 +1061,7 @@ static int pma_delete_dup (PMA pma, DBT *k, u_int32_t rand4sem, u_int32_t *finge
     /* find the left most matching key in the pma */
     int found;
     unsigned int lefthere;
-    lefthere = pma_left_search(pma, k, 0, pma->N, &found);
+    lefthere = pma_left_search(pma, k, 0, 0, pma->N, &found);
     int rightfound = found, righthere = lefthere;
     while (rightfound) {
         struct kv_pair *kv = pma->pairs[righthere];
@@ -1288,7 +1203,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     unsigned int idx;
     int found;
     if (pma->dup_mode & TOKU_DB_DUPSORT) {
-        idx = __pma_dup_search(pma, k, v, 0, pma->N, &found);
+        idx = pma_right_search(pma, k, v, 0, pma->N, &found);
 #if PMA_DUP_DUP
         if (found) idx += 1;
 #else
@@ -1297,7 +1212,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
         }
 #endif
     } else if (pma->dup_mode & TOKU_DB_DUP) {
-        idx = __pma_right_search(pma, k, 0, pma->N, &found);
+        idx = pma_right_search(pma, k, 0, 0, pma->N, &found);
         if (found) idx += 1;
     } else {
         idx = toku_pmainternal_find(pma, k);
@@ -1464,14 +1379,6 @@ static void __pma_relocate_kvpairs(PMA pma) {
 
 #endif
 
-static int __pma_compare_kv(PMA pma, struct kv_pair *a, struct kv_pair *b) {
-    DBT dbta, dbtb;
-    int cmp = pma->compare_fun(pma->db, toku_fill_dbt(&dbta, kv_pair_key(a), kv_pair_keylen(a)), toku_fill_dbt(&dbtb, kv_pair_key(b), kv_pair_keylen(b)));
-    if (cmp == 0 && (pma->dup_mode & TOKU_DB_DUPSORT)) {
-        cmp = pma->dup_compare_fun(pma->db, toku_fill_dbt(&dbta, kv_pair_val(a), kv_pair_vallen(b)), toku_fill_dbt(&dbtb, kv_pair_val(b), kv_pair_vallen(b)));
-    }
-    return cmp;
-}
 
 int toku_pma_split(TOKUTXN txn, FILENUM filenum,
 		   PMA origpma, unsigned int *origpma_size, DBT *splitk,
@@ -1555,7 +1462,7 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
             splitk->size = kv_pair_keylen(a);
         }
         splitk->flags = BRT_PIVOT_PRESENT_L;
-        if (spliti < npairs && __pma_compare_kv(origpma, a, pairs[spliti].pair) == 0) {
+        if (spliti < npairs && pma_compare_kv_kv(origpma, a, pairs[spliti].pair) == 0) {
             splitk->flags += BRT_PIVOT_PRESENT_R;
         }
     }

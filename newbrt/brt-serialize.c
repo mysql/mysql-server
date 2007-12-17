@@ -378,7 +378,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	    goto died1;
 	}
         toku_pma_set_dup_mode(result->u.l.buffer, flags);
-        if (flags & TOKU_DB_DUPSORT) toku_pma_set_dup_compare(result->u.l.buffer, dup_compare);
+        toku_pma_set_dup_compare(result->u.l.buffer, dup_compare);
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
 	toku_verify_counts(result);
 #define BRT_USE_PMA_BULK_INSERT 1
