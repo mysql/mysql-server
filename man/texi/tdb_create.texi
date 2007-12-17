@@ -7,6 +7,7 @@
 @c man begin SYNOPSIS
 @code{#include <db.h>}
 
+@noindent
 @code{int db_create(DB **}@var{dbp}@code{, DB_ENV *}@var{env}@code{, u_int32_t }@var{flags}@code{);}
 @c man end
 @unnumberedsubsec Description
