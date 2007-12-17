@@ -619,37 +619,7 @@ row_create_prebuilt(
 
 	prebuilt->clust_ref = ref;
 
-	UT_LIST_ADD_LAST(prebuilts, table->prebuilts, prebuilt);
-
 	return(prebuilt);
-}
-
-/************************************************************************
-Update a prebuilt struct for a MySQL table handle. */
-
-void
-row_update_prebuilt(
-/*================*/
-	row_prebuilt_t*	prebuilt,	/* in: Innobase table handle */
-	dict_table_t*   table)		/* in: table */
-{
-	dict_index_t*	clust_index;
-
-	ut_ad(prebuilt && prebuilt->heap && table);
-	ut_ad(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE);
-
-	prebuilt->magic_n = ROW_PREBUILT_ALLOCATED;
-	prebuilt->magic_n2 = ROW_PREBUILT_ALLOCATED;
-
-	clust_index = dict_table_get_first_index(table);
-
-	if (!prebuilt->index) {
-		prebuilt->index = clust_index;
-	}
-
-	if (prebuilt->ins_node) {
-		ins_node_create_entry_list(prebuilt->ins_node);
-	}
 }
 
 /************************************************************************
@@ -663,10 +633,9 @@ row_prebuilt_free(
 {
 	ulint	i;
 
-	if (UNIV_UNLIKELY(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE)) {
-	} else if (UNIV_UNLIKELY
-		   (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
-		    || prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED)) {
+	if (UNIV_UNLIKELY
+	    (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
+	     || prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED)) {
 
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
@@ -735,56 +704,7 @@ row_prebuilt_free(
 
 	dict_table_decrement_handle_count(prebuilt->table, dict_locked);
 
-	/* If there were references to this table when a primary index on
-	this table was created then we drop it here since there are no
-	references to it now.*/
-	if (prebuilt->table->to_be_dropped
-	    && prebuilt->table->n_mysql_handles_opened == 0) {
-
-		const char* table_name = prebuilt->table->name;
-
-		if (!row_add_table_to_background_drop_list(table_name)) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error: failed trying to add ",
-			      stderr);
-			ut_print_name(stderr, NULL, TRUE, table_name);
-			fputs(" to the background drop list.\n", stderr);
-		}
-	}
-
-	UT_LIST_REMOVE(prebuilts, prebuilt->table->prebuilts, prebuilt);
-
 	mem_heap_free(prebuilt->heap);
-}
-
-/*************************************************************************
-Mark all prebuilt structs that use a table obsolete.  They will
-be rebuilt later. */
-
-void
-row_prebuilt_table_obsolete(
-/*========================*/
-	dict_table_t*	table)		/* in: table */
-{
-	row_prebuilt_t*	prebuilt;
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	prebuilt = UT_LIST_GET_FIRST(table->prebuilts);
-
-	while (prebuilt) {
-		prebuilt->magic_n = ROW_PREBUILT_OBSOLETE;
-		prebuilt->magic_n2 = ROW_PREBUILT_OBSOLETE;
-
-		prebuilt = UT_LIST_GET_NEXT(prebuilts, prebuilt);
-	}
-
-	/* This table will be dropped when there are no more references
-	to it */
-	table->to_be_dropped = 1;
 }
 
 /*************************************************************************
@@ -1102,7 +1022,6 @@ row_insert_for_mysql(
 	ibool		was_lock_wait;
 	trx_t*		trx		= prebuilt->trx;
 	ins_node_t*	node		= prebuilt->ins_node;
-	dict_table_t*	table;
 
 	ut_ad(trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -1125,10 +1044,7 @@ row_insert_for_mysql(
 		return(DB_ERROR);
 	}
 
-	if (UNIV_UNLIKELY(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE)) {
-		row_update_prebuilt(prebuilt, prebuilt->table);
-	} else if (UNIV_UNLIKELY
-		   (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
+	if (UNIV_UNLIKELY(prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
 			"InnoDB: table handle. Magic n %lu, table name ",
@@ -1162,14 +1078,6 @@ row_insert_for_mysql(
 	if (node == NULL) {
 		row_get_prebuilt_insert_row(prebuilt);
 		node = prebuilt->ins_node;
-	} else {
-		table = dict_table_get(prebuilt->table->name, FALSE);
-
-		if (prebuilt->ins_node->table_version_number !=
-		    table->version_number) {
-			row_get_prebuilt_insert_row(prebuilt);
-			node = prebuilt->ins_node;
-		}
 	}
 
 	row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec);
@@ -1190,10 +1098,6 @@ row_insert_for_mysql(
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
-
-	if (UNIV_UNLIKELY(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE)) {
-		row_update_prebuilt(prebuilt, prebuilt->table);
-	}
 
 	row_ins_step(thr);
 
@@ -1377,10 +1281,7 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
-	if (UNIV_UNLIKELY(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE)) {
-		row_update_prebuilt(prebuilt, prebuilt->table);
-	} else if (UNIV_UNLIKELY
-		   (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
+	if (UNIV_UNLIKELY(prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
 			"InnoDB: table handle. Magic n %lu, table name ",
@@ -1444,10 +1345,6 @@ row_update_for_mysql(
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
-
-	if (UNIV_UNLIKELY(prebuilt->magic_n == ROW_PREBUILT_OBSOLETE)) {
-		row_update_prebuilt(prebuilt, prebuilt->table);
-	}
 
 	row_upd_step(thr);
 
@@ -3206,20 +3103,16 @@ check_next_foreign:
 		added = row_add_table_to_background_drop_list(table->name);
 
 		if (added) {
-			/* Temporary tables can have read views and we don't
-			print any warning. */
-			if (!table->to_be_dropped) {
-				ut_print_timestamp(stderr);
-				fputs("  InnoDB: Warning: MySQL is"
-				      " trying to drop table ", stderr);
-				ut_print_name(stderr, trx, TRUE, table->name);
-				fputs("\n"
-				      "InnoDB: though there are still"
-				      " open handles to it.\n"
-				      "InnoDB: Adding the table to the"
-				      " background drop queue.\n",
-				      stderr);
-			}
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Warning: MySQL is"
+			      " trying to drop table ", stderr);
+			ut_print_name(stderr, trx, TRUE, table->name);
+			fputs("\n"
+			      "InnoDB: though there are still"
+			      " open handles to it.\n"
+			      "InnoDB: Adding the table to the"
+			      " background drop queue.\n",
+			      stderr);
 
 			/* We return DB_SUCCESS to MySQL though the drop will
 			happen lazily later */

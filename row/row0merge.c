@@ -1648,7 +1648,8 @@ row_merge_lock_table(
 /*=================*/
 					/* out: error code or DB_SUCCESS */
 	trx_t*		trx,		/* in/out: transaction */
-	dict_table_t*	table)		/* in: table to LOCK_X */
+	dict_table_t*	table,		/* in: table to lock */
+	enum lock_mode	mode)		/* in: LOCK_X or LOCK_S */
 {
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
@@ -1657,6 +1658,7 @@ row_merge_lock_table(
 
 	ut_ad(trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
 	heap = mem_heap_create(512);
 
@@ -1676,7 +1678,7 @@ run_again:
 	thr->run_node = thr;
 	thr->prev_node = thr->common.parent;
 
-	err = lock_table(0, table, LOCK_X, thr);
+	err = lock_table(0, table, mode, thr);
 
 	trx->error_state = err;
 
@@ -2191,11 +2193,10 @@ row_merge_drop_table(
 		dict_locked = TRUE;
 	}
 
-	/* Drop the table immediately if it is not referenced by MySQL */
-	if (table->n_mysql_handles_opened == 0) {
-		err = row_drop_table_for_mysql_no_commit(table->name, trx,
-							 FALSE);
-	}
+	/* There must be no open transactions on the table. */
+	ut_a(table->n_mysql_handles_opened == 0);
+
+	err = row_drop_table_for_mysql_no_commit(table->name, trx, FALSE);
 
 	if (dict_locked) {
 		row_mysql_unlock_data_dictionary(trx);

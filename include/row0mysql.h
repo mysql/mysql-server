@@ -21,7 +21,7 @@ Created 9/17/2000 Heikki Tuuri
 
 extern ibool row_rollback_on_timeout;
 
-/* typedef struct row_prebuilt_struct row_prebuilt_t; */
+typedef struct row_prebuilt_struct row_prebuilt_t;
 
 /***********************************************************************
 Frees the blob heap in prebuilt when no longer needed. */
@@ -162,22 +162,6 @@ row_update_prebuilt_trx(
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in MySQL
 					handle */
 	trx_t*		trx);		/* in: transaction handle */
-/************************************************************************
-Update a prebuilt struct for a MySQL table handle. */
-
-void
-row_update_prebuilt(
-/*================*/
-	row_prebuilt_t*	prebuilt,	/* in: Innobase table handle */
-	dict_table_t*   table);		/* in: table */
-/*************************************************************************
-Mark all prebuilt structs that use a table obsolete.  They will
-be rebuilt later. */
-
-void
-row_prebuilt_table_obsolete(
-/*========================*/
-	dict_table_t*	table);		/* in: table */
 /*************************************************************************
 Unlocks an AUTO_INC type lock possibly reserved by trx. */
 
@@ -565,7 +549,6 @@ struct mysql_row_templ_struct {
 
 #define ROW_PREBUILT_ALLOCATED	78540783
 #define ROW_PREBUILT_FREED	26423527
-#define ROW_PREBUILT_OBSOLETE	12367541
 
 /* A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
@@ -574,9 +557,7 @@ struct row_prebuilt_struct {
 	ulint		magic_n;	/* this magic number is set to
 					ROW_PREBUILT_ALLOCATED when created,
 					or ROW_PREBUILT_FREED when the
-					struct has been freed or
-					ROW_PREBUILT_OBSOLETE when struct
-					needs a rebuilt */
+					struct has been freed */
 	dict_table_t*	table;		/* Innobase table handle */
 	trx_t*		trx;		/* current transaction handle */
 	ibool		sql_stat_start;	/* TRUE when we start processing of

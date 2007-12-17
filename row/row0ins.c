@@ -72,7 +72,6 @@ ins_node_create(
 
 	node->state = INS_NODE_SET_IX_LOCK;
 	node->table = table;
-	node->table_version_number = table->version_number;
 	node->index = NULL;
 	node->entry = NULL;
 
