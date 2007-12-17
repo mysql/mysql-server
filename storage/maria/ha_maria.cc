@@ -124,6 +124,10 @@ static MYSQL_SYSVAR_ULONG(checkpoint_interval, checkpoint_interval,
        " 0 means 'no automatic checkpoints'.",
        NULL, update_checkpoint_interval, 30, 0, UINT_MAX, 1);
 
+static MYSQL_SYSVAR_BOOL(page_checksum, maria_page_checksums, 0,
+       "Maintain page checksums (can be overridden per table "
+       "with PAGE_CHECKSUM clause in CREATE TABLE)", 0, 0, 1);
+
 static MYSQL_SYSVAR_ULONG(log_file_size, log_file_size,
        PLUGIN_VAR_RQCMDARG,
        "Limit for transaction log size",
@@ -2253,7 +2257,8 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     create_flags|= HA_CREATE_CHECKSUM;
   if (options & HA_OPTION_DELAY_KEY_WRITE)
     create_flags|= HA_CREATE_DELAY_KEY_WRITE;
-  if (ha_create_info->page_checksum != HA_CHOICE_NO)
+  if ((ha_create_info->page_checksum == HA_CHOICE_UNDEF && maria_page_checksums) ||
+       ha_create_info->page_checksum ==  HA_CHOICE_YES)
     create_flags|= HA_CREATE_PAGE_CHECKSUM;
 
   /* TODO: Check that the following fn_format is really needed */
@@ -2658,6 +2663,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(checkpoint_interval),
+  MYSQL_SYSVAR(page_checksum),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_purge_type),
   MYSQL_SYSVAR(max_sort_file_size),
