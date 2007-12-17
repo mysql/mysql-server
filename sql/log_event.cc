@@ -2199,7 +2199,7 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
   print_query_header(&cache, print_event_info);
   my_b_write(&cache, (uchar*) query, q_len);
-  my_b_printf(&cache, "%s\n", print_event_info->delimiter);
+  my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
 }
 #endif /* MYSQL_CLIENT */
 
@@ -5787,12 +5787,12 @@ void Execute_load_query_log_event::print(FILE* file,
       my_b_printf(&cache, " REPLACE");
     my_b_printf(&cache, " INTO");
     my_b_write(&cache, (uchar*) query + fn_pos_end, q_len-fn_pos_end);
-    my_b_printf(&cache, "%s\n", print_event_info->delimiter);
+    my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
   }
   else
   {
     my_b_write(&cache, (uchar*) query, q_len);
-    my_b_printf(&cache, "%s\n", print_event_info->delimiter);
+    my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
   }
 
   if (!print_event_info->short_form)
