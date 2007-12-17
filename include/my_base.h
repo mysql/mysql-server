@@ -296,8 +296,10 @@ enum ha_base_keytype {
 #define HA_OPTION_RELIES_ON_SQL_LAYER   512
 #define HA_OPTION_NULL_FIELDS		1024
 #define HA_OPTION_PAGE_CHECKSUM		2048
-#define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
-#define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
+#define HA_OPTION_TEMP_COMPRESS_RECORD  (1L << 15)      /* set by isamchk */
+#define HA_OPTION_READ_ONLY_DATA        (1L << 16)      /* Set by isamchk */
+#define HA_OPTION_NO_CHECKSUM           (1L << 17)
+#define HA_OPTION_NO_DELAY_KEY_WRITE    (1L << 18)
 
 	/* Bits in flag to create() */
 
