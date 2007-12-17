@@ -1292,7 +1292,7 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
     } else if (flags == DB_NOOVERWRITE) {
         /* check if the key already exists */
         DBT testfordata;
-        r = db->get(db, txn, key, toku_init_dbt(&testfordata), 0);
+        r = toku_db_get_noassociate(db, txn, key, toku_init_dbt(&testfordata), 0);
         if (r == 0)
             return DB_KEYEXIST;
     } else if (flags != 0) {
@@ -1300,7 +1300,7 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
         return EINVAL;
     } else {
         if (brtflags & TOKU_DB_DUPSORT) {
-            r = db->get(db, txn, key, data, DB_GET_BOTH);
+            r = toku_db_get_noassociate(db, txn, key, data, DB_GET_BOTH);
             if (r == 0)
                 return DB_KEYEXIST;
         }
