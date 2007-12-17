@@ -29,42 +29,48 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Intvar
 SET INSERT_ID=1/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Intvar
 SET INSERT_ID=2/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Intvar
 SET INSERT_ID=3/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Intvar
 SET INSERT_ID=4/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Intvar
 SET INSERT_ID=5/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Query	thread_id={integer}	exec_time={integer}	error_code=0
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 # at {pos}
 #{yymmdd} {HH:MM:SS} server id 1  end_log_pos {pos} 	Rotate to master-bin.000002  pos: {pos}
 DELIMITER ;
@@ -84,19 +90,24 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -114,10 +125,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -134,16 +147,20 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -161,7 +178,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -179,13 +197,16 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -202,13 +223,16 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -226,22 +250,28 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 SET INSERT_ID=6/*!*/;
@@ -251,7 +281,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "f")/*!*/;
+insert into t1 values(null, "f")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -269,19 +300,24 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 SET INSERT_ID=6/*!*/;
@@ -291,7 +327,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "f")/*!*/;
+insert into t1 values(null, "f")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -309,10 +346,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 SET INSERT_ID=6/*!*/;
@@ -322,7 +361,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "f")/*!*/;
+insert into t1 values(null, "f")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -339,22 +379,28 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 SET INSERT_ID=6/*!*/;
@@ -375,13 +421,16 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 SET INSERT_ID=6/*!*/;
@@ -391,7 +440,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "f")/*!*/;
+insert into t1 values(null, "f")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -408,13 +458,16 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -431,22 +484,28 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -464,19 +523,24 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -493,10 +557,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -513,16 +579,20 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -539,7 +609,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -557,13 +628,16 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -580,13 +654,16 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -603,22 +680,28 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 SET INSERT_ID=6/*!*/;
@@ -628,7 +711,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "f")/*!*/;
+insert into t1 values(null, "f")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -646,19 +730,24 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 SET INSERT_ID=6/*!*/;
@@ -668,7 +757,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "f")/*!*/;
+insert into t1 values(null, "f")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -685,10 +775,12 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 SET INSERT_ID=6/*!*/;
@@ -698,7 +790,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "f")/*!*/;
+insert into t1 values(null, "f")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -715,22 +808,28 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 SET INSERT_ID=6/*!*/;
@@ -751,13 +850,16 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
 SET INSERT_ID=6/*!*/;
@@ -767,7 +869,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values(null, "f")/*!*/;
+insert into t1 values(null, "f")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -784,13 +887,16 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -807,25 +913,32 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a int auto_increment not null primary key, b char(3))/*!*/;
+create table t1 (a int auto_increment not null primary key, b char(3))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "a")/*!*/;
+insert into t1 values(null, "a")
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
-insert into t1 values(null, "b")/*!*/;
+insert into t1 values(null, "b")
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "d")/*!*/;
+insert into t1 values(null, "d")
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
-insert into t1 values(null, "e")/*!*/;
+insert into t1 values(null, "e")
+/*!*/;
 SET INSERT_ID=6/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
-insert into t1 values(null, "f")/*!*/;
+insert into t1 values(null, "f")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
