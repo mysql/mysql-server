@@ -19,6 +19,7 @@ Created July 17, 2007 Vasil Dimov
 #include "buf0buf.h"
 #include "dict0dict.h"
 #include "ha0storage.h"
+#include "ha_prototypes.h"
 #include "hash0hash.h"
 #include "lock0iter.h"
 #include "lock0lock.h"
@@ -1138,12 +1139,17 @@ trx_i_s_possibly_fetch_data_into_cache(
 		return(1);
 	}
 
+	/* We are going to access trx->query in all transactions */
+	innobase_mysql_prepare_print_arbitrary_thd();
+
 	/* We need to read trx_sys and record/table lock queues */
 	mutex_enter(&kernel_mutex);
 
 	fetch_data_into_cache(cache);
 
 	mutex_exit(&kernel_mutex);
+
+	innobase_mysql_end_print_arbitrary_thd();
 
 	return(0);
 }
