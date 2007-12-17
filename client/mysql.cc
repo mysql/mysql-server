@@ -3085,7 +3085,10 @@ com_connect(String *buffer, char *line)
       Two null bytes are needed in the end of buff to allow
       get_arg to find end of string the second time it's called.
     */
-    strmake(buff, line, sizeof(buff)-2);
+    tmp= strmake(buff, line, sizeof(buff)-2);
+#ifdef EXTRA_DEBUG
+    tmp[1]= 0;
+#endif
     tmp= get_arg(buff, 0);
     if (tmp && *tmp)
     {
