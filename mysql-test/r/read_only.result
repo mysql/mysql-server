@@ -97,3 +97,31 @@ Note	1051	Unknown table 'ttt'
 set global read_only=0;
 drop table t1,t2;
 drop user test@localhost;
+#
+# Bug #27440 read_only allows create and drop database
+#
+set global read_only= 1;
+drop database if exists mysqltest_db1;
+drop database if exists mysqltest_db2;
+delete from mysql.user where User like 'mysqltest_%';
+delete from mysql.db where User like 'mysqltest_%';
+delete from mysql.tables_priv where User like 'mysqltest_%';
+delete from mysql.columns_priv where User like 'mysqltest_%';
+flush privileges;
+grant all on mysqltest_db2.* to `mysqltest_u1`@`%`;
+create database mysqltest_db1;
+grant all on mysqltest_db1.* to `mysqltest_u1`@`%`;
+flush privileges;
+create database mysqltest_db2;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+show databases like '%mysqltest_db2%';
+Database (%mysqltest_db2%)
+drop database mysqltest_db1;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+delete from mysql.user where User like 'mysqltest_%';
+delete from mysql.db where User like 'mysqltest_%';
+delete from mysql.tables_priv where User like 'mysqltest_%';
+delete from mysql.columns_priv where User like 'mysqltest_%';
+flush privileges;
+drop database mysqltest_db1;
+set global read_only=0;
