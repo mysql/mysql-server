@@ -389,9 +389,9 @@ INSERT INTO t8 VALUES (99,99,99);
 INSERT INTO t8 VALUES (99,22,33);
 ERROR 23000: Duplicate entry '99' for key 'PRIMARY'
 INSERT INTO t8 VALUES (11,99,33);
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '99' for key 'b'
 INSERT INTO t8 VALUES (11,22,99);
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '99' for key 'c'
 SELECT * FROM t8 ORDER BY a;
 a	b	c
 99	99	99

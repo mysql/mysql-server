@@ -455,7 +455,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 
     if ((!(param->testflag & T_SILENT)))
       printf ("- check data record references index: %d\n",key+1);
-    if (keyinfo->flag & HA_FULLTEXT)
+    if (keyinfo->flag & (HA_FULLTEXT | HA_SPATIAL))
       full_text_keys++;
     if (share->state.key_root[key] == HA_OFFSET_ERROR &&
 	(info->state->records == 0 || keyinfo->flag & HA_FULLTEXT))

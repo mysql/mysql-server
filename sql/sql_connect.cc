@@ -948,19 +948,20 @@ bool setup_connection_thread_globals(THD *thd)
 bool login_connection(THD *thd)
 {
   NET *net= &thd->net;
+  int error;
   DBUG_ENTER("login_connection");
   DBUG_PRINT("info", ("login_connection called by thread %lu",
                       thd->thread_id));
-
-  net->no_send_error= 0;
 
   /* Use "connect_timeout" value during connection phase */
   my_net_set_read_timeout(net, connect_timeout);
   my_net_set_write_timeout(net, connect_timeout);
 
-  if (check_connection(thd))
+  error= check_connection(thd);
+  net_end_statement(thd);
+
+  if (error)
   {						// Wrong permissions
-    net_send_error(thd);
 #ifdef __NT__
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);				/* must wait after eof() */
@@ -989,13 +990,12 @@ void end_connection(THD *thd)
   if (thd->user_connect)
     decrease_user_connections(thd->user_connect);
 
-  if (thd->killed ||
-      net->error && net->vio != 0 && thd->is_error())
+  if (thd->killed || net->error && net->vio != 0)
   {
     statistic_increment(aborted_threads,&LOCK_status);
   }
 
-  if (net->error && net->vio != 0 && thd->is_error())
+  if (net->error && net->vio != 0)
   {
     if (!thd->killed && thd->variables.log_warnings > 1)
     {
@@ -1005,11 +1005,9 @@ void end_connection(THD *thd)
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip,
-                        (net->last_errno ? ER(net->last_errno) :
+                        (thd->main_da.is_error() ? thd->main_da.message() :
                          ER(ER_UNKNOWN_ERROR)));
     }
-
-    net_send_error(thd, net->last_errno, NullS);
   }
 }
 
@@ -1045,24 +1043,14 @@ static void prepare_new_connection_state(THD* thd)
   if (sys_init_connect.value_length && !(sctx->master_access & SUPER_ACL))
   {
     execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
-    /*
-      execute_init_command calls net_send_error.
-      If there was an error during execution of the init statements, 
-      the error at this moment is present in thd->net.last_error and also
-      thd->is_slave_error and thd->net.report_error are set.
-      net_send_error sends the contents of thd->net.last_error and
-      clears thd->net.report_error. It doesn't, however, clean
-      thd->is_slave_error or thd->net.last_error. Here we make use of this
-      fact.
-    */
-    if (thd->is_slave_error)
+    if (thd->is_error())
     {
       thd->killed= THD::KILL_CONNECTION;
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
-      sql_print_warning("%s", thd->net.last_error);
+      sql_print_warning("%s", thd->main_da.message());
     }
     thd->proc_info=0;
     thd->set_time();
@@ -1129,7 +1117,6 @@ pthread_handler_t handle_one_connection(void *arg)
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))
     {
-      net->no_send_error= 0;
       if (do_command(thd))
 	break;
     }

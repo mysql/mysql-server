@@ -728,6 +728,14 @@ void multi_delete::send_error(uint errcode,const char *err)
   /* First send error what ever it is ... */
   my_message(errcode, err, MYF(0));
 
+  DBUG_VOID_RETURN;
+}
+
+
+void multi_delete::abort()
+{
+  DBUG_ENTER("multi_delete::abort");
+
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
       !thd->transaction.stmt.modified_non_trans_table && !deleted)

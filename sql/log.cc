@@ -280,29 +280,34 @@ void Log_to_csv_event_handler::cleanup()
 
 /* log event handlers */
 
-/*
+/**
   Log command to the general log table
 
-  SYNOPSIS
-    log_general()
+  Log given command to the general log table.
 
-    event_time        command start timestamp
-    user_host         the pointer to the string with user@host info
-    user_host_len     length of the user_host string. this is computed once
-                      and passed to all general log event handlers
-    thread_id         Id of the thread, issued a query
-    command_type      the type of the command being logged
-    command_type_len  the length of the string above
-    sql_text          the very text of the query being executed
-    sql_text_len      the length of sql_text string
+  @param  event_time        command start timestamp
+  @param  user_host         the pointer to the string with user@host info
+  @param  user_host_len     length of the user_host string. this is computed
+                            once and passed to all general log event handlers
+  @param  thread_id         Id of the thread, issued a query
+  @param  command_type      the type of the command being logged
+  @param  command_type_len  the length of the string above
+  @param  sql_text          the very text of the query being executed
+  @param  sql_text_len      the length of sql_text string
 
-  DESCRIPTION
 
-   Log given command to the general log table
+  @return This function attempts to never call my_error(). This is
+  necessary, because general logging happens already after a statement
+  status has been sent to the client, so the client can not see the
+  error anyway. Besides, the error is not related to the statement
+  being executed and is internal, and thus should be handled
+  internally (@todo: how?).
+  If a write to the table has failed, the function attempts to
+  write to a short error message to the file. The failure is also
+  indicated in the return value. 
 
-  RETURN
-    FALSE - OK
-    TRUE - error occured
+  @retval  FALSE   OK
+  @retval  TRUE    error occured
 */
 
 bool Log_to_csv_event_handler::
@@ -342,6 +347,20 @@ bool Log_to_csv_event_handler::
   table_list.db= MYSQL_SCHEMA_NAME.str;
   table_list.db_length= MYSQL_SCHEMA_NAME.length;
 
+  /*
+    1) open_performance_schema_table generates an error of the
+    table can not be opened or is corrupted.
+    2) "INSERT INTO general_log" can generate warning sometimes.
+
+    Suppress these warnings and errors, they can't be dealt with
+    properly anyway.
+
+    QQ: this problem needs to be studied in more detail.
+    Comment this 2 lines and run "cast.test" to see what's happening.
+  */
+  thd->push_internal_handler(& error_handler);
+  need_pop= TRUE;
+
   if (!(table= open_performance_schema_table(thd, & table_list,
                                              & open_tables_backup)))
     goto err;
@@ -356,14 +375,6 @@ bool Log_to_csv_event_handler::
 
   /* Honor next number columns if present */
   table->next_number_field= table->found_next_number_field;
-
-  /*
-    "INSERT INTO general_log" can generate warning sometimes.
-    QQ: this problem needs to be studied in more details.
-    Comment this 2 lines and run "cast.test" to see what's happening:
-  */
-  thd->push_internal_handler(& error_handler);
-  need_pop= TRUE;
 
   /*
     NOTE: we do not call restore_record() here, as all fields are

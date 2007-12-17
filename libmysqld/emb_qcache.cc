@@ -19,7 +19,7 @@
 #include "emb_qcache.h"
 #include "embedded_priv.h"
 
-void Querycache_stream::store_char(char c)
+void Querycache_stream::store_uchar(uchar c)
 {
   if (data_end == cur_data)
     use_next_block(TRUE);
@@ -142,7 +142,7 @@ void Querycache_stream::store_safe_str(const char *str, uint str_len)
     store_int(0);
 }
 
-char Querycache_stream::load_char()
+uchar Querycache_stream::load_uchar()
 {
   if (cur_data == data_end)
     use_next_block(FALSE);
@@ -301,8 +301,8 @@ uint emb_count_querycache_size(THD *thd)
   *data->embedded_info->prev_ptr= NULL; // this marks the last record
   cur_row= data->data;
   n_rows= data->rows;
-  /* n_fields + n_rows + (field_info + strlen * n_rows) * n_fields */
-  result+= (uint) (4+8 + (42 + 4*n_rows)*data->fields);
+  /* n_fields + n_rows + field_info * n_fields */
+  result+= (uint) (4+8 + 42*data->fields);
 
   for(; field < field_end; field++)
   {
@@ -313,13 +313,23 @@ uint emb_count_querycache_size(THD *thd)
       result+= field->def_length;
   }
   
-  for (; cur_row; cur_row=cur_row->next)
+  if (thd->protocol == &thd->protocol_binary)
   {
-    MYSQL_ROW col= cur_row->data;
-    MYSQL_ROW col_end= col + data->fields;
-    for (; col < col_end; col++)
-      if (*col)
-        result+= *(uint *)((*col) - sizeof(uint));
+    result+= (uint) (4*n_rows);
+    for (; cur_row; cur_row=cur_row->next)
+      result+= cur_row->length;
+  }
+  else
+  {
+    result+= (uint) (4*n_rows*data->fields);
+    for (; cur_row; cur_row=cur_row->next)
+    {
+      MYSQL_ROW col= cur_row->data;
+      MYSQL_ROW col_end= col + data->fields;
+      for (; col < col_end; col++)
+        if (*col)
+          result+= *(uint *)((*col) - sizeof(uint));
+    }
   }
   return result;
 }
@@ -353,10 +363,10 @@ void emb_store_querycache_result(Querycache_stream *dst, THD *thd)
   {
     dst->store_int((uint)field->length);
     dst->store_int((uint)field->max_length);
-    dst->store_char((char)field->type);
+    dst->store_uchar((uchar)field->type);
     dst->store_short((ushort)field->flags);
     dst->store_short((ushort)field->charsetnr);
-    dst->store_char((char)field->decimals);
+    dst->store_uchar((uchar)field->decimals);
     dst->store_str(field->name, field->name_length);
     dst->store_str(field->table, field->table_length);
     dst->store_str(field->org_name, field->org_name_length);
@@ -366,14 +376,22 @@ void emb_store_querycache_result(Querycache_stream *dst, THD *thd)
     dst->store_safe_str(field->def, field->def_length);
   }
   
-  for (; cur_row; cur_row=cur_row->next)
+  if (thd->protocol == &thd->protocol_binary)
   {
-    MYSQL_ROW col= cur_row->data;
-    MYSQL_ROW col_end= col + data->fields;
-    for (; col < col_end; col++)
+    for (; cur_row; cur_row=cur_row->next)
+      dst->store_str((char *) cur_row->data, cur_row->length);
+  }
+  else
+  {
+    for (; cur_row; cur_row=cur_row->next)
     {
-      uint len= *col ? *(uint *)((*col) - sizeof(uint)) : 0;
-      dst->store_safe_str(*col, len);
+      MYSQL_ROW col= cur_row->data;
+      MYSQL_ROW col_end= col + data->fields;
+      for (; col < col_end; col++)
+      {
+        uint len= *col ? *(uint *)((*col) - sizeof(uint)) : 0;
+        dst->store_safe_str(*col, len);
+      }
     }
   }
   DBUG_ASSERT(emb_count_querycache_size(thd) == dst->stored_size);
@@ -408,10 +426,10 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
   {
     field->length= src->load_int();
     field->max_length= (unsigned int)src->load_int();
-    field->type= (enum enum_field_types)src->load_char();
+    field->type= (enum enum_field_types)src->load_uchar();
     field->flags= (unsigned int)src->load_short();
     field->charsetnr= (unsigned int)src->load_short();
-    field->decimals= (unsigned int)src->load_char();
+    field->decimals= src->load_uchar();
 
     if (!(field->name= src->load_str(f_alloc, &field->name_length))          ||
         !(field->table= src->load_str(f_alloc,&field->table_length))         ||
@@ -423,31 +441,48 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
       goto err;
   }
   
-  row= (MYSQL_ROWS *)alloc_root(&data->alloc,
-                                (uint) (rows * sizeof(MYSQL_ROWS) +
-                                        rows*(data->fields+1)*sizeof(char*)));
-  end_row= row + rows;
-  columns= (MYSQL_ROW)end_row;
-  
   data->rows= rows;
-  data->data= row;
   if (!rows)
     goto return_ok;
-
-  for (prev_row= &row->next; row < end_row; prev_row= &row->next, row++)
+  if (thd->protocol == &thd->protocol_binary)
   {
-    *prev_row= row;
-    row->data= columns;
-    MYSQL_ROW col_end= columns + data->fields;
-    for (; columns < col_end; columns++)
-      src->load_column(&data->alloc, columns);
+    uint length;
+    row= (MYSQL_ROWS *)alloc_root(&data->alloc, rows * sizeof(MYSQL_ROWS));
+    end_row= row + rows;
+    data->data= row;
 
-    *(columns++)= NULL;
+    for (prev_row= &row->next; row < end_row; prev_row= &row->next, row++)
+    {
+      *prev_row= row;
+      row->data= (MYSQL_ROW) src->load_str(&data->alloc, &length);
+      row->length= length;
+    }
+  }
+  else
+  {
+    row= (MYSQL_ROWS *)alloc_root(&data->alloc,
+        (uint) (rows * sizeof(MYSQL_ROWS) +
+          rows*(data->fields+1)*sizeof(char*)));
+    end_row= row + rows;
+    columns= (MYSQL_ROW)end_row;
+
+    data->data= row;
+
+    for (prev_row= &row->next; row < end_row; prev_row= &row->next, row++)
+    {
+      *prev_row= row;
+      row->data= columns;
+      MYSQL_ROW col_end= columns + data->fields;
+      for (; columns < col_end; columns++)
+        src->load_column(&data->alloc, columns);
+
+      *(columns++)= NULL;
+    }
   }
   *prev_row= NULL;
   data->embedded_info->prev_ptr= prev_row;
 return_ok:
-  send_eof(thd);
+  net_send_eof(thd, thd->server_status, thd->total_warn_count);
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);
