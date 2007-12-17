@@ -998,10 +998,6 @@ static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
     else if (flags==DB_NODUPDATA) {
         //Must support sorted duplicates.
         if (!(brtflags & TOKU_DB_DUPSORT)) return EINVAL;
-        //Test: Does BDB just test for 'already exists',
-        //or does it really test using the comparison function?
-        //(i.e. like in DB_CURRENT, using dup_compare)
-        //Are they the same thing?
         r = toku_c_get(dbc, key, data, DB_GET_BOTH);
         if (r==0) return DB_KEYEXIST;
         if (r!=DB_NOTFOUND) return r;
