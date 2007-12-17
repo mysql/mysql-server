@@ -1895,7 +1895,7 @@ sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
 
   if (thd->db)
   {
-    old_db->length= (strmake(old_db->str, thd->db, old_db->length) -
+    old_db->length= (strmake(old_db->str, thd->db, old_db->length - 1) -
                      old_db->str);
   }
   else
