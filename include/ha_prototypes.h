@@ -109,7 +109,9 @@ innobase_mysql_prepare_print_arbitrary_thd(void);
 
 /*****************************************************************
 Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
-*/
+In the InnoDB latching order, the mutex sits right above the
+kernel_mutex.  In debug builds, we assert that the kernel_mutex is
+released before this function is invoked. */
 
 void
 innobase_mysql_end_print_arbitrary_thd(void);
