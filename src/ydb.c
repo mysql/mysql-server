@@ -835,7 +835,7 @@ static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
     unsigned int brtflags;
     
     toku_brt_get_flags(db->i->brt, &brtflags);
-    if (brtflags & TOKU_DB_DUPSORT) {
+    if ((brtflags & TOKU_DB_DUPSORT) || flags == DB_GET_BOTH) {
 
         if (flags != 0 && flags != DB_GET_BOTH) return EINVAL;
         // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW

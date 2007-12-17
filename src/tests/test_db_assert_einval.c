@@ -79,12 +79,12 @@ typedef struct {
 
 PUT_TEST put_tests[] = {
     {0, 0,                 DB_NODUPDATA, EINVAL},
-    {1, DB_DUP|DB_DUPSORT, DB_NODUPDATA, EINVAL},  //Might need to be removed later.
+    {1, DB_DUP|DB_DUPSORT, DB_NODUPDATA, EINVAL},  //r_expect must change to 0, and don't skip with BDB once implemented.
 };
 const int num_put = sizeof(put_tests) / sizeof(put_tests[0]);
 
 GET_TEST get_tests[] = {
-    {{1, 0,                 0, 0}, DB_GET_BOTH, EINVAL},
+    {{0, 0,                 0, 0}, DB_GET_BOTH, 0},
     {{0, DB_DUP|DB_DUPSORT, 0, 0}, DB_GET_BOTH, 0},
     {{0, 0,                 0, 0}, DB_RMW,      EINVAL},
     {{0, DB_DUP|DB_DUPSORT, 0, 0}, DB_RMW,      EINVAL},
