@@ -136,7 +136,8 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
 {
   Item_string *field=new Item_string("",0,thd->charset());
   List<Item> field_list;
-  char path[FN_LEN],*end;
+  char path[FN_REFLEN],*end;                    // for unpack_dirname()
+
   List<char> files;
   char *file_name;
   Protocol *protocol= thd->protocol;
@@ -457,7 +458,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   Item *item;
   List<char> files;
   List<Item> field_list;
-  char path[FN_LEN];
+  char path[FN_REFLEN];                         // for unpack_dirname()
   char *file_name;
   TABLE *table;
   Protocol *protocol= thd->protocol;
