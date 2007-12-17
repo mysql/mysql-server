@@ -38,12 +38,10 @@ void close_dbs() {
     r = dbp->close(dbp, 0);                             CKERR(r);
 }
 
-void insert_bad_flags(u_int32_t flags, int r_expect) {
+void insert_bad_flags(u_int32_t flags, int r_expect, int keyint, int dataint) {
     DBT key;
     DBT data;
     int r;
-    int keyint  = 0;
-    int dataint = 0;
     
     dbt_init(&key, &keyint, sizeof(keyint));
     dbt_init(&data,&dataint,sizeof(dataint));
@@ -51,12 +49,10 @@ void insert_bad_flags(u_int32_t flags, int r_expect) {
     CKERR2(r, r_expect);
 }
 
-void get_bad_flags(u_int32_t flags, int r_expect) {
+void get_bad_flags(u_int32_t flags, int r_expect, int keyint, int dataint) {
     DBT key;
     DBT data;
     int r;
-    int keyint  = 0;
-    int dataint = 0;
     
     dbt_init(&key, &keyint, sizeof(keyint));
     dbt_init(&data,&dataint,sizeof(dataint));
@@ -69,25 +65,32 @@ typedef struct {
     u_int32_t db_flags;
     u_int32_t flags;
     int       r_expect;
+    int       key;
+    int       data;
 } PUT_TEST;
 
 typedef struct {
     PUT_TEST put;
     u_int32_t flags;
     int     r_expect;
+    int     key;
+    int     data;
 } GET_TEST;
 
 PUT_TEST put_tests[] = {
-    {0, 0,                 DB_NODUPDATA, EINVAL},
-    {1, DB_DUP|DB_DUPSORT, DB_NODUPDATA, EINVAL},  //r_expect must change to 0, and don't skip with BDB once implemented.
+    {0, 0,                 DB_NODUPDATA, EINVAL, 0, 0},
+    {1, DB_DUP|DB_DUPSORT, DB_NODUPDATA, EINVAL, 0, 0},  //r_expect must change to 0, and don't skip with BDB once implemented.
 };
 const int num_put = sizeof(put_tests) / sizeof(put_tests[0]);
 
 GET_TEST get_tests[] = {
-    {{0, 0,                 0, 0}, DB_GET_BOTH, 0},
-    {{0, DB_DUP|DB_DUPSORT, 0, 0}, DB_GET_BOTH, 0},
-    {{0, 0,                 0, 0}, DB_RMW,      EINVAL},
-    {{0, DB_DUP|DB_DUPSORT, 0, 0}, DB_RMW,      EINVAL},
+    {{0, 0,                 0, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
+    {{0, 0,                 0, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
+    {{0, 0,                 0, 0, 0, 0}, DB_GET_BOTH, DB_NOTFOUND, 0, 1},
+    {{0, DB_DUP|DB_DUPSORT, 0, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
+    {{0, DB_DUP|DB_DUPSORT, 0, 0, 0, 0}, DB_GET_BOTH, DB_NOTFOUND, 0, 1},
+    {{0, 0,                 0, 0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
+    {{0, DB_DUP|DB_DUPSORT, 0, 0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
 };
 const int num_get = sizeof(get_tests) / sizeof(get_tests[0]);
 
@@ -103,7 +106,7 @@ int main(int argc, const char *argv[]) {
 #endif
         {
             setup(put_tests[i].db_flags);
-            insert_bad_flags(put_tests[i].flags, put_tests[i].r_expect);
+            insert_bad_flags(put_tests[i].flags, put_tests[i].r_expect, put_tests[i].key, put_tests[i].data);
             close_dbs();
         }
     }
@@ -115,8 +118,8 @@ int main(int argc, const char *argv[]) {
 #endif
         {
             setup(get_tests[i].put.db_flags);
-            insert_bad_flags(get_tests[i].put.flags, get_tests[i].put.r_expect);
-            get_bad_flags(get_tests[i].flags, get_tests[i].r_expect);
+            insert_bad_flags(get_tests[i].put.flags, get_tests[i].put.r_expect, get_tests[i].put.key, get_tests[i].put.data);
+            get_bad_flags(get_tests[i].flags, get_tests[i].r_expect, get_tests[i].key, get_tests[i].data);
             close_dbs();
         }
     }
