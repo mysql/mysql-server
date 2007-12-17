@@ -284,7 +284,7 @@ uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
 */
 
 
-typedef struct st_global_ddl_log
+struct st_global_ddl_log
 {
   /*
     We need to adjust buffer size to be able to handle downgrades/upgrades
@@ -302,10 +302,12 @@ typedef struct st_global_ddl_log
   uint name_len;
   uint io_size;
   bool inited;
+  bool do_release;
   bool recovery_phase;
-} GLOBAL_DDL_LOG;
+  st_global_ddl_log() : inited(false), do_release(false) {}
+};
 
-GLOBAL_DDL_LOG global_ddl_log;
+st_global_ddl_log global_ddl_log;
 
 pthread_mutex_t LOCK_gdl;
 
@@ -465,6 +467,7 @@ static uint read_ddl_log_header()
   global_ddl_log.first_used= NULL;
   global_ddl_log.num_entries= 0;
   VOID(pthread_mutex_init(&LOCK_gdl, MY_MUTEX_INIT_FAST));
+  global_ddl_log.do_release= true;
   DBUG_RETURN(entry_no);
 }
 
@@ -1155,6 +1158,9 @@ void release_ddl_log()
   DDL_LOG_MEMORY_ENTRY *used_list= global_ddl_log.first_used;
   DBUG_ENTER("release_ddl_log");
 
+  if (!global_ddl_log.do_release)
+    DBUG_VOID_RETURN;
+
   pthread_mutex_lock(&LOCK_gdl);
   while (used_list)
   {
@@ -1172,6 +1178,7 @@ void release_ddl_log()
   global_ddl_log.inited= 0;
   pthread_mutex_unlock(&LOCK_gdl);
   VOID(pthread_mutex_destroy(&LOCK_gdl));
+  global_ddl_log.do_release= false;
   DBUG_VOID_RETURN;
 }
 
@@ -1246,6 +1253,10 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   char shadow_path[FN_REFLEN+1];
   char shadow_frm_name[FN_REFLEN+1];
   char frm_name[FN_REFLEN+1];
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  char *part_syntax_buf;
+  uint syntax_len;
+#endif
   DBUG_ENTER("mysql_write_frm");
 
   /*
@@ -1269,12 +1280,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     {
       partition_info *part_info= lpt->table->part_info;
-      char *part_syntax_buf;
-      uint syntax_len;
-
       if (part_info)
       {
-        TABLE_SHARE *share= lpt->table->s;
         if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                          &syntax_len,
                                                          TRUE, TRUE)))
@@ -1282,16 +1289,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           DBUG_RETURN(TRUE);
         }
         part_info->part_info_string= part_syntax_buf;
-        share->partition_info_len= part_info->part_info_len= syntax_len;
-        if (share->partition_info_buffer_size < syntax_len + 1)
-        {
-          share->partition_info_buffer_size= syntax_len+1;
-          if (!(share->partition_info=
-                  (char*) alloc_root(&share->mem_root, syntax_len+1)))
-            DBUG_RETURN(TRUE);
-
-        }
-        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
+        part_info->part_info_len= syntax_len;
       }
     }
 #endif
@@ -1369,7 +1367,40 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 #endif
     {
       error= 1;
+      goto err;
     }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    if (part_info)
+    {
+      TABLE_SHARE *share= lpt->table->s;
+      char *tmp_part_syntax_str;
+      if (!(part_syntax_buf= generate_partition_syntax(part_info,
+                                                       &syntax_len,
+                                                       TRUE, TRUE)))
+      {
+        error= 1;
+        goto err;
+      }
+      if (share->partition_info_buffer_size < syntax_len + 1)
+      {
+        share->partition_info_buffer_size= syntax_len+1;
+        if (!(tmp_part_syntax_str= (char*) strmake_root(&share->mem_root,
+                                                        part_syntax_buf,
+                                                        syntax_len)))
+        {
+          error= 1;
+          goto err;
+        }
+        share->partition_info= tmp_part_syntax_str;
+      }
+      else
+        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
+      share->partition_info_len= part_info->part_info_len= syntax_len;
+      part_info->part_info_string= part_syntax_buf;
+    }
+#endif
+
+err:
     VOID(pthread_mutex_unlock(&LOCK_open));
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos);
@@ -1635,8 +1666,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
       alias= (lower_case_table_names == 2) ? table->alias : table->table_name;
       /* remove .frm file and engine files */
-      path_length= build_table_filename(path, sizeof(path),
-                                        db, alias, reg_ext, 0);
+      path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext,
+                                        table->internal_tmp_table ?
+                                        FN_IS_TMP : 0);
     }
     if (drop_temporary ||
         (table_type == NULL &&        
@@ -1667,7 +1699,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                              !dont_log_query);
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
 	  (if_exists || table_type == NULL))
+      {
 	error= 0;
+        thd->clear_error();
+      }
       if (error == HA_ERR_ROW_IS_REFERENCED)
       {
 	/* the table is referenced by a foreign key constraint */
@@ -4206,18 +4241,22 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           (table->table->file->ha_check_for_upgrade(check_opt) ==
            HA_ADMIN_NEEDS_ALTER))
       {
-        my_bool save_no_send_ok= thd->net.no_send_ok;
         DBUG_PRINT("admin", ("recreating table"));
         ha_autocommit_or_rollback(thd, 1);
         close_thread_tables(thd);
         tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        thd->net.no_send_ok= TRUE;
         result_code= mysql_recreate_table(thd, table);
-        thd->net.no_send_ok= save_no_send_ok;
         reenable_binlog(thd);
+        /*
+          mysql_recreate_table() can push OK or ERROR.
+          Clear 'OK' status. If there is an error, keep it:
+          we will store the error message in a result set row 
+          and then clear.
+        */
+        if (thd->main_da.is_ok())
+          thd->main_da.reset_diagnostics_area();
         goto send_result;
       }
-
     }
 
     DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
@@ -4311,7 +4350,6 @@ send_result_message:
 
     case HA_ADMIN_TRY_ALTER:
     {
-      my_bool save_no_send_ok= thd->net.no_send_ok;
       /*
         This is currently used only by InnoDB. ha_innobase::optimize() answers
         "try with alter", so here we close the table, do an ALTER TABLE,
@@ -4323,10 +4361,16 @@ send_result_message:
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
       tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-      thd->net.no_send_ok= TRUE;
       result_code= mysql_recreate_table(thd, table);
-      thd->net.no_send_ok= save_no_send_ok;
       reenable_binlog(thd);
+      /*
+        mysql_recreate_table() can push OK or ERROR.
+        Clear 'OK' status. If there is an error, keep it:
+        we will store the error message in a result set row 
+        and then clear.
+      */
+      if (thd->main_da.is_ok())
+        thd->main_da.reset_diagnostics_area();
       ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
@@ -4337,9 +4381,10 @@ send_result_message:
       }
       if (result_code) // either mysql_recreate_table or analyze failed
       {
-        const char *err_msg;
-        if ((err_msg= thd->net.last_error))
+        DBUG_ASSERT(thd->is_error());
+        if (thd->is_error())
         {
+          const char *err_msg= thd->main_da.message();
           if (!thd->vio_ok())
           {
             sql_print_error(err_msg);
@@ -4355,6 +4400,7 @@ send_result_message:
             protocol->store(table_name, system_charset_info);
             protocol->store(operator_name, system_charset_info);
           }
+          thd->clear_error();
         }
       }
       result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
@@ -4579,6 +4625,55 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 }
 
 
+
+/**
+  @brief          Create frm file based on I_S table
+
+  @param[in]      thd                      thread handler
+  @param[in]      schema_table             I_S table           
+  @param[in]      dst_path                 path where frm should be created
+  @param[in]      create_info              Create info
+
+  @return         Operation status
+    @retval       0                        success
+    @retval       1                        error
+*/
+
+
+bool mysql_create_like_schema_frm(THD* thd, TABLE_LIST* schema_table,
+                                  char *dst_path, HA_CREATE_INFO *create_info)
+{
+  HA_CREATE_INFO local_create_info;
+  Alter_info alter_info;
+  bool tmp_table= (create_info->options & HA_LEX_CREATE_TMP_TABLE);
+  uint keys= schema_table->table->s->keys;
+  uint db_options= 0;
+  DBUG_ENTER("mysql_create_like_schema_frm");
+
+  bzero((char*) &local_create_info, sizeof(local_create_info));
+  local_create_info.db_type= schema_table->table->s->db_type();
+  local_create_info.row_type= schema_table->table->s->row_type;
+  local_create_info.default_table_charset=default_charset_info;
+  alter_info.flags= (ALTER_CHANGE_COLUMN | ALTER_RECREATE);
+  schema_table->table->use_all_columns();
+  if (mysql_prepare_alter_table(thd, schema_table->table,
+                                &local_create_info, &alter_info))
+    DBUG_RETURN(1);
+  if (mysql_prepare_create_table(thd, &local_create_info, &alter_info,
+                                 tmp_table, &db_options,
+                                 schema_table->table->file,
+                                 &schema_table->table->s->key_info, &keys, 0))
+    DBUG_RETURN(1);
+  local_create_info.max_rows= 0;
+  if (mysql_create_frm(thd, dst_path, NullS, NullS,
+                       &local_create_info, alter_info.create_list,
+                       keys, schema_table->table->s->key_info,
+                       schema_table->table->file))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+
 /*
   Create a table identical to the specified table
 
@@ -4682,7 +4777,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     during the call to ha_create_table(). See bug #28614 for more info.
   */
   VOID(pthread_mutex_lock(&LOCK_open));
-  if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
+  if (src_table->schema_table)
+  {
+    if (mysql_create_like_schema_frm(thd, src_table, dst_path, create_info))
+    {
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      goto err;
+    }
+  }
+  else if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
   {
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);
@@ -6681,7 +6784,7 @@ view_err:
   if (thd->locked_tables && new_name == table_name && new_db == db)
   {
     thd->in_lock_tables= 1;
-    error= reopen_tables(thd, 1, 0);
+    error= reopen_tables(thd, 1, 1);
     thd->in_lock_tables= 0;
     if (error)
       goto err_with_placeholders;

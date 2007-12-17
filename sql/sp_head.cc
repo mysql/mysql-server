@@ -1202,12 +1202,6 @@ sp_head::execute(THD *thd)
     
     err_status= i->execute(thd, &ip);
 
-    /*
-      If this SP instruction have sent eof, it has caused no_send_error to be
-      set. Clear it back to allow the next instruction to send error. (multi-
-      statement execution code clears no_send_error between statements too)
-    */
-    thd->net.no_send_error= 0;
     if (i->free_list)
       cleanup_items(i->free_list);
     
@@ -2762,14 +2756,22 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 					  thd->query, thd->query_length) <= 0)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
+
+      if (thd->main_da.is_eof())
+        net_end_statement(thd);
+
+      query_cache_end_of_result(thd);
+
       if (!res && unlikely(thd->enable_slow_log))
         log_slow_statement(thd);
-      query_cache_end_of_result(thd);
     }
     else
       *nextp= m_ip+1;
     thd->query= query;
     thd->query_length= query_length;
+
+    if (!thd->is_error())
+      thd->main_da.reset_diagnostics_area();
   }
   DBUG_RETURN(res);
 }

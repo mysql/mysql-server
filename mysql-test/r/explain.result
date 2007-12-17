@@ -87,3 +87,23 @@ Warnings:
 Note	1003	select '1' AS `f1`,'1' AS `f2` from `test`.`t1` having 1
 drop view v1;
 drop table t1;
+CREATE TABLE t1(c INT);
+INSERT INTO t1 VALUES (),();
+CREATE TABLE t2 (b INT,
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b));
+INSERT INTO t2 VALUES (),(),();
+EXPLAIN SELECT 1 FROM
+(SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+X	X	X	X	X	X	X	X	X	const row not found
+X	X	X	X	X	X	X	X	X	
+X	X	X	X	X	X	X	X	X	Range checked for each record (index map: 0xFFFFFFFFFF)
+DROP TABLE t2;
+DROP TABLE t1;

@@ -276,6 +276,9 @@ public:
   Field *field;
   uchar *min_value,*max_value;			// Pointer to range
 
+  /*
+    eq_tree() requires that left == right == 0 if the type is MAYBE_KEY.
+   */
   SEL_ARG *left,*right;   /* R-B tree children */
   SEL_ARG *next,*prev;    /* Links for bi-directional interval list */
   SEL_ARG *parent;        /* R-B tree parent */
@@ -291,7 +294,7 @@ public:
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
 	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag);
   SEL_ARG(enum Type type_arg)
-    :min_flag(0),elements(1),use_count(1),left(0),next_key_part(0),
+    :min_flag(0),elements(1),use_count(1),left(0),right(0),next_key_part(0),
     color(BLACK), type(type_arg)
   {}
   inline bool is_same(SEL_ARG *arg)
@@ -1271,7 +1274,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
       the storage engine calls in question happen to never fail with the 
       existing storage engines. 
     */
-    thd->net.report_error= 1; /* purecov: inspected */
+    my_error(ER_OUT_OF_RESOURCES, MYF(0)); /* purecov: inspected */
     /* Caller will free the memory */
     goto failure;  /* purecov: inspected */
   }
@@ -2161,11 +2164,17 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   keys_to_use.intersect(head->keys_in_use_for_query);
   if (!keys_to_use.is_clear_all())
   {
+#ifndef EMBEDDED_LIBRARY                      // Avoid compiler warning
+    uchar buff[STACK_BUFF_ALLOC];
+#endif
     MEM_ROOT alloc;
     SEL_TREE *tree= NULL;
     KEY_PART *key_parts;
     KEY *key_info;
     PARAM param;
+
+    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE, buff))
+      DBUG_RETURN(0);                           // Fatal error flag is set
 
     /* set up parameter that is passed to all functions */
     param.thd= thd;
@@ -5726,6 +5735,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     {
       tree= new (alloc) SEL_ARG(field, 0, 0);
       tree->type= SEL_ARG::IMPOSSIBLE;
+      goto end;
     }
     else
     {
@@ -5734,8 +5744,32 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
         for the cases like int_field > 999999999999999999999999 as well.
       */
       tree= 0;
+      if (err == 3 && field->type() == FIELD_TYPE_DATE && 
+          (type == Item_func::GT_FUNC || type == Item_func::GE_FUNC || 
+           type == Item_func::LT_FUNC || type == Item_func::LE_FUNC) )
+      {
+        /*
+          We were saving DATETIME into a DATE column, the conversion went ok
+          but a non-zero time part was cut off.
+
+          In MySQL's SQL dialect, DATE and DATETIME are compared as datetime
+          values. Index over a DATE column uses DATE comparison. Changing 
+          from one comparison to the other is possible:
+
+          datetime(date_col)< '2007-12-10 12:34:55' -> date_col<='2007-12-10'
+          datetime(date_col)<='2007-12-10 12:34:55' -> date_col<='2007-12-10'
+
+          datetime(date_col)> '2007-12-10 12:34:55' -> date_col>='2007-12-10'
+          datetime(date_col)>='2007-12-10 12:34:55' -> date_col>='2007-12-10'
+
+          but we'll need to convert '>' to '>=' and '<' to '<='. This will
+          be done together with other types at the end of this function
+          (grep for field_is_equal_to_item)
+        */
+      }
+      else
+        goto end;
     }
-    goto end;
   } 
   if (err < 0)
   {

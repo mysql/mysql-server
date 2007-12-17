@@ -4,14 +4,14 @@ SELECT @@session.sql_big_selects;
 1
 SELECT @@global.max_join_size;
 @@global.max_join_size
--1
+18446744073709551615
 change_user
 SELECT @@session.sql_big_selects;
 @@session.sql_big_selects
 1
 SELECT @@global.max_join_size;
 @@global.max_join_size
--1
+18446744073709551615
 SET @@global.max_join_size = 10000;
 SET @@session.max_join_size = default;
 change_user

@@ -1022,6 +1022,56 @@ public:
     fixed= 1;
     return res;
   }
+  void update_used_tables() 
+  {
+    /*
+      TODO: Make a member in UDF_INIT and return if a UDF is deterministic or
+      not.
+      Currently UDF_INIT has a member (const_item) that is an in/out 
+      parameter to the init() call.
+      The code in udf_handler::fix_fields also duplicates the arguments 
+      handling code in Item_func::fix_fields().
+      
+      The lack of information if a UDF is deterministic makes writing
+      a correct update_used_tables() for UDFs impossible.
+      One solution to this would be :
+       - Add a is_deterministic member of UDF_INIT
+       - (optionally) deprecate the const_item member of UDF_INIT
+       - Take away the duplicate code from udf_handler::fix_fields() and
+         make Item_udf_func call Item_func::fix_fields() to process its 
+         arguments as for any other function.
+       - Store the deterministic flag returned by <udf>_init into the 
+       udf_handler. 
+       - Don't implement Item_udf_func::fix_fields, implement
+       Item_udf_func::fix_length_and_dec() instead (similar to non-UDF
+       functions).
+       - Override Item_func::update_used_tables to call 
+       Item_func::update_used_tables() and add a RAND_TABLE_BIT to the 
+       result of Item_func::update_used_tables() if the UDF is 
+       non-deterministic.
+       - (optionally) rename RAND_TABLE_BIT to NONDETERMINISTIC_BIT to
+       better describe its usage.
+       
+      The above would require a change of the UDF API.
+      Until that change is done here's how the current code works:
+      We call Item_func::update_used_tables() only when we know that
+      the function depends on real non-const tables and is deterministic.
+      This can be done only because we know that the optimizer will
+      call update_used_tables() only when there's possibly a new const
+      table. So update_used_tables() can only make a Item_func more
+      constant than it is currently.
+      That's why we don't need to do anything if a function is guaranteed
+      to return non-constant (it's non-deterministic) or is already a
+      const.
+    */  
+    if ((used_tables_cache & ~PSEUDO_TABLE_BITS) && 
+        !(used_tables_cache & RAND_TABLE_BIT))
+    {
+      Item_func::update_used_tables();
+      if (!const_item_cache && !used_tables_cache)
+        used_tables_cache= RAND_TABLE_BIT;
+    }
+  }
   void cleanup();
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }

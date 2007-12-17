@@ -1916,7 +1916,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
             main thread. Use of my_message will enable stored
             procedures continue handlers.
           */
-          my_message(di->thd.net.last_errno, di->thd.net.last_error,
+          my_message(di->thd.main_da.sql_errno(), di->thd.main_da.message(),
                      MYF(0));
 	}
 	di->unlock();
@@ -1993,7 +1993,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
       goto error;
     if (dead)
     {
-      my_message(thd.net.last_errno, thd.net.last_error, MYF(0));
+      my_message(thd.main_da.sql_errno(), thd.main_da.message(), MYF(0));
       goto error;
     }
   }
@@ -2252,7 +2252,9 @@ pthread_handler_t handle_delayed_insert(void *arg)
 #if !defined( __WIN__) /* Win32 calls this in pthread_create */
   if (my_thread_init())
   {
-    strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
+    /* Can't use my_error since store_globals has not yet been called */
+    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                  ER(ER_OUT_OF_RESOURCES));
     goto end;
   }
 #endif
@@ -2261,8 +2263,10 @@ pthread_handler_t handle_delayed_insert(void *arg)
   thd->thread_stack= (char*) &thd;
   if (init_thr_lock() || thd->store_globals())
   {
+    /* Can't use my_error since store_globals has perhaps failed */
+    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                  ER(ER_OUT_OF_RESOURCES));
     thd->fatal_error();
-    strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
     goto err;
   }
 
@@ -2665,7 +2669,7 @@ bool Delayed_insert::handle_inserts(void)
 	{
 	  /* This should never happen */
 	  table->file->print_error(error,MYF(0));
-	  sql_print_error("%s",thd.net.last_error);
+	  sql_print_error("%s", thd.main_da.message());
           DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed in loop"));
 	  goto err;
 	}
@@ -2706,7 +2710,7 @@ bool Delayed_insert::handle_inserts(void)
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen
     table->file->print_error(error,MYF(0));
-    sql_print_error("%s",thd.net.last_error);
+    sql_print_error("%s", thd.main_da.message());
     DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed after loop"));
     goto err;
   }
@@ -2798,8 +2802,7 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
                              bool ignore_check_option_errors)
   :table_list(table_list_par), table(table_par), fields(fields_par),
    autoinc_value_of_last_inserted_row(0),
-   insert_into_view(table_list_par && table_list_par->view != 0),
-   is_bulk_insert_mode(FALSE)
+   insert_into_view(table_list_par && table_list_par->view != 0)
 {
   bzero((char*) &info,sizeof(info));
   info.handle_duplicates= duplic;
@@ -2912,14 +2915,14 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     Is table which we are changing used somewhere in other parts of
     query
   */
-  if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-      unique_table(thd, table_list, table_list->next_global, 0))
+  if (unique_table(thd, table_list, table_list->next_global, 0))
   {
     /* Using same table for INSERT and SELECT */
     lex->current_select->options|= OPTION_BUFFER_RESULT;
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
-  else if (!thd->prelocked_mode)
+  else if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
+           !thd->prelocked_mode)
   {
     /*
       We must not yet prepare the result table if it is the same as one of the 
@@ -2985,11 +2988,8 @@ int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
   if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      !thd->prelocked_mode && !is_bulk_insert_mode)
-  {
+      !thd->prelocked_mode)
     table->file->ha_start_bulk_insert((ha_rows) 0);
-    is_bulk_insert_mode= TRUE;
-  }
   DBUG_RETURN(0);
 }
 
@@ -3109,7 +3109,6 @@ bool select_insert::send_eof()
                        trans_table, table->file->table_type()));
 
   error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert():0;
-  is_bulk_insert_mode= FALSE;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -3561,10 +3560,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (!thd->prelocked_mode)
-  {
     table->file->ha_start_bulk_insert((ha_rows) 0);
-    is_bulk_insert_mode= TRUE;
-  }
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |

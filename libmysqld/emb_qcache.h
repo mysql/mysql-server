@@ -58,7 +58,7 @@ public:
     data_end= cur_data + (block->used-headers_len);
   }
 
-  void store_char(char c);
+  void store_uchar(uchar c);
   void store_short(ushort s);
   void store_int(uint i);
   void store_ll(ulonglong ll);
@@ -66,7 +66,7 @@ public:
   void store_str(const char *str, uint str_len);
   void store_safe_str(const char *str, uint str_len);
 
-  char load_char();
+  uchar load_uchar();
   ushort load_short();
   uint load_int();
   ulonglong load_ll();
@@ -79,3 +79,4 @@ public:
 uint emb_count_querycache_size(THD *thd);
 int emb_load_querycache_result(THD *thd, Querycache_stream *src);
 void emb_store_querycache_result(Querycache_stream *dst, THD* thd);
+void net_send_eof(THD *thd, uint server_status, uint total_warn_count);

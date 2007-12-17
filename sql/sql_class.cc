@@ -351,6 +351,124 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   return thd->strmake(str.ptr(), str.length());
 }
 
+/**
+  Clear this diagnostics area. 
+
+  Normally called at the end of a statement.
+*/
+
+void
+Diagnostics_area::reset_diagnostics_area()
+{
+#ifdef DBUG_OFF
+  can_overwrite_status= FALSE;
+  /** Don't take chances in production */
+  m_message[0]= '\0';
+  m_sql_errno= 0;
+  m_server_status= 0;
+  m_affected_rows= 0;
+  m_last_insert_id= 0;
+  m_total_warn_count= 0;
+#endif
+  is_sent= FALSE;
+  /** Tiny reset in debug mode to see garbage right away */
+  m_status= DA_EMPTY;
+}
+
+
+/**
+  Set OK status -- ends commands that do not return a
+  result set, e.g. INSERT/UPDATE/DELETE.
+*/
+
+void
+Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
+                                ulonglong last_insert_id_arg,
+                                const char *message_arg)
+{
+  DBUG_ASSERT(! is_set());
+#ifdef DBUG_OFF
+  /* In production, refuse to overwrite an error with an OK packet. */
+  if (is_error())
+    return;
+#endif
+  /** Only allowed to report success if has not yet reported an error */
+
+  m_server_status= thd->server_status;
+  m_total_warn_count= thd->total_warn_count;
+  m_affected_rows= affected_rows_arg;
+  m_last_insert_id= last_insert_id_arg;
+  if (message_arg)
+    strmake(m_message, message_arg, sizeof(m_message));
+  else
+    m_message[0]= '\0';
+  m_status= DA_OK;
+}
+
+
+/**
+  Set EOF status.
+*/
+
+void
+Diagnostics_area::set_eof_status(THD *thd)
+{
+  /** Only allowed to report eof if has not yet reported an error */
+
+  DBUG_ASSERT(! is_set());
+#ifdef DBUG_OFF
+  /* In production, refuse to overwrite an error with an EOF packet. */
+  if (is_error())
+    return;
+#endif
+
+  m_server_status= thd->server_status;
+  /*
+    If inside a stored procedure, do not return the total
+    number of warnings, since they are not available to the client
+    anyway.
+  */
+  m_total_warn_count= thd->spcont ? 0 : thd->total_warn_count;
+
+  m_status= DA_EOF;
+}
+
+/**
+  Set ERROR status.
+*/
+
+void
+Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
+                                   const char *message_arg)
+{
+  /*
+    Only allowed to report error if has not yet reported a success
+    The only exception is when we flush the message to the client,
+    an error can happen during the flush.
+  */
+  DBUG_ASSERT(! is_set() || can_overwrite_status);
+
+  m_sql_errno= sql_errno_arg;
+  strmake(m_message, message_arg, sizeof(m_message));
+
+  m_status= DA_ERROR;
+}
+
+
+/**
+  Mark the diagnostics area as 'DISABLED'.
+
+  This is used in rare cases when the COM_ command at hand sends a response
+  in a custom format. One example is the query cache, another is
+  COM_STMT_PREPARE.
+*/
+
+void
+Diagnostics_area::disable_status()
+{
+  DBUG_ASSERT(! is_set());
+  m_status= DA_DISABLED;
+}
 
 
 THD::THD()
@@ -431,7 +549,6 @@ THD::THD()
   net.vio=0;
 #endif
   client_capabilities= 0;                       // minimalistic client
-  net.last_error[0]=0;                          // If error on boot
 #ifdef HAVE_QUERY_CACHE
   query_cache_init_query(&net);                 // If error on boot
 #endif
@@ -1324,12 +1441,12 @@ void select_send::abort()
 {
   DBUG_ENTER("select_send::abort");
   if (is_result_set_started && thd->spcont &&
-      thd->spcont->find_handler(thd, thd->net.last_errno,
+      thd->spcont->find_handler(thd, thd->main_da.sql_errno(),
                                 MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
     /*
       We're executing a stored procedure, have an open result
-      set, an SQL exception conditiona and a handler for it.
+      set, an SQL exception condition and a handler for it.
       In this situation we must abort the current statement,
       silence the error and start executing the continue/exit
       handler.
@@ -1337,9 +1454,7 @@ void select_send::abort()
       otherwise the client will hang due to the violation of the
       client/server protocol.
     */
-    thd->net.report_error= 0;
-    send_eof();
-    thd->net.report_error= 1; // Abort SP
+    thd->protocol->end_partial_result_set(thd);
   }
   DBUG_VOID_RETURN;
 }
@@ -1391,12 +1506,14 @@ bool select_send::send_data(List<Item> &items)
     }
   }
   thd->sent_row_count++;
-  if (!thd->vio_ok())
-    DBUG_RETURN(0);
-  if (! thd->is_error())
+  if (thd->is_error())
+  {
+    protocol->remove_last_row();
+    DBUG_RETURN(1);
+  }
+  if (thd->vio_ok())
     DBUG_RETURN(protocol->write());
-  protocol->remove_last_row();
-  DBUG_RETURN(1);
+  DBUG_RETURN(0);
 }
 
 bool select_send::send_eof()
@@ -1414,14 +1531,9 @@ bool select_send::send_eof()
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  if (! thd->is_error())
-  {
-    ::send_eof(thd);
-    is_result_set_started= 0;
-    return 0;
-  }
-  else
-    return 1;
+  ::send_eof(thd);
+  is_result_set_started= 0;
+  return FALSE;
 }
 
 
@@ -1590,16 +1702,18 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     }
   }
   field_term_length=exchange->field_term->length();
-  field_term_char= field_term_length ? (*exchange->field_term)[0] : INT_MAX;
+  field_term_char= field_term_length ?
+                   (int) (uchar) (*exchange->field_term)[0] : INT_MAX;
   if (!exchange->line_term->length())
     exchange->line_term=exchange->field_term;	// Use this if it exists
-  field_sep_char= (exchange->enclosed->length() ? (*exchange->enclosed)[0] :
-                   field_term_char);
-  escape_char=	(exchange->escaped->length() ? (*exchange->escaped)[0] : -1);
+  field_sep_char= (exchange->enclosed->length() ?
+                  (int) (uchar) (*exchange->enclosed)[0] : field_term_char);
+  escape_char=	(exchange->escaped->length() ?
+                (int) (uchar) (*exchange->escaped)[0] : -1);
   is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
   is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
-		  (*exchange->line_term)[0] : INT_MAX);
+                 (int) (uchar) (*exchange->line_term)[0] : INT_MAX);
   if (!field_term_length)
     exchange->opt_enclosed=0;
   if (!exchange->enclosed->length())
@@ -1756,10 +1870,11 @@ bool select_export::send_data(List<Item> &items)
                Don't escape field_term_char by doubling - doubling is only
                valid for ENCLOSED BY characters:
               */
-              (enclosed || !is_ambiguous_field_term || *pos != field_term_char))
+              (enclosed || !is_ambiguous_field_term ||
+               (int) (uchar) *pos != field_term_char))
           {
 	    char tmp_buff[2];
-            tmp_buff[0]= ((int) *pos == field_sep_char &&
+            tmp_buff[0]= ((int) (uchar) *pos == field_sep_char &&
                           is_ambiguous_field_sep) ?
                           field_sep_char : escape_char;
 	    tmp_buff[1]= *pos ? *pos : '0';
@@ -2701,7 +2816,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 {
   backup->options=         options;
   backup->in_sub_stmt=     in_sub_stmt;
-  backup->no_send_ok=      net.no_send_ok;
   backup->enable_slow_log= enable_slow_log;
   backup->limit_found_rows= limit_found_rows;
   backup->examined_row_count= examined_row_count;
@@ -2732,9 +2846,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   cuted_fields= 0;
   transaction.savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
-
-  /* Surpress OK packets in case if we will execute statements */
-  net.no_send_ok= TRUE;
 }
 
 
@@ -2757,7 +2868,6 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   transaction.savepoints= backup->savepoints;
   options=          backup->options;
   in_sub_stmt=      backup->in_sub_stmt;
-  net.no_send_ok=   backup->no_send_ok;
   enable_slow_log=  backup->enable_slow_log;
   first_successful_insert_id_in_prev_stmt= 
     backup->first_successful_insert_id_in_prev_stmt;

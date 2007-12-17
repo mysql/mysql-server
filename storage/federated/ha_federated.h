@@ -210,6 +210,7 @@ public:
   int update_row(const uchar *old_data, uchar *new_data);
   int delete_row(const uchar *buf);
   int index_init(uint keynr, bool sorted);
+  ha_rows estimate_rows_upper_bound();
   int index_read(uchar *buf, const uchar *key,
                  uint key_len, enum ha_rkey_function find_flag);
   int index_read_idx(uchar *buf, uint idx, const uchar *key,

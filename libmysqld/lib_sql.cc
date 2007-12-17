@@ -61,9 +61,10 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
 {
   NET *net= &mysql->net;
   struct embedded_query_result *ei= data->embedded_info;
-  net->last_errno= ei->last_errno;
-  strmake(net->last_error, ei->info, sizeof(net->last_error));
+  net->client_last_errno= ei->last_errno;
+  strmake(net->client_last_error, ei->info, sizeof(net->client_last_error)-1);
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
+  mysql->server_status= ei->server_status;
   my_free(data, MYF(0));
 }
 
@@ -87,6 +88,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   /* Clear result variables */
   thd->clear_error();
+  thd->main_da.reset_diagnostics_area();
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
   net_clear_error(net);
@@ -110,12 +112,11 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
     arg_length= header_length;
   }
 
-  thd->net.no_send_error= 0;
   result= dispatch_command(command, thd, (char *) arg, arg_length);
   thd->cur_data= 0;
 
   if (!skip_check)
-    result= thd->net.last_errno ? -1 : 0;
+    result= thd->is_error() ? -1 : 0;
 
   return result;
 }
@@ -242,9 +243,11 @@ static my_bool emb_read_query_result(MYSQL *mysql)
   mysql->warning_count= res->embedded_info->warning_count;
   mysql->server_status= res->embedded_info->server_status;
   mysql->field_count= res->fields;
-  mysql->fields= res->embedded_info->fields_list;
-  mysql->affected_rows= res->embedded_info->affected_rows;
-  mysql->insert_id= res->embedded_info->insert_id;
+  if (!(mysql->fields= res->embedded_info->fields_list))
+  {
+    mysql->affected_rows= res->embedded_info->affected_rows;
+    mysql->insert_id= res->embedded_info->insert_id;
+  }
   net_clear_error(&mysql->net);
   mysql->info= 0;
 
@@ -370,7 +373,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
 static const char * emb_read_statistics(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
-  return thd->net.last_error;
+  return thd->is_error() ? thd->main_da.message() : "";
 }
 
 
@@ -546,7 +549,6 @@ void end_embedded_server()
 {
   my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
   copy_arguments_ptr=0;
-  release_ddl_log();
   clean_up(0);
 }
 
@@ -626,6 +628,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   sctx->priv_user= sctx->user= my_strdup(mysql->user, MYF(0));
   result= check_user(thd, COM_CONNECT, NULL, 0, db, true);
+  net_end_statement(thd);
   emb_read_query_result(mysql);
   return result;
 }
@@ -675,8 +678,10 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
 err:
   {
     NET *net= &mysql->net;
-    memcpy(net->last_error, thd->net.last_error, sizeof(net->last_error));
-    memcpy(net->sqlstate, thd->net.sqlstate, sizeof(net->sqlstate));
+    strmake(net->client_last_error, thd->main_da.message(), sizeof(net->client_last_error)-1);
+    memcpy(net->sqlstate,
+           mysql_errno_to_sqlstate(thd->main_da.sql_errno()),
+           sizeof(net->sqlstate)-1);
   }
   return result;
 }
@@ -699,9 +704,8 @@ void THD::clear_data_list()
 
 void THD::clear_error()
 {
-  net.last_error[0]= 0;
-  net.last_errno= 0;
-  net.report_error= 0;
+  if (main_da.is_error())
+    main_da.reset_diagnostics_area();
 }
 
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
@@ -764,20 +768,18 @@ MYSQL_DATA *THD::alloc_new_dataset()
 }
 
 
-/*
-  stores server_status and warning_count in the current
-  query result structures
+/**
+  Stores server_status and warning_count in the current
+  query result structures.
 
-  SYNOPSIS
-  write_eof_packet()
-  thd		current thread
+  @param thd            current thread
 
-  NOTES
-    should be called to after we get the recordset-result
-
+  @note Should be called after we get the recordset-result.
 */
 
-static void write_eof_packet(THD *thd)
+static
+void
+write_eof_packet(THD *thd, uint server_status, uint total_warn_count)
 {
   if (!thd->mysql)            // bootstrap file handling
     return;
@@ -788,13 +790,13 @@ static void write_eof_packet(THD *thd)
   */
   if (thd->is_fatal_error)
     thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
-  thd->cur_data->embedded_info->server_status= thd->server_status;
+  thd->cur_data->embedded_info->server_status= server_status;
   /*
     Don't send warn count during SP execution, as the warn_list
     is cleared between substatements, and mysqltest gets confused
   */
   thd->cur_data->embedded_info->warning_count=
-    (thd->spcont ? 0 : min(thd->total_warn_count, 65535));
+    (thd->spcont ? 0 : min(total_warn_count, 65535));
 }
 
 
@@ -950,7 +952,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   }
 
   if (flags & SEND_EOF)
-    write_eof_packet(thd);
+    write_eof_packet(thd, thd->server_status, thd->total_warn_count);
 
   DBUG_RETURN(prepare_for_send(list));
  err:
@@ -990,16 +992,34 @@ bool Protocol_binary::write()
   return false;
 }
 
+
+/**
+  Embedded library implementation of OK response.
+
+  This function is used by the server to write 'OK' packet to
+  the "network" when the server is compiled as an embedded library.
+  Since there is no network in the embedded configuration,
+  a different implementation is necessary.
+  Instead of marshalling response parameters to a network representation
+  and then writing it to the socket, here we simply copy the data to the
+  corresponding client-side connection structures. 
+
+  @sa Server implementation of net_send_ok in protocol.cc for
+  description of the arguments.
+
+  @return The function does not return errors.
+*/
+
 void
-send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
+net_send_ok(THD *thd,
+            uint server_status, uint total_warn_count,
+            ha_rows affected_rows, ulonglong id, const char *message)
 {
-  DBUG_ENTER("send_ok");
+  DBUG_ENTER("emb_net_send_ok");
   MYSQL_DATA *data;
   MYSQL *mysql= thd->mysql;
-  
+
   if (!mysql)            // bootstrap file handling
-    DBUG_VOID_RETURN;
-  if (thd->net.no_send_ok)	// hack for re-parsing queries
     DBUG_VOID_RETURN;
   if (!(data= thd->alloc_new_dataset()))
     return;
@@ -1009,15 +1029,24 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
     strmake(data->embedded_info->info, message,
             sizeof(data->embedded_info->info)-1);
 
-  write_eof_packet(thd);
+  write_eof_packet(thd, server_status, total_warn_count);
   thd->cur_data= 0;
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Embedded library implementation of EOF response.
+
+  @sa net_send_ok
+
+  @return This function does not return errors.
+*/
+
 void
-send_eof(THD *thd)
+net_send_eof(THD *thd, uint server_status, uint total_warn_count)
 {
-  write_eof_packet(thd);
+  write_eof_packet(thd, server_status, total_warn_count);
   thd->cur_data= 0;
 }
 
@@ -1030,6 +1059,7 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
   ei->last_errno= sql_errno;
   strmake(ei->info, err, sizeof(ei->info)-1);
   strmov(ei->sqlstate, mysql_errno_to_sqlstate(sql_errno));
+  ei->server_status= thd->server_status;
   thd->cur_data= 0;
 }
 

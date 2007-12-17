@@ -318,6 +318,21 @@ INSERT INTO t2 VALUES (3, 2, 'two'), (2, 3, 'three'), (2, 0, 'zero'),
 SELECT COUNT(DISTINCT b,c) FROM t2 GROUP BY a;
 DROP TABLE t2;
 
+#
+# BUG#32556 assert in "using index for group-by" : is_last_prefix <= 0,
+#           file .\opt_range.cc
+
+CREATE TABLE t1(a BIT(13), KEY(a));
+--disable_warnings
+INSERT INTO t1(a) VALUES
+(65535),(65525),(65535),(65535),(65535),(65535),(65535),(65535),(65535),(65535);
+--enable_warnings
+
+EXPLAIN SELECT 1 FROM t1 GROUP BY a;
+SELECT 1 FROM t1 GROUP BY a;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 #
