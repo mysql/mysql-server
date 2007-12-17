@@ -701,7 +701,9 @@ err_exit:
 
 	/* Flag this transaction as a dictionary operation, so that
 	the data dictionary will be locked in crash recovery.  Prevent
-	warnings if row_merge_lock_table() results in a lock wait. */
+	warnings if row_merge_lock_table() results in a lock wait,
+	i.e., when another transaction is holding a conflicting lock
+	on the table, e.g., because of SELECT ... FOR UPDATE. */
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX_MAY_WAIT);
 
 	/* Acquire a lock on the table before creating any indexes. */
@@ -1095,8 +1097,11 @@ ha_innobase::final_drop_index(
 	row_mysql_lock_data_dictionary(trx);
 
 	/* Flag this transaction as a dictionary operation, so that
-	the data dictionary will be locked in crash recovery. */
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+	the data dictionary will be locked in crash recovery.  Prevent
+	warnings if row_merge_lock_table() results in a lock wait,
+	i.e., when another transaction is holding a conflicting lock
+	on the table, e.g., because of SELECT ... FOR UPDATE. */
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX_MAY_WAIT);
 
 	/* Lock the table exclusively, to ensure that no active
 	transaction depends on an index that is being dropped. */
@@ -1108,6 +1113,8 @@ ha_innobase::final_drop_index(
 
 		goto func_exit;
 	}
+
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	index = dict_table_get_first_index(prebuilt->table);
 
