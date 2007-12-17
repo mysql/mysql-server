@@ -2260,6 +2260,7 @@ Suitable for using when holding the kernel mutex. */
 const buf_block_t*
 buf_page_try_get_func(
 /*==================*/
+				/* out: pointer to a page or NULL */
 	ulint		space_id,/* in: tablespace id */
 	ulint		page_no,/* in: page number */
 	const char*	file,	/* in: file name */
