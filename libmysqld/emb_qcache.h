@@ -79,3 +79,4 @@ public:
 uint emb_count_querycache_size(THD *thd);
 int emb_load_querycache_result(THD *thd, Querycache_stream *src);
 void emb_store_querycache_result(Querycache_stream *dst, THD* thd);
+void net_send_eof(THD *thd, uint server_status, uint total_warn_count);

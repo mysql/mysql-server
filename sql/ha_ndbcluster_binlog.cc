@@ -266,6 +266,10 @@ static void run_query(THD *thd, char *buf, char *end,
     thd->options&= ~OPTION_BIN_LOG;
     
   DBUG_PRINT("query", ("%s", thd->query));
+
+  DBUG_ASSERT(!thd->in_sub_stmt);
+  DBUG_ASSERT(!thd->prelocked_mode);
+
   mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
 
   if (no_print_error && thd->is_slave_error)
@@ -274,14 +278,27 @@ static void run_query(THD *thd, char *buf, char *end,
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
     for (i= 0; no_print_error[i]; i++)
       if ((thd_ndb->m_error_code == no_print_error[i]) ||
-          (thd->net.last_errno == (unsigned)no_print_error[i]))
+          (thd->main_da.sql_errno() == (unsigned) no_print_error[i]))
         break;
     if (!no_print_error[i])
       sql_print_error("NDB: %s: error %s %d(ndb: %d) %d %d",
-                      buf, thd->net.last_error, thd->net.last_errno,
+                      buf,
+                      thd->main_da.message(),
+                      thd->main_da.sql_errno(),
                       thd_ndb->m_error_code,
                       (int) thd->is_error(), thd->is_slave_error);
   }
+  /*
+    XXX: this code is broken. mysql_parse()/mysql_reset_thd_for_next_command()
+    can not be called from within a statement, and
+    run_query() can be called from anywhere, including from within
+    a sub-statement.
+    This particular reset is a temporary hack to avoid an assert
+    for double assignment of the diagnostics area when run_query()
+    is called from ndbcluster_reset_logs(), which is called from
+    mysql_flush().
+  */
+  thd->main_da.reset_diagnostics_area();
 
   thd->options= save_thd_options;
   thd->query_length= save_thd_query_length;
@@ -880,7 +897,7 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
     {
       if (ndb_extra_logging)
         sql_print_information("NDB Binlog: ndb tables writable");
-      close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, TRUE);
+      close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
     }
     pthread_mutex_unlock(&LOCK_open);
     /* Signal injector thread that all is setup */
@@ -1698,7 +1715,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     bzero((char*) &table_list,sizeof(table_list));
     table_list.db= (char *)dbname;
     table_list.alias= table_list.table_name= (char *)tabname;
-    close_cached_tables(thd, 0, &table_list);
+    close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
     /* ndb_share reference create free */
     DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
                              share->key, share->use_count));
@@ -1831,7 +1848,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
             bzero((char*) &table_list,sizeof(table_list));
             table_list.db= schema->db;
             table_list.alias= table_list.table_name= schema->name;
-            close_cached_tables(thd, 0, &table_list, FALSE);
+            close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
           }
           /* ndb_share reference temporary free */
           if (share)
@@ -1966,7 +1983,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
 
-      close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, FALSE);
+      close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE);
       // fall through
     case NDBEVENT::TE_ALTER:
       ndb_handle_schema_change(thd, ndb, pOp, event_data);
@@ -2132,7 +2149,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           bzero((char*) &table_list,sizeof(table_list));
           table_list.db= schema->db;
           table_list.alias= table_list.table_name= schema->name;
-          close_cached_tables(thd, 0, &table_list, FALSE);
+          close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
         }
         {
           if (ndb_extra_logging > 9)
@@ -2480,9 +2497,12 @@ static int open_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
   thd->clear_error();
   if (open_tables(thd, &tables, &counter, MYSQL_LOCK_IGNORE_FLUSH))
   {
-    sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
-                    thd->net.last_errno,
-                    thd->net.last_error ? thd->net.last_error : "");
+    if (thd->killed)
+      sql_print_error("NDB Binlog: Opening ndb_binlog_index: killed");
+    else
+      sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
+                      thd->main_da.sql_errno(),
+                      thd->main_da.message());
     thd->proc_info= save_proc_info;
     return -1;
   }

@@ -124,7 +124,7 @@ parse_arguments()
         # the install package.  See top-level 'dist-hook' make target.
         #
         # --windows is a deprecated alias
-         cross_bootstrap=1 ;;
+        cross_bootstrap=1 ;;
 
       *)
         if test -n "$pick_args"
@@ -324,6 +324,16 @@ then
   args="$args --user=$user"
 fi
 
+# When doing a "cross bootstrap" install, no reference to the current
+# host should be added to the system tables.  So we filter out any
+# lines which contain the current host name.
+if test $cross_bootstrap -eq 1
+then
+  filter_cmd_line="sed -e '/@current_hostname/d'"
+else
+  filter_cmd_line="cat"
+fi
+
 # Configure mysqld command line
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
@@ -367,7 +377,7 @@ else
 fi
 
 s_echo "Filling help tables..."
-if `(echo "use mysql;"; cat $fill_help_tables) | $mysqld_install_cmd_line`
+if { echo "use mysql;"; cat $fill_help_tables; } | $mysqld_install_cmd_line > /dev/null
 then
   s_echo "OK"
 else
@@ -377,12 +387,14 @@ else
 fi
 
 # Don't output verbose information if running inside bootstrap or using
-# --srcdir for testing.
+# --srcdir for testing.  In such cases, there's no end user looking at
+# the screen.
 if test "$cross_bootstrap" -eq 0 && test -z "$srcdir"
 then
   s_echo
   s_echo "To start mysqld at boot time you have to copy"
   s_echo "support-files/mysql.server to the right place for your system"
+
   echo
   echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
   echo "To do so, start the server, then issue the following commands:"
@@ -401,8 +413,10 @@ then
 
   if test "$in_rpm" -eq 0
   then
+    echo
     echo "You can start the MySQL daemon with:"
     echo "cd $basedir ; $bindir/mysqld_safe &"
+    echo
     echo "You can test the MySQL daemon with mysql-test-run.pl"
     echo "cd $basedir/mysql-test ; perl mysql-test-run.pl"
   fi
