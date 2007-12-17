@@ -130,7 +130,7 @@ void table_cache_free(void)
   DBUG_ENTER("table_cache_free");
   if (table_def_inited)
   {
-    close_cached_tables((THD*) 0,0,(TABLE_LIST*) 0);
+    close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE);
     if (!open_cache.records)			// Safety first
       hash_free(&open_cache);
   }
@@ -491,9 +491,28 @@ static TABLE_SHARE
   int tmp;
   DBUG_ENTER("get_table_share_with_create");
 
-  if ((share= get_table_share(thd, table_list, key, key_length, 
-                              db_flags, error)) ||
-      thd->net.last_errno != ER_NO_SUCH_TABLE)
+  share= get_table_share(thd, table_list, key, key_length, db_flags, error);
+  /*
+    If share is not NULL, we found an existing share.
+
+    If share is NULL, and there is no error, we're inside
+    pre-locking, which silences 'ER_NO_SUCH_TABLE' errors
+    with the intention to silently drop non-existing tables 
+    from the pre-locking list. In this case we still need to try
+    auto-discover before returning a NULL share.
+
+    If share is NULL and the error is ER_NO_SUCH_TABLE, this is
+    the same as above, only that the error was not silenced by 
+    pre-locking. Once again, we need to try to auto-discover
+    the share.
+
+    Finally, if share is still NULL, it's a real error and we need
+    to abort.
+
+    @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
+  */
+  if (share || thd->is_error() && thd->main_da.sql_errno() != ER_NO_SUCH_TABLE)
+
     DBUG_RETURN(share);
 
   /* Table didn't exist. Check if some engine can provide it */
@@ -502,9 +521,13 @@ static TABLE_SHARE
   {
     /*
       No such table in any engine.
-      Hide "Table doesn't exist" errors if table belong to view
+      Hide "Table doesn't exist" errors if the table belongs to a view.
+      The check for thd->is_error() is necessary to not push an
+      unwanted error in case of pre-locking, which silences
+      "no such table" errors.
+      @todo Rework the alternative ways to deal with ER_NO_SUCH TABLE.
     */
-    if (table_list->belong_to_view)
+    if (thd->is_error() && table_list->belong_to_view)
     {
       TABLE_LIST *view= table_list->belong_to_view;
       thd->clear_error();
@@ -885,16 +908,24 @@ void free_io_cache(TABLE *table)
 /*
   Close all tables which aren't in use by any thread
 
-  THD can be NULL, but then if_wait_for_refresh must be FALSE
-  and tables must be NULL.
+  @param thd Thread context
+  @param tables List of tables to remove from the cache
+  @param have_lock If LOCK_open is locked
+  @param wait_for_refresh Wait for a impending flush
+  @param wait_for_placeholders Wait for tables being reopened so that the GRL
+         won't proceed while write-locked tables are being reopened by other
+         threads.
+
+  @remark THD can be NULL, but then wait_for_refresh must be FALSE
+          and tables must be NULL.
 */
 
-bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
-			 TABLE_LIST *tables, bool have_lock)
+bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
+                         bool wait_for_refresh, bool wait_for_placeholders)
 {
   bool result=0;
   DBUG_ENTER("close_cached_tables");
-  DBUG_ASSERT(thd || (!if_wait_for_refresh && !tables));
+  DBUG_ASSERT(thd || (!wait_for_refresh && !tables));
 
   if (!have_lock)
     VOID(pthread_mutex_lock(&LOCK_open));
@@ -918,7 +949,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     }
     DBUG_PRINT("tcache", ("incremented global refresh_version to: %lu",
                           refresh_version));
-    if (if_wait_for_refresh)
+    if (wait_for_refresh)
     {
       /*
         Other threads could wait in a loop in open_and_lock_tables(),
@@ -975,13 +1006,13 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 	found=1;
     }
     if (!found)
-      if_wait_for_refresh=0;			// Nothing to wait for
+      wait_for_refresh=0;			// Nothing to wait for
   }
 #ifndef EMBEDDED_LIBRARY
   if (!tables)
     kill_delayed_threads();
 #endif
-  if (if_wait_for_refresh)
+  if (wait_for_refresh)
   {
     /*
       If there is any table that has a lower refresh_version, wait until
@@ -1004,6 +1035,9 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
       for (uint idx=0 ; idx < open_cache.records ; idx++)
       {
 	TABLE *table=(TABLE*) hash_element(&open_cache,idx);
+        /* Avoid a self-deadlock. */
+        if (table->in_use == thd)
+          continue;
         /*
           Note that we wait here only for tables which are actually open, and
           not for placeholders with TABLE::open_placeholder set. Waiting for
@@ -1018,7 +1052,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
           are employed by CREATE TABLE as in this case table simply does not
           exist yet.
         */
-	if (table->needs_reopen_or_name_lock() && table->db_stat)
+	if (table->needs_reopen_or_name_lock() && (table->db_stat ||
+            (table->open_placeholder && wait_for_placeholders)))
 	{
 	  found=1;
           DBUG_PRINT("signal", ("Waiting for COND_refresh"));
@@ -1037,11 +1072,18 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->in_lock_tables=0;
     /* Set version for table */
     for (TABLE *table=thd->open_tables; table ; table= table->next)
-      table->s->version= refresh_version;
+    {
+      /*
+        Preserve the version (0) of write locked tables so that a impending
+        global read lock won't sneak in.
+      */
+      if (table->reginfo.lock_type < TL_WRITE_ALLOW_WRITE)
+        table->s->version= refresh_version;
+    }
   }
   if (!have_lock)
     VOID(pthread_mutex_unlock(&LOCK_open));
-  if (if_wait_for_refresh)
+  if (wait_for_refresh)
   {
     pthread_mutex_lock(&thd->mysys_var->mutex);
     thd->mysys_var->current_mutex= 0;
@@ -1068,10 +1110,10 @@ bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
   DBUG_ASSERT(thd);
 
   bzero(&tmp, sizeof(TABLE_LIST));
-  
+
   if (!have_lock)
     VOID(pthread_mutex_lock(&LOCK_open));
-  
+
   for (idx= 0; idx < table_def_cache.records; idx++)
   {
     TABLE_SHARE *share= (TABLE_SHARE *) hash_element(&table_def_cache, idx);
@@ -1100,11 +1142,11 @@ bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
   }
 
   if (tables)
-    result= close_cached_tables(thd, FALSE, tables, TRUE);
-  
+    result= close_cached_tables(thd, tables, TRUE, FALSE, FALSE);
+
   if (!have_lock)
     VOID(pthread_mutex_unlock(&LOCK_open));
-  
+
   if (if_wait_for_refresh)
   {
     pthread_mutex_lock(&thd->mysys_var->mutex);
@@ -2209,7 +2251,7 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   current thread.
 
   @param thd current thread context
-  @param tables able list containing one table to open.
+  @param tables table list containing one table to open.
 
   @return FALSE on success, TRUE otherwise.
 */
@@ -3277,8 +3319,8 @@ static bool reattach_merge(THD *thd, TABLE **err_tables_p)
 
     @param thd         Thread context
     @param get_locks   Should we get locks after reopening tables ?
-    @param in_refresh  Are we in FLUSH TABLES ? TODO: It seems that
-                       we can remove this parameter.
+    @param mark_share_as_old  Mark share as old to protect from a impending
+                              global read lock.
 
     @note Since this function can't properly handle prelocking and
           create placeholders it should be used in very special
@@ -3292,13 +3334,17 @@ static bool reattach_merge(THD *thd, TABLE **err_tables_p)
     @return FALSE in case of success, TRUE - otherwise.
 */
 
-bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
+bool reopen_tables(THD *thd, bool get_locks, bool mark_share_as_old)
 {
   TABLE *table,*next,**prev;
   TABLE **tables,**tables_ptr;			// For locks
   TABLE *err_tables= NULL;
   bool error=0, not_used;
   bool merge_table_found= FALSE;
+  const uint flags= MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN |
+                    MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
+                    MYSQL_LOCK_IGNORE_FLUSH;
+
   DBUG_ENTER("reopen_tables");
 
   if (!thd->open_tables)
@@ -3359,7 +3405,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
       /* Do not handle locks of MERGE children. */
       if (get_locks && !db_stat && !table->parent)
 	*tables_ptr++= table;			// need new lock on this
-      if (in_refresh)
+      if (mark_share_as_old)
       {
 	table->s->version=0;
 	table->open_placeholder= 0;
@@ -3392,7 +3438,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     */
     thd->some_tables_deleted=0;
     if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr - tables),
-                                 MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN, &not_used)))
+                                 flags, &not_used)))
     {
       thd->locked_tables=mysql_lock_merge(thd->locked_tables,lock);
     }

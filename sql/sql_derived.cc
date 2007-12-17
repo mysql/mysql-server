@@ -147,8 +147,9 @@ exit:
     /* Hide "Unknown column" or "Unknown function" error */
     if (orig_table_list->view)
     {
-      if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
-          thd->net.last_errno == ER_SP_DOES_NOT_EXIST)
+      if (thd->is_error() &&
+          (thd->main_da.sql_errno() == ER_BAD_FIELD_ERROR ||
+          thd->main_da.sql_errno() == ER_SP_DOES_NOT_EXIST))
       {
         thd->clear_error();
         my_error(ER_VIEW_INVALID, MYF(0), orig_table_list->db,
