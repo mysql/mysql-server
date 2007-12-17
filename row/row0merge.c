@@ -1662,7 +1662,7 @@ row_merge_lock_table(
 
 	heap = mem_heap_create(512);
 
-	trx->op_info = "setting table lock for index merge";
+	trx->op_info = "setting table lock for creating or dropping index";
 
 	node = sel_node_create(heap);
 	thr = pars_complete_graph_for_exec(node, trx, heap);
