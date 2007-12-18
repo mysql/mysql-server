@@ -1,3 +1,4 @@
 CPPFLAGS = -I../include
 CC = c++
-test1: test1.o dbt.o
+test1: test1.o dbt.o db.o
+
