@@ -609,6 +609,9 @@ NFDuringNR_codes[] = {
   7132,
   5045,
 
+  7195, 7196,7197,7198,7199,
+  
+
   //LCP
   8000,
   8001,
@@ -652,9 +655,8 @@ int restartNFDuringNR(NdbRestarter& _restarter,
 
     NdbSleep_SecSleep(3);
 
-    //CHECK(_restarter.waitNodesNoStart(&nodeId, 1) == 0,
-    //  "waitNodesNoStart failed");
-    _restarter.waitNodesNoStart(&nodeId, 1);
+    CHECK(_restarter.waitNodesNoStart(&nodeId, 1) == 0,
+          "waitNodesNoStart failed");
 
     CHECK(_restarter.startNodes(&nodeId, 1) == 0,
 	  "failed to start node");
