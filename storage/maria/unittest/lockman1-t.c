@@ -166,7 +166,7 @@ pthread_mutex_t rt_mutex;
 int Nrows= 100;
 int Ntables= 10;
 int table_lock_ratio= 10;
-enum lock_type lock_array[6]= {S, X, LS, LX, IS, IX};
+enum lockman_lock_type lock_array[6]= {S, X, LS, LX, IS, IX};
 char *lock2str[6]= {"S", "X", "LS", "LX", "IS", "IX"};
 char *res2str[]= {
   "DIDN'T GET THE LOCK",

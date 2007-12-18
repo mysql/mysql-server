@@ -162,7 +162,7 @@ static const int lock_compatibility_matrix[10][10]=
 
   One should never get N from it, we assert the impossibility
 */
-static const enum lock_type lock_combining_matrix[10][10]=
+static const enum lockman_lock_type lock_combining_matrix[10][10]=
 {/*    N    S   X    IS    IX  SIX    LS    LX   SLX   LSIX         */
   {    N,   N,  N,    N,    N,   N,    N,    N,   N,    N}, /* N    */
   {    N,   S,  X,    S,  SIX, SIX,    S,  SLX, SLX,  SIX}, /* S    */
@@ -269,13 +269,13 @@ void remove_from_wait_queue(TABLE_LOCK *lock, LOCKED_TABLE *table)
 */
 enum lockman_getlock_result
 tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
-                   LOCKED_TABLE *table, enum lock_type lock)
+                   LOCKED_TABLE *table, enum lockman_lock_type lock)
 {
   TABLE_LOCK *old, *new, *blocker, *blocker2;
   TABLE_LOCK_OWNER *wait_for;
   ulonglong deadline;
   struct timespec timeout;
-  enum lock_type new_lock;
+  enum lockman_lock_type new_lock;
   enum lockman_getlock_result res;
   int i;
 

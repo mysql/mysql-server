@@ -146,7 +146,7 @@ static int lock_compatibility_matrix[10][10]=
 
   One should never get N from it, we assert the impossibility
 */
-static enum lock_type lock_combining_matrix[10][10]=
+static enum lockman_lock_type lock_combining_matrix[10][10]=
 {/*    N    S   X    IS    IX  SIX    LS    LX   SLX   LSIX         */
   {    N,   S,  X,   IS,   IX, SIX,    S,  SLX, SLX,  SIX}, /* N    */
   {    S,   S,  X,    S,  SIX, SIX,    S,  SLX, SLX,  SIX}, /* S    */
@@ -249,7 +249,7 @@ static int lockfind(LOCK * volatile *head, LOCK *node,
   uint64        resource, cur_resource;
   intptr        cur_link;
   my_bool       cur_active, compatible, upgrading, prev_active;
-  enum lock_type lock, prev_lock, cur_lock;
+  enum lockman_lock_type lock, prev_lock, cur_lock;
   uint16        loid, cur_loid;
   int           cur_flags, flags;
 
@@ -596,13 +596,13 @@ static inline uint calc_hash(uint64 resource)
 */
 enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
                                             uint64 resource,
-                                            enum lock_type lock)
+                                            enum lockman_lock_type lock)
 {
   int res;
   uint csize, bucket, hashnr;
   LOCK *node, * volatile *el, *blocker;
   LF_PINS *pins= lo->pins;
-  enum lock_type old_lock;
+  enum lockman_lock_type old_lock;
 
   DBUG_ASSERT(lo->loid);
   lf_rwlock_by_pins(pins);
