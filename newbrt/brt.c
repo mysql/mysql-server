@@ -2906,6 +2906,7 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
         if (r != 0) goto died0;
         break;
     case DB_GET_BOTH_RANGE:
+        r = EINVAL; goto died0; /* does not work yet */
         r = unpin_cursor(cursor); assert(r == 0);
         r = brtcurs_set_search(cursor, *rootp, DB_GET_BOTH_RANGE, kbt, vbt, txn, null_brtnode);
         if (r != 0) goto died0;
