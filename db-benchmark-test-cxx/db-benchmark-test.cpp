@@ -10,7 +10,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <db.h>
+#include <db_cxx.h>
 
 enum { SERIAL_SPACING = 1<<6 };
 enum { ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
@@ -32,9 +32,9 @@ char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D 
 char *dbfilename = "bench.db";
 char *dbname;
 
-DB_ENV *dbenv;
-DB *db;
-DB_TXN *tid=0;
+DbEnv *dbenv;
+Db *db;
+DbTxn *tid=0;
 
 int do_transactions = 0;
 int n_insertions_since_txn_began=0;
@@ -51,53 +51,50 @@ void setup (void) {
     if (strcmp(dbdir, ".") != 0)
         mkdir(dbdir, 0755);
 
-    r = db_env_create(&dbenv, 0);
-    assert(r == 0);
+    dbenv = new DbEnv(DB_CXX_NO_EXCEPTIONS); assert(dbenv);
 
-#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
-    if (dbenv->set_lk_max) {
-	r = dbenv->set_lk_max(dbenv, ITEMS_PER_TRANSACTION*2);
+    {
+	r = dbenv->set_lk_max(ITEMS_PER_TRANSACTION*2);
 	assert(r==0);
     }
-#endif
 
-    if (dbenv->set_cachesize) {
-        r = dbenv->set_cachesize(dbenv, cachesize / (1024*1024*1024), cachesize % (1024*1024*1024), 1);
+    if (cachesize) {
+        r = dbenv->set_cachesize(cachesize / (1024*1024*1024), cachesize % (1024*1024*1024), 1);
         if (r != 0) 
             printf("WARNING: set_cachesize %d\n", r);
     }
 
     {
 	int flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL | (do_transactions ? (DB_INIT_TXN | DB_INIT_LOG | DB_INIT_LOCK): 0);
-	r = dbenv->open(dbenv, dbdir, flags, 0644);
+	r = dbenv->open(dbdir, flags, 0644);
 	assert(r == 0);
     }
 
-    r = db_create(&db, dbenv, 0);
-    assert(r == 0);
+    db = new Db(dbenv, DB_CXX_NO_EXCEPTIONS); assert(db);
 
     if (do_transactions) {
-	r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+	r=dbenv->txn_begin(0, &tid, 0); assert(r==0);
     }
-    if (pagesize && db->set_pagesize) {
-        r = db->set_pagesize(db, pagesize); 
+    if (pagesize) {
+        r = db->set_pagesize(pagesize); 
         assert(r == 0);
     }
-    r = db->open(db, tid, dbfilename, NULL, DB_BTREE, DB_CREATE, 0644);
+    r = db->open(tid, dbfilename, NULL, DB_BTREE, DB_CREATE, 0644);
     assert(r == 0);
     if (do_transactions) {
-	r=tid->commit(tid, 0);    assert(r==0);
+	r=tid->commit(0);    assert(r==0);
     }
-
 }
 
 void shutdown (void) {
     int r;
     
-    r = db->close(db, 0);
+    r = db->close(0);
     assert(r == 0);
-    r = dbenv->close(dbenv, 0);
+    delete db;
+    r = dbenv->close(0);
     assert(r == 0);
+    delete dbenv;
 }
 
 void long_long_to_array (unsigned char *a, unsigned long long l) {
@@ -115,18 +112,18 @@ DBT *toku_fill_dbt(DBT *dbt, const void *data, int size) {
 
 void insert (long long v) {
     unsigned char kc[keysize], vc[valsize];
-    DBT  kt, vt;
+    Dbt  kt(kc, keysize), vt(vc, valsize);
     memset(kc, 0, sizeof kc);
     long_long_to_array(kc, v);
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
-    int r = db->put(db, tid, toku_fill_dbt(&kt, kc, keysize), toku_fill_dbt(&vt, vc, valsize), 0);
+    int r = db->put(tid, &kt, &vt, 0);
     CKERR(r);
     if (do_transactions) {
 	if (n_insertions_since_txn_began>=ITEMS_PER_TRANSACTION) {
 	    n_insertions_since_txn_began=0;
-	    r = tid->commit(tid, 0); assert(r==0);
-	    r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+	    r = tid->commit(0); assert(r==0);
+	    r=dbenv->txn_begin(0, &tid, 0); assert(r==0);
 	    n_insertions_since_txn_began=0;
 	}
 	n_insertions_since_txn_began++;
@@ -136,19 +133,20 @@ void insert (long long v) {
 void serial_insert_from (long long from) {
     long long i;
     if (do_transactions) {
-	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+	int r = dbenv->txn_begin(0, &tid, 0); assert(r==0);
+#if 0
 	{
 	    DBT k,v;
 	    r=db->put(db, tid, toku_fill_dbt(&k, "a", 1), toku_fill_dbt(&v, "b", 1), 0);
 	    CKERR(r);
 	}
-				      
+#endif				      
     }
     for (i=0; i<ITEMS_TO_INSERT_PER_ITERATION; i++) {
 	insert((from+i)*SERIAL_SPACING);
     }
     if (do_transactions) {
-	int  r= tid->commit(tid, 0);             assert(r==0);
+	int  r= tid->commit(0);             assert(r==0);
 	tid=0;
     }
 }
@@ -160,13 +158,13 @@ long long llrandom (void) {
 void random_insert_below (long long below) {
     long long i;
     if (do_transactions) {
-	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+	int r = dbenv->txn_begin(0, &tid, 0); assert(r==0);
     }
     for (i=0; i<ITEMS_TO_INSERT_PER_ITERATION; i++) {
 	insert(llrandom()%below);
     }
     if (do_transactions) {
-	int  r= tid->commit(tid, 0);             assert(r==0);
+	int  r= tid->commit(0);             assert(r==0);
 	tid=0;
     }
 }
