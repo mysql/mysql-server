@@ -1003,6 +1003,7 @@ static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
         if (r!=DB_NOTFOUND) return r;
         goto finish;
     }
+    //Flags must NOT be 0.
     else return EINVAL;
 finish:
     //Insert new data with the key we got from c_get.
