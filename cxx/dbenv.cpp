@@ -1,5 +1,5 @@
 #include <assert.h>
-#include "db_cxx.h"
+#include <db_cxx.h>
 
 DbEnv::DbEnv (u_int32_t flags) {
     int ret = db_env_create(&the_env, flags & ~DB_CXX_NO_EXCEPTIONS);

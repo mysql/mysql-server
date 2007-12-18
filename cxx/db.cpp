@@ -1,16 +1,15 @@
 #include <assert.h>
 #include <db.h>
 #include <errno.h>
-#include "db_cxx.h"
+#include <db_cxx.h>
 
 Db::Db(DbEnv *env, u_int32_t flags)
     :      the_Env(env)
 {
     the_db   = 0;
 
-    if (the_Env == 0) {
-	is_private_env = 1;
-    }
+    is_private_env = (the_Env == 0);
+
     DB *tmp_db;
     int ret = db_create(&tmp_db, the_Env->get_DB_ENV(), flags & !(DB_CXX_NO_EXCEPTIONS));
     if (ret!=0) {
