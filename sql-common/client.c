@@ -2021,9 +2021,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         if (!hp)
         {
           my_gethostbyname_r_free();
-          net->last_errno=CR_UNKNOWN_HOST;
+          net->client_last_errno=CR_UNKNOWN_HOST;
           strmov(net->sqlstate, unknown_sqlstate);
-          my_snprintf(net->last_error, sizeof(net->last_error)-1,
+          my_snprintf(net->client_last_error, sizeof(net->client_last_error)-1,
                       ER(CR_UNKNOWN_HOST), mysql->options.bind_name, tmp_errno);
           goto error;
         }
@@ -2039,9 +2039,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         IPaddr.sin_addr.s_addr = bind_addr;
         IPaddr.sin_port = 0;
         if (bind(sock, (struct sockaddr *) &IPaddr, sizeof(IPaddr))) {
-          net->last_errno=CR_IPSOCK_ERROR;
+          net->client_last_errno=CR_IPSOCK_ERROR;
           strmov(net->sqlstate, unknown_sqlstate);
-          my_snprintf(net->last_error, sizeof(net->last_error)-1,
+          my_snprintf(net->client_last_error, sizeof(net->client_last_error)-1,
                       ER(CR_IPSOCK_ERROR), mysql->options.bind_name, errno);
           goto error;
         }
