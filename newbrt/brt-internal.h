@@ -165,15 +165,15 @@ void toku_brtnode_free (BRTNODE *node);
 #endif
 
 
-#define CURSOR_PATHLEN_LIMIT 256
+#define CURSOR_PATHLEN_LIMIT 32
 struct brt_cursor {
     BRT brt;
-    int path_len;  /* -1 if the cursor points nowhere. */
+    int path_len;                       /* -1 if the cursor points nowhere. */
     BRTNODE path[CURSOR_PATHLEN_LIMIT]; /* Include the leaf (last).    These are all pinned. */
     int pathcnum[CURSOR_PATHLEN_LIMIT]; /* which child did we descend to from here? */
-    PMA_CURSOR pmacurs; /* The cursor into the leaf.  NULL if the cursor doesn't exist. */
+    PMA_CURSOR pmacurs;                 /* The cursor into the leaf.  NULL if the cursor doesn't exist. */
     BRT_CURSOR prev,next;
-    int op;
+    int op; DBT *key; DBT *val;         /* needed when flushing buffers */
 };
 
 /* print the cursor path */
@@ -200,7 +200,7 @@ void toku_brt_cursor_new_root(BRT_CURSOR cursor, BRT t, BRTNODE newroot, BRTNODE
 void toku_brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
 
 /* a brt internal node has expanded.  modify this cursor if it includes the  old node in its path. */
-void toku_brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right);
+void toku_brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right, struct kv_pair *splitk);
 
 /* a brt internal node has split.  modify this cursor if it includes the old node in its path. */
 void toku_brt_cursor_nonleaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
