@@ -74,6 +74,7 @@ struct fieldinfo db_txn_active_fields64[] = {
   {0, 216, 216} /* size of whole struct */
 };
 struct fieldinfo db_txn_fields64[] = {
+  {"void *api_internal", 160, 8},
   {"int (*abort) (DB_TXN *)", 184, 8},
   {"int (*commit) (DB_TXN*, u_int32_t)", 192, 8},
   {"u_int32_t (*id) (DB_TXN *)", 216, 8},
