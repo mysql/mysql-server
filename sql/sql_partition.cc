@@ -2070,6 +2070,7 @@ char *generate_partition_syntax(partition_info *part_info,
     default:
       DBUG_ASSERT(0);
       /* We really shouldn't get here, no use in continuing from here */
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
       current_thd->fatal_error();
       DBUG_RETURN(NULL);
   }

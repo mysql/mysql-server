@@ -307,6 +307,7 @@ sub mtr_report_stats ($) {
 		/Slave: Error .*Unknown table/ or
 		/Slave: Error in Write_rows event: / or
 		/Slave: Field .* of table .* has no default value/ or
+                /Slave: Field .* doesn't have a default value/ or
 		/Slave: Query caused different errors on master and slave/ or
 		/Slave: Table .* doesn't exist/ or
 		/Slave: Table width mismatch/ or

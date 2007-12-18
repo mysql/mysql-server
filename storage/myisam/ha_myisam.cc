@@ -1407,10 +1407,8 @@ int ha_myisam::enable_indexes(uint mode)
         might have been set by the first repair. They can still be seen
         with SHOW WARNINGS then.
       */
-#ifndef EMBEDDED_LIBRARY      
       if (! error)
         thd->clear_error();
-#endif /* EMBEDDED_LIBRARY */
     }
     info(HA_STATUS_CONST);
     thd->proc_info=save_proc_info;

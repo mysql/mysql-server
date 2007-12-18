@@ -388,7 +388,7 @@ static sys_var_thd_ulong	sys_trans_alloc_block_size(&vars, "transaction_alloc_bl
 static sys_var_thd_ulong	sys_trans_prealloc_size(&vars, "transaction_prealloc_size",
 						&SV::trans_prealloc_size,
 						0, fix_trans_mem_root);
-sys_var_thd_enum        sys_thread_handling(&vars, "thread_handling",
+sys_var_enum_const      sys_thread_handling(&vars, "thread_handling",
                                             &SV::thread_handling,
                                             &thread_handling_typelib,
                                             NULL);
@@ -1242,6 +1242,13 @@ bool sys_var_enum::update(THD *thd, set_var *var)
 uchar *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
 {
   return (uchar*) enum_names->type_names[*value];
+}
+
+
+uchar *sys_var_enum_const::value_ptr(THD *thd, enum_var_type type,
+                                     LEX_STRING *base)
+{
+  return (uchar*) enum_names->type_names[global_system_variables.*offset];
 }
 
 bool sys_var_thd_ulong::check(THD *thd, set_var *var)
@@ -3776,7 +3783,7 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if (result= close_cached_tables(thd, true, NULL, false))
+  if (result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE))
     goto end_with_read_lock;
 
   if (result= make_global_read_lock_block_commit(thd))
