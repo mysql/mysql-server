@@ -241,46 +241,38 @@ Suma::execSTTOR(Signal* signal) {
   jamEntry();                            
 
   DBUG_ENTER("Suma::execSTTOR");
-  const Uint32 startphase  = signal->theData[1];
-  const Uint32 typeOfStart = signal->theData[7];
+  m_startphase  = signal->theData[1];
+  m_typeOfStart = signal->theData[7];
 
   DBUG_PRINT("info",("startphase = %u, typeOfStart = %u",
-		     startphase, typeOfStart));
+		     m_startphase, m_typeOfStart));
 
-  if(startphase == 3)
+  if(m_startphase == 3)
   {
     jam();
     ndbrequire((m_tup = (Dbtup*)globalData.getBlock(DBTUP)) != 0);
-    signal->theData[0] = reference();
-    sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
-    DBUG_VOID_RETURN;
   }
 
-  if(startphase == 5)
+  if(m_startphase == 5)
   {
+    jam();
+
     if (ERROR_INSERTED(13029)) /* Hold startphase 5 */
     {
       sendSignalWithDelay(SUMA_REF, GSN_STTOR, signal,
                           30, signal->getLength());
       DBUG_VOID_RETURN;
     }
-
-    c_startup.m_restart_server_node_id = 0;    
-    getNodeGroupMembers(signal);
-    if (typeOfStart == NodeState::ST_NODE_RESTART ||
-	typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
-    {
-      jam();
-      
-      send_start_me_req(signal);
-      return;
-    }
+    
+    signal->theData[0] = reference();
+    sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
+    DBUG_VOID_RETURN;
   }
   
-  if(startphase == 7)
+  if(m_startphase == 7)
   {
-    if (typeOfStart != NodeState::ST_NODE_RESTART &&
-	typeOfStart != NodeState::ST_INITIAL_NODE_RESTART)
+    if (m_typeOfStart != NodeState::ST_NODE_RESTART &&
+	m_typeOfStart != NodeState::ST_INITIAL_NODE_RESTART)
     {
       for( Uint32 i = 0; i < c_no_of_buckets; i++)
       {
@@ -310,7 +302,7 @@ Suma::execSTTOR(Signal* signal) {
     else
       m_gcp_complete_rep_count = 0; // I contribute 1 gcp complete rep
     
-    if(typeOfStart == NodeState::ST_INITIAL_START &&
+    if(m_typeOfStart == NodeState::ST_INITIAL_START &&
        c_masterNodeId == getOwnNodeId())
     {
       jam();
@@ -325,7 +317,7 @@ Suma::execSTTOR(Signal* signal) {
     }
   }//if
   
-  if(startphase == 100)
+  if(m_startphase == 100)
   {
     /**
      * Allow API's to connect
@@ -334,10 +326,10 @@ Suma::execSTTOR(Signal* signal) {
     return;
   }
 
-  if(startphase == 101)
+  if(m_startphase == 101)
   {
-    if (typeOfStart == NodeState::ST_NODE_RESTART ||
-	typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
+    if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
+	m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
     {
       /**
        * Handover code here
@@ -463,6 +455,17 @@ Suma::execREAD_NODESCONF(Signal* signal){
   
   c_masterNodeId = conf->masterNodeId;
   
+  c_startup.m_restart_server_node_id = 0;    
+  getNodeGroupMembers(signal);
+  if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
+      m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
+  {
+    jam();
+    
+    send_start_me_req(signal);
+    return;
+  }
+
   sendSTTORRY(signal);
 }
 
@@ -4582,6 +4585,8 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
   Uint32 start_gci = (gci > new_gci ? gci : new_gci);
   // mark all active buckets really belonging to restarting SUMA
 
+  c_alive_nodes.set(nodeId);
+  
   Bucket_mask tmp;
   for( Uint32 i = 0; i < c_no_of_buckets; i++) 
   {

@@ -2775,7 +2775,14 @@ private:
 /*RECEPTION OF THIS SIGNAL INDICATES THAT ALL FRAGMENTS THAT THIS NODE       */
 /*SHOULD START HAVE BEEN RECEIVED.                                           */
 /* ------------------------------------------------------------------------- */
-  Uint8 cstartRecReq;
+  enum { 
+    SRR_INITIAL                = 0
+    ,SRR_START_REC_REQ_ARRIVED = 1
+    ,SRR_REDO_COMPLETE         = 2
+    ,SRR_FIRST_LCP_DONE        = 3
+  } cstartRecReq;
+  Uint32 cstartRecReqData;
+  
 /* ------------------------------------------------------------------------- */
 /*THIS VARIABLE KEEPS TRACK OF HOW MANY FRAGMENTS THAT PARTICIPATE IN        */
 /*EXECUTING THE LOG. IF ZERO WE DON'T NEED TO EXECUTE THE LOG AT ALL.        */
