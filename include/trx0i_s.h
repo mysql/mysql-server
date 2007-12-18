@@ -172,16 +172,16 @@ trx_i_s_cache_is_truncated(
 					/* out: TRUE if truncated */
 	trx_i_s_cache_t*	cache);	/* in: cache */
 
-/* The maximum length that may be required by lock_id_size in
-trx_i_s_create_lock_id(). "%llu:%lu:%lu:%lu" -> 84 chars */
-
-#define TRX_I_S_LOCK_ID_MAX_LEN	84
+/* The maximum length of a resulting lock_id_size in
+trx_i_s_create_lock_id(), not including the terminating '\0'.
+"%llu:%lu:%lu:%lu" -> 83 chars */
+#define TRX_I_S_LOCK_ID_MAX_LEN	83
 
 /***********************************************************************
 Crafts a lock id string from a i_s_locks_row_t object. Returns its
 second argument. This function aborts if there is not enough space in
-lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN if you want
-to be 100% sure that it will not abort. */
+lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
+want to be 100% sure that it will not abort. */
 
 char*
 trx_i_s_create_lock_id(

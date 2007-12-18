@@ -1360,8 +1360,8 @@ trx_i_s_cache_get_nth_row(
 /***********************************************************************
 Crafts a lock id string from a i_s_locks_row_t object. Returns its
 second argument. This function aborts if there is not enough space in
-lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN if you want
-to be 100% sure that it will not abort. */
+lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
+want to be 100% sure that it will not abort. */
 
 char*
 trx_i_s_create_lock_id(
