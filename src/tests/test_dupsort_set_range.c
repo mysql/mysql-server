@@ -177,7 +177,11 @@ int main(int argc, const char *argv[]) {
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
 
-    for (i=1; i<65537; i *= 2) {
+    int limit = 1<<13;
+    if (verbose > 1)
+        limit = 1<<16;
+
+    for (i = 1; i <= limit; i *= 2) {
         test_icdi_search(i, DB_DUP + DB_DUPSORT);
     }
     return 0;
