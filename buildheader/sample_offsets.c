@@ -67,6 +67,7 @@ void sample_db_btree_stat_offsets (void) {
 
 void sample_db_env_offsets (void) {
     field_counter=0;
+    STRUCT_SETUP(DB_ENV, api1_internal,   "void *%s"); /* Used for C++ hacking. */
     STRUCT_SETUP(DB_ENV, app_private, "void *%s");
     STRUCT_SETUP(DB_ENV, close, "int  (*%s) (DB_ENV *, u_int32_t)");
     STRUCT_SETUP(DB_ENV, err, "void (*%s) (const DB_ENV *, int, const char *, ...)");

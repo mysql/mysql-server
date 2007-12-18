@@ -9,6 +9,7 @@ struct fieldinfo db_btree_stat_fields32[] = {
 };
 struct fieldinfo db_env_fields32[] = {
   {"void *app_private", 44, 4},
+  {"void *api1_internal", 336, 4},
   {"int  (*close) (DB_ENV *, u_int32_t)", 368, 4},
   {"void (*err) (const DB_ENV *, int, const char *, ...)", 380, 4},
   {"int (*get_cachesize) (DB_ENV *, u_int32_t *)", 396, 4},
