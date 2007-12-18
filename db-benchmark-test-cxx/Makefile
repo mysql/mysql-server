@@ -26,7 +26,10 @@ default: $(TARGETS)
 clean:
 	rm -rf $(TARGETS) $(BENCHDBS)
 
+db-benchmark-test-tokudb: ../lib/libtdb_cxx.a
 db-benchmark-test-tokudb: db-benchmark-test.cpp
-	$(CXX) $(CXXFLAGS) -I../include -L../lib -ldb -Wl,-rpath,$(PWD)/../lib $< -o $@ -DDIRSUF=tokudb
+#	$(CXX) $(CXXFLAGS) -I../include $< -o $@ -DDIRSUF=tokudb ../lib/libdb.a ../lib/libtdb_cxx.a -lz
+	$(CXX) $(CXXFLAGS) -I../include -L../lib -Wl,-rpath,$(PWD)/../lib $< -o $@ -ldb -ltdb_cxx -DDIRSUF=tokudb
+
 db-benchmark-test-bdb: db-benchmark-test.cpp
 	$(CXX) $(CXXFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS)                      $< -o $@ -DDIRSUF=bdb
