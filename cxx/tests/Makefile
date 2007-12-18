@@ -4,7 +4,7 @@ TARGETS = $(patsubst %.cpp,%,$(SRCS))
 DBCXX = ../dbt.o ../db.o ../dbenv.o
 CPPFLAGS = -I../ -I../../include
 CXXFLAGS = -Wall -g
-LDFLAGS = -L../lib -ldb
+LDLIBS = ../../lib/libdb.a -lz
 
 $(TARGETS): $(DBCXX)
 
