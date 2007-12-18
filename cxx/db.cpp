@@ -54,3 +54,8 @@ int Db::put(DbTxn *txn, Dbt *key, Dbt *data, u_int32_t flags) {
     return ret;
 }
 
+int Db::cursor(DbTxn *txn, Dbc **cursorp, u_int32_t flags) {
+    int ret = the_db->cursor(the_db, txn->get_DB_TXN(), (DBC**)cursorp, flags);
+    return ret;
+}
+
