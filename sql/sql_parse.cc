@@ -1597,6 +1597,74 @@ static bool do_command(THD *thd)
 #endif  /* EMBEDDED_LIBRARY */
 
 
+/**
+  @brief Determine if an attempt to update a non-temporary table while the
+    read-only option was enabled has been made.
+
+  This is a helper function to mysql_execute_command.
+
+  @note SQLCOM_MULTI_UPDATE is an exception and delt with elsewhere.
+
+  @see mysql_execute_command
+  @returns Status code
+    @retval TRUE The statement should be denied.
+    @retval FALSE The statement isn't updating any relevant tables.
+*/
+
+static my_bool deny_updates_if_read_only_option(THD *thd,
+                                                TABLE_LIST *all_tables)
+{
+  DBUG_ENTER("deny_updates_if_read_only_option");
+
+  if (!opt_readonly)
+    DBUG_RETURN(FALSE);
+
+  LEX *lex= thd->lex;
+
+  const my_bool user_is_super=
+    ((ulong)(thd->security_ctx->master_access & SUPER_ACL) ==
+     (ulong)SUPER_ACL);
+
+  if (user_is_super)
+    DBUG_RETURN(FALSE);
+
+  if (!uc_update_queries[lex->sql_command])
+    DBUG_RETURN(FALSE);
+
+  /* Multi update is an exception and is dealt with later. */
+  if (lex->sql_command == SQLCOM_UPDATE_MULTI)
+    DBUG_RETURN(FALSE);
+
+  const my_bool create_temp_tables= 
+    (lex->sql_command == SQLCOM_CREATE_TABLE) &&
+    (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
+
+  const my_bool drop_temp_tables= 
+    (lex->sql_command == SQLCOM_DROP_TABLE) &&
+    lex->drop_temporary;
+
+  const my_bool update_real_tables=
+    some_non_temp_table_to_be_updated(thd, all_tables) &&
+    !(create_temp_tables || drop_temp_tables);
+
+
+  const my_bool create_or_drop_databases=
+    (lex->sql_command == SQLCOM_CREATE_DB) ||
+    (lex->sql_command == SQLCOM_DROP_DB);
+
+  if (update_real_tables || create_or_drop_databases)
+  {
+      /*
+        An attempt was made to modify one or more non-temporary tables.
+      */
+      DBUG_RETURN(TRUE);
+  }
+
+
+  /* Assuming that only temporary tables are modified. */
+  DBUG_RETURN(FALSE);
+}
+
 /*
    Perform one connection-level (COM_XXXX) command.
 
@@ -2590,14 +2658,7 @@ mysql_execute_command(THD *thd)
       When option readonly is set deny operations which change non-temporary
       tables. Except for the replication thread and the 'super' users.
     */
-    if (opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
-        uc_update_queries[lex->sql_command] &&
-        !((lex->sql_command == SQLCOM_CREATE_TABLE) &&
-          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
-        !((lex->sql_command == SQLCOM_DROP_TABLE) && lex->drop_temporary) &&
-        ((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
-          some_non_temp_table_to_be_updated(thd, all_tables)))
+    if (deny_updates_if_read_only_option(thd, all_tables))
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       DBUG_RETURN(-1);
