@@ -242,4 +242,23 @@ let $tmp_table2 = `show global status like 'Created_tmp_tables'`;
 eval select substring_index('$rnd_next2',0x9,-1)-substring_index('$rnd_next',0x9,-1) as rnd_diff, substring_index('$tmp_table2',0x9,-1)-substring_index('$tmp_table',0x9,-1) as tmp_table_diff;
 --enable_query_log
 
+# 
+# Bug#30252 Com_create_function is not incremented.
+#
+show global status like 'Com%function%';
+
+DELIMITER //;
+create function f1 (x INTEGER) returns integer
+  begin
+    declare ret integer;
+    set ret = x * 10;
+    return ret;
+  end //
+DELIMITER ;//
+
+drop function f1;
+
+show global status like 'Com%function%';
+
+
 # End of 5.1 tests
