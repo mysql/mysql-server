@@ -275,7 +275,7 @@ static void step_name (void) {
 	assert(cursor_count_n_items==calc_n_items);
 	r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_FIRST);
 	if (r==DB_NOTFOUND) {
-	    nc_key.data = malloc(1);
+	    nc_key.data = realloc(nc_key.data, 1);
 	    ((char*)nc_key.data)[0]=0;
 	    cursor_count_n_items=0;
 	} else {
