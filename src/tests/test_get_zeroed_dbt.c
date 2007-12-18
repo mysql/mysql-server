@@ -22,7 +22,7 @@ void test_get (int dup_mode) {
     r = db->set_flags(db, dup_mode);                                         assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);    assert(r == 0);
     dbt_init(&key, "a", 2);
-    r = db->put(db, null_txn, &key, dbt_init(&data, "b", 2), 0);             assert(r==0);
+    r = db->put(db, null_txn, &key, dbt_init(&data, "b", 2), DB_YESOVERWRITE); assert(r==0);
     memset(&data, 0, sizeof(data));
     r = db->get(db, null_txn, &key, &data, 0);                               assert(r == 0);
     assert(strcmp(data.data, "b")==0);

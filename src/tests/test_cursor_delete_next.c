@@ -45,11 +45,11 @@ void insert() {
 
     dbt_init(&key, "key", sizeof("key"));
     dbt_init(&value, "value1", sizeof("value1"));
-    r = db->put(db, null_txn, &key, &value, 0);     CKERR(r);
+    r = db->put(db, null_txn, &key, &value, DB_YESOVERWRITE);     CKERR(r);
 
     dbt_init(&key, "key", sizeof("key"));
     dbt_init(&value, "value2", sizeof("value2"));
-    r = db->put(db, null_txn, &key, &value, 0);     CKERR(r);
+    r = db->put(db, null_txn, &key, &value, DB_YESOVERWRITE);     CKERR(r);
 }
 
 void cursor_range_with_delete(u_int32_t flag) {
