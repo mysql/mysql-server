@@ -69,6 +69,7 @@ class DbEnv {
     DbEnv(u_int32_t flags);
 
     DB_ENV *get_DB_ENV(void) {
+	if (this==0) return 0;
 	return the_env;
     }
 
@@ -86,6 +87,7 @@ class DbTxn {
  public:
     DB_TXN *get_DB_TXN()
 	{
+	    if (this==0) return 0;
 	    return the_txn;
 	}
  private:
