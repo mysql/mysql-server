@@ -226,7 +226,7 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 
 #define IDX_TRX_REQUESTED_LOCK_ID	4
 	{STRUCT_FLD(field_name,		"trx_requested_lock_id"),
-	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN),
+	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
@@ -278,7 +278,7 @@ fill_innodb_trx_from_cache(
 {
 	Field**	fields;
 	ulint	rows_num;
-	char	lock_id[TRX_I_S_LOCK_ID_MAX_LEN];
+	char	lock_id[TRX_I_S_LOCK_ID_MAX_LEN + 1];
 	ulint	i;
 
 	DBUG_ENTER("fill_innodb_trx_from_cache");
@@ -425,7 +425,7 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 {
 #define IDX_LOCK_ID		0
 	{STRUCT_FLD(field_name,		"lock_id"),
-	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN),
+	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -531,7 +531,7 @@ fill_innodb_locks_from_cache(
 {
 	Field**	fields;
 	ulint	rows_num;
-	char	lock_id[TRX_I_S_LOCK_ID_MAX_LEN];
+	char	lock_id[TRX_I_S_LOCK_ID_MAX_LEN + 1];
 	ulint	i;
 
 	DBUG_ENTER("fill_innodb_locks_from_cache");
@@ -705,7 +705,7 @@ static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
 
 #define IDX_REQUESTED_LOCK_ID	1
 	{STRUCT_FLD(field_name,		"requested_lock_id"),
-	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN),
+	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -723,7 +723,7 @@ static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
 
 #define IDX_BLOCKING_LOCK_ID	3
 	{STRUCT_FLD(field_name,		"blocking_lock_id"),
-	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN),
+	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -748,8 +748,8 @@ fill_innodb_lock_waits_from_cache(
 {
 	Field**	fields;
 	ulint	rows_num;
-	char	requested_lock_id[TRX_I_S_LOCK_ID_MAX_LEN];
-	char	blocking_lock_id[TRX_I_S_LOCK_ID_MAX_LEN];
+	char	requested_lock_id[TRX_I_S_LOCK_ID_MAX_LEN + 1];
+	char	blocking_lock_id[TRX_I_S_LOCK_ID_MAX_LEN + 1];
 	ulint	i;
 
 	DBUG_ENTER("fill_innodb_lock_waits_from_cache");
