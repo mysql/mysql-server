@@ -792,14 +792,10 @@ int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val) {
     here = pma_left_search(pma, key, val, 0, pma->N, &found);
     assert(here<=toku_pma_index_limit(pma));
     int r = DB_NOTFOUND;
-#if 1
     /* skip any deleted pairs that match */
     while (found && !kv_pair_valid(pma->pairs[here]))
         here = pma_next_key(pma, key, val, here+1, pma->N, &found);
     if (found) {
-#else
-    if (found && kv_pair_valid(pma->pairs[here])) {
-#endif
         __pma_delete_resume(c->pma, c->position);
         c->position = here;
         r = 0;
