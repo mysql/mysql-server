@@ -12,7 +12,12 @@
 
 #include "test.h"
 
-
+void db_put(DB *db, int k, int v) {
+    DB_TXN * const null_txn = 0;
+    DBT key, val;
+    int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
+    assert(r == 0);
+}
 
 void expect(DBC *cursor, int k, int v) {
     DBT key, val;
@@ -61,9 +66,7 @@ void test_dup_delete(int n, int dup_mode) {
             continue;
         int k = htonl(i);
         int v = htonl(n+i);
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     }
 
     /* reopen the database to force nonleaf buffering */
@@ -82,10 +85,9 @@ void test_dup_delete(int n, int dup_mode) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = htonl(n+i);
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
 
+        DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
         int vv;
@@ -155,9 +157,7 @@ void test_dup_delete_delete(int n) {
             continue;
         int k = htonl(i);
         int v = i;
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     }
 
     /* reopen the database to force nonleaf buffering */
@@ -176,9 +176,7 @@ void test_dup_delete_delete(int n) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = i;
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     } 
 
     /* delete the dup key */
@@ -239,9 +237,7 @@ void test_dup_delete_insert(int n, int dup_mode) {
             continue;
         int k = htonl(i);
         int v = i;
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     }
 
     /* reopen the database to force nonleaf buffering */
@@ -260,10 +256,9 @@ void test_dup_delete_insert(int n, int dup_mode) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = htonl(i);
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
 
+        DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
         int vv;
@@ -282,10 +277,9 @@ void test_dup_delete_insert(int n, int dup_mode) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = htonl(i);
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
 
+        DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
         int vv;
@@ -343,9 +337,7 @@ void test_all_dup_delete_insert(int n) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = i;
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     }
 
     /* reopen the database to force nonleaf buffering */
@@ -364,9 +356,7 @@ void test_all_dup_delete_insert(int n) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = n+i;
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     } 
 
     DBT key; int k = htonl(n/2);
@@ -377,9 +367,7 @@ void test_all_dup_delete_insert(int n) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = 2*n+i;
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     } 
 
     DBC *cursor;
@@ -423,9 +411,7 @@ void test_walk_empty(int n, int dup_mode) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = htonl(i);
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     } 
 
     /* reopen the database to force nonleaf buffering */
@@ -444,9 +430,7 @@ void test_walk_empty(int n, int dup_mode) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = htonl(n+i);
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     } 
 
     {
@@ -499,10 +483,9 @@ void test_icdi_search(int n, int dup_mode) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = htonl(i);
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
 
+        DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
         int vv;
@@ -533,10 +516,9 @@ void test_icdi_search(int n, int dup_mode) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = htonl(n+i);
+        db_put(db, k, v);
+        
         DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
-
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
         int vv;
@@ -588,10 +570,9 @@ void test_ici_search(int n, int dup_mode) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = htonl(i);
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
 
+        DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
         int vv;
@@ -617,10 +598,9 @@ void test_ici_search(int n, int dup_mode) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = htonl(n+i);
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db,k, v);
 
+        DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
         int vv;
@@ -642,13 +622,6 @@ void test_ici_search(int n, int dup_mode) {
     assert(r == 0);
 
     r = db->close(db, 0);
-    assert(r == 0);
-}
-
-void db_insert(DB *db, int k, int v) {
-    DB_TXN * const null_txn = 0;
-    DBT key, val;
-    int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
     assert(r == 0);
 }
 
@@ -687,14 +660,14 @@ void test_i0i1ci0_search(int n, int dup_mode) {
     assert(r == 0);
     
     /* insert <0,0> */
-    db_insert(db, 0, 0);
+    db_put(db, 0, 0);
 
     /* insert n duplicates */
     int i;
     for (i=0; i<n; i++) {
         int k = htonl(1);
         int v = htonl(i);
-        db_insert(db, k, v);
+        db_put(db, k, v);
         expect_db_lookup(db, k, htonl(0));
     } 
 
@@ -711,7 +684,7 @@ void test_i0i1ci0_search(int n, int dup_mode) {
     assert(r == 0);
 
     /* insert <0,1> */
-    db_insert(db, 0, 1);
+    db_put(db, 0, 1);
 
     /* verify dup search digs deep into the tree */
     expect_db_lookup(db, 0, 0);

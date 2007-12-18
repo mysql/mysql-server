@@ -23,7 +23,7 @@ DBT *dbt_init_zero(DBT *dbt) {
 void db_put(DB *db, int k, int v) {
     DB_TXN * const null_txn = 0;
     DBT key, val;
-    int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
+    int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
     assert(r == 0);
 }
 

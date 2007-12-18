@@ -12,8 +12,6 @@
 
 #include "test.h"
 
-
-
 void test_key_size_limit(int dup_mode) {
     if (verbose) printf("test_key_size_limit:%d\n", dup_mode);
 
@@ -50,7 +48,7 @@ void test_key_size_limit(int dup_mode) {
         memset(v, 0, vs);
         memcpy(v, &vs, sizeof vs);
         DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, k, ks), dbt_init(&val, v, vs), 0);
+        r = db->put(db, null_txn, dbt_init(&key, k, ks), dbt_init(&val, v, vs), DB_YESOVERWRITE);
         if (r == 0) {
             bigest = mi;
             lo = mi+1;

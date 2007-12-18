@@ -1,6 +1,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#ifndef DB_YESOVERWRITE
+#define DB_YESOVERWRITE 0
+#endif
+
 int verbose=0;
 
 #define CKERR(r) ({ if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0); })

@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <db.h>
@@ -66,7 +67,7 @@ void test_cursor_delete(int dup_mode) {
         int k = htonl(dup_mode & DB_DUP ? 1 : i);
         int v = htonl(i);
         DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0); assert(r == 0);
+        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE); assert(r == 0);
     }
 
     /* verify the sort order with a cursor */
@@ -112,11 +113,19 @@ void test_cursor_delete_dupsort() {
         int k = htonl(1);
         int v = htonl(1);
         DBT key, val;
+#if USE_BDB
         r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
         if (i == 0) 
             assert(r == 0); 
         else 
             assert(r == DB_KEYEXIST);
+#endif
+#if USE_TDB
+        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
+        assert(r == EINVAL);
+        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
+        assert(r == 0);
+#endif
     }
 
     /* verify the sort order with a cursor */

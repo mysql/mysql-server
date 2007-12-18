@@ -12,7 +12,12 @@
 
 #include "test.h"
 
-
+void db_put(DB *db, int k, int v) {
+    DB_TXN * const null_txn = 0;
+    DBT key, val;
+    int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
+    assert(r == 0);
+}
 
 void expect(DBC *cursor, int k, int v) {
     DBT key, val;
@@ -72,18 +77,14 @@ void test_insert(int n, int dup_mode) {
             continue;
         int k = htonl(i);
         int v = values[i];
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     }
 
     /* insert n duplicates */
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = values[i];
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     } 
 
     /* verify lookups */
@@ -175,9 +176,7 @@ void test_nonleaf_insert(int n, int dup_mode) {
             continue;
         int k = htonl(i);
         int v = values[i];
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == 0);
+        db_put(db, k, v);
     }
 
     /* reopen the database to force nonleaf buffering */
@@ -196,9 +195,7 @@ void test_nonleaf_insert(int n, int dup_mode) {
     for (i=0; i<n; i++) {
         int k = htonl(n/2);
         int v = values[i];
-        DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        CKERR(r);
+        db_put(db, k, v);
     } 
 
    /* verify lookups */

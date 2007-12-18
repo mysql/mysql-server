@@ -1291,10 +1291,15 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
         /* no other flags are currently supported */
         return EINVAL;
     } else {
+        assert(flags == 0);
         if (brtflags & TOKU_DB_DUPSORT) {
+#if TDB_EQ_BDB
             r = toku_db_get_noassociate(db, txn, key, data, DB_GET_BOTH);
             if (r == 0)
                 return DB_KEYEXIST;
+#else
+            return EINVAL;
+#endif
         }
     }
     
