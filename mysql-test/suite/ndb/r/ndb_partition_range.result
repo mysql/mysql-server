@@ -46,6 +46,14 @@ a	b	c
 1	1	1
 6	1	1
 10	1	1
+INSERT into t1 values (1, 2, 2);
+select max(b) from t1 where a = 1;
+max(b)
+2
+select b from t1 where a = 1 order by b desc;
+b
+2
+1
 drop table t1;
 CREATE TABLE t1 (
 a int not null,

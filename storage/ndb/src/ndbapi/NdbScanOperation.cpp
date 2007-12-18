@@ -1853,30 +1853,42 @@ NdbIndexScanOperation::readTuples(LockMode lm,
     if(insertATTRINFO(word) == -1)
       res = -1;
   }
-  if(!res && order_by){
-    m_ordered = true;
+  if (!res)
+  {
+    /**
+     * Note that it is valid to have order_desc true and order_by false.
+     *
+     * This means that there will be no merge sort among partitions, but
+     * each partition will still be returned in descending sort order.
+     *
+     * This is useful eg. if it is known that the scan spans only one
+     * partition.
+     */
     if (order_desc) {
       m_descending = true;
       ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
       ScanTabReq::setDescendingFlag(req->requestInfo, true);
     }
-    Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
-    m_sort_columns = cnt; // -1 for NDB$NODE
-    m_current_api_receiver = m_sent_receivers_count;
-    m_api_receivers_count = m_sent_receivers_count;
+    if (order_by) {
+      m_ordered = true;
+      Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
+      m_sort_columns = cnt; // -1 for NDB$NODE
+      m_current_api_receiver = m_sent_receivers_count;
+      m_api_receivers_count = m_sent_receivers_count;
     
-    if (!m_attribute_record)
-    {
-      for(Uint32 i = 0; i<cnt; i++){
-        const NdbColumnImpl* key = m_accessTable->m_index->m_columns[i];
-        const NdbColumnImpl* col = m_currentTable->getColumn(key->m_keyInfoPos);
-        NdbRecAttr* tmp = NdbScanOperation::getValue_impl(col, (char*)-1);
-        UintPtr newVal = UintPtr(tmp);
-        theTupleKeyDefined[i][0] = FAKE_PTR;
-        theTupleKeyDefined[i][1] = (newVal & 0xFFFFFFFF);
+      if (!m_attribute_record)
+      {
+        for(Uint32 i = 0; i<cnt; i++){
+          const NdbColumnImpl* key = m_accessTable->m_index->m_columns[i];
+          const NdbColumnImpl* col = m_currentTable->getColumn(key->m_keyInfoPos);
+          NdbRecAttr* tmp = NdbScanOperation::getValue_impl(col, (char*)-1);
+          UintPtr newVal = UintPtr(tmp);
+          theTupleKeyDefined[i][0] = FAKE_PTR;
+          theTupleKeyDefined[i][1] = (newVal & 0xFFFFFFFF);
 #if (SIZEOF_CHARP == 8)
-        theTupleKeyDefined[i][2] = (newVal >> 32);
+          theTupleKeyDefined[i][2] = (newVal >> 32);
 #endif
+        }
       }
     }
   }
