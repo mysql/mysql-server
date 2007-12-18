@@ -210,13 +210,15 @@ struct __toku_db_txn_active {
 };
 struct __toku_db_txn {
   struct __toku_db_txn_internal *i;
-  void* __toku_dummy0[21];
+  void* __toku_dummy0[18];
   char __toku_dummy1[8];
+  void *api_internal; /* 32-bit offset=84 size=4, 64=bit offset=160 size=8 */
+  void* __toku_dummy2[2];
   int (*abort) (DB_TXN *); /* 32-bit offset=96 size=4, 64=bit offset=184 size=8 */
   int (*commit) (DB_TXN*, u_int32_t); /* 32-bit offset=100 size=4, 64=bit offset=192 size=8 */
-  void* __toku_dummy2[2];
+  void* __toku_dummy3[2];
   u_int32_t (*id) (DB_TXN *); /* 32-bit offset=112 size=4, 64=bit offset=216 size=8 */
-  void* __toku_dummy3[5]; /* Padding at the end */ 
+  void* __toku_dummy4[5]; /* Padding at the end */ 
 };
 struct __toku_db_txn_stat {
   void* __toku_dummy0[1];
