@@ -3,9 +3,11 @@
 #include <errno.h>
 #include "db_cxx.h"
 
-Db::Db(DbEnv *env, u_int32_t flags) {
+Db::Db(DbEnv *env, u_int32_t flags)
+    :      the_Env(env)
+{
     the_db   = 0;
-    the_Env = env;
+
     if (the_Env == 0) {
 	is_private_env = 1;
     }
