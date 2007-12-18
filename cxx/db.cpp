@@ -24,6 +24,9 @@ Db::Db(DbEnv *env, u_int32_t flags)
 }
 
 Db::~Db() {
+    if (is_private_env) {
+	delete the_Env; // The destructor closes the env.
+    }
     if (!the_db) {
 	close(0); // the user should have called close, but we do it here if not done.
     }

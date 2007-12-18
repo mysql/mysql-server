@@ -28,6 +28,7 @@ int dbcreate(char *dbfile, char *dbname, int argc, char *argv[]) {
         r = env->close(0); assert(r == 0);
         delete env;
     }
+    delete db;
     return 0;
 }
 
