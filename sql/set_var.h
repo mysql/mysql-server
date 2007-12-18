@@ -305,6 +305,24 @@ public:
 };
 
 
+class sys_var_enum_const :public sys_var
+{
+  ulong SV::*offset;
+  TYPELIB *enum_names;
+public:
+  sys_var_enum_const(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg,
+      TYPELIB *typelib, sys_after_update_func func)
+    :sys_var(name_arg,func), offset(offset_arg), enum_names(typelib)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var) { return 1; }
+  bool update(THD *thd, set_var *var) { return 1; }
+  SHOW_TYPE show_type() { return SHOW_CHAR; }
+  bool check_update_type(Item_result type) { return 1; }
+  bool is_readonly() const { return 1; }
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
+
+
 class sys_var_thd :public sys_var
 {
 public:

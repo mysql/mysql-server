@@ -207,7 +207,12 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
   if (pos - rootdir_len >= buff &&
       memcmp(pos - rootdir_len, FN_ROOTDIR, rootdir_len) != 0)
     pos= strnmov(pos, FN_ROOTDIR, end - pos);
-  pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, tbbuff, ext, NullS);
+  pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, NullS);
+#ifdef USE_SYMDIR
+  unpack_dirname(buff, buff);
+  pos= strend(buff);
+#endif
+  pos= strxnmov(pos, end - pos, tbbuff, ext, NullS);
 
   DBUG_PRINT("exit", ("buff: '%s'", buff));
   DBUG_RETURN(pos - buff);
@@ -1693,8 +1698,11 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       error= ha_delete_table(thd, table_type, path, db, table->table_name,
                              !dont_log_query);
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
-          (if_exists || table_type == NULL))
-        error= 0;
+	  (if_exists || table_type == NULL))
+      {
+	error= 0;
+        thd->clear_error();
+      }
       if (error == HA_ERR_ROW_IS_REFERENCED)
       {
         /* the table is referenced by a foreign key constraint */
@@ -4232,18 +4240,22 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           (table->table->file->ha_check_for_upgrade(check_opt) ==
            HA_ADMIN_NEEDS_ALTER))
       {
-        my_bool save_no_send_ok= thd->net.no_send_ok;
         DBUG_PRINT("admin", ("recreating table"));
         ha_autocommit_or_rollback(thd, 1);
         close_thread_tables(thd);
         tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        thd->net.no_send_ok= TRUE;
         result_code= mysql_recreate_table(thd, table);
-        thd->net.no_send_ok= save_no_send_ok;
         reenable_binlog(thd);
+        /*
+          mysql_recreate_table() can push OK or ERROR.
+          Clear 'OK' status. If there is an error, keep it:
+          we will store the error message in a result set row 
+          and then clear.
+        */
+        if (thd->main_da.is_ok())
+          thd->main_da.reset_diagnostics_area();
         goto send_result;
       }
-
     }
 
     DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
@@ -4337,7 +4349,6 @@ send_result_message:
 
     case HA_ADMIN_TRY_ALTER:
     {
-      my_bool save_no_send_ok= thd->net.no_send_ok;
       /*
         This is currently used only by InnoDB. ha_innobase::optimize() answers
         "try with alter", so here we close the table, do an ALTER TABLE,
@@ -4349,10 +4360,16 @@ send_result_message:
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
       tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-      thd->net.no_send_ok= TRUE;
       result_code= mysql_recreate_table(thd, table);
-      thd->net.no_send_ok= save_no_send_ok;
       reenable_binlog(thd);
+      /*
+        mysql_recreate_table() can push OK or ERROR.
+        Clear 'OK' status. If there is an error, keep it:
+        we will store the error message in a result set row 
+        and then clear.
+      */
+      if (thd->main_da.is_ok())
+        thd->main_da.reset_diagnostics_area();
       ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
@@ -4363,9 +4380,10 @@ send_result_message:
       }
       if (result_code) // either mysql_recreate_table or analyze failed
       {
-        const char *err_msg;
-        if ((err_msg= thd->net.last_error))
+        DBUG_ASSERT(thd->is_error());
+        if (thd->is_error())
         {
+          const char *err_msg= thd->main_da.message();
           if (!thd->vio_ok())
           {
             sql_print_error(err_msg);
@@ -4381,6 +4399,7 @@ send_result_message:
             protocol->store(table_name, system_charset_info);
             protocol->store(operator_name, system_charset_info);
           }
+          thd->clear_error();
         }
       }
       result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
@@ -6979,7 +6998,7 @@ end_online:
   if (thd->locked_tables && new_name == table_name && new_db == db)
   {
     thd->in_lock_tables= 1;
-    error= reopen_tables(thd, 1, 0);
+    error= reopen_tables(thd, 1, 1);
     thd->in_lock_tables= 0;
     if (error)
       goto err_with_placeholders;

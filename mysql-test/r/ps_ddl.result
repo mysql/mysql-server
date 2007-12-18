@@ -1,0 +1,2329 @@
+=====================================================================
+Testing 1: NOTHING -> TABLE transitions
+=====================================================================
+drop table if exists t1;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+prepare stmt from 'select * from t1';
+ERROR 42S02: Table 'test.t1' doesn't exist
+=====================================================================
+Testing 2: NOTHING -> TEMPORARY TABLE transitions
+=====================================================================
+=====================================================================
+Testing 3: NOTHING -> VIEW transitions
+=====================================================================
+=====================================================================
+Testing 4: TABLE -> NOTHING transitions
+=====================================================================
+drop table if exists t4;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t4(a int);
+prepare stmt from 'select * from t4';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t4;
+execute stmt;
+ERROR 42S02: Table 'test.t4' doesn't exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ERROR 42S02: Table 'test.t4' doesn't exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+=====================================================================
+Testing 5: TABLE -> TABLE (DDL) transitions
+=====================================================================
+drop table if exists t5;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t5(a int);
+prepare stmt from 'select * from t5';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+alter table t5 add column (b int);
+execute stmt;
+a	b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a	b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+drop table t5;
+=====================================================================
+Testing 6: TABLE -> TABLE (TRIGGER) transitions
+=====================================================================
+drop table if exists t6;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t6(a int);
+prepare stmt from 'insert into t6(a) value (?)';
+set @val=1;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+set @val=2;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+create trigger t6_bi before insert on t6 for each row
+begin
+set @message= "t6_bi";
+end
+$$
+set @message="none";
+set @val=3;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+select @message;
+@message
+t6_bi
+set @val=4;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+select @message;
+@message
+t6_bi
+prepare stmt from 'insert into t6(a) value (?)';
+set @message="none";
+set @val=5;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+select @message;
+@message
+t6_bi
+set @message="none";
+set @val=6;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+select @message;
+@message
+t6_bi
+create trigger t6_bd before delete on t6 for each row
+begin
+set @message= "t6_bd";
+end
+$$
+set @message="none";
+set @val=7;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+select @message;
+@message
+t6_bi
+set @message="none";
+set @val=8;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+select @message;
+@message
+t6_bi
+prepare stmt from 'insert into t6(a) value (?)';
+set @message="none";
+set @val=9;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+select @message;
+@message
+t6_bi
+set @message="none";
+set @val=10;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+select @message;
+@message
+t6_bi
+drop trigger t6_bi;
+create trigger t6_bi before insert on t6 for each row
+begin
+set @message= "t6_bi (2)";
+end
+$$
+set @message="none";
+set @val=11;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+t6_bi (2)
+set @val=12;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+t6_bi (2)
+prepare stmt from 'insert into t6(a) value (?)';
+set @message="none";
+set @val=13;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+t6_bi (2)
+set @message="none";
+set @val=14;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+t6_bi (2)
+drop trigger t6_bd;
+create trigger t6_bd before delete on t6 for each row
+begin
+set @message= "t6_bd (2)";
+end
+$$
+set @message="none";
+set @val=15;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+t6_bi (2)
+set @message="none";
+set @val=16;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+t6_bi (2)
+prepare stmt from 'insert into t6(a) value (?)';
+set @message="none";
+set @val=17;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+t6_bi (2)
+set @message="none";
+set @val=18;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+t6_bi (2)
+drop trigger t6_bi;
+set @message="none";
+set @val=19;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+none
+set @val=20;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+none
+prepare stmt from 'insert into t6(a) value (?)';
+set @message="none";
+set @val=21;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+none
+set @val=22;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+none
+drop trigger t6_bd;
+set @val=23;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+none
+set @val=24;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+select @message;
+@message
+none
+select * from t6 order by a;
+a
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+drop table t6;
+=====================================================================
+Testing 7: TABLE -> TABLE (TRIGGER dependencies) transitions
+=====================================================================
+drop table if exists t7_proc;
+drop table if exists t7_func;
+drop table if exists t7_view;
+drop table if exists t7_table;
+drop table if exists t7_dependent_table;
+drop table if exists t7_table_trigger;
+drop table if exists t7_audit;
+drop procedure if exists audit_proc;
+drop function if exists audit_func;
+drop view if exists audit_view;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t7_proc(a int);
+create table t7_func(a int);
+create table t7_view(a int);
+create table t7_table(a int);
+create table t7_table_trigger(a int);
+create table t7_audit(old_a int, new_a int, reason varchar(50));
+create table t7_dependent_table(old_a int, new_a int, reason varchar(50));
+create procedure audit_proc(a int)
+insert into t7_audit values (NULL, a, "proc v1");
+create function audit_func() returns varchar(50)
+return "func v1";
+create view audit_view as select "view v1" as reason from dual;
+create trigger t7_proc_bi before insert on t7_proc for each row
+call audit_proc(NEW.a);
+create trigger t7_func_bi before insert on t7_func for each row
+insert into t7_audit values (NULL, NEW.a, audit_func());
+create trigger t7_view_bi before insert on t7_view for each row
+insert into t7_audit values (NULL, NEW.a, (select reason from audit_view));
+create trigger t7_table_bi before insert on t7_table for each row
+insert into t7_dependent_table values (NULL, NEW.a, "dependent table");
+create trigger t7_table_trigger_bi before insert on t7_dependent_table
+for each row set NEW.reason="trigger v1";
+prepare stmt_proc from 'insert into t7_proc(a) value (?)';
+set @val=101;
+execute stmt_proc using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+set @val=102;
+execute stmt_proc using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop procedure audit_proc;
+create procedure audit_proc(a int)
+insert into t7_audit values (NULL, a, "proc v2");
+set @val=103;
+execute stmt_proc using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+set @val=104;
+execute stmt_proc using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+prepare stmt_func from 'insert into t7_func(a) value (?)';
+set @val=201;
+execute stmt_func using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+set @val=202;
+execute stmt_func using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop function audit_func;
+create function audit_func() returns varchar(50)
+return "func v2";
+set @val=203;
+execute stmt_func using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+set @val=204;
+execute stmt_func using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+prepare stmt_view from 'insert into t7_view(a) value (?)';
+set @val=301;
+execute stmt_view using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+set @val=302;
+execute stmt_view using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop view audit_view;
+create view audit_view as select "view v2" as reason from dual;
+set @val=303;
+execute stmt_view using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+set @val=304;
+execute stmt_view using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+prepare stmt_table from 'insert into t7_table(a) value (?)';
+set @val=401;
+execute stmt_table using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+set @val=402;
+execute stmt_table using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+alter table t7_dependent_table add column comments varchar(100) default NULL;
+set @val=403;
+execute stmt_table using @val;
+ERROR 21S01: Column count doesn't match value count at row 1
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+set @val=404;
+execute stmt_table using @val;
+ERROR 21S01: Column count doesn't match value count at row 1
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+alter table t7_dependent_table drop column comments;
+set @val=405;
+execute stmt_table using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+3
+set @val=406;
+execute stmt_table using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+3
+prepare stmt_table_trigger from 'insert into t7_table(a) value (?)';
+set @val=501;
+execute stmt_table_trigger using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+3
+set @val=502;
+execute stmt_table_trigger using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+3
+drop trigger t7_table_trigger_bi;
+create trigger t7_table_trigger_bi before insert on t7_dependent_table
+for each row set NEW.reason="trigger v2";
+set @val=503;
+execute stmt_table_trigger using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+4
+set @val=504;
+execute stmt_table_trigger using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+4
+select * from t7_audit order by new_a;
+old_a	new_a	reason
+NULL	101	proc v1
+NULL	102	proc v1
+NULL	103	proc v2
+NULL	104	proc v2
+NULL	201	func v1
+NULL	202	func v1
+NULL	203	func v2
+NULL	204	func v2
+NULL	301	view v1
+NULL	302	view v1
+NULL	303	view v1
+NULL	304	view v1
+select * from t7_dependent_table order by new_a;
+old_a	new_a	reason
+NULL	401	trigger v1
+NULL	402	trigger v1
+NULL	405	trigger v1
+NULL	406	trigger v1
+NULL	501	trigger v1
+NULL	502	trigger v1
+NULL	503	trigger v2
+NULL	504	trigger v2
+drop table t7_proc;
+drop table t7_func;
+drop table t7_view;
+drop table t7_table;
+drop table t7_dependent_table;
+drop table t7_table_trigger;
+drop table t7_audit;
+drop procedure audit_proc;
+drop function audit_func;
+drop view audit_view;
+=====================================================================
+Testing 8: TABLE -> TEMPORARY TABLE transitions
+=====================================================================
+drop table if exists t8;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t8(a int);
+prepare stmt from 'select * from t8';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t8;
+create temporary table t8(a int);
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+drop table t8;
+=====================================================================
+Testing 9: TABLE -> VIEW transitions
+=====================================================================
+drop table if exists t9;
+drop table if exists t9_b;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t9(a int);
+create table t9_b(a int);
+prepare stmt from 'select * from t9';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t9;
+create view t9 as select * from t9_b;
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+drop view t9;
+drop table t9_b;
+=====================================================================
+Testing 10: TEMPORARY TABLE -> NOTHING transitions
+=====================================================================
+drop temporary table if exists t10;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create temporary table t10(a int);
+prepare stmt from 'select * from t10';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop temporary table t10;
+execute stmt;
+ERROR 42S02: Table 'test.t10' doesn't exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ERROR 42S02: Table 'test.t10' doesn't exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+=====================================================================
+Testing 11: TEMPORARY TABLE -> TABLE transitions
+=====================================================================
+drop table if exists t11;
+drop temporary table if exists t11;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t11(a int);
+insert into t11(a) value (1);
+create temporary table t11(a int);
+prepare stmt from 'select * from t11';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop temporary table t11;
+execute stmt;
+a
+1
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a
+1
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+select * from t11;
+a
+1
+drop table t11;
+=====================================================================
+Testing 12: TEMPORARY TABLE -> TEMPORARY TABLE (DDL) transitions
+=====================================================================
+drop temporary table if exists t12;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create temporary table t12(a int);
+prepare stmt from 'select * from t12';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop temporary table t12;
+create temporary table t12(a int, b int);
+execute stmt;
+a	b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a	b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+select * from t12;
+a	b
+drop table t12;
+=====================================================================
+Testing 13: TEMPORARY TABLE -> VIEW transitions
+=====================================================================
+drop temporary table if exists t13;
+drop table if exists t13_b;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create temporary table t13(a int);
+create table t13_b(a int);
+prepare stmt from 'select * from t13';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop temporary table t13;
+create view t13 as select * from t13_b;
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+drop view t13;
+drop table t13_b;
+=====================================================================
+Testing 14: VIEW -> NOTHING transitions
+=====================================================================
+drop view if exists t14;
+drop table if exists t14_b;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t14_b(a int);
+create view t14 as select * from t14_b;
+prepare stmt from 'select * from t14';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop view t14;
+execute stmt;
+ERROR 42S02: Table 'test.t14' doesn't exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+ERROR 42S02: Table 'test.t14' doesn't exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+drop table t14_b;
+=====================================================================
+Testing 15: VIEW -> TABLE transitions
+=====================================================================
+drop view if exists t15;
+drop table if exists t15_b;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t15_b(a int);
+create view t15 as select * from t15_b;
+prepare stmt from 'select * from t15';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop view t15;
+create table t15(a int);
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+drop table t15_b;
+drop table t15;
+=====================================================================
+Testing 16: VIEW -> TEMPORARY TABLE transitions
+=====================================================================
+drop view if exists t16;
+drop table if exists t16_b;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t16_b(a int);
+create view t16 as select * from t16_b;
+prepare stmt from 'select * from t16';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop view t16;
+create temporary table t16(a int);
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+drop table t16_b;
+drop temporary table t16;
+=====================================================================
+Testing 17: VIEW -> VIEW (DDL) transitions
+=====================================================================
+drop view if exists t17;
+drop table if exists t17_b;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t17_b(a int);
+insert into t17_b values (10), (20), (30);
+create view t17 as select a, 2*a as b, 3*a as c from t17_b;
+select * from t17;
+a	b	c
+10	20	30
+20	40	60
+30	60	90
+prepare stmt from 'select * from t17';
+execute stmt;
+a	b	c
+10	20	30
+20	40	60
+30	60	90
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a	b	c
+10	20	30
+20	40	60
+30	60	90
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop view t17;
+create view t17 as select a, 2*a as b, 10*a as c from t17_b;
+select * from t17;
+a	b	c
+10	20	100
+20	40	200
+30	60	300
+execute stmt;
+a	b	c
+10	20	100
+20	40	200
+30	60	300
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a	b	c
+10	20	100
+20	40	200
+30	60	300
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+drop table t17_b;
+drop view t17;
+=====================================================================
+Testing 18: VIEW -> VIEW (VIEW dependencies) transitions
+=====================================================================
+drop table if exists t18;
+drop table if exists t18_dependent_table;
+drop view if exists t18_func;
+drop view if exists t18_view;
+drop view if exists t18_table;
+drop function if exists view_func;
+drop view if exists view_view;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t18(a int);
+insert into t18 values (1), (2), (3);
+create function view_func(x int) returns int
+return x+1;
+create view view_view as select "view v1" as reason from dual;
+create table t18_dependent_table(a int);
+create view t18_func as select a, view_func(a) as b from t18;
+create view t18_view as select a, reason as b from t18, view_view;
+create view t18_table as select * from t18;
+prepare stmt_func from 'select * from t18_func';
+execute stmt_func;
+a	b
+1	2
+2	3
+3	4
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt_func;
+a	b
+1	2
+2	3
+3	4
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop function view_func;
+create function view_func(x int) returns int
+return x*x;
+execute stmt_func;
+a	b
+1	1
+2	4
+3	9
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt_func;
+a	b
+1	1
+2	4
+3	9
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+prepare stmt_view from 'select * from t18_view';
+execute stmt_view;
+a	b
+1	view v1
+2	view v1
+3	view v1
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt_view;
+a	b
+1	view v1
+2	view v1
+3	view v1
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop view view_view;
+create view view_view as select "view v2" as reason from dual;
+execute stmt_view;
+a	b
+1	view v2
+2	view v2
+3	view v2
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt_view;
+a	b
+1	view v2
+2	view v2
+3	view v2
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+prepare stmt_table from 'select * from t18_table';
+execute stmt_table;
+a
+1
+2
+3
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt_table;
+a
+1
+2
+3
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+alter table t18 add column comments varchar(50) default NULL;
+execute stmt_table;
+a
+1
+2
+3
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+execute stmt_table;
+a
+1
+2
+3
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+drop table t18;
+drop table t18_dependent_table;
+drop view t18_func;
+drop view t18_view;
+drop view t18_table;
+drop function view_func;
+drop view view_view;
+=====================================================================
+Testing 19: Special tables (INFORMATION_SCHEMA)
+=====================================================================
+drop procedure if exists proc_19;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+prepare stmt from
+'select ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE
+ from INFORMATION_SCHEMA.ROUTINES where
+ routine_name=\'proc_19\'';
+create procedure proc_19() select "hi there";
+execute stmt;
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
+test	proc_19	PROCEDURE
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
+test	proc_19	PROCEDURE
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop procedure proc_19;
+create procedure proc_19() select "hi there, again";
+execute stmt;
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
+test	proc_19	PROCEDURE
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
+test	proc_19	PROCEDURE
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop procedure proc_19;
+=====================================================================
+Testing 20: Special tables (log tables)
+=====================================================================
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+prepare stmt from
+'select * from mysql.general_log where argument=\'IMPOSSIBLE QUERY STRING\'';
+execute stmt;
+event_time	user_host	thread_id	server_id	command_type	argument
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+event_time	user_host	thread_id	server_id	command_type	argument
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+event_time	user_host	thread_id	server_id	command_type	argument
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+event_time	user_host	thread_id	server_id	command_type	argument
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+=====================================================================
+Testing 21: Special tables (system tables)
+=====================================================================
+drop procedure if exists proc_21;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+prepare stmt from
+'select type, db, name from mysql.proc where name=\'proc_21\'';
+create procedure proc_21() select "hi there";
+execute stmt;
+type	db	name
+PROCEDURE	test	proc_21
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+type	db	name
+PROCEDURE	test	proc_21
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop procedure proc_21;
+create procedure proc_21() select "hi there, again";
+execute stmt;
+type	db	name
+PROCEDURE	test	proc_21
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+type	db	name
+PROCEDURE	test	proc_21
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop procedure proc_21;
+=====================================================================
+Testing 22: Special tables (views temp tables)
+=====================================================================
+drop table if exists t22_b;
+drop view if exists t22;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t22_b(a int);
+create algorithm=temptable view t22 as select a*a as a2 from t22_b;
+show create view t22;
+View	Create View	character_set_client	collation_connection
+t22	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `t22` AS select (`t22_b`.`a` * `t22_b`.`a`) AS `a2` from `t22_b`	latin1	latin1_swedish_ci
+prepare stmt from 'select * from t22';
+insert into t22_b values (1), (2), (3);
+execute stmt;
+a2
+1
+4
+9
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a2
+1
+4
+9
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+insert into t22_b values (4), (5), (6);
+execute stmt;
+a2
+1
+4
+9
+16
+25
+36
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a2
+1
+4
+9
+16
+25
+36
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t22_b;
+drop view t22;
+=====================================================================
+Testing 23: Special tables (internal join tables)
+=====================================================================
+drop table if exists t23_a;
+drop table if exists t23_b;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t23_a(a int);
+create table t23_b(b int);
+prepare stmt from 'select * from t23_a join t23_b';
+insert into t23_a values (1), (2), (3);
+insert into t23_b values (10), (20), (30);
+execute stmt;
+a	b
+1	10
+2	10
+3	10
+1	20
+2	20
+3	20
+1	30
+2	30
+3	30
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a	b
+1	10
+2	10
+3	10
+1	20
+2	20
+3	20
+1	30
+2	30
+3	30
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+insert into t23_a values (4);
+insert into t23_b values (40);
+execute stmt;
+a	b
+1	10
+2	10
+3	10
+4	10
+1	20
+2	20
+3	20
+4	20
+1	30
+2	30
+3	30
+4	30
+1	40
+2	40
+3	40
+4	40
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a	b
+1	10
+2	10
+3	10
+4	10
+1	20
+2	20
+3	20
+4	20
+1	30
+2	30
+3	30
+4	30
+1	40
+2	40
+3	40
+4	40
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t23_a;
+drop table t23_b;
+=====================================================================
+Testing 24: Special statements
+=====================================================================
+drop table if exists t24_alter;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t24_alter(a int);
+prepare stmt from 'alter table t24_alter add column b int';
+execute stmt;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t24_alter;
+create table t24_alter(a1 int, a2 int);
+execute stmt;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+alter table t24_alter drop column b;
+execute stmt;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+alter table t24_alter drop column b;
+execute stmt;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t24_alter;
+drop table if exists t24_repair;
+create table t24_repair(a int);
+insert into t24_repair values (1), (2), (3);
+prepare stmt from 'repair table t24_repair';
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_repair	repair	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t24_repair;
+create table t24_repair(a1 int, a2 int);
+insert into t24_repair values (1, 10), (2, 20), (3, 30);
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_repair	repair	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+alter table t24_repair add column b varchar(50) default NULL;
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_repair	repair	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+alter table t24_repair drop column b;
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_repair	repair	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t24_repair;
+drop table if exists t24_analyze;
+create table t24_analyze(a int);
+insert into t24_analyze values (1), (2), (3);
+prepare stmt from 'analyze table t24_analyze';
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_analyze	analyze	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t24_analyze;
+create table t24_analyze(a1 int, a2 int);
+insert into t24_analyze values (1, 10), (2, 20), (3, 30);
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_analyze	analyze	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+alter table t24_analyze add column b varchar(50) default NULL;
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_analyze	analyze	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+alter table t24_analyze drop column b;
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_analyze	analyze	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t24_analyze;
+drop table if exists t24_optimize;
+create table t24_optimize(a int);
+insert into t24_optimize values (1), (2), (3);
+prepare stmt from 'optimize table t24_optimize';
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_optimize	optimize	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t24_optimize;
+create table t24_optimize(a1 int, a2 int);
+insert into t24_optimize values (1, 10), (2, 20), (3, 30);
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_optimize	optimize	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+alter table t24_optimize add column b varchar(50) default NULL;
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_optimize	optimize	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+alter table t24_optimize drop column b;
+execute stmt;
+Table	Op	Msg_type	Msg_text
+test.t24_optimize	optimize	status	OK
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t24_optimize;
+drop procedure if exists changing_proc;
+prepare stmt from 'show create procedure changing_proc';
+execute stmt;
+ERROR 42000: PROCEDURE changing_proc does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ERROR 42000: PROCEDURE changing_proc does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+create procedure changing_proc() begin end;
+execute stmt;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+changing_proc		CREATE DEFINER=`root`@`localhost` PROCEDURE `changing_proc`()
+begin end	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+changing_proc		CREATE DEFINER=`root`@`localhost` PROCEDURE `changing_proc`()
+begin end	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop procedure changing_proc;
+create procedure changing_proc(x int, y int) begin end;
+execute stmt;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+changing_proc		CREATE DEFINER=`root`@`localhost` PROCEDURE `changing_proc`(x int, y int)
+begin end	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+changing_proc		CREATE DEFINER=`root`@`localhost` PROCEDURE `changing_proc`(x int, y int)
+begin end	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop procedure changing_proc;
+execute stmt;
+ERROR 42000: PROCEDURE changing_proc does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ERROR 42000: PROCEDURE changing_proc does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop function if exists changing_func;
+prepare stmt from 'show create function changing_func';
+execute stmt;
+ERROR 42000: FUNCTION changing_func does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ERROR 42000: FUNCTION changing_func does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+create function changing_func() returns int return 0;
+execute stmt;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+changing_func		CREATE DEFINER=`root`@`localhost` FUNCTION `changing_func`() RETURNS int(11)
+return 0	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+changing_func		CREATE DEFINER=`root`@`localhost` FUNCTION `changing_func`() RETURNS int(11)
+return 0	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop function changing_func;
+create function changing_func(x int, y int) returns int return x+y;
+execute stmt;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+changing_func		CREATE DEFINER=`root`@`localhost` FUNCTION `changing_func`(x int, y int) RETURNS int(11)
+return x+y	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+changing_func		CREATE DEFINER=`root`@`localhost` FUNCTION `changing_func`(x int, y int) RETURNS int(11)
+return x+y	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop function changing_func;
+execute stmt;
+ERROR 42000: FUNCTION changing_func does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ERROR 42000: FUNCTION changing_func does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table if exists t24_trigger;
+create table t24_trigger(a int);
+prepare stmt from 'show create trigger t24_bi;';
+execute stmt;
+ERROR HY000: Trigger does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ERROR HY000: Trigger does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+create trigger t24_bi before insert on t24_trigger for each row
+begin
+set @message= "t24_bi";
+end
+$$
+execute stmt;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t24_bi		CREATE DEFINER=`root`@`localhost` trigger t24_bi before insert on t24_trigger for each row
+begin
+set @message= "t24_bi";
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t24_bi		CREATE DEFINER=`root`@`localhost` trigger t24_bi before insert on t24_trigger for each row
+begin
+set @message= "t24_bi";
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop trigger t24_bi;
+create trigger t24_bi before insert on t24_trigger for each row
+begin
+set @message= "t24_bi (2)";
+end
+$$
+execute stmt;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t24_bi		CREATE DEFINER=`root`@`localhost` trigger t24_bi before insert on t24_trigger for each row
+begin
+set @message= "t24_bi (2)";
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t24_bi		CREATE DEFINER=`root`@`localhost` trigger t24_bi before insert on t24_trigger for each row
+begin
+set @message= "t24_bi (2)";
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop trigger t24_bi;
+execute stmt;
+ERROR HY000: Trigger does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ERROR HY000: Trigger does not exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t24_trigger;
+=====================================================================
+Testing 25: Testing the strength of TABLE_SHARE version
+=====================================================================
+drop table if exists t25_num_col;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t25_num_col(a int);
+prepare stmt from 'select * from t25_num_col';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+alter table t25_num_col add column b varchar(50) default NULL;
+execute stmt;
+a	b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a	b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+drop table t25_num_col;
+drop table if exists t25_col_name;
+create table t25_col_name(a int);
+prepare stmt from 'select * from t25_col_name';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+alter table t25_col_name change a b int;
+execute stmt;
+b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+execute stmt;
+b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+drop table t25_col_name;
+drop table if exists t25_col_type;
+create table t25_col_type(a int);
+prepare stmt from 'select * from t25_col_type';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+alter table t25_col_type change a a varchar(10);
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+3
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+3
+drop table t25_col_type;
+drop table if exists t25_col_type_length;
+create table t25_col_type_length(a varchar(10));
+prepare stmt from 'select * from t25_col_type_length';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+3
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+3
+alter table t25_col_type_length change a a varchar(20);
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+4
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+4
+drop table t25_col_type_length;
+drop table if exists t25_col_null;
+create table t25_col_null(a varchar(10));
+prepare stmt from 'select * from t25_col_null';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+4
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+4
+alter table t25_col_null change a a varchar(10) NOT NULL;
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+5
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+5
+drop table t25_col_null;
+drop table if exists t25_col_default;
+create table t25_col_default(a int, b int DEFAULT 10);
+prepare stmt from 'insert into t25_col_default(a) values (?)';
+set @val=1;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+5
+set @val=2;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+5
+alter table t25_col_default change b b int DEFAULT 20;
+set @val=3;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+5
+set @val=4;
+execute stmt using @val;
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+5
+select * from t25_col_default;
+a	b
+1	10
+2	10
+3	20
+4	20
+drop table t25_col_default;
+drop table if exists t25_index;
+create table t25_index(a varchar(10));
+prepare stmt from 'select * from t25_index';
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+5
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+5
+create index i1 on t25_index(a);
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+6
+execute stmt;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+6
+drop table t25_index;
+drop table if exists t25_index_unique;
+create table t25_index_unique(a varchar(10), b varchar(10));
+create index i1 on t25_index_unique(a, b);
+show create table t25_index_unique;
+Table	Create Table
+t25_index_unique	CREATE TABLE `t25_index_unique` (
+  `a` varchar(10) DEFAULT NULL,
+  `b` varchar(10) DEFAULT NULL,
+  KEY `i1` (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+prepare stmt from 'select * from t25_index_unique';
+execute stmt;
+a	b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+6
+execute stmt;
+a	b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+6
+alter table t25_index_unique drop index i1;
+create unique index i1 on t25_index_unique(a, b);
+show create table t25_index_unique;
+Table	Create Table
+t25_index_unique	CREATE TABLE `t25_index_unique` (
+  `a` varchar(10) DEFAULT NULL,
+  `b` varchar(10) DEFAULT NULL,
+  UNIQUE KEY `i1` (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+execute stmt;
+a	b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+7
+execute stmt;
+a	b
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+7
+drop table t25_index_unique;
+=====================================================================
+Testing reported bugs
+=====================================================================
+drop table if exists table_12093;
+drop function if exists func_12093;
+drop function if exists func_12093_unrelated;
+drop procedure if exists proc_12093;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table table_12093(a int);
+create function func_12093()
+returns int
+begin
+return (select count(*) from table_12093);
+end//
+create procedure proc_12093(a int)
+begin
+select * from table_12093;
+end//
+create function func_12093_unrelated() returns int return 2;
+create procedure proc_12093_unrelated() begin end;
+prepare stmt_sf from 'select func_12093();';
+prepare stmt_sp from 'call proc_12093(func_12093())';
+execute stmt_sf;
+func_12093()
+0
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt_sp;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop function func_12093_unrelated;
+drop procedure proc_12093_unrelated;
+execute stmt_sf;
+func_12093()
+0
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt_sp;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt_sf;
+func_12093()
+0
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt_sp;
+a
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+deallocate prepare stmt_sf;
+deallocate prepare stmt_sp;
+drop table table_12093;
+drop function func_12093;
+drop procedure proc_12093;
+drop function if exists func_21294;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create function func_21294() returns int return 10;
+prepare stmt from "select func_21294()";
+execute stmt;
+func_21294()
+10
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop function func_21294;
+create function func_21294() returns int return 10;
+execute stmt;
+func_21294()
+10
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop function func_21294;
+create function func_21294() returns int return 20;
+execute stmt;
+func_21294()
+20
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+deallocate prepare stmt;
+drop function func_21294;
+drop table if exists t_27420_100;
+drop table if exists t_27420_101;
+drop view if exists v_27420;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t_27420_100(a int);
+insert into t_27420_100 values (1), (2);
+create table t_27420_101(a int);
+insert into t_27420_101 values (1), (2);
+create view v_27420 as select t_27420_100.a X, t_27420_101.a Y
+from t_27420_100, t_27420_101
+where t_27420_100.a=t_27420_101.a;
+prepare stmt from 'select * from v_27420';
+execute stmt;
+X	Y
+1	1
+2	2
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop view v_27420;
+create table v_27420(X int, Y int);
+execute stmt;
+X	Y
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+drop table v_27420;
+create table v_27420 (a int, b int, filler char(200));
+execute stmt;
+a	b	filler
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+2
+deallocate prepare stmt;
+drop table t_27420_100;
+drop table t_27420_101;
+drop table v_27420;
+drop table if exists t_27430_1;
+drop table if exists t_27430_2;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t_27430_1 (a int not null, oref int not null, key(a));
+insert into t_27430_1 values
+(1, 1),
+(1, 1234),
+(2, 3),
+(2, 1234),
+(3, 1234);
+create table t_27430_2 (a int not null, oref int not null);
+insert into t_27430_2 values
+(1, 1),
+(2, 2),
+(1234, 3),
+(1234, 4);
+prepare stmt from 
+'select oref, a, a in (select a from t_27430_1 where oref=t_27430_2.oref) Z from t_27430_2';
+execute stmt;
+oref	a	Z
+1	1	1
+2	2	0
+3	1234	0
+4	1234	0
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+oref	a	Z
+1	1	1
+2	2	0
+3	1234	0
+4	1234	0
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table t_27430_1, t_27430_2;
+create table t_27430_1 (a int, oref int, key(a));
+insert into t_27430_1 values 
+(1, 1),
+(1, NULL),
+(2, 3),
+(2, NULL),
+(3, NULL);
+create table t_27430_2 (a int, oref int);
+insert into t_27430_2 values
+(1, 1),
+(2,2),
+(NULL, 3),
+(NULL, 4);
+execute stmt;
+oref	a	Z
+1	1	1
+2	2	0
+3	NULL	NULL
+4	NULL	0
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+oref	a	Z
+1	1	1
+2	2	0
+3	NULL	NULL
+4	NULL	0
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+deallocate prepare stmt;
+drop table t_27430_1;
+drop table t_27430_2;
+drop table if exists t_27690_1;
+drop view if exists v_27690_1;
+drop table if exists v_27690_2;
+SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+create table t_27690_1 (a int, b int);
+insert into t_27690_1 values (1,1),(2,2);
+create table v_27690_1 as select * from t_27690_1;
+create table v_27690_2 as select * from t_27690_1;
+prepare stmt from 'select * from v_27690_1, v_27690_2';
+execute stmt;
+a	b	a	b
+1	1	1	1
+2	2	1	1
+1	1	2	2
+2	2	2	2
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+a	b	a	b
+1	1	1	1
+2	2	1	1
+1	1	2	2
+2	2	2	2
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+drop table v_27690_1;
+execute stmt;
+ERROR 42S02: Table 'test.v_27690_1' doesn't exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+execute stmt;
+ERROR 42S02: Table 'test.v_27690_1' doesn't exist
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+0
+create view v_27690_1 as select A.a, A.b from t_27690_1 A, t_27690_1 B;
+execute stmt;
+a	b	a	b
+1	1	1	1
+2	2	1	1
+1	1	1	1
+2	2	1	1
+1	1	2	2
+2	2	2	2
+1	1	2	2
+2	2	2	2
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+execute stmt;
+a	b	a	b
+1	1	1	1
+2	2	1	1
+1	1	1	1
+2	2	1	1
+1	1	2	2
+2	2	2	2
+1	1	2	2
+2	2	2	2
+SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+REPREPARED
+1
+deallocate prepare stmt;
+drop table t_27690_1;
+drop view v_27690_1;
+drop table v_27690_2;
