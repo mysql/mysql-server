@@ -1,3 +1,4 @@
+@page
 @section @code{DB->put}
 @setfilename tokudb
 @settitle DB->put
@@ -26,7 +27,7 @@ Data items are limited to 256KB in size (for now.)
 @c man begin PARAMETERS
 @table @var
 @item db
-The @code{DB} handle for the database}.
+The @code{DB} handle for the database.
 @item txnid
 Either @code{NULL} or a @code{TXNID}.
 @item key
@@ -34,11 +35,15 @@ The key to be inserted.
 @item data
 The data to be inserted.
 @item flags
-Must not be zero, but instead must be one of the following flagsd:.  
+Must be zero or must be one of the following flags.  However, @code{flags} must be nonzero for sorted duplicates.
 @table @code
+@item 0
+For non-dup databases, insert the new key/data pair, overwriting any pair with a matching key.
+Zero is not allowed databases with duplicates (returns @code{EINVAL}).
+
 @item DB_YESOVERWRITE
 
-Insert the new key/data pair, overwriting any matching pair..  If the
+Insert the new key/data pair, overwriting any matching pair.  If the
 database supports sorted duplicates, then the matching key/data pair
 (if any) is overwritten.  If the database does not support duplicates,
 then the pair with a matching key (if any) is overwritten.  (TokuDB
@@ -63,6 +68,7 @@ Using @code{DB_NODUPDATA} can dramatically slow down deletions, since
 it the implementation must perform a @code{DB->get} to determine
 whether the pair already exists.
 @end table
+
 
 Rationale: Using @code{0} for flags does not give the results that
 many users expect.  The Berkeley DB documentation says that someday
@@ -96,9 +102,12 @@ In an environment configured for lock timeouts, the system was unable to grant a
 @item ENOENT
 The file or directory does not exist.
 @item EINVAL
-You passed invalid parameters to this operation.  
+You passed invalid parameters to this operation.
 
-If @var{flags} is zero, returns @code{BEINVAL}.
+In particular, if you pass 0 to a database configured for duplicates,
+then @code{DB->put()} returns @code{EINVAL}.
+
+@end table
 @c man end
 
 @include everyman.texi
