@@ -985,11 +985,6 @@ static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
         r = toku_c_del(dbc, 0);
         if (r!=0) goto cleanup;
         get_key = put_key  = &key_local;
-        //TEST: We ignore key entirely (do not return data in it either).
-        //Should we copy the data we eventually get in get_key over into the key DBT?
-        //If so, just use
-        //r  = toku_brt_dbt_set_key(db->i->brt,  key, &key_local, key_local.size);
-        //to copy at some point.
         goto finish;
     }
     else if (flags==DB_KEYFIRST || flags==DB_KEYLAST) {
