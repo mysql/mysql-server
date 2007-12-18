@@ -1,4 +1,4 @@
-#include "db_cxx.h"
+#include <db_cxx.h>
 
 int Dbc::close (void) {
     DBC *dbc = this;

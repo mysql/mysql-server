@@ -10,8 +10,7 @@ LIBNAME = libtdb_cxx
 default: install
 install: $(LIBNAME).a
 	cp $< ../lib/
-	cp db_cxx.h ../include/
-$(OBJS): db_cxx.h
+$(OBJS): ../include/db_cxx.h
 test1: test1.o dbt.o db.o dbenv.o ../lib/libdb.a
 
 $(LIBNAME).a: $(OBJS)

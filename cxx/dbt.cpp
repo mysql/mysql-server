@@ -1,4 +1,4 @@
-#include "db_cxx.h"
+#include <db_cxx.h>
 
 Dbt::Dbt(void) {
     DBT *dbt = this;
