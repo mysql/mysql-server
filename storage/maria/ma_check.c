@@ -922,8 +922,11 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   }
   if (keypos != endpos)
   {
-    _ma_check_print_error(param,"Keyblock size at page %s is not correct.  Block length: %d  key length: %d",
-                llstr(page,llbuff), used_length, (keypos - buff));
+    _ma_check_print_error(param,
+                          "Keyblock size at page %s is not correct. "
+                          "Block length: %u  key length: %u",
+                          llstr(page, llbuff), used_length,
+                          (uint) (keypos - buff));
     goto err;
   }
   my_afree((uchar*) temp_buff);
@@ -1376,7 +1379,7 @@ static int check_compressed_record(HA_CHECK *param, MARIA_HA *info, int extend,
         block_info.rec_len > (uint) share->max_pack_length)
     {
       _ma_check_print_error(param,
-                            "Found block with wrong recordlength: %d at %s",
+                            "Found block with wrong recordlength: %lu at %s",
                             block_info.rec_len, llstr(start_recpos,llbuff));
       got_error=1;
       goto end;
@@ -1709,7 +1712,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     {
       /* Bitmap page */
       if (pagecache_read(share->pagecache,
-                         &info->dfile,
+                         &info->s->bitmap.file,
                          (pos / block_size), 1,
                          bitmap_buff,
                          PAGECACHE_PLAIN_PAGE,
@@ -1717,7 +1720,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       {
         _ma_check_print_error(param,
                               "Page %9s:  Got error: %d when reading datafile",
-                              my_errno, llstr(pos, llbuff));
+                              llstr(pos, llbuff), my_errno);
         goto err;
       }
       param->used+= block_size;
@@ -1746,7 +1749,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     {
       _ma_check_print_error(param,
                             "Page %9s:  Got error: %d when reading datafile",
-                            my_errno, llstr(pos, llbuff));
+                            llstr(pos, llbuff), my_errno);
       goto err;
     }
     page_type= page_buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK;
@@ -4154,8 +4157,9 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
 	  {
 	    if (!searching)
 	      _ma_check_print_info(param,
-				  "Deleted block with impossible length %u at %s",
-				  block_info.block_len,llstr(pos,llbuff));
+                                   "Deleted block with impossible length %lu "
+                                   "at %s",
+                                   block_info.block_len,llstr(pos,llbuff));
 	    error=1;
 	  }
 	  else
@@ -4193,10 +4197,11 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
 	  {
 	    if (!searching)
 	      _ma_check_print_info(param,
-				  "Found block with impossible length %u at %s; Skipped",
-				  block_info.block_len+
+                                   "Found block with impossible length %lu "
+                                   "at %s; Skipped",
+                                   block_info.block_len+
                                    (uint) (block_info.filepos-pos),
-				  llstr(pos,llbuff));
+                                   llstr(pos,llbuff));
 	    if (found_record)
 	      goto try_next;
 	    searching=1;
@@ -4393,9 +4398,11 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
 	  block_info.rec_len > (uint) share->max_pack_length)
       {
 	if (! searching)
-	  _ma_check_print_info(param,"Found block with wrong recordlength: %d at %s\n",
-			      block_info.rec_len,
-			      llstr(sort_param->pos,llbuff));
+	  _ma_check_print_info(param,
+                               "Found block with wrong recordlength: %lu "
+                               "at %s\n",
+                               block_info.rec_len,
+                               llstr(sort_param->pos,llbuff));
 	continue;
       }
       if (_ma_read_cache(&sort_param->read_cache,(uchar*) sort_param->rec_buff,
@@ -4918,9 +4925,9 @@ static int sort_delete_record(MARIA_SORT_PARAM *sort_param)
   if (key_info->s->options & HA_OPTION_COMPRESS_RECORD)
   {
     _ma_check_print_error(param,
-			 "Recover aborted; Can't run standard recovery on compressed tables "
-                          "with errors in data-file. Use 'maria_chk --safe-recover' "
-                          "to fix it",stderr);;
+                          "Recover aborted; Can't run standard recovery on "
+                          "compressed tables with errors in data-file. "
+                          "Use 'maria_chk --safe-recover' to fix it");
     DBUG_RETURN(1);
   }
 
@@ -5801,8 +5808,16 @@ read_next_page:
                            page, 0, info->scan.page_buff,
                            PAGECACHE_READ_UNKNOWN_PAGE,
                            PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
+      {
+        if (my_errno == HA_ERR_WRONG_CRC)
+        {
+          _ma_check_print_info(sort_info->param,
+                               "Wrong CRC on page at %s",
+                               llstr(page * share->block_size, llbuff));
+          continue;
+        }
         DBUG_RETURN(my_errno);
-
+      }
       page_type= (info->scan.page_buff[PAGE_TYPE_OFFSET] &
                   PAGE_TYPE_MASK);
       if (page_type == HEAD_PAGE)

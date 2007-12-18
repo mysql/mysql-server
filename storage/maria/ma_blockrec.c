@@ -4389,7 +4389,7 @@ restart_bitmap_scan:
   }
   DBUG_PRINT("info", ("Reading bitmap at %lu",
                       (ulong) info->scan.bitmap_page));
-  if (!(pagecache_read(share->pagecache, &info->dfile,
+  if (!(pagecache_read(share->pagecache, &info->s->bitmap.file,
                        info->scan.bitmap_page,
                        0, info->scan.bitmap_buff, PAGECACHE_PLAIN_PAGE,
                        PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
@@ -5175,9 +5175,11 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     share->pagecache->readwrite_flags= share->pagecache->org_readwrite_flags;
     if (!buff)
     {
-      if (my_errno != HA_ERR_FILE_TOO_SHORT)
+      /* Skip errors when reading outside of file and uninitialized pages */
+      if (my_errno != HA_ERR_FILE_TOO_SHORT &&
+          my_errno != HA_ERR_WRONG_CRC)
       {
-        /* If not read outside of file */
+        /* Fatal disk error when reading page */
         pagecache_unlock_by_link(share->pagecache, page_link.link,
                                  PAGECACHE_LOCK_WRITE_UNLOCK,
                                  PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
@@ -5185,8 +5187,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
         DBUG_RETURN(my_errno);
       }
       /* Create new page */
-      buff= info->keyread_buff;
-      info->keyread_buff_used= 1;
+      buff= pagecache_block_link_to_buffer(page_link.link);
       buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
     }
     else if (lsn_korr(buff) >= lsn)           /* Test if already applied */
@@ -5626,7 +5627,8 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
             org_readwrite_flags;
           if (!buff)
           {
-            if (my_errno != HA_ERR_FILE_TOO_SHORT)
+            if (my_errno != HA_ERR_FILE_TOO_SHORT &&
+                my_errno != HA_ERR_WRONG_CRC)
             {
               /* If not read outside of file */
               pagecache_unlock_by_link(share->pagecache, page_link.link,
@@ -5641,8 +5643,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
               pagecache (increased data_file_length but not physical file
               length), now reads page N+1: the read fails.
             */
-            buff= info->keyread_buff;
-            info->keyread_buff_used= 1;
+            buff= pagecache_block_link_to_buffer(page_link.link);
             make_empty_page(info, buff, BLOB_PAGE);
           }
           else

@@ -342,7 +342,7 @@ CREATE TABLE `t1` (
   KEY `poster_login` (`poster_login`),
   KEY `topic_id` (`topic_id`),
   FULLTEXT KEY `post_text` (`post_text`)
-);
+) TRANSACTIONAL=0;
 
 INSERT INTO t1 (post_text) VALUES ('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test');
 
@@ -1305,6 +1305,18 @@ drop table t1;
 show variables like 'maria%';
 --replace_column 2 #
 show status like 'maria%';
+
+#
+# Show that we can't yet create fulltext or spatial index with Maria
+#
+--error 138
+create table t1 (s varchar(25), fulltext(s)) TRANSACTIONAL= 1;
+drop table if exists t1;
+
+--error 138
+create table t1 ( fid int not null auto_increment primary key,
+g geometry not null, spatial key(g));
+drop table if exists t1;
 
 # End of 5.2 tests
 

@@ -28,9 +28,6 @@
 #include <process.h>			/* Prototype for getpid */
 #endif
 #endif
-#ifdef VMS
-#include "static.c"
-#endif
 
 static void setup_key_functions(MARIA_KEYDEF *keyinfo);
 static my_bool maria_scan_init_dummy(MARIA_HA *info);
@@ -39,6 +36,11 @@ static my_bool maria_once_init_dummy(MARIA_SHARE *, File);
 static my_bool maria_once_end_dummy(MARIA_SHARE *);
 static uchar *_ma_base_info_read(uchar *ptr, MARIA_BASE_INFO *base);
 static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state);
+static void set_data_pagecache_callbacks(PAGECACHE_FILE *file,
+                                         MARIA_SHARE *share);
+static void set_index_pagecache_callbacks(PAGECACHE_FILE *file,
+                                          MARIA_SHARE *share);
+
 
 #define get_next_element(to,pos,size) { memcpy((char*) to,pos,(size_t) size); \
 					pos+=size;}
@@ -144,17 +146,18 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   info.this_loop=0;				/* Update counter */
   info.last_unique= share->state.unique;
   info.last_loop=   share->state.update_count;
-  info.lock_type=F_UNLCK;
   info.quick_mode=0;
   info.bulk_insert=0;
   info.ft1_to_ft2=0;
   info.errkey= -1;
   info.page_changed=1;
   info.keyread_buff= info.buff + share->base.max_key_block_length;
-  pagecache_file_init(info.dfile, &maria_page_crc_check_data,
-                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
-                       &maria_page_crc_set_normal :
-                       &maria_page_filler_set_normal), share);
+
+  info.lock_type= F_UNLCK;
+  if (share->options & HA_OPTION_TMP_TABLE)
+    info.lock_type= F_WRLCK;
+
+  set_data_pagecache_callbacks(&info.dfile, share);
   bitmap_init(&info.changed_fields, changed_fields_bitmap,
               share->base.fields, 0);
   if ((*share->init)(&info))
@@ -177,15 +180,6 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
     info.lock_type=F_RDLCK;
     share->r_locks++;
     share->tot_locks++;
-  }
-  if (share->options & HA_OPTION_TMP_TABLE)
-  {
-    share->temporary= share->delay_key_write= 1;
-
-    share->write_flag=MYF(MY_NABP);
-    share->w_locks++;			/* We don't have to update status */
-    share->tot_locks++;
-    info.lock_type=F_WRLCK;
   }
   if ((share->options & HA_OPTION_DELAY_KEY_WRITE) &&
       maria_delay_key_write)
@@ -717,11 +711,23 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     }
     errpos= 5;
 
+    if (open_flags & HA_OPEN_DELAY_KEY_WRITE)
+      share->options|= HA_OPTION_DELAY_KEY_WRITE;
+    if (mode == O_RDONLY)
+      share->options|= HA_OPTION_READ_ONLY_DATA;
+    share->is_log_table= FALSE;
+
+    if (open_flags & HA_OPEN_TMP_TABLE)
+    {
+      share->options|= HA_OPTION_TMP_TABLE;
+      share->temporary= share->delay_key_write= 1;
+      share->write_flag=MYF(MY_NABP);
+      share->w_locks++;			/* We don't have to update status */
+      share->tot_locks++;
+    }
+
     share->kfile.file= kfile;
-    pagecache_file_init(share->kfile, &maria_page_crc_check_index,
-                        (share->options & HA_OPTION_PAGE_CHECKSUM ?
-                         &maria_page_crc_set_index :
-                         &maria_page_filler_set_normal), share);
+    set_index_pagecache_callbacks(&share->kfile, share);
     share->this_process=(ulong) getpid();
     share->last_process= share->state.process;
     share->base.key_parts=key_parts;
@@ -737,13 +743,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     _ma_setup_functions(share);
     if ((*share->once_init)(share, info.dfile.file))
       goto err;
-    share->is_log_table= FALSE;
-    if (open_flags & HA_OPEN_TMP_TABLE)
-      share->options|= HA_OPTION_TMP_TABLE;
-    if (open_flags & HA_OPEN_DELAY_KEY_WRITE)
-      share->options|= HA_OPTION_DELAY_KEY_WRITE;
-    if (mode == O_RDONLY)
-      share->options|= HA_OPTION_READ_ONLY_DATA;
 
 #ifdef THREAD
     thr_lock_init(&share->lock);
@@ -1535,6 +1534,46 @@ uchar *_ma_column_nr_read(uchar *ptr, uint16 *offsets, uint columns)
 }
 
 
+static void set_data_pagecache_callbacks(PAGECACHE_FILE *file,
+                                         MARIA_SHARE *share)
+{
+  file->callback_data= (uchar*) share;
+  if (share->temporary)
+  {
+    file->read_callback=  &maria_page_crc_check_none;
+    file->write_callback= &maria_page_filler_set_none;
+  }
+  else
+  {
+    file->read_callback=  &maria_page_crc_check_data;
+    if (share->options & HA_OPTION_PAGE_CHECKSUM)
+      file->write_callback= &maria_page_crc_set_normal;
+    else
+      file->write_callback= &maria_page_filler_set_normal;
+  }
+}
+
+
+static void set_index_pagecache_callbacks(PAGECACHE_FILE *file,
+                                          MARIA_SHARE *share)
+{
+  file->callback_data= (uchar*) share;
+  if (share->temporary)
+  {
+    file->read_callback=  &maria_page_crc_check_none;
+    file->write_callback= &maria_page_filler_set_none;
+  }
+  else
+  {
+    file->read_callback=  &maria_page_crc_check_index;
+    if (share->options & HA_OPTION_PAGE_CHECKSUM)
+      file->write_callback= &maria_page_crc_set_index;
+    else
+      file->write_callback= &maria_page_filler_set_normal;
+  }
+}
+
+
 /**************************************************************************
  Open data file
   We can't use dup() here as the data file descriptors need to have different
@@ -1550,14 +1589,6 @@ int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share,
   info->dfile.file= share->bitmap.file.file=
     my_open(share->data_file_name, share->mode | O_SHARE,
             MYF(MY_WME));
-  pagecache_file_init(share->bitmap.file, &maria_page_crc_check_bitmap,
-                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
-                       &maria_page_crc_set_normal :
-                       &maria_page_filler_set_bitmap), share);
-  pagecache_file_init(info->dfile, &maria_page_crc_check_data,
-                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
-                       &maria_page_crc_set_normal :
-                       &maria_page_filler_set_normal), share);
   return info->dfile.file >= 0 ? 0 : 1;
 }
 
@@ -1572,10 +1603,6 @@ int _ma_open_keyfile(MARIA_SHARE *share)
   share->kfile.file= my_open(share->unique_file_name,
                              share->mode | O_SHARE,
                              MYF(MY_WME));
-  pagecache_file_init(share->kfile, &maria_page_crc_check_index,
-                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
-                       &maria_page_crc_set_index :
-                       &maria_page_filler_set_normal), share);
   pthread_mutex_unlock(&share->intern_lock);
   return (share->kfile.file < 0);
 }

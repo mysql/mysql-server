@@ -364,6 +364,7 @@ enum ha_base_keytype {
 
 #define HA_ERR_KEY_NOT_FOUND	120	/* Didn't find key on read or update */
 #define HA_ERR_FOUND_DUPP_KEY	121	/* Dupplicate key on write */
+#define HA_ERR_INTERNAL_ERROR   122     /* Internal error */
 #define HA_ERR_RECORD_CHANGED	123	/* Uppdate with is recoverable */
 #define HA_ERR_WRONG_INDEX	124	/* Wrong index given to function */
 #define HA_ERR_CRASHED		126	/* Indexfile is crashed */
@@ -423,7 +424,8 @@ enum ha_base_keytype {
 #define HA_ERR_NEW_FILE	          171	 /* New file format */
 #define HA_ERR_INITIALIZATION     172    /* Error during initialization */
 #define HA_ERR_FILE_TOO_SHORT	  173	 /* File too short */
-#define HA_ERR_LAST               173    /* Copy of last error nr */
+#define HA_ERR_WRONG_CRC	  174	 /* Wrong CRC on page */
+#define HA_ERR_LAST               174    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

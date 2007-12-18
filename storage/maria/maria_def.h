@@ -1029,9 +1029,12 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   See ma_check_standalone.h .
 */
 volatile int *_ma_killed_ptr(HA_CHECK *param);
-void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...));
-void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...));
-void _ma_check_print_info _VARARGS((HA_CHECK *param, const char *fmt, ...));
+void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...))
+  ATTRIBUTE_FORMAT(printf, 2, 3);
+void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...))
+  ATTRIBUTE_FORMAT(printf, 2, 3);
+void _ma_check_print_info _VARARGS((HA_CHECK *param, const char *fmt, ...))
+  ATTRIBUTE_FORMAT(printf, 2, 3);
 C_MODE_END
 
 int _ma_flush_pending_blocks(MARIA_SORT_PARAM *param);
@@ -1062,23 +1065,29 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
 #define MARIA_NO_CRC_BITMAP_PAGE 0xfffffffe
 extern my_bool maria_page_crc_set_index(uchar *page,
                                         pgcache_page_no_t page_no,
-                                        uchar* data_ptr);
+                                        uchar *data_ptr);
 extern my_bool maria_page_crc_set_normal(uchar *page,
                                          pgcache_page_no_t page_no,
-                                         uchar* data_ptr);
+                                         uchar *data_ptr);
 extern my_bool maria_page_crc_check_bitmap(uchar *page,
                                            pgcache_page_no_t page_no,
-                                           uchar* data_ptr);
+                                           uchar *data_ptr);
 extern my_bool maria_page_crc_check_data(uchar *page,
                                            pgcache_page_no_t page_no,
-                                           uchar* data_ptr);
+                                           uchar *data_ptr);
 extern my_bool maria_page_crc_check_index(uchar *page,
                                            pgcache_page_no_t page_no,
-                                           uchar* data_ptr);
+                                           uchar *data_ptr);
+extern my_bool maria_page_crc_check_none(uchar *page,
+                                         pgcache_page_no_t page_no,
+                                         uchar *data_ptr);
 extern my_bool maria_page_filler_set_bitmap(uchar *page,
                                             pgcache_page_no_t page_no,
-                                            uchar* data_ptr);
+                                            uchar *data_ptr);
 extern my_bool maria_page_filler_set_normal(uchar *page,
                                             pgcache_page_no_t page_no,
-                                            uchar* data_ptr);
+                                            uchar *data_ptr);
+extern my_bool maria_page_filler_set_none(uchar *page,
+                                          pgcache_page_no_t page_no,
+                                          uchar *data_ptr);
 extern PAGECACHE *maria_log_pagecache;

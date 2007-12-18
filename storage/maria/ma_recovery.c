@@ -161,6 +161,7 @@ void tprint(FILE *trace_file __attribute__ ((unused)),
 {
   va_list args;
   va_start(args, format);
+  DBUG_PRINT("info", ("%s", format));
   if (trace_file != NULL)
   {
     if (procent_printed)
@@ -181,6 +182,7 @@ void eprint(FILE *trace_file __attribute__ ((unused)),
 {
   va_list args;
   va_start(args, format);
+  DBUG_PRINT("error", ("%s", format));
   if (procent_printed)
   {
     /* In silent mode, print on another line than the 0% 10% 20% line */
@@ -329,11 +331,17 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
 
   now= my_getsystime();
   if (run_redo_phase(from_lsn, apply))
+  {
+    ma_message_no_user(0, "Redo phase failed");
     goto err;
+  }
 
   if ((uncommitted_trans=
        end_of_redo_phase(should_run_undo_phase)) == (uint)-1)
+  {
+    ma_message_no_user(0, "End of redo phase failed");
     goto err;
+  }
 
   old_now= now;
   now= my_getsystime();
@@ -375,7 +383,10 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   if (should_run_undo_phase)
   {
     if (run_undo_phase(uncommitted_trans))
+    {
+      ma_message_no_user(0, "Undo phase failed");
       goto err;
+    }
   }
   else if (uncommitted_trans > 0)
   {
@@ -398,7 +409,10 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
     not want that (we want to keep some modules initialized for runtime).
   */
   if (close_all_tables())
+  {
+    ma_message_no_user(0, "closing of tables failed");
     goto err;
+  }
 
   old_now= now;
   now= my_getsystime();
@@ -437,11 +451,13 @@ end:
   if (recovery_message_printed != REC_MSG_NONE)
   {
     fprintf(stderr, "\n");
-    if (error)
-      ma_message_no_user(0, "recovery failed");
-    else
+    if (!error)
       ma_message_no_user(ME_JUST_INFO, "recovery done");
   }
+  if (error)
+    my_message(HA_ERR_INITIALIZATION,
+               "Maria recovery failed. Please run maria_chk -r on all maria "
+               "tables and delete all maria_log.######## files", MYF(0));
   procent_printed= 0;
   /* we don't cleanly close tables if we hit some error (may corrupt them) */
   DBUG_RETURN(error);
@@ -2462,6 +2478,8 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
 
 static int run_undo_phase(uint uncommitted)
 {
+  DBUG_ENTER("run_undo_phase");
+
   if (uncommitted > 0)
   {
     checkpoint_useful= TRUE;
@@ -2493,23 +2511,23 @@ static int run_undo_phase(uint uncommitted)
         LOG_DESC *log_desc;
         if (translog_read_record_header(trn->undo_lsn, &rec) ==
             RECHEADER_READ_ERROR)
-          return 1;
+          DBUG_RETURN(1);
         log_desc= &log_record_type_descriptor[rec.type];
         display_record_position(log_desc, &rec, 0);
         if (log_desc->record_execute_in_undo_phase(&rec, trn))
         {
           tprint(tracef, "Got error %d when executing undo\n", my_errno);
-          return 1;
+          DBUG_RETURN(1);
         }
       }
 
       if (trnman_rollback_trn(trn))
-        return 1;
+        DBUG_RETURN(1);
       /* We could want to span a few threads (4?) instead of 1 */
       /* In the future, we want to have this phase *online* */
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -2809,7 +2827,7 @@ static LSN parse_checkpoint_record(LSN lsn)
   */
   if (ptr != (log_record_buffer.str + log_record_buffer.length))
   {
-    tprint(tracef, "checkpoint record corrupted\n");
+    eprint(tracef, "checkpoint record corrupted\n");
     return LSN_ERROR;
   }
   set_if_smaller(start_address, minimum_rec_lsn_of_dirty_pages);
@@ -2847,6 +2865,8 @@ static int close_all_tables(void)
   LIST *list_element, *next_open;
   MARIA_HA *info;
   TRANSLOG_ADDRESS addr;
+  DBUG_ENTER("close_all_tables");
+
   pthread_mutex_lock(&THR_LOCK_maria);
   if (maria_open_list == NULL)
     goto end;
@@ -2888,7 +2908,7 @@ static int close_all_tables(void)
   }
 end:
   pthread_mutex_unlock(&THR_LOCK_maria);
-  return error;
+  DBUG_RETURN(error);
 }
 
 

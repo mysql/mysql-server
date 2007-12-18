@@ -325,7 +325,7 @@ KEY `ip` (`ip`),
 KEY `poster_login` (`poster_login`),
 KEY `topic_id` (`topic_id`),
 FULLTEXT KEY `post_text` (`post_text`)
-);
+) TRANSACTIONAL=0;
 INSERT INTO t1 (post_text) VALUES ('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test');
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -2068,3 +2068,10 @@ Maria_pagecache_read_requests	#
 Maria_pagecache_reads	#
 Maria_pagecache_write_requests	#
 Maria_pagecache_writes	#
+create table t1 (s varchar(25), fulltext(s)) TRANSACTIONAL= 1;
+ERROR HY000: Maria can't yet handle SPATIAL or FULLTEXT keys in transactional mode. For now use TRANSACTIONAL=0
+drop table if exists t1;
+create table t1 ( fid int not null auto_increment primary key,
+g geometry not null, spatial key(g));
+ERROR HY000: Maria can't yet handle SPATIAL or FULLTEXT keys in transactional mode. For now use TRANSACTIONAL=0
+drop table if exists t1;

@@ -49,7 +49,7 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
   int nxErrno;
 #endif
   DBUG_ENTER("my_lock");
-  DBUG_PRINT("my",("Fd: %d  Op: %d  start: %ld  Length: %ld  MyFlags: %d",
+  DBUG_PRINT("my",("fd: %d  Op: %d  start: %ld  Length: %ld  MyFlags: %d",
 		   fd,locktype,(long) start,(long) length,MyFlags));
 #ifdef VMS
   DBUG_RETURN(0);

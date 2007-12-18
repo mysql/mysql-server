@@ -3249,7 +3249,7 @@ static int init_server_components()
   my_rnd_init(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
-  my_uuid_init(my_rnd(&sql_rand),12345);
+  my_uuid_init((ulong) (my_rnd(&sql_rand))*12345,12345);
 #ifdef HAVE_REPLICATION
   init_slave_list();
 #endif

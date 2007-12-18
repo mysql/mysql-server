@@ -144,6 +144,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
   DBUG_ASSERT(bitmap->file.write_callback != 0);
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
+
   if ((bitmap->non_flushable == 0)
 #ifdef WRONG_BITMAP_FLUSH
       || 1
@@ -176,10 +177,11 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
     int res= pagecache_write(share->pagecache,
                              &bitmap->file, bitmap->page, 0,
                              (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
-                             PAGECACHE_LOCK_READ, PAGECACHE_PIN,
+                             PAGECACHE_LOCK_WRITE, PAGECACHE_PIN,
                              PAGECACHE_WRITE_DELAY, &page_link.link,
                              LSN_IMPOSSIBLE);
     page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+    page_link.changed= 1;
     push_dynamic(&bitmap->pinned_pages, (void*) &page_link);
     DBUG_RETURN(res);
   }
@@ -217,12 +219,23 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
                             sizeof(MARIA_PINNED_PAGE), 1, 1))
     return 1;
 
-  bitmap->file.file= file;
   bitmap->block_size= share->block_size;
-  pagecache_file_init(bitmap->file,  &maria_page_crc_check_bitmap,
-                      (share->options & HA_OPTION_PAGE_CHECKSUM ?
-                       &maria_page_crc_set_normal :
-                       &maria_page_filler_set_bitmap), share);
+  bitmap->file.file= file;
+  bitmap->file.callback_data= (uchar*) share;
+  if (share->temporary)
+  {
+    bitmap->file.read_callback=  &maria_page_crc_check_none;
+    bitmap->file.write_callback= &maria_page_filler_set_none;
+  }
+  else
+  {
+    bitmap->file.read_callback=  &maria_page_crc_check_bitmap;
+    if (share->options & HA_OPTION_PAGE_CHECKSUM)
+      bitmap->file.write_callback= &maria_page_crc_set_normal;
+    else
+      bitmap->file.write_callback= &maria_page_filler_set_bitmap;
+  }
+
   /* Size needs to be aligned on 6 */
   aligned_bit_blocks= (share->block_size - PAGE_SUFFIX_SIZE) / 6;
   bitmap->total_size= aligned_bit_blocks * 6;
@@ -2119,7 +2132,18 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
 
 void _ma_bitmap_flushable(MARIA_SHARE *share, int non_flushable_inc)
 {
-  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  MARIA_FILE_BITMAP *bitmap;
+
+  /*
+    Not transactional tables are never automaticly flushed and needs no
+    protection
+  */
+#ifndef EXTRA_DEBUG
+  if (!share->now_transactional)
+    return;
+#endif
+
+  bitmap= &share->bitmap;
   if (non_flushable_inc == -1)
   {
     pthread_mutex_lock(&bitmap->bitmap_lock);

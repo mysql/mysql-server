@@ -11,3 +11,4 @@ Level	Warning
 Code	1591
 Message	Statement is not safe to log in statement format.
 DROP TABLE t1,t2,t3;
+DROP VIEW v1;
