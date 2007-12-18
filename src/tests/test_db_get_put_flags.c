@@ -98,6 +98,9 @@ void get_bad_flags(u_int32_t flags, int r_expect, int keyint, int dataint) {
     dbt_init(&data,&dataint,sizeof(dataint));
     r = dbp->get(dbp, null_txn, &key, &data, flags);
     CKERR2(r, r_expect);
+    //Verify things don't change.
+    assert(*(int*)key.data == keyint);
+    assert(*(int*)data.data == dataint);
 }
 
 void cinsert_test(TEST tests[4]) {
@@ -145,6 +148,8 @@ CPUT_TEST cput_tests[] = {
     {0, DB_DUP|DB_DUPSORT, {{TPUT, DB_KEYFIRST,  0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   EINVAL,      0, 2}, {TGET, DB_GET_BOTH, 0,           0, 1}}},
     {0, 0,                 {{TPUT, DB_KEYLAST,   0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   0,           0, 2}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}}},
     {0, DB_DUP|DB_DUPSORT, {{TPUT, DB_KEYLAST,   0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   EINVAL,      0, 2}, {TGET, DB_GET_BOTH, 0,           0, 1}}},
+    {0, DB_DUP|DB_DUPSORT, {{TPUT, DB_KEYLAST,   0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   0,           1, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 1, 1}}},
+    {0, DB_DUP|DB_DUPSORT, {{TPUT, DB_KEYLAST,   0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   0,           1, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}}},
     {0, 0,                 {{TPUT, DB_CURRENT,   EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, }, }},
     {0, DB_DUP|DB_DUPSORT, {{TPUT, DB_CURRENT,   EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, }, }},
     {0, 0,                 {{TPUT, DB_NODUPDATA, EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, }, }},
