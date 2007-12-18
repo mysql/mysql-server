@@ -373,11 +373,11 @@ static int send_heartbeat_event(NET* net, String* packet,
   packet->append(header, sizeof(header));
   packet->append(p, ident_len);             // log_file_name
 
-  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
+  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) ||
+      net_flush(net))
   {
     DBUG_RETURN(-1);
   }
-  net_flush(net);
   packet->set("\0", 1, &my_charset_bin);
   DBUG_RETURN(0);
 }
@@ -757,6 +757,7 @@ impossible position";
               {
                 errmsg = "Failed on my_net_write()";
                 my_errno= ER_UNKNOWN_ERROR;
+                pthread_mutex_unlock(log_lock);
                 goto err;
               }
             }
