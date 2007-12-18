@@ -9,6 +9,7 @@ class Dbc;
 // DBT and Dbt objects are the same pointers.  So watch out if you use Dbt to make other classes (e.g., with subclassing).
 class Dbt : private DBT
 {
+    friend class Dbc;
  public:
 
     void *    get_data(void) const     { return data; }
@@ -17,6 +18,9 @@ class Dbt : private DBT
     u_int32_t get_size(void) const     { return size; }
     void      set_size(u_int32_t  p)   { size =  p; }
 		       
+    u_int32_t get_flags() const        { return flags; }
+    void set_flags(u_int32_t f)        { flags = f; }
+
     DBT *get_DBT(void)                 { return (DBT*)this; }
 
     Dbt(void */*data*/, u_int32_t /*size*/);
@@ -92,5 +96,13 @@ class DbTxn {
 	}
  private:
     DB_TXN *the_txn;
+};
+
+class Dbc : protected DBC
+{
+ public:
+    int close(void);
+    int get(Dbt*, Dbt *, u_int32_t);
+
 };
 
