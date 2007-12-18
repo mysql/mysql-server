@@ -1,4 +1,4 @@
-set global maria_log_file_size=4294967296;
+set global maria_log_file_size=4294967295;
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;

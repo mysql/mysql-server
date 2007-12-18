@@ -9,7 +9,7 @@ let $default=`select @@global.storage_engine`;
 set global storage_engine=maria;
 set session storage_engine=maria;
 
-set global maria_log_file_size=4294967296;
+set global maria_log_file_size=4294967295;
 
 # Initialise
 --disable_warnings
@@ -1317,6 +1317,13 @@ drop table if exists t1;
 create table t1 ( fid int not null auto_increment primary key,
 g geometry not null, spatial key(g));
 drop table if exists t1;
+
+#
+# Test warning on log file size truncates
+#
+
+--enable_warnings
+set global maria_log_file_size=4294967296;
 
 # End of 5.2 tests
 

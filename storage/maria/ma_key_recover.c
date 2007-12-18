@@ -603,6 +603,7 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
   }
 
   /* Write modified page */
+  bzero(buff, LSN_STORE_SIZE);
   memcpy(buff + LSN_STORE_SIZE, header, length);
   bzero(buff + LSN_STORE_SIZE + length,
         share->block_size - LSN_STORE_SIZE - KEYPAGE_CHECKSUM_SIZE - length);

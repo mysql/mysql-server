@@ -927,6 +927,7 @@ int my_msync(int, void *, size_t, int);
 #define MY_UUID_SIZE 16
 void my_uuid_init(ulong seed1, ulong seed2);
 void my_uuid(uchar *guid);
+void my_uuid_end();
 
 struct my_rnd_struct {
   unsigned long seed1,seed2,max_value;

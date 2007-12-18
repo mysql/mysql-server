@@ -2,7 +2,7 @@
 -- source include/have_maria.inc
 enable_info;
 set storage_engine=maria;
-set global maria_log_file_size=4294967296;
+set global maria_log_file_size=4294967295;
 disable_warnings;
 drop table if exists t1, t2;
 enable_warnings;

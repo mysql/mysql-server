@@ -173,5 +173,13 @@ SUFFIXES = .sh
 tags:
 	etags *.h *.c *.cc
 
+unittests = unittest
+
+test:
+	perl $(top_srcdir)/unittest/unit.pl run $(unittests)
+
+test-verbose:
+	HARNESS_VERBOSE=1 perl $(top_srcdir)/unittest/unit.pl run $(unittests)
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%

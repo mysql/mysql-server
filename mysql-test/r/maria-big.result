@@ -1,6 +1,6 @@
 set storage_engine=maria;
 affected rows: 0
-set global maria_log_file_size=4294967296;
+set global maria_log_file_size=4294967295;
 affected rows: 0
 drop table if exists t1, t2;
 affected rows: 0

@@ -166,3 +166,13 @@ void my_uuid(uchar *to)
   int2store(to+6, time_hi_and_version);
   bmove(to+8, uuid_suffix, sizeof(uuid_suffix));
 }
+
+
+void my_uuid_end()
+{
+  if (my_uuid_inited)
+  {
+    my_uuid_inited= 0;
+    pthread_mutex_destroy(&LOCK_uuid_generator);
+  }
+}
