@@ -44,6 +44,7 @@ struct fieldinfo db_lsn_fields32[] = {
 struct fieldinfo db_fields32[] = {
   {"void *app_private", 16, 4},
   {"DB_ENV *dbenv", 20, 4},
+  {"void *api_internal", 268, 4},
   {"int (*associate) (DB*, DB_TXN*, DB*, int(*)(DB*, const DBT*, const DBT*, DBT*), u_int32_t)", 288, 4},
   {"int (*close) (DB*, u_int32_t)", 292, 4},
   {"int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t)", 300, 4},
