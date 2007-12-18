@@ -151,6 +151,7 @@ void sample_db_txn_active_offsets (void) {
 
 void sample_db_txn_offsets (void) {
     field_counter=0;
+    STRUCT_SETUP(DB_TXN, api_internal,"void *%s");
     STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, u_int32_t)");
     STRUCT_SETUP(DB_TXN, id,          "u_int32_t (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, abort,       "int (*%s) (DB_TXN *)");
