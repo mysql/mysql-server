@@ -67,7 +67,7 @@ uint warnings; /**< count of warnings */
 
 #define prototype_redo_exec_hook_dummy(R)                                    \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec        \
-                               __attribute ((unused)))
+                               __attribute__ ((unused)))
 
 #define prototype_undo_exec_hook(R)                                          \
   static int exec_UNDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec, TRN *trn)
