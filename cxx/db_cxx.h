@@ -3,7 +3,7 @@
 
 class Dbt;
 
-// DBT and Dbt objects are interchangeable.  So watch out if you use Dbt to make other classes (e.g., with subclassing)
+// DBT and Dbt objects are the same pointers.  So watch out if you use Dbt to make other classes (e.g., with subclassing).
 class Dbt : private DBT
 {
  public:
