@@ -2,6 +2,9 @@
 #include <string.h>
 
 class Dbt;
+class DbEnv;
+class DbTxn;
+class Dbc;
 
 // DBT and Dbt objects are the same pointers.  So watch out if you use Dbt to make other classes (e.g., with subclassing).
 class Dbt : private DBT
@@ -16,6 +19,7 @@ class Dbt : private DBT
 		       
     DBT *get_DBT(void)                 { return (DBT*)this; }
 
+    Dbt(void */*data*/, u_int32_t /*size*/);
     Dbt(void);
     ~Dbt();
 
@@ -29,17 +33,17 @@ class Db {
     Db(DbEnv *dbenv, u_int32_t flags);
     ~Db();
 
-    DB *Db::get_DB(void) {
+    DB *get_DB(void) {
 	return the_db;
     }
-    const DB *Db::get_const_DB() const {
+    const DB *get_const_DB() const {
 	return the_db;
     }
-    static Db *Db::get_Db(DB *db) {
-	return (Db*)db->toku_internal;
+    static Db *get_Db(DB *db) {
+	return (Db*)db->api_internal;
     }
-    static const Db *Db::get_const_Db(const DB *db) {
-	return (Db*)db->toku_internal;
+    static const Db *get_const_Db(const DB *db) {
+	return (Db*)db->api_internal;
     }
 
     /* C++ analogues of the C functions. */
@@ -55,5 +59,36 @@ class Db {
 
  private:
     DB *the_db;
-	
+    DbEnv *the_Env;
+    int is_private_env;
 };
+
+class DbEnv {
+    friend class Db;
+ public:
+    DbEnv(u_int32_t flags);
+
+    DB_ENV *get_DB_ENV(void) {
+	return the_env;
+    }
+
+    /* C++ analogues of the C functions. */
+    int close(u_int32_t);
+
+ private:
+    DB_ENV *the_env;
+
+    DbEnv(DB_ENV *, u_int32_t flags);
+};
+
+	
+class DbTxn {
+ public:
+    DB_TXN *get_DB_TXN()
+	{
+	    return the_txn;
+	}
+ private:
+    DB_TXN *the_txn;
+};
+

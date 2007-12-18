@@ -43,6 +43,7 @@ typedef enum {
 #define DB_ARCH_ABS 1
 #define DB_ARCH_LOG 4
 #define DB_CREATE 1
+#define DB_CXX_NO_EXCEPTIONS 1
 #define DB_EXCL 8192
 #define DB_PRIVATE 1048576
 #define DB_RDONLY 16
