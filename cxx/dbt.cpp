@@ -4,3 +4,7 @@ Dbt::Dbt(void) {
     DBT *dbt = this;
     memset(dbt, 0, sizeof(*dbt));
 }
+
+Dbt::~Dbt(void)
+{
+}
