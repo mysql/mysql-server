@@ -199,6 +199,7 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
   page_no= pos / block_size;
   bzero(buff, share->keypage_header);
   _ma_store_keynr(share, buff, (uchar) MARIA_DELETE_KEY_NR);
+  _ma_store_page_used(share, buff, share->keypage_header + 8);
   mi_sizestore(buff + share->keypage_header, old_link);
   share->state.changed|= STATE_NOT_SORTED_PAGES;
 

@@ -216,7 +216,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     info->lock_wait=0;
     break;
   case HA_EXTRA_NO_WAIT_LOCK:
-    info->lock_wait=MY_DONT_WAIT;
+    info->lock_wait= MY_SHORT_WAIT;
     break;
   case HA_EXTRA_NO_KEYS:
     if (info->lock_type == F_UNLCK)

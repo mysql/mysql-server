@@ -318,7 +318,7 @@ struct st_pagecache_block_link
 /** @brief information describing a run of flush_pagecache_blocks_int() */
 struct st_file_in_flush
 {
-  PAGECACHE_FILE file;
+  File file;
   /**
      @brief threads waiting for the thread currently flushing this file to be
      done
@@ -2421,14 +2421,14 @@ retry:
     or waits until another thread reads it. What page to read is determined
     by a block parameter - reference to a hash link for this page.
     If an error occurs THE PCBLOCK_ERROR bit is set in the block status.
+
+    On entry cache_lock is locked
 */
 
 static void read_block(PAGECACHE *pagecache,
                        PAGECACHE_BLOCK_LINK *block,
                        my_bool primary)
 {
-
-  /* On entry cache_lock is locked */
 
   DBUG_ENTER("read_block");
   if (primary)
@@ -2456,21 +2456,17 @@ static void read_block(PAGECACHE *pagecache,
     if (error)
       block->status|= PCBLOCK_ERROR;
     else
-      block->status= PCBLOCK_READ;
-
-    DBUG_PRINT("info", ("read_callback: 0x%lx  data: 0x%lx",
-                        (ulong) block->hash_link->file.read_callback,
-                        (ulong) block->hash_link->file.callback_data));
-    if ((*block->hash_link->file.read_callback)(block->buffer,
-                                                block->hash_link->pageno,
-                                                block->hash_link->
-                                                file.callback_data))
     {
-      DBUG_PRINT("error", ("read callback problem"));
-      block->status|= PCBLOCK_ERROR;
+      block->status|= PCBLOCK_READ;
+      if ((*block->hash_link->file.read_callback)(block->buffer,
+                                                  block->hash_link->pageno,
+                                                  block->hash_link->
+                                                  file.callback_data))
+      {
+        DBUG_PRINT("error", ("read callback problem"));
+        block->status|= PCBLOCK_ERROR;
+      }
     }
-
-
     DBUG_PRINT("read_block",
                ("primary request: new page in cache"));
     /* Signal that all pending requests for this page now can be processed */
@@ -2796,6 +2792,7 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
     }
     if (lsn != LSN_IMPOSSIBLE)
       check_and_set_lsn(pagecache, lsn, block);
+    block->status&= ~PCBLOCK_ERROR;
   }
 
   /* if we lock for write we must link the block to changed blocks */
@@ -3066,7 +3063,11 @@ restart:
     pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
 
     if (status & PCBLOCK_ERROR)
+    {
+      DBUG_ASSERT(my_errno != 0);
+      DBUG_PRINT("error", ("Got error %d when doing page read", my_errno));
       DBUG_RETURN((uchar *) 0);
+    }
 
     DBUG_RETURN(buff);
   }
@@ -3412,7 +3413,11 @@ restart:
 
     if (write_mode == PAGECACHE_WRITE_DONE)
     {
-      if (!(block->status & PCBLOCK_ERROR))
+      if (block->status & PCBLOCK_ERROR)
+      {
+        DBUG_PRINT("warning", ("Writing on page with error"));
+      }
+      else
       {
         /* Copy data from buff */
         if (!(size & 511))
@@ -3646,7 +3651,10 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
       /* undo the mark put by flush_pagecache_blocks_int(): */
       block->status&= ~PCBLOCK_IN_FLUSH;
       rc|= PCFLUSH_PINNED;
+      DBUG_PRINT("warning", ("Page pinned"));
       unreg_request(pagecache, block, 1);
+      if (!*first_errno)
+        *first_errno= HA_ERR_INTERNAL_ERROR;
       continue;
     }
     /* if the block is not pinned then it is not write locked */
@@ -3671,7 +3679,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
        @todo If page is contiguous with next page to flush, group flushes in
        one single my_pwrite().
     */
-    error= pagecache_fwrite(pagecache, file,
+    error= pagecache_fwrite(pagecache, &block->hash_link->file,
                             block->buffer,
                             block->hash_link->pageno,
                             block->type,
@@ -3687,7 +3695,8 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     {
       block->status|= PCBLOCK_ERROR;
       if (!*first_errno)
-        *first_errno= errno ? errno : -1;
+        *first_errno= my_errno ? my_errno : -1;
+      rc|= PCFLUSH_ERROR;
     }
 #ifdef THREAD
     /*
@@ -3789,12 +3798,12 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
 
 #ifdef THREAD
     struct st_file_in_flush us_flusher, *other_flusher;
-    us_flusher.file= *file;
+    us_flusher.file= file->file;
     us_flusher.flush_queue.last_thread= NULL;
     us_flusher.first_in_switch= FALSE;
     while ((other_flusher= (struct st_file_in_flush *)
-            hash_search(&pagecache->files_in_flush, (uchar *)file,
-                        sizeof(*file))))
+            hash_search(&pagecache->files_in_flush, (uchar *)&file->file,
+                        sizeof(file->file))))
     {
       /*
         File is in flush already: wait, unless FLUSH_KEEP_LAZY. "Flusher"
@@ -4031,8 +4040,12 @@ restart:
 #endif
   if (cache != cache_buff)
     my_free((uchar*) cache, MYF(0));
-  if (last_errno)
-    errno= last_errno;                /* Return first error */
+  if (rc != 0)
+  {
+    if (last_errno)
+      my_errno= last_errno;                /* Return first error */
+    DBUG_PRINT("error", ("Got error: %d", my_errno));
+  }
   DBUG_RETURN(rc);
 }
 

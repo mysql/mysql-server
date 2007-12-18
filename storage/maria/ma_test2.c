@@ -1105,7 +1105,7 @@ static void get_options(int argc, char **argv)
       opt_quick_mode=1;
       break;
     case 'c':
-      create_flag|= HA_CREATE_CHECKSUM;
+      create_flag|= HA_CREATE_CHECKSUM | HA_CREATE_PAGE_CHECKSUM;
       break;
     case 'D':
       create_flag|=HA_CREATE_DELAY_KEY_WRITE;

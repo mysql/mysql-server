@@ -575,7 +575,7 @@ static const char *handler_error_messages[]=
 {
   "Didn't find key on read or update",
   "Duplicate key on write or update",
-  "Undefined handler error 122",
+  "Internal (unspecified) error in handler",
   "Someone has changed the row since it was read (while the table was locked to prevent it)",
   "Wrong index given to function",
   "Undefined handler error 125",
@@ -627,7 +627,8 @@ static const char *handler_error_messages[]=
   "It is not possible to log this statement",
   "The table is of a new format not supported by this version",
   "Got a fatal error during initialzaction of handler",
-  "File to short; Expected more data in file"
+  "File to short; Expected more data in file",
+  "Read page with wrong checksum"
 };
 
 

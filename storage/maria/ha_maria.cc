@@ -124,6 +124,10 @@ static MYSQL_SYSVAR_ULONG(checkpoint_interval, checkpoint_interval,
        " 0 means 'no automatic checkpoints'.",
        NULL, update_checkpoint_interval, 30, 0, UINT_MAX, 1);
 
+static MYSQL_SYSVAR_BOOL(page_checksum, maria_page_checksums, 0,
+       "Maintain page checksums (can be overridden per table "
+       "with PAGE_CHECKSUM clause in CREATE TABLE)", 0, 0, 1);
+
 static MYSQL_SYSVAR_ULONG(log_file_size, log_file_size,
        PLUGIN_VAR_RQCMDARG,
        "Limit for transaction log size",
@@ -267,8 +271,10 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
     # error code
 */
 
-int table2maria(TABLE *table_arg, MARIA_KEYDEF **keydef_out,
-                MARIA_COLUMNDEF **recinfo_out, uint *records_out)
+static int table2maria(TABLE *table_arg, data_file_type row_type,
+                       MARIA_KEYDEF **keydef_out,
+                       MARIA_COLUMNDEF **recinfo_out, uint *records_out,
+                       MARIA_CREATE_INFO *create_info)
 {
   uint i, j, recpos, minpos, fieldpos, temp_length, length;
   enum ha_base_keytype type= HA_KEYTYPE_BINARY;
@@ -280,6 +286,9 @@ int table2maria(TABLE *table_arg, MARIA_KEYDEF **keydef_out,
   TABLE_SHARE *share= table_arg->s;
   uint options= share->db_options_in_use;
   DBUG_ENTER("table2maria");
+
+  if (row_type == BLOCK_RECORD)
+    options|= HA_OPTION_PACK_RECORD;
 
   if (!(my_multi_malloc(MYF(MY_WME),
           recinfo_out, (share->fields * 2 + 2) * sizeof(MARIA_COLUMNDEF),
@@ -369,6 +378,8 @@ int table2maria(TABLE *table_arg, MARIA_KEYDEF **keydef_out,
   record= table_arg->record[0];
   recpos= 0;
   recinfo_pos= recinfo;
+  create_info->null_bytes= table_arg->s->null_bytes;
+
   while (recpos < (uint) share->reclength)
   {
     Field **field, *found= 0;
@@ -394,13 +405,6 @@ int table2maria(TABLE *table_arg, MARIA_KEYDEF **keydef_out,
     }
     DBUG_PRINT("loop", ("found: 0x%lx  recpos: %d  minpos: %d  length: %d",
                         (long) found, recpos, minpos, length));
-    if (recpos != minpos)
-    {
-      /* reserve space for null bits */
-      bzero((char*) recinfo_pos, sizeof(*recinfo_pos));
-      recinfo_pos->type= FIELD_NORMAL;
-      recinfo_pos++->length= (uint16) (minpos - recpos);
-    }
     if (!found)
       break;
 
@@ -561,6 +565,7 @@ int maria_check_definition(MARIA_KEYDEF *t1_keyinfo,
       }
     }
   }
+
   for (i= 0; i < t1_recs; i++)
   {
     MARIA_COLUMNDEF *t1_rec= &t1_recinfo[i];
@@ -1900,13 +1905,20 @@ int ha_maria::rnd_next(uchar *buf)
 }
 
 
-int ha_maria::restart_rnd_next(uchar *buf, uchar *pos)
+int ha_maria::remember_rnd_pos()
 {
-  return rnd_pos(buf, pos);
+  return (*file->s->scan_remember_pos)(file, &remember_pos);
 }
 
 
-int ha_maria::rnd_pos(uchar * buf, uchar *pos)
+int ha_maria::restart_rnd_next(uchar *buf)
+{
+  (*file->s->scan_restore_pos)(file, remember_pos);
+  return rnd_next(buf);
+}
+
+
+int ha_maria::rnd_pos(uchar *buf, uchar *pos)
 {
   ha_statistic_increment(&SSV::ha_read_rnd_count);
   int error= maria_rrnd(file, buf, my_get_ptr(pos, ref_length));
@@ -1915,7 +1927,7 @@ int ha_maria::rnd_pos(uchar * buf, uchar *pos)
 }
 
 
-void ha_maria::position(const uchar * record)
+void ha_maria::position(const uchar *record)
 {
   my_off_t row_position= maria_position(file);
   my_store_ptr(ref, ref_length, row_position);
@@ -2172,9 +2184,10 @@ enum row_type ha_maria::get_row_type() const
 }
 
 
-static enum data_file_type maria_row_type(HA_CREATE_INFO *info)
+static enum data_file_type maria_row_type(HA_CREATE_INFO *info,
+                                          my_bool ignore_transactional)
 {
-  if (info->transactional == HA_CHOICE_YES)
+  if (info->transactional == HA_CHOICE_YES && ! ignore_transactional)
     return BLOCK_RECORD;
   switch (info->row_type) {
   case ROW_TYPE_FIXED:   return STATIC_RECORD;
@@ -2207,7 +2220,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     }
   }
   /* Note: BLOCK_RECORD is used if table is transactional */
-  row_type= maria_row_type(ha_create_info);
+  row_type= maria_row_type(ha_create_info, 0);
   if (ha_create_info->transactional == HA_CHOICE_YES &&
       ha_create_info->row_type != ROW_TYPE_PAGE &&
       ha_create_info->row_type != ROW_TYPE_NOT_USED &&
@@ -2216,9 +2229,10 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                  ER_ILLEGAL_HA_CREATE_OPTION,
                  "Row format set to PAGE because of TRANSACTIONAL=1 option");
 
-  if ((error= table2maria(table_arg, &keydef, &recinfo, &record_count)))
-    DBUG_RETURN(error); /* purecov: inspected */
   bzero((char*) &create_info, sizeof(create_info));
+  if ((error= table2maria(table_arg, row_type, &keydef, &recinfo,
+                          &record_count, &create_info)))
+    DBUG_RETURN(error); /* purecov: inspected */
   create_info.max_rows= share->max_rows;
   create_info.reloc_rows= share->min_rows;
   create_info.with_auto_increment= share->next_number_key_offset == 0;
@@ -2253,7 +2267,8 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     create_flags|= HA_CREATE_CHECKSUM;
   if (options & HA_OPTION_DELAY_KEY_WRITE)
     create_flags|= HA_CREATE_DELAY_KEY_WRITE;
-  if (ha_create_info->page_checksum != HA_CHOICE_NO)
+  if ((ha_create_info->page_checksum == HA_CHOICE_UNDEF && maria_page_checksums) ||
+       ha_create_info->page_checksum ==  HA_CHOICE_YES)
     create_flags|= HA_CREATE_PAGE_CHECKSUM;
 
   /* TODO: Check that the following fn_format is really needed */
@@ -2387,7 +2402,8 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   if (create_info->auto_increment_value != stats.auto_increment_value ||
       create_info->data_file_name != data_file_name ||
       create_info->index_file_name != index_file_name ||
-      maria_row_type(create_info) != data_file_type ||
+      (maria_row_type(create_info,  1) != data_file_type &&
+       create_info->row_type != ROW_TYPE_DEFAULT) ||
       table_changes == IS_EQUAL_NO ||
       table_changes & IS_EQUAL_PACK_LENGTH) // Not implemented yet
     return COMPATIBLE_DATA_NO;
@@ -2658,6 +2674,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(checkpoint_interval),
+  MYSQL_SYSVAR(page_checksum),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_purge_type),
   MYSQL_SYSVAR(max_sort_file_size),

@@ -124,7 +124,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                            (keys + uniques) * HA_MAX_KEY_SEG);
 
 
-	/* Start by checking fields and field-types used */
+  /* Start by checking fields and field-types used */
 
   varchar_length=long_varchar_count=packed= not_block_record_extra_length=
     pack_reclength= max_field_lengths= 0;
@@ -147,8 +147,17 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
     reclength+= column->length;
     type= column->type;
-    if (type == FIELD_SKIP_PRESPACE && datafile_type == BLOCK_RECORD)
-      type= FIELD_NORMAL;                /* SKIP_PRESPACE not supported */
+    if (datafile_type == BLOCK_RECORD)
+    {
+      if (type == FIELD_SKIP_PRESPACE)
+        type= FIELD_NORMAL;                /* SKIP_PRESPACE not supported */
+      if (type == FIELD_NORMAL &&
+          column->length > FULL_PAGE_SIZE(maria_block_size))
+      {
+        /* FIELD_NORMAL can't be split over many blocks, convert to a CHAR */
+        type= column->type= FIELD_SKIP_ENDSPACE;
+      }
+    }
 
     if (type != FIELD_NORMAL && type != FIELD_CHECK)
     {
@@ -403,6 +412,17 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     share.state.key_root[i]= HA_OFFSET_ERROR;
     length= real_length_diff= 0;
     min_key_length= key_length= pointer;
+
+    if ((keydef->flag & (HA_SPATIAL | HA_FULLTEXT) &&
+         ci->transactional))
+    {
+      my_errno= HA_ERR_UNSUPPORTED;
+      my_message(HA_ERR_UNSUPPORTED,
+                 "Maria can't yet handle SPATIAL or FULLTEXT keys in "
+                 "transactional mode. For now use TRANSACTIONAL=0", MYF(0));
+      goto err_no_lock;
+    }
+
     if (keydef->flag & HA_SPATIAL)
     {
 #ifdef HAVE_SPATIAL
@@ -623,7 +643,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   }
 
   unique_key_parts=0;
-  offset=reclength-uniques*MARIA_UNIQUE_HASH_LENGTH;
   for (i=0, uniquedef=uniquedefs ; i < uniques ; i++ , uniquedef++)
   {
     uniquedef->key=keys+i;
@@ -869,7 +888,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 #endif
   }
   /* Create extra keys for unique definitions */
-  offset=reclength-uniques*MARIA_UNIQUE_HASH_LENGTH;
+  offset= real_reclength - uniques*MARIA_UNIQUE_HASH_LENGTH;
   bzero((char*) &tmp_keydef,sizeof(tmp_keydef));
   bzero((char*) &tmp_keyseg,sizeof(tmp_keyseg));
   for (i=0; i < uniques ; i++)
@@ -1049,10 +1068,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       DROP+CREATE happened (applying REDOs to the wrong table).
     */
     share.kfile.file= file;
-    pagecache_file_init(share.kfile, &maria_page_crc_check_index,
-                        (share.options & HA_OPTION_PAGE_CHECKSUM ?
-                         &maria_page_crc_set_index :
-                         &maria_page_filler_set_normal), &share);
     if (_ma_update_create_rename_lsn_sub(&share, lsn, FALSE))
       goto err;
     my_free(log_data, MYF(0));
@@ -1199,7 +1214,7 @@ uint maria_get_pointer_length(ulonglong file_length, uint def)
    For same kind of fields, keep fields in original order
 */
 
-static inline int sign(longlong a)
+static inline int sign(long a)
 {
   return a < 0 ? -1 : (a > 0 ? 1 : 0);
 }
@@ -1219,12 +1234,12 @@ static int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
   {
     if (b_type != FIELD_NORMAL || b->null_bit)
       return -1;
-    return sign((long) (a->offset - b->offset));
+    return sign((long) a->offset - (long) b->offset);
   }
   if (b_type == FIELD_NORMAL && !b->null_bit)
     return 1;
   if (a_type == b_type)
-    return sign((long) (a->offset - b->offset));
+    return sign((long) a->offset - (long) b->offset);
   if (a_type == FIELD_NORMAL)
     return -1;
   if (b_type == FIELD_NORMAL)
@@ -1233,11 +1248,17 @@ static int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
     return 1;
   if (b_type == FIELD_BLOB)
     return -1;
-  return sign((long) (a->offset - b->offset));
+  return sign((long) a->offset - (long) b->offset);
 }
 
 
-/* Initialize data file */
+/**
+   @brief Initialize data file
+
+   @note
+   In BLOCK_RECORD, a freshly created datafile is one page long; while in
+   other formats it is 0-byte long.
+ */
 
 int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
 {
@@ -1245,16 +1266,8 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
   {
     share->bitmap.block_size= share->base.block_size;
     share->bitmap.file.file = dfile;
-    pagecache_file_init(share->bitmap.file, &maria_page_crc_check_bitmap,
-                        (share->options & HA_OPTION_PAGE_CHECKSUM ?
-                         &maria_page_crc_set_normal :
-                         &maria_page_filler_set_bitmap), share);
     return _ma_bitmap_create_first(share);
   }
-  /*
-    So, in BLOCK_RECORD, a freshly created datafile is one page long; while in
-    other formats it is 0-byte long.
-  */
   return 0;
 }
 

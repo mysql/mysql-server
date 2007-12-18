@@ -1501,7 +1501,10 @@ my_bool _ma_cmp_dynamic_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
   old_rec_buff_size= info->rec_buff_size;
 
   if (info->s->base.blobs)
+  {
     info->rec_buff= 0;
+    info->rec_buff_size= 0;
+  }
   error= _ma_read_dynamic_record(info, old_record, pos) != 0;
   if (!error)
     error=_ma_unique_comp(def, record, old_record, def->null_are_equal) != 0;

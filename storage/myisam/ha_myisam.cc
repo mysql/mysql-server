@@ -259,28 +259,28 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
     {
       /* reserve space for null bits */
       bzero((char*) recinfo_pos, sizeof(*recinfo_pos));
-      recinfo_pos->type= (int) FIELD_NORMAL;
+      recinfo_pos->type= FIELD_NORMAL;
       recinfo_pos++->length= (uint16) (minpos - recpos);
     }
     if (!found)
       break;
 
     if (found->flags & BLOB_FLAG)
-      recinfo_pos->type= (int) FIELD_BLOB;
+      recinfo_pos->type= FIELD_BLOB;
     else if (found->type() == MYSQL_TYPE_VARCHAR)
       recinfo_pos->type= FIELD_VARCHAR;
     else if (!(options & HA_OPTION_PACK_RECORD))
-      recinfo_pos->type= (int) FIELD_NORMAL;
+      recinfo_pos->type= FIELD_NORMAL;
     else if (found->zero_pack())
-      recinfo_pos->type= (int) FIELD_SKIP_ZERO;
+      recinfo_pos->type= FIELD_SKIP_ZERO;
     else
-      recinfo_pos->type= (int) ((length <= 3 ||
-                                 (found->flags & ZEROFILL_FLAG)) ?
-                                  FIELD_NORMAL :
-                                  found->type() == MYSQL_TYPE_STRING ||
-                                  found->type() == MYSQL_TYPE_VAR_STRING ?
-                                  FIELD_SKIP_ENDSPACE :
-                                  FIELD_SKIP_PRESPACE);
+      recinfo_pos->type= ((length <= 3 ||
+                           (found->flags & ZEROFILL_FLAG)) ?
+                          FIELD_NORMAL :
+                          found->type() == MYSQL_TYPE_STRING ||
+                          found->type() == MYSQL_TYPE_VAR_STRING ?
+                          FIELD_SKIP_ENDSPACE :
+                          FIELD_SKIP_PRESPACE);
     if (found->null_ptr)
     {
       recinfo_pos->null_bit= found->null_bit;
@@ -1683,9 +1683,15 @@ int ha_myisam::rnd_next(uchar *buf)
   return error;
 }
 
-int ha_myisam::restart_rnd_next(uchar *buf, uchar *pos)
+int ha_myisam::remember_rnd_pos()
 {
-  return rnd_pos(buf,pos);
+  position((uchar*) 0);
+  return 0;
+}
+
+int ha_myisam::restart_rnd_next(uchar *buf)
+{
+  return rnd_pos(buf, ref);
 }
 
 int ha_myisam::rnd_pos(uchar *buf, uchar *pos)

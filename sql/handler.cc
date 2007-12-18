@@ -26,7 +26,7 @@
 #include "mysql_priv.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
-#include <errno.h>
+#include "myisam.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"

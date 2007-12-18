@@ -502,7 +502,8 @@ my_bool _ma_init_block_record(MARIA_HA *info)
                             sizeof(MARIA_BITMAP_BLOCK), default_extents,
                             64))
     goto err;
-  if (!(info->cur_row.extents= my_malloc(default_extents * ROW_EXTENT_SIZE,
+  info->cur_row.extents_buffer_length= default_extents * ROW_EXTENT_SIZE;
+  if (!(info->cur_row.extents= my_malloc(info->cur_row.extents_buffer_length,
                                          MYF(MY_WME))))
     goto err;
 
@@ -1915,7 +1916,7 @@ static my_bool write_block_record(MARIA_HA *info,
     row_extents_first_part= data;
     data+= ROW_EXTENT_SIZE;
   }
-  if (share->base.pack_fields)
+  if (share->base.max_field_lengths)
     store_key_length_inc(data, row->field_lengths_length);
   if (share->calc_checksum)
   {
@@ -3287,7 +3288,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
       delete_tails(info, info->cur_row.tail_positions))
     goto err;
 
-  if (info->cur_row.extents && free_full_pages(info, &info->cur_row))
+  if (info->cur_row.extents_count && free_full_pages(info, &info->cur_row))
     goto err;
 
   if (share->now_transactional)
@@ -4152,6 +4153,81 @@ void _ma_scan_end_block_record(MARIA_HA *info)
   DBUG_ENTER("_ma_scan_end_block_record");
   my_free(info->scan.bitmap_buff, MYF(MY_ALLOW_ZERO_PTR));
   info->scan.bitmap_buff= 0;
+  if (info->scan_save)
+  {
+    my_free(info->scan_save, MYF(0));
+    info->scan_save= 0;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  @brief Save current scan position
+
+  @note
+  For the moment we can only remember one position, but this is
+  good enough for MySQL usage
+
+  @Warning
+    When this function is called, we assume that the thread is not deleting
+    or updating the current row before ma_scan_restore_block_record()
+    is called!
+
+  @return
+  @retval 0			  ok
+  @retval HA_ERR_WRONG_IN_RECORD  Could not allocate memory to hold position
+*/
+
+int _ma_scan_remember_block_record(MARIA_HA *info,
+                                   MARIA_RECORD_POS *lastpos)
+{
+  uchar *bitmap_buff;
+  DBUG_ENTER("_ma_scan_remember_block_record");
+  if (!(info->scan_save))
+  {
+    if (!(info->scan_save= my_malloc(ALIGN_SIZE(sizeof(*info->scan_save)) +
+                                     info->s->block_size * 2,
+                                     MYF(MY_WME))))
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    info->scan_save->bitmap_buff= ((uchar*) info->scan_save +
+                                   ALIGN_SIZE(sizeof(*info->scan_save)));
+  }
+  /* Point to the last read row */
+  *lastpos= info->cur_row.nextpos - 1;
+  info->scan.dir+= DIR_ENTRY_SIZE;
+
+  /* Remember used bitmap and used head page */
+  bitmap_buff= info->scan_save->bitmap_buff;
+  memcpy(info->scan_save, &info->scan, sizeof(*info->scan_save));
+  info->scan_save->bitmap_buff= bitmap_buff;
+  memcpy(bitmap_buff, info->scan.bitmap_buff, info->s->block_size * 2);
+  DBUG_RETURN(0);
+}
+
+
+/**
+   @brief restore scan block it's original values
+
+   @note
+   In theory we could swap bitmap buffers instead of copy them.
+   For the moment we don't do that because there are variables pointing
+   inside the buffers and it's a bit of hassle to either make them relative
+   or repoint them.
+*/
+
+void _ma_scan_restore_block_record(MARIA_HA *info,
+                                   MARIA_RECORD_POS lastpos)
+{
+  uchar *bitmap_buff;
+  DBUG_ENTER("_ma_scan_restore_block_record");
+
+  info->cur_row.nextpos= lastpos;
+  bitmap_buff= info->scan.bitmap_buff;
+  memcpy(&info->scan, info->scan_save, sizeof(*info->scan_save));
+  info->scan.bitmap_buff= bitmap_buff;
+  memcpy(bitmap_buff, info->scan_save->bitmap_buff, info->s->block_size * 2);
+
   DBUG_VOID_RETURN;
 }
 
@@ -4204,7 +4280,10 @@ restart_record_read:
       record_pos++;
 #ifdef SANITY_CHECKS
       if (info->scan.dir < info->scan.dir_end)
+      {
+        DBUG_ASSERT(0);
         goto err;
+      }
 #endif
     }
     /* found row */
@@ -4217,7 +4296,10 @@ restart_record_read:
 #ifdef SANITY_CHECKS
     if (end_of_data > info->scan.dir_end ||
         offset < PAGE_HEADER_SIZE || length < share->base.min_block_length)
+    {
+      DBUG_ASSERT(0);
       goto err;
+    }
 #endif
     DBUG_PRINT("info", ("rowid: %lu", (ulong) info->cur_row.lastpos));
     DBUG_RETURN(_ma_read_block_record2(info, record, data, end_of_data));
@@ -4256,8 +4338,20 @@ restart_bitmap_scan:
                                PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
             DBUG_RETURN(my_errno);
           if (((info->scan.page_buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) !=
-               HEAD_PAGE) ||
-              (info->scan.number_of_rows=
+               HEAD_PAGE))
+          {
+            /*
+              This may happen if someone has been deleting all rows
+              from a page since we read the bitmap, so it may be ok.
+              Print warning in debug log and continue.
+            */
+            DBUG_PRINT("warning",
+                       ("Found page of type %d when expecting head page",
+                        (info->scan.page_buff[PAGE_TYPE_OFFSET] &
+                         PAGE_TYPE_MASK)));
+            continue;
+          }
+          if ((info->scan.number_of_rows=
                (uint) (uchar) info->scan.page_buff[DIR_COUNT_OFFSET]) == 0)
           {
             DBUG_PRINT("error", ("Wrong page header"));
@@ -4295,7 +4389,7 @@ restart_bitmap_scan:
   }
   DBUG_PRINT("info", ("Reading bitmap at %lu",
                       (ulong) info->scan.bitmap_page));
-  if (!(pagecache_read(share->pagecache, &info->dfile,
+  if (!(pagecache_read(share->pagecache, &info->s->bitmap.file,
                        info->scan.bitmap_page,
                        0, info->scan.bitmap_buff, PAGECACHE_PLAIN_PAGE,
                        PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
@@ -5081,9 +5175,11 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     share->pagecache->readwrite_flags= share->pagecache->org_readwrite_flags;
     if (!buff)
     {
-      if (my_errno != HA_ERR_FILE_TOO_SHORT)
+      /* Skip errors when reading outside of file and uninitialized pages */
+      if (my_errno != HA_ERR_FILE_TOO_SHORT &&
+          my_errno != HA_ERR_WRONG_CRC)
       {
-        /* If not read outside of file */
+        /* Fatal disk error when reading page */
         pagecache_unlock_by_link(share->pagecache, page_link.link,
                                  PAGECACHE_LOCK_WRITE_UNLOCK,
                                  PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
@@ -5091,8 +5187,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
         DBUG_RETURN(my_errno);
       }
       /* Create new page */
-      buff= info->keyread_buff;
-      info->keyread_buff_used= 1;
+      buff= pagecache_block_link_to_buffer(page_link.link);
       buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
     }
     else if (lsn_korr(buff) >= lsn)           /* Test if already applied */
@@ -5532,7 +5627,8 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
             org_readwrite_flags;
           if (!buff)
           {
-            if (my_errno != HA_ERR_FILE_TOO_SHORT)
+            if (my_errno != HA_ERR_FILE_TOO_SHORT &&
+                my_errno != HA_ERR_WRONG_CRC)
             {
               /* If not read outside of file */
               pagecache_unlock_by_link(share->pagecache, page_link.link,
@@ -5547,8 +5643,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
               pagecache (increased data_file_length but not physical file
               length), now reads page N+1: the read fails.
             */
-            buff= info->keyread_buff;
-            info->keyread_buff_used= 1;
+            buff= pagecache_block_link_to_buffer(page_link.link);
             make_empty_page(info, buff, BLOB_PAGE);
           }
           else
@@ -5648,7 +5743,7 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
       delete_tails(info, info->cur_row.tail_positions))
     goto err;
 
-  if (info->cur_row.extents && free_full_pages(info, &info->cur_row))
+  if (info->cur_row.extents_count && free_full_pages(info, &info->cur_row))
     goto err;
 
   checksum= 0;
@@ -5844,6 +5939,7 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
   /* Row is now up to date. Time to insert the record */
 
   res= allocate_and_write_block_record(info, record, &row, undo_lsn);
+  info->cur_row.lastpos= row.lastpos;
   my_free(record, MYF(0));
   DBUG_RETURN(res);
 }
@@ -5879,6 +5975,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
   rownr= dirpos_korr(header);
   header+= DIRPOS_STORE_SIZE;
   record_pos= ma_recordpos(page, rownr);
+  info->cur_row.lastpos= record_pos;            /* For key insert */
   DBUG_PRINT("enter", ("Page: %lu  rownr: %u", (ulong) page, rownr));
 
   if (share->calc_checksum)

@@ -1636,8 +1636,8 @@ static int maria_sort_records(HA_CHECK *param,
 	       share->state.key_root[sort_key],
 	       MYF(MY_NABP+MY_WME)))
   {
-    _ma_check_print_error(param,"Can't read indexpage from filepos: %s",
-		(ulong) share->state.key_root[sort_key]);
+    _ma_check_print_error(param, "Can't read indexpage from filepos: %s",
+                          llstr(share->state.key_root[sort_key], llbuff));
     goto err;
   }
 

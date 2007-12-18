@@ -788,7 +788,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     key_type= HA_KEYTYPE_TEXT;
     break;
   case 'c':
-    create_flag|= HA_CREATE_CHECKSUM;
+    create_flag|= HA_CREATE_CHECKSUM | HA_CREATE_PAGE_CHECKSUM;
     break;
   case 'R':				/* Length of record pointer */
     if (rec_pointer_size > 3)

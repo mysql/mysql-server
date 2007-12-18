@@ -44,7 +44,7 @@ int my_sync(File fd, myf my_flags)
 {
   int res;
   DBUG_ENTER("my_sync");
-  DBUG_PRINT("my",("Fd: %d  my_flags: %d", fd, my_flags));
+  DBUG_PRINT("my",("fd: %d  my_flags: %d", fd, my_flags));
 
   do
   {

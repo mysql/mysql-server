@@ -58,3 +58,16 @@ void maria_scan_end(MARIA_HA *info)
 {
   (*info->s->scan_end)(info);
 }
+
+
+int _ma_def_scan_remember_pos(MARIA_HA *info, MARIA_RECORD_POS *lastpos)
+{
+  *lastpos= info->cur_row.lastpos;
+  return 0;
+}
+
+
+void _ma_def_scan_restore_pos(MARIA_HA *info, MARIA_RECORD_POS lastpos)
+{
+  info->cur_row.nextpos= lastpos;
+}

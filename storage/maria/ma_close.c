@@ -100,7 +100,7 @@ int maria_close(register MARIA_HA *info)
         File must be synced as it is going out of the maria_open_list and so
         becoming unknown to future Checkpoints.
       */
-      if (my_sync(share->kfile.file, MYF(MY_WME)))
+      if (!share->temporary && my_sync(share->kfile.file, MYF(MY_WME)))
         error= my_errno;
       if (my_close(share->kfile.file, MYF(0)))
         error= my_errno;
@@ -145,13 +145,16 @@ int maria_close(register MARIA_HA *info)
       Checkpoint. Fortunately in BLOCK_RECORD we close earlier under mutex.
     */
     if (my_close(info->dfile.file, MYF(0)))
-      error = my_errno;
+      error= my_errno;
   }
 
   delete_dynamic(&info->pinned_pages);
   my_free(info, MYF(0));
 
   if (error)
+  {
+    DBUG_PRINT("error", ("Got error on close: %d", my_errno));
     DBUG_RETURN(my_errno= error);
+  }
   DBUG_RETURN(0);
 } /* maria_close */

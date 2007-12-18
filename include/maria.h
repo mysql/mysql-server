@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* This file should be included when using maria_funktions */
+/* This file should be included when using maria functions */
 
 #ifndef _maria_h
 #define _maria_h
@@ -250,7 +250,7 @@ typedef struct st_maria_columndef		/* column information */
 
 extern ulong maria_block_size, maria_checkpoint_frequency;
 extern ulong maria_concurrent_insert;
-extern my_bool maria_flush, maria_single_user;
+extern my_bool maria_flush, maria_single_user, maria_page_checksums;
 extern my_bool maria_delay_key_write;
 extern my_off_t maria_max_temp_length;
 extern ulong maria_bulk_insert_tree_size, maria_data_pointer_size;

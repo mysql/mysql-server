@@ -24,7 +24,7 @@ let $type= 'MARIA' ;
 --disable_warnings
 drop table if exists t2 ;
 --enable_warnings
-eval create table t2 (s varchar(25), fulltext(s))
+eval create table t2 (s varchar(25), fulltext(s)) TRANSACTIONAL= 0
 ENGINE = $type ;
 insert into t2 values ('Gravedigger'), ('Greed'),('Hollow Dogs') ;
 commit ;

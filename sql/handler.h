@@ -237,8 +237,6 @@
 #define HA_LEX_CREATE_TMP_TABLE	1
 #define HA_LEX_CREATE_IF_NOT_EXISTS 2
 #define HA_LEX_CREATE_TABLE_LIKE 4
-#define HA_OPTION_NO_CHECKSUM	(1L << 17)
-#define HA_OPTION_NO_DELAY_KEY_WRITE (1L << 18)
 #define HA_MAX_REC_LENGTH	65535
 
 /* Table caching type */
@@ -1359,14 +1357,18 @@ public:
     }
   virtual int read_first_row(uchar *buf, uint primary_key);
   /*
-    The following function is only needed for tables that may be temporary
-    tables during joins
+    The following 3 function is only needed for tables that may be
+    internal temporary tables during joins
   */
-  virtual int restart_rnd_next(uchar *buf, uchar *pos)
+  virtual int remember_rnd_pos()
+    { return HA_ERR_WRONG_COMMAND; }
+  virtual int restart_rnd_next(uchar *buf)
     { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_same(uchar *buf, uint inx)
     { return HA_ERR_WRONG_COMMAND; }
-  virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
+
+  virtual ha_rows records_in_range(uint inx, key_range *min_key,
+                                   key_range *max_key)
     { return (ha_rows) 10; }
   virtual void position(const uchar *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description

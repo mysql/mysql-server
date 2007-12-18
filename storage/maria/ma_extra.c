@@ -224,7 +224,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     info->lock_wait= 0;
     break;
   case HA_EXTRA_NO_WAIT_LOCK:
-    info->lock_wait= MY_DONT_WAIT;
+    info->lock_wait= MY_SHORT_WAIT;
     break;
   case HA_EXTRA_NO_KEYS:
     /* we're going to modify pieces of the state, stall Checkpoint */
@@ -273,11 +273,12 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     break;
   case HA_EXTRA_FORCE_REOPEN:
     /*
-      Normally MySQL uses this case when it is going to close all open
-      instances of the table, thus going to flush all data/index/state.
+      MySQL uses this case after it has closed all other instances
+      of this table.
       We however do a flush here for additional safety.
     */
     /** @todo consider porting these flush-es to MyISAM */
+    DBUG_ASSERT(share->reopen == 1);
     error= _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                                  FLUSH_FORCE_WRITE, FLUSH_FORCE_WRITE);
     if (!error && share->changed)
@@ -287,19 +288,6 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
         share->changed= 0;
       pthread_mutex_unlock(&share->intern_lock);
     }
-
-    /**
-       @todo RECOVERY BUG
-       Though we flushed the state, IF some other thread may have the same
-       table (same MARIA_SHARE) open at this time then it may have a
-       more recent state to flush when it closes, thus we don't set
-       share->changed to 0 here. On the other hand, this means that when our
-       thread closes its table, it will flush the state again, then it would
-       overwrite any state written by yet another thread which may have opened
-       the table (new MARIA_SHARE) and done some updates.
-       ASK_MONTY about the IF above. See also same tag in
-       HA_EXTRA_PREPARE_FOR_DROP|RENAME.
-    */
     pthread_mutex_lock(&THR_LOCK_maria);
     pthread_mutex_lock(&share->intern_lock); /* protect against Checkpoint */
     /* this makes the share not be re-used next time the table is opened */

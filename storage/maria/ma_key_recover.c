@@ -109,6 +109,20 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
     page_store(log_pos + KEY_NR_STORE_SIZE, page);
     log_pos+= KEY_NR_STORE_SIZE + PAGE_STORE_SIZE;
   }
+  if (undo_type == LOGREC_UNDO_ROW_DELETE ||
+      undo_type == LOGREC_UNDO_ROW_UPDATE)
+  {
+    /*
+      We need to store position to the row that was inserted to be
+      able to regenerate keys
+    */
+    MARIA_RECORD_POS rowid= info->cur_row.lastpos;
+    ulonglong page= ma_recordpos_to_page(rowid);
+    uint dir_entry= ma_recordpos_to_dir_entry(rowid);
+    page_store(log_pos, page);
+    dirpos_store(log_pos+ PAGE_STORE_SIZE, dir_entry);
+    log_pos+= PAGE_STORE_SIZE + DIRPOS_STORE_SIZE;
+  }
 
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
@@ -570,10 +584,15 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
                                PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
                                &page_link.link)))
     {
-      result= (uint) my_errno;
-      goto err;
+      if (my_errno != HA_ERR_FILE_TOO_SHORT &&
+          my_errno != HA_ERR_WRONG_CRC)
+      {
+        result= 1;
+        goto err;
+      }
+      buff= pagecache_block_link_to_buffer(page_link.link);
     }
-    if (lsn_korr(buff) >= lsn)
+    else if (lsn_korr(buff) >= lsn)
     {
       /* Already applied */
       result= 0;
@@ -648,7 +667,7 @@ uint _ma_apply_redo_index_free_page(MARIA_HA *info,
   old_link=  ((free_page != IMPOSSIBLE_PAGE_NO) ?
               (my_off_t) free_page * share->block_size :
               HA_OFFSET_ERROR);
-  if (!(buff= pagecache_read(share->pagecache, &info->s->kfile,
+  if (!(buff= pagecache_read(share->pagecache, &share->kfile,
                              page, 0, 0,
                              PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
                              &page_link.link)))
@@ -664,7 +683,8 @@ uint _ma_apply_redo_index_free_page(MARIA_HA *info,
   }
   /* Free page */
   bzero(buff + LSN_STORE_SIZE, share->keypage_header - LSN_STORE_SIZE);
-  _ma_store_keynr(info->s, buff, (uchar) MARIA_DELETE_KEY_NR);
+  _ma_store_keynr(share, buff, (uchar) MARIA_DELETE_KEY_NR);
+  _ma_store_page_used(share, buff, share->keypage_header + 8);
   mi_sizestore(buff + share->keypage_header, old_link);
   share->state.changed|= STATE_NOT_SORTED_PAGES;
 
@@ -741,7 +761,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   /* Set header to point at key data */
   header+= PAGE_STORE_SIZE;
 
-  if (!(buff= pagecache_read(share->pagecache, &info->s->kfile,
+  if (!(buff= pagecache_read(share->pagecache, &share->kfile,
                              page, 0, 0,
                              PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
                              &page_link.link)))
@@ -920,7 +940,7 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
 
   new_root= share->state.key_root[keynr];
   res= _ma_ck_real_delete(info, share->keyinfo+keynr, key,
-                          length - info->s->rec_reflength, &new_root);
+                          length - share->rec_reflength, &new_root);
 
   msg.root= &share->state.key_root[keynr];
   msg.value= new_root;
@@ -937,7 +957,7 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
 
 
 /**
-   @brief Undo of insert of key (ie, delete the inserted key)
+   @brief Undo of delete of key (ie, insert the deleted key)
 */
 
 my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
@@ -959,11 +979,12 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
 
   /* We have to copy key as _ma_ck_real_write_btree() may change it */
   memcpy(key, header + KEY_NR_STORE_SIZE, length);
-  DBUG_DUMP("key", key, length);
+  _ma_dpointer(info, key + length, info->cur_row.lastpos);
+  DBUG_DUMP("key", key, length + share->rec_reflength);
 
   new_root= share->state.key_root[keynr];
   res= _ma_ck_real_write_btree(info, share->keyinfo+keynr, key,
-                               length - info->s->rec_reflength,
+                               length,
                                &new_root,
                                share->keyinfo[keynr].write_comp_flag);
 
@@ -1035,13 +1056,13 @@ my_bool _ma_lock_key_del(MARIA_HA *info, my_bool insert_at_end)
 
 void _ma_unlock_key_del(MARIA_HA *info)
 {
-  MARIA_SHARE *share= info->s;
   DBUG_ASSERT(info->used_key_del);
   if (info->used_key_del == 1)                  /* Ignore insert-with-append */
   {
+    MARIA_SHARE *share= info->s;
     pthread_mutex_lock(&share->intern_lock);
     share->used_key_del= 0;
-    info->s->state.key_del= info->s->current_key_del;
+    share->state.key_del= info->s->current_key_del;
     pthread_mutex_unlock(&share->intern_lock);
     pthread_cond_signal(&share->intern_cond);
   }

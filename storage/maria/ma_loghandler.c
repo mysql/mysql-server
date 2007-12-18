@@ -2729,7 +2729,7 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
               supposed to be correct.
             */
             if (translog_page_validator((uchar*) buffer,
-                                        LSN_OFFSET(addr),
+                                        LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
                                         (uchar*) &file_copy))
             {
               DBUG_ASSERT(0);

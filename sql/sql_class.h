@@ -2214,7 +2214,14 @@ public:
   int prepare2(void) { return 0; }
 };
 
+
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include <maria.h>
+#define ENGINE_COLUMNDEF MARIA_COLUMNDEF
+#else
 #include <myisam.h>
+#define ENGINE_COLUMNDEF MI_COLUMNDEF
+#endif
 
 /*
   Param to create temporary tables when doing SELECT:s
@@ -2236,7 +2243,7 @@ public:
   Copy_field *save_copy_field, *save_copy_field_end;
   uchar	    *group_buff;
   Item	    **items_to_copy;			/* Fields in tmp table */
-  MI_COLUMNDEF *recinfo,*start_recinfo;
+  ENGINE_COLUMNDEF *recinfo, *start_recinfo;
   KEY *keyinfo;
   ha_rows end_write_records;
   uint	field_count,sum_func_count,func_count;

@@ -304,8 +304,10 @@ enum ha_base_keytype {
 #define HA_OPTION_RELIES_ON_SQL_LAYER   512
 #define HA_OPTION_NULL_FIELDS		1024
 #define HA_OPTION_PAGE_CHECKSUM		2048
-#define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
-#define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
+#define HA_OPTION_TEMP_COMPRESS_RECORD  (1L << 15)      /* set by isamchk */
+#define HA_OPTION_READ_ONLY_DATA        (1L << 16)      /* Set by isamchk */
+#define HA_OPTION_NO_CHECKSUM           (1L << 17)
+#define HA_OPTION_NO_DELAY_KEY_WRITE    (1L << 18)
 
 	/* Bits in flag to create() */
 
@@ -372,6 +374,7 @@ enum ha_base_keytype {
 
 #define HA_ERR_KEY_NOT_FOUND	120	/* Didn't find key on read or update */
 #define HA_ERR_FOUND_DUPP_KEY	121	/* Dupplicate key on write */
+#define HA_ERR_INTERNAL_ERROR   122     /* Internal error */
 #define HA_ERR_RECORD_CHANGED	123	/* Uppdate with is recoverable */
 #define HA_ERR_WRONG_INDEX	124	/* Wrong index given to function */
 #define HA_ERR_CRASHED		126	/* Indexfile is crashed */
@@ -433,7 +436,8 @@ enum ha_base_keytype {
 #define HA_ERR_NEW_FILE	          172	 /* New file format */
 #define HA_ERR_INITIALIZATION     173    /* Error during initialization */
 #define HA_ERR_FILE_TOO_SHORT	  174	 /* File too short */
-#define HA_ERR_LAST               174    /* Copy of last error nr */
+#define HA_ERR_WRONG_CRC	  175	 /* Wrong CRC on page */
+#define HA_ERR_LAST               175    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
