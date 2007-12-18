@@ -76,7 +76,7 @@ static long brtnode_size(BRTNODE node) {
 
 static void brt_update_cursors_new_root(BRT t, BRTNODE newroot, BRTNODE left, BRTNODE right);
 static void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
-static void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right);
+static void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right, struct kv_pair *splitk);
 static void brt_update_cursors_nonleaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
 
 static void fix_up_parent_pointers_of_children (BRT t, BRTNODE node) {
@@ -697,7 +697,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     node->u.n.totalchildkeylens += childsplitk->size;
     node->u.n.n_children++;
 
-    brt_update_cursors_nonleaf_expand(t, node, childnum, childa, childb);
+    brt_update_cursors_nonleaf_expand(t, node, childnum, childa, childb, node->u.n.childkeys[childnum]);
 
     if (toku_brt_debug_mode) {
 	int i;
@@ -2182,14 +2182,14 @@ static void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, 
     }
 }
 
-static void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE node, int childnum, BRTNODE left, BRTNODE right) {
+static void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE node, int childnum, BRTNODE left, BRTNODE right, struct kv_pair *splitk) {
     BRT_CURSOR cursor;
 
     if (brt_update_debug) printf("brt_update_cursors_nonleaf_expand %lld h=%d c=%d nc=%d %lld %lld\n", node->thisnodename, node->height, childnum,
                   node->u.n.n_children, left->thisnodename, right->thisnodename);
     for (cursor = t->cursors_head; cursor; cursor = cursor->next) {
         if (toku_brt_cursor_active(cursor)) {
-            toku_brt_cursor_nonleaf_expand(cursor, t, node, childnum, left, right);
+            toku_brt_cursor_nonleaf_expand(cursor, t, node, childnum, left, right, splitk);
         }
     }
 }
@@ -2266,7 +2266,7 @@ void toku_brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNO
     }
 }
 
-void toku_brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t __attribute__((unused)), BRTNODE node, int childnum, BRTNODE left, BRTNODE right) {
+void toku_brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t, BRTNODE node, int childnum, BRTNODE left, BRTNODE right, struct kv_pair *splitk) {
     int i;
     int oldchildnum, newchildnum;
 
@@ -2289,8 +2289,13 @@ void toku_brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t __attribute__((unus
             cursor->pathcnum[i] += 1;
             return;
         } 
-        if (i == cursor->path_len-1 && (cursor->op == DB_PREV || cursor->op == DB_LAST)) { /* explain this, batman */
-            goto setnewchild;
+        if (i == cursor->path_len-1) {          /* cursor is being constructed */
+            if (cursor->op == DB_PREV || cursor->op == DB_LAST) /* go to the right subtree */
+                goto setnewchild;
+            if (cursor->op == DB_SET || cursor->op == DB_SET_RANGE || cursor->op == DB_GET_BOTH || cursor->op == DB_GET_BOTH_RANGE) {
+                if (brt_compare_pivot(t, cursor->key, cursor->val, splitk) > 0) 
+                    goto setnewchild;
+            }
         }
         if (i+1 < cursor->path_len) {           /* the cursor path traversed the old child so update it if it traverses the right child */
             assert(cursor->path[i+1] == left || cursor->path[i+1] == right);
@@ -2391,9 +2396,7 @@ int toku_brt_cursor_close (BRT_CURSOR curs) {
     return r;
 }
 
-/*
- * Print the path of a cursor
- */
+/* Print the path of a cursor */
 void toku_brt_cursor_print(BRT_CURSOR cursor) {
     int i;
 
@@ -2654,12 +2657,14 @@ static int brtcurs_set_position_prev (BRT_CURSOR cursor, DBT *key, TOKUTXN txn) 
 }
 
 static int brtcurs_dupsort_next_child(BRT_CURSOR cursor, BRTNODE node, int childnum, int op) {
-    cursor = cursor; node = node; op = op;
+    cursor = cursor;
+    if (op == DB_GET_BOTH) return node->u.n.n_children; /* no more */
     return childnum + 1;
 }
 
 static int brtcurs_nodup_next_child(BRT_CURSOR cursor, BRTNODE node, int childnum, int op) {
-    cursor = cursor; node = node; op = op;
+    cursor = cursor;
+    if (op == DB_SET || op == DB_GET_BOTH) return node->u.n.n_children; /* no more */
     return childnum + 1;
 }
  
@@ -2688,6 +2693,7 @@ static int brtcurs_set_search(BRT_CURSOR cursor, DISKOFF off, int op, DBT *key, 
                 brt_node_add_cursor(node, childnum, cursor);
                 int more = node->u.n.n_bytes_in_hashtable[childnum];
                 if (more > 0) {
+                    cursor->key = key; cursor->val = val;
                     brt_flush_child(cursor->brt, node, childnum, cursor, txn);
                     node = cursor->path[cursor->path_len-1];
                     childnum = cursor->pathcnum[cursor->path_len-1];
