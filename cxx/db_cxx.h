@@ -59,7 +59,7 @@ class Db {
     int put(DbTxn *, Dbt *, Dbt *, u_int32_t);
     int get_flags(u_int32_t *);
     int set_flags(u_int32_t);
-
+    int set_pagesize(u_int32_t);
 
  private:
     DB *the_db;
@@ -79,6 +79,11 @@ class DbEnv {
 
     /* C++ analogues of the C functions. */
     int close(u_int32_t);
+    int open(const char *, u_int32_t, int);
+    int set_cachesize(u_int32_t, u_int32_t, int);
+    int set_lk_max(u_int32_t);
+    int txn_begin(DbTxn *, DbTxn **, u_int32_t);
+
 
  private:
     DB_ENV *the_env;
@@ -89,11 +94,15 @@ class DbEnv {
 	
 class DbTxn {
  public:
+    int commit (u_int32_t /*flags*/);
+
     DB_TXN *get_DB_TXN()
 	{
 	    if (this==0) return 0;
 	    return the_txn;
 	}
+
+    DbTxn(DB_TXN*);
  private:
     DB_TXN *the_txn;
 };
