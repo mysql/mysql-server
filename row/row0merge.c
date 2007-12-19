@@ -2092,6 +2092,43 @@ err_exit:
 }
 
 /*************************************************************************
+Create and execute a query graph for creating an index. */
+static
+ulint
+row_merge_create_index_graph(
+/*=========================*/
+					/* out: DB_SUCCESS or error code */
+	trx_t*		trx,		/* in: trx */
+	dict_table_t*	table,		/* in: table */
+	dict_index_t*	index)		/* in: index */
+{
+	ind_node_t*	node;		/* Index creation node */
+	mem_heap_t*	heap;		/* Memory heap */
+	que_thr_t*	thr;		/* Query thread */
+	ulint		err;
+
+	ut_ad(trx);
+	ut_ad(table);
+	ut_ad(index);
+
+	heap = mem_heap_create(512);
+
+	index->table = table;
+	node = ind_create_graph_create(index, heap);
+	thr = pars_complete_graph_for_exec(node, trx, heap);
+
+	ut_a(thr == que_fork_start_command(que_node_get_parent(thr)));
+
+	que_run_threads(thr);
+
+	err = trx->error_state;
+
+	que_graph_free((que_t*) que_node_get_parent(thr));
+
+	return(err);
+}
+
+/*************************************************************************
 Create the index and load in to the dictionary. */
 
 dict_index_t*
@@ -2134,7 +2171,7 @@ row_merge_create_index(
 
 	/* Add the index to SYS_INDEXES, this will use the prototype
 	to create an entry in SYS_INDEXES. */
-	err = row_create_index_graph_for_mysql(trx, table, index);
+	err = row_merge_create_index_graph(trx, table, index);
 
 	if (err == DB_SUCCESS) {
 
@@ -2150,7 +2187,6 @@ row_merge_create_index(
 		index->trx_id = trx->id;
 #endif /* ROW_MERGE_IS_INDEX_USABLE */
 	} else {
-		trx->error_state = err;
 		index = NULL;
 	}
 

@@ -4080,39 +4080,4 @@ row_check_table_for_mysql(
 
 	return(ret);
 }
-
-/*************************************************************************
-Create query graph for an index creation */
-
-ulint
-row_create_index_graph_for_mysql(
-/*=============================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: trx */
-	dict_table_t*	table,		/* in: table */
-	dict_index_t*	index)		/* in: index */
-{
-	ind_node_t*	node;		/* Index creation node */
-	mem_heap_t*	heap;		/* Memory heap */
-	que_thr_t*	thr;		/* Query thread */
-	ulint		err;
-
-	ut_ad(trx && index);
-
-	heap = mem_heap_create(512);
-
-	index->table = table;
-	node = ind_create_graph_create(index, heap);
-	thr = pars_complete_graph_for_exec(node, trx, heap);
-
-	ut_a(thr == que_fork_start_command(que_node_get_parent(thr)));
-
-	que_run_threads(thr);
-
-	err = trx->error_state;
-
-	que_graph_free((que_t*) que_node_get_parent(thr));
-
-	return(err);
-}
 #endif /* !UNIV_HOTBACKUP */
