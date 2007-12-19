@@ -34,10 +34,12 @@ int DbEnv::set_cachesize(u_int32_t gbytes, u_int32_t bytes, int ncache) {
     return ret;
 }
 
+#if DB_VERSION_MAJOR<4 || (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR<=4)
 int DbEnv::set_lk_max(u_int32_t flags) {
     int ret = the_env->set_lk_max(the_env, flags);
     return ret;
 }
+#endif
 
 int DbEnv::txn_begin(DbTxn *parenttxn, DbTxn **txnp, u_int32_t flags) {
     DB_TXN *txn;
