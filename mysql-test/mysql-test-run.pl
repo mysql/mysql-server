@@ -304,7 +304,7 @@ sub command_line_setup {
              'skip-combination'         => \&collect_option,
 
              # Specify ports
-	     'mtr-build-thread=i'       => \$opt_mtr_build_thread,
+	     'build-thread|mtr-build-thread=i' => \$opt_mtr_build_thread,
 
              # Test case authoring
              'record'                   => \$opt_record,
@@ -409,6 +409,11 @@ sub command_line_setup {
   {
     $basedir= dirname($basedir);
   }
+
+  # --------------------------------------------------------------------------
+  # Check mtr_build_thread and calculate baseport
+  # --------------------------------------------------------------------------
+  set_mtr_build_thread_ports($opt_mtr_build_thread);
 
   #
   # Find the mysqld executable to be able to find the mysqld version
@@ -732,11 +737,6 @@ sub command_line_setup {
   $path_current_test_log= "$opt_vardir/log/current_test";
   $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 
-  # --------------------------------------------------------------------------
-  # Check mtr_build_thread and calculate baseport
-  # --------------------------------------------------------------------------
-  set_mtr_build_thread_ports($opt_mtr_build_thread);
-
 }
 
 
@@ -765,6 +765,7 @@ sub set_mtr_build_thread_ports($) {
     print "got ".$mtr_build_thread."\n";
   }
   $opt_mtr_build_thread= $mtr_build_thread;
+  $ENV{MTR_BUILD_THREAD}= $mtr_build_thread;
 
   # Calculate baseport
   $opt_baseport= $mtr_build_thread * 10 + 10000;
@@ -3541,9 +3542,8 @@ Options to control what test suites or cases to run
 
 Options that specify ports
 
-  baseport=PORT         Specify the first port number used
   mtr-build-thread=#    Specify unique number to calculate port number(s) from.
-                        Can be set in environment variable MTR_BUILD_THREAD.
+  build-thread=#        Can be set in environment variable MTR_BUILD_THREAD.
                         Set  MTR_BUILD_THREAD="auto" to automatically aquire
                         a build thread id that is unique to current host
 
