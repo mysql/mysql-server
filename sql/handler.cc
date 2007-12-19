@@ -3721,6 +3721,8 @@ int handler::ha_reset()
   DBUG_ASSERT(inited == NONE);
   /* Free cache used by filesort */
   free_io_cache(table);
+  /* reset the bitmaps to point to defaults */
+  table->default_column_bitmaps();
   DBUG_RETURN(reset());
 }
 
