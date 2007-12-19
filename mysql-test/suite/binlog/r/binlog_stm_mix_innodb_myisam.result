@@ -100,6 +100,7 @@ insert into t1 values(9);
 insert into t2 select * from t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(9)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
@@ -111,6 +112,7 @@ begin;
 insert into t2 select * from t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(10)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
@@ -118,6 +120,7 @@ insert into t1 values(11);
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(10)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
@@ -233,16 +236,20 @@ master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(16)
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(18)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; delete from t1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; delete from t2
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; alter table t2 engine=MyISAM
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (20)
 master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
 master-bin.000001	#	Query	#	#	use `test`; create temporary table ti (a int) engine=innodb
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into ti values(1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; create temporary table t1 (a int) engine=myisam
@@ -339,6 +346,7 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (3,3)
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t2
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (4,4)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (5,5)
@@ -348,6 +356,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE t2 (a int, b in
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (7,7)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (8,8)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (9,9)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (10,10)
@@ -375,9 +384,9 @@ is not null;
 is not null
 1
 select
-@a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
+@a like "%#%error_code=0%ROLLBACK\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
 @a not like "%#%error_code=%error_code=%";
-@a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%"	@a not like "%#%error_code=%error_code=%"
+@a like "%#%error_code=0%ROLLBACK\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%"	@a not like "%#%error_code=%error_code=%"
 1	1
 drop table t1, t2;
 set @@session.binlog_format=statement;
@@ -503,6 +512,7 @@ insert into t2 values (bug27417(1));
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=1
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (bug27417(1))
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
@@ -517,6 +527,7 @@ insert into t2 select bug27417(1) union select bug27417(2);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=2
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select bug27417(1) union select bug27417(2)
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
@@ -544,6 +555,7 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=6
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
@@ -574,6 +586,7 @@ delete from t2;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=9
 master-bin.000001	#	Query	#	#	use `test`; delete from t2
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
@@ -593,6 +606,7 @@ delete t2.* from t2,t5 where t2.a=t5.a + 1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; delete t2.* from t2,t5 where t2.a=t5.a + 1
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*) from t1 /* must be 1 */;
@@ -612,6 +626,7 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
 master-bin.000001	#	Begin_load_query	#	#	;file_id=1;block_len=12
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
