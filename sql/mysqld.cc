@@ -2909,6 +2909,7 @@ SHOW_VAR com_status_vars[]= {
   {"xa_recover",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_RECOVER]),SHOW_LONG_STATUS},
   {"xa_rollback",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_ROLLBACK]),SHOW_LONG_STATUS},
   {"xa_start",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_START]),SHOW_LONG_STATUS},
+  {NullS, NullS, SHOW_LONG}
 };
 
 static int init_common_variables(const char *conf_file_name, int argc,
@@ -2995,10 +2996,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
       Com_stmt_reset           => com_stmt_reset
       Com_stmt_send_long_data  => com_stmt_send_long_data
 
-    With this correction the number of Com_ variables must match the
-    number of SQLCOM_ constants.
+    With this correction the number of Com_ variables (number of elements in
+    the array, excluding the last element - terminator) must match the number
+    of SQLCOM_ constants.
   */
-  compile_time_assert(sizeof(com_status_vars)/sizeof(com_status_vars[0]) ==
+  compile_time_assert(sizeof(com_status_vars)/sizeof(com_status_vars[0]) - 1 ==
                      SQLCOM_END + 7);
 #endif
 
