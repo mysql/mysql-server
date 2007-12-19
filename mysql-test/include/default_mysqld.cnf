@@ -16,3 +16,6 @@ max_heap_table_size=        1M
 loose-innodb_data_file_path=      ibdata1:10M:autoextend
 
 set-variable=               slave_net_timeout=120
+
+log-bin
+
