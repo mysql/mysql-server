@@ -212,7 +212,6 @@ read_view_oldest_copy_or_open_new(
 	view_copy->low_limit_no = old_view->low_limit_no;
 	view_copy->low_limit_id = old_view->low_limit_id;
 
-	view_copy->can_be_too_old = FALSE;
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
@@ -257,8 +256,6 @@ read_view_open_now(
 
 	view->low_limit_no = trx_sys->max_trx_id;
 	view->low_limit_id = view->low_limit_no;
-
-	view->can_be_too_old = FALSE;
 
 	n = 0;
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
@@ -431,8 +428,6 @@ read_cursor_view_create_for_mysql(
 
 	view->low_limit_no = trx_sys->max_trx_id;
 	view->low_limit_id = view->low_limit_no;
-
-	view->can_be_too_old = FALSE;
 
 	n = 0;
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
