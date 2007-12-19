@@ -29,7 +29,7 @@ our @EXPORT= qw(my_find_bin my_find_dir);
 
 our $vs_config_dir;
 
-my $is_win= ($^O eq "MSWin32" or $^O eq "Win32");
+my $is_win= ($^O eq "MSWin32" or $^O eq "cygwin");
 my $bin_extension= ".exe" if $is_win;
 
 #
