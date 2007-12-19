@@ -263,7 +263,7 @@ int main(int argc, const char *argv[]) {
 
     /* dup tests */
 #if USE_TDB
-    printf("%s:%d:WARNING:tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+//    printf("%s:%d:WARNING:tokudb does not support DB_DUP\n", __FILE__, __LINE__);
 #else
     for (i = 1; i <= (1<<16); i *= 2) {
         test_insert(i, DB_DUP);

@@ -43,6 +43,7 @@ void test_dup_key(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdup
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
+    db->set_errfile(db, stderr);
     r = db->set_flags(db, dup_mode);
 #if USE_TDB
     if (r != 0 && dup_mode == DB_DUP) {
@@ -93,6 +94,7 @@ void test_dup_dup(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdup
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
+    db->set_errfile(db, stderr);
     r = db->set_flags(db, dup_mode);
 #if USE_TDB
     if (r != 0 && dup_mode == DB_DUP) {
@@ -143,6 +145,7 @@ void test_put_00_01_01(int dup_mode, u_int32_t put_flags) {
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
+    db->set_errfile(db, stderr);
     r = db->set_flags(db, dup_mode);
 #if USE_TDB
     if (r != 0 && dup_mode == DB_DUP) {
