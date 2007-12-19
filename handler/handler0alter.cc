@@ -693,12 +693,6 @@ err_exit:
 	index = (dict_index_t**) mem_heap_alloc(
 		heap, num_of_idx * sizeof *index);
 
-	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
-	or lock waits can happen in it during an index create operation. */
-
-	row_mysql_lock_data_dictionary(trx);
-	dict_locked = TRUE;
-
 	/* Flag this transaction as a dictionary operation, so that
 	the data dictionary will be locked in crash recovery.  Prevent
 	warnings if row_merge_lock_table() results in a lock wait,
@@ -716,6 +710,12 @@ err_exit:
 	}
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+
+	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
+	or lock waits can happen in it during an index create operation. */
+
+	row_mysql_lock_data_dictionary(trx);
+	dict_locked = TRUE;
 
 	/* If a new primary key is defined for the table we need
 	to drop the original table and rebuild all indexes. */
@@ -1092,10 +1092,6 @@ ha_innobase::final_drop_index(
 	trx->mysql_thd = user_thd;
 	trx->mysql_query_str = thd_query(user_thd);
 
-	/* Drop indexes marked to be dropped */
-
-	row_mysql_lock_data_dictionary(trx);
-
 	/* Flag this transaction as a dictionary operation, so that
 	the data dictionary will be locked in crash recovery.  Prevent
 	warnings if row_merge_lock_table() results in a lock wait,
@@ -1116,6 +1112,10 @@ ha_innobase::final_drop_index(
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
+	/* Drop indexes marked to be dropped */
+
+	row_mysql_lock_data_dictionary(trx);
+
 	index = dict_table_get_first_index(prebuilt->table);
 
 	while (index) {
@@ -1134,10 +1134,10 @@ ha_innobase::final_drop_index(
 #ifdef UNIV_DEBUG
 	dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
+	row_mysql_unlock_data_dictionary(trx);
 
 func_exit:
 	trx_commit_for_mysql(trx);
-	row_mysql_unlock_data_dictionary(trx);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
