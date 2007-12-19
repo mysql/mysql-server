@@ -63,7 +63,12 @@ void sql_print_error(const char *format, ...);
 
 static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
 static bool opt_hexdump= 0;
-static bool opt_base64_output= 0;
+const char *base64_output_mode_names[]= {"NEVER", "AUTO", "ALWAYS", NullS};
+TYPELIB base64_output_mode_typelib=
+  { array_elements(base64_output_mode_names) - 1, "",
+    base64_output_mode_names, NULL };
+static enum_base64_output_mode opt_base64_output_mode= BASE64_OUTPUT_UNSPEC;
+static const char *opt_base64_output_mode_str= NullS;
 static const char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static my_bool debug_info_flag, debug_check_flag;
@@ -96,7 +101,7 @@ static my_bool file_not_closed_error= 0;
   This is because the event will be created (alloced) in read_log_event()
   (which returns a pointer) in check_header().
 */
-Format_description_log_event* glob_description_event; 
+static Format_description_log_event* glob_description_event;
 
 static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                   const char* logname);
@@ -557,7 +562,7 @@ int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     else
       print_event_info->hexdump_from= pos;
 
-    print_event_info->base64_output= opt_base64_output;
+    print_event_info->base64_output_mode= opt_base64_output_mode;
 
     DBUG_PRINT("debug", ("event_type: %s", ev->get_type_str()));
 
@@ -565,7 +570,7 @@ int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case QUERY_EVENT:
       if (check_database(((Query_log_event*)ev)->db))
         goto end;
-      if (opt_base64_output)
+      if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
         write_event_header_and_base64(ev, result_file, print_event_info);
       else
         ev->print(result_file, print_event_info);
@@ -589,7 +594,7 @@ int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' 
 	below.
       */
-      if (opt_base64_output)
+      if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
       {
         write_event_header_and_base64(ce, result_file, print_event_info);
       }
@@ -678,6 +683,38 @@ Create_file event for file_id: %u\n",exv->file_id);
 Begin_load_query event for file_id: %u\n", exlq->file_id);
       break;
     }
+    case TABLE_MAP_EVENT:
+    case WRITE_ROWS_EVENT:
+    case DELETE_ROWS_EVENT:
+    case UPDATE_ROWS_EVENT:
+    case PRE_GA_WRITE_ROWS_EVENT:
+    case PRE_GA_DELETE_ROWS_EVENT:
+    case PRE_GA_UPDATE_ROWS_EVENT:
+      /*
+        These events must be printed in base64 format, if printed.
+        base64 format requires a FD event to be safe, so if no FD
+        event has been printed, we give an error.  Except if user
+        passed --short-form, because --short-form disables printing
+        row events.
+      */
+      if (!print_event_info->printed_fd_event && !short_form)
+      {
+        /*
+          todo: a lot to clean up here
+        */
+        const char* type_str= ev->get_type_str();
+        delete ev;
+        if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
+          die("--base64-output=never specified, but binlog contains a "
+              "%s event which must be printed in base64.",
+              type_str);
+        else
+          die("malformed binlog: it does not contain any "
+              "Format_description_log_event. I now found a %s event, which is "
+              "not safe to process without a Format_description_log_event.",
+              type_str);
+      }
+      /* FALL THROUGH */
     default:
       ev->print(result_file, print_event_info);
     }
@@ -707,12 +744,17 @@ static struct my_option my_long_options[] =
   {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"base64-output", OPT_BASE64_OUTPUT,
-   "Print all binlog entries using base64 encoding. "
-   "This is for debugging only. Logs produced using this option "
-   "should not be applied on production systems.",
-   (uchar**) &opt_base64_output, (uchar**) &opt_base64_output, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"base64-output", OPT_BASE64_OUTPUT_MODE,
+   "Determine when the output statements should be base64-encoded BINLOG "
+   "statements: 'never' disables it and works only for binlogs without "
+   "row-based events; 'auto' is the default and prints base64 only when "
+   "necessary (i.e., for row-based events and format description events); "
+   "'always' prints base64 whenever possible. 'always' is for debugging "
+   "only and should not be used in a production system. The default is "
+   "'auto'. --base64-output is a short form for --base64-output=always."
+   ,(uchar**) &opt_base64_output_mode_str,
+   (uchar**) &opt_base64_output_mode_str,
+   0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   /*
     mysqlbinlog needs charsets knowledge, to be able to convert a charset
     number found in binlog to a charset name (to be able to print things
@@ -788,7 +830,10 @@ static struct my_option my_long_options[] =
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES character_set' to the output.", (uchar**) &charset,
    (uchar**) &charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"short-form", 's', "Just show the queries, no extra info.",
+  {"short-form", 's', "Just show regular queries: no extra info and no "
+   "row-based events. This is for testing only, and should not be used in "
+   "production systems. If you want to suppress base64-output, consider "
+   "using --base64-output=never instead.",
    (uchar**) &short_form, (uchar**) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"socket", 'S', "Socket file to use for connection.",
@@ -972,6 +1017,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_STOP_DATETIME:
     stop_datetime= convert_str_to_timestamp(stop_datetime_str);
+    break;
+  case OPT_BASE64_OUTPUT_MODE:
+    if (argument == NULL)
+      opt_base64_output_mode= BASE64_OUTPUT_ALWAYS;
+    else
+    {
+      opt_base64_output_mode= (enum_base64_output_mode)
+        (find_type_or_exit(argument, &base64_output_mode_typelib, opt->name)-1);
+    }
     break;
   case 'V':
     print_version();
@@ -1305,8 +1359,31 @@ err:
 }
 
 
+/**
+  Reads the @c Format_description_log_event from the beginning of the
+  input file.
+
+  The @c Format_description_log_event is only read if it is outside
+  the range specified with @c --start-position; otherwise, it will be
+  seen later.  If this is an old binlog, a fake @c
+  Format_description_event is created.  This also prints a @c
+  Format_description_log_event to the output, unless we reach the
+  --start-position range.  In this case, it is assumed that a @c
+  Format_description_log_event will be found when reading events the
+  usual way.
+
+  @param file The file to which a @c Format_description_log_event will
+  be printed.
+
+  @param description_event Pointer to the global @c
+  Format_description_log_event pointer.  This will be updated if a new
+  Format_description_log_event is found.
+
+  @param print_event_info Context state needed to print events.
+*/
 static void check_header(IO_CACHE* file, 
-                        Format_description_log_event **description_event) 
+                         Format_description_log_event **description_event,
+                         PRINT_EVENT_INFO *print_event_info)
 {
   uchar header[BIN_LOG_HEADER_SIZE];
   uchar buf[PROBE_HEADER_LEN];
@@ -1369,10 +1446,12 @@ Could not read entry at offset %lu : Error in log format or read error",
     }
     else
     {
-      DBUG_PRINT("info",("buf[4]=%d", buf[4]));
+      DBUG_PRINT("info",("buf[EVENT_TYPE_OFFSET=%d]=%d",
+                         EVENT_TYPE_OFFSET, buf[EVENT_TYPE_OFFSET]));
       /* always test for a Start_v3, even if no --start-position */
-      if (buf[4] == START_EVENT_V3)       /* This is 3.23 or 4.x */
+      if (buf[EVENT_TYPE_OFFSET] == START_EVENT_V3)
       {
+        /* This is 3.23 or 4.x */
         if (uint4korr(buf + EVENT_LEN_OFFSET) < 
             (LOG_EVENT_MINIMAL_HEADER_LEN + START_V3_HEADER_LEN))
         {
@@ -1384,8 +1463,9 @@ Could not read entry at offset %lu : Error in log format or read error",
       }
       else if (tmp_pos >= start_position)
         break;
-      else if (buf[4] == FORMAT_DESCRIPTION_EVENT) /* This is 5.0 */
+      else if (buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
       {
+        /* This is 5.0 */
         Format_description_log_event *new_description_event;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
         if (!(new_description_event= (Format_description_log_event*) 
@@ -1397,11 +1477,22 @@ Could not read entry at offset %lu : Error in log format or read error",
 at offset %lu ; this could be a log format error or read error",
               tmp_pos); 
         }
-        delete *description_event;
-        *description_event= new_description_event;
+        if (opt_base64_output_mode == BASE64_OUTPUT_AUTO
+            || opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
+          /*
+            process_event will delete *description_event and set it to
+            the new one, so we should not do it ourselves in this
+            case.
+          */
+          process_event(print_event_info, new_description_event, tmp_pos);
+        else
+        {
+          delete *description_event;
+          *description_event= new_description_event;
+        }
         DBUG_PRINT("info",("Setting description_event"));
       }
-      else if (buf[4] == ROTATE_EVENT)
+      else if (buf[EVENT_TYPE_OFFSET] == ROTATE_EVENT)
       {
         Log_event *ev;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
@@ -1430,7 +1521,7 @@ static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
   uchar tmp_buff[BIN_LOG_HEADER_SIZE];
   int error= 0;
 
-  if (logname && logname[0] != '-')
+  if (logname && strcmp(logname, "-") != 0)
   {
     if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
       return 1;
@@ -1440,7 +1531,7 @@ static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       my_close(fd, MYF(MY_WME));
       return 1;
     }
-    check_header(file, &glob_description_event);
+    check_header(file, &glob_description_event, print_event_info);
   }
   else // reading from stdin;
   {
@@ -1462,7 +1553,7 @@ static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     if (init_io_cache(file, fileno(stdin), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
       return 1;
-    check_header(file, &glob_description_event);
+    check_header(file, &glob_description_event, print_event_info);
     if (start_position)
     {
       /* skip 'start_position' characters from stdin */
@@ -1553,6 +1644,9 @@ int main(int argc, char** argv)
     free_defaults(defaults_argv);
     exit(1);
   }
+
+  if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
+    opt_base64_output_mode= BASE64_OUTPUT_AUTO;
 
   my_set_max_open_files(open_files_limit);
 

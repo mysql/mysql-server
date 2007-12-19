@@ -10,3 +10,4 @@
 #
 ##############################################################################
 binlog_multi_engine      : Bug#32663 binlog_multi_engine.test fails randomly
+binlog_base64_flag : BUG#33247 2007-12-14 Sven: mysqlbinlog does not clean up after itself on termination. When compiled in debug mode, this test generates lots of warnings for memory leaks.

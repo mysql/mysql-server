@@ -1,0 +1,25 @@
+#
+# BUG#31583: 5.1-telco-6.1 -> 5.1.22. Slave returns Error in unknown event
+
+# This is a problem for any update statement replicating from an old
+# server to a new server. The bug consisted of a new slave trying to
+# read two column bitmaps, but there is only one available in the old
+# format.
+
+# This test case should be executed replicating from an old server to
+# a new server, so make sure you have one handy.
+
+source include/master-slave.inc;
+
+CREATE TABLE t1 ( a INT, b INT DEFAULT -3 );
+
+INSERT INTO t1 VALUES (1, DEFAULT);
+UPDATE t1 SET a = 3;
+SELECT * FROM t1 ORDER BY a;
+sync_slave_with_master;
+SELECT * FROM t1 ORDER BY a;
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+

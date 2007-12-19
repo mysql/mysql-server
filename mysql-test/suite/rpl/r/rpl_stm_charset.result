@@ -184,78 +184,101 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-drop database if exists mysqltest2/*!*/;
+drop database if exists mysqltest2
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-drop database if exists mysqltest3/*!*/;
+drop database if exists mysqltest3
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-create database mysqltest2 character set latin2/*!*/;
+create database mysqltest2 character set latin2
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=30/*!*/;
-create database mysqltest3/*!*/;
+create database mysqltest3
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=64/*!*/;
-drop database mysqltest3/*!*/;
+drop database mysqltest3
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-create database mysqltest3/*!*/;
+create database mysqltest3
+/*!*/;
 use mysqltest2/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-create table t1 (a int auto_increment primary key, b varchar(100))/*!*/;
+create table t1 (a int auto_increment primary key, b varchar(100))
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 /*!\C cp850 *//*!*/;
 SET @@session.character_set_client=4,@@session.collation_connection=27,@@session.collation_server=64/*!*/;
-insert into t1 (b) values(@@character_set_server)/*!*/;
+insert into t1 (b) values(@@character_set_server)
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t1 (b) values(@@collation_server)/*!*/;
+insert into t1 (b) values(@@collation_server)
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t1 (b) values(@@character_set_client)/*!*/;
+insert into t1 (b) values(@@character_set_client)
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t1 (b) values(@@character_set_connection)/*!*/;
+insert into t1 (b) values(@@character_set_connection)
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t1 (b) values(@@collation_connection)/*!*/;
+insert into t1 (b) values(@@collation_connection)
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=5,@@session.collation_server=64/*!*/;
-truncate table t1/*!*/;
+truncate table t1
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t1 (b) values(@@collation_connection)/*!*/;
+insert into t1 (b) values(@@collation_connection)
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t1 (b) values(LEAST("MЭller","Muffler"))/*!*/;
+insert into t1 (b) values(LEAST("MЭller","Muffler"))
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=31,@@session.collation_server=64/*!*/;
-insert into t1 (b) values(@@collation_connection)/*!*/;
+insert into t1 (b) values(@@collation_connection)
+/*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t1 (b) values(LEAST("MЭller","Muffler"))/*!*/;
+insert into t1 (b) values(LEAST("MЭller","Muffler"))
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-truncate table t1/*!*/;
+truncate table t1
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET @`a`:=_cp850 0x4DFC6C6C6572 COLLATE `cp850_general_ci`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t1 (b) values(collation(@a))/*!*/;
+insert into t1 (b) values(collation(@a))
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-drop database mysqltest2/*!*/;
+drop database mysqltest2
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-drop database mysqltest3/*!*/;
+drop database mysqltest3
+/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=30/*!*/;
-CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255))/*!*/;
+CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255))
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 /*!\C koi8r *//*!*/;
 SET @@session.character_set_client=7,@@session.collation_connection=51,@@session.collation_server=30/*!*/;
-INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку')/*!*/;
+INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку')
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;

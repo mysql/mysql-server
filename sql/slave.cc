@@ -13,6 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+
+/**
+  @addtogroup Replication
+  @{
+
+  @file
+
+  @brief Code to run the io thread and the sql thread on the
+  replication slave.
+*/
+
 #include "mysql_priv.h"
 
 #include <mysql.h>
@@ -32,10 +43,6 @@
 #ifdef HAVE_REPLICATION
 
 #include "rpl_tblmap.h"
-
-int queue_event(Master_info* mi,const char* buf,ulong event_len);
-static Log_event* next_event(Relay_log_info* rli);
-
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -132,6 +139,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
                                   const char* table_name, bool overwrite);
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
 static Log_event* next_event(Relay_log_info* rli);
+static int queue_event(Master_info* mi,const char* buf,ulong event_len);
 static int terminate_slave_thread(THD *thd,
                                   pthread_mutex_t* term_lock,
                                   pthread_cond_t* term_cond,
@@ -1775,6 +1783,175 @@ static int has_temporary_error(THD *thd)
   DBUG_RETURN(0);
 }
 
+
+/**
+  Applies the given event and advances the relay log position.
+
+  In essence, this function does:
+
+  @code
+    ev->apply_event(rli);
+    ev->update_pos(rli);
+  @endcode
+
+  But it also does some maintainance, such as skipping events if
+  needed and reporting errors.
+
+  If the @c skip flag is set, then it is tested whether the event
+  should be skipped, by looking at the slave_skip_counter and the
+  server id.  The skip flag should be set when calling this from a
+  replication thread but not set when executing an explicit BINLOG
+  statement.
+
+  @retval 0 OK.
+
+  @retval 1 Error calling ev->apply_event().
+
+  @retval 2 No error calling ev->apply_event(), but error calling
+  ev->update_pos().
+*/
+int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
+                               bool skip)
+{
+  int exec_res= 0;
+
+  DBUG_ENTER("apply_event_and_update_pos");
+
+  DBUG_PRINT("exec_event",("%s(type_code: %d; server_id: %d)",
+                           ev->get_type_str(), ev->get_type_code(),
+                           ev->server_id));
+  DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
+                      FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
+                      FLAGSTR(thd->options, OPTION_BEGIN),
+                      rli->last_event_start_time));
+
+  /*
+    Execute the event to change the database and update the binary
+    log coordinates, but first we set some data that is needed for
+    the thread.
+
+    The event will be executed unless it is supposed to be skipped.
+
+    Queries originating from this server must be skipped.  Low-level
+    events (Format_description_log_event, Rotate_log_event,
+    Stop_log_event) from this server must also be skipped. But for
+    those we don't want to modify 'group_master_log_pos', because
+    these events did not exist on the master.
+    Format_description_log_event is not completely skipped.
+
+    Skip queries specified by the user in 'slave_skip_counter'.  We
+    can't however skip events that has something to do with the log
+    files themselves.
+
+    Filtering on own server id is extremely important, to ignore
+    execution of events created by the creation/rotation of the relay
+    log (remember that now the relay log starts with its Format_desc,
+    has a Rotate etc).
+  */
+
+  thd->server_id = ev->server_id; // use the original server id for logging
+  thd->set_time();                            // time the query
+  thd->lex->current_select= 0;
+  if (!ev->when)
+    ev->when= my_time(0);
+  ev->thd = thd; // because up to this point, ev->thd == 0
+
+  if (skip)
+  {
+    int reason= ev->shall_skip(rli);
+    if (reason == Log_event::EVENT_SKIP_COUNT)
+      --rli->slave_skip_counter;
+    pthread_mutex_unlock(&rli->data_lock);
+    if (reason == Log_event::EVENT_SKIP_NOT)
+      exec_res= ev->apply_event(rli);
+#ifndef DBUG_OFF
+    /*
+      This only prints information to the debug trace.
+
+      TODO: Print an informational message to the error log?
+    */
+    static const char *const explain[] = {
+      // EVENT_SKIP_NOT,
+      "not skipped",
+      // EVENT_SKIP_IGNORE,
+      "skipped because event should be ignored",
+      // EVENT_SKIP_COUNT
+      "skipped because event skip counter was non-zero"
+    };
+    DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
+                        thd->options & OPTION_BEGIN ? 1 : 0,
+                        rli->get_flag(Relay_log_info::IN_STMT)));
+    DBUG_PRINT("skip_event", ("%s event was %s",
+                              ev->get_type_str(), explain[reason]));
+#endif
+  }
+  else
+    exec_res= ev->apply_event(rli);
+
+  DBUG_PRINT("info", ("apply_event error = %d", exec_res));
+  if (exec_res == 0)
+  {
+    int error= ev->update_pos(rli);
+    char buf[22];
+    DBUG_PRINT("info", ("update_pos error = %d", error));
+    DBUG_PRINT("info", ("group %s %s",
+                        llstr(rli->group_relay_log_pos, buf),
+                        rli->group_relay_log_name));
+    DBUG_PRINT("info", ("event %s %s",
+                        llstr(rli->event_relay_log_pos, buf),
+                        rli->event_relay_log_name));
+    /*
+      The update should not fail, so print an error message and
+      return an error code.
+
+      TODO: Replace this with a decent error message when merged
+      with BUG#24954 (which adds several new error message).
+    */
+    if (error)
+    {
+      rli->report(ERROR_LEVEL, ER_UNKNOWN_ERROR,
+                  "It was not possible to update the positions"
+                  " of the relay log information: the slave may"
+                  " be in an inconsistent state."
+                  " Stopped in %s position %s",
+                  rli->group_relay_log_name,
+                  llstr(rli->group_relay_log_pos, buf));
+      DBUG_RETURN(2);
+    }
+  }
+
+  DBUG_RETURN(exec_res ? 1 : 0);
+}
+
+
+/**
+  Top-level function for executing the next event from the relay log.
+
+  This function reads the event from the relay log, executes it, and
+  advances the relay log position.  It also handles errors, etc.
+
+  This function may fail to apply the event for the following reasons:
+
+   - The position specfied by the UNTIL condition of the START SLAVE
+     command is reached.
+
+   - It was not possible to read the event from the log.
+
+   - The slave is killed.
+
+   - An error occurred when applying the event, and the event has been
+     tried slave_trans_retries times.  If the event has been retried
+     fewer times, 0 is returned.
+
+   - init_master_info or init_relay_log_pos failed. (These are called
+     if a failure occurs when applying the event.)</li>
+
+   - An error occurred when updating the binlog position.
+
+  @retval 0 The event was applied.
+
+  @retval 1 The event was not applied.
+*/
 static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
 {
   DBUG_ENTER("exec_relay_log_event");
@@ -1820,117 +1997,26 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   }
   if (ev)
   {
-    int const type_code= ev->get_type_code();
-    int exec_res= 0;
-
-    DBUG_PRINT("exec_event",("%s(type_code: %d; server_id: %d)",
-                       ev->get_type_str(), type_code, ev->server_id));
-    DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
-                        FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
-                        FLAGSTR(thd->options, OPTION_BEGIN),
-                        rli->last_event_start_time));
-
+    int exec_res= apply_event_and_update_pos(ev, thd, rli, TRUE);
 
     /*
-      Execute the event to change the database and update the binary
-      log coordinates, but first we set some data that is needed for
-      the thread.
-
-      The event will be executed unless it is supposed to be skipped.
-
-      Queries originating from this server must be skipped.  Low-level
-      events (Format_description_log_event, Rotate_log_event,
-      Stop_log_event) from this server must also be skipped. But for
-      those we don't want to modify 'group_master_log_pos', because
-      these events did not exist on the master.
-      Format_description_log_event is not completely skipped.
-
-      Skip queries specified by the user in 'slave_skip_counter'.  We
-      can't however skip events that has something to do with the log
-      files themselves.
-
-      Filtering on own server id is extremely important, to ignore
-      execution of events created by the creation/rotation of the relay
-      log (remember that now the relay log starts with its Format_desc,
-      has a Rotate etc).
+      Format_description_log_event should not be deleted because it will be
+      used to read info about the relay log's format; it will be deleted when
+      the SQL thread does not need it, i.e. when this thread terminates.
     */
-
-    thd->server_id = ev->server_id; // use the original server id for logging
-    thd->set_time();                            // time the query
-    thd->lex->current_select= 0;
-    if (!ev->when)
-      ev->when= my_time(0);
-    ev->thd = thd; // because up to this point, ev->thd == 0
-
-    int reason= ev->shall_skip(rli);
-    if (reason == Log_event::EVENT_SKIP_COUNT)
-      --rli->slave_skip_counter;
-    pthread_mutex_unlock(&rli->data_lock);
-    if (reason == Log_event::EVENT_SKIP_NOT)
-      exec_res= ev->apply_event(rli);
-#ifndef DBUG_OFF
-    /*
-      This only prints information to the debug trace.
-
-      TODO: Print an informational message to the error log?
-    */
-    static const char *const explain[] = {
-      // EVENT_SKIP_NOT,
-      "not skipped",
-      // EVENT_SKIP_IGNORE,
-      "skipped because event should be ignored",
-      // EVENT_SKIP_COUNT
-      "skipped because event skip counter was non-zero"
-    };
-    DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
-                        thd->options & OPTION_BEGIN ? 1 : 0,
-                        rli->get_flag(Relay_log_info::IN_STMT)));
-    DBUG_PRINT("skip_event", ("%s event was %s",
-                              ev->get_type_str(), explain[reason]));
-#endif
-
-    DBUG_PRINT("info", ("apply_event error = %d", exec_res));
-    if (exec_res == 0)
-    {
-      int error= ev->update_pos(rli);
-      char buf[22];
-      DBUG_PRINT("info", ("update_pos error = %d", error));
-      DBUG_PRINT("info", ("group %s %s",
-                          llstr(rli->group_relay_log_pos, buf),
-                          rli->group_relay_log_name));
-      DBUG_PRINT("info", ("event %s %s",
-                          llstr(rli->event_relay_log_pos, buf),
-                          rli->event_relay_log_name));
-      /*
-        The update should not fail, so print an error message and
-        return an error code.
-
-        TODO: Replace this with a decent error message when merged
-        with BUG#24954 (which adds several new error message).
-      */
-      if (error)
-      {
-        rli->report(ERROR_LEVEL, ER_UNKNOWN_ERROR,
-                    "It was not possible to update the positions"
-                    " of the relay log information: the slave may"
-                    " be in an inconsistent state."
-                    " Stopped in %s position %s",
-                    rli->group_relay_log_name,
-                    llstr(rli->group_relay_log_pos, buf));
-        DBUG_RETURN(1);
-      }
-    }
-
-    /*
-       Format_description_log_event should not be deleted because it will be
-       used to read info about the relay log's format; it will be deleted when
-       the SQL thread does not need it, i.e. when this thread terminates.
-    */
-    if (type_code != FORMAT_DESCRIPTION_EVENT)
+    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
     {
       DBUG_PRINT("info", ("Deleting the event after it has been executed"));
       delete ev;
     }
+
+    /*
+      update_log_pos failed: this should not happen, so we don't
+      retry.
+    */
+    if (exec_res == 2)
+      DBUG_RETURN(1);
+
     if (slave_trans_retries)
     {
       int temp_err;
@@ -3074,7 +3160,7 @@ static int queue_old_event(Master_info *mi, const char *buf,
   any >=5.0.0 format.
 */
 
-int queue_event(Master_info* mi,const char* buf, ulong event_len)
+static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 {
   int error= 0;
   ulong inc_pos;
@@ -3959,5 +4045,9 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
 template class I_List_iterator<i_string>;
 template class I_List_iterator<i_string_pair>;
 #endif
+
+/**
+  @} (end of group Replication)
+*/
 
 #endif /* HAVE_REPLICATION */

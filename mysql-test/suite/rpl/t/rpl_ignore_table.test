@@ -119,6 +119,13 @@ show grants for mysqltest3@localhost;
 show grants for mysqltest4@localhost;
 
 # Cleanup
+# connection slave;
+# BUG31552 changes idempotency is not default any longer
+# In order the following `delete from mysql.user',
+# where mysqltest1 does not exist on slave,
+# to succeed on slave the mode is temporarily changed
+set global slave_exec_mode='IDEMPOTENT';
+
 connection master;
 drop table t1, t4, mysqltest2.t2;
 drop database mysqltest2;
@@ -129,7 +136,10 @@ delete from mysql.db where user like "mysqltest%";
 # move it to slave instead
 #delete from mysql.tables_priv where user like "mysqltest%";
 delete from mysql.columns_priv where user like "mysqltest%";
+
 sync_slave_with_master;
+# bug#31552: do not restore the mode here but later in order
+# to succeed with yet the following delete from mysql.tables_priv
 
 #BUG27606
 delete from mysql.tables_priv where user like "mysqltest%";
@@ -155,6 +165,7 @@ CREATE TEMPORARY TABLE tmptbl504451f4258$1 (id INT NOT NULL) ENGINE=MEMORY;
 INSERT INTO t5 (word)  VALUES ('TEST’');
 SELECT HEX(word) FROM t5;
 sync_slave_with_master;
+set @@global.slave_exec_mode= default; # bug#31552 comments above
 connection slave;
 SELECT HEX(word) FROM t5;
 --error 1146
