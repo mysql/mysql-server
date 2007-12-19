@@ -33,7 +33,8 @@ start slave;
 # hope one second is not enough for slave to reach the last
 # Rows_log_event, so that test actually tests something.
 
-real_sleep 1;
+let $wait_condition= SELECT COUNT(*) >= 10 FROM t1;
+--source include/wait_condition.inc
 stop slave;
 
 # see if slave hangs on DROP TABLE
