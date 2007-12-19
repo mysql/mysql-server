@@ -166,8 +166,9 @@ show global status like 'Com%function%';
 Variable_name	Value
 Com_alter_function	0
 Com_create_function	0
-Com_create_spfunction	0
 Com_drop_function	0
+Com_show_function_code	0
+Com_show_function_status	0
 create function f1 (x INTEGER) returns integer
 begin
 declare ret integer;
@@ -178,6 +179,7 @@ drop function f1;
 show global status like 'Com%function%';
 Variable_name	Value
 Com_alter_function	0
-Com_create_function	0
-Com_create_spfunction	1
+Com_create_function	1
 Com_drop_function	1
+Com_show_function_code	0
+Com_show_function_status	0
