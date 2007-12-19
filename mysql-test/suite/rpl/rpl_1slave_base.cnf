@@ -45,6 +45,8 @@ slave-load-tmpdir=          ../../tmp
 
 rpl-recovery-rank=          @mysqld.2.server-id
 
+loose-skip-innodb
+
 
 [ENV]
 MASTER_MYPORT=              @mysqld.1.port
