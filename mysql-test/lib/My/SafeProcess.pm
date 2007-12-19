@@ -86,23 +86,26 @@ BEGIN {
 }
 
 # Find the safe process binary or script
-my $safe_path= $^X; # Path to perl binary
-my $safe_script;
+my @safe_process_cmd;
 my $safe_kill;
 if (IS_WIN32PERL or IS_CYGWIN){
   # Use my_safe_process.exe
-  $safe_path= my_find_bin(("extra","bin"), "my_safe_process.exe");
-  die "Could not find my_safe_process.exe" unless $safe_path;
+  my $exe= my_find_bin(".", "lib/My/SafeProcess", "my_safe_process.exe");
+  die "Could not find my_safe_process.exe" unless $exe;
+  push(@safe_process_cmd, $exe);
 
   # Use my_safe_kill.exe
-  $safe_path= my_find_bin(("extra","bin"), "my_safe_kill");
+  my $safe_kill= my_find_bin(".", "lib/My/SafeProcess", "my_safe_kill");
   die "Could not find my_safe_kill.exe" unless $safe_kill;
 }
 else {
   # Use safe_process.pl
-  $safe_script=  "lib/My/SafeProcess/safe_process.pl";
-  $safe_script= "../$safe_script" unless -f $safe_script;
-  die "Could not find safe_process.pl" unless -f $safe_script;
+  my $script=  "lib/My/SafeProcess/safe_process.pl";
+  $script= "../$script" unless -f $script;
+  die "Could not find safe_process.pl" unless -f $script;
+
+  # Call $script with Perl interpreter
+  push(@safe_process_cmd, $^X, $script);
 }
 
 
@@ -124,9 +127,9 @@ sub new {
   my $host     = delete($opts{'host'});
   my $shutdown = delete($opts{'shutdown'});
 
-  if (defined $host) {
-    $safe_script=  "lib/My/SafeProcess/safe_process_cpcd.pl";
-  }
+#  if (defined $host) {
+#    $safe_script=  "lib/My/SafeProcess/safe_process_cpcd.pl";
+#  }
 
   if (IS_CYGWIN){
     # safe_procss is a windows program and need
@@ -138,6 +141,7 @@ sub new {
   }
 
   my @safe_args;
+  my ($safe_path, $safe_script)= @safe_process_cmd;
   push(@safe_args, $safe_script) if defined $safe_script;
 
   push(@safe_args, "--verbose") if $verbose > 0;
