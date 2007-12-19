@@ -2066,33 +2066,26 @@ sub run_testcase_check_skip_test($)
   return 0;
 }
 
-sub dynamic_binlog_format_switch {
-  my ($tinfo)= @_;
-  # Dynamically switch binlog format started MySQL servers
-  foreach my $mysqld ( mysqlds() )
-  {
-    # Skip servers that are restarted between each test
-    next if $mysqld->option('#!force-restart');
 
-    my $sql= "include/set_binlog_format_".$tinfo->{binlog_format_switch}.".sql";
-    my $args;
-    mtr_init_args(\$args);
-    mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
-    mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
-    mtr_verbose("Dynamically switching binlog format to:",
-		$tinfo->{binlog_format_switch});
-    my $res= My::SafeProcess->run
-      (
-       name          => "switch binlog format ".$mysqld->name(),
-       path          => $exe_mysql,
-       args          => \$args,
-       input         => $sql,
+sub dynamic_binlog_format_switch {
+  my ($tinfo, $mysqld)= @_;
+
+  my $sql= "include/set_binlog_format_".$tinfo->{binlog_format_switch}.".sql";
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
+  my $res= My::SafeProcess->run
+    (
+     name          => "switch binlog format ".$mysqld->name(),
+     path          => $exe_mysql,
+     args          => \$args,
+     input         => $sql,
     );
 
-    if ($res != 0)
-    {
-      mtr_error("Failed to switch binlog format");
-    }
+  if ($res != 0)
+  {
+    mtr_error("Failed to switch binlog format");
   }
 }
 
@@ -2286,11 +2279,6 @@ sub run_testcase ($) {
   my $test_timeout_proc= My::SafeProcess->timer($opt_testcase_timeout * 60);
 
   do_before_run_mysqltest($tinfo);
-
-  if (defined $tinfo->{binlog_format_switch} )
-  {
-    dynamic_binlog_format_switch($tinfo)
-  }
 
   if ( $opt_check_testcases )
   {
@@ -2779,11 +2767,6 @@ sub server_need_restart {
     return 0;
   }
 
-  if ( $server->option('#!force-restart') ) {
-    mtr_verbose("Restart: forced in configuration");
-    return 1;
-  }
-
   if ( $tinfo->{'force_restart'} ) {
     mtr_verbose("Restart: forced in .opt file");
     return 1;
@@ -2820,31 +2803,38 @@ sub server_need_restart {
     }
   }
 
-  # Check that running process was started with same options
-  # as the current test requires
-  my $extra_opt= get_extra_opt($server, $tinfo);
-  my $started_opts= $server->{'started_opts'};
-  if (defined $started_opts and $extra_opt and
-      ! mtr_same_opts($started_opts, $extra_opt) )
+  my $is_mysqld=  grep ($server eq $_, mysqlds());
+  if ($is_mysqld)
   {
-    # Check if diff is binlog format only
-    # and the next test has $binlog_format_switch set
-    my @diff_opts= mtr_diff_opts($started_opts, $extra_opt);
-    if (@diff_opts == 2 and
-	$diff_opts[0] =~/^--binlog-format=/ and
-	$diff_opts[1] =~/^--binlog-format=/ and
-	defined $tinfo->{binlog_format_switch})
-    {
-      mtr_verbose("Using dynamic switch of binlog format from ",
-		  $diff_opts[0],"to", $diff_opts[1]);
-    }
-    else
-    {
 
-      mtr_verbose("Restart: running with different options '" .
-		  join(" ", @{$extra_opt}) . "' != '" .
-		  join(" ", @{$server->{'started_opts'}}) . "'" );
-      return 1;
+    # Check that running process was started with same options
+    # as the current test requires
+    my $extra_opt= get_extra_opt($server, $tinfo);
+    my $started_opts= $server->{'started_opts'};
+    if (defined $started_opts and $extra_opt and
+	! mtr_same_opts($started_opts, $extra_opt) )
+    {
+      # TODO Use a list  to find all options that can be set dynamically
+
+      # Check if diff is binlog format only
+      # and the next test has $binlog_format_switch set
+      my @diff_opts= mtr_diff_opts($started_opts, $extra_opt);
+      if (@diff_opts == 2 and
+	  $diff_opts[0] =~/^--binlog-format=/ and
+	  $diff_opts[1] =~/^--binlog-format=/ and
+	  defined $tinfo->{binlog_format_switch})
+      {
+	mtr_verbose("Using dynamic switch of binlog format from ",
+		    $diff_opts[0],"to", $diff_opts[1]);
+	dynamic_binlog_format_switch($tinfo, $server);
+      }
+      else
+      {
+	mtr_verbose("Restart: running with different options '" .
+		    join(" ", @{$extra_opt}) . "' != '" .
+		    join(" ", @{$server->{'started_opts'}}) . "'" );
+	return 1;
+      }
     }
   }
 
@@ -2985,12 +2975,6 @@ sub start_servers($) {
     # Don't delete anything if starting dirty
     if (!$opt_start_dirty)
     {
-      # Remove old datadir before starting process
-      if ($mysqld->option('#!fresh-datadir') and -d $datadir) {
-	mtr_debug("Removing old datadir: '$datadir'");
-	rmdir($datadir);
-      }
-
       my @options= ('log-bin', 'relay-log');
 
       foreach my $option_name ( @options )  {
