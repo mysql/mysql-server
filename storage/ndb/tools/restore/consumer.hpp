@@ -52,6 +52,7 @@ public:
   uint            m_nodegroup_map_len;
   virtual bool has_temp_error() {return false;}
   virtual bool table_equal(const TableS &) {return true;}
+  virtual bool table_compatible_check(const TableS &) {return true;}
 };
 
 #endif

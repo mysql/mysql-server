@@ -31,6 +31,18 @@ struct restore_callback_t {
   restore_callback_t *next;
 };
 
+struct char_n_padding_struct {
+Uint32 n_old;
+Uint32 n_new;
+char new_row[1];
+};
+
+struct PromotionRules {
+  NDBCOL::Type old_type;
+  NDBCOL::Type new_type;
+  AttrCheckCompatFunc  attr_check_compatability;
+  AttrConvertFunc attr_convert;
+};
 
 class BackupRestore : public BackupConsumer 
 {
@@ -59,6 +71,8 @@ public:
     m_free_callback = 0;
     m_temp_error = false;
     m_no_upgrade = false;
+    m_promote_attributes = false;
+    m_reserve_tail_spaces = false;
     m_transactions = 0;
     m_cache.m_old_table = 0;
   }
@@ -82,6 +96,7 @@ public:
   virtual bool has_temp_error();
   virtual bool createSystable(const TableS & table);
   virtual bool table_equal(const TableS & table);
+  virtual bool table_compatible_check(const TableS & tableS);
   virtual bool update_apply_status(const RestoreMetaData &metaData);
   virtual bool report_started(unsigned node_id, unsigned backup_id);
   virtual bool report_meta_data(unsigned node_id, unsigned backup_id);
@@ -97,7 +112,51 @@ public:
   bool map_nodegroups(Uint16 *ng_array, Uint32 no_parts);
   Uint32 map_ng(Uint32 ng);
   bool translate_frm(NdbDictionary::Table *table);
-   
+
+  static bool check_compat_common(const NDBCOL &old_col, 
+                                  const NDBCOL &new_col); 
+  static bool check_compat_alwaystrue(const NDBCOL &old_col,
+                                      const NDBCOL &new_col);
+  static void* convert_int8_int16(const void *old_data,    void *parameter);
+  static void* convert_int8_int24(const void *old_data,    void *parameter);
+  static void* convert_int8_int32(const void *old_data,    void *parameter);
+  static void* convert_int8_int64(const void *old_data,    void *parameter);
+  static void* convert_int16_int24(const void *old_data,   void *parameter);
+  static void* convert_int16_int32(const void *old_data,   void *parameter);
+  static void* convert_int16_int64(const void *old_data,   void *parameter);
+  static void* convert_int24_int32(const void *old_data,   void *parameter);
+  static void* convert_int24_int64(const void *old_data,   void *parameter);
+  static void* convert_int32_int64(const void *old_data,   void *parameter);
+  static void* convert_uint8_uint16(const void *old_data,  void *parameter);
+  static void* convert_uint8_uint24(const void *old_data,  void *parameter);
+  static void* convert_uint8_uint32(const void *old_data,  void *parameter);
+  static void* convert_uint8_uint64(const void *old_data,  void *parameter);
+  static void* convert_uint16_uint24(const void *old_data, void *parameter);
+  static void* convert_uint16_uint32(const void *old_data, void *parameter);
+  static void* convert_uint16_uint64(const void *old_data, void *parameter);
+  static void* convert_uint24_uint32(const void *old_data, void *parameter);
+  static void* convert_uint24_uint64(const void *old_data, void *parameter);
+  static void* convert_uint32_uint64(const void *old_data, void *parameter);
+
+  static void* convert_char_char(const void *old_data,            void *parameter);
+  static void* convert_binary_binary(const void *old_data,        void *parameter);
+  static void* convert_char_varchar(const void *old_data,         void *parameter);
+  static void* convert_char_longvarchar(const void *old_data,     void *parameter);
+  static void* convert_binary_varbinary(const void *old_data,     void *parameter);
+  static void* convert_binary_longvarbinary(const void *old_data, void *parameter);
+  static void* convert_bit_bit(const void *old_data,              void *parameter);
+  static void* convert_var_var(const void *old_data,              void *parameter);
+  static void* convert_var_longvar(const void *old_data,          void *parameter);
+  static void* convert_longvar_longvar(const void *old_data,      void *parameter);
+
+
+  AttrCheckCompatFunc 
+    get_attr_check_compatability(const NDBCOL::Type &old_type,
+                                 const NDBCOL::Type &new_type);
+  AttrConvertFunc
+  get_convert_func(const NDBCOL::Type &old_type,
+                   const NDBCOL::Type &new_type);
+
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
   bool m_restore;
@@ -105,6 +164,8 @@ public:
   bool m_no_restore_disk;
   bool m_restore_epoch;
   bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
+  bool m_promote_attributes; 
+  static bool m_reserve_tail_spaces;
 
   Uint32 m_n_tablespace;
   Uint32 m_n_logfilegroup;
@@ -140,6 +201,8 @@ public:
   Vector<const NdbDictionary::Table*> m_indexes;
   Vector<NdbDictionary::Tablespace*> m_tablespaces;    // Index by id
   Vector<NdbDictionary::LogfileGroup*> m_logfilegroups;// Index by id
+
+  static const PromotionRules m_allowed_promotion_attrs[];
 };
 
 #endif
