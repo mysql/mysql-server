@@ -1223,12 +1223,115 @@ dict_col_name_is_reserved(
 	return(FALSE);
 }
 
+/********************************************************************
+If an undo log record for this table might not fit on a single page,
+return TRUE. */
+static
+ibool
+dict_index_too_big_for_undo(
+/*========================*/
+						/* out: TRUE if the undo log
+						record could become too big */
+	const dict_table_t*	table,		/* in: table */
+	const dict_index_t*	new_index)	/* in: index */
+{
+	/* Make sure that all column prefixes will fit in the undo log record
+	in trx_undo_page_report_modify() right after trx_undo_page_init(). */
+
+	ulint			i;
+	const dict_index_t*	clust_index
+		= dict_table_get_first_index(table);
+	ulint			undo_page_len
+		= TRX_UNDO_PAGE_HDR - TRX_UNDO_PAGE_HDR_SIZE
+		+ 2 /* next record pointer */
+		+ 1 /* type_cmpl */
+		+ 11 /* trx->undo_no */ - 11 /* table->id */
+		+ 1 /* rec_get_info_bits() */
+		+ 11 /* DB_TRX_ID */
+		+ 11 /* DB_ROLL_PTR */
+		+ 10 + FIL_PAGE_DATA_END /* trx_undo_left() */
+		+ 2/* pointer to previous undo log record */;
+
+	if (UNIV_UNLIKELY(!clust_index)) {
+		ut_a(dict_index_is_clust(new_index));
+		clust_index = new_index;
+	}
+
+	/* Add the size of the ordering columns in the
+	clustered index. */
+	for (i = 0; i < clust_index->n_uniq; i++) {
+		const dict_col_t*	col
+			= dict_index_get_nth_col(clust_index, i);
+
+		/* Use the maximum output size of
+		mach_write_compressed(), although the encoded
+		length should always fit in 2 bytes. */
+		undo_page_len += 5 + dict_col_get_max_size(col);
+	}
+
+	/* Add the old values of the columns to be updated.
+	First, the amount and the numbers of the columns.
+	These are written by mach_write_compressed() whose
+	maximum output length is 5 bytes.  However, given that
+	the quantities are below REC_MAX_N_FIELDS (10 bits),
+	the maximum length is 2 bytes per item. */
+	undo_page_len += 2 * (dict_table_get_n_cols(table) + 1);
+
+	for (i = 0; i < clust_index->n_def; i++) {
+		const dict_col_t*	col
+			= dict_index_get_nth_col(clust_index, i);
+		ulint			max_size
+			= dict_col_get_max_size(col);
+		ulint			fixed_size
+			= dict_col_get_fixed_size(col);
+
+		if (fixed_size) {
+			/* Fixed-size columns are stored locally. */
+			max_size = fixed_size;
+		} else if (max_size <= BTR_EXTERN_FIELD_REF_SIZE * 2) {
+			/* Short columns are stored locally. */
+		} else if (!col->ord_part) {
+			/* See if col->ord_part would be set
+			because of new_index. */
+			ulint	j;
+
+			for (j = 0; j < new_index->n_uniq; j++) {
+				if (dict_index_get_nth_col(
+					    new_index, j) == col) {
+
+					goto is_ord_part;
+				}
+			}
+
+			/* This is not an ordering column in any index.
+			Thus, it can be stored completely externally. */
+			max_size = BTR_EXTERN_FIELD_REF_SIZE;
+		} else {
+is_ord_part:
+			/* This is an ordering column in some index.
+			A long enough prefix must be written to the
+			undo log.  See trx_undo_page_fetch_ext(). */
+
+			if (max_size > REC_MAX_INDEX_COL_LEN) {
+				max_size = REC_MAX_INDEX_COL_LEN;
+			}
+
+			max_size += BTR_EXTERN_FIELD_REF_SIZE;
+		}
+
+		undo_page_len += 5 + max_size;
+	}
+
+	return(undo_page_len >= UNIV_PAGE_SIZE);
+}
+
 /**************************************************************************
 Adds an index to the dictionary cache. */
 
-void
+ulint
 dict_index_add_to_cache(
 /*====================*/
+				/* out: DB_SUCCESS or DB_TOO_BIG_RECORD */
 	dict_table_t*	table,	/* in: table on which the index is */
 	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */
@@ -1258,12 +1361,57 @@ dict_index_add_to_cache(
 		new_index = dict_index_build_internal_non_clust(table, index);
 	}
 
-	new_index->search_info = btr_search_info_create(new_index->heap);
-
 	/* Set the n_fields value in new_index to the actual defined
 	number of fields in the cache internal representation */
 
 	new_index->n_fields = new_index->n_def;
+
+	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
+		n_ord = new_index->n_fields;
+	} else {
+		n_ord = new_index->n_uniq;
+	}
+
+	for (i = 0; i < n_ord; i++) {
+		const dict_field_t*	field
+			= dict_index_get_nth_field(new_index, i);
+		const dict_col_t*	col
+			= dict_field_get_col(field);
+
+		/* In dtuple_convert_big_rec(), variable-length columns
+		that are longer than BTR_EXTERN_FIELD_REF_SIZE * 2
+		may be chosen for external storage.  If the column appears
+		in an ordering column of an index, a longer prefix of
+		REC_MAX_INDEX_COL_LEN will be copied to the undo log
+		by trx_undo_page_report_modify() and
+		trx_undo_page_fetch_ext().  It suffices to check the
+		capacity of the undo log whenever new_index includes
+		a column prefix on a column that may be stored externally. */
+
+		if (field->prefix_len /* prefix index */
+		    && !col->ord_part /* not yet ordering column */
+		    && !dict_col_get_fixed_size(col) /* variable-length */
+		    && dict_col_get_max_size(col)
+		    > BTR_EXTERN_FIELD_REF_SIZE * 2 /* long enough */) {
+
+			if (dict_index_too_big_for_undo(table, new_index)) {
+				/* An undo log record might not fit in
+				a single page.  Refuse to create this index. */
+				dict_mem_index_free(new_index);
+				dict_mem_index_free(index);
+				return(DB_TOO_BIG_RECORD);
+			}
+
+			break;
+		}
+	}
+
+	/* Flag the ordering columns */
+
+	for (i = 0; i < n_ord; i++) {
+
+		dict_index_get_nth_field(new_index, i)->col->ord_part = 1;
+	}
 
 	/* Add the new index as the last index for the table */
 
@@ -1271,18 +1419,7 @@ dict_index_add_to_cache(
 	new_index->table = table;
 	new_index->table_name = table->name;
 
-	/* Increment the ord_part counts in columns which are ordering */
-
-	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
-		n_ord = new_index->n_fields;
-	} else {
-		n_ord = dict_index_get_n_unique(new_index);
-	}
-
-	for (i = 0; i < n_ord; i++) {
-
-		dict_index_get_nth_field(new_index, i)->col->ord_part = 1;
-	}
+	new_index->search_info = btr_search_info_create(new_index->heap);
 
 	new_index->stat_index_size = 1;
 	new_index->stat_n_leaf_pages = 1;
@@ -1308,6 +1445,8 @@ dict_index_add_to_cache(
 	dict_sys->size += mem_heap_get_size(new_index->heap);
 
 	dict_mem_index_free(index);
+
+	return(DB_SUCCESS);
 }
 
 /**************************************************************************

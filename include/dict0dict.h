@@ -661,9 +661,10 @@ dict_index_find_on_id_low(
 /**************************************************************************
 Adds an index to the dictionary cache. */
 
-void
+ulint
 dict_index_add_to_cache(
 /*====================*/
+				/* out: DB_SUCCESS or error code */
 	dict_table_t*	table,	/* in: table on which the index is */
 	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */
