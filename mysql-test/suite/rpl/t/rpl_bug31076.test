@@ -39,6 +39,24 @@ CREATE TABLE `visits_events` (
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 --delimiter /*!*/;
+
+# at 4 (0x4)
+#071204 14:29:31 server id 1  end_log_pos 106 
+# Position  Timestamp   Type   Master ID        Size      Master Pos    Flags
+#        4 3b 56 55 47   0f   01 00 00 00   66 00 00 00   6a 00 00 00   00 00
+#       17 04 00 35 2e 31 2e 32 33  2d 72 63 2d 64 65 62 75 |..5.1.23.rc.debu|
+#       27 67 2d 6c 6f 67 00 00 00  00 00 00 00 00 00 00 00 |g.log...........|
+#       37 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00 |................|
+#       47 00 00 00 00 3b 56 55 47  13 38 0d 00 08 00 12 00 |.....VUG.8......|
+#       57 04 04 04 04 12 00 00 53  00 04 1a 08 00 00 00 08 |.......S........|
+#       67 08 08 02                                         |...|
+#       Start: binlog v 4, server v 5.1.23-rc-debug-log created 071204 14:29:31 at startup
+
+BINLOG '
+O1ZVRw8BAAAAZgAAAGoAAAAAAAQANS4xLjIzLXJjLWRlYnVnLWxvZwAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA7VlVHEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
+'/*!*/;
+
 # at 164170623
 # at 164170679
 #7918 3:59:2 server id 436  end_log_pos 164170679 

@@ -567,6 +567,15 @@ class Format_description_log_event;
 class Relay_log_info;
 
 #ifdef MYSQL_CLIENT
+enum enum_base64_output_mode {
+  BASE64_OUTPUT_NEVER= 0,
+  BASE64_OUTPUT_AUTO= 1,
+  BASE64_OUTPUT_ALWAYS= 2,
+  BASE64_OUTPUT_UNSPEC= 3,
+  /* insert new output modes here */
+  BASE64_OUTPUT_MODE_COUNT
+};
+
 /*
   A structure for mysqlbinlog to know how to print events
 
@@ -600,7 +609,8 @@ typedef struct st_print_event_info
   st_print_event_info()
     :flags2_inited(0), sql_mode_inited(0),
      auto_increment_increment(1),auto_increment_offset(1), charset_inited(0),
-     lc_time_names_number(0), charset_database_number(0)
+     lc_time_names_number(0), charset_database_number(0),
+     base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE)
     {
       /*
         Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
@@ -627,7 +637,14 @@ typedef struct st_print_event_info
 
   /* Settings on how to print the events */
   bool short_form;
-  bool base64_output;
+  enum_base64_output_mode base64_output_mode;
+  /*
+    This is set whenever a Format_description_event is printed.
+    Later, when an event is printed in base64, this flag is tested: if
+    no Format_description_event has been seen, it is unsafe to print
+    the base64 event, so an error message is generated.
+  */
+  bool printed_fd_event;
   my_off_t hexdump_from;
   uint8 common_header_len;
   char delimiter[16];
@@ -809,6 +826,12 @@ public:
 
   bool cache_stmt;
 
+  /**
+    A storage to cache the global system variable's value.
+    Handling of a separate event will be governed its member.
+  */
+  ulong slave_exec_mode;
+
 #ifndef MYSQL_CLIENT
   THD* thd;
 
@@ -930,7 +953,13 @@ public:
 				   const char **error,
                                    const Format_description_log_event
                                    *description_event);
-  /* returns the human readable name of the event's type */
+  /**
+    Returns the human readable name of the given event type.
+  */
+  static const char* get_type_str(Log_event_type type);
+  /**
+    Returns the human readable name of this event's type.
+  */
   const char* get_type_str();
 
   /* Return start of query time or current time */

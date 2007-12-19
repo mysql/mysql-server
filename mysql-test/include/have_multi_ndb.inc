@@ -6,7 +6,7 @@ connect (server2,127.0.0.1,root,,test,$MASTER_MYPORT1,);
 connection server1;
 disable_query_log;
 --require r/true.require
-select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+select (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
 --source include/ndb_not_readonly.inc
 enable_query_log;
 
@@ -14,7 +14,7 @@ enable_query_log;
 connection server2;
 disable_query_log;
 --require r/true.require
-select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+select (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
 --source include/ndb_not_readonly.inc
 enable_query_log;
 

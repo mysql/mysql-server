@@ -297,8 +297,8 @@ bool String::copy_aligned(const char *str,uint32 arg_length, uint32 offset,
     return TRUE;
   
   /*
-    Note, this is only safe for little-endian UCS-2.
-    If we add big-endian UCS-2 sometimes, this code
+    Note, this is only safe for big-endian UCS-2.
+    If we add little-endian UCS-2 sometimes, this code
     will be more complicated. But it's OK for now.
   */
   bzero((char*) Ptr, offset);

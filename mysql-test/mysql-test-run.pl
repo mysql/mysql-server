@@ -52,6 +52,9 @@
 # "perl -d:Trace mysql-test-run.pl"
 #
 
+
+use lib "lib/";
+
 $Devel::Trace::TRACE= 0;       # Don't trace boring init stuff
 
 #require 5.6.1;
@@ -172,7 +175,8 @@ our $opt_bench= 0;
 our $opt_small_bench= 0;
 our $opt_big_test= 0;
 
-our @opt_combination;
+our @opt_combinations;
+our $opt_skip_combination;
 
 our @opt_extra_mysqld_opt;
 
@@ -575,7 +579,8 @@ sub command_line_setup () {
              'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
              'big-test'                 => \$opt_big_test,
-             'combination=s'            => \@opt_combination,
+             'combination=s'            => \@opt_combinations,
+             'skip-combination'         => \$opt_skip_combination,
 
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
@@ -850,20 +855,23 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Find out type of logging that are being used
   # --------------------------------------------------------------------------
-  # NOTE if the default binlog format is changed, this has to be changed
-  $used_binlog_format= "statement";
   if (!$opt_extern && $mysql_version_id >= 50100 )
   {
-    $used_binlog_format= "mixed"; # Default value for binlog format
-
     foreach my $arg ( @opt_extra_mysqld_opt )
     {
       if ( $arg =~ /binlog[-_]format=(\S+)/ )
       {
-	$used_binlog_format= $1;
+      	$used_binlog_format= $1;
       }
     }
-    mtr_report("Using binlog format '$used_binlog_format'");
+    if (defined $used_binlog_format) 
+    {
+      mtr_report("Using binlog format '$used_binlog_format'");
+    }
+    else
+    {
+      mtr_report("Using dynamic switching of binlog format");
+    }
   }
 
 
@@ -981,6 +989,10 @@ sub command_line_setup () {
     mtr_error("Will not run in record mode without a specific test case");
   }
 
+  if ( $opt_record )
+  {
+    $opt_skip_combination = 1;
+  }
 
   # --------------------------------------------------------------------------
   # ps protcol flag
@@ -3379,6 +3391,7 @@ sub run_testcase_check_skip_test($)
 sub do_before_run_mysqltest($)
 {
   my $tinfo= shift;
+  my $args;
 
   # Remove old files produced by mysqltest
   my $base_file= mtr_match_extension($tinfo->{'result_file'},
@@ -3398,6 +3411,28 @@ sub do_before_run_mysqltest($)
       # Set environment variable NDB_STATUS_OK to YES
       # if script decided to run mysqltest cluster _is_ installed ok
       $ENV{'NDB_STATUS_OK'} = "YES";
+    }
+    if (defined $tinfo->{binlog_format} and  $mysql_version_id > 50100 )
+    {
+      # Dynamically switch binlog format of
+      # master, slave is always restarted
+      foreach my $server ( @$master )
+      {
+        next unless ($server->{'pid'});
+
+	mtr_init_args(\$args);
+	mtr_add_arg($args, "--no-defaults");
+	mtr_add_arg($args, "--user=root");
+	mtr_add_arg($args, "--port=$server->{'port'}");
+	mtr_add_arg($args, "--socket=$server->{'path_sock'}");
+
+	my $sql= "include/set_binlog_format_".$tinfo->{binlog_format}.".sql";
+	mtr_verbose("Setting binlog format:", $tinfo->{binlog_format});
+	if (mtr_run($exe_mysql, $args, $sql, "", "", "") != 0)
+	{
+	  mtr_error("Failed to switch binlog format");
+	}
+      }
     }
   }
 }
@@ -3839,6 +3874,14 @@ sub mysqld_arguments ($$$$) {
     mtr_add_arg($args, "%s--user=root");
   }
 
+  # When mysqld is run by a root user(euid is 0), it will fail
+  # to start unless we specify what user to run as, see BUG#30630
+  my $euid= $>;
+  if (!$glob_win32 and $euid == 0 and
+      (grep(/^--user/, @$extra_opt, @opt_extra_mysqld_opt)) == 0) {
+    mtr_add_arg($args, "%s--user=root", $prefix);
+  }
+
   if ( $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
@@ -3943,7 +3986,7 @@ sub mysqld_arguments ($$$$) {
     my $slave_load_path= "../tmp";
     mtr_add_arg($args, "%s--slave-load-tmpdir=%s", $prefix,
                 $slave_load_path);
-    mtr_add_arg($args, "%s--set-variable=slave_net_timeout=10", $prefix);
+    mtr_add_arg($args, "%s--set-variable=slave_net_timeout=120", $prefix);
 
     if ( @$slave_master_info )
     {
@@ -4296,10 +4339,19 @@ sub run_testcase_need_master_restart($)
   elsif (! mtr_same_opts($master->[0]->{'start_opts'},
                          $tinfo->{'master_opt'}) )
   {
-    $do_restart= 1;
-    mtr_verbose("Restart master: running with different options '" .
-	       join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
-		join(" ", @{$master->[0]->{'start_opts'}}) . "'" );
+    # Chech that diff is binlog format only
+    my $diff_opts= mtr_diff_opts($master->[0]->{'start_opts'},$tinfo->{'master_opt'});
+    if (scalar(@$diff_opts) eq 2) 
+    {
+      $do_restart= 1 unless ($diff_opts->[0] =~/^--binlog-format=/ and $diff_opts->[1] =~/^--binlog-format=/);
+    }
+    else
+    {
+      $do_restart= 1;
+      mtr_verbose("Restart master: running with different options '" .
+	         join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
+	  	join(" ", @{$master->[0]->{'start_opts'}}) . "'" );
+    }
   }
   elsif( ! $master->[0]->{'pid'} )
   {
@@ -5222,8 +5274,9 @@ Options to control what test suites or cases to run
   skip-im               Don't start IM, and skip the IM test cases
   big-test              Set the environment variable BIG_TEST, which can be
                         checked from test cases.
-  combination="ARG1 .. ARG2" Specify a set of "mysqld" arguments for one 
-                        combination. 
+  combination="ARG1 .. ARG2" Specify a set of "mysqld" arguments for one
+                        combination.
+  skip-combination      Skip any combination options and combinations files
 
 Options that specify ports
 

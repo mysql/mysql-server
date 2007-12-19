@@ -16,6 +16,7 @@ insert into t2 values (bug23333(),1)|
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from 106 /* with fixes for #23333 will show there is the query */|
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	#
 master-bin.000001	#	Table_map	1	#	#
 master-bin.000001	#	Table_map	1	#	#
 master-bin.000001	#	Write_rows	1	#	#
