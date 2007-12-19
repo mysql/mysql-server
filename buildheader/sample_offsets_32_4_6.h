@@ -9,6 +9,7 @@ struct fieldinfo db_btree_stat_fields32[] = {
 };
 struct fieldinfo db_env_fields32[] = {
   {"void *app_private", 52, 4},
+  {"void *api1_internal", 356, 4},
   {"int  (*close) (DB_ENV *, u_int32_t)", 392, 4},
   {"void (*err) (const DB_ENV *, int, const char *, ...)", 404, 4},
   {"int (*get_cachesize) (DB_ENV *, u_int32_t *)", 420, 4},
@@ -72,6 +73,7 @@ struct fieldinfo db_txn_active_fields32[] = {
   {0, 224, 224} /* size of whole struct */
 };
 struct fieldinfo db_txn_fields32[] = {
+  {"void *api_internal", 88, 4},
   {"int (*abort) (DB_TXN *)", 100, 4},
   {"int (*commit) (DB_TXN*, u_int32_t)", 104, 4},
   {"u_int32_t (*id) (DB_TXN *)", 116, 4},
