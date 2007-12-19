@@ -1088,12 +1088,16 @@ dict_create_index_step(
 
 		dulint	index_id = node->index->id;
 
-		dict_index_add_to_cache(node->table, node->index, FIL_NULL);
+		err = dict_index_add_to_cache(node->table, node->index,
+					      FIL_NULL);
 
 		node->index = dict_index_get_if_in_cache_low(index_id);
-		ut_a(node->index);
+		ut_a(!node->index == (err != DB_SUCCESS));
 
-		err = DB_SUCCESS;
+		if (err != DB_SUCCESS) {
+
+			goto function_exit;
+		}
 
 		node->state = INDEX_CREATE_INDEX_TREE;
 	}

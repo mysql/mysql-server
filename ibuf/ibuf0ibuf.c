@@ -469,6 +469,7 @@ ibuf_data_init_for_space(
 	dict_table_t*	table;
 	dict_index_t*	index;
 	ulint		n_used;
+	ulint		error;
 
 	ut_a(space == 0);
 
@@ -547,7 +548,9 @@ ibuf_data_init_for_space(
 
 	index->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
-	dict_index_add_to_cache(table, index, FSP_IBUF_TREE_ROOT_PAGE_NO);
+	error = dict_index_add_to_cache(table, index,
+					FSP_IBUF_TREE_ROOT_PAGE_NO);
+	ut_a(error == DB_SUCCESS);
 
 	data->index = dict_table_get_first_index(table);
 
