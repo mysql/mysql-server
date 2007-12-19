@@ -41,6 +41,7 @@ struct __toku_db_env_internal {
     u_int32_t open_flags;
     int open_mode;
     void (*errcall) (const char *, char *);
+    void *errfile;
     char *errpfx;
     char *dir;                  /* A malloc'd copy of the directory. */
     char *tmp_dir;
@@ -365,6 +366,10 @@ static void toku_db_env_set_errcall(DB_ENV * env, void (*errcall) (const char *,
     env->i->errcall = errcall;
 }
 
+static void toku_db_env_set_errfile(DB_ENV*env, FILE*errfile) {
+    env->i->errfile = errfile;
+}
+
 static void toku_db_env_set_errpfx(DB_ENV * env, const char *errpfx) {
     if (env->i->errpfx)
         toku_free(env->i->errpfx);
@@ -457,6 +462,7 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->txn_checkpoint = toku_db_env_txn_checkpoint;
     result->log_flush = toku_db_env_log_flush;
     result->set_errcall = toku_db_env_set_errcall;
+    result->set_errfile = toku_db_env_set_errfile;
     result->set_errpfx = toku_db_env_set_errpfx;
     //result->set_noticecall = toku_db_env_set_noticecall;
     result->set_flags = toku_db_env_set_flags;
@@ -484,6 +490,7 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->i->ref_count = 1;
     result->i->errcall = toku_default_errcall;
     result->i->errpfx = toku_strdup("");
+    result->i->errfile = 0;
 
     ydb_add_ref();
     *envp = result;
@@ -1259,6 +1266,11 @@ error_cleanup:
     return r;
 }
 
+static void do_error (DB_ENV *dbenv, const char *string) {
+    if (dbenv->i->errfile)
+	fprintf(dbenv->i->errfile, "%s\n", string);
+}
+
 static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
 
@@ -1298,6 +1310,7 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
             if (r == 0)
                 return DB_KEYEXIST;
 #else
+	    do_error(db->dbenv, "Tokudb requires that db->put specify DB_YESOVERWRITE or DB_NOOVERWRITE on DB_DUPSORT databases");
             return EINVAL;
 #endif
         }
@@ -1396,6 +1409,10 @@ static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *,
     return r;
 }
 
+static void toku_db_set_errfile (DB*db, FILE *errfile) {
+    db->dbenv->set_errfile(db->dbenv, errfile);
+}
+
 static int toku_db_set_flags(DB * db, u_int32_t flags) {
 
     /* the following matches BDB */
@@ -1488,6 +1505,7 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->rename = toku_db_rename;
     result->set_bt_compare = toku_db_set_bt_compare;
     result->set_dup_compare = toku_db_set_dup_compare;
+    result->set_errfile = toku_db_set_errfile;
     result->set_pagesize = toku_db_set_pagesize;
     result->set_flags = toku_db_set_flags;
     result->get_flags = toku_db_get_flags;

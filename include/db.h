@@ -190,16 +190,18 @@ struct __toku_db {
   int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=440 size=4, 64=bit offset=784 size=8 */
   void* __toku_dummy10[3];
   int (*set_dup_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=456 size=4, 64=bit offset=816 size=8 */
-  void* __toku_dummy11[5];
+  void* __toku_dummy11[2];
+  void (*set_errfile) (DB *, FILE*); /* 32-bit offset=468 size=4, 64=bit offset=840 size=8 */
+  void* __toku_dummy12[2];
   int (*set_flags) (DB *, u_int32_t); /* 32-bit offset=480 size=4, 64=bit offset=864 size=8 */
-  void* __toku_dummy12[6];
-  int (*set_pagesize) (DB *, u_int32_t); /* 32-bit offset=508 size=4, 64=bit offset=920 size=8 */
   void* __toku_dummy13[6];
+  int (*set_pagesize) (DB *, u_int32_t); /* 32-bit offset=508 size=4, 64=bit offset=920 size=8 */
+  void* __toku_dummy14[6];
   int (*stat) (DB *, void *, u_int32_t); /* 32-bit offset=536 size=4, 64=bit offset=976 size=8 */
-  void* __toku_dummy14[4];
+  void* __toku_dummy15[4];
   int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t); /* 32-bit offset=556 size=4, 64=bit offset=1016 size=8 */
-  void* __toku_dummy15[5]; /* Padding at the end */ 
-  char __toku_dummy16[16];  /* Padding at the end */ 
+  void* __toku_dummy16[5]; /* Padding at the end */ 
+  char __toku_dummy17[16];  /* Padding at the end */ 
 };
 struct __toku_db_txn_active {
   u_int32_t txnid; /* 32-bit offset=0 size=4, 64=bit offset=0 size=4 */
