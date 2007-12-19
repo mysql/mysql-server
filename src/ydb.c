@@ -53,6 +53,12 @@ struct __toku_db_env_internal {
     TOKULOGGER logger;
 };
 
+// Probably this do_error (which is dumb and stupid) should do something consistent with do_env_err.
+static void do_error (DB_ENV *dbenv, const char *string) {
+    if (dbenv->i->errfile)
+	fprintf(dbenv->i->errfile, "%s\n", string);
+}
+
 static void toku_db_env_err(const DB_ENV * env __attribute__ ((__unused__)), int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -272,6 +278,7 @@ static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int
 
 
     if (!(flags & DB_PRIVATE)) {
+	fprintf(stderr, "tokudb requires DB_PRIVATE\n");
         // This means that we don't have to do anything with shared memory.  
         // And that's good enough for mysql. 
         return EINVAL; 
@@ -1264,11 +1271,6 @@ error_cleanup:
         db->i->full_fname = NULL;
     }
     return r;
-}
-
-static void do_error (DB_ENV *dbenv, const char *string) {
-    if (dbenv->i->errfile)
-	fprintf(dbenv->i->errfile, "%s\n", string);
 }
 
 static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
