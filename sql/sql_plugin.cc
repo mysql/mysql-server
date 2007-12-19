@@ -1421,6 +1421,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
 #endif
     case ';':
       name.str[name.length]= '\0';
+      pthread_mutex_lock(&LOCK_plugin);
       if (str != &dl)  // load all plugins in named module
       {
         dl= name;
@@ -1444,6 +1445,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
         if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
           goto error;
       }
+      pthread_mutex_unlock(&LOCK_plugin);
       name.length= dl.length= 0;
       dl.str= NULL; name.str= p= buffer;
       str= &name;
@@ -1463,6 +1465,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
   }
   DBUG_RETURN(FALSE);
 error:
+  pthread_mutex_unlock(&LOCK_plugin);
   sql_print_error("Couldn't load plugin named '%s' with soname '%s'.",
                   name.str, dl.str);
   DBUG_RETURN(TRUE);
