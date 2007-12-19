@@ -121,17 +121,6 @@ innobase_get_charset(
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************
-Copies fields contained in index2 to index1. */
-static
-void
-dict_index_copy(
-/*============*/
-	dict_index_t*	index1,	/* in: index to copy to */
-	dict_index_t*	index2,	/* in: index to copy from */
-	dict_table_t*	table,	/* in: table */
-	ulint		start,	/* in: first position to copy */
-	ulint		end);	/* in: last position to copy */
-/***********************************************************************
 Tries to find column names for the index and sets the col field of the
 index. */
 static
@@ -147,11 +136,12 @@ static
 dict_index_t*
 dict_index_build_internal_clust(
 /*============================*/
-				/* out, own: the internal representation
-				of the clustered index */
-	dict_table_t*	table,	/* in: table */
-	dict_index_t*	index);	/* in: user representation of a clustered
-				index */
+					/* out, own: the internal
+					representation of the clustered
+					index */
+	const dict_table_t*	table,	/* in: table */
+	dict_index_t*		index);	/* in: user representation of
+					a clustered index */
 /***********************************************************************
 Builds the internal dictionary cache representation for a non-clustered
 index, containing also system fields not defined by the user. */
@@ -159,11 +149,12 @@ static
 dict_index_t*
 dict_index_build_internal_non_clust(
 /*================================*/
-				/* out, own: the internal representation
-				of the non-clustered index */
-	dict_table_t*	table,	/* in: table */
-	dict_index_t*	index);	/* in: user representation of a non-clustered
-				index */
+					/* out, own: the internal
+					representation of the non-clustered
+					index */
+	const dict_table_t*	table,	/* in: table */
+	dict_index_t*		index);	/* in: user representation of
+					a non-clustered index */
 /**************************************************************************
 Removes a foreign constraint struct from the dictionary cache. */
 static
@@ -1438,11 +1429,11 @@ static
 void
 dict_index_copy(
 /*============*/
-	dict_index_t*	index1,	/* in: index to copy to */
-	dict_index_t*	index2,	/* in: index to copy from */
-	dict_table_t*	table,	/* in: table */
-	ulint		start,	/* in: first position to copy */
-	ulint		end)	/* in: last position to copy */
+	dict_index_t*		index1,	/* in: index to copy to */
+	dict_index_t*		index2,	/* in: index to copy from */
+	const dict_table_t*	table,	/* in: table */
+	ulint			start,	/* in: first position to copy */
+	ulint			end)	/* in: last position to copy */
 {
 	dict_field_t*	field;
 	ulint		i;
@@ -1516,11 +1507,12 @@ static
 dict_index_t*
 dict_index_build_internal_clust(
 /*============================*/
-				/* out, own: the internal representation
-				of the clustered index */
-	dict_table_t*	table,	/* in: table */
-	dict_index_t*	index)	/* in: user representation of a clustered
-				index */
+					/* out, own: the internal
+					representation of the clustered
+					index */
+	const dict_table_t*	table,	/* in: table */
+	dict_index_t*		index)	/* in: user representation of
+					a clustered index */
 {
 	dict_index_t*	new_index;
 	dict_field_t*	field;
@@ -1625,7 +1617,7 @@ dict_index_build_internal_clust(
 	/* Remember the table columns already contained in new_index */
 	indexed = mem_zalloc(table->n_cols * sizeof *indexed);
 
-	/* Mark with 0 the table columns already contained in new_index */
+	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
 
 		field = dict_index_get_nth_field(new_index, i);
@@ -1668,11 +1660,12 @@ static
 dict_index_t*
 dict_index_build_internal_non_clust(
 /*================================*/
-				/* out, own: the internal representation
-				of the non-clustered index */
-	dict_table_t*	table,	/* in: table */
-	dict_index_t*	index)	/* in: user representation of a non-clustered
-				index */
+					/* out, own: the internal
+					representation of the non-clustered
+					index */
+	const dict_table_t*	table,	/* in: table */
+	dict_index_t*		index)	/* in: user representation of
+					a non-clustered index */
 {
 	dict_field_t*	field;
 	dict_index_t*	new_index;
@@ -1710,7 +1703,7 @@ dict_index_build_internal_non_clust(
 	/* Remember the table columns already contained in new_index */
 	indexed = mem_zalloc(table->n_cols * sizeof *indexed);
 
-	/* Mark with 0 table columns already contained in new_index */
+	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
 
 		field = dict_index_get_nth_field(new_index, i);
