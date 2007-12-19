@@ -35,4 +35,10 @@
 #define DIH_SWITCH_PRIMARY_MUTEX 1
 #define BACKUP_DEFINE_MUTEX      1
 
+/**
+ * This rw lock is ued by DIH to serialize LCP/COPY TABREQ/CREATE FRAG REQ
+ */
+#define DIH_FRAGMENT_INFO 2
+
+
 #endif
