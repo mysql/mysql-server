@@ -149,7 +149,7 @@ my $opt_mtr_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 
 my $opt_record;
 my $opt_report_features;
-my $opt_check_testcases;
+our $opt_check_testcases;
 my $opt_mark_progress;
 
 my $opt_sleep;
@@ -2123,6 +2123,7 @@ sub do_before_run_mysqltest($)
 sub run_check_testcase_all($$)
 {
   my ($tinfo, $mode)= @_;
+  my $result;
 
   foreach my $mysqld ( mysqlds() )
   {
@@ -2132,9 +2133,11 @@ sub run_check_testcase_all($$)
       {
 	# Check failed, mark the test case with that info
 	$tinfo->{'check_testcase_failed'}= 1;
+	$result= 1;
       }
     }
   }
+  return $result;
 }
 
 
@@ -2323,7 +2326,12 @@ sub run_testcase ($) {
 
 	if ( $opt_check_testcases )
 	{
-	  run_check_testcase_all($tinfo, "after");
+	  if (run_check_testcase_all($tinfo, "after"))
+	  {
+	    # Stop all servers that are known to be running
+	    stop_all_servers();
+	    mtr_report("Resuming tests...\n");
+	  }
 	}
       }
       elsif ( $res == 62 )
@@ -2602,7 +2610,8 @@ sub mysqld_arguments ($$$) {
   }
 
   # Check if "extra_opt" contains skip-log-bin
-  my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/, @$extra_opt, @opt_extra_mysqld_opt);
+  my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/,
+			@$extra_opt, @opt_extra_mysqld_opt);
 
   if ( $opt_debug )
   {
