@@ -489,16 +489,6 @@ row_check_table_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
 #endif /* !UNIV_HOTBACKUP */
-/*************************************************************************
-Create query graph for a index creation */
-
-ulint
-row_create_index_graph_for_mysql(
-/*=============================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: trx */
-	dict_table_t*	table,		/* in: table */
-	dict_index_t*	index);		/* in: index */
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
