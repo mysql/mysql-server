@@ -52,20 +52,26 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (t timestamp)/*!*/;
+create table t1 (t timestamp)
+/*!*/;
 SET TIMESTAMP=100000000/*!*/;
-create table t2 (t char(32))/*!*/;
+create table t2 (t char(32))
+/*!*/;
 SET TIMESTAMP=100000000/*!*/;
 SET @@session.time_zone='Europe/Moscow'/*!*/;
-insert into t1 values ('20050101000000'), ('20050611093902')/*!*/;
+insert into t1 values ('20050101000000'), ('20050611093902')
+/*!*/;
 SET TIMESTAMP=100000000/*!*/;
 SET @@session.time_zone='UTC'/*!*/;
-insert into t1 values ('20040101000000'), ('20040611093902')/*!*/;
+insert into t1 values ('20040101000000'), ('20040611093902')
+/*!*/;
 SET TIMESTAMP=100000000/*!*/;
-delete from t1/*!*/;
+delete from t1
+/*!*/;
 SET TIMESTAMP=100000000/*!*/;
 SET @@session.time_zone='Europe/Moscow'/*!*/;
-insert into t1 values ('20040101000000'), ('20040611093902')/*!*/;
+insert into t1 values ('20040101000000'), ('20040611093902')
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
