@@ -120,8 +120,7 @@ static int check_max_delayed_threads(THD *thd, set_var *var);
 static void fix_thd_mem_root(THD *thd, enum_var_type type);
 static void fix_trans_mem_root(THD *thd, enum_var_type type);
 static void fix_server_id(THD *thd, enum_var_type type);
-static ulonglong fix_unsigned(THD *thd, ulonglong num,
-                              const struct my_option *option_limits);
+static ulonglong fix_unsigned(THD *, ulonglong, const struct my_option *);
 static bool get_unsigned(THD *thd, set_var *var);
 static void throw_bounds_warning(THD *thd, const char *name, ulonglong num);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
@@ -1178,8 +1177,10 @@ bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
 
 void sys_var_long_ptr_global::set_default(THD *thd, enum_var_type type)
 {
+  bool not_used;
   pthread_mutex_lock(guard);
-  *value= (ulong) option_limits->def_value;
+  *value= (ulong) getopt_ull_limit_value((ulong) option_limits->def_value,
+                                         option_limits, &not_used);
   pthread_mutex_unlock(guard);
 }
 
@@ -1199,8 +1200,10 @@ bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 
 void sys_var_ulonglong_ptr::set_default(THD *thd, enum_var_type type)
 {
+  bool not_used;
   pthread_mutex_lock(&LOCK_global_system_variables);
-  *value= (ulonglong) option_limits->def_value;
+  *value= getopt_ull_limit_value((ulonglong) option_limits->def_value,
+                                 option_limits, &not_used);
   pthread_mutex_unlock(&LOCK_global_system_variables);
 }
 
@@ -1277,8 +1280,11 @@ void sys_var_thd_ulong::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
   {
+    bool not_used;
     /* We will not come here if option_limits is not set */
-    global_system_variables.*offset= (ulong) option_limits->def_value;
+    global_system_variables.*offset=
+      getopt_ull_limit_value((ulong) option_limits->def_value,
+                             option_limits, &not_used);
   }
   else
     thd->variables.*offset= global_system_variables.*offset;
@@ -1321,9 +1327,12 @@ void sys_var_thd_ha_rows::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
   {
+    bool not_used;
     /* We will not come here if option_limits is not set */
     pthread_mutex_lock(&LOCK_global_system_variables);
-    global_system_variables.*offset= (ha_rows) option_limits->def_value;
+    global_system_variables.*offset=
+      (ha_rows) getopt_ull_limit_value((ha_rows) option_limits->def_value,
+                                       option_limits, &not_used);
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
   else
@@ -1370,8 +1379,11 @@ void sys_var_thd_ulonglong::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
   {
+    bool not_used;
     pthread_mutex_lock(&LOCK_global_system_variables);
-    global_system_variables.*offset= (ulonglong) option_limits->def_value;
+    global_system_variables.*offset=
+      getopt_ull_limit_value((ulonglong) option_limits->def_value,
+                             option_limits, &not_used);
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
   else
