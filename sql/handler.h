@@ -1674,22 +1674,6 @@ public:
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
 
- /** These are only called from sql_select for internal temporary tables */
-  virtual int write_row(uchar *buf __attribute__((unused)))
-  {
-    return HA_ERR_WRONG_COMMAND;
-  }
-
-  virtual int update_row(const uchar *old_data __attribute__((unused)),
-                         uchar *new_data __attribute__((unused)))
-  {
-    return HA_ERR_WRONG_COMMAND;
-  }
-
-  virtual int delete_row(const uchar *buf __attribute__((unused)))
-  {
-    return HA_ERR_WRONG_COMMAND;
-  }
   /**
     use_hidden_primary_key() is called in case of an update/delete when
     (table_flags() and HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) is defined
@@ -1721,6 +1705,21 @@ private:
   */
   virtual int rnd_init(bool scan)= 0;
   virtual int rnd_end() { return 0; }
+  virtual int write_row(uchar *buf __attribute__((unused)))
+  {
+    return HA_ERR_WRONG_COMMAND;
+  }
+
+  virtual int update_row(const uchar *old_data __attribute__((unused)),
+                         uchar *new_data __attribute__((unused)))
+  {
+    return HA_ERR_WRONG_COMMAND;
+  }
+
+  virtual int delete_row(const uchar *buf __attribute__((unused)))
+  {
+    return HA_ERR_WRONG_COMMAND;
+  }
   /**
     Reset state of file to after 'open'.
     This function is called after every statement for all tables used
