@@ -1424,6 +1424,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   String non_existant_views;
   char *wrong_object_db= NULL, *wrong_object_name= NULL;
   bool error= FALSE;
+  bool some_views_deleted= FALSE;
+  bool something_wrong= FALSE;
 
   VOID(pthread_mutex_lock(&LOCK_open));
   for (view= views; view; view= view->next_local)
@@ -1462,33 +1464,37 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     }
     if (my_delete(path, MYF(MY_WME)))
       error= TRUE;
+    some_views_deleted= TRUE;
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
   }
-  if (mysql_bin_log.is_open())
+
+  if (wrong_object_name)
   {
-    thd->clear_error();
+    my_error(ER_WRONG_OBJECT, MYF(0), wrong_object_db, wrong_object_name, 
+             "VIEW");
+  }
+  if (non_existant_views.length())
+  {
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
+  }
+
+  something_wrong= error || wrong_object_name || non_existant_views.length();
+  if (some_views_deleted || !something_wrong)
+  {
+    if (!something_wrong)
+      thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
     mysql_bin_log.write(&qinfo);
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
 
-  if (error)
+  if (something_wrong)
   {
     DBUG_RETURN(TRUE);
   }
-  if (wrong_object_name)
-  {
-    my_error(ER_WRONG_OBJECT, MYF(0), wrong_object_db, wrong_object_name, 
-             "VIEW");
-    DBUG_RETURN(TRUE);
-  }
-  if (non_existant_views.length())
-  {
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
-    DBUG_RETURN(TRUE);
-  }
+
   send_ok(thd);
   DBUG_RETURN(FALSE);
 }
