@@ -28,6 +28,9 @@ int main() {
     int do_private;
 
     for (do_private=0; do_private<2; do_private++) {
+#ifdef USE_TDB
+	if (do_private==0) continue; // See #208.
+#endif
 	int private_flags = do_private ? DB_PRIVATE : 0;
 	
 	system("rm -rf " DIR);
@@ -42,6 +45,7 @@ int main() {
 	r = db_env_create(&dbenv, 0);
 	CKERR(r);
 	r = dbenv->open(dbenv, DIR, private_flags|DB_INIT_MPOOL, 0);
+	if (r!=ENOENT) printf("%s:%d %d: %s\n", __FILE__, __LINE__, r,db_strerror(r));
 	assert(r==ENOENT);
 	dbenv->close(dbenv,0); // free memory
     }
