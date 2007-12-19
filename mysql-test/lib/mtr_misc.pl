@@ -49,7 +49,7 @@ sub mtr_native_path($)
     if ($::mysql_version_id < 50000);
 
   $path=~ s/\//\\/g
-    if ($::glob_win32);
+    if ($::is_win32);
   return $path;
 }
 
@@ -72,7 +72,7 @@ sub mtr_add_arg ($$@) {
 
   # Quote args if args contain space
   $format= "\"$format\""
-    if ($::glob_win32 and grep(/\s/, @fargs));
+    if ($::is_win32 and grep(/\s/, @fargs));
 
   push(@$args, sprintf($format, @fargs));
 }
@@ -111,7 +111,7 @@ sub mtr_path_exists (@) {
 sub mtr_script_exists (@) {
   foreach my $path ( @_ )
   {
-    if($::glob_win32)
+    if($::is_win32)
     {
       return $path if -f $path;
     }
@@ -151,10 +151,10 @@ sub mtr_file_exists (@) {
 sub mtr_exe_maybe_exists (@) {
   my @path= @_;
 
-  map {$_.= ".exe"} @path if $::glob_win32;
+  map {$_.= ".exe"} @path if $::is_win32;
   foreach my $path ( @path )
   {
-    if($::glob_win32)
+    if($::is_win32)
     {
       return $path if -f $path;
     }
