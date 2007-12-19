@@ -89,6 +89,16 @@ public:
   uint          field_index;            // field number in fields array
   uint16	flags;
   uchar		null_bit;		// Bit used to test null bit
+  /**
+     If true, this field was created in create_tmp_field_from_item from a NULL
+     value. This means that the type of the field is just a guess, and the type
+     may be freely coerced to another type.
+
+     @see create_tmp_field_from_item
+     @see Item_type_holder::get_real_type
+
+   */
+  bool is_created_from_null_item;
 
   Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,uchar null_bit_arg,
 	utype unireg_check_arg, const char *field_name_arg,
