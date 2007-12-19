@@ -34,6 +34,48 @@ static Uint32 get_part_id(const NdbDictionary::Table *table,
 extern const char * g_connect_string;
 extern BaseString g_options;
 
+bool BackupRestore::m_reserve_tail_spaces = false;
+
+const PromotionRules 
+BackupRestore::m_allowed_promotion_attrs[] = {
+  {NDBCOL::Char,           NDBCOL::Char,           check_compat_common,     convert_char_char},
+  {NDBCOL::Varchar,        NDBCOL::Varchar,        check_compat_common,     convert_var_var},
+  {NDBCOL::Longvarchar,    NDBCOL::Longvarchar,    check_compat_common,     convert_longvar_longvar},
+  {NDBCOL::Varchar,        NDBCOL::Longvarchar,    check_compat_common,     convert_var_longvar},
+  {NDBCOL::Varbinary,      NDBCOL::Varbinary,      check_compat_common,     convert_var_var},
+  {NDBCOL::Longvarbinary,  NDBCOL::Longvarbinary,  check_compat_common,     convert_longvar_longvar},
+  {NDBCOL::Varbinary,      NDBCOL::Longvarbinary,  check_compat_common,     convert_var_longvar},
+  {NDBCOL::Binary,         NDBCOL::Binary,         check_compat_common,     convert_binary_binary},
+  {NDBCOL::Char,           NDBCOL::Varchar,        check_compat_common,     convert_char_varchar},
+  {NDBCOL::Char,           NDBCOL::Longvarchar,    check_compat_common,     convert_char_longvarchar},  
+  {NDBCOL::Binary,         NDBCOL::Varbinary,      check_compat_common,     convert_binary_varbinary},
+  {NDBCOL::Binary,         NDBCOL::Longvarbinary,  check_compat_common,     convert_binary_longvarbinary},
+  {NDBCOL::Bit,            NDBCOL::Bit,            check_compat_common,     convert_bit_bit},
+
+  {NDBCOL::Tinyint,        NDBCOL::Smallint,       check_compat_alwaystrue, convert_int8_int16},
+  {NDBCOL::Tinyint,        NDBCOL::Mediumint,      check_compat_alwaystrue, convert_int8_int24},
+  {NDBCOL::Tinyint,        NDBCOL::Int,            check_compat_alwaystrue, convert_int8_int32},
+  {NDBCOL::Tinyint,        NDBCOL::Bigint,         check_compat_alwaystrue, convert_int8_int64},
+  {NDBCOL::Smallint,       NDBCOL::Mediumint,      check_compat_alwaystrue, convert_int16_int24},
+  {NDBCOL::Smallint,       NDBCOL::Int,            check_compat_alwaystrue, convert_int16_int32},
+  {NDBCOL::Smallint,       NDBCOL::Bigint,         check_compat_alwaystrue, convert_int16_int64},
+  {NDBCOL::Mediumint,      NDBCOL::Int,            check_compat_alwaystrue, convert_int24_int32},
+  {NDBCOL::Mediumint,      NDBCOL::Bigint,         check_compat_alwaystrue, convert_int24_int64},
+  {NDBCOL::Int,            NDBCOL::Bigint,         check_compat_alwaystrue, convert_int32_int64},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Smallunsigned,  check_compat_alwaystrue, convert_uint8_uint16},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Mediumunsigned, check_compat_alwaystrue, convert_uint8_uint24},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Unsigned,       check_compat_alwaystrue, convert_uint8_uint32},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Bigunsigned,    check_compat_alwaystrue, convert_uint8_uint64},
+  {NDBCOL::Smallunsigned,  NDBCOL::Mediumunsigned, check_compat_alwaystrue, convert_uint16_uint24},
+  {NDBCOL::Smallunsigned,  NDBCOL::Unsigned,       check_compat_alwaystrue, convert_uint16_uint32},
+  {NDBCOL::Smallunsigned,  NDBCOL::Bigunsigned,    check_compat_alwaystrue, convert_uint16_uint64},
+  {NDBCOL::Mediumunsigned, NDBCOL::Unsigned,       check_compat_alwaystrue, convert_uint24_uint32},
+  {NDBCOL::Mediumunsigned, NDBCOL::Bigunsigned,    check_compat_alwaystrue, convert_uint24_uint64},
+  {NDBCOL::Unsigned,       NDBCOL::Bigunsigned,    check_compat_alwaystrue, convert_uint32_uint64},
+
+  {NDBCOL::Undefined,      NDBCOL::Undefined,      NULL,                     NULL}
+};
+
 bool
 BackupRestore::init()
 {
@@ -852,6 +894,122 @@ BackupRestore::table_equal(const TableS &tableS)
 }
 
 bool
+BackupRestore::table_compatible_check(const TableS & tableS)
+{
+  if (!m_promote_attributes)
+    return true;
+  const char *tablename = tableS.getTableName();
+
+  if(tableS.m_dictTable == NULL){
+    ndbout<<"Table %s has no m_dictTable " << tablename << endl;
+    return false;
+  }
+  /**
+   * Ignore blob tables
+   */
+  if(match_blob(tablename) >= 0)
+    return true;
+
+  const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* tableS.m_dictTable);
+  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined){
+    return true;
+  }
+
+  BaseString tmp(tablename);
+  Vector<BaseString> split;
+  if(tmp.split(split, "/") != 3){
+    err << "Invalid table name format " << tablename << endl;
+    return false;
+  }
+  m_ndb->setDatabaseName(split[0].c_str());
+  m_ndb->setSchemaName(split[1].c_str());
+
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+  const NdbDictionary::Table* tab = dict->getTable(split[2].c_str());
+  if(tab == 0){
+    err << "Unable to find table: " << split[2].c_str() << endl;
+    return false;
+  }
+
+  //The first stage only allows to restore fully compatible tables.
+  if(tab->getNoOfColumns() != tableS.m_dictTable->getNoOfColumns())
+  {
+    ndbout_c("m_columns.size %d != %d",tab->getNoOfColumns(),
+                       tableS.m_dictTable->getNoOfColumns());
+    return false;
+  }
+ 
+  const NDBCOL * col_in_kernel = NULL, * col_in_backup = NULL;
+  AttrCheckCompatFunc attrCheckCompatFunc = NULL;
+
+  for(int i = 0; i<tableS.m_dictTable->getNoOfColumns(); i++)
+  {
+    AttributeDesc  * attr_desc = tableS.getAttributeDesc(i);
+    col_in_kernel = tab->getColumn(i);
+    col_in_backup = tableS.m_dictTable->getColumn(i);
+
+    if(col_in_kernel->equal(*col_in_backup))
+    {
+      continue;
+    }
+    else
+    {
+      NDBCOL::Type type_in_backup = col_in_backup->getType();
+      NDBCOL::Type type_in_kernel = col_in_kernel->getType();
+      attrCheckCompatFunc = get_attr_check_compatability(type_in_backup, type_in_kernel);
+      if (attrCheckCompatFunc &&
+          attrCheckCompatFunc(*col_in_backup, *col_in_kernel))
+      {
+        attr_desc->convertFunc = get_convert_func(type_in_backup, type_in_kernel);
+        Uint32 m_attrSize = NdbColumnImpl::getImpl(*col_in_kernel).m_attrSize;
+        Uint32 m_arraySize = NdbColumnImpl::getImpl(*col_in_kernel).m_arraySize;
+
+        if (type_in_backup == NDBCOL::Char || 
+            type_in_backup == NDBCOL::Binary || 
+            type_in_backup == NDBCOL::Bit)
+        {
+          unsigned int size = sizeof(struct char_n_padding_struct) + 
+                              m_attrSize * m_arraySize;  
+          struct char_n_padding_struct *s = (struct char_n_padding_struct *) 
+                                            malloc(size +2);
+          if (!s)
+          {
+            err << "No more memory available!" << endl;
+            exitHandler();
+          } 
+          s->n_old = (attr_desc->size * attr_desc->arraySize) / 8;
+          s->n_new = m_attrSize * m_arraySize; 
+          memset(s->new_row, 0 , m_attrSize * m_arraySize + 2);
+          attr_desc->parameter = s;
+        }
+        else
+        {
+          unsigned int size = m_attrSize * m_arraySize; 
+          attr_desc->parameter = malloc(size + 2);
+          if (!attr_desc->parameter)
+          {
+            err << "No more memory available!" << endl;
+            exitHandler();
+          }
+
+          memset(attr_desc->parameter, 0, size + 2); 
+        }
+      }
+      else
+      {
+        err << "Table: "<< tablename << endl
+            << "  Column: " << col_in_backup->getName() << endl
+            << "  AttrId = " << i << endl
+            << "  Incompatible with kernel's" << endl;
+        return false; 
+      }
+    }
+  }
+
+  return true;  
+}
+
+bool
 BackupRestore::createSystable(const TableS & tables){
   if (!m_restore && !m_restore_meta && !m_restore_epoch)
     return true;
@@ -1275,6 +1433,21 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	if (j == 0 && tup.getTable()->have_auto_inc(i))
 	  tup.getTable()->update_max_auto_val(dataPtr,size*arraySize);
 	
+        if (m_promote_attributes && attr_desc->convertFunc)
+        {
+          if ((attr_desc->m_column->getPrimaryKey() && j == 0) ||
+              (j == 1 && !attr_data->null))
+          {
+
+            dataPtr = (char*)attr_desc->convertFunc(dataPtr, attr_desc->parameter);
+            if (!dataPtr)
+            {
+              err << "Error: Convert data failed when restoring tuples!" << endl;
+              exitHandler();
+            }
+          }            
+        }
+
 	if (attr_desc->m_column->getPrimaryKey())
 	{
 	  if (j == 1) continue;
@@ -1537,6 +1710,18 @@ BackupRestore::logEntry(const LogEntry & tup)
 
     const Uint32 length = (size / 8) * arraySize;
     n_bytes+= length;
+
+    if (m_promote_attributes && attr->Desc->convertFunc)
+    {
+      dataPtr = (char*)attr->Desc->convertFunc(dataPtr, attr->Desc->parameter);
+
+      if (!dataPtr)
+      {
+        err << "Error: Convert data failed when restoring tuples!" << endl;
+        exitHandler();
+      }            
+    } 
+ 
     if (attr->Desc->m_column->getPrimaryKey())
     {
       if(!keys.get(attr->Desc->attrId))
@@ -1614,6 +1799,531 @@ callback(int result, NdbTransaction* trans, void* aObject)
 {
   restore_callback_t *cb = (restore_callback_t *)aObject;
   (cb->restore)->cback(result, cb);
+}
+
+
+AttrCheckCompatFunc 
+BackupRestore::get_attr_check_compatability(const NDBCOL::Type &old_type, 
+                                            const NDBCOL::Type &new_type) 
+{
+  int i = 0;
+  NDBCOL::Type first_item = m_allowed_promotion_attrs[0].old_type;
+  NDBCOL::Type second_item = m_allowed_promotion_attrs[0].new_type;
+
+  while (first_item != old_type || second_item != new_type) 
+  {
+    if (first_item == NDBCOL::Undefined)
+      break;
+
+    i++;
+    first_item = m_allowed_promotion_attrs[i].old_type;
+    second_item = m_allowed_promotion_attrs[i].new_type;
+  }
+  if (first_item == old_type && second_item == new_type)
+    return m_allowed_promotion_attrs[i].attr_check_compatability;
+  return  NULL;
+}
+
+AttrConvertFunc
+BackupRestore::get_convert_func(const NDBCOL::Type &old_type, 
+                                const NDBCOL::Type &new_type) 
+{
+  int i = 0;
+  NDBCOL::Type first_item = m_allowed_promotion_attrs[0].old_type;
+  NDBCOL::Type second_item = m_allowed_promotion_attrs[0].new_type;
+
+  while (first_item != old_type || second_item != new_type)
+  {
+    if (first_item == NDBCOL::Undefined)
+      break;
+    i++;
+    first_item = m_allowed_promotion_attrs[i].old_type;
+    second_item = m_allowed_promotion_attrs[i].new_type;
+  }
+  if (first_item == old_type && second_item == new_type)
+    return m_allowed_promotion_attrs[i].attr_convert;
+
+  return  NULL;
+
+}
+
+bool
+BackupRestore::check_compat_alwaystrue(const NDBCOL &old_col,
+                                            const NDBCOL &new_col)
+{
+  return true;
+}
+
+bool 
+BackupRestore::check_compat_common(const NDBCOL &old_col, 
+                                        const NDBCOL &new_col)
+{
+  Uint32 new_attrSize = NdbColumnImpl::getImpl(new_col).m_attrSize;
+  Uint32 old_attrSize = NdbColumnImpl::getImpl(old_col).m_attrSize;
+  Uint32 new_arraySize = NdbColumnImpl::getImpl(new_col).m_arraySize;
+  Uint32 old_arraySize = NdbColumnImpl::getImpl(old_col).m_arraySize;
+  if ((new_attrSize >= old_attrSize) && (new_arraySize >= old_arraySize)) {
+    return true;
+  }
+
+  return false;
+};
+
+void *
+BackupRestore::convert_int8_int16(const void *old_data,
+                                  void *parameter)
+{
+  Int8 old_data8 = *(Int8 *) old_data;
+  Int16 new_data16 = old_data8;
+  memcpy(parameter, &new_data16, 2);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_int8_int24(const void *old_data,
+                                    void *parameter)
+{
+  Int8 old_data8 = *(Int8 *) old_data;
+  Int32 new_data24 = old_data8;
+  int3store((char*)parameter, new_data24);
+ 
+  return parameter; 
+}
+
+void *
+BackupRestore::convert_int8_int32(const void *old_data,
+                                  void *parameter)
+{
+  Int8 old_data8 = *(Int8 *) old_data;
+  Int32 new_data32 = old_data8;
+  
+  memcpy(parameter, &new_data32, 4);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_int8_int64(const void *old_data,
+                                  void *parameter)
+{
+  Int8 old_data8 = *(Int8 *) old_data;
+  Int64 new_data64 = old_data8;
+
+  memcpy(parameter, &new_data64, 8);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_int16_int24(const void *old_data,
+                                   void *parameter)
+{
+  Int16 old_data16 = 0;
+  Int32 new_data24 = 0;
+
+  memcpy(&old_data16, old_data, 2);
+  new_data24 = old_data16;
+
+  int3store((char*)parameter, new_data24);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_int16_int32(const void *old_data,
+                                   void *parameter)
+{
+  Int16 old_data16 = 0;
+  Int32 new_data32 = 0;
+  
+  memcpy(&old_data16, old_data, 2);
+  new_data32 = old_data16;
+
+  memcpy(parameter, &new_data32, 4);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_int16_int64(const void *old_data,
+                                   void *parameter)
+{
+  Int16 old_data16 = 0;
+  Int64 new_data64 = 0;
+
+  memcpy(&old_data16, old_data, 2);
+  new_data64 = old_data16;
+
+  memcpy(parameter, &new_data64, 8);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_int24_int32(const void *old_data,
+                                   void *parameter)
+{
+  Int32 old_data24 = sint3korr((char*)old_data);
+  Int32 new_data32 = old_data24;
+  
+  memcpy(parameter, &new_data32, 4);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_int24_int64(const void *old_data,
+                                   void *parameter)
+{
+  Int32 old_data24 = sint3korr((char*)old_data);
+  Int64 new_data64 = old_data24;
+
+  memcpy(parameter, &new_data64, 8);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_int32_int64(const void *old_data,
+                                   void *parameter)
+{
+  Int32 old_data32 = 0;
+  Int64 new_data64 = 0;
+
+  memcpy(&old_data32, old_data, 4);
+  new_data64 = old_data32;
+
+  memcpy(parameter, &new_data64, 8);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_uint8_uint16(const void *old_data,
+                                   void *parameter)
+{
+  Uint8 old_data8 = *(Uint8 *) old_data;
+  Uint16 new_data16 = old_data8;
+  memcpy(parameter, &new_data16, 2);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_uint8_uint24(const void *old_data,
+                                   void *parameter)
+{
+  Uint8 old_data8 = *(Uint8 *) old_data;
+  Uint32 new_data24 = old_data8;
+
+  int3store((char*)parameter, new_data24);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_uint8_uint32(const void *old_data,
+                                    void *parameter)
+{
+  Uint8 old_data8 = *(Uint8 *) old_data;
+  Uint32 new_data32 = old_data8;
+
+  memcpy(parameter, &new_data32, 4);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_uint8_uint64(const void *old_data,
+                                    void *parameter)
+{
+  Uint8 old_data8 = *(Uint8 *) old_data;
+  Uint64 new_data64 = old_data8;
+
+  memcpy(parameter, &new_data64, 8);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_uint16_uint24(const void *old_data,
+                                     void *parameter)
+{
+  Uint16 old_data16 = 0;
+  Uint32 new_data24 = 0;
+
+  memcpy(&old_data16, old_data, 2);
+  new_data24 = old_data16;
+
+  int3store((char*)parameter, new_data24);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_uint16_uint32(const void *old_data,
+                                     void *parameter)
+{
+  Uint16 old_data16 = 0;
+  Uint32 new_data32 = 0;
+
+  memcpy(&old_data16, old_data, 2);
+  new_data32 = old_data16;
+
+  memcpy(parameter, &new_data32, 4);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_uint16_uint64(const void *old_data,
+                                     void *parameter)
+{
+  Uint16 old_data16 = 0;
+  Uint64 new_data64 = 0;
+
+  memcpy(&old_data16, old_data, 2);
+  new_data64 = old_data16;
+
+  memcpy(parameter, &new_data64, 8);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_uint24_uint32(const void *old_data,
+                                     void *parameter)
+{
+  Uint32 old_data24 = uint3korr((char*)old_data);
+  Uint32 new_data32 = old_data24; 
+
+  memcpy(parameter, &new_data32, 4);
+
+  return parameter; 
+}
+
+void *
+BackupRestore::convert_uint24_uint64(const void *old_data,
+                                     void *parameter)
+{
+  Uint32 old_data24 = uint3korr((char*)old_data);
+  Uint64 new_data64 = old_data24;
+
+  memcpy(parameter, &new_data64, 8);
+
+  return parameter;
+}
+
+void *
+BackupRestore::convert_uint32_uint64(const void *old_data,
+                                     void *parameter)
+{
+  Uint32 old_data32 = 0;
+  Uint64 new_data64 = 0;
+
+  memcpy(&old_data32, old_data, 4);
+  new_data64 = old_data32;
+
+  memcpy(parameter, &new_data64, 8);
+
+  return parameter;
+
+}
+
+void * 
+BackupRestore::convert_char_char(const void *old_data, 
+                                      void *parameter)
+{
+  if (!old_data || !parameter)
+    return NULL;
+  
+  struct char_n_padding_struct * padding_struct = 
+               (struct char_n_padding_struct * )parameter;
+  assert(padding_struct->n_new >= padding_struct->n_old);
+
+  Uint32 len = padding_struct->n_new - padding_struct->n_old;
+
+  memcpy(padding_struct->new_row, old_data, padding_struct->n_old);
+  memset(padding_struct->new_row + padding_struct->n_old, ' ', len);
+ 
+  return padding_struct->new_row;
+}
+
+void *
+BackupRestore::convert_binary_binary(const void *old_data,
+                                          void *parameter)
+{
+  if (!old_data || !parameter)
+    return NULL;
+ 
+  struct char_n_padding_struct * padding_struct = 
+                (struct char_n_padding_struct * )parameter;
+
+  assert(padding_struct->n_new >= padding_struct->n_old);
+ 
+  Uint32 len = padding_struct->n_new - padding_struct->n_old;
+
+  memcpy(padding_struct->new_row, old_data, padding_struct->n_old);
+  memset(padding_struct->new_row + padding_struct->n_old, 0x00, len);
+ 
+  return padding_struct->new_row;
+}
+
+void *
+BackupRestore::convert_char_varchar(const void *old_data,
+                                         void *parameter)
+{
+  if (!old_data || !parameter)
+    return NULL;
+ 
+  struct char_n_padding_struct * padding_struct = 
+                (struct char_n_padding_struct * )parameter;
+  assert(padding_struct->n_new >= padding_struct->n_old);
+ 
+  Uint32 len = padding_struct->n_old;
+
+  if (!m_reserve_tail_spaces)
+  {
+    while (len > 0 && ((char*)old_data)[len-1] == ' ')
+     len--;
+  }
+  padding_struct->new_row[0] = len & 0x000000FF;
+  memcpy(padding_struct->new_row + 1, old_data, len);
+  return padding_struct->new_row;
+}
+
+void *
+BackupRestore::convert_char_longvarchar(const void *old_data,
+                                         void *parameter)
+{
+  if (!old_data || !parameter)
+    return NULL;
+ 
+  struct char_n_padding_struct * padding_struct = 
+                (struct char_n_padding_struct * )parameter;
+  assert(padding_struct->n_new >= padding_struct->n_old);
+ 
+  Uint32 len = padding_struct->n_old;
+
+  if (!m_reserve_tail_spaces)
+  {
+    while (len > 0 && ((char*)old_data)[len-1] == ' ')
+     len--;
+  }
+  padding_struct->new_row[0] = len & 0x000000FF;
+  padding_struct->new_row[1] = (len & 0x0000FF00) >> 8;
+  memcpy(padding_struct->new_row + 2, old_data, len);
+ 
+  return padding_struct->new_row;
+}
+
+void *
+BackupRestore::convert_binary_varbinary(const void *old_data,
+                                             void *parameter)
+{
+  if (!old_data || !parameter)
+    return NULL;
+ 
+  struct char_n_padding_struct * padding_struct = 
+                (struct char_n_padding_struct * )parameter;
+  assert(padding_struct->n_new >= padding_struct->n_old);
+ 
+  Uint32 len = padding_struct->n_old;
+
+  if (!m_reserve_tail_spaces)
+  {
+    while (len > 0 && ((char*)old_data)[len-1] == 0x00)
+     len--;
+  }
+  padding_struct->new_row[0] = len & 0x000000FF;
+  memcpy(padding_struct->new_row + 1, old_data, len);
+ 
+  return padding_struct->new_row;
+}
+
+void *
+BackupRestore::convert_binary_longvarbinary(const void *old_data,
+                                             void *parameter)
+{
+  if (!old_data || !parameter)
+    return NULL;
+ 
+  struct char_n_padding_struct * padding_struct = 
+                (struct char_n_padding_struct * )parameter;
+  assert(padding_struct->n_new >= padding_struct->n_old);
+ 
+  Uint32 len = padding_struct->n_old;
+ 
+  if (!m_reserve_tail_spaces)
+  {
+    while (len > 0 && ((char*)old_data)[len-1] == 0x00)
+     len--;
+  }
+  padding_struct->new_row[0] = len & 0x000000FF;
+  padding_struct->new_row[1] = (len & 0x0000FF00) >> 8;
+  memcpy(padding_struct->new_row + 2, old_data, len);
+ 
+  return padding_struct->new_row;
+}
+
+void *
+BackupRestore::convert_bit_bit(const void *old_data,
+                                    void *parameter)
+{
+  if (!old_data || !parameter)
+    return NULL;
+ 
+  struct char_n_padding_struct * padding_struct = 
+                (struct char_n_padding_struct * )parameter;
+  assert(padding_struct->n_new >= padding_struct->n_old);
+
+  memset(padding_struct->new_row, 0, padding_struct->n_new); 
+  memcpy(padding_struct->new_row, old_data, padding_struct->n_old);
+
+  return padding_struct->new_row;
+}
+
+void *
+BackupRestore::convert_var_var(const void *old_data, 
+                                    void *parameter)
+{
+  if (!old_data || !parameter)
+    return NULL;
+  Uint32 len = ((unsigned char*)old_data)[0] + 1;
+ 
+  memcpy(parameter, old_data, len);
+ 
+  return parameter;
+}
+
+void *
+BackupRestore::convert_longvar_longvar(const void *old_data,
+                                    void *parameter)
+{
+  if (!old_data || !parameter)
+    return NULL;
+  Uint32 len = ((unsigned char*)old_data)[0] + (((unsigned char*)old_data)[1] << 8) + 2;
+  memcpy(parameter, old_data, len);
+ 
+  return parameter;
+}
+
+void *
+BackupRestore::convert_var_longvar(const void *old_data,
+                                    void *parameter)
+{
+
+  Uint32 length = 0;
+  if (!old_data || !parameter)
+    return NULL;
+ 
+  length = ((unsigned char *)old_data)[0];
+  memcpy((unsigned char*)parameter + 2, (unsigned char*)old_data + 1 , length);
+  ((char *)parameter)[0] = length & 0x000000FF;
+  ((char *)parameter)[1] = (length & 0x0000FF00) >> 8;
+
+  return parameter;
 }
 
 #if 0 // old tuple impl

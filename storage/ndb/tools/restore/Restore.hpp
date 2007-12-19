@@ -33,6 +33,13 @@ const int AttrNameLenC = 256;
 const Uint32 timeToWaitForNdbC = 10000;
 const Uint32 opsDefaultC = 1000;
 
+typedef NdbDictionary::Table NDBTAB;
+typedef NdbDictionary::Column NDBCOL;
+typedef  bool (*AttrCheckCompatFunc)(const NDBCOL &old_col,
+                                     const NDBCOL &new_col);
+typedef  void* (*AttrConvertFunc)(const void *old_data, 
+                                  void *parameter);
+
 // Forward declarations
 //class AttributeDesc;
 struct AttributeDesc;
@@ -74,6 +81,9 @@ struct AttributeDesc {
   NdbDictionary::Column *m_column;
 
   Uint32 m_nullBitIndex;
+
+  AttrConvertFunc convertFunc;
+  void *parameter;
 public:
   
   AttributeDesc(NdbDictionary::Column *column);
@@ -242,6 +252,10 @@ public:
    */
   const AttributeDesc * operator[](int attributeId) const { 
     return allAttributesDesc[attributeId]; 
+  }
+
+  AttributeDesc *getAttributeDesc(int attributeId) const {
+    return allAttributesDesc[attributeId];
   }
 
   bool getSysTable() const {

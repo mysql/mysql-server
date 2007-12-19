@@ -492,7 +492,11 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
 TableS::~TableS()
 {
   for (Uint32 i= 0; i < allAttributesDesc.size(); i++)
+  {
+    if (allAttributesDesc[i]->parameter)
+      free(allAttributesDesc[i]->parameter);
     delete allAttributesDesc[i];
+  }
 }
 
 
@@ -1155,6 +1159,8 @@ void TableS::createAttr(NdbDictionary::Column *column)
     abort();
   }
   d->attrId = allAttributesDesc.size();
+  d->convertFunc = NULL;
+  d->parameter = NULL;
   allAttributesDesc.push_back(d);
 
   if (d->m_column->getAutoIncrement())

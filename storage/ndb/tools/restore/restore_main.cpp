@@ -35,6 +35,7 @@ static int ga_nParallelism = 128;
 static int ga_backupId = 0;
 static bool ga_dont_ignore_systab_0 = false;
 static bool ga_no_upgrade = false;
+static bool ga_promote_attributes = false;
 static Vector<class BackupConsumer *> g_consumers;
 static BackupPrinter* g_printer = NULL;
 
@@ -72,6 +73,7 @@ static int _print_log = 0;
 static int _restore_data = 0;
 static int _restore_meta = 0;
 static int _no_restore_disk = 0;
+static bool _reserve_tail_spaces = false;
 BaseString g_options("ndb_restore");
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
@@ -122,6 +124,14 @@ static struct my_option my_long_options[] =
   { "no-upgrade", 'u',
     "Don't upgrade array type for var attributes, which don't resize VAR data and don't change column attributes",
     (uchar**) &ga_no_upgrade, (uchar**) &ga_no_upgrade, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "promote-attributes", 'A',
+    "Allow attributes to be promoted when restoring data from backup",
+    (uchar**) &ga_promote_attributes, (uchar**) &ga_promote_attributes, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "reserve_tail_spaces", 'R',
+    "Allow to reserve the tailing spaces (including paddings) When char->varchar or binary->varbinary is promoted",
+    (uchar**) &_reserve_tail_spaces, (uchar**)_reserve_tail_spaces , 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-restore-disk-objects", 'd',
     "Dont restore disk objects (tablespace/logfilegroups etc)",
@@ -477,6 +487,16 @@ o verify nodegroup mapping
      restore->m_no_upgrade = true;
   }
 
+  if (ga_promote_attributes)
+  {
+     restore->m_promote_attributes = true;
+  }
+
+  if (_reserve_tail_spaces)
+  {
+     restore->m_reserve_tail_spaces = true;
+  }
+
   if (ga_restore_epoch)
   {
     restore->m_restore_epoch = true;
@@ -694,6 +714,10 @@ main(int argc, char** argv)
     g_options.appfmt(" -m");
   if (ga_no_upgrade)
     g_options.appfmt(" -u");
+  if (ga_promote_attributes)
+    g_options.appfmt(" -A");
+  if (_reserve_tail_spaces)
+    g_options.appfmt(" -R");
   if (ga_skip_table_check)
     g_options.appfmt(" -s");
   if (_restore_data)
@@ -887,8 +911,10 @@ main(int argc, char** argv)
   {
     if(_restore_data || _print_data)
     {
-      if (!ga_skip_table_check){
-        for(i=0; i < metaData.getNoOfTables(); i++){
+      if (!ga_skip_table_check && !ga_promote_attributes)
+      {
+        for(i=0; i < metaData.getNoOfTables(); i++)
+        {
           if (checkSysTable(metaData, i))
           {
             for(Uint32 j= 0; j < g_consumers.size(); j++)
@@ -898,6 +924,24 @@ main(int argc, char** argv)
                 err << metaData[i]->getTableName() << " table structure doesn't match backup ... Exiting " << endl;
                 exitHandler(NDBT_FAILED);
               }
+          }
+        }
+      }
+      if (ga_promote_attributes)
+      { 
+      //if want to promote attributes, compability check is done firstly
+        for (i=0; i < metaData.getNoOfTables(); i++){
+          if (checkSysTable(metaData, i))
+          {
+            for(Uint32 j= 0; j < g_consumers.size(); j++)
+            {
+              if (!g_consumers[j]->table_compatible_check(*metaData[i]))
+              {
+                 err << "Restore: Failed to restore data, ";
+                 err << metaData[i]->getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
+                 exitHandler(NDBT_FAILED);
+              } 
+            } 
           }
         }
       }
