@@ -1557,7 +1557,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
         {
           jam();
           infoEvent("Detecting upgrade: Master(%u) does not support parallel node recovery",
-                    refToNode(cmasterdifref));
+                    refToNode(cmasterdihref));
           sendSignal(cmasterdihref, GSN_START_COPYREQ, signal, 
                      StartCopyReq::SignalLength, JBB);
         }
