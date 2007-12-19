@@ -136,7 +136,7 @@ void sample_db_offsets (void) {
     STRUCT_SETUP(DB, rename,         "int (*%s) (DB *, const char *, const char *, const char *, u_int32_t)");
     STRUCT_SETUP(DB, set_bt_compare, "int (*%s) (DB *, int (*)(DB *, const DBT *, const DBT *))");
     STRUCT_SETUP(DB, set_dup_compare, "int (*%s) (DB *, int (*)(DB *, const DBT *, const DBT *))");
-    STRUCT_SETUP(DB, set_errfile, "void (*%s) (DB_ENV *, FILE*)");
+    STRUCT_SETUP(DB, set_errfile,    "void (*%s) (DB *, FILE*)");
     STRUCT_SETUP(DB, set_flags,      "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB, set_pagesize,   "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB, stat,           "int (*%s) (DB *, void *, u_int32_t)");
