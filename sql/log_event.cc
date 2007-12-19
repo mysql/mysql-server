@@ -7837,7 +7837,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     {
       DBUG_PRINT("info",("ha_index_init returns error %d",error));
       table->file->print_error(error, MYF(0));
-      DBUG_RETURN(error);
+      goto err;
     }
 
     /* Fill key data for the row */
@@ -7870,7 +7870,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       DBUG_PRINT("info",("no record matching the key found in the table"));
       table->file->print_error(error, MYF(0));
       table->file->ha_index_end();
-      DBUG_RETURN(error);
+      goto err;
     }
 
   /*
@@ -7898,7 +7898,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     if (table->key_info->flags & HA_NOSAME)
     {
       table->file->ha_index_end();
-      DBUG_RETURN(0);
+      goto ok;
     }
 
     /*
@@ -7930,7 +7930,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
         DBUG_PRINT("info",("no record matching the given row found"));
         table->file->print_error(error, MYF(0));
         table->file->ha_index_end();
-        DBUG_RETURN(error);
+        goto err;
       }
     }
 
@@ -7951,7 +7951,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       DBUG_PRINT("info",("error initializing table scan"
                          " (ha_rnd_init returns %d)",error));
       table->file->print_error(error, MYF(0));
-      DBUG_RETURN(error);
+      goto err;
     }
 
     /* Continue until we find the right record or have made a full loop */
@@ -7975,7 +7975,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
                             " (rnd_next returns %d)",error));
         table->file->print_error(error, MYF(0));
         table->file->ha_rnd_end();
-        DBUG_RETURN(error);
+        goto err;
       }
     }
     while (restart_count < 2 && record_compare(table));
@@ -7995,10 +7995,14 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     table->file->ha_rnd_end();
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == HA_ERR_RECORD_DELETED || error == 0);
-    DBUG_RETURN(error);
+    goto err;
   }
-
+ok:
+  table->default_column_bitmaps();
   DBUG_RETURN(0);
+err:
+  table->default_column_bitmaps();
+  DBUG_RETURN(error);
 }
 
 #endif
