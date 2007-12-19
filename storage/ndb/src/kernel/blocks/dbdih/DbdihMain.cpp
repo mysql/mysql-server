@@ -124,7 +124,7 @@ static
 Uint32
 nextLcpNo(Uint32 lcpNo){
   lcpNo++;
-  if(lcpNo == MAX_LCP_USED)
+  if(lcpNo >= MAX_LCP_USED)
     return 0;
   return lcpNo;
 }
@@ -1553,8 +1553,19 @@ void Dbdih::execNDB_STTOR(Signal* signal)
         req->senderData = RNIL;
         req->flags = StartCopyReq::WAIT_LCP;
         req->startingNodeId = getOwnNodeId();
-        sendSignal(reference(), GSN_START_COPYREQ, signal, 
-                   StartCopyReq::SignalLength, JBB);
+        if (!ndb_pnr(getNodeInfo(refToNode(cmasterdihref)).m_version))
+        {
+          jam();
+          infoEvent("Detecting upgrade: Master(%u) does not support parallel node recovery",
+                    refToNode(cmasterdifref));
+          sendSignal(cmasterdihref, GSN_START_COPYREQ, signal, 
+                     StartCopyReq::SignalLength, JBB);
+        }
+        else
+        {
+          sendSignal(reference(), GSN_START_COPYREQ, signal, 
+                     StartCopyReq::SignalLength, JBB);
+        }
       }
       return;
     }
@@ -2028,6 +2039,12 @@ void Dbdih::execSTART_COPYCONF(Signal* signal)
   Uint32 nodeId = conf->startingNodeId;
   Uint32 senderData = conf->senderData;
 
+  if (!ndb_pnr(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version))
+  {
+    jam();
+    senderData = RNIL;
+  }
+  
   if (senderData == RNIL)
   {
     /**
@@ -3136,7 +3153,6 @@ void Dbdih::execEND_TOREQ(Signal* signal)
 
   Uint32 nodeId = refToNode(req.senderRef);
   TakeOverRecordPtr takeOverPtr;
-  ndbrequire(findTakeOver(takeOverPtr, nodeId));
 
   if (ndb_pnr(getNodeInfo(nodeId).m_version))
   {
@@ -3144,6 +3160,7 @@ void Dbdih::execEND_TOREQ(Signal* signal)
     /**
      * 
      */
+    ndbrequire(findTakeOver(takeOverPtr, nodeId));
     NodeRecordPtr nodePtr;
     nodePtr.i = nodeId;
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
@@ -3162,9 +3179,9 @@ void Dbdih::execEND_TOREQ(Signal* signal)
       return;
     }
     nodePtr.p->copyCompleted = 1;
+    releaseTakeOver(takeOverPtr);
   }
   
-  releaseTakeOver(takeOverPtr);
   EndToConf * conf = (EndToConf *)&signal->theData[0];
   conf->senderData = req.senderData;
   conf->sendingNodeId = cownNodeId;
@@ -3196,6 +3213,12 @@ void Dbdih::execCREATE_FRAGREQ(Signal* signal)
   Uint32 replicaType = req->replicaType;
   Uint32 tFailedNodeId = req->failedNodeId;
 
+  if (!ndb_pnr(getNodeInfo(refToNode(senderRef)).m_version))
+  {
+    jam();
+    tFailedNodeId = tdestNodeid;
+  }
+  
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, fragId, fragPtr);
   RETURN_IF_NODE_NOT_ALIVE(tdestNodeid);
@@ -11145,8 +11168,15 @@ Dbdih::handle_invalid_lcp_no(const LcpFragRep* rep,
   Uint32 lcpNo = rep->lcpNo;
   Uint32 lcpId = rep->lcpId;
 
-  warningEvent("Detected previous node failure of %d during lcp",
-	       rep->nodeId);
+  if (!ndb_pnr(getNodeInfo(refToNode(cmasterdihref)).m_version))
+  {
+  }
+  else
+  {
+    warningEvent("Detected previous node failure of %d during lcp",
+                 rep->nodeId);
+  }
+  
   replicaPtr.p->nextLcp = lcpNo;
   replicaPtr.p->lcpId[lcpNo] = 0;
   replicaPtr.p->lcpStatus[lcpNo] = ZINVALID;
