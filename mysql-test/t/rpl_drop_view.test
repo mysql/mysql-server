@@ -1,0 +1,31 @@
+# test case for bug#30998
+# Drop View breaks replication if view does not exist
+#
+
+source include/master-slave.inc;
+--disable_warnings
+drop table if exists t1, t2;
+drop view if exists v1, v2, v3, not_exist_view;
+--enable_warnings
+create table t1 (a int);
+create table t2 (b int);
+create table t3 (c int);
+create view v1 as select * from t1;
+create view v2 as select * from t2;
+create view v3 as select * from t3;
+--error 1051
+drop view not_exist_view;
+--error 1051
+drop view v1, not_exist_view;
+--error 1146
+select * from v1;
+drop view v2, v3;
+save_master_pos;
+connection slave;
+sync_with_master;
+--error 1146
+select * from v1;
+--error 1146
+select * from v2;
+--error 1146
+select * from v3;

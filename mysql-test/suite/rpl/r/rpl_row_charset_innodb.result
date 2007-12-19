@@ -118,37 +118,49 @@ master-bin.000001	#	Query	#	#	create database mysqltest3
 master-bin.000001	#	Query	#	#	drop database mysqltest3
 master-bin.000001	#	Query	#	#	create database mysqltest3
 master-bin.000001	#	Query	#	#	use `mysqltest2`; create table t1 (a int auto_increment primary key, b varchar(100))engine=innodb
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Query	#	#	use `mysqltest2`; truncate table t1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Query	#	#	use `mysqltest2`; truncate table t1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `mysqltest2`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
