@@ -22,13 +22,15 @@ package My::Find;
 #
 
 use strict;
+use Carp;
 
 use base qw(Exporter);
 our @EXPORT= qw(my_find_bin my_find_dir);
 
 our $vs_config_dir;
 
-my $is_win= ($^O eq "MSWin32" or $^O eq "Win32");
+my $is_win= ($^O eq "MSWin32" or $^O eq "cygwin");
+my $bin_extension= ".exe" if $is_win;
 
 #
 # my_find_bin - find an executable with "name_1...name_n" in
@@ -47,13 +49,13 @@ my $is_win= ($^O eq "MSWin32" or $^O eq "Win32");
 #
 sub my_find_bin {
   my ($base, $paths, $names)= @_;
-  die "usage: my_find_bin(<base>, <paths>, <names>)"
+  croak "usage: my_find_bin(<base>, <paths>, <names>)"
     unless @_ == 3;
 
   # -------------------------------------------------------
   # Find and return the first executable
   # -------------------------------------------------------
-  foreach my $path (my_find_paths($base, $paths, $names)) {
+  foreach my $path (my_find_paths($base, $paths, $names, $bin_extension)) {
     return $path if ( -x $path or ($is_win and -f $path) );
   }
   find_error($base, $paths, $names);
@@ -78,7 +80,7 @@ sub my_find_bin {
 #
 sub my_find_dir {
   my ($base, $paths, $dirs)= @_;
-  die "usage: my_find_dir(<base>, <paths>[, <dirs>])"
+  croak "usage: my_find_dir(<base>, <paths>[, <dirs>])"
     unless (@_ == 3 or @_ == 2);
 
   # -------------------------------------------------------
@@ -92,7 +94,7 @@ sub my_find_dir {
 
 
 sub my_find_paths {
-  my ($base, $paths, $names)= @_;
+  my ($base, $paths, $names, $extension)= @_;
 
   # Convert the arguments into two normal arrays to ease
   # further mappings
@@ -110,13 +112,15 @@ sub my_find_paths {
   my $build_dir= $vs_config_dir || $ENV{MTR_VS_CONFIG} || $ENV{MTR_BUILD_DIR};
   push(@extra_dirs, $build_dir) if defined $build_dir;
 
+  if (defined $extension){
+    # Append extension to names, if name does not already have extension
+    map { $_.=$extension unless /\.(.*)+$/ } @names;
+  }
+
   # -------------------------------------------------------
   # Windows specific
   # -------------------------------------------------------
   if ($is_win) {
-    # Append .exe to names, if name does not already have extension
-    map { $_.=".exe" unless /\.(.*)+$/ } @names;
-
     # Add the default extra build dirs unless a specific one has
     # already been selected
     push(@extra_dirs,
@@ -156,6 +160,21 @@ sub my_find_paths {
 }
 
 
+sub commify {
+  return
+    (@_ == 0) ? '' :
+      (@_ == 1) ? $_[0] :
+	(@_ == 2) ? join(" or ", @_) :
+	  join(", ", @_[0..($#_-1)], "or $_[-1]");
+
+}
+
+
+sub fnuttify {
+  return map('\''.$_.'\'', @_);
+}
+
+
 sub find_error {
   my ($base, $paths, $names)= @_;
 
@@ -163,9 +182,9 @@ sub find_error {
   push(@names, ref $names eq "ARRAY" ? @$names : $names);
   push(@paths, ref $paths eq "ARRAY" ? @$paths : $paths);
 
-  die "Could not find ",
-    join(", ", @names), " in ",
-      join(", ", my_find_paths($base, $paths, $names));
+  croak "** ERROR: Could not find ",
+    commify(fnuttify(@names)), " in ",
+      commify(fnuttify(my_find_paths($base, $paths, $names))), "\n";
 }
 
 1;
