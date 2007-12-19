@@ -62,6 +62,7 @@ struct fieldinfo db_fields64[] = {
   {"int (*rename) (DB *, const char *, const char *, const char *, u_int32_t)", 784, 8},
   {"int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 808, 8},
   {"int (*set_dup_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 840, 8},
+  {"void (*set_errfile) (DB_ENV *, FILE*)", 864, 8},
   {"int (*set_flags) (DB *, u_int32_t)", 888, 8},
   {"int (*set_pagesize) (DB *, u_int32_t)", 944, 8},
   {"int (*stat) (DB *, void *, u_int32_t)", 1000, 8},
