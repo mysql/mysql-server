@@ -9,6 +9,12 @@
 # first, cause a duplicate key problem on the slave
 create table t1(n int auto_increment primary key, s char(10));
 sync_slave_with_master;
+
+# bug#31552/31609 idempotency is not default any longer
+# so that the declared in heading comments aim of the test
+# should be backed up with explicit setting of the slave mode
+set @@global.slave_exec_mode= 'IDEMPOTENT';
+
 insert into t1 values (2,'old');
 connection master;
 insert into t1 values(NULL,'new');
@@ -43,3 +49,4 @@ select * from t1 order by n;
 connection master;
 drop table t1;
 sync_slave_with_master;
+set @@global.slave_exec_mode= default;

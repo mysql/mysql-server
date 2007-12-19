@@ -9,3 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+binlog_base64_flag : BUG#33247 2007-12-14 Sven: mysqlbinlog does not clean up after itself on termination. When compiled in debug mode, this test generates lots of warnings for memory leaks.

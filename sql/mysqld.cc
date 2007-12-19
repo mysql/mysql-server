@@ -445,6 +445,8 @@ ulong thread_stack, what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
+ulong slave_exec_mode_options;
+const char *slave_exec_mode_str= "STRICT";
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
@@ -5105,7 +5107,8 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
-  OPT_OLD_MODE
+  OPT_OLD_MODE,
+  OPT_SLAVE_EXEC_MODE
 };
 
 
@@ -5803,8 +5806,11 @@ replicating a LOAD DATA INFILE command.",
    (uchar**) &slave_load_tmpdir, (uchar**) &slave_load_tmpdir, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"slave-skip-errors", OPT_SLAVE_SKIP_ERRORS,
-   "Tells the slave thread to continue replication when a query returns an error from the provided list.",
+   "Tells the slave thread to continue replication when a query event returns an error from the provided list.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"slave-exec-mode", OPT_SLAVE_EXEC_MODE,
+   "Modes for how replication events should be executed.  Legal values are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode, replication will not stop for operations that are idempotent. In STRICT mode, replication will stop on any unexpected difference between the master and the slave.",
+   (uchar**) &slave_exec_mode_str, (uchar**) &slave_exec_mode_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"slow-query-log", OPT_SLOW_LOG,
    "Enable|disable slow query log", (uchar**) &opt_slow_log,
@@ -7113,6 +7119,9 @@ static void mysql_init_variables(void)
 
   /* Things with default values that are not zero */
   delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
+  slave_exec_mode_options= 0;
+  slave_exec_mode_options= (uint)
+    find_bit_type_or_exit(slave_exec_mode_str, &slave_exec_mode_typelib, NULL);
   opt_specialflag= SPECIAL_ENGLISH;
   unix_sock= ip_sock= INVALID_SOCKET;
   mysql_home_ptr= mysql_home;
@@ -7321,6 +7330,10 @@ mysqld_get_one_option(int optid,
 #ifdef HAVE_REPLICATION
   case OPT_SLAVE_SKIP_ERRORS:
     init_slave_skip_errors(argument);
+    break;
+  case OPT_SLAVE_EXEC_MODE:
+    slave_exec_mode_options= (uint)
+      find_bit_type_or_exit(argument, &slave_exec_mode_typelib, "");
     break;
 #endif
   case OPT_SAFEMALLOC_MEM_LIMIT:
@@ -7867,6 +7880,8 @@ static void get_options(int *argc,char **argv)
   }
   /* Set global MyISAM variables from delay_key_write_options */
   fix_delay_key_write((THD*) 0, OPT_GLOBAL);
+  /* Set global slave_exec_mode from its option */
+  fix_slave_exec_mode(OPT_GLOBAL);
 
 #ifndef EMBEDDED_LIBRARY
   if (mysqld_chroot)

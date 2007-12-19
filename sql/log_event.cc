@@ -46,7 +46,7 @@
 #define FMT_G_BUFSIZE(PREC) (3 + (PREC) + 5 + 1)
 
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) && !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 static const char *HA_ERR(int i)
 {
   switch (i) {
@@ -100,7 +100,28 @@ static const char *HA_ERR(int i)
   case HA_ERR_LOGGING_IMPOSSIBLE: return "HA_ERR_LOGGING_IMPOSSIBLE";
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   }
-  return "<unknown error>";
+  return 0;
+}
+
+/**
+   macro to call from different branches of Rows_log_event::do_apply_event
+*/
+static void inline slave_rows_error_report(enum loglevel level, int ha_error,
+                                           Relay_log_info const *rli, THD *thd,
+                                           TABLE *table, const char * type,
+                                           const char *log_name, ulong pos)
+{
+  const char *handler_error=  HA_ERR(ha_error);
+  rli->report(level, thd->net.last_errno,
+              "Could not execute %s event on table %s.%s;"
+              "%s%s handler error %s; "
+              "the event's master log %s, end_log_pos %lu",
+              type, table->s->db.str,
+              table->s->table_name.str,
+              thd->net.last_error[0] != 0 ? thd->net.last_error : "",
+              thd->net.last_error[0] != 0 ? ";" : "",
+              handler_error == NULL? "<unknown>" : handler_error,
+              log_name, pos);
 }
 #endif
 
@@ -470,9 +491,9 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
   Log_event::get_type_str()
 */
 
-const char* Log_event::get_type_str()
+const char* Log_event::get_type_str(Log_event_type type)
 {
-  switch(get_type_code()) {
+  switch(type) {
   case START_EVENT_V3:  return "Start_v3";
   case STOP_EVENT:   return "Stop";
   case QUERY_EVENT:  return "Query";
@@ -490,6 +511,9 @@ const char* Log_event::get_type_str()
   case USER_VAR_EVENT: return "User var";
   case FORMAT_DESCRIPTION_EVENT: return "Format_desc";
   case TABLE_MAP_EVENT: return "Table_map";
+  case PRE_GA_WRITE_ROWS_EVENT: return "Write_rows_event_old";
+  case PRE_GA_UPDATE_ROWS_EVENT: return "Update_rows_event_old";
+  case PRE_GA_DELETE_ROWS_EVENT: return "Delete_rows_event_old";
   case WRITE_ROWS_EVENT: return "Write_rows";
   case UPDATE_ROWS_EVENT: return "Update_rows";
   case DELETE_ROWS_EVENT: return "Delete_rows";
@@ -498,6 +522,11 @@ const char* Log_event::get_type_str()
   case INCIDENT_EVENT: return "Incident";
   default: return "Unknown";				/* impossible */
   }
+}
+
+const char* Log_event::get_type_str()
+{
+  return get_type_str(get_type_code());
 }
 
 
@@ -1015,6 +1044,8 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   DBUG_ENTER("Log_event::read_log_event(char*,...)");
   DBUG_ASSERT(description_event != 0);
   DBUG_PRINT("info", ("binlog_version: %d", description_event->binlog_version));
+  DBUG_DUMP("data", (unsigned char*) buf, event_len);
+
   /* Check the integrity */
   if (event_len < EVENT_LEN_OFFSET ||
       buf[EVENT_TYPE_OFFSET] >= ENUM_END_EVENT ||
@@ -1024,94 +1055,111 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     DBUG_RETURN(NULL); // general sanity check - will fail on a partial read
   }
 
-  switch(buf[EVENT_TYPE_OFFSET]) {
-  case QUERY_EVENT:
-    ev  = new Query_log_event(buf, event_len, description_event, QUERY_EVENT);
-    break;
-  case LOAD_EVENT:
-    ev = new Load_log_event(buf, event_len, description_event);
-    break;
-  case NEW_LOAD_EVENT:
-    ev = new Load_log_event(buf, event_len, description_event);
-    break;
-  case ROTATE_EVENT:
-    ev = new Rotate_log_event(buf, event_len, description_event);
-    break;
-#ifdef HAVE_REPLICATION
-  case SLAVE_EVENT: /* can never happen (unused event) */
-    ev = new Slave_log_event(buf, event_len);
-    break;
-#endif /* HAVE_REPLICATION */
-  case CREATE_FILE_EVENT:
-    ev = new Create_file_log_event(buf, event_len, description_event);
-    break;
-  case APPEND_BLOCK_EVENT:
-    ev = new Append_block_log_event(buf, event_len, description_event);
-    break;
-  case DELETE_FILE_EVENT:
-    ev = new Delete_file_log_event(buf, event_len, description_event);
-    break;
-  case EXEC_LOAD_EVENT:
-    ev = new Execute_load_log_event(buf, event_len, description_event);
-    break;
-  case START_EVENT_V3: /* this is sent only by MySQL <=4.x */
-    ev = new Start_log_event_v3(buf, description_event);
-    break;
-  case STOP_EVENT:
-    ev = new Stop_log_event(buf, description_event);
-    break;
-  case INTVAR_EVENT:
-    ev = new Intvar_log_event(buf, description_event);
-    break;
-  case XID_EVENT:
-    ev = new Xid_log_event(buf, description_event);
-    break;
-  case RAND_EVENT:
-    ev = new Rand_log_event(buf, description_event);
-    break;
-  case USER_VAR_EVENT:
-    ev = new User_var_log_event(buf, description_event);
-    break;
-  case FORMAT_DESCRIPTION_EVENT:
-    ev = new Format_description_log_event(buf, event_len, description_event); 
-    break;
-#if defined(HAVE_REPLICATION) 
-  case PRE_GA_WRITE_ROWS_EVENT:
-    ev = new Write_rows_log_event_old(buf, event_len, description_event);
-    break;
-  case PRE_GA_UPDATE_ROWS_EVENT:
-    ev = new Update_rows_log_event_old(buf, event_len, description_event);
-    break;
-  case PRE_GA_DELETE_ROWS_EVENT:
-    ev = new Delete_rows_log_event_old(buf, event_len, description_event);
-    break;
-  case WRITE_ROWS_EVENT:
-    ev = new Write_rows_log_event(buf, event_len, description_event);
-    break;
-  case UPDATE_ROWS_EVENT:
-    ev = new Update_rows_log_event(buf, event_len, description_event);
-    break;
-  case DELETE_ROWS_EVENT:
-    ev = new Delete_rows_log_event(buf, event_len, description_event);
-    break;
-  case TABLE_MAP_EVENT:
-    ev = new Table_map_log_event(buf, event_len, description_event);
-    break;
-#endif
-  case BEGIN_LOAD_QUERY_EVENT:
-    ev = new Begin_load_query_log_event(buf, event_len, description_event);
-    break;
-  case EXECUTE_LOAD_QUERY_EVENT:
-    ev= new Execute_load_query_log_event(buf, event_len, description_event);
-    break;
-  case INCIDENT_EVENT:
-    ev = new Incident_log_event(buf, event_len, description_event);
-    break;
-  default:
-    DBUG_PRINT("error",("Unknown event code: %d",
-                        (int) buf[EVENT_TYPE_OFFSET]));
+  uint event_type= buf[EVENT_TYPE_OFFSET];
+  if (event_type > description_event->number_of_event_types &&
+      event_type != FORMAT_DESCRIPTION_EVENT)
+  {
+    /*
+      It is unsafe to use the description_event if its post_header_len
+      array does not include the event type.
+    */
+    DBUG_PRINT("error", ("event type %d found, but the current "
+                         "Format_description_log_event supports only %d event "
+                         "types", event_type,
+                         description_event->number_of_event_types));
     ev= NULL;
-    break;
+  }
+  else
+  {
+    switch(event_type) {
+    case QUERY_EVENT:
+      ev  = new Query_log_event(buf, event_len, description_event, QUERY_EVENT);
+      break;
+    case LOAD_EVENT:
+      ev = new Load_log_event(buf, event_len, description_event);
+      break;
+    case NEW_LOAD_EVENT:
+      ev = new Load_log_event(buf, event_len, description_event);
+      break;
+    case ROTATE_EVENT:
+      ev = new Rotate_log_event(buf, event_len, description_event);
+      break;
+#ifdef HAVE_REPLICATION
+    case SLAVE_EVENT: /* can never happen (unused event) */
+      ev = new Slave_log_event(buf, event_len);
+      break;
+#endif /* HAVE_REPLICATION */
+    case CREATE_FILE_EVENT:
+      ev = new Create_file_log_event(buf, event_len, description_event);
+      break;
+    case APPEND_BLOCK_EVENT:
+      ev = new Append_block_log_event(buf, event_len, description_event);
+      break;
+    case DELETE_FILE_EVENT:
+      ev = new Delete_file_log_event(buf, event_len, description_event);
+      break;
+    case EXEC_LOAD_EVENT:
+      ev = new Execute_load_log_event(buf, event_len, description_event);
+      break;
+    case START_EVENT_V3: /* this is sent only by MySQL <=4.x */
+      ev = new Start_log_event_v3(buf, description_event);
+      break;
+    case STOP_EVENT:
+      ev = new Stop_log_event(buf, description_event);
+      break;
+    case INTVAR_EVENT:
+      ev = new Intvar_log_event(buf, description_event);
+      break;
+    case XID_EVENT:
+      ev = new Xid_log_event(buf, description_event);
+      break;
+    case RAND_EVENT:
+      ev = new Rand_log_event(buf, description_event);
+      break;
+    case USER_VAR_EVENT:
+      ev = new User_var_log_event(buf, description_event);
+      break;
+    case FORMAT_DESCRIPTION_EVENT:
+      ev = new Format_description_log_event(buf, event_len, description_event);
+      break;
+#if defined(HAVE_REPLICATION) 
+    case PRE_GA_WRITE_ROWS_EVENT:
+      ev = new Write_rows_log_event_old(buf, event_len, description_event);
+      break;
+    case PRE_GA_UPDATE_ROWS_EVENT:
+      ev = new Update_rows_log_event_old(buf, event_len, description_event);
+      break;
+    case PRE_GA_DELETE_ROWS_EVENT:
+      ev = new Delete_rows_log_event_old(buf, event_len, description_event);
+      break;
+    case WRITE_ROWS_EVENT:
+      ev = new Write_rows_log_event(buf, event_len, description_event);
+      break;
+    case UPDATE_ROWS_EVENT:
+      ev = new Update_rows_log_event(buf, event_len, description_event);
+      break;
+    case DELETE_ROWS_EVENT:
+      ev = new Delete_rows_log_event(buf, event_len, description_event);
+      break;
+    case TABLE_MAP_EVENT:
+      ev = new Table_map_log_event(buf, event_len, description_event);
+      break;
+#endif
+    case BEGIN_LOAD_QUERY_EVENT:
+      ev = new Begin_load_query_log_event(buf, event_len, description_event);
+      break;
+    case EXECUTE_LOAD_QUERY_EVENT:
+      ev= new Execute_load_query_log_event(buf, event_len, description_event);
+      break;
+    case INCIDENT_EVENT:
+      ev = new Incident_log_event(buf, event_len, description_event);
+      break;
+    default:
+      DBUG_PRINT("error",("Unknown event code: %d",
+                          (int) buf[EVENT_TYPE_OFFSET]));
+      ev= NULL;
+      break;
+    }
   }
 
   DBUG_PRINT("read_event", ("%s(type_code: %d; event_len: %d)",
@@ -1648,6 +1696,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   DBUG_ASSERT(thd_arg->variables.character_set_client->number < 256*256);
   DBUG_ASSERT(thd_arg->variables.collation_connection->number < 256*256);
   DBUG_ASSERT(thd_arg->variables.collation_server->number < 256*256);
+  DBUG_ASSERT(thd_arg->variables.character_set_client->mbminlen == 1);
   int2store(charset, thd_arg->variables.character_set_client->number);
   int2store(charset+2, thd_arg->variables.collation_connection->number);
   int2store(charset+4, thd_arg->variables.collation_server->number);
@@ -2150,7 +2199,7 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
   print_query_header(&cache, print_event_info);
   my_b_write(&cache, (uchar*) query, q_len);
-  my_b_printf(&cache, "%s\n", print_event_info->delimiter);
+  my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
 }
 #endif /* MYSQL_CLIENT */
 
@@ -2576,6 +2625,14 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #else
     my_b_printf(&cache,"ROLLBACK%s\n", print_event_info->delimiter);
 #endif
+  }
+  if (temp_buf &&
+      print_event_info->base64_output_mode != BASE64_OUTPUT_NEVER &&
+      !print_event_info->short_form)
+  {
+    my_b_printf(&cache, "BINLOG '\n");
+    print_base64(&cache, print_event_info, FALSE);
+    print_event_info->printed_fd_event= TRUE;
   }
   DBUG_VOID_RETURN;
 }
@@ -4265,6 +4322,7 @@ Xid_log_event(const char* buf,
 #ifndef MYSQL_CLIENT
 bool Xid_log_event::write(IO_CACHE* file)
 {
+  DBUG_EXECUTE_IF("do_not_write_xid", return 0;);
   return write_header(file, sizeof(xid)) ||
          my_b_safe_write(file, (uchar*) &xid, sizeof(xid));
 }
@@ -5022,7 +5080,7 @@ Create_file_log_event::Create_file_log_event(const char* buf, uint len,
                    Load_log_event::get_data_size() +
                    create_file_header_len + 1);
     if (len < block_offset)
-      return;
+      DBUG_VOID_RETURN;
     block = (char*)buf + block_offset;
     block_len = len - block_offset;
   }
@@ -5729,12 +5787,12 @@ void Execute_load_query_log_event::print(FILE* file,
       my_b_printf(&cache, " REPLACE");
     my_b_printf(&cache, " INTO");
     my_b_write(&cache, (uchar*) query + fn_pos_end, q_len-fn_pos_end);
-    my_b_printf(&cache, "%s\n", print_event_info->delimiter);
+    my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
   }
   else
   {
     my_b_write(&cache, (uchar*) query, q_len);
-    my_b_printf(&cache, "%s\n", print_event_info->delimiter);
+    my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
   }
 
   if (!print_event_info->short_form)
@@ -6177,7 +6235,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Rows_log_event::do_apply_event(Relay_log_info*)");
   int error= 0;
-
   /*
     If m_table_id == ~0UL, then we have a dummy event that does not
     contain any data.  In that case, we just remove all tables in the
@@ -6222,6 +6279,24 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       mysql_init_query() as that may reset the binlog format.
     */
     lex_start(thd);
+
+    /*
+      There are a few flags that are replicated with each row event.
+      Make sure to set/clear them before executing the main body of
+      the event.
+    */
+    if (get_flags(NO_FOREIGN_KEY_CHECKS_F))
+        thd->options|= OPTION_NO_FOREIGN_KEY_CHECKS;
+    else
+        thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+
+    if (get_flags(RELAXED_UNIQUE_CHECKS_F))
+        thd->options|= OPTION_RELAXED_UNIQUE_CHECKS;
+    else
+        thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+    /* A small test to verify that objects have consistent types */
+    DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
+
 
     while ((error= lock_tables(thd, rli->tables_to_lock,
                                rli->tables_to_lock_count, &need_reopen)))
@@ -6357,22 +6432,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
     thd->set_time((time_t)when);
-    /*
-      There are a few flags that are replicated with each row event.
-      Make sure to set/clear them before executing the main body of
-      the event.
-    */
-    if (get_flags(NO_FOREIGN_KEY_CHECKS_F))
-        thd->options|= OPTION_NO_FOREIGN_KEY_CHECKS;
-    else
-        thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
-
-    if (get_flags(RELAXED_UNIQUE_CHECKS_F))
-        thd->options|= OPTION_RELAXED_UNIQUE_CHECKS;
-    else
-        thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
-    /* A small test to verify that objects have consistent types */
-    DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -6405,8 +6464,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     if (!get_flags(COMPLETE_ROWS_F))
       bitmap_intersect(table->write_set,&m_cols);
 
+    this->slave_exec_mode= slave_exec_mode_options; // fix the mode
+
     // Do event specific preparations 
-    
     error= do_before_row_operations(rli);
 
     // row processing loop
@@ -6425,22 +6485,41 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
       case 0:
 	break;
+      /*
+        The following list of "idempotent" errors
+        means that an error from the list might happen
+        because of idempotent (more than once) 
+        applying of a binlog file.
+        Notice, that binlog has a  ddl operation its
+        second applying may cause
 
-      /* Some recoverable errors */
+        case HA_ERR_TABLE_DEF_CHANGED:
+        case HA_ERR_CANNOT_ADD_FOREIGN:
+        
+        which are not included into to the list.
+      */
       case HA_ERR_RECORD_CHANGED:
       case HA_ERR_RECORD_DELETED:
       case HA_ERR_KEY_NOT_FOUND:
       case HA_ERR_END_OF_FILE:
-        /* Idempotency support: OK if tuple does not exist */
-        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
-        error= 0;
-        break;
+      case HA_ERR_FOUND_DUPP_KEY:
+      case HA_ERR_FOUND_DUPP_UNIQUE:
+      case HA_ERR_FOREIGN_DUPLICATE_KEY:
+      case HA_ERR_NO_REFERENCED_ROW:
+      case HA_ERR_ROW_IS_REFERENCED:
 
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+        if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
+        {
+          if (global_system_variables.log_warnings)
+            slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
+                                    get_type_str(),
+                                    RPL_LOG_NAME, (ulong) log_pos);
+          error= 0;
+        }
+        break;
+        
       default:
-	rli->report(ERROR_LEVEL, thd->net.last_errno,
-                    "Error in %s event: row application failed. %s",
-                    get_type_str(),
-                    thd->net.last_error ? thd->net.last_error : "");
 	thd->is_slave_error= 1;
 	break;
       }
@@ -6484,16 +6563,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   */
   if (rli->tables_to_lock && get_flags(STMT_END_F))
     const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-
+  
   if (error)
   {                     /* error has occured during the transaction */
-    rli->report(ERROR_LEVEL, thd->net.last_errno,
-                "Error in %s event: error during transaction execution "
-                "on table %s.%s. %s",
-                get_type_str(), table->s->db.str,
-                table->s->table_name.str,
-                thd->net.last_error ? thd->net.last_error : "");
-
+    slave_rows_error_report(ERROR_LEVEL, error, rli, thd, table,
+                            get_type_str(), RPL_LOG_NAME, (ulong) log_pos);
+  }
+  if (error)
+  {
     /*
       If one day we honour --skip-slave-errors in row-based replication, and
       the error should be skipped, then we would clear mappings, rollback,
@@ -6605,6 +6682,7 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
     */
 
     thd->reset_current_stmt_binlog_row_based();
+
     rli->cleanup_context(thd, 0);
     if (error == 0)
     {
@@ -7293,43 +7371,50 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 {
   int error= 0;
 
-  /*
-    We are using REPLACE semantics and not INSERT IGNORE semantics
-    when writing rows, that is: new rows replace old rows.  We need to
-    inform the storage engine that it should use this behaviour.
+  /**
+     todo: to introduce a property for the event (handler?) which forces
+     applying the event in the replace (idempotent) fashion.
   */
+  if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
+      m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
+  {
+    /*
+      We are using REPLACE semantics and not INSERT IGNORE semantics
+      when writing rows, that is: new rows replace old rows.  We need to
+      inform the storage engine that it should use this behaviour.
+    */
+    
+    /* Tell the storage engine that we are using REPLACE semantics. */
+    thd->lex->duplicates= DUP_REPLACE;
+    
+    /*
+      Pretend we're executing a REPLACE command: this is needed for
+      InnoDB and NDB Cluster since they are not (properly) checking the
+      lex->duplicates flag.
+    */
+    thd->lex->sql_command= SQLCOM_REPLACE;
+    /* 
+       Do not raise the error flag in case of hitting to an unique attribute
+    */
+    m_table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    /* 
+       NDB specific: update from ndb master wrapped as Write_rows
+       so that the event should be applied to replace slave's row
+    */
+    m_table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+    /* 
+       NDB specific: if update from ndb master wrapped as Write_rows
+       does not find the row it's assumed idempotent binlog applying
+       is taking place; don't raise the error.
+    */
+    m_table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+    /*
+      TODO: the cluster team (Tomas?) says that it's better if the engine knows
+      how many rows are going to be inserted, then it can allocate needed memory
+      from the start.
+    */
+  }
 
-  /* Tell the storage engine that we are using REPLACE semantics. */
-  thd->lex->duplicates= DUP_REPLACE;
-
-  /*
-    Pretend we're executing a REPLACE command: this is needed for
-    InnoDB and NDB Cluster since they are not (properly) checking the
-    lex->duplicates flag.
-  */
-  thd->lex->sql_command= SQLCOM_REPLACE;
-  /* 
-     Do not raise the error flag in case of hitting to an unique attribute
-  */
-  m_table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  /* 
-     NDB specific: update from ndb master wrapped as Write_rows
-  */
-  /*
-    so that the event should be applied to replace slave's row
-  */
-  m_table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
-  /* 
-     NDB specific: if update from ndb master wrapped as Write_rows
-     does not find the row it's assumed idempotent binlog applying
-     is taking place; don't raise the error.
-  */
-  m_table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
-  /*
-    TODO: the cluster team (Tomas?) says that it's better if the engine knows
-    how many rows are going to be inserted, then it can allocate needed memory
-    from the start.
-  */
   m_table->file->ha_start_bulk_insert(0);
   /*
     We need TIMESTAMP_NO_AUTO_SET otherwise ha_write_row() will not use fill
@@ -7351,18 +7436,23 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 }
 
 int 
-Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *const, 
+Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *const,
                                               int error)
 {
   int local_error= 0;
-  m_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-  m_table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-  /*
-    reseting the extra with 
-    table->file->extra(HA_EXTRA_NO_IGNORE_NO_KEY); 
-    fires bug#27077
-    todo: explain or fix
-  */
+  if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
+      m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
+  {
+    m_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    m_table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
+    /*
+      resetting the extra with 
+      table->file->extra(HA_EXTRA_NO_IGNORE_NO_KEY); 
+      fires bug#27077
+      explanation: file->reset() performs this duty
+      ultimately. Still todo: fix
+    */
+  }
   if ((local_error= m_table->file->ha_end_bulk_insert()))
   {
     m_table->file->print_error(local_error, MYF(0));
@@ -7481,23 +7571,22 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
 
   while ((error= table->file->ha_write_row(table->record[0])))
   {
-    if (error == HA_ERR_LOCK_DEADLOCK || error == HA_ERR_LOCK_WAIT_TIMEOUT)
+    if (error == HA_ERR_LOCK_DEADLOCK ||
+        error == HA_ERR_LOCK_WAIT_TIMEOUT ||
+        (keynum= table->file->get_dup_key(error)) < 0 ||
+        !overwrite)
     {
-      table->file->print_error(error, MYF(0)); /* to check at exec_relay_log_event */
-      DBUG_RETURN(error);
-    }
-    if ((keynum= table->file->get_dup_key(error)) < 0)
-    {
-      DBUG_PRINT("info",("Can't locate duplicate key (get_dup_key returns %d)",keynum));
-      table->file->print_error(error, MYF(0));
+      DBUG_PRINT("info",("get_dup_key returns %d)", keynum));
       /*
-        We failed to retrieve the duplicate key
+        Deadlock, waiting for lock or just an error from the handler
+        such as HA_ERR_FOUND_DUPP_KEY when overwrite is false.
+        Retrieval of the duplicate key number may fail
         - either because the error was not "duplicate key" error
         - or because the information which key is not available
       */
+      table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
     }
-
     /*
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
@@ -7635,11 +7724,13 @@ int
 Write_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
-  int error= write_row(rli, TRUE /* overwrite */);
-  
+  int error=
+    write_row(rli,        /* if 1 then overwrite */
+              bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1);
+    
   if (error && !thd->net.last_errno)
     thd->net.last_errno= error;
-      
+  
   return error; 
 }
 
