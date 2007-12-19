@@ -1574,9 +1574,13 @@ int ha_partition::copy_partitions(ulonglong *copied, ulonglong *deleted)
       }
       else
       {
+        THD *thd= ha_thd();
         /* Copy record to new handler */
         copied++;
-        if ((result= m_new_file[new_part]->write_row(m_rec0)))
+        tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
+        result= m_new_file[new_part]->ha_write_row(m_rec0);
+        reenable_binlog(thd);
+        if (result)
           goto error;
       }
     }
@@ -2694,6 +2698,7 @@ int ha_partition::write_row(uchar * buf)
   longlong func_value;
   bool autoincrement_lock= FALSE;
   my_bitmap_map *old_map;
+  THD *thd= ha_thd();
 #ifdef NOT_NEEDED
   uchar *rec0= m_rec0;
 #endif
@@ -2765,7 +2770,9 @@ int ha_partition::write_row(uchar * buf)
   }
   m_last_part= part_id;
   DBUG_PRINT("info", ("Insert in partition %d", part_id));
-  error= m_file[part_id]->write_row(buf);
+  tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
+  error= m_file[part_id]->ha_write_row(buf);
+  reenable_binlog(thd);
 exit:
   if (autoincrement_lock)
     pthread_mutex_unlock(&table_share->mutex);
@@ -2806,6 +2813,7 @@ exit:
 
 int ha_partition::update_row(const uchar *old_data, uchar *new_data)
 {
+  THD *thd= ha_thd();
   uint32 new_part_id, old_part_id;
   int error= 0;
   longlong func_value;
@@ -2840,16 +2848,25 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   if (new_part_id == old_part_id)
   {
     DBUG_PRINT("info", ("Update in partition %d", new_part_id));
-    error= m_file[new_part_id]->update_row(old_data, new_data);
+    tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
+    error= m_file[new_part_id]->ha_update_row(old_data, new_data);
+    reenable_binlog(thd);
     goto exit;
   }
   else
   {
     DBUG_PRINT("info", ("Update from partition %d to partition %d",
 			old_part_id, new_part_id));
-    if ((error= m_file[new_part_id]->write_row(new_data)))
+    tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
+    error= m_file[new_part_id]->ha_write_row(new_data);
+    reenable_binlog(thd);
+    if (error)
       goto exit;
-    if ((error= m_file[old_part_id]->delete_row(old_data)))
+
+    tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
+    error= m_file[old_part_id]->ha_delete_row(old_data);
+    reenable_binlog(thd);
+    if (error)
     {
 #ifdef IN_THE_FUTURE
       (void) m_file[new_part_id]->delete_last_inserted_row(new_data);
@@ -3980,7 +3997,7 @@ int ha_partition::partition_scan_set_up(uchar * buf, bool idx_read_flag)
 
 int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
 {
-  handler *file= file= m_file[m_part_spec.start_part];
+  handler *file= m_file[m_part_spec.start_part];
   int error;
   DBUG_ENTER("ha_partition::handle_unordered_next");
 
