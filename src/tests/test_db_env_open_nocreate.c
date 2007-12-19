@@ -22,7 +22,6 @@
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
 int main() {
-    DB *db;
     DB_ENV *dbenv;
     int r;
     int do_private;
@@ -45,12 +44,20 @@ int main() {
 	r = db_env_create(&dbenv, 0);
 	CKERR(r);
 	r = dbenv->open(dbenv, DIR, private_flags|DB_INIT_MPOOL, 0);
+#ifdef USE_TDB
+	// TokuDB has no trouble opening an environment if the directory exists.
+	CKERR(r);
+	assert(r==0);
+#else
 	if (r!=ENOENT) printf("%s:%d %d: %s\n", __FILE__, __LINE__, r,db_strerror(r));
 	assert(r==ENOENT);
+#endif
 	dbenv->close(dbenv,0); // free memory
     }
 
+#ifndef USE_TDB
     // Now make sure that if we have a non-private DB that we can tell if it opened or not.
+    DB *db;
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
     r = db_env_create(&dbenv, 0);
@@ -60,12 +67,13 @@ int main() {
     r=db_create(&db, dbenv, 0);
     CKERR(r);
     dbenv->close(dbenv,0); // free memory
-    write(1,"d",1);
     r = db_env_create(&dbenv, 0);
     CKERR(r);
     r = dbenv->open(dbenv, DIR, DB_INIT_MPOOL, 0);
     CKERR(r);
     dbenv->close(dbenv,0); // free memory
+#endif
+
     return 0;
 }
 
