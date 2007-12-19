@@ -1,5 +1,6 @@
 #include <db.h>
 #include <string.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 class Dbt;
 class DbEnv;
