@@ -1379,13 +1379,13 @@ trx_i_s_create_lock_id(
 	if (row->lock_space != ULINT_UNDEFINED) {
 		/* record lock */
 		res_len = ut_snprintf(lock_id, lock_id_size,
-				      "%llu:%lu:%lu:%lu",
+				      TRX_ID_FMT ":%lu:%lu:%lu",
 				      row->lock_trx_id, row->lock_space,
 				      row->lock_page, row->lock_rec);
 	} else {
 		/* table lock */
 		res_len = ut_snprintf(lock_id, lock_id_size,
-				      "%llu:%llu",
+				      TRX_ID_FMT ":%llu",
 				      row->lock_trx_id,
 				      row->lock_table_id);
 	}
