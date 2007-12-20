@@ -137,7 +137,7 @@ PUT_TEST put_tests[] = {
     {0, 0,                 DB_NOOVERWRITE,  0,      0, 0},
     {0, DB_DUP|DB_DUPSORT, DB_NOOVERWRITE,  0,      0, 0},
     {0, 0,                 0,               0,      0, 0},  //r_expect must change to EINVAL when/if we no longer accept 0 as flags for put
-    {0, DB_DUP|DB_DUPSORT, 0,               0,      0, 0},  //r_expect must change to EINVAL when/if we no longer accept 0 as flags for put
+    {1, DB_DUP|DB_DUPSORT, 0,               EINVAL, 0, 0},
 };
 const int num_put = sizeof(put_tests) / sizeof(put_tests[0]);
 
@@ -160,13 +160,13 @@ CPUT_TEST cput_tests[] = {
 const int num_cput = sizeof(cput_tests) / sizeof(cput_tests[0]);
 
 GET_TEST get_tests[] = {
-    {{0, 0,                 0, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
-    {{0, 0,                 0, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
-    {{0, 0,                 0, 0, 0, 0}, DB_GET_BOTH, DB_NOTFOUND, 0, 1},
-    {{0, DB_DUP|DB_DUPSORT, 0, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
-    {{0, DB_DUP|DB_DUPSORT, 0, 0, 0, 0}, DB_GET_BOTH, DB_NOTFOUND, 0, 1},
-    {{0, 0,                 0, 0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
-    {{0, DB_DUP|DB_DUPSORT, 0, 0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
+    {{0, 0,                 DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
+    {{0, 0,                 DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
+    {{0, 0,                 DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, DB_NOTFOUND, 0, 1},
+    {{0, DB_DUP|DB_DUPSORT, DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
+    {{0, DB_DUP|DB_DUPSORT, DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, DB_NOTFOUND, 0, 1},
+    {{0, 0,                 DB_YESOVERWRITE, 0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
+    {{0, DB_DUP|DB_DUPSORT, DB_YESOVERWRITE, 0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
 };
 const int num_get = sizeof(get_tests) / sizeof(get_tests[0]);
 

@@ -1016,7 +1016,7 @@ static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
     else return EINVAL;
 finish:
     //Insert new data with the key we got from c_get.
-    r = db->put(db, dbc->i->txn, put_key, put_data, 0);
+    r = db->put(db, dbc->i->txn, put_key, put_data, DB_YESOVERWRITE);
     if (r!=0) goto cleanup;
     r = toku_c_get(dbc, get_key, get_data, DB_GET_BOTH);
     goto cleanup;
