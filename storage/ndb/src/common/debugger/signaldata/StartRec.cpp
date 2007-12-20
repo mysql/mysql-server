@@ -54,7 +54,7 @@ printSTART_REC_CONF(FILE * output,
 		    Uint16 recBlockNo){
   StartRecConf * sig = (StartRecConf *) theData;
 
-  fprintf(output, " startingNodeId: %d senderData\n",
+  fprintf(output, " startingNodeId: %d senderData: %u\n",
 	  sig->startingNodeId,
           sig->senderData);
   
