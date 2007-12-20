@@ -47,7 +47,8 @@ ha_create_func(
 	but in practise it never should in this case, hence the asserts. */
 
 	if (n_mutexes == 0) {
-		table->heap = mem_heap_create_in_btr_search(4096);
+		table->heap = mem_heap_create_in_btr_search(
+			ut_min(4096, MEM_MAX_ALLOC_IN_BUF));
 		ut_a(table->heap);
 
 		return(table);
