@@ -967,10 +967,6 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 
 class handler :public Sql_alloc
 {
-  friend class ha_partition;
-  friend int ha_delete_table(THD*,handlerton*,const char*,const char*,
-                             const char*,bool);
-
 public:
   typedef ulonglong Table_flags;
 protected:
@@ -1118,6 +1114,40 @@ public:
     estimation_rows_to_insert= 0;
     return end_bulk_insert();
   }
+  int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
+                         uint *dup_key_found);
+  int ha_delete_all_rows();
+  int ha_reset_auto_increment(ulonglong value);
+  int ha_backup(THD* thd, HA_CHECK_OPT* check_opt);
+  int ha_restore(THD* thd, HA_CHECK_OPT* check_opt);
+  int ha_optimize(THD* thd, HA_CHECK_OPT* check_opt);
+  int ha_analyze(THD* thd, HA_CHECK_OPT* check_opt);
+  bool ha_check_and_repair(THD *thd);
+  int ha_disable_indexes(uint mode);
+  int ha_enable_indexes(uint mode);
+  int ha_discard_or_import_tablespace(my_bool discard);
+  void ha_prepare_for_alter();
+  int ha_rename_table(const char *from, const char *to);
+  int ha_delete_table(const char *name);
+  void ha_drop_table(const char *name);
+
+  int ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info);
+
+  int ha_create_handler_files(const char *name, const char *old_name,
+                              int action_flag, HA_CREATE_INFO *info);
+
+  int ha_change_partitions(HA_CREATE_INFO *create_info,
+                           const char *path,
+                           ulonglong *copied,
+                           ulonglong *deleted,
+                           const uchar *pack_frm_data,
+                           size_t pack_frm_len);
+  int ha_drop_partitions(const char *path);
+  int ha_rename_partitions(const char *path);
+  int ha_optimize_partitions(THD *thd);
+  int ha_analyze_partitions(THD *thd);
+  int ha_check_partitions(THD *thd);
+  int ha_repair_partitions(THD *thd);
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
@@ -1203,25 +1233,6 @@ public:
     @retval  1   Bulk delete not used, normal operation used
   */
   virtual bool start_bulk_delete() { return 1; }
-  /**
-    This method is similar to update_row, however the handler doesn't need
-    to execute the updates at this point in time. The handler can be certain
-    that another call to bulk_update_row will occur OR a call to
-    exec_bulk_update before the set of updates in this query is concluded.
-
-    @param    old_data       Old record
-    @param    new_data       New record
-    @param    dup_key_found  Number of duplicate keys found
-
-    @retval  0   Bulk delete used by handler
-    @retval  1   Bulk delete not used, normal operation used
-  */
-  virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
-                              uint *dup_key_found)
-  {
-    DBUG_ASSERT(FALSE);
-    return HA_ERR_WRONG_COMMAND;
-  }
   /**
     After this call all outstanding updates must be performed. The number
     of duplicate key errors are reported in the duplicate key parameter.
@@ -1365,14 +1376,6 @@ public:
   virtual void try_semi_consistent_read(bool) {}
   virtual void unlock_row() {}
   virtual int start_stmt(THD *thd, thr_lock_type lock_type) {return 0;}
-  /**
-    This is called to delete all rows in a table
-    If the handler don't support this, then this function will
-    return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
-    by one.
-  */
-  virtual int delete_all_rows()
-  { return (my_errno=HA_ERR_WRONG_COMMAND); }
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
@@ -1397,42 +1400,17 @@ public:
     next_insert_id= (prev_insert_id > 0) ? prev_insert_id :
       insert_id_for_cur_row;
   }
-  /**
-    Reset the auto-increment counter to the given value, i.e. the next row
-    inserted will get the given value. This is called e.g. after TRUNCATE
-    is emulated by doing a 'DELETE FROM t'. HA_ERR_WRONG_COMMAND is
-    returned by storage engines that don't support this operation.
-  */
-  virtual int reset_auto_increment(ulonglong value)
-  { return HA_ERR_WRONG_COMMAND; }
 
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
   int check_old_types();
-  virtual int backup(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
-  /**
-    Restore assumes .frm file must exist, and that generate_table() has been
-    called; It will just copy the data file and run repair.
-  */
-  virtual int restore(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
-  virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
-  virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   /* end of the list of admin commands */
 
-  virtual bool check_and_repair(THD *thd) { return HA_ERR_WRONG_COMMAND; }
   virtual int dump(THD* thd, int fd = -1) { return HA_ERR_WRONG_COMMAND; }
-  virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
-  virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int indexes_are_disabled(void) {return 0;}
-  virtual int discard_or_import_tablespace(my_bool discard)
-  {return HA_ERR_WRONG_COMMAND;}
   virtual int net_read_dump(NET* net) { return HA_ERR_WRONG_COMMAND; }
   virtual char *update_table_comment(const char * comment)
   { return (char*) comment;}
@@ -1489,7 +1467,6 @@ public:
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
-  virtual void prepare_for_alter() { return; }
   virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   { return (HA_ERR_WRONG_COMMAND); }
   virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
@@ -1521,44 +1498,12 @@ public:
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
 
-  /**
-    default rename_table() and delete_table() rename/delete files with a
-    given name and extensions from bas_ext()
-  */
-  virtual int rename_table(const char *from, const char *to);
-  virtual int delete_table(const char *name);
-  virtual void drop_table(const char *name);
-
-  virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
 
 #define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1
 #define CHF_RENAME_FLAG 2
 #define CHF_INDEX_FLAG  3
 
-  virtual int create_handler_files(const char *name, const char *old_name,
-                                   int action_flag, HA_CREATE_INFO *info)
-  { return FALSE; }
-
-  virtual int change_partitions(HA_CREATE_INFO *create_info,
-                                const char *path,
-                                ulonglong *copied,
-                                ulonglong *deleted,
-                                const uchar *pack_frm_data,
-                                size_t pack_frm_len)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int drop_partitions(const char *path)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int rename_partitions(const char *path)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int optimize_partitions(THD *thd)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int analyze_partitions(THD *thd)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int check_partitions(THD *thd)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int repair_partitions(THD *thd)
-  { return HA_ERR_WRONG_COMMAND; }
 
   /**
     @note lock_count() can return > 1 if the table is MERGE or partitioned.
@@ -1686,6 +1631,16 @@ protected:
   void ha_statistic_increment(ulong SSV::*offset) const;
   void **ha_data(THD *) const;
   THD *ha_thd(void) const;
+
+  /**
+    Default rename_table() and delete_table() rename/delete files with a
+    given name and extensions from bas_ext().
+
+    These methods can be overridden, but their default implementation
+    provide useful functionality.
+  */
+  virtual int rename_table(const char *from, const char *to);
+  virtual int delete_table(const char *name);
 private:
   /*
     Low-level primitives for storage engines.  These should be
@@ -1775,6 +1730,85 @@ private:
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
    { return (my_errno= HA_ERR_WRONG_COMMAND); }
+  /**
+    This method is similar to update_row, however the handler doesn't need
+    to execute the updates at this point in time. The handler can be certain
+    that another call to bulk_update_row will occur OR a call to
+    exec_bulk_update before the set of updates in this query is concluded.
+
+    @param    old_data       Old record
+    @param    new_data       New record
+    @param    dup_key_found  Number of duplicate keys found
+
+    @retval  0   Bulk delete used by handler
+    @retval  1   Bulk delete not used, normal operation used
+  */
+  virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
+                              uint *dup_key_found)
+  {
+    DBUG_ASSERT(FALSE);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  /**
+    This is called to delete all rows in a table
+    If the handler don't support this, then this function will
+    return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
+    by one.
+  */
+  virtual int delete_all_rows()
+  { return (my_errno=HA_ERR_WRONG_COMMAND); }
+  /**
+    Reset the auto-increment counter to the given value, i.e. the next row
+    inserted will get the given value. This is called e.g. after TRUNCATE
+    is emulated by doing a 'DELETE FROM t'. HA_ERR_WRONG_COMMAND is
+    returned by storage engines that don't support this operation.
+  */
+  virtual int reset_auto_increment(ulonglong value)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int backup(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  /**
+    Restore assumes .frm file must exist, and that generate_table() has been
+    called; It will just copy the data file and run repair.
+  */
+  virtual int restore(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  virtual bool check_and_repair(THD *thd) { return HA_ERR_WRONG_COMMAND; }
+  virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
+  virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
+  virtual int discard_or_import_tablespace(my_bool discard)
+  { return (my_errno=HA_ERR_WRONG_COMMAND); }
+  virtual void prepare_for_alter() { return; }
+  virtual void drop_table(const char *name);
+  virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
+
+  virtual int create_handler_files(const char *name, const char *old_name,
+                                   int action_flag, HA_CREATE_INFO *info)
+  { return FALSE; }
+
+  virtual int change_partitions(HA_CREATE_INFO *create_info,
+                                const char *path,
+                                ulonglong *copied,
+                                ulonglong *deleted,
+                                const uchar *pack_frm_data,
+                                size_t pack_frm_len)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int drop_partitions(const char *path)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int rename_partitions(const char *path)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int optimize_partitions(THD *thd)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int analyze_partitions(THD *thd)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int check_partitions(THD *thd)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int repair_partitions(THD *thd)
+  { return HA_ERR_WRONG_COMMAND; }
 };
 
 
