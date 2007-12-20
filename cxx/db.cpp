@@ -60,8 +60,18 @@ int Db::cursor(DbTxn *txn, Dbc **cursorp, u_int32_t flags) {
     int ret = the_db->cursor(the_db, txn->get_DB_TXN(), (DBC**)cursorp, flags);
     return ret;
 }
+
 int Db::set_pagesize(u_int32_t size) {
     int ret = the_db->set_pagesize(the_db, size);
     return ret;
 }
 
+int Db::remove(const char *file, const char *database, u_int32_t flags) {
+    int ret = the_db->remove(the_db, file, database, flags);
+    return ret;
+}
+
+int Db::set_bt_compare(bt_compare_fcn_type bt_compare_fcn) {
+    int ret = the_db->set_bt_compare(the_db, bt_compare_fcn);
+    return ret;
+}
