@@ -429,11 +429,11 @@ trx_lists_init_at_db_start(void)
 				if (undo->state == TRX_UNDO_PREPARED) {
 
 					fprintf(stderr,
-						"InnoDB: Transaction %lu %lu"
+						"InnoDB: Transaction "
+						TRX_ID_FMT
 						" was in the"
 						" XA prepared state.\n",
-						ut_dulint_get_high(trx->id),
-						ut_dulint_get_low(trx->id));
+						TRX_ID_PREP_PRINTF(trx->id));
 
 					if (srv_force_recovery == 0) {
 
@@ -506,12 +506,10 @@ trx_lists_init_at_db_start(void)
 
 					if (undo->state == TRX_UNDO_PREPARED) {
 						fprintf(stderr,
-							"InnoDB: Transaction"
-							" %lu %lu was in the"
+							"InnoDB: Transaction "
+							TRX_ID_FMT " was in the"
 							" XA prepared state.\n",
-							ut_dulint_get_high(
-								trx->id),
-							ut_dulint_get_low(
+							TRX_ID_PREP_PRINTF(
 								trx->id));
 
 						if (srv_force_recovery == 0) {
@@ -1605,9 +1603,7 @@ trx_print(
 {
 	ibool	newline;
 
-	fprintf(f, "TRANSACTION %lu %lu",
-		(ulong) ut_dulint_get_high(trx->id),
-		(ulong) ut_dulint_get_low(trx->id));
+	fprintf(f, "TRANSACTION " TRX_ID_FMT, TRX_ID_PREP_PRINTF(trx->id));
 
 	switch (trx->conc_state) {
 	case TRX_NOT_STARTED:
@@ -1935,10 +1931,9 @@ trx_recover_for_mysql(
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: Transaction %lu %lu in"
+				"  InnoDB: Transaction " TRX_ID_FMT " in"
 				" prepared state after recovery\n",
-				(ulong) ut_dulint_get_high(trx->id),
-				(ulong) ut_dulint_get_low(trx->id));
+				TRX_ID_PREP_PRINTF(trx->id));
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,

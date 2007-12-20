@@ -416,8 +416,8 @@ dfield_print_also_hex(
 		case DATA_TRX_ID:
 			id = mach_read_from_6(data);
 
-			fprintf(stderr, "trx_id {%lu %lu}",
-				ut_dulint_get_high(id), ut_dulint_get_low(id));
+			fprintf(stderr, "trx_id " TRX_ID_FMT,
+				TRX_ID_PREP_PRINTF(id));
 			break;
 
 		case DATA_ROLL_PTR:
