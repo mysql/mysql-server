@@ -35,6 +35,10 @@ class Dbt : private DBT
     // Nothing here.
 };
 
+extern "C" {
+    typedef int (*bt_compare_fcn_type)(DB *db, const DBT *dbt1, const DBT *dbt2);
+};
+
 class Db {
  public:
     /* Functions to make C++ work, defined in the BDB C++ API documents */
@@ -64,6 +68,8 @@ class Db {
     int get_flags(u_int32_t *);
     int set_flags(u_int32_t);
     int set_pagesize(u_int32_t);
+    int remove(const char *file, const char *database, u_int32_t flags);
+    int set_bt_compare(bt_compare_fcn_type bt_compare_fcn);
 
  private:
     DB *the_db;
