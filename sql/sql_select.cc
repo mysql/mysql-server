@@ -1534,14 +1534,14 @@ JOIN::reinit()
   if (exec_tmp_table1)
   {
     exec_tmp_table1->file->extra(HA_EXTRA_RESET_STATE);
-    exec_tmp_table1->file->delete_all_rows();
+    exec_tmp_table1->file->ha_delete_all_rows();
     free_io_cache(exec_tmp_table1);
     filesort_free_buffers(exec_tmp_table1,0);
   }
   if (exec_tmp_table2)
   {
     exec_tmp_table2->file->extra(HA_EXTRA_RESET_STATE);
-    exec_tmp_table2->file->delete_all_rows();
+    exec_tmp_table2->file->ha_delete_all_rows();
     free_io_cache(exec_tmp_table2);
     filesort_free_buffers(exec_tmp_table2,0);
   }
@@ -10467,9 +10467,9 @@ free_tmp_table(THD *thd, TABLE *entry)
   if (entry->file)
   {
     if (entry->db_stat)
-      entry->file->drop_table(entry->s->table_name.str);
+      entry->file->ha_drop_table(entry->s->table_name.str);
     else
-      entry->file->delete_table(entry->s->table_name.str);
+      entry->file->ha_delete_table(entry->s->table_name.str);
     delete entry->file;
   }
 
@@ -10525,7 +10525,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   if (open_tmp_table(&new_table))
     goto err1;
   if (table->file->indexes_are_disabled())
-    new_table.file->disable_indexes(HA_KEY_SWITCH_ALL);
+    new_table.file->ha_disable_indexes(HA_KEY_SWITCH_ALL);
   table->file->ha_index_or_rnd_end();
   table->file->ha_rnd_init(1);
   if (table->no_rows)
@@ -10591,7 +10591,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   (void) table->file->ha_rnd_end();
   (void) new_table.file->close();
  err1:
-  new_table.file->delete_table(new_table.s->table_name.str);
+  new_table.file->ha_delete_table(new_table.s->table_name.str);
  err2:
   delete new_table.file;
   thd->proc_info=save_proc_info;

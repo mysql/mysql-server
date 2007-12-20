@@ -5108,9 +5108,9 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   DBUG_ENTER("mysql_change_partitions");
 
   build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "", 0);
-  if ((error= file->change_partitions(lpt->create_info, path, &lpt->copied,
-                                      &lpt->deleted, lpt->pack_frm_data,
-                                      lpt->pack_frm_len)))
+  if ((error= file->ha_change_partitions(lpt->create_info, path, &lpt->copied,
+                                         &lpt->deleted, lpt->pack_frm_data,
+                                         lpt->pack_frm_len)))
   {
     if (error != ER_OUTOFMEMORY)
       file->print_error(error, MYF(0));
@@ -5148,7 +5148,7 @@ static bool mysql_rename_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   DBUG_ENTER("mysql_rename_partitions");
 
   build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "", 0);
-  if ((error= lpt->table->file->rename_partitions(path)))
+  if ((error= lpt->table->file->ha_rename_partitions(path)))
   {
     if (error != 1)
       lpt->table->file->print_error(error, MYF(0));
@@ -5189,7 +5189,7 @@ static bool mysql_drop_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   DBUG_ENTER("mysql_drop_partitions");
 
   build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "", 0);
-  if ((error= lpt->table->file->drop_partitions(path)))
+  if ((error= lpt->table->file->ha_drop_partitions(path)))
   {
     lpt->table->file->print_error(error, MYF(0));
     DBUG_RETURN(TRUE);
@@ -6105,13 +6105,13 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
     int error;
     written_bin_log= FALSE;
     if (((alter_info->flags & ALTER_OPTIMIZE_PARTITION) &&
-         (error= table->file->optimize_partitions(thd))) ||
+         (error= table->file->ha_optimize_partitions(thd))) ||
         ((alter_info->flags & ALTER_ANALYZE_PARTITION) &&
-         (error= table->file->analyze_partitions(thd))) ||
+         (error= table->file->ha_analyze_partitions(thd))) ||
         ((alter_info->flags & ALTER_CHECK_PARTITION) &&
-         (error= table->file->check_partitions(thd))) ||
+         (error= table->file->ha_check_partitions(thd))) ||
         ((alter_info->flags & ALTER_REPAIR_PARTITION) &&
-         (error= table->file->repair_partitions(thd))))
+         (error= table->file->ha_repair_partitions(thd))))
     {
       table->file->print_error(error, MYF(0));
       goto err;
