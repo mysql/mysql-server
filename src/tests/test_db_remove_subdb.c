@@ -31,6 +31,12 @@ int main (int argc, char *argv[]) {
     r=env->open(env, DIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
 
     r=db_create(&db, env, 0);   assert(r==0);
+    r=db->remove(db, "DoesNotExist.db", NULL, 0);       assert(r==ENOENT);
+
+    r=db_create(&db, env, 0);   assert(r==0);
+    r=db->remove(db, "DoesNotExist.db", "SubDb", 0);    assert(r==ENOENT);
+
+    r=db_create(&db, env, 0);   assert(r==0);
     r=db->open(db, NULL, "master.db", "first", DB_BTREE, DB_CREATE, 0666); CKERR(r);
     data.size = sizeof("first.db");
     data.data = "first.db";
