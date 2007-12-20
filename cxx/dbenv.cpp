@@ -49,3 +49,12 @@ int DbEnv::txn_begin(DbTxn *parenttxn, DbTxn **txnp, u_int32_t flags) {
     }
     return ret;
 }
+
+int DbEnv::set_data_dir(const char *dir) {
+    int ret = the_env->set_data_dir(the_env, dir);
+    return ret;
+}
+
+void DbEnv::set_errpfx(const char *errpfx) {
+    the_env->set_errpfx(the_env, errpfx);
+}

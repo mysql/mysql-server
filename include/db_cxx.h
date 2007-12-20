@@ -96,7 +96,8 @@ class DbEnv {
     int set_lk_max(u_int32_t);
 #endif
     int txn_begin(DbTxn *, DbTxn **, u_int32_t);
-
+    int set_data_dir(const char *dir);
+    void set_errpfx(const char *errpfx);
 
  private:
     DB_ENV *the_env;
