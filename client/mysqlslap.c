@@ -131,7 +131,8 @@ const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-static my_bool opt_preserve= 0, debug_info_flag= 0, debug_check_flag= 0;
+static my_bool opt_preserve= TRUE;
+static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool opt_only_print= FALSE;
 static my_bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
@@ -507,12 +508,12 @@ static struct my_option my_long_options[] =
     (uchar**) &auto_generate_sql, (uchar**) &auto_generate_sql,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-add-autoincrement", OPT_SLAP_AUTO_GENERATE_ADD_AUTO,
-    "Add autoincrement to auto-generated tables.",
+    "Add an AUTO_INCREMENT column to auto-generated tables.",
     (uchar**) &auto_generate_sql_autoincrement, 
     (uchar**) &auto_generate_sql_autoincrement,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-execute-number", OPT_SLAP_AUTO_GENERATE_EXECUTE_QUERIES,
-    "Set this number to generate a set number of queries to run.\n",
+    "Set this number to generate a set number of queries to run.",
     (uchar**) &auto_actual_queries, (uchar**) &auto_actual_queries,
     0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-guid-primary", OPT_SLAP_AUTO_GENERATE_GUID_PRIMARY,
@@ -521,29 +522,29 @@ static struct my_option my_long_options[] =
     (uchar**) &auto_generate_sql_guid_primary,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-load-type", OPT_SLAP_AUTO_GENERATE_SQL_LOAD_TYPE,
-    "Load types are mixed, update, write, key, or read. Default is mixed\n",
+    "Specify test load type: mixed, update, write, key, or read; default is mixed.",
     (uchar**) &auto_generate_sql_type, (uchar**) &auto_generate_sql_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-secondary-indexes", 
     OPT_SLAP_AUTO_GENERATE_SECONDARY_INDEXES, 
-    "Number of secondary indexes to add auto-generated tables.",
+    "Number of secondary indexes to add to auto-generated tables.",
     (uchar**) &auto_generate_sql_secondary_indexes, 
     (uchar**) &auto_generate_sql_secondary_indexes, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-unique-query-number", 
     OPT_SLAP_AUTO_GENERATE_UNIQUE_QUERY_NUM,
-    "Number of unique queries auto tests",
+    "Number of unique queries to generate for automatic tests.",
     (uchar**) &auto_generate_sql_unique_query_number, 
     (uchar**) &auto_generate_sql_unique_query_number,
     0, GET_ULL, REQUIRED_ARG, 10, 0, 0, 0, 0, 0},
   {"auto-generate-sql-unique-write-number", 
     OPT_SLAP_AUTO_GENERATE_UNIQUE_WRITE_NUM,
-    "Number of unique queries for auto-generate-sql-write-number",
+    "Number of unique queries to generate for auto-generate-sql-write-number.",
     (uchar**) &auto_generate_sql_unique_write_number, 
     (uchar**) &auto_generate_sql_unique_write_number,
     0, GET_ULL, REQUIRED_ARG, 10, 0, 0, 0, 0, 0},
   {"auto-generate-sql-write-number", OPT_SLAP_AUTO_GENERATE_WRITE_NUM,
-    "Number of rows to insert to used in read and write loads (default is 100).\n",
+    "Number of row inserts to perform for each thread (default is 100).",
     (uchar**) &auto_generate_sql_number, (uchar**) &auto_generate_sql_number,
     0, GET_ULL, REQUIRED_ARG, 100, 0, 0, 0, 0, 0},
   {"commit", OPT_SLAP_COMMIT, "Commit records every X number of statements.",
@@ -565,9 +566,14 @@ static struct my_option my_long_options[] =
 	"Generate CSV output to named file or to stdout if no file is named.",
     (uchar**) &opt_csv_str, (uchar**) &opt_csv_str, 0, GET_STR, 
     OPT_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
     (uchar**) &default_dbug_option, (uchar**) &default_dbug_option, 0, GET_STR,
     OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
    (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -577,7 +583,8 @@ static struct my_option my_long_options[] =
     "Delimiter to use in SQL statements supplied in file or command line.",
     (uchar**) &delimiter, (uchar**) &delimiter, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
-  {"detach", OPT_SLAP_DETACH, "Detach connections every X number of requests.",
+  {"detach", OPT_SLAP_DETACH,
+    "Detach (close and reopen) connections after X number of requests.",
     (uchar**) &detach_rate, (uchar**) &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Storage engine to use for creating the table.",
@@ -588,11 +595,11 @@ static struct my_option my_long_options[] =
   {"iterations", 'i', "Number of times to run the tests.", (uchar**) &iterations,
     (uchar**) &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
-    "Number of VARCHAR columns to create table with if specifying --auto-generate-sql ",
+    "Number of VARCHAR columns to create in table if specifying --auto-generate-sql.",
     (uchar**) &num_char_cols_opt, (uchar**) &num_char_cols_opt, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"number-int-cols", 'y', 
-    "Number of INT columns to create table with if specifying --auto-generate-sql.",
+    "Number of INT columns to create in table if specifying --auto-generate-sql.",
     (uchar**) &num_int_cols_opt, (uchar**) &num_int_cols_opt, 0, GET_STR, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"number-of-queries", OPT_MYSQL_NUMBER_OF_QUERY, 
@@ -615,30 +622,25 @@ static struct my_option my_long_options[] =
     (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
     0},
   {"post-query", OPT_SLAP_POST_QUERY,
-    "Query to run or file containing query to run after executing.",
+    "Query to run or file containing query to execute after tests have completed.",
     (uchar**) &user_supplied_post_statements, 
     (uchar**) &user_supplied_post_statements,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"post-system", OPT_SLAP_POST_SYSTEM,
-    "System() string to run after the load has completed.",
+    "system() string to execute after tests have completed.",
     (uchar**) &post_system, 
     (uchar**) &post_system,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"pre-query", OPT_SLAP_PRE_QUERY, 
-    "Query to run or file containing query to run before executing.",
+    "Query to run or file containing query to execute before running tests.",
     (uchar**) &user_supplied_pre_statements, 
     (uchar**) &user_supplied_pre_statements,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"pre-system", OPT_SLAP_PRE_SYSTEM, 
-    "System() string to before load has completed.",
+    "system() string to execute before running tests.",
     (uchar**) &pre_system, 
     (uchar**) &pre_system,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"preserve-schema", OPT_MYSQL_PRESERVE_SCHEMA,
-    "Preserve the schema from the mysqlslap run, this happens unless "
-      "--auto-generate-sql or --create are used.",
-    (uchar**) &opt_preserve, (uchar**) &opt_preserve, 0, GET_BOOL,
-    NO_ARG, TRUE, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
     "The protocol of connection (tcp,socket,pipe,memory).",
     0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -663,7 +665,7 @@ static struct my_option my_long_options[] =
     (uchar**) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v',
-    "More verbose output; You can use this multiple times to get even more "
+    "More verbose output; you can use this multiple times to get even more "
       "verbose output.", (uchar**) &verbose, (uchar**) &verbose, 0, 
       GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
@@ -1139,12 +1141,9 @@ get_options(int *argc,char ***argv)
   if (!user)
     user= (char *)"root";
 
+  /* If something is created we clean it up, otherwise we leave schemas alone */
   if (create_string || auto_generate_sql)
-  {
-    if (verbose >= 1)
-      fprintf(stderr, "Turning off preserve-schema!\n");
     opt_preserve= FALSE;
-  }
 
   if (auto_generate_sql && (create_string || user_supplied_query))
   {
