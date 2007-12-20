@@ -50,7 +50,8 @@ create. The standard size is the maximum (payload) size of the blocks used for
 allocations of small buffers. */
 
 #define MEM_BLOCK_START_SIZE		64
-#define MEM_BLOCK_STANDARD_SIZE		8000
+#define MEM_BLOCK_STANDARD_SIZE		\
+	(UNIV_PAGE_SIZE >= 16384 ? 8000 : MEM_MAX_ALLOC_IN_BUF)
 
 /* If a memory heap is allowed to grow into the buffer pool, the following
 is the maximum size for a single allocated buffer: */
