@@ -8974,7 +8974,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     *((*copy_func)++) = item;			// Save for copy_funcs
   if (modify_item)
     item->set_result_field(new_field);
-  if (item->type() == MYSQL_TYPE_NULL)
+  if (item->type() == Item::NULL_ITEM)
     new_field->is_created_from_null_item= TRUE;
   return new_field;
 }
