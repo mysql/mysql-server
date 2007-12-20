@@ -64,7 +64,6 @@ class Db {
     int get_flags(u_int32_t *);
     int set_flags(u_int32_t);
     int set_pagesize(u_int32_t);
-    int remove(const char *file, const char *database, u_int32_t flags);
 
  private:
     DB *the_db;
