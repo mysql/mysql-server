@@ -22,6 +22,9 @@ class Dbt : private DBT
     u_int32_t get_flags() const        { return flags; }
     void      set_flags(u_int32_t f)   { flags = f; }
 
+    u_int32_t get_ulen() const         { return ulen; }
+    void      set_ulen(u_int32_t p)    { ulen = p; }
+
     DBT *get_DBT(void)                 { return (DBT*)this; }
 
     Dbt(void */*data*/, u_int32_t /*size*/);
@@ -61,6 +64,7 @@ class Db {
     int get_flags(u_int32_t *);
     int set_flags(u_int32_t);
     int set_pagesize(u_int32_t);
+    int remove(const char *file, const char *database, u_int32_t flags);
 
  private:
     DB *the_db;
