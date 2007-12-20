@@ -556,8 +556,11 @@ page_zip_dir_encode(
 		ut_a(heap_no < n_heap);
 		ut_a(offs < UNIV_PAGE_SIZE - PAGE_DIR);
 		ut_a(offs >= PAGE_ZIP_START);
-#if PAGE_ZIP_DIR_SLOT_MASK & UNIV_PAGE_SIZE
-# error "PAGE_ZIP_DIR_SLOT_MASK & UNIV_PAGE_SIZE"
+#if PAGE_ZIP_DIR_SLOT_MASK & (PAGE_ZIP_DIR_SLOT_MASK + 1)
+# error "PAGE_ZIP_DIR_SLOT_MASK is not 1 less than a power of 2"
+#endif
+#if PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE - 1
+# error "PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE - 1"
 #endif
 		if (UNIV_UNLIKELY(rec_get_n_owned_new(rec))) {
 			offs |= PAGE_ZIP_DIR_SLOT_OWNED;
