@@ -59,7 +59,7 @@ static void do_error (DB_ENV *dbenv, const char *string) {
 	fprintf(dbenv->i->errfile, "%s\n", string);
 }
 
-static void toku_db_env_err(const DB_ENV * env __attribute__ ((__unused__)), int error, const char *fmt, ...) {
+static void toku_db_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     if (env->i->errpfx && env->i->errpfx[0] != '\0') fprintf(stderr, "%s: ", env->i->errpfx);
