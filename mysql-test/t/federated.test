@@ -1764,6 +1764,35 @@ DROP TABLE federated.t1;
 connection slave;
 DROP TABLE federated.t1;
 
---echo End of 5.1 tests
+#
+# Bug #32374 crash with filesort when selecting from federated table and view
+#
+connection slave;
+create table t1 (a varchar(256));
+--disable_warnings
+drop view if exists v1;
+--enable_warnings
+create view v1 as select a from t1;
+--disable_query_log
+let $n= 100;
+while ($n)
+{
+  insert into t1 values (repeat('a',200));
+  dec $n;
+}
+--enable_query_log
 
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table t1
+  (a varchar(256)) engine=federated
+  connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/v1';
+
+select 1 from t1 order by a;
+drop table t1;
+connection slave;
+drop table t1;
+drop view v1;
+
+--echo End of 5.1 tests
 source include/federated_cleanup.inc;

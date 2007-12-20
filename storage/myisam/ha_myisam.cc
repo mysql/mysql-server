@@ -1407,10 +1407,8 @@ int ha_myisam::enable_indexes(uint mode)
         might have been set by the first repair. They can still be seen
         with SHOW WARNINGS then.
       */
-#ifndef EMBEDDED_LIBRARY      
       if (! error)
         thd->clear_error();
-#endif /* EMBEDDED_LIBRARY */
     }
     info(HA_STATUS_CONST);
     thd_proc_info(thd, save_proc_info);
@@ -1653,9 +1651,13 @@ int ha_myisam::index_next_same(uchar *buf,
 			       const uchar *key __attribute__((unused)),
 			       uint length __attribute__((unused)))
 {
+  int error;
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&SSV::ha_read_next_count);
-  int error=mi_rnext_same(file,buf);
+  do
+  {
+    error= mi_rnext_same(file,buf);
+  } while (error == HA_ERR_RECORD_DELETED);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }

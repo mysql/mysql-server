@@ -29,7 +29,7 @@
 #include <m_ctype.h>
 #include "sql_select.h"
 
-static bool convert_constant_item(THD *thd, Field *field, Item **item);
+static bool convert_constant_item(THD *, Item_field *, Item **);
 
 static Item_result item_store_type(Item_result a, Item *item,
                                    my_bool unsigned_flag)
@@ -378,13 +378,15 @@ longlong Item_func_nop_all::val_int()
     table that has not been populated yet.
 
   @retval
-    0	Can't convert item
+    0  Can't convert item
   @retval
-    1	Item was replaced with an integer version of the item
+    1  Item was replaced with an integer version of the item
 */
 
-static bool convert_constant_item(THD *thd, Field *field, Item **item)
+static bool convert_constant_item(THD *thd, Item_field *field_item,
+                                  Item **item)
 {
+  Field *field= field_item->field;
   int result= 0;
 
   if (!(*item)->with_subselect && (*item)->const_item())
@@ -394,9 +396,11 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
     enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_write_map;
     my_bitmap_map *old_read_map;
+    ulonglong orig_field_val; /* original field value if valid */
 
     LINT_INIT(old_write_map);
     LINT_INIT(old_read_map);
+    LINT_INIT(orig_field_val);
 
     if (table)
     {
@@ -407,13 +411,27 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
     thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
                              MODE_INVALID_DATES;
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-    if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
+
+    /*
+      Store the value of the field if it references an outer field because
+      the call to save_in_field below overrides that value.
+    */
+    if (field_item->depended_from)
+      orig_field_val= field->val_int();
+    if (!(*item)->is_null() && !(*item)->save_in_field(field, 1))
     {
       Item *tmp= new Item_int_with_ref(field->val_int(), *item,
                                        test(field->flags & UNSIGNED_FLAG));
       if (tmp)
         thd->change_item_tree(item, tmp);
       result= 1;					// Item was replaced
+    }
+    /* Restore the original field value. */
+    if (field_item->depended_from)
+    {
+      result= field->store(orig_field_val, TRUE);
+      /* orig_field_val must be a valid value that can be restored back. */
+      DBUG_ASSERT(!result);
     }
     thd->variables.sql_mode= orig_sql_mode;
     thd->count_cuted_fields= orig_count_cuted_fields;
@@ -471,15 +489,14 @@ void Item_bool_func2::fix_length_and_dec()
   thd= current_thd;
   if (!thd->is_context_analysis_only())
   {
-    Item *arg_real_item= args[0]->real_item();
-    if (arg_real_item->type() == FIELD_ITEM)
+    if (args[0]->real_item()->type() == FIELD_ITEM)
     {
-      Field *field=((Item_field*) arg_real_item)->field;
-      if (field->can_be_compared_as_longlong() &&
-          !(arg_real_item->is_datetime() &&
+      Item_field *field_item= (Item_field*) (args[0]->real_item());
+      if (field_item->field->can_be_compared_as_longlong() &&
+          !(field_item->is_datetime() &&
             args[1]->result_type() == STRING_RESULT))
       {
-        if (convert_constant_item(thd, field,&args[1]))
+        if (convert_constant_item(thd, field_item, &args[1]))
         {
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT);		// Works for all types.
@@ -488,15 +505,14 @@ void Item_bool_func2::fix_length_and_dec()
         }
       }
     }
-    arg_real_item= args[1]->real_item();
-    if (arg_real_item->type() == FIELD_ITEM)
+    if (args[1]->real_item()->type() == FIELD_ITEM)
     {
-      Field *field=((Item_field*) arg_real_item)->field;
-      if (field->can_be_compared_as_longlong() &&
-          !(arg_real_item->is_datetime() &&
+      Item_field *field_item= (Item_field*) (args[1]->real_item());
+      if (field_item->field->can_be_compared_as_longlong() &&
+          !(field_item->is_datetime() &&
             args[0]->result_type() == STRING_RESULT))
       {
-        if (convert_constant_item(thd, field,&args[0]))
+        if (convert_constant_item(thd, field_item, &args[0]))
         {
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT); // Works for all types.
@@ -1071,11 +1087,11 @@ int Arg_comparator::compare_string()
   Compare strings byte by byte. End spaces are also compared.
 
   @retval
-    <0	*a < *b
+    <0  *a < *b
   @retval
-    0	*b == *b
+     0  *b == *b
   @retval
-    >0	*a > *b
+    >0  *a > *b
 */
 
 int Arg_comparator::compare_binary_string()
@@ -1967,16 +1983,16 @@ void Item_func_between::fix_length_and_dec()
            thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
            thd->lex->sql_command != SQLCOM_SHOW_CREATE)
   {
-    Field *field=((Item_field*) (args[0]->real_item()))->field;
-    if (field->can_be_compared_as_longlong())
+    Item_field *field_item= (Item_field*) (args[0]->real_item());
+    if (field_item->field->can_be_compared_as_longlong())
     {
       /*
         The following can't be recoded with || as convert_constant_item
         changes the argument
       */
-      if (convert_constant_item(thd, field,&args[1]))
+      if (convert_constant_item(thd, field_item, &args[1]))
         cmp_type=INT_RESULT;			// Works for all types.
-      if (convert_constant_item(thd, field,&args[2]))
+      if (convert_constant_item(thd, field_item, &args[2]))
         cmp_type=INT_RESULT;			// Works for all types.
     }
   }
@@ -3609,13 +3625,13 @@ void Item_func_in::fix_length_and_dec()
           thd->lex->sql_command != SQLCOM_SHOW_CREATE &&
           cmp_type != INT_RESULT)
       {
-        Field *field= ((Item_field*) (args[0]->real_item()))->field;
-        if (field->can_be_compared_as_longlong())
+        Item_field *field_item= (Item_field*) (args[0]->real_item());
+        if (field_item->field->can_be_compared_as_longlong())
         {
           bool all_converted= TRUE;
           for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
           {
-            if (!convert_constant_item (thd, field, &arg[0]))
+            if (!convert_constant_item (thd, field_item, &arg[0]))
               all_converted= FALSE;
           }
           if (all_converted)
@@ -3907,20 +3923,20 @@ bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 /**
   Transform an Item_cond object with a transformer callback function.
-
+  
     The function recursively applies the transform method to each
-    member item of the condition list.
+     member item of the condition list.
     If the call of the method for a member item returns a new item
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
-    of the Item_cond object.
- 
+    of the Item_cond object. 
+     
   @param transformer   the transformer callback function to be applied to
                        the nodes of the tree of the object
   @param arg           parameter to be passed to the transformer
 
   @return
-    Item returned as the result of transformation of the root node
+    Item returned as the result of transformation of the root node 
 */
 
 Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
@@ -3951,7 +3967,7 @@ Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
 /**
   Compile Item_cond object with a processor and a transformer
   callback functions.
-
+  
     First the function applies the analyzer to the root node of
     the Item_func object. Then if the analyzer succeeeds (returns TRUE)
     the function recursively applies the compile method to member
@@ -3960,7 +3976,7 @@ Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_cond object. 
-
+     
   @param analyzer      the analyzer callback function to be applied to the
                        nodes of the tree of the object
   @param[in,out] arg_p parameter to be passed to the analyzer
@@ -3969,7 +3985,7 @@ Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
   @param arg_t         parameter to be passed to the transformer
 
   @return
-    Item returned as the result of transformation of the root node
+    Item returned as the result of transformation of the root node 
 */
 
 Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
@@ -4117,7 +4133,7 @@ void Item_cond::neg_arguments(THD *thd)
     1  If all expressions are true
   @retval
     0  If all expressions are false or if we find a NULL expression and
-    'abort_on_null' is set.
+       'abort_on_null' is set.
   @retval
     NULL if all expression are either 1 or NULL
 */
@@ -4166,8 +4182,8 @@ longlong Item_cond_or::val_int()
   @param a	expression or NULL
   @param b    	expression.
   @param org_item	Don't modify a if a == *org_item.
-                       If a == NULL, org_item is set to point at b,
-                       to ensure that future calls will not modify b.
+                        If a == NULL, org_item is set to point at b,
+                        to ensure that future calls will not modify b.
 
   @note
     This will not modify item pointed to by org_item or b
@@ -4685,7 +4701,7 @@ void Item_func_like::turboBM_compute_good_suffix_shifts(int *suff)
 
 
 /**
-  Precomputation dependent on pattern_len.
+   Precomputation dependent on pattern_len.
 */
 
 void Item_func_like::turboBM_compute_bad_character_shifts()
@@ -5043,7 +5059,7 @@ uint Item_equal::members()
   @retval
     1       if nultiple equality contains a reference to field
   @retval
-    0       otherwise
+    0       otherwise    
 */
 
 bool Item_equal::contains(Field *field)
@@ -5061,7 +5077,7 @@ bool Item_equal::contains(Field *field)
 
 /**
   Join members of another Item_equal object.
-
+  
     The function actually merges two multiple equalities.
     After this operation the Item_equal object additionally contains
     the field items of another item of the type Item_equal.
@@ -5090,15 +5106,15 @@ void Item_equal::merge(Item_equal *item)
 /**
   Order field items in multiple equality according to a sorting criteria.
 
-    The function perform ordering of the field items in the Item_equal
-    object according to the criteria determined by the cmp callback parameter.
-    If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
-    placed after item_fiel2.
+  The function perform ordering of the field items in the Item_equal
+  object according to the criteria determined by the cmp callback parameter.
+  If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
+  placed after item_fiel2.
 
-    The function sorts field items by the exchange sort algorithm.
-    The list of field items is looked through and whenever two neighboring
-    members follow in a wrong order they are swapped. This is performed
-    again and again until we get all members in a right order.
+  The function sorts field items by the exchange sort algorithm.
+  The list of field items is looked through and whenever two neighboring
+  members follow in a wrong order they are swapped. This is performed
+  again and again until we get all members in a right order.
 
   @param cmp          function to compare field item
   @param arg          context extra parameter for the cmp function
@@ -5139,11 +5155,11 @@ void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
 /**
   Check appearance of new constant items in the multiple equality object.
 
-    The function checks appearance of new constant items among
-    the members of multiple equalities. Each new constant item is
-    compared with the designated constant item if there is any in the
-    multiple equality. If there is none the first new constant item
-    becomes designated.
+  The function checks appearance of new constant items among
+  the members of multiple equalities. Each new constant item is
+  compared with the designated constant item if there is any in the
+  multiple equality. If there is none the first new constant item
+  becomes designated.
 */
 
 void Item_equal::update_const()

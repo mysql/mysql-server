@@ -845,9 +845,6 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   locks= locks_buf= sql_lock->locks= (THR_LOCK_DATA**) (sql_lock + 1);
   to= table_buf= sql_lock->table= (TABLE**) (locks + tables * 2);
   sql_lock->table_count=lock_count;
-  sql_lock->lock_count=tables;
-  DBUG_PRINT("info", ("sql_lock->table_count %d sql_lock->lock_count %d",
-                      sql_lock->table_count, sql_lock->lock_count));
 
   for (i=0 ; i < count ; i++)
   {
@@ -887,6 +884,23 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       for ( ; org_locks != locks ; org_locks++)
 	(*org_locks)->debug_print_param= (void *) table;
   }
+  /*
+    We do not use 'tables', because there are cases where store_lock()
+    returns less locks than lock_count() claimed. This can happen when
+    a FLUSH TABLES tries to abort locks from a MERGE table of another
+    thread. When that thread has just opened the table, but not yet
+    attached its children, it cannot return the locks. lock_count()
+    always returns the number of locks that an attached table has.
+    This is done to avoid the reverse situation: If lock_count() would
+    return 0 for a non-attached MERGE table, and that table becomes
+    attached between the calls to lock_count() and store_lock(), then
+    we would have allocated too little memory for the lock data. Now
+    we may allocate too much, but better safe than memory overrun.
+    And in the FLUSH case, the memory is released quickly anyway.
+  */
+  sql_lock->lock_count= locks - locks_buf;
+  DBUG_PRINT("info", ("sql_lock->table_count %d sql_lock->lock_count %d",
+                      sql_lock->table_count, sql_lock->lock_count));
   DBUG_RETURN(sql_lock);
 }
 

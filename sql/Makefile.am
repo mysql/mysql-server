@@ -163,6 +163,7 @@ link_sources:
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_time.c my_time.c
 	rm -f my_user.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c
+	echo timestamp > link_sources
 
 # This generates lex_hash.h
 # NOTE Built sources should depend on their sources not the tool

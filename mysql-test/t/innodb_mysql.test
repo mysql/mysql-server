@@ -10,5 +10,6 @@ let $engine_type= InnoDB;
 let $other_engine_type= MEMORY;
 # InnoDB does support FOREIGN KEYFOREIGN KEYs
 let $test_foreign_keys= 1;
-
+set global innodb_support_xa=default;
+set session innodb_support_xa=default;
 --source include/mix1.inc

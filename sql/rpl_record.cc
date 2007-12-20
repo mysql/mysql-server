@@ -338,12 +338,13 @@ int prepare_record(const Slave_reporting_capability *const log,
     if (check && ((f->flags & mask) == mask))
     {
       DBUG_ASSERT(log);
-      log->report(ERROR_LEVEL, ER_NO_DEFAULT_FOR_FIELD,
+      error= ER_NO_DEFAULT_FOR_FIELD;
+      log->report(ERROR_LEVEL, error,
                   "Field `%s` of table `%s`.`%s` "
                   "has no default value and cannot be NULL",
                   f->field_name, table->s->db.str,
                   table->s->table_name.str);
-      error = ER_NO_DEFAULT_FOR_FIELD;
+      my_error(error, MYF(0), f->field_name);
     }
     else
       f->set_default();

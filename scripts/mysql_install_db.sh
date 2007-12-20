@@ -19,6 +19,7 @@
 # All unrecognized arguments to this script are passed to mysqld.
 
 basedir=""
+builddir=""
 ldata="@localstatedir@"
 srcdir=""
 
@@ -30,13 +31,18 @@ user=""
 force=0
 in_rpm=0
 ip_only=0
-windows=0
+cross_bootstrap=0
 
 usage()
 {
   cat <<EOF
 Usage: $0 [OPTIONS]
   --basedir=path       The path to the MySQL installation directory.
+  --builddir=path      If using --srcdir with out-of-directory builds, you
+                       will need to set this to the location of the build
+                       directory where built files reside.
+  --cross-bootstrap    For internal use.  Used when building the MySQL system
+                       tables on a different host than the target.
   --datadir=path       The path to the MySQL data directory.
   --force              Causes mysql_install_db to run even if DNS does not
                        work.  In that case, grant table entries that normally
@@ -56,8 +62,6 @@ Usage: $0 [OPTIONS]
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
-  --windows            For internal use.  This option is used for creating
-                       Windows distributions.
 
 All other options are passed to the mysqld program
 
@@ -67,7 +71,7 @@ EOF
 
 s_echo()
 {
-  if test "$in_rpm" -eq 0 -a "$windows" -eq 0
+  if test "$in_rpm" -eq 0 -a "$cross_bootstrap" -eq 0
   then
     echo "$1"
   fi
@@ -95,6 +99,7 @@ parse_arguments()
     case "$arg" in
       --force) force=1 ;;
       --basedir=*) basedir=`parse_arg "$arg"` ;;
+      --builddir=*) builddir=`parse_arg "$arg"` ;;
       --srcdir=*)  srcdir=`parse_arg "$arg"` ;;
       --ldata=*|--datadir=*) ldata=`parse_arg "$arg"` ;;
       --user=*)
@@ -109,16 +114,17 @@ parse_arguments()
       --no-defaults|--defaults-file=*|--defaults-extra-file=*)
         defaults="$arg" ;;
 
-      --windows)
-	# This is actually a "cross bootstrap" argument used when
-        # building the MySQL system tables on a different host
-        # than the target. The platform independent
-        # files that are created in --datadir on the host can
-        # be copied to the target system, the most common use for
-        # this feature is in the windows installer which will take
-        # the files from datadir and include them as part of the install
-        # package.
-         windows=1 ;;
+      --cross-bootstrap|--windows)
+        # Used when building the MySQL system tables on a different host than
+        # the target. The platform-independent files that are created in
+        # --datadir on the host can be copied to the target system.
+        #
+        # The most common use for this feature is in the Windows installer
+        # which will take the files from datadir and include them as part of
+        # the install package.  See top-level 'dist-hook' make target.
+        #
+        # --windows is a deprecated alias
+         cross_bootstrap=1 ;;
 
       *)
         if test -n "$pick_args"
@@ -189,9 +195,18 @@ parse_arguments PICK-ARGS-FROM-ARGV "$@"
 #
 # or default to compiled-in locations.
 #
+if test -n "$srcdir" && test -n "$basedir"
+then
+  echo "ERROR: Specify either --basedir or --srcdir, not both."
+  exit 1
+fi
 if test -n "$srcdir"
 then
-  print_defaults="$srcdir/extra/my_print_defaults"
+  if test -z "$builddir"
+  then
+    builddir="$srcdir"
+  fi
+  print_defaults="$builddir/extra/my_print_defaults"
 elif test -n "$basedir"
 then
   print_defaults=`find_in_basedir my_print_defaults bin extra`
@@ -213,10 +228,10 @@ parse_arguments PICK-ARGS-FROM-ARGV "$@"
 # Configure paths to support files
 if test -n "$srcdir"
 then
-  basedir="$srcdir"
-  bindir="$srcdir/client"
-  extra_bindir="$srcdir/extra"
-  mysqld="$srcdir/sql/mysqld"
+  basedir="$builddir"
+  bindir="$basedir/client"
+  extra_bindir="$basedir/extra"
+  mysqld="$basedir/sql/mysqld"
   mysqld_opt="--language=$srcdir/sql/share/english"
   pkgdatadir="$srcdir/scripts"
   scriptdir="$srcdir/scripts"
@@ -260,7 +275,7 @@ fi
 hostname=`@HOSTNAME@`
 
 # Check if hostname is valid
-if test "$windows" -eq 0 -a "$in_rpm" -eq 0 -a "$force" -eq 0
+if test "$cross_bootstrap" -eq 0 -a "$in_rpm" -eq 0 -a "$force" -eq 0
 then
   resolved=`$extra_bindir/resolveip $hostname 2>&1`
   if test $? -ne 0
@@ -318,7 +333,7 @@ mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
 
 # Create the system and help tables by passing them to "mysqld --bootstrap"
 s_echo "Installing MySQL system tables..."
-if `(echo "use mysql;"; cat $create_system_tables $fill_system_tables) | $mysqld_install_cmd_line`
+if { echo "use mysql;"; cat $create_system_tables $fill_system_tables; } | eval "$filter_cmd_line" | $mysqld_install_cmd_line > /dev/null
 then
   s_echo "OK"
 else
@@ -363,12 +378,11 @@ fi
 
 # Don't output verbose information if running inside bootstrap or using
 # --srcdir for testing.
-if test "$windows" -eq 0 && test -z "$srcdir"
+if test "$cross_bootstrap" -eq 0 && test -z "$srcdir"
 then
   s_echo
   s_echo "To start mysqld at boot time you have to copy"
   s_echo "support-files/mysql.server to the right place for your system"
-
   echo
   echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
   echo "To do so, start the server, then issue the following commands:"
@@ -387,10 +401,8 @@ then
 
   if test "$in_rpm" -eq 0
   then
-    echo
     echo "You can start the MySQL daemon with:"
     echo "cd $basedir ; $bindir/mysqld_safe &"
-    echo
     echo "You can test the MySQL daemon with mysql-test-run.pl"
     echo "cd $basedir/mysql-test ; perl mysql-test-run.pl"
   fi

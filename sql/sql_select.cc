@@ -227,6 +227,7 @@ static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
+static bool test_if_ref(Item_field *left_item,Item *right_item);
 
 
 /**
@@ -691,9 +692,6 @@ err:
     without "checking NULL", remove the predicates that were pushed down
     into the subquery.
 
-    We can remove the equalities that will be guaranteed to be true by the
-    fact that subquery engine will be using index lookup.
-
     If the subquery compares scalar values, we can remove the condition that
     was wrapped into trig_cond (it will be checked when needed by the subquery
     engine)
@@ -703,6 +701,12 @@ err:
     and non-NULL values, we'll do a full table scan and will rely on the
     equalities corresponding to non-NULL parts of left tuple to filter out
     non-matching records.
+
+    TODO: We can remove the equalities that will be guaranteed to be true by the
+    fact that subquery engine will be using index lookup. This must be done only
+    for cases where there are no conversion errors of significance, e.g. 257
+    that is searched in a byte. But this requires homogenization of the return 
+    codes of all Field*::store() methods.
 */
 
 void JOIN::remove_subq_pushed_predicates(Item **where)
@@ -710,16 +714,12 @@ void JOIN::remove_subq_pushed_predicates(Item **where)
   if (conds->type() == Item::FUNC_ITEM &&
       ((Item_func *)this->conds)->functype() == Item_func::EQ_FUNC &&
       ((Item_func *)conds)->arguments()[0]->type() == Item::REF_ITEM &&
-      ((Item_func *)conds)->arguments()[1]->type() == Item::FIELD_ITEM)
+      ((Item_func *)conds)->arguments()[1]->type() == Item::FIELD_ITEM &&
+      test_if_ref ((Item_field *)((Item_func *)conds)->arguments()[1],
+                   ((Item_func *)conds)->arguments()[0]))
   {
     *where= 0;
     return;
-  }
-  if (conds->type() == Item::COND_ITEM &&
-      ((class Item_func *)this->conds)->functype() ==
-      Item_func::COND_AND_FUNC)
-  {
-    *where= remove_additional_cond(conds);
   }
 }
 
@@ -915,7 +915,6 @@ JOIN::optimize()
       }
       if (res > 1)
       {
-        thd->fatal_error();
         error= res;
         DBUG_PRINT("error",("Error from opt_sum_query"));
         DBUG_RETURN(1);
@@ -1283,7 +1282,7 @@ JOIN::optimize()
   {
     if (!having)
     {
-      Item *where= 0;
+      Item *where= conds;
       if (join_tab[0].type == JT_EQ_REF &&
 	  join_tab[0].ref.items[0]->name == in_left_expr_name)
       {
@@ -2410,6 +2409,11 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 {
   int error;
   DBUG_ENTER("get_quick_record_count");
+#ifndef EMBEDDED_LIBRARY                      // Avoid compiler warning
+  uchar buff[STACK_BUFF_ALLOC];
+#endif
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
+    DBUG_RETURN(0);                           // Fatal error flag is set
   if (select)
   {
     select->head=table;
@@ -3791,7 +3795,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     found_eq_constant=0;
     for (i=0 ; i < keyuse->elements-1 ; i++,use++)
     {
-      if (!use->used_tables)
+      if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
 	use->table->const_key_parts[use->key]|= use->keypart_map;
       if (use->keypart != FT_KEYPART)
       {
@@ -10675,7 +10679,8 @@ Next_select_func setup_end_select_func(JOIN *join)
   /* Set up select_end */
   if (table)
   {
-    if (table->group && tmp_tbl->sum_func_count)
+    if (table->group && tmp_tbl->sum_func_count && 
+        !tmp_tbl->precomputed_group_by)
     {
       if (table->s->keys)
       {
@@ -12331,8 +12336,12 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
     Item *ref_item=part_of_refkey(field->table,field);
     if (ref_item && ref_item->eq(right_item,1))
     {
+      right_item= right_item->real_item();
       if (right_item->type() == Item::FIELD_ITEM)
 	return (field->eq_def(((Item_field *) right_item)->field));
+      /* remove equalities injected by IN->EXISTS transformation */
+      else if (right_item->type() == Item::CACHE_ITEM)
+        return ((Item_cache *)right_item)->eq_def (field);
       if (right_item->const_item() && !(right_item->is_null()))
       {
 	/*
@@ -14589,6 +14598,7 @@ calc_group_buffer(JOIN *join,ORDER *group)
       default:
         /* This case should never be choosen */
         DBUG_ASSERT(0);
+        my_error(ER_OUT_OF_RESOURCES, MYF(0));
         join->thd->fatal_error();
       }
     }
@@ -16052,7 +16062,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	{
 	  if (tab->use_quick == 2)
 	  {
-            char buf[MAX_KEY/8+1];
+            /* 4 bits per 1 hex digit + terminating '\0' */
+            char buf[MAX_KEY / 4 + 1];
             extra.append(STRING_WITH_LEN("; Range checked for each "
                                          "record (index map: 0x"));
             extra.append(tab->keys.print(buf));
