@@ -116,7 +116,7 @@ trx_rseg_create(
 
 
 /* Number of undo log slots in a rollback segment file copy */
-#define TRX_RSEG_N_SLOTS	1024
+#define TRX_RSEG_N_SLOTS	(UNIV_PAGE_SIZE / 16)
 
 /* Maximum number of transactions supported by a single rollback segment */
 #define TRX_RSEG_MAX_N_TRXS	(TRX_RSEG_N_SLOTS / 2)
