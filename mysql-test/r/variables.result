@@ -223,7 +223,7 @@ set GLOBAL myisam_max_sort_file_size=default;
 show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
 myisam_max_sort_file_size	FILE_SIZE
-select * from information_schema.session_variables where variable_name like 'myisam_max_sort_file_size';
+select * from information_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
 VARIABLE_NAME	VARIABLE_VALUE
 MYISAM_MAX_SORT_FILE_SIZE	FILE_SIZE
 set global net_retry_count=10, session net_retry_count=10;
