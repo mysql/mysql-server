@@ -978,9 +978,8 @@ trx_sys_init_at_db_start(void)
 			(ulong) UT_LIST_GET_LEN(trx_sys->trx_list),
 			(ulong) rows_to_undo, unit);
 
-		fprintf(stderr, "InnoDB: Trx id counter is %lu %lu\n",
-			(ulong) ut_dulint_get_high(trx_sys->max_trx_id),
-			(ulong) ut_dulint_get_low(trx_sys->max_trx_id));
+		fprintf(stderr, "InnoDB: Trx id counter is " TRX_ID_FMT "\n",
+			TRX_ID_PREP_PRINTF(trx_sys->max_trx_id));
 	}
 
 	UT_LIST_INIT(trx_sys->view_list);

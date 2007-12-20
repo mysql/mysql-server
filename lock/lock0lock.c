@@ -463,14 +463,12 @@ lock_check_trx_id_sanity(
 		fputs("InnoDB: in ", stderr);
 		dict_index_name_print(stderr, NULL, index);
 		fprintf(stderr, "\n"
-			"InnoDB: is %lu %lu which is higher than the"
-			" global trx id counter %lu %lu!\n"
+			"InnoDB: is " TRX_ID_FMT " which is higher than the"
+			" global trx id counter " TRX_ID_FMT "!\n"
 			"InnoDB: The table is corrupt. You have to do"
 			" dump + drop + reimport.\n",
-			(ulong) ut_dulint_get_high(trx_id),
-			(ulong) ut_dulint_get_low(trx_id),
-			(ulong) ut_dulint_get_high(trx_sys->max_trx_id),
-			(ulong) ut_dulint_get_low(trx_sys->max_trx_id));
+			TRX_ID_PREP_PRINTF(trx_id),
+			TRX_ID_PREP_PRINTF(trx_sys->max_trx_id));
 
 		is_ok = FALSE;
 	}
@@ -4143,8 +4141,8 @@ lock_table_print(
 	fputs("TABLE LOCK table ", file);
 	ut_print_name(file, lock->trx, TRUE,
 		      lock->un_member.tab_lock.table->name);
-	fprintf(file, " trx id %lu %lu",
-		(ulong) (lock->trx)->id.high, (ulong) (lock->trx)->id.low);
+	fprintf(file, " trx id " TRX_ID_FMT,
+		TRX_ID_PREP_PRINTF(lock->trx->id));
 
 	if (lock_get_mode(lock) == LOCK_S) {
 		fputs(" lock mode S", file);
@@ -4197,9 +4195,8 @@ lock_rec_print(
 		(ulong) space, (ulong) page_no,
 		(ulong) lock_rec_get_n_bits(lock));
 	dict_index_name_print(file, lock->trx, lock->index);
-	fprintf(file, " trx id %lu %lu",
-		(ulong) (lock->trx)->id.high,
-		(ulong) (lock->trx)->id.low);
+	fprintf(file, " trx id " TRX_ID_FMT,
+		TRX_ID_PREP_PRINTF(lock->trx->id));
 
 	if (lock_get_mode(lock) == LOCK_S) {
 		fputs(" lock mode S", file);
@@ -4316,16 +4313,14 @@ lock_print_info_summary(
 	      "TRANSACTIONS\n"
 	      "------------\n", file);
 
-	fprintf(file, "Trx id counter %lu %lu\n",
-		(ulong) ut_dulint_get_high(trx_sys->max_trx_id),
-		(ulong) ut_dulint_get_low(trx_sys->max_trx_id));
+	fprintf(file, "Trx id counter " TRX_ID_FMT "\n",
+		TRX_ID_PREP_PRINTF(trx_sys->max_trx_id));
 
 	fprintf(file,
-		"Purge done for trx's n:o < %lu %lu undo n:o < %lu %lu\n",
-		(ulong) ut_dulint_get_high(purge_sys->purge_trx_no),
-		(ulong) ut_dulint_get_low(purge_sys->purge_trx_no),
-		(ulong) ut_dulint_get_high(purge_sys->purge_undo_no),
-		(ulong) ut_dulint_get_low(purge_sys->purge_undo_no));
+		"Purge done for trx's n:o < " TRX_ID_FMT
+		" undo n:o < " TRX_ID_FMT "\n",
+		TRX_ID_PREP_PRINTF(purge_sys->purge_trx_no),
+		TRX_ID_PREP_PRINTF(purge_sys->purge_undo_no));
 
 	fprintf(file,
 		"History list length %lu\n",
@@ -4398,14 +4393,11 @@ loop:
 		if (trx->read_view) {
 			fprintf(file,
 				"Trx read view will not see trx with"
-				" id >= %lu %lu, sees < %lu %lu\n",
-				(ulong) ut_dulint_get_high(
+				" id >= " TRX_ID_FMT
+				", sees < " TRX_ID_FMT "\n",
+				TRX_ID_PREP_PRINTF(
 					trx->read_view->low_limit_id),
-				(ulong) ut_dulint_get_low(
-					trx->read_view->low_limit_id),
-				(ulong) ut_dulint_get_high(
-					trx->read_view->up_limit_id),
-				(ulong) ut_dulint_get_low(
+				TRX_ID_PREP_PRINTF(
 					trx->read_view->up_limit_id));
 		}
 
