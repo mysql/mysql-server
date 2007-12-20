@@ -34,10 +34,21 @@ void test_db(void) {
     r = db.remove("DoesNotExist.db", NULL, 0);  assert(r == ENOENT);
 }
 
+void test_db_env(void) {
+    DbEnv dbenv(0);
+    int r;
+    
+    r = dbenv.set_data_dir(".");    assert(r == 0);
+    r = dbenv.set_data_dir("..");   assert(r == 0);
+    r = dbenv.set_data_dir(NULL);   assert(r == EINVAL);
+    dbenv.set_errpfx("Prefix");
+}
+
 int main()
 {
     test_dbt();
     test_db();
+    test_db_env();
     cout << "Hello World!" << endl;   cout << "Welcome to C++ Programming" << endl;
     return 0;
 }
