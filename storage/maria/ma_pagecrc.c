@@ -290,3 +290,13 @@ my_bool maria_page_filler_set_none(uchar *page __attribute__((unused)),
 {
   return 0;
 }
+
+/**
+  @brief Write failure callback (mark table as corrupted)
+
+  @param data_ptr        Write callback data pointer (pointer to MARIA_SHARE)
+*/
+void maria_page_write_failure (uchar* data_ptr)
+{
+  maria_mark_crashed_share((MARIA_SHARE *)data_ptr);
+}

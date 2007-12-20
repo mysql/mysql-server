@@ -1331,6 +1331,17 @@ static my_bool translog_close_log_file(TRANSLOG_FILE *file)
 
 
 /**
+  @brief Dummy function for write failure (the log to not use
+  pagecache writing)
+*/
+
+void translog_dummy_write_failure(uchar *data __attribute__((unused)))
+{
+  return;
+}
+
+
+/**
   @brief Initializes TRANSLOG_FILE structure
 
   @param file            reference on the file to initialize
@@ -1342,7 +1353,8 @@ static void translog_file_init(TRANSLOG_FILE *file, uint32 number,
                                my_bool is_sync)
 {
   pagecache_file_init(file->handler, &translog_page_validator,
-                      &translog_dummy_callback, file);
+                      &translog_dummy_callback,
+                      &translog_dummy_write_failure, file);
   file->number= number;
   file->was_recovered= 0;
   file->is_sync= is_sync;
@@ -2399,9 +2411,9 @@ static my_bool translog_recover_page_up_to_sector(uchar *page, uint16 offset)
 */
 
 static my_bool
-translog_dummy_callback(__attribute__((unused)) uchar *page,
-                        __attribute__((unused)) pgcache_page_no_t page_no,
-                        __attribute__((unused)) uchar* data_ptr)
+translog_dummy_callback(uchar *page __attribute__((unused)),
+                        pgcache_page_no_t page_no __attribute__((unused)),
+                        uchar* data_ptr __attribute__((unused)))
 {
   return 0;
 }

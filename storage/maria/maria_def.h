@@ -1090,4 +1090,6 @@ extern my_bool maria_page_filler_set_normal(uchar *page,
 extern my_bool maria_page_filler_set_none(uchar *page,
                                           pgcache_page_no_t page_no,
                                           uchar *data_ptr);
+extern void maria_page_write_failure(uchar* data_ptr);
+
 extern PAGECACHE *maria_log_pagecache;

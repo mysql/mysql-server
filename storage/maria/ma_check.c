@@ -5604,11 +5604,13 @@ my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file)
   pagecache_file_init(new_info->s->bitmap.file, &maria_page_crc_check_bitmap,
                       (new_info->s->options & HA_OPTION_PAGE_CHECKSUM ?
                        &maria_page_crc_set_normal :
-                       &maria_page_filler_set_bitmap), new_info->s);
+                       &maria_page_filler_set_bitmap),
+                      &maria_page_write_failure, new_info->s);
   pagecache_file_init(new_info->dfile, &maria_page_crc_check_data,
                       (new_info->s->options & HA_OPTION_PAGE_CHECKSUM ?
                        &maria_page_crc_set_normal :
-                       &maria_page_filler_set_normal), new_info->s);
+                       &maria_page_filler_set_normal),
+                      &maria_page_write_failure, new_info->s);
   change_data_file_descriptor(new_info, new_file);
   maria_lock_database(new_info, F_EXTRA_LCK);
   if ((sort_info->param->testflag & T_UNPACK) &&

@@ -1673,7 +1673,8 @@ static int maria_sort_records(HA_CHECK *param,
   pagecache_file_init(info->dfile, &maria_page_crc_check_data,
                       (share->options & HA_OPTION_PAGE_CHECKSUM ?
                        &maria_page_crc_set_normal :
-                       &maria_page_filler_set_normal), share);
+                       &maria_page_filler_set_normal),
+                      &maria_page_write_failure, share);
   info->state->del=0;
   info->state->empty=0;
   share->state.dellink= HA_OFFSET_ERROR;
