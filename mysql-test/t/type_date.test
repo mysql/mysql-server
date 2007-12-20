@@ -213,4 +213,12 @@ INSERT INTO t1 VALUES ('1000-00-00');
 SET SQL_MODE=DEFAULT;
 DROP TABLE t1,t2;
 
+#
+# Bug #31990: MINUTE() and SECOND() return bogus results when used on a DATE
+#
+
+CREATE TABLE t1 SELECT curdate() AS f1;
+SELECT hour(f1), minute(f1), second(f1) FROM t1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests
