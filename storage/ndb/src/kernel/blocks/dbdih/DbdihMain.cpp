@@ -3443,7 +3443,7 @@ Dbdih::nr_start_fragment(Signal* signal,
     }
     else
     {
-      ndbout_c("");
+      printf("\n");
     }
   }
   
