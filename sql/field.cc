@@ -5636,6 +5636,13 @@ String *Field_date::val_str(String *val_buffer,
 }
 
 
+bool Field_date::get_time(MYSQL_TIME *ltime)
+{
+  bzero((char *)ltime, sizeof(MYSQL_TIME));
+  return 0;
+}
+
+
 int Field_date::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   int32 a,b;
