@@ -34,14 +34,16 @@ enum buf_io_fix {
 
 /* Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 #if UNIV_WORD_SIZE <= 4 /* 32-bit system */
-# define BUF_BUDDY_LOW		64	/* minimum block size in the binary
+# define BUF_BUDDY_LOW_SHIFT	6
+#else /* 64-bit system */
+# define BUF_BUDDY_LOW_SHIFT	7
+#endif
+#define BUF_BUDDY_LOW		(1 << BUF_BUDDY_LOW_SHIFT)
+					/* minimum block size in the binary
 					buddy system; must be at least
 					sizeof(buf_page_t) */
-# define BUF_BUDDY_SIZES	8	/* number of buddy sizes */
-#else /* 64-bit system */
-# define BUF_BUDDY_LOW		128	/* sizeof(buf_page_t) > 64 */
-# define BUF_BUDDY_SIZES	7
-#endif
+#define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
+					/* number of buddy sizes */
 
 /* twice the maximum block size of the buddy system;
 the underlying memory is aligned by this amount:
