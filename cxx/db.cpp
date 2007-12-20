@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <db_cxx.h>
 
+#define do_maybe_error(errno) 
+
 Db::Db(DbEnv *env, u_int32_t flags)
     :      the_Env(env)
 {
@@ -13,7 +15,9 @@ Db::Db(DbEnv *env, u_int32_t flags)
     DB *tmp_db;
     int ret = db_create(&tmp_db, the_Env->get_DB_ENV(), flags & !(DB_CXX_NO_EXCEPTIONS));
     if (ret!=0) {
-	assert(0); // make an error
+	the_Env->maybe_throw_error(ret);
+	// Otherwise cannot do much
+	return;
     }
     the_db = tmp_db; 
     tmp_db->api_internal = this;
@@ -33,7 +37,7 @@ Db::~Db() {
 
 int Db::close (u_int32_t flags) {
     if (!the_db) {
-	return EINVAL;
+	return the_Env->maybe_throw_error(EINVAL);
     }
     the_db->api_internal = 0;
 
@@ -43,35 +47,35 @@ int Db::close (u_int32_t flags) {
     // Do we need to clean up "private environments"?
     // What about cursors?  They should be cleaned up already, but who did it?
 
-    return ret;
+    return the_Env->maybe_throw_error(ret);
 }
 
 int Db::open(DbTxn *txn, const char *filename, const char *subname, DBTYPE typ, u_int32_t flags, int mode) {
     int ret = the_db->open(the_db, txn->get_DB_TXN(), filename, subname, typ, flags, mode);
-    return ret;
+    return the_Env->maybe_throw_error(ret);
 }
 
 int Db::put(DbTxn *txn, Dbt *key, Dbt *data, u_int32_t flags) {
     int ret = the_db->put(the_db, txn->get_DB_TXN(), key->get_DBT(), data->get_DBT(), flags);
-    return ret;
+    return the_Env->maybe_throw_error(ret);
 }
 
 int Db::cursor(DbTxn *txn, Dbc **cursorp, u_int32_t flags) {
     int ret = the_db->cursor(the_db, txn->get_DB_TXN(), (DBC**)cursorp, flags);
-    return ret;
+    return the_Env->maybe_throw_error(ret);
 }
 
 int Db::set_pagesize(u_int32_t size) {
     int ret = the_db->set_pagesize(the_db, size);
-    return ret;
+    return the_Env->maybe_throw_error(ret);
 }
 
 int Db::remove(const char *file, const char *database, u_int32_t flags) {
     int ret = the_db->remove(the_db, file, database, flags);
-    return ret;
+    return the_Env->maybe_throw_error(ret);
 }
 
 int Db::set_bt_compare(bt_compare_fcn_type bt_compare_fcn) {
     int ret = the_db->set_bt_compare(the_db, bt_compare_fcn);
-    return ret;
+    return the_Env->maybe_throw_error(ret);
 }

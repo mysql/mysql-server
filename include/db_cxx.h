@@ -1,4 +1,5 @@
 #include <db.h>
+#include <exception>
 #include <string.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
@@ -100,9 +101,11 @@ class DbEnv {
     void set_errpfx(const char *errpfx);
 
  private:
+    int do_no_exceptions;
     DB_ENV *the_env;
 
-    DbEnv(DB_ENV *, u_int32_t flags);
+    DbEnv(DB_ENV *, u_int32_t /*flags*/);
+    int maybe_throw_error(int /*err*/);
 };
 
 	
@@ -127,5 +130,22 @@ class Dbc : protected DBC
     int close(void);
     int get(Dbt*, Dbt *, u_int32_t);
 
+};
+
+class DbException : public std::exception
+{
+    friend class DbEnv;
+ public:
+    ~DbException() throw();
+    DbException(int err);
+    int get_errno() const;
+    const char *what() const throw();
+    DbEnv *get_env() const;
+ private:
+    char *the_what;
+    int   the_err;
+    DbEnv *the_env;
+    void FillTheWhat(void);
+    void set_env(DB_ENV *);
 };
 
