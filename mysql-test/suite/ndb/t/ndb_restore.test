@@ -406,3 +406,18 @@ drop table if exists t2_c;
 --exec $NDB_TOOLS_DIR/ndb_select_all --no-defaults -d sys -D , SYSTAB_0 | grep 520093696, | sed "s/,$the_backup_id/,<the_backup_id>/"
 
 # End of 5.0 tests (4.1 test intermixed to save test time)
+
+#
+# Test restore of epoch number bug#
+#
+
+# ensure correct restore of epoch numbers in old versions
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --core=0 -e -b 1 -n 1 $MYSQL_TEST_DIR/std_data/ndb_backup50 >> $NDB_TOOLS_OUTPUT
+select epoch from mysql.ndb_apply_status;
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --core=0 -e -b 1 -n 1 $MYSQL_TEST_DIR/std_data/ndb_backup51 >> $NDB_TOOLS_OUTPUT
+select epoch from mysql.ndb_apply_status;
+# ensure correct restore of epoch numbers in current version
+# number hould be "big"
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --core=0 -e -b $the_backup_id -n 1 $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+# should evaluate to true == 1
+select epoch > (1 << 32) from mysql.ndb_apply_status;
