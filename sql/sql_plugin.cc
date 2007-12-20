@@ -1937,7 +1937,6 @@ static int check_func_longlong(THD *thd, struct st_mysql_sys_var *var,
   struct my_option options;
   value->val_int(value, &tmp);
   plugin_opt_set_limits(&options, var);
-  *(ulonglong *)save= getopt_ull_limit_value(tmp, &options, &fixed);
 
   if (var->flags & PLUGIN_VAR_UNSIGNED)
     *(ulonglong *)save= getopt_ull_limit_value((ulonglong) tmp, &options,

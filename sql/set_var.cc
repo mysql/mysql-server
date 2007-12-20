@@ -331,10 +331,12 @@ static sys_var_thd_ulong       sys_myisam_repair_threads(&vars, "myisam_repair_t
 static sys_var_thd_ulong	sys_myisam_sort_buffer_size(&vars, "myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
 static sys_var_bool_ptr	sys_myisam_use_mmap(&vars, "myisam_use_mmap",
                                             &opt_myisam_use_mmap);
+
 static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_method",
                                                 &SV::myisam_stats_method,
                                                 &myisam_stats_method_typelib,
                                                 NULL);
+
 static sys_var_thd_ulong	sys_net_buffer_length(&vars, "net_buffer_length",
 					      &SV::net_buffer_length);
 static sys_var_thd_ulong	sys_net_read_timeout(&vars, "net_read_timeout",
@@ -387,10 +389,10 @@ static sys_var_thd_ulong	sys_trans_alloc_block_size(&vars, "transaction_alloc_bl
 static sys_var_thd_ulong	sys_trans_prealloc_size(&vars, "transaction_prealloc_size",
 						&SV::trans_prealloc_size,
 						0, fix_trans_mem_root);
-sys_var_thd_enum        sys_thread_handling(&vars, "thread_handling",
-                                            &SV::thread_handling,
-                                            &thread_handling_typelib,
-                                            NULL);
+sys_var_enum_const        sys_thread_handling(&vars, "thread_handling",
+                                              &SV::thread_handling,
+                                              &thread_handling_typelib,
+                                              NULL);
 
 #ifdef HAVE_QUERY_CACHE
 static sys_var_long_ptr	sys_query_cache_limit(&vars, "query_cache_limit",
@@ -1229,6 +1231,13 @@ uchar *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
   return (uchar*) enum_names->type_names[*value];
 }
 
+
+uchar *sys_var_enum_const::value_ptr(THD *thd, enum_var_type type,
+                                     LEX_STRING *base)
+{
+  return (uchar*) enum_names->type_names[global_system_variables.*offset];
+}
+
 bool sys_var_thd_ulong::check(THD *thd, set_var *var)
 {
   return (get_unsigned(thd, var) ||
@@ -1981,7 +1990,6 @@ uchar *sys_var_collation_sv::value_ptr(THD *thd, enum_var_type type,
 LEX_STRING default_key_cache_base= {(char *) "default", 7 };
 
 static KEY_CACHE zero_key_cache;
-
 
 KEY_CACHE *get_key_cache(LEX_STRING *cache_name)
 {
@@ -3700,7 +3708,6 @@ void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
   WARN_DEPRECATED(thd, "5.2", "log_bin_trust_routine_creators",
                       "'log_bin_trust_function_creators'");
 }
-
 
 void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)
 {
