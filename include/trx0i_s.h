@@ -12,6 +12,7 @@ Created July 17, 2007 Vasil Dimov
 #define trx0i_s_h
 
 #include "univ.i"
+#include "trx0types.h"
 #include "ut0ut.h"
 
 /* the maximum amount of memory that can be consumed by innodb_trx,
@@ -174,8 +175,8 @@ trx_i_s_cache_is_truncated(
 
 /* The maximum length of a resulting lock_id_size in
 trx_i_s_create_lock_id(), not including the terminating '\0'.
-"%llu:%lu:%lu:%lu" -> 83 chars */
-#define TRX_I_S_LOCK_ID_MAX_LEN	83
+":%lu:%lu:%lu" -> 63 chars */
+#define TRX_I_S_LOCK_ID_MAX_LEN	(TRX_ID_MAX_LEN + 63)
 
 /***********************************************************************
 Crafts a lock id string from a i_s_locks_row_t object. Returns its

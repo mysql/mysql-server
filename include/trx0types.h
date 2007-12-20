@@ -18,6 +18,10 @@ Created 3/26/1996 Heikki Tuuri
 /* printf(3) format used for printing TRX_ID_PRINTF_PREP() */
 #define TRX_ID_FMT		"%llX"
 
+/* maximum length that a formatted trx_t::id could take, not including
+the terminating '\0'. */
+#define TRX_ID_MAX_LEN		17
+
 /* Memory objects */
 typedef struct trx_struct	trx_t;
 typedef struct trx_sys_struct	trx_sys_t;
