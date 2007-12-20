@@ -2172,6 +2172,8 @@ fseg_create_general(
 	ulint		i;
 
 	ut_ad(mtr);
+	ut_ad(byte_offset + FSEG_HEADER_SIZE
+	      <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
 
 	latch = fil_space_get_latch(space, &zip_size);
 
