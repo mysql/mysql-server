@@ -150,7 +150,7 @@ send SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
 connection locker;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = 
+  where state = "Waiting for table" and info = 
   "SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1";
 --source include/wait_condition.inc
 # Make test case independent from earlier grants.
@@ -341,6 +341,102 @@ connection locker;
 handler t1 open;
 --echo --> client 1
 connection default;
+drop table t1;
+
+#
+# Bug#32395 Alter table under a impending global read lock causes a server crash
+#
+
+#
+# Test ALTER TABLE under LOCK TABLES and FLUSH TABLES WITH READ LOCK
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+connect (flush,localhost,root,,test,,);
+connection default;
+--echo connection: default
+lock tables t1 write;
+connection flush;
+--echo connection: flush
+--send flush tables with read lock;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+alter table t1 add column j int;
+connect (insert,localhost,root,,test,,);
+connection insert;
+--echo connection: insert
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+--send insert into t1 values (1,2);
+--echo connection: default
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for release of readlock";
+--source include/wait_condition.inc
+unlock tables;
+connection flush;
+--echo connection: flush
+--reap
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for release of readlock";
+--source include/wait_condition.inc
+select * from t1;
+unlock tables;
+connection insert;
+--reap
+connection default;
+select * from t1;
+drop table t1;
+disconnect flush;
+disconnect insert;
+
+#
+# Test that FLUSH TABLES under LOCK TABLES protects write locked tables
+# from a impending FLUSH TABLES WITH READ LOCK
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+connect (flush,localhost,root,,test,,);
+connection default;
+--echo connection: default
+lock tables t1 write;
+connection flush;
+--echo connection: flush
+--send flush tables with read lock;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+flush tables;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+unlock tables;
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+connection flush;
+--reap
+connection default;
+disconnect flush;
 drop table t1;
 
 --echo End of 5.1 tests

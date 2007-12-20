@@ -1604,7 +1604,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   if (killed_status_arg == THD::KILLED_NO_VALUE)
     killed_status_arg= thd_arg->killed;
   error_code=
-    (killed_status_arg == THD::NOT_KILLED) ? thd_arg->net.last_errno :
+    (killed_status_arg == THD::NOT_KILLED) ?
+    (thd_arg->is_error() ? thd_arg->main_da.sql_errno() : 0) :
     ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ? 0 :
      thd_arg->killed_errno());
   
@@ -2343,7 +2344,7 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
     }
 
     /* If the query was not ignored, it is printed to the general log */
-    if (thd->net.last_errno != ER_SLAVE_IGNORED_TABLE)
+    if (!thd->is_error() || thd->main_da.sql_errno() != ER_SLAVE_IGNORED_TABLE)
       general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
 
 compare_errors:
@@ -2352,9 +2353,10 @@ compare_errors:
       If we expected a non-zero error code, and we don't get the same error
       code, and none of them should be ignored.
     */
-    DBUG_PRINT("info",("expected_error: %d  last_errno: %d",
- 		       expected_error, thd->net.last_errno));
-    if ((expected_error != (actual_error= thd->net.last_errno)) &&
+    actual_error= thd->is_error() ? thd->main_da.sql_errno() : 0;
+    DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
+ 		       expected_error, actual_error));
+    if ((expected_error != actual_error) &&
  	expected_error &&
  	!ignored_error_code(actual_error) &&
  	!ignored_error_code(expected_error))
@@ -2366,7 +2368,7 @@ Error on master: '%s' (%d), Error on slave: '%s' (%d). \
 Default database: '%s'. Query: '%s'",
                       ER_SAFE(expected_error),
                       expected_error,
-                      actual_error ? thd->net.last_error: "no error",
+                      actual_error ? thd->main_da.message() : "no error",
                       actual_error,
                       print_slave_db_safe(db), query_arg);
       thd->is_slave_error= 1;
@@ -2388,7 +2390,7 @@ Default database: '%s'. Query: '%s'",
     {
       rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' on query. Default database: '%s'. Query: '%s'",
-                      (actual_error ? thd->net.last_error :
+                      (actual_error ? thd->main_da.message() :
                        "unexpected success or fatal error"),
                       print_slave_db_safe(thd->db), query_arg);
       thd->is_slave_error= 1;
@@ -3730,8 +3732,11 @@ error:
     /* this err/sql_errno code is copy-paste from net_send_error() */
     const char *err;
     int sql_errno;
-    if ((err=thd->net.last_error)[0])
-      sql_errno=thd->net.last_errno;
+    if (thd->is_error())
+    {
+      err= thd->main_da.message();
+      sql_errno= thd->main_da.sql_errno();
+    }
     else
     {
       sql_errno=ER_UNKNOWN_ERROR;
@@ -6232,10 +6237,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
             Error reporting borrowed from Query_log_event with many excessive
             simplifications (we don't honour --slave-skip-errors)
           */
-          uint actual_error= thd->net.last_errno;
+          uint actual_error= thd->main_da.sql_errno();
           rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' in %s event: when locking tables",
-                      (actual_error ? thd->net.last_error :
+                      (actual_error ? thd->main_da.message():
                        "unexpected success or fatal error"),
                       get_type_str());
           thd->is_fatal_error= 1;
@@ -6276,10 +6281,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
             Error reporting borrowed from Query_log_event with many excessive
             simplifications (we don't honour --slave-skip-errors)
           */
-          uint actual_error= thd->net.last_errno;
+          uint actual_error= thd->main_da.sql_errno();
           rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' on reopening tables",
-                      (actual_error ? thd->net.last_error :
+                      (actual_error ? thd->main_da.message() :
                        "unexpected success or fatal error"));
           thd->is_slave_error= 1;
         }
@@ -6435,10 +6440,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         break;
 
       default:
-	rli->report(ERROR_LEVEL, thd->net.last_errno,
+	rli->report(ERROR_LEVEL,
+                    thd->is_error() ? thd->main_da.sql_errno() : 0,
                     "Error in %s event: row application failed. %s",
                     get_type_str(),
-                    thd->net.last_error ? thd->net.last_error : "");
+                    thd->is_error() ? thd->main_da.message() : "");
 	thd->is_slave_error= 1;
 	break;
       }
@@ -6485,12 +6491,13 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (error)
   {                     /* error has occured during the transaction */
-    rli->report(ERROR_LEVEL, thd->net.last_errno,
+    rli->report(ERROR_LEVEL,
+                thd->is_error() ? thd->main_da.sql_errno() : 0,
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
                 get_type_str(), table->s->db.str,
                 table->s->table_name.str,
-                thd->net.last_error ? thd->net.last_error : "");
+                thd->is_error() ? thd->main_da.message() : "");
 
     /*
       If one day we honour --skip-slave-errors in row-based replication, and
@@ -7105,10 +7112,10 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
           Error reporting borrowed from Query_log_event with many excessive
           simplifications (we don't honour --slave-skip-errors)
         */
-        uint actual_error= thd->net.last_errno;
+        uint actual_error= thd->main_da.sql_errno();
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on opening table `%s`.`%s`",
-                    (actual_error ? thd->net.last_error :
+                    (actual_error ? thd->main_da.message() :
                      "unexpected success or fatal error"),
                     table_list->db, table_list->table_name);
         thd->is_slave_error= 1;
@@ -7636,8 +7643,11 @@ Write_rows_log_event::do_exec_row(const Relay_log_info *const rli)
   DBUG_ASSERT(m_table != NULL);
   int error= write_row(rli, TRUE /* overwrite */);
   
-  if (error && !thd->net.last_errno)
-    thd->net.last_errno= error;
+  if (error && !thd->is_error())
+  {
+    DBUG_ASSERT(0);
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
+  }
       
   return error; 
 }

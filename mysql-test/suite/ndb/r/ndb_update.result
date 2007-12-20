@@ -28,7 +28,7 @@ pk1	b	c
 2	2	2
 4	1	1
 UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '2' for key 'c'
 UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;
 select * from t1 order by pk1;
 pk1	b	c
@@ -62,9 +62,9 @@ INSERT INTO t3 VALUES (2, 2);
 UPDATE t1 SET a = 1;
 UPDATE t1 SET a = 1 ORDER BY a;
 UPDATE t2 SET a = 1;
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '1-2' for key 'a'
 UPDATE t2 SET a = 1 ORDER BY a;
-ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+ERROR 23000: Duplicate entry '1-2' for key 'a'
 UPDATE t3 SET a = 1;
 ERROR 23000: Duplicate entry '1-2' for key 'PRIMARY'
 UPDATE t3 SET a = 1 ORDER BY a;

@@ -914,7 +914,6 @@ public:
   uint in_sub_stmt;
   bool enable_slow_log;
   bool last_insert_id_used;
-  my_bool no_send_ok;
   SAVEPOINT *savepoints;
 };
 
@@ -973,6 +972,123 @@ public:
                             const char *message,
                             MYSQL_ERROR::enum_warning_level level,
                             THD *thd) = 0;
+};
+
+
+/**
+  Stores status of the currently executed statement.
+  Cleared at the beginning of the statement, and then
+  can hold either OK, ERROR, or EOF status.
+  Can not be assigned twice per statement.
+*/
+
+class Diagnostics_area
+{
+public:
+  enum enum_diagnostics_status
+  {
+    /** The area is cleared at start of a statement. */
+    DA_EMPTY= 0,
+    /** Set whenever one calls send_ok(). */
+    DA_OK,
+    /** Set whenever one calls send_eof(). */
+    DA_EOF,
+    /** Set whenever one calls my_error() or my_message(). */
+    DA_ERROR,
+    /** Set in case of a custom response, such as one from COM_STMT_PREPARE. */
+    DA_DISABLED
+  };
+  /** True if status information is sent to the client. */
+  bool is_sent;
+  /** Set to make set_error_status after set_{ok,eof}_status possible. */
+  bool can_overwrite_status;
+
+  void set_ok_status(THD *thd, ha_rows affected_rows_arg,
+                     ulonglong last_insert_id_arg,
+                     const char *message);
+  void set_eof_status(THD *thd);
+  void set_error_status(THD *thd, uint sql_errno_arg, const char *message_arg);
+
+  void disable_status();
+
+  void reset_diagnostics_area();
+
+  bool is_set() const { return m_status != DA_EMPTY; }
+  bool is_error() const { return m_status == DA_ERROR; }
+  bool is_eof() const { return m_status == DA_EOF; }
+  bool is_ok() const { return m_status == DA_OK; }
+  bool is_disabled() const { return m_status == DA_DISABLED; }
+  enum_diagnostics_status status() const { return m_status; }
+
+  const char *message() const
+  { DBUG_ASSERT(m_status == DA_ERROR || m_status == DA_OK); return m_message; }
+
+  uint sql_errno() const
+  { DBUG_ASSERT(m_status == DA_ERROR); return m_sql_errno; }
+
+  uint server_status() const
+  {
+    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
+    return m_server_status;
+  }
+
+  ha_rows affected_rows() const
+  { DBUG_ASSERT(m_status == DA_OK); return m_affected_rows; }
+
+  ulonglong last_insert_id() const
+  { DBUG_ASSERT(m_status == DA_OK); return m_last_insert_id; }
+
+  uint total_warn_count() const
+  {
+    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
+    return m_total_warn_count;
+  }
+
+  Diagnostics_area() { reset_diagnostics_area(); }
+
+private:
+  /** Message buffer. Can be used by OK or ERROR status. */
+  char m_message[MYSQL_ERRMSG_SIZE];
+  /**
+    SQL error number. One of ER_ codes from share/errmsg.txt.
+    Set by set_error_status.
+  */
+  uint m_sql_errno;
+
+  /**
+    Copied from thd->server_status when the diagnostics area is assigned.
+    We need this member as some places in the code use the following pattern:
+    thd->server_status|= ...
+    send_eof(thd);
+    thd->server_status&= ~...
+    Assigned by OK, EOF or ERROR.
+  */
+  uint m_server_status;
+  /**
+    The number of rows affected by the last statement. This is
+    semantically close to thd->row_count_func, but has a different
+    life cycle. thd->row_count_func stores the value returned by
+    function ROW_COUNT() and is cleared only by statements that
+    update its value, such as INSERT, UPDATE, DELETE and few others.
+    This member is cleared at the beginning of the next statement.
+
+    We could possibly merge the two, but life cycle of thd->row_count_func
+    can not be changed.
+  */
+  ha_rows    m_affected_rows;
+  /**
+    Similarly to the previous member, this is a replacement of
+    thd->first_successful_insert_id_in_prev_stmt, which is used
+    to implement LAST_INSERT_ID().
+  */
+  ulonglong   m_last_insert_id;
+  /** The total number of warnings. */
+  uint	     m_total_warn_count;
+  enum_diagnostics_status m_status;
+  /**
+    @todo: the following THD members belong here:
+    - warn_list, warn_count,
+  */
 };
 
 
@@ -1179,8 +1295,6 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
-    XID  xid;                           // transaction identifier
-    enum xa_states xa_state;            // used by external XA only
     XID_STATE xid_state;
     Rows_log_event *m_pending_rows_event;
 
@@ -1407,6 +1521,7 @@ public:
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
+  Diagnostics_area main_da;
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   PROFILING  profiling;
 #endif
@@ -1725,12 +1840,18 @@ public:
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
   int send_explain_fields(select_result *result);
 #ifndef EMBEDDED_LIBRARY
+  /**
+    Clear the current error, if any.
+    We do not clear is_fatal_error or is_fatal_sub_stmt_error since we
+    assume this is never called if the fatal error is set.
+    @todo: To silence an error, one should use Internal_error_handler
+    mechanism. In future this function will be removed.
+  */
   inline void clear_error()
   {
     DBUG_ENTER("clear_error");
-    net.last_error[0]= 0;
-    net.last_errno= 0;
-    net.report_error= 0;
+    if (main_da.is_error())
+      main_da.reset_diagnostics_area();
     is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
@@ -1739,10 +1860,14 @@ public:
   void clear_error();
   inline bool vio_ok() const { return true; }
 #endif
+  /**
+    Mark the current error as fatal. Warning: this does not
+    set any error, it sets a property of the error, so must be
+    followed or prefixed with my_error().
+  */
   inline void fatal_error()
   {
     is_fatal_error= 1;
-    net.report_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
   /**
@@ -1758,7 +1883,7 @@ public:
 
     To raise this flag, use my_error().
   */
-  inline bool is_error() const { return net.report_error; }
+  inline bool is_error() const { return main_da.is_error(); }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
 
@@ -1982,6 +2107,24 @@ private:
 };
 
 
+/** A short cut for thd->main_da.set_ok_status(). */
+
+inline void
+send_ok(THD *thd, ha_rows affected_rows= 0, ulonglong id= 0,
+        const char *message= NULL)
+{
+  thd->main_da.set_ok_status(thd, affected_rows, id, message);
+}
+
+
+/** A short cut for thd->main_da.set_eof_status(). */
+
+inline void
+send_eof(THD *thd)
+{
+  thd->main_da.set_eof_status(thd);
+}
+
 #define tmp_disable_binlog(A)       \
   {ulonglong tmp_disable_binlog__save_options= (A)->options; \
   (A)->options&= ~OPTION_BIN_LOG
@@ -2170,14 +2313,13 @@ class select_insert :public select_result_interceptor {
   ulonglong autoinc_value_of_last_inserted_row; // autogenerated or not
   COPY_INFO info;
   bool insert_into_view;
-  bool is_bulk_insert_mode;
   select_insert(TABLE_LIST *table_list_par,
 		TABLE *table_par, List<Item> *fields_par,
 		List<Item> *update_fields, List<Item> *update_values,
 		enum_duplicates duplic, bool ignore);
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  int prepare2(void);
+  virtual int prepare2(void);
   bool send_data(List<Item> &items);
   virtual void store_values(List<Item> &values);
   virtual bool can_rollback_data() { return 0; }
@@ -2225,6 +2367,7 @@ public:
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
   const THD *get_thd(void) { return thd; }
   const HA_CREATE_INFO *get_create_info() { return create_info; };
+  int prepare2(void) { return 0; }
 };
 
 #include <myisam.h>
@@ -2519,6 +2662,7 @@ public:
   void send_error(uint errcode,const char *err);
   int  do_deletes();
   bool send_eof();
+  virtual void abort();
 };
 
 
@@ -2559,8 +2703,9 @@ public:
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
-  int  do_updates (bool from_send_error);
+  int  do_updates();
   bool send_eof();
+  virtual void abort();
 };
 
 class my_var : public Sql_alloc  {

@@ -234,6 +234,7 @@ sub mtr_report_stats ($) {
 			    "\\[ERROR\\]",
 			    "^Error:", "^==.* at 0x",
 			    "InnoDB: Warning",
+			    "InnoDB: Error",
 			    "^safe_mutex:",
 			    "missing DBUG_RETURN",
 			    "mysqld: Warning",
@@ -303,6 +304,7 @@ sub mtr_report_stats ($) {
 		/Slave: Error .*Unknown table/ or
 		/Slave: Error in Write_rows event: / or
 		/Slave: Field .* of table .* has no default value/ or
+                /Slave: Field .* doesn't have a default value/ or
 		/Slave: Query caused different errors on master and slave/ or
 		/Slave: Table .* doesn't exist/ or
 		/Slave: Table width mismatch/ or
@@ -335,18 +337,26 @@ sub mtr_report_stats ($) {
 		/\QError in Log_event::read_log_event(): 'Sanity check failed', data_len: 258, event_type: 49\E/ or
                 /Statement is not safe to log in statement format/ or
 
+                # test case for Bug#bug29807 copies a stray frm into database
+                /InnoDB: Error: table `test`.`bug29807` does not exist in the InnoDB internal/ or
+                /Cannot find or open table test\/bug29807 from/ or
+
+                # innodb foreign key tests that fail in ALTER or RENAME produce this
+                /InnoDB: Error: in ALTER TABLE `test`.`t[12]`/ or
+                /InnoDB: Error: in RENAME TABLE table `test`.`t1`/ or
+                /InnoDB: Error: table `test`.`t[12]` does not exist in the InnoDB internal/ or
+
                 # Test case for Bug#14233 produces the following warnings:
                 /Stored routine 'test'.'bug14233_1': invalid value in column mysql.proc/ or
                 /Stored routine 'test'.'bug14233_2': invalid value in column mysql.proc/ or
                 /Stored routine 'test'.'bug14233_3': invalid value in column mysql.proc/ or
 
-                # BUG#29807 - innodb_mysql.test: Cannot find table test/t2
-                #             from the internal data dictionary
-                /Cannot find or open table test\/bug29807 from/ or
-
                 # BUG#29839 - lowercase_table3.test: Cannot find table test/T1
                 #             from the internal data dictiona
                 /Cannot find table test\/BUG29839 from the internal data dictionary/ or
+                # BUG#32080 - Excessive warnings on Solaris: setrlimit could not
+                #             change the size of core files
+                /setrlimit could not change the size of core files to 'infinity'/ or
 
 		# rpl_extrColmaster_*.test, the slave thread produces warnings
 		# when it get updates to a table that has more columns on the
@@ -354,7 +364,6 @@ sub mtr_report_stats ($) {
 		/Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
 		/Slave: Can't DROP 'c7'.* 1091/ or
 		/Slave: Key column 'c6'.* 1072/
-
 	       )
             {
               next;                       # Skip these lines

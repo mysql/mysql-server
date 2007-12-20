@@ -9891,16 +9891,23 @@ f2
 two
 SET sql_mode = 'traditional,ansi';
 CREATE OR REPLACE VIEW v1 AS
+SELECT f3 AS "pure column f3:", f1 + f3 AS "sum of columns f1 + f3 =",
+3 * (- 0.11111E+1) AS "product of constants 3 * (- 0.11111E+1):",
+'->' || CAST(f3 AS CHAR) || '<-'
+         AS "expression with '||'=CONCAT and CAST(DECIMAL column AS CHAR):"
+FROM t1 WHERE f1 = 2;
+CREATE OR REPLACE VIEW v1 AS
 SELECT f3 AS "pure column f3: ", f1 + f3 AS "sum of columns f1 + f3 = ",
 3 * (- 0.11111E+1) AS "product of constants 3 * (- 0.11111E+1): ",
 '->' || CAST(f3 AS CHAR) || '<-'
          AS "expression with '||'=CONCAT and CAST(DECIMAL column AS CHAR): "
 FROM t1 WHERE f1 = 2;
+ERROR 42000: Incorrect column name 'pure column f3: '
 SELECT * FROM v1;
-pure column f3: 	2.20000
-sum of columns f1 + f3 = 	4.20000
-product of constants 3 * (- 0.11111E+1): 	-3.3333
-expression with '||'=CONCAT and CAST(DECIMAL column AS CHAR): 	->2.20000<-
+pure column f3:	2.20000
+sum of columns f1 + f3 =	4.20000
+product of constants 3 * (- 0.11111E+1):	-3.3333
+expression with '||'=CONCAT and CAST(DECIMAL column AS CHAR):	->2.20000<-
 SET sql_mode = '';
 
 Testcases 3.3.1.55 - 3.3.1.62 

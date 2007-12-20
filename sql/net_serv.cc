@@ -124,20 +124,18 @@ my_bool my_net_init(NET *net, Vio* vio)
 				     MYF(MY_WME))))
     DBUG_RETURN(1);
   net->buff_end=net->buff+net->max_packet;
-  net->no_send_ok= net->no_send_error= 0;
   net->error=0; net->return_errno=0; net->return_status=0;
   net->pkt_nr=net->compress_pkt_nr=0;
   net->write_pos=net->read_pos = net->buff;
-  net->last_error[0]=0;
+  net->client_last_error[0]=0;
   net->compress=0; net->reading_or_writing=0;
   net->where_b = net->remain_in_buf=0;
-  net->last_errno=0;
+  net->client_last_errno=0;
 #ifdef USE_QUERY_CACHE
   query_cache_init_query(net);
 #else
   net->query_cache_query= 0;
 #endif
-  net->report_error= 0;
 
   if (vio != 0)					/* If real connection */
   {
@@ -177,9 +175,12 @@ my_bool net_realloc(NET *net, size_t length)
   {
     DBUG_PRINT("error", ("Packet too large. Max size: %lu",
                          net->max_packet_size));
+    /* @todo: 1 and 2 codes are identical. */
     net->error= 1;
-    net->report_error= 1;
-    net->last_errno= ER_NET_PACKET_TOO_LARGE;
+    net->client_last_errno= ER_NET_PACKET_TOO_LARGE;
+#ifdef MYSQL_SERVER
+    my_error(ER_NET_PACKET_TOO_LARGE, MYF(0));
+#endif
     DBUG_RETURN(1);
   }
   pkt_length = (length+IO_SIZE-1) & ~(IO_SIZE-1); 
@@ -191,9 +192,10 @@ my_bool net_realloc(NET *net, size_t length)
                                   NET_HEADER_SIZE + COMP_HEADER_SIZE,
                                   MYF(MY_WME))))
   {
+    /* @todo: 1 and 2 codes are identical. */
     net->error= 1;
-    net->report_error= 1;
-    net->last_errno= ER_OUT_OF_RESOURCES;
+    net->client_last_errno= ER_OUT_OF_RESOURCES;
+    /* In the server the error is reported by MY_WME flag. */
     DBUG_RETURN(1);
   }
   net->buff=net->write_pos=buff;
@@ -576,12 +578,9 @@ net_real_write(NET *net,const uchar *packet, size_t len)
     if (!(b= (uchar*) my_malloc(len + NET_HEADER_SIZE +
                                 COMP_HEADER_SIZE, MYF(MY_WME))))
     {
-#ifdef MYSQL_SERVER
-      net->last_errno= ER_OUT_OF_RESOURCES;
       net->error= 2;
-      /* TODO is it needed to set this variable if we have no socket */
-      net->report_error= 1;
-#endif
+      net->client_last_errno= ER_OUT_OF_RESOURCES;
+      /* In the server, the error is reported by MY_WME flag. */
       net->reading_or_writing= 0;
       DBUG_RETURN(1);
     }
@@ -632,11 +631,11 @@ net_real_write(NET *net,const uchar *packet, size_t len)
 		    "%s: my_net_write: fcntl returned error %d, aborting thread\n",
 		    my_progname,vio_errno(net->vio));
 #endif /* EXTRA_DEBUG */
-#ifdef MYSQL_SERVER	    
-	    net->last_errno= ER_NET_ERROR_ON_WRITE;
-#endif
 	    net->error= 2;                     /* Close socket */
-            net->report_error= 1;
+            net->client_last_errno= ER_NET_PACKET_TOO_LARGE;
+#ifdef MYSQL_SERVER
+            my_error(ER_NET_PACKET_TOO_LARGE, MYF(0));
+#endif
 	    goto end;
 	  }
 	  retry_count=0;
@@ -663,10 +662,10 @@ net_real_write(NET *net,const uchar *packet, size_t len)
       }
 #endif /* defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER) */
       net->error= 2;				/* Close socket */
-      net->report_error= 1;
+      net->client_last_errno= (interrupted ? ER_NET_WRITE_INTERRUPTED :
+                               ER_NET_ERROR_ON_WRITE);
 #ifdef MYSQL_SERVER
-      net->last_errno= (interrupted ? ER_NET_WRITE_INTERRUPTED :
-			ER_NET_ERROR_ON_WRITE);
+      my_error(net->client_last_errno, MYF(0));
 #endif /* MYSQL_SERVER */
       break;
     }
@@ -845,9 +844,9 @@ my_real_read(NET *net, size_t *complen)
 #endif /* EXTRA_DEBUG */
 		len= packet_error;
 		net->error= 2;                 /* Close socket */
-	        net->report_error= 1;
+	        net->client_last_errno= ER_NET_FCNTL_ERROR;
 #ifdef MYSQL_SERVER
-		net->last_errno= ER_NET_FCNTL_ERROR;
+		my_error(ER_NET_FCNTL_ERROR, MYF(0));
 #endif
 		goto end;
 	      }
@@ -877,10 +876,11 @@ my_real_read(NET *net, size_t *complen)
 			      remain, vio_errno(net->vio), (long) length));
 	  len= packet_error;
 	  net->error= 2;				/* Close socket */
-	  net->report_error= 1;
+          net->client_last_errno= (vio_was_interrupted(net->vio) ?
+                                   ER_NET_READ_INTERRUPTED :
+                                   ER_NET_READ_ERROR);
 #ifdef MYSQL_SERVER
-	  net->last_errno= (vio_was_interrupted(net->vio) ? ER_NET_READ_INTERRUPTED :
-			    ER_NET_READ_ERROR);
+          my_error(net->client_last_errno, MYF(0));
 #endif
 	  goto end;
 	}
@@ -911,9 +911,9 @@ my_real_read(NET *net, size_t *complen)
 #endif
 	  }
 	  len= packet_error;
-	  net->report_error= 1;
+          /* Not a NET error on the client. XXX: why? */
 #ifdef MYSQL_SERVER
-	  net->last_errno=ER_NET_PACKETS_OUT_OF_ORDER;
+	  my_error(ER_NET_PACKETS_OUT_OF_ORDER, MYF(0));
 #endif
 	  goto end;
 	}
@@ -1100,9 +1100,9 @@ my_net_read(NET *net)
 			&complen))
       {
 	net->error= 2;			/* caller will close socket */
-	net->report_error= 1;
+        net->client_last_errno= ER_NET_UNCOMPRESS_ERROR;
 #ifdef MYSQL_SERVER
-	net->last_errno=ER_NET_UNCOMPRESS_ERROR;
+	my_error(ER_NET_UNCOMPRESS_ERROR, MYF(0));
 #endif
 	return packet_error;
       }

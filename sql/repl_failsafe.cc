@@ -699,7 +699,7 @@ int connect_to_master(THD *thd, MYSQL* mysql, Master_info* mi)
 
   if (!mi->host || !*mi->host)			/* empty host */
   {
-    strmov(mysql->net.last_error, "Master is not configured");
+    strmov(mysql->net.client_last_error, "Master is not configured");
     DBUG_RETURN(1);
   }
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
@@ -899,6 +899,8 @@ bool load_master_data(THD* thd)
 	cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
 	goto err;
       }
+      /* Clear the result of mysql_create_db(). */
+      thd->main_da.reset_diagnostics_area();
 
       if (mysql_select_db(&mysql, db) ||
 	  mysql_real_query(&mysql, STRING_WITH_LEN("SHOW TABLES")) ||

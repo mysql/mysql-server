@@ -1297,6 +1297,19 @@ create table t1
 partition by key(s1) partitions 3;
 insert into t1 values (null,null);
 drop table t1;
+create table t1 (
+c0 int,
+c1 bigint,
+c2 set('sweet'),
+key (c2,c1,c0), 
+key(c0)
+) engine=myisam partition by hash (month(c0)) partitions 5;
+insert ignore into t1 set c0 = -6502262, c1 = 3992917, c2 = 35019;
+insert ignore into t1 set c0 = 241221, c1 = -6862346, c2 = 56644;
+select c1 from t1 group by (select c0 from t1 limit 1);
+c1
+-6862346
+drop table t1;
 CREATE TABLE t1(a int)
 PARTITION BY RANGE (a) (
 PARTITION p1 VALUES LESS THAN (10),
@@ -1307,4 +1320,101 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTENDED' at line 1
 DROP TABLE t1;
+CREATE TABLE t1 (s1 BIGINT UNSIGNED)
+PARTITION BY RANGE (s1) (
+PARTITION p0 VALUES LESS THAN (0), 
+PARTITION p1 VALUES LESS THAN (1), 
+PARTITION p2 VALUES LESS THAN (18446744073709551615)
+);
+INSERT INTO t1 VALUES (0), (18446744073709551614);
+INSERT INTO t1 VALUES (18446744073709551615);
+ERROR HY000: Table has no partition for value 18446744073709551615
+DROP TABLE t1;
+CREATE TABLE t1 (s1 BIGINT UNSIGNED)
+PARTITION BY RANGE (s1) (
+PARTITION p0 VALUES LESS THAN (0),
+PARTITION p1 VALUES LESS THAN (1),
+PARTITION p2 VALUES LESS THAN (18446744073709551614),
+PARTITION p3 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t1 VALUES (-1), (0), (18446744073709551613), 
+(18446744073709551614), (18446744073709551615);
+Warnings:
+Warning	1264	Out of range value for column 's1' at row 1
+SELECT * FROM t1;
+s1
+0
+0
+18446744073709551613
+18446744073709551614
+18446744073709551615
+SELECT * FROM t1 WHERE s1 = 0;
+s1
+0
+0
+SELECT * FROM t1 WHERE s1 = 18446744073709551614;
+s1
+18446744073709551614
+SELECT * FROM t1 WHERE s1 = 18446744073709551615;
+s1
+18446744073709551615
+DROP TABLE t1;
+CREATE TABLE t1 (s1 BIGINT UNSIGNED)  
+PARTITION BY RANGE (s1) (
+PARTITION p0 VALUES LESS THAN (0),
+PARTITION p1 VALUES LESS THAN (1),
+PARTITION p2 VALUES LESS THAN (18446744073709551615),
+PARTITION p3 VALUES LESS THAN MAXVALUE
+);
+DROP TABLE t1;
+CREATE TABLE t1
+(int_column INT, char_column CHAR(5),
+PRIMARY KEY(char_column,int_column))
+PARTITION BY KEY(char_column,int_column)
+PARTITIONS 101;
+INSERT INTO t1 (int_column, char_column) VALUES
+(      39868 ,'zZZRW'),       
+(     545592 ,'zZzSD'),       
+(       4936 ,'zzzsT'),       
+(       9274 ,'ZzZSX'),       
+(     970185 ,'ZZzTN'),       
+(     786036 ,'zZzTO'),       
+(      37240 ,'zZzTv'),       
+(     313801 ,'zzzUM'),       
+(     782427 ,'ZZZva'),       
+(     907955 ,'zZZvP'),       
+(     453491 ,'zzZWV'),       
+(     756594 ,'ZZZXU'),       
+(     718061 ,'ZZzZH');
+SELECT * FROM t1 ORDER BY char_column DESC;
+int_column	char_column
+718061	ZZzZH
+756594	ZZZXU
+453491	zzZWV
+907955	zZZvP
+782427	ZZZva
+313801	zzzUM
+37240	zZzTv
+786036	zZzTO
+970185	ZZzTN
+9274	ZzZSX
+4936	zzzsT
+545592	zZzSD
+39868	zZZRW
+DROP TABLE t1;
+CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
+user CHAR(25), PRIMARY KEY(id))
+PARTITION BY RANGE(id)
+SUBPARTITION BY hash(id) subpartitions 2
+(PARTITION pa1 values less than (10),
+PARTITION pa2 values less than (20),
+PARTITION pa11 values less than MAXVALUE);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `user` char(25) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=16 DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (id) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION pa1 VALUES LESS THAN (10) ENGINE = MyISAM, PARTITION pa2 VALUES LESS THAN (20) ENGINE = MyISAM, PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+drop table t1;
 End of 5.1 tests

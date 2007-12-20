@@ -16,7 +16,9 @@
 #
 --disable_warnings
 drop database if exists db99;
+drop table if exists t1;
 --enable_warnings
+
 create database db99;
 use db99;
 create table t1 (a int not null)
@@ -30,3 +32,76 @@ alter table t1 add partition (partition p2 values in (3));
 alter table t1 drop partition p2;
 use test;
 drop database db99;
+
+create table t1 (f1 integer) engine= ARCHIVE partition by list(f1)
+(
+ partition p1 values in (1),
+ partition p2 values in (NULL),
+ partition p3 values in (2),
+ partition p4 values in (3),
+ partition p5 values in (4)
+);
+
+insert into t1 values (1),(2),(3),(4),(null);
+select * from t1;
+select * from t1 where f1 < 3;
+drop table t1;
+
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null) engine=ARCHIVE
+partition by hash (a + 2)
+partitions 3
+(partition x1 tablespace ts1,
+ partition x2 tablespace ts2,
+ partition x3 tablespace ts3);
+
+insert into t1 values (1,1,1);
+insert into t1 values (2,1,1);
+insert into t1 values (3,1,1);
+insert into t1 values (4,1,1);
+insert into t1 values (5,1,1);
+
+select * from t1;
+
+drop table t1;
+
+#
+# Bug #32247 Test reports wrong value of "AUTO_INCREMENT" (on a partitioned InnoDB table)
+#   (though reported as InnoDB bug, requires some ARCHIVE tests
+
+create table t1 (a int) engine=archive partition by hash(a);
+show create table t1;
+drop table t1;
+
+CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
+                f1 VARCHAR(25),
+                PRIMARY KEY(id)) ENGINE=ARCHIVE
+                     PARTITION BY RANGE(id)
+                     SUBPARTITION BY hash(id) subpartitions 2
+                     (PARTITION pa1 values less than (10),
+                      PARTITION pa2 values less than (20),
+                      PARTITION pa3 values less than (30),
+                      PARTITION pa4 values less than (40),
+                      PARTITION pa5 values less than (50),
+                      PARTITION pa6 values less than (60),
+                      PARTITION pa7 values less than (70),
+                      PARTITION pa8 values less than (80),
+                      PARTITION pa9 values less than (90),
+                      PARTITION pa10 values less than (100),
+                      PARTITION pa11 values less than MAXVALUE);
+
+--disable_query_log
+let $n= 100;
+while ($n)
+{
+  insert into t1 (f1) values (repeat('a',25));
+  dec $n;
+}
+--enable_query_log
+
+show create table t1;
+select count(*) from t1;
+drop table t1;
+

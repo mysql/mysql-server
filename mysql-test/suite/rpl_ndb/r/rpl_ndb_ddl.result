@@ -1086,6 +1086,9 @@ Modified	#
 Created	#
 Security_type	DEFINER
 Comment	
+character_set_client	latin1
+collation_connection	latin1_swedish_ci
+Database Collation	latin1_swedish_ci
 
 -------- switch to slave --------
 SHOW PROCEDURE STATUS LIKE 'p1';
@@ -1097,6 +1100,9 @@ Modified	#
 Created	#
 Security_type	DEFINER
 Comment	
+character_set_client	latin1
+collation_connection	latin1_swedish_ci
+Database Collation	latin1_swedish_ci
 
 -------- switch to master -------
 
@@ -1149,6 +1155,9 @@ Modified	#
 Created	#
 Security_type	DEFINER
 Comment	I have been altered
+character_set_client	latin1
+collation_connection	latin1_swedish_ci
+Database Collation	latin1_swedish_ci
 
 -------- switch to slave --------
 SHOW PROCEDURE STATUS LIKE 'p1';
@@ -1160,6 +1169,9 @@ Modified	#
 Created	#
 Security_type	DEFINER
 Comment	I have been altered
+character_set_client	latin1
+collation_connection	latin1_swedish_ci
+Database Collation	latin1_swedish_ci
 
 -------- switch to master -------
 
@@ -1251,13 +1263,13 @@ TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 
 -------- switch to master -------
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 
 -------- switch to slave --------
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 
 -------- switch to master -------
 
@@ -1302,13 +1314,13 @@ TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 
 -------- switch to master -------
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 
 -------- switch to slave --------
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 
 -------- switch to master -------
 
@@ -1402,13 +1414,13 @@ TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 
 -------- switch to master -------
 SHOW TRIGGERS;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-trg1	INSERT	t1	SET @a:=1	BEFORE	NULL		root@localhost
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1	INSERT	t1	SET @a:=1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 
 -------- switch to slave --------
 SHOW TRIGGERS;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-trg1	INSERT	t1	SET @a:=1	BEFORE	NULL		root@localhost
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1	INSERT	t1	SET @a:=1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 
 -------- switch to master -------
 
@@ -1453,11 +1465,11 @@ TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 
 -------- switch to master -------
 SHOW TRIGGERS;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 
 -------- switch to slave --------
 SHOW TRIGGERS;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 
 -------- switch to master -------
 

@@ -1056,6 +1056,7 @@ SimulatedBlock::assembleFragments(Signal * signal){
     /**
      * Don't release allocated segments
      */
+    signal->header.m_fragmentInfo = 0;
     signal->header.m_noOfSections = 0;
     return false;
   }
@@ -1083,6 +1084,7 @@ SimulatedBlock::assembleFragments(Signal * signal){
      * fragInfo = 2
      */
     if(fragInfo == 2){
+      signal->header.m_fragmentInfo = 0;
       signal->header.m_noOfSections = 0;
       return false;
     }

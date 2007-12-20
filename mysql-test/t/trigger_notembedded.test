@@ -880,8 +880,9 @@ USE test;
 # Bug#23713 LOCK TABLES + CREATE TRIGGER + FLUSH TABLES WITH READ LOCK = deadlock
 #
 
-# Test temporarily disable due to Bug#32395
---disable_parsing
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
 create table t1 (i int);
 connect (flush,localhost,root,,test,,);
 connection default;
@@ -906,6 +907,5 @@ connection default;
 select * from t1;
 drop table t1;
 disconnect flush;
---enable_parsing
 
 --echo End of 5.1 tests.

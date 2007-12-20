@@ -1402,7 +1402,7 @@ static void set_up_partition_func_pointers(partition_info *part_info)
     NONE
 */
 
-static void set_linear_hash_mask(partition_info *part_info, uint no_parts)
+void set_linear_hash_mask(partition_info *part_info, uint no_parts)
 {
   uint mask;
 
@@ -2068,6 +2068,7 @@ char *generate_partition_syntax(partition_info *part_info,
     default:
       DBUG_ASSERT(0);
       /* We really shouldn't get here, no use in continuing from here */
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
       current_thd->fatal_error();
       DBUG_RETURN(NULL);
   }
@@ -2834,8 +2835,8 @@ int get_partition_id_range(partition_info *part_info,
       loc_part_id++;
   *part_id= (uint32)loc_part_id;
   if (loc_part_id == max_partition &&
-      range_array[loc_part_id] != LONGLONG_MAX &&
-      part_func_value >= range_array[loc_part_id])
+      part_func_value >= range_array[loc_part_id] &&
+      !part_info->defined_max_value)
     DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   DBUG_PRINT("exit",("partition: %d", *part_id));
@@ -2941,7 +2942,13 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   }
   if (left_endpoint)
   {
-    if (part_func_value >= range_array[loc_part_id])
+    longlong bound= range_array[loc_part_id];
+    /*
+      In case of PARTITION p VALUES LESS THAN MAXVALUE
+      the maximum value is in the current partition.
+    */
+    if (part_func_value > bound ||
+        (part_func_value == bound && !part_info->defined_max_value))
       loc_part_id++;
   }
   else 
@@ -3984,6 +3991,7 @@ static int fast_end_partition(THD *thd, ulonglong copied,
     DBUG_RETURN(FALSE);
   }
   table->file->print_error(error, MYF(0));
+  close_thread_tables(thd);
   DBUG_RETURN(TRUE);
 }
 
@@ -6106,7 +6114,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          (error= table->file->repair_partitions(thd))))
     {
       table->file->print_error(error, MYF(0));
-      DBUG_RETURN(TRUE);
+      goto err;
     }
   }
   else if (fast_alter_partition & HA_PARTITION_ONE_PHASE)
@@ -6153,7 +6161,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
     if (mysql_write_frm(lpt, WFRM_WRITE_SHADOW | WFRM_PACK_FRM) ||
         mysql_change_partitions(lpt))
     {
-      DBUG_RETURN(TRUE);
+      goto err;
     }
   }
   else if (alter_info->flags == ALTER_DROP_PARTITION)
@@ -6246,7 +6254,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (release_name_lock(lpt), FALSE)) 
     {
       handle_alter_part_error(lpt, not_completed, TRUE, frm_install);
-      DBUG_RETURN(TRUE);
+      goto err;
     }
   }
   else if ((alter_info->flags & ALTER_ADD_PARTITION) &&
@@ -6315,7 +6323,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (release_name_lock(lpt), FALSE)) 
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
-      DBUG_RETURN(TRUE);
+      goto err;
     }
   }
   else
@@ -6408,7 +6416,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (release_name_lock(lpt), FALSE))
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
-      DBUG_RETURN(TRUE);
+      goto err;
     }
   }
   /*
@@ -6418,6 +6426,9 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   DBUG_RETURN(fast_end_partition(thd, lpt->copied, lpt->deleted,
                                  table, table_list, FALSE, NULL,
                                  written_bin_log));
+err:
+  close_thread_tables(thd);
+  DBUG_RETURN(TRUE);
 }
 #endif
 

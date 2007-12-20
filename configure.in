@@ -20,6 +20,7 @@ SHARED_LIB_MAJOR_VERSION=16
 SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
 NDB_SHARED_LIB_MAJOR_VERSION=3
 NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
+
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
 MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
@@ -827,7 +828,6 @@ AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
 AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
 AC_CHECK_FUNC(gethostbyname_r)
-AC_CHECK_LIB(mtmalloc, malloc)
 
 AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
 AC_CHECK_FUNC(yp_get_default_domain, ,
@@ -2417,10 +2417,15 @@ AC_ARG_WITH(docs,
 if test "$with_docs" = "yes"
 then
   docs_dirs="Docs"
+  if test -f "$srcdir/Docs/manual.chm" ; then
+    extra_docs="manual.chm"
+  fi
 else
   docs_dirs=""
+  extra_docs=""
 fi
 AC_SUBST(docs_dirs)
+AC_SUBST(extra_docs)
 
 # Shall we build the man pages?
 AC_ARG_WITH(man,

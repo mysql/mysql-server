@@ -234,6 +234,8 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   NET *net= &stmt->thd->net;
   uchar buff[12];
   uint tmp;
+  int error;
+  THD *thd= stmt->thd;
   DBUG_ENTER("send_prep_stmt");
 
   buff[0]= 0;                                   /* OK packet indicator */
@@ -248,11 +250,16 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
     Send types and names of placeholders to the client
     XXX: fix this nasty upcast from List<Item_param> to List<Item>
   */
-  DBUG_RETURN(my_net_write(net, buff, sizeof(buff)) ||
-              (stmt->param_count &&
-               stmt->thd->protocol_text.send_fields((List<Item> *)
-                                                    &stmt->lex->param_list,
-                                                    Protocol::SEND_EOF)));
+  error= my_net_write(net, buff, sizeof(buff));
+  if (stmt->param_count && ! error)
+  {
+    error= thd->protocol_text.send_fields((List<Item> *)
+                                          &stmt->lex->param_list,
+                                          Protocol::SEND_EOF);
+  }
+  /* Flag that a response has already been sent */
+  thd->main_da.disable_status();
+  DBUG_RETURN(error);
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -263,6 +270,7 @@ static bool send_prep_stmt(Prepared_statement *stmt,
   thd->client_stmt_id= stmt->id;
   thd->client_param_count= stmt->param_count;
   thd->clear_error();
+  thd->main_da.disable_status();
 
   return 0;
 }
@@ -2516,6 +2524,8 @@ void mysql_stmt_close(THD *thd, char *packet)
   DBUG_ASSERT(! (stmt->flags & (uint) Prepared_statement::IS_IN_USE));
   (void) stmt->deallocate();
 
+  thd->main_da.disable_status();
+
   DBUG_VOID_RETURN;
 }
 
@@ -2576,6 +2586,8 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   DBUG_ENTER("mysql_stmt_get_longdata");
 
   status_var_increment(thd->status_var.com_stmt_send_long_data);
+
+  thd->main_da.disable_status();
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
   if (packet_length < MYSQL_LONG_DATA_HEADER)
@@ -2650,11 +2662,7 @@ bool Select_fetch_protocol_binary::send_fields(List<Item> &list, uint flags)
 
 bool Select_fetch_protocol_binary::send_eof()
 {
-  Protocol *save_protocol= thd->protocol;
-
-  thd->protocol= &protocol;
   ::send_eof(thd);
-  thd->protocol= save_protocol;
   return FALSE;
 }
 
@@ -3076,7 +3084,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                                           thd->query_length) <= 0)
     {
       error= mysql_execute_command(thd);
-      query_cache_end_of_result(thd);
     }
   }
 
