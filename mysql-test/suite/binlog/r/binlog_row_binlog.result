@@ -1099,9 +1099,11 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t2` (
   `a` int(11) DEFAULT NULL
 )
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t3` (
   `a` int(11) DEFAULT NULL
 )
@@ -1124,9 +1126,11 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t2` (
   `a` int(11) DEFAULT NULL
 )
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t3` (
   `a` int(11) DEFAULT NULL
 )
