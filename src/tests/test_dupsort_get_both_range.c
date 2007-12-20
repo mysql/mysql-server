@@ -62,7 +62,7 @@ void expect_cursor_get(DBC *cursor, int k, int v) {
     assert(val.size == sizeof v);
     int vv;
     memcpy(&vv, val.data, val.size);
-    if (kk != k || vv != v) printf("expect key %d got %d - %d %d\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
+    if (kk != k || vv != v) printf("expect key %d got %d - %d %d\n", ntohl(k), ntohl(kk), ntohl(v), ntohl(vv));
     assert(kk == k);
     assert(vv == v);
 
@@ -115,11 +115,11 @@ void test_icdi_search(int n, int dup_mode) {
     /* insert n duplicates */
     int i;
     for (i=0; i<n; i++) {
-        int k = htonl(n/2);
-        int v = htonl(i);
+        int k = htonl(1+n/2);
+        int v = htonl(1+i);
         db_put(db, k, v);
 
-        expect_db_get(db, k, htonl(0));
+        expect_db_get(db, k, htonl(1));
     } 
 
     /* reopen the database to force nonleaf buffering */
@@ -129,12 +129,12 @@ void test_icdi_search(int n, int dup_mode) {
     r = db->set_pagesize(db, 4096); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666); assert(r == 0);
 
-    db_del(db, htonl(n/2));
+    db_del(db, htonl(1+n/2));
 
     /* insert n duplicates */
     for (i=n-1; i>=0; i--) {
-        int k = htonl(n/2);
-        int v = htonl(n+i);
+        int k = htonl(1+n/2);
+        int v = htonl(1+n+i);
         db_put(db, k, v);
 
         DBC *cursor;
@@ -150,14 +150,17 @@ void test_icdi_search(int n, int dup_mode) {
 
     DBC *cursor;
     r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
-    expect_cursor_get_both_range(cursor, 0, 0, 0);
-    expect_cursor_get_both_range(cursor, htonl(n), 0, DB_NOTFOUND);
+    expect_cursor_get_both_range(cursor, 0, 0, DB_NOTFOUND);
+    expect_cursor_get_both_range(cursor, 0, 0, DB_NOTFOUND);
+    if (n>1)
+	expect_cursor_get_both_range(cursor, htonl(1+n/2), 0, 0);
+    expect_cursor_get_both_range(cursor, htonl(1+n), 0, DB_NOTFOUND);
 #if USE_BDB
     r = cursor->c_close(cursor); assert(r == 0);
     r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
 #endif
     for (i=0; i<n; i++) {
-        expect_cursor_get(cursor, htonl(n/2), htonl(n+i));
+        expect_cursor_get(cursor, htonl(1+n/2), htonl(1+n+i));
     }
 
     r = cursor->c_close(cursor); assert(r == 0);
