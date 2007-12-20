@@ -95,6 +95,9 @@ endif
 # For a few of the tests bdb is making valgrind unhappy.
 FOO_NO_VGRIND = \
   db_already_exists \
+  db_curs2 \
+  db_dbt_appmalloc \
+  db_dbt_mem_behavior \
   db_dup \
   db_env_open_nocreate \
   db_env_open_open_close \
@@ -105,6 +108,8 @@ FOO_NO_VGRIND = \
   dup_flags \
   dup_insert \
   dup_search \
+  kv_limits \
+  log4 \
   rand_insert \
   reverse_compare_fun \
   # Comment to terminate list so the previous line can end with a slash
@@ -119,9 +124,9 @@ $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
 
 %.bdb: %.c
-	$(UNSETTOKUENV) cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
+	$(UNSETTOKUENV) cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB -DIS_TDB=0 $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
 %.tdb: %.c
-	$(SETTOKUENV) cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
+	$(SETTOKUENV) cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover
 all.recover: test_log2.recover test_log3.recover test_log4.recover

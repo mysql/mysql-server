@@ -124,8 +124,11 @@ void cinsert_test(TEST tests[4]) {
     r = dbc->c_close(dbc);                      CKERR(r);
 }
 
-#ifndef USE_TDB
+#ifdef USE_TDB
+#define EINVAL_FOR_TDB_OK_FOR_BDB EINVAL
+#else
 #define DB_YESOVERWRITE 0   //This is just so test numbers stay the same.
+#define EINVAL_FOR_TDB_OK_FOR_BDB 0
 #endif
 
 
@@ -136,7 +139,8 @@ PUT_TEST put_tests[] = {
     {1, DB_DUP|DB_DUPSORT, DB_YESOVERWRITE, 0,      0, 0},
     {0, 0,                 DB_NOOVERWRITE,  0,      0, 0},
     {0, DB_DUP|DB_DUPSORT, DB_NOOVERWRITE,  0,      0, 0},
-    {0, 0,                 0,               0,      0, 0},  //r_expect must change to EINVAL when/if we no longer accept 0 as flags for put
+    {0, 0,                 0,               0,      0, 0},
+    {0, DB_DUP|DB_DUPSORT, 0,               EINVAL_FOR_TDB_OK_FOR_BDB, 0, 0},  //r_expect must be EINVAL for TokuDB since DB_DUPSORT doesn't accept put with flags==0
     {1, DB_DUP|DB_DUPSORT, 0,               EINVAL, 0, 0},
 };
 const int num_put = sizeof(put_tests) / sizeof(put_tests[0]);
@@ -160,12 +164,19 @@ CPUT_TEST cput_tests[] = {
 const int num_cput = sizeof(cput_tests) / sizeof(cput_tests[0]);
 
 GET_TEST get_tests[] = {
+    {{0, 0,                 0,                         0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
+    {{0, 0,                 0,                         0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
+    {{0, 0,                 0,                         0, 0, 0}, DB_GET_BOTH, DB_NOTFOUND, 0, 1},
     {{0, 0,                 DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
     {{0, 0,                 DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
     {{0, 0,                 DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, DB_NOTFOUND, 0, 1},
     {{0, DB_DUP|DB_DUPSORT, DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
+    {{0, DB_DUP|DB_DUPSORT, 0, EINVAL_FOR_TDB_OK_FOR_BDB, 0, 0}, DB_GET_BOTH, IS_TDB ? DB_NOTFOUND : 0, 0, 0},
+    {{0, DB_DUP|DB_DUPSORT, DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, 0,           0, 0},
     {{0, DB_DUP|DB_DUPSORT, DB_YESOVERWRITE, 0, 0, 0}, DB_GET_BOTH, DB_NOTFOUND, 0, 1},
     {{0, 0,                 DB_YESOVERWRITE, 0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
+    {{0, DB_DUP|DB_DUPSORT, 0, EINVAL_FOR_TDB_OK_FOR_BDB, 0, 0}, DB_GET_BOTH, DB_NOTFOUND, 0, 1},
+    {{0, 0,                 0,                         0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
     {{0, DB_DUP|DB_DUPSORT, DB_YESOVERWRITE, 0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
 };
 const int num_get = sizeof(get_tests) / sizeof(get_tests[0]);
