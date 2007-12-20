@@ -394,15 +394,12 @@ restart:
     check = pTrans->execute(NoCommit, AbortOnError);
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
-      if (err.status == NdbError::TemporaryError){
-	ERR(err);
-	closeTransaction(pNdb);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
-      }
       ERR(err);
       closeTransaction(pNdb);
+      if (err.status == NdbError::TemporaryError){
+	NdbSleep_MilliSleep(50);
+	continue;
+      }
       return NDBT_FAILED;
     }
 
@@ -416,62 +413,70 @@ restart:
 	abortTrans = true;
     }
     
-    int eof;
     int rows = 0;
-    while((eof = pOp->nextResult(true)) == 0){
-      rows++;
-      if (calc.verifyRowValues(&row) != 0){
-	closeTransaction(pNdb);
-	return NDBT_FAILED;
-      }
-
-      if (abortCount == rows && abortTrans == true){
-	ndbout << "Scan is aborted" << endl;
-	g_info << "Scan is aborted" << endl;
-	pOp->close();
-	if( check == -1 ) {
+    while((check = pOp->nextResult(true)) == 0){
+      do {
+	rows++;
+	NdbOperation* pUp = pOp->updateCurrentTuple();
+	if(pUp == 0){
 	  ERR(pTrans->getNdbError());
 	  closeTransaction(pNdb);
 	  return NDBT_FAILED;
 	}
-	
-	closeTransaction(pNdb);
-	return NDBT_OK;
-      }
-    }
-    if (eof == -1) {
-      const NdbError err = pTrans->getNdbError();
-      
-      if (err.status == NdbError::TemporaryError){
-	ERR_INFO(err);
-	closeTransaction(pNdb);
-	NdbSleep_MilliSleep(50);
-	switch (err.code){
-	case 488:
-	case 245:
-	case 490:
-	  // Too many active scans, no limit on number of retry attempts
-	  break;
-	default:
-	  retryAttempt++;
+	const int updates = calc.getUpdatesValue(&row) + 1;
+	const int r = calc.getIdValue(&row);
+        
+  	for(a = 0; a<tab.getNoOfColumns(); a++){
+	  if (tab.getColumn(a)->getPrimaryKey() == false){
+	    if(setValueForAttr(pUp, a, r, updates ) != 0){
+	      ERR(pTrans->getNdbError());
+	      closeTransaction(pNdb);
+	      return NDBT_FAILED;
+	    }
+	  }
 	}
-	continue;
+        
+	if (rows == abortCount && abortTrans == true){
+	  g_info << "Scan is aborted" << endl;
+	  // This scan should be aborted
+	  closeTransaction(pNdb);
+	  return NDBT_OK;
+	}
+      } while((check = pOp->nextResult(false)) == 0);
+
+      if(check != -1){
+	check = pTrans->execute(Commit, AbortOnError);   
+	if(check != -1)
+	  m_latest_gci = pTrans->getGCI();
+	pTrans->restart();
       }
-      ERR(err);
-      closeTransaction(pNdb);
-      return NDBT_FAILED;
+
+      const NdbError err = pTrans->getNdbError();    
+      if( check == -1 ) {
+	closeTransaction(pNdb);
+	ERR(err);
+	if (err.status == NdbError::TemporaryError){
+	  NdbSleep_MilliSleep(50);
+	  goto restart;
+	}
+	return NDBT_FAILED;
+      }
     }
-
-    closeTransaction(pNdb);
-
-    g_info << rows << " rows have been read" << endl;
-    if (records != 0 && rows != records){
-      g_err << "Check expected number of records failed" << endl 
-	    << "  expected=" << records <<", " << endl
-	    << "  read=" << rows << endl;
+    
+    const NdbError err = pTrans->getNdbError();    
+    if( check == -1 ) {
+      closeTransaction(pNdb);
+      ERR(err);
+      if (err.status == NdbError::TemporaryError){
+	NdbSleep_MilliSleep(50);
+	goto restart;
+      }
       return NDBT_FAILED;
     }
     
+    closeTransaction(pNdb);
+    
+    g_info << rows << " rows have been updated" << endl;
     return NDBT_OK;
   }
   return NDBT_FAILED;
@@ -565,7 +570,7 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
 	   << " -> rows/commit = " << batch << endl;
   }
   
-  Uint32 orgbatch = batch;
+  //Uint32 orgbatch = batch;
   g_info << "|- Inserting records..." << endl;
   for (int c=0 ; c<records; ){
     bool closeTrans = true;
