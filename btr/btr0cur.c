@@ -4278,7 +4278,7 @@ static
 ulint
 btr_copy_blob_prefix(
 /*=================*/
-				/* out: bytes written to buf */
+				/* out: number of bytes written to buf */
 	byte*		buf,	/* out: the externally stored part of
 				the field, or a prefix of it */
 	ulint		len,	/* in: length of buf, in bytes */
@@ -4458,7 +4458,7 @@ static
 ulint
 btr_copy_externally_stored_field_prefix_low(
 /*========================================*/
-				/* out: bytes written to buf */
+				/* out: number of bytes written to buf */
 	byte*		buf,	/* out: the externally stored part of
 				the field, or a prefix of it */
 	ulint		len,	/* in: length of buf, in bytes */
