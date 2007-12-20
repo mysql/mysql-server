@@ -423,6 +423,7 @@ trx_undo_page_fetch_ext(
 	/* Fetch the BLOB. */
 	ulint	ext_len = btr_copy_externally_stored_field_prefix(
 		ext_buf, REC_MAX_INDEX_COL_LEN, zip_size, field, *len);
+	/* BLOBs should always be nonempty. */
 	ut_a(ext_len);
 	/* Append the BLOB pointer to the prefix. */
 	memcpy(ext_buf + ext_len,
