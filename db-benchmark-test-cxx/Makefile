@@ -13,10 +13,10 @@ CXXFLAGS += $(OPTFLAGS)
 
 ifdef BDBDIR
 BDB_CPPFLAGS = -I$(BDBDIR)/include
-BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb_cxx -Wl,-rpath,$(BDBDIR)/lib
+BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb_cxx -lpthread -Wl,-rpath,$(BDBDIR)/lib
 else
 BDB_CPPFLAGS =
-BDB_LDFLAGS = -ldb_cxx
+BDB_LDFLAGS = -ldb_cxx -lpthread
 endif
 
 TARGETS = db-benchmark-test-bdb db-benchmark-test-tokudb
