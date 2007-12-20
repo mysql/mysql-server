@@ -1385,7 +1385,9 @@ cleanup:
         return r;
     }
     r2 = db->close(db, 0);
-    if (r == 0 && r2 == 0) r = unlink(ffull);
+    if (r == 0 && r2 == 0) {
+        if (unlink(ffull) != 0) r = errno;
+    }
     return r ? r : r2;
 }
 
