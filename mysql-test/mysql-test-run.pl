@@ -3193,6 +3193,11 @@ sub start_mysqltest ($) {
     # Turn on SSL for _all_ test cases if option --ssl was used
     mtr_add_arg($args, "--ssl");
   }
+  elsif ( $opt_ssl_supported )
+  {
+    mtr_add_arg($args, "--skip-ssl");
+  }
+
 
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
