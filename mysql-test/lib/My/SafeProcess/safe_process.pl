@@ -4,7 +4,6 @@
 use strict;
 use warnings;
 
-use Time::localtime;
 use lib 'lib';
 use My::SafeProcess::Base;
 use POSIX qw(WNOHANG);
@@ -19,6 +18,7 @@ use POSIX qw(WNOHANG);
 my $verbose= 0;
 sub message {
   if ($verbose > 0){
+    use Time::localtime;
     my $tm= localtime();
     my $timestamp= sprintf("%02d%02d%02d %2d:%02d:%02d",
 			   $tm->year % 100, $tm->mon+1, $tm->mday,
@@ -43,16 +43,26 @@ $SIG{INT}= sub { message("!Got signal @_"); $terminated= 1; };
 
 my $parent_pid= getppid();
 
-use Getopt::Long;
-GetOptions(
-	   'verbose'            => \$verbose,
-	  ) or die "GetOptions failed";
-shift(@ARGV) if defined($ARGV[0]) and $ARGV[0] eq "--";
+my $found_double_dash= 0;
+while (my $arg= shift(@ARGV)){
+
+  if ($arg =~ /^--$/){
+    $found_double_dash= 1;
+    last;
+  }
+  elsif ($arg =~ /^--verbose$/){
+    $verbose= 1;
+  }
+  else {
+    die "Unknown option: $arg";
+  }
+}
+
 my $path=       shift(@ARGV); # Executable
 
 die "usage:\n" .
     " safe_process.pl [opts] -- <path> [<args> [...<args_n>]]"
-  unless defined $path;
+  unless defined $path || $found_double_dash;
 
 
 message("started");
