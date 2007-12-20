@@ -607,7 +607,10 @@ char *opt_logname, *opt_slow_logname;
 /* Static variables */
 
 static bool kill_in_progress, segfaulted;
-static my_bool opt_do_pstack, opt_bootstrap, opt_myisam_log;
+#ifdef HAVE_STACK_TRACE_ON_SEGV
+static my_bool opt_do_pstack;
+#endif /* HAVE_STACK_TRACE_ON_SEGV */
+static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
 static char *opt_update_logname, *opt_binlog_index_name;
@@ -5485,9 +5488,11 @@ struct my_option my_long_options[] =
    (uchar**) &opt_enable_named_pipe, (uchar**) &opt_enable_named_pipe, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+#ifdef HAVE_STACK_TRACE_ON_SEGV
   {"enable-pstack", OPT_DO_PSTACK, "Print a symbolic stack trace on failure.",
    (uchar**) &opt_do_pstack, (uchar**) &opt_do_pstack, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
+#endif /* HAVE_STACK_TRACE_ON_SEGV */
   {"engine-condition-pushdown",
    OPT_ENGINE_CONDITION_PUSHDOWN,
    "Push supported query conditions to the storage engine.",
