@@ -1538,6 +1538,7 @@ static void set_data_pagecache_callbacks(PAGECACHE_FILE *file,
                                          MARIA_SHARE *share)
 {
   file->callback_data= (uchar*) share;
+  file->write_fail= &maria_page_write_failure;
   if (share->temporary)
   {
     file->read_callback=  &maria_page_crc_check_none;

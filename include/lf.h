@@ -168,15 +168,15 @@ void lf_pinbox_destroy(LF_PINBOX *pinbox);
 lock_wrap(lf_pinbox_get_pins, LF_PINS *,
           (LF_PINBOX *pinbox, void *stack_end),
           (pinbox, stack_end),
-          &pinbox->pinarray.lock);
+          &pinbox->pinarray.lock)
 lock_wrap_void(lf_pinbox_put_pins,
                (LF_PINS *pins),
                (pins),
-               &pins->pinbox->pinarray.lock);
+               &pins->pinbox->pinarray.lock)
 lock_wrap_void(lf_pinbox_free,
                (LF_PINS *pins, void *addr),
                (pins, addr),
-               &pins->pinbox->pinarray.lock);
+               &pins->pinbox->pinarray.lock)
 
 /*
   memory allocator, lf_alloc-pin.c
@@ -211,7 +211,7 @@ uint lf_alloc_pool_count(LF_ALLOCATOR *allocator);
 lock_wrap(lf_alloc_new, void *,
           (LF_PINS *pins),
           (pins),
-          &pins->pinbox->pinarray.lock);
+          &pins->pinbox->pinarray.lock)
 
 /*
   extendible hash, lf_hash.c

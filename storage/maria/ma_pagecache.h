@@ -85,6 +85,7 @@ typedef struct st_pagecache_file
                            uchar *data);
   my_bool (*write_callback)(uchar *page, pgcache_page_no_t offset,
                             uchar *data);
+  void (*write_fail)(uchar *data);
   uchar *callback_data;
 } PAGECACHE_FILE;
 
@@ -257,9 +258,10 @@ extern void pagecache_unpin_by_link(PAGECACHE *pagecache,
 /* PCFLUSH_ERROR and PCFLUSH_PINNED. */
 #define PCFLUSH_PINNED_AND_ERROR (PCFLUSH_ERROR|PCFLUSH_PINNED)
 
-#define pagecache_file_init(F,RC,WC,D) \
+#define pagecache_file_init(F,RC,WC,WF,D) \
   do{ \
     (F).read_callback= (RC); (F).write_callback= (WC); \
+    (F).write_fail= (WF); \
     (F).callback_data= (uchar*)(D); \
   } while(0)
 

@@ -33,7 +33,7 @@
 */
 #ifndef _lockman_h
 /* QQ: TODO remove N-locks */
-enum lock_type { N, S, X, IS, IX, SIX, LS, LX, SLX, LSIX, LOCK_TYPE_LAST };
+enum lockman_lock_type { N, S, X, IS, IX, SIX, LS, LX, SLX, LSIX, LOCK_TYPE_LAST };
 enum lockman_getlock_result {
   NO_MEMORY_FOR_LOCK=1, DEADLOCK, LOCK_TIMEOUT,
   GOT_THE_LOCK,
@@ -74,7 +74,7 @@ typedef struct {
 void tablockman_init(TABLOCKMAN *, loid_to_tlo_func *, uint);
 void tablockman_destroy(TABLOCKMAN *);
 enum lockman_getlock_result tablockman_getlock(TABLOCKMAN *, TABLE_LOCK_OWNER *,
-                                               LOCKED_TABLE *, enum lock_type);
+                                               LOCKED_TABLE *, enum lockman_lock_type);
 void tablockman_release_locks(TABLOCKMAN *, TABLE_LOCK_OWNER *);
 void tablockman_init_locked_table(LOCKED_TABLE *, int);
 void tablockman_destroy_locked_table(LOCKED_TABLE *);

@@ -613,7 +613,10 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
     lsn= lsn_korr(buffer + PAGE_LSN_OFFSET);
     DBUG_ASSERT(LSN_VALID(lsn));
     if (translog_flush(lsn))
+    {
+      (*filedesc->write_fail)(filedesc->callback_data);
       DBUG_RETURN(1);
+    }
   }
   DBUG_PRINT("info", ("write_callback: 0x%lx  data: 0x%lx",
                       (ulong) filedesc->write_callback,
@@ -624,8 +627,13 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
     DBUG_RETURN(1);
   }
 
-  DBUG_RETURN(my_pwrite(filedesc->file, buffer, pagecache->block_size,
-                        (pageno)<<(pagecache->shift), flags));
+  if (my_pwrite(filedesc->file, buffer, pagecache->block_size,
+                        (pageno)<<(pagecache->shift), flags))
+  {
+    (*filedesc->write_fail)(filedesc->callback_data);
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
 }
 
 

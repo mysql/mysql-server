@@ -31,7 +31,7 @@
   SLX  - Shared + Loose eXclusive
   LSIX - Loose Shared + Intention eXclusive
 */
-enum lock_type { N, S, X, IS, IX, SIX, LS, LX, SLX, LSIX, LOCK_TYPE_LAST };
+enum lockman_lock_type { N, S, X, IS, IX, SIX, LS, LX, SLX, LSIX, LOCK_TYPE_LAST };
 
 struct lockman_lock;
 
@@ -66,7 +66,7 @@ void lockman_init(LOCKMAN *, loid_to_lo_func *, uint);
 void lockman_destroy(LOCKMAN *);
 enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
                                             uint64 resource,
-                                            enum lock_type lock);
+                                            enum lockman_lock_type lock);
 int lockman_release_locks(LOCKMAN *, LOCK_OWNER *);
 
 #ifdef EXTRA_DEBUG

@@ -20,16 +20,28 @@ static char *first_translog_file= (char*)"maria_log.00000001";
 static char *file1_name= (char*)"page_cache_test_file_1";
 static PAGECACHE_FILE file1;
 
+
 /**
   @brief Dummy pagecache callback.
 */
 
 static my_bool
-dummy_callback(__attribute__((unused)) uchar *page,
-               __attribute__((unused)) pgcache_page_no_t page_no,
-               __attribute__((unused)) uchar* data_ptr)
+dummy_callback(uchar *page __attribute__((unused)),
+               pgcache_page_no_t page_no __attribute__((unused)),
+               uchar* data_ptr __attribute__((unused)))
 {
   return 0;
+}
+
+
+/**
+  @brief Dummy pagecache callback.
+*/
+
+static void
+dummy_fail_callback(uchar* data_ptr __attribute__((unused)))
+{
+  return;
 }
 
 
@@ -124,7 +136,8 @@ int main(int argc __attribute__((unused)), char *argv[])
 	    errno);
     exit(1);
   }
-  pagecache_file_init(file1, &dummy_callback, &dummy_callback, NULL);
+  pagecache_file_init(file1, &dummy_callback, &dummy_callback,
+                      &dummy_fail_callback, NULL);
   if (chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
   {
     fprintf(stderr, "Got error during file1 chmod() (errno: %d)\n",

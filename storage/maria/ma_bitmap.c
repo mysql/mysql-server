@@ -222,6 +222,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   bitmap->block_size= share->block_size;
   bitmap->file.file= file;
   bitmap->file.callback_data= (uchar*) share;
+  bitmap->file.write_fail= &maria_page_write_failure;
   if (share->temporary)
   {
     bitmap->file.read_callback=  &maria_page_crc_check_none;

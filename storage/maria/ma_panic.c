@@ -110,7 +110,8 @@ int maria_panic(enum ha_panic_function flag)
           pagecache_file_init(info->s->kfile, &maria_page_crc_check_index,
                               (info->s->options & HA_OPTION_PAGE_CHECKSUM ?
                                &maria_page_crc_set_index :
-                               &maria_page_filler_set_normal), info->s);
+                               &maria_page_filler_set_normal),
+                              &maria_page_write_failure, info->s);
         }
 	if (info->dfile.file < 0)
 	{
@@ -122,7 +123,8 @@ int maria_panic(enum ha_panic_function flag)
           pagecache_file_init(info->dfile, &maria_page_crc_check_data,
                               (share->options & HA_OPTION_PAGE_CHECKSUM ?
                                &maria_page_crc_set_normal:
-                               &maria_page_filler_set_normal), share);
+                               &maria_page_filler_set_normal),
+                              &maria_page_write_failure, share);
 	  info->rec_cache.file= info->dfile.file;
 	}
       }
