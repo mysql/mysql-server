@@ -344,6 +344,7 @@ public:
   void* getObjPtr(Uint32 i) const { return m_objects[i].m_objPtr; }
   
   Uint32 getStopGCP() const;
+  Uint32 getNdbVersion() const { return m_fileHeader.NdbVersion; };
 }; // RestoreMetaData
 
 

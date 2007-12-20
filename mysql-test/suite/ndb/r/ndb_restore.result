@@ -488,3 +488,12 @@ DROP TABLE test.backup_info;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 drop table if exists t2_c;
 520093696,<the_backup_id>
+select epoch from mysql.ndb_apply_status;
+epoch
+331
+select epoch from mysql.ndb_apply_status;
+epoch
+151
+select epoch > (1 << 32) from mysql.ndb_apply_status;
+epoch > (1 << 32)
+1
