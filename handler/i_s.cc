@@ -190,10 +190,10 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 {
 #define IDX_TRX_ID		0
 	{STRUCT_FLD(field_name,		"trx_id"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
@@ -291,13 +291,15 @@ fill_innodb_trx_from_cache(
 	for (i = 0; i < rows_num; i++) {
 
 		i_s_trx_row_t*	row;
+		char		trx_id[TRX_ID_MAX_LEN + 1];
 
 		row = (i_s_trx_row_t*)
 			trx_i_s_cache_get_nth_row(
 				cache, I_S_INNODB_TRX, i);
 
 		/* trx_id */
-		OK(fields[IDX_TRX_ID]->store(row->trx_id));
+		ut_snprintf(trx_id, sizeof(trx_id), TRX_ID_FMT, row->trx_id);
+		OK(field_store_string(fields[IDX_TRX_ID], trx_id));
 
 		/* trx_weight */
 		OK(fields[IDX_TRX_WEIGHT]->store(row->trx_weight));
@@ -434,10 +436,10 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 
 #define IDX_LOCK_TRX_ID		1
 	{STRUCT_FLD(field_name,		"lock_trx_id"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
@@ -556,6 +558,8 @@ fill_innodb_locks_from_cache(
 		char			buf[2 * NAME_LEN + 14];
 		const char*		bufend;
 
+		char			lock_trx_id[TRX_ID_MAX_LEN + 1];
+
 		row = (i_s_locks_row_t*)
 			trx_i_s_cache_get_nth_row(
 				cache, I_S_INNODB_LOCKS, i);
@@ -566,7 +570,9 @@ fill_innodb_locks_from_cache(
 				      lock_id));
 
 		/* lock_trx_id */
-		OK(fields[IDX_LOCK_TRX_ID]->store(row->lock_trx_id));
+		ut_snprintf(lock_trx_id, sizeof(lock_trx_id),
+			    TRX_ID_FMT, row->lock_trx_id);
+		OK(field_store_string(fields[IDX_LOCK_TRX_ID], lock_trx_id));
 
 		/* lock_mode */
 		OK(field_store_string(fields[IDX_LOCK_MODE],
@@ -696,10 +702,10 @@ static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
 {
 #define IDX_REQUESTING_TRX_ID	0
 	{STRUCT_FLD(field_name,		"requesting_trx_id"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
@@ -714,10 +720,10 @@ static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
 
 #define IDX_BLOCKING_TRX_ID	2
 	{STRUCT_FLD(field_name,		"blocking_trx_id"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
@@ -763,13 +769,18 @@ fill_innodb_lock_waits_from_cache(
 
 		i_s_lock_waits_row_t*	row;
 
+		char	requesting_trx_id[TRX_ID_MAX_LEN + 1];
+		char	blocking_trx_id[TRX_ID_MAX_LEN + 1];
+
 		row = (i_s_lock_waits_row_t*)
 			trx_i_s_cache_get_nth_row(
 				cache, I_S_INNODB_LOCK_WAITS, i);
 
 		/* requesting_trx_id */
-		OK(fields[IDX_REQUESTING_TRX_ID]->store(
-				row->requested_lock_row->lock_trx_id));
+		ut_snprintf(requesting_trx_id, sizeof(requesting_trx_id),
+			    TRX_ID_FMT, row->requested_lock_row->lock_trx_id);
+		OK(field_store_string(fields[IDX_REQUESTING_TRX_ID],
+				      requesting_trx_id));
 
 		/* requested_lock_id */
 		OK(field_store_string(
@@ -780,8 +791,10 @@ fill_innodb_lock_waits_from_cache(
 				   sizeof(requested_lock_id))));
 
 		/* blocking_trx_id */
-		OK(fields[IDX_BLOCKING_TRX_ID]->store(
-				row->blocking_lock_row->lock_trx_id));
+		ut_snprintf(blocking_trx_id, sizeof(blocking_trx_id),
+			    TRX_ID_FMT, row->blocking_lock_row->lock_trx_id);
+		OK(field_store_string(fields[IDX_BLOCKING_TRX_ID],
+				      blocking_trx_id));
 
 		/* blocking_lock_id */
 		OK(field_store_string(
