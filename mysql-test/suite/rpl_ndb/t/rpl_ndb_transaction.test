@@ -82,10 +82,10 @@ SELECT * FROM tmyisam ORDER BY a;
 # the statement, and slave should roll back later when master is
 # restarted.
 
-# However, we the master to be alive so that we are sure it replicates
-# the statement to the slave. So in the test case, we must therefore
-# not crash the master. Instead, we fake the crash by just not writing
-# the XID event to the binlog. This is done by the
+# However, we want the master to be alive so that we are sure it
+# replicates the statement to the slave. So in the test case, we must
+# therefore not crash the master. Instead, we fake the crash by just
+# not writing the XID event to the binlog. This is done by the
 # --debug=d,do_not_write_xid flag in the .opt file.
 
 # So, unlike if the master had crashed, the master *will* execute the
@@ -111,12 +111,24 @@ SELECT * FROM tinnodb ORDER BY a;
 --connection slave
 --sleep 3
 STOP SLAVE;
---source include/show_slave_status.inc
-# the following statement should show that nothing has been replicated
+source include/wait_for_slave_to_stop.inc;
+let $tmp= query_get_value("SHOW SLAVE STATUS", Slave_IO_State, 1);
+eval SELECT "$tmp" AS Slave_IO_State;
+let $tmp= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+eval SELECT "$tmp" AS Last_SQL_Error;
+let $tmp= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1);
+eval SELECT "$tmp" AS Last_IO_Error;
 SELECT * FROM tinnodb ORDER BY a;
 
 
-# clean up
+# Clean up. We cannot do it on master and replicate over, because
+# master binlog is in a bad state after last test. So we do it both on
+# master and on slave.
+DROP TABLE tmyisam;
+DROP TABLE tinnodb;
+DROP TABLE tndb;
+--echo --- on master ---
+connection master;
 DROP TABLE tmyisam;
 DROP TABLE tinnodb;
 DROP TABLE tndb;
