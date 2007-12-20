@@ -17,10 +17,10 @@ class Dbt : private DBT
     void      set_data(void *p)        { data = p; }
     
     u_int32_t get_size(void) const     { return size; }
-    void      set_size(u_int32_t  p)   { size =  p; }
+    void      set_size(u_int32_t p)    { size =  p; }
 		       
     u_int32_t get_flags() const        { return flags; }
-    void set_flags(u_int32_t f)        { flags = f; }
+    void      set_flags(u_int32_t f)   { flags = f; }
 
     DBT *get_DBT(void)                 { return (DBT*)this; }
 
