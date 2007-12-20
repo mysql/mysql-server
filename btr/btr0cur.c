@@ -973,9 +973,8 @@ btr_cur_trx_report(
 	const dict_index_t*	index,	/* in: index */
 	const char*		op)	/* in: operation */
 {
-	fprintf(stderr, "Trx with id %lu %lu going to ",
-		ut_dulint_get_high(trx->id),
-		ut_dulint_get_low(trx->id));
+	fprintf(stderr, "Trx with id " TRX_ID_FMT " going to ",
+		TRX_ID_PREP_PRINTF(trx->id));
 	fputs(op, stderr);
 	dict_index_name_print(stderr, trx, index);
 	putc('\n', stderr);

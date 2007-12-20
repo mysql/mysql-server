@@ -436,10 +436,9 @@ trx_rollback_active(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: Rolling back trx with id %lu %lu, %lu%s"
+		"  InnoDB: Rolling back trx with id " TRX_ID_FMT ", %lu%s"
 		" rows to undo\n",
-		(ulong) ut_dulint_get_high(trx->id),
-		(ulong) ut_dulint_get_low(trx->id),
+		TRX_ID_PREP_PRINTF(trx->id),
 		(ulong) rows_to_undo, unit);
 	mutex_exit(&kernel_mutex);
 
@@ -501,9 +500,9 @@ trx_rollback_active(
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
-	fprintf(stderr, "\nInnoDB: Rolling back of trx id %lu %lu completed\n",
-		(ulong) ut_dulint_get_high(trx->id),
-		(ulong) ut_dulint_get_low(trx->id));
+	fprintf(stderr, "\nInnoDB: Rolling back of trx id " TRX_ID_FMT
+		" completed\n",
+		TRX_ID_PREP_PRINTF(trx->id));
 	mem_heap_free(heap);
 
 	trx_roll_crash_recv_trx	= NULL;
@@ -556,9 +555,9 @@ loop:
 		case TRX_COMMITTED_IN_MEMORY:
 			mutex_exit(&kernel_mutex);
 			fprintf(stderr,
-				"InnoDB: Cleaning up trx with id %lu %lu\n",
-				(ulong) ut_dulint_get_high(trx->id),
-				(ulong) ut_dulint_get_low(trx->id));
+				"InnoDB: Cleaning up trx with id "
+				TRX_ID_FMT "\n",
+				TRX_ID_PREP_PRINTF(trx->id));
 			trx_cleanup_at_db_startup(trx);
 			goto loop;
 

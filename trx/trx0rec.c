@@ -1440,14 +1440,12 @@ trx_undo_prev_version_build(
 		      "InnoDB: record version ", stderr);
 		rec_print_new(stderr, rec, offsets);
 		fprintf(stderr, "\n"
-			"InnoDB: Record trx id %lu %lu, update rec"
-			" trx id %lu %lu\n"
+			"InnoDB: Record trx id " TRX_ID_FMT
+			", update rec trx id " TRX_ID_FMT "\n"
 			"InnoDB: Roll ptr in rec %lu %lu, in update rec"
 			" %lu %lu\n",
-			(ulong) ut_dulint_get_high(rec_trx_id),
-			(ulong) ut_dulint_get_low(rec_trx_id),
-			(ulong) ut_dulint_get_high(trx_id),
-			(ulong) ut_dulint_get_low(trx_id),
+			TRX_ID_PREP_PRINTF(rec_trx_id),
+			TRX_ID_PREP_PRINTF(trx_id),
 			(ulong) ut_dulint_get_high(old_roll_ptr),
 			(ulong) ut_dulint_get_low(old_roll_ptr),
 			(ulong) ut_dulint_get_high(roll_ptr),
