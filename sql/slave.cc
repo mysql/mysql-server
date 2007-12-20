@@ -3348,7 +3348,10 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       if (rli->slave_skip_counter &&
           !((type_code == INTVAR_EVENT ||
              type_code == RAND_EVENT ||
-             type_code == USER_VAR_EVENT) &&
+             type_code == USER_VAR_EVENT ||
+             type_code == BEGIN_LOAD_QUERY_EVENT ||
+             type_code == APPEND_BLOCK_EVENT ||
+             type_code == CREATE_FILE_EVENT) &&
             rli->slave_skip_counter == 1) &&
 #if MYSQL_VERSION_ID < 50100
           /*
