@@ -578,7 +578,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   /* Only one table for now, but VIEW can involve several tables */
   if (open_normal_and_derived_tables(thd, table_list, 0))
   {
-    if (!table_list->view || thd->net.last_errno != ER_VIEW_INVALID)
+    if (!table_list->view ||
+        thd->is_error() && thd->main_da.sql_errno() != ER_VIEW_INVALID)
       DBUG_RETURN(TRUE);
 
     /*
@@ -786,10 +787,9 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   }
   restore_record(table, s->default_values);              // Get empty record
   table->use_all_columns();
-  if (thd->protocol->send_fields(&field_list, Protocol::SEND_DEFAULTS |
-                                              Protocol::SEND_EOF))
+  if (thd->protocol->send_fields(&field_list, Protocol::SEND_DEFAULTS))
     DBUG_VOID_RETURN;
-  thd->protocol->flush();
+  send_eof(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -2919,7 +2919,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     default:
       DBUG_ASSERT(0);
     }
-    if (thd->net.last_errno == ER_NO_SUCH_TABLE)
+    if (thd->is_error() && thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
     {
       thd->clear_error();
       return 0;
@@ -3267,8 +3267,16 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
             lex->sql_command= save_sql_command;
-            
-            if (thd->net.last_errno == ER_NO_SUCH_TABLE)
+            /*
+              XXX:  show_table_list has a flag i_is_requested,
+              and when it's set, open_normal_and_derived_tables()
+              can return an error without setting an error message
+              in THD, which is a hack. This is why we have to
+              check for res, then for thd->is_error() only then
+              for thd->main_da.sql_errno().
+            */
+            if (res && thd->is_error() &&
+                thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
             {
               /*
                 Hide error for not existing table.
@@ -3422,7 +3430,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     /*
       there was errors during opening tables
     */
-    const char *error= thd->net.last_error;
+    const char *error= thd->main_da.message();
     if (tables->view)
       table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
     else if (tables->schema_table)
@@ -3624,7 +3632,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
         rather than in SHOW COLUMNS
       */ 
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->net.last_errno, thd->net.last_error);
+                   thd->main_da.sql_errno(), thd->main_da.message());
       thd->clear_error();
       res= 0;
     }
@@ -4098,9 +4106,9 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
         I.e. we are in SELECT FROM INFORMATION_SCHEMA.STATISTICS
         rather than in SHOW KEYS
       */
-      if (thd->net.last_errno)
+      if (thd->is_error())
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     thd->net.last_errno, thd->net.last_error);
+                     thd->main_da.sql_errno(), thd->main_da.message());
       thd->clear_error();
       res= 0;
     }
@@ -4290,9 +4298,9 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 
     if (schema_table_store_record(thd, table))
       DBUG_RETURN(1);
-    if (res && thd->net.last_errno)
+    if (res && thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-                   thd->net.last_errno, thd->net.last_error);
+                   thd->main_da.sql_errno(), thd->main_da.message());
   }
   if (res) 
     thd->clear_error();
@@ -4323,9 +4331,9 @@ static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
   DBUG_ENTER("get_schema_constraints_record");
   if (res)
   {
-    if (thd->net.last_errno)
+    if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->net.last_errno, thd->net.last_error);
+                   thd->main_da.sql_errno(), thd->main_da.message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -4428,9 +4436,9 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
   */
   if (res)
   {
-    if (thd->net.last_errno)
+    if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->net.last_errno, thd->net.last_error);
+                   thd->main_da.sql_errno(), thd->main_da.message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -4511,9 +4519,9 @@ static int get_schema_key_column_usage_record(THD *thd,
   DBUG_ENTER("get_schema_key_column_usage_record");
   if (res)
   {
-    if (thd->net.last_errno)
+    if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->net.last_errno, thd->net.last_error);
+                   thd->main_da.sql_errno(), thd->main_da.message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -4706,9 +4714,9 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 
   if (res)
   {
-    if (thd->net.last_errno)
+    if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->net.last_errno, thd->net.last_error);
+                   thd->main_da.sql_errno(), thd->main_da.message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -4751,6 +4759,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
       break;
     default:
       DBUG_ASSERT(0);
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
       current_thd->fatal_error();
       DBUG_RETURN(1);
     }
@@ -5243,9 +5252,9 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
 
   if (res)
   {
-    if (thd->net.last_errno)
+    if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->net.last_errno, thd->net.last_error);
+                   thd->main_da.sql_errno(), thd->main_da.message());
     thd->clear_error();
     DBUG_RETURN(0);
   }

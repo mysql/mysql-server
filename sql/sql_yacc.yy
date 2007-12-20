@@ -1239,7 +1239,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <variable> internal_variable_name
 
-%type <select_lex> subselect subselect_init
+%type <select_lex> subselect take_first_select
         get_select_lex
 
 %type <boolfunc2creator> comp_op
@@ -11737,37 +11737,22 @@ union_option:
         | ALL       { $$=0; }
         ;
 
-subselect:
-          SELECT_SYM subselect_start subselect_init subselect_end
-          {
-            $$= $3;
-          }
-        | '(' subselect_start subselect ')'
-          {
-            THD *thd= YYTHD;
-            /*
-              note that a local variable can't be used for
-              $3 as it's used in local variable construction
-              and some compilers can't guarnatee the order
-              in which the local variables are initialized.
-            */
-            List_iterator<Item> it($3->item_list);
-            Item *item;
-            /*
-              we must fill the items list for the "derived table".
-            */
-            while ((item= it++))
-              add_item_to_list(thd, item);
-          }
-          union_clause subselect_end { $$= $3; }
-        ;
+take_first_select: /* empty */
+        {
+          $$= Lex->current_select->master_unit()->first_select();
+        };
 
-subselect_init:
-          select_init2
-          {
-            $$= Lex->current_select->master_unit()->first_select();
-          }
-        ;
+subselect:
+        SELECT_SYM subselect_start select_init2 take_first_select 
+        subselect_end
+        {
+          $$= $4;
+        }
+        | '(' subselect_start select_paren take_first_select 
+        subselect_end ')'
+        {
+          $$= $4;
+        };
 
 subselect_start:
           {

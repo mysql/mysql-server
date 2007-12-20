@@ -1,0 +1,1851 @@
+#
+# Testing the behavior of 'PREPARE', 'DDL', 'EXECUTE' scenarios
+#
+# Background:
+# In a statement like "select * from t1", t1 can be:
+# - nothing (the table does not exist)
+# - a real table
+# - a temporary table
+# - a view
+#
+# Changing the nature of "t1" between a PREPARE and an EXECUTE
+# can invalidate the internal state of a prepared statement, so that,
+# during the execute, the server should:
+# - detect state changes and fail to execute a statement,
+#   instead of crashing the server or returning wrong results
+# - "RE-PREPARE" the statement to restore a valid internal state.
+#
+# Also, changing the physical structure of "t1", by:
+# - changing the definition of t1 itself (DDL on tables, views)
+# - changing TRIGGERs associated with a table
+# - changing PROCEDURE, FUNCTION referenced by a TRIGGER body,
+# - changing PROCEDURE, FUNCTION referenced by a VIEW body,
+# impacts the internal structure of a prepared statement, and should
+# cause the same verifications at execute time to be performed.
+#
+# This test provided in this file cover the different state transitions
+# between a PREPARE and an EXECUTE, and are organized as follows:
+# - Part  1: NOTHING -> TABLE
+# - Part  2: NOTHING -> TEMPORARY TABLE
+# - Part  3: NOTHING -> VIEW
+# - Part  4: TABLE -> NOTHING
+# - Part  5: TABLE -> TABLE (DDL)
+# - Part  6: TABLE -> TABLE (TRIGGER)
+# - Part  7: TABLE -> TABLE (TRIGGER dependencies)
+# - Part  8: TABLE -> TEMPORARY TABLE
+# - Part  9: TABLE -> VIEW
+# - Part 10: TEMPORARY TABLE -> NOTHING
+# - Part 11: TEMPORARY TABLE -> TABLE
+# - Part 12: TEMPORARY TABLE -> TEMPORARY TABLE (DDL)
+# - Part 13: TEMPORARY TABLE -> VIEW
+# - Part 14: VIEW -> NOTHING
+# - Part 15: VIEW -> TABLE
+# - Part 16: VIEW -> TEMPORARY TABLE
+# - Part 17: VIEW -> VIEW (DDL)
+# - Part 18: VIEW -> VIEW (VIEW dependencies)
+# - Part 19: Special tables (INFORMATION_SCHEMA)
+# - Part 20: Special tables (log tables)
+# - Part 21: Special tables (system tables)
+# - Part 22: Special tables (views temp tables)
+# - Part 23: Special tables (internal join tables)
+# - Part 24: Special statements
+# - Part 25: Testing the strength of TABLE_SHARE version
+
+let $base_count = SELECT VARIABLE_VALUE from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
+into @base_count ;
+
+let $reprepared = SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
+INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+
+--echo =====================================================================
+--echo Testing 1: NOTHING -> TABLE transitions
+--echo =====================================================================
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+eval $base_count;
+
+# can not be tested since prepare failed
+--error ER_NO_SUCH_TABLE
+prepare stmt from 'select * from t1';
+
+--echo =====================================================================
+--echo Testing 2: NOTHING -> TEMPORARY TABLE transitions
+--echo =====================================================================
+
+# can not be tested
+
+--echo =====================================================================
+--echo Testing 3: NOTHING -> VIEW transitions
+--echo =====================================================================
+
+# can not be tested
+
+--echo =====================================================================
+--echo Testing 4: TABLE -> NOTHING transitions
+--echo =====================================================================
+
+--disable_warnings
+drop table if exists t4;
+--enable_warnings
+
+eval $base_count;
+
+create table t4(a int);
+
+prepare stmt from 'select * from t4';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t4;
+--error ER_NO_SUCH_TABLE
+execute stmt;
+eval $reprepared;
+--error ER_NO_SUCH_TABLE
+execute stmt;
+eval $reprepared;
+
+--echo =====================================================================
+--echo Testing 5: TABLE -> TABLE (DDL) transitions
+--echo =====================================================================
+
+--disable_warnings
+drop table if exists t5;
+--enable_warnings
+
+eval $base_count;
+
+create table t5(a int);
+
+prepare stmt from 'select * from t5';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+alter table t5 add column (b int);
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t5;
+
+--echo =====================================================================
+--echo Testing 6: TABLE -> TABLE (TRIGGER) transitions
+--echo =====================================================================
+
+#
+# Test 6-a: adding a relevant trigger
+# Test 6-b: adding an irrelevant trigger
+# Test 6-c: changing a relevant trigger
+# Test 6-d: changing an irrelevant trigger
+# Test 6-e: removing a relevant trigger
+# Test 6-f: removing an irrelevant trigger
+#
+
+--disable_warnings
+drop table if exists t6;
+--enable_warnings
+
+eval $base_count;
+
+create table t6(a int);
+
+prepare stmt from 'insert into t6(a) value (?)';
+set @val=1;
+execute stmt using @val;
+eval $reprepared;
+set @val=2;
+execute stmt using @val;
+eval $reprepared;
+
+# Relevant trigger: execute should reprepare
+delimiter $$;
+create trigger t6_bi before insert on t6 for each row
+  begin
+    set @message= "t6_bi";
+  end
+$$
+delimiter ;$$
+
+set @message="none";
+set @val=3;
+# REPREPARED +1
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @val=4;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+prepare stmt from 'insert into t6(a) value (?)';
+set @message="none";
+set @val=5;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @message="none";
+set @val=6;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+# Unrelated trigger: execute can pass of fail, implementation dependent
+delimiter $$;
+create trigger t6_bd before delete on t6 for each row
+  begin
+    set @message= "t6_bd";
+  end
+$$
+delimiter ;$$
+
+set @message="none";
+set @val=7;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @message="none";
+set @val=8;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+prepare stmt from 'insert into t6(a) value (?)';
+set @message="none";
+set @val=9;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @message="none";
+set @val=10;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+# Relevant trigger: execute should reprepare
+drop trigger t6_bi;
+delimiter $$;
+create trigger t6_bi before insert on t6 for each row
+  begin
+    set @message= "t6_bi (2)";
+  end
+$$
+delimiter ;$$
+
+set @message="none";
+set @val=11;
+# REPREPARED +1
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @val=12;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+prepare stmt from 'insert into t6(a) value (?)';
+set @message="none";
+set @val=13;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @message="none";
+set @val=14;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+# Unrelated trigger: execute can pass of fail, implementation dependent
+drop trigger t6_bd;
+delimiter $$;
+create trigger t6_bd before delete on t6 for each row
+  begin
+    set @message= "t6_bd (2)";
+  end
+$$
+delimiter ;$$
+
+set @message="none";
+set @val=15;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @message="none";
+set @val=16;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+prepare stmt from 'insert into t6(a) value (?)';
+set @message="none";
+set @val=17;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @message="none";
+set @val=18;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+drop trigger t6_bi;
+
+set @message="none";
+set @val=19;
+# safe to re-execute
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @val=20;
+# safe to re-execute
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+prepare stmt from 'insert into t6(a) value (?)';
+set @message="none";
+set @val=21;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @val=22;
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+drop trigger t6_bd;
+
+set @val=23;
+# safe to re-execute
+execute stmt using @val;
+eval $reprepared;
+select @message;
+set @val=24;
+# safe to re-execute
+execute stmt using @val;
+eval $reprepared;
+select @message;
+
+select * from t6 order by a;
+drop table t6;
+
+--echo =====================================================================
+--echo Testing 7: TABLE -> TABLE (TRIGGER dependencies) transitions
+--echo =====================================================================
+
+#
+# Test 7-a: dependent PROCEDURE has changed
+# Test 7-b: dependent FUNCTION has changed
+# Test 7-c: dependent VIEW has changed
+# Test 7-d: dependent TABLE has changed
+# Test 7-e: dependent TABLE TRIGGER has changed
+#
+
+--disable_warnings
+drop table if exists t7_proc;
+drop table if exists t7_func;
+drop table if exists t7_view;
+drop table if exists t7_table;
+drop table if exists t7_dependent_table;
+drop table if exists t7_table_trigger;
+drop table if exists t7_audit;
+drop procedure if exists audit_proc;
+drop function if exists audit_func;
+drop view if exists audit_view;
+--enable_warnings
+
+eval $base_count;
+
+create table t7_proc(a int);
+create table t7_func(a int);
+create table t7_view(a int);
+create table t7_table(a int);
+create table t7_table_trigger(a int);
+
+create table t7_audit(old_a int, new_a int, reason varchar(50));
+create table t7_dependent_table(old_a int, new_a int, reason varchar(50));
+
+create procedure audit_proc(a int)
+  insert into t7_audit values (NULL, a, "proc v1");
+
+create function audit_func() returns varchar(50)
+  return "func v1";
+
+create view audit_view as select "view v1" as reason from dual;
+
+create trigger t7_proc_bi before insert on t7_proc for each row
+  call audit_proc(NEW.a);
+
+create trigger t7_func_bi before insert on t7_func for each row
+  insert into t7_audit values (NULL, NEW.a, audit_func());
+
+create trigger t7_view_bi before insert on t7_view for each row
+  insert into t7_audit values (NULL, NEW.a, (select reason from audit_view));
+
+create trigger t7_table_bi before insert on t7_table for each row
+  insert into t7_dependent_table values (NULL, NEW.a, "dependent table");
+
+create trigger t7_table_trigger_bi before insert on t7_dependent_table
+  for each row set NEW.reason="trigger v1";
+
+prepare stmt_proc from 'insert into t7_proc(a) value (?)';
+set @val=101;
+execute stmt_proc using @val;
+eval $reprepared;
+set @val=102;
+execute stmt_proc using @val;
+eval $reprepared;
+
+drop procedure audit_proc;
+
+create procedure audit_proc(a int)
+  insert into t7_audit values (NULL, a, "proc v2");
+
+set @val=103;
+execute stmt_proc using @val;
+eval $reprepared;
+set @val=104;
+execute stmt_proc using @val;
+eval $reprepared;
+
+
+prepare stmt_func from 'insert into t7_func(a) value (?)';
+set @val=201;
+execute stmt_func using @val;
+eval $reprepared;
+set @val=202;
+execute stmt_func using @val;
+eval $reprepared;
+
+drop function audit_func;
+
+create function audit_func() returns varchar(50)
+  return "func v2";
+
+set @val=203;
+execute stmt_func using @val;
+eval $reprepared;
+set @val=204;
+execute stmt_func using @val;
+eval $reprepared;
+
+prepare stmt_view from 'insert into t7_view(a) value (?)';
+set @val=301;
+execute stmt_view using @val;
+eval $reprepared;
+set @val=302;
+execute stmt_view using @val;
+eval $reprepared;
+
+drop view audit_view;
+
+create view audit_view as select "view v2" as reason from dual;
+
+# Because of Bug#33255, the wrong result is still produced for cases
+# 303 and 304, even after re-preparing the statement.
+# This is because the table trigger is cached and is not invalidated.
+
+set @val=303;
+# REPREPARED +1
+execute stmt_view using @val;
+eval $reprepared;
+set @val=304;
+execute stmt_view using @val;
+eval $reprepared;
+
+
+prepare stmt_table from 'insert into t7_table(a) value (?)';
+set @val=401;
+execute stmt_table using @val;
+eval $reprepared;
+set @val=402;
+execute stmt_table using @val;
+eval $reprepared;
+
+alter table t7_dependent_table add column comments varchar(100) default NULL;
+
+set @val=403;
+# REPREPARED +1
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+execute stmt_table using @val;
+eval $reprepared;
+set @val=404;
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+execute stmt_table using @val;
+eval $reprepared;
+
+alter table t7_dependent_table drop column comments;
+
+set @val=405;
+# REPREPARED +1
+execute stmt_table using @val;
+eval $reprepared;
+set @val=406;
+execute stmt_table using @val;
+eval $reprepared;
+
+
+prepare stmt_table_trigger from 'insert into t7_table(a) value (?)';
+set @val=501;
+execute stmt_table_trigger using @val;
+eval $reprepared;
+set @val=502;
+execute stmt_table_trigger using @val;
+eval $reprepared;
+
+drop trigger t7_table_trigger_bi;
+
+create trigger t7_table_trigger_bi before insert on t7_dependent_table
+  for each row set NEW.reason="trigger v2";
+
+set @val=503;
+# REPREPARED +1
+execute stmt_table_trigger using @val;
+eval $reprepared;
+set @val=504;
+execute stmt_table_trigger using @val;
+eval $reprepared;
+
+select * from t7_audit order by new_a;
+
+select * from t7_dependent_table order by new_a;
+
+drop table t7_proc;
+drop table t7_func;
+drop table t7_view;
+drop table t7_table;
+drop table t7_dependent_table;
+drop table t7_table_trigger;
+drop table t7_audit;
+drop procedure audit_proc;
+drop function audit_func;
+drop view audit_view;
+
+--echo =====================================================================
+--echo Testing 8: TABLE -> TEMPORARY TABLE transitions
+--echo =====================================================================
+
+--disable_warnings
+drop table if exists t8;
+--enable_warnings
+
+eval $base_count;
+
+create table t8(a int);
+
+prepare stmt from 'select * from t8';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t8;
+create temporary table t8(a int);
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t8;
+
+--echo =====================================================================
+--echo Testing 9: TABLE -> VIEW transitions
+--echo =====================================================================
+
+--disable_warnings
+drop table if exists t9;
+drop table if exists t9_b;
+--enable_warnings
+
+eval $base_count;
+
+create table t9(a int);
+create table t9_b(a int);
+
+prepare stmt from 'select * from t9';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t9;
+create view t9 as select * from t9_b;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop view t9;
+drop table t9_b;
+
+--echo =====================================================================
+--echo Testing 10: TEMPORARY TABLE -> NOTHING transitions
+--echo =====================================================================
+
+--disable_warnings
+drop temporary table if exists t10;
+--enable_warnings
+
+eval $base_count;
+
+create temporary table t10(a int);
+
+prepare stmt from 'select * from t10';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop temporary table t10;
+--error ER_NO_SUCH_TABLE
+execute stmt;
+eval $reprepared;
+--error ER_NO_SUCH_TABLE
+execute stmt;
+eval $reprepared;
+
+--echo =====================================================================
+--echo Testing 11: TEMPORARY TABLE -> TABLE transitions
+--echo =====================================================================
+
+--disable_warnings
+drop table if exists t11;
+drop temporary table if exists t11;
+--enable_warnings
+
+eval $base_count;
+
+create table t11(a int);
+insert into t11(a) value (1);
+create temporary table t11(a int);
+
+prepare stmt from 'select * from t11';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop temporary table t11;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+select * from t11;
+drop table t11;
+
+--echo =====================================================================
+--echo Testing 12: TEMPORARY TABLE -> TEMPORARY TABLE (DDL) transitions
+--echo =====================================================================
+
+--disable_warnings
+drop temporary table if exists t12;
+--enable_warnings
+
+eval $base_count;
+
+create temporary table t12(a int);
+
+prepare stmt from 'select * from t12';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop temporary table t12;
+create temporary table t12(a int, b int);
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+select * from t12;
+drop table t12;
+
+--echo =====================================================================
+--echo Testing 13: TEMPORARY TABLE -> VIEW transitions
+--echo =====================================================================
+
+--disable_warnings
+drop temporary table if exists t13;
+drop table if exists t13_b;
+--enable_warnings
+
+eval $base_count;
+
+create temporary table t13(a int);
+create table t13_b(a int);
+
+prepare stmt from 'select * from t13';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop temporary table t13;
+create view t13 as select * from t13_b;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop view t13;
+drop table t13_b;
+
+--echo =====================================================================
+--echo Testing 14: VIEW -> NOTHING transitions
+--echo =====================================================================
+
+--disable_warnings
+drop view if exists t14;
+drop table if exists t14_b;
+--enable_warnings
+
+eval $base_count;
+
+create table t14_b(a int);
+create view t14 as select * from t14_b;
+
+prepare stmt from 'select * from t14';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop view t14;
+
+# REPREPARED +1
+--error ER_NO_SUCH_TABLE
+execute stmt;
+eval $reprepared;
+--error ER_NO_SUCH_TABLE
+execute stmt;
+eval $reprepared;
+
+drop table t14_b;
+
+--echo =====================================================================
+--echo Testing 15: VIEW -> TABLE transitions
+--echo =====================================================================
+
+--disable_warnings
+drop view if exists t15;
+drop table if exists t15_b;
+--enable_warnings
+
+eval $base_count;
+
+create table t15_b(a int);
+create view t15 as select * from t15_b;
+
+prepare stmt from 'select * from t15';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop view t15;
+create table t15(a int);
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t15_b;
+drop table t15;
+
+--echo =====================================================================
+--echo Testing 16: VIEW -> TEMPORARY TABLE transitions
+--echo =====================================================================
+
+--disable_warnings
+drop view if exists t16;
+drop table if exists t16_b;
+--enable_warnings
+
+eval $base_count;
+
+create table t16_b(a int);
+create view t16 as select * from t16_b;
+
+prepare stmt from 'select * from t16';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop view t16;
+create temporary table t16(a int);
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t16_b;
+drop temporary table t16;
+
+--echo =====================================================================
+--echo Testing 17: VIEW -> VIEW (DDL) transitions
+--echo =====================================================================
+
+--disable_warnings
+drop view if exists t17;
+drop table if exists t17_b;
+--enable_warnings
+
+eval $base_count;
+
+create table t17_b(a int);
+insert into t17_b values (10), (20), (30);
+
+create view t17 as select a, 2*a as b, 3*a as c from t17_b;
+select * from t17;
+
+prepare stmt from 'select * from t17';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop view t17;
+create view t17 as select a, 2*a as b, 10*a as c from t17_b;
+select * from t17;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t17_b;
+drop view t17;
+
+--echo =====================================================================
+--echo Testing 18: VIEW -> VIEW (VIEW dependencies) transitions
+--echo =====================================================================
+
+#
+# Test 18-a: dependent PROCEDURE has changed (via a trigger)
+# Test 18-b: dependent FUNCTION has changed
+# Test 18-c: dependent VIEW has changed
+# Test 18-d: dependent TABLE has changed
+# Test 18-e: dependent TABLE TRIGGER has changed
+#
+
+--disable_warnings
+drop table if exists t18;
+drop table if exists t18_dependent_table;
+drop view if exists t18_func;
+drop view if exists t18_view;
+drop view if exists t18_table;
+drop function if exists view_func;
+drop view if exists view_view;
+--enable_warnings
+
+eval $base_count;
+
+# TODO: insertable view -> trigger
+# TODO: insertable view -> trigger -> proc ?
+
+create table t18(a int);
+insert into t18 values (1), (2), (3);
+
+create function view_func(x int) returns int
+  return x+1;
+
+create view view_view as select "view v1" as reason from dual;
+
+create table t18_dependent_table(a int);
+
+create view t18_func as select a, view_func(a) as b from t18;
+create view t18_view as select a, reason as b from t18, view_view;
+create view t18_table as select * from t18;
+
+prepare stmt_func from 'select * from t18_func';
+execute stmt_func;
+eval $reprepared;
+execute stmt_func;
+eval $reprepared;
+
+drop function view_func;
+create function view_func(x int) returns int
+  return x*x;
+
+execute stmt_func;
+eval $reprepared;
+execute stmt_func;
+eval $reprepared;
+
+prepare stmt_view from 'select * from t18_view';
+execute stmt_view;
+eval $reprepared;
+execute stmt_view;
+eval $reprepared;
+
+drop view view_view;
+create view view_view as select "view v2" as reason from dual;
+
+# REPREPARED +1
+execute stmt_view;
+eval $reprepared;
+execute stmt_view;
+eval $reprepared;
+
+prepare stmt_table from 'select * from t18_table';
+execute stmt_table;
+eval $reprepared;
+execute stmt_table;
+eval $reprepared;
+
+alter table t18 add column comments varchar(50) default NULL;
+
+# REPREPARED +1
+execute stmt_table;
+eval $reprepared;
+execute stmt_table;
+eval $reprepared;
+
+drop table t18;
+drop table t18_dependent_table;
+drop view t18_func;
+drop view t18_view;
+drop view t18_table;
+drop function view_func;
+drop view view_view;
+
+--echo =====================================================================
+--echo Testing 19: Special tables (INFORMATION_SCHEMA)
+--echo =====================================================================
+
+--disable_warnings
+drop procedure if exists proc_19;
+--enable_warnings
+
+eval $base_count;
+
+# Using a temporary table internally should not confuse the prepared
+# statement code, and should not raise ER_PS_INVALIDATED errors
+prepare stmt from
+ 'select ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE
+ from INFORMATION_SCHEMA.ROUTINES where
+ routine_name=\'proc_19\'';
+
+create procedure proc_19() select "hi there";
+
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop procedure proc_19;
+create procedure proc_19() select "hi there, again";
+
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop procedure proc_19;
+
+--echo =====================================================================
+--echo Testing 20: Special tables (log tables)
+--echo =====================================================================
+
+eval $base_count;
+
+prepare stmt from
+ 'select * from mysql.general_log where argument=\'IMPOSSIBLE QUERY STRING\'';
+
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+--echo =====================================================================
+--echo Testing 21: Special tables (system tables)
+--echo =====================================================================
+
+--disable_warnings
+drop procedure if exists proc_21;
+--enable_warnings
+
+eval $base_count;
+
+prepare stmt from
+ 'select type, db, name from mysql.proc where name=\'proc_21\'';
+
+create procedure proc_21() select "hi there";
+
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop procedure proc_21;
+create procedure proc_21() select "hi there, again";
+
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop procedure proc_21;
+
+--echo =====================================================================
+--echo Testing 22: Special tables (views temp tables)
+--echo =====================================================================
+
+--disable_warnings
+drop table if exists t22_b;
+drop view if exists t22;
+--enable_warnings
+
+eval $base_count;
+
+create table t22_b(a int);
+
+create algorithm=temptable view t22 as select a*a as a2 from t22_b;
+
+# Using a temporary table internally should not confuse the prepared
+# statement code, and should not raise ER_PS_INVALIDATED errors
+show create view t22;
+
+prepare stmt from 'select * from t22';
+
+insert into t22_b values (1), (2), (3);
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+insert into t22_b values (4), (5), (6);
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t22_b;
+drop view t22;
+
+--echo =====================================================================
+--echo Testing 23: Special tables (internal join tables)
+--echo =====================================================================
+
+--disable_warnings
+drop table if exists t23_a;
+drop table if exists t23_b;
+--enable_warnings
+
+eval $base_count;
+
+create table t23_a(a int);
+create table t23_b(b int);
+
+# Using a temporary table internally should not confuse the prepared
+# statement code, and should not raise ER_PS_INVALIDATED errors
+prepare stmt from 'select * from t23_a join t23_b';
+
+insert into t23_a values (1), (2), (3);
+insert into t23_b values (10), (20), (30);
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+insert into t23_a values (4);
+insert into t23_b values (40);
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t23_a;
+drop table t23_b;
+
+--echo =====================================================================
+--echo Testing 24: Special statements
+--echo =====================================================================
+
+# SQLCOM_ALTER_TABLE:
+
+--disable_warnings
+drop table if exists t24_alter;
+--enable_warnings
+
+eval $base_count;
+
+create table t24_alter(a int);
+
+prepare stmt from 'alter table t24_alter add column b int';
+execute stmt;
+eval $reprepared;
+
+drop table t24_alter;
+create table t24_alter(a1 int, a2 int);
+
+# t24_alter has changed, and it's not a problem
+execute stmt;
+eval $reprepared;
+
+alter table t24_alter drop column b;
+execute stmt;
+eval $reprepared;
+
+alter table t24_alter drop column b;
+execute stmt;
+eval $reprepared;
+
+drop table t24_alter;
+
+# SQLCOM_REPAIR:
+
+--disable_warnings
+drop table if exists t24_repair;
+--enable_warnings
+
+create table t24_repair(a int);
+insert into t24_repair values (1), (2), (3);
+
+prepare stmt from 'repair table t24_repair';
+execute stmt;
+eval $reprepared;
+
+drop table t24_repair;
+create table t24_repair(a1 int, a2 int);
+insert into t24_repair values (1, 10), (2, 20), (3, 30);
+
+# t24_repair has changed, and it's not a problem
+execute stmt;
+eval $reprepared;
+
+alter table t24_repair add column b varchar(50) default NULL;
+execute stmt;
+eval $reprepared;
+
+alter table t24_repair drop column b;
+execute stmt;
+eval $reprepared;
+
+drop table t24_repair;
+
+# SQLCOM_ANALYZE:
+
+--disable_warnings
+drop table if exists t24_analyze;
+--enable_warnings
+
+create table t24_analyze(a int);
+insert into t24_analyze values (1), (2), (3);
+
+prepare stmt from 'analyze table t24_analyze';
+execute stmt;
+eval $reprepared;
+
+drop table t24_analyze;
+create table t24_analyze(a1 int, a2 int);
+insert into t24_analyze values (1, 10), (2, 20), (3, 30);
+
+# t24_analyze has changed, and it's not a problem
+execute stmt;
+eval $reprepared;
+
+alter table t24_analyze add column b varchar(50) default NULL;
+execute stmt;
+eval $reprepared;
+
+alter table t24_analyze drop column b;
+execute stmt;
+eval $reprepared;
+
+drop table t24_analyze;
+
+# SQLCOM_OPTIMIZE:
+
+--disable_warnings
+drop table if exists t24_optimize;
+--enable_warnings
+
+create table t24_optimize(a int);
+insert into t24_optimize values (1), (2), (3);
+
+prepare stmt from 'optimize table t24_optimize';
+execute stmt;
+eval $reprepared;
+
+drop table t24_optimize;
+create table t24_optimize(a1 int, a2 int);
+insert into t24_optimize values (1, 10), (2, 20), (3, 30);
+
+# t24_optimize has changed, and it's not a problem
+execute stmt;
+eval $reprepared;
+
+alter table t24_optimize add column b varchar(50) default NULL;
+execute stmt;
+eval $reprepared;
+
+alter table t24_optimize drop column b;
+execute stmt;
+eval $reprepared;
+
+drop table t24_optimize;
+
+# SQLCOM_SHOW_CREATE_PROC:
+
+--disable_warnings
+drop procedure if exists changing_proc;
+--enable_warnings
+
+prepare stmt from 'show create procedure changing_proc';
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+
+create procedure changing_proc() begin end;
+
+# changing_proc has changed, and it's not a problem
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop procedure changing_proc;
+create procedure changing_proc(x int, y int) begin end;
+
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop procedure changing_proc;
+
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+
+# SQLCOM_SHOW_CREATE_FUNC:
+
+--disable_warnings
+drop function if exists changing_func;
+--enable_warnings
+
+prepare stmt from 'show create function changing_func';
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+
+create function changing_func() returns int return 0;
+
+# changing_proc has changed, and it's not a problem
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop function changing_func;
+create function changing_func(x int, y int) returns int return x+y;
+
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop function changing_func;
+
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+
+# SQLCOM_SHOW_CREATE_TRIGGER:
+
+--disable_warnings
+drop table if exists t24_trigger;
+--enable_warnings
+
+create table t24_trigger(a int);
+
+prepare stmt from 'show create trigger t24_bi;';
+--error ER_TRG_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+--error ER_TRG_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+
+delimiter $$;
+create trigger t24_bi before insert on t24_trigger for each row
+  begin
+    set @message= "t24_bi";
+  end
+$$
+delimiter ;$$
+
+# t24_bi has changed, and it's not a problem
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop trigger t24_bi;
+delimiter $$;
+create trigger t24_bi before insert on t24_trigger for each row
+  begin
+    set @message= "t24_bi (2)";
+  end
+$$
+delimiter ;$$
+
+# t24_bi has changed, and it's not a problem
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop trigger t24_bi;
+
+--error ER_TRG_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+--error ER_TRG_DOES_NOT_EXIST
+execute stmt;
+eval $reprepared;
+
+drop table t24_trigger;
+
+--echo =====================================================================
+--echo Testing 25: Testing the strength of TABLE_SHARE version
+--echo =====================================================================
+
+# Test 25-a: number of columns
+
+--disable_warnings
+drop table if exists t25_num_col;
+--enable_warnings
+
+eval $base_count;
+
+create table t25_num_col(a int);
+
+prepare stmt from 'select * from t25_num_col';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+alter table t25_num_col add column b varchar(50) default NULL;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t25_num_col;
+
+# Test 25-b: column name
+
+--disable_warnings
+drop table if exists t25_col_name;
+--enable_warnings
+
+create table t25_col_name(a int);
+
+prepare stmt from 'select * from t25_col_name';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+alter table t25_col_name change a b int;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t25_col_name;
+
+# Test 25-c: column type
+
+--disable_warnings
+drop table if exists t25_col_type;
+--enable_warnings
+
+create table t25_col_type(a int);
+
+prepare stmt from 'select * from t25_col_type';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+alter table t25_col_type change a a varchar(10);
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t25_col_type;
+
+# Test 25-d: column type length
+
+--disable_warnings
+drop table if exists t25_col_type_length;
+--enable_warnings
+
+create table t25_col_type_length(a varchar(10));
+
+prepare stmt from 'select * from t25_col_type_length';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+alter table t25_col_type_length change a a varchar(20);
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t25_col_type_length;
+
+# Test 25-e: column NULL property
+
+--disable_warnings
+drop table if exists t25_col_null;
+--enable_warnings
+
+create table t25_col_null(a varchar(10));
+
+prepare stmt from 'select * from t25_col_null';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+alter table t25_col_null change a a varchar(10) NOT NULL;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t25_col_null;
+
+# Test 25-f: column DEFAULT
+
+--disable_warnings
+drop table if exists t25_col_default;
+--enable_warnings
+
+create table t25_col_default(a int, b int DEFAULT 10);
+
+prepare stmt from 'insert into t25_col_default(a) values (?)';
+set @val=1;
+execute stmt using @val;
+eval $reprepared;
+set @val=2;
+execute stmt using @val;
+eval $reprepared;
+
+alter table t25_col_default change b b int DEFAULT 20;
+
+set @val=3;
+# Must insert the correct default value for b
+execute stmt using @val;
+eval $reprepared;
+
+set @val=4;
+# Must insert the correct default value for b
+execute stmt using @val;
+eval $reprepared;
+
+select * from t25_col_default;
+
+drop table t25_col_default;
+
+# Test 25-g: number of keys
+
+--disable_warnings
+drop table if exists t25_index;
+--enable_warnings
+
+create table t25_index(a varchar(10));
+
+prepare stmt from 'select * from t25_index';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+create index i1 on t25_index(a);
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t25_index;
+
+# Test 25-h: changing index uniqueness
+
+--disable_warnings
+drop table if exists t25_index_unique;
+--enable_warnings
+
+create table t25_index_unique(a varchar(10), b varchar(10));
+create index i1 on t25_index_unique(a, b);
+
+show create table t25_index_unique;
+
+prepare stmt from 'select * from t25_index_unique';
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+alter table t25_index_unique drop index i1;
+create unique index i1 on t25_index_unique(a, b);
+
+show create table t25_index_unique;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table t25_index_unique;
+
+--echo =====================================================================
+--echo Testing reported bugs
+--echo =====================================================================
+
+#
+# Bug#12093 (SP not found on second PS execution if another thread drops
+# other SP in between)
+#
+
+--disable_warnings
+drop table if exists table_12093;
+drop function if exists func_12093;
+drop function if exists func_12093_unrelated;
+drop procedure if exists proc_12093;
+--enable_warnings
+
+eval $base_count;
+
+connect (con1,localhost,root,,);
+
+connection default;
+
+create table table_12093(a int);
+
+delimiter //;
+
+create function func_12093()
+returns int
+begin
+  return (select count(*) from table_12093);
+end//
+
+create procedure proc_12093(a int)
+begin
+  select * from table_12093;
+end//
+
+delimiter ;//
+
+create function func_12093_unrelated() returns int return 2;
+create procedure proc_12093_unrelated() begin end;
+
+prepare stmt_sf from 'select func_12093();';
+prepare stmt_sp from 'call proc_12093(func_12093())';
+
+execute stmt_sf;
+eval $reprepared;
+execute stmt_sp;
+eval $reprepared;
+
+connection con1;
+
+drop function func_12093_unrelated;
+drop procedure proc_12093_unrelated;
+
+connection default;
+
+# previously, failed with --error 1305
+execute stmt_sf;
+eval $reprepared;
+# previously, failed with --error 1305
+execute stmt_sp;
+eval $reprepared;
+
+# previously, failed with --error 1305
+execute stmt_sf;
+eval $reprepared;
+# previously, failed with --error 1305
+execute stmt_sp;
+eval $reprepared;
+
+deallocate prepare stmt_sf;
+deallocate prepare stmt_sp;
+
+disconnect con1;
+
+drop table table_12093;
+drop function func_12093;
+drop procedure proc_12093;
+
+#
+# Bug#21294 (executing a prepared statement that executes a stored function
+# which was recreat)
+#
+
+--disable_warnings
+drop function if exists func_21294;
+--enable_warnings
+
+eval $base_count;
+
+create function func_21294() returns int return 10;
+
+prepare stmt from "select func_21294()";
+execute stmt;
+eval $reprepared;
+
+drop function func_21294;
+create function func_21294() returns int return 10;
+
+# might pass or fail, implementation dependent
+execute stmt;
+eval $reprepared;
+
+drop function func_21294;
+create function func_21294() returns int return 20;
+
+execute stmt;
+eval $reprepared;
+
+deallocate prepare stmt;
+drop function func_21294;
+
+#
+# Bug#27420 (A combination of PS and view operations cause error + assertion
+# on shutdown)
+#
+
+--disable_warnings
+drop table if exists t_27420_100;
+drop table if exists t_27420_101;
+drop view if exists v_27420;
+--enable_warnings
+
+eval $base_count;
+
+connect (con1,localhost,root,,);
+
+connection default;
+
+create table t_27420_100(a int);
+insert into t_27420_100 values (1), (2);
+
+create table t_27420_101(a int);
+insert into t_27420_101 values (1), (2);
+
+create view v_27420 as select t_27420_100.a X, t_27420_101.a Y
+  from t_27420_100, t_27420_101
+  where t_27420_100.a=t_27420_101.a;
+
+prepare stmt from 'select * from v_27420';
+
+execute stmt;
+eval $reprepared;
+
+connection con1;
+
+drop view v_27420;
+create table v_27420(X int, Y int);
+
+connection default;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+
+connection con1;
+
+drop table v_27420;
+# passes in 5.0, fails in 5.1, should pass
+create table v_27420 (a int, b int, filler char(200));
+
+connection default;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+
+disconnect con1;
+
+deallocate prepare stmt;
+drop table t_27420_100;
+drop table t_27420_101;
+drop table v_27420;
+
+#
+# Bug#27430 (Crash in subquery code when in PS and table DDL changed after
+# PREPARE)
+#
+
+--disable_warnings
+drop table if exists t_27430_1;
+drop table if exists t_27430_2;
+--enable_warnings
+
+eval $base_count;
+
+create table t_27430_1 (a int not null, oref int not null, key(a));
+insert into t_27430_1 values
+  (1, 1),
+  (1, 1234),
+  (2, 3),
+  (2, 1234),
+  (3, 1234);
+
+create table t_27430_2 (a int not null, oref int not null);
+insert into t_27430_2 values
+  (1, 1),
+  (2, 2),
+  (1234, 3),
+  (1234, 4);
+
+prepare stmt from 
+ 'select oref, a, a in (select a from t_27430_1 where oref=t_27430_2.oref) Z from t_27430_2';
+
+execute stmt; 
+eval $reprepared;
+execute stmt; 
+eval $reprepared;
+
+drop table t_27430_1, t_27430_2;
+
+create table t_27430_1 (a int, oref int, key(a));
+insert into t_27430_1 values 
+  (1, 1),
+  (1, NULL),
+  (2, 3),
+  (2, NULL),
+  (3, NULL);
+
+create table t_27430_2 (a int, oref int);
+insert into t_27430_2 values
+  (1, 1),
+  (2,2),
+  (NULL, 3),
+  (NULL, 4);
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+deallocate prepare stmt;
+drop table t_27430_1;
+drop table t_27430_2;
+
+#
+# Bug#27690 (Re-execution of prepared statement after table was replaced
+# with a view crashes)
+#
+
+--disable_warnings
+drop table if exists t_27690_1;
+drop view if exists v_27690_1;
+drop table if exists v_27690_2;
+--enable_warnings
+
+eval $base_count;
+
+create table t_27690_1 (a int, b int);
+insert into t_27690_1 values (1,1),(2,2);
+
+create table v_27690_1 as select * from t_27690_1;
+create table v_27690_2 as select * from t_27690_1;
+
+prepare stmt from 'select * from v_27690_1, v_27690_2'; 
+
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+drop table v_27690_1;
+
+--error ER_NO_SUCH_TABLE
+execute stmt;
+eval $reprepared;
+
+--error ER_NO_SUCH_TABLE
+execute stmt;
+eval $reprepared;
+
+create view v_27690_1 as select A.a, A.b from t_27690_1 A, t_27690_1 B;
+
+# REPREPARED +1
+execute stmt;
+eval $reprepared;
+execute stmt;
+eval $reprepared;
+
+deallocate prepare stmt;
+drop table t_27690_1;
+drop view v_27690_1;
+drop table v_27690_2;
+

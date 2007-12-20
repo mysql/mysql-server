@@ -1,4 +1,5 @@
 drop database if exists db99;
+drop table if exists t1;
 create database db99;
 use db99;
 create table t1 (a int not null)
@@ -11,3 +12,80 @@ alter table t1 add partition (partition p2 values in (3));
 alter table t1 drop partition p2;
 use test;
 drop database db99;
+create table t1 (f1 integer) engine= ARCHIVE partition by list(f1)
+(
+partition p1 values in (1),
+partition p2 values in (NULL),
+partition p3 values in (2),
+partition p4 values in (3),
+partition p5 values in (4)
+);
+insert into t1 values (1),(2),(3),(4),(null);
+select * from t1;
+f1
+1
+NULL
+2
+3
+4
+select * from t1 where f1 < 3;
+f1
+1
+2
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null) engine=ARCHIVE
+partition by hash (a + 2)
+partitions 3
+(partition x1 tablespace ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3);
+insert into t1 values (1,1,1);
+insert into t1 values (2,1,1);
+insert into t1 values (3,1,1);
+insert into t1 values (4,1,1);
+insert into t1 values (5,1,1);
+select * from t1;
+a	b	c
+1	1	1
+4	1	1
+2	1	1
+5	1	1
+3	1	1
+drop table t1;
+create table t1 (a int) engine=archive partition by hash(a);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (a)  */
+drop table t1;
+CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
+f1 VARCHAR(25),
+PRIMARY KEY(id)) ENGINE=ARCHIVE
+PARTITION BY RANGE(id)
+SUBPARTITION BY hash(id) subpartitions 2
+(PARTITION pa1 values less than (10),
+PARTITION pa2 values less than (20),
+PARTITION pa3 values less than (30),
+PARTITION pa4 values less than (40),
+PARTITION pa5 values less than (50),
+PARTITION pa6 values less than (60),
+PARTITION pa7 values less than (70),
+PARTITION pa8 values less than (80),
+PARTITION pa9 values less than (90),
+PARTITION pa10 values less than (100),
+PARTITION pa11 values less than MAXVALUE);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `f1` varchar(25) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ARCHIVE AUTO_INCREMENT=101 DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (id) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION pa1 VALUES LESS THAN (10) ENGINE = ARCHIVE, PARTITION pa2 VALUES LESS THAN (20) ENGINE = ARCHIVE, PARTITION pa3 VALUES LESS THAN (30) ENGINE = ARCHIVE, PARTITION pa4 VALUES LESS THAN (40) ENGINE = ARCHIVE, PARTITION pa5 VALUES LESS THAN (50) ENGINE = ARCHIVE, PARTITION pa6 VALUES LESS THAN (60) ENGINE = ARCHIVE, PARTITION pa7 VALUES LESS THAN (70) ENGINE = ARCHIVE, PARTITION pa8 VALUES LESS THAN (80) ENGINE = ARCHIVE, PARTITION pa9 VALUES LESS THAN (90) ENGINE = ARCHIVE, PARTITION pa10 VALUES LESS THAN (100) ENGINE = ARCHIVE, PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = ARCHIVE) */
+select count(*) from t1;
+count(*)
+100
+drop table t1;

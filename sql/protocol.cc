@@ -25,13 +25,16 @@
 #endif
 
 #include "mysql_priv.h"
-#include "sp_rcontext.h"
 #include <stdarg.h>
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
+/* Declared non-static only because of the embedded library. */
 void net_send_error_packet(THD *thd, uint sql_errno, const char *err);
+void net_send_ok(THD *, uint, uint, ha_rows, ulonglong, const char *);
+void net_send_eof(THD *thd, uint server_status, uint total_warn_count);
 #ifndef EMBEDDED_LIBRARY
-static void write_eof_packet(THD *thd, NET *net);
+static void write_eof_packet(THD *thd, NET *net,
+                             uint server_status, uint total_warn_count);
 #endif
 
 #ifndef EMBEDDED_LIBRARY
@@ -70,62 +73,27 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 */
 void net_send_error(THD *thd, uint sql_errno, const char *err)
 {
-  NET *net= &thd->net;
-  bool generate_warning= thd->killed != THD::KILL_CONNECTION;
   DBUG_ENTER("net_send_error");
-  DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno,
-		      err ? err : net->last_error[0] ?
-		      net->last_error : "NULL"));
 
   DBUG_ASSERT(!thd->spcont);
+  DBUG_ASSERT(sql_errno);
+  DBUG_ASSERT(err && err[0]);
 
-  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-  {
-    thd->killed= THD::NOT_KILLED;
-    thd->mysys_var->abort= 0;
-  }
+  DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno, err));
 
-  if (net && net->no_send_error)
-  {
-    thd->clear_error();
-    thd->is_fatal_error= 0;			// Error message is given
-    DBUG_PRINT("info", ("sending error messages prohibited"));
-    DBUG_VOID_RETURN;
-  }
-
-  thd->is_slave_error=  1; // needed to catch query errors during replication
-  if (!err)
-  {
-    if (sql_errno)
-      err=ER(sql_errno);
-    else
-    {
-      if ((err=net->last_error)[0])
-      {
-	sql_errno=net->last_errno;
-        generate_warning= 0;            // This warning has already been given
-      }
-      else
-      {
-	sql_errno=ER_UNKNOWN_ERROR;
-	err=ER(sql_errno);	 /* purecov: inspected */
-      }
-    }
-  }
-
-  if (generate_warning)
-  {
-    /* Error that we have not got with my_error() */
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, sql_errno, err);
-  }
-
-  net_send_error_packet(thd, sql_errno, err);
-
-  thd->is_fatal_error= 0;			// Error message is given
-  thd->net.report_error= 0;
+  /*
+    It's one case when we can push an error even though there
+    is an OK or EOF already.
+  */
+  thd->main_da.can_overwrite_status= TRUE;
 
   /* Abort multi-result sets */
   thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
+
+  net_send_error_packet(thd, sql_errno, err);
+
+  thd->main_da.can_overwrite_status= FALSE;
+
   DBUG_VOID_RETURN;
 }
 
@@ -154,17 +122,17 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
 
 #ifndef EMBEDDED_LIBRARY
 void
-send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
+net_send_ok(THD *thd,
+            uint server_status, uint total_warn_count,
+            ha_rows affected_rows, ulonglong id, const char *message)
 {
   NET *net= &thd->net;
   uchar buff[MYSQL_ERRMSG_SIZE+10],*pos;
   DBUG_ENTER("send_ok");
 
-  if (net->no_send_ok || !net->vio)	// hack for re-parsing queries
+  if (! net->vio)	// hack for re-parsing queries
   {
-    DBUG_PRINT("info", ("no send ok: %s, vio present: %s",
-                        (net->no_send_ok ? "YES" : "NO"),
-                        (net->vio ? "YES" : "NO")));
+    DBUG_PRINT("info", ("vio present: NO"));
     DBUG_VOID_RETURN;
   }
 
@@ -177,28 +145,29 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
 	       ("affected_rows: %lu  id: %lu  status: %u  warning_count: %u",
 		(ulong) affected_rows,		
 		(ulong) id,
-		(uint) (thd->server_status & 0xffff),
-		(uint) thd->total_warn_count));
-    int2store(pos,thd->server_status);
+		(uint) (server_status & 0xffff),
+		(uint) total_warn_count));
+    int2store(pos, server_status);
     pos+=2;
 
     /* We can only return up to 65535 warnings in two bytes */
-    uint tmp= min(thd->total_warn_count, 65535);
+    uint tmp= min(total_warn_count, 65535);
     int2store(pos, tmp);
     pos+= 2;
   }
   else if (net->return_status)			// For 4.0 protocol
   {
-    int2store(pos,thd->server_status);
+    int2store(pos, server_status);
     pos+=2;
   }
-  if (message)
+  thd->main_da.can_overwrite_status= TRUE;
+
+  if (message && message[0])
     pos= net_store_data(pos, (uchar*) message, strlen(message));
   VOID(my_net_write(net, buff, (size_t) (pos-buff)));
   VOID(net_flush(net));
-  /* We can't anymore send an error to the client */
-  thd->net.report_error= 0;
-  thd->net.no_send_error= 1;
+
+  thd->main_da.can_overwrite_status= FALSE;
   DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
 
   DBUG_VOID_RETURN;
@@ -223,18 +192,20 @@ static uchar eof_buff[1]= { (uchar) 254 };      /* Marker for end of fields */
   @param thd		Thread handler
   @param no_flush	Set to 1 if there will be more data to the client,
                     like in send_fields().
-*/
+*/    
 
 void
-send_eof(THD *thd)
+net_send_eof(THD *thd, uint server_status, uint total_warn_count)
 {
   NET *net= &thd->net;
-  DBUG_ENTER("send_eof");
+  DBUG_ENTER("net_send_eof");
+  /* Set to TRUE if no active vio, to work well in case of --init-file */
   if (net->vio != 0)
   {
-    write_eof_packet(thd, net);
+    thd->main_da.can_overwrite_status= TRUE;
+    write_eof_packet(thd, net, server_status, total_warn_count);
     VOID(net_flush(net));
-    thd->net.no_send_error= 1;
+    thd->main_da.can_overwrite_status= FALSE;
     DBUG_PRINT("info", ("EOF sent, so no more error sending allowed"));
   }
   DBUG_VOID_RETURN;
@@ -246,7 +217,9 @@ send_eof(THD *thd)
   write it to the network output buffer.
 */
 
-static void write_eof_packet(THD *thd, NET *net)
+static void write_eof_packet(THD *thd, NET *net,
+                             uint server_status,
+                             uint total_warn_count)
 {
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
@@ -255,7 +228,7 @@ static void write_eof_packet(THD *thd, NET *net)
       Don't send warn count during SP execution, as the warn_list
       is cleared between substatements, and mysqltest gets confused
     */
-    uint tmp= (thd->spcont ? 0 : min(thd->total_warn_count, 65535));
+    uint tmp= min(total_warn_count, 65535);
     buff[0]= 254;
     int2store(buff+1, tmp);
     /*
@@ -264,8 +237,8 @@ static void write_eof_packet(THD *thd, NET *net)
       other queries (see the if test in dispatch_command / COM_QUERY)
     */
     if (thd->is_fatal_error)
-      thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
-    int2store(buff+3, thd->server_status);
+      server_status&= ~SERVER_MORE_RESULTS_EXISTS;
+    int2store(buff + 3, server_status);
     VOID(my_net_write(net, buff, 5));
   }
   else
@@ -274,13 +247,13 @@ static void write_eof_packet(THD *thd, NET *net)
 
 /**
   Please client to send scrambled_password in old format.
-
+     
   @param thd thread handle
 
   @retval
-    0   ok
+    0  ok
   @retval
-    !0  error
+   !0  error
 */
 
 bool send_old_password_request(THD *thd)
@@ -294,7 +267,10 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
 {
   NET *net= &thd->net;
   uint length;
-  uchar buff[MYSQL_ERRMSG_SIZE+2], *pos;
+  /*
+    buff[]: sql_errno:2 + ('#':1 + SQLSTATE_LENGTH:5) + MYSQL_ERRMSG_SIZE:512
+  */
+  uchar buff[2+1+SQLSTATE_LENGTH+MYSQL_ERRMSG_SIZE], *pos;
 
   DBUG_ENTER("send_error_packet");
 
@@ -357,6 +333,96 @@ static uchar *net_store_length_fast(uchar *packet, uint length)
   return packet+2;
 }
 
+/**
+  Send the status of the current statement execution over network.
+
+  @param  thd   in fact, carries two parameters, NET for the transport and
+                Diagnostics_area as the source of status information.
+
+  In MySQL, there are two types of SQL statements: those that return
+  a result set and those that return status information only.
+
+  If a statement returns a result set, it consists of 3 parts:
+  - result set meta-data
+  - variable number of result set rows (can be 0)
+  - followed and terminated by EOF or ERROR packet
+
+  Once the  client has seen the meta-data information, it always
+  expects an EOF or ERROR to terminate the result set. If ERROR is
+  received, the result set rows are normally discarded (this is up
+  to the client implementation, libmysql at least does discard them).
+  EOF, on the contrary, means "successfully evaluated the entire
+  result set". Since we don't know how many rows belong to a result
+  set until it's evaluated, EOF/ERROR is the indicator of the end
+  of the row stream. Note, that we can not buffer result set rows
+  on the server -- there may be an arbitrary number of rows. But
+  we do buffer the last packet (EOF/ERROR) in the Diagnostics_area and
+  delay sending it till the very end of execution (here), to be able to
+  change EOF to an ERROR if commit failed or some other error occurred
+  during the last cleanup steps taken after execution.
+
+  A statement that does not return a result set doesn't send result
+  set meta-data either. Instead it returns one of:
+  - OK packet
+  - ERROR packet.
+  Similarly to the EOF/ERROR of the previous statement type, OK/ERROR
+  packet is "buffered" in the diagnostics area and sent to the client
+  in the end of statement.
+
+  @pre  The diagnostics area is assigned or disabled. It can not be empty
+        -- we assume that every SQL statement or COM_* command
+        generates OK, ERROR, or EOF status.
+
+  @post The status information is encoded to protocol format and sent to the
+        client.
+
+  @return We conventionally return void, since the only type of error
+          that can happen here is a NET (transport) error, and that one
+          will become visible when we attempt to read from the NET the
+          next command.
+          Diagnostics_area::is_sent is set for debugging purposes only.
+*/
+
+void net_end_statement(THD *thd)
+{
+  DBUG_ASSERT(! thd->main_da.is_sent);
+
+  /* Can not be true, but do not take chances in production. */
+  if (thd->main_da.is_sent)
+    return;
+
+  switch (thd->main_da.status()) {
+  case Diagnostics_area::DA_ERROR:
+    /* The query failed, send error to log and abort bootstrap. */
+    net_send_error(thd,
+                   thd->main_da.sql_errno(),
+                   thd->main_da.message());
+    break;
+  case Diagnostics_area::DA_EOF:
+    net_send_eof(thd,
+                 thd->main_da.server_status(),
+                 thd->main_da.total_warn_count());
+    break;
+  case Diagnostics_area::DA_OK:
+    net_send_ok(thd,
+                thd->main_da.server_status(),
+                thd->main_da.total_warn_count(),
+                thd->main_da.affected_rows(),
+                thd->main_da.last_insert_id(),
+                thd->main_da.message());
+    break;
+  case Diagnostics_area::DA_DISABLED:
+    break;
+  case Diagnostics_area::DA_EMPTY:
+  default:
+    DBUG_ASSERT(0);
+    net_send_ok(thd, thd->server_status, thd->total_warn_count,
+                0, 0, NULL);
+    break;
+  }
+  thd->main_da.is_sent= TRUE;
+}
+
 
 /****************************************************************************
   Functions used by the protocol functions (like send_ok) to store strings
@@ -403,6 +469,17 @@ void Protocol::init(THD *thd_arg)
 #ifndef DBUG_OFF
   field_types= 0;
 #endif
+}
+
+/**
+  Finish the result set with EOF packet, as is expected by the client,
+  if there is an error evaluating the next row and a continue handler
+  for the error.
+*/
+
+void Protocol::end_partial_result_set(THD *thd)
+{
+  net_send_eof(thd, thd->server_status, 0 /* no warnings, we're inside SP */);
 }
 
 
@@ -569,7 +646,14 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   }
 
   if (flags & SEND_EOF)
-    write_eof_packet(thd, &thd->net);
+  {
+    /*
+      Mark the end of meta-data result set, and store thd->server_status,
+      to show that there is no cursor.
+      Send no warning information, as it will be sent at statement end.
+    */
+    write_eof_packet(thd, &thd->net, thd->server_status, thd->total_warn_count);
+  }
   DBUG_RETURN(prepare_for_send(list));
 
 err:
@@ -843,8 +927,8 @@ bool Protocol_text::store(Field *field)
 
 /**
   @todo
-  Second_part format ("%06") needs to change when 
-  we support 0-6 decimals for time.
+    Second_part format ("%06") needs to change when 
+    we support 0-6 decimals for time.
 */
 
 bool Protocol_text::store(MYSQL_TIME *tm)
@@ -886,8 +970,8 @@ bool Protocol_text::store_date(MYSQL_TIME *tm)
 
 /**
   @todo 
-  Second_part format ("%06") needs to change when 
-  we support 0-6 decimals for time.
+    Second_part format ("%06") needs to change when 
+    we support 0-6 decimals for time.
 */
 
 bool Protocol_text::store_time(MYSQL_TIME *tm)

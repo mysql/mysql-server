@@ -203,14 +203,10 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool no_send_ok;  /* For SPs and other things that do multiple stmts */
+  my_bool unused0; /* Please remove with the next incompatible ABI change. */
   my_bool unused; /* Please remove with the next incompatible ABI change */
   my_bool compress;
-  /*
-    Set if OK packet is already sent, and we do not need to send error
-    messages
-  */
-  my_bool no_send_error;
+  my_bool unused1; /* Please remove with the next incompatible ABI change. */
   /*
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
@@ -221,11 +217,14 @@ typedef struct st_net {
     functions and methods to maintain proper locking.
   */
   unsigned char *query_cache_query;
-  unsigned int last_errno;
-  unsigned char error;
-  my_bool report_error; /* We should report error (we have unreported error) */
+  unsigned int client_last_errno;
+  unsigned char error; 
+  my_bool unused2; /* Please remove with the next incompatible ABI change. */
   my_bool return_errno;
-  char last_error[MYSQL_ERRMSG_SIZE], sqlstate[SQLSTATE_LENGTH+1];
+  /** Client library error message buffer. Actually belongs to struct MYSQL. */
+  char client_last_error[MYSQL_ERRMSG_SIZE];
+  /** Client library sqlstate buffer. Set along with the error message. */
+  char sqlstate[SQLSTATE_LENGTH+1];
   void *extension;
 } NET;
 
@@ -397,14 +396,17 @@ typedef struct st_udf_args
 
 typedef struct st_udf_init
 {
-  my_bool maybe_null;			/* 1 if function can return NULL */
-  unsigned int decimals;		/* for real functions */
-  unsigned long max_length;		/* For string functions */
-  char	  *ptr;				/* free pointer for function data */
-  /* 0 if result is independent of arguments */
-  my_bool const_item;
+  my_bool maybe_null;          /* 1 if function can return NULL */
+  unsigned int decimals;       /* for real functions */
+  unsigned long max_length;    /* For string functions */
+  char *ptr;                   /* free pointer for function data */
+  my_bool const_item;          /* 1 if function always returns the same value */
   void *extension;
 } UDF_INIT;
+/* 
+  TODO: add a notion for determinism of the UDF. 
+  See Item_udf_func::update_used_tables ()
+*/
 
   /* Constants when using compression */
 #define NET_HEADER_SIZE 4		/* standard header size */

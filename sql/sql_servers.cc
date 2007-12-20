@@ -239,7 +239,7 @@ bool servers_reload(THD *thd)
   if (simple_open_n_lock_tables(thd, tables))
   {
     sql_print_error("Can't open and lock privilege tables: %s",
-		    thd->net.last_error);
+		    thd->main_da.message());
     goto end;
   }
 

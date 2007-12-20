@@ -921,6 +921,8 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     {
       ha_drop_database(path);
       query_cache_invalidate1(db);
+      (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
+      Events::drop_schema_events(thd, db);
       error = 0;
     }
   }
@@ -956,6 +958,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       /* These DDL methods and logging protected with LOCK_mysql_create_db */
       mysql_bin_log.write(&qinfo);
     }
+    thd->clear_error();
     thd->server_status|= SERVER_STATUS_DB_DROPPED;
     send_ok(thd, (ulong) deleted);
     thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
@@ -999,8 +1002,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   }
 
 exit:
-  (void)sp_drop_db_routines(thd, db); /* QQ Ignore errors for now  */
-  Events::drop_schema_events(thd, db);
   /*
     If this database was the client's selected database, we silently
     change the client's selected database to nothing (to have an empty
@@ -1118,6 +1119,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       VOID(filename_to_tablename(file->name, table_list->table_name,
                                  strlen(file->name) + 1));
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
+      table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
       /* Link into list */
       (*tot_list_next)= table_list;
       tot_list_next= &table_list->next_local;

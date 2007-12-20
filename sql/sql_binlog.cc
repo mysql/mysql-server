@@ -40,13 +40,6 @@ void mysql_client_binlog_statement(THD* thd)
   if (check_global_access(thd, SUPER_ACL))
     DBUG_VOID_RETURN;
 
-  /*
-    Temporarily turn off send_ok, since different events handle this
-    differently
-  */
-  my_bool nsok= thd->net.no_send_ok;
-  thd->net.no_send_ok= TRUE;
-
   size_t coded_len= thd->lex->comment.length + 1;
   size_t decoded_len= base64_needed_decoded_length(coded_len);
   DBUG_ASSERT(coded_len > 0);
@@ -193,20 +186,11 @@ void mysql_client_binlog_statement(THD* thd)
     }
   }
 
-  /*
-    Restore setting of no_send_ok
-  */
-  thd->net.no_send_ok= nsok;
 
   DBUG_PRINT("info",("binlog base64 execution finished successfully"));
   send_ok(thd);
 
 end:
-  /*
-    Restore setting of no_send_ok
-  */
-  thd->net.no_send_ok= nsok;
-
   delete desc;
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_VOID_RETURN;

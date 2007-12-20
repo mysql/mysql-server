@@ -730,9 +730,13 @@ int ha_myisammrg::index_next_same(uchar * buf,
                                   const uchar *key __attribute__((unused)),
                                   uint length __attribute__((unused)))
 {
+  int error;
   DBUG_ASSERT(this->file->children_attached);
   ha_statistic_increment(&SSV::ha_read_next_count);
-  int error=myrg_rnext_same(file,buf);
+  do
+  {
+    error= myrg_rnext_same(file,buf);
+  } while (error == HA_ERR_RECORD_DELETED);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -901,7 +905,14 @@ int ha_myisammrg::external_lock(THD *thd, int lock_type)
 
 uint ha_myisammrg::lock_count(void) const
 {
-  DBUG_ASSERT(this->file->children_attached);
+  /*
+    Return the real lock count even if the children are not attached.
+    This method is used for allocating memory. If we would return 0
+    to another thread (e.g. doing FLUSH TABLE), and attach the children
+    before the other thread calls store_lock(), then we would return
+    more locks in store_lock() than we claimed by lock_count(). The
+    other tread would overrun its memory.
+  */
   return file->tables;
 }
 
@@ -911,7 +922,24 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 					 enum thr_lock_type lock_type)
 {
   MYRG_TABLE *open_table;
-  DBUG_ASSERT(this->file->children_attached);
+
+  /*
+    This method can be called while another thread is attaching the
+    children. If the processor reorders instructions or write to memory,
+    'children_attached' could be set before 'open_tables' has all the
+    pointers to the children. Use of a mutex here and in
+    myrg_attach_children() forces consistent data.
+  */
+  pthread_mutex_lock(&this->file->mutex);
+
+  /*
+    When MERGE table is open, but not yet attached, other threads
+    could flush it, which means call mysql_lock_abort_for_thread()
+    on this threads TABLE. 'children_attached' is FALSE in this
+    situaton. Since the table is not locked, return no lock data.
+  */
+  if (!this->file->children_attached)
+    goto end; /* purecov: tested */
 
   for (open_table=file->open_tables ;
        open_table != file->end_table ;
@@ -921,6 +949,9 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
     if (lock_type != TL_IGNORE && open_table->table->lock.type == TL_UNLOCK)
       open_table->table->lock.type=lock_type;
   }
+
+ end:
+  pthread_mutex_unlock(&this->file->mutex);
   return to;
 }
 

@@ -53,8 +53,8 @@ bin-dist:		all
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
 	mkdir -p $(distdir)/win
-	scripts/mysql_install_db --no-defaults --windows \
-		--basedir=$(top_builddir) \
+	scripts/mysql_install_db --no-defaults --cross-bootstrap \
+		--builddir=$(top_builddir) \
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
 
@@ -101,6 +101,7 @@ test-binlog-statement:
 	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
 
+# This code is duplicated in "test-bt", see the Changeset comment of 2007-Dec-07
 test-embedded:
 	if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
@@ -140,7 +141,13 @@ test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --comment=NDB            --force --timer \
 	--with-ndbcluster-only
-	-$(MAKE) test-embedded
+	-if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
+	  cd mysql-test ; MTR_BUILD_THREAD=auto \
+	  @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
+	    --embedded-server --skip-rpl --skip-ndbcluster ; \
+	else \
+	  echo "no program found for 'embedded' tests - skipped testing" ; \
+	fi
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs1_ps --ps-protocol --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \

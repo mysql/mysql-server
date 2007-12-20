@@ -605,6 +605,10 @@ static struct my_option my_long_options[] =
   {"column-type-info", OPT_COLUMN_TYPES, "Display column type information.",
    (uchar**) &column_types_flag, (uchar**) &column_types_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"comments", 'c', "Preserve comments. Send comments to the server."
+   " The default is --skip-comments (discard comments), enable with --comments",
+   (uchar**) &preserve_comments, (uchar**) &preserve_comments,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
    (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -755,9 +759,9 @@ static struct my_option my_long_options[] =
    0, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packet length to send to, or receive from server",
-   (uchar**) &opt_max_allowed_packet, (uchar**) &opt_max_allowed_packet, 0, GET_ULONG,
-   REQUIRED_ARG, 16 *1024L*1024L, 4096, (longlong) 2*1024L*1024L*1024L,
-   MALLOC_OVERHEAD, 1024, 0},
+   (uchar**) &opt_max_allowed_packet, (uchar**) &opt_max_allowed_packet, 0,
+   GET_ULONG, REQUIRED_ARG, 16 *1024L*1024L, 4096,
+   (longlong) 2*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
    "Buffer for TCP/IP and socket communication",
    (uchar**) &opt_net_buffer_length, (uchar**) &opt_net_buffer_length, 0, GET_ULONG,
@@ -765,12 +769,13 @@ static struct my_option my_long_options[] =
   {"select_limit", OPT_SELECT_LIMIT,
    "Automatic limit for SELECT when using --safe-updates",
    (uchar**) &select_limit,
-   (uchar**) &select_limit, 0, GET_ULONG, REQUIRED_ARG, 1000L, 1, ~0L, 0, 1, 0},
+   (uchar**) &select_limit, 0, GET_ULONG, REQUIRED_ARG, 1000L, 1, ULONG_MAX,
+   0, 1, 0},
   {"max_join_size", OPT_MAX_JOIN_SIZE,
    "Automatic limit for rows in a join when using --safe-updates",
    (uchar**) &max_join_size,
-   (uchar**) &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L, 1, ~0L, 0, 1,
-   0},
+   (uchar**) &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L, 1, ULONG_MAX,
+   0, 1, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol", (uchar**) &opt_secure_auth,
     (uchar**) &opt_secure_auth, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -779,10 +784,6 @@ static struct my_option my_long_options[] =
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     (uchar**) &show_warnings, (uchar**) &show_warnings, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
-  {"comments", 'c', "Preserve comments. Send comments to the server."
-   " Comments are discarded by default, enable with --enable-comments",
-   (uchar**) &preserve_comments, (uchar**) &preserve_comments,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
