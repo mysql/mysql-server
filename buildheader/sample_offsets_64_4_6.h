@@ -9,6 +9,7 @@ struct fieldinfo db_btree_stat_fields64[] = {
 };
 struct fieldinfo db_env_fields64[] = {
   {"void *app_private", 104, 8},
+  {"void *api1_internal", 568, 8},
   {"int  (*close) (DB_ENV *, u_int32_t)", 640, 8},
   {"void (*err) (const DB_ENV *, int, const char *, ...)", 664, 8},
   {"int (*get_cachesize) (DB_ENV *, u_int32_t *)", 696, 8},
@@ -19,6 +20,7 @@ struct fieldinfo db_env_fields64[] = {
   {"int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int)", 1488, 8},
   {"int  (*set_data_dir) (DB_ENV *, const char *)", 1504, 8},
   {"void (*set_errcall) (DB_ENV *, void (*)(const char *, char *))", 1520, 8},
+  {"void (*set_errfile) (DB_ENV *, FILE*)", 1528, 8},
   {"void (*set_errpfx) (DB_ENV *, const char *)", 1536, 8},
   {"int  (*set_flags) (DB_ENV *, u_int32_t, int)", 1560, 8},
   {"int  (*set_lg_bsize) (DB_ENV *, u_int32_t)", 1584, 8},
@@ -60,6 +62,7 @@ struct fieldinfo db_fields64[] = {
   {"int (*rename) (DB *, const char *, const char *, const char *, u_int32_t)", 832, 8},
   {"int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 856, 8},
   {"int (*set_dup_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 888, 8},
+  {"void (*set_errfile) (DB *, FILE*)", 912, 8},
   {"int (*set_flags) (DB *, u_int32_t)", 936, 8},
   {"int (*set_pagesize) (DB *, u_int32_t)", 1000, 8},
   {"int (*stat) (DB *, void *, u_int32_t)", 1064, 8},
@@ -72,6 +75,7 @@ struct fieldinfo db_txn_active_fields64[] = {
   {0, 232, 232} /* size of whole struct */
 };
 struct fieldinfo db_txn_fields64[] = {
+  {"void *api_internal", 168, 8},
   {"int (*abort) (DB_TXN *)", 192, 8},
   {"int (*commit) (DB_TXN*, u_int32_t)", 200, 8},
   {"u_int32_t (*id) (DB_TXN *)", 224, 8},
