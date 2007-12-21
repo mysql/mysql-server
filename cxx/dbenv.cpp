@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <db_cxx.h>
+#include <stdarg.h>
 
 DbEnv::DbEnv (u_int32_t flags)
     : do_no_exceptions((flags&DB_CXX_NO_EXCEPTIONS)!=0)
@@ -67,6 +68,21 @@ int DbEnv::maybe_throw_error(int err) {
     if (err==0) return 0;
     if (do_no_exceptions) return err;
     DbException e(err);
-    e.set_env(the_env);
+    e.set_env(this);
     throw e;
+}
+
+extern "C" {
+    void toku_db_env_err_vararg(const DB_ENV * env, int error, const char *fmt, va_list ap);
+};
+
+void DbEnv::err(int error, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    toku_db_env_err_vararg(the_env, error, fmt, ap);
+    va_end(ap);
+}
+
+void DbEnv::set_errfile(FILE *errfile) {
+    the_env->set_errfile(the_env, errfile);
 }

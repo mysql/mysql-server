@@ -36,3 +36,8 @@ DbEnv *DbException::get_env() const
 {
     return the_env;
 }
+
+void DbException::set_env(DbEnv *new_env)
+{
+    the_env = new_env;
+}

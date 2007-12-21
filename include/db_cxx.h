@@ -99,6 +99,8 @@ class DbEnv {
     int txn_begin(DbTxn *, DbTxn **, u_int32_t);
     int set_data_dir(const char *dir);
     void set_errpfx(const char *errpfx);
+    void err(int error, const char *fmt, ...);
+    void set_errfile(FILE *errfile);
 
  private:
     int do_no_exceptions;
@@ -146,6 +148,6 @@ class DbException : public std::exception
     int   the_err;
     DbEnv *the_env;
     void FillTheWhat(void);
-    void set_env(DB_ENV *);
+    void set_env(DbEnv *);
 };
 
