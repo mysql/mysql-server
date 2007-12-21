@@ -255,6 +255,11 @@ sub main {
 }
 
 
+sub ignore_option {
+  my ($opt, $value)= @_;
+  print "Ignoring option '$opt'\n";
+}
+
 sub command_line_setup {
   my $opt_comment;
   my $opt_usage;
@@ -302,6 +307,8 @@ sub command_line_setup {
              'big-test'                 => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
              'skip-combination'         => \&collect_option,
+
+	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
 	     'build-thread|mtr-build-thread=i' => \$opt_mtr_build_thread,
