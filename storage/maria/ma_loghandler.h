@@ -257,7 +257,7 @@ C_MODE_START
 extern void translog_example_table_init();
 extern void translog_table_init();
 #define translog_init(D,M,V,I,C,F,R) \
-  translog_init_with_table(D,M,V,I,C,F,R,&translog_table_init)
+  translog_init_with_table(D,M,V,I,C,F,R,&translog_table_init,0)
 extern my_bool translog_init_with_table(const char *directory,
                                         uint32 log_file_max_size,
                                         uint32 server_version,
@@ -265,7 +265,8 @@ extern my_bool translog_init_with_table(const char *directory,
                                         PAGECACHE *pagecache,
                                         uint flags,
                                         my_bool readonly,
-                                        void (*init_table_func)());
+                                        void (*init_table_func)(),
+                                        my_bool no_error);
 
 extern my_bool
 translog_write_record(LSN *lsn, enum translog_record_type type, TRN *trn,

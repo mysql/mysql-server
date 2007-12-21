@@ -186,7 +186,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
   if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
-                               0, 0, &translog_example_table_init))
+                               0, 0, &translog_example_table_init, 0))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
     exit(1);
@@ -350,7 +350,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
   if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
-                               0, READONLY, &translog_example_table_init))
+                               0, READONLY, &translog_example_table_init, 0))
   {
     fprintf(stderr, "pass2: Can't init loghandler (%d)\n", errno);
     exit(1);

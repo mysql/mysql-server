@@ -2807,13 +2807,15 @@ static void translog_free_link(PAGECACHE_BLOCK_LINK *direct_link)
   @param last_page_ok    Result of the check whether last page OK.
                          (for now only we check only that file length
                          divisible on page length).
+  @param no_errors       suppress messages about non-critical errors
 
   @retval 0 OK
   @retval 1 Error
 */
 
 static my_bool translog_get_last_page_addr(TRANSLOG_ADDRESS *addr,
-                                           my_bool *last_page_ok)
+                                           my_bool *last_page_ok,
+                                           my_bool no_errors)
 {
   MY_STAT stat_buff, *local_stat;
   char path[FN_REFLEN];
@@ -2822,7 +2824,8 @@ static my_bool translog_get_last_page_addr(TRANSLOG_ADDRESS *addr,
   DBUG_ENTER("translog_get_last_page_addr");
 
   if (!(local_stat= my_stat(translog_filename_by_fileno(file_no, path),
-                            &stat_buff, MYF(MY_WME))))
+                            &stat_buff,
+                            (no_errors ? MYF(0) : MYF(MY_WME)))))
     DBUG_RETURN(1);
   DBUG_PRINT("info", ("File size: %lu", (ulong) local_stat->st_size));
   if (local_stat->st_size > TRANSLOG_PAGE_SIZE)
@@ -3049,6 +3052,7 @@ my_bool translog_is_log_files()
                            TRANSLOG_RECORD_CRC)
   @param read_only       Put transaction log in read-only mode
   @param init_table_func function to initialize record descriptors table
+  @param no_errors       suppress messages about non-critical errors
 
   @todo
     Free used resources in case of error.
@@ -3062,7 +3066,8 @@ my_bool translog_init_with_table(const char *directory,
                                  uint32 server_version,
                                  uint32 server_id, PAGECACHE *pagecache,
                                  uint flags, my_bool readonly,
-                                 void (*init_table_func)())
+                                 void (*init_table_func)(),
+                                 my_bool no_errors)
 {
   int i;
   int old_log_was_recovered= 0, logs_found= 0;
@@ -3217,7 +3222,7 @@ my_bool translog_init_with_table(const char *directory,
     }
     /* Set horizon to the beginning of the last file first */
     log_descriptor.horizon= last_page= MAKE_LSN(last_logno, 0);
-    if (translog_get_last_page_addr(&last_page, &pageok))
+    if (translog_get_last_page_addr(&last_page, &pageok, no_errors))
     {
       if (!translog_is_log_files())
       {
@@ -3238,7 +3243,7 @@ my_bool translog_init_with_table(const char *directory,
       else
       {
         last_page-= LSN_ONE_FILE;
-        if (translog_get_last_page_addr(&last_page, &pageok))
+        if (translog_get_last_page_addr(&last_page, &pageok, 0))
           DBUG_RETURN(1);
       }
     }
@@ -3317,7 +3322,7 @@ my_bool translog_init_with_table(const char *directory,
     {
       TRANSLOG_ADDRESS current_file_last_page;
       current_file_last_page= current_page;
-      if (translog_get_last_page_addr(&current_file_last_page, &pageok))
+      if (translog_get_last_page_addr(&current_file_last_page, &pageok, 0))
         DBUG_RETURN(1);
       if (!pageok)
       {
@@ -3593,7 +3598,7 @@ my_bool translog_init_with_table(const char *directory,
         }
         file_no--;
         page_addr= MAKE_LSN(file_no, TRANSLOG_PAGE_SIZE);
-        translog_get_last_page_addr(&page_addr, &last_page_ok);
+        translog_get_last_page_addr(&page_addr, &last_page_ok, 0);
         /* page should be OK as it is not the last file */
         DBUG_ASSERT(last_page_ok);
       }
@@ -5842,7 +5847,7 @@ static my_bool translog_scanner_set_last_page(TRANSLOG_SCANNER_DATA *scanner)
     return (0);
   }
   scanner->last_file_page= scanner->page_addr;
-  return (translog_get_last_page_addr(&scanner->last_file_page, &page_ok));
+  return (translog_get_last_page_addr(&scanner->last_file_page, &page_ok, 0));
 }
 
 
