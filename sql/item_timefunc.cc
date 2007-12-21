@@ -3303,7 +3303,7 @@ Field *Item_func_str_to_date::tmp_table_field(TABLE *t_arg)
   if (cached_field_type == MYSQL_TYPE_TIME)
     return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
   if (cached_field_type == MYSQL_TYPE_DATE)
-    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
+    return (new Field_newdate(maybe_null, name, t_arg, &my_charset_bin));
   if (cached_field_type == MYSQL_TYPE_DATETIME)
     return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
   return (new Field_string(max_length, maybe_null, name, t_arg, &my_charset_bin));
