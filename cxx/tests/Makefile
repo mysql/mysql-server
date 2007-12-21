@@ -13,3 +13,7 @@ $(DBCXX):
 
 clean:
 	rm -rf $(TARGETS)
+
+check: $(TARGETS)
+	./test1
+	./test1e
