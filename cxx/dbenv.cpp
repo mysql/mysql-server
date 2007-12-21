@@ -64,12 +64,17 @@ void DbEnv::set_errpfx(const char *errpfx) {
     the_env->set_errpfx(the_env, errpfx);
 }
 
-int DbEnv::maybe_throw_error(int err) {
+int DbEnv::maybe_throw_error(int err) throw (DbException) {
     if (err==0) return 0;
     if (do_no_exceptions) return err;
-    DbException e(err);
-    e.set_env(this);
-    throw e;
+    if (err==DB_LOCK_DEADLOCK) {
+	DbDeadlockException e(this);
+	throw e;
+    } else {
+	DbException e(err);
+	e.set_env(this);
+	throw e;
+    }
 }
 
 extern "C" {
