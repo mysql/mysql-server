@@ -19,6 +19,8 @@ class DbException : public std::exception
     const char *what() const throw();
     DbEnv *get_env() const;
     void set_env(DbEnv *);
+    DbException(const DbException &);
+    DbException &operator = (const DbException &);
  private:
     char *the_what;
     int   the_err;
