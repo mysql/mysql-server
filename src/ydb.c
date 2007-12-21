@@ -375,7 +375,8 @@ static int toku_db_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t b
 static int toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
     u_int32_t i;
     int r;
-    void* temp;
+    char** temp;
+    char* new_dir;
     
     if (db_env_opened(env) || !dir)
         return EINVAL;
@@ -390,19 +391,17 @@ static int toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
         }
     }
     else assert(env->i->n_data_dirs == 0);
-    temp = (char**) toku_realloc(env->i->data_dirs, (1 + env->i->n_data_dirs) * sizeof(char*));
-    if (temp==NULL) {assert(errno == ENOMEM); return ENOMEM;}
-    env->i->data_dirs[env->i->n_data_dirs] = toku_strdup(dir);
-    if (env->i->data_dirs[env->i->n_data_dirs]==NULL) {
-        assert(errno==ENOMEM);
-        r = ENOMEM;
-        if (env->i->n_data_dirs > 0) {
-            toku_free(env->i->data_dirs);
-            env->i->data_dirs = NULL;
-        }
-        else env->i->data_dirs = toku_realloc(env->i->data_dirs, env->i->n_data_dirs * sizeof(char*));
+    new_dir = toku_strdup(dir);
+    if (0) {
+        died1:
+        toku_free(new_dir);
         return r;
     }
+    if (new_dir==NULL) {assert(errno == ENOMEM); return ENOMEM;}
+    temp = (char**) toku_realloc(env->i->data_dirs, (1 + env->i->n_data_dirs) * sizeof(char*));
+    if (temp==NULL) {assert(errno == ENOMEM); r = ENOMEM; goto died1;}
+    else env->i->data_dirs = temp;
+    env->i->data_dirs[env->i->n_data_dirs] = new_dir;
     env->i->n_data_dirs++;
     return 0;
 }
