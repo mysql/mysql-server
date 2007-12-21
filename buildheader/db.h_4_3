@@ -211,8 +211,9 @@ struct __toku_db_txn_active {
   char __toku_dummy1[132];  /* Padding at the end */ 
 };
 struct __toku_db_txn {
+  DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
   struct __toku_db_txn_internal *i;
-  void* __toku_dummy0[15];
+  void* __toku_dummy0[14];
   char __toku_dummy1[24];
   void *api_internal; /* 32-bit offset=88 size=4, 64=bit offset=152 size=8 */
   void* __toku_dummy2[2];
@@ -232,8 +233,9 @@ struct __toku_db_txn_stat {
   char __toku_dummy4[8];  /* Padding at the end */ 
 };
 struct __toku_dbc {
+  DB *dbp; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
   struct __toku_dbc_internal *i;
-  void* __toku_dummy0[18];
+  void* __toku_dummy0[17];
   char __toku_dummy1[112];
   int (*c_close) (DBC *); /* 32-bit offset=188 size=4, 64=bit offset=264 size=8 */
   void* __toku_dummy2[1];
