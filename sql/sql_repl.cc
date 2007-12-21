@@ -1229,9 +1229,6 @@ bool change_master(THD* thd, MASTER_INFO* mi)
       DBUG_RETURN(TRUE);
     }
   }
-  mi->rli.group_master_log_pos = mi->master_log_pos;
-  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
-
   /*
     Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
     so restore them to good values. If we left them to ''/0, that would work;
@@ -1243,6 +1240,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
     That's why we always save good coords in rli.
   */
   mi->rli.group_master_log_pos= mi->master_log_pos;
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
   strmake(mi->rli.group_master_log_name,mi->master_log_name,
 	  sizeof(mi->rli.group_master_log_name)-1);
 
