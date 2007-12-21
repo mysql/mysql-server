@@ -87,6 +87,7 @@ struct fieldinfo db_txn_stat_fields32[] = {
   {0, 68, 68} /* size of whole struct */
 };
 struct fieldinfo dbc_fields32[] = {
+  {"DB *dbp", 0, 4},
   {"int (*c_close) (DBC *)", 204, 4},
   {"int (*c_del) (DBC *, u_int32_t)", 212, 4},
   {"int (*c_get) (DBC *, DBT *, DBT *, u_int32_t)", 220, 4},
