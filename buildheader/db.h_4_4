@@ -232,8 +232,9 @@ struct __toku_db_txn_stat {
   char __toku_dummy4[8];  /* Padding at the end */ 
 };
 struct __toku_dbc {
+  DB *dbp; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
   struct __toku_dbc_internal *i;
-  void* __toku_dummy0[20];
+  void* __toku_dummy0[19];
   char __toku_dummy1[104];
   int (*c_close) (DBC *); /* 32-bit offset=188 size=4, 64=bit offset=272 size=8 */
   void* __toku_dummy2[1];

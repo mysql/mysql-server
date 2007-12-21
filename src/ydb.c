@@ -690,7 +690,6 @@ static int toku_db_close(DB * db, u_int32_t flags) {
 
 struct __toku_dbc_internal {
     BRT_CURSOR c;
-    DB *db;
     DB_TXN *txn;
 };
 
@@ -770,7 +769,7 @@ static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) 
     int r;
     int r2;
     int r3;
-    DB *db = c->i->db;
+    DB *db = c->dbp;
     DB *pdb = db->i->primary;
     
     
@@ -851,7 +850,7 @@ delete_silently_and_retry:
 }
 
 static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
-    DB *db = c->i->db;
+    DB *db = c->dbp;
     int r;
 
     if (db->i->primary==0) r = toku_c_get_noassociate(c, key, data, flag);
@@ -954,7 +953,7 @@ cleanup:
 
 static int toku_c_del(DBC * c, u_int32_t flags) {
     int r;
-    DB* db = c->i->db;
+    DB* db = c->dbp;
     
     //It is a primary with secondaries, or is a secondary.
     if (db->i->primary != 0 || !list_empty(&db->i->associated)) {
@@ -995,7 +994,7 @@ static int toku_c_del(DBC * c, u_int32_t flags) {
 }
 
 static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
-    DB* db = dbc->i->db;
+    DB* db = dbc->dbp;
     unsigned int brtflags;
     int r;
     DBT* put_key  = key;
@@ -1073,7 +1072,7 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
     result->c_del = toku_c_del;
     MALLOC(result->i);
     assert(result->i);
-    result->i->db = db;
+    result->dbp = db;
     result->i->txn = txn;
     int r = toku_brt_cursor(db->i->brt, &result->i->c);
     assert(r == 0);
@@ -1234,7 +1233,7 @@ static char *construct_full_name(const char *dir, const char *fname) {
     }
 }
 
-int find_db_file(DB_ENV* dbenv, const char *fname, char** full_name_out) {
+static int find_db_file(DB_ENV* dbenv, const char *fname, char** full_name_out) {
     u_int32_t i;
     int r;
     struct stat statbuf;

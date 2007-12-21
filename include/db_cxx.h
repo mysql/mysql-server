@@ -116,6 +116,7 @@ class Db {
 
 class DbEnv {
     friend class Db;
+    friend class Dbc;
  public:
     DbEnv(u_int32_t flags);
 
@@ -167,5 +168,4 @@ class Dbc : protected DBC
  public:
     int close(void);
     int get(Dbt*, Dbt *, u_int32_t);
-
 };
