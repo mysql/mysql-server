@@ -1622,8 +1622,8 @@ void sys_var_thd_ulong::set_default(THD *thd, enum_var_type type)
     bool not_used;
     /* We will not come here if option_limits is not set */
     global_system_variables.*offset=
-      (ulonglong) getopt_ull_limit_value((ulong) option_limits->def_value,
-                                         option_limits, &not_used);
+      (ulong) getopt_ull_limit_value((ulong) option_limits->def_value,
+                                     option_limits, &not_used);
   }
   else
     thd->variables.*offset= global_system_variables.*offset;
