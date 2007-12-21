@@ -125,28 +125,28 @@ struct __toku_db_env {
   int  (*set_data_dir) (DB_ENV *, const char *); /* 32-bit offset=780 size=4, 64=bit offset=1432 size=8 */
   void* __toku_dummy11[1];
   void (*set_errcall) (DB_ENV *, void (*)(const char *, char *)); /* 32-bit offset=788 size=4, 64=bit offset=1448 size=8 */
-  void* __toku_dummy12[1];
+  void (*set_errfile) (DB_ENV *, FILE*); /* 32-bit offset=792 size=4, 64=bit offset=1456 size=8 */
   void (*set_errpfx) (DB_ENV *, const char *); /* 32-bit offset=796 size=4, 64=bit offset=1464 size=8 */
-  void* __toku_dummy13[2];
+  void* __toku_dummy12[2];
   int  (*set_flags) (DB_ENV *, u_int32_t, int); /* 32-bit offset=808 size=4, 64=bit offset=1488 size=8 */
-  void* __toku_dummy14[2];
+  void* __toku_dummy13[2];
   int  (*set_lg_bsize) (DB_ENV *, u_int32_t); /* 32-bit offset=820 size=4, 64=bit offset=1512 size=8 */
   int  (*set_lg_dir) (DB_ENV *, const char *); /* 32-bit offset=824 size=4, 64=bit offset=1520 size=8 */
-  void* __toku_dummy15[1];
+  void* __toku_dummy14[1];
   int  (*set_lg_max) (DB_ENV *, u_int32_t); /* 32-bit offset=832 size=4, 64=bit offset=1536 size=8 */
-  void* __toku_dummy16[2];
+  void* __toku_dummy15[2];
   int  (*set_lk_detect) (DB_ENV *, u_int32_t); /* 32-bit offset=844 size=4, 64=bit offset=1560 size=8 */
-  void* __toku_dummy17[16];
+  void* __toku_dummy16[16];
   int  (*set_tmp_dir) (DB_ENV *, const char *); /* 32-bit offset=912 size=4, 64=bit offset=1696 size=8 */
-  void* __toku_dummy18[2];
+  void* __toku_dummy17[2];
   int  (*set_verbose) (DB_ENV *, u_int32_t, int); /* 32-bit offset=924 size=4, 64=bit offset=1720 size=8 */
-  void* __toku_dummy19[1];
+  void* __toku_dummy18[1];
   int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t); /* 32-bit offset=932 size=4, 64=bit offset=1736 size=8 */
   int  (*txn_checkpoint) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t); /* 32-bit offset=936 size=4, 64=bit offset=1744 size=8 */
-  void* __toku_dummy20[1];
+  void* __toku_dummy19[1];
   int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, u_int32_t); /* 32-bit offset=944 size=4, 64=bit offset=1760 size=8 */
-  void* __toku_dummy21[2]; /* Padding at the end */ 
-  char __toku_dummy22[16];  /* Padding at the end */ 
+  void* __toku_dummy20[2]; /* Padding at the end */ 
+  char __toku_dummy21[16];  /* Padding at the end */ 
 };
 struct __toku_db_key_range {
   double less; /* 32-bit offset=0 size=8, 64=bit offset=0 size=8 */
@@ -189,16 +189,18 @@ struct __toku_db {
   int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=452 size=4, 64=bit offset=808 size=8 */
   void* __toku_dummy10[3];
   int (*set_dup_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=468 size=4, 64=bit offset=840 size=8 */
-  void* __toku_dummy11[5];
+  void* __toku_dummy11[2];
+  void (*set_errfile) (DB *, FILE*); /* 32-bit offset=480 size=4, 64=bit offset=864 size=8 */
+  void* __toku_dummy12[2];
   int (*set_flags) (DB *, u_int32_t); /* 32-bit offset=492 size=4, 64=bit offset=888 size=8 */
-  void* __toku_dummy12[6];
-  int (*set_pagesize) (DB *, u_int32_t); /* 32-bit offset=520 size=4, 64=bit offset=944 size=8 */
   void* __toku_dummy13[6];
+  int (*set_pagesize) (DB *, u_int32_t); /* 32-bit offset=520 size=4, 64=bit offset=944 size=8 */
+  void* __toku_dummy14[6];
   int (*stat) (DB *, void *, u_int32_t); /* 32-bit offset=548 size=4, 64=bit offset=1000 size=8 */
-  void* __toku_dummy14[4];
+  void* __toku_dummy15[4];
   int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t); /* 32-bit offset=568 size=4, 64=bit offset=1040 size=8 */
-  void* __toku_dummy15[5]; /* Padding at the end */ 
-  char __toku_dummy16[16];  /* Padding at the end */ 
+  void* __toku_dummy16[5]; /* Padding at the end */ 
+  char __toku_dummy17[16];  /* Padding at the end */ 
 };
 struct __toku_db_txn_active {
   u_int32_t txnid; /* 32-bit offset=0 size=4, 64=bit offset=0 size=4 */
