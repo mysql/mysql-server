@@ -59,12 +59,17 @@ static void do_error (DB_ENV *dbenv, const char *string) {
 	fprintf(dbenv->i->errfile, "%s\n", string);
 }
 
+void toku_db_env_err_vararg(const DB_ENV * env, int error, const char *fmt, va_list ap) {
+    FILE* ferr = env->i->errfile ? env->i->errfile : stderr;
+    if (env->i->errpfx && env->i->errpfx[0] != '\0') fprintf(stderr, "%s: ", env->i->errpfx);
+    fprintf(ferr, "YDB Error %d: ", error);
+    vfprintf(ferr, fmt, ap);
+}
+
 static void toku_db_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    if (env->i->errpfx && env->i->errpfx[0] != '\0') fprintf(stderr, "%s: ", env->i->errpfx);
-    fprintf(stderr, "YDB Error %d: ", error);
-    vfprintf(stderr, fmt, ap);
+    toku_db_env_err_vararg(env, error, fmt, ap);
     va_end(ap);
 }
 

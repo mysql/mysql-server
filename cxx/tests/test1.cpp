@@ -27,7 +27,10 @@ int cmp(DB *db, const DBT *dbt1, const DBT *dbt2) {
 }
 
 void test_db(void) {
-    Db db(NULL, 0);
+    DbEnv env(DB_CXX_NO_EXCEPTIONS);
+    env.open(NULL, DB_PRIVATE, 0666);
+    Db db(&env, 0);
+    
     int r;
     
     r = db.set_bt_compare(cmp);                 assert(r == 0);
@@ -35,13 +38,15 @@ void test_db(void) {
 }
 
 void test_db_env(void) {
-    DbEnv dbenv(0);
+    DbEnv dbenv(DB_CXX_NO_EXCEPTIONS);
     int r;
     
     r = dbenv.set_data_dir(".");    assert(r == 0);
     r = dbenv.set_data_dir("..");   assert(r == 0);
     r = dbenv.set_data_dir(NULL);   assert(r == EINVAL);
     dbenv.set_errpfx("Prefix");
+    dbenv.set_errfile(stdout);
+    dbenv.err(0, "Hello %s!\n", "Name");
 }
 
 int main()
