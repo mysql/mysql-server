@@ -28,26 +28,39 @@ int cmp(DB *db, const DBT *dbt1, const DBT *dbt2) {
 }
 
 void test_db(void) {
-    DbEnv env(DB_CXX_NO_EXCEPTIONS);
+    DbEnv env(0);
     env.open(NULL, DB_PRIVATE, 0666);
     Db db(&env, 0);
     
     int r;
     
     r = db.set_bt_compare(cmp);                 assert(r == 0);
-    r = db.remove("DoesNotExist.db", NULL, 0);  assert(r == ENOENT);
+    try {
+	r = db.remove("DoesNotExist.db", NULL, 0);
+	abort(); // must not make it here.
+    } catch (DbException e) {
+	assert(e.get_errno() == ENOENT);
+    }
+    // The db is closed.
+    env.close(0);
 }
 
 void test_db_env(void) {
-    DbEnv dbenv(DB_CXX_NO_EXCEPTIONS);
+    DbEnv dbenv(0);
     int r;
     
     r = dbenv.set_data_dir(".");    assert(r == 0);
     r = dbenv.set_data_dir("..");   assert(r == 0);
-    r = dbenv.set_data_dir(NULL);   assert(r == EINVAL);
+    try {
+	r = dbenv.set_data_dir(NULL);
+	abort();
+    } catch (DbException e) {
+	assert(e.get_errno() == EINVAL);
+    }
     dbenv.set_errpfx("Prefix");
     dbenv.set_errfile(stdout);
     dbenv.err(0, "Hello %s!\n", "Name");
+    dbenv.close(0);
 }
 
 int main()
