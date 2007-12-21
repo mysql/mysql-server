@@ -27,3 +27,5 @@ check: $(TARGETS)
 	$(VGRIND) ./db_dump foo.db > foo.out
 	(echo " 61";echo " 62";echo " 63";echo " 64")>foo.expectout
 	diff foo.out foo.expectout
+	$(VGRIND) ./db_dump_e foo.db > foo.out
+	diff foo.out foo.expectout
