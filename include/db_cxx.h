@@ -117,8 +117,10 @@ class Db {
 class DbEnv {
     friend class Db;
     friend class Dbc;
+    friend class DbTxn;
  public:
     DbEnv(u_int32_t flags);
+    ~DbEnv(void);
 
     DB_ENV *get_DB_ENV(void) {
 	if (this==0) return 0;
@@ -145,6 +147,7 @@ class DbEnv {
 
     DbEnv(DB_ENV *, u_int32_t /*flags*/);
     int maybe_throw_error(int /*err*/) throw (DbException);
+    static int maybe_throw_error(int, DbEnv*, int /*no_exceptions*/) throw (DbException);
 };
 
 	
@@ -161,6 +164,7 @@ class DbTxn {
     DbTxn(DB_TXN*);
  private:
     DB_TXN *the_txn;
+    
 };
 
 class Dbc : protected DBC

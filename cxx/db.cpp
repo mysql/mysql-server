@@ -27,11 +27,13 @@ Db::Db(DbEnv *env, u_int32_t flags)
 }
 
 Db::~Db() {
-    if (is_private_env) {
-	delete the_Env; // The destructor closes the env.
+    if (is_private_env && the_Env) {
+	the_Env->close(0);
+	delete the_Env;
     }
-    if (!the_db) {
+    if (the_db) {
 	close(0); // the user should have called close, but we do it here if not done.
+	assert(the_db==0);
     }
 }
 
@@ -41,13 +43,25 @@ int Db::close (u_int32_t flags) {
     }
     the_db->api_internal = 0;
 
+
     int ret = the_db->close(the_db, flags);
 
     the_db = 0;
+
+    int no_exceptions = the_Env->do_no_exceptions; // Get this out before possibly deleting the env
+    
+    if (is_private_env) {
+	// The env was closed by the_db->close, we have to tell the DbEnv that the DB_ENV is gone, and delete it.
+	the_Env->the_env = 0;
+	delete the_Env;
+	the_Env=0;
+    }
+
     // Do we need to clean up "private environments"?
     // What about cursors?  They should be cleaned up already, but who did it?
 
-    return the_Env->maybe_throw_error(ret);
+    // This maybe_throw must be the static one because the env is gone.
+    return DbEnv::maybe_throw_error(ret, NULL, no_exceptions);
 }
 
 int Db::open(DbTxn *txn, const char *filename, const char *subname, DBTYPE typ, u_int32_t flags, int mode) {
@@ -72,6 +86,7 @@ int Db::set_pagesize(u_int32_t size) {
 
 int Db::remove(const char *file, const char *database, u_int32_t flags) {
     int ret = the_db->remove(the_db, file, database, flags);
+    the_db = 0;
     return the_Env->maybe_throw_error(ret);
 }
 

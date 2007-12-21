@@ -68,6 +68,5 @@ int main()
     test_dbt();
     test_db();
     test_db_env();
-    cout << "Hello World!" << endl;   cout << "Welcome to C++ Programming" << endl;
     return 0;
 }

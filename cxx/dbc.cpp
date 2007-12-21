@@ -2,8 +2,8 @@
 
 int Dbc::close (void) {
     DBC *dbc = this;
+    DbEnv *env = (DbEnv*)dbc->dbp->api_internal; // Must grab the env before closing the cursor.
     int ret = dbc->c_close(dbc);
-    DbEnv *env = (DbEnv*)dbc->dbp->api_internal;
     return env->maybe_throw_error(ret);
 }
 

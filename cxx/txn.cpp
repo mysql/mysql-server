@@ -9,5 +9,6 @@ DbTxn::DbTxn(DB_TXN *txn)
 int DbTxn::commit (u_int32_t flags) {
     DB_TXN *txn = get_DB_TXN();
     int ret = txn->commit(txn, flags);
-    return ret;
+    DbEnv *env = (DbEnv*)txn->mgrp->api1_internal;
+    return env->maybe_throw_error(ret);
 }
