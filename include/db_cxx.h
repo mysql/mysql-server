@@ -7,6 +7,40 @@ class Dbt;
 class DbEnv;
 class DbTxn;
 class Dbc;
+class DbException;
+
+class DbException : public std::exception
+{
+    friend class DbEnv;
+ public:
+    ~DbException() throw();
+    DbException(int err);
+    int get_errno() const;
+    const char *what() const throw();
+    DbEnv *get_env() const;
+    void set_env(DbEnv *);
+ private:
+    char *the_what;
+    int   the_err;
+    DbEnv *the_env;
+    void FillTheWhat(void);
+};
+
+class DbDeadlockException : public DbException
+{
+ public:
+    DbDeadlockException(DbEnv*);
+};
+
+class DbLockNotGrantedException
+{
+};
+class DbMemoryException
+{
+};
+class DbRunRecoveryException
+{
+};
 
 // DBT and Dbt objects are the same pointers.  So watch out if you use Dbt to make other classes (e.g., with subclassing).
 class Dbt : private DBT
@@ -107,7 +141,7 @@ class DbEnv {
     DB_ENV *the_env;
 
     DbEnv(DB_ENV *, u_int32_t /*flags*/);
-    int maybe_throw_error(int /*err*/);
+    int maybe_throw_error(int /*err*/) throw (DbException);
 };
 
 	
@@ -133,21 +167,3 @@ class Dbc : protected DBC
     int get(Dbt*, Dbt *, u_int32_t);
 
 };
-
-class DbException : public std::exception
-{
-    friend class DbEnv;
- public:
-    ~DbException() throw();
-    DbException(int err);
-    int get_errno() const;
-    const char *what() const throw();
-    DbEnv *get_env() const;
- private:
-    char *the_what;
-    int   the_err;
-    DbEnv *the_env;
-    void FillTheWhat(void);
-    void set_env(DbEnv *);
-};
-

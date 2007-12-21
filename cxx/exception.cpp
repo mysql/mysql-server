@@ -41,3 +41,9 @@ void DbException::set_env(DbEnv *new_env)
 {
     the_env = new_env;
 }
+
+DbDeadlockException::DbDeadlockException (DbEnv *env)
+    :  DbException(DB_LOCK_DEADLOCK)
+{
+    this->set_env(env);
+}
