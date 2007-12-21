@@ -36,6 +36,8 @@ void test_db(void) {
     
     r = db.set_bt_compare(cmp);                 assert(r == 0);
     r = db.remove("DoesNotExist.db", NULL, 0);  assert(r == ENOENT);
+    // The db is closed
+    r = env.close(0);                           assert(r== 0);
 }
 
 void test_db_env(void) {
@@ -55,6 +57,5 @@ int main()
     test_dbt();
     test_db();
     test_db_env();
-    cout << "Hello World!" << endl;   cout << "Welcome to C++ Programming" << endl;
     return 0;
 }

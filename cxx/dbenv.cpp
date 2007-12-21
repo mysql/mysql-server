@@ -23,9 +23,18 @@ DbEnv::DbEnv(DB_ENV *env, u_int32_t flags)
     the_env->api1_internal = this;
 }
 
+// If still open, close it.  In most cases, the caller should call close explicitly so that they can catch the exceptions.
+DbEnv::~DbEnv(void)
+{
+    if (the_env!=NULL) {
+	(void)the_env->close(the_env, 0);
+	the_env = 0;
+    }
+}
+
 int DbEnv::close(u_int32_t flags) {
     int ret = the_env->close(the_env, flags);
-    the_env = 0; /* get rid of the env ref, so we don't touch it (even if we failed.) */
+    the_env = 0; /* get rid of the env ref, so we don't touch it (even if we failed, or when the destructor is called) */
     return maybe_throw_error(ret);
 }
 
@@ -64,17 +73,21 @@ void DbEnv::set_errpfx(const char *errpfx) {
     the_env->set_errpfx(the_env, errpfx);
 }
 
-int DbEnv::maybe_throw_error(int err) throw (DbException) {
+int DbEnv::maybe_throw_error(int err, DbEnv *env, int no_exceptions) throw (DbException) {
     if (err==0) return 0;
-    if (do_no_exceptions) return err;
+    if (no_exceptions) return err;
     if (err==DB_LOCK_DEADLOCK) {
-	DbDeadlockException e(this);
+	DbDeadlockException e(env);
 	throw e;
     } else {
 	DbException e(err);
-	e.set_env(this);
+	e.set_env(env);
 	throw e;
     }
+}
+
+int DbEnv::maybe_throw_error(int err) throw (DbException) {
+    return maybe_throw_error(err, this, do_no_exceptions);
 }
 
 extern "C" {

@@ -15,3 +15,7 @@ test1: test1.o dbt.o db.o dbenv.o ../lib/libdb.a
 
 $(LIBNAME).a: $(OBJS)
 	$(AR) rv $@ $(OBJS)
+clean:
+	rm -f $(OBJS) $(LIBNAME).a $(LIBNAME).so
+
+

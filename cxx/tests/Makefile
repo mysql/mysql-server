@@ -5,6 +5,12 @@ CPPFLAGS = -I../ -I../../include
 CXXFLAGS = -Wall -g
 LDLIBS = ../../lib/libtdb_cxx.a ../../lib/libdb.a -lz
 
+ifeq ($(OSX),OSX)
+ VGRIND=
+else
+ VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
+endif
+
 all: $(TARGETS)
 $(TARGETS): $(DBCXX)
 
@@ -15,5 +21,9 @@ clean:
 	rm -rf $(TARGETS)
 
 check: $(TARGETS)
-	./test1
-	./test1e
+	$(VGRIND) ./test1
+	$(VGRIND) ./test1e
+	$(VGRIND) ./db_create foo.db a b c d
+	$(VGRIND) ./db_dump foo.db > foo.out
+	(echo " 61";echo " 62";echo " 63";echo " 64")>foo.expectout
+	diff foo.out foo.expectout
