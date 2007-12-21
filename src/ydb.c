@@ -46,7 +46,8 @@ struct __toku_db_env_internal {
     char *dir;                  /* A malloc'd copy of the directory. */
     char *tmp_dir;
     char *lg_dir;
-    char *data_dir;
+    char **data_dirs;
+    u_int32_t n_data_dirs;
     //void (*noticecall)(DB_ENV *, db_notices);
     long cachetable_size;
     CACHETABLE cachetable;
@@ -330,8 +331,14 @@ static int toku_db_env_close(DB_ENV * env, u_int32_t flags) {
         r0=toku_cachetable_close(&env->i->cachetable);
     if (env->i->logger)
         r1=toku_logger_log_close(&env->i->logger);
-    if (env->i->data_dir)
-        toku_free(env->i->data_dir);
+    if (env->i->data_dirs) {
+        u_int32_t i;
+        assert(env->i->n_data_dirs > 0);
+        for (i = 0; i < env->i->n_data_dirs; i++) {
+            toku_free(env->i->data_dirs[i]);
+        }
+        toku_free(env->i->data_dirs);
+    }
     if (env->i->lg_dir)
         toku_free(env->i->lg_dir);
     if (env->i->tmp_dir)
@@ -366,12 +373,38 @@ static int toku_db_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t b
 }
 
 static int toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
+    u_int32_t i;
+    int r;
+    void* temp;
+    
     if (db_env_opened(env) || !dir)
         return EINVAL;
-    if (env->i->data_dir)
-        toku_free(env->i->data_dir);
-    env->i->data_dir = toku_strdup(dir);
-    return env->i->data_dir ? 0 : ENOMEM;
+    
+    if (env->i->data_dirs) {
+        assert(env->i->n_data_dirs > 0);
+        for (i = 0; i < env->i->n_data_dirs; i++) {
+            if (!strcmp(dir, env->i->data_dirs[i])) {
+                //It is already in the list.  We're done.
+                return 0;
+            }
+        }
+    }
+    else assert(env->i->n_data_dirs == 0);
+    temp = (char**) toku_realloc(env->i->data_dirs, (1 + env->i->n_data_dirs) * sizeof(char*));
+    if (temp==NULL) {assert(errno == ENOMEM); return ENOMEM;}
+    env->i->data_dirs[env->i->n_data_dirs] = toku_strdup(dir);
+    if (env->i->data_dirs[env->i->n_data_dirs]==NULL) {
+        assert(errno==ENOMEM);
+        r = ENOMEM;
+        if (env->i->n_data_dirs > 0) {
+            toku_free(env->i->data_dirs);
+            env->i->data_dirs = NULL;
+        }
+        else env->i->data_dirs = toku_realloc(env->i->data_dirs, env->i->n_data_dirs * sizeof(char*));
+        return r;
+    }
+    env->i->n_data_dirs++;
+    return 0;
 }
 
 static void toku_db_env_set_errcall(DB_ENV * env, void (*errcall) (const char *, char *)) {
@@ -1202,6 +1235,39 @@ static char *construct_full_name(const char *dir, const char *fname) {
     }
 }
 
+int find_db_file(DB_ENV* dbenv, const char *fname, char** full_name_out) {
+    u_int32_t i;
+    int r;
+    struct stat statbuf;
+    char* full_name;
+    
+    assert(full_name_out);    
+    if (dbenv->i->data_dirs!=NULL) {
+        assert(dbenv->i->n_data_dirs > 0);
+        for (i = 0; i < dbenv->i->n_data_dirs; i++) {
+            full_name = construct_full_name(dbenv->i->data_dirs[0], fname);
+            if (!full_name) return ENOMEM;
+            r = stat(full_name, &statbuf);
+            if (r == 0) goto finish;
+            else {
+                toku_free(full_name);
+                if (r != ENOENT) return r;
+            }
+        }
+        //Did not find it at all.  Return the first data dir.
+        full_name = construct_full_name(dbenv->i->data_dirs[0], fname);
+        goto finish;
+    }
+    //Default without data_dirs is the environment directory.
+    full_name = construct_full_name(dbenv->i->dir, fname);
+    goto finish;
+
+finish:
+    if (!full_name) return ENOMEM;
+    *full_name_out = full_name;
+    return 0;    
+}
+
 // The decision to embedded subdatabases in files is a little bit painful.
 // My original design was to simply create another file, but it turns out that we 
 //  have to inherit mode bits and so forth from the first file that was created.
@@ -1218,11 +1284,9 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
 
     if (db_opened(db))
         return -1;              /* It was already open. */
-    db->i->full_fname = construct_full_name(db->dbenv->i->dir, fname);
-    if (db->i->full_fname == 0) {
-        r = ENOMEM;
-        goto error_cleanup;
-    }
+    
+    r = find_db_file(db->dbenv, fname, &db->i->full_fname);
+    if (r != 0) goto error_cleanup;
     // printf("Full name = %s\n", db->i->full_fname);
     db->i->database_name = toku_strdup(dbname ? dbname : "");
     if (db->i->database_name == 0) {
@@ -1368,11 +1432,9 @@ static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t f
 static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
     int r;
     int r2;
-    char ffull[PATH_MAX];
+    char *full_name;
 
-    //TODO: DB_ENV->set_data_dir should affect db_remove's directories.
     //TODO: Verify DB* db not yet opened
-
     if (dbname) {
         //TODO: Verify the target db is not open
         //TODO: Use master database (instead of manual edit) when implemented.
@@ -1384,15 +1446,14 @@ cleanup:
         return r ? r : r2;
     }
     //TODO: Verify db file not in use. (all dbs in the file must be unused)
-    if ((r = construct_full_name_in_buf(db->dbenv->i->dir, fname, ffull, sizeof(ffull))) != 0) {
-        //Name too long.
-        assert(r == ENAMETOOLONG);
-        return r;
-    }
+    r = find_db_file(db->dbenv, fname, &full_name);
+    if (r!=0) return r;
+    assert(full_name);
     r2 = db->close(db, 0);
     if (r == 0 && r2 == 0) {
-        if (unlink(ffull) != 0) r = errno;
+        if (unlink(full_name) != 0) r = errno;
     }
+    toku_free(full_name);
     return r ? r : r2;
 }
 
