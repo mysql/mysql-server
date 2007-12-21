@@ -1496,4 +1496,28 @@ UNION
 SELECT 1,1;
 ERROR HY000: Incorrect usage of UNION and ORDER BY
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2 SELECT * FROM (SELECT NULL) a UNION SELECT a FROM t1;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+NULL	int(11)	YES		NULL	
+CREATE TABLE t3 SELECT a FROM t1 UNION SELECT * FROM (SELECT NULL) a;
+DESC t3;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+CREATE TABLE t4 SELECT NULL;
+DESC t4;
+Field	Type	Null	Key	Default	Extra
+NULL	binary(0)	YES		NULL	
+CREATE TABLE t5 SELECT NULL UNION SELECT NULL;
+DESC t5;
+Field	Type	Null	Key	Default	Extra
+NULL	binary(0)	YES		NULL	
+CREATE TABLE t6 
+SELECT * FROM (SELECT * FROM (SELECT NULL)a) b UNION SELECT a FROM t1;
+DESC t6;
+Field	Type	Null	Key	Default	Extra
+NULL	int(11)	YES		NULL	
+DROP TABLE t1, t2, t3, t4, t5, t6;
 End of 5.0 tests
