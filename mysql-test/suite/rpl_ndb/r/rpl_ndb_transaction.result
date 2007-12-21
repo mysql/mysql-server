@@ -94,8 +94,8 @@ a
 1
 --- on slave ---
 STOP SLAVE;
-SELECT "" AS Last_IO_Error;
-Last_IO_Error
+SELECT "" AS Slave_IO_State;
+Slave_IO_State
 
 SELECT "" AS Last_SQL_Error;
 Last_SQL_Error
