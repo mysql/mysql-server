@@ -603,7 +603,7 @@ int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
 	if (r!=4) {
 	    return DB_BADFORMAT;
 	}
-	printf("tokulog v.%d\n", ntohl(version));
+	//printf("tokulog v.%d\n", ntohl(version));
 	*versionp=ntohl(version);
     }
     return 0;

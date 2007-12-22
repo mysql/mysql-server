@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+
+#include "test.h"
 
 static const int test_object_size = 1;
 
@@ -167,9 +170,15 @@ static void test_chaining (void) {
     r = toku_cachetable_close(&ct); assert(r==0);
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+void usage (const char *progname) {
+    fprintf(stderr, "Usage:\n %s [-v] [-q]\n", progname);
+    exit(1);
+}
+
+int main (int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
     test_chaining();
     toku_malloc_cleanup();
-    printf("ok\n");
+    if (verbose) printf("ok\n");
     return 0;
 }

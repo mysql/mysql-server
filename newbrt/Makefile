@@ -1,9 +1,27 @@
 # On cygwin do:
 #   make CYGWIN=cygwin check
 
+# For verbose output do
+#   make VERBOSE=1
+# For very verbose output do 
+#   make VERBOSE=2
+
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 # PROF_FLAGS = -pg
 OPTFLAGS = -O2
+
+ifeq ($(VERBOSE),2)
+VERBVERBOSE=-v
+MAYBEATSIGN= 
+else
+ ifeq ($(VERBOSE),1)
+  VERBVERBOSE=-q
+  MAYBEATSIGN=
+ else
+  VERBVERBOSE=-q
+  MAYBEATSIGN=@
+ endif
+endif
 
 ifeq ($(CYGWIN),cygwin)
 else
@@ -71,10 +89,10 @@ CHECKS = \
  test_toku_malloc_plain_free
 check: bins $(patsubst %,check_%,$(CHECKS)) check_benchmarktest_256
 check_benchmarktest_256: benchmark-test
-	$(DTOOL) ./benchmark-test --valsize 256 --verify 1
+	$(DTOOL) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
 
 check_%: %
-	$(DTOOL) ./$<
+	$(DTOOL)  ./$< $(VERBVERBOSE) 
 
 check-fanout:
 	let BRT_FANOUT=4; \

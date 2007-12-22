@@ -26,6 +26,7 @@ static int keysize = sizeof (long long);
 static int valsize = sizeof (long long);
 static int do_verify =0; /* Do a slow verify after every insert. */
 
+static int verbose = 1;
 
 static CACHETABLE ct;
 static BRT t;
@@ -90,18 +91,22 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
 	gettimeofday(&t1,0);
 	serial_insert_from(i);
 	gettimeofday(&t2,0);
-	printf("serial %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
-	fflush(stdout);
+	if (verbose) {
+	    printf("serial %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	    fflush(stdout);
+	}
 	gettimeofday(&t1,0);
 	random_insert_below((i+ITEMS_TO_INSERT_PER_ITERATION)*SERIAL_SPACING);
 	gettimeofday(&t2,0);
-	printf("random %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
-	printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*2.0/tdiff(&t2, starttime))*(iteration+1));
+	if (verbose) {
+	    printf("random %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	    printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*2.0/tdiff(&t2, starttime))*(iteration+1));
+	}
     }
 }
 
 static void usage() {
-    printf("benchmark-test [--nodesize NODESIZE] [--keysize KEYSIZE] [--valsize VALSIZE] [--verify] [TOTALITEMS]\n");
+    printf("benchmark-test [-v] [--nodesize NODESIZE] [--keysize KEYSIZE] [--valsize VALSIZE] [--verify] [TOTALITEMS]\n");
 }
 
 int main (int argc, char *argv[]) {
@@ -116,32 +121,26 @@ int main (int argc, char *argv[]) {
                 i++;
                 nodesize = atoi(argv[i]);
             }
-            continue;
-        }
-
-        if (strcmp(arg, "--keysize") == 0) {
+        } else if (strcmp(arg, "--keysize") == 0) {
             if (i+1 < argc) {
                 i++;
                 keysize = atoi(argv[i]);
             }
-            continue;
-        }
-
-        if (strcmp(arg, "--valsize") == 0) {
+        } else if (strcmp(arg, "--valsize") == 0) {
             if (i+1 < argc) {
                 i++;
                 valsize = atoi(argv[i]);
             }
-            continue;
-        }
-
-	if (strcmp(arg, "--verify")==0) {
+        } else if (strcmp(arg, "--verify")==0) {
 	    do_verify = 1;
-	    continue;
+	} else if (strcmp(arg, "-v")==0) {
+	    verbose = 1;
+	} else if (strcmp(arg, "-q")==0) {
+	    verbose = 0;
+	} else {
+	    usage();
+	    return 1;
 	}
-
-        usage();
-        return 1;
     }
 
     struct timeval t1,t2,t3;
@@ -157,19 +156,25 @@ int main (int argc, char *argv[]) {
 	total_n_items = 1LL<<22; // 1LL<<16
     }
 
-    printf("nodesize=%d\n", nodesize);
-    printf("keysize=%d\n", keysize);
-    printf("valsize=%d\n", valsize);
-    printf("Serial and random insertions of %d per batch\n", ITEMS_TO_INSERT_PER_ITERATION);
+    if (verbose) {
+	printf("nodesize=%d\n", nodesize);
+	printf("keysize=%d\n", keysize);
+	printf("valsize=%d\n", valsize);
+	printf("Serial and random insertions of %d per batch\n", ITEMS_TO_INSERT_PER_ITERATION);
+    }
     setup();
     gettimeofday(&t1,0);
     biginsert(total_n_items, &t1);
     gettimeofday(&t2,0);
     shutdown();
     gettimeofday(&t3,0);
-    printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
-    printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
-    toku_malloc_report();
+    if (verbose) {
+	printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
+	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
+    }
+    if (verbose) {
+	toku_malloc_report();
+    }
     toku_malloc_cleanup();
     return 0;
 }
