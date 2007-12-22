@@ -319,7 +319,7 @@ again:
 	    }
 	}
 	/* All were pinned. */
-	printf("All are pinned\n");
+	//printf("All are pinned\n");
 	r = 1;
     }
 

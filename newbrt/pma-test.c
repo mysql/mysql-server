@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include "list.h"
 #include "pma-internal.h"
+#include "test.h"
 
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
@@ -46,14 +47,14 @@ static void test_make_space_at (void) {
     assert(r==0);
     assert(toku_pma_index_limit(pma)==4);
     assert((unsigned long)pma->pairs[toku_pma_index_limit(pma)]==0xdeadbeefL);
-    toku_print_pma(pma);
+    if (verbose) toku_print_pma(pma);
 
     pma->pairs[2] = key_A;
     pma->n_pairs_present++;
     r=toku_pmainternal_make_space_at(null_txn, null_filenum, null_diskoff, pma, 2, &newi);
     assert(r==0);
-    printf("Requested space at 2, got space at %d\n", newi);
-    toku_print_pma(pma);    
+    if (verbose) printf("Requested space at 2, got space at %d\n", newi);
+    if (verbose) toku_print_pma(pma);    
     assert(pma->pairs[newi]==0);
     assert((unsigned long)pma->pairs[toku_pma_index_limit(pma)]==0xdeadbeefL);
 
@@ -63,11 +64,11 @@ static void test_make_space_at (void) {
     pma->pairs[2] = 0;
     pma->pairs[3] = 0;
     pma->n_pairs_present=2;
-    toku_print_pma(pma);    
+    if (verbose) toku_print_pma(pma);    
     toku_pmainternal_make_space_at(null_txn, null_filenum, null_diskoff, pma, 0, &newi);
     assert(r==0);
-    printf("Requested space at 0, got space at %d\n", newi);
-    toku_print_pma(pma);
+    if (verbose) printf("Requested space at 0, got space at %d\n", newi);
+    if (verbose) toku_print_pma(pma);
     assert((unsigned long)pma->pairs[toku_pma_index_limit(pma)]==0xdeadbeefL); // make sure it doesn't go off the end.
 
     assert(toku_pma_index_limit(pma)==8);
@@ -80,11 +81,11 @@ static void test_make_space_at (void) {
     pma->pairs[6] = 0;
     pma->pairs[7] = 0;
     pma->n_pairs_present=2;
-    toku_print_pma(pma);
+    if (verbose) toku_print_pma(pma);
     r=toku_pmainternal_make_space_at(null_txn, null_filenum, null_diskoff, pma, 5, &newi);
     assert(r==0);
-    toku_print_pma(pma);
-    printf("r=%d\n", newi);
+    if (verbose) toku_print_pma(pma);
+    if (verbose) printf("r=%d\n", newi);
     {
 	unsigned int i;
 	for (i=0; i<toku_pma_index_limit(pma); i++) {
@@ -174,9 +175,9 @@ static void test_smooth_region_N (int N) {
 		    pairs[j] = 0;
 		}
 	    }
-	    toku_pmainternal_printpairs(pairs, N); printf(" at %d becomes f", insertat);
+	    if (verbose) { toku_pmainternal_printpairs(pairs, N); printf(" at %d becomes f", insertat); }
 	    toku_pmainternal_smooth_region(null_txn, null_filenum, null_diskoff, pairs, N, insertat, 0, 0, &r);
-	    toku_pmainternal_printpairs(pairs, N); printf(" at %d\n", r);
+	    if (verbose) { toku_pmainternal_printpairs(pairs, N); printf(" at %d\n", r); }
 	    assert(0<=r); assert(r<N);
 	    assert(pairs[r]==0);
 	    /* Now verify that things are in the right place:
@@ -218,10 +219,12 @@ static void test_smooth_region6 (void) {
 
     int r;
     toku_pmainternal_smooth_region(null_txn, null_filenum, null_diskoff, pairs, N, 2, 0, 0, &r);
-    printf("{ ");
-    for (i=0; i<N; i++)
-        printf("%s ", pairs[i] ? pairs[i]->key : "?");
-    printf("} %d\n", r);
+    if (verbose) {
+	printf("{ ");
+	for (i=0; i<N; i++)
+	    printf("%s ", pairs[i] ? pairs[i]->key : "?");
+	printf("} %d\n", r);
+    }
 
     for (i=0; i<7; i++)
         if (pairs[i])
@@ -488,11 +491,11 @@ static void test_pma_cursor_0 (void) {
     int r;
     r=toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0); assert(r==0);
     r=toku_pma_cursor(pma, &c, &skey, &sval); assert(r==0); assert(c!=0);
-    printf("%s:%d\n", __FILE__, __LINE__);
+    if (verbose) printf("%s:%d\n", __FILE__, __LINE__);
     r=toku_pma_free(&pma);      assert(r!=0); /* didn't deallocate the cursor. */
-    printf("%s:%d\n", __FILE__, __LINE__);
+    if (verbose) printf("%s:%d\n", __FILE__, __LINE__);
     r=toku_pma_cursor_free(&c); assert(r==0);
-    printf("%s:%d\n", __FILE__, __LINE__);
+    if (verbose) printf("%s:%d\n", __FILE__, __LINE__);
     r=toku_pma_free(&pma); assert(r==0); /* did deallocate the cursor. */    
 }
 
@@ -617,7 +620,8 @@ static void test_pma_cursor_4 (void) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    printf("test_pma_cursor_4\n");
+    if (verbose) printf("test_pma_cursor_4\n");
+
     error = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
 
@@ -629,7 +633,7 @@ static void test_pma_cursor_4 (void) {
 	do_insert(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     assert(toku_pma_n_entries(pma) == 4);
-    printf("a:"); toku_print_pma(pma);
+    if (verbose) { printf("a:"); toku_print_pma(pma); }
 
     error = toku_pma_cursor(pma, &cursora, &skey, &sval);
     assert(error == 0);
@@ -660,7 +664,7 @@ static void test_pma_cursor_4 (void) {
 	do_insert(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     assert(toku_pma_n_entries(pma) == 8);
-    printf("a:"); toku_print_pma(pma);
+    if (verbose) { printf("a:"); toku_print_pma(pma); }
 
     assert_cursor_val(cursora, 1);
     assert_cursor_val(cursorb, 2);
@@ -678,7 +682,7 @@ static void test_pma_cursor_4 (void) {
 }
 
 static void test_pma_cursor_delete(int n) {
-    printf("test_pma_cursor_delete:%d\n", n);
+    if (verbose) printf("test_pma_cursor_delete:%d\n", n);
 
     PMA pma;
     int error;
@@ -843,7 +847,7 @@ static void test_pma_split_n(int n) {
     u_int32_t crand = random();
     u_int32_t csum = 0;
 
-    printf("test_pma_split_n:%d\n", n);
+    if (verbose) printf("test_pma_split_n:%d\n", n);
 
     error = toku_pma_create(&pmaa, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
@@ -863,7 +867,7 @@ static void test_pma_split_n(int n) {
         toku_pma_verify(pmaa);
     }
 
-    printf("a:"); toku_print_pma(pmaa);
+    if (verbose) { printf("a:"); toku_print_pma(pmaa); }
 
     error = toku_pma_split(null_txn, null_filenum,
 			   pmaa, 0, 0,
@@ -876,11 +880,11 @@ static void test_pma_split_n(int n) {
     toku_pma_verify_fingerprint(pmab, brand, bsum);
     toku_pma_verify_fingerprint(pmac, crand, csum);
 
-    printf("a:"); toku_print_pma(pmaa);
+    if (verbose) { printf("a:"); toku_print_pma(pmaa); }
     na = toku_pma_n_entries(pmaa);
-    printf("b:"); toku_print_pma(pmab);
+    if (verbose) { printf("b:"); toku_print_pma(pmab); }
     nb = toku_pma_n_entries(pmab);
-    printf("c:"); toku_print_pma(pmac);
+    if (verbose) { printf("c:"); toku_print_pma(pmac); }
     nc = toku_pma_n_entries(pmac);
 
     assert(na == 0);
@@ -909,7 +913,7 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
     u_int32_t crand = random();
     u_int32_t csum = 0;
 
-    printf("test_pma_dup_split_n:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_pma_dup_split_n:%d %d\n", n, dup_mode);
 
     error = toku_pma_create(&pmaa, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
@@ -930,7 +934,7 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
         toku_pma_verify(pmaa);
     }
 
-    printf("a:"); toku_print_pma(pmaa);
+    if (verbose) { printf("a:"); toku_print_pma(pmaa); }
 
     DBT splitk;
 
@@ -991,7 +995,7 @@ static void test_pma_split_varkey(void) {
     u_int32_t crand = random();
     u_int32_t csum = 0;
 
-    printf("test_pma_split_varkey\n");
+    if (verbose) printf("test_pma_split_varkey\n");
 
     error = toku_pma_create(&pmaa, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
@@ -1007,7 +1011,7 @@ static void test_pma_split_varkey(void) {
     }
     n = i;
 
-    printf("a:"); toku_print_pma(pmaa);
+    if (verbose) { printf("a:"); toku_print_pma(pmaa); }
 
     error = toku_pma_split(null_txn, null_filenum,
 			   pmaa, 0, 0,
@@ -1020,11 +1024,11 @@ static void test_pma_split_varkey(void) {
     toku_pma_verify_fingerprint(pmab, brand, bsum);
     toku_pma_verify_fingerprint(pmac, crand, csum);
 
-    printf("a:"); toku_print_pma(pmaa);
+    if (verbose) { printf("a:"); toku_print_pma(pmaa); }
     na = toku_pma_n_entries(pmaa);
-    printf("b:"); toku_print_pma(pmab);
+    if (verbose) { printf("b:"); toku_print_pma(pmab); }
     nb = toku_pma_n_entries(pmab);
-    printf("c:"); toku_print_pma(pmac);
+    if (verbose) { printf("c:"); toku_print_pma(pmac); }
     nc = toku_pma_n_entries(pmac);
 
     assert(na == 0);
@@ -1043,15 +1047,15 @@ static void print_cursor(const char *str, PMA_CURSOR cursor) {
     DBT key, val;
     int error;
 
-    printf("cursor %s: ", str);
+    if (verbose) printf("cursor %s: ", str);
     toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
     toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
     error = toku_pma_cursor_get_current(cursor, &key, &val, 0);
     assert(error == 0);
-    printf("%s ", (char*)key.data);
+    if (verbose) printf("%s ", (char*)key.data);
     toku_free(key.data);
     toku_free(val.data);
-    printf("\n");
+    if (verbose) printf("\n");
 }
 #endif
 
@@ -1059,13 +1063,13 @@ static void walk_cursor(const char *str, PMA_CURSOR cursor) {
     DBT key, val;
     int error;
 
-    printf("walk %s: ", str);
+    if (verbose) printf("walk %s: ", str);
     for (;;) {
         toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         error = toku_pma_cursor_get_current(cursor, &key, &val, 0);
         assert(error == 0);
-        printf("%s ", (char*)key.data);
+        if (verbose) printf("%s ", (char*)key.data);
         toku_free(key.data);
         toku_free(val.data);
 
@@ -1073,20 +1077,20 @@ static void walk_cursor(const char *str, PMA_CURSOR cursor) {
         if (error != 0)
             break;
     }
-    printf("\n");
+    if (verbose) printf("\n");
 }
 
 static void walk_cursor_reverse(const char *str, PMA_CURSOR cursor) {
     DBT key, val;
     int error;
 
-    printf("walk %s: ", str);
+    if (verbose) printf("walk %s: ", str);
     for (;;) {
         toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
         toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
         error = toku_pma_cursor_get_current(cursor, &key, &val, 0);
         assert(error == 0);
-        printf("%s ", (char*)key.data);
+        if (verbose) printf("%s ", (char*)key.data);
         toku_free(key.data);
         toku_free(val.data);
 
@@ -1094,7 +1098,7 @@ static void walk_cursor_reverse(const char *str, PMA_CURSOR cursor) {
         if (error != 0)
             break;
     }
-    printf("\n");
+    if (verbose) printf("\n");
 }
 
 static void test_pma_split_cursor(void) {
@@ -1114,7 +1118,7 @@ static void test_pma_split_cursor(void) {
     u_int32_t csum = 0;
 
 
-    printf("test_pma_split_cursor\n");
+    if (verbose) printf("test_pma_split_cursor\n");
 
     error = toku_pma_create(&pmaa, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
@@ -1133,7 +1137,7 @@ static void test_pma_split_cursor(void) {
 	do_insert(pmaa, k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
     assert(toku_pma_n_entries(pmaa) == 16);
-    printf("a:"); toku_print_pma(pmaa);
+    if (verbose) { printf("a:"); toku_print_pma(pmaa); }
 
     error = toku_pma_cursor(pmaa, &cursora, &skey, &sval);
     assert(error == 0);
@@ -1166,12 +1170,12 @@ static void test_pma_split_cursor(void) {
     toku_pma_verify_fingerprint(pmab, brand, bsum);
     toku_pma_verify_fingerprint(pmac, crand, csum);
 
-    printf("a:"); toku_print_pma(pmaa);
+    if (verbose) { printf("a:"); toku_print_pma(pmaa); }
     na = toku_pma_n_entries(pmaa);
     assert(na == 0);
-    printf("b:"); toku_print_pma(pmab);
+    if (verbose) { printf("b:"); toku_print_pma(pmab); }
     nb = toku_pma_n_entries(pmab);
-    printf("c:"); toku_print_pma(pmac);
+    if (verbose) { printf("c:"); toku_print_pma(pmac); }
     nc = toku_pma_n_entries(pmac);
     assert(nb + nc == 16);
 
@@ -1236,7 +1240,7 @@ static void test_pma_bulk_insert_n(int n) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    printf("test_pma_bulk_insert_n: %d\n", n);
+    if (verbose) printf("test_pma_bulk_insert_n: %d\n", n);
 
     error = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
@@ -1368,7 +1372,7 @@ static void test_pma_delete_shrink(int n) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    printf("test_pma_delete_shrink:%d\n", n);
+    if (verbose) printf("test_pma_delete_shrink:%d\n", n);
 
     r = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, n*(8 + 11 + sizeof (int)));
     assert(r == 0);
@@ -1412,7 +1416,7 @@ static void test_pma_delete_random(int n) {
     u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    printf("test_pma_delete_random:%d\n", n);
+    if (verbose) printf("test_pma_delete_random:%d\n", n);
 
     r = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, n * (8 + 11 + sizeof (int)));
     assert(r == 0);
@@ -1479,7 +1483,7 @@ static void assert_cursor_nokey(PMA_CURSOR pmacursor) {
  * last key until the last key is deleted.
  */
 static void test_pma_delete_cursor(int n) {
-    printf("test_delete_cursor:%d\n", n);
+    if (verbose) printf("test_delete_cursor:%d\n", n);
 
     PMA pma;
     int r;
@@ -1542,7 +1546,7 @@ static void test_pma_delete_cursor(int n) {
  * cursor get current 
  */
 static void test_pma_delete_insert() {
-    printf("test_pma_delete_insert\n");
+    if (verbose) printf("test_pma_delete_insert\n");
 
     PMA pma;
     int error;
@@ -1591,7 +1595,7 @@ static void test_pma_delete_insert() {
 }
 
 static void test_pma_double_delete() {
-    printf("test_pma_double_delete\n");
+    if (verbose) printf("test_pma_double_delete\n");
 
     PMA pma;
     int error;
@@ -1636,7 +1640,7 @@ static void test_pma_double_delete() {
 }
 
 static void test_pma_cursor_first_delete_last() {
-    printf("test_pma_cursor_first_delete_last\n");
+    if (verbose) printf("test_pma_cursor_first_delete_last\n");
 
     int error;
     PMA pma;
@@ -1683,7 +1687,7 @@ static void test_pma_cursor_first_delete_last() {
 }
 
 static void test_pma_cursor_last_delete_first() {
-    printf("test_pma_cursor_last_delete_first\n");
+    if (verbose) printf("test_pma_cursor_last_delete_first\n");
 
     int error;
     PMA pma;
@@ -1740,7 +1744,7 @@ static void test_pma_delete() {
 }
 
 static void test_pma_already_there() {
-    printf("test_pma_already_there\n");
+    if (verbose) printf("test_pma_already_there\n");
 
     int error;
     PMA pma;
@@ -1769,7 +1773,7 @@ static void test_pma_already_there() {
 }
 
 static void test_pma_cursor_set_key() {
-    printf("test_pma_cursor_set_key\n");
+    if (verbose) printf("test_pma_cursor_set_key\n");
 
     int error;
     PMA pma;
@@ -1825,7 +1829,7 @@ static void test_pma_cursor_set_key() {
  * verify that set range works with a pma with keys 10, 20, 30 ... 90
  */
 static void test_pma_cursor_set_range() {
-    printf("test_pma_cursor_set_range\n");
+    if (verbose) printf("test_pma_cursor_set_range\n");
 
     int error;
     PMA pma;
@@ -1883,7 +1887,7 @@ static void test_pma_cursor_set_range() {
 }
 
 static void test_pma_cursor_delete_under() {
-    printf("test_pma_cursor_delete_under\n");
+    if (verbose) printf("test_pma_cursor_delete_under\n");
 
     int error;
     PMA pma;
@@ -1951,7 +1955,7 @@ static void test_pma_cursor_delete_under() {
 }
 
 static void test_pma_cursor_delete_under_mode(int n, int dup_mode) {
-    printf("test_pma_cursor_delete_under_mode:%d %d\n", n, dup_mode);
+    if (verbose) printf("test_pma_cursor_delete_under_mode:%d %d\n", n, dup_mode);
 
     int error;
     PMA pma;
@@ -2026,7 +2030,7 @@ static void test_pma_cursor_delete_under_mode(int n, int dup_mode) {
 }
 
 static void test_pma_cursor_set_both() {
-    printf("test_pma_cursor_set_both\n");
+    if (verbose) printf("test_pma_cursor_set_both\n");
 
     int error;
     PMA pma;
@@ -2104,7 +2108,7 @@ static void test_pma_cursor_set_both() {
 
 /* insert n duplicate keys */
 static void test_nodup_key_insert(int n) {
-    printf("test_nodup_key_insert:%d\n", n);
+    if (verbose) printf("test_nodup_key_insert:%d\n", n);
 
     PMA pma;
     int r;
@@ -2141,7 +2145,7 @@ static void test_nodup_key_insert(int n) {
 
 /* insert n duplicate keys */
 static void test_dup_key_insert(int n) {
-    printf("test_dup_key_insert:%d\n", n);
+    if (verbose) printf("test_dup_key_insert:%d\n", n);
 
     PMA pma;
     int r;
@@ -2228,7 +2232,7 @@ static void test_dup_key_insert(int n) {
 
 /* insert n duplicate keys, delete key, verify all keys are deleted */
 static void test_dup_key_delete(int n, int mode) {
-    printf("test_dup_key_delete:%d %x\n", n, mode);
+    if (verbose) printf("test_dup_key_delete:%d %x\n", n, mode);
 
     PMA pma;
     int r;
@@ -2329,7 +2333,7 @@ static void test_dup_key_delete(int n, int mode) {
 /* insert n duplicate keys with random data
    verify that the data is sorted  */
 static void test_dupsort_key_insert(int n, int dup_data) {
-    printf("test_dupsort_key_insert:%d %d\n", n, dup_data);
+    if (verbose) printf("test_dupsort_key_insert:%d %d\n", n, dup_data);
 
     PMA pma;
     int r;
@@ -2423,7 +2427,7 @@ static void test_dupsort_key_insert(int n, int dup_data) {
 }
 
 static void test_dup_key_lookup(int n, int mode) {
-    printf("test_dup_lookup:%d %d\n", n, mode);
+    if (verbose) printf("test_dup_lookup:%d %d\n", n, mode);
 
     PMA pma;
     int r;
@@ -2532,7 +2536,8 @@ static void pma_tests (void) {
     test_dup();
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int main (int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
     pma_tests();
     toku_malloc_cleanup();
     return 0;
