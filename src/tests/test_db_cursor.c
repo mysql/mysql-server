@@ -196,7 +196,7 @@ static void gettod (timestamp *ts) {
 static int oppass, opnum;
 
 static void insert_person (void) {
-    printf("insert_person\n");
+    if (verbose) printf("insert_person\n");
     struct primary_key  pk;
     struct primary_data pd;
     char keyarray[1000], dataarray[1000]; 
@@ -204,7 +204,7 @@ static void insert_person (void) {
     if (oppass==0 && opnum==1) pk.rand = 42;  
     else if (oppass==0 && opnum==2) pk.rand = 43;
     else { assert(0); }
-    printf("oppass=%d opnum=%d pk.rand=%d\n", oppass, opnum, pk.rand);
+    //printf("oppass=%d opnum=%d pk.rand=%d\n", oppass, opnum, pk.rand);
     gettod(&pd.creationtime);
     pd.expiretime   = pd.creationtime;
     pd.expiretime   += 24*60*60*366;
@@ -214,7 +214,7 @@ static void insert_person (void) {
     else if (oppass==0 && opnum==2) pd.name.name[0] = 'E';
     else assert(0);
     pd.name.name[1] = 0;
-    printf("name = %s\n", pd.name.name);
+    //printf("name = %s\n", pd.name.name);
     DBT key,data;
     memset(&key,0,sizeof(DBT));
     memset(&data,0,sizeof(DBT));
@@ -262,7 +262,7 @@ static void delete_oldest_expired (void) {
 static void step_name (void) {
     int r;
     if (name_cursor==0) {
-	printf("%s:%d %d.%d namedb->cursor()\n", __FILE__, __LINE__, opnum, oppass);
+	if (verbose) printf("%s:%d %d.%d namedb->cursor()\n", __FILE__, __LINE__, opnum, oppass);
 	r = namedb->cursor(namedb, null_txn, &name_cursor, 0); CKERR(r);
     }
     r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_NEXT); // an uninitialized cursor does a DB_FIRST.
@@ -271,7 +271,7 @@ static void step_name (void) {
 	printf("%s:%d Found %c ccount=%d\n", __FILE__, __LINE__, *(char*)nc_key.data, cursor_count_n_items);
     } else if (r==DB_NOTFOUND) {
 	// Got to the end.
-	printf("%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
+	if (verbose) printf("%s:%d Got to end count=%d curscount=%d\n", __FILE__, __LINE__, calc_n_items, cursor_count_n_items);
 	assert(cursor_count_n_items==calc_n_items);
 	r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_FIRST);
 	if (r==DB_NOTFOUND) {
@@ -296,7 +296,7 @@ static void activity (void) {
     } else {
 	if ((oppass==0 && opnum==1) ||
 	    (oppass==0 && opnum==2)) {
-	    printf("%s:%d r2 says insert oppass==%d opnum==%d\n", __FILE__, __LINE__, oppass, opnum);
+	    if (verbose) printf("%s:%d r2 says insert oppass==%d opnum==%d\n", __FILE__, __LINE__, oppass, opnum);
 	    insert_person();
 	} else {
 	    step_name();
@@ -307,7 +307,7 @@ static void activity (void) {
 		       
 
 static void usage (const char *argv1) {
-    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] seed ", argv1);
+    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] [-v] seed\n", argv1);
     exit(1);
 }
 
@@ -329,13 +329,15 @@ int main (int argc, const char *argv[]) {
     while (argc>0) {
 	if (strcmp(argv[0], "--more")==0) {
 	    mode = MODE_MORE;
+	} else if (strcmp(argv[0], "-v")==0) {
+	    verbose = 1;
 	} else {
 	    usage(progname);
 	}
 	argc--; argv++;
     }
 
-    printf("seed=%d\n", useseed);
+    if (verbose) printf("seed=%d\n", useseed);
     srandom(useseed);
 
     switch (mode) {

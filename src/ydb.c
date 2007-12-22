@@ -284,7 +284,8 @@ static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int
 
 
     if (!(flags & DB_PRIVATE)) {
-	fprintf(stderr, "tokudb requires DB_PRIVATE\n");
+	// There is no good place to send this error message.
+	// fprintf(stderr, "tokudb requires DB_PRIVATE\n");
         // This means that we don't have to do anything with shared memory.  
         // And that's good enough for mysql. 
         return EINVAL; 

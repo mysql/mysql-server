@@ -30,7 +30,7 @@ void test_dup_flags(int dup_flags) {
     r = db->set_flags(db, dup_flags);
 #if USE_TDB
     if (r != 0 && dup_flags == DB_DUP) {
-        printf("%s:%d: WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+        if (verbose) printf("%s:%d: WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
         r = db->close(db, 0); assert(r == 0);
         return;
     }
@@ -46,7 +46,7 @@ void test_dup_flags(int dup_flags) {
     assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
 #if USE_BDB
-    if (r == 0) 
+    if (r == 0 && verbose) 
         printf("%s:%d: WARNING:open ok:dup_mode:%d\n", __FILE__, __LINE__, dup_flags);
 #else
     assert(r != 0);
