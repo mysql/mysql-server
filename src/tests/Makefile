@@ -61,7 +61,7 @@ foo:
 	echo ALL_TESTS: $(ALL_TESTS)
 
 .PHONY: check check.bdb check.tdb
-check: check.bdb check.tdb all.recover
+check: check.bdb check.tdb all.recover test_db_assoc3.tdbrun_wasbad
 	@ echo ok
 check.bdb: $(RUN_BDB_TESTS)
 check.tdb: $(RUN_TDB_TESTS)
@@ -152,8 +152,8 @@ test_db_curs4.bdb: trace.h
 test_db_assoc3.tdb test_db_assoc3.bdb: test.h
 
 
-# This one fails in both BDB and TokuDB, in the same way.  It must be a program error.
-test_db_assoc3.tdbrun.bad: test_db_assoc3.tdb
+# This one failed in both BDB and TokuDB, in the same way.  It was a program error.  Now it works
+test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb
 	./test_db_assoc3.tdb --seed=1 --count=200
 	./test_db_assoc3.tdb --seed=1 --count=200 --more
 	./test_db_assoc3.tdb --seed=1 --count=200 --more
@@ -163,9 +163,9 @@ test_db_assoc3.tdbrun.bad: test_db_assoc3.tdb
 	./test_db_assoc3.tdb --seed=1 --count=200 --more
 
 test_db_assoc3.tdbrun: test_db_assoc3.tdb
-	./test_db_assoc3.tdb --seed=2 --count=100000
-	./test_db_assoc3.tdb --seed=2 --count=100000 --more
+	$(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE)
+	$(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 --more $(VERBVERBOSE)
 
 test_db_assoc3.bdbrun: test_db_assoc3.bdb
-	./test_db_assoc3.bdb --seed=2 --count=100000
-	./test_db_assoc3.bdb --seed=2 --count=100000 --more
+	$(VGRIND) ./test_db_assoc3.bdb --seed=2 --count=100000 $(VERBVERBOSE)
+	$(VGRIND) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE)

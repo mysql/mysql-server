@@ -487,6 +487,7 @@ int main (int argc, const char *argv[]) {
     const char *progname=argv[0];
     int useseed;
     int activity_count = 100000;
+    int verbose=0;
 
     {
 	struct timeval tv;
@@ -510,6 +511,8 @@ int main (int argc, const char *argv[]) {
 	    mode = MODE_DB_CREATE;
 	} else if (strcmp(argv[0], "--more")==0) {
 	    mode = MODE_MORE;
+	} else if (strcmp(argv[0], "-v")==0) {
+	    verbose=1;
 	} else if (maybe_parse_intarg(progname, argv[0], "--seed=", &useseed)
 		   || maybe_parse_intarg(progname, argv[0], "--count=", &activity_count)) {
 	    /* nothing */
@@ -519,7 +522,7 @@ int main (int argc, const char *argv[]) {
 	argc--; argv++;
     }
 
-    printf("seed=%d\n", useseed);
+    if (verbose) printf("seed=%d\n", useseed);
     mysrandom(useseed);
 
     switch (mode) {
@@ -540,7 +543,7 @@ int main (int argc, const char *argv[]) {
 	{
 	    int i;
 	    cursor_load = 8*(1+2*count_all_items/activity_count);
-	    printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
+	    if (verbose) printf("%s:%d count=%d cursor_load=%d\n", __FILE__, __LINE__, count_all_items, cursor_load);
 	    for (i=0; i<activity_count; i++)
 		activity();
 	}
