@@ -458,7 +458,7 @@ void activity (void) {
 		       
 
 void usage (const char *argv1) {
-    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] seed ", argv1);
+    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] [-v] seed\n", argv1);
     exit(1);
 }
 
@@ -488,6 +488,8 @@ int main (int argc, const char *argv[]) {
 	    mode = MODE_DB_CREATE;
 	} else if (strcmp(argv[0], "--more")==0) {
 	    mode = MODE_MORE;
+	} else if (strcmp(argv[0], "-v")==0) {
+	    verbose = 1;
 	} else {
 	    errno=0;
 	    char *endptr;
@@ -499,7 +501,7 @@ int main (int argc, const char *argv[]) {
 	argc--; argv++;
     }
 
-    printf("seed=%d\n", useseed);
+    if (verbose) printf("seed=%d\n", useseed);
     srandom(useseed);
 
     switch (mode) {

@@ -24,7 +24,7 @@ void test_env_open_flags(int env_open_flags, int expectr) {
     assert(r == 0);
 
     r = env->open(env, DIR, env_open_flags, 0644);
-    if (r != expectr) printf("env open flags=%x expectr=%d r=%d\n", env_open_flags, expectr, r);
+    if (r != expectr && verbose) printf("env open flags=%x expectr=%d r=%d\n", env_open_flags, expectr, r);
 
     r = env->close(env, 0);
     assert(r == 0);

@@ -76,21 +76,22 @@ $(ALL_TESTS):
 
 ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
+MAYBEATSIGN= 
+else
+ ifeq ($(VERBOSE),1)
+  VERBVERBOSE=
+  MAYBEATSIGN=
+ else
+  VERBVERBOSE=
+  MAYBEATSIGN=@
+ endif
 endif
 
 # The @ sign makes the make quiet.  If there is an error there is enough info to tell what test failed.
 %.bdbrun: %.bdb
-ifdef VERBOSE
-	$(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
-else
-	@ $(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$<
-endif
+	$(MAYBEATSIGN) $(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
 %.tdbrun: %.tdb
-ifdef VERBOSE
-	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE)
-else
-	@ $(SETTOKUENV) $(VGRIND) ./$<
-endif
+	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$<
 
 # For a few of the tests bdb is making valgrind unhappy.
 FOO_NO_VGRIND = \
@@ -115,6 +116,9 @@ FOO_NO_VGRIND = \
   # Comment to terminate list so the previous line can end with a slash
  
 NO_VGRIND = \
+  db_dbt_appmalloc \
+  db_dbt_mem_behavior \
+  db_assoc3 \
   db_curs2 \
   db_env_open_nocreate \
   db_env_open_open_close \
@@ -133,12 +137,12 @@ $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
 .PHONY: %.recover
 all.recover: test_log2.recover test_log3.recover test_log4.recover
 %.recover: %.tdb
-	cd ../../newbrt;make recover
-	./$<
-	rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
-	mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
-	cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover;../../../newbrt/recover ../dir.$(patsubst %.tdb,%.c.tdb,$<)
-	diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db
+	$(MAYBEATSIGN) cd ../../newbrt;make --quiet recover
+	$(MAYBEATSIGN) ./$<
+	$(MAYBEATSIGN) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
+	$(MAYBEATSIGN) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
+	$(MAYBEATSIGN) cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover;../../../newbrt/recover ../dir.$(patsubst %.tdb,%.c.tdb,$<)
+	$(MAYBEATSIGN) diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db
 
 make_libs:
 	cd ..;make
@@ -154,18 +158,18 @@ test_db_assoc3.tdb test_db_assoc3.bdb: test.h
 
 # This one failed in both BDB and TokuDB, in the same way.  It was a program error.  Now it works
 test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb
-	./test_db_assoc3.tdb --seed=1 --count=200
-	./test_db_assoc3.tdb --seed=1 --count=200 --more
-	./test_db_assoc3.tdb --seed=1 --count=200 --more
-	./test_db_assoc3.tdb --seed=1 --count=200 --more
-	./test_db_assoc3.tdb --seed=1 --count=200 --more
-	./test_db_assoc3.tdb --seed=1 --count=200 --more
-	./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200
+	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
 
 test_db_assoc3.tdbrun: test_db_assoc3.tdb
-	$(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE)
-	$(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 --more $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 --more $(VERBVERBOSE)
 
 test_db_assoc3.bdbrun: test_db_assoc3.bdb
-	$(VGRIND) ./test_db_assoc3.bdb --seed=2 --count=100000 $(VERBVERBOSE)
-	$(VGRIND) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.bdb --seed=2 --count=100000 $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE)
