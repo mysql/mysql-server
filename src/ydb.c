@@ -543,16 +543,22 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
 
 static int toku_db_txn_commit(DB_TXN * txn, u_int32_t flags) {
     //notef("flags=%d\n", flags);
-    flags=flags;
-    if (!txn)
-        return -1;
-    int r = toku_logger_commit(txn->i->tokutxn);
-    if (r != 0)
-        return r;
+    int r;
+    int nosync = (flags & DB_TXN_NOSYNC)!=0;
+    flags &= ~DB_TXN_NOSYNC;
+    if (!txn) return EINVAL;
+    if (flags!=0) goto return_invalid;
+    r = toku_logger_commit(txn->i->tokutxn, nosync);
+    if (0) {
+    return_invalid:
+	r = EINVAL;
+	toku_free(txn->i->tokutxn);
+    }
+    // Cleanup */
     if (txn->i)
         toku_free(txn->i);
     toku_free(txn);
-    return 0;
+    return r; // The txn is no good after the commit.
 }
 
 static u_int32_t toku_db_txn_id(DB_TXN * txn) {
@@ -569,12 +575,14 @@ static int toku_txn_abort(DB_TXN * txn) {
 }
 
 static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
+    if (!env->i->logger) return EINVAL;
     flags=flags;
     DB_TXN *MALLOC(result);
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
     //notef("parent=%p flags=0x%x\n", stxn, flags);
+    result->mgrp = env;
     result->abort = toku_txn_abort;
     result->commit = toku_db_txn_commit;
     result->id = toku_db_txn_id;
