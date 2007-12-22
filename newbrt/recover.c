@@ -228,7 +228,7 @@ int main (int argc, char *argv[]) {
     int i;
     r = toku_create_cachetable(&ct, 1<<25, (LSN){0}, 0);
     for (i=0; i<n_logfiles; i++) {
-	fprintf(stderr, "Opening %s\n", logfiles[i]);
+	//fprintf(stderr, "Opening %s\n", logfiles[i]);
 	FILE *f = fopen(logfiles[i], "r");
 	struct log_entry le;
 	u_int32_t version;
