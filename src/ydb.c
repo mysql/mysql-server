@@ -762,8 +762,7 @@ static int toku_c_pget_save_original_data(DBT* dst, DBT* src) {
     dst->ulen = 0;
     if (src->size) {
         if (!src->data) return EINVAL;
-        //We are pretending this use from the user, so we use malloc and NOT toku_malloc.
-        dst->data = malloc(src->size);
+        dst->data = toku_malloc(src->size);
         if (!dst->data) {
             r = ENOMEM;
             return r;
