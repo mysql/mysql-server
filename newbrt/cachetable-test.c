@@ -10,6 +10,7 @@
 
 #include "memory.h"
 #include "cachetable.h"
+#include "test.h"
 
 static const int test_object_size = 1;
 
@@ -35,7 +36,7 @@ static void flush (CACHEFILE f, CACHEKEY key, void*value, long size __attribute_
     struct item *it = value;
     int i;
 
-    printf("Flushing %lld (it=>key=%lld)\n", key, it->key);
+    if (verbose) printf("Flushing %lld (it=>key=%lld)\n", key, it->key);
 
     assert(expect_f==f);
     assert(strcmp(it->something,"something")==0);
@@ -49,7 +50,7 @@ static void flush (CACHEFILE f, CACHEKEY key, void*value, long size __attribute_
 	    goto found_flush;
 	}
     }
-    printf("%lld was flushed, but I didn't expect it\n", key);
+    fprintf(stderr, "%lld was flushed, but I didn't expect it\n", key);
     abort();
  found_flush:
     toku_free(value);
@@ -64,7 +65,7 @@ static struct item *make_item (CACHEKEY key) {
 
 static CACHEKEY did_fetch=-1;
 static int fetch (CACHEFILE f, CACHEKEY key, void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
-    printf("Fetch %lld\n", key);
+    if (verbose) printf("Fetch %lld\n", key);
     assert (expect_f==f);
     assert((long)extraargs==23);
     *value = make_item(key);
@@ -165,7 +166,7 @@ static void test0 (void) {
     r=toku_cachetable_assert_all_unpinned(t);
     assert(r==0);
 
-    printf("Closing\n");
+    if (verbose) printf("Closing\n");
     expect1(2);
     expectN(5);
     expectN(7);
@@ -293,18 +294,18 @@ static void test_multi_filehandles (void) {
 }
 
 static void test_dirty_flush(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
-    printf("test_dirty_flush %p %lld %p %ld %d %d\n", f, key, value, size, do_write, keep);
+    if (verbose) printf("test_dirty_flush %p %lld %p %ld %d %d\n", f, key, value, size, do_write, keep);
 }
 
 static int test_dirty_fetch(CACHEFILE f, CACHEKEY key, void **value_ptr, long *size_ptr, void *arg, LSN *written_lsn) {
     *value_ptr = arg;
     written_lsn->lsn = 0;
-    printf("test_dirty_fetch %p %lld %p %ld %p\n", f, key, *value_ptr, *size_ptr, arg);
+    if (verbose) printf("test_dirty_fetch %p %lld %p %ld %p\n", f, key, *value_ptr, *size_ptr, arg);
     return 0;
 }
 
 static void test_dirty() {
-    printf("test_dirty\n");
+    if (verbose) printf("test_dirty\n");
 
     CACHETABLE t;
     CACHEFILE f;
@@ -405,13 +406,13 @@ static int test_size_debug;
 static CACHEKEY test_size_flush_key;
 
 static void test_size_flush_callback(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
-    if (test_size_debug) printf("test_size_flush %p %lld %p %ld %d %d\n", f, key, value, size, do_write, keep);
+    if (test_size_debug && verbose) printf("test_size_flush %p %lld %p %ld %d %d\n", f, key, value, size, do_write, keep);
     assert(do_write != 0);
     test_size_flush_key = key;
 }
 
 static void test_size_resize() {
-    printf("test_size_resize\n");
+    if (verbose) printf("test_size_resize\n");
 
     CACHETABLE t;
     CACHEFILE f;
@@ -463,7 +464,7 @@ static void test_size_resize() {
 }
 
 static void test_size_flush() {
-    printf("test_size_flush\n");
+    if (verbose) printf("test_size_flush\n");
 
     CACHETABLE t;
     CACHEFILE f;
@@ -611,7 +612,8 @@ static void test_rename (void) {
     assert(n_keys == 0);
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int main (int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
     test_rename();
     test0();
     test_nested_pin();
@@ -620,6 +622,6 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     test_size_resize();
     test_size_flush();
     toku_malloc_cleanup();
-    printf("ok\n");
+    if (verbose) printf("ok\n");
     return 0;
 }
