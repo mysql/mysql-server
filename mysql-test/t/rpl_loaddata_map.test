@@ -29,6 +29,7 @@ create table t2 (id int not null primary key auto_increment);
 show variables like 'max_allowed_packet' /* 8K */;
 show variables like 'read_buffer_size'   /* 9K */;
 
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval load data infile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
 select count(*) from t2 /* 5 000 */;
 
@@ -36,6 +37,7 @@ select count(*) from t2 /* 5 000 */;
 --let $binlog_start=98
 --replace_column 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\//
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval show binlog events in 'master-bin.000002' from $binlog_start
 
 

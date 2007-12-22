@@ -11,7 +11,7 @@ max_allowed_packet	7168
 show variables like 'read_buffer_size'   /* 9K */;
 Variable_name	Value
 read_buffer_size	8228
-load data infile '/home/elkin/MySQL/TEAM/FIXES/5.0/bug33435-load_data_read_buffer_size/mysql-test/var/tmp/bug30435_5k.txt' into table t2;
+load data infile 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
 select count(*) from t2 /* 5 000 */;
 count(*)
 5000
@@ -23,7 +23,7 @@ master-bin.000002	7412	Append_block	1	#	;file_id=1;block_len=7168
 master-bin.000002	14603	Append_block	1	#	;file_id=1;block_len=2048
 master-bin.000002	16674	Append_block	1	#	;file_id=1;block_len=7168
 master-bin.000002	23865	Append_block	1	#	;file_id=1;block_len=341
-master-bin.000002	24229	Execute_load_query	1	#	use `test`; load data infile '/home/elkin/MySQL/TEAM/FIXES/5.0/bug33435-load_data_read_buffer_size/mysql-test/var/tmp/bug30435_5k.txt' into table t2 ;file_id=1
+master-bin.000002	24229	Execute_load_query	1	#	use `test`; load data infile 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2 ;file_id=1
 select count(*) from t2 /* 5 000 */;
 count(*)
 5000
