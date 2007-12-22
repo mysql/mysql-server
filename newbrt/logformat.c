@@ -153,6 +153,9 @@ void generate_log_writer (void) {
 			fprintf2(cf, hf, "int toku_log_%s (TOKUTXN txn", lt->name);
 			DO_FIELDS(ft, lt,
 				  fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
+			if (lt->command=='C') {
+			    fprintf2(cf,hf, ", int nosync");
+			}
 			fprintf(hf, ");\n");
 			fprintf(cf, ") {\n");
 			fprintf(cf, "  if (txn==0) return 0;\n");
@@ -180,7 +183,7 @@ void generate_log_writer (void) {
 			if (lt->command=='C') {
 			    fprintf(cf, "  if (r!=0) return r;\n");
 			    fprintf(cf, "  // commit has some extra work to do.\n");
-			    fprintf(cf, "  if (txn->parent) return 0; // don't fsync if there is a parent.\n");
+			    fprintf(cf, "  if (txn->parent || nosync) return 0; // don't fsync if there is a parent.\n");
 			    fprintf(cf, "  else return toku_logger_fsync(txn->logger);\n");
 			} else {
 			    fprintf(cf, "  return r;\n");

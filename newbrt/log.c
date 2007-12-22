@@ -238,8 +238,8 @@ int toku_logger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, DISKOFF dis
     return toku_logger_finish(txn->logger, &wbuf);
 }
 
-int toku_logger_commit (TOKUTXN txn) {
-    int r = toku_log_commit(txn, txn->txnid64);
+int toku_logger_commit (TOKUTXN txn, int nosync) {
+    int r = toku_log_commit(txn, txn->txnid64, nosync);
     toku_free(txn);
     return r;
 }

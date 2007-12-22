@@ -13,7 +13,7 @@ int toku_logger_log_checkpoint (TOKULOGGER, LSN*);
 
 int toku_logger_log_phys_add_or_delete_in_leaf    (DB *db, TOKUTXN txn, DISKOFF diskoff, int is_add, const struct kv_pair *pair);
 
-int toku_logger_commit (TOKUTXN txn);
+int toku_logger_commit (TOKUTXN txn, int no_sync);
 
 int toku_logger_log_block_rename (TOKULOGGER /*logger*/, FILENUM /*fileid*/, DISKOFF /*olddiskoff*/, DISKOFF /*newdiskoff*/, DISKOFF /*parentdiskoff*/, int /*childnum*/);
 

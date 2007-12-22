@@ -114,7 +114,9 @@ FOO_NO_VGRIND = \
   reverse_compare_fun \
   # Comment to terminate list so the previous line can end with a slash
  
-NO_VGRIND = db_env_open_nocreate \
+NO_VGRIND = \
+  db_curs2 \
+  db_env_open_nocreate \
   db_env_open_open_close \
   db_open_notexist_reopen \
   db_remove_subdb \

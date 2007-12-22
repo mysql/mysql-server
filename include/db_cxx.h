@@ -141,8 +141,9 @@ class DbEnv {
     void err(int error, const char *fmt, ...);
     void set_errfile(FILE *errfile);
 
+    int do_no_exceptions; // This should be private!!!
+
  private:
-    int do_no_exceptions;
     DB_ENV *the_env;
 
     DbEnv(DB_ENV *, u_int32_t /*flags*/);
@@ -154,6 +155,8 @@ class DbEnv {
 class DbTxn {
  public:
     int commit (u_int32_t /*flags*/);
+
+    virtual ~DbTxn();
 
     DB_TXN *get_DB_TXN()
 	{

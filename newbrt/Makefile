@@ -60,17 +60,21 @@ log_code.c log_header.h: logformat
 
 libs: log.o
 bins: $(BINS)
-check: bins
-	$(DTOOL) ./test_oexcl
-	$(DTOOL) ./ybt-test
-	$(DTOOL) ./pma-test
-	$(DTOOL) ./cachetable-test
-	$(DTOOL) ./cachetable-test2
-	$(DTOOL) ./brt-serialize-test
-	$(DTOOL) ./brt-test
-	$(DTOOL) ./hashtest
-	$(DTOOL) ./test_toku_malloc_plain_free
-	./benchmark-test --valsize 256 --verify 1
+CHECKS = \
+ test_oexcl \
+ ybt-test \
+ pma-test \
+ cachetable-test \
+ cachetable-test2 \
+ brt-serialize-test \
+ brt-test hashtest \
+ test_toku_malloc_plain_free
+check: bins $(patsubst %,check_%,$(CHECKS)) check_benchmarktest_256
+check_benchmarktest_256: benchmark-test
+	$(DTOOL) ./benchmark-test --valsize 256 --verify 1
+
+check_%: %
+	$(DTOOL) ./$<
 
 check-fanout:
 	let BRT_FANOUT=4; \
