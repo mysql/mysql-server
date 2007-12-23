@@ -69,6 +69,16 @@ int Db::open(DbTxn *txn, const char *filename, const char *subname, DBTYPE typ, 
     return the_Env->maybe_throw_error(ret);
 }
 
+int Db::del(DbTxn *txn, Dbt *key, u_int32_t flags) {
+    int ret = the_db->del(the_db, txn->get_DB_TXN(), key->get_DBT(), flags);
+    return the_Env->maybe_throw_error(ret);
+}
+
+int Db::get(DbTxn *txn, Dbt *key, Dbt *data, u_int32_t flags) {
+    int ret = the_db->get(the_db, txn->get_DB_TXN(), key->get_DBT(), data->get_DBT(), flags);
+    return the_Env->maybe_throw_error(ret);
+}
+
 int Db::put(DbTxn *txn, Dbt *key, Dbt *data, u_int32_t flags) {
     int ret = the_db->put(the_db, txn->get_DB_TXN(), key->get_DBT(), data->get_DBT(), flags);
     return the_Env->maybe_throw_error(ret);

@@ -2,6 +2,7 @@
 #include <db_cxx.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #define TC(expr, expect) ({        \
   try {                            \
@@ -97,8 +98,8 @@ void test_db_exceptions (void) {
 	curs->close(); // no deleting cursors.
     }
     Dbt key,val;
-    //TC(db.del(0, &key, -1), EINVAL);
-    //TC(db.get(0, &key, &val, -1), EINVAL);
+    TC(db.del(0, &key, -1), EINVAL);
+    TC(db.get(0, &key, &val, -1), EINVAL);
     TC(db.put(0, &key, &val, -1), EINVAL);
 }
 	
@@ -106,5 +107,6 @@ void test_db_exceptions (void) {
 int main(int argc, char *argv[]) {
     test_env_exceptions();
     test_db_exceptions();
+    system("rm *.tokulog");
     return 0;
 }
