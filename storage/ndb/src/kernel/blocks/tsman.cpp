@@ -551,6 +551,7 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
     file_ptr.p->m_extent_size = ptr.p->m_extent_size;
 
     err = (CreateFileImplRef::ErrorCode)open_file(signal, ptr, file_ptr, req,
+                                                  &handle);
     if(err)
       break;
     return;
