@@ -204,7 +204,8 @@ private:
   Page_cache_client m_page_cache_client;
   Lgman * const m_lgman;
   
-  int open_file(Signal*, Ptr<Tablespace>, Ptr<Datafile>, CreateFileImplReq*);
+  int open_file(Signal*, Ptr<Tablespace>, Ptr<Datafile>, CreateFileImplReq*,
+		SectionHandle* handle);
   void load_extent_pages(Signal* signal, Ptr<Datafile> ptr);
   void load_extent_page_callback(Signal*, Uint32, Uint32);
   void create_file_ref(Signal*, Ptr<Tablespace>, Ptr<Datafile>, 

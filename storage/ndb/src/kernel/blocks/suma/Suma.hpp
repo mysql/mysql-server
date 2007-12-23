@@ -283,7 +283,6 @@ public:
      * Create triggers
      */
     int setupTrigger(Signal* signal, Suma &suma);
-    void completeTrigger(Signal* signal);
     void createAttributeMask(AttributeMask&, Suma &suma);
     
     /**

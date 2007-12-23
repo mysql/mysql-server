@@ -213,10 +213,11 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     file->theFileName.set(spec, userRef, fsOpenReq->fileNumber);
   } else {
     jam();
+    SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    signal->getSection(ptr, FsOpenReq::FILENAME);
+    handle.getSection(ptr, FsOpenReq::FILENAME);
     file->theFileName.set(spec, ptr, g_sectionSegmentPool);
-    releaseSections(signal);
+    releaseSections(handle);
   }
   file->reportTo(&theFromThreads);
   if (getenv("NDB_TRACE_OPEN"))

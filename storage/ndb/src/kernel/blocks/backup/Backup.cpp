@@ -3188,9 +3188,10 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
 
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, senderData);
-  
+
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr dictTabInfoPtr;
-  signal->getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
+  handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(dictTabInfoPtr.sz == len);
 
   TablePtr tabPtr ;
@@ -3206,7 +3207,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
       jam();
       ndbrequire(false);
       ptr.p->setErrorCode(DefineBackupRef::FailedAllocateTableMem);
-      releaseSections(signal);
+      releaseSections(handle);
       defineBackupRef(signal, ptr);
       return;
     }//if
@@ -3225,7 +3226,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     }//if
   }
 
-  releaseSections(signal);
+  releaseSections(handle);
 
   if(ptr.p->checkError()) {
     jam();
