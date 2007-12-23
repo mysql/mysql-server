@@ -97,10 +97,20 @@ void test_db_exceptions (void) {
 	TC(curs->get(&key, &val, -1), EINVAL); // bad flags
 	curs->close(); // no deleting cursors.
     }
-    Dbt key,val;
-    TC(db.del(0, &key, -1), EINVAL);
-    TC(db.get(0, &key, &val, -1), EINVAL);
-    TC(db.put(0, &key, &val, -1), EINVAL);
+    {
+	Dbt key,val;
+	TC(db.del(0, &key, -1), EINVAL);
+	TC(db.get(0, &key, &val, -1), EINVAL);
+	TC(db.put(0, &key, &val, -1), EINVAL);
+    }
+    {
+	Dbt key((char*)"hello", 6);
+	Dbt val((char*)"there", 6);
+	Dbt valget;
+	TC(db.put(0, &key, &val, 0), 0);
+	TC(db.get(0, &key, &valget, 0), 0);
+	assert(strcmp((const char*)(valget.get_data()), "there")==0);
+    }
 }
 	
 
