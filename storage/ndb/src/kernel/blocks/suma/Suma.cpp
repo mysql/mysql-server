@@ -1160,7 +1160,6 @@ Suma::sendSubIdRef(Signal* signal,
 	     CreateSubscriptionIdRef::SignalLength,
 	     JBB);
   
-  releaseSections(signal);
   DBUG_VOID_RETURN;
 }
 
@@ -1328,11 +1327,13 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   DBUG_PRINT("enter",("key.m_subscriptionId: %u, key.m_subscriptionKey: %u",
 		      key.m_subscriptionId, key.m_subscriptionKey));
 
+  SectionHandle handle(this, signal);
   if(!c_subscriptions.find(subPtr, key))
   {
     jam();
     DBUG_PRINT("info",("Not found"));
     sendSubSyncRef(signal, 1407);
+    releaseSections(handle);
     DBUG_VOID_RETURN;
   }
 
@@ -1344,6 +1345,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   {
     jam();
     sendSubSyncRef(signal, 1416);
+    releaseSections(handle);
     DBUG_VOID_RETURN;
   }
   DBUG_PRINT("info",("c_syncPool  size: %d free: %d",
@@ -1361,12 +1363,13 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   {
     jam();
     syncPtr.p->m_tableList.append(&subPtr.p->m_tableId, 1);
-    if(signal->getNoOfSections() > 0){
-      SegmentedSectionPtr ptr(0,0,0);
-      signal->getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
+    if(handle.m_cnt > 0)
+    {
+      SegmentedSectionPtr ptr;
+      handle.getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
       LocalDataBuffer<15> attrBuf(c_dataBufferPool,syncPtr.p->m_attributeList);
       append(attrBuf, ptr, getSectionSegmentPool());
-      releaseSections(signal);
+      releaseSections(handle);
     }
   }
 
@@ -1426,7 +1429,6 @@ Suma::sendSubSyncRef(Signal* signal, Uint32 errCode){
   jam();
   SubSyncRef * ref= (SubSyncRef *)signal->getDataPtrSend();
   ref->errorCode = errCode;
-  releaseSections(signal);
   sendSignal(signal->getSendersBlockRef(), 
 	     GSN_SUB_SYNC_REF, 
 	     signal, 
@@ -1804,14 +1806,16 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
     return;
   }
   
+  SectionHandle handle(this, signal);
   GetTabInfoConf* conf = (GetTabInfoConf*)signal->getDataPtr();
   Uint32 tableId = conf->tableId;
   TablePtr tabPtr;
   c_tablePool.getPtr(tabPtr, conf->senderData);
-  SegmentedSectionPtr ptr(0,0,0);
-  signal->getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
+  SegmentedSectionPtr ptr;
+  handle.getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(tabPtr.p->parseTable(ptr, *this));
-  releaseSections(signal);
+  releaseSections(handle);
+
   /**
    * We need to gather fragment info
    */
@@ -2499,7 +2503,6 @@ Suma::sendSubStartRef(Signal* signal, Uint32 errCode)
   SubStartRef * ref = (SubStartRef *)signal->getDataPtrSend();
   ref->senderRef = reference();
   ref->errorCode = errCode;
-  releaseSections(signal);
   sendSignal(signal->getSendersBlockRef(), GSN_SUB_START_REF, signal, 
 	     SubStartRef::SignalLength, JBB);
 }
@@ -3821,7 +3824,6 @@ Suma::execALTER_TAB_REQ(Signal *signal)
 {
   jamEntry();
   DBUG_ENTER("Suma::execALTER_TAB_REQ");
-  ndbassert(signal->getNoOfSections() == 1);
 
   AlterTabReq * const req = (AlterTabReq*)signal->getDataPtr();
   Uint32 senderRef= req->senderRef;
@@ -3848,19 +3850,20 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   // dict coordinator sends info to API
 
   // Copy DICT_TAB_INFO to local buffer
+  SectionHandle handle(this, signal->theData[AlterTabReq::SignalLength]);
   SegmentedSectionPtr tabInfoPtr;
-  signal->getSection(tabInfoPtr, AlterTabReq::DICT_TAB_INFO);
+  handle.getSection(tabInfoPtr, 0);
+  handle.clear();
 #ifndef DBUG_OFF
   ndbout_c("DICT_TAB_INFO in SUMA,  tabInfoPtr.sz = %d", tabInfoPtr.sz);
-  SimplePropertiesSectionReader reader(tabInfoPtr, getSectionSegmentPool());
+  SimplePropertiesSectionReader reader(handle.m_ptr[0],
+				       getSectionSegmentPool());
   reader.printAll(ndbout);
 #endif
   copy(b_dti_buf, tabInfoPtr);
   LinearSectionPtr ptr[3];
   ptr[0].p = b_dti_buf;
   ptr[0].sz = tabInfoPtr.sz;
-
-  releaseSections(signal);
 
   const Uint64 gci = get_current_gci(signal);
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
@@ -3893,9 +3896,8 @@ Suma::execALTER_TAB_REQ(Signal *signal)
       }
 
       data->senderData= subbPtr.p->m_senderData;
-      Callback c = { 0, 0 };
       sendFragmentedSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-                           SubTableData::SignalLength, JBB, ptr, 1, c);
+                           SubTableData::SignalLength, JBB, ptr, 1);
       DBUG_PRINT("info",("sent to subscriber %d", subbPtr.i));
     }
   }
@@ -4135,7 +4137,6 @@ Suma::sendSubRemoveRef(Signal* signal, const SubRemoveReq& req,
   ref->subscriptionId = req.subscriptionId;
   ref->subscriptionKey = req.subscriptionKey;
   ref->errorCode = errCode;
-  releaseSections(signal);
   sendSignal(signal->getSendersBlockRef(), GSN_SUB_REMOVE_REF, 
 	     signal, SubRemoveRef::SignalLength, JBB);
   DBUG_VOID_RETURN;

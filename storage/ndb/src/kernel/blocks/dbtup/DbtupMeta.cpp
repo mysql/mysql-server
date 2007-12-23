@@ -612,10 +612,11 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
   if(!assembleFragments(signal))
     return;
   AlterTabReq *const req= (AlterTabReq *)signal->getDataPtr();
+  SectionHandle handle(this, signal);
   if (!AlterTableReq::getAddAttrFlag(req->changeMask))
   {
     /* Nothing to do in TUP. */
-    releaseSections(signal);
+    releaseSections(handle);
     sendAlterTabConf(signal, req);
     return;
   }
@@ -629,13 +630,19 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
 
   if(alterType==AlterTabReq::AlterTablePrepare)
   {
+    jam();
+    ndbrequire(handle.m_cnt == 1);
+    copy(signal->theData+25, handle.m_ptr[0]);
+    releaseSections(handle);
     handleAlterTabPrepare(signal, regTabPtr.p);
     return;
   }
+  releaseSections(handle);
 
   AlterTabOperationPtr regAlterTabOpPtr;
   if (req->clientData==RNIL)
   {
+    jam();
     /* This means that we failed in prepare, or never got there. */
     sendAlterTabConf(signal, req);
     return;
@@ -666,15 +673,7 @@ Dbtup::handleAlterTabPrepare(Signal *signal, const Tablerec *regTabPtr)
   Uint32 newNoOfCharsets= req->newNoOfCharsets;
   Uint32 newNoOfKeyAttrs= req->newNoOfKeyAttrs;
 
-  ndbrequire(signal->getNoOfSections() == 1);
-  ndbrequire((25+noOfNewAttr*2)<<2 < sizeof(signal->theData));
-
-  /* Get the array of attribute descriptor words. */
-  SegmentedSectionPtr ssPtr;
   Uint32 *attrInfo= signal->theData+25;
-  signal->getSection(ssPtr, 0);
-  copy(attrInfo, ssPtr);
-  releaseSections(signal);
 
   Uint32 oldNoOfAttr= regTabPtr->m_no_of_attributes;
   Uint32 newNoOfAttr= oldNoOfAttr+noOfNewAttr;

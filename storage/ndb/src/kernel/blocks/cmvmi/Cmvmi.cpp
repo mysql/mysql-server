@@ -1271,6 +1271,8 @@ Cmvmi::execTESTSIG(Signal* signal){
   g_print = signal->theData[3];
 //  Uint32 returnCount = signal->theData[4];
   Uint32 * secSizes = &signal->theData[5];
+
+  SectionHandle handle(this, signal);
   
   if(g_print){
     SignalLoggerManager::printSignalHeader(stdout, 
@@ -1286,10 +1288,10 @@ Cmvmi::execTESTSIG(Signal* signal){
     }
     fprintf(stdout, "\n");
     
-    for(i = 0; i<signal->header.m_noOfSections; i++){
+    for(i = 0; i<handle.m_cnt; i++){
       SegmentedSectionPtr ptr(0,0,0);
       ndbout_c("-- Section %d --", i);
-      signal->getSection(ptr, i);
+      handle.getSection(ptr, i);
       ndbrequire(ptr.p != 0);
       print(ptr, stdout);
       ndbrequire(ptr.sz == secSizes[i]);
@@ -1299,9 +1301,9 @@ Cmvmi::execTESTSIG(Signal* signal){
   /**
    * Validate length:s
    */
-  for(i = 0; i<signal->header.m_noOfSections; i++){
+  for(i = 0; i<handle.m_cnt; i++){
     SegmentedSectionPtr ptr;
-    signal->getSection(ptr, i);
+    handle.getSection(ptr, i);
     ndbrequire(ptr.p != 0);
     ndbrequire(ptr.sz == secSizes[i]);
   }
@@ -1311,7 +1313,7 @@ Cmvmi::execTESTSIG(Signal* signal){
    */
   if (testType == 20) {
     if (signal->theData[4] == 0) {
-      releaseSections(signal);
+      releaseSections(handle);
       return;
     }
     signal->theData[4]--;
@@ -1335,31 +1337,34 @@ Cmvmi::execTESTSIG(Signal* signal){
   
   switch(testType){
   case 1:
-    sendSignal(ref, GSN_TESTSIG,  signal, signal->length(), JBB);      
+    sendSignal(ref, GSN_TESTSIG,  signal, signal->length(), JBB,
+	       &handle);
     break;
   case 2:
-    sendSignal(rg, GSN_TESTSIG,  signal, signal->length(), JBB);
+    sendSignal(rg, GSN_TESTSIG,  signal, signal->length(), JBB,
+	       &handle);
     break;
   case 3:
   case 4:{
     LinearSectionPtr ptr[3];
-    const Uint32 secs = signal->getNoOfSections();
+    const Uint32 secs = handle.m_cnt;
     for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr(0,0,0);
-      signal->getSection(sptr, i);
+      handle.getSection(sptr, i);
       ptr[i].sz = sptr.sz;
       ptr[i].p = new Uint32[sptr.sz];
       copy(ptr[i].p, sptr);
     }
     
     if(testType == 3){
-      sendSignal(ref, GSN_TESTSIG,  signal, signal->length(), JBB, ptr, secs); 
+      sendSignal(ref, GSN_TESTSIG, signal, signal->length(), JBB, ptr, secs);
     } else {
-      sendSignal(rg, GSN_TESTSIG,  signal, signal->length(), JBB, ptr, secs); 
+      sendSignal(rg, GSN_TESTSIG, signal, signal->length(), JBB, ptr, secs);
     }
     for(Uint32 i = 0; i<secs; i++){
       delete[] ptr[i].p;
     }
+    releaseSections(handle);
     break;
   }
   case 5:
@@ -1379,7 +1384,9 @@ Cmvmi::execTESTSIG(Signal* signal){
 		      signal,
 		      signal->length(),
 		      JBB,
+		      &handle,
 		      fragmentLength);
+
     int count = 1;
     while(fragSend.m_status != FragmentSendInfo::SendComplete){
       count++;
@@ -1392,10 +1399,10 @@ Cmvmi::execTESTSIG(Signal* signal){
   case 7:
   case 8:{
     LinearSectionPtr ptr[3];
-    const Uint32 secs = signal->getNoOfSections();
+    const Uint32 secs = handle.m_cnt;
     for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr(0,0,0);
-      signal->getSection(sptr, i);
+      handle.getSection(sptr, i);
       ptr[i].sz = sptr.sz;
       ptr[i].p = new Uint32[sptr.sz];
       copy(ptr[i].p, sptr);
@@ -1430,6 +1437,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     for(i = 0; i<secs; i++){
       delete[] ptr[i].p;
     }
+    releaseSections(handle);
     break;
   }
   case 9:
@@ -1443,12 +1451,14 @@ Cmvmi::execTESTSIG(Signal* signal){
       m_callBack.m_callbackData = 9;
       sendFragmentedSignal(ref,
 			   GSN_TESTSIG, signal, signal->length(), JBB, 
+			   &handle,
 			   m_callBack,
 			   fragmentLength);
     } else {
       m_callBack.m_callbackData = 10;
       sendFragmentedSignal(rg,
 			   GSN_TESTSIG, signal, signal->length(), JBB, 
+			   &handle,
 			   m_callBack,
 			   fragmentLength);
     }
@@ -1457,11 +1467,11 @@ Cmvmi::execTESTSIG(Signal* signal){
   case 11:
   case 12:{
 
-    const Uint32 secs = signal->getNoOfSections();
+    const Uint32 secs = handle.m_cnt;
     memset(g_test, 0, sizeof(g_test));
     for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr(0,0,0);
-      signal->getSection(sptr, i);
+      handle.getSection(sptr, i);
       g_test[i].sz = sptr.sz;
       g_test[i].p = new Uint32[sptr.sz];
       copy(g_test[i].p, sptr);

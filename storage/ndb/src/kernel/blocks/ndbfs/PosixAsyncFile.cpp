@@ -302,8 +302,9 @@ no_odirect:
   {
     off_t off = 0;
     const off_t sz = request->par.open.file_size;
-    Uint32 tmp[sizeof(SignalHeader)+25];
-    Signal * signal = (Signal*)(&tmp[0]);
+    SignalT<25> tmp;
+    Signal * signal = (Signal*)(&tmp);
+    bzero(signal, sizeof(tmp));
     FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
 
     Uint32 index = 0;
