@@ -1561,6 +1561,11 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     }
     assert(t->nodesize>0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();
+    if (0) {
+    died_after_read_and_pin:
+	toku_cachetable_unpin(t->cf, 0, 0, 0); // unpin the header
+	goto died1;
+    }
     if (is_create) {
 	r = toku_read_and_pin_brt_header(t->cf, &t->h);
 	if (r==-1) {
@@ -1569,7 +1574,8 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 		assert(errno==ENOMEM);
 		r = ENOMEM;
 		if (0) { died2: toku_free(t->h); }
-		goto died1;
+		t->h=0;
+		goto died_after_read_and_pin;
 	    }
 	    t->h->dirty=1;
             t->h->flags = t->flags;
@@ -1594,38 +1600,39 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0))) { goto died6; }
 	}
 	else if (r!=0) {
-	    goto died1;
+	    goto died_after_read_and_pin;
 	}
 	else {
 	    int i;
 	    assert(r==0);
 	    assert(dbname);
-	    assert(t->h->unnamed_root==-1);
+	    if (t->h->unnamed_root!=-1) { r=EINVAL; goto died_after_read_and_pin; } // Cannot create a subdb in a file that is not enabled for subdbs
 	    assert(t->h->n_named_roots>=0);
 	    for (i=0; i<t->h->n_named_roots; i++) {
 		if (strcmp(t->h->names[i], dbname)==0) {
 		    if (only_create) {
 			r = EEXIST;
-			goto died1; /* deallocate everything. */
+			goto died_after_read_and_pin;
 		    }
 		    else goto found_it;
 		}
 	    }
-	    if ((t->h->names = toku_realloc(t->h->names, (1+t->h->n_named_roots)*sizeof(*t->h->names))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
-	    if ((t->h->roots = toku_realloc(t->h->roots, (1+t->h->n_named_roots)*sizeof(*t->h->roots))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
+	    if ((t->h->names = toku_realloc(t->h->names, (1+t->h->n_named_roots)*sizeof(*t->h->names))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
+	    if ((t->h->roots = toku_realloc(t->h->roots, (1+t->h->n_named_roots)*sizeof(*t->h->roots))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
 	    t->h->n_named_roots++;
-	    if ((t->h->names[t->h->n_named_roots-1] = toku_strdup(dbname)) == 0)                                { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
+	    if ((t->h->names[t->h->n_named_roots-1] = toku_strdup(dbname)) == 0)                                { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
 	    //printf("%s:%d t=%p\n", __FILE__, __LINE__, t);
 	    t->h->roots[t->h->n_named_roots-1] = malloc_diskblock_header_is_in_memory(t, t->h->nodesize);
 	    t->h->dirty = 1;
-	    if ((r=setup_brt_root_node(t, t->h->roots[t->h->n_named_roots-1], txn))!=0) goto died1;
+	    if ((r=setup_brt_root_node(t, t->h->roots[t->h->n_named_roots-1], txn))!=0) goto died_after_read_and_pin;
 	}
     } else {
 	if ((r = toku_read_and_pin_brt_header(t->cf, &t->h))!=0) goto died1;
 	if (!dbname) {
-	    if (t->h->n_named_roots!=-1) { r = -2; /* invalid args??? */; goto died1; }
+	    if (t->h->n_named_roots!=-1) { r = EINVAL; goto died_after_read_and_pin; } // requires a subdb
 	} else {
 	    int i;
+	    if (t->h->n_named_roots==-1) { r=EINVAL; goto died_after_read_and_pin; } // no suddbs in the db
 	    // printf("%s:%d n_roots=%d\n", __FILE__, __LINE__, t->h->n_named_roots);
 	    for (i=0; i<t->h->n_named_roots; i++) {
 		if (strcmp(t->h->names[i], dbname)==0) {
@@ -1634,17 +1641,17 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 
 	    }
 	    r=ENOENT; /* the database doesn't exist */
-	    goto died1;
+	    goto died_after_read_and_pin;
 	}
     found_it:
         t->nodesize = t->h->nodesize;                 /* inherit the pagesize from the file */
         if (t->flags != t->h->flags) {                /* flags must match */
             if (load_flags) t->flags = t->h->flags;
-            else {r = EINVAL; goto died1;}
+            else {r = EINVAL; goto died_after_read_and_pin;}
         }
     }
     assert(t->h);
-    if ((r = toku_unpin_brt_header(t)) !=0) goto died1;
+    if ((r = toku_unpin_brt_header(t)) !=0) goto died1; // it's unpinned
     assert(t->h==0);
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE -> %p\n", t));
     return 0;
@@ -2914,6 +2921,8 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, TOKUT
         if (r != 0) goto died0;
         break;
     default:
+	toku_unpin_brt_header(cursor->brt);
+	return EINVAL;
 	fprintf(stderr, "%s:%d c_get(...,%d) not ready\n", __FILE__, __LINE__, flags);
 	abort();
     }

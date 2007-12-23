@@ -1285,11 +1285,17 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     int openflags = 0;
     int r;
     if (dbtype!=DB_BTREE && dbtype!=DB_UNKNOWN) return EINVAL;
-    if ((flags & DB_EXCL) && !(flags & DB_CREATE)) return EINVAL;
-    if (dbtype==DB_UNKNOWN && (flags & DB_EXCL)) return EINVAL;
+    int is_db_excl    = flags & DB_EXCL;    flags&=~DB_EXCL;
+    int is_db_create  = flags & DB_CREATE;  flags&=~DB_CREATE;
+    int is_db_rdonly  = flags & DB_RDONLY;  flags&=~DB_RDONLY;
+    int is_db_unknown = flags & DB_UNKNOWN; flags&=~DB_UNKNOWN;
+    if (flags) return EINVAL; // unknown flags
+
+    if (is_db_excl && !is_db_create) return EINVAL;
+    if (dbtype==DB_UNKNOWN && is_db_excl) return EINVAL;
 
     if (db_opened(db))
-        return -1;              /* It was already open. */
+        return EINVAL;              /* It was already open. */
     
     r = find_db_file(db->dbenv, fname, &db->i->full_fname);
     if (r != 0) goto error_cleanup;
@@ -1299,7 +1305,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
         r = ENOMEM;
         goto error_cleanup;
     }
-    if (flags & DB_RDONLY)
+    if (is_db_rdonly)
         openflags |= O_RDONLY;
     else
         openflags |= O_RDWR;
@@ -1308,29 +1314,29 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
         struct stat statbuf;
         if (stat(db->i->full_fname, &statbuf) == 0) {
             /* If the database exists at the file level, and we specified no db_name, then complain here. */
-            if (dbname == 0 && (flags & DB_CREATE)) {
-                if (flags & DB_EXCL) {
+            if (dbname == 0 && is_db_create) {
+                if (is_db_excl) {
                     r = EEXIST;
                     goto error_cleanup;
                 }
-                flags &= ~DB_CREATE;
+		is_db_create = 0; // It's not a create after all, since the file exists.
             }
         } else {
-            if (!(flags & DB_CREATE)) {
+            if (!is_db_create) {
                 r = ENOENT;
                 goto error_cleanup;
             }
         }
     }
-    if (flags & DB_CREATE) openflags |= O_CREAT;
+    if (is_db_create) openflags |= O_CREAT;
 
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
     r = toku_brt_open(db->i->brt, db->i->full_fname, fname, dbname,
-		 flags & DB_CREATE, flags & DB_EXCL, dbtype==DB_UNKNOWN,
-		 db->dbenv->i->cachetable,
-		 txn ? txn->i->tokutxn : NULL_TXN);
+		      is_db_create, is_db_excl, is_db_unknown,
+		      db->dbenv->i->cachetable,
+		      txn ? txn->i->tokutxn : NULL_TXN);
     if (r != 0)
         goto error_cleanup;
 

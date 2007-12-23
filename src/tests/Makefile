@@ -124,6 +124,7 @@ NO_VGRIND = \
   db_env_open_open_close \
   db_open_notexist_reopen \
   db_remove_subdb \
+  log4 \
   # Comment to terminate list so the previous line can end with a slash
 
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
