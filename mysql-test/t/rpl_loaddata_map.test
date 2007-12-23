@@ -26,8 +26,7 @@ flush logs;
 connection master;
 create table t2 (id int not null primary key auto_increment);
 
-show variables like 'max_allowed_packet' /* 8K */;
-show variables like 'read_buffer_size'   /* 9K */;
+select @@session.read_buffer_size - @@session.max_allowed_packet > 0 ;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval load data infile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
