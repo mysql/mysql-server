@@ -8949,10 +8949,11 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
 
   jamEntry();
 
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr api_op_ptr;
-  signal->getSection(api_op_ptr, 0);
+  handle.getSection(api_op_ptr, 0);
   copy(&cdata[0], api_op_ptr);
-  releaseSections(signal);
+  releaseSections(handle);
 
   apiConnectptr.i = scanTabReq->apiConnectPtr;
   tabptr.i = scanTabReq->tableId;
@@ -11683,8 +11684,6 @@ void Dbtc::execCREATE_TRIG_REQ(Signal* signal)
   DefinedTriggerPtr triggerPtr;
   BlockReference sender = signal->senderBlockRef();
 
-  releaseSections(signal);
-  
   triggerPtr.i = createTrigReq->getTriggerId();
   if (ERROR_INSERTED(8033) ||
       !c_theDefinedTriggers.seizeId(triggerPtr, 
@@ -11756,7 +11755,8 @@ void Dbtc::execCREATE_INDX_REQ(Signal* signal)
   TcIndexData* indexData;
   TcIndexDataPtr indexPtr;
   BlockReference sender = signal->senderBlockRef();
-  
+
+  SectionHandle handle(this, signal);
   if (ERROR_INSERTED(8034) ||
       !c_theIndexes.seizeId(indexPtr, createIndxReq->getIndexId())) {
     jam();
@@ -11767,7 +11767,7 @@ void Dbtc::execCREATE_INDX_REQ(Signal* signal)
 
      createIndxRef->setConnectionPtr(createIndxReq->getConnectionPtr());
      createIndxRef->setErrorCode(CreateIndxRef::TooManyIndexes);
-     releaseSections(signal);
+     releaseSections(handle);
      sendSignal(sender, GSN_CREATE_INDX_REF, 
                 signal, CreateIndxRef::SignalLength, JBB);
      return;
@@ -11781,7 +11781,7 @@ void Dbtc::execCREATE_INDX_REQ(Signal* signal)
 
   // So far need only attribute count
   SegmentedSectionPtr ssPtr;
-  signal->getSection(ssPtr, CreateIndxReq::ATTRIBUTE_LIST_SECTION);
+  handle.getSection(ssPtr, CreateIndxReq::ATTRIBUTE_LIST_SECTION);
   SimplePropertiesSectionReader r0(ssPtr, getSectionSegmentPool());
   r0.reset(); // undo implicit first()
   if (!r0.getWord(&indexData->attributeList.sz) ||
@@ -11790,7 +11790,7 @@ void Dbtc::execCREATE_INDX_REQ(Signal* signal)
   }
   indexData->primaryKeyPos = indexData->attributeList.sz;
 
-  releaseSections(signal);
+  releaseSections(handle);
   
   CreateIndxConf * const createIndxConf =  
     (CreateIndxConf *)&signal->theData[0];
@@ -12551,12 +12551,15 @@ void Dbtc::execTRANSID_AI_R(Signal* signal){
 
   jamEntry();
 
+  SectionHandle handle(this, signal);
+
   /**
    * Forward signal to final destination
    * Truncate last word since that was used to hold the final dest.
    */
   sendSignal(recBlockref, GSN_TRANSID_AI,
-	     signal, sigLen - 1, JBB);
+	     signal, sigLen - 1, JBB,
+	     &handle);
 }
 
 void Dbtc::execKEYINFO20_R(Signal* signal){
@@ -12566,13 +12569,16 @@ void Dbtc::execKEYINFO20_R(Signal* signal){
   Uint32 recBlockref = keyInfo->keyData[dataLen];
 
   jamEntry();
+
+  SectionHandle handle(this, signal);
   
   /**
    * Forward signal to final destination
    * Truncate last word since that was used to hold the final dest.
    */
   sendSignal(recBlockref, GSN_KEYINFO20,
-	     signal, sigLen - 1, JBB);
+	     signal, sigLen - 1, JBB,
+	     &handle);
 }
 
 
@@ -13979,6 +13985,8 @@ Dbtc::execROUTE_ORD(Signal* signal)
     return;
   }
 
+  SectionHandle handle(this, signal);
+
   RouteOrd* ord = (RouteOrd*)signal->getDataPtr();
   Uint32 dstRef = ord->dstRef;
   Uint32 srcRef = ord->srcRef;
@@ -13987,38 +13995,33 @@ Dbtc::execROUTE_ORD(Signal* signal)
   if (likely(getNodeInfo(refToNode(dstRef)).m_connected))
   {
     jam();
-    Uint32 secCount = signal->getNoOfSections();
-    SegmentedSectionPtr ptr[3];
+    Uint32 secCount = handle.m_cnt;
     ndbrequire(secCount >= 1 && secCount <= 3);
 
     jamLine(secCount);
-    for (Uint32 i = 0; i<secCount; i++)
-      signal->getSection(ptr[i], i);
 
     /**
      * Put section 0 in signal->theData
      */
-    ndbrequire(ptr[0].sz <= 25);
-    copy(signal->theData, ptr[0]);
+    Uint32 sigLen = handle.m_ptr[0].sz;
+    ndbrequire(sigLen <= 25);
+    copy(signal->theData, handle.m_ptr[0]);
 
-    signal->header.m_noOfSections = 0;
-    
-    /**
-     * Shift rest of sections
-     */
-    for(Uint32 i = 1; i<secCount; i++)
-    {
-      signal->setSection(ptr[i], i - 1);
-    }
+    SegmentedSectionPtr save = handle.m_ptr[0];
+    for (Uint32 i = 0; i < secCount - 1; i++)
+      handle.m_ptr[i] = handle.m_ptr[i+1];
+    handle.m_cnt--;
 
-    sendSignal(dstRef, gsn, signal, ptr[0].sz, JBB);
+    sendSignal(dstRef, gsn, signal, sigLen, JBB, &handle);
 
-    signal->header.m_noOfSections = 0;
-    signal->setSection(ptr[0], 0);
-    releaseSections(signal);
+    handle.m_cnt = 1;
+    handle.m_ptr[0] = save;
+    releaseSections(handle);
     return ;
   }
 
+  releaseSections(handle);
   warningEvent("Unable to route GSN: %d from %x to %x",
 	       gsn, srcRef, dstRef);
+
 }

@@ -5171,6 +5171,7 @@ Qmgr::execAPI_BROADCAST_REP(Signal* signal)
   jamEntry();
   ApiBroadcastRep api= *(const ApiBroadcastRep*)signal->getDataPtr();
 
+  SectionHandle handle(this, signal);
   Uint32 len = signal->getLength() - ApiBroadcastRep::SignalLength;
   memmove(signal->theData, signal->theData+ApiBroadcastRep::SignalLength, 
 	  4*len);
@@ -5189,7 +5190,8 @@ Qmgr::execAPI_BROADCAST_REP(Signal* signal)
   }
   
   NodeReceiverGroup rg(API_CLUSTERMGR, mask);
-  sendSignal(rg, api.gsn, signal, len, JBB); // forward sections
+  sendSignal(rg, api.gsn, signal, len, JBB,
+	     &handle);
 }
 
 void

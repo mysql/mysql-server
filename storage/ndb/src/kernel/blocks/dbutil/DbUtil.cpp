@@ -820,7 +820,6 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   if(signal->getNoOfSections() == 0) {
     // Missing prepare data
     jam();
-    releaseSections(signal);
     sendUtilPrepareRef(signal, UtilPrepareRef::MISSING_PROPERTIES_SECTION,
 		       senderRef, senderData);
     return;
@@ -828,21 +827,22 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
 
   PreparePtr prepPtr;
   SegmentedSectionPtr ptr;
+  SectionHandle handle(this, signal);
   
   jam();
   if(!c_runningPrepares.seize(prepPtr)) {
     jam();
-    releaseSections(signal);
+    releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_SEIZE_ERROR,
 		       senderRef, senderData);
     return;
   };
-  signal->getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION);
+  handle.getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION);
   const Uint32 noPages  = (ptr.sz + sizeof(Page32)) / sizeof(Page32);
   ndbassert(noPages > 0);
   if (!prepPtr.p->preparePages.seize(noPages)) {
     jam();
-    releaseSections(signal);
+    releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_PAGES_SEIZE_ERROR,
 		       senderRef, senderData);
     c_preparePool.release(prepPtr);
@@ -853,13 +853,12 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   copy(target, ptr);
   prepPtr.p->prepDataLen = ptr.sz;
   // Release long signal sections
-  releaseSections(signal);
+  releaseSections(handle);
   // Check table properties with DICT
   SimplePropertiesSectionReader reader(ptr, getSectionSegmentPool());
   prepPtr.p->clientRef = senderRef;
   prepPtr.p->clientData = senderData;
   // Release long signal sections
-  releaseSections(signal);
   readPrepareProps(signal, &reader, prepPtr.i);
 }
 
@@ -946,13 +945,15 @@ DbUtil::execGET_TABINFO_CONF(Signal* signal){
   const Uint32  prepI    = conf->senderData;
   const Uint32  totalLen = conf->totalLen;
   
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr dictTabInfoPtr;
-  signal->getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
+  handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(dictTabInfoPtr.sz == totalLen);
   
   PreparePtr prepPtr;
   c_runningPrepares.getPtr(prepPtr, prepI);
-  prepareOperation(signal, prepPtr);
+  prepareOperation(signal, prepPtr, dictTabInfoPtr);
+  releaseSections(handle);
 }
 
 void
@@ -1009,7 +1010,9 @@ DbUtil::execGET_TABINFOREF(Signal* signal){
  *    - if (isPK) then assign offset
  ******************************************************************************/
 void
-DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr) 
+DbUtil::prepareOperation(Signal* signal,
+			 PreparePtr prepPtr,
+			 SegmentedSectionPtr ptr)
 {
   jam();
   
@@ -1019,7 +1022,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
   PreparedOperationPtr prepOpPtr;  
   if(!c_preparedOperationPool.seize(prepOpPtr)) {
     jam();
-    releaseSections(signal);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR,
 		       prepPtr.p->clientRef, prepPtr.p->clientData);
     releasePrepare(prepPtr);
@@ -1119,10 +1121,7 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
      * Copy DictTabInfo into tableDesc struct
      *****************************************/
       
-    SegmentedSectionPtr ptr;
-    signal->getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
     SimplePropertiesSectionReader dictInfoReader(ptr, getSectionSegmentPool());
-
     SimpleProperties::UnpackStatus unpackStatus;
     unpackStatus = SimpleProperties::unpack(dictInfoReader, &tableDesc, 
 					    DictTabInfo::TableMapping, 
@@ -1184,7 +1183,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
      **********************/
     if (!attributeFound) {
       jam(); 
-      releaseSections(signal);
       sendUtilPrepareRef(signal, 
 			 UtilPrepareRef::DICT_TAB_INFO_ERROR,
 			 prepPtr.p->clientRef, prepPtr.p->clientData);
@@ -1215,7 +1213,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
        ***********************************************************/
       if (noOfPKAttribsStored != tableDesc.NoOfKeyAttr) {
 	jam(); 
-	releaseSections(signal);
 	sendUtilPrepareRef(signal, 
 			   UtilPrepareRef::DICT_TAB_INFO_ERROR,
 			   prepPtr.p->clientRef, prepPtr.p->clientData);
@@ -1276,7 +1273,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
    ***************************/
   if (noOfPKAttribsStored != tableDesc.NoOfKeyAttr) {
     jam(); 
-    releaseSections(signal);
     sendUtilPrepareRef(signal, 
 		       UtilPrepareRef::DICT_TAB_INFO_ERROR,
 		       prepPtr.p->clientRef, prepPtr.p->clientData);
@@ -1363,7 +1359,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
   conf->senderData = prepPtr.p->clientData;
   conf->prepareId = prepPtr.p->prepOpPtr.i;
 
-  releaseSections(signal);
   sendSignal(prepPtr.p->clientRef, GSN_UTIL_PREPARE_CONF, signal, 
 	     UtilPrepareConf::SignalLength, JBB);
 
@@ -1757,7 +1752,6 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   if(signal->getNoOfSections() == 0) {
     // Missing prepare data
     jam();
-    releaseSections(signal);
     sendUtilExecuteRef(signal, UtilExecuteRef::MissingDataSection, 
 		       0, clientRef, clientData);
     return;
@@ -1772,11 +1766,12 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
 
   TransactionPtr  transPtr;
   OperationPtr    opPtr;
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr headerPtr, dataPtr;
 
-  signal->getSection(headerPtr, UtilExecuteReq::HEADER_SECTION);
+  handle.getSection(headerPtr, UtilExecuteReq::HEADER_SECTION);
   SectionReader headerReader(headerPtr, getSectionSegmentPool());
-  signal->getSection(dataPtr, UtilExecuteReq::DATA_SECTION);
+  handle.getSection(dataPtr, UtilExecuteReq::DATA_SECTION);
   SectionReader dataReader(dataPtr, getSectionSegmentPool());
 
 #if 0 //def EVENT_DEBUG
@@ -1864,7 +1859,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
     if (!res) {
       // Failed to allocate buffer data
       jam();
-      releaseSections(signal);
+      releaseSections(handle);
       sendUtilExecuteRef(signal, UtilExecuteRef::AllocationError, 
 			 0, clientRef, clientData);
       releaseTransaction(transPtr);    
@@ -1874,7 +1869,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   if (!dataComplete) {
     // Missing data in data section
     jam();
-    releaseSections(signal);
+    releaseSections(handle);
     sendUtilExecuteRef(signal, UtilExecuteRef::MissingData, 
 		       0, clientRef, clientData);
     releaseTransaction(transPtr);    
@@ -1900,7 +1895,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   }
 #endif
 
-  releaseSections(signal);
+  releaseSections(handle);
   transPtr.p->noOfRetries = 3;
   runTransaction(signal, transPtr);
 }

@@ -117,7 +117,6 @@ FastScheduler::doJob()
 	b->m_currentGsn = reg_gsn;
 #endif
 	
-	getSections(signal->header.m_noOfSections, signal->m_sectionPtr);
 #ifdef VM_TRACE
         {
           if (globalData.testOn) {
@@ -127,15 +126,11 @@ FastScheduler::doJob()
             globalSignalLoggers.executeSignal(signal->header,
 					      tHighPrio,
 					      &signal->theData[0], 
-					      globalData.ownId,
-                                              signal->m_sectionPtr,
-                                              signal->header.m_noOfSections);
+					      globalData.ownId);
           }//if
         }
 #endif
         b->executeFunction(reg_gsn, signal);
-	releaseSections(signal->header.m_noOfSections, signal->m_sectionPtr);
-	signal->header.m_noOfSections = 0;
 #ifdef VM_TRACE_TIME
 	NdbTick_CurrentMicrosecond(&ms2, &us2);
 	Uint64 diff = ms2;
@@ -241,20 +236,16 @@ APZJobBuffer::retrieve(Signal* signal)
         tSigDataPtr[3] = tData3;
         tSigDataPtr += 4;
       }//while
+      
+      tSigDataPtr = signal->m_sectionPtrI;
+      tDataRegPtr = buf.theDataRegister + buf.header.theLength;
+      Uint32 ptr0 = * tDataRegPtr ++;
+      Uint32 ptr1 = * tDataRegPtr ++;
+      Uint32 ptr2 = * tDataRegPtr ++;
+      * tSigDataPtr ++ = ptr0;
+      * tSigDataPtr ++ = ptr1;
+      * tSigDataPtr ++ = ptr2;
 
-      /**
-       * Copy sections references (copy all without if-statements)
-       */
-      tDataRegPtr = &buf.theDataRegister[tLength];
-      SegmentedSectionPtr * tSecPtr = &signal->m_sectionPtr[0];
-      Uint32 tData0 = tDataRegPtr[0];
-      Uint32 tData1 = tDataRegPtr[1];
-      Uint32 tData2 = tDataRegPtr[2];
-      
-      tSecPtr[0].i = tData0;
-      tSecPtr[1].i = tData1;
-      tSecPtr[2].i = tData2;
-      
       //---------------------------------------------------------
       // Prefetch of buffer[rPtr] is done here. We prefetch for
       // read both the first cache line and the next 64 byte
@@ -282,7 +273,7 @@ APZJobBuffer::signal2buffer(Signal* signal,
 {
   Uint32 tSignalId = globalData.theSignalId;
   Uint32 tFirstData = signal->theData[0];
-  Uint32 tLength = signal->header.theLength;
+  Uint32 tLength = signal->header.theLength + signal->header.m_noOfSections;
   Uint32 tSigId  = buf.header.theSignalId;
   
   buf.header = signal->header;
@@ -310,18 +301,6 @@ APZJobBuffer::signal2buffer(Signal* signal,
     tDataRegPtr[3] = tData3;
     tDataRegPtr += 4;
   }//while
-
-  /**
-   * Copy sections references (copy all without if-statements)
-   */
-  tDataRegPtr = &buf.theDataRegister[tLength];
-  SegmentedSectionPtr * tSecPtr = &signal->m_sectionPtr[0];
-  Uint32 tData0 = tSecPtr[0].i;
-  Uint32 tData1 = tSecPtr[1].i;
-  Uint32 tData2 = tSecPtr[2].i;
-  tDataRegPtr[0] = tData0;
-  tDataRegPtr[1] = tData1;
-  tDataRegPtr[2] = tData2;
 }//APZJobBuffer::signal2buffer()
 
 void

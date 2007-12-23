@@ -272,7 +272,7 @@ private:
   
   void cut_log_tail(Signal*, Ptr<Logfile_group> ptr);
   void endlcp_callback(Signal*, Uint32, Uint32);
-  void open_file(Signal*, Ptr<Undofile>, Uint32 requestInfo);
+  void open_file(Signal*, Ptr<Undofile>, Uint32, SectionHandle*);
 
   void flush_log(Signal*, Ptr<Logfile_group>, Uint32 force);
   Uint32 write_log_pages(Signal*, Ptr<Logfile_group>, 
