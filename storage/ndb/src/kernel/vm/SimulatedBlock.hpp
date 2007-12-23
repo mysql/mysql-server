@@ -97,6 +97,7 @@ class SimulatedBlock {
   friend class Lgman;
   friend class Logfile_client;
   friend struct Pool_context;
+  friend struct SectionHandle;
   friend class LockQueue;
 public:
   friend class BlockComponent;
@@ -159,6 +160,20 @@ protected:
                   Signal* signal, 
 		  Uint32 length, 
 		  JobBufferLevel jbuf,
+		  SectionHandle* sections) const;
+
+  void sendSignal(NodeReceiverGroup rg,
+		  GlobalSignalNumber gsn,
+                  Signal* signal,
+		  Uint32 length,
+		  JobBufferLevel jbuf,
+		  SectionHandle* sections) const;
+
+  void sendSignal(BlockReference ref,
+		  GlobalSignalNumber gsn,
+                  Signal* signal,
+		  Uint32 length,
+		  JobBufferLevel jbuf,
 		  LinearSectionPtr ptr[3],
 		  Uint32 noOfSections) const ;
   
@@ -179,13 +194,24 @@ protected:
                            Uint32 delayInMilliSeconds, 
 			   Uint32 length) const ;
 
+  void sendSignalWithDelay(BlockReference ref,
+			   GlobalSignalNumber gsn,
+                           Signal* signal,
+                           Uint32 delayInMilliSeconds,
+			   Uint32 length,
+			   SectionHandle* sections) const;
+
   void EXECUTE_DIRECT(Uint32 block, 
 		      Uint32 gsn, 
 		      Signal* signal, 
 		      Uint32 len);
   
   class SectionSegmentPool& getSectionSegmentPool();
-  void releaseSections(Signal* signal);
+  void releaseSections(struct SectionHandle&);
+
+  void handle_invalid_sections_in_send_signal(Signal*) const;
+  void handle_lingering_sections_after_execute(Signal*) const;
+  void handle_lingering_sections_after_execute(SectionHandle*) const;
 
   /**********************************************************
    * Fragmented signals
@@ -204,6 +230,7 @@ protected:
 			    Signal* signal, 
 			    Uint32 length, 
 			    JobBufferLevel jbuf,
+			    SectionHandle * sections,
 			    Callback & = TheEmptyCallback,
 			    Uint32 messageSize = 240);
 
@@ -212,6 +239,7 @@ protected:
 			    Signal* signal, 
 			    Uint32 length, 
 			    JobBufferLevel jbuf,
+			    SectionHandle * sections,
 			    Callback & = TheEmptyCallback,
 			    Uint32 messageSize = 240);
 
@@ -222,7 +250,7 @@ protected:
 			    JobBufferLevel jbuf,
 			    LinearSectionPtr ptr[3],
 			    Uint32 noOfSections,
-			    Callback &,
+			    Callback & = TheEmptyCallback,
 			    Uint32 messageSize = 240);
 
   void sendFragmentedSignal(NodeReceiverGroup rg, 
@@ -232,7 +260,7 @@ protected:
 			    JobBufferLevel jbuf,
 			    LinearSectionPtr ptr[3],
 			    Uint32 noOfSections,
-			    Callback &,
+			    Callback & = TheEmptyCallback,
 			    Uint32 messageSize = 240);
 
   /**********************************************************
@@ -275,7 +303,7 @@ protected:
     };
     Uint8  m_status;
     Uint8  m_prio;
-    Uint16  m_fragInfo;
+    Uint16 m_fragInfo;
     Uint16 m_gsn;
     Uint16 m_messageSize; // Size of each fragment
     Uint32 m_fragmentId;
@@ -304,8 +332,7 @@ protected:
 			 Signal* signal, 
 			 Uint32 length, 
 			 JobBufferLevel jbuf,
-			 LinearSectionPtr ptr[3],
-			 Uint32 noOfSections,
+			 SectionHandle * sections,
 			 Uint32 messageSize = 240);
   
   bool sendFirstFragment(FragmentSendInfo & info,
@@ -314,6 +341,8 @@ protected:
 			 Signal* signal, 
 			 Uint32 length, 
 			 JobBufferLevel jbuf,
+			 LinearSectionPtr ptr[3],
+			 Uint32 noOfSections,
 			 Uint32 messageSize = 240);
   
   /**
@@ -580,6 +609,11 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn, Signal* signal){
     clear_global_variables();
 #endif
     (this->*f)(signal);
+
+    if (unlikely(signal->header.m_noOfSections))
+    {
+      handle_lingering_sections_after_execute(signal);
+    }
     return;
   }
 
@@ -819,6 +853,15 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 }
 
 #include "Mutex.hpp"
+
+inline
+SectionHandle::~SectionHandle()
+{
+  if (unlikely(m_cnt))
+  {
+    m_block->handle_lingering_sections_after_execute(this);
+  }
+}
 
 #endif
 

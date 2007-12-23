@@ -2284,10 +2284,12 @@ private:
   void dropEvent_sendReply(Signal* signal,
 			   OpDropEventPtr evntRecPtr);
 
-  void createEvent_RT_USER_CREATE(Signal* signal, OpCreateEventPtr evntRecPtr);
+  void createEvent_RT_USER_CREATE(Signal* signal,
+				  OpCreateEventPtr evntRecPtr,
+				  SectionHandle& handle);
   void createEventComplete_RT_USER_CREATE(Signal* signal,
 					  OpCreateEventPtr evntRecPtr);
-  void createEvent_RT_USER_GET(Signal* signal, OpCreateEventPtr evntRecPtr);
+  void createEvent_RT_USER_GET(Signal*, OpCreateEventPtr, SectionHandle&);
   void createEventComplete_RT_USER_GET(Signal* signal, OpCreateEventPtr evntRecPtr);
 
   void createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPtr);

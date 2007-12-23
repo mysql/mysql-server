@@ -6979,12 +6979,11 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     Uint16 fragments[2 + MAX_FRAG_PER_NODE*MAX_REPLICAS*MAX_NDB_NODES];
     Uint32 align;
   };
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr fragDataPtr;
-  LINT_INIT(fragDataPtr.i);
-  LINT_INIT(fragDataPtr.sz);
-  signal->getSection(fragDataPtr, DiAddTabReq::FRAGMENTATION);
+  ndbrequire(handle.getSection(fragDataPtr, DiAddTabReq::FRAGMENTATION));
   copy((Uint32*)fragments, fragDataPtr);
-  releaseSections(signal);
+  releaseSections(handle);
   
   const Uint32 noReplicas = fragments[0];
   const Uint32 noFragments = fragments[1];

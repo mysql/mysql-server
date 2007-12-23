@@ -279,14 +279,10 @@ APZJobBuffer::retrieve(Signal* signal, Uint32 myRptr)
   
   Uint32 *from = (Uint32*) &buf.theDataRegister[0];
   Uint32 *to   = (Uint32*) &signal->theData[0];
-  Uint32 noOfWords = buf.header.theLength;
+  Uint32 noOfWords = buf.header.theLength + buf.header.m_noOfSections;
   for(; noOfWords; noOfWords--)
     *to++ = *from++;
   // Copy sections references (copy all without if-statements)
-  SegmentedSectionPtr * tSecPtr = &signal->m_sectionPtr[0];
-  tSecPtr[0].i = from[0];
-  tSecPtr[1].i = from[1];
-  tSecPtr[2].i = from[2];
   return;
 }
 

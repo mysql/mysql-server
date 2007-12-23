@@ -56,6 +56,11 @@ public:
   /**
    * For input signals
    */
+  void executeSignal(const SignalHeader& sh, Uint8 prio,
+		     const Uint32 * theData, Uint32 node) {
+    executeSignal(sh, prio, theData, node, (LinearSectionPtr*)0, 0);
+  }
+
   void executeSignal(const SignalHeader&, Uint8 prio,
                      const Uint32 * theData, Uint32 node,
                      const SegmentedSectionPtr ptr[3], Uint32 secs);
@@ -67,7 +72,12 @@ public:
   /**
    * For output signals
    */
-  void sendSignal(const SignalHeader&, Uint8 prio, 
+  void sendSignal(const SignalHeader& sh, Uint8 prio,
+		  const Uint32 * theData, Uint32 node) {
+    sendSignal(sh, prio, theData, node, (LinearSectionPtr*)0, 0);
+  }
+
+  void sendSignal(const SignalHeader&, Uint8 prio,
 		  const Uint32 * theData, Uint32 node,
                   const SegmentedSectionPtr ptr[3], Uint32 secs);
 
@@ -79,7 +89,14 @@ public:
    * For output signals
    */
   void sendSignalWithDelay(Uint32 delayInMilliSeconds, 
-			   const SignalHeader&, 
+			   const SignalHeader& sh,
+			   Uint8 prio, const Uint32 * data, Uint32 node){
+    sendSignalWithDelay(delayInMilliSeconds, sh, prio, data, node,
+			(SegmentedSectionPtr*)0, 0);
+  }
+
+  void sendSignalWithDelay(Uint32 delayInMilliSeconds,
+			   const SignalHeader&,
 			   Uint8 prio, const Uint32 * data, Uint32 node,
                            const SegmentedSectionPtr ptr[3], Uint32 secs);
   

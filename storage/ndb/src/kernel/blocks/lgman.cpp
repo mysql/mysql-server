@@ -488,6 +488,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
   
   Ptr<Logfile_group> ptr;
   CreateFileImplRef::ErrorCode err = CreateFileImplRef::NoError;
+  SectionHandle handle(this, signal);
   do {
     if (!m_logfile_group_hash.find(ptr, req->filegroup_id))
     {
@@ -546,16 +547,22 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
       err = CreateFileImplRef::OutOfFileRecords;
       break;
     }
+
+    if (!handle.m_cnt == 1)
+    {
+      ndbrequire(false);
+    }
     
     new (file_ptr.p) Undofile(req, ptr.i);
 
     Local_undofile_list tmp(m_file_pool, ptr.p->m_meta_files);
     tmp.add(file_ptr);
     
-    open_file(signal, file_ptr, req->requestInfo);
+    open_file(signal, file_ptr, req->requestInfo, &handle);
     return;
   } while(0);
   
+  releaseSections(handle);
   CreateFileImplRef* ref= (CreateFileImplRef*)signal->getDataPtr();
   ref->senderData = senderData;
   ref->senderRef = reference();
@@ -565,7 +572,9 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
 }
 
 void
-Lgman::open_file(Signal* signal, Ptr<Undofile> ptr, Uint32 requestInfo)
+Lgman::open_file(Signal* signal, Ptr<Undofile> ptr,
+		 Uint32 requestInfo,
+		 SectionHandle * handle)
 {
   FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
   req->userReference = reference();
@@ -602,8 +611,8 @@ Lgman::open_file(Signal* signal, Ptr<Undofile> ptr, Uint32 requestInfo)
   req->file_size_hi = size >> 32;
   req->file_size_lo = size & 0xFFFFFFFF;
 
-  // Forward filename
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB);
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB,
+	     handle);
 }
 
 void
@@ -3137,10 +3146,11 @@ void Lgman::execGET_TABINFOREQ(Signal* signal)
   Uint32 senderData= req->senderData;
   Uint32 tableId= req->tableId;
 
-  if(reqType == GetTabInfoReq::RequestByName){
+  if(reqType == GetTabInfoReq::RequestByName)
+  {
     jam();
-    if(signal->getNoOfSections())
-      releaseSections(signal);
+    SectionHandle handle(this, signal);
+    releaseSections(handle);
 
     sendGET_TABINFOREF(signal, req, GetTabInfoRef::NoFetchByName);
     return;
@@ -3154,8 +3164,6 @@ void Lgman::execGET_TABINFOREQ(Signal* signal)
   if(ptr.p->m_logfile_group_id != tableId)
   {
     jam();
-    if(signal->getNoOfSections())
-      releaseSections(signal);
 
     sendGET_TABINFOREF(signal, req, GetTabInfoRef::InvalidTableId);
     return;
