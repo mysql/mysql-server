@@ -100,7 +100,7 @@ class Db {
     int cursor(DbTxn */*txnid*/, Dbc **/*cursorp*/, u_int32_t /*flags*/);
     int del(DbTxn */*txnid*/, Dbt */*key*/, u_int32_t /*flags*/);
     int get(DbTxn */*txnid*/, Dbt */*key*/, Dbt */*data*/, u_int32_t /*flags*/);
-    int open(DbTxn */*txnid*/, const char */*name*/, const char */*subname*/, DBTYPE, u_int32_t, int);
+    int open(DbTxn */*txnid*/, const char */*name*/, const char */*subname*/, DBTYPE, u_int32_t/*flags*/, int/*mode*/);
     int put(DbTxn *, Dbt *, Dbt *, u_int32_t);
     int get_flags(u_int32_t *);
     int set_flags(u_int32_t);
@@ -175,4 +175,7 @@ class Dbc : protected DBC
  public:
     int close(void);
     int get(Dbt*, Dbt *, u_int32_t);
+ private:
+    Dbc();  // User may not call it.
+    ~Dbc(); // User may not delete it.
 };

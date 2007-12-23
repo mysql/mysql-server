@@ -13,7 +13,7 @@ Db::Db(DbEnv *env, u_int32_t flags)
     is_private_env = (the_Env == 0);
 
     DB *tmp_db;
-    int ret = db_create(&tmp_db, the_Env->get_DB_ENV(), flags & !(DB_CXX_NO_EXCEPTIONS));
+    int ret = db_create(&tmp_db, the_Env->get_DB_ENV(), flags & ~(DB_CXX_NO_EXCEPTIONS));
     if (ret!=0) {
 	the_Env->maybe_throw_error(ret);
 	// Otherwise cannot do much

@@ -14,3 +14,9 @@ int Dbc::get(Dbt* key, Dbt *data, u_int32_t flags) {
     DbEnv *env = (DbEnv*)dbenv_c->api1_internal;
     return env->maybe_throw_error(ret);
 }
+
+// Not callable, but some compilers require it to be defined anyway.
+Dbc::~Dbc()
+{
+}
+
