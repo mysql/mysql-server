@@ -891,6 +891,7 @@ static int toku_c_close(DBC * c) {
 static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
     unsigned int brtflags;
+    if (flags!=0 && flags!=DB_GET_BOTH) return EINVAL;
     
     toku_brt_get_flags(db->i->brt, &brtflags);
     if ((brtflags & TOKU_DB_DUPSORT) || flags == DB_GET_BOTH) {
@@ -913,6 +914,7 @@ static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
 
 static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
     int r;
+    if (flags!=0 && flags!=DB_DELETE_ANY) return EINVAL;
     //DB_DELETE_ANY supresses the BDB DB->del return value indicating that the key was not found prior to the delete
     if (!(flags & DB_DELETE_ANY)) {
         DBT search_val; memset(&search_val, 0, sizeof search_val); 

@@ -29,3 +29,4 @@ check: $(TARGETS)
 	diff foo.out foo.expectout
 	$(VGRIND) ./db_dump_e foo.db > foo.out
 	diff foo.out foo.expectout
+	$(VGRIND) ./exceptions
