@@ -220,7 +220,7 @@ void close_databases (void) {
     
 
 void gettod (struct timestamp *ts) {
-    int counter;
+    static int counter=0;
     ts->tv_sec=0;
     ts->tv_usec=counter++;
 }
