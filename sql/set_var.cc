@@ -1186,6 +1186,7 @@ static void fix_trans_mem_root(THD *thd, enum_var_type type)
 static void fix_server_id(THD *thd, enum_var_type type)
 {
   server_id_supplied = 1;
+  thd->server_id= server_id;
 }
 
 
