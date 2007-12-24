@@ -23,6 +23,7 @@ clean:
 check: $(TARGETS)
 	$(VGRIND) ./test1
 	$(VGRIND) ./test1e
+	rm foo.db
 	$(VGRIND) ./db_create foo.db a b c d
 	$(VGRIND) ./db_dump foo.db > foo.out
 	(echo " 61";echo " 62";echo " 63";echo " 64")>foo.expectout
