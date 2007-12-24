@@ -1,0 +1,424 @@
+#!/usr/bin/perl -w
+#
+# Run various unit tests.
+#
+
+my $maria_path= $ENV{'maria_path'};
+
+run_tests();
+
+####
+#### Initialise variables, clean temporary files and run the tests
+####
+
+sub run_tests
+{
+  my $valgrind_opt= "valgrind --alignment=8 --leak-check=yes";
+  my $silent_opt= "-s";
+  my $suffix= "";
+  my $nr_tests= 0;
+
+  #
+  # initialisations and previous run clean-ups
+  #
+
+  $maria_path= "." if (!defined($maria_path) || !length($maria_path));
+  unlink <*.TMD maria_log*>;        # Delete temporary files
+
+  #
+  # IMPORTANT: If you modify this file, please read this:
+  #
+  # Count total number of tests. Make sure that the functions return
+  # number of unit tests correctly, e.g. calls to ok(). The last argument
+  # for each function is a flag counter and will return the number of
+  # unit tests in each. Please see comments on function ok() at the end.
+  #
+  # If you modify any functions or add any new ones, please make sure the
+  # unit tests are appropriately detected here. A wrong count will
+  # make the unit test fail during 'make test'. $nr_tests must be right.
+  #
+
+  $nr_tests+= run_check_tests(0, 0, 0, 0, 1) * 4; #
+  $nr_tests+= run_repair_tests(0, 0, 0, 0, 1) * 4; # called 4 times
+  $nr_tests+= run_pack_tests(0, 0, 0, 0, 1) * 4; #
+  $nr_tests+= run_tests_on_warnings_and_errors(0, 0, 0, 1);
+  $nr_tests+= run_ma_test_recovery(0, 1);
+  $nr_tests+= run_tests_on_clrs(0, 1);
+
+  #
+  # Run tests
+  #
+
+  print "1..$nr_tests\n";
+
+  print "Running tests with dynamic row format\n";
+  run_check_tests($suffix, $silent_opt, "", 0, 0);
+  run_repair_tests($suffix, $silent_opt, "", 0, 0);
+  run_pack_tests($suffix, $silent_opt, "", 0, 0);
+
+  print "Running tests with static row format\n";
+  run_check_tests($suffix, $silent_opt, "-S", 0, 0);
+  run_repair_tests($suffix, $silent_opt, "-S", 0, 0);
+  run_pack_tests($suffix, $silent_opt, "-S", 0, 0);
+
+  print "Running tests with block row format\n";
+  run_check_tests($suffix, $silent_opt, "-M", 0, 0);
+  run_repair_tests($suffix, $silent_opt, "-M", 0, 0);
+  run_pack_tests($suffix, $silent_opt, "-M", 0, 0);
+
+  print "Running tests with block row format and transactions\n";
+  run_check_tests($suffix, $silent_opt, "-M -T", 0, 0);
+  run_repair_tests($suffix, $silent_opt, "-M -T", 0, 0);
+  run_pack_tests($suffix, $silent_opt, "-M -T", 0, 0);
+
+  run_tests_on_warnings_and_errors($suffix, $silent_opt, 0, 0);
+  run_ma_test_recovery(0, 0);
+  run_tests_on_clrs(0, 0);
+
+  return;
+}
+
+####
+#### regular tests
+####
+
+sub run_check_tests
+{
+  my ($suffix, $silent, $row_type, $verbose, $count)= @_;
+  my ($i, $nr_tests);
+  my @ma_test1_opt= ( ["","-se"],
+                      ["-N","-se"],
+                      ["-P --checksum","-se"],
+                      ["-P -N","-se"],
+                      ["-B -N -R2","-sm"],
+                      ["-a -k 480 --unique","-sm"],
+                      ["-a -N -R1 ","-sm"],
+                      ["-p","-sm"],
+                      ["-p -N --unique","-sm"],
+                      ["-p -N --key_length=127 --checksum","-sm"],
+                      ["-p -N --key_length=128","-sm"],
+                      ["-p --key_length=480","-sm"],
+                      ["-a -B","-sm"],
+                      ["-a -B --key_length=64 --unique","-sm"],
+                      ["-a -B -k 480 --checksum","-sm"],
+                      ["-a -B -k 480 -N --unique --checksum","-sm"],
+                      ["-a -m","-sm"],
+                      ["-a -m -P --unique --checksum","-sm"],
+                      ["-a -m -P --key_length=480 --key_cache","-sm"],
+                      ["-m -p","-sm"],
+                      ["-w --unique","-sm"],
+                      ["-a -w --key_length=64 --checksum","-sm"],
+                      ["-a -w -N --key_length=480","-sm"],
+                      ["-a -w --key_length=480 --checksum","-sm"],
+                      ["-a -b -N","-sm"],
+                      ["-a -b --key_length=480","-sm"],
+                      ["-p -B --key_length=480","-sm"],
+                      ["--checksum --unique","-se"],
+                      ["--unique","-se"],
+                      ["--key_multiple -N -S","-sm"],
+                      ["--key_multiple -a -p --key_length=480","-sm"],
+                      ["--key_multiple -a -B --key_length=480","-sm"],
+                      ["--key_multiple -P -S","-sm"] );
+  my @ma_test2_opt= ( ["-L -K -W -P","-sm"],
+                      ["-L -K -W -P -A","-sm"],
+                      ["-L -K -P -R3 -m50 -b1000000","-sm"],
+                      ["-L -B","-sm"],
+                      ["-D -B -c","-sm"],
+                      ["-m10000 -e4096 -K","-sm"],
+                      ["-m10000 -e8192 -K","-sm"],
+                      ["-m10000 -e16384 -E16384 -K -L","-sm"],
+                      ["-c -b65000","-se"] );
+
+  if ($count)
+  {
+    $nr_tests= 2;                # Number of tests outside loops
+    for ($i= 0; defined($ma_test1_opt[$i]); $i++) { $nr_tests+=2; }
+    for ($i= 0; defined($ma_test2_opt[$i]); $i++) { $nr_tests+=2; }
+    return $nr_tests;
+  }
+
+  for ($i= 0; defined($ma_test1_opt[$i]); $i++)
+  {
+    unlink <maria_log_control maria_log.*>;
+    ok("$maria_path/ma_test1$suffix $silent $ma_test1_opt[$i][0] $row_type",
+       $verbose, $i + 1);
+    ok("$maria_path/maria_chk$suffix $ma_test1_opt[$i][1] test1",
+       $verbose, $i + 1);
+  }
+  #
+  # These tests are outside the loops. Make sure to include them in
+  # nr_tests manually
+  #
+  ok("$maria_path/maria_pack$suffix --force -s test1", $verbose, 0);
+  ok("$maria_path/maria_chk$suffix -ess test1", $verbose, 0);
+
+  for ($i= 0; defined($ma_test2_opt[$i]); $i++)
+  {
+    unlink <maria_log_control maria_log.*>;
+    ok("$maria_path/ma_test2$suffix $silent $ma_test2_opt[$i][0] $row_type",
+       $verbose, $i + 1);
+    ok("$maria_path/maria_chk$suffix $ma_test2_opt[$i][1] test2",
+       $verbose, $i + 1);
+  }
+  unlink <rm -f maria_log_control maria_log.*>;
+
+  return 0;
+}
+
+####
+#### repair tests
+####
+
+sub run_repair_tests()
+{
+  my ($suffix, $silent, $row_type, $verbose, $count)= @_;
+  my ($i, $nr_tests);
+  my @t1= ("$maria_path/ma_test1$suffix $silent --checksum $row_type",
+           "$maria_path/maria_chk$suffix -se test1",
+           "$maria_path/maria_chk$suffix --silent -re --transaction-log test1",
+           "$maria_path/maria_chk$suffix -rs test1",
+           "$maria_path/maria_chk$suffix -se test1",
+           "$maria_path/maria_chk$suffix -rqs test1",
+           "$maria_path/maria_chk$suffix -se test1",
+           "$maria_path/maria_chk$suffix -rs --correct-checksum test1",
+           "$maria_path/maria_chk$suffix -se test1",
+           "$maria_path/maria_chk$suffix -rqs --correct-checksum test1",
+           "$maria_path/maria_chk$suffix -se test1",
+           "$maria_path/maria_chk$suffix -ros --correct-checksum test1",
+           "$maria_path/maria_chk$suffix -se test1",
+           "$maria_path/maria_chk$suffix -rqos --correct-checksum test1",
+           "$maria_path/maria_chk$suffix -se test1",
+           "$maria_path/ma_test2$suffix $silent -c -d1 $row_type",
+           "$maria_path/maria_chk$suffix -s --parallel-recover test2",
+           "$maria_path/maria_chk$suffix -se test2",
+           "$maria_path/maria_chk$suffix -s --parallel-recover --quick test2",
+           "$maria_path/maria_chk$suffix -se test2",
+           "$maria_path/ma_test2$suffix $silent -c $row_type",
+           "$maria_path/maria_chk$suffix -se test2",
+           "$maria_path/maria_chk$suffix -sr test2",
+           "$maria_path/maria_chk$suffix -se test2"
+          );
+
+  if ($count)
+  {
+    $nr_tests= 0;
+    for ($i= 0; defined($t1[$i]); $i++) { $nr_tests++; }
+    return $nr_tests;
+  }
+  for ($i= 0; defined($t1[$i]); $i++)
+  {
+    ok($t1[$i], $verbose, $i + 1);
+  }
+  return 0;
+}
+
+####
+#### pack tests
+####
+
+sub run_pack_tests()
+{
+  my ($suffix, $silent, $row_type, $verbose, $count)= @_;
+  my ($i, $nr_tests);
+
+  my @t1= ("$maria_path/ma_test1$suffix $silent --checksum $row_type",
+           "$maria_path/maria_pack$suffix --force -s test1",
+           "$maria_path/maria_chk$suffix -ess test1",
+           "$maria_path/maria_chk$suffix -rqs test1",
+           "$maria_path/maria_chk$suffix -es test1",
+           "$maria_path/maria_chk$suffix -rs test1",
+           "$maria_path/maria_chk$suffix -es test1",
+           "$maria_path/maria_chk$suffix -rus test1",
+           "$maria_path/maria_chk$suffix -es test1",
+
+           "$maria_path/ma_test1$suffix $silent --checksum $row_type",
+           "$maria_path/maria_pack$suffix --force -s test1",
+           "$maria_path/maria_chk$suffix -rus --safe-recover test1",
+           "$maria_path/maria_chk$suffix -es test1",
+
+           "$maria_path/ma_test1$suffix $silent --checksum -S $row_type",
+           "$maria_path/maria_chk$suffix -se test1",
+           "$maria_path/maria_chk$suffix -ros test1",
+           "$maria_path/maria_chk$suffix -rqs test1",
+           "$maria_path/maria_chk$suffix -se test1",
+
+           "$maria_path/maria_pack$suffix --force -s test1",
+           "$maria_path/maria_chk$suffix -rqs test1",
+           "$maria_path/maria_chk$suffix -es test1",
+           "$maria_path/maria_chk$suffix -rus test1",
+           "$maria_path/maria_chk$suffix -es test1",
+
+           "$maria_path/ma_test2$suffix $silent -c -d1 $row_type",
+           "$maria_path/maria_chk$suffix -s --parallel-recover test2",
+           "$maria_path/maria_chk$suffix -se test2",
+           "$maria_path/maria_chk$suffix -s --unpack --parallel-recover test2",
+           "$maria_path/maria_chk$suffix -se test2",
+           "$maria_path/maria_pack$suffix --force -s test1",
+           "$maria_path/maria_chk$suffix -s --unpack --parallel-recover test2",
+           "$maria_path/maria_chk$suffix -se test2"
+          );
+
+  if ($count)
+  {
+    $nr_tests= 0;
+    for ($i= 0; defined($t1[$i]); $i++) { $nr_tests++; }
+    return $nr_tests;
+  }
+  for ($i= 0; defined($t1[$i]); $i++)
+  {
+    ok($t1[$i], $verbose, $i + 1);
+  }
+  return 0;
+}
+
+####
+#### Tests that gives warnings or errors
+####
+
+sub run_tests_on_warnings_and_errors
+{
+  my ($suffix, $silent, $verbose, $count)= @_;
+  my ($com);
+
+  return 9 if ($count);        # Number of tests in this function, e.g. calls to ok()
+
+  ok("$maria_path/ma_test2$suffix $silent -L -K -W -P -S -R1 -m500",
+     $verbose, 0);
+  ok("$maria_path/maria_chk$suffix -sm test2", $verbose, 0);
+  print "ma_test2$suffix $silent -L -K -R1 -m2000 ;  Should give error 135\n";
+  # In the following a failure is a success and success is a failure
+  $com=  "$maria_path/ma_test2$suffix $silent -L -K -R1 -m2000 ";
+  $com.= ">ma_test2_message.txt 2>&1 && false";
+  ok($com, $verbose, 0, 1);
+  ok("cat ma_test2_message.txt", $verbose, 0);
+  ok("grep \"Error: 135\" ma_test2_message.txt > /dev/null", $verbose, 0);
+  print "$maria_path/maria_chk$suffix -sm test2 will warn that\n";
+  print "'Datafile is almost full'\n";
+  ok("$maria_path/maria_chk$suffix -sm test2 >ma_test2_message.txt 2>&1",
+     $verbose, 0);
+  ok("cat ma_test2_message.txt", $verbose, 0);
+  ok("grep \"warning: Datafile is almost full\" ma_test2_message.txt>/dev/null",
+     $verbose, 0);
+  unlink <rm -f ma_test2_message.txt>;
+  ok("$maria_path/maria_chk$suffix -ssm test2", $verbose, 0);
+
+  return 0;
+}
+
+####
+#### Test that removing tables and applying the log leads to identical tables
+####
+
+sub run_ma_test_recovery
+{
+  my ($verbose, $count)= @_;
+
+  return 1 if ($count);                # Number of tests in this function
+  ok("$maria_path/ma_test_recovery", $verbose, 0);
+  return 0;
+}
+
+####
+#### Tests on CLR's
+####
+
+sub run_tests_on_clrs
+{
+  my ($verbose, $count)= @_;
+  my ($i, $nr_tests);
+
+  my @t1= ("$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1",
+           "cp maria_log_control tmp",
+           "$maria_path/maria_read_log -a -s",
+           "$maria_path/maria_chk -s -e test2",
+           "cp tmp/maria_log_control .",
+           "rm test2.MA?",
+           "$maria_path/maria_read_log -a -s",
+           "$maria_path/maria_chk -s -e test2"
+          );
+  my @t2= ("$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1",
+           "$maria_path/maria_read_log -a -s",
+           "$maria_path/maria_chk -s -e test2",
+           "rm test2.MA?",
+           "$maria_path/maria_read_log -a -s",
+           "$maria_path/maria_chk -e -s test2"
+          );
+
+  if ($count)
+  {
+    $nr_tests= 0;
+    for ($i= 0; defined($t1[$i]); $i++) { $nr_tests++; }
+    for ($i= 0; defined($t2[$i]); $i++) { $nr_tests++; }
+    return $nr_tests;
+  }
+
+  unlink <maria_log.* maria_log_control>;
+  for ($i= 0; defined($t1[$i]); $i++)
+  {
+    ok($t1[$i], $verbose, $i + 1);
+  }
+
+  unlink <maria_log.* maria_log_control>;
+  for ($i= 0; defined($t2[$i]); $i++)
+  {
+    ok($t2[$i], $verbose, $i + 1);
+  }
+  return 0;
+}
+
+#
+# Print "ok" on success and "not ok" on error
+#
+# Note: Every time this function is called it will be counted
+# as a unit test.
+#
+# Args: $com:            The actual command run. Will be printed on a failure
+#       $verbose:        Be more verbose.
+#       $iteration:      Number of iterations in a loop when the error
+#                        occurred. If not in loop, this should be blank
+#                        (e.g. send zero).
+#       $expected_error: Optional; put here expected error code. Test
+#                        will pass with this result only.
+#
+# Return value:          Will return 1 on success and 0 on an error
+#
+
+sub ok
+{
+  my ($com, $verbose, $iteration, $expected_error)= @_;
+  my ($msg, $output, $err);
+
+  $expected_error= 0 if (!defined($expected_error));
+
+  if ($verbose)
+  {
+    print "Running: '$com'\n";
+  }
+  $output= `$com 2>&1`;
+  $err= $? >> 8;
+  if ($verbose)
+  {
+    print "$output\n";
+  }
+  if ($err == $expected_error)
+  {
+    print "ok\n";
+    return 1;
+  }
+  print "not ok\n";
+  $msg= "\nFailed test '$com' ";
+  if ($iteration)
+  {
+    $msg.= "(loop iteration $iteration.) ";
+  }
+  $msg.= "at line ";
+  $msg.= (caller)[2];
+  $msg.= " (errcode: $err)\n";
+  if ($expected_error)
+  {
+    $msg.= "Was expecting errcode: $expected_error\n";
+  }
+  warn $msg;
+
+  return 0;
+}
