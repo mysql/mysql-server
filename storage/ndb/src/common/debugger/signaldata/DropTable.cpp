@@ -13,55 +13,53 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <signaldata/AlterTable.hpp>
+#include <signaldata/DropTable.hpp>
+#include <SignalLoggerManager.hpp>
 
 bool
-printALTER_TABLE_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printDROP_TABLE_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
 {
-  const AlterTableReq* sig = (const AlterTableReq*)theData;
+  const DropTableReq* sig = (const DropTableReq*)theData;
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);
   fprintf(output, " transKey: %u", sig->transKey);
-  fprintf(output, " requestInfo: 0x%x", sig->requestInfo);
   fprintf(output, "\n");
   fprintf(output, " tableId: %u", sig->tableId);
   fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
-  fprintf(output, " changeMask: 0x%x", sig->changeMask);
   fprintf(output, "\n");
   return true;
 }
 
 bool
-printALTER_TABLE_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printDROP_TABLE_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
 {
-  const AlterTableConf* sig = (const AlterTableConf*)theData;
+  const DropTableConf* sig = (const DropTableConf*)theData;
+  fprintf(output, " senderRef: 0%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, "\n");
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
+  fprintf(output, "\n");
+  return true;
+}
+
+bool
+printDROP_TABLE_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+{
+  const DropTableRef* sig = (const DropTableRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);
   fprintf(output, "\n");
   fprintf(output, " tableId: %u", sig->tableId);
   fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
-  fprintf(output, " newTableVersion: 0x%x", sig->newTableVersion);
-  fprintf(output, "\n");
-  return true;
-}
-
-bool
-printALTER_TABLE_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
-{
-  const AlterTableRef* sig = (const AlterTableRef*)theData;
-  fprintf(output, " senderRef: 0x%x", sig->senderRef);
-  fprintf(output, " clientData: %u", sig->clientData);
-  fprintf(output, " transId: 0x%x", sig->transId);
   fprintf(output, "\n");
   fprintf(output, " errorCode: %u", sig->errorCode);
-  fprintf(output, " errorLine: %u", sig-> errorLine);
+  fprintf(output, " errorLine: %u", sig->errorLine);
   fprintf(output, " errorNodeId: %u", sig->errorNodeId);
   fprintf(output, " masterNodeId: %u", sig->masterNodeId);
-  fprintf(output, "\n");
-  fprintf(output, " errorStatus: %u", sig->errorStatus);
-  fprintf(output, " errorKey: %u", sig->errorKey);
   fprintf(output, "\n");
   return true;
 }

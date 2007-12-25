@@ -339,6 +339,7 @@ void Dbtc::execREAD_NODESREF(Signal* signal)
   ndbrequire(false);
 }
 
+// create table prepare
 void Dbtc::execTC_SCHVERREQ(Signal* signal) 
 {
   jamEntry();
@@ -361,8 +362,10 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tabptr.i);
   ndbrequire(noOfKeyAttr == desc->noOfKeyAttr);
 
+  ndbrequire(tabptr.p->get_prepared() == false);
   ndbrequire(tabptr.p->get_enabled() == false);
-  tabptr.p->set_enabled(true);
+  tabptr.p->set_prepared(true);
+  tabptr.p->set_enabled(false);
   tabptr.p->set_dropping(false);
   tabptr.p->noOfKeyAttr = desc->noOfKeyAttr;
   tabptr.p->hasCharAttr = desc->hasCharAttr;
@@ -372,6 +375,26 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   signal->theData[1] = retPtr;
   sendSignal(retRef, GSN_TC_SCHVERCONF, signal, 2, JBB);
 }//Dbtc::execTC_SCHVERREQ()
+
+// create table commit
+void Dbtc::execTAB_COMMITREQ(Signal* signal)
+{
+  jamEntry();
+  Uint32 senderData = signal->theData[0];
+  Uint32 senderRef = signal->theData[1];
+  tabptr.i = signal->theData[2];
+  ptrCheckGuard(tabptr, ctabrecFilesize, tableRecord);
+
+  ndbrequire(tabptr.p->get_prepared() == true);
+  ndbrequire(tabptr.p->get_enabled() == false);
+  tabptr.p->set_enabled(true);
+  tabptr.p->set_dropping(false);
+
+  signal->theData[0] = senderData;
+  signal->theData[1] = reference();
+  signal->theData[2] = tabptr.i;
+  sendSignal(senderRef, GSN_TAB_COMMITCONF, signal, 3, JBB);
+}
 
 void
 Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
@@ -592,30 +615,35 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
 
 void Dbtc::execALTER_TAB_REQ(Signal * signal)
 {
-  AlterTabReq* const req = (AlterTabReq*)signal->getDataPtr();
+  const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
-  const Uint32 changeMask = req->changeMask;
-  const Uint32 tableId = req->tableId;
   const Uint32 tableVersion = req->tableVersion;
-  const Uint32 gci = req->gci;
+  const Uint32 newTableVersion = req->newTableVersion;
   AlterTabReq::RequestType requestType = 
     (AlterTabReq::RequestType) req->requestType;
 
   TableRecordPtr tabPtr;
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabrecFilesize, tableRecord);
-  tabPtr.p->currentSchemaVersion = tableVersion;
+
+  switch (requestType) {
+  case AlterTabReq::AlterTablePrepare:
+    tabPtr.p->currentSchemaVersion = newTableVersion;
+    break;
+  case AlterTabReq::AlterTableRevert:
+    tabPtr.p->currentSchemaVersion = tableVersion;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
 
   // Request handled successfully 
-  AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
+  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
-  conf->changeMask = changeMask;
-  conf->tableId = tableId;
-  conf->tableVersion = tableVersion;
-  conf->gci = gci;
-  conf->requestType = requestType;
+  conf->connectPtr = RNIL;
   sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal, 
 	     AlterTabConf::SignalLength, JBB);
 }
@@ -2725,12 +2753,18 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   if (localTabptr.p->checkTable(tcKeyReq->tableSchemaVersion)) {
     ;
   } else {
+    // wl3600_todo check schema trans id instead of DBUTIL
+    if (localTabptr.p->checkTablePrepared(tcKeyReq->tableSchemaVersion,
+                                          tcKeyReq->transId1)) {
+      jam();
+    } else {
     /*-----------------------------------------------------------------------*/
     /* THE API IS WORKING WITH AN OLD SCHEMA VERSION. IT NEEDS REPLACEMENT.  */
     /* COULD ALSO BE THAT THE TABLE IS NOT DEFINED.                          */
     /*-----------------------------------------------------------------------*/
-    TCKEY_abort(signal, 8);
-    return;
+      TCKEY_abort(signal, 8);
+      return;
+    }
   }//if
   
   //-------------------------------------------------------------------------
@@ -3037,9 +3071,14 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   if(localTabptr.p->checkTable(schemaVersion)){
     ;
   } else {
-    terrorCode = localTabptr.p->getErrorCode(schemaVersion);
-    TCKEY_abort(signal, 58);
-    return;
+    if (localTabptr.p->checkTablePrepared(schemaVersion,
+                                          regApiPtr->transid[0])) {
+      jam();
+    } else {
+      terrorCode = localTabptr.p->getErrorCode(schemaVersion);
+      TCKEY_abort(signal, 58);
+      return;
+    }
   }
   
   setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
@@ -3198,9 +3237,15 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
   if(localTabptr.p->checkTable(regCachePtr->schemaVersion)){
     ;
   } else {
-    terrorCode = localTabptr.p->getErrorCode(regCachePtr->schemaVersion);
-    TCKEY_abort(signal, 58);
-    return;
+    ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+    if (localTabptr.p->checkTablePrepared(regCachePtr->schemaVersion,
+                                          regApiPtr->transid[0])) {
+      jam();
+    } else {
+      terrorCode = localTabptr.p->getErrorCode(regCachePtr->schemaVersion);
+      TCKEY_abort(signal, 58);
+      return;
+    }
   }
   arrGuard(Tnode, MAX_NDB_NODES);
   packLqhkeyreq(signal, calcLqhBlockRef(Tnode));

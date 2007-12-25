@@ -2161,30 +2161,36 @@ void
 Dblqh::execALTER_TAB_REQ(Signal* signal)
 {
   jamEntry();
-  AlterTabReq* const req = (AlterTabReq*)signal->getDataPtr();
+  const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
-  const Uint32 changeMask = req->changeMask;
   const Uint32 tableId = req->tableId;
   const Uint32 tableVersion = req->tableVersion;
-  const Uint32 gci = req->gci;
+  const Uint32 newTableVersion = req->newTableVersion;
   AlterTabReq::RequestType requestType =
     (AlterTabReq::RequestType) req->requestType;
 
   TablerecPtr tablePtr;
   tablePtr.i = tableId;
   ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
-  tablePtr.p->schemaVersion = tableVersion;
+
+  switch (requestType) {
+  case AlterTabReq::AlterTablePrepare:
+    tablePtr.p->schemaVersion = newTableVersion;
+    break;
+  case AlterTabReq::AlterTableRevert:
+    tablePtr.p->schemaVersion = tableVersion;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
 
   // Request handled successfully
-  AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
+  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
-  conf->changeMask = changeMask;
-  conf->tableId = tableId;
-  conf->tableVersion = tableVersion;
-  conf->gci = gci;
-  conf->requestType = requestType;
+  conf->connectPtr = RNIL;
   sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
 	     AlterTabConf::SignalLength, JBB);
 }

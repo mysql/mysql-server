@@ -13,50 +13,43 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <signaldata/AlterTab.hpp>
+#include <signaldata/CreateTab.hpp>
+#include <SignalLoggerManager.hpp>
 
 bool
-printALTER_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printCREATE_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const AlterTabReq* sig = (const AlterTabReq*)theData;
+  const CreateTabReq* sig = (const CreateTabReq*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " requestType: %u", sig->requestType);
   fprintf(output, "\n");
   fprintf(output, " tableId: %u", sig->tableId);
   fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
-  fprintf(output, " newTableVersion: 0x%x", sig->newTableVersion);
   fprintf(output, " gci: %u", sig->gci);
-  fprintf(output, " changeMask: 0x%x", sig->changeMask);
-  fprintf(output, "\n");
-  fprintf(output, "connectPtr: %u", sig->connectPtr);
-  fprintf(output, "noOfNewAttr: %u", sig->noOfNewAttr);
-  fprintf(output, "newNoOfCharsets: %u", sig->newNoOfCharsets);
-  fprintf(output, "newNoOfKeyAttrs: %u", sig->newNoOfKeyAttrs);
   fprintf(output, "\n");
   return true;
 }
 
 bool
-printALTER_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printCREATE_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const AlterTabConf* sig = (const AlterTabConf*)theData;
+  const CreateTabConf* sig = (const CreateTabConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
-  fprintf(output, "connectPtr: %u", sig->connectPtr);
   fprintf(output, "\n");
   return true;
 }
 
 bool
-printALTER_TAB_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printCREATE_TAB_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const AlterTabRef* sig = (const AlterTabRef*)theData;
+  const CreateTabRef* sig = (const CreateTabRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");
   fprintf(output, " errorCode: %u", sig->errorCode);
-  fprintf(output, " errorLine: %u", sig-> errorLine);
+  fprintf(output, " errorLine: %u", sig->errorLine );
   fprintf(output, " errorKey: %u", sig->errorKey);
   fprintf(output, " errorStatus: %u", sig->errorStatus);
   fprintf(output, "\n");

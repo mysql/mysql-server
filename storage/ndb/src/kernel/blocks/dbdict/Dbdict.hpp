@@ -39,6 +39,7 @@
 #include <signaldata/CreateTable.hpp>
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/DropTable.hpp>
+#include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/CreateIndx.hpp>
@@ -826,7 +827,6 @@ private:
   void execPREP_DROP_TAB_REF(Signal* signal);  
   void execPREP_DROP_TAB_CONF(Signal* signal);
 
-  void execDROP_TAB_REQ(Signal* signal);  
   void execDROP_TAB_REF(Signal* signal);  
   void execDROP_TAB_CONF(Signal* signal);
 
@@ -843,7 +843,6 @@ private:
   void execLQHADDATTCONF(Signal* signal);
   void execCREATE_TAB_REF(Signal* signal);
   void execCREATE_TAB_CONF(Signal* signal);  
-  void execALTER_TAB_REQ(Signal* signal);
   void execALTER_TAB_REF(Signal* signal);
   void execALTER_TAB_CONF(Signal* signal);
   bool check_ndb_versions() const;
@@ -2154,85 +2153,228 @@ private:
    */
   bool findCallback(Callback& callback, Uint32 any_key);
 
-  /**
-   * Create table record
-   */
-  struct CreateTableRecord : OpRecordCommon {
-    CreateTableRecord() {}
-    Uint32 m_senderRef;
-    Uint32 m_senderData;
-    Uint32 m_coordinatorRef;
-    
-    Uint32 m_errorCode;
-    void setErrorCode(Uint32 c){ if(m_errorCode == 0) m_errorCode = c;}
+  // MODULE: CreateTable
 
-    // For alter table
-    Uint32 m_changeMask;
-    Uint32 m_new_cols;
-    bool m_alterTableFailed;
-    AlterTableRef m_alterTableRef;
-    Uint32 m_alterTableId;
-    Uint32 m_tupAlterTabPtr;                    // Connect ptr towards TUP
+  struct CreateTableRec : public OpRec {
+    static const OpInfo g_opInfo;
 
-    /* Previous table name (used for reverting failed table rename) */
-    char previousTableName[MAX_TAB_NAME_SIZE];
+    static ArrayPool<Dbdict::CreateTableRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_createTableRecPool;
+    }
 
-    /* Previous table definition, frm (used for reverting) */
-    /** TODO Could preferrably be made dynamic size */
-    Uint32 previousFrmLen;
-    char previousFrmData[MAX_FRM_DATA_SIZE];
+    CreateTabReq m_request;
 
-    Uint32 m_tablePtrI;
+    // wl3600_todo check mutex name and number later
+    MutexHandle2<DIH_START_LCP_MUTEX> m_startLcpMutex;
+
+    // long signal memory for temp use
     Uint32 m_tabInfoPtrI;
     Uint32 m_fragmentsPtrI;
 
-    Uint32 m_dihAddFragPtr; // Connect ptr towards DIH
-    Uint32 m_lqhFragPtr;    // Connect ptr towards LQH
+    // connect pointers towards DIH and LQH
+    Uint32 m_dihAddFragPtr;
+    Uint32 m_lqhFragPtr;
 
-    Callback m_callback;    // Who's using local create tab
-    MutexHandle2<DIH_START_LCP_MUTEX> m_startLcpMutex;
-    
-    struct CoordinatorData {
-      Uint32 m_gsn;
-      SafeCounterHandle m_counter;
-      CreateTabReq::RequestType m_requestType;
-    } m_coordinatorData;
+    // who is using local create tab
+    Callback m_callback;
+
+    CreateTableRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_tabInfoPtrI = RNIL;
+      m_fragmentsPtrI = RNIL;
+      m_dihAddFragPtr = RNIL;
+      m_lqhFragPtr = RNIL;
+    }
+
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
   };
-  typedef Ptr<CreateTableRecord> CreateTableRecordPtr;
 
-  /**
-   * Drop table record
-   */
-  struct DropTableRecord : OpRecordCommon {
-    DropTableRecord() {}
-    DropTableReq m_request;
-    
-    Uint32 m_requestType;
-    Uint32 m_coordinatorRef;
-    
-    Uint32 m_errorCode;
-    void setErrorCode(Uint32 c){ if(m_errorCode == 0) m_errorCode = c;}
+  typedef Ptr<CreateTableRec> CreateTableRecPtr;
+  ArrayPool<CreateTableRec> c_createTableRecPool;
 
+  // OpInfo
+  bool createTable_seize(SchemaOpPtr);
+  void createTable_release(SchemaOpPtr);
+  //
+  void createTable_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool createTable_subOps(Signal*, SchemaOpPtr);
+  void createTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void createTable_prepare(Signal*, SchemaOpPtr);
+  void createTable_commit(Signal*, SchemaOpPtr);
+  //
+  void createTable_abortParse(Signal*, SchemaOpPtr);
+  void createTable_abortPrepare(Signal*, SchemaOpPtr);
+
+  // prepare
+  void createTab_writeSchemaConf1(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_dih(Signal*, SchemaOpPtr, OpSection fragSec, Callback*);
+  void createTab_dihComplete(Signal*, Uint32 op_key, Uint32 ret);
+
+  // commit
+  void createTab_startLcpMutex_locked(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_writeSchemaConf2(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_activate(Signal*, SchemaOpPtr, Callback*);
+  void createTab_alterComplete(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_startLcpMutex_unlocked(Signal*, Uint32 op_key, Uint32 ret);
+
+  // abort prepare
+  void createTable_abortLocalConf(Signal*, Uint32 aux_op_key, Uint32 ret);
+  void createTable_abortWriteSchemaConf(Signal*, Uint32 aux_op_key, Uint32 ret);
+
+  // MODULE: DropTable
+
+  struct DropTableRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::DropTableRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_dropTableRecPool;
+    }
+
+    DropTabReq m_request;
+
+    // wl3600_todo check mutex name and number later
     MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
-    
-    /**
-     * When sending stuff around
-     */
-    struct CoordinatorData {
-      Uint32 m_gsn;
-      Uint32 m_block;
-      SignalCounter m_signalCounter;
-    } m_coordinatorData;
 
-    struct ParticipantData {
-      Uint32 m_gsn;
-      Uint32 m_block;
-      SignalCounter m_signalCounter;
+    Uint32 m_block;
+    Callback m_callback;
 
-      Callback m_callback;
-    } m_participantData;
+    DropTableRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_block = 0;
+    }
+
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
   };
-  typedef Ptr<DropTableRecord> DropTableRecordPtr;
+
+  typedef Ptr<DropTableRec> DropTableRecPtr;
+  ArrayPool<DropTableRec> c_dropTableRecPool;
+
+  // OpInfo
+  bool dropTable_seize(SchemaOpPtr);
+  void dropTable_release(SchemaOpPtr);
+  //
+  void dropTable_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool dropTable_subOps(Signal*, SchemaOpPtr);
+  void dropTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void dropTable_prepare(Signal*, SchemaOpPtr);
+  void dropTable_commit(Signal*, SchemaOpPtr);
+  //
+  void dropTable_abortParse(Signal*, SchemaOpPtr);
+  void dropTable_abortPrepare(Signal*, SchemaOpPtr);
+
+  // prepare
+  void dropTable_backup_mutex_locked(Signal*, Uint32 op_key, Uint32 ret);
+  void prepDropTab_nextStep(Signal*, SchemaOpPtr);
+  void prepDropTab_writeSchema(Signal* signal, SchemaOpPtr);
+  void prepDropTab_writeSchemaConf(Signal*, Uint32 op_key, Uint32 ret);
+  void prepDropTab_fromLocal(Signal*, Uint32 op_key, Uint32 errorCode);
+  void prepDropTab_complete(Signal*, SchemaOpPtr);
+
+  // commit
+  void dropTab_nextStep(Signal*, SchemaOpPtr);
+  void dropTab_fromLocal(Signal*, Uint32 op_key);
+  void dropTab_complete(Signal*, Uint32 op_key, Uint32 ret);
+  void dropTab_writeSchemaConf(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: AlterTable
+
+  struct AlterTableRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::AlterTableRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_alterTableRecPool;
+    }
+
+    AlterTabReq m_request;
+
+    // added attributes
+    Uint32 m_newAttrData[2 * MAX_ATTRIBUTES_IN_TABLE];
+
+    // wl3600_todo check mutex name and number later
+    MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
+
+    // current and new temporary work table
+    TableRecordPtr m_tablePtr;
+    TableRecordPtr m_newTablePtr;
+
+    // before image
+    SchemaFile::TableEntry m_oldTableEntry;
+    RopeHandle m_oldTableName;
+    RopeHandle m_oldFrmData;
+
+    // what was actually changed so far
+    Uint32 m_changeMaskDone;
+
+    // connect ptr towards TUP
+    Uint32 m_tupAlterTabPtr;
+
+    // local blocks to process
+    enum { BlockCount = 4 };
+    Uint32 m_blockNo[BlockCount];
+    Uint32 m_blockIndex;
+
+    AlterTableRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      memset(&m_newAttrData, 0, sizeof(m_newAttrData));
+      m_tablePtr.setNull();
+      m_newTablePtr.setNull();
+      m_changeMaskDone = 0;
+      m_tupAlterTabPtr = RNIL;
+      m_blockNo[0] = DBLQH;
+      m_blockNo[1] = DBDIH;
+      m_blockNo[2] = DBTC;
+      m_blockNo[3] = DBTUP;
+      m_blockIndex = 0;
+    }
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  typedef Ptr<AlterTableRec> AlterTableRecPtr;
+  ArrayPool<AlterTableRec> c_alterTableRecPool;
+
+  // OpInfo
+  bool alterTable_seize(SchemaOpPtr);
+  void alterTable_release(SchemaOpPtr);
+  //
+  void alterTable_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool alterTable_subOps(Signal*, SchemaOpPtr);
+  void alterTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void alterTable_prepare(Signal*, SchemaOpPtr);
+  void alterTable_commit(Signal*, SchemaOpPtr);
+  //
+  void alterTable_abortParse(Signal*, SchemaOpPtr);
+  void alterTable_abortPrepare(Signal*, SchemaOpPtr);
+
+  // prepare phase
+  void alterTable_backup_mutex_locked(Signal*, Uint32 op_key, Uint32 ret);
+  void alterTable_toLocal(Signal*, SchemaOpPtr);
+  void alterTable_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  // commit phase
+  void alterTable_toTupCommit(Signal*, SchemaOpPtr);
+  void alterTable_fromTupCommit(Signal*, Uint32 op_key, Uint32 ret);
+  void alterTab_writeSchemaConf(Signal*, Uint32 op_key, Uint32 ret);
+  void alterTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
+
+  // abort
+  void alterTable_abortToLocal(Signal*, SchemaOpPtr);
+  void alterTable_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);
 
   /**
    * Request flags passed in signals along with request type and
@@ -3020,8 +3162,6 @@ private:
    */
   // Common operation record pool
 public:
-  STATIC_CONST( opCreateTableSize = sizeof(CreateTableRecord) );
-  STATIC_CONST( opDropTableSize = sizeof(DropTableRecord) );
   STATIC_CONST( opCreateIndexSize = sizeof(OpCreateIndex) );
   STATIC_CONST( opDropIndexSize = sizeof(OpDropIndex) );
   STATIC_CONST( opAlterIndexSize = sizeof(OpAlterIndex) );
@@ -3037,8 +3177,6 @@ public:
 private:
 #define PTR_ALIGN(n) ((((n)+sizeof(void*)-1)>>2)&~((sizeof(void*)-1)>>2))
   union OpRecordUnion {
-    Uint32 u_opCreateTable  [PTR_ALIGN(opCreateTableSize)];
-    Uint32 u_opDropTable    [PTR_ALIGN(opDropTableSize)];
     Uint32 u_opCreateIndex  [PTR_ALIGN(opCreateIndexSize)];
     Uint32 u_opDropIndex    [PTR_ALIGN(opDropIndexSize)];
     Uint32 u_opCreateEvent  [PTR_ALIGN(opCreateEventSize)];
@@ -3056,8 +3194,6 @@ private:
   ArrayPool<OpRecordUnion> c_opRecordPool;
   
   // Operation records
-  KeyTable2<CreateTableRecord, OpRecordUnion> c_opCreateTable;
-  KeyTable2<DropTableRecord, OpRecordUnion> c_opDropTable;
   KeyTable2<OpCreateIndex, OpRecordUnion> c_opCreateIndex;
   KeyTable2<OpDropIndex, OpRecordUnion> c_opDropIndex;
   KeyTable2<OpAlterIndex, OpRecordUnion> c_opAlterIndex;
@@ -3137,14 +3273,9 @@ private:
   bool verifyTableCorrect(Signal* signal, Uint32 tableId);
   
   /* ------------------------------------------------------------ */
-  // Add Table Handling
-  /* ------------------------------------------------------------ */
-  void releaseCreateTableOp(Signal* signal, CreateTableRecordPtr createTabPtr);
-
-  /* ------------------------------------------------------------ */
   // Add Fragment Handling
   /* ------------------------------------------------------------ */
-  void sendLQHADDATTRREQ(Signal*, CreateTableRecordPtr, Uint32 attributePtrI);
+  void sendLQHADDATTRREQ(Signal*, SchemaOpPtr, Uint32 attributePtrI);
   
   /* ------------------------------------------------------------ */
   // Read/Write Schema and Table files
@@ -3168,6 +3299,8 @@ private:
   
   void writeTableFile(Signal* signal, Uint32 tableId, 
 		      SegmentedSectionPtr tabInfo, Callback*);
+  void writeTableFile(Signal* signal, Uint32 tableId,
+		      OpSection opSection, Callback*);
   void startWriteTableFile(Signal* signal, Uint32 tableId);
   void openTableFile(Signal* signal, 
                      Uint32 fileNo,
@@ -3440,60 +3573,8 @@ private:
 
   bool getIsFailed(Uint32 nodeId) const;
 
-  void dropTable_backup_mutex_locked(Signal* signal, Uint32, Uint32);
-  void dropTableRef(Signal * signal, DropTableReq *, DropTableRef::ErrorCode);
   void printTables(); // For debugging only
-  int handleAlterTab(AlterTabReq * req,
-		     CreateTableRecord * regAlterTabPtr,
-		     TableRecordPtr origTablePtr,
-		     TableRecordPtr newTablePtr);
-  void revertAlterTable(Signal * signal, 
-			Uint32 changeMask, 
-			Uint32 tableId,
-			CreateTableRecord * regAlterTabPtr);
-  void alterTable_backup_mutex_locked(Signal* signal, Uint32, Uint32);
-  void alterTableRef(Signal * signal, 
-		     AlterTableReq *, AlterTableRef::ErrorCode, 
-		     ParseDictTabInfoRecord* parseRecord = NULL);
-  void alterTabRef(Signal * signal, 
-		   AlterTabReq *, AlterTableRef::ErrorCode, 
-		   ParseDictTabInfoRecord* parseRecord = NULL);
-  void alterTab_writeSchemaConf(Signal* signal, 
-				Uint32 callbackData,
-				Uint32 returnCode);
-  void alterTab_writeTableConf(Signal* signal, 
-			       Uint32 callbackData,
-			       Uint32 returnCode);
 
-  void prepDropTab_nextStep(Signal* signal, DropTableRecordPtr);
-  void prepDropTab_complete(Signal* signal, DropTableRecordPtr);
-  void prepDropTab_writeSchemaConf(Signal* signal, Uint32 dropTabPtrI, Uint32);
-
-  void dropTab_localDROP_TAB_CONF(Signal* signal);
-  void dropTab_nextStep(Signal* signal, DropTableRecordPtr);
-  void dropTab_complete(Signal* signal, Uint32 dropTabPtrI, Uint32);
-  void dropTab_writeSchemaConf(Signal* signal, Uint32 dropTabPtrI, Uint32);
-
-  void createTab_prepare(Signal* signal, CreateTabReq * req);
-  void createTab_writeSchemaConf1(Signal* signal, Uint32 callback, Uint32);
-  void createTab_writeTableConf(Signal* signal, Uint32 callbackData, Uint32);
-  void createTab_dih(Signal*, CreateTableRecordPtr, 
-		     SegmentedSectionPtr, Callback*);
-  void createTab_dihComplete(Signal* signal, Uint32 callbackData, Uint32);
-
-  void createTab_startLcpMutex_locked(Signal* signal, Uint32, Uint32);
-  void createTab_startLcpMutex_unlocked(Signal* signal, Uint32, Uint32);
-  
-  void createTab_commit(Signal* signal, CreateTabReq * req);  
-  void createTab_writeSchemaConf2(Signal* signal, Uint32 callbackData, Uint32);
-  void createTab_alterComplete(Signal*, Uint32 callbackData, Uint32);
-
-  void createTab_drop(Signal* signal, CreateTabReq * req);
-  void createTab_dropComplete(Signal* signal, Uint32 callbackData, Uint32);
-
-  void createTab_reply(Signal* signal, CreateTableRecordPtr, Uint32 nodeId);
-  void alterTab_activate(Signal*, CreateTableRecordPtr, Callback*);
-  
   void restartCreateTab(Signal*, Uint32, 
 			const SchemaFile::TableEntry *, 
 			const SchemaFile::TableEntry *, bool);

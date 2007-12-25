@@ -143,6 +143,9 @@ public:
   // the system tables
   static const SysTable g_sysTable_SYSTAB_0;
   static const SysTable g_sysTable_NDBEVENTS_0;
+  // schema trans
+  Uint32 c_schemaTransId;
+  Uint32 c_schemaTransKey;
 
 public:
   Ndbcntr(Block_context&);
@@ -181,6 +184,10 @@ private:
   void execGETGCICONF(Signal* signal);
   void execDIH_RESTARTCONF(Signal* signal);
   void execDIH_RESTARTREF(Signal* signal);
+  void execSCHEMA_TRANS_BEGIN_CONF(Signal* signal);
+  void execSCHEMA_TRANS_BEGIN_REF(Signal* signal);
+  void execSCHEMA_TRANS_END_CONF(Signal* signal);
+  void execSCHEMA_TRANS_END_REF(Signal* signal);
   void execCREATE_TABLE_REF(Signal* signal);
   void execCREATE_TABLE_CONF(Signal* signal);
   void execNDB_STTORRY(Signal* signal);
@@ -207,6 +214,8 @@ private:
   void execABORT_ALL_CONF(Signal* signal);
 
   // Statement blocks
+  void beginSchemaTransLab(Signal* signal);
+  void endSchemaTransLab(Signal* signal);
   void sendCreateTabReq(Signal* signal, const char* buffer, Uint32 bufLen);
   void startInsertTransactions(Signal* signal);
   void initData(Signal* signal);
