@@ -65,6 +65,18 @@
 #ifdef DBDICT_C
 // Debug Macros
 
+#ifdef VM_TRACE
+#define D(x) \
+  do { \
+    if (!debugOutOn()) break; \
+    debugOut << "DBDICT:" << __LINE__ << " " << x << endl; \
+  } while (0)
+#define V(x) " " << #x << ":" << (x)
+#else
+#define D(x)
+#undef V
+#endif
+
 /*--------------------------------------------------------------*/
 // Constants for CONTINUEB
 /*--------------------------------------------------------------*/
@@ -2562,7 +2574,11 @@ public:
   
   int checkSingleUserMode(Uint32 senderRef);
 
-  
+#ifdef VM_TRACE
+  NdbOut debugOut;
+  bool debugOutOn() const;
+#endif
+
   /**
    * Dict lock queue does currently uniformly handle
    *
