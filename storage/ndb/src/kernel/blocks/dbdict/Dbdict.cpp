@@ -116,14 +116,14 @@ struct {
   void (Dbdict::* m_trans_abort_start)(Signal*, Dbdict::SchemaTransaction*);
   void (Dbdict::* m_trans_abort_complete)(Signal*, Dbdict::SchemaTransaction*);
 
-  void (Dbdict::* m_prepare_start)(Signal*, Dbdict::SchemaOp*);
-  void (Dbdict::* m_prepare_complete)(Signal*, Dbdict::SchemaOp*);
-  void (Dbdict::* m_commit)(Signal*, Dbdict::SchemaOp*);
-  void (Dbdict::* m_commit_start)(Signal*, Dbdict::SchemaOp*);
-  void (Dbdict::* m_commit_complete)(Signal*, Dbdict::SchemaOp*);
-  void (Dbdict::* m_abort)(Signal*, Dbdict::SchemaOp*);
-  void (Dbdict::* m_abort_start)(Signal*, Dbdict::SchemaOp*);
-  void (Dbdict::* m_abort_complete)(Signal*, Dbdict::SchemaOp*);
+  void (Dbdict::* m_prepare_start)(Signal*, Dbdict::SchemaOperation*);
+  void (Dbdict::* m_prepare_complete)(Signal*, Dbdict::SchemaOperation*);
+  void (Dbdict::* m_commit)(Signal*, Dbdict::SchemaOperation*);
+  void (Dbdict::* m_commit_start)(Signal*, Dbdict::SchemaOperation*);
+  void (Dbdict::* m_commit_complete)(Signal*, Dbdict::SchemaOperation*);
+  void (Dbdict::* m_abort)(Signal*, Dbdict::SchemaOperation*);
+  void (Dbdict::* m_abort_start)(Signal*, Dbdict::SchemaOperation*);
+  void (Dbdict::* m_abort_complete)(Signal*, Dbdict::SchemaOperation*);
   
 } f_dict_op[] = {
   /**
@@ -1553,10 +1553,10 @@ Dbdict::Dbdict(Block_context& ctx):
   c_opCreateTrigger(c_opRecordPool),
   c_opDropTrigger(c_opRecordPool),
   c_opAlterTrigger(c_opRecordPool),
-  c_schemaOp(c_opRecordPool),
+  c_schemaOperation(c_opRecordPool),
   c_Trans(c_opRecordPool),
-  c_opCreateObj(c_schemaOp),
-  c_opDropObj(c_schemaOp),
+  c_opCreateObj(c_schemaOperation),
+  c_opDropObj(c_schemaOperation),
   c_opRecordSequence(0)
 {
   BLOCK_CONSTRUCTOR(Dbdict);
@@ -2131,7 +2131,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     (SchemaFile*)c_schemaPageRecordArray.getPtr(1 * NDB_SF_MAX_PAGES);
   c_schemaFile[1].noOfPages = 0;
 
-  c_schemaOp.setSize(8);
+  c_schemaOperation.setSize(8);
   //c_opDropObj.setSize(8);
   c_Trans.setSize(8);
 
@@ -14883,7 +14883,7 @@ Dbdict::execCREATE_OBJ_REF(Signal* signal)
     trans_ptr.p->setErrorCode(ref->errorCode);
   }
   Uint32 node = refToNode(ref->senderRef);
-  schemaOp_reply(signal, trans_ptr.p, node);
+  schemaOperation_reply(signal, trans_ptr.p, node);
 }
 
 void
@@ -14894,13 +14894,13 @@ Dbdict::execCREATE_OBJ_CONF(Signal* signal)
 
   jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
-  schemaOp_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
+  schemaOperation_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
 }
 
 void
-Dbdict::schemaOp_reply(Signal* signal, 
-		       SchemaTransaction * trans_ptr_p, 
-		       Uint32 nodeId)
+Dbdict::schemaOperation_reply(Signal* signal,
+		              SchemaTransaction * trans_ptr_p,
+		              Uint32 nodeId)
 {
   jam();
   {
@@ -15316,10 +15316,10 @@ void
 Dbdict::execDICT_COMMIT_REQ(Signal* signal)
 {
   DictCommitReq* req = (DictCommitReq*)signal->getDataPtr();
-  Ptr<SchemaOp> op;
+  Ptr<SchemaOperation> op;
 
   jamEntry();
-  ndbrequire(c_schemaOp.find(op, req->op_key));
+  ndbrequire(c_schemaOperation.find(op, req->op_key));
   (this->*f_dict_op[op.p->m_vt_index].m_commit)(signal, op.p);
 }
 
@@ -15327,10 +15327,10 @@ void
 Dbdict::execDICT_ABORT_REQ(Signal* signal)
 {
   DictAbortReq* req = (DictAbortReq*)signal->getDataPtr();
-  Ptr<SchemaOp> op;
+  Ptr<SchemaOperation> op;
 
   jamEntry();
-  ndbrequire(c_schemaOp.find(op, req->op_key));
+  ndbrequire(c_schemaOperation.find(op, req->op_key));
   (this->*f_dict_op[op.p->m_vt_index].m_abort)(signal, op.p);
 }
 
@@ -15347,7 +15347,7 @@ Dbdict::execDICT_COMMIT_REF(Signal* signal)
     trans_ptr.p->setErrorCode(ref->errorCode);
   }
   Uint32 node = refToNode(ref->senderRef);
-  schemaOp_reply(signal, trans_ptr.p, node);
+  schemaOperation_reply(signal, trans_ptr.p, node);
 }
 
 void
@@ -15358,7 +15358,7 @@ Dbdict::execDICT_COMMIT_CONF(Signal* signal)
 
   jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
-  schemaOp_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
+  schemaOperation_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
 }
 
 void
@@ -15374,7 +15374,7 @@ Dbdict::execDICT_ABORT_REF(Signal* signal)
     trans_ptr.p->setErrorCode(ref->errorCode);
   }
   Uint32 node = refToNode(ref->senderRef);
-  schemaOp_reply(signal, trans_ptr.p, node);
+  schemaOperation_reply(signal, trans_ptr.p, node);
 }
 
 void
@@ -15385,7 +15385,7 @@ Dbdict::execDICT_ABORT_CONF(Signal* signal)
 
   jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
-  schemaOp_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
+  schemaOperation_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
 }
 
 void
@@ -15501,7 +15501,7 @@ Dbdict::createObj_prepare_complete_done(Signal* signal,
 }
 
 void
-Dbdict::createObj_commit(Signal * signal, SchemaOp * op)
+Dbdict::createObj_commit(Signal * signal, SchemaOperation * op)
 {
   OpCreateObj * createObj = (OpCreateObj*)op;
 
@@ -15591,7 +15591,7 @@ Dbdict::createObj_commit_complete_done(Signal* signal,
 }
 
 void
-Dbdict::createObj_abort(Signal* signal, SchemaOp* op)
+Dbdict::createObj_abort(Signal* signal, SchemaOperation* op)
 {
   OpCreateObj * createObj = (OpCreateObj*)op;
   
@@ -15834,7 +15834,7 @@ Dbdict::dropObj_prepare_complete_done(Signal* signal,
 }
 
 void
-Dbdict::dropObj_commit(Signal * signal, SchemaOp * op)
+Dbdict::dropObj_commit(Signal * signal, SchemaOperation * op)
 {
   OpDropObj * dropObj = (OpDropObj*)op;
 
@@ -15924,7 +15924,7 @@ Dbdict::dropObj_commit_complete_done(Signal* signal,
 }
 
 void
-Dbdict::dropObj_abort(Signal * signal, SchemaOp * op)
+Dbdict::dropObj_abort(Signal * signal, SchemaOperation * op)
 {
   OpDropObj * dropObj = (OpDropObj*)op;
 
@@ -16019,7 +16019,7 @@ Dbdict::dropObj_abort_complete_done(Signal* signal,
 }
 
 void 
-Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op)
+Dbdict::create_fg_prepare_start(Signal* signal, SchemaOperation* op)
 {
   /**
    * Put data into table record
@@ -16172,7 +16172,7 @@ error:
 }
 
 void
-Dbdict::create_fg_prepare_complete(Signal* signal, SchemaOp* op)
+Dbdict::create_fg_prepare_complete(Signal* signal, SchemaOperation* op)
 {
   /**
    * CONTACT TSMAN LGMAN PGMAN 
@@ -16242,7 +16242,7 @@ Dbdict::execCREATE_FILEGROUP_CONF(Signal* signal)
 }
 
 void
-Dbdict::create_fg_abort_start(Signal* signal, SchemaOp* op){
+Dbdict::create_fg_abort_start(Signal* signal, SchemaOperation* op){
   (void) signal->getDataPtrSend();
 
   if (op->m_obj_ptr_i != RNIL)
@@ -16256,7 +16256,7 @@ Dbdict::create_fg_abort_start(Signal* signal, SchemaOp* op){
 }
 
 void
-Dbdict::create_fg_abort_complete(Signal* signal, SchemaOp* op)
+Dbdict::create_fg_abort_complete(Signal* signal, SchemaOperation* op)
 {
   if (op->m_obj_ptr_i != RNIL)
   {
@@ -16272,7 +16272,7 @@ Dbdict::create_fg_abort_complete(Signal* signal, SchemaOp* op)
 }
 
 void 
-Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op)
+Dbdict::create_file_prepare_start(Signal* signal, SchemaOperation* op)
 {
   /**
    * Put data into table record
@@ -16446,7 +16446,7 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op)
 
 
 void
-Dbdict::create_file_prepare_complete(Signal* signal, SchemaOp* op)
+Dbdict::create_file_prepare_complete(Signal* signal, SchemaOperation* op)
 {
   /**
    * CONTACT TSMAN LGMAN PGMAN 
@@ -16544,7 +16544,7 @@ Dbdict::execCREATE_FILE_CONF(Signal* signal)
 }
 
 void
-Dbdict::create_file_commit_start(Signal* signal, SchemaOp* op)
+Dbdict::create_file_commit_start(Signal* signal, SchemaOperation* op)
 {
   /**
    * CONTACT TSMAN LGMAN PGMAN 
@@ -16587,7 +16587,7 @@ Dbdict::create_file_commit_start(Signal* signal, SchemaOp* op)
 }
 
 void
-Dbdict::create_file_abort_start(Signal* signal, SchemaOp* op)
+Dbdict::create_file_abort_start(Signal* signal, SchemaOperation* op)
 {
   CreateFileImplReq* req = (CreateFileImplReq*)signal->getDataPtrSend();
 
@@ -16634,7 +16634,7 @@ Dbdict::create_file_abort_start(Signal* signal, SchemaOp* op)
 }
 
 void
-Dbdict::create_file_abort_complete(Signal* signal, SchemaOp* op)
+Dbdict::create_file_abort_complete(Signal* signal, SchemaOperation* op)
 {
   if (op->m_obj_ptr_i != RNIL)
   {
@@ -16669,14 +16669,14 @@ Dbdict::create_file_abort_complete(Signal* signal, SchemaOp* op)
 }
 
 void
-Dbdict::drop_file_prepare_start(Signal* signal, SchemaOp* op)
+Dbdict::drop_file_prepare_start(Signal* signal, SchemaOperation* op)
 {
   jam();
   send_drop_file(signal, op, DropFileImplReq::Prepare);
 }
 
 void
-Dbdict::drop_undofile_prepare_start(Signal* signal, SchemaOp* op)
+Dbdict::drop_undofile_prepare_start(Signal* signal, SchemaOperation* op)
 {
   jam();
   op->m_errorCode = DropFileRef::DropUndoFileNotSupported;
@@ -16684,14 +16684,14 @@ Dbdict::drop_undofile_prepare_start(Signal* signal, SchemaOp* op)
 }
 
 void
-Dbdict::drop_file_commit_start(Signal* signal, SchemaOp* op)
+Dbdict::drop_file_commit_start(Signal* signal, SchemaOperation* op)
 {
   jam();
   send_drop_file(signal, op, DropFileImplReq::Commit);
 }
 
 void
-Dbdict::drop_file_commit_complete(Signal* signal, SchemaOp* op)
+Dbdict::drop_file_commit_complete(Signal* signal, SchemaOperation* op)
 {
   FilePtr f_ptr;
   FilegroupPtr fg_ptr;
@@ -16706,7 +16706,7 @@ Dbdict::drop_file_commit_complete(Signal* signal, SchemaOp* op)
 }
 
 void
-Dbdict::drop_undofile_commit_complete(Signal* signal, SchemaOp* op)
+Dbdict::drop_undofile_commit_complete(Signal* signal, SchemaOperation* op)
 {
   FilePtr f_ptr;
   FilegroupPtr fg_ptr;
@@ -16722,14 +16722,14 @@ Dbdict::drop_undofile_commit_complete(Signal* signal, SchemaOp* op)
 }
 
 void
-Dbdict::drop_file_abort_start(Signal* signal, SchemaOp* op)
+Dbdict::drop_file_abort_start(Signal* signal, SchemaOperation* op)
 {
   jam();
   send_drop_file(signal, op, DropFileImplReq::Abort);
 }
 
 void
-Dbdict::send_drop_file(Signal* signal, SchemaOp* op, 
+Dbdict::send_drop_file(Signal* signal, SchemaOperation* op,
 		       DropFileImplReq::RequestInfo type)
 {
   DropFileImplReq* req = (DropFileImplReq*)signal->getDataPtrSend();
@@ -16782,7 +16782,7 @@ Dbdict::execDROP_OBJ_REF(Signal* signal)
     trans_ptr.p->setErrorCode(ref->errorCode);
   }
   Uint32 node = refToNode(ref->senderRef);
-  schemaOp_reply(signal, trans_ptr.p, node);
+  schemaOperation_reply(signal, trans_ptr.p, node);
 }
 
 void
@@ -16793,7 +16793,7 @@ Dbdict::execDROP_OBJ_CONF(Signal* signal)
 
   jamEntry();
   ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
-  schemaOp_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
+  schemaOperation_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
 }
 
 void
@@ -16845,7 +16845,7 @@ Dbdict::execDROP_FILEGROUP_CONF(Signal* signal)
 }
 
 void
-Dbdict::drop_fg_prepare_start(Signal* signal, SchemaOp* op)
+Dbdict::drop_fg_prepare_start(Signal* signal, SchemaOperation* op)
 {
   FilegroupPtr fg_ptr;
   c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
@@ -16865,7 +16865,7 @@ Dbdict::drop_fg_prepare_start(Signal* signal, SchemaOp* op)
 }
 
 void
-Dbdict::drop_fg_commit_start(Signal* signal, SchemaOp* op)
+Dbdict::drop_fg_commit_start(Signal* signal, SchemaOperation* op)
 {
   FilegroupPtr fg_ptr;
   c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
@@ -16905,7 +16905,7 @@ Dbdict::drop_fg_commit_start(Signal* signal, SchemaOp* op)
 }
 
 void
-Dbdict::drop_fg_commit_complete(Signal* signal, SchemaOp* op)
+Dbdict::drop_fg_commit_complete(Signal* signal, SchemaOperation* op)
 {
   FilegroupPtr fg_ptr;
   c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
@@ -16917,14 +16917,14 @@ Dbdict::drop_fg_commit_complete(Signal* signal, SchemaOp* op)
 }
 
 void
-Dbdict::drop_fg_abort_start(Signal* signal, SchemaOp* op)
+Dbdict::drop_fg_abort_start(Signal* signal, SchemaOperation* op)
 {
   jam();
   send_drop_fg(signal, op, DropFilegroupImplReq::Abort);
 }
 
 void
-Dbdict::send_drop_fg(Signal* signal, SchemaOp* op, 
+Dbdict::send_drop_fg(Signal* signal, SchemaOperation* op,
 		     DropFilegroupImplReq::RequestInfo type)
 {
   DropFilegroupImplReq* req = (DropFilegroupImplReq*)signal->getDataPtrSend();

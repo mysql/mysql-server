@@ -1915,7 +1915,7 @@ private:
   typedef Ptr<OpAlterTrigger> OpAlterTriggerPtr;
 
 public:
-  struct SchemaOp : OpRecordCommon {
+  struct SchemaOperation : OpRecordCommon {
     
     Uint32 m_clientRef; // API (for take-over)
     Uint32 m_clientData;// API
@@ -1932,7 +1932,7 @@ public:
     Uint32 m_vt_index;
     Callback m_callback;
   };
-  typedef Ptr<SchemaOp> SchemaOpPtr;
+  typedef Ptr<SchemaOperation> SchemaOperationPtr;
 
   struct SchemaTransaction : OpRecordCommon {
     Uint32 m_senderRef; // API
@@ -1958,14 +1958,14 @@ public:
   };
 private:
 
-  struct OpCreateObj : public SchemaOp {
+  struct OpCreateObj : public SchemaOperation {
     Uint32 m_gci;
     Uint32 m_obj_info_ptr_i;
     Uint32 m_restart;
   };
   typedef Ptr<OpCreateObj> CreateObjRecordPtr;
   
-  struct OpDropObj : public SchemaOp 
+  struct OpDropObj : public SchemaOperation
   {
   };
   typedef Ptr<OpDropObj> DropObjRecordPtr;
@@ -2024,10 +2024,10 @@ private:
   KeyTable2<OpCreateTrigger, OpRecordUnion> c_opCreateTrigger;
   KeyTable2<OpDropTrigger, OpRecordUnion> c_opDropTrigger;
   KeyTable2<OpAlterTrigger, OpRecordUnion> c_opAlterTrigger;
-  KeyTable2<SchemaOp, OpRecordUnion> c_schemaOp; 
+  KeyTable2<SchemaOperation, OpRecordUnion> c_schemaOperation;
   KeyTable2<SchemaTransaction, OpRecordUnion> c_Trans;
-  KeyTable2Ref<OpCreateObj, SchemaOp, OpRecordUnion> c_opCreateObj;
-  KeyTable2Ref<OpDropObj, SchemaOp, OpRecordUnion> c_opDropObj;
+  KeyTable2Ref<OpCreateObj, SchemaOperation, OpRecordUnion> c_opCreateObj;
+  KeyTable2Ref<OpDropObj, SchemaOperation, OpRecordUnion> c_opDropObj;
 
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
@@ -2489,7 +2489,7 @@ private:
   void createObj_abort_writeSchemaConf(Signal*, Uint32 callbackData, Uint32);
   void createObj_abort_complete_done(Signal*, Uint32 callbackData, Uint32);  
 
-  void schemaOp_reply(Signal* signal, SchemaTransaction *, Uint32);
+  void schemaOperation_reply(Signal* signal, SchemaTransaction *, Uint32);
   void trans_commit_start_done(Signal*, Uint32 callbackData, Uint32);
   void trans_commit_complete_done(Signal*, Uint32 callbackData, Uint32);
   void trans_abort_start_done(Signal*, Uint32 callbackData, Uint32);
@@ -2529,36 +2529,36 @@ private:
   void execDICT_ABORT_CONF(Signal*);
 
 public:
-  void createObj_commit(Signal*, struct SchemaOp*);
-  void createObj_abort(Signal*, struct SchemaOp*);
+  void createObj_commit(Signal*, struct SchemaOperation*);
+  void createObj_abort(Signal*, struct SchemaOperation*);
 
-  void create_fg_prepare_start(Signal* signal, SchemaOp*);
-  void create_fg_prepare_complete(Signal* signal, SchemaOp*);
-  void create_fg_abort_start(Signal* signal, SchemaOp*);
-  void create_fg_abort_complete(Signal* signal, SchemaOp*);
+  void create_fg_prepare_start(Signal* signal, SchemaOperation*);
+  void create_fg_prepare_complete(Signal* signal, SchemaOperation*);
+  void create_fg_abort_start(Signal* signal, SchemaOperation*);
+  void create_fg_abort_complete(Signal* signal, SchemaOperation*);
 
-  void create_file_prepare_start(Signal* signal, SchemaOp*);
-  void create_file_prepare_complete(Signal* signal, SchemaOp*);
-  void create_file_commit_start(Signal* signal, SchemaOp*);
-  void create_file_abort_start(Signal* signal, SchemaOp*);
-  void create_file_abort_complete(Signal* signal, SchemaOp*);
+  void create_file_prepare_start(Signal* signal, SchemaOperation*);
+  void create_file_prepare_complete(Signal* signal, SchemaOperation*);
+  void create_file_commit_start(Signal* signal, SchemaOperation*);
+  void create_file_abort_start(Signal* signal, SchemaOperation*);
+  void create_file_abort_complete(Signal* signal, SchemaOperation*);
 
-  void dropObj_commit(Signal*, struct SchemaOp*);
-  void dropObj_abort(Signal*, struct SchemaOp*);
-  void drop_file_prepare_start(Signal* signal, SchemaOp*);
-  void drop_file_commit_start(Signal* signal, SchemaOp*);
-  void drop_file_commit_complete(Signal* signal, SchemaOp*);
-  void drop_file_abort_start(Signal* signal, SchemaOp*);
-  void send_drop_file(Signal*, SchemaOp*, DropFileImplReq::RequestInfo);
+  void dropObj_commit(Signal*, struct SchemaOperation*);
+  void dropObj_abort(Signal*, struct SchemaOperation*);
+  void drop_file_prepare_start(Signal* signal, SchemaOperation*);
+  void drop_file_commit_start(Signal* signal, SchemaOperation*);
+  void drop_file_commit_complete(Signal* signal, SchemaOperation*);
+  void drop_file_abort_start(Signal* signal, SchemaOperation*);
+  void send_drop_file(Signal*, SchemaOperation*, DropFileImplReq::RequestInfo);
 
-  void drop_fg_prepare_start(Signal* signal, SchemaOp*);
-  void drop_fg_commit_start(Signal* signal, SchemaOp*);
-  void drop_fg_commit_complete(Signal* signal, SchemaOp*);
-  void drop_fg_abort_start(Signal* signal, SchemaOp*);
-  void send_drop_fg(Signal*, SchemaOp*, DropFilegroupImplReq::RequestInfo);
+  void drop_fg_prepare_start(Signal* signal, SchemaOperation*);
+  void drop_fg_commit_start(Signal* signal, SchemaOperation*);
+  void drop_fg_commit_complete(Signal* signal, SchemaOperation*);
+  void drop_fg_abort_start(Signal* signal, SchemaOperation*);
+  void send_drop_fg(Signal*, SchemaOperation*, DropFilegroupImplReq::RequestInfo);
 
-  void drop_undofile_prepare_start(Signal* signal, SchemaOp*);
-  void drop_undofile_commit_complete(Signal* signal, SchemaOp*);
+  void drop_undofile_prepare_start(Signal* signal, SchemaOperation*);
+  void drop_undofile_commit_complete(Signal* signal, SchemaOperation*);
   
   int checkSingleUserMode(Uint32 senderRef);
 
