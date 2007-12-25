@@ -22,7 +22,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 730;
+const GlobalSignalNumber MAX_GSN = 739;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -992,5 +992,15 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DICT_LOCK_CONF              411
 #define GSN_DICT_LOCK_REF               412
 #define GSN_DICT_UNLOCK_ORD             420
+
+#define GSN_SCHEMA_TRANS_BEGIN_REQ      731
+#define GSN_SCHEMA_TRANS_BEGIN_CONF     732
+#define GSN_SCHEMA_TRANS_BEGIN_REF      733
+#define GSN_SCHEMA_TRANS_END_REQ        734
+#define GSN_SCHEMA_TRANS_END_CONF       735
+#define GSN_SCHEMA_TRANS_END_REF        736
+#define GSN_SCHEMA_TRANS_IMPL_REQ       737
+#define GSN_SCHEMA_TRANS_IMPL_CONF      738
+#define GSN_SCHEMA_TRANS_IMPL_REF       739
 
 #endif

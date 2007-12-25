@@ -30,6 +30,7 @@
 #include <signaldata/ListTables.hpp>
 #include <signaldata/DropFilegroup.hpp>
 #include <signaldata/CreateFilegroup.hpp>
+#include <signaldata/SchemaTrans.hpp>
 #include <signaldata/WaitGCP.hpp>
 #include <SimpleProperties.hpp>
 #include <Bitmask.hpp>
@@ -1345,7 +1346,7 @@ NdbEventImpl::getEventColumn(unsigned no) const
 NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb)
   : NdbDictionary::Dictionary(* this), 
     m_facade(this), 
-    m_receiver(m_error),
+    m_receiver(m_tx, m_error),
     m_ndb(ndb)
 {
   m_globalHash = 0;
@@ -1356,7 +1357,7 @@ NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb,
 				     NdbDictionary::Dictionary & f)
   : NdbDictionary::Dictionary(* this), 
     m_facade(&f), 
-    m_receiver(m_error),
+    m_receiver(m_tx, m_error),
     m_ndb(ndb)
 {
   m_globalHash = 0;
@@ -1697,6 +1698,18 @@ NdbDictInterface::execSignal(void* dictImpl,
   case GSN_DROP_FILE_CONF:
     tmp->execDROP_FILE_CONF(signal, ptr);
     break;
+  case GSN_SCHEMA_TRANS_BEGIN_CONF:
+    tmp->execSCHEMA_TRANS_BEGIN_CONF(signal, ptr);
+    break;
+  case GSN_SCHEMA_TRANS_BEGIN_REF:
+    tmp->execSCHEMA_TRANS_BEGIN_REF(signal, ptr);
+    break;
+  case GSN_SCHEMA_TRANS_END_CONF:
+    tmp->execSCHEMA_TRANS_END_CONF(signal, ptr);
+    break;
+  case GSN_SCHEMA_TRANS_END_REF:
+    tmp->execSCHEMA_TRANS_END_REF(signal, ptr);
+    break;
   case GSN_WAIT_GCP_CONF:
     tmp->execWAIT_GCP_CONF(signal, ptr);
     break;
@@ -1838,6 +1851,7 @@ NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
   req->requestType =
     GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
   req->tableId = tableId;
+  req->schemaTransId = m_tx.transId();
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
   tSignal.theLength = GetTabInfoReq::SignalLength;
@@ -1867,6 +1881,7 @@ NdbDictInterface::getTable(const BaseString& name, bool fullyQualifiedNames)
   req->requestType=
     GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
   req->tableNameLen= namelen;
+  req->schemaTransId = m_tx.transId();
   tSignal.theReceiversBlockNumber= DBDICT;
   tSignal.theVerId_signalNumber= GSN_GET_TABINFOREQ;
   tSignal.theLength= GetTabInfoReq::SignalLength;
@@ -6018,6 +6033,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   req->requestType = 
     GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
   req->tableNameLen = strLen;
+  req->schemaTransId = m_tx.transId();
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
   tSignal.theLength = GetTabInfoReq::SignalLength;
@@ -6127,6 +6143,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   req->requestType =
     GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
   req->tableId = id;
+  req->schemaTransId = m_tx.transId();
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
   tSignal.theLength = GetTabInfoReq::SignalLength;
@@ -6176,6 +6193,7 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   req->requestType =
     GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
   req->tableNameLen = strLen;
+  req->schemaTransId = m_tx.transId();
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
   tSignal.theLength = GetTabInfoReq::SignalLength;
@@ -6283,6 +6301,158 @@ template class Vector<Uint32>;
 template class Vector<Vector<Uint32> >;
 template class Vector<NdbTableImpl*>;
 template class Vector<NdbColumnImpl*>;
+
+int
+NdbDictionaryImpl::beginSchemaTrans()
+{
+  DBUG_ENTER("beginSchemaTrans");
+  if (m_tx.m_transOn) {
+    m_error.code = 4410;
+    DBUG_RETURN(-1);
+  }
+  // TODO real transId
+  m_tx.m_transId = rand();
+  if (m_tx.m_transId == 0)
+    m_tx.m_transId = 1;
+  int ret = m_receiver.beginSchemaTrans();
+  if (ret == -1) {
+    DBUG_RETURN(-1);
+  }
+  m_tx.m_transOn = true;
+  DBUG_PRINT("info", ("transId: %x transKey: %x",
+                      m_tx.m_transId, m_tx.m_transKey));
+  DBUG_RETURN(0);
+}
+
+int
+NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
+{
+  DBUG_ENTER("endSchemaTrans");
+  if (! m_tx.m_transOn) {
+    DBUG_RETURN(0);
+  }
+  DBUG_PRINT("info", ("transId: %x transKey: %x",
+                      m_tx.m_transId, m_tx.m_transKey));
+  int ret = m_receiver.endSchemaTrans(flags);
+  m_tx.m_transOn = false;
+  if (ret == -1) {
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+int
+NdbDictInterface::beginSchemaTrans()
+{
+  NdbApiSignal tSignal(m_reference);
+  SchemaTransBeginReq* req =
+    CAST_PTR(SchemaTransBeginReq, tSignal.getDataPtrSend());
+
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber = GSN_SCHEMA_TRANS_BEGIN_REQ;
+  tSignal.theLength = SchemaTransBeginReq::SignalLength;
+
+  req->clientRef =  m_reference;
+  req->transId = m_tx.m_transId;
+  req->requestInfo = 0;
+
+  int errCodes[] = {
+    SchemaTransBeginRef::NotMaster,
+    SchemaTransBeginRef::Busy,
+    SchemaTransBeginRef::BusyWithNR,
+    0
+  };
+  int ret = dictSignal(
+      &tSignal,
+      0,
+      0,
+      0,
+      WAIT_SCHEMA_TRANS,
+      DICT_WAITFOR_TIMEOUT,
+      100,
+      errCodes);
+  if (ret == -1)
+    return -1;
+  return 0;
+}
+
+int
+NdbDictInterface::endSchemaTrans(Uint32 flags)
+{
+  NdbApiSignal tSignal(m_reference);
+  SchemaTransEndReq* req =
+    CAST_PTR(SchemaTransEndReq, tSignal.getDataPtrSend());
+
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber = GSN_SCHEMA_TRANS_END_REQ;
+  tSignal.theLength = SchemaTransEndReq::SignalLength;
+
+  req->clientRef =  m_reference;
+  req->transId = m_tx.m_transId;
+  req->requestInfo = 0;
+  req->transKey = m_tx.m_transKey;
+  req->flags = flags;
+
+  int errCodes[] = {
+    SchemaTransBeginRef::NotMaster,
+    0
+  };
+  int ret = dictSignal(
+      &tSignal,
+      0,
+      0,
+      0,
+      WAIT_SCHEMA_TRANS,
+      DICT_WAITFOR_TIMEOUT,
+      100,
+      errCodes);
+  if (ret == -1)
+    return -1;
+  return 0;
+}
+
+void
+NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(NdbApiSignal * signal,
+                                              LinearSectionPtr ptr[3])
+{
+  const SchemaTransBeginConf* conf=
+    CAST_CONSTPTR(SchemaTransBeginConf, signal->getDataPtr());
+  assert(m_tx.m_transId == conf->transId);
+  m_tx.m_transKey = conf->transKey;
+  m_waiter.signal(NO_WAIT);
+}
+
+void
+NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF(NdbApiSignal * signal,
+                                             LinearSectionPtr ptr[3])
+{
+  const SchemaTransBeginRef* ref =
+    CAST_CONSTPTR(SchemaTransBeginRef, signal->getDataPtr());
+  m_error.code = ref->errorCode;
+  m_masterNodeId = ref->masterNodeId;
+  m_waiter.signal(NO_WAIT);
+}
+
+void
+NdbDictInterface::execSCHEMA_TRANS_END_CONF(NdbApiSignal * signal,
+                                            LinearSectionPtr ptr[3])
+{
+  const SchemaTransEndConf* conf=
+    CAST_CONSTPTR(SchemaTransEndConf, signal->getDataPtr());
+  assert(m_tx.m_transId == conf->transId);
+  m_waiter.signal(NO_WAIT);
+}
+
+void
+NdbDictInterface::execSCHEMA_TRANS_END_REF(NdbApiSignal * signal,
+                                           LinearSectionPtr ptr[3])
+{
+  const SchemaTransEndRef* ref =
+    CAST_CONSTPTR(SchemaTransEndRef, signal->getDataPtr());
+  m_error.code = ref->errorCode;
+  m_masterNodeId = ref->masterNodeId;
+  m_waiter.signal(NO_WAIT);
+}
 
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_FIXED_MEMORY = 0;

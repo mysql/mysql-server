@@ -38,7 +38,8 @@ libsignaldataprint_la_SOURCES = \
           SumaImpl.cpp NdbSttor.cpp CreateFragmentation.cpp \
 	  UtilLock.cpp TuxMaint.cpp AccLock.cpp \
           LqhTrans.cpp ReadNodesConf.cpp CntrStart.cpp \
-          ScanFrag.cpp
+          ScanFrag.cpp \
+	  SchemaTrans.cpp SchemaTransImpl.cpp GetTabInfo.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am

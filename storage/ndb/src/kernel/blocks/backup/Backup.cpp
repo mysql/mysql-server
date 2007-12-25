@@ -354,6 +354,7 @@ Backup::execCONTINUEB(Signal* signal)
     req->requestType = GetTabInfoReq::RequestById |
       GetTabInfoReq::LongSignalConf;
     req->tableId = tabPtr.p->tableId;
+    req->schemaTransId = 0;
     sendSignal(DBDICT_REF, GSN_GET_TABINFOREQ, signal, 
 	       GetTabInfoReq::SignalLength, JBB);
     return;
