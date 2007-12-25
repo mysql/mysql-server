@@ -49,8 +49,11 @@
 #include <signaldata/UtilPrepare.hpp>
 #include <signaldata/CreateEvnt.hpp>
 #include <signaldata/CreateTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/AlterTrig.hpp>
+#include <signaldata/AlterTrigImpl.hpp>
 #include <signaldata/DictLock.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include "SchemaFile.hpp"
@@ -423,18 +426,11 @@ public:
       TS_NOT_DEFINED = 0,
       TS_DEFINING = 1,
       TS_OFFLINE  = 2,   // created globally in DICT
-      TS_BUILDING = 3,
-      TS_DROPPING = 4,
-      TS_ONLINE = 5      // activated globally
+      //TS_BUILDING = 3,
+      //TS_DROPPING = 4,
+      TS_ONLINE = 5      // created in other blocks
     };
     TriggerState triggerState;
-
-    /** Trigger state in other blocks on this node */
-    enum IndexLocal {
-      TL_CREATED_TC = 1 << 0,   // created in TC
-      TL_CREATED_LQH = 1 << 1   // created in LQH-TUP
-    };
-    Uint32 triggerLocal;
 
     /** Trigger name, used by DICT to identify the trigger */ 
     RopeHandle triggerName;
@@ -446,29 +442,17 @@ public:
     /** Table id, the table the trigger is defined on */
     Uint32 tableId;
 
-    /** Trigger type, defines what the trigger is used for */
-    TriggerType::Value triggerType;
-    
-    /** Trigger action time, defines when the trigger should fire */
-    TriggerActionTime::Value triggerActionTime;
-    
-    /** Trigger event, defines what events the trigger should monitor */
-    TriggerEvent::Value triggerEvent;
-    
-    /** Monitor all replicas */
-    bool monitorReplicas;
+    /** TriggerInfo (packed) */
+    Uint32 triggerInfo;
 
-    /** Monitor all, the trigger monitors changes of all attributes in table */
-    bool monitorAllAttributes;
-
-    /** Monitor all, the trigger monitors changes of all attributes in table */
-    bool reportAllMonitoredAttributes;
-        
     /**
      * Attribute mask, defines what attributes are to be monitored.
      * Can be seen as a compact representation of SQL column name list.
      */
     AttributeMask attributeMask;
+
+    /** Receiver.  Not used from index triggers */
+    BlockReference receiverRef;
 
     /** Index id, only used by secondary_index triggers */
     Uint32 indexId;
@@ -820,6 +804,11 @@ private:
   void execDROP_TRIG_REQ(Signal* signal);
   void execDROP_TRIG_CONF(Signal* signal);
   void execDROP_TRIG_REF(Signal* signal);
+  // from other blocks
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
 
   void execDROP_TABLE_REQ(Signal* signal);
   
@@ -2659,6 +2648,7 @@ private:
       }
     }
     void setError(const CreateTrigRef* ref) {
+#if wl3600_todo // remove in index patch
       m_lastError = AlterIndxRef::NoError;
       if (ref != 0) {
         m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
@@ -2668,8 +2658,10 @@ private:
           m_errorNode = ref->getErrorNode();
         }
       }
+#endif
     }
     void setError(const DropTrigRef* ref) {
+#if wl3600_todo // remove in index patch
       m_lastError = AlterIndxRef::NoError;
       if (ref != 0) {
         m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
@@ -2679,6 +2671,7 @@ private:
           m_errorNode = ref->getErrorNode();
         }
       }
+#endif
     }
   };
   typedef Ptr<OpAlterIndex> OpAlterIndexPtr;
@@ -2750,6 +2743,7 @@ private:
       }
     }
     void setError(const CreateTrigRef* ref) {
+#if wl3600_todo // remove in index patch
       m_lastError = BuildIndxRef::NoError;
       if (ref != 0) {
         m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
@@ -2759,8 +2753,10 @@ private:
           m_errorNode = ref->getErrorNode();
         }
       }
+#endif
     }
     void setError(const DropTrigRef* ref) {
+#if wl3600_todo // remove in index patch
       m_lastError = BuildIndxRef::NoError;
       if (ref != 0) {
         m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
@@ -2770,6 +2766,7 @@ private:
           m_errorNode = ref->getErrorNode();
         }
       }
+#endif
     }
   };
   typedef Ptr<OpBuildIndex> OpBuildIndexPtr;
@@ -2889,217 +2886,150 @@ private:
   };
   typedef Ptr<OpDropEvent> OpDropEventPtr;
 
-  /**
-   * Operation record for create trigger.
-   */
-  struct OpCreateTrigger : OpRecordCommon {
-    // original request (trigger id will be added)
-    CreateTrigReq m_request;
+  // MODULE: CreateTrigger
+
+  struct CreateTriggerRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::CreateTriggerRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_createTriggerRecPool;
+    }
+
+    CreateTrigImplReq m_request;
+
     char m_triggerName[MAX_TAB_NAME_SIZE];
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    CreateTrigReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    CreateTrigRef::ErrorCode m_lastError;
-    CreateTrigRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpCreateTrigger() {
-      memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = CreateTrigReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = CreateTrigRef::NoError;
-      m_errorCode = CreateTrigRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void save(const CreateTrigReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != CreateTrigRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != CreateTrigRef::NoError;
-    }
-    void setError(const CreateTrigRef* ref) {
-      m_lastError = CreateTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const AlterTrigRef* ref) {
-      m_lastError = CreateTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = (CreateTrigRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-  };
-  typedef Ptr<OpCreateTrigger> OpCreateTriggerPtr;
+    // sub-operation counters
+    bool m_sub_alter_trigger;
 
-  /**
-   * Operation record for drop trigger.
-   */
-  struct OpDropTrigger : OpRecordCommon {
-    // original request
-    DropTrigReq m_request;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    DropTrigReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    DropTrigRef::ErrorCode m_lastError;
-    DropTrigRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpDropTrigger() {
+    CreateTriggerRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = DropTrigReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = DropTrigRef::NoError;
-      m_errorCode = DropTrigRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void save(const DropTrigReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != DropTrigRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != DropTrigRef::NoError;
-    }
-    void setError(const DropTrigRef* ref) {
-      m_lastError = DropTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const AlterTrigRef* ref) {
-      m_lastError = DropTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = (DropTrigRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
+      memset(m_triggerName, 0, sizeof(m_triggerName));
+      m_sub_alter_trigger = false;
     }
   };
-  typedef Ptr<OpDropTrigger> OpDropTriggerPtr;
 
-  /**
-   * Operation record for alter trigger.
-   */
-  struct OpAlterTrigger : OpRecordCommon {
-    // original request
-    AlterTrigReq m_request;
-    // nodes participating in operation
-    NdbNodeBitmask m_nodes;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    AlterTrigReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    AlterTrigRef::ErrorCode m_lastError;
-    AlterTrigRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpAlterTrigger() {
+  typedef Ptr<CreateTriggerRec> CreateTriggerRecPtr;
+  ArrayPool<CreateTriggerRec> c_createTriggerRecPool;
+
+  // OpInfo
+  bool createTrigger_seize(SchemaOpPtr);
+  void createTrigger_release(SchemaOpPtr);
+  //
+  void createTrigger_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool createTrigger_subOps(Signal*, SchemaOpPtr);
+  void createTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void createTrigger_prepare(Signal*, SchemaOpPtr);
+  void createTrigger_commit(Signal*, SchemaOpPtr);
+  //
+  void createTrigger_abortParse(Signal*, SchemaOpPtr);
+  void createTrigger_abortPrepare(Signal*, SchemaOpPtr);
+
+  // sub-ops
+  void createTrigger_toAlterTrigger(Signal*, SchemaOpPtr);
+  void createTrigger_fromAlterTrigger(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: DropTrigger
+
+  struct DropTriggerRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::DropTriggerRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_dropTriggerRecPool;
+    }
+
+    DropTrigImplReq m_request;
+
+    char m_triggerName[MAX_TAB_NAME_SIZE];
+    // sub-operation counters
+    bool m_sub_alter_trigger;
+
+    DropTriggerRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = AlterTrigReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = AlterTrigRef::NoError;
-      m_errorCode = AlterTrigRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void save(const AlterTrigReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != AlterTrigRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != AlterTrigRef::NoError;
-    }
-    void setError(const AlterTrigRef* ref) {
-      m_lastError = AlterTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterTrigRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const CreateTrigRef* ref) {
-      m_lastError = AlterTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterTrigRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const DropTrigRef* ref) {
-      m_lastError = AlterTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterTrigRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
+      memset(m_triggerName, 0, sizeof(m_triggerName));
+      m_sub_alter_trigger = false;
     }
   };
-  typedef Ptr<OpAlterTrigger> OpAlterTriggerPtr;
+
+  typedef Ptr<DropTriggerRec> DropTriggerRecPtr;
+  ArrayPool<DropTriggerRec> c_dropTriggerRecPool;
+
+  // OpInfo
+  bool dropTrigger_seize(SchemaOpPtr);
+  void dropTrigger_release(SchemaOpPtr);
+  //
+  void dropTrigger_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool dropTrigger_subOps(Signal*, SchemaOpPtr);
+  void dropTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void dropTrigger_prepare(Signal*, SchemaOpPtr);
+  void dropTrigger_commit(Signal*, SchemaOpPtr);
+  //
+  void dropTrigger_abortParse(Signal*, SchemaOpPtr);
+  void dropTrigger_abortPrepare(Signal*, SchemaOpPtr);
+
+  // sub-ops
+  void dropTrigger_toAlterTrigger(Signal*, SchemaOpPtr);
+  void dropTrigger_fromAlterTrigger(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: AlterTrigger
+
+  struct AlterTriggerRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::AlterTriggerRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_alterTriggerRecPool;
+    };
+
+    AlterTrigImplReq m_request;
+
+    // local triggers
+    Uint32 m_triggerCount; // 2 or 1
+    Uint32 m_triggerMax;   // normally m_triggerCount
+    Uint32 m_triggerNo;
+    // TC-LQH or LQH (if drop, done in reversed order)
+    BlockReference m_triggerBlock[2];
+
+    AlterTriggerRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_triggerCount = 0;
+      m_triggerMax = 0;
+      m_triggerNo = 0;
+      m_triggerBlock[0] = 0;
+      m_triggerBlock[1] = 0;
+    }
+  };
+
+  typedef Ptr<AlterTriggerRec> AlterTriggerRecPtr;
+  ArrayPool<AlterTriggerRec> c_alterTriggerRecPool;
+
+  // OpInfo
+  bool alterTrigger_seize(SchemaOpPtr);
+  void alterTrigger_release(SchemaOpPtr);
+  //
+  void alterTrigger_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool alterTrigger_subOps(Signal*, SchemaOpPtr);
+  void alterTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void alterTrigger_prepare(Signal*, SchemaOpPtr);
+  void alterTrigger_commit(Signal*, SchemaOpPtr);
+  //
+  void alterTrigger_abortParse(Signal*, SchemaOpPtr);
+  void alterTrigger_abortPrepare(Signal*, SchemaOpPtr);
+
+  // prepare phase
+  void alterTrigger_toCreateLocal(Signal*, SchemaOpPtr);
+  void alterTrigger_toDropLocal(Signal*, SchemaOpPtr);
+  void alterTrigger_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  // abort
+  void alterTrigger_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);
 
 public:
   struct SchemaOperation : OpRecordCommon {
@@ -3170,9 +3100,6 @@ public:
   STATIC_CONST( opSubEventSize = sizeof(OpSubEvent) );
   STATIC_CONST( opDropEventSize = sizeof(OpDropEvent) );
   STATIC_CONST( opSignalUtilSize = sizeof(OpSignalUtil) );
-  STATIC_CONST( opCreateTriggerSize = sizeof(OpCreateTrigger) );
-  STATIC_CONST( opDropTriggerSize = sizeof(OpDropTrigger) );
-  STATIC_CONST( opAlterTriggerSize = sizeof(OpAlterTrigger) );
   STATIC_CONST( opCreateObjSize = sizeof(OpCreateObj) );
 private:
 #define PTR_ALIGN(n) ((((n)+sizeof(void*)-1)>>2)&~((sizeof(void*)-1)>>2))
@@ -3185,9 +3112,6 @@ private:
     Uint32 u_opSignalUtil   [PTR_ALIGN(opSignalUtilSize)];
     Uint32 u_opAlterIndex   [PTR_ALIGN(opAlterIndexSize)];
     Uint32 u_opBuildIndex   [PTR_ALIGN(opBuildIndexSize)];
-    Uint32 u_opCreateTrigger[PTR_ALIGN(opCreateTriggerSize)];
-    Uint32 u_opDropTrigger  [PTR_ALIGN(opDropTriggerSize)];
-    Uint32 u_opAlterTrigger [PTR_ALIGN(opAlterTriggerSize)];
     Uint32 u_opCreateObj    [PTR_ALIGN(opCreateObjSize)];
     Uint32 nextPool;
   };
@@ -3202,9 +3126,6 @@ private:
   KeyTable2C<OpSubEvent, OpRecordUnion> c_opSubEvent;
   KeyTable2C<OpDropEvent, OpRecordUnion> c_opDropEvent;
   KeyTable2C<OpSignalUtil, OpRecordUnion> c_opSignalUtil;
-  KeyTable2<OpCreateTrigger, OpRecordUnion> c_opCreateTrigger;
-  KeyTable2<OpDropTrigger, OpRecordUnion> c_opDropTrigger;
-  KeyTable2<OpAlterTrigger, OpRecordUnion> c_opAlterTrigger;
   KeyTable2<SchemaOperation, OpRecordUnion> c_schemaOperation;
   KeyTable2<SchemaTransaction, OpRecordUnion> c_Trans;
   KeyTable2Ref<OpCreateObj, SchemaOperation, OpRecordUnion> c_opCreateObj;
@@ -3506,40 +3427,6 @@ private:
 
   void parseReadEventSys(Signal *signal, sysTab_NDBEVENTS_0& m_eventRec);
 
-  // create trigger
-  void createTrigger_recvReply(Signal* signal, const CreateTrigConf* conf,
-      const CreateTrigRef* ref);
-  void createTrigger_slavePrepare(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_masterSeize(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_slaveCreate(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_toAlterTrigger(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_fromAlterTrigger(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_slaveCommit(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_slaveAbort(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_sendSlaveReq(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_sendReply(Signal* signal, OpCreateTriggerPtr opPtr, bool);
-  // drop trigger
-  void dropTrigger_recvReply(Signal* signal, const DropTrigConf* conf,
-      const DropTrigRef* ref);
-  void dropTrigger_slavePrepare(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_toAlterTrigger(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_fromAlterTrigger(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_slaveCommit(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_slaveAbort(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_sendSlaveReq(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_sendReply(Signal* signal, OpDropTriggerPtr opPtr, bool);
-  // alter trigger
-  void alterTrigger_recvReply(Signal* signal, const AlterTrigConf* conf,
-      const AlterTrigRef* ref);
-  void alterTrigger_slavePrepare(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_toCreateLocal(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_fromCreateLocal(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_toDropLocal(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_fromDropLocal(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_slaveCommit(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_slaveAbort(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_sendSlaveReq(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_sendReply(Signal* signal, OpAlterTriggerPtr opPtr, bool);
   // support
   void getTableKeyList(TableRecordPtr, 
 		       Id_array<MAX_ATTRIBUTES_IN_INDEX+1>& list);

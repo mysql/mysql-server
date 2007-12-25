@@ -46,7 +46,9 @@
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/CreateTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
 #include <signaldata/CreateIndx.hpp>
@@ -11719,78 +11721,84 @@ void Dbtc::checkAbortAllTimeout(Signal* signal, Uint32 sleepTime)
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
 
-void Dbtc::execCREATE_TRIG_REQ(Signal* signal)
+void Dbtc::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  CreateTrigReq * const createTrigReq = 
-    (CreateTrigReq *)&signal->theData[0];
+  const CreateTrigImplReq* req = (const CreateTrigImplReq*)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+
   TcDefinedTriggerData* triggerData;
   DefinedTriggerPtr triggerPtr;
-  BlockReference sender = signal->senderBlockRef();
 
   releaseSections(signal);
   
-  triggerPtr.i = createTrigReq->getTriggerId();
+  triggerPtr.i = req->triggerId;
   if (ERROR_INSERTED(8033) ||
-      !c_theDefinedTriggers.seizeId(triggerPtr, 
-				    createTrigReq->getTriggerId())) {
+      !c_theDefinedTriggers.seizeId(triggerPtr, req->triggerId)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to allocate trigger record
-    CreateTrigRef * const createTrigRef =  
-      (CreateTrigRef *)&signal->theData[0];
+    CreateTrigImplRef* ref =  (CreateTrigImplRef*)signal->getDataPtrSend();
     
-    createTrigRef->setConnectionPtr(createTrigReq->getConnectionPtr());
-    createTrigRef->setErrorCode(CreateTrigRef::TooManyTriggers);
-    sendSignal(sender, GSN_CREATE_TRIG_REF, 
-               signal, CreateTrigRef::SignalLength, JBB);
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->errorCode = CreateTrigImplRef::InconsistentTC;
+    ref->errorLine = __LINE__;
+    sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_REF, 
+               signal, CreateTrigImplRef::SignalLength, JBB);
     return;
   }
 
   triggerData = triggerPtr.p;
-  triggerData->triggerId = createTrigReq->getTriggerId();
-  triggerData->triggerType = createTrigReq->getTriggerType();
-  triggerData->triggerEvent = createTrigReq->getTriggerEvent();
-  triggerData->attributeMask = createTrigReq->getAttributeMask();
+  triggerData->triggerId = req->triggerId;
+  triggerData->triggerType = TriggerInfo::getTriggerType(req->triggerInfo);
+  triggerData->triggerEvent = TriggerInfo::getTriggerEvent(req->triggerInfo);
+  triggerData->attributeMask = req->attributeMask;
   if (triggerData->triggerType == TriggerType::SECONDARY_INDEX)
-    triggerData->indexId = createTrigReq->getIndexId();
-  CreateTrigConf * const createTrigConf =  
-    (CreateTrigConf *)&signal->theData[0];
+    triggerData->indexId = req->indexId;
+
+  CreateTrigImplConf* conf = (CreateTrigImplConf*)signal->getDataPtrSend();
   
-  createTrigConf->setConnectionPtr(createTrigReq->getConnectionPtr());
-  sendSignal(sender, GSN_CREATE_TRIG_CONF, 
-             signal, CreateTrigConf::SignalLength, JBB);
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_CONF, 
+             signal, CreateTrigImplConf::SignalLength, JBB);
 }
 
-
-void Dbtc::execDROP_TRIG_REQ(Signal* signal)
+void Dbtc::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  DropTrigReq * const dropTrigReq =  (DropTrigReq *)&signal->theData[0];
-  BlockReference sender = signal->senderBlockRef();
+  const DropTrigImplReq* req = (const DropTrigImplReq*)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
 
   if (ERROR_INSERTED(8035) ||
-      (c_theDefinedTriggers.getPtr(dropTrigReq->getTriggerId())) == NULL) {
+      c_theDefinedTriggers.getPtr(req->triggerId) == NULL) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to find find trigger record
-    DropTrigRef * const dropTrigRef =  (DropTrigRef *)&signal->theData[0];
+    DropTrigImplRef* ref = (DropTrigImplRef*)signal->getDataPtrSend();
 
-    dropTrigRef->setConnectionPtr(dropTrigReq->getConnectionPtr());
-    dropTrigRef->setErrorCode(DropTrigRef::TriggerNotFound);
-    sendSignal(sender, GSN_DROP_TRIG_REF, 
-               signal, DropTrigRef::SignalLength, JBB);
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->errorCode = DropTrigImplRef::InconsistentTC;
+    ref->errorLine = __LINE__;
+    sendSignal(senderRef, GSN_DROP_TRIG_IMPL_REF, 
+               signal, DropTrigImplRef::SignalLength, JBB);
     return;
   }
 
   // Release trigger record
-  c_theDefinedTriggers.release(dropTrigReq->getTriggerId());
+  c_theDefinedTriggers.release(req->triggerId);
 
-  DropTrigConf * const dropTrigConf =  (DropTrigConf *)&signal->theData[0];
+  DropTrigImplConf* conf = (DropTrigImplConf*)signal->getDataPtrSend();
+
+  conf->senderRef = reference();
+  conf->senderData = senderData;
   
-  dropTrigConf->setConnectionPtr(dropTrigReq->getConnectionPtr());
-  sendSignal(sender, GSN_DROP_TRIG_CONF, 
-             signal, DropTrigConf::SignalLength, JBB);
+  sendSignal(senderRef, GSN_DROP_TRIG_IMPL_CONF, 
+             signal, DropTrigImplConf::SignalLength, JBB);
 }
 
 void Dbtc::execCREATE_INDX_REQ(Signal* signal)

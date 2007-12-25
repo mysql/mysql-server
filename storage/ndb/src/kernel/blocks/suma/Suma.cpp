@@ -32,9 +32,9 @@
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/ScanFrag.hpp>
 #include <signaldata/TransIdAI.hpp>
-#include <signaldata/CreateTrig.hpp>
-#include <signaldata/AlterTrig.hpp>
-#include <signaldata/DropTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/DropTrigImpl.hpp>
+#include <signaldata/AlterTrigImpl.hpp>
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
@@ -2941,22 +2941,32 @@ Suma::Table::setupTrigger(Signal* signal,
     {
       suma.suma_ndbrequire(m_triggerIds[j] == ILLEGAL_TRIGGER_ID);
       DBUG_PRINT("info",("DEFINING trigger on table %u[%u]", m_tableId, j));
-      CreateTrigReq * const req = (CreateTrigReq*)signal->getDataPtrSend();
-      req->setUserRef(SUMA_REF);
-      req->setConnectionPtr(m_ptrI);
-      req->setTriggerType(TriggerType::SUBSCRIPTION_BEFORE);
-      req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
-      req->setMonitorReplicas(true);
-      //req->setMonitorAllAttributes(j == TriggerEvent::TE_DELETE);
-      req->setMonitorAllAttributes(true);
-      req->setReceiverRef(SUMA_REF);
-      req->setTriggerId(triggerId);
-      req->setTriggerEvent((TriggerEvent::Value)j);
-      req->setTableId(m_tableId);
-      req->setAttributeMask(attrMask);
-      req->setReportAllMonitoredAttributes(m_reportAll);
-      suma.sendSignal(DBTUP_REF, GSN_CREATE_TRIG_REQ, 
-		      signal, CreateTrigReq::SignalLength, JBB);
+      CreateTrigImplReq * const req =
+        (CreateTrigImplReq*)signal->getDataPtrSend();
+      req->senderRef = SUMA_REF;
+      req->senderData = m_ptrI;
+      req->requestType = 0;
+
+      Uint32 ti = 0;
+      TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION_BEFORE);
+      TriggerInfo::setTriggerActionTime(ti, TriggerActionTime::TA_DETACHED);
+      TriggerInfo::setTriggerEvent(ti, (TriggerEvent::Value)j);
+      TriggerInfo::setMonitorReplicas(ti, true);
+      //TriggerInfo::setMonitorAllAttributes(ti, j == TriggerEvent::TE_DELETE);
+      TriggerInfo::setMonitorAllAttributes(ti, true);
+      TriggerInfo::setReportAllMonitoredAttributes(ti, m_reportAll);
+      req->triggerInfo = ti;
+
+      req->receiverRef = SUMA_REF;
+      req->triggerId = triggerId;
+      req->tableId = m_tableId;
+      req->tableVersion = 0; // not used
+      req->indexId = ~(Uint32)0;
+      req->indexVersion = 0;
+      req->attributeMask = attrMask;
+
+      suma.sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ, 
+		      signal, CreateTrigImplReq::SignalLength, JBB);
       ret= 1;
     }
     else
@@ -2980,21 +2990,22 @@ Suma::Table::createAttributeMask(AttributeMask& mask,
 }
 
 void
-Suma::execCREATE_TRIG_CONF(Signal* signal){
+Suma::execCREATE_TRIG_IMPL_CONF(Signal* signal){
   jamEntry();
-  DBUG_ENTER("Suma::execCREATE_TRIG_CONF");
+  DBUG_ENTER("Suma::execCREATE_IMPL_TRIG_CONF");
   ndbassert(signal->getNoOfSections() == 0);
-  CreateTrigConf * const conf = (CreateTrigConf*)signal->getDataPtr();
-  const Uint32 triggerId = conf->getTriggerId();
+  const CreateTrigImplConf * const conf =
+    (const CreateTrigImplConf*)signal->getDataPtr();
+  const Uint32 triggerId = conf->triggerId;
   Uint32 type = (triggerId >> 16) & 0x3;
-  Uint32 tableId = conf->getTableId();
+  Uint32 tableId = conf->tableId;
 
 
   DBUG_PRINT("enter", ("type: %u tableId: %u[i=%u==%u]",
-		       type, tableId,conf->getConnectionPtr(),triggerId & 0xFFFF));
+		       type, tableId,conf->senderData,triggerId & 0xFFFF));
  
   TablePtr tabPtr;
-  c_tables.getPtr(tabPtr, conf->getConnectionPtr());
+  c_tables.getPtr(tabPtr, conf->senderData);
   ndbrequire(tabPtr.p->m_tableId == tableId);
   ndbrequire(tabPtr.p->m_state == Table::DEFINING);
 
@@ -3013,24 +3024,25 @@ Suma::execCREATE_TRIG_CONF(Signal* signal){
 }
 
 void
-Suma::execCREATE_TRIG_REF(Signal* signal){
+Suma::execCREATE_TRIG_IMPL_REF(Signal* signal){
   jamEntry();
-  DBUG_ENTER("Suma::execCREATE_TRIG_REF");
+  DBUG_ENTER("Suma::execCREATE_TRIG_IMPL_REF");
   ndbassert(signal->getNoOfSections() == 0);  
-  CreateTrigRef * const ref = (CreateTrigRef*)signal->getDataPtr();
-  const Uint32 triggerId = ref->getTriggerId();
+  const CreateTrigImplRef * const ref =
+    (const CreateTrigImplRef*)signal->getDataPtr();
+  const Uint32 triggerId = ref->triggerId;
   Uint32 type = (triggerId >> 16) & 0x3;
-  Uint32 tableId = ref->getTableId();
+  Uint32 tableId = ref->tableId;
   
   DBUG_PRINT("enter", ("type: %u tableId: %u[i=%u==%u]",
-		       type, tableId,ref->getConnectionPtr(),triggerId & 0xFFFF));
+		       type, tableId,ref->senderData,triggerId & 0xFFFF));
  
   TablePtr tabPtr;
-  c_tables.getPtr(tabPtr, ref->getConnectionPtr());
+  c_tables.getPtr(tabPtr, ref->senderData);
   ndbrequire(tabPtr.p->m_tableId == tableId);
   ndbrequire(tabPtr.p->m_state == Table::DEFINING);
 
-  tabPtr.p->m_error= ref->getErrorCode();
+  tabPtr.p->m_error= ref->errorCode;
 
   ndbrequire(type < 3);
 
@@ -3059,17 +3071,28 @@ Suma::Table::dropTrigger(Signal* signal,Suma& suma)
     if(m_hasTriggerDefined[j] == 1) {
       jam();
 
-      DropTrigReq * const req = (DropTrigReq*)signal->getDataPtrSend();
-      req->setConnectionPtr(m_ptrI);
-      req->setUserRef(SUMA_REF); // Sending to myself
-      req->setRequestType(DropTrigReq::RT_USER);
-      req->setTriggerType(TriggerType::SUBSCRIPTION_BEFORE);
-      req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
-      req->setIndexId(RNIL);
+      DropTrigImplReq * const req =
+        (DropTrigImplReq*)signal->getDataPtrSend();
+      req->senderRef = SUMA_REF; // Sending to myself
+      req->senderData = m_ptrI;
+      req->requestType = 0;
 
-      req->setTableId(m_tableId);
-      req->setTriggerId(m_triggerIds[j]);
-      req->setTriggerEvent((TriggerEvent::Value)j);
+      // TUP needs some triggerInfo to find right list
+      Uint32 ti = 0;
+      TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION_BEFORE);
+      TriggerInfo::setTriggerActionTime(ti, TriggerActionTime::TA_DETACHED);
+      TriggerInfo::setTriggerEvent(ti, (TriggerEvent::Value)j);
+      TriggerInfo::setMonitorReplicas(ti, true);
+      //TriggerInfo::setMonitorAllAttributes(ti, j == TriggerEvent::TE_DELETE);
+      TriggerInfo::setMonitorAllAttributes(ti, true);
+      TriggerInfo::setReportAllMonitoredAttributes(ti, m_reportAll);
+      req->triggerInfo = ti;
+
+      req->tableId = m_tableId;
+      req->tableVersion = 0; // not used
+      req->indexId = RNIL;
+      req->indexVersion = 0;
+      req->triggerId = m_triggerIds[j];
 
       DBUG_PRINT("info",("DROPPING trigger %u = %u %u %u on table %u[%u]",
 			 m_triggerIds[j],
@@ -3077,8 +3100,8 @@ Suma::Table::dropTrigger(Signal* signal,Suma& suma)
 			 TriggerActionTime::TA_DETACHED,
 			 j,
 			 m_tableId, j));
-      suma.sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ,
-		      signal, DropTrigReq::SignalLength, JBB);
+      suma.sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ,
+		      signal, DropTrigImplReq::SignalLength, JBB);
     } else {
       jam();
       suma.suma_ndbrequire(m_hasTriggerDefined[j] > 1);
@@ -3089,35 +3112,37 @@ Suma::Table::dropTrigger(Signal* signal,Suma& suma)
 }
 
 void
-Suma::execDROP_TRIG_REF(Signal* signal){
+Suma::execDROP_TRIG_IMPL_REF(Signal* signal){
   jamEntry();
-  DBUG_ENTER("Suma::execDROP_TRIG_REF");
+  DBUG_ENTER("Suma::execDROP_TRIG_IMPL_REF");
   ndbassert(signal->getNoOfSections() == 0);
-  DropTrigRef * const ref = (DropTrigRef*)signal->getDataPtr();
-  if (ref->getErrorCode() != DropTrigRef::TriggerNotFound)
+  const DropTrigImplRef * const ref =
+    (const DropTrigImplRef*)signal->getDataPtr();
+  if (ref->errorCode != DropTrigRef::TriggerNotFound)
   {
     ndbrequire(false);
   }
   TablePtr tabPtr;
-  c_tables.getPtr(tabPtr, ref->getConnectionPtr());
-  ndbrequire(ref->getTableId() == tabPtr.p->m_tableId);
+  c_tables.getPtr(tabPtr, ref->senderData);
+  ndbrequire(ref->tableId == tabPtr.p->m_tableId);
 
-  tabPtr.p->runDropTrigger(signal, ref->getTriggerId(), *this);
+  tabPtr.p->runDropTrigger(signal, ref->triggerId, *this);
   DBUG_VOID_RETURN;
 }
 
 void
-Suma::execDROP_TRIG_CONF(Signal* signal){
+Suma::execDROP_TRIG_IMPL_CONF(Signal* signal){
   jamEntry();
-  DBUG_ENTER("Suma::execDROP_TRIG_CONF");
+  DBUG_ENTER("Suma::execDROP_TRIG_IMPL_CONF");
   ndbassert(signal->getNoOfSections() == 0);
 
-  DropTrigConf * const conf = (DropTrigConf*)signal->getDataPtr();
+  const DropTrigImplConf * const conf =
+    (const DropTrigImplConf*)signal->getDataPtr();
   TablePtr tabPtr;
-  c_tables.getPtr(tabPtr, conf->getConnectionPtr());
-  ndbrequire(conf->getTableId() == tabPtr.p->m_tableId);
+  c_tables.getPtr(tabPtr, conf->senderData);
+  ndbrequire(conf->tableId == tabPtr.p->m_tableId);
 
-  tabPtr.p->runDropTrigger(signal, conf->getTriggerId(),*this);
+  tabPtr.p->runDropTrigger(signal, conf->triggerId, *this);
   DBUG_VOID_RETURN;
 }
 

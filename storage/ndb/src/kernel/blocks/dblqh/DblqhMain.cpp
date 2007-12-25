@@ -23,8 +23,8 @@
 #include <signaldata/AccScan.hpp>
 #include <signaldata/CopyActive.hpp>
 #include <signaldata/CopyFrag.hpp>
-#include <signaldata/CreateTrig.hpp>
-#include <signaldata/DropTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/EmptyLcp.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ExecFragReq.hpp>
@@ -19760,57 +19760,57 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
 // Trigger signals
 void
-Dblqh::execCREATE_TRIG_REQ(Signal* signal)
+Dblqh::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBTUP_REF, GSN_CREATE_TRIG_REQ, signal,
-             CreateTrigReq::SignalLength, JBB);
+  sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ, signal,
+             CreateTrigImplReq::SignalLength, JBB);
 }
 
 void
-Dblqh::execCREATE_TRIG_CONF(Signal* signal)
+Dblqh::execCREATE_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_CONF, signal,
-             CreateTrigConf::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_IMPL_CONF, signal,
+             CreateTrigImplConf::SignalLength, JBB);
 }
 
 void
-Dblqh::execCREATE_TRIG_REF(Signal* signal)
+Dblqh::execCREATE_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_REF, signal,
-             CreateTrigRef::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_IMPL_REF, signal,
+             CreateTrigImplRef::SignalLength, JBB);
 }
 
 void
-Dblqh::execDROP_TRIG_REQ(Signal* signal)
+Dblqh::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ, signal,
-             DropTrigReq::SignalLength, JBB);
+  sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ, signal,
+             DropTrigImplReq::SignalLength, JBB);
 }
 
 void
-Dblqh::execDROP_TRIG_CONF(Signal* signal)
+Dblqh::execDROP_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_DROP_TRIG_CONF, signal,
-             DropTrigConf::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_DROP_TRIG_IMPL_CONF, signal,
+             DropTrigImplConf::SignalLength, JBB);
 }
 
 void
-Dblqh::execDROP_TRIG_REF(Signal* signal)
+Dblqh::execDROP_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_DROP_TRIG_REF, signal,
-             DropTrigRef::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_DROP_TRIG_IMPL_REF, signal,
+             DropTrigImplRef::SignalLength, JBB);
 }
 
 Uint32 Dblqh::calcPageCheckSum(LogPageRecordPtr logP){

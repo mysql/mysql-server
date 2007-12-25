@@ -13,18 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <signaldata/DropTrig.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 
 bool
-printDROP_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printDROP_TRIG_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const DropTrigReq* sig = (const DropTrigReq*)theData;
-  fprintf(output, " clientRef: 0x%x", sig->clientRef);
-  fprintf(output, " clientData: %u", sig->clientData);
-  fprintf(output, "\n");
-  fprintf(output, " transId: %u", sig->transId);
-  fprintf(output, " transKey: %u", sig->transKey);
-  fprintf(output, " requestInfo: 0x%x", sig->requestInfo);
+  const DropTrigImplReq* sig = (const DropTrigImplReq*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " senderData: %u", sig->senderData);
+  fprintf(output, " requestType: %u", sig->requestType);
   fprintf(output, "\n");
   fprintf(output, " tableId: %u", sig->tableId);
   fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
@@ -33,34 +30,32 @@ printDROP_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   fprintf(output, " triggerNo: %u", sig->triggerNo);
   fprintf(output, "\n");
   fprintf(output, " triggerId: %u", sig->triggerId);
+  fprintf(output, " triggerInfo: 0x%x", sig->triggerInfo);
   fprintf(output, "\n");
   return true;
 }
 
 bool
-printDROP_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printDROP_TRIG_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const DropTrigConf* sig = (const DropTrigConf*) theData;
+  const DropTrigImplConf* sig = (const DropTrigImplConf*) theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
-  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");
   fprintf(output, " tableId: %u", sig->tableId);
-  fprintf(output, " indexId: %u", sig->indexId);
   fprintf(output, " triggerId: %u", sig->triggerId);
   fprintf(output, "\n");
   return true;
 }
 
 bool
-printDROP_TRIG_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printDROP_TRIG_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const DropTrigRef * sig = (const DropTrigRef*) theData;
+  const DropTrigImplRef * sig = (const DropTrigImplRef*) theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
-  fprintf(output, " clientData: %u", sig->clientData);
-  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");
   fprintf(output, " tableId: %u", sig->tableId);
-  fprintf(output, " indexId: %u", sig->indexId);
   fprintf(output, " triggerId: %u", sig->triggerId);
   fprintf(output, "\n");
   fprintf(output, " errorCode: %u", sig->errorCode);

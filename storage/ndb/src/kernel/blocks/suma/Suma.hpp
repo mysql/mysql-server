@@ -99,10 +99,10 @@ public:
   /**
    * Trigger administration
    */
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
   
   /**
    * continueb

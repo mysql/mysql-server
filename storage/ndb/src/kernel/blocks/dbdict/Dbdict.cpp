@@ -1675,9 +1675,6 @@ Dbdict::Dbdict(Block_context& ctx):
   c_opSubEvent(c_opRecordPool),
   c_opDropEvent(c_opRecordPool),
   c_opSignalUtil(c_opRecordPool),
-  c_opCreateTrigger(c_opRecordPool),
-  c_opDropTrigger(c_opRecordPool),
-  c_opAlterTrigger(c_opRecordPool),
   c_schemaOperation(c_opRecordPool),
   c_Trans(c_opRecordPool),
   c_opCreateObj(c_schemaOperation),
@@ -1780,6 +1777,11 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_DROP_TRIG_REQ, &Dbdict::execDROP_TRIG_REQ);
   addRecSignal(GSN_DROP_TRIG_CONF, &Dbdict::execDROP_TRIG_CONF);
   addRecSignal(GSN_DROP_TRIG_REF, &Dbdict::execDROP_TRIG_REF);
+  // Impl
+  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Dbdict::execCREATE_TRIG_IMPL_CONF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Dbdict::execCREATE_TRIG_IMPL_REF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Dbdict::execDROP_TRIG_IMPL_CONF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Dbdict::execDROP_TRIG_IMPL_REF);
 
   // Received signals
   addRecSignal(GSN_HOT_SPAREREP, &Dbdict::execHOT_SPAREREP);
@@ -2073,14 +2075,8 @@ void Dbdict::initialiseTriggerRecord(TriggerRecordPtr triggerPtr)
 {
   new (triggerPtr.p) TriggerRecord();
   triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
-  triggerPtr.p->triggerLocal = 0;
   triggerPtr.p->triggerId = RNIL;
   triggerPtr.p->tableId = RNIL;
-  triggerPtr.p->triggerType = (TriggerType::Value)~0;
-  triggerPtr.p->triggerActionTime = (TriggerActionTime::Value)~0;
-  triggerPtr.p->triggerEvent = (TriggerEvent::Value)~0;
-  triggerPtr.p->monitorReplicas = false;
-  triggerPtr.p->monitorAllAttributes = false;
   triggerPtr.p->attributeMask.clear();
   triggerPtr.p->indexId = RNIL;
 }
@@ -2256,6 +2252,9 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_createTableRecPool.setSize(32);
   c_dropTableRecPool.setSize(32);
   c_alterTableRecPool.setSize(32);
+  c_createTriggerRecPool.setSize(32);
+  c_dropTriggerRecPool.setSize(32);
+  c_alterTriggerRecPool.setSize(32);
   
   c_opRecordPool.setSize(256);   // XXX need config params
   c_opCreateIndex.setSize(8);
@@ -2266,9 +2265,6 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_opDropIndex.setSize(8);
   c_opAlterIndex.setSize(8);
   c_opBuildIndex.setSize(8);
-  c_opCreateTrigger.setSize(8);
-  c_opDropTrigger.setSize(8);
-  c_opAlterTrigger.setSize(8);
 
   // Initialize schema file copies
   c_schemaFile[0].schemaPage =
@@ -8286,6 +8282,9 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
       conf->setTableId(pos, triggerPtr.i);
       conf->setTableType(pos, type);
       switch (triggerPtr.p->triggerState) {
+      case TriggerRecord::TS_DEFINING:
+	conf->setTableState(pos, DictTabInfo::StateBuilding);
+	break;
       case TriggerRecord::TS_OFFLINE:
 	conf->setTableState(pos, DictTabInfo::StateOffline);
 	break;
@@ -12043,6 +12042,7 @@ Dbdict::alterIndex_fromDropTc(Signal* signal, OpAlterIndexPtr opPtr)
 void
 Dbdict::alterIndex_toCreateTrigger(Signal* signal, OpAlterIndexPtr opPtr)
 {
+#if wl3600 // remove in index patch
   jam();
   TableRecordPtr indexPtr;
   c_tableRecordPool.getPtr(indexPtr, opPtr.p->m_request.getIndexId());
@@ -12128,6 +12128,7 @@ Dbdict::alterIndex_toCreateTrigger(Signal* signal, OpAlterIndexPtr opPtr)
     return;
   }
   ndbrequire(false);
+#endif
 }
 
 void
@@ -12163,6 +12164,7 @@ Dbdict::alterIndex_fromCreateTrigger(Signal* signal, OpAlterIndexPtr opPtr)
 void
 Dbdict::alterIndex_toDropTrigger(Signal* signal, OpAlterIndexPtr opPtr)
 {
+#if wl3600 // remove in index patch
   jam();
   TableRecordPtr indexPtr;
   c_tableRecordPool.getPtr(indexPtr, opPtr.p->m_request.getIndexId());
@@ -12211,6 +12213,7 @@ Dbdict::alterIndex_toDropTrigger(Signal* signal, OpAlterIndexPtr opPtr)
     return;
   }
   ndbrequire(false);
+#endif
 }
 
 void
@@ -12611,6 +12614,7 @@ Dbdict::buildIndex_recvReply(Signal* signal, const BuildIndxConf* conf,
 void
 Dbdict::buildIndex_toCreateConstr(Signal* signal, OpBuildIndexPtr opPtr)
 {
+#if wl3600 // remove in index patch
   jam();
   TableRecordPtr indexPtr;
   c_tableRecordPool.getPtr(indexPtr, opPtr.p->m_request.getIndexId());
@@ -12646,6 +12650,7 @@ Dbdict::buildIndex_toCreateConstr(Signal* signal, OpBuildIndexPtr opPtr)
   lsPtr[0].sz = w.getWordsUsed();
   sendSignal(reference(), GSN_CREATE_TRIG_REQ,
       signal, CreateTrigReq::SignalLength, JBB, lsPtr, 1);
+#endif
 }
 
 void
@@ -12707,6 +12712,7 @@ Dbdict::buildIndex_buildTrix(Signal* signal, OpBuildIndexPtr opPtr)
 void
 Dbdict::buildIndex_toDropConstr(Signal* signal, OpBuildIndexPtr opPtr)
 {
+#if wl3600 // remove in index patch
   jam();
   TableRecordPtr indexPtr;
   c_tableRecordPool.getPtr(indexPtr, opPtr.p->m_request.getIndexId());
@@ -12722,6 +12728,7 @@ Dbdict::buildIndex_toDropConstr(Signal* signal, OpBuildIndexPtr opPtr)
   req->setTriggerInfo(0);       // not used
   sendSignal(reference(), GSN_DROP_TRIG_REQ,
       signal, DropTrigReq::SignalLength, JBB);
+#endif
 }
 
 void
@@ -12844,1387 +12851,1385 @@ Dbdict::buildIndex_sendReply(Signal* signal, OpBuildIndexPtr opPtr,
   sendSignal(rep->getUserRef(), gsn, signal, length, JBB);
 }
 
-/**
- * MODULE: Create trigger
- *
- * Create trigger in all DICT blocks.  Optionally start alter trigger
- * operation to set the trigger online.
- *
- * Request type received in REQ and returned in CONF/REF:
- *
- * RT_USER - normal user e.g. BACKUP
- * RT_ALTER_INDEX - from alter index online
- * RT_DICT_PREPARE - seize operation in each DICT
- * RT_DICT_COMMIT - commit create in each DICT
- * RT_TC - sending to TC (operation alter trigger)
- * RT_LQH - sending to LQH (operation alter trigger)
- */
+// MODULE: CreateTrigger
+
+const Dbdict::OpInfo
+Dbdict::CreateTriggerRec::g_opInfo = {
+  { 'C', 'T', 'r', 0 },
+  GSN_CREATE_TRIG_IMPL_REQ,
+  CreateTrigImplReq::SignalLength,
+  //
+  &Dbdict::createTrigger_seize,
+  &Dbdict::createTrigger_release,
+  //
+  &Dbdict::createTrigger_parse,
+  &Dbdict::createTrigger_subOps,
+  &Dbdict::createTrigger_reply,
+  //
+  &Dbdict::createTrigger_prepare,
+  &Dbdict::createTrigger_commit,
+  //
+  &Dbdict::createTrigger_abortParse,
+  &Dbdict::createTrigger_abortPrepare
+};
+
+bool
+Dbdict::createTrigger_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<CreateTriggerRec>(op_ptr);
+}
 
 void
-Dbdict::execCREATE_TRIG_REQ(Signal* signal) 
+Dbdict::createTrigger_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<CreateTriggerRec>(op_ptr);
+}
+
+void
+Dbdict::execCREATE_TRIG_REQ(Signal* signal)
 {
   jamEntry();
-  CreateTrigReq* const req = (CreateTrigReq*)signal->getDataPtrSend();
-  OpCreateTriggerPtr opPtr;
-  const Uint32 senderRef = signal->senderBlockRef();
-  const CreateTrigReq::RequestType requestType = req->getRequestType();
-  if (requestType == CreateTrigReq::RT_USER ||
-      requestType == CreateTrigReq::RT_ALTER_INDEX ||
-      requestType == CreateTrigReq::RT_BUILD_INDEX) {
+  if (!assembleFragments(signal)) {
     jam();
-    if (! assembleFragments(signal)) {
+    return;
+  }
+
+  const CreateTrigReq req_copy =
+    *(const CreateTrigReq*)signal->getDataPtr();
+  const CreateTrigReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    CreateTriggerRecPtr createTriggerPtr;
+    CreateTrigImplReq* impl_req;
+
+    startClientReq(op_ptr, createTriggerPtr, req, impl_req, error);
+    if (hasError(error)) {
       jam();
+      break;
+    }
+
+    impl_req->tableId = req->tableId;
+    impl_req->tableVersion = req->tableVersion;
+    impl_req->indexId = req->indexId;
+    impl_req->indexVersion = req->indexVersion;
+    impl_req->triggerNo = req->triggerNo;
+    impl_req->triggerId = req->forceTriggerId;
+    impl_req->triggerInfo = req->triggerInfo;
+    impl_req->receiverRef = req->receiverRef;
+    impl_req->attributeMask = req->attributeMask;
+
+    handleClientReq(signal, op_ptr);
+    return;
+  } while (0);
+
+  releaseSections(signal);
+
+  CreateTrigRef* ref = (CreateTrigRef*)signal->getDataPtrSend();
+
+  ref->senderRef = reference();
+  ref->clientData = req->clientData;
+  ref->transId = req->transId;
+  ref->tableId = req->tableId;
+  ref->indexId = req->indexId;
+  ref->triggerInfo = req->triggerInfo;
+  getError(error, ref);
+
+  sendSignal(req->clientRef, GSN_CREATE_TRIG_REF, signal,
+             CreateTrigRef::SignalLength, JBB);
+}
+
+// CreateTrigger: PARSE
+
+void
+Dbdict::createTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+{
+  D("createTrigger_parse" << V(op_ptr.i) << *op_ptr.p);
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateTriggerRecPtr createTriggerPtr;
+  getOpRec(op_ptr, createTriggerPtr);
+  CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
+
+  // check request type
+  Uint32 requestType = impl_req->requestType;
+  switch (requestType) {
+  case CreateTrigImplReq::CreateTriggerOnline:
+  case CreateTrigImplReq::CreateTriggerOffline:
+    break;
+  default:
+    setError(error, CreateTrigRef::BadRequestType, __LINE__);
+    return;
+  }
+
+  // save name
+  {
+    SegmentedSectionPtr ss_ptr;
+    signal->getSection(ss_ptr, CreateTrigReq::TRIGGER_NAME_SECTION);
+    SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
+    DictTabInfo::Table tableDesc;
+    tableDesc.init();
+    SimpleProperties::UnpackStatus status =
+      SimpleProperties::unpack(
+          r, &tableDesc,
+          DictTabInfo::TableMapping, DictTabInfo::TableMappingSize,
+          true, true);
+
+    if (status != SimpleProperties::Eof ||
+        tableDesc.TableName[0] == 0) {
+      jam();
+      setError(error, CreateTrigRef::InvalidName, __LINE__);
       return;
     }
-    const bool isLocal = req->getRequestFlag() & RequestFlag::RF_LOCAL;
-    NdbNodeBitmask receiverNodes = c_aliveNodes;
-    if (isLocal) {
-      receiverNodes.clear();
-      receiverNodes.set(getOwnNodeId());
-    }
-    if (signal->getLength() == CreateTrigReq::SignalLength) {
-      jam();
-      if (! isLocal && getOwnNodeId() != c_masterNodeId) {
-        jam();
+    const Uint32 bytesize = sizeof(createTriggerPtr.p->m_triggerName);
+    memcpy(createTriggerPtr.p->m_triggerName, tableDesc.TableName, bytesize);
+    D("trigger " << createTriggerPtr.p->m_triggerName);
+  }
 
-	releaseSections(signal);
-	OpCreateTrigger opBad;
-	opPtr.p = &opBad;
-	opPtr.p->save(req);
-	opPtr.p->m_errorCode = CreateTrigRef::NotMaster;
-	opPtr.p->m_errorLine = __LINE__;
-	opPtr.p->m_errorNode = c_masterNodeId;
-	createTrigger_sendReply(signal,  opPtr, true);
+  // check name is unique
+  if (get_object(createTriggerPtr.p->m_triggerName) != 0) {
+    jam();
+    D("duplicate trigger name " << createTriggerPtr.p->m_triggerName);
+    setError(error, CreateTrigRef::TriggerExists, __LINE__);
+    return;
+  }
+
+  // check the table
+  {
+    const Uint32 tableId = impl_req->tableId;
+    if (! (tableId < c_tableRecordPool.getSize())) {
+      jam();
+      setError(error, CreateTrigRef::InvalidTable, __LINE__);
+      return;
+    }
+    TableRecordPtr tablePtr;
+    c_tableRecordPool.getPtr(tablePtr, tableId);
+#if wl3600_todo // no PARSE state
+    if (tablePtr.p->tabState != TableRecord::PARSE &&
+        tablePtr.p->tabState != TableRecord::DEFINED &&
+        tablePtr.p->tabState != TableRecord::BACKUP_ONGOING) {
+      jam();
+      setError(error, CreateTrigRef::InvalidTable, __LINE__);
+      return;
+    }
+#endif
+  }
+
+  TriggerRecordPtr triggerPtr;
+  if (trans_ptr.p->m_isMaster) {
+    jam();
+    if (impl_req->triggerId == RNIL) {
+      jam();
+      impl_req->triggerId = getFreeTriggerRecord();
+      if (impl_req->triggerId == RNIL) {
+        jam();
+        setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
         return;
       }
-      // forward initial request plus operation key to all
-      req->setOpKey(++c_opRecordSequence);
-      NodeReceiverGroup rg(DBDICT, receiverNodes);
-      sendSignal(rg, GSN_CREATE_TRIG_REQ,
-          signal, CreateTrigReq::SignalLength + 1, JBB);
-      return;
-    }
-    // seize operation record
-    ndbrequire(signal->getLength() == CreateTrigReq::SignalLength + 1);
-    const Uint32 opKey = req->getOpKey();
-    OpCreateTrigger opBusy;
-    if (! c_opCreateTrigger.seize(opPtr))
-      opPtr.p = &opBusy;
-    opPtr.p->save(req);
-    opPtr.p->m_coordinatorRef = senderRef;
-    opPtr.p->m_isMaster = (senderRef == reference());
-    opPtr.p->key = opKey;
-    opPtr.p->m_requestType = CreateTrigReq::RT_DICT_PREPARE;
-    if (opPtr.p == &opBusy) {
-      jam();
-      opPtr.p->m_errorCode = CreateTrigRef::Busy;
-      opPtr.p->m_errorLine = __LINE__;
-      releaseSections(signal);
-      createTrigger_sendReply(signal, opPtr, opPtr.p->m_isMaster);
-      return;
-    }
-    c_opCreateTrigger.add(opPtr);
-    {
-      // save name
-      SegmentedSectionPtr ssPtr;
-      signal->getSection(ssPtr, CreateTrigReq::TRIGGER_NAME_SECTION);
-      SimplePropertiesSectionReader ssReader(ssPtr, getSectionSegmentPool());
-      if (ssReader.getKey() != CreateTrigReq::TriggerNameKey ||
-	  ! ssReader.getString(opPtr.p->m_triggerName)) {
-	jam();
-	opPtr.p->m_errorCode = CreateTrigRef::InvalidName;
-	opPtr.p->m_errorLine = __LINE__;
-	releaseSections(signal);
-	createTrigger_sendReply(signal, opPtr, opPtr.p->m_isMaster);
-	return;
+      c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+      ndbrequire(triggerPtr.p->triggerState == TriggerRecord::TS_NOT_DEFINED);
+      D("master allocated triggerId " << impl_req->triggerId);
+    } else {
+      if (!(impl_req->triggerId < c_triggerRecordPool.getSize())) {
+        jam();
+        setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
+        return;
       }
-    }
-    releaseSections(signal);
-    if(get_object(opPtr.p->m_triggerName) != 0){
-      jam();
-      opPtr.p->m_errorCode = CreateTrigRef::TriggerExists;
-      opPtr.p->m_errorLine = __LINE__;
-      createTrigger_sendReply(signal, opPtr, opPtr.p->m_isMaster);
-      return;
-    }
-    
-    // master expects to hear from all
-    if (opPtr.p->m_isMaster)
-      opPtr.p->m_signalCounter = receiverNodes;
-    // check request in all participants
-    createTrigger_slavePrepare(signal, opPtr);
-    createTrigger_sendReply(signal, opPtr, false);
-    return;
-  }
-  c_opCreateTrigger.find(opPtr, req->getConnectionPtr());
-  if (! opPtr.isNull()) {
-    opPtr.p->m_requestType = requestType;
-    if (requestType == CreateTrigReq::RT_DICT_CREATE) {
-      jam();
-      // master has set trigger id
-      opPtr.p->m_request.setTriggerId(req->getTriggerId());
-      createTrigger_slaveCreate(signal, opPtr);
-      createTrigger_sendReply(signal, opPtr, false);
-      return;
-    }
-    if (requestType == CreateTrigReq::RT_DICT_COMMIT ||
-        requestType == CreateTrigReq::RT_DICT_ABORT) {
-      jam();
-      if (requestType == CreateTrigReq::RT_DICT_COMMIT)
-        createTrigger_slaveCommit(signal, opPtr);
-      else
-        createTrigger_slaveAbort(signal, opPtr);
-      createTrigger_sendReply(signal, opPtr, false);
-      // done in slave
-      if (! opPtr.p->m_isMaster)
-        c_opCreateTrigger.release(opPtr);
-      return;
+      c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+      if (triggerPtr.p->triggerState != TriggerRecord::TS_NOT_DEFINED) {
+        jam();
+        setError(error, CreateTrigRef::TriggerExists, __LINE__);
+        return;
+      }
+      D("master forced triggerId " << impl_req->triggerId);
     }
   }
-  jam();
-  // return to sender
-  releaseSections(signal);
-  OpCreateTrigger opBad;
-  opPtr.p = &opBad;
-  opPtr.p->save(req);
-  opPtr.p->m_errorCode = CreateTrigRef::BadRequestType;
-  opPtr.p->m_errorLine = __LINE__;
-  createTrigger_sendReply(signal,  opPtr, true);
-}
+  else {
+    jam();
+    // slave receives trigger id from master
+    if (! (impl_req->triggerId < c_triggerRecordPool.getSize())) {
+      jam();
+      setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
+      return;
+    }
+    c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+    if (triggerPtr.p->triggerState != TriggerRecord::TS_NOT_DEFINED) {
+      jam();
+      setError(error, CreateTrigRef::TriggerExists, __LINE__);
+      return;
+    }
+    D("slave allocated triggerId " << hex << impl_req->triggerId);
+  }
 
-void
-Dbdict::execCREATE_TRIG_CONF(Signal* signal) 
-{
-  jamEntry();
-  ndbrequire(signal->getNoOfSections() == 0);
-  CreateTrigConf* conf = (CreateTrigConf*)signal->getDataPtrSend();
-  createTrigger_recvReply(signal, conf, 0);
-}
-
-void
-Dbdict::execCREATE_TRIG_REF(Signal* signal) 
-{
-  jamEntry();
-  CreateTrigRef* ref = (CreateTrigRef*)signal->getDataPtrSend();
-  createTrigger_recvReply(signal, ref->getConf(), ref);
-}
-
-void
-Dbdict::createTrigger_recvReply(Signal* signal, const CreateTrigConf* conf,
-    const CreateTrigRef* ref)
-{
-  jam();
-  const Uint32 senderRef = signal->senderBlockRef();
-  const CreateTrigReq::RequestType requestType = conf->getRequestType();
-  const Uint32 key = conf->getConnectionPtr();
-  if (requestType == CreateTrigReq::RT_ALTER_INDEX) {
-    jam();
-    // part of alter index operation
-    OpAlterIndexPtr opPtr;
-    c_opAlterIndex.find(opPtr, key);
-    ndbrequire(! opPtr.isNull());
-    opPtr.p->setError(ref);
-    alterIndex_fromCreateTrigger(signal, opPtr);
-    return;
-  }
-  if (requestType == CreateTrigReq::RT_BUILD_INDEX) {
-    jam();
-    // part of build index operation
-    OpBuildIndexPtr opPtr;
-    c_opBuildIndex.find(opPtr, key);
-    ndbrequire(! opPtr.isNull());
-    opPtr.p->setError(ref);
-    // fill in trigger id
-    opPtr.p->m_constrTriggerId = conf->getTriggerId();
-    buildIndex_fromCreateConstr(signal, opPtr);
-    return;
-  }
-  if (requestType == CreateTrigReq::RT_TC ||
-      requestType == CreateTrigReq::RT_LQH) {
-    jam();
-    // part of alter trigger operation
-    OpAlterTriggerPtr opPtr;
-    c_opAlterTrigger.find(opPtr, key);
-    ndbrequire(! opPtr.isNull());
-    opPtr.p->setError(ref);
-    alterTrigger_fromCreateLocal(signal, opPtr);
-    return;
-  }
-  OpCreateTriggerPtr opPtr;
-  c_opCreateTrigger.find(opPtr, key);
-  ndbrequire(! opPtr.isNull());
-  ndbrequire(opPtr.p->m_isMaster);
-  ndbrequire(opPtr.p->m_requestType == requestType);
-  opPtr.p->setError(ref);
-  opPtr.p->m_signalCounter.clearWaitingFor(refToNode(senderRef));
-  if (! opPtr.p->m_signalCounter.done()) {
-    jam();
-    return;
-  }
-  if (requestType == CreateTrigReq::RT_DICT_COMMIT ||
-      requestType == CreateTrigReq::RT_DICT_ABORT) {
-    jam();
-    // send reply to user
-    createTrigger_sendReply(signal, opPtr, true);
-    c_opCreateTrigger.release(opPtr);
-    return;
-  }
-  if (opPtr.p->hasError()) {
-    jam();
-    opPtr.p->m_requestType = CreateTrigReq::RT_DICT_ABORT;
-    createTrigger_sendSlaveReq(signal, opPtr);
-    return;
-  }
-  if (requestType == CreateTrigReq::RT_DICT_PREPARE) {
-    jam();
-    // seize trigger id in master
-    createTrigger_masterSeize(signal, opPtr);
-    if (opPtr.p->hasError()) {
-      jam();
-      opPtr.p->m_requestType = CreateTrigReq::RT_DICT_ABORT;
-      createTrigger_sendSlaveReq(signal, opPtr);
-      return;
-    }
-    opPtr.p->m_requestType = CreateTrigReq::RT_DICT_CREATE;
-    createTrigger_sendSlaveReq(signal, opPtr);
-    return;
-  }
-  if (requestType == CreateTrigReq::RT_DICT_CREATE) {
-    jam();
-    if (opPtr.p->m_request.getOnline()) {
-      jam();
-      // start alter online
-      createTrigger_toAlterTrigger(signal, opPtr);
-      return;
-    }
-    opPtr.p->m_requestType = CreateTrigReq::RT_DICT_COMMIT;
-    createTrigger_sendSlaveReq(signal, opPtr);
-    return;
-  }
-  ndbrequire(false);
-}
-
-void
-Dbdict::createTrigger_slavePrepare(Signal* signal, OpCreateTriggerPtr opPtr)
-{
-  jam();
-  const CreateTrigReq* const req = &opPtr.p->m_request;
-  // check trigger type
-  if (req->getRequestType() == CreateTrigReq::RT_USER &&
-      req->getTriggerType() == TriggerType::SUBSCRIPTION ||
-      req->getRequestType() == CreateTrigReq::RT_ALTER_INDEX &&
-      req->getTriggerType() == TriggerType::SECONDARY_INDEX ||
-      req->getRequestType() == CreateTrigReq::RT_ALTER_INDEX &&
-      req->getTriggerType() == TriggerType::ORDERED_INDEX ||
-      req->getRequestType() == CreateTrigReq::RT_BUILD_INDEX &&
-      req->getTriggerType() == TriggerType::READ_ONLY_CONSTRAINT) {
-    ;
-  } else {
-    jam();
-    opPtr.p->m_errorCode = CreateTrigRef::UnsupportedTriggerType;
-    opPtr.p->m_errorLine = __LINE__;
-    return;
-  }
-  // check the table
-  const Uint32 tableId = req->getTableId();
-  if (! (tableId < c_tableRecordPool.getSize())) {
-    jam();
-    opPtr.p->m_errorCode = CreateTrigRef::InvalidTable;
-    opPtr.p->m_errorLine = __LINE__;
-    return;
-  }
-  TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, tableId);
-  if (tablePtr.p->tabState != TableRecord::DEFINED &&
-      tablePtr.p->tabState != TableRecord::BACKUP_ONGOING) {
-    jam();
-    opPtr.p->m_errorCode = CreateTrigRef::InvalidTable;
-    opPtr.p->m_errorLine = __LINE__;
-    return;
-  }
-}
-
-void
-Dbdict::createTrigger_masterSeize(Signal* signal, OpCreateTriggerPtr opPtr)
-{
-  TriggerRecordPtr triggerPtr;
-  if (opPtr.p->m_requestFlag & RequestFlag::RF_LOCAL) {
-    triggerPtr.i = opPtr.p->m_request.getTriggerId();
-  } else {
-    triggerPtr.i = getFreeTriggerRecord();
-    if (triggerPtr.i == RNIL) {
-      jam();
-      opPtr.p->m_errorCode = CreateTrigRef::TooManyTriggers;
-      opPtr.p->m_errorLine = __LINE__;
-      return;
-    }
-  }
-  c_triggerRecordPool.getPtr(triggerPtr);
   initialiseTriggerRecord(triggerPtr);
+
+  triggerPtr.p->triggerId = impl_req->triggerId;
+  triggerPtr.p->tableId = impl_req->tableId;
+  triggerPtr.p->indexId = RNIL; // feedback method connects to index
+  triggerPtr.p->triggerInfo = impl_req->triggerInfo;
+  triggerPtr.p->receiverRef = impl_req->receiverRef;
+  triggerPtr.p->attributeMask = impl_req->attributeMask;
   triggerPtr.p->triggerState = TriggerRecord::TS_DEFINING;
-  opPtr.p->m_request.setTriggerId(triggerPtr.i);
-}
-
-void
-Dbdict::createTrigger_slaveCreate(Signal* signal, OpCreateTriggerPtr opPtr)
-{
-  jam();
-  const CreateTrigReq* const req = &opPtr.p->m_request;
-  // get the trigger record
-  const Uint32 triggerId = req->getTriggerId();
-  TriggerRecordPtr triggerPtr;
-  c_triggerRecordPool.getPtr(triggerPtr, triggerId);
-  initialiseTriggerRecord(triggerPtr);
-  // fill in trigger data
   {
     Rope name(c_rope_pool, triggerPtr.p->triggerName);
-    if(!name.assign(opPtr.p->m_triggerName))
-    {
-      opPtr.p->m_errorCode = (CreateTrigRef::ErrorCode)CreateTableRef::OutOfStringBuffer;
+    if (!name.assign(createTriggerPtr.p->m_triggerName)) {
+      jam();
+      setError(error, CreateTrigRef::OutOfStringBuffer, __LINE__);
       return;
     }
   }
-  triggerPtr.p->triggerId = triggerId;
-  triggerPtr.p->tableId = req->getTableId();
-  triggerPtr.p->indexId = RNIL;
-  triggerPtr.p->triggerType = req->getTriggerType();
-  triggerPtr.p->triggerActionTime = req->getTriggerActionTime();
-  triggerPtr.p->triggerEvent = req->getTriggerEvent();
-  triggerPtr.p->monitorReplicas = req->getMonitorReplicas();
-  triggerPtr.p->monitorAllAttributes = req->getMonitorAllAttributes();
-  triggerPtr.p->reportAllMonitoredAttributes = req->getReportAllMonitoredAttributes();
-  triggerPtr.p->attributeMask = req->getAttributeMask();
-  triggerPtr.p->triggerState = TriggerRecord::TS_OFFLINE;
-  // add to hash table
-  //  ndbout_c("++++++++++++ Adding trigger id %u, %s", triggerPtr.p->triggerId, triggerPtr.p->triggerName);
+
+  // connect to new DictObject
   {
     Ptr<DictObject> obj_ptr;
-    ndbrequire(c_obj_hash.seize(obj_ptr));
-    obj_ptr.p->m_name = triggerPtr.p->triggerName;
-    obj_ptr.p->m_id = triggerId;
-    obj_ptr.p->m_type = triggerPtr.p->triggerType;
-    obj_ptr.p->m_ref_count = 0;
-    c_obj_hash.add(obj_ptr);
+    seizeDictObject(op_ptr, obj_ptr, triggerPtr.p->triggerName);
+
+    obj_ptr.p->m_id = impl_req->triggerId; // wl3600_todo id
+    obj_ptr.p->m_type = TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
     triggerPtr.p->m_obj_ptr_i = obj_ptr.i;
   }
-  if (triggerPtr.p->triggerType == TriggerType::SECONDARY_INDEX ||
-      triggerPtr.p->triggerType == TriggerType::ORDERED_INDEX) {
+}
+
+bool
+Dbdict::createTrigger_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("createTrigger_subOps" << V(op_ptr.i) << *op_ptr.p);
+
+  CreateTriggerRecPtr createTriggerPtr;
+  getOpRec(op_ptr, createTriggerPtr);
+
+  // op to alter trigger online  wl3600_todo missing check for online
+  if (!createTriggerPtr.p->m_sub_alter_trigger) {
     jam();
-    // connect to index record  XXX should be done in caller instead
-    triggerPtr.p->indexId = req->getIndexId();
-    TableRecordPtr indexPtr;
-    c_tableRecordPool.getPtr(indexPtr, triggerPtr.p->indexId);
-    switch (triggerPtr.p->triggerEvent) {
-    case TriggerEvent::TE_INSERT:
-      indexPtr.p->insertTriggerId = triggerPtr.p->triggerId;
-      break;
-    case TriggerEvent::TE_UPDATE:
-      indexPtr.p->updateTriggerId = triggerPtr.p->triggerId;
-      break;
-    case TriggerEvent::TE_DELETE:
-      indexPtr.p->deleteTriggerId = triggerPtr.p->triggerId;
-      break;
-    case TriggerEvent::TE_CUSTOM:
-      indexPtr.p->customTriggerId = triggerPtr.p->triggerId;
-      break;
-    default:
-      ndbrequire(false);
-      break;
-    }
+    Callback c = {
+      safe_cast(&Dbdict::createTrigger_fromAlterTrigger),
+      op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+    createTrigger_toAlterTrigger(signal, op_ptr);
+    return true;
   }
-  if (triggerPtr.p->triggerType == TriggerType::READ_ONLY_CONSTRAINT) {
-    jam();
-    // connect to index record  XXX should be done in caller instead
-    triggerPtr.p->indexId = req->getTableId();
-    TableRecordPtr indexPtr;
-    c_tableRecordPool.getPtr(indexPtr, triggerPtr.p->indexId);
-    indexPtr.p->buildTriggerId = triggerPtr.p->triggerId;
-  }
+  return false;
 }
 
 void
-Dbdict::createTrigger_toAlterTrigger(Signal* signal, OpCreateTriggerPtr opPtr)
+Dbdict::createTrigger_toAlterTrigger(Signal* signal, SchemaOpPtr op_ptr)
 {
-  jam();
+  D("createTrigger_toAlterTrigger");
+
   AlterTrigReq* req = (AlterTrigReq*)signal->getDataPtrSend();
-  req->setUserRef(reference());
-  req->setConnectionPtr(opPtr.p->key);
-  req->setRequestType(AlterTrigReq::RT_CREATE_TRIGGER);
-  req->addRequestFlag(opPtr.p->m_requestFlag);
-  req->setTableId(opPtr.p->m_request.getTableId());
-  req->setTriggerId(opPtr.p->m_request.getTriggerId());
-  req->setTriggerInfo(0);       // not used
-  req->setOnline(true);
-  req->setReceiverRef(opPtr.p->m_request.getReceiverRef());
-  sendSignal(reference(), GSN_ALTER_TRIG_REQ,
-      signal, AlterTrigReq::SignalLength, JBB);
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateTriggerRecPtr createTriggerPtr;
+  getOpRec(op_ptr, createTriggerPtr);
+  const CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
+
+  Uint32 requestInfo = 0;
+  DictSignal::setRequestType(requestInfo, AlterTrigReq::AlterTriggerOnline);
+  DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
+
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = requestInfo;
+  req->tableId = impl_req->tableId;
+  req->tableVersion = impl_req->tableVersion;
+  req->triggerId = impl_req->triggerId;
+
+  sendSignal(reference(), GSN_ALTER_TRIG_REQ, signal,
+             AlterTrigReq::SignalLength, JBB);
 }
 
 void
-Dbdict::createTrigger_fromAlterTrigger(Signal* signal, OpCreateTriggerPtr opPtr)
+Dbdict::createTrigger_fromAlterTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
 {
-  jam();
-  if (opPtr.p->hasError()) {
+  D("createTrigger_fromAlterTrigger");
+
+  SchemaOpPtr op_ptr;
+  CreateTriggerRecPtr createTriggerPtr;
+
+  findSchemaOp(op_ptr, createTriggerPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+
+  if (ret == 0) {
     jam();
-    opPtr.p->m_requestType = CreateTrigReq::RT_DICT_ABORT;
-    createTrigger_sendSlaveReq(signal, opPtr);
-    return;
+    const AlterTrigConf* conf =
+      (const AlterTrigConf*)signal->getDataPtr();
+
+    ndbrequire(conf->transId == trans_ptr.p->m_transId);
+    createTriggerPtr.p->m_sub_alter_trigger = true;
+    createSubOps(signal, op_ptr);
+  } else {
+    jam();
+    const AlterTrigRef* ref =
+      (const AlterTrigRef*)signal->getDataPtr();
+    ErrorInfo error;
+    setError(error, ref);
+    abortSubOps(signal, op_ptr, error);
   }
-  opPtr.p->m_requestType = CreateTrigReq::RT_DICT_COMMIT;
-  createTrigger_sendSlaveReq(signal, opPtr);
 }
 
 void
-Dbdict::createTrigger_slaveCommit(Signal* signal, OpCreateTriggerPtr opPtr)
+Dbdict::createTrigger_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 {
   jam();
-  const CreateTrigReq* const req = &opPtr.p->m_request;
-  // get the trigger record
-  const Uint32 triggerId = req->getTriggerId();
+
+  SchemaTransPtr& trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateTriggerRecPtr createTriggerPtr;
+  getOpRec(op_ptr, createTriggerPtr);
+  const CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
+
+  D("createTrigger_reply" << V(impl_req->triggerId) << *op_ptr.p);
+
+  if (!hasError(error)) {
+    CreateTrigConf* conf = (CreateTrigConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->clientData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->tableId = impl_req->tableId;
+    conf->indexId = impl_req->indexId;
+    conf->triggerId = impl_req->triggerId;
+    conf->triggerInfo = impl_req->triggerInfo;
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_TRIG_CONF, signal,
+               CreateTrigConf::SignalLength, JBB);
+  } else {
+    jam();
+    CreateTrigRef* ref = (CreateTrigRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->clientData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    ref->tableId = impl_req->tableId;
+    ref->indexId = impl_req->indexId;
+    ref->triggerInfo =impl_req->triggerInfo;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_TRIG_REF, signal,
+               CreateTrigRef::SignalLength, JBB);
+  }
+}
+
+// CreateTrigger: PREPARE
+
+void
+Dbdict::createTrigger_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  CreateTriggerRecPtr createTriggerPtr;
+  getOpRec(op_ptr, createTriggerPtr);
+  const CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
+
+  TriggerRecordPtr triggerPtr;
+  c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+
+  D("createTrigger_prepare");
+
+  sendTransConf(signal, op_ptr);
+}
+
+// CreateTrigger: COMMIT
+
+void
+Dbdict::createTrigger_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  CreateTriggerRecPtr createTriggerPtr;
+  getOpRec(op_ptr, createTriggerPtr);
+  CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
+  Uint32 triggerId = impl_req->triggerId;
+
+  D("createTrigger_commit" << V(triggerId));
+
   TriggerRecordPtr triggerPtr;
   c_triggerRecordPool.getPtr(triggerPtr, triggerId);
-  if (! req->getOnline()) {
-    triggerPtr.p->triggerState = TriggerRecord::TS_OFFLINE;
-  } else {
-    ndbrequire(triggerPtr.p->triggerState == TriggerRecord::TS_ONLINE);
-  }
+  triggerPtr.p->triggerState = TriggerRecord::TS_OFFLINE;
+
+  unlinkDictObject(op_ptr);
+  sendTransConf(signal, op_ptr);
 }
 
+// CreateTrigger: ABORT
+
 void
-Dbdict::createTrigger_slaveAbort(Signal* signal, OpCreateTriggerPtr opPtr)
+Dbdict::createTrigger_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 {
-  jam();
+  D("createTrigger_abortParse" << *op_ptr.p);
+
+  CreateTriggerRecPtr createTriggerPtr;
+  getOpRec(op_ptr, createTriggerPtr);
+  CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
+  Uint32 triggerId = impl_req->triggerId;
+
+  TriggerRecordPtr triggerPtr;
+  c_triggerRecordPool.getPtr(triggerPtr, triggerId);
+
+  if (triggerPtr.p->triggerState == TriggerRecord::TS_DEFINING) {
+    jam();
+    triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
+  }
+
+  // ignore Feedback for now (referencing object will be dropped too)
+
+  if (hasDictObject(op_ptr)) {
+    jam();
+    releaseDictObject(op_ptr);
+  }
+
+  sendTransConf(signal, op_ptr);
 }
 
 void
-Dbdict::createTrigger_sendSlaveReq(Signal* signal, OpCreateTriggerPtr opPtr)
+Dbdict::createTrigger_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  CreateTrigReq* const req = (CreateTrigReq*)signal->getDataPtrSend();
-  *req = opPtr.p->m_request;
-  req->setUserRef(opPtr.p->m_coordinatorRef);
-  req->setConnectionPtr(opPtr.p->key);
-  req->setRequestType(opPtr.p->m_requestType);
-  req->addRequestFlag(opPtr.p->m_requestFlag);
-  NdbNodeBitmask receiverNodes = c_aliveNodes;
-  if (opPtr.p->m_requestFlag & RequestFlag::RF_LOCAL) {
-    receiverNodes.clear();
-    receiverNodes.set(getOwnNodeId());
-  }
-  opPtr.p->m_signalCounter = receiverNodes;
-  NodeReceiverGroup rg(DBDICT, receiverNodes);
-  sendSignal(rg, GSN_CREATE_TRIG_REQ,
-      signal, CreateTrigReq::SignalLength, JBB);
+  D("createTrigger_abortPrepare" << *op_ptr.p);
+
+  // wl3600_todo
+
+  sendTransConf(signal, op_ptr);
 }
 
-void
-Dbdict::createTrigger_sendReply(Signal* signal, OpCreateTriggerPtr opPtr,
-    bool toUser)
-{
-  CreateTrigRef* rep = (CreateTrigRef*)signal->getDataPtrSend();
-  Uint32 gsn = GSN_CREATE_TRIG_CONF;
-  Uint32 length = CreateTrigConf::InternalLength;
-  bool sendRef;
-  if (! toUser) {
-    sendRef = opPtr.p->hasLastError();
-    rep->setUserRef(opPtr.p->m_coordinatorRef);
-    rep->setConnectionPtr(opPtr.p->key);
-    rep->setRequestType(opPtr.p->m_requestType);
-    if (opPtr.p->m_requestType == CreateTrigReq::RT_DICT_ABORT)
-      sendRef = false;
-  } else {
-    sendRef = opPtr.p->hasError();
-    rep->setUserRef(opPtr.p->m_request.getUserRef());
-    rep->setConnectionPtr(opPtr.p->m_request.getConnectionPtr());
-    rep->setRequestType(opPtr.p->m_request.getRequestType());
-    length = CreateTrigConf::SignalLength;
-  }
-  rep->setTableId(opPtr.p->m_request.getTableId());
-  rep->setIndexId(opPtr.p->m_request.getIndexId());
-  rep->setTriggerId(opPtr.p->m_request.getTriggerId());
-  rep->setTriggerInfo(opPtr.p->m_request.getTriggerInfo());
-  if (sendRef) {
-    if (opPtr.p->m_errorNode == 0)
-      opPtr.p->m_errorNode = getOwnNodeId();
-    rep->setErrorCode(opPtr.p->m_errorCode);
-    rep->setErrorLine(opPtr.p->m_errorLine);
-    rep->setErrorNode(opPtr.p->m_errorNode);
-    gsn = GSN_CREATE_TRIG_REF;
-    length = CreateTrigRef::SignalLength;
-  }
-  sendSignal(rep->getUserRef(), gsn, signal, length, JBB);
-}
-
-/**
- * MODULE: Drop trigger.
- */
+// CreateTrigger: MISC
 
 void
-Dbdict::execDROP_TRIG_REQ(Signal* signal) 
+Dbdict::execCREATE_TRIG_CONF(Signal* signal)
 {
   jamEntry();
-  DropTrigReq* const req = (DropTrigReq*)signal->getDataPtrSend();
-  OpDropTriggerPtr opPtr;
-  const Uint32 senderRef = signal->senderBlockRef();
-  const DropTrigReq::RequestType requestType = req->getRequestType();
+  const CreateTrigConf* conf = (const CreateTrigConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
 
-  if (signal->getNoOfSections() > 0) {
-    ndbrequire(signal->getNoOfSections() == 1);
+void
+Dbdict::execCREATE_TRIG_REF(Signal* signal)
+{
+  jamEntry();
+  const CreateTrigRef* ref = (const CreateTrigRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execCREATE_TRIG_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  const CreateTrigImplConf* conf = (const CreateTrigImplConf*)signal->getDataPtr();
+  ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::execCREATE_TRIG_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  const CreateTrigImplRef* ref = (const CreateTrigImplRef*)signal->getDataPtr();
+  ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
+  handleDictRef(signal, ref);
+}
+
+// CreateTrigger: END
+
+// MODULE: DropTrigger
+
+const Dbdict::OpInfo
+Dbdict::DropTriggerRec::g_opInfo = {
+  { 'D', 'T', 'r', 0 },
+  GSN_DROP_TRIG_IMPL_REQ,
+  DropTrigImplReq::SignalLength,
+  //
+  &Dbdict::dropTrigger_seize,
+  &Dbdict::dropTrigger_release,
+  //
+  &Dbdict::dropTrigger_parse,
+  &Dbdict::dropTrigger_subOps,
+  &Dbdict::dropTrigger_reply,
+  //
+  &Dbdict::dropTrigger_prepare,
+  &Dbdict::dropTrigger_commit,
+  //
+  &Dbdict::dropTrigger_abortParse,
+  &Dbdict::dropTrigger_abortPrepare
+};
+
+bool
+Dbdict::dropTrigger_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<DropTriggerRec>(op_ptr);
+}
+
+void
+Dbdict::dropTrigger_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<DropTriggerRec>(op_ptr);
+}
+
+void
+Dbdict::execDROP_TRIG_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
     jam();
-    char triggerName[MAX_TAB_NAME_SIZE];
-    OpDropTrigger opTmp;
-    opPtr.p=&opTmp;
-
-    SegmentedSectionPtr ssPtr;
-    signal->getSection(ssPtr, DropTrigReq::TRIGGER_NAME_SECTION);
-    SimplePropertiesSectionReader ssReader(ssPtr, getSectionSegmentPool());
-    if (ssReader.getKey() != DropTrigReq::TriggerNameKey ||
-	! ssReader.getString(triggerName)) {
-      jam();
-      opPtr.p->m_errorCode = DropTrigRef::InvalidName;
-      opPtr.p->m_errorLine = __LINE__;
-      releaseSections(signal);
-      dropTrigger_sendReply(signal, opPtr, opPtr.p->m_isMaster);
-      return;
-    }
-    releaseSections(signal);
-
-    //ndbout_c("++++++++++++++ Looking for trigger %s", keyRecord.triggerName);
-    DictObject * obj_ptr_p = get_object(triggerName);
-    if (obj_ptr_p == 0){
-      jam();
-      req->setTriggerId(RNIL);
-    } else {
-      jam();
-      //ndbout_c("++++++++++ Found trigger %s", triggerPtr.p->triggerName);
-      TriggerRecordPtr triggerPtr;
-      c_triggerRecordPool.getPtr(triggerPtr, obj_ptr_p->m_id);
-      req->setTriggerId(triggerPtr.p->triggerId);
-      req->setTableId(triggerPtr.p->tableId);
-    }
-  }
-  if (requestType == DropTrigReq::RT_USER ||
-      requestType == DropTrigReq::RT_ALTER_INDEX ||
-      requestType == DropTrigReq::RT_BUILD_INDEX) {
-    jam();
-    if (signal->getLength() == DropTrigReq::SignalLength) {
-      if (getOwnNodeId() != c_masterNodeId) {
-	jam();
-	// forward to DICT master
-	sendSignal(calcDictBlockRef(c_masterNodeId), GSN_DROP_TRIG_REQ,
-		   signal, signal->getLength(), JBB);
-	return;
-      }
-      if (!c_triggerRecordPool.findId(req->getTriggerId())) {
-	jam();
-	// return to sender
-	OpDropTrigger opBad;
-	opPtr.p = &opBad;
-	opPtr.p->save(req);
-        if (! (req->getRequestFlag() & RequestFlag::RF_FORCE)) {
-          opPtr.p->m_errorCode = DropTrigRef::TriggerNotFound;
-          opPtr.p->m_errorLine = __LINE__;
-        }
-	dropTrigger_sendReply(signal,  opPtr, true);
-	return;
-      }
-      // forward initial request plus operation key to all
-      req->setOpKey(++c_opRecordSequence);
-      NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-      sendSignal(rg, GSN_DROP_TRIG_REQ,
-		 signal, DropTrigReq::SignalLength + 1, JBB);
-      return;
-    }
-    // seize operation record
-    ndbrequire(signal->getLength() == DropTrigReq::SignalLength + 1);
-    const Uint32 opKey = req->getOpKey();
-    OpDropTrigger opBusy;
-    if (! c_opDropTrigger.seize(opPtr))
-      opPtr.p = &opBusy;
-    opPtr.p->save(req);
-    opPtr.p->m_coordinatorRef = senderRef;
-    opPtr.p->m_isMaster = (senderRef == reference());
-    opPtr.p->key = opKey;
-    opPtr.p->m_requestType = DropTrigReq::RT_DICT_PREPARE;
-    if (opPtr.p == &opBusy) {
-      jam();
-      opPtr.p->m_errorCode = DropTrigRef::Busy;
-      opPtr.p->m_errorLine = __LINE__;
-      dropTrigger_sendReply(signal, opPtr, opPtr.p->m_isMaster);
-      return;
-    }
-    c_opDropTrigger.add(opPtr);
-      // master expects to hear from all
-    if (opPtr.p->m_isMaster)
-	opPtr.p->m_signalCounter = c_aliveNodes;
-    dropTrigger_slavePrepare(signal, opPtr);
-    dropTrigger_sendReply(signal, opPtr, false);
     return;
   }
-  c_opDropTrigger.find(opPtr, req->getConnectionPtr());
-  if (! opPtr.isNull()) {
-    opPtr.p->m_requestType = requestType;
-    if (requestType == DropTrigReq::RT_DICT_COMMIT ||
-	requestType == DropTrigReq::RT_DICT_ABORT) {
+
+  const DropTrigReq req_copy =
+    *(const DropTrigReq*)signal->getDataPtr();
+  const DropTrigReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    DropTriggerRecPtr dropTriggerPtr;
+    DropTrigImplReq* impl_req;
+
+    startClientReq(op_ptr, dropTriggerPtr, req, impl_req, error);
+    if (hasError(error)) {
       jam();
-      if (requestType == DropTrigReq::RT_DICT_COMMIT)
-	dropTrigger_slaveCommit(signal, opPtr);
-      else
-	dropTrigger_slaveAbort(signal, opPtr);
-      dropTrigger_sendReply(signal, opPtr, false);
-      // done in slave
-      if (! opPtr.p->m_isMaster)
-	c_opDropTrigger.release(opPtr);
-      return;
+      break;
     }
-  }
-  jam();
-  // return to sender
-  OpDropTrigger opBad;
-  opPtr.p = &opBad;
-  opPtr.p->save(req);
-  opPtr.p->m_errorCode = DropTrigRef::BadRequestType;
-  opPtr.p->m_errorLine = __LINE__;
-  dropTrigger_sendReply(signal,  opPtr, true);
-}
 
-void
-Dbdict::execDROP_TRIG_CONF(Signal* signal) 
-{
-  jamEntry();
-  DropTrigConf* conf = (DropTrigConf*)signal->getDataPtrSend();
-  dropTrigger_recvReply(signal, conf, 0);
-}
+    impl_req->tableId = req->tableId;
+    impl_req->tableVersion = req->tableVersion;
+    impl_req->indexId = req->indexId;
+    impl_req->indexVersion = req->indexVersion;
+    impl_req->triggerNo = req->triggerNo;
+    impl_req->triggerId = req->triggerId;
+    impl_req->triggerInfo = ~(Uint32)0;
 
-void
-Dbdict::execDROP_TRIG_REF(Signal* signal) 
-{
-  jamEntry();
+    handleClientReq(signal, op_ptr);
+    return;
+  } while (0);
+
+  releaseSections(signal);
+
   DropTrigRef* ref = (DropTrigRef*)signal->getDataPtrSend();
-  dropTrigger_recvReply(signal, ref->getConf(), ref);
+
+  ref->senderRef = reference();
+  ref->clientData = req->clientData;
+  ref->transId = req->transId;
+  ref->tableId = req->tableId;
+  ref->indexId = req->indexId;
+  getError(error, ref);
+
+  sendSignal(req->clientRef, GSN_DROP_TRIG_REF, signal,
+             DropTrigRef::SignalLength, JBB);
 }
 
-void
-Dbdict::dropTrigger_recvReply(Signal* signal, const DropTrigConf* conf,
-    const DropTrigRef* ref)
-{
-  jam();
-  const Uint32 senderRef = signal->senderBlockRef();
-  const DropTrigReq::RequestType requestType = conf->getRequestType();
-  const Uint32 key = conf->getConnectionPtr();
-  if (requestType == DropTrigReq::RT_ALTER_INDEX) {
-    jam();
-    // part of alter index operation
-    OpAlterIndexPtr opPtr;
-    c_opAlterIndex.find(opPtr, key);
-    ndbrequire(! opPtr.isNull());
-    opPtr.p->setError(ref);
-    alterIndex_fromDropTrigger(signal, opPtr);
-    return;
-  }
-  if (requestType == DropTrigReq::RT_BUILD_INDEX) {
-    jam();
-    // part of build index operation
-    OpBuildIndexPtr opPtr;
-    c_opBuildIndex.find(opPtr, key);
-    ndbrequire(! opPtr.isNull());
-    opPtr.p->setError(ref);
-    buildIndex_fromDropConstr(signal, opPtr);
-    return;
-  }
-  if (requestType == DropTrigReq::RT_TC ||
-      requestType == DropTrigReq::RT_LQH) {
-    jam();
-    // part of alter trigger operation
-    OpAlterTriggerPtr opPtr;
-    c_opAlterTrigger.find(opPtr, key);
-    ndbrequire(! opPtr.isNull());
-    opPtr.p->setError(ref);
-    alterTrigger_fromDropLocal(signal, opPtr);
-    return;
-  }
-  OpDropTriggerPtr opPtr;
-  c_opDropTrigger.find(opPtr, key);
-  ndbrequire(! opPtr.isNull());
-  ndbrequire(opPtr.p->m_isMaster);
-  ndbrequire(opPtr.p->m_requestType == requestType);
-  opPtr.p->setError(ref);
-  opPtr.p->m_signalCounter.clearWaitingFor(refToNode(senderRef));
-  if (! opPtr.p->m_signalCounter.done()) {
-    jam();
-    return;
-  }
-  if (requestType == DropTrigReq::RT_DICT_COMMIT ||
-      requestType == DropTrigReq::RT_DICT_ABORT) {
-    jam();
-    // send reply to user
-    dropTrigger_sendReply(signal, opPtr, true);
-    c_opDropTrigger.release(opPtr);
-    return;
-  }
-  if (opPtr.p->hasError()) {
-    jam();
-    opPtr.p->m_requestType = DropTrigReq::RT_DICT_ABORT;
-    dropTrigger_sendSlaveReq(signal, opPtr);
-    return;
-  }
-  if (requestType == DropTrigReq::RT_DICT_PREPARE) {
-    jam();
-    // start alter offline
-    dropTrigger_toAlterTrigger(signal, opPtr);
-    return;
-  }
-  ndbrequire(false);
-}
+// DropTrigger: PARSE
 
 void
-Dbdict::dropTrigger_slavePrepare(Signal* signal, OpDropTriggerPtr opPtr)
+Dbdict::dropTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
 {
-  jam();
-}
+  D("dropTrigger_parse" << V(op_ptr.i) << *op_ptr.p);
 
-void
-Dbdict::dropTrigger_toAlterTrigger(Signal* signal, OpDropTriggerPtr opPtr)
-{
-  jam();
-  AlterTrigReq* req = (AlterTrigReq*)signal->getDataPtrSend();
-  req->setUserRef(reference());
-  req->setConnectionPtr(opPtr.p->key);
-  req->setRequestType(AlterTrigReq::RT_DROP_TRIGGER);
-  req->addRequestFlag(opPtr.p->m_requestFlag);
-  req->setTableId(opPtr.p->m_request.getTableId());
-  req->setTriggerId(opPtr.p->m_request.getTriggerId());
-  req->setTriggerInfo(0);       // not used
-  req->setOnline(false);
-  req->setReceiverRef(0);
-  sendSignal(reference(), GSN_ALTER_TRIG_REQ,
-      signal, AlterTrigReq::SignalLength, JBB);
-}
+  DropTriggerRecPtr dropTriggerPtr;
+  getOpRec(op_ptr, dropTriggerPtr);
+  DropTrigImplReq* impl_req = &dropTriggerPtr.p->m_request;
 
-void
-Dbdict::dropTrigger_fromAlterTrigger(Signal* signal, OpDropTriggerPtr opPtr)
-{
-  jam();
-  // remove in all
-  opPtr.p->m_requestType = DropTrigReq::RT_DICT_COMMIT;
-  dropTrigger_sendSlaveReq(signal, opPtr);
-}
+  bool reqByName = false;
+  if (signal->getNoOfSections() > 0) { // wl3600_todo use requestType
+    jam();
+    ndbrequire(signal->getNoOfSections() == 1);
+    reqByName = true;
+  }
 
-void
-Dbdict::dropTrigger_sendSlaveReq(Signal* signal, OpDropTriggerPtr opPtr)
-{
-  DropTrigReq* const req = (DropTrigReq*)signal->getDataPtrSend();
-  *req = opPtr.p->m_request;
-  req->setUserRef(opPtr.p->m_coordinatorRef);
-  req->setConnectionPtr(opPtr.p->key);
-  req->setRequestType(opPtr.p->m_requestType);
-  req->addRequestFlag(opPtr.p->m_requestFlag);
-  opPtr.p->m_signalCounter = c_aliveNodes;
-  NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-  sendSignal(rg, GSN_DROP_TRIG_REQ,
-      signal, DropTrigReq::SignalLength, JBB);
-}
+  if (reqByName) {
+    jam();
+    SegmentedSectionPtr ss_ptr;
+    signal->getSection(ss_ptr, DropTrigImplReq::TRIGGER_NAME_SECTION);
+    SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
+    DictTabInfo::Table tableDesc;
+    tableDesc.init();
+    SimpleProperties::UnpackStatus status =
+      SimpleProperties::unpack(
+          r, &tableDesc,
+          DictTabInfo::TableMapping, DictTabInfo::TableMappingSize,
+          true, true);
 
-void
-Dbdict::dropTrigger_slaveCommit(Signal* signal, OpDropTriggerPtr opPtr)
-{
-  jam();
-  const DropTrigReq* const req = &opPtr.p->m_request;
-  // get trigger record
-  const Uint32 triggerId = req->getTriggerId();
+    if (status != SimpleProperties::Eof ||
+        tableDesc.TableName[0] == 0) {
+      jam();
+      setError(error, DropTrigRef::InvalidName, __LINE__);
+      return;
+    }
+    const Uint32 bytesize = sizeof(dropTriggerPtr.p->m_triggerName);
+    memcpy(dropTriggerPtr.p->m_triggerName, tableDesc.TableName, bytesize);
+    D("parsed trigger name: " << dropTriggerPtr.p->m_triggerName);
+
+    // find object by name and link it to operation
+    DictObjectPtr obj_ptr;
+    if (!findDictObject(op_ptr, obj_ptr, dropTriggerPtr.p->m_triggerName)) {
+      jam();
+      setError(error, DropTrigRef::TriggerNotFound, __LINE__);
+      return;
+    }
+    if (impl_req->triggerId != RNIL &&
+        impl_req->triggerId != obj_ptr.p->m_id) {
+      jam();
+      // inconsistency in request
+      setError(error, DropTrigRef::TriggerNotFound, __LINE__);
+      return;
+    }
+    impl_req->triggerId = obj_ptr.p->m_id;
+  }
+
+  // check trigger id from user or via name
   TriggerRecordPtr triggerPtr;
-  c_triggerRecordPool.getPtr(triggerPtr, triggerId);
-  if (triggerPtr.p->triggerType == TriggerType::SECONDARY_INDEX ||
-      triggerPtr.p->triggerType == TriggerType::ORDERED_INDEX) {
-    jam();
-    // disconnect from index if index trigger  XXX move to drop index
-    triggerPtr.p->indexId = req->getIndexId();
-    TableRecordPtr indexPtr;
-    c_tableRecordPool.getPtr(indexPtr, triggerPtr.p->indexId);
-    ndbrequire(! indexPtr.isNull());
-    switch (triggerPtr.p->triggerEvent) {
-    case TriggerEvent::TE_INSERT:
-      indexPtr.p->insertTriggerId = RNIL;
-      break;
-    case TriggerEvent::TE_UPDATE:
-      indexPtr.p->updateTriggerId = RNIL;
-      break;
-    case TriggerEvent::TE_DELETE:
-      indexPtr.p->deleteTriggerId = RNIL;
-      break;
-    case TriggerEvent::TE_CUSTOM:
-      indexPtr.p->customTriggerId = RNIL;
-      break;
-    default:
-      ndbrequire(false);
-      break;
-    }
-  }
-  if (triggerPtr.p->triggerType == TriggerType::READ_ONLY_CONSTRAINT) {
-    jam();
-    // disconnect from index record  XXX should be done in caller instead
-    triggerPtr.p->indexId = req->getTableId();
-    TableRecordPtr indexPtr;
-    c_tableRecordPool.getPtr(indexPtr, triggerPtr.p->indexId);
-    indexPtr.p->buildTriggerId = RNIL;
-  }
-  //remove trigger
-  //ndbout_c("++++++++++++ Removing trigger id %u, %s", triggerPtr.p->triggerId, triggerPtr.p->triggerName);
-  release_object(triggerPtr.p->m_obj_ptr_i);
-  triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
-}
-
-void
-Dbdict::dropTrigger_slaveAbort(Signal* signal, OpDropTriggerPtr opPtr)
-{
-  jam();
-}
-
-void
-Dbdict::dropTrigger_sendReply(Signal* signal, OpDropTriggerPtr opPtr,
-    bool toUser)
-{
-  DropTrigRef* rep = (DropTrigRef*)signal->getDataPtrSend();
-  Uint32 gsn = GSN_DROP_TRIG_CONF;
-  Uint32 length = DropTrigConf::InternalLength;
-  bool sendRef;
-  if (! toUser) {
-    sendRef = opPtr.p->hasLastError();
-    rep->setUserRef(opPtr.p->m_coordinatorRef);
-    rep->setConnectionPtr(opPtr.p->key);
-    rep->setRequestType(opPtr.p->m_requestType);
-    if (opPtr.p->m_requestType == DropTrigReq::RT_DICT_ABORT)
-      sendRef = false;
-  } else {
-    sendRef = opPtr.p->hasError();
-    rep->setUserRef(opPtr.p->m_request.getUserRef());
-    rep->setConnectionPtr(opPtr.p->m_request.getConnectionPtr());
-    rep->setRequestType(opPtr.p->m_request.getRequestType());
-    length = DropTrigConf::SignalLength;
-  }
-  rep->setTableId(opPtr.p->m_request.getTableId());
-  rep->setIndexId(opPtr.p->m_request.getIndexId());
-  rep->setTriggerId(opPtr.p->m_request.getTriggerId());
-  if (sendRef) {
-    if (opPtr.p->m_errorNode == 0)
-      opPtr.p->m_errorNode = getOwnNodeId();
-    rep->setErrorCode(opPtr.p->m_errorCode);
-    rep->setErrorLine(opPtr.p->m_errorLine);
-    rep->setErrorNode(opPtr.p->m_errorNode);
-    gsn = GSN_DROP_TRIG_REF;
-    length = CreateTrigRef::SignalLength;
-  }
-  sendSignal(rep->getUserRef(), gsn, signal, length, JBB);
-}
-
-/**
- * MODULE: Alter trigger.
- *
- * Alter trigger state.  Alter online creates the trigger first in all
- * TC (if index trigger) and then in all LQH-TUP.
- *
- * Request type received in REQ and returned in CONF/REF:
- *
- * RT_USER - normal user e.g. BACKUP
- * RT_CREATE_TRIGGER - from create trigger
- * RT_DROP_TRIGGER - from drop trigger
- * RT_DICT_PREPARE - seize operations and check request
- * RT_DICT_TC - master to each DICT on way to TC
- * RT_DICT_LQH - master to each DICT on way to LQH-TUP
- * RT_DICT_COMMIT - commit state change in each DICT (no reply)
- */
-
-void
-Dbdict::execALTER_TRIG_REQ(Signal* signal) 
-{
-  jamEntry();
-  AlterTrigReq* const req = (AlterTrigReq*)signal->getDataPtrSend();
-  OpAlterTriggerPtr opPtr;
-  const Uint32 senderRef = signal->senderBlockRef();
-  const AlterTrigReq::RequestType requestType = req->getRequestType();
-  if (requestType == AlterTrigReq::RT_USER ||
-      requestType == AlterTrigReq::RT_CREATE_TRIGGER ||
-      requestType == AlterTrigReq::RT_DROP_TRIGGER) {
-    jam();
-    const bool isLocal = req->getRequestFlag() & RequestFlag::RF_LOCAL;
-    NdbNodeBitmask receiverNodes = c_aliveNodes;
-    if (isLocal) {
-      receiverNodes.clear();
-      receiverNodes.set(getOwnNodeId());
-    }
-    if (signal->getLength() == AlterTrigReq::SignalLength) {
-      jam();
-      if (! isLocal && getOwnNodeId() != c_masterNodeId) {
-        jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_ALTER_TRIG_REQ,
-            signal, AlterTrigReq::SignalLength, JBB);
-        return;
-      }
-      // forward initial request plus operation key to all
-      req->setOpKey(++c_opRecordSequence);
-      NodeReceiverGroup rg(DBDICT, receiverNodes);
-      sendSignal(rg, GSN_ALTER_TRIG_REQ,
-          signal, AlterTrigReq::SignalLength + 1, JBB);
-      return;
-    }
-    // seize operation record
-    ndbrequire(signal->getLength() == AlterTrigReq::SignalLength + 1);
-    const Uint32 opKey = req->getOpKey();
-    OpAlterTrigger opBusy;
-    if (! c_opAlterTrigger.seize(opPtr))
-      opPtr.p = &opBusy;
-    opPtr.p->save(req);
-    opPtr.p->m_coordinatorRef = senderRef;
-    opPtr.p->m_isMaster = (senderRef == reference());
-    opPtr.p->key = opKey;
-    opPtr.p->m_requestType = AlterTrigReq::RT_DICT_PREPARE;
-    if (opPtr.p == &opBusy) {
-      jam();
-      opPtr.p->m_errorCode = AlterTrigRef::Busy;
-      opPtr.p->m_errorLine = __LINE__;
-      alterTrigger_sendReply(signal, opPtr, opPtr.p->m_isMaster);
-      return;
-    }
-    c_opAlterTrigger.add(opPtr);
-    // master expects to hear from all
-    if (opPtr.p->m_isMaster) {
-      opPtr.p->m_nodes = receiverNodes;
-      opPtr.p->m_signalCounter = receiverNodes;
-    }
-    alterTrigger_slavePrepare(signal, opPtr);
-    alterTrigger_sendReply(signal, opPtr, false);
-    return;
-  }
-  c_opAlterTrigger.find(opPtr, req->getConnectionPtr());
-  if (! opPtr.isNull()) {
-    opPtr.p->m_requestType = requestType;
-    if (requestType == AlterTrigReq::RT_DICT_TC ||
-        requestType == AlterTrigReq::RT_DICT_LQH) {
-      jam();
-      if (req->getOnline())
-        alterTrigger_toCreateLocal(signal, opPtr);
-      else
-        alterTrigger_toDropLocal(signal, opPtr);
-      return;
-    }
-    if (requestType == AlterTrigReq::RT_DICT_COMMIT ||
-        requestType == AlterTrigReq::RT_DICT_ABORT) {
-      jam();
-      if (requestType == AlterTrigReq::RT_DICT_COMMIT)
-        alterTrigger_slaveCommit(signal, opPtr);
-      else
-        alterTrigger_slaveAbort(signal, opPtr);
-      alterTrigger_sendReply(signal, opPtr, false);
-      // done in slave
-      if (! opPtr.p->m_isMaster)
-        c_opAlterTrigger.release(opPtr);
-      return;
-    }
-  }
-  jam();
-  // return to sender
-  OpAlterTrigger opBad;
-  opPtr.p = &opBad;
-  opPtr.p->save(req);
-  opPtr.p->m_errorCode = AlterTrigRef::BadRequestType;
-  opPtr.p->m_errorLine = __LINE__;
-  alterTrigger_sendReply(signal, opPtr, true);
-  return;
-}
-
-void
-Dbdict::execALTER_TRIG_CONF(Signal* signal) 
-{
-  jamEntry();
-  AlterTrigConf* conf = (AlterTrigConf*)signal->getDataPtrSend();
-  alterTrigger_recvReply(signal, conf, 0);
-}
-
-void
-Dbdict::execALTER_TRIG_REF(Signal* signal) 
-{
-  jamEntry();
-  AlterTrigRef* ref = (AlterTrigRef*)signal->getDataPtrSend();
-  alterTrigger_recvReply(signal, ref->getConf(), ref);
-}
-
-void
-Dbdict::alterTrigger_recvReply(Signal* signal, const AlterTrigConf* conf,
-    const AlterTrigRef* ref)
-{
-  jam();
-  const Uint32 senderRef = signal->senderBlockRef();
-  const AlterTrigReq::RequestType requestType = conf->getRequestType();
-  const Uint32 key = conf->getConnectionPtr();
-  if (requestType == AlterTrigReq::RT_CREATE_TRIGGER) {
-    jam();
-    // part of create trigger operation
-    OpCreateTriggerPtr opPtr;
-    c_opCreateTrigger.find(opPtr, key);
-    ndbrequire(! opPtr.isNull());
-    opPtr.p->setError(ref);
-    createTrigger_fromAlterTrigger(signal, opPtr);
-    return;
-  }
-  if (requestType == AlterTrigReq::RT_DROP_TRIGGER) {
-    jam();
-    // part of drop trigger operation
-    OpDropTriggerPtr opPtr;
-    c_opDropTrigger.find(opPtr, key);
-    ndbrequire(! opPtr.isNull());
-    opPtr.p->setError(ref);
-    dropTrigger_fromAlterTrigger(signal, opPtr);
-    return;
-  }
-  OpAlterTriggerPtr opPtr;
-  c_opAlterTrigger.find(opPtr, key);
-  ndbrequire(! opPtr.isNull());
-  ndbrequire(opPtr.p->m_isMaster);
-  ndbrequire(opPtr.p->m_requestType == requestType);
-  /* 
-   * If refuse on drop trig, because of non-existent trigger,
-   * comes from anyone but the master node - ignore it and
-   * remove the node from forter ALTER_TRIG communication
-   * This will happen if a new node has started since the
-   * trigger whas created.
-   */
-  if (ref &&
-      refToNode(senderRef) != refToNode(reference()) &&
-      opPtr.p->m_request.getRequestType() == AlterTrigReq::RT_DROP_TRIGGER &&
-      ref->getErrorCode() == AlterTrigRef::TriggerNotFound) {
-    jam();
-    ref = 0;                                      // ignore this error
-    opPtr.p->m_nodes.clear(refToNode(senderRef)); // remove this from group
-  }
-  opPtr.p->setError(ref);
-  opPtr.p->m_signalCounter.clearWaitingFor(refToNode(senderRef));
-  if (! opPtr.p->m_signalCounter.done()) {
-    jam();
-    return;
-  }
-  if (requestType == AlterTrigReq::RT_DICT_COMMIT ||
-      requestType == AlterTrigReq::RT_DICT_ABORT) {
-    jam();
-    // send reply to user
-    alterTrigger_sendReply(signal, opPtr, true);
-    c_opAlterTrigger.release(opPtr);
-    return;
-  }
-  if (opPtr.p->hasError()) {
-    jam();
-    opPtr.p->m_requestType = AlterTrigReq::RT_DICT_ABORT;
-    alterTrigger_sendSlaveReq(signal, opPtr);
-    return;
-  }
-  if (! (opPtr.p->m_request.getRequestFlag() & RequestFlag::RF_NOTCTRIGGER)) {
-    if (requestType == AlterTrigReq::RT_DICT_PREPARE) {
-      jam();
-      if (opPtr.p->m_request.getOnline()) {
-        jam();
-        opPtr.p->m_requestType = AlterTrigReq::RT_DICT_TC;
-      } else {
-        jam();
-        opPtr.p->m_requestType = AlterTrigReq::RT_DICT_LQH;
-      }
-      alterTrigger_sendSlaveReq(signal, opPtr);
-      return;
-    }
-    if (requestType == AlterTrigReq::RT_DICT_TC) {
-      jam();
-      if (opPtr.p->m_request.getOnline()) {
-        jam();
-        opPtr.p->m_requestType = AlterTrigReq::RT_DICT_LQH;
-      } else {
-        jam();
-        opPtr.p->m_requestType = AlterTrigReq::RT_DICT_COMMIT;
-      }
-      alterTrigger_sendSlaveReq(signal, opPtr);
-      return;
-    }
-    if (requestType == AlterTrigReq::RT_DICT_LQH) {
-      jam();
-      if (opPtr.p->m_request.getOnline()) {
-        jam();
-        opPtr.p->m_requestType = AlterTrigReq::RT_DICT_COMMIT;
-      } else {
-        jam();
-        opPtr.p->m_requestType = AlterTrigReq::RT_DICT_TC;
-      }
-      alterTrigger_sendSlaveReq(signal, opPtr);
-      return;
-    }
-  } else {
-    if (requestType == AlterTrigReq::RT_DICT_PREPARE) {
-      jam();
-      opPtr.p->m_requestType = AlterTrigReq::RT_DICT_LQH;
-      alterTrigger_sendSlaveReq(signal, opPtr);
-      return;
-    }
-    if (requestType == AlterTrigReq::RT_DICT_LQH) {
-      jam();
-      opPtr.p->m_requestType = AlterTrigReq::RT_DICT_COMMIT;
-      alterTrigger_sendSlaveReq(signal, opPtr);
-      return;
-    }
-  }
-  ndbrequire(false);
-}
-
-void
-Dbdict::alterTrigger_slavePrepare(Signal* signal, OpAlterTriggerPtr opPtr)
-{
-  jam();
-  const AlterTrigReq* const req = &opPtr.p->m_request;
-  const Uint32 triggerId = req->getTriggerId();
-  TriggerRecordPtr triggerPtr;
-  if (! (triggerId < c_triggerRecordPool.getSize())) {
-    jam();
-    opPtr.p->m_errorCode = AlterTrigRef::TriggerNotFound;
-    opPtr.p->m_errorLine = __LINE__;
-    return;
-  }
-  c_triggerRecordPool.getPtr(triggerPtr, triggerId);
-  if (triggerPtr.p->triggerState == TriggerRecord::TS_NOT_DEFINED) {
-    jam();
-    opPtr.p->m_errorCode = AlterTrigRef::TriggerNotFound;
-    opPtr.p->m_errorLine = __LINE__;
-    return;
-  }
-
-  if (triggerPtr.p->triggerType == TriggerType::SUBSCRIPTION)
   {
-    opPtr.p->m_request.addRequestFlag(RequestFlag::RF_NOTCTRIGGER);
+    if (!(impl_req->triggerId < c_triggerRecordPool.getSize())) {
+      jam();
+      setError(error, DropTrigImplRef::TriggerNotFound, __LINE__);
+      return;
+    }
+    c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+    // wl3600_todo state check
+  }
+  
+  D("trigger " << copyRope<MAX_TAB_NAME_SIZE>(triggerPtr.p->triggerName));
+
+  // connect to object in request by id
+  if (!reqByName) {
+    jam();
+    DictObjectPtr obj_ptr;
+    if (!findDictObject(op_ptr, obj_ptr, triggerPtr.p->m_obj_ptr_i)) {
+      jam();
+      // broken trigger object wl3600_todo bad error code
+      setError(error, DropTrigRef::TriggerNotFound, __LINE__);
+      return;
+    }
+    ndbrequire(obj_ptr.p->m_id == triggerPtr.p->triggerId);
+
+    // fill in name just to be complete
+    ConstRope name(c_rope_pool, triggerPtr.p->triggerName);
+    name.copy(dropTriggerPtr.p->m_triggerName); //wl3600_todo length check
+  }
+
+  // check the table (must match trigger record)
+  {
+    if (impl_req->tableId != triggerPtr.p->tableId) {
+      jam();
+      setError(error, DropTrigRef::InvalidTable, __LINE__);
+      return;
+    }
+  }
+
+  // check the index (must match trigger record, maybe both RNIL)
+  {
+    if (impl_req->indexId != triggerPtr.p->indexId) {
+      jam();  // wl3600_todo wrong error code
+      setError(error, DropTrigRef::InvalidTable, __LINE__);
+      return;
+    }
+  }
+}
+
+bool
+Dbdict::dropTrigger_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("dropTrigger_subOps" << V(op_ptr.i) << *op_ptr.p);
+
+  DropTriggerRecPtr dropTriggerPtr;
+  getOpRec(op_ptr, dropTriggerPtr);
+
+  // op to alter trigger offline
+  if (!dropTriggerPtr.p->m_sub_alter_trigger) {
+    jam();
+    Callback c = {
+      safe_cast(&Dbdict::dropTrigger_fromAlterTrigger),
+      op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+    dropTrigger_toAlterTrigger(signal, op_ptr);
+    return true;
+  }
+  return false;
+}
+
+void
+Dbdict::dropTrigger_toAlterTrigger(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("dropTrigger_toAlterTrigger");
+
+  AlterTrigReq* req = (AlterTrigReq*)signal->getDataPtrSend();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropTriggerRecPtr dropTriggerPtr;
+  getOpRec(op_ptr, dropTriggerPtr);
+  const DropTrigImplReq* impl_req = &dropTriggerPtr.p->m_request;
+
+  Uint32 requestInfo = 0;
+  DictSignal::setRequestType(requestInfo, AlterTrigReq::AlterTriggerOffline);
+  DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
+
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = requestInfo;
+  req->tableId = impl_req->tableId;
+  req->tableVersion = impl_req->tableVersion;
+  req->triggerId = impl_req->triggerId;
+
+  sendSignal(reference(), GSN_ALTER_TRIG_REQ, signal,
+             AlterTrigReq::SignalLength, JBB);
+}
+
+void
+Dbdict::dropTrigger_fromAlterTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  D("dropTrigger_fromAlterTrigger");
+
+  SchemaOpPtr op_ptr;
+  DropTriggerRecPtr dropTriggerPtr;
+
+  findSchemaOp(op_ptr, dropTriggerPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+
+  Uint32 errorCode = 0;
+  if (ret == 0) {
+    jam();
+    const AlterTrigConf* conf =
+      (const AlterTrigConf*)signal->getDataPtr();
+
+    ndbrequire(conf->transId == trans_ptr.p->m_transId);
+    dropTriggerPtr.p->m_sub_alter_trigger = true;
+    createSubOps(signal, op_ptr);
+  } else {
+    jam();
+    const AlterTrigRef* ref =
+      (const AlterTrigRef*)signal->getDataPtr();
+
+    ErrorInfo error;
+    setError(error, ref);
+    abortSubOps(signal, op_ptr, error);
   }
 }
 
 void
-Dbdict::alterTrigger_toCreateLocal(Signal* signal, OpAlterTriggerPtr opPtr)
+Dbdict::dropTrigger_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 {
   jam();
-  // find trigger record
-  const Uint32 triggerId = opPtr.p->m_request.getTriggerId();
+  SchemaTransPtr& trans_ptr = op_ptr.p->m_trans_ptr;
+  DropTriggerRecPtr dropTriggerPtr;
+  getOpRec(op_ptr, dropTriggerPtr);
+  const DropTrigImplReq* impl_req = &dropTriggerPtr.p->m_request;
+
+  D("dropTrigger_reply" << V(impl_req->triggerId));
+
+  if (!hasError(error)) {
+    DropTrigConf* conf = (DropTrigConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->clientData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->tableId = impl_req->tableId;
+    conf->indexId = impl_req->indexId;
+    conf->triggerId = impl_req->triggerId;
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_TRIG_CONF, signal,
+               DropTrigConf::SignalLength, JBB);
+  } else {
+    jam();
+    DropTrigRef* ref = (DropTrigRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->clientData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    ref->tableId = impl_req->tableId;
+    ref->indexId = impl_req->indexId;
+    ref->triggerId = impl_req->triggerId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_TRIG_REF, signal,
+               DropTrigRef::SignalLength, JBB);
+  }
+}
+
+// DropTrigger: PREPARE
+
+void
+Dbdict::dropTrigger_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  D("dropTrigger_prepare");
+
+  sendTransConf(signal, op_ptr);
+}
+
+// DropTrigger: COMMIT
+
+void
+Dbdict::dropTrigger_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  DropTriggerRecPtr dropTriggerPtr;
+  getOpRec(op_ptr, dropTriggerPtr);
+  const DropTrigImplReq* impl_req = &dropTriggerPtr.p->m_request;
+  Uint32 triggerId = impl_req->triggerId;
+
+  D("dropTrigger_commit" << V(triggerId));
+
   TriggerRecordPtr triggerPtr;
   c_triggerRecordPool.getPtr(triggerPtr, triggerId);
-  CreateTrigReq* const req = (CreateTrigReq*)signal->getDataPtrSend();
-  req->setUserRef(reference());
-  req->setConnectionPtr(opPtr.p->key);
-  if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
+
+  // remove trigger
+  releaseDictObject(op_ptr);
+  triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
+
+  sendTransConf(signal, op_ptr);
+}
+
+// DropTrigger: ABORT
+
+void
+Dbdict::dropTrigger_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  DropTriggerRecPtr dropTriggerPtr;
+  getOpRec(op_ptr, dropTriggerPtr);
+  const DropTrigImplReq* impl_req = &dropTriggerPtr.p->m_request;
+  const Uint32 triggerId = impl_req->triggerId;
+
+  D("dropTrigger_abortParse" << *op_ptr.p);
+
+  if (hasDictObject(op_ptr)) {
     jam();
-    req->setRequestType(CreateTrigReq::RT_TC);
-  } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
-    jam();
-    req->setRequestType(CreateTrigReq::RT_LQH);
-  } else {
-    ndbassert(false);
+    unlinkDictObject(op_ptr);
   }
-  req->setTableId(triggerPtr.p->tableId);
-  req->setIndexId(triggerPtr.p->indexId);
-  req->setTriggerId(triggerPtr.i);
-  req->setTriggerType(triggerPtr.p->triggerType);
-  req->setTriggerActionTime(triggerPtr.p->triggerActionTime);
-  req->setTriggerEvent(triggerPtr.p->triggerEvent);
-  req->setMonitorReplicas(triggerPtr.p->monitorReplicas);
-  req->setMonitorAllAttributes(triggerPtr.p->monitorAllAttributes);
-  req->setReportAllMonitoredAttributes(triggerPtr.p->reportAllMonitoredAttributes);
-  req->setOnline(true);
-  req->setReceiverRef(opPtr.p->m_request.getReceiverRef());
-  BlockReference blockRef = 0;
-  if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
-    jam();
-    blockRef = calcTcBlockRef(getOwnNodeId());
-  } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
-    jam();
-    blockRef = calcLqhBlockRef(getOwnNodeId());
-  } else {
-    ndbassert(false);
-  }
-  req->setAttributeMask(triggerPtr.p->attributeMask);
-  sendSignal(blockRef, GSN_CREATE_TRIG_REQ,
-      signal, CreateTrigReq::SignalLength, JBB);
+  sendTransConf(signal, op_ptr);
 }
 
 void
-Dbdict::alterTrigger_fromCreateLocal(Signal* signal, OpAlterTriggerPtr opPtr)
+Dbdict::dropTrigger_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  jam();
-  if (! opPtr.p->hasLastError()) {
-    // mark created locally
-    TriggerRecordPtr triggerPtr;
-    c_triggerRecordPool.getPtr(triggerPtr, opPtr.p->m_request.getTriggerId());
-    if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
+  D("dropTrigger_abortPrepare" << *op_ptr.p);
+  ndbrequire(false);
+  sendTransConf(signal, op_ptr);
+}
+
+// DropTrigger: MISC
+
+void
+Dbdict::execDROP_TRIG_CONF(Signal* signal)
+{
+  jamEntry();
+  const DropTrigConf* conf = (const DropTrigConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::execDROP_TRIG_REF(Signal* signal)
+{
+  jamEntry();
+  const DropTrigRef* ref = (const DropTrigRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execDROP_TRIG_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  const DropTrigImplConf* conf = (const DropTrigImplConf*)signal->getDataPtr();
+  ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::execDROP_TRIG_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  const DropTrigImplRef* ref = (const DropTrigImplRef*)signal->getDataPtr();
+  ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
+  handleDictRef(signal, ref);
+}
+
+// DropTrigger: END
+
+// MODULE: AlterTrigger
+
+const Dbdict::OpInfo
+Dbdict::AlterTriggerRec::g_opInfo = {
+  { 'A', 'T', 'r', 0 },
+  GSN_ALTER_TRIG_IMPL_REQ,
+  AlterTrigImplReq::SignalLength,
+  //
+  &Dbdict::alterTrigger_seize,
+  &Dbdict::alterTrigger_release,
+  //
+  &Dbdict::alterTrigger_parse,
+  &Dbdict::alterTrigger_subOps,
+  &Dbdict::alterTrigger_reply,
+  //
+  &Dbdict::alterTrigger_prepare,
+  &Dbdict::alterTrigger_commit,
+  //
+  &Dbdict::alterTrigger_abortParse,
+  &Dbdict::alterTrigger_abortPrepare
+};
+
+bool
+Dbdict::alterTrigger_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<AlterTriggerRec>(op_ptr);
+}
+
+void
+Dbdict::alterTrigger_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<AlterTriggerRec>(op_ptr);
+}
+
+void
+Dbdict::execALTER_TRIG_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+
+  const AlterTrigReq req_copy =
+    *(const AlterTrigReq*)signal->getDataPtr();
+  const AlterTrigReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    AlterTriggerRecPtr alterTriggerPtr;
+    AlterTrigImplReq* impl_req;
+
+    startClientReq(op_ptr, alterTriggerPtr, req, impl_req, error);
+    if (hasError(error)) {
       jam();
-      triggerPtr.p->triggerLocal |= TriggerRecord::TL_CREATED_TC;
-    } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
-      jam();
-      triggerPtr.p->triggerLocal |= TriggerRecord::TL_CREATED_LQH;
-    } else {
-      ndbrequire(false);
+      break;
     }
-  }
-  // forward CONF or REF to master
-  alterTrigger_sendReply(signal, opPtr, false);
+
+    impl_req->tableId = req->tableId;
+    impl_req->tableVersion = req->tableVersion;
+    impl_req->triggerId = req->triggerId;
+
+    handleClientReq(signal, op_ptr);
+    return;
+  } while (0);
+
+  releaseSections(signal);
+
+  AlterTrigRef* ref = (AlterTrigRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->clientData = req->clientData;
+  ref->transId = req->transId;
+  ref->tableId = req->tableId;
+  ref->triggerId = req->triggerId;
+  getError(error, ref);
+
+  sendSignal(req->clientRef, GSN_ALTER_TRIG_REF, signal,
+             AlterTrigRef::SignalLength, JBB);
 }
 
+// AlterTrigger: PARSE
+
 void
-Dbdict::alterTrigger_toDropLocal(Signal* signal, OpAlterTriggerPtr opPtr)
+Dbdict::alterTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
 {
-  jam();
+  D("alterTrigger_parse" << V(op_ptr.i) << *op_ptr.p);
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  AlterTriggerRecPtr alterTriggerPtr;
+  getOpRec(op_ptr, alterTriggerPtr);
+  AlterTrigImplReq* impl_req = &alterTriggerPtr.p->m_request;
+
+  // check request type
+  Uint32 requestType = impl_req->requestType;
+  switch (requestType) {
+  case AlterTrigImplReq::AlterTriggerOnline:
+  case AlterTrigImplReq::AlterTriggerOffline:
+    break;
+  default:
+    setError(error, AlterTrigRef::BadRequestType, __LINE__);
+    return;
+  }
+
+  // wl3600_todo look up optional name
+
+  // check the table wl3600_todo
+  // check the index if any wl3600_todo
+
+  // check the trigger
   TriggerRecordPtr triggerPtr;
-  c_triggerRecordPool.getPtr(triggerPtr, opPtr.p->m_request.getTriggerId());
-  DropTrigReq* const req = (DropTrigReq*)signal->getDataPtrSend();
-  req->setUserRef(reference());
-  req->setConnectionPtr(opPtr.p->key);
-  if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
-    jam();
-    // broken trigger allowed if force
-    if (! (triggerPtr.p->triggerLocal & TriggerRecord::TL_CREATED_TC)) {
+  {
+    const Uint32 triggerId = impl_req->triggerId;
+    if (! (impl_req->triggerId < c_triggerRecordPool.getSize())) {
       jam();
-      ndbassert(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
-      alterTrigger_sendReply(signal, opPtr, false);
+      setError(error, AlterTrigRef::TriggerNotFound, __LINE__);
       return;
     }
-    req->setRequestType(DropTrigReq::RT_TC);
-  } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
-    jam();
-    // broken trigger allowed if force
-    if (! (triggerPtr.p->triggerLocal & TriggerRecord::TL_CREATED_LQH)) {
+
+    c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+
+    if (triggerPtr.p->triggerState == TriggerRecord::TS_NOT_DEFINED) {
       jam();
-      ndbassert(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
-      alterTrigger_sendReply(signal, opPtr, false);
+      setError(error, AlterTrigRef::TriggerNotFound, __LINE__);
       return;
     }
-    req->setRequestType(DropTrigReq::RT_LQH);
-  } else {
-    ndbassert(false);
   }
-  req->setTableId(triggerPtr.p->tableId);
-  req->setIndexId(triggerPtr.p->indexId);
-  req->setTriggerId(triggerPtr.i);
-  req->setTriggerType(triggerPtr.p->triggerType);
-  req->setTriggerActionTime(triggerPtr.p->triggerActionTime);
-  req->setTriggerEvent(triggerPtr.p->triggerEvent);
-  req->setMonitorReplicas(triggerPtr.p->monitorReplicas);
-  req->setMonitorAllAttributes(triggerPtr.p->monitorAllAttributes);
-  BlockReference blockRef = 0;
-  if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
-    jam();
-    blockRef = calcTcBlockRef(getOwnNodeId());
-  } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
-    jam();
-    blockRef = calcLqhBlockRef(getOwnNodeId());
-  } else {
-    ndbassert(false);
-  }
-  sendSignal(blockRef, GSN_DROP_TRIG_REQ,
-      signal, DropTrigReq::SignalLength, JBB);
-}
 
-void
-Dbdict::alterTrigger_fromDropLocal(Signal* signal, OpAlterTriggerPtr opPtr)
-{
-  jam();
-  if (! opPtr.p->hasLastError()) {
-    // mark dropped locally
-    TriggerRecordPtr triggerPtr;
-    c_triggerRecordPool.getPtr(triggerPtr, opPtr.p->m_request.getTriggerId());
-    if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
+  // set local triggers wl3600_todo maybe use requestType
+  {
+    TriggerType::Value type =
+      TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
+    if (type == TriggerType::SECONDARY_INDEX) {
       jam();
-      triggerPtr.p->triggerLocal &= ~TriggerRecord::TL_CREATED_TC;
-    } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
-      jam();
-      triggerPtr.p->triggerLocal &= ~TriggerRecord::TL_CREATED_LQH;
+      alterTriggerPtr.p->m_triggerCount = 2;
+      alterTriggerPtr.p->m_triggerBlock[0] = DBTC_REF;
+      alterTriggerPtr.p->m_triggerBlock[1] = DBLQH_REF;
     } else {
-      ndbrequire(false);
+      jam();
+      alterTriggerPtr.p->m_triggerCount = 1;
+      alterTriggerPtr.p->m_triggerBlock[0] = DBLQH_REF;
     }
   }
-  // forward CONF or REF to master
-  alterTrigger_sendReply(signal, opPtr, false);
+
+  // number of triggers to do (abort code may change it)
+  alterTriggerPtr.p->m_triggerMax = alterTriggerPtr.p->m_triggerCount;
+}
+
+bool
+Dbdict::alterTrigger_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("alterTrigger_subOps" << V(op_ptr.i) << *op_ptr.p);
+  return false;
 }
 
 void
-Dbdict::alterTrigger_slaveCommit(Signal* signal, OpAlterTriggerPtr opPtr)
+Dbdict::alterTrigger_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 {
   jam();
+
+  SchemaTransPtr& trans_ptr = op_ptr.p->m_trans_ptr;
+  AlterTriggerRecPtr alterTriggerPtr;
+  getOpRec(op_ptr, alterTriggerPtr);
+  const AlterTrigImplReq* impl_req = &alterTriggerPtr.p->m_request;
+
+  D("alterTrigger_reply");
+
+  if (!hasError(error)) {
+    AlterTrigConf* conf = (AlterTrigConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->clientData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->tableId = impl_req->tableId;
+    conf->triggerId = impl_req->triggerId;
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_ALTER_TRIG_CONF, signal,
+               AlterTrigConf::SignalLength, JBB);
+  } else {
+    jam();
+    AlterTrigRef* ref = (AlterTrigRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->clientData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    ref->tableId = impl_req->tableId;
+    ref->triggerId = impl_req->triggerId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_ALTER_TRIG_REF, signal,
+               AlterTrigRef::SignalLength, JBB);
+  }
+}
+
+// AlterTrigger: PREPARE
+
+void
+Dbdict::alterTrigger_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  Uint32 itRepeat = getIteratorRepeat(trans_ptr);
+
+  D("alterTrigger_prepare" << V(itRepeat) << *op_ptr.p);
+
+  AlterTriggerRecPtr alterTriggerPtr;
+  getOpRec(op_ptr, alterTriggerPtr);
+  const AlterTrigImplReq* impl_req = &alterTriggerPtr.p->m_request;
+  Uint32 requestType = impl_req->requestType;
+
+  // do all TC's first (or LQH's if drop)
+  ndbrequire(alterTriggerPtr.p->m_triggerNo == itRepeat);
+
+  Callback c = {
+    safe_cast(&Dbdict::alterTrigger_fromLocal),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  switch (requestType) {
+  case AlterTrigImplReq::AlterTriggerOnline:
+    alterTrigger_toCreateLocal(signal, op_ptr);
+    break;
+  case AlterTrigImplReq::AlterTriggerOffline:
+    alterTrigger_toDropLocal(signal, op_ptr);
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+}
+
+void
+Dbdict::alterTrigger_toCreateLocal(Signal* signal, SchemaOpPtr op_ptr)
+{
+  AlterTriggerRecPtr alterTriggerPtr;
+  getOpRec(op_ptr, alterTriggerPtr);
+  const AlterTrigImplReq* impl_req = &alterTriggerPtr.p->m_request;
+
   TriggerRecordPtr triggerPtr;
-  c_triggerRecordPool.getPtr(triggerPtr, opPtr.p->m_request.getTriggerId());
-  // set state
-  triggerPtr.p->triggerState = TriggerRecord::TS_ONLINE;
+  c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+
+  const Uint32 triggerCount = alterTriggerPtr.p->m_triggerCount;
+  const Uint32 triggerMax = alterTriggerPtr.p->m_triggerMax;
+  Uint32 triggerNo = alterTriggerPtr.p->m_triggerNo;
+  ndbrequire(triggerNo < triggerMax && triggerMax <= triggerCount);
+
+  D("alterTrigger_toCreateLocal" << V(triggerNo) << *op_ptr.p);
+
+  CreateTrigImplReq* req = (CreateTrigImplReq*)signal->getDataPtrSend();
+
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->requestType = impl_req->requestType;
+  req->tableId = triggerPtr.p->tableId;
+  req->tableVersion = 0; // not used
+  req->indexId = triggerPtr.p->indexId;
+  req->indexVersion = 0; // not used
+  req->triggerNo = triggerNo; // not used
+  req->triggerId = triggerPtr.p->triggerId;
+  req->triggerInfo = triggerPtr.p->triggerInfo;
+  req->receiverRef = triggerPtr.p->receiverRef;
+  req->attributeMask = triggerPtr.p->attributeMask;
+
+  const Uint32 i = triggerNo;
+  BlockReference ref = alterTriggerPtr.p->m_triggerBlock[i];
+  sendSignal(ref, GSN_CREATE_TRIG_IMPL_REQ, signal,
+             CreateTrigImplReq::SignalLength, JBB);
 }
 
 void
-Dbdict::alterTrigger_slaveAbort(Signal* signal, OpAlterTriggerPtr opPtr)
+Dbdict::alterTrigger_toDropLocal(Signal* signal, SchemaOpPtr op_ptr)
 {
-  jam();
+  AlterTriggerRecPtr alterTriggerPtr;
+  getOpRec(op_ptr, alterTriggerPtr);
+  const AlterTrigImplReq* impl_req = &alterTriggerPtr.p->m_request;
+
+  TriggerRecordPtr triggerPtr;
+  c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+
+  const Uint32 triggerCount = alterTriggerPtr.p->m_triggerCount;
+  const Uint32 triggerMax = alterTriggerPtr.p->m_triggerMax;
+  Uint32 triggerNo = alterTriggerPtr.p->m_triggerNo;
+  ndbrequire(triggerNo < triggerMax && triggerMax <= triggerCount);
+
+  D("alterTrigger_toDropLocal" << V(triggerNo) << *op_ptr.p);
+
+  DropTrigImplReq* req = (DropTrigImplReq*)signal->getDataPtrSend();
+
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->requestType = impl_req->requestType;
+  req->tableId = triggerPtr.p->tableId;
+  req->tableVersion = 0; // not used
+  req->indexId = triggerPtr.p->indexId;
+  req->indexVersion = 0; // not used
+  req->triggerNo = triggerNo; // not used
+  req->triggerId = triggerPtr.p->triggerId;
+  req->triggerInfo = triggerPtr.p->triggerInfo;
+
+  const Uint32 i = triggerMax - (triggerNo + 1);
+  BlockReference ref = alterTriggerPtr.p->m_triggerBlock[i];
+  sendSignal(ref, GSN_DROP_TRIG_IMPL_REQ, signal,
+             DropTrigImplReq::SignalLength, JBB);
 }
 
 void
-Dbdict::alterTrigger_sendSlaveReq(Signal* signal, OpAlterTriggerPtr opPtr)
+Dbdict::alterTrigger_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
 {
-  AlterTrigReq* const req = (AlterTrigReq*)signal->getDataPtrSend();
-  *req = opPtr.p->m_request;
-  req->setUserRef(opPtr.p->m_coordinatorRef);
-  req->setConnectionPtr(opPtr.p->key);
-  req->setRequestType(opPtr.p->m_requestType);
-  req->addRequestFlag(opPtr.p->m_requestFlag);
-  NdbNodeBitmask receiverNodes = c_aliveNodes;
-  if (opPtr.p->m_requestFlag & RequestFlag::RF_LOCAL) {
-    receiverNodes.clear();
-    receiverNodes.set(getOwnNodeId());
-  } else {
-    opPtr.p->m_nodes.bitAND(receiverNodes);
-    receiverNodes = opPtr.p->m_nodes;
-  }
-  opPtr.p->m_signalCounter = receiverNodes;
-  NodeReceiverGroup rg(DBDICT, receiverNodes);
-  sendSignal(rg, GSN_ALTER_TRIG_REQ,
-      signal, AlterTrigReq::SignalLength, JBB);
-}
+  SchemaOpPtr op_ptr;
+  AlterTriggerRecPtr alterTriggerPtr;
+  findSchemaOp(op_ptr, alterTriggerPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  const AlterTrigImplReq* impl_req = &alterTriggerPtr.p->m_request;
 
-void
-Dbdict::alterTrigger_sendReply(Signal* signal, OpAlterTriggerPtr opPtr,
-    bool toUser)
-{
-  jam();
-  AlterTrigRef* rep = (AlterTrigRef*)signal->getDataPtrSend();
-  Uint32 gsn = GSN_ALTER_TRIG_CONF;
-  Uint32 length = AlterTrigConf::InternalLength;
-  bool sendRef;
-  if (! toUser) {
-    sendRef = opPtr.p->hasLastError();
-    rep->setUserRef(opPtr.p->m_coordinatorRef);
-    rep->setConnectionPtr(opPtr.p->key);
-    rep->setRequestType(opPtr.p->m_requestType);
-    if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_ABORT) {
-      jam();
-      sendRef = false;
-    } else {
-      jam();
-    }
-  } else {
-    sendRef = opPtr.p->hasError();
+  const Uint32 triggerMax = alterTriggerPtr.p->m_triggerMax;
+  Uint32 triggerNo = alterTriggerPtr.p->m_triggerNo;
+  ndbrequire(triggerNo < triggerMax);
+  D("alterTrigger_fromLocal" << V(triggerNo) << V(triggerMax));
+
+  if (ret == 0) {
     jam();
-    rep->setUserRef(opPtr.p->m_request.getUserRef());
-    rep->setConnectionPtr(opPtr.p->m_request.getConnectionPtr());
-    rep->setRequestType(opPtr.p->m_request.getRequestType());
-    length = AlterTrigConf::SignalLength;
+    triggerNo = ++alterTriggerPtr.p->m_triggerNo;
+    Uint32 itFlags = 0;
+    if (triggerNo < triggerMax)
+      itFlags |= SchemaTransImplConf::IT_REPEAT;
+
+    sendTransConf(signal, op_ptr, itFlags);
+  } else {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
   }
-  rep->setTableId(opPtr.p->m_request.getTableId());
-  rep->setTriggerId(opPtr.p->m_request.getTriggerId());
-  if (sendRef) {
-    if (opPtr.p->m_errorNode == 0) {
-      jam();
-      opPtr.p->m_errorNode = getOwnNodeId();
-    } else {
-      jam();
-    }
-    rep->setErrorCode(opPtr.p->m_errorCode);
-    rep->setErrorLine(opPtr.p->m_errorLine);
-    rep->setErrorNode(opPtr.p->m_errorNode);
-    gsn = GSN_ALTER_TRIG_REF;
-    length = AlterTrigRef::SignalLength;
-  }
-  sendSignal(rep->getUserRef(), gsn, signal, length, JBB);
 }
+
+// AlterTrigger: COMMIT
+
+void
+Dbdict::alterTrigger_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  D("alterTrigger_commit");
+
+  AlterTriggerRecPtr alterTriggerPtr;
+  getOpRec(op_ptr, alterTriggerPtr);
+  const AlterTrigImplReq* impl_req = &alterTriggerPtr.p->m_request;
+  Uint32 requestType = impl_req->requestType;
+
+  TriggerRecordPtr triggerPtr;
+  c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+
+  switch (requestType) {
+  case AlterTrigImplReq::AlterTriggerOnline:
+    if (triggerPtr.p->triggerState == TriggerRecord::TS_OFFLINE)
+      triggerPtr.p->triggerState = TriggerRecord::TS_ONLINE;
+    break;
+  case AlterTrigImplReq::AlterTriggerOffline:
+    if (triggerPtr.p->triggerState == TriggerRecord::TS_ONLINE)
+      triggerPtr.p->triggerState = TriggerRecord::TS_OFFLINE;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  sendTransConf(signal, op_ptr);
+}
+
+// AlterTrigger: ABORT
+
+void
+Dbdict::alterTrigger_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  D("alterTrigger_abortParse" << *op_ptr.p);
+
+  // wl3600_todo probably nothing
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::alterTrigger_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  Uint32 itRepeat = getIteratorRepeat(trans_ptr);
+
+  D("alterTrigger_abortPrepare" << V(itRepeat) << *op_ptr.p);
+
+  AlterTriggerRecPtr alterTriggerPtr;
+  getOpRec(op_ptr, alterTriggerPtr);
+  const AlterTrigImplReq* impl_req = &alterTriggerPtr.p->m_request;
+  Uint32 requestType = impl_req->requestType;
+
+  // set trigger counters on first round
+  if (itRepeat == 0) {
+    jam();
+    alterTriggerPtr.p->m_triggerMax = alterTriggerPtr.p->m_triggerNo;
+    alterTriggerPtr.p->m_triggerNo = 0;
+
+    if (alterTriggerPtr.p->m_triggerMax == 0) {
+      jam();
+      // no triggers were done
+      sendTransConf(signal, op_ptr);
+      return;
+    }
+  }
+
+  Callback c = {
+    safe_cast(&Dbdict::alterTrigger_abortFromLocal),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  // wl3600_todo
+  switch (requestType) {
+  case AlterTrigImplReq::AlterTriggerOnline:
+    jam();
+    alterTrigger_toDropLocal(signal, op_ptr);
+    break;
+  case AlterTrigImplReq::AlterTriggerOffline:
+    jam();
+    alterTrigger_toCreateLocal(signal, op_ptr);
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+}
+
+void
+Dbdict::alterTrigger_abortFromLocal(Signal* signal,
+                                    Uint32 op_key,
+                                    Uint32 ret)
+{
+  SchemaOpPtr op_ptr;
+  AlterTriggerRecPtr alterTriggerPtr;
+  findSchemaOp(op_ptr, alterTriggerPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  const AlterTrigImplReq* impl_req = &alterTriggerPtr.p->m_request;
+
+  const Uint32 triggerMax = alterTriggerPtr.p->m_triggerMax;
+  Uint32 triggerNo = alterTriggerPtr.p->m_triggerNo;
+  ndbrequire(triggerNo < triggerMax);
+  D("alterTrigger_abortFromLocal" << V(triggerNo) << V(triggerMax));
+
+  if (ret == 0) {
+    jam();
+    triggerNo = ++alterTriggerPtr.p->m_triggerNo;
+    ndbrequire(triggerNo <= triggerMax);
+    Uint32 itFlags = 0;
+    if (triggerNo < triggerMax)
+      itFlags |= SchemaTransImplConf::IT_REPEAT;
+
+    sendTransConf(signal, op_ptr, itFlags);
+  } else {
+    // abort is not allowed to fail
+    ndbrequire(false);
+  }
+}
+
+// AlterTrigger: MISC
+
+void
+Dbdict::execALTER_TRIG_CONF(Signal* signal)
+{
+  jamEntry();
+  const AlterTrigConf* conf = (const AlterTrigConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::execALTER_TRIG_REF(Signal* signal)
+{
+  jamEntry();
+  const AlterTrigRef* ref = (const AlterTrigRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+// AlterTrigger: END
 
 /**
  * MODULE: Support routines for index and trigger.
@@ -17418,6 +17423,9 @@ Dbdict::g_opInfoList[] = {
   &Dbdict::CreateTableRec::g_opInfo,
   &Dbdict::DropTableRec::g_opInfo,
   &Dbdict::AlterTableRec::g_opInfo,
+  &Dbdict::CreateTriggerRec::g_opInfo,
+  &Dbdict::DropTriggerRec::g_opInfo,
+  &Dbdict::AlterTriggerRec::g_opInfo,
   0
 };
 

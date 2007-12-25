@@ -24,7 +24,9 @@
 #include <Bitmask.hpp>
 #include <signaldata/TupKey.hpp>
 #include <signaldata/CreateTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
 #include <signaldata/BuildIndx.hpp>
 #include <signaldata/AlterTab.hpp>
@@ -1931,11 +1933,11 @@ private:
 // Trigger signals
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void execCREATE_TRIG_REQ(Signal* signal);
+  void execCREATE_TRIG_IMPL_REQ(Signal* signal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void execDROP_TRIG_REQ(Signal* signal);
+  void execDROP_TRIG_IMPL_REQ(Signal* signal);
 
 // *****************************************************************
 // Support methods for ATTRINFO.
@@ -2479,10 +2481,10 @@ private:
                   TriggerActionTime::Value ttime,
                   TriggerEvent::Value tevent);
 
-  bool createTrigger(Tablerec* table, const CreateTrigReq* req);
+  bool createTrigger(Tablerec* table, const CreateTrigImplReq* req);
 
   Uint32 dropTrigger(Tablerec* table,
-		     const DropTrigReq* req,
+		     const DropTrigImplReq* req,
 		     BlockNumber sender);
 
   void

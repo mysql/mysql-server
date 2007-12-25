@@ -77,6 +77,15 @@ printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint
     case GSN_ALTER_TAB_REQ:
       printALTER_TAB_REQ(output, pb_data, pb_len, rbn);
       break;
+    case GSN_CREATE_TRIG_IMPL_REQ:
+      printCREATE_TRIG_IMPL_REQ(output, pb_data, pb_len, rbn);
+      break;
+    case GSN_DROP_TRIG_IMPL_REQ:
+      printDROP_TRIG_IMPL_REQ(output, pb_data, pb_len, rbn);
+      break;
+    case GSN_ALTER_TRIG_IMPL_REQ:
+      printALTER_TRIG_IMPL_REQ(output, pb_data, pb_len, rbn);
+      break;
     default:
       {
         Uint32 i;

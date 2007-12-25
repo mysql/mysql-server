@@ -40,7 +40,8 @@ libsignaldataprint_la_SOURCES = \
           LqhTrans.cpp ReadNodesConf.cpp CntrStart.cpp \
           ScanFrag.cpp \
 	  SchemaTrans.cpp SchemaTransImpl.cpp GetTabInfo.cpp \
- 	  CreateTab.cpp CreateTable.cpp DropTable.cpp
+ 	  CreateTab.cpp CreateTable.cpp DropTable.cpp \
+  	  CreateTrigImpl.cpp DropTrigImpl.cpp AlterTrigImpl.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
