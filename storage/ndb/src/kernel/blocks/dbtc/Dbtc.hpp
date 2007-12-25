@@ -1359,12 +1359,12 @@ private:
   void execDROP_TRIG_IMPL_REQ(Signal* signal);
   void execFIRE_TRIG_ORD(Signal* signal);
   void execTRIG_ATTRINFO(Signal* signal);
-  void execCREATE_INDX_REQ(Signal* signal);
-  void execDROP_INDX_REQ(Signal* signal);
+  void execCREATE_INDX_IMPL_REQ(Signal* signal);
+  void execDROP_INDX_IMPL_REQ(Signal* signal);
   void execTCINDXREQ(Signal* signal);
   void execINDXKEYINFO(Signal* signal);
   void execINDXATTRINFO(Signal* signal);
-  void execALTER_INDX_REQ(Signal* signal);
+  void execALTER_INDX_IMPL_REQ(Signal* signal);
 
   // Index table lookup
   void execTCKEYCONF(Signal* signal);

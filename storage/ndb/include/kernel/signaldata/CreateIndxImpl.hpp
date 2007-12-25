@@ -13,41 +13,35 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef CREATE_INDX_HPP
-#define CREATE_INDX_HPP
+#ifndef CREATE_INDX_IMPL_HPP
+#define CREATE_INDX_IMPL_HPP
 
 #include "SignalData.hpp"
-#include <NodeBitmask.hpp>
-#include <signaldata/DictTabInfo.hpp>
 
-struct CreateIndxReq {
-  STATIC_CONST( SignalLength = 9 );
+struct CreateIndxImplReq {
+  STATIC_CONST( SignalLength = 8 );
   SECTION( ATTRIBUTE_LIST_SECTION = 0 );
   SECTION( INDEX_NAME_SECTION = 1 );
 
-  Uint32 clientRef;
-  Uint32 clientData;
-  Uint32 transId;
-  Uint32 transKey;
-  Uint32 requestInfo;
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 requestType;
   Uint32 tableId;
   Uint32 tableVersion;
   Uint32 indexType;
-  Uint32 online;
-};
-
-struct CreateIndxConf {
-  STATIC_CONST( SignalLength = 5 );
-
-  Uint32 senderRef;
-  Uint32 clientData;
-  Uint32 transId;
   Uint32 indexId;
   Uint32 indexVersion;
 };
 
-struct CreateIndxRef {
-  STATIC_CONST( SignalLength = 7 );
+struct CreateIndxImplConf {
+  STATIC_CONST( SignalLength = 2 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
+};
+
+struct CreateIndxImplRef {
+  STATIC_CONST( SignalLength = 6 );
 
   enum ErrorCode {
     NoError = 0,
@@ -69,15 +63,14 @@ struct CreateIndxRef {
     AllocationError = 4252,
     CreateIndexTableFailed = 4253,
     DuplicateAttributes = 4258,
-    SingleUser = 299,
     TableIsTemporary = 776,
     TableIsNotTemporary = 777,
-    NoLoggingTemporaryIndex = 778
+    NoLoggingTemporaryIndex = 778,
+    InconsistentTC = 292
   };
 
   Uint32 senderRef;
-  Uint32 clientData;
-  Uint32 transId;
+  Uint32 senderData;
   Uint32 errorCode;
   Uint32 errorLine;
   Uint32 errorNodeId;

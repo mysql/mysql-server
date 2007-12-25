@@ -90,7 +90,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   addRecSignal(GSN_TUP_WRITELOG_REQ, &Dbtup::execTUP_WRITELOG_REQ);
 
   // Ordered index related
-  addRecSignal(GSN_BUILDINDXREQ, &Dbtup::execBUILDINDXREQ);
+  addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &Dbtup::execBUILD_INDX_IMPL_REQ);
 
   // Tup scan
   addRecSignal(GSN_ACC_SCANREQ, &Dbtup::execACC_SCANREQ);

@@ -1834,27 +1834,47 @@ NdbDictionary::Dictionary::removeCachedTable(const Table *table){
 int
 NdbDictionary::Dictionary::createIndex(const Index & ind)
 {
-  return m_impl.createIndex(NdbIndexImpl::getImpl(ind));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.createIndex(NdbIndexImpl::getImpl(ind))
+  );
+  return ret;
 }
 
 int
 NdbDictionary::Dictionary::createIndex(const Index & ind, const Table & tab)
 {
-  return m_impl.createIndex(NdbIndexImpl::getImpl(ind),
-                            NdbTableImpl::getImpl(tab));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.createIndex(NdbIndexImpl::getImpl(ind),
+                       NdbTableImpl::getImpl(tab))
+  );
+  return ret;
 }
 
 int 
 NdbDictionary::Dictionary::dropIndex(const char * indexName,
 				     const char * tableName)
 {
-  return m_impl.dropIndex(indexName, tableName);
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.dropIndex(indexName, tableName)
+  );
+  return ret;
 }
 
 int 
 NdbDictionary::Dictionary::dropIndexGlobal(const Index &ind)
 {
-  return m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind))
+  );
+  return ret;
 }
 
 const NdbDictionary::Index * 

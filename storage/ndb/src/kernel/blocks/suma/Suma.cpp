@@ -1205,6 +1205,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   const Uint32 reportSubscribe = (flags & SubCreateReq::ReportSubscribe) ?
     Subscription::REPORT_SUBSCRIBE : 0;
   const Uint32 tableId = req.tableId;
+  const Uint32 schemaTransId = req.schemaTransId;
   Subscription::State state = (Subscription::State) req.state;
   if (signal->getLength() != SubCreateReq::SignalLength2)
   {
@@ -1233,6 +1234,10 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
       DBUG_VOID_RETURN;
     }
     jam();
+
+    // leave meaning of schemaTransId open in this branch
+    ndbrequire(subPtr.p->m_schemaTransId == 0 && schemaTransId == 0);
+
     if (restartFlag)
     {
       ndbrequire(type != SubCreateReq::SingleTableScan);
@@ -1275,6 +1280,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     subPtr.p->m_options          = reportSubscribe | reportAll;
     subPtr.p->m_tableId          = tableId;
     subPtr.p->m_table_ptrI       = RNIL;
+    subPtr.p->m_schemaTransId    = schemaTransId;
     subPtr.p->m_state            = state;
     subPtr.p->n_subscribers      = 0;
     subPtr.p->m_current_sync_ptrI = RNIL;
@@ -1515,7 +1521,10 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr,
   DBUG_ENTER("Suma::initTable SubscriberPtr");
   DBUG_PRINT("enter",("tableId: %d", tableId));
 
-  int r= initTable(signal,tableId,tabPtr);
+  SubscriptionPtr subPtr;
+  c_subscriptions.getPtr(subPtr, subbPtr.p->m_subPtrI);
+
+  int r= initTable(signal,tableId,tabPtr,subPtr.p->m_schemaTransId);
 
   {
     LocalDLList<Subscriber> subscribers(c_subscriberPool,
@@ -1559,7 +1568,10 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr,
   DBUG_ENTER("Suma::initTable Ptr<SyncRecord>");
   DBUG_PRINT("enter",("tableId: %d", tableId));
 
-  int r= initTable(signal,tableId,tabPtr);
+  SubscriptionPtr subPtr;
+  c_subscriptions.getPtr(subPtr, syncPtr.p->m_subscriptionPtrI);
+
+  int r= initTable(signal,tableId,tabPtr,subPtr.p->m_schemaTransId);
 
   {
     LocalDLList<SyncRecord> syncRecords(c_syncPool,tabPtr.p->c_syncRecords);
@@ -1576,7 +1588,8 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr,
 }
 
 int
-Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
+Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr,
+                Uint32 schemaTransId)
 {
   jam();
   DBUG_ENTER("Suma::initTable");
@@ -1611,6 +1624,7 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
       tabPtr.p->m_hasOutstandingTriggerReq[j] = 0;
       tabPtr.p->m_triggerIds[j] = ILLEGAL_TRIGGER_ID;
     }
+    tabPtr.p->m_schemaTransId = schemaTransId;
 
     c_tables.add(tabPtr);
 
@@ -1620,7 +1634,7 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
     req->requestType = 
       GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
     req->tableId = tableId;
-    req->schemaTransId = 0;
+    req->schemaTransId = schemaTransId;
 
     DBUG_PRINT("info",("GET_TABINFOREQ id %d", req->tableId));
 
@@ -1755,6 +1769,7 @@ Suma::execGET_TABINFOREF(Signal* signal){
   GetTabInfoRef* ref = (GetTabInfoRef*)signal->getDataPtr();
   Uint32 tableId = ref->tableId;
   Uint32 senderData = ref->senderData;
+  Uint32 schemaTransId = ref->schemaTransId;
   GetTabInfoRef::ErrorCode errorCode =
     (GetTabInfoRef::ErrorCode) ref->errorCode;
   int do_resend_request = 0;
@@ -1785,7 +1800,7 @@ Suma::execGET_TABINFOREF(Signal* signal){
     req->requestType = 
       GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
     req->tableId = tableId;
-    req->schemaTransId = 0;
+    req->schemaTransId = schemaTransId;
     sendSignalWithDelay(DBDICT_REF, GSN_GET_TABINFOREQ, signal,
                         30, GetTabInfoReq::SignalLength);
     return;
@@ -1822,6 +1837,7 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   req->m_connectionData = RNIL;
   req->m_tableRef = tableId;
   req->m_senderData = tabPtr.i;
+  req->m_schemaTransId = tabPtr.p->m_schemaTransId;
   sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
              DihFragCountReq::SignalLength, JBB);
 }
@@ -1914,11 +1930,13 @@ Suma::execDI_FCOUNTREF(Signal* signal)
     {
       const Uint32 tableId = ref->m_senderData;
       const Uint32 tabPtr_i = ref->m_tableRef;      
+      const Uint32 schemaTransId = ref->m_schemaTransId;
       DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtrSend();
 
       req->m_connectionData = RNIL;
       req->m_tableRef = tabPtr_i;
       req->m_senderData = tableId;
+      req->m_schemaTransId = schemaTransId;
       sendSignalWithDelay(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
                           DihFragCountReq::SignalLength, 
                           DihFragCountReq::RetryInterval);
@@ -1959,7 +1977,8 @@ Suma::execDI_FCOUNTCONF(Signal* signal)
   signal->theData[1] = tabPtr.i;
   signal->theData[2] = tableId;
   signal->theData[3] = 0; // Frag no
-  sendSignal(DBDIH_REF, GSN_DIGETPRIMREQ, signal, 4, JBB);
+  signal->theData[4] = tabPtr.p->m_schemaTransId;
+  sendSignal(DBDIH_REF, GSN_DIGETPRIMREQ, signal, 5, JBB);
 
   DBUG_VOID_RETURN;
 }
@@ -2016,7 +2035,8 @@ Suma::execDIGETPRIMCONF(Signal* signal){
   signal->theData[1] = tabPtr.i;
   signal->theData[2] = tableId;
   signal->theData[3] = nextFrag; // Frag no
-  sendSignal(DBDIH_REF, GSN_DIGETPRIMREQ, signal, 4, JBB);
+  signal->theData[4] = tabPtr.p->m_schemaTransId;
+  sendSignal(DBDIH_REF, GSN_DIGETPRIMREQ, signal, 5, JBB);
 
   DBUG_VOID_RETURN;
 }
@@ -4365,6 +4385,7 @@ Suma::Restart::nextSubscription(Signal* signal, Uint32 sumaRef)
   req->subscriptionKey  = subPtr.p->m_subscriptionKey;
   req->subscriptionType = subPtr.p->m_subscriptionType |
     SubCreateReq::RestartFlag;
+  req->schemaTransId    = 0;
 
   switch (subPtr.p->m_subscriptionType) {
   case SubCreateReq::TableEvent:
@@ -4416,6 +4437,7 @@ Suma::Restart::runSUB_CREATE_CONF(Signal* signal)
       req->subscriptionType = subPtr.p->m_subscriptionType |
 	SubCreateReq::RestartFlag |
 	SubCreateReq::AddTableFlag;
+      req->schemaTransId    = 0;
 
       req->tableId = 0;
 

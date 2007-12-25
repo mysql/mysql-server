@@ -7638,23 +7638,32 @@ void Dbdih::execDI_FCOUNTREQ(Signal* signal)
 
   if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
   {
-    DihFragCountRef* ref = (DihFragCountRef*)signal->getDataPtrSend();
-    //connectPtr.i == RNIL -> question without connect record
-    if(connectPtr.i == RNIL)
-      ref->m_connectionData = RNIL;
-    else
-    {
+    if (tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
+        tabPtr.p->schemaTransId == req->m_schemaTransId) {
       jam();
-      ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-      ref->m_connectionData = connectPtr.p->userpointer;
     }
-    ref->m_tableRef = tabPtr.i;
-    ref->m_senderData = senderData;
-    ref->m_error = DihFragCountRef::ErroneousTableState;
-    ref->m_tableStatus = tabPtr.p->tabStatus;
-    sendSignal(senderRef, GSN_DI_FCOUNTREF, signal, 
-               DihFragCountRef::SignalLength, JBB);
-    return;
+    else {
+      jam();
+      const Uint32 schemaTransId = req->m_schemaTransId;
+      DihFragCountRef* ref = (DihFragCountRef*)signal->getDataPtrSend();
+      //connectPtr.i == RNIL -> question without connect record
+      if(connectPtr.i == RNIL)
+        ref->m_connectionData = RNIL;
+      else
+      {
+        jam();
+        ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+        ref->m_connectionData = connectPtr.p->userpointer;
+      }
+      ref->m_tableRef = tabPtr.i;
+      ref->m_senderData = senderData;
+      ref->m_error = DihFragCountRef::ErroneousTableState;
+      ref->m_tableStatus = tabPtr.p->tabStatus;
+      ref->m_schemaTransId = schemaTransId;
+      sendSignal(senderRef, GSN_DI_FCOUNTREF, signal, 
+                 DihFragCountRef::SignalLength, JBB);
+      return;
+    }
   }
 
   if(connectPtr.i != RNIL){
@@ -7671,12 +7680,14 @@ void Dbdih::execDI_FCOUNTREQ(Signal* signal)
                  DihFragCountConf::SignalLength, JBB);
       return;
     }//if
+    const Uint32 schemaTransId = req->m_schemaTransId;
     DihFragCountRef* ref = (DihFragCountRef*)signal->getDataPtrSend();
     ref->m_connectionData = connectPtr.p->userpointer;
     ref->m_tableRef = tabPtr.i;
     ref->m_senderData = senderData;
     ref->m_error = DihFragCountRef::ErroneousTableState;
     ref->m_tableStatus = tabPtr.p->tabStatus;
+    ref->m_schemaTransId = schemaTransId;
     sendSignal(connectPtr.p->userblockref, GSN_DI_FCOUNTREF, signal, 
                DihFragCountRef::SignalLength, JBB);
     return;
@@ -7708,7 +7719,11 @@ void Dbdih::execDIGETPRIMREQ(Signal* signal)
   }
   Uint32 fragId = signal->theData[3];
   
-  ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE);
+  if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE) {
+    jam();
+    ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
+               tabPtr.p->schemaTransId == signal->theData[4]);
+  }
   connectPtr.i = signal->theData[0];
   if(connectPtr.i != RNIL)
   {
