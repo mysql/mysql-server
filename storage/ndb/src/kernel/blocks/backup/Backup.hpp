@@ -96,10 +96,10 @@ protected:
   void execLIST_TABLES_CONF(Signal* signal);
   void execGET_TABINFOREF(Signal* signal);
   void execGET_TABINFO_CONF(Signal* signal);
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
 
   /**
    * DIH signals

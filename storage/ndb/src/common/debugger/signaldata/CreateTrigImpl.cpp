@@ -2,7 +2,8 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,14 +14,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <signaldata/CreateTrig.hpp>
-#include <signaldata/DictSignal.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
 #include <trigger_definitions.h>
 
 bool
-printCREATE_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printCREATE_TRIG_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const CreateTrigReq* sig = (const CreateTrigReq*)theData;
+  const CreateTrigImplReq* sig = (const CreateTrigImplReq*)theData;
   const Uint32 triggerType =
     TriggerInfo::getTriggerType(sig->triggerInfo);
   const Uint32 triggerActionTime =
@@ -33,28 +33,17 @@ printCREATE_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
     TriggerInfo::getMonitorAllAttributes(sig->triggerInfo);
   const Uint32 reportAllMonitoredAttributes =
     TriggerInfo::getReportAllMonitoredAttributes(sig->triggerInfo);
-  fprintf(output, " clientRef: 0x%x", sig->clientRef);
-  fprintf(output, " clientData: %u", sig->clientData);
-  fprintf(output, "\n");
-  fprintf(output, " transId: 0x%x", sig->transId);
-  fprintf(output, " transKey: %u", sig->transKey);
-  fprintf(output, "\n");
-  fprintf(output, " requestInfo: type: %u extra: %u flags: [%s]",
-                  DictSignal::getRequestType(sig->requestInfo),
-                  DictSignal::getRequestExtra(sig->requestInfo),
-                  DictSignal::getRequestFlagsText(sig->requestInfo));
-  fprintf(output, "\n");
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " senderData: %u", sig->senderData);
+  fprintf(output, " requestType: %u", sig->requestType);
+  fprintf(output, "\n");  
   fprintf(output, " tableId: %u", sig->tableId);
   fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
   fprintf(output, " indexId: %u", sig->indexId);
   fprintf(output, " indexVersion: 0x%x", sig->indexVersion);
   fprintf(output, " triggerNo: %u", sig->triggerNo);
-  fprintf(output, "\n");
-  if (sig->forceTriggerId == RNIL)
-    fprintf(output, " forceTriggerId: RNIL");
-  else
-    fprintf(output, " forceTriggerId: %u", sig->forceTriggerId);
-  fprintf(output, "\n");
+  fprintf(output, "\n");  
+  fprintf(output, " triggerId: %u", sig->triggerId);
   fprintf(output, " triggerInfo: 0x%x", sig->triggerInfo);
   fprintf(output, "\n");
   fprintf(output, "   triggerType: %u [%s]",
@@ -77,9 +66,8 @@ printCREATE_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   fprintf(output, "\n");
   fprintf(output, "   reportAllMonitoredAttributes: %u",
                   reportAllMonitoredAttributes);
-  fprintf(output, "\n");
   fprintf(output, " receiverRef: 0x%x", sig->receiverRef);
-  fprintf(output, "\n");
+  fprintf(output, "\n");  
   char buf[MAXNROFATTRIBUTESINWORDS * 8 + 1];
   fprintf(output, " attributeMask: %s", sig->attributeMask.getText(buf));
   fprintf(output, "\n");  
@@ -87,15 +75,13 @@ printCREATE_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 }
 
 bool
-printCREATE_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printCREATE_TRIG_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const CreateTrigConf* sig = (const CreateTrigConf*)theData;
+  const CreateTrigImplConf* sig = (const CreateTrigImplConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
-  fprintf(output, " clientData: %x", sig->clientData);
-  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");  
   fprintf(output, " tableId: %u", sig->tableId);
-  fprintf(output, " indexId: %u", sig->indexId);
   fprintf(output, " triggerId: %u", sig->triggerId);
   fprintf(output, " triggerInfo: 0x%x", sig->triggerInfo);
   fprintf(output, "\n");  
@@ -103,15 +89,14 @@ printCREATE_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 }
 
 bool
-printCREATE_TRIG_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+printCREATE_TRIG_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const CreateTrigRef* sig = (CreateTrigRef*)theData;
+  const CreateTrigImplRef* sig = (CreateTrigImplRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
-  fprintf(output, " clientData: %u", sig->clientData);
-  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");  
   fprintf(output, " tableId: %u", sig->tableId);
-  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " triggerId: %u", sig->triggerId);
   fprintf(output, " triggerInfo: 0x%x", sig->triggerInfo);
   fprintf(output, "\n");  
   fprintf(output, " errorCode: %u", sig->errorCode);

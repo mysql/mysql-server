@@ -81,8 +81,8 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbtup::execREAD_CONFIG_REQ, true);
 
   // Trigger Signals
-  addRecSignal(GSN_CREATE_TRIG_REQ, &Dbtup::execCREATE_TRIG_REQ);
-  addRecSignal(GSN_DROP_TRIG_REQ,  &Dbtup::execDROP_TRIG_REQ);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dbtup::execCREATE_TRIG_IMPL_REQ);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REQ,  &Dbtup::execDROP_TRIG_IMPL_REQ);
 
   addRecSignal(GSN_DROP_TAB_REQ, &Dbtup::execDROP_TAB_REQ);
 

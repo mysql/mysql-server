@@ -13,43 +13,38 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef ALTER_TRIG_HPP
-#define ALTER_TRIG_HPP
+#ifndef ALTER_TRIG_IMPL_HPP
+#define ALTER_TRIG_IMPL_HPP
 
 #include "SignalData.hpp"
-#include <Bitmask.hpp>
-#include <trigger_definitions.h>
 
-struct AlterTrigReq {
+struct AlterTrigImplReq {
   enum RequestType {
     AlterTriggerOnline = 1,
     AlterTriggerOffline = 2
   };
 
-  STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( SignalLength = 6 );
 
-  Uint32 clientRef;
-  Uint32 clientData;
-  Uint32 transId;
-  Uint32 transKey;
-  Uint32 requestInfo;
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 requestType;
   Uint32 tableId;
   Uint32 tableVersion;
   Uint32 triggerId;
 };
 
-struct AlterTrigConf {
-  STATIC_CONST( InternalLength = 3 );
-  STATIC_CONST( SignalLength = 5 );
+struct AlterTrigImplConf {
+  STATIC_CONST( SignalLength = 4 );
 
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
-  Uint32 transId;
+  Uint32 senderData;
+  // wl3600_todo BACKUP and SUMA dont use this so these are redundant
   Uint32 tableId;
   Uint32 triggerId;
 };
 
-struct AlterTrigRef {
+struct AlterTrigImplRef {
   enum ErrorCode {
     NoError = 0,
     Busy = 701,
@@ -58,11 +53,10 @@ struct AlterTrigRef {
     BadRequestType = 4247
   };
 
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 8 );
 
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
-  Uint32 transId;
+  Uint32 senderData;
   Uint32 tableId;
   Uint32 triggerId;
   Uint32 errorCode;

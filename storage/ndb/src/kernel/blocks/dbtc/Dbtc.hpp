@@ -1355,8 +1355,8 @@ private:
 
   void execABORT_ALL_REQ(Signal* signal);
 
-  void execCREATE_TRIG_REQ(Signal* signal);
-  void execDROP_TRIG_REQ(Signal* signal);
+  void execCREATE_TRIG_IMPL_REQ(Signal* signal);
+  void execDROP_TRIG_IMPL_REQ(Signal* signal);
   void execFIRE_TRIG_ORD(Signal* signal);
   void execTRIG_ATTRINFO(Signal* signal);
   void execCREATE_INDX_REQ(Signal* signal);

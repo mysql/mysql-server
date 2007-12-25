@@ -250,8 +250,8 @@ Dbtc::Dbtc(Block_context& ctx):
   addRecSignal(GSN_TC_COMMIT_ACK, &Dbtc::execTC_COMMIT_ACK);
   addRecSignal(GSN_ABORT_ALL_REQ, &Dbtc::execABORT_ALL_REQ);
 
-  addRecSignal(GSN_CREATE_TRIG_REQ, &Dbtc::execCREATE_TRIG_REQ);
-  addRecSignal(GSN_DROP_TRIG_REQ, &Dbtc::execDROP_TRIG_REQ);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dbtc::execCREATE_TRIG_IMPL_REQ);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &Dbtc::execDROP_TRIG_IMPL_REQ);
   addRecSignal(GSN_FIRE_TRIG_ORD, &Dbtc::execFIRE_TRIG_ORD);
   addRecSignal(GSN_TRIG_ATTRINFO, &Dbtc::execTRIG_ATTRINFO);
   

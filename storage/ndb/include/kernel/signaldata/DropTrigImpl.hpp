@@ -13,56 +13,50 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef ALTER_TRIG_HPP
-#define ALTER_TRIG_HPP
+#ifndef DROP_TRIG_IMPL_HPP
+#define DROP_TRIG_IMPL_HPP
 
 #include "SignalData.hpp"
-#include <Bitmask.hpp>
-#include <trigger_definitions.h>
 
-struct AlterTrigReq {
-  enum RequestType {
-    AlterTriggerOnline = 1,
-    AlterTriggerOffline = 2
-  };
-
-  STATIC_CONST( SignalLength = 8 );
-
-  Uint32 clientRef;
-  Uint32 clientData;
-  Uint32 transId;
-  Uint32 transKey;
-  Uint32 requestInfo;
-  Uint32 tableId;
-  Uint32 tableVersion;
-  Uint32 triggerId;
-};
-
-struct AlterTrigConf {
-  STATIC_CONST( InternalLength = 3 );
-  STATIC_CONST( SignalLength = 5 );
+struct DropTrigImplReq {
+  STATIC_CONST( SignalLength = 10 );
+  SECTION( TRIGGER_NAME_SECTION = 0 ); // optional
 
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
-  Uint32 transId;
+  Uint32 senderData;
+  Uint32 requestType;
+  Uint32 tableId;
+  Uint32 tableVersion;
+  Uint32 indexId;
+  Uint32 indexVersion;
+  Uint32 triggerNo;
+  Uint32 triggerId;
+  Uint32 triggerInfo;
+};
+
+struct DropTrigImplConf {
+  STATIC_CONST( SignalLength = 4 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
   Uint32 tableId;
   Uint32 triggerId;
 };
 
-struct AlterTrigRef {
+struct DropTrigImplRef {
   enum ErrorCode {
     NoError = 0,
     Busy = 701,
     TriggerNotFound = 4238,
-    TriggerExists = 4239,
-    BadRequestType = 4247
+    BadRequestType = 4247,
+    InvalidName = 4248,
+    InconsistentTC = 291
   };
 
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 8 );
 
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
-  Uint32 transId;
+  Uint32 senderData;
   Uint32 tableId;
   Uint32 triggerId;
   Uint32 errorCode;

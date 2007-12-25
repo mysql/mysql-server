@@ -258,6 +258,7 @@ ErrorBundle ErrorCodes[] = {
   { 278,  DMEC, IE, "278" },
   { 287,  DMEC, IE, "Index corrupted" },
   { 290,  DMEC, IE, "Corrupt key in TC, unable to xfrm" },
+  { 291,  DMEC, IE, "Inconsistent trigger state in TC block" },
   { 631,  DMEC, IE, "631" },
   { 632,  DMEC, IE, "632" },
   { 706,  DMEC, IE, "Inconsistency during table creation" },
