@@ -1505,6 +1505,21 @@ NdbDictionary::Dictionary::~Dictionary(){
   }
 }
 
+// do op within trans if no trans exists
+#define DO_TRANS(ret, action) \
+  { \
+    bool trans = hasSchemaTrans(); \
+    if ((trans || (ret = beginSchemaTrans()) == 0) && \
+        (ret = (action)) == 0 && \
+        (trans || (ret = endSchemaTrans()) == 0)) \
+      ; \
+    else if (!trans) { \
+      NdbError save_error = m_impl.m_error; \
+      (void)endSchemaTrans(SchemaTransAbort); \
+      m_impl.m_error = save_error; \
+    } \
+  }
+
 int 
 NdbDictionary::Dictionary::createTable(const Table & t)
 {
@@ -2247,3 +2262,20 @@ NdbDictionary::Dictionary::getUndofile(Uint32 node, const char * path)
   return tmp;
 }
 
+int
+NdbDictionary::Dictionary::beginSchemaTrans()
+{
+  return m_impl.beginSchemaTrans();
+}
+
+int
+NdbDictionary::Dictionary::endSchemaTrans(Uint32 flags)
+{
+  return m_impl.endSchemaTrans(flags);
+}
+
+bool
+NdbDictionary::Dictionary::hasSchemaTrans() const
+{
+  return m_impl.hasSchemaTrans();
+}

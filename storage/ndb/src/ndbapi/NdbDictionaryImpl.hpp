@@ -30,6 +30,7 @@
 #include <Ndb.hpp>
 #include "NdbWaiter.hpp"
 #include "DictCache.hpp"
+#include <signaldata/DictSignal.hpp>
 
 bool
 is_ndb_blob_table(const char* name, Uint32* ptab_id = 0, Uint32* pcol_no = 0);
@@ -440,7 +441,31 @@ public:
 
 class NdbDictInterface {
 public:
-  NdbDictInterface(NdbError& err) : m_error(err) {
+  // one transaction per Dictionary instance is supported
+  struct Tx {
+    bool m_transOn;
+    Uint32 m_transId;   // API
+    Uint32 m_transKey;  // DICT
+    Tx() :
+      m_transOn(false),
+      m_transId(0),
+      m_transKey(0)
+    {}
+    Uint32 transId() const {
+      return m_transOn ? m_transId : 0;
+    }
+    Uint32 transKey() const {
+      return m_transOn ? m_transKey : 0;
+    }
+    Uint32 requestFlags() const {
+      Uint32 flags = 0;
+      // not yet supported in DICT
+      flags |= m_transOn ? 0 : DictSignal::RF_SIMPLE_TRANS;
+      return flags;
+    }
+  };
+
+  NdbDictInterface(Tx& tx, NdbError& err) : m_tx(tx), m_error(err) {
     m_reference = 0;
     m_masterNodeId = 0;
     m_transporter= NULL;
@@ -522,7 +547,11 @@ public:
   static int create_index_obj_from_table(NdbIndexImpl ** dst, 
 					 NdbTableImpl* index_table,
 					 const NdbTableImpl* primary_table);
-  
+
+  int beginSchemaTrans();
+  int endSchemaTrans(Uint32 flags);
+  Tx & m_tx; // shared with NdbDictionaryImpl
+
   const NdbError &getNdbError() const;  
   NdbError & m_error;
 private:
@@ -577,7 +606,12 @@ private:
   
   void execDROP_FILEGROUP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execDROP_FILEGROUP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  
+
+  void execSCHEMA_TRANS_BEGIN_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execSCHEMA_TRANS_BEGIN_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execSCHEMA_TRANS_END_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execSCHEMA_TRANS_END_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+
   void execWAIT_GCP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execWAIT_GCP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
 
@@ -690,7 +724,12 @@ public:
 
   int createLogfileGroup(const NdbLogfileGroupImpl &, NdbDictObjectImpl*);
   int dropLogfileGroup(const NdbLogfileGroupImpl &);
-  
+
+  int beginSchemaTrans();
+  int endSchemaTrans(Uint32 flags);
+  bool hasSchemaTrans() const { return m_tx.m_transOn; }
+  NdbDictInterface::Tx m_tx;
+
   const NdbError & getNdbError() const;
   NdbError m_error;
   Uint32 m_local_table_data_size;

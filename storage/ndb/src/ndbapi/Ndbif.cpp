@@ -711,6 +711,10 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_DROP_FILE_CONF:
   case GSN_DROP_FILEGROUP_REF:
   case GSN_DROP_FILEGROUP_CONF:
+  case GSN_SCHEMA_TRANS_BEGIN_CONF:
+  case GSN_SCHEMA_TRANS_BEGIN_REF:
+  case GSN_SCHEMA_TRANS_END_CONF:
+  case GSN_SCHEMA_TRANS_END_REF:
   case GSN_WAIT_GCP_CONF:
   case GSN_WAIT_GCP_REF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,

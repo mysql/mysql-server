@@ -892,6 +892,7 @@ void DbUtil::readPrepareProps(Signal* signal,
     GetTabInfoReq * req = (GetTabInfoReq *)signal->getDataPtrSend();
     req->senderRef = reference();
     req->senderData = senderData;           
+    req->schemaTransId = 0;
     if (tableKey == UtilPrepareReq::TableName) {
       jam();
       char tableName[MAX_TAB_NAME_SIZE];

@@ -1620,6 +1620,7 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
     req->requestType = 
       GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
     req->tableId = tableId;
+    req->schemaTransId = 0;
 
     DBUG_PRINT("info",("GET_TABINFOREQ id %d", req->tableId));
 
@@ -1784,6 +1785,7 @@ Suma::execGET_TABINFOREF(Signal* signal){
     req->requestType = 
       GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
     req->tableId = tableId;
+    req->schemaTransId = 0;
     sendSignalWithDelay(DBDICT_REF, GSN_GET_TABINFOREQ, signal,
                         30, GetTabInfoReq::SignalLength);
     return;

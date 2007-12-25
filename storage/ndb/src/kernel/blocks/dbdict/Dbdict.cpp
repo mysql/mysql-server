@@ -90,6 +90,12 @@
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
+#include <signaldata/SchemaTrans.hpp>
+#include <DebuggerNames.hpp>
+
+// TransporterCallback.cpp
+extern void release(SegmentedSectionPtr&);
+
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
 
@@ -299,6 +305,9 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
       char buf[1024];
       name.copy(buf);
       ndbout_c("%s m_ref_count: %d", buf, iter.curr.p->m_ref_count); 
+      if (iter.curr.p->m_trans_key != 0)
+        ndbout_c("- m_trans_key: %u m_op_ref_count: %u",
+                 iter.curr.p->m_trans_key, iter.curr.p->m_op_ref_count);
     }
   }    
   
@@ -476,8 +485,8 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
     req->fragmentationType = tablePtr.p->fragmentType;
     req->noOfFragments = 0;
     req->primaryTableId = tablePtr.i;
-    EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
-		   CreateFragmentationReq::SignalLength);
+    EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
+                   CreateFragmentationReq::SignalLength);
     ndbrequire(signal->theData[0] == 0);
     Uint16 *data = (Uint16*)&signal->theData[25];
     Uint32 count = 2 + (1 + data[0]) * data[1];
@@ -659,6 +668,45 @@ Dbdict::packFileIntoPages(SimpleProperties::Writer & w,
 			     DictFilegroupInfo::FileMappingSize, true);
   
   ndbrequire(s == SimpleProperties::Eof);
+}
+
+void
+Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
+{
+  const CreateFragmentationReq* req =
+    (const CreateFragmentationReq*)signal->getDataPtr();
+
+  if (req->primaryTableId == RNIL) {
+    jam();
+    EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
+                   CreateFragmentationReq::SignalLength);
+    return;
+  }
+
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, req->primaryTableId);
+  if (tablePtr.p->tabState == TableRecord::DEFINED ||
+      tablePtr.p->tabState == TableRecord::BACKUP_ONGOING) {
+    jam();
+    EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
+                   CreateFragmentationReq::SignalLength);
+    return;
+  }
+
+  DictObjectPtr obj_ptr;
+  c_obj_pool.getPtr(obj_ptr, tablePtr.p->m_obj_ptr_i);
+
+  SchemaOpPtr op_ptr;
+  findDictObjectOp(op_ptr, obj_ptr);
+  ndbrequire(!op_ptr.isNull());
+  OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+  ndbrequire(memcmp(oprec_ptr.p->m_opType, "CTa", 4) == 0);
+
+  Uint32 *theData = &signal->theData[0];
+  const OpSection& fragSection =
+    getOpSection(op_ptr, CreateTabReq::FRAGMENTATION);
+  copyOut(fragSection, &theData[25], ZNIL);
+  theData[0] = 0;
 }
 
 /* ---------------------------------------------------------------- */
@@ -1104,13 +1152,28 @@ void Dbdict::closeReadTableConf(Signal* signal,
 /* ---------------------------------------------------------------- */
 // Routines to handle Read/Write of Schema Files
 /* ---------------------------------------------------------------- */
+NdbOut& operator<<(NdbOut& out, const SchemaFile::TableEntry entry);
+
 void
 Dbdict::updateSchemaState(Signal* signal, Uint32 tableId, 
 			  SchemaFile::TableEntry* te, Callback* callback,
-                          bool savetodisk){
+                          bool savetodisk, bool dicttrans)
+{
   jam();
   XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
   SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tableId);
+
+  if (!dicttrans) {
+    /*
+     * Old code may not zero transId, leaving the entry not visible
+     * to tabinfo request (old code may also skip updateSchemaState).
+   */
+    te->m_transId = 0;
+  }
+
+  D("updateSchemaState" << V(tableId));
+  D("old:" << *tableEntry);
+  D("new:" << *te);
   
   SchemaFile::TableState newState = 
     (SchemaFile::TableState)te->m_tableState;
@@ -1119,12 +1182,27 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
   
   Uint32 newVersion = te->m_tableVersion;
   Uint32 oldVersion = tableEntry->m_tableVersion;
-  
+
   bool ok = false;
-  switch(newState){
+  switch (newState){
+  case SchemaFile::CREATE_PARSED:
+    jam();
+    ok = true;
+    ndbrequire(create_obj_inc_schema_version(oldVersion) == newVersion);
+    ndbrequire(oldState == SchemaFile::INIT ||
+               oldState == SchemaFile::DROP_TABLE_COMMITTED);
+    break;
+  case SchemaFile::DROP_PARSED:
+    ok = true;
+    break;
   case SchemaFile::ADD_STARTED:
     jam();
     ok = true;
+    if (dicttrans) {
+      ndbrequire(oldVersion == newVersion);
+      ndbrequire(oldState == SchemaFile::CREATE_PARSED);
+      break;
+    }
     ndbrequire(create_obj_inc_schema_version(oldVersion) == newVersion);
     ndbrequire(oldState == SchemaFile::INIT ||
 	       oldState == SchemaFile::DROP_TABLE_COMMITTED);
@@ -1158,6 +1236,10 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
   case SchemaFile::INIT:
     jam();
     ok = true;
+    if (dicttrans) {
+      ndbrequire((oldState == SchemaFile::CREATE_PARSED));
+      break;
+    }
     ndbrequire((oldState == SchemaFile::ADD_STARTED));
   }//if
   ndbrequire(ok);
@@ -1180,7 +1262,11 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
   }
   else
   {
-    execute(signal, *callback, 0);
+    jam();
+    if (callback != 0) {
+      jam();
+      execute(signal, *callback, 0);
+    }
   }
 }
 
@@ -1541,6 +1627,11 @@ Dbdict::Dbdict(Block_context& ctx):
   c_file_hash(c_file_pool),
   c_filegroup_hash(c_filegroup_pool),
   c_obj_hash(c_obj_pool),
+  c_schemaOpHash(c_schemaOpPool),
+  c_schemaTransHash(c_schemaTransPool),
+  c_schemaTransList(c_schemaTransPool),
+  c_schemaTransCount(0),
+  c_txHandleHash(c_txHandlePool),
   c_opCreateTable(c_opRecordPool),
   c_opDropTable(c_opRecordPool),
   c_opCreateIndex(c_opRecordPool),
@@ -1576,6 +1667,7 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_CREATE_TAB_REQ, &Dbdict::execCREATE_TAB_REQ);
   addRecSignal(GSN_CREATE_TAB_REF, &Dbdict::execCREATE_TAB_REF);
   addRecSignal(GSN_CREATE_TAB_CONF, &Dbdict::execCREATE_TAB_CONF);
+  addRecSignal(GSN_CREATE_FRAGMENTATION_REQ, &Dbdict::execCREATE_FRAGMENTATION_REQ);
   addRecSignal(GSN_CREATE_FRAGMENTATION_REF, &Dbdict::execCREATE_FRAGMENTATION_REF);
   addRecSignal(GSN_CREATE_FRAGMENTATION_CONF, &Dbdict::execCREATE_FRAGMENTATION_CONF);
   addRecSignal(GSN_DIADDTABCONF, &Dbdict::execDIADDTABCONF);
@@ -1729,6 +1821,15 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_DICT_ABORT_REQ, &Dbdict::execDICT_ABORT_REQ);
   addRecSignal(GSN_DICT_ABORT_REF, &Dbdict::execDICT_ABORT_REF);
   addRecSignal(GSN_DICT_ABORT_CONF, &Dbdict::execDICT_ABORT_CONF);
+  addRecSignal(GSN_SCHEMA_TRANS_BEGIN_REQ, &Dbdict::execSCHEMA_TRANS_BEGIN_REQ);
+  addRecSignal(GSN_SCHEMA_TRANS_BEGIN_CONF, &Dbdict::execSCHEMA_TRANS_BEGIN_CONF);
+  addRecSignal(GSN_SCHEMA_TRANS_BEGIN_REF, &Dbdict::execSCHEMA_TRANS_BEGIN_REF);
+  addRecSignal(GSN_SCHEMA_TRANS_END_REQ, &Dbdict::execSCHEMA_TRANS_END_REQ);
+  addRecSignal(GSN_SCHEMA_TRANS_END_CONF, &Dbdict::execSCHEMA_TRANS_END_CONF);
+  addRecSignal(GSN_SCHEMA_TRANS_END_REF, &Dbdict::execSCHEMA_TRANS_END_REF);
+  addRecSignal(GSN_SCHEMA_TRANS_IMPL_REQ, &Dbdict::execSCHEMA_TRANS_IMPL_REQ);
+  addRecSignal(GSN_SCHEMA_TRANS_IMPL_CONF, &Dbdict::execSCHEMA_TRANS_IMPL_CONF);
+  addRecSignal(GSN_SCHEMA_TRANS_IMPL_REF, &Dbdict::execSCHEMA_TRANS_IMPL_REF);
 
   addRecSignal(GSN_DICT_LOCK_REQ, &Dbdict::execDICT_LOCK_REQ);
   addRecSignal(GSN_DICT_UNLOCK_ORD, &Dbdict::execDICT_UNLOCK_ORD);
@@ -2098,7 +2199,15 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_tableRecordPool.setSize(tablerecSize);
   g_key_descriptor_pool.setSize(tablerecSize);
   c_triggerRecordPool.setSize(c_maxNoOfTriggers);
-  
+
+  c_opSectionBufferPool.setSize(1024); // units OpSectionSegmentSize
+  c_schemaOpPool.setSize(256);
+  c_schemaOpHash.setSize(256);
+  c_schemaTransPool.setSize(1);
+  c_schemaTransHash.setSize(2);
+  c_txHandlePool.setSize(2);
+  c_txHandleHash.setSize(2);
+
   c_obj_pool.setSize(tablerecSize+c_maxNoOfTriggers);
   c_obj_hash.setSize((tablerecSize+c_maxNoOfTriggers+1)/2);
   m_dict_lock_pool.setSize(MAX_NDB_NODES);
@@ -2744,6 +2853,7 @@ operator<<(NdbOut& out, const SchemaFile::TableEntry entry)
   out << " type: " << entry.m_tableType;
   out << " words: " << entry.m_info_words;
   out << " gcp: " << entry.m_gcp;
+  out << " trans: " << entry.m_transId;
   out << " ]";
   return out;
 }
@@ -3723,10 +3833,9 @@ void Dbdict::execAPI_FAILREQ(Signal* signal)
   }//if
 #endif
 
-  signal->theData[0] = failedApiNode;
-  signal->theData[1] = reference();
-  sendSignal(retRef, GSN_API_FAILCONF, signal, 2, JBB);
-}//execAPI_FAILREQ()
+  // sends API_FAILCONF when done
+  handleApiFail(signal, failedApiNode, retRef);
+}
 
 /* ---------------------------------------------------------------- */
 // We receive a report of one or more node failures of kernel nodes.
@@ -3772,6 +3881,9 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
       jam();
       NodeRecordPtr nodePtr;
       c_nodes.getPtr(nodePtr, i);
+
+      // update schema transactions (does not time-slice)
+      handleTransSlaveFail(signal, i);
 
       nodePtr.p->nodeState = NodeRecord::NDB_NODE_DEAD;
       NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
@@ -6263,6 +6375,18 @@ Dbdict::get_object(const char * name, Uint32 len, Uint32 hash){
   return old_ptr.p;
 }
 
+//wl3600_todo remove the duplication
+bool
+Dbdict::get_object(DictObjectPtr& obj_ptr, const char* name, Uint32 len, Uint32 hash)
+{
+  DictObject key;
+  key.m_key.m_name_ptr = name;
+  key.m_key.m_name_len = len;
+  key.m_key.m_pool = &c_rope_pool;
+  key.m_name.m_hash = hash;
+  return c_obj_hash.find(obj_ptr, key);
+}
+
 void
 Dbdict::release_object(Uint32 obj_ptr_i, DictObject* obj_ptr_p){
   Rope name(c_rope_pool, obj_ptr_p->m_name);
@@ -7661,7 +7785,7 @@ void Dbdict::sendGET_TABLEID_REF(Signal* signal,
   ref->err = errorCode;
   sendSignal(retRef, GSN_GET_TABLEID_REF, signal, 
 	     GetTableIdRef::SignalLength, JBB);
-}//sendGET_TABINFOREF()
+}
 
 /* ---------------------------------------------------------------- */
 // Get a full table description.
@@ -7703,7 +7827,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
       return;
     }
     
-    sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy);
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy, __LINE__);
     return;
   }
   
@@ -7713,10 +7837,11 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   } 
 
   const bool useLongSig = (req->requestType & GetTabInfoReq::LongSignalConf);
-  const Uint32 reqType = req->requestType & (~GetTabInfoReq::LongSignalConf);
+  const bool byName = (req->requestType & GetTabInfoReq::RequestByName);
+  const Uint32 transId = req->schemaTransId;
 
   Uint32 obj_id = RNIL;
-  if(reqType == GetTabInfoReq::RequestByName){
+  if (byName) {
     jam();
     ndbrequire(signal->getNoOfSections() == 1);  
     const Uint32 len = req->tableNameLen;
@@ -7724,7 +7849,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     if(len > MAX_TAB_NAME_SIZE){
       jam();
       releaseSections(signal);
-      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNameTooLong);
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNameTooLong, __LINE__);
       return;
     }
 
@@ -7736,7 +7861,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     if(!r0.getWords((Uint32*)tableName, (len+3)/4)){
       jam();
       releaseSections(signal);
-      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
       return;
     }
     releaseSections(signal);
@@ -7758,35 +7883,48 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   // The table seached for was not found
   if(objEntry == 0){
     jam();
-    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
     return;
   }//if
 
   // If istable/index, allow ADD_STARTED (not to ref)
 
-  if (objEntry->m_tableState != SchemaFile::TABLE_ADD_COMMITTED &&
-      objEntry->m_tableState != SchemaFile::ALTER_TABLE_COMMITTED &&
-      objEntry->m_tableState != SchemaFile::TEMPORARY_TABLE_COMMITTED){
-    jam();
-    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
-    return;
-  }//if
+  D("execGET_TABINFOREQ" << V(transId) << " " << *objEntry);
 
-  if (DictTabInfo::isTable(objEntry->m_tableType) || 
-      DictTabInfo::isIndex(objEntry->m_tableType))
-  {
+  if (transId != 0 && transId == objEntry->m_transId) {
     jam();
-    TableRecordPtr tabPtr;
-    c_tableRecordPool.getPtr(tabPtr, obj_id);
-    if (tabPtr.p->tabState != TableRecord::DEFINED &&
-	tabPtr.p->tabState != TableRecord::BACKUP_ONGOING)
-    {
+    // see own trans always
+  } else {
+    if (objEntry->m_transId != 0) {
       jam();
-      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+      // cannot see another uncommitted trans
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
       return;
     }
-    ndbrequire(objEntry->m_tableState == SchemaFile::TEMPORARY_TABLE_COMMITTED ||
-               !(tabPtr.p->m_bits & TableRecord::TR_Temporary));
+    if (objEntry->m_tableState != SchemaFile::TABLE_ADD_COMMITTED &&
+        objEntry->m_tableState != SchemaFile::ALTER_TABLE_COMMITTED &&
+        objEntry->m_tableState != SchemaFile::TEMPORARY_TABLE_COMMITTED){
+      jam();
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
+      return;
+    }//if
+
+    if (DictTabInfo::isTable(objEntry->m_tableType) || 
+        DictTabInfo::isIndex(objEntry->m_tableType))
+    {
+      jam();
+      TableRecordPtr tabPtr;
+      c_tableRecordPool.getPtr(tabPtr, obj_id);
+      if (tabPtr.p->tabState != TableRecord::DEFINED &&
+          tabPtr.p->tabState != TableRecord::BACKUP_ONGOING)
+      {
+        jam();
+        sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
+        return;
+      }
+      ndbrequire(objEntry->m_tableState == SchemaFile::TEMPORARY_TABLE_COMMITTED ||
+                 !(tabPtr.p->m_bits & TableRecord::TR_Temporary));
+    }
   }
   
   c_retrieveRecord.busyState = true;
@@ -7806,6 +7944,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     req->senderRef= reference();
     req->requestType= GetTabInfoReq::RequestById;
     req->tableId= obj_id;
+    req->schemaTransId = 0;
 
     sendSignal(TSMAN_REF, GSN_GET_TABINFOREQ, signal,
 	       GetTabInfoReq::SignalLength, JBB);
@@ -7818,6 +7957,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     req->senderRef= reference();
     req->requestType= GetTabInfoReq::RequestById;
     req->tableId= obj_id;
+    req->schemaTransId = 0;
 
     sendSignal(LGMAN_REF, GSN_GET_TABINFOREQ, signal,
 	       GetTabInfoReq::SignalLength, JBB);
@@ -7875,18 +8015,25 @@ void Dbdict::sendGetTabResponse(Signal* signal)
 
 void Dbdict::sendGET_TABINFOREF(Signal* signal, 
 				GetTabInfoReq * req,
-				GetTabInfoRef::ErrorCode errorCode) 
+				GetTabInfoRef::ErrorCode errorCode,
+                                Uint32 errorLine)
 {
   jamEntry();
+  const GetTabInfoReq req_copy = *req;
   GetTabInfoRef * const ref = (GetTabInfoRef *)&signal->theData[0];
-  /**
-   * The format of GetTabInfo Req/Ref is the same
-   */
-  BlockReference retRef = req->senderRef;
-  ref->errorCode = errorCode;
+
+  ref->senderData = req_copy.senderData;
+  ref->senderRef = reference();
+  ref->requestType = req_copy.requestType;
+  ref->tableId = req_copy.tableId;
+  ref->schemaTransId = req_copy.schemaTransId;
+  ref->errorCode = (Uint32)errorCode;
+  ref->errorLine = errorLine;
   
-  sendSignal(retRef, GSN_GET_TABINFOREF, signal, signal->length(), JBB);
-}//sendGET_TABINFOREF()
+  BlockReference retRef = req_copy.senderRef;
+  sendSignal(retRef, GSN_GET_TABINFOREF, signal,
+             GetTabInfoRef::SignalLength, JBB);
+}
 
 void
 Dbdict::execLIST_TABLES_REQ(Signal* signal)
@@ -14037,6 +14184,7 @@ Dbdict::getDictLockType(Uint32 lockType)
 {
   static const DictLockType lt[] = {
     { DictLockReq::NodeRestartLock, "NodeRestart" }
+    ,{ DictLockReq::SchemaTransLock, "SchemaTransLock" }
     ,{ DictLockReq::CreateTableLock, "CreateTable" }
     ,{ DictLockReq::AlterTableLock,  "AlterTable" }
     ,{ DictLockReq::DropTableLock,   "DropTable" }
@@ -14253,7 +14401,7 @@ Dbdict::dict_lock_trylock(const DictLockReq* _req)
     if (lockOwner->extra == DictLockReq::NodeRestartLock)
     {
       jam();
-      return CreateTableRef::BusyWithNR;
+      return SchemaTransBeginRef::BusyWithNR;
     }
     break;
   case UtilLockRef::OutOfLockRecords:
@@ -14268,7 +14416,7 @@ Dbdict::dict_lock_trylock(const DictLockReq* _req)
     break;
   }
   
-  return CreateTableRef::Busy;
+  return SchemaTransBeginRef::Busy;
 }
 
 Uint32
@@ -16103,6 +16251,7 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOperation* op)
       op->m_errorCode = CreateTableRef::NoMoreTableRecords;
       break;
     }
+    new (obj_ptr.p) DictObject;
     
     if(!c_filegroup_pool.seize(fg_ptr)){
       jam();
@@ -16391,6 +16540,7 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOperation* op)
       op->m_errorCode = CreateTableRef::NoMoreTableRecords;
       break;
     }
+    new (obj_ptr.p) DictObject;
     
     if (! c_file_pool.seize(filePtr)){
       jam();
@@ -16991,3 +17141,2927 @@ int Dbdict::checkSingleUserMode(Uint32 senderRef)
     (nodeId != getNodeState().getSingleUserApi());
 }
 
+// MODULE: SchemaTrans
+
+// ErrorInfo
+
+void
+Dbdict::setError(ErrorInfo& e,
+                 Uint32 code,
+                 Uint32 line,
+                 Uint32 nodeId,
+                 Uint32 status,
+                 Uint32 key)
+{
+  D("setError" << V(code) << V(line) << V(nodeId) << V(e.errorCount));
+
+  // can only store details for first error
+  if (e.errorCount == 0) {
+    e.errorCode = code;
+    e.errorLine = line;
+    e.errorNodeId = nodeId ? nodeId : getOwnNodeId();
+    e.errorStatus = status;
+    e.errorKey = key;
+  }
+  e.errorCount++;
+}
+
+void
+Dbdict::setError(ErrorInfo& e, const ErrorInfo& e2)
+{
+  setError(e, e2.errorCode, e2.errorLine, e2.errorNodeId);
+}
+
+void
+Dbdict::setError(ErrorInfo& e, const ParseDictTabInfoRecord& e2)
+{
+  setError(e, e2.errorCode, e2.errorLine, 0, e2.status, e2.errorKey);
+}
+
+void
+Dbdict::setError(SchemaOpPtr op_ptr, Uint32 code, Uint32 line, Uint32 nodeId)
+{
+  D("setError" << *op_ptr.p << V(code) << V(line) << V(nodeId));
+  setError(op_ptr.p->m_error, code, line, nodeId);
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  // wl3600_todo remove the check
+  if (!trans_ptr.isNull()) {
+    setError(trans_ptr.p->m_error, op_ptr.p->m_error);
+  }
+}
+
+void
+Dbdict::setError(SchemaOpPtr op_ptr, const ErrorInfo& e2)
+{
+  setError(op_ptr, e2.errorCode, e2.errorLine, e2.errorNodeId);
+}
+
+void
+Dbdict::setError(SchemaTransPtr trans_ptr, Uint32 code, Uint32 line, Uint32 nodeId)
+{
+  D("setError" << *trans_ptr.p << V(code) << V(line) << V(nodeId));
+  setError(trans_ptr.p->m_error, code, line, nodeId);
+}
+
+void
+Dbdict::setError(SchemaTransPtr trans_ptr, const ErrorInfo& e2)
+{
+  setError(trans_ptr, e2.errorCode, e2.errorLine, e2.errorNodeId);
+}
+
+void
+Dbdict::setError(TxHandlePtr tx_ptr, Uint32 code, Uint32 line, Uint32 nodeId)
+{
+  D("setError" << *tx_ptr.p << V(code) << V(line) << V(nodeId));
+  setError(tx_ptr.p->m_error, code, line, nodeId);
+}
+
+void
+Dbdict::setError(TxHandlePtr tx_ptr, const ErrorInfo& e2)
+{
+  setError(tx_ptr, e2.errorCode, e2.errorLine, e2.errorNodeId);
+}
+
+bool
+Dbdict::hasError(const ErrorInfo& e)
+{
+  return e.errorCount != 0;
+}
+
+void
+Dbdict::resetError(ErrorInfo& e)
+{
+  new (&e) ErrorInfo();
+}
+
+void
+Dbdict::resetError(SchemaOpPtr op_ptr)
+{
+  if (hasError(op_ptr.p->m_error)) {
+    jam();
+    D("resetError" << *op_ptr.p);
+    resetError(op_ptr.p->m_error);
+  }
+}
+
+void
+Dbdict::resetError(SchemaTransPtr trans_ptr)
+{
+  if (hasError(trans_ptr.p->m_error)) {
+    jam();
+    D("resetError" << *trans_ptr.p);
+    resetError(trans_ptr.p->m_error);
+  }
+}
+
+void
+Dbdict::resetError(TxHandlePtr tx_ptr)
+{
+  if (hasError(tx_ptr.p->m_error)) {
+    jam();
+    D("resetError" << *tx_ptr.p);
+    resetError(tx_ptr.p->m_error);
+  }
+}
+
+// OpInfo
+
+const Dbdict::OpInfo*
+Dbdict::g_opInfoList[] = {
+  0
+};
+
+const Dbdict::OpInfo*
+Dbdict::findOpInfo(Uint32 gsn)
+{
+  Uint32 i = 0;
+  while (1) {
+    const OpInfo* info = g_opInfoList[i];
+    if (info->m_impl_req_gsn == 0)
+      break;
+    if (info->m_impl_req_gsn == gsn)
+      return info;
+    i++;
+  }
+  return 0;
+}
+
+// FeedbackTable
+
+const Dbdict::FeedbackEntry
+Dbdict::g_feedbackTable[] = {
+  { 0, TransPhase::Undef, 0 }
+};
+
+const Dbdict::FeedbackEntry*
+Dbdict::findFeedbackEntry(Uint32 id, TransPhase::Value phase)
+{
+  Uint32 i = 0;
+  while (1) {
+    const FeedbackEntry& e = g_feedbackTable[i];
+    if (e.m_id == 0)
+      break;
+    if (e.m_id == id && e.m_phase == phase)
+      return &e;
+    i++;
+  }
+  return 0;
+}
+
+void
+Dbdict::runFeedbackMethod(Signal* signal, SchemaOpPtr op_ptr)
+{
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+
+  Uint32 id = DictSignal::getRequestExtra(op_ptr.p->m_requestInfo);
+  if (id != 0) {
+    jam();
+    const FeedbackEntry* e = findFeedbackEntry(id, tLoc.m_phase);
+    if (e != 0) {
+      jam();
+      (this->*(e->m_method))(signal, op_ptr);
+    }
+  }
+}
+
+// OpRec
+
+// OpSection
+
+bool
+Dbdict::copyIn(OpSection& op_sec, const SegmentedSectionPtr& ss_ptr)
+{
+  const Uint32 size = ZSIZE_OF_PAGES_IN_WORDS;
+  Uint32 buf[size];
+
+  if (size < ss_ptr.sz) {
+    jam();
+    return false;
+  }
+  ::copy(buf, ss_ptr);
+  if (!copyIn(op_sec, buf, ss_ptr.sz)) {
+    jam();
+    return false;
+  }
+  return true;
+}
+
+bool
+Dbdict::copyIn(OpSection& op_sec, const Uint32* src, Uint32 srcSize)
+{
+  OpSectionBuffer buffer(c_opSectionBufferPool, op_sec.m_head);
+  if (!buffer.append(src, srcSize)) {
+    jam();
+    return false;
+  }
+  return true;
+}
+
+bool
+Dbdict::copyOut(const OpSection& op_sec, SegmentedSectionPtr& ss_ptr)
+{
+  const Uint32 size = ZSIZE_OF_PAGES_IN_WORDS;
+  Uint32 buf[size];
+
+  if (!copyOut(op_sec, buf, size)) {
+    jam();
+    return false;
+  }
+  Ptr<SectionSegment> ptr;
+  if (!::import(ptr, buf, op_sec.getSize())) {
+    jam();
+    return false;
+  }
+  ss_ptr.i = ptr.i;
+  ss_ptr.p = ptr.p;
+  ss_ptr.sz = op_sec.getSize();
+  return true;
+}
+
+bool
+Dbdict::copyOut(const OpSection& op_sec, Uint32* dst, Uint32 dstSize)
+{
+  if (op_sec.getSize() > dstSize) {
+    jam();
+    return false;
+  }
+
+  // there is no const version of LocalDataBuffer
+  OpSectionBufferHead tmp_head = op_sec.m_head;
+  OpSectionBuffer buffer(c_opSectionBufferPool, tmp_head);
+
+  OpSectionBufferConstIterator iter;
+  Uint32 n = 0;
+  for(buffer.first(iter); !iter.isNull(); buffer.next(iter)) {
+    jam();
+    dst[n] = *iter.data;
+    n++;
+  }
+  ndbrequire(n == op_sec.getSize());
+  return true;
+}
+
+void
+Dbdict::release(OpSection& op_sec)
+{
+  OpSectionBuffer buffer(c_opSectionBufferPool, op_sec.m_head);
+  buffer.release();
+}
+
+// SchemaOp
+
+const Dbdict::OpInfo&
+Dbdict::getOpInfo(SchemaOpPtr op_ptr)
+{
+  ndbrequire(!op_ptr.isNull());
+  OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+  ndbrequire(!oprec_ptr.isNull());
+  return oprec_ptr.p->m_opInfo;
+}
+
+bool
+Dbdict::seizeSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key, const OpInfo& info)
+{
+  if (!findSchemaOp(op_ptr, op_key)) {
+    jam();
+    if (c_schemaOpHash.seize(op_ptr)) {
+      jam();
+      new (op_ptr.p) SchemaOp();
+      op_ptr.p->op_key = op_key;
+      if ((this->*(info.m_seize))(op_ptr)) {
+        jam();
+        c_schemaOpHash.add(op_ptr);
+        op_ptr.p->m_magic = SchemaOp::DICT_MAGIC;
+        const char* opType = info.m_opType;
+        D("seizeSchemaOp" << V(op_key) << V(opType));
+        return true;
+      }
+      c_schemaOpHash.release(op_ptr);
+    }
+  }
+  op_ptr.setNull();
+  return false;
+}
+
+bool
+Dbdict::findSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key)
+{
+  SchemaOp op_rec(op_key);
+  if (c_schemaOpHash.find(op_ptr, op_rec)) {
+    jam();
+    const OpRecPtr& oprec_ptr = op_ptr.p->m_oprec_ptr;
+    ndbrequire(!oprec_ptr.isNull());
+    ndbrequire(op_ptr.p->m_magic == SchemaOp::DICT_MAGIC);
+    D("findSchemaOp" << V(op_key));
+    return true;
+  }
+  return false;
+}
+
+void
+Dbdict::releaseSchemaOp(SchemaOpPtr& op_ptr)
+{
+  Uint32 op_key = op_ptr.p->op_key;
+  D("releaseSchemaOp" << V(op_key));
+
+  const OpInfo& info = getOpInfo(op_ptr);
+  (this->*(info.m_release))(op_ptr);
+
+  while (op_ptr.p->m_sections != 0) {
+    jam();
+    releaseOpSection(op_ptr, op_ptr.p->m_sections - 1);
+  }
+
+  OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+  Uint32 obj_ptr_i = oprec_ptr.p->m_obj_ptr_i;
+  if (obj_ptr_i != RNIL) {
+    jam();
+    unlinkDictObject(op_ptr);
+  }
+
+  if (!op_ptr.p->m_oplnk_ptr.isNull()) {
+    jam();
+    releaseSchemaOp(op_ptr.p->m_oplnk_ptr);
+  }
+
+  ndbrequire(op_ptr.p->m_magic == SchemaOp::DICT_MAGIC);
+  op_ptr.p->m_magic = 0;
+  c_schemaOpHash.release(op_ptr);
+  op_ptr.setNull();
+}
+
+// save signal sections
+
+const Dbdict::OpSection&
+Dbdict::getOpSection(SchemaOpPtr op_ptr, Uint32 ss_no)
+{
+  ndbrequire(ss_no < op_ptr.p->m_sections);
+  return op_ptr.p->m_section[ss_no];
+}
+
+bool
+Dbdict::saveOpSection(SchemaOpPtr op_ptr,
+                      Signal* signal, Uint32 ss_no)
+{
+  SegmentedSectionPtr ss_ptr;
+  bool ok = signal->getSection(ss_ptr, ss_no);
+  ndbrequire(ok);
+  return saveOpSection(op_ptr, ss_ptr, ss_no);
+}
+
+bool
+Dbdict::saveOpSection(SchemaOpPtr op_ptr,
+                      SegmentedSectionPtr ss_ptr, Uint32 ss_no)
+{
+  ndbrequire(ss_no <= 2 && op_ptr.p->m_sections == ss_no);
+  OpSection& op_sec = op_ptr.p->m_section[ss_no];
+  op_ptr.p->m_sections++;
+
+  bool ok = copyIn(op_sec, ss_ptr);
+  ndbrequire(ok);
+  return true;
+}
+
+void
+Dbdict::releaseOpSection(SchemaOpPtr op_ptr, Uint32 ss_no)
+{
+  ndbrequire(ss_no + 1 == op_ptr.p->m_sections);
+  OpSection& op_sec = op_ptr.p->m_section[ss_no];
+  release(op_sec);
+  op_ptr.p->m_sections = ss_no;
+}
+
+// add schema op to trans during parse phase
+
+void
+Dbdict::addSchemaOp(SchemaTransPtr trans_ptr, SchemaOpPtr& op_ptr)
+{
+  TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  iteratorAddOp(tLoc, op_ptr);
+
+  const Uint32 opDepth = trans_ptr.p->m_opDepth;
+  op_ptr.p->m_trans_ptr = trans_ptr;
+  op_ptr.p->m_opDepth = opDepth;
+
+  // add global flags from trans
+  const Uint32& src_info = trans_ptr.p->m_requestInfo;
+  DictSignal::addRequestFlagsGlobal(op_ptr.p->m_requestInfo, src_info);
+
+  D("addSchemaOp" << *op_ptr.p);
+}
+
+// update op step after successful execution
+
+void
+Dbdict::updateSchemaOpStep(SchemaTransPtr trans_ptr, SchemaOpPtr op_ptr)
+{
+  ndbrequire(!op_ptr.isNull());
+  const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  D("updateSchemaOpStep" << *op_ptr.p << tLoc);
+  new (&op_ptr.p->m_step) TransStep(tLoc);
+}
+
+// the link SchemaOp -> DictObject -> SchemaTrans
+
+// check if link to dict object exists
+bool
+Dbdict::hasDictObject(SchemaOpPtr op_ptr)
+{
+  OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+  return oprec_ptr.p->m_obj_ptr_i != RNIL;
+}
+
+// get dict object for existing link
+void
+Dbdict::getDictObject(SchemaOpPtr op_ptr, DictObjectPtr& obj_ptr)
+{
+  OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+  ndbrequire(oprec_ptr.p->m_obj_ptr_i != RNIL);
+  c_obj_pool.getPtr(obj_ptr, oprec_ptr.p->m_obj_ptr_i);
+}
+
+// create link from schema op to dict object
+void
+Dbdict::linkDictObject(SchemaOpPtr op_ptr, DictObjectPtr obj_ptr)
+{
+  ndbrequire(!obj_ptr.isNull());
+  D("linkDictObject" << V(op_ptr.p->op_key) << V(obj_ptr.i));
+
+  OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+  ndbrequire(oprec_ptr.p->m_obj_ptr_i == RNIL);
+  oprec_ptr.p->m_obj_ptr_i = obj_ptr.i;
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  if (!trans_ptr.isNull()) {
+    jam();
+    ndbrequire(trans_ptr.p->trans_key != 0);
+    if (obj_ptr.p->m_op_ref_count == 0) {
+      jam();
+      obj_ptr.p->m_trans_key = trans_ptr.p->trans_key;
+    } else {
+      ndbrequire(obj_ptr.p->m_trans_key == trans_ptr.p->trans_key);
+    }
+  } else {
+    jam();
+    // restart table uses no trans (yet)
+    ndbrequire(memcmp(oprec_ptr.p->m_opType, "CTa", 4) == 0);
+    ndbrequire(getNodeState().startLevel != NodeState::SL_STARTED);
+  }
+
+  obj_ptr.p->m_op_ref_count += 1;
+  D("linkDictObject done" << *obj_ptr.p);
+}
+
+// drop link from schema op to dict object
+void
+Dbdict::unlinkDictObject(SchemaOpPtr op_ptr)
+{
+  DictObjectPtr obj_ptr;
+  OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+  ndbrequire(oprec_ptr.p->m_obj_ptr_i != RNIL);
+  c_obj_pool.getPtr(obj_ptr, oprec_ptr.p->m_obj_ptr_i);
+
+  D("unlinkDictObject" << V(op_ptr.p->op_key) << V(obj_ptr.i));
+
+  oprec_ptr.p->m_obj_ptr_i = RNIL;
+  ndbrequire(obj_ptr.p->m_op_ref_count != 0);
+  obj_ptr.p->m_op_ref_count -= 1;
+  ndbrequire(obj_ptr.p->m_trans_key != 0);
+  if (obj_ptr.p->m_op_ref_count == 0) {
+    jam();
+    obj_ptr.p->m_trans_key = 0;
+  }
+  D("unlinkDictObject done" << *obj_ptr.p);
+}
+
+// add new dict object and link schema op to it
+void
+Dbdict::seizeDictObject(SchemaOpPtr op_ptr,
+                        DictObjectPtr& obj_ptr,
+                        const RopeHandle& name)
+{
+  D("seizeDictObject" << *op_ptr.p);
+
+  bool ok = c_obj_hash.seize(obj_ptr);
+  ndbrequire(ok);
+  new (obj_ptr.p) DictObject();
+
+  obj_ptr.p->m_name = name;
+  c_obj_hash.add(obj_ptr);
+  obj_ptr.p->m_ref_count = 0;
+
+  linkDictObject(op_ptr, obj_ptr);
+  D("seizeDictObject done" << *obj_ptr.p);
+}
+
+// find dict object by name and link schema op to it
+bool
+Dbdict::findDictObject(SchemaOpPtr op_ptr,
+                       DictObjectPtr& obj_ptr,
+                       const char* name)
+{
+  D("findDictObject" << *op_ptr.p << V(name));
+  if (get_object(obj_ptr, name)) {
+    jam();
+    linkDictObject(op_ptr, obj_ptr);
+    return true;
+  }
+  return false;
+}
+
+// find dict object by i-value and link schema op to it
+bool
+Dbdict::findDictObject(SchemaOpPtr op_ptr,
+                       DictObjectPtr& obj_ptr,
+                       Uint32 obj_ptr_i)
+{
+  D("findDictObject" << *op_ptr.p << V(obj_ptr.i));
+  if (obj_ptr_i != RNIL) {
+    jam();
+    c_obj_pool.getPtr(obj_ptr, obj_ptr_i);
+    linkDictObject(op_ptr, obj_ptr);
+    return true;
+  }
+  return false;
+}
+
+// remove link to dict object and release the dict object
+void
+Dbdict::releaseDictObject(SchemaOpPtr op_ptr)
+{
+  DictObjectPtr obj_ptr;
+  getDictObject(op_ptr, obj_ptr);
+
+  D("releaseDictObject" << *op_ptr.p << V(obj_ptr.i) << *obj_ptr.p);
+
+  unlinkDictObject(op_ptr);
+
+  // check no other object or operation references it
+  ndbrequire(obj_ptr.p->m_ref_count == 0);
+  if (obj_ptr.p->m_op_ref_count == 0) {
+    jam();
+    release_object(obj_ptr.i);
+  }
+}
+
+// find last op on dict object
+void
+Dbdict::findDictObjectOp(SchemaOpPtr& op_ptr, DictObjectPtr obj_ptr)
+{
+  D("findDictObjectOp" << *obj_ptr.p);
+  op_ptr.setNull();
+
+  Uint32 trans_key = obj_ptr.p->m_trans_key;
+  do {
+    if (trans_key == 0) {
+      jam();
+      D("no trans_key");
+      break;
+    }
+
+    SchemaTransPtr trans_ptr;
+    findSchemaTrans(trans_ptr, trans_key);
+    if (trans_ptr.isNull()) {
+      jam();
+      D("trans not found");
+      break;
+    }
+    D("found" << *trans_ptr.p);
+    TransLoc& tLoc = trans_ptr.p->m_transLoc;
+
+    {
+      LocalDLFifoList<SchemaOp> list(c_schemaOpPool, tLoc.m_opList.m_head);
+      SchemaOpPtr loop_ptr;
+      list.first(loop_ptr);
+      while (!loop_ptr.isNull()) {
+        jam();
+        OpRecPtr oprec_ptr = loop_ptr.p->m_oprec_ptr;
+        if (oprec_ptr.p->m_obj_ptr_i == obj_ptr.i) {
+          jam();
+          op_ptr = loop_ptr;
+          D("found candidate" << *op_ptr.p);
+        }
+        list.next(loop_ptr);
+      }
+    }
+  } while (0);
+}
+
+// trans state
+
+bool
+Dbdict::getOpPtr(const TransLoc& tLoc, SchemaOpPtr& op_ptr)
+{
+  if (tLoc.m_opKey == 0) {
+    jam();
+    op_ptr.setNull();
+  } else {
+    jam();
+    bool ok = findSchemaOp(op_ptr, tLoc.m_opKey);
+    ndbrequire(ok);
+  }
+  return !op_ptr.isNull();
+}
+
+const Dbdict::TransPhaseEntry&
+Dbdict::getPhaseEntry(const TransLoc& tLoc)
+{
+  ndbrequire(tLoc.m_phaseList != 0);
+  const TransPhaseList& phaseList = *tLoc.m_phaseList;
+  const Uint32 phaseIndex = tLoc.m_phaseIndex;
+  ndbrequire(phaseIndex > 0 && phaseIndex < phaseList.m_length);
+  const TransPhaseEntry& phaseEntry = phaseList.m_phaseEntry[phaseIndex];
+  return phaseEntry;
+}
+
+void
+Dbdict::iteratorAddOp(TransLoc& tLoc, SchemaOpPtr op_ptr)
+{
+  LocalDLFifoList<SchemaOp> list(c_schemaOpPool, tLoc.m_opList.m_head);
+#ifdef VM_TRACE
+  // check for duplicates
+  {
+    SchemaOpPtr loop_ptr;
+    Uint32 size = 0;
+    list.first(loop_ptr);
+    while (!loop_ptr.isNull()) {
+      jam();
+      ndbrequire(loop_ptr.i != op_ptr.i);
+      ndbrequire(loop_ptr.p->op_key != op_ptr.p->op_key);
+      list.next(loop_ptr);
+      size++;
+    }
+    ndbrequire(tLoc.m_opList.m_size == size);
+  }
+#endif
+  // add it to end
+  list.addLast(op_ptr);
+  op_ptr.p->m_opIndex = tLoc.m_opList.m_size;
+  tLoc.m_opList.m_size += 1;
+  // position iterator at the new op
+  tLoc.m_opKey = op_ptr.p->op_key;
+}
+
+void
+Dbdict::iteratorRemoveLastOp(TransLoc& tLoc, SchemaOpPtr& op_ptr)
+{
+  D("iteratorRemoveOp" << *op_ptr.p);
+  if (tLoc.m_opKey == op_ptr.p->op_key) {
+    jam();
+    // move to previous op or start of list
+    iteratorNext(tLoc, -1);
+  }
+  // verify op is last and remove it
+  LocalDLFifoList<SchemaOp> list(c_schemaOpPool, tLoc.m_opList.m_head);
+  bool isLast = !list.hasNext(op_ptr);
+  ndbrequire(isLast);
+  list.remove(op_ptr);
+  ndbrequire(tLoc.m_opList.m_size == op_ptr.p->m_opIndex + 1);
+  tLoc.m_opList.m_size -= 1;
+  releaseSchemaOp(op_ptr);
+}
+
+bool
+Dbdict::iteratorFirstOp(TransLoc& tLoc, int dir)
+{
+  if (tLoc.m_opList.m_size == 0) {
+    jam();
+    return false;
+  }
+  LocalDLFifoList<SchemaOp> list(c_schemaOpPool, tLoc.m_opList.m_head);
+  SchemaOpPtr op_ptr;
+  bool ok = dir > 0 ? list.first(op_ptr) : list.last(op_ptr);
+  ndbrequire(ok);
+  ndbrequire(op_ptr.p->op_key != 0);
+  tLoc.m_opKey = op_ptr.p->op_key;
+  return true;
+}
+
+bool
+Dbdict::iteratorNextOp(TransLoc& tLoc, int dir)
+{
+  if (tLoc.m_opList.m_size == 0) {
+    jam();
+    return false;
+  }
+  LocalDLFifoList<SchemaOp> list(c_schemaOpPool, tLoc.m_opList.m_head);
+  SchemaOpPtr op_ptr;
+  ndbrequire(tLoc.m_opKey != 0);
+  bool ok = findSchemaOp(op_ptr, tLoc.m_opKey);
+  ndbrequire(ok);
+  if (!(dir > 0 ? list.next(op_ptr) : list.prev(op_ptr))) {
+    jam();
+    return false;
+  }
+  ndbrequire(op_ptr.p->op_key != 0);
+  tLoc.m_opKey = op_ptr.p->op_key;
+  return true;
+}
+
+bool
+Dbdict::iteratorFirst(TransLoc& tLoc, int dir)
+{
+  ndbrequire(tLoc.m_phaseList != 0);
+  const TransPhaseList& phaseList = *tLoc.m_phaseList;
+  ndbrequire(phaseList.m_length >= 2);
+  const Uint32 i = dir > 0 ? 1 : phaseList.m_length - 1;
+  const TransPhaseEntry& phaseEntry = phaseList.m_phaseEntry[i];
+  // end points must be simple (no ops)
+  ndbrequire(phaseEntry.m_phaseFlags & TransPhaseFlag::Simple);
+  tLoc.m_phaseIndex = i;
+  tLoc.m_phase = phaseEntry.m_phase;
+  tLoc.m_subphase = phaseEntry.m_subphase;
+  tLoc.m_repeat = 0;
+  tLoc.m_opKey = 0;
+  return true;
+}
+
+bool
+Dbdict::iteratorNext(TransLoc& tLoc, int dir)
+{
+  ndbrequire(tLoc.m_phaseList != 0);
+  const TransPhaseList& phaseList = *tLoc.m_phaseList;
+  bool loop_one = true;
+  Uint32 i = tLoc.m_phaseIndex;
+  for (; i > 0 && i < phaseList.m_length; i += dir, loop_one = false) {
+    const TransPhaseEntry& phaseEntry = phaseList.m_phaseEntry[i];
+    if (phaseEntry.m_phaseFlags & TransPhaseFlag::Simple ||
+        tLoc.m_opList.m_size == 0) {
+      jam();
+      tLoc.m_opKey = 0;
+      if (loop_one) {
+        jam();
+        continue;
+      }
+    } else {
+      if (tLoc.m_opKey == 0) {
+        jam();
+        bool ok = iteratorFirstOp(tLoc, dir);
+        ndbrequire(ok);
+      } else {
+        jam();
+        if (!iteratorNextOp(tLoc, dir)) {
+          jam();
+          tLoc.m_opKey = 0;
+          continue;
+        }
+      }
+    }
+    tLoc.m_phaseIndex = i;
+    tLoc.m_phase = phaseEntry.m_phase;
+    tLoc.m_subphase = phaseEntry.m_subphase;
+    tLoc.m_repeat = 0;
+    return true;
+  }
+  return false;
+}
+
+bool
+Dbdict::iteratorInit(TransLoc& tLoc)
+{
+  tLoc.m_phaseList = &g_defaultPhaseList;
+  tLoc.m_mode = TransMode::Normal;
+  return iteratorFirst(tLoc, +1);
+}
+
+bool
+Dbdict::iteratorMove(TransLoc& tLoc, bool repeatFlag)
+{
+  D("iteratorMove <" << tLoc << V(repeatFlag));
+  bool ret = false;
+  if (repeatFlag) {
+    jam();
+    tLoc.m_repeat += 1;
+    ret = true;
+  }
+  else {
+    if (tLoc.m_hold) {
+      jam();
+      tLoc.m_hold = false;
+      ret = true;
+    }
+    else if (tLoc.m_mode == TransMode::Normal) {
+      jam();
+      ret = iteratorNext(tLoc, +1);
+    }
+    else if (tLoc.m_mode == TransMode::Rollback) {
+      jam();
+      ret = iteratorNext(tLoc, -1);
+    }
+    else if (tLoc.m_mode == TransMode::Abort) {
+      jam();
+      ret = iteratorNext(tLoc, -1);
+    }
+    else {
+      ndbrequire(false);
+    }
+    tLoc.m_repeat = 0;
+  }
+  D("iteratorMove >" << tLoc << V(ret));
+  return ret;
+}
+
+void
+Dbdict::iteratorCopy(TransLoc& tLoc, Uint32 mode,
+                     Uint32 phaseIndex, Uint32 op_key, Uint32 repeat)
+{
+  D("iteratorCopy <" << tLoc);
+  tLoc.m_phaseList = &g_defaultPhaseList;
+  tLoc.m_mode = (TransMode::Value)mode;
+  tLoc.m_phaseIndex = phaseIndex;
+  const TransPhaseEntry& phaseEntry = getPhaseEntry(tLoc);
+  tLoc.m_phase = phaseEntry.m_phase;
+  tLoc.m_subphase = phaseEntry.m_subphase;
+  tLoc.m_repeat = repeat;
+  tLoc.m_opKey = op_key;
+  D("iteratorCopy >" << tLoc);
+}
+
+Dbdict::TransGlob&
+Dbdict::getTransGlob(SchemaTransPtr trans_ptr, Uint32 nodeId)
+{
+  ndbrequire(nodeId > 0 && nodeId < MAX_NDB_NODES);
+  TransGlob& tGlob = trans_ptr.p->m_transGlob[nodeId];
+  return tGlob;
+}
+
+void
+Dbdict::setGlobState(SchemaTransPtr trans_ptr,
+                     Uint32 nodeId, TransGlob::State state)
+{
+  TransGlob& tGlob = getTransGlob(trans_ptr, nodeId);
+  TransGlob tGlob2 = tGlob;
+  tGlob2.state(state);
+  D("setGlobState " << nodeId << ":" << tGlob << " ->" << tGlob2);
+  tGlob = tGlob2;
+}
+
+void
+Dbdict::setGlobState(SchemaTransPtr trans_ptr,
+                     const NdbNodeBitmask& nodes, TransGlob::State state)
+{
+  Uint32 nodeId;
+  for (nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++) {
+    if (nodes.get(nodeId)) {
+      setGlobState(trans_ptr, nodeId, state);
+    }
+  }
+}
+
+void
+Dbdict::setGlobState(SchemaTransPtr trans_ptr,
+                     TransGlob::State oldstate, TransGlob::State state)
+{
+  Uint32 nodeId;
+  for (nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++) {
+    if (trans_ptr.p->m_initNodes.get(nodeId)) {
+      const TransGlob& tGlob = getTransGlob(trans_ptr, nodeId);
+      if (tGlob.state() == oldstate) {
+        jam();
+        setGlobState(trans_ptr, nodeId, state);
+      }
+    }
+  }
+}
+
+void
+Dbdict::setGlobFlags(SchemaTransPtr trans_ptr,
+                     Uint32 nodeId, Uint32 flags, int op)
+{
+  TransGlob& tGlob = getTransGlob(trans_ptr, nodeId);
+  TransGlob tGlob2 = tGlob;
+  if (op < 0)
+    tGlob2.m_flags &= ~flags;
+  else if (op > 0)
+    tGlob2.m_flags |= flags;
+  else
+    tGlob2.m_flags = flags;
+  D("setGlobFlags " << nodeId << ":" << tGlob << " ->" << tGlob2);
+  tGlob = tGlob2;
+}
+
+void
+Dbdict::setGlobFlags(SchemaTransPtr trans_ptr,
+                     const NdbNodeBitmask& nodes, Uint32 flags, int op)
+{
+  Uint32 nodeId;
+  for (nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++) {
+    if (nodes.get(nodeId)) {
+      setGlobFlags(trans_ptr, nodeId, flags, op);
+    }
+  }
+}
+
+Uint32
+Dbdict::getGlobFlags(SchemaTransPtr trans_ptr,
+                     const NdbNodeBitmask& nodes)
+{
+  Uint32 flags = 0;
+  Uint32 nodeId;
+  for (nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++) {
+    if (nodes.get(nodeId)) {
+      const TransGlob& tGlob = getTransGlob(trans_ptr, nodeId);
+      flags |= tGlob.m_flags;
+    }
+  }
+  return flags;
+}
+
+const Dbdict::TransPhaseEntry
+Dbdict::g_defaultPhaseEntry[] = {
+  { TransPhase::Undef,
+    TransSubphase::Undef,
+    0,
+    0,
+    0
+  },
+  {
+    TransPhase::Begin,
+    TransSubphase::Main,
+    TransPhaseFlag::Simple,
+    0,
+    0
+  },
+  {
+    TransPhase::Parse,
+    TransSubphase::Main,
+    0,
+    0,
+    0
+  },
+  {
+    TransPhase::Prepare,
+    TransSubphase::Main,
+    0,
+    0,
+    0
+  },
+  {
+    TransPhase::Commit,
+    TransSubphase::Main,
+    0,
+    0,
+    0
+  },
+  {
+    TransPhase::End,
+    TransSubphase::Main,
+    TransPhaseFlag::Simple,
+    0,
+    0
+  }
+};
+
+const Dbdict::TransPhaseList
+Dbdict::g_defaultPhaseList = {
+  0,
+  sizeof(g_defaultPhaseEntry) / sizeof(g_defaultPhaseEntry[0]),
+  g_defaultPhaseEntry
+};
+
+void
+Dbdict::dummySimplePhase(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  jam();
+  Uint32 itRepeat = getIteratorRepeat(trans_ptr);
+
+  D("dummySimplePhase");
+  ndbrequire(itRepeat == 0);
+  sendTransConf(signal, trans_ptr);
+}
+
+// SchemaTrans
+
+bool
+Dbdict::seizeSchemaTrans(SchemaTransPtr& trans_ptr, Uint32 trans_key)
+{
+  if (!findSchemaTrans(trans_ptr, trans_key)) {
+    jam();
+    if (c_schemaTransHash.seize(trans_ptr)) {
+      jam();
+      new (trans_ptr.p) SchemaTrans();
+      trans_ptr.p->trans_key = trans_key;
+      c_schemaTransHash.add(trans_ptr);
+      c_schemaTransList.addLast(trans_ptr);
+      c_schemaTransCount++;
+      trans_ptr.p->m_magic = SchemaTrans::DICT_MAGIC;
+      D("seizeSchemaTrans" << V(trans_key));
+      return true;
+    }
+  }
+  trans_ptr.setNull();
+  return false;
+}
+
+bool
+Dbdict::seizeSchemaTrans(SchemaTransPtr& trans_ptr)
+{
+  Uint32 trans_key = c_opRecordSequence + 1;
+  if (seizeSchemaTrans(trans_ptr, trans_key)) {
+    c_opRecordSequence = trans_key;
+    return true;
+  }
+  return false;
+}
+
+bool
+Dbdict::findSchemaTrans(SchemaTransPtr& trans_ptr, Uint32 trans_key)
+{
+  SchemaTrans trans_rec(trans_key);
+  if (c_schemaTransHash.find(trans_ptr, trans_rec)) {
+    jam();
+    ndbrequire(trans_ptr.p->m_magic == SchemaTrans::DICT_MAGIC);
+    D("findSchemaTrans" << V(trans_key));
+    return true;
+  }
+  trans_ptr.setNull();
+  return false;
+}
+
+void
+Dbdict::releaseSchemaTrans(SchemaTransPtr& trans_ptr)
+{
+  Uint32 trans_key = trans_ptr.p->trans_key;
+  D("releaseSchemaTrans" << V(trans_key));
+
+  TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  LocalDLFifoList<SchemaOp> list(c_schemaOpPool, tLoc.m_opList.m_head);
+  SchemaOpPtr op_ptr;
+  while (list.first(op_ptr)) {
+    list.remove(op_ptr);
+    releaseSchemaOp(op_ptr);
+  }
+  ndbrequire(trans_ptr.p->m_magic == SchemaTrans::DICT_MAGIC);
+  trans_ptr.p->m_magic = 0;
+  ndbrequire(c_schemaTransCount != 0);
+  c_schemaTransCount--;
+  c_schemaTransList.remove(trans_ptr);
+  c_schemaTransHash.release(trans_ptr);
+  trans_ptr.setNull();
+
+  // only 1 trans at time so it is easy to check for leaks
+  ndbrequire(c_schemaOpPool.getNoOfFree() == c_schemaOpPool.getSize());
+  ndbrequire(c_opSectionBufferPool.getNoOfFree() == c_opSectionBufferPool.getSize());
+}
+
+Uint32
+Dbdict::getIteratorRepeat(SchemaTransPtr trans_ptr)
+{
+  const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  return tLoc.m_repeat;
+}
+
+// client requests
+
+void
+Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
+{
+  jamEntry();
+  const SchemaTransBeginReq* req =
+    (const SchemaTransBeginReq*)signal->getDataPtr();
+  Uint32 clientRef = req->clientRef;
+  Uint32 transId = req->transId;
+  Uint32 requestInfo = req->requestInfo;
+
+  bool localTrans = (requestInfo & DictSignal::RF_LOCAL_TRANS);
+
+  SchemaTransPtr trans_ptr;
+  ErrorInfo error;
+  do {
+    if (getOwnNodeId() != c_masterNodeId && !localTrans) {
+      jam();
+      setError(error, SchemaTransBeginRef::NotMaster, __LINE__);
+      break;
+    }
+
+    if (!seizeSchemaTrans(trans_ptr)) {
+      jam();
+      // future when more than 1 tx allowed
+      setError(error, SchemaTransBeginRef::TooManySchemaTrans, __LINE__);
+      break;
+    }
+
+    trans_ptr.p->m_isMaster = true;
+    trans_ptr.p->m_masterRef = reference();
+    trans_ptr.p->m_clientRef = clientRef;
+    trans_ptr.p->m_transId = transId;
+    trans_ptr.p->m_requestInfo = requestInfo;
+    if (!localTrans) {
+      trans_ptr.p->m_initNodes = c_aliveNodes;
+    } else {
+      trans_ptr.p->m_initNodes.clear();
+      trans_ptr.p->m_initNodes.set(getOwnNodeId());
+    }
+    trans_ptr.p->m_clientState = TransClient::BeginReq;
+
+    // initialize local state and iterator
+    TransLoc& tLoc = trans_ptr.p->m_transLoc;
+    iteratorInit(tLoc);
+
+    // initialize global state
+    const Uint32 ownNodeId = getOwnNodeId();
+    setGlobState(trans_ptr, ownNodeId, TransGlob::Ok);
+
+    // other nodes have no trans record yet
+    NdbNodeBitmask nodes = trans_ptr.p->m_initNodes;
+    nodes.bitANDC(trans_ptr.p->m_failedNodes);
+    nodes.clear(ownNodeId);
+    setGlobState(trans_ptr, nodes, TransGlob::NeedTrans);
+
+    // lock
+    DictLockReq& lockReq = trans_ptr.p->m_lockReq;
+    lockReq.userPtr = trans_ptr.p->trans_key;
+    lockReq.userRef = reference();
+    lockReq.lockType = DictLockReq::SchemaTransLock;
+    int lockError = dict_lock_trylock(&lockReq);
+    if (lockError != 0) {
+      // remove the trans
+      releaseSchemaTrans(trans_ptr);
+      setError(error, lockError, __LINE__);
+      break;
+    }
+
+    // begin tx on all participants
+    sendTransReq(signal, trans_ptr);
+    return;
+  } while(0);
+
+  SchemaTrans tmp_trans;
+  trans_ptr.i = RNIL;
+  trans_ptr.p = &tmp_trans;
+  trans_ptr.p->trans_key = 0;
+  trans_ptr.p->m_clientRef = clientRef;
+  trans_ptr.p->m_transId = transId;
+  trans_ptr.p->m_clientState = TransClient::BeginReq;
+  setError(trans_ptr.p->m_error, error);
+  sendTransClientReply(signal, trans_ptr);
+}
+
+void
+Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
+{
+  jamEntry();
+  const SchemaTransEndReq* req =
+    (const SchemaTransEndReq*)signal->getDataPtr();
+  Uint32 clientRef = req->clientRef;
+  Uint32 transId = req->transId;
+  Uint32 trans_key = req->transKey;
+  Uint32 requestInfo = req->requestInfo;
+  Uint32 flags = req->flags;
+
+  bool localTrans = (requestInfo & DictSignal::RF_LOCAL_TRANS);
+
+  SchemaTransPtr trans_ptr;
+  ErrorInfo error;
+  do {
+    if (getOwnNodeId() != c_masterNodeId && !localTrans) {
+      jam();
+      // future when MNF is handled
+      setError(error, SchemaTransEndRef::NotMaster, __LINE__);
+      break;
+    }
+
+    findSchemaTrans(trans_ptr, trans_key);
+    if (trans_ptr.isNull()) {
+      jam();
+      setError(error, SchemaTransEndRef::InvalidTransKey, __LINE__);
+      break;
+    }
+
+    if (trans_ptr.p->m_transId != transId) {
+      jam();
+      setError(error, SchemaTransEndRef::InvalidTransId, __LINE__);
+      break;
+    }
+
+    if (trans_ptr.p->m_clientState != TransClient::BeginReply &&
+        trans_ptr.p->m_clientState != TransClient::ParseReply) {
+      jam();
+      setError(error, SchemaTransEndRef::InvalidTransState, __LINE__);
+      break;
+    }
+
+    {
+      Uint32 requestInfo2 = trans_ptr.p->m_requestInfo;
+      bool localTrans2 = (requestInfo2 & DictSignal::RF_LOCAL_TRANS);
+      ndbrequire(localTrans == localTrans2);
+    }
+
+    ndbrequire(!hasError(trans_ptr.p->m_error));
+    trans_ptr.p->m_clientState = TransClient::EndReq;
+
+    const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+    if (tLoc.m_mode == TransMode::Rollback) {
+      jam();
+      D("continuing after rollback");
+      resetError(trans_ptr);
+      setTransMode(trans_ptr, TransMode::Normal, false);
+    }
+    ndbrequire(tLoc.m_mode == TransMode::Normal);
+
+    D("execSCHEMA_TRANS_END_REQ" << *trans_ptr.p << tLoc.m_opList);
+
+    setGlobState(trans_ptr, TransGlob::NeedOp, TransGlob::NoOp);
+    setGlobState(trans_ptr, TransGlob::NeedTrans, TransGlob::NoTrans);
+
+    const bool doBackground = flags & SchemaTransEndReq::SchemaTransBackground;
+    if (doBackground) {
+      jam();
+      // send reply to original client and restore EndReq state
+      sendTransClientReply(signal, trans_ptr);
+      trans_ptr.p->m_clientState = TransClient::EndReq;
+
+      // take over client role via internal trans
+      trans_ptr.p->m_clientFlags |= TransClient::Background;
+      takeOverTransClient(signal, trans_ptr);
+    }
+
+    const bool doAbort = flags & SchemaTransEndReq::SchemaTransAbort;
+    if (doAbort) {
+      jam();
+      setTransMode(trans_ptr, TransMode::Abort, true);
+    }
+
+    ndbrequire(!hasError(trans_ptr.p->m_error));
+    runTransMaster(signal, trans_ptr);
+    return;
+  } while (0);
+
+  SchemaTrans tmp_trans;
+  trans_ptr.i = RNIL;
+  trans_ptr.p = &tmp_trans;
+  trans_ptr.p->trans_key = trans_key;
+  trans_ptr.p->m_clientRef = clientRef;
+  trans_ptr.p->m_transId = transId;
+  trans_ptr.p->m_clientState = TransClient::EndReq;
+  setError(trans_ptr.p->m_error, error);
+  sendTransClientReply(signal, trans_ptr);
+}
+
+// coordinator
+
+void
+Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("handleClientReq" << *op_ptr.p);
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+
+  ErrorInfo error;
+  const OpInfo& info = getOpInfo(op_ptr);
+  (this->*(info.m_parse))(signal, op_ptr, error);
+
+  if (hasError(error)) {
+    jam();
+    setError(op_ptr, error);
+    setTransMode(trans_ptr, TransMode::Rollback, true);
+
+    // other nodes will not acquire an operation record
+    const Uint32 ownNodeId = getOwnNodeId();
+    NdbNodeBitmask nodes = trans_ptr.p->m_initNodes;
+    nodes.bitANDC(trans_ptr.p->m_failedNodes);
+    nodes.clear(ownNodeId);
+    setGlobState(trans_ptr, nodes, TransGlob::NoOp);
+
+    releaseSections(signal);
+    runTransMaster(signal, trans_ptr);
+    return;
+  }
+
+  updateSchemaOpStep(trans_ptr, op_ptr);
+  sendTransParseReq(signal, op_ptr);
+}
+
+void
+Dbdict::sendTransReq(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  D("sendTransReq" << *trans_ptr.p);
+
+  const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  SchemaOpPtr op_ptr;
+  getOpPtr(tLoc, op_ptr);
+  Uint32 gsn = 0;
+
+  // piggy-backed signal in parse phase
+  Uint32 extra_length = 0;
+  if (tLoc.m_mode == TransMode::Normal &&
+      tLoc.m_phase == TransPhase::Parse) {
+    jam();
+    const OpInfo& info = getOpInfo(op_ptr);
+    gsn = info.m_impl_req_gsn;
+    const Uint32* src = op_ptr.p->m_oprec_ptr.p->m_impl_req_data;
+
+    Uint32* data = signal->getDataPtrSend();
+    Uint32 skip = SchemaTransImplReq::SignalLength;
+    extra_length = info.m_impl_req_length;
+    ndbrequire(skip + extra_length <= 25);
+
+    Uint32 i;
+    for (i = 0; i < extra_length; i++)
+      data[skip + i] = src[i];
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+
+  Uint32 phaseInfo = 0;
+  SchemaTransImplReq::setMode(phaseInfo, tLoc.m_mode);
+  SchemaTransImplReq::setPhase(phaseInfo, tLoc.m_phase);
+  SchemaTransImplReq::setSubphase(phaseInfo, tLoc.m_subphase);
+  SchemaTransImplReq::setGsn(phaseInfo, gsn);
+
+  Uint32 requestInfo = 0;
+  if (!op_ptr.isNull())
+    requestInfo = op_ptr.p->m_requestInfo;
+  else
+    requestInfo = trans_ptr.p->m_requestInfo;
+
+  Uint32 operationInfo = 0;
+  if (!op_ptr.isNull()) {
+    SchemaTransImplReq::setOpIndex(operationInfo, op_ptr.p->m_opIndex);
+    SchemaTransImplReq::setOpDepth(operationInfo, op_ptr.p->m_opDepth);
+  }
+
+  Uint32 iteratorInfo = 0;
+  SchemaTransImplReq::setListId(iteratorInfo, tLoc.m_phaseList->m_id);
+  SchemaTransImplReq::setListIndex(iteratorInfo, tLoc.m_phaseIndex);
+  SchemaTransImplReq::setItRepeat(iteratorInfo, tLoc.m_repeat);
+
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = !op_ptr.isNull() ? op_ptr.p->op_key : 0;
+  req->phaseInfo = phaseInfo;
+  req->requestInfo = requestInfo;
+  req->operationInfo = operationInfo;
+  req->iteratorInfo = iteratorInfo;
+  req->clientRef = trans_ptr.p->m_clientRef;
+  req->transId = trans_ptr.p->m_transId;
+
+  NdbNodeBitmask nodes;
+  Uint32 nodeId;
+
+  for (nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++) {
+    if (!trans_ptr.p->m_initNodes.get(nodeId)) {
+      jam();
+      continue;
+    }
+
+    const TransGlob& tGlob = getTransGlob(trans_ptr, nodeId);
+    bool itRepeat = tGlob.m_flags & SchemaTransImplConf::IT_REPEAT;
+    setGlobFlags(trans_ptr, nodeId, SchemaTransImplConf::IT_REPEAT, -1);
+
+    {
+      bool b1 = tGlob.state() == TransGlob::NodeFail;
+      bool b2 = trans_ptr.p->m_failedNodes.get(nodeId);
+      ndbrequire(b1 == b2);
+    }
+
+    if (tGlob.state() == TransGlob::NodeFail ||
+        tGlob.state() == TransGlob::NoTrans ||
+        tGlob.state() == TransGlob::NoOp) {
+      jam();
+      D("skip send (state)" << V(nodeId) << tGlob);
+      continue;
+    }
+
+    if (tLoc.m_repeat && !itRepeat) {
+      D("skip send (no repeat)" << V(nodeId));
+      jam();
+      continue;
+    }
+
+    jam();
+    nodes.set(nodeId);
+  }
+
+  ndbrequire(!nodes.isclear());//wl3600_todo got crash here after NF
+
+  NodeReceiverGroup rg(DBDICT, nodes);
+  {
+    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
+    ndbrequire(ok);
+  }
+
+  sendFragmentedSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
+                       SchemaTransImplReq::SignalLength + extra_length, JBB);
+}
+
+void
+Dbdict::sendTransParseReq(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("sendTransParseReq");
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  ndbrequire(tLoc.m_mode == TransMode::Normal &&
+             tLoc.m_phase == TransPhase::Parse);
+  sendTransReq(signal, trans_ptr);
+  releaseSections(signal);
+}
+
+void
+Dbdict::execSCHEMA_TRANS_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  ndbrequire(signal->getNoOfSections() == 0);
+  recvTransReply(signal, true);
+}
+
+void
+Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  ndbrequire(signal->getNoOfSections() == 0);
+  recvTransReply(signal, false);
+}
+
+void
+Dbdict::recvTransReply(Signal* signal, bool isConf)
+{
+  Uint32 trans_key;
+  Uint32 senderRef;
+  Uint32 itFlags = 0;
+  ErrorInfo error;
+
+  if (isConf) {
+    jam();
+    const SchemaTransImplConf* conf =
+      (const SchemaTransImplConf*)signal->getDataPtr();
+    senderRef = conf->senderRef;
+    trans_key = conf->transKey;
+    itFlags = conf->itFlags;
+  } else {
+    jam();
+    const SchemaTransImplRef* ref =
+      (const SchemaTransImplRef*)signal->getDataPtr();
+    senderRef = ref->senderRef;
+    trans_key = ref->transKey;
+    setError(error, ref);
+  }
+
+  Uint32 nodeId = refToNode(senderRef);
+  D("recvTransReply" << V(isConf) << V(nodeId) << V(trans_key));
+
+  SchemaTransPtr trans_ptr;
+  findSchemaTrans(trans_ptr, trans_key);
+  ndbrequire(!trans_ptr.isNull());
+  ndbrequire(trans_ptr.p->m_initNodes.get(nodeId));
+
+  const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  const TransGlob& tGlob = getTransGlob(trans_ptr, nodeId);
+  setGlobFlags(trans_ptr, nodeId, itFlags, +1);
+
+  // clear previous round
+
+  setGlobState(trans_ptr, TransGlob::NoTrans, TransGlob::Ok);
+  setGlobState(trans_ptr, TransGlob::NoOp, TransGlob::Ok);
+
+  // set remote state according to error type
+
+  if (!hasError(error)) {
+    jam();
+    setGlobState(trans_ptr, nodeId, TransGlob::Ok);
+  }
+  else if (error.errorCode == SchemaTransImplRef::NF_FakeErrorREF) {
+    jam();
+    // exclude the node permanently from this tx
+    D("node marked dead" << V(nodeId));
+    setGlobState(trans_ptr, nodeId, TransGlob::NodeFail);
+    trans_ptr.p->m_failedNodes.set(nodeId);
+    resetError(error);
+  }
+  else if (error.errorCode == SchemaTransImplRef::TooManySchemaTrans) {
+    jam();
+    D("node failed to seize trans record" << V(nodeId));
+    ndbrequire(tLoc.m_mode == TransMode::Normal);
+    ndbrequire(tLoc.m_phase == TransPhase::Begin);
+    ndbrequire(tGlob.state() == TransGlob::NeedTrans);
+    setGlobState(trans_ptr, nodeId, TransGlob::NoTrans);
+    setError(trans_ptr, error);
+  }
+  else if (error.errorCode == SchemaTransImplRef::TooManySchemaOps) {
+    jam();
+    D("node failed to seize op record" << V(nodeId));
+    ndbrequire(tLoc.m_mode == TransMode::Normal);
+    ndbrequire(tLoc.m_phase == TransPhase::Parse);
+    ndbrequire(tGlob.state() == TransGlob::NeedOp);
+    setGlobState(trans_ptr, nodeId, TransGlob::NoOp);
+    setError(trans_ptr, error);
+  }
+  else {
+    jam();
+    D("node returned error" << V(nodeId) << V(error.errorCode));
+    setGlobState(trans_ptr, nodeId, TransGlob::Error);
+    setError(trans_ptr, error);
+  }
+
+  {
+    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    if (!sc.clearWaitingFor(nodeId)) {
+      jam();
+      return;
+    }
+  }
+
+  // all participants have replied to this round
+  handleTransReply(signal, trans_ptr);
+}
+
+void
+Dbdict::handleTransReply(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  SchemaOpPtr op_ptr;
+  getOpPtr(tLoc, op_ptr);
+
+  const Uint32 trans_key = trans_ptr.p->trans_key;
+  const Uint32 clientRef = trans_ptr.p->m_clientRef;
+  const Uint32 transId = trans_ptr.p->m_transId;
+
+  D("handleTransReply" << tLoc);
+  if (!op_ptr.isNull())
+    D("have op" << *op_ptr.p);
+
+  if (hasError(trans_ptr.p->m_error)) {
+    jam();
+    if (tLoc.m_mode == TransMode::Normal) {
+      if (tLoc.m_phase == TransPhase::Parse) {
+        jam();
+        setTransMode(trans_ptr, TransMode::Rollback, true);
+      } else {
+        jam();
+        setTransMode(trans_ptr, TransMode::Abort, true);
+      }
+    }
+  }
+
+  if (tLoc.m_mode == TransMode::Normal) {
+    if (tLoc.m_phase == TransPhase::Begin) {
+      jam();
+      sendTransClientReply(signal, trans_ptr);
+    }
+    else if (tLoc.m_phase == TransPhase::Parse) {
+      jam();
+      /*
+       * Create any sub-operations via client signals.  This is
+       * a recursive process.  When done at current level, sends reply
+       * to client.  On inner levels the client is us (dict master).
+       */
+      createSubOps(signal, op_ptr, true);
+    }
+    else if (tLoc.m_phase == TransPhase::Prepare) {
+      jam();
+      runTransMaster(signal, trans_ptr);
+    }
+    else if (tLoc.m_phase == TransPhase::Commit) {
+      jam();
+      runTransMaster(signal, trans_ptr);
+    }
+    else if (tLoc.m_phase == TransPhase::End) {
+      jam();
+      sendTransClientReply(signal, trans_ptr);
+      // unlock
+      const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
+      dict_lock_unlock(signal, &lockReq);
+      releaseSchemaTrans(trans_ptr);
+    }
+    else {
+      ndbrequire(false);
+    }
+  }
+  else if (tLoc.m_mode == TransMode::Rollback) {
+    if (tLoc.m_phase == TransPhase::Parse) {
+      jam();
+      /*
+       * Rolling back current client op and its sub-ops.
+       * We do not follow the signal train of master REQs back.
+       * Instead we simply run backwards in abort mode until
+       * (and including) first op of depth zero.  All ops involved
+       * are removed.  On master this is done here.
+       */
+      ndbrequire(hasError(trans_ptr.p->m_error));
+      ndbrequire(!op_ptr.isNull());
+      if (tLoc.m_hold) {
+        jam();
+        // error seen first time, re-run current op
+        runTransMaster(signal, trans_ptr);
+      }
+      else {
+        if (op_ptr.p->m_opDepth != 0) {
+          jam();
+          runTransMaster(signal, trans_ptr);
+        }
+        else {
+          jam();
+          // reached original client op
+          const OpInfo& info = getOpInfo(op_ptr);
+          (this->*(info.m_reply))(signal, op_ptr, trans_ptr.p->m_error);
+          resetError(trans_ptr);
+
+          // restore depth counter
+          trans_ptr.p->m_opDepth = 0;
+          trans_ptr.p->m_clientState = TransClient::ParseReply;
+        }
+        iteratorRemoveLastOp(tLoc, op_ptr);
+      }
+    }
+    else {
+      ndbrequire(false);
+    }
+  }
+  else if (tLoc.m_mode == TransMode::Abort) {
+    if (tLoc.m_phase == TransPhase::Begin) {
+      jam();
+      sendTransClientReply(signal, trans_ptr);
+      // unlock
+      const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
+      dict_lock_unlock(signal, &lockReq);
+      releaseSchemaTrans(trans_ptr);
+    }
+    else if (tLoc.m_phase == TransPhase::Parse) {
+      jam();
+      runTransMaster(signal, trans_ptr);
+    }
+    else if (tLoc.m_phase == TransPhase::Prepare) {
+      jam();
+      runTransMaster(signal, trans_ptr);
+    }
+    else {
+      ndbrequire(false);
+    }
+  }
+  else {
+    ndbrequire(false);
+  }
+}
+
+void
+Dbdict::createSubOps(Signal* signal, SchemaOpPtr op_ptr, bool first)
+{
+  D("createSubOps" << *op_ptr.p);
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  if (first) {
+    jam();
+    // raise operation depth for any sub-ops which may be created
+    trans_ptr.p->m_opDepth += 1;
+  }
+
+  const OpInfo& info = getOpInfo(op_ptr);
+  if ((this->*(info.m_subOps))(signal, op_ptr)) {
+    jam();
+    // more sub-ops on the way
+    return;
+  }
+
+  ErrorInfo error;
+  (this->*(info.m_reply))(signal, op_ptr, error);
+
+  // restore operation depth
+  ndbrequire(trans_ptr.p->m_opDepth != 0);
+  trans_ptr.p->m_opDepth -= 1;
+
+  if (trans_ptr.p->m_opDepth == 0) {
+    jam();
+    resetError(trans_ptr);
+    trans_ptr.p->m_clientState = TransClient::ParseReply;
+  }
+}
+
+// a sub-op create failed, roll back and send REF to client
+void
+Dbdict::abortSubOps(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  D("abortSubOps" << *op_ptr.p << error);
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  const OpInfo& info = getOpInfo(op_ptr);
+
+  // restore operation depth
+  ndbrequire(trans_ptr.p->m_opDepth != 0);
+  trans_ptr.p->m_opDepth -= 1;
+
+  // roll back all subops and this op (the parent)
+  ndbrequire(hasError(error));
+  setError(op_ptr, error);
+  setTransMode(trans_ptr, TransMode::Rollback, true);
+  runTransMaster(signal, trans_ptr);
+}
+
+void
+Dbdict::runTransMaster(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  D("runTransMaster");
+  TransLoc& tLoc = trans_ptr.p->m_transLoc;
+
+  if (tLoc.m_phase == TransPhase::Begin) {
+    jam();
+    // skip trans with no operations
+    if (tLoc.m_mode == TransMode::Normal) {
+      while (tLoc.m_phase != TransPhase::End) {
+        jam();
+        iteratorMove(tLoc, false);
+      }
+    }
+  } else {
+    jam();
+    NdbNodeBitmask nodes = trans_ptr.p->m_initNodes;
+    nodes.bitANDC(trans_ptr.p->m_failedNodes);
+    Uint32 flags = getGlobFlags(trans_ptr, nodes);
+    bool repeatFlag = (flags & SchemaTransImplConf::IT_REPEAT);
+    bool found = iteratorMove(tLoc, repeatFlag);
+    ndbrequire(found);
+  }
+
+  // always send to all in order to keep iterators synced
+  sendTransReq(signal, trans_ptr);
+}
+
+void
+Dbdict::setTransMode(SchemaTransPtr trans_ptr,
+                     TransMode::Value new_mode,
+                     bool hold)
+{
+  TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  const TransMode::Value old_mode = tLoc.m_mode;
+
+  D("setTransMode"
+    << *trans_ptr.p
+    << " old:" << DictSignal::getTransModeName(old_mode)
+    << " new:" << DictSignal::getTransModeName(new_mode)
+    << V(hold));
+
+  tLoc.m_mode = new_mode;
+  tLoc.m_hold = hold;
+  NdbNodeBitmask nodes = trans_ptr.p->m_initNodes;
+  setGlobFlags(trans_ptr, nodes, SchemaTransImplConf::IT_REPEAT, -1);
+  tLoc.m_repeat = 0;
+}
+
+// participant
+
+void
+Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
+{
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  jamEntry();
+  recvTransReq(signal);
+}
+
+void
+Dbdict::recvTransReq(Signal* signal)
+{
+  const SchemaTransImplReq* req =
+    (const SchemaTransImplReq*)signal->getDataPtr();
+
+  D("recvTransReq" << V(signal->getLength()));
+
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 trans_key = req->transKey;
+  const Uint32 op_key = req->opKey;
+  const Uint32 phaseInfo = req->phaseInfo;
+  const Uint32 requestInfo = req->requestInfo;
+  const Uint32 operationInfo = req->operationInfo;
+  const Uint32 iteratorInfo = req->iteratorInfo;
+  const Uint32 clientRef = req->clientRef;
+  const Uint32 transId = req->transId;
+
+  // unpack phaseInfo
+  const Uint32 mode = SchemaTransImplReq::getMode(phaseInfo);
+  const Uint32 phase = SchemaTransImplReq::getPhase(phaseInfo);
+  const Uint32 subphase = SchemaTransImplReq::getSubphase(phaseInfo);
+  const Uint32 gsn = SchemaTransImplReq::getGsn(phaseInfo);
+
+  // unpack operation info
+  const Uint32 opDepth = SchemaTransImplReq::getOpDepth(operationInfo);
+
+  // unpack iterator info
+  const Uint32 phaseIndex = SchemaTransImplReq::getListIndex(iteratorInfo);
+  const Uint32 repeat = SchemaTransImplReq::getItRepeat(iteratorInfo);
+
+  // cannot receive a new master before this signal arrives
+  // enable when RF_LOCAL_TRANS is in req
+  //ndbrequire(c_masterNodeId == refToNode(senderRef));
+
+  SchemaTransPtr trans_ptr;
+  ErrorInfo error;
+  do {
+    const bool isMaster = (senderRef == reference());
+
+    const bool seizeTrans =
+      !isMaster && mode == TransMode::Normal && phase == TransPhase::Begin;
+
+    const bool releaseTrans =
+      !isMaster && mode == TransMode::Normal && phase == TransPhase::End ||
+      !isMaster && mode != TransMode::Normal && phase == TransPhase::Begin;
+
+    const bool sendConf =
+      phase == TransPhase::Begin || phase == TransPhase::End;
+
+    if (seizeTrans) {
+      jam();
+      if (!seizeSchemaTrans(trans_ptr, trans_key)) {
+        jam();
+        setError(error, SchemaTransImplRef::TooManySchemaTrans, __LINE__);
+        break;
+      }
+      trans_ptr.p->m_clientRef = clientRef;
+      trans_ptr.p->m_transId = transId;
+    } else {
+      jam();
+      findSchemaTrans(trans_ptr, trans_key);
+      ndbrequire(!trans_ptr.isNull());
+    }
+
+    TransLoc& tLoc = trans_ptr.p->m_transLoc;
+
+    if (isMaster) {
+      ndbrequire(trans_ptr.p->m_isMaster == true);
+      ndbrequire(trans_ptr.p->m_masterRef == senderRef);
+      ndbrequire(tLoc.m_mode == mode);
+      ndbrequire(tLoc.m_phase == phase);
+      ndbrequire(tLoc.m_subphase == subphase);
+    } else {
+      jam();
+      if (trans_ptr.p->m_masterRef == 0) {
+        jam();
+        // first time
+        trans_ptr.p->m_isMaster = false;
+        trans_ptr.p->m_masterRef = senderRef;
+      } else {
+        // until MNF anyway
+        ndbrequire(trans_ptr.p->m_isMaster == false);
+        ndbrequire(trans_ptr.p->m_masterRef == senderRef);
+      }
+      trans_ptr.p->m_opDepth = opDepth;
+      iteratorCopy(tLoc, mode, phaseIndex, op_key, repeat);
+      ndbrequire(tLoc.m_phase == phase && tLoc.m_subphase == subphase);
+    }
+
+    if (tLoc.m_mode == TransMode::Normal) {
+      if (tLoc.m_phase == TransPhase::Begin) {
+        jam();
+        DictSignal::addRequestFlags(trans_ptr.p->m_requestInfo, requestInfo);
+      }
+      else if (tLoc.m_phase == TransPhase::Parse) {
+        jam();
+        const OpInfo* info = findOpInfo(gsn);
+        ndbrequire(info != 0);
+        Uint32 length = info->m_impl_req_length;
+        Uint32 skip = SchemaTransImplReq::SignalLength;
+        ndbrequire(skip + length <= 25);
+
+        Uint32* data = signal->getDataPtrSend();
+        Uint32 i = 0;
+        for (i = 0; i < length; i++)
+          data[i] = data[skip + i];
+
+        recvTransParseReq(signal, trans_ptr, op_key, *info, requestInfo);
+      }
+      else if (tLoc.m_phase == TransPhase::Prepare) {
+        jam();
+        runTransSlave(signal, trans_ptr);
+      }
+      else if (tLoc.m_phase == TransPhase::Commit) {
+        jam();
+        runTransSlave(signal, trans_ptr);
+      }
+      else if (tLoc.m_phase == TransPhase::End) {
+        jam();
+      }
+      else {
+        ndbrequire(false);
+      }
+    }
+    else if (tLoc.m_mode == TransMode::Rollback) {
+      if (tLoc.m_phase == TransPhase::Parse) {
+        jam();
+        /*
+         * Rolling back sub-operation on participant.
+         * Non-master removes the op before replying.
+         */
+        runTransSlave(signal, trans_ptr);
+      }
+      else {
+        ndbrequire(false);
+      }
+    }
+    else if (tLoc.m_mode == TransMode::Abort) {
+      if (tLoc.m_phase == TransPhase::Begin) {
+        jam();
+      }
+      else if (tLoc.m_phase == TransPhase::Parse) {
+        jam();
+        runTransSlave(signal, trans_ptr);
+      }
+      else if (tLoc.m_phase == TransPhase::Prepare) {
+        jam();
+        runTransSlave(signal, trans_ptr);
+      }
+      else {
+        ndbrequire(false);
+      }
+    }
+    else {
+      ndbrequire(false);
+    }
+
+    if (sendConf) {
+      jam();
+      sendTransConf(signal, trans_ptr);
+    }
+    if (releaseTrans) {
+      jam();
+      releaseSchemaTrans(trans_ptr);
+    }
+    return;
+  } while (0);
+
+  SchemaTrans tmp_trans;
+  trans_ptr.i = RNIL;
+  trans_ptr.p = &tmp_trans;
+  trans_ptr.p->trans_key = trans_key;
+  trans_ptr.p->m_masterRef = senderRef;
+  setError(trans_ptr.p->m_error, error);
+  sendTransRef(signal, trans_ptr);
+}
+
+/*
+ * Parse on master has been done before this request was sent.
+ * Create and parse the operation on slave participant.
+ */
+void
+Dbdict::recvTransParseReq(Signal* signal, SchemaTransPtr trans_ptr,
+                          Uint32 op_key, const OpInfo& info,
+                          Uint32 requestInfo)
+{
+  SchemaOpPtr op_ptr;
+  D("recvTransParseReq");
+
+  const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  D("before add op" << *trans_ptr.p << tLoc << tLoc.m_opList);
+
+  // signal data contains impl_req
+  const Uint32* src = signal->getDataPtr();
+  const Uint32 len = info.m_impl_req_length;
+
+  ndbrequire(op_key != RNIL);
+  ErrorInfo error;
+  if (trans_ptr.p->m_isMaster) {
+    jam();
+    // this branch does nothing but is convenient for signal pong
+    findSchemaOp(op_ptr, op_key);
+    ndbrequire(!op_ptr.isNull());
+
+    OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+    const Uint32* dst = oprec_ptr.p->m_impl_req_data;
+    ndbrequire(memcmp(dst, src, len << 2) == 0);
+  } else {
+    if (seizeSchemaOp(op_ptr, op_key, info)) {
+      jam();
+
+      DictSignal::addRequestExtra(op_ptr.p->m_requestInfo, requestInfo);
+      DictSignal::addRequestFlags(op_ptr.p->m_requestInfo, requestInfo);
+
+      addSchemaOp(trans_ptr, op_ptr);
+
+      OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+      Uint32* dst = oprec_ptr.p->m_impl_req_data;
+      memcpy(dst, src, len << 2);
+
+      (this->*(info.m_parse))(signal, op_ptr, error);
+      if (!hasError(error)) {
+        jam();
+        updateSchemaOpStep(trans_ptr, op_ptr);
+      }
+    } else {
+      jam();
+      setError(error, SchemaTransImplRef::TooManySchemaOps, __LINE__);
+    }
+  }
+
+  // parse must consume but not release signal sections
+  releaseSections(signal);
+
+  if (hasError(error)) {
+    jam();
+    setError(trans_ptr, error);
+    sendTransRef(signal, trans_ptr);
+    return;
+  }
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::runTransSlave(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+  SchemaOpPtr op_ptr;
+  getOpPtr(tLoc, op_ptr);
+
+  D("runTransSlave");
+
+  const TransPhaseEntry& phaseEntry = getPhaseEntry(tLoc);
+  const bool isMaster = (trans_ptr.p->m_masterRef == reference());
+
+  // master phase on slave does nothing more
+  if (!isMaster && (phaseEntry.m_phaseFlags & TransPhaseFlag::Master)) {
+      jam();
+      sendTransConf(signal, trans_ptr);
+      return;
+  }
+
+  if (phaseEntry.m_phaseFlags & TransPhaseFlag::Simple) {
+    jam();
+    ndbrequire(op_ptr.isNull());
+    if (tLoc.m_mode == TransMode::Normal) {
+      jam();
+      ndbrequire(phaseEntry.m_run != 0);
+      (this->*(phaseEntry.m_run))(signal, trans_ptr);
+    } else {
+      jam();
+      ndbrequire(phaseEntry.m_abort != 0);
+      (this->*(phaseEntry.m_abort))(signal, trans_ptr);
+    }
+  } else {
+    jam();
+    ndbrequire(!op_ptr.isNull());
+    // wl3600_todo verify op_key
+    const OpInfo& info = getOpInfo(op_ptr);
+    if (tLoc.m_mode == TransMode::Normal) {
+      switch (tLoc.m_phase) {
+      case TransPhase::Prepare:
+        (this->*(info.m_prepare))(signal, op_ptr);
+        break;
+      case TransPhase::Commit:
+        (this->*(info.m_commit))(signal, op_ptr);
+        break;
+      default:
+        ndbrequire(false);
+        break;
+      }
+    } else {
+      switch (tLoc.m_phase) {
+      case TransPhase::Parse:
+        (this->*(info.m_abortParse))(signal, op_ptr);
+        break;
+      case TransPhase::Prepare:
+        (this->*(info.m_abortPrepare))(signal, op_ptr);
+        // mark it in advance
+        op_ptr.p->m_abortPrepareDone = true;
+        break;
+      default:
+        ndbrequire(false);
+        break;
+      }
+    }
+  }
+}
+
+void
+Dbdict::sendTransConf(Signal* signal, SchemaOpPtr op_ptr, Uint32 itFlags)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  TransLoc& tLoc = trans_ptr.p->m_transLoc;
+
+  if (!op_ptr.isNull() &&
+      tLoc.m_mode == TransMode::Normal) {
+    jam();
+    runFeedbackMethod(signal, op_ptr);
+  }
+
+  if (tLoc.m_mode == TransMode::Rollback &&
+      !trans_ptr.p->m_isMaster) {
+    jam();
+    iteratorRemoveLastOp(tLoc, op_ptr);
+  }
+
+  sendTransConf(signal, trans_ptr, itFlags);
+}
+
+void
+Dbdict::sendTransConf(Signal* signal, SchemaTransPtr trans_ptr, Uint32 itFlags)
+{
+  ndbrequire(!trans_ptr.isNull());
+  ndbrequire(signal->getNoOfSections() == 0);
+
+  SchemaTransImplConf* conf =
+    (SchemaTransImplConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->transKey = trans_ptr.p->trans_key;
+  conf->itFlags = itFlags;
+
+  const Uint32 masterRef = trans_ptr.p->m_masterRef;
+  sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_CONF, signal,
+             SchemaTransImplConf::SignalLength, JBB);
+}
+
+void
+Dbdict::sendTransRef(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  // must have error and already propagated to trans
+  ndbrequire(hasError(op_ptr.p->m_error));
+  ndbrequire(hasError(trans_ptr.p->m_error));
+  sendTransRef(signal, trans_ptr);
+}
+
+void
+Dbdict::sendTransRef(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  D("sendTransRef");
+  ndbrequire(hasError(trans_ptr.p->m_error));
+
+  // trans is not defined on RT_BEGIN REF
+  if (trans_ptr.i != RNIL) {
+    const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+
+    if (tLoc.m_mode == TransMode::Normal) {
+      switch (tLoc.m_phase) {
+      case TransPhase::Commit:
+      case TransPhase::End:
+        // fail commit must crash
+        ndbrequire(false);
+        break;
+      default:
+        break;
+      }
+    } else {
+      // fail abort must crash
+      ndbrequire(false);
+    }
+  }
+
+  SchemaTransImplRef* ref =
+    (SchemaTransImplRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transKey = trans_ptr.p->trans_key;
+  getError(trans_ptr.p->m_error, ref);
+
+  // erro has been reported, clear it
+  resetError(trans_ptr.p->m_error);
+
+  const Uint32 masterRef = trans_ptr.p->m_masterRef;
+  sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_REF, signal,
+             SchemaTransImplRef::SignalLength, JBB);
+}
+
+// reply to trans client for begin/end trans
+
+void
+Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  const Uint32 clientFlags = trans_ptr.p->m_clientFlags;
+  D("sendTransClientReply" << hex << V(clientFlags));
+  D("c_rope_pool free: " << c_rope_pool.getNoOfFree());
+
+  Uint32 receiverRef = 0;
+  Uint32 transId = 0;
+  if (!(clientFlags & TransClient::TakeOver)) {
+    receiverRef = trans_ptr.p->m_clientRef;
+    transId = trans_ptr.p->m_transId;
+  } else {
+    jam();
+    receiverRef = reference();
+    transId = trans_ptr.p->m_takeOverTxKey;
+  }
+
+  if (trans_ptr.p->m_clientState == TransClient::BeginReq) {
+    if (!hasError(trans_ptr.p->m_error)) {
+      jam();
+      SchemaTransBeginConf* conf =
+        (SchemaTransBeginConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      conf->transId = transId;
+      conf->transKey = trans_ptr.p->trans_key;
+      sendSignal(receiverRef, GSN_SCHEMA_TRANS_BEGIN_CONF, signal,
+                 SchemaTransBeginConf::SignalLength, JBB);
+    } else {
+      jam();
+      SchemaTransBeginRef* ref =
+        (SchemaTransBeginRef*)signal->getDataPtrSend();
+      ref->senderRef = reference();
+      ref->transId = transId;
+      getError(trans_ptr.p->m_error, ref);
+      sendSignal(receiverRef, GSN_SCHEMA_TRANS_BEGIN_REF, signal,
+                 SchemaTransBeginRef::SignalLength, JBB);
+    }
+    resetError(trans_ptr);
+    trans_ptr.p->m_clientState = TransClient::BeginReply;
+    return;
+  }
+
+  if (trans_ptr.p->m_clientState == TransClient::EndReq) {
+    if (!hasError(trans_ptr.p->m_error)) {
+      jam();
+      SchemaTransEndConf* conf =
+        (SchemaTransEndConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      conf->transId = transId;
+      sendSignal(receiverRef, GSN_SCHEMA_TRANS_END_CONF, signal,
+                 SchemaTransEndConf::SignalLength, JBB);
+    } else {
+      jam();
+      SchemaTransEndRef* ref =
+        (SchemaTransEndRef*)signal->getDataPtrSend();
+      ref->senderRef = reference();
+      ref->transId = transId;
+      getError(trans_ptr.p->m_error, ref);
+      sendSignal(receiverRef, GSN_SCHEMA_TRANS_END_REF, signal,
+                 SchemaTransEndRef::SignalLength, JBB);
+    }
+    resetError(trans_ptr);
+    trans_ptr.p->m_clientState = TransClient::EndReply;
+    return;
+  }
+
+  ndbrequire(false);
+}
+
+/*
+ * Slave node failure.  If we are waiting for reply then we get it
+ * via NF_FakeErrorREF.  Otherwise we get it only via NODE_FAILREP.
+ * This second case is handled here.
+ */
+
+void
+Dbdict::handleTransSlaveFail(Signal* signal, Uint32 failedNode)
+{
+  D("handleTransSlaveFail" << V(failedNode));
+  ndbrequire(failedNode < MAX_NDB_NODES);
+
+  SchemaTransPtr trans_ptr;
+  c_schemaTransList.first(trans_ptr);
+  while (trans_ptr.i != RNIL) {
+    jam();
+    const TransGlob& tGlob = getTransGlob(trans_ptr, failedNode);
+    D("check" << *trans_ptr.p << tGlob);
+
+    switch (tGlob.state()) {
+    case TransGlob::Undef:
+      D("not part of this trans");
+      break;
+    case TransGlob::NodeFail:
+      D("node failure seen already");
+      ndbrequire(trans_ptr.p->m_failedNodes.get(failedNode));
+      break;
+    default:
+      setGlobState(trans_ptr, failedNode, TransGlob::NodeFail);
+      trans_ptr.p->m_failedNodes.set(failedNode);
+      break;
+    }
+
+    c_schemaTransList.next(trans_ptr);
+  }
+}
+
+// DICT as schema trans client
+
+bool
+Dbdict::seizeTxHandle(TxHandlePtr& tx_ptr)
+{
+  Uint32 tx_key = c_opRecordSequence + 1;
+  if (c_txHandleHash.seize(tx_ptr)) {
+    jam();
+    new (tx_ptr.p) TxHandle();
+    tx_ptr.p->tx_key = tx_key;
+    c_txHandleHash.add(tx_ptr);
+    tx_ptr.p->m_magic = TxHandle::DICT_MAGIC;
+    D("seizeTxHandle" << V(tx_key));
+    c_opRecordSequence = tx_key;
+    return true;
+  }
+  tx_ptr.setNull();
+  return false;
+}
+
+bool
+Dbdict::findTxHandle(TxHandlePtr& tx_ptr, Uint32 tx_key)
+{
+  TxHandle tx_rec(tx_key);
+  if (c_txHandleHash.find(tx_ptr, tx_rec)) {
+    jam();
+    ndbrequire(tx_ptr.p->m_magic == TxHandle::DICT_MAGIC);
+    D("findTxHandle" << V(tx_key));
+    return true;
+  }
+  tx_ptr.setNull();
+  return false;
+}
+
+void
+Dbdict::releaseTxHandle(TxHandlePtr& tx_ptr)
+{
+  Uint32 tx_key = tx_ptr.p->tx_key;
+  D("releaseTxHandle" << V(tx_key));
+
+  ndbrequire(tx_ptr.p->m_magic == TxHandle::DICT_MAGIC);
+  tx_ptr.p->m_magic = 0;
+  c_txHandleHash.release(tx_ptr);
+}
+
+void
+Dbdict::beginSchemaTrans(Signal* signal, TxHandlePtr tx_ptr)
+{
+  D("beginSchemaTrans");
+  tx_ptr.p->m_transId = tx_ptr.p->tx_key;
+
+  SchemaTransBeginReq* req =
+    (SchemaTransBeginReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::addRequestFlags(requestInfo, tx_ptr.p->m_requestInfo);
+
+  const Uint32 clientFlags = tx_ptr.p->m_clientFlags;
+  ndbrequire(!(clientFlags & TransClient::TakeOver));
+  req->clientRef = reference();
+  req->transId = tx_ptr.p->m_transId;
+  req->requestInfo = requestInfo;
+
+  sendSignal(reference(), GSN_SCHEMA_TRANS_BEGIN_REQ, signal,
+             SchemaTransBeginReq::SignalLength, JBB);
+}
+
+void
+Dbdict::endSchemaTrans(Signal* signal, TxHandlePtr tx_ptr, Uint32 flags)
+{
+  D("endSchemaTrans" << hex << V(flags));
+
+  SchemaTransEndReq* req =
+    (SchemaTransEndReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::addRequestFlags(requestInfo, tx_ptr.p->m_requestInfo);
+
+  const Uint32 clientFlags = tx_ptr.p->m_clientFlags;
+  Uint32 transId = 0;
+  if (!(clientFlags & TransClient::TakeOver)) {
+    transId = tx_ptr.p->m_transId;
+  } else {
+    jam();
+    transId = tx_ptr.p->m_takeOverTransId;
+    D("take over mode" << hex << V(transId));
+  }
+
+  req->clientRef = reference();
+  req->transId = transId;
+  req->transKey = tx_ptr.p->m_transKey;
+  req->requestInfo = requestInfo;
+  req->flags = flags;
+
+  sendSignal(reference(), GSN_SCHEMA_TRANS_END_REQ, signal,
+             SchemaTransEndReq::SignalLength, JBB);
+}
+
+void
+Dbdict::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
+{
+  jamEntry();
+  const SchemaTransBeginConf* conf =
+    (const SchemaTransBeginConf*)signal->getDataPtr();
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, conf->transId);
+  ndbrequire(!tx_ptr.isNull());
+
+  // record trans key
+  tx_ptr.p->m_transKey = conf->transKey;
+
+  execute(signal, tx_ptr.p->m_callback, 0);
+}
+
+void
+Dbdict::execSCHEMA_TRANS_BEGIN_REF(Signal* signal)
+{
+  jamEntry();
+  const SchemaTransBeginRef* ref =
+    (const SchemaTransBeginRef*)signal->getDataPtr();
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, ref->transId);
+  ndbrequire(!tx_ptr.isNull());
+
+  setError(tx_ptr.p->m_error, ref);
+  ndbrequire(ref->errorCode != 0);
+  execute(signal, tx_ptr.p->m_callback, ref->errorCode);
+}
+
+void
+Dbdict::execSCHEMA_TRANS_END_CONF(Signal* signal)
+{
+  jamEntry();
+  const SchemaTransEndConf* conf =
+    (const SchemaTransEndConf*)signal->getDataPtr();
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, conf->transId);
+  ndbrequire(!tx_ptr.isNull());
+
+  execute(signal, tx_ptr.p->m_callback, 0);
+}
+
+void
+Dbdict::execSCHEMA_TRANS_END_REF(Signal* signal)
+{
+  jamEntry();
+  const SchemaTransEndRef* ref =
+    (const SchemaTransEndRef*)signal->getDataPtr();
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, ref->transId);
+  ndbrequire(!tx_ptr.isNull());
+
+  setError(tx_ptr.p->m_error, ref);
+  ndbrequire(ref->errorCode != 0);
+  execute(signal, tx_ptr.p->m_callback, ref->errorCode);
+}
+
+// trans client takeover
+
+/*
+ * API node failure.  Each trans is taken over by a new TxHandle,
+ * unless already running in background by api request (unlikely).
+ * All transes are marked with ApiFail.  API node failure handling
+ * is complete when last such trans completes.  This is checked
+ * in finishApiFail.
+ */
+void
+Dbdict::handleApiFail(Signal* signal,
+                      Uint32 failedApiNode,
+                      BlockReference retRef)
+{
+  D("handleApiFail" << V(failedApiNode));
+
+  Uint32 takeOvers = 0;
+  SchemaTransPtr trans_ptr;
+  c_schemaTransList.first(trans_ptr);
+  while (trans_ptr.i != RNIL) {
+    jam();
+    const TransLoc& tLoc = trans_ptr.p->m_transLoc;
+    D("check" << *trans_ptr.p << tLoc << tLoc.m_opList);
+    Uint32 clientRef = trans_ptr.p->m_clientRef;
+
+    if (refToNode(clientRef) == failedApiNode) {
+      jam();
+      D("failed" << hex << V(clientRef));
+
+      ndbrequire(!(trans_ptr.p->m_clientFlags & TransClient::ApiFail));
+      trans_ptr.p->m_clientFlags |= TransClient::ApiFail;
+
+      if (trans_ptr.p->m_isMaster) {
+        jam();
+        if (trans_ptr.p->m_clientFlags & TransClient::TakeOver) {
+          // maybe already running in background
+          jam();
+          ndbrequire(trans_ptr.p->m_clientFlags & TransClient::Background);
+        } else {
+          takeOverTransClient(signal, trans_ptr);
+        }
+
+        TxHandlePtr tx_ptr;
+        bool ok = findTxHandle(tx_ptr, trans_ptr.p->m_takeOverTxKey);
+        ndbrequire(ok);
+
+        tx_ptr.p->m_clientFlags |= TransClient::ApiFail;
+        tx_ptr.p->m_apiFailRetRef = retRef;
+        takeOvers++;
+      }
+    }
+
+    c_schemaTransList.next(trans_ptr);
+  }
+
+  D("handleApiFail" << V(takeOvers));
+
+  if (takeOvers == 0) {
+    jam();
+    sendApiFailConf(signal, failedApiNode, retRef);
+  }
+}
+
+/*
+ * Take over client trans, either by background request or at API
+ * node failure.  Continue to the callback routine.
+ */
+void
+Dbdict::takeOverTransClient(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  D("takeOverClientTrans" << *trans_ptr.p);
+
+  TxHandlePtr tx_ptr;
+  bool ok = seizeTxHandle(tx_ptr);
+  ndbrequire(ok);
+
+  Uint32 clientFlags = trans_ptr.p->m_clientFlags;
+  ndbrequire(!(trans_ptr.p->m_clientFlags & TransClient::TakeOver));
+  trans_ptr.p->m_clientFlags |= TransClient::TakeOver;
+  trans_ptr.p->m_takeOverTxKey = tx_ptr.p->tx_key;
+
+  tx_ptr.p->m_transId = tx_ptr.p->tx_key;
+  tx_ptr.p->m_transKey = trans_ptr.p->trans_key;
+  // start with SchemaTrans point of view
+  tx_ptr.p->m_clientState = trans_ptr.p->m_clientState;
+  tx_ptr.p->m_clientFlags = trans_ptr.p->m_clientFlags;
+  tx_ptr.p->m_takeOverRef = trans_ptr.p->m_clientRef;
+  tx_ptr.p->m_takeOverTransId = trans_ptr.p->m_transId;
+
+  runTransClientTakeOver(signal, tx_ptr.p->tx_key, 0);
+}
+
+/*
+ * Run one step in client takeover.  If not waiting for a signal,
+ * send end trans abort.  The only commit case is when takeover
+ * takes place in client state EndReq.  At the end, send an info
+ * event and check if the trans was from API node failure.
+ */
+void
+Dbdict::runTransClientTakeOver(Signal* signal,
+                               Uint32 tx_key,
+                               Uint32 ret)
+{
+  TxHandlePtr tx_ptr;
+  bool ok = findTxHandle(tx_ptr, tx_key);
+  ndbrequire(ok);
+  D("runClientTakeOver" << *tx_ptr.p << V(ret));
+
+  if (ret != 0) {
+    jam();
+    setError(tx_ptr, ret, __LINE__);
+  }
+
+  const TransClient::State oldState = tx_ptr.p->m_clientState;
+  const Uint32 clientFlags = tx_ptr.p->m_clientFlags;
+  ndbrequire(clientFlags & TransClient::TakeOver);
+
+  TransClient::State newState = oldState;
+  bool wait_sig = false;
+  bool at_end = false;
+
+  switch (oldState) {
+  case TransClient::BeginReq:
+    jam();
+    newState = TransClient::BeginReply;
+    wait_sig = true;
+    break;
+  case TransClient::BeginReply:
+    jam();
+    newState = TransClient::EndReply;
+    break;
+  case TransClient::ParseReq:
+    jam();
+    newState = TransClient::ParseReply;
+    wait_sig = true;
+    break;
+  case TransClient::ParseReply:
+    jam();
+    newState = TransClient::EndReply;
+    break;
+  case TransClient::EndReq:
+    jam();
+    newState = TransClient::EndReply;
+    wait_sig = true;
+    break;
+  case TransClient::EndReply:
+    jam();
+    newState = TransClient::StateUndef;
+    at_end = true;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  D("set" << V(oldState) << " -> " << V(newState));
+  tx_ptr.p->m_clientState = newState;
+
+  if (!at_end) {
+    jam();
+    Callback c = {
+      safe_cast(&Dbdict::runTransClientTakeOver),
+      tx_ptr.p->tx_key
+    };
+    tx_ptr.p->m_callback = c;
+
+    if (!wait_sig) {
+      jam();
+      Uint32 flags = 0;
+      flags |= SchemaTransEndReq::SchemaTransAbort;
+      endSchemaTrans(signal, tx_ptr, flags);
+    }
+    return;
+  }
+
+  if (!hasError(tx_ptr.p->m_error)) {
+    jam();
+    infoEvent("DICT: api:0x%8x trans:0x%8x takeover completed",
+              tx_ptr.p->m_takeOverRef, tx_ptr.p->m_takeOverTransId);
+  } else {
+    jam();
+    infoEvent("DICT: api:0x%8x trans:0x%8x takeover failed, error:%u line:%u",
+              tx_ptr.p->m_takeOverRef, tx_ptr.p->m_takeOverTransId,
+              tx_ptr.p->m_error.errorCode, tx_ptr.p->m_error.errorLine);
+  }
+
+  // if from API fail, check if finished
+  if (clientFlags & TransClient::ApiFail) {
+    jam();
+    finishApiFail(signal, tx_ptr);
+  }
+  releaseTxHandle(tx_ptr);
+}
+
+void
+Dbdict::finishApiFail(Signal* signal, TxHandlePtr tx_ptr)
+{
+  D("finishApiFail" << *tx_ptr.p);
+  const Uint32 failedApiNode = refToNode(tx_ptr.p->m_takeOverRef);
+
+  Uint32 takeOvers = 0;
+  SchemaTransPtr trans_ptr;
+  c_schemaTransList.first(trans_ptr);
+  while (trans_ptr.i != RNIL) {
+    jam();
+    D("check" << *trans_ptr.p);
+    const BlockReference clientRef = trans_ptr.p->m_clientRef;
+
+    if (refToNode(clientRef) == failedApiNode) {
+      jam();
+      const Uint32 clientFlags = trans_ptr.p->m_clientFlags;
+      D("failed" << hex << V(clientRef) << dec << V(clientFlags));
+      ndbrequire(clientFlags & TransClient::ApiFail);
+      takeOvers++;
+    }
+    c_schemaTransList.next(trans_ptr);
+  }
+
+  D("finishApiFail" << V(takeOvers));
+
+  if (takeOvers == 0) {
+    jam();
+    Uint32 retRef = tx_ptr.p->m_apiFailRetRef;
+    sendApiFailConf(signal, failedApiNode, retRef);
+  }
+}
+
+void
+Dbdict::sendApiFailConf(Signal* signal,
+                        Uint32 failedApiNode,
+                        BlockReference retRef)
+{
+  signal->theData[0] = failedApiNode;
+  signal->theData[1] = reference();
+  sendSignal(retRef, GSN_API_FAILCONF, signal, 2, JBB);
+}
+
+// find callback for any key
+
+bool
+Dbdict::findCallback(Callback& callback, Uint32 any_key)
+{
+  SchemaOpPtr op_ptr;
+  SchemaTransPtr trans_ptr;
+  TxHandlePtr tx_ptr;
+
+  bool ok1 = findSchemaOp(op_ptr, any_key);
+  bool ok2 = findSchemaTrans(trans_ptr, any_key);
+  bool ok3 = findTxHandle(tx_ptr, any_key);
+  ndbrequire(ok1 + ok2 + ok3 <= 1);
+
+  if (ok1) {
+    callback = op_ptr.p->m_callback;
+    return true;
+  }
+  if (ok2) {
+    callback = trans_ptr.p->m_callback;
+    return true;
+  }
+  if (ok3) {
+    callback = tx_ptr.p->m_callback;
+    return true;
+  }
+  callback.m_callbackFunction = 0;
+  callback.m_callbackData = 0;
+  return false;
+}
+
+// MODULE: debug
+
+#ifdef VM_TRACE
+
+// DictObject
+
+NdbOut&
+operator<<(NdbOut& out, const Dbdict::DictObject& a)
+{
+  a.print(out);
+  return out;
+}
+
+void
+Dbdict::DictObject::print(NdbOut& out) const
+{
+  Dbdict* dict = (Dbdict*)globalData.getBlock(DBDICT);
+  out << " (DictObject";
+  out << dec << V(m_id);
+  out << dec << V(m_type);
+  out << " name:" << dict->copyRope<MAX_TAB_NAME_SIZE>(m_name);
+  out << dec << V(m_ref_count);
+  out << dec << V(m_trans_key);
+  out << dec << V(m_op_ref_count);
+  out << ")";
+}
+
+// ErrorInfo
+
+NdbOut&
+operator<<(NdbOut& out, const Dbdict::ErrorInfo& a)
+{
+  a.print(out);
+  return out;
+}
+
+void
+Dbdict::ErrorInfo::print(NdbOut& out) const
+{
+  out << " (ErrorInfo";
+  out << dec << V(errorCode);
+  out << dec << V(errorLine);
+  out << dec << V(errorNodeId);
+  out << ")";
+}
+
+// SchemaOp
+
+NdbOut&
+operator<<(NdbOut& out, const Dbdict::SchemaOp& a)
+{
+  a.print(out);
+  return out;
+}
+
+void
+Dbdict::SchemaOp::print(NdbOut& out) const
+{
+  Dbdict* dict = (Dbdict*)globalData.getBlock(DBDICT);
+  const Dbdict::OpInfo& info = m_oprec_ptr.p->m_opInfo;
+  out << " (SchemaOp";
+  out << " " << info.m_opType;
+  out << dec << V(op_key);
+  out << dec << V(m_opIndex);
+  out << dec << V(m_opDepth);
+  if (m_error.errorCode != 0)
+    out << m_error;
+  if (m_sections != 0)
+    out << dec << V(m_sections);
+  out << ")";
+}
+
+// OpList
+
+NdbOut&
+operator<<(NdbOut& out, const Dbdict::OpList& a)
+{
+  a.print(out);
+  return out;
+}
+
+void
+Dbdict::OpList::print(NdbOut& out) const
+{
+  Dbdict* dict = (Dbdict*)globalData.getBlock(DBDICT);
+  Dbdict::OpList a_copy = *this;
+  LocalDLFifoList<SchemaOp> list(dict->c_schemaOpPool, a_copy.m_head);
+  Dbdict::SchemaOpPtr op_ptr;
+  out << " (OpList";
+  Uint32 depth = 0;
+  out << " [";
+  list.first(op_ptr);
+  while (!op_ptr.isNull()) {
+    if (op_ptr.p->m_opDepth > depth) {
+      assert(op_ptr.p->m_opDepth > depth);
+      out << " [";
+    }
+    if (op_ptr.p->m_opDepth < depth) {
+      Uint32 i;
+      for (i = op_ptr.p->m_opDepth; i < depth; i++)
+        out << "]";
+    }
+    const Dbdict::OpInfo& info = dict->getOpInfo(op_ptr);
+    out << " " << dec << op_ptr.p->op_key << "-" << info.m_opType;
+    depth = op_ptr.p->m_opDepth;
+    list.next(op_ptr);
+  }
+  while (depth != 0) {
+    out << "]";
+    depth--;
+  }
+  out << "]";
+  out << ")";
+}
+
+// TransLoc
+
+NdbOut&
+operator<<(NdbOut& out, const Dbdict::TransLoc& a)
+{
+  a.print(out);
+  return out;
+}
+
+void
+Dbdict::TransLoc::print(NdbOut& out) const
+{
+  out << " (TransLoc";
+  out << dec << V(m_mode)
+      << " [" << DictSignal::getTransModeName(m_mode) << "]";
+  out << dec << V(m_phaseIndex);
+  out << dec << V(m_phase)
+      << " [" << DictSignal::getTransPhaseName(m_phase) << "]";
+  out << dec << V(m_subphase)
+      << " [" << DictSignal::getTransSubphaseName(m_subphase) << "]";
+  out << dec << V(m_repeat);
+  out << dec << V(m_opKey);
+  out << ")";
+}
+
+// TransGlob
+
+NdbOut&
+operator<<(NdbOut& out, const Dbdict::TransGlob& a)
+{
+  a.print(out);
+  return out;
+}
+
+void
+Dbdict::TransGlob::print(NdbOut& out) const
+{
+  out << " ";
+  out << dec << (Uint32)m_state;
+  if (m_flags != 0)
+    out << dec << "," << m_flags;
+  out << " [" << DictSignal::getTransStateName(m_state) << "]";
+}
+
+// SchemaTrans
+
+NdbOut&
+operator<<(NdbOut& out, const Dbdict::SchemaTrans& a)
+{
+  a.print(out);
+  return out;
+}
+
+void
+Dbdict::SchemaTrans::print(NdbOut& out) const
+{
+  out << " (SchemaTrans";
+  out << dec << V(trans_key);
+  out << dec << V(m_isMaster);
+  out << hex << V(m_clientRef);
+  out << hex << V(m_transId);
+  out << dec << V(m_clientState);
+  out << hex << V(m_clientFlags);
+  out << dec << V(m_opDepth);
+  out << " State";
+  Uint32 i;
+  for (i = 1; i < MAX_NDB_NODES; i++) {
+    if (m_initNodes.get(i)) {
+      out << dec << " " << i << ":";
+      TransGlob::State state = m_transGlob[i].state();
+      out << DictSignal::getTransStateName(state);
+    }
+  }
+  out << ")";
+}
+
+// TxHandle
+
+NdbOut&
+operator<<(NdbOut& out, const Dbdict::TxHandle& a)
+{
+  a.print(out);
+  return out;
+}
+
+void
+Dbdict::TxHandle::print(NdbOut& out) const
+{
+  out << " (TxHandle";
+  out << dec << V(tx_key);
+  out << hex << V(m_transId);
+  out << dec << V(m_transKey);
+  out << dec << V(m_clientState);
+  out << hex << V(m_clientFlags);
+  out << hex << V(m_takeOverRef);
+  out << hex << V(m_takeOverTransId);
+  out << ")";
+}
+
+#endif
