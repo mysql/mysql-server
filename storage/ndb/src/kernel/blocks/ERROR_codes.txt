@@ -508,6 +508,40 @@ Drop Table/Index:
 
 4013: verify TUP tab descr before and after next DROP TABLE
 
+Dict transactions
+-----------------
+
+These should be applied separately to master and slave.
+CTa = create table, ATr = alter trigger, and so on
+
+6101: Fail seize of schema trans (err=780)
+6102: Kill api (client) at SCHEMA_TRANS_BEGIN_REQ (err=4009)
+6103: Delay SCHEMA_TRANS_IMPL_CONF (1000ms)
+
+6111: Fail seize of schema op (err=783) in CTa, DTa, ATa
+6112: Fail seize of schema op (err=783) in CIn, DIn
+6113: Fail seize of schema op (err=783) in AIn
+6114: Fail seize of schema op (err=783) in CTr, DTr
+6115: Fail seize of schema op (err=783) in ATr
+6116: Fail seize of schema op (err=783) in BIn
+
+6121: Fail parse (err=9121) in CTa, DTa, ATa
+6122: Fail parse (err=9122) in CIn, DIn
+6123: Fail parse (err=9123) in AIn
+6124: Fail parse (err=9124) in CTr, DTr
+6125: Fail parse (err=9125) in ATr
+6126: Fail parse (err=9126) in BIn
+
+6131: Fail prepare (err=9131) in CTa, DTa, ATa
+
+# these have no natural failures in DBDICT
+# use 8033, 4003, 8034 instead
+#6132: Fail prepare (err=9132) in CIn, DIn
+#6133: Fail prepare (err=9133) in AIn
+#6134: Fail prepare (err=9134) in CTr, DTr
+#6135: Fail prepare (err=9135) in ATr
+#6136: Fail prepare (err=9136) in BIn
+
 System Restart:
 ---------------
 

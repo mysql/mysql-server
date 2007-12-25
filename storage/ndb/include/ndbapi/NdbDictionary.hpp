@@ -968,7 +968,7 @@ public:
 
     int getReplicaCount() const ;
 
-    bool getTemporary();
+    bool getTemporary() const;
     void setTemporary(bool); 
 
     /**
@@ -1214,7 +1214,7 @@ public:
     void setStoredIndex(bool x) { setLogging(x); }
     bool getStoredIndex() const { return getLogging(); }
 
-    bool getTemporary();
+    bool getTemporary() const;
     void setTemporary(bool); 
 #endif
     
