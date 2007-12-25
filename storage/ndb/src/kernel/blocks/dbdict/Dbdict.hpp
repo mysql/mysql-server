@@ -365,7 +365,7 @@ public:
     /**    Number of words */
     Uint32 packedSize;
 
-    /**   Index state (volatile data) */
+    /**   Index state (volatile data) TODO remove */
     enum IndexState {
       IS_UNDEFINED = 0,         // initial
       IS_OFFLINE = 1,           // index table created
@@ -3433,6 +3433,12 @@ public:
   friend NdbOut& operator<<(NdbOut& out, const TransGlob&);
   friend NdbOut& operator<<(NdbOut& out, const SchemaTrans&);
   friend NdbOut& operator<<(NdbOut& out, const TxHandle&);
+  void check_consistency();
+  void check_consistency_entry(TableRecordPtr tablePtr);
+  void check_consistency_table(TableRecordPtr tablePtr);
+  void check_consistency_index(TableRecordPtr indexPtr);
+  void check_consistency_trigger(TriggerRecordPtr triggerPtr);
+  void check_consistency_object(DictObjectPtr obj_ptr);
 #endif
 
   /**
@@ -3502,5 +3508,5 @@ Dbdict::TableRecord::isOrderedIndex() const
   return DictTabInfo::isOrderedIndex(tableType);
 }
 
-
+// quilt keeper
 #endif

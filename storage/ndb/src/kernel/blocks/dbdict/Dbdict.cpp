@@ -334,6 +334,19 @@ void Dbdict::execCONTINUEB(Signal* signal)
     sendGetTabResponse(signal);
     break;
 
+#ifdef VM_TRACE
+  case 6103: // search for it
+    jam();
+    {
+      Uint32* data = &signal->theData[0];
+      Uint32 masterRef = data[1];
+      memmove(&data[0], &data[2], SchemaTransImplConf::SignalLength << 2);
+      sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_CONF, signal,
+                 SchemaTransImplConf::SignalLength, JBB);
+    }
+    break;
+#endif
+
   default :
     ndbrequire(false);
     break;
@@ -2585,6 +2598,9 @@ Dbdict::activateIndexes(Signal* signal, Uint32 i)
   }
 
   D("activateIndexes done");
+#ifdef VM_TRACE
+  check_consistency();
+#endif
 out:
   signal->theData[0] = reference();
   sendSignal(c_restartRecord.returnBlockRef, GSN_DICTSTARTCONF,
@@ -5141,6 +5157,13 @@ Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
   tabPtr.p->tableVersion = tableVersion;
   tabPtr.p->gciTableCreated = gci;
 
+  if (ERROR_INSERTED(6121)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 9121, __LINE__);
+    return;
+  }
+
   // save original schema file entry
   {
     XSchemaFile* xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
@@ -5770,6 +5793,12 @@ Dbdict::createTab_dihComplete(Signal* signal,
   const CreateTabReq* impl_req = &createTabPtr.p->m_request;
 
   //@todo check for master failed
+
+  if (ERROR_INSERTED(6131)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(op_ptr.p->m_error, 9131, __LINE__);
+  }
 
   if (!hasError(op_ptr.p->m_error)) {
     jam();
@@ -6456,6 +6485,13 @@ Dbdict::dropTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
     ndbrequire(ok);
   }
 
+  if (ERROR_INSERTED(6121)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 9121, __LINE__);
+    return;
+  }
+
   // update schema state in memory
   {
     SchemaFile::TableEntry& te = dropTabPtr.p->m_curr_entry;
@@ -6631,6 +6667,23 @@ Dbdict::prepDropTab_nextStep(Signal* signal, SchemaOpPtr op_ptr)
     ndbrequire(false);
     break;
   }
+
+  if (ERROR_INSERTED(6131) &&
+      block == DBDIH) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+
+    PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
+    ref->senderRef = numberToRef(block, getOwnNodeId());
+    ref->senderData = op_ptr.p->op_key;
+    ref->tableId = impl_req->tableId;
+    ref->errorCode = 9131;
+
+    sendSignal(reference(), GSN_PREP_DROP_TAB_REF, signal,
+               PrepDropTabRef::SignalLength, JBB);
+    return;
+  }
+ 
 
   PrepDropTabReq* prep = (PrepDropTabReq*)signal->getDataPtrSend();
   prep->senderRef = reference();
@@ -7335,6 +7388,13 @@ Dbdict::alterTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
 
   D("alterTable_parse " << V(newTablePtr.i) << hex << V(newTablePtr.p->tableVersion));
 
+  if (ERROR_INSERTED(6121)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 9121, __LINE__);
+    return;
+  }
+
   // save original schema file entry
   {
     XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
@@ -7609,6 +7669,19 @@ Dbdict::alterTable_toLocal(Signal* signal, SchemaOpPtr op_ptr)
     op_ptr.p->op_key
   };
   op_ptr.p->m_callback = c;
+
+  if (ERROR_INSERTED(6131) &&
+      blockIndex + 1 == AlterTableRec::BlockCount) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    AlterTabRef* ref = (AlterTabRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->op_key;
+    ref->errorCode = 9131;
+    sendSignal(reference(), GSN_ALTER_TAB_REF, signal,
+               AlterTabRef::SignalLength, JBB);
+    return;
+  }
 
   BlockReference blockRef = numberToRef(blockNo, getOwnNodeId());
   const bool sendNewAttrData = req->noOfNewAttr > 0 && blockNo == DBTUP;
@@ -8922,6 +8995,13 @@ Dbdict::createIndex_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
       }
     }
   }
+
+  if (ERROR_INSERTED(6122)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 9122, __LINE__);
+    return;
+  }
 }
 
 bool
@@ -9444,6 +9524,13 @@ Dbdict::dropIndex_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
       return;
     }
   }
+
+  if (ERROR_INSERTED(6122)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 9122, __LINE__);
+    return;
+  }
 }
 
 bool
@@ -9938,6 +10025,13 @@ Dbdict::alterIndex_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
 
   // set attribute mask (of primary table attribute ids)
   getIndexAttrMask(indexPtr, alterIndexPtr.p->m_attrMask);
+
+  if (ERROR_INSERTED(6123)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 9123, __LINE__);
+    return;
+  }
 }
 
 bool
@@ -13903,6 +13997,13 @@ Dbdict::createTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error
     obj_ptr.p->m_type = TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
     triggerPtr.p->m_obj_ptr_i = obj_ptr.i;
   }
+
+  if (ERROR_INSERTED(6124)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 9124, __LINE__);
+    return;
+  }
 }
 
 bool
@@ -14338,6 +14439,13 @@ Dbdict::dropTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
       return;
     }
   }
+
+  if (ERROR_INSERTED(6124)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 9124, __LINE__);
+    return;
+  }
 }
 
 bool
@@ -14708,6 +14816,13 @@ Dbdict::alterTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
 
   // number of triggers to do (abort code may change it)
   alterTriggerPtr.p->m_triggerMax = alterTriggerPtr.p->m_triggerCount;
+
+  if (ERROR_INSERTED(6125)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 9125, __LINE__);
+    return;
+  }
 }
 
 bool
@@ -14780,6 +14895,14 @@ Dbdict::alterTrigger_prepare(Signal* signal, SchemaOpPtr op_ptr)
     op_ptr.p->op_key
   };
   op_ptr.p->m_callback = c;
+
+  if (ERROR_INSERTED(6135)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(trans_ptr.p->m_error, 9135, __LINE__);
+    sendTransRef(signal, trans_ptr);
+    return;
+  }
 
   switch (requestType) {
   case AlterTrigImplReq::AlterTriggerOnline:
@@ -18414,6 +18537,28 @@ Dbdict::getOpInfo(SchemaOpPtr op_ptr)
 bool
 Dbdict::seizeSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key, const OpInfo& info)
 {
+  if (ERROR_INSERTED(6111) && (
+      info.m_impl_req_gsn == GSN_CREATE_TAB_REQ ||
+      info.m_impl_req_gsn == GSN_DROP_TAB_REQ ||
+      info.m_impl_req_gsn == GSN_ALTER_TAB_REQ) ||
+      ERROR_INSERTED(6112) && (
+      info.m_impl_req_gsn == GSN_CREATE_INDX_IMPL_REQ ||
+      info.m_impl_req_gsn == GSN_DROP_INDX_IMPL_REQ) ||
+      ERROR_INSERTED(6113) && (
+      info.m_impl_req_gsn == GSN_ALTER_INDX_IMPL_REQ) ||
+      ERROR_INSERTED(6114) && (
+      info.m_impl_req_gsn == GSN_CREATE_TRIG_IMPL_REQ ||
+      info.m_impl_req_gsn == GSN_DROP_TRIG_IMPL_REQ) ||
+      ERROR_INSERTED(6115) && (
+      info.m_impl_req_gsn == GSN_ALTER_TRIG_IMPL_REQ) ||
+      ERROR_INSERTED(6116) && (
+      info.m_impl_req_gsn == GSN_BUILD_INDX_IMPL_REQ)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    op_ptr.setNull();
+    return false;
+  }
+
   if (!findSchemaOp(op_ptr, op_key)) {
     jam();
     if (c_schemaOpHash.seize(op_ptr)) {
@@ -19127,6 +19272,12 @@ Dbdict::dummySimplePhase(Signal* signal, SchemaTransPtr trans_ptr)
 bool
 Dbdict::seizeSchemaTrans(SchemaTransPtr& trans_ptr, Uint32 trans_key)
 {
+  if (ERROR_INSERTED(6101)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    trans_ptr.setNull();
+    return false;
+  }
   if (!findSchemaTrans(trans_ptr, trans_key)) {
     jam();
     if (c_schemaTransHash.seize(trans_ptr)) {
@@ -19194,6 +19345,10 @@ Dbdict::releaseSchemaTrans(SchemaTransPtr& trans_ptr)
   // only 1 trans at time so it is easy to check for leaks
   ndbrequire(c_schemaOpPool.getNoOfFree() == c_schemaOpPool.getSize());
   ndbrequire(c_opSectionBufferPool.getNoOfFree() == c_opSectionBufferPool.getSize());
+#ifdef VM_TRACE
+  if (getNodeState().startLevel == NodeState::SL_STARTED)
+    check_consistency();
+#endif
 }
 
 Uint32
@@ -19275,6 +19430,12 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
 
     // begin tx on all participants
     sendTransReq(signal, trans_ptr);
+    if (ERROR_INSERTED(6102)) {
+      jam();
+      CLEAR_ERROR_INSERT_VALUE;
+      signal->theData[0] = refToNode(clientRef);
+      sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
+    }
     return;
   } while(0);
 
@@ -20247,6 +20408,22 @@ Dbdict::sendTransConf(Signal* signal, SchemaTransPtr trans_ptr, Uint32 itFlags)
   conf->itFlags = itFlags;
 
   const Uint32 masterRef = trans_ptr.p->m_masterRef;
+
+  if (ERROR_INSERTED(6103)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+
+    // delay CONF
+
+    Uint32* data = &signal->theData[0];
+    memmove(&data[2], &data[0], SchemaTransImplConf::SignalLength << 2);
+    data[0] = 6103;
+    data[1] = masterRef;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                        5000, 2 + SchemaTransImplConf::SignalLength);
+    return;
+  }
+
   sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_CONF, signal,
              SchemaTransImplConf::SignalLength, JBB);
 }
@@ -20641,7 +20818,7 @@ Dbdict::handleApiFail(Signal* signal,
 void
 Dbdict::takeOverTransClient(Signal* signal, SchemaTransPtr trans_ptr)
 {
-  D("takeOverClientTrans" << *trans_ptr.p);
+  D("takeOverTransClient" << *trans_ptr.p);
 
   TxHandlePtr tx_ptr;
   bool ok = seizeTxHandle(tx_ptr);
@@ -21051,6 +21228,261 @@ Dbdict::TxHandle::print(NdbOut& out) const
   out << hex << V(m_takeOverRef);
   out << hex << V(m_takeOverTransId);
   out << ")";
+}
+
+// check consistency when no schema trans is active
+
+#undef SZ
+#define SZ MAX_TAB_NAME_SIZE
+
+void
+Dbdict::check_consistency()
+{
+  D("check_consistency");
+  ndbrequire(c_schemaTransCount == 0);
+
+  // schema file entries // mis-named "tables"
+  TableRecordPtr tablePtr;
+  for (tablePtr.i = 0;
+      tablePtr.i < c_tableRecordPool.getSize();
+      tablePtr.i++) {
+    c_tableRecordPool.getPtr(tablePtr);
+    switch (tablePtr.p->tabState) {
+    case TableRecord::NOT_DEFINED:
+      continue;
+    }
+    check_consistency_entry(tablePtr);
+  }
+
+  // triggers // should be in schema file
+  TriggerRecordPtr triggerPtr;
+  for (triggerPtr.i = 0;
+      triggerPtr.i < c_triggerRecordPool.getSize();
+      triggerPtr.i++) {
+    c_triggerRecordPool.getPtr(triggerPtr);
+    switch (triggerPtr.p->triggerState) {
+    case TriggerRecord::TS_NOT_DEFINED:
+      continue;
+    }
+    check_consistency_trigger(triggerPtr);
+  }
+}
+
+void
+Dbdict::check_consistency_entry(TableRecordPtr tablePtr)
+{
+  switch (tablePtr.p->tableType) {
+  case DictTabInfo::SystemTable:
+    jam();
+    check_consistency_table(tablePtr);
+    break;
+  case DictTabInfo::UserTable:
+    jam();
+    check_consistency_table(tablePtr);
+    break;
+  case DictTabInfo::UniqueHashIndex:
+    jam();
+    check_consistency_index(tablePtr);
+    break;
+  case DictTabInfo::OrderedIndex:
+    jam();
+    check_consistency_index(tablePtr);
+    break;
+  case DictTabInfo::Tablespace:
+  case DictTabInfo::LogfileGroup:
+  case DictTabInfo::Datafile:
+  case DictTabInfo::Undofile:
+    jam();
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+}
+
+void
+Dbdict::check_consistency_table(TableRecordPtr tablePtr)
+{
+  D("table " << copyRope<SZ>(tablePtr.p->tableName));
+  ndbrequire(tablePtr.p->tableId == tablePtr.i);
+
+  switch (tablePtr.p->tabState) {
+  case TableRecord::DEFINED:
+    jam();
+    break;
+  case TableRecord::BACKUP_ONGOING: // should not be a "TabState"
+    jam();
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+  switch (tablePtr.p->tableType) {
+  case DictTabInfo::SystemTable: // should just be "Table"
+    jam();
+    break;
+  case DictTabInfo::UserTable: // should just be "Table"
+    jam();
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  DictObjectPtr obj_ptr;
+  obj_ptr.i = tablePtr.p->m_obj_ptr_i;
+  ndbrequire(obj_ptr.i != RNIL);
+  c_obj_pool.getPtr(obj_ptr);
+  check_consistency_object(obj_ptr);
+
+  ndbrequire(obj_ptr.p->m_id == tablePtr.p->tableId);
+  ndbrequire(!strcmp(
+        copyRope<SZ>(obj_ptr.p->m_name),
+        copyRope<SZ>(tablePtr.p->tableName)));
+}
+
+void
+Dbdict::check_consistency_index(TableRecordPtr indexPtr)
+{
+  D("index " << copyRope<SZ>(indexPtr.p->tableName));
+  ndbrequire(indexPtr.p->tableId == indexPtr.i);
+
+  switch (indexPtr.p->tabState) {
+  case TableRecord::DEFINED:
+    jam();
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  switch (indexPtr.p->indexState) { // these states are non-sense
+  case TableRecord::IS_ONLINE:
+    jam();
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  TableRecordPtr tablePtr;
+  tablePtr.i = indexPtr.p->primaryTableId;
+  ndbrequire(tablePtr.i != RNIL);
+  c_tableRecordPool.getPtr(tablePtr);
+  check_consistency_table(tablePtr);
+
+  const Uint32 trigger_count = indexPtr.p->indexTriggerCount;
+
+  bool is_unique_index = false;
+  switch (indexPtr.p->tableType) {
+  case DictTabInfo::UniqueHashIndex:
+    jam();
+    is_unique_index = true;
+    ndbrequire(trigger_count == 3);
+    break;
+  case DictTabInfo::OrderedIndex:
+    jam();
+    ndbrequire(trigger_count == 1);
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  Uint32 j;
+  for (j = 0; j < trigger_count; j++) {
+    TriggerRecordPtr triggerPtr;
+    triggerPtr.i = indexPtr.p->indexTriggerId(j);
+    ndbrequire(triggerPtr.i != RNIL);
+    c_triggerRecordPool.getPtr(triggerPtr);
+
+    ndbrequire(triggerPtr.p->tableId == tablePtr.p->tableId);
+    ndbrequire(triggerPtr.p->indexId == indexPtr.p->tableId);
+    ndbrequire(triggerPtr.p->triggerId == triggerPtr.i);
+
+    check_consistency_trigger(triggerPtr);
+
+    TriggerInfo ti;
+    TriggerInfo::unpackTriggerInfo(triggerPtr.p->triggerInfo, ti);
+    if (is_unique_index && j == 0)
+      ndbrequire(ti.triggerEvent == TriggerEvent::TE_INSERT);
+    if (is_unique_index && j == 1)
+      ndbrequire(ti.triggerEvent == TriggerEvent::TE_DELETE);
+    if (is_unique_index && j == 2)
+      ndbrequire(ti.triggerEvent == TriggerEvent::TE_UPDATE);
+    if (!is_unique_index && j == 0)
+      ndbrequire(ti.triggerEvent == TriggerEvent::TE_CUSTOM);
+
+    DictObjectPtr obj_ptr;
+    obj_ptr.i = triggerPtr.p->m_obj_ptr_i;
+    ndbrequire(obj_ptr.i != RNIL);
+    c_obj_pool.getPtr(obj_ptr);
+    check_consistency_object(obj_ptr);
+
+    ndbrequire(obj_ptr.p->m_id == triggerPtr.p->triggerId);
+    ndbrequire(!strcmp(
+          copyRope<SZ>(obj_ptr.p->m_name),
+          copyRope<SZ>(triggerPtr.p->triggerName)));
+  }
+}
+
+void
+Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
+{
+  ndbrequire(triggerPtr.p->triggerState == TriggerRecord::TS_ONLINE);
+  ndbrequire(triggerPtr.p->triggerId == triggerPtr.i);
+
+  TableRecordPtr tablePtr;
+  tablePtr.i = triggerPtr.p->tableId;
+  ndbrequire(tablePtr.i != RNIL);
+  c_tableRecordPool.getPtr(tablePtr);
+  check_consistency_table(tablePtr);
+
+  if (triggerPtr.p->indexId != RNIL) {
+    jam();
+    TableRecordPtr indexPtr;
+    indexPtr.i = triggerPtr.p->indexId;
+    c_tableRecordPool.getPtr(indexPtr);
+    ndbrequire(indexPtr.p->tabState == TableRecord::DEFINED);
+    ndbrequire(indexPtr.p->indexState == TableRecord::IS_ONLINE);
+    Uint32 trigger_count = indexPtr.p->indexTriggerCount;
+    ndbrequire(indexPtr.p->tableType == DictTabInfo::UniqueHashIndex &&
+               trigger_count == 3 ||
+               indexPtr.p->tableType == DictTabInfo::OrderedIndex &&
+               trigger_count == 1);
+    TriggerInfo ti;
+    TriggerInfo::unpackTriggerInfo(triggerPtr.p->triggerInfo, ti);
+    switch (ti.triggerEvent) {
+    case TriggerEvent::TE_INSERT:
+      ndbrequire(trigger_count == 3);
+      ndbrequire(triggerPtr.i == indexPtr.p->indexTriggerId(0));
+      break;
+    case TriggerEvent::TE_DELETE:
+      ndbrequire(trigger_count == 3);
+      ndbrequire(triggerPtr.i == indexPtr.p->indexTriggerId(1));
+      break;
+    case TriggerEvent::TE_UPDATE:
+      ndbrequire(trigger_count == 3);
+      ndbrequire(triggerPtr.i == indexPtr.p->indexTriggerId(2));
+      break;
+    case TriggerEvent::TE_CUSTOM:
+      ndbrequire(trigger_count == 1);
+      ndbrequire(triggerPtr.i == indexPtr.p->indexTriggerId(0));
+      break;
+    default:
+      ndbrequire(false);
+      break;
+    }
+  } else {
+    ndbrequire(false);
+  }
+}
+
+void
+Dbdict::check_consistency_object(DictObjectPtr obj_ptr)
+{
+  ndbrequire(obj_ptr.p->m_trans_key == 0);
+  ndbrequire(obj_ptr.p->m_op_ref_count == 0);
 }
 
 #endif

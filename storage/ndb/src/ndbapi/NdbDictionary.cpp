@@ -677,7 +677,7 @@ NdbDictionary::Table::getReplicaCount() const {
 }
 
 bool
-NdbDictionary::Table::getTemporary() {
+NdbDictionary::Table::getTemporary() const {
   return m_impl.m_temporary;
 }
 
@@ -933,7 +933,7 @@ NdbDictionary::Index::setLogging(bool val){
 }
 
 bool
-NdbDictionary::Index::getTemporary(){
+NdbDictionary::Index::getTemporary() const {
   return m_impl.m_temporary;
 }
 
