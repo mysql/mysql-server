@@ -2522,95 +2522,341 @@ Dbdict::initSchemaFile_conf(Signal* signal, Uint32 callbackData, Uint32 rv){
 void
 Dbdict::activateIndexes(Signal* signal, Uint32 i)
 {
-#if wl3600_todo // fix in restart index patch
-  AlterIndxReq* req = (AlterIndxReq*)signal->getDataPtrSend();
-  TableRecordPtr tablePtr;
-  for (; i < c_tableRecordPool.getSize(); i++) {
-    tablePtr.i = i;
-    c_tableRecordPool.getPtr(tablePtr);
-    if (tablePtr.p->tabState != TableRecord::DEFINED)
-      continue;
-    if (! tablePtr.p->isIndex())
-      continue;
-    jam();
-    req->setUserRef(reference());
-    req->setConnectionPtr(i);
-    req->setTableId(tablePtr.p->primaryTableId);
-    req->setIndexId(tablePtr.i);
-    req->setIndexVersion(tablePtr.p->tableVersion);
-    req->setOnline(true);
-    if (c_restartType == NodeState::ST_SYSTEM_RESTART) {
-      if (c_masterNodeId != getOwnNodeId())
-        continue;
-      // from file index state is not defined currently
-      req->setRequestType(AlterIndxReq::RT_SYSTEMRESTART);
-      req->addRequestFlag((Uint32)RequestFlag::RF_NOBUILD);
+  if (i == 0)
+    D("activateIndexes start");
+
+  Uint32 requestFlags = 0;
+
+  switch (c_restartType) {
+  case NodeState::ST_SYSTEM_RESTART:
+    // activate in a distributed trans but do not build yet
+    if (c_masterNodeId != getOwnNodeId()) {
+      D("activateIndexes not master");
+      goto out;
     }
-    else if (
-        c_restartType == NodeState::ST_NODE_RESTART ||
-        c_restartType == NodeState::ST_INITIAL_NODE_RESTART) {
-      // from master index must be online
-      if (tablePtr.p->indexState != TableRecord::IS_ONLINE)
-        continue;
-      req->setRequestType(AlterIndxReq::RT_NODERESTART);
-      // activate locally, rebuild not needed
-      req->addRequestFlag((Uint32)RequestFlag::RF_LOCAL);
-      req->addRequestFlag((Uint32)RequestFlag::RF_NOBUILD);
-    } else {
-      ndbrequire(false);
+    requestFlags |= DictSignal::RF_NO_BUILD;
+    break;
+  case NodeState::ST_NODE_RESTART:
+  case NodeState::ST_INITIAL_NODE_RESTART:
+    // activate on this node in a local trans
+    requestFlags |= DictSignal::RF_LOCAL_TRANS;
+    requestFlags |= DictSignal::RF_NO_BUILD;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  TableRecordPtr indexPtr;
+  indexPtr.i = i;
+  for (; indexPtr.i < c_tableRecordPool.getSize(); indexPtr.i++) {
+    c_tableRecordPool.getPtr(indexPtr);
+
+    if (indexPtr.p->tabState != TableRecord::DEFINED)
+      continue;
+
+    if (!indexPtr.p->isIndex())
+      continue;
+
+    if ((requestFlags & DictSignal::RF_LOCAL_TRANS) &&
+        indexPtr.p->indexState != TableRecord::IS_ONLINE) {
+      jam();
+      continue;
     }
-    sendSignal(reference(), GSN_ALTER_INDX_REQ,
-      signal, AlterIndxReq::SignalLength, JBB);
+
+    // wl3600_todo use simple schema trans when implemented
+    D("activateIndexes i=" << indexPtr.i);
+
+    TxHandlePtr tx_ptr;
+    seizeTxHandle(tx_ptr);
+    ndbrequire(!tx_ptr.isNull());
+
+    tx_ptr.p->m_requestInfo = 0;
+    tx_ptr.p->m_requestInfo |= requestFlags;
+    tx_ptr.p->m_userData = indexPtr.i;
+
+    Callback c = {
+      safe_cast(&Dbdict::activateIndex_fromBeginTrans),
+      tx_ptr.p->tx_key
+    };
+    tx_ptr.p->m_callback = c;
+    beginSchemaTrans(signal, tx_ptr);
     return;
   }
+
+  D("activateIndexes done");
+out:
   signal->theData[0] = reference();
   sendSignal(c_restartRecord.returnBlockRef, GSN_DICTSTARTCONF,
 	     signal, 1, JBB);
-#endif
+}
+
+void
+Dbdict::activateIndex_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("activateIndex_fromBeginTrans" << V(tx_key) << V(ret));
+
+  ndbrequire(ret == 0); //wl3600_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  TableRecordPtr indexPtr;
+  indexPtr.i = tx_ptr.p->m_userData;
+  c_tableRecordPool.getPtr(indexPtr);
+
+  AlterIndxReq* req = (AlterIndxReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::setRequestType(requestInfo, AlterIndxImplReq::AlterIndexOnline);
+  DictSignal::addRequestFlagsGlobal(requestInfo, tx_ptr.p->m_requestInfo);
+
+  req->clientRef = reference();
+  req->clientData = tx_ptr.p->tx_key;
+  req->transId = tx_ptr.p->m_transId;
+  req->transKey = tx_ptr.p->m_transKey;
+  req->requestInfo = requestInfo;
+  req->indexId = indexPtr.i;
+  req->indexVersion = indexPtr.p->tableVersion;
+
+  Callback c = {
+    safe_cast(&Dbdict::activateIndex_fromAlterIndex),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+
+  sendSignal(reference(), GSN_ALTER_INDX_REQ, signal,
+             AlterIndxReq::SignalLength, JBB);
+}
+
+void
+Dbdict::activateIndex_fromAlterIndex(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("activateIndex_fromAlterIndex" << V(tx_key) << V(ret));
+
+  ndbrequire(ret == 0); // wl3600_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  if (ret != 0)
+    setError(tx_ptr.p->m_error, ret, __LINE__);
+
+  Callback c = {
+    safe_cast(&Dbdict::activateIndex_fromEndTrans),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+
+  Uint32 flags = 0;
+  if (hasError(tx_ptr.p->m_error))
+    flags |= SchemaTransEndReq::SchemaTransAbort;
+  endSchemaTrans(signal, tx_ptr, flags);
+}
+
+void
+Dbdict::activateIndex_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("activateIndex_fromEndTrans" << V(tx_key) << V(ret));
+
+  ndbrequire(ret == 0); //wl3600_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  TableRecordPtr indexPtr;
+  c_tableRecordPool.getPtr(indexPtr, tx_ptr.p->m_userData);
+
+  char indexName[MAX_TAB_NAME_SIZE];
+  {
+    DictObjectPtr obj_ptr;
+    c_obj_pool.getPtr(obj_ptr, indexPtr.p->m_obj_ptr_i);
+    Rope name(c_rope_pool, obj_ptr.p->m_name);
+    name.copy(indexName);
+  }
+
+  ErrorInfo error = tx_ptr.p->m_error;
+  if (!hasError(error)) {
+    jam();
+    infoEvent(
+        "DICT: activate index %u done (%s)",
+        indexPtr.i, indexName);
+  } else {
+    jam();
+    warningEvent(
+        "DICT: activate index %u error: code=%u line=%u node=%u (%s)",
+         indexPtr.i, error.errorCode, error.errorLine, error.errorNodeId,
+         indexName);
+  }
+
+  releaseTxHandle(tx_ptr);
+  activateIndexes(signal, indexPtr.i + 1);
 }
 
 void
 Dbdict::rebuildIndexes(Signal* signal, Uint32 i)
 {
-#if wl3600_todo // fix in restart index patch
-  BuildIndxReq* const req = (BuildIndxReq*)signal->getDataPtrSend();
-  
+  if (i == 0)
+    D("rebuildIndexes start");
+
   TableRecordPtr indexPtr;
-  for (; i < c_tableRecordPool.getSize(); i++) {
-    indexPtr.i = i;
+  indexPtr.i = i;
+  for (; indexPtr.i < c_tableRecordPool.getSize(); indexPtr.i++) {
     c_tableRecordPool.getPtr(indexPtr);
     if (indexPtr.p->tabState != TableRecord::DEFINED)
       continue;
-    if (! indexPtr.p->isIndex())
+    if (!indexPtr.p->isIndex())
       continue;
 
-    jam();
+    // wl3600_todo use simple schema trans when implemented
+    D("rebuildIndexes i=" << indexPtr.i);
 
-    req->setUserRef(reference());
-    req->setConnectionPtr(i);
-    req->setRequestType(BuildIndxReq::RT_SYSTEMRESTART);
-    req->setBuildId(0);   // not used
-    req->setBuildKey(0);  // not used
-    req->setIndexType(indexPtr.p->tableType);
-    req->setIndexId(indexPtr.i);
-    req->setTableId(indexPtr.p->primaryTableId);
-    req->setParallelism(16);
+    TxHandlePtr tx_ptr;
+    seizeTxHandle(tx_ptr);
+    ndbrequire(!tx_ptr.isNull());
 
-    // from file index state is not defined currently
+    Uint32 requestInfo = 0;
     if (indexPtr.p->m_bits & TableRecord::TR_Logged) {
-      // rebuild not needed
-      req->addRequestFlag((Uint32)RequestFlag::RF_NOBUILD);
+      // only sets index online - the flag propagates to trans and ops
+      requestInfo |= DictSignal::RF_NO_BUILD;
     }
-    
-    // send
-    sendSignal(reference(), GSN_BUILDINDXREQ,
-	       signal, BuildIndxReq::SignalLength, JBB);
+    tx_ptr.p->m_requestInfo = requestInfo;
+    tx_ptr.p->m_userData = indexPtr.i;
+
+    Callback c = {
+      safe_cast(&Dbdict::rebuildIndex_fromBeginTrans),
+      tx_ptr.p->tx_key
+    };
+    tx_ptr.p->m_callback = c;
+    beginSchemaTrans(signal, tx_ptr);
     return;
   }
+
+  D("rebuildIndexes done");
   sendNDB_STTORRY(signal);
-#endif
 }
 
+void
+Dbdict::rebuildIndex_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("rebuildIndex_fromBeginTrans" << V(tx_key) << V(ret));
+
+  ndbrequire(ret == 0); //wl3600_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  TableRecordPtr indexPtr;
+  indexPtr.i = tx_ptr.p->m_userData;
+  c_tableRecordPool.getPtr(indexPtr);
+
+  BuildIndxReq* req = (BuildIndxReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::setRequestType(requestInfo, BuildIndxReq::MainOp);
+  DictSignal::addRequestFlagsGlobal(requestInfo, tx_ptr.p->m_requestInfo);
+
+  req->clientRef = reference();
+  req->clientData = tx_ptr.p->tx_key;
+  req->transId = tx_ptr.p->m_transId;
+  req->transKey = tx_ptr.p->m_transKey;
+  req->requestInfo = requestInfo;
+  req->buildId = 0;
+  req->buildKey = 0;
+  req->tableId = indexPtr.p->primaryTableId;
+  req->indexId = indexPtr.i;
+  req->indexType = indexPtr.p->tableType;
+  req->parallelism = 16;
+
+  Callback c = {
+    safe_cast(&Dbdict::rebuildIndex_fromBuildIndex),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+
+  sendSignal(reference(), GSN_BUILDINDXREQ, signal,
+             BuildIndxReq::SignalLength, JBB);
+}
+
+void
+Dbdict::rebuildIndex_fromBuildIndex(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("rebuildIndex_fromBuildIndex" << V(tx_key) << V(ret));
+
+  ndbrequire(ret == 0); //wl3600_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  if (ret != 0)
+    setError(tx_ptr.p->m_error, ret, __LINE__);
+
+  Callback c = {
+    safe_cast(&Dbdict::rebuildIndex_fromEndTrans),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+
+  Uint32 flags = 0;
+  if (hasError(tx_ptr.p->m_error))
+    flags |= SchemaTransEndReq::SchemaTransAbort;
+  endSchemaTrans(signal, tx_ptr, flags);
+}
+
+void
+Dbdict::rebuildIndex_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  D("rebuildIndex_fromEndTrans" << V(tx_key) << V(ret));
+
+  ndbrequire(ret == 0); //wl3600_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  TableRecordPtr indexPtr;
+  c_tableRecordPool.getPtr(indexPtr, tx_ptr.p->m_userData);
+
+  const char* actionName;
+  {
+    Uint32 requestInfo = tx_ptr.p->m_requestInfo;
+    bool noBuild = (requestInfo & DictSignal::RF_NO_BUILD);
+    actionName = !noBuild ? "rebuild" : "online";
+  }
+
+  char indexName[MAX_TAB_NAME_SIZE];
+  {
+    DictObjectPtr obj_ptr;
+    c_obj_pool.getPtr(obj_ptr, indexPtr.p->m_obj_ptr_i);
+    Rope name(c_rope_pool, obj_ptr.p->m_name);
+    name.copy(indexName);
+  }
+
+  ErrorInfo error = tx_ptr.p->m_error;
+  if (!hasError(error)) {
+    jam();
+    infoEvent(
+        "DICT: %s index %u done (%s)",
+        actionName, indexPtr.i, indexName);
+  } else {
+    jam();
+    warningEvent(
+        "DICT: %s index %u error: code=%u line=%u node=%u (%s)",
+        actionName,
+        indexPtr.i, error.errorCode, error.errorLine, error.errorNodeId,
+        indexName);
+  }
+
+  Uint32 i = tx_ptr.p->m_userData;
+  releaseTxHandle(tx_ptr);
+
+  rebuildIndexes(signal, i + 1);
+}
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */

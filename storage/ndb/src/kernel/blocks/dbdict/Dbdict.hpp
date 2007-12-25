@@ -3170,7 +3170,13 @@ private:
 
   // reactivate and rebuild indexes on start up
   void activateIndexes(Signal* signal, Uint32 i);
+  void activateIndex_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void activateIndex_fromAlterIndex(Signal*, Uint32 tx_key, Uint32 ret);
+  void activateIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndexes(Signal* signal, Uint32 i);
+  void rebuildIndex_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void rebuildIndex_fromBuildIndex(Signal*, Uint32 tx_key, Uint32 ret);
+  void rebuildIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
 
   // Events
   void 
