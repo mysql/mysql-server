@@ -32,7 +32,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/TuxContinueB.hpp>
 #include <signaldata/TupFrag.hpp>
-#include <signaldata/AlterIndx.hpp>
+#include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/AccScan.hpp>
@@ -561,7 +561,7 @@ private:
    */
   void execTUXFRAGREQ(Signal* signal);
   void execTUX_ADD_ATTRREQ(Signal* signal);
-  void execALTER_INDX_REQ(Signal* signal);
+  void execALTER_INDX_IMPL_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   bool allocDescEnt(IndexPtr indexPtr);
   void freeDescEnt(IndexPtr indexPtr);

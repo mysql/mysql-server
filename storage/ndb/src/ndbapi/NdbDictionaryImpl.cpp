@@ -3703,9 +3703,12 @@ NdbDictInterface::createIndex(Ndb & ndb,
   
   CreateIndxReq * const req = CAST_PTR(CreateIndxReq, tSignal.getDataPtrSend());
   
-  req->setUserRef(m_reference);
-  req->setConnectionPtr(0);
-  req->setRequestType(CreateIndxReq::RT_USER);
+  req->clientRef = m_reference;
+  req->clientData = 0;
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
+  req->requestInfo = 0;
+  req->requestInfo |= m_tx.requestFlags();
   
   Uint32 it = getKernelConstant(impl.m_type,
 				indexTypeMapping,
@@ -3715,10 +3718,11 @@ NdbDictInterface::createIndex(Ndb & ndb,
     m_error.code = 4250;
     return -1;
   }
-  req->setIndexType((DictTabInfo::TableType) it);
+  req->indexType = it;
   
-  req->setTableId(table.m_id);
-  req->setOnline(true);
+  req->tableId = table.m_id;
+  req->tableVersion = table.m_version;
+  req->online = true;
   AttributeList attributeList;
   attributeList.sz = impl.m_columns.size();
   for(i = 0; i<attributeList.sz; i++){
@@ -3770,9 +3774,9 @@ NdbDictInterface::execCREATE_INDX_REF(NdbApiSignal * sig,
 				      LinearSectionPtr ptr[3])
 {
   const CreateIndxRef* ref = CAST_CONSTPTR(CreateIndxRef, sig->getDataPtr());
-  m_error.code = ref->getErrorCode();
-  if(m_error.code == ref->NotMaster)
-    m_masterNodeId= ref->masterNodeId;
+  m_error.code = ref->errorCode;
+  if (m_error.code == ref->NotMaster)
+    m_masterNodeId = ref->masterNodeId;
   m_waiter.signal(NO_WAIT);  
 }
 
@@ -3872,12 +3876,14 @@ NdbDictInterface::dropIndex(const NdbIndexImpl & impl,
   tSignal.theLength = DropIndxReq::SignalLength;
 
   DropIndxReq * const req = CAST_PTR(DropIndxReq, tSignal.getDataPtrSend());
-  req->setUserRef(m_reference);
-  req->setConnectionPtr(0);
-  req->setRequestType(DropIndxReq::RT_USER);
-  req->setTableId(~0);  // DICT overwrites
-  req->setIndexId(timpl.m_id);
-  req->setIndexVersion(timpl.m_version);
+  req->clientRef = m_reference;
+  req->clientData = 0;
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
+  req->requestInfo = 0;
+  req->requestInfo |= m_tx.requestFlags();
+  req->indexId = timpl.m_id;
+  req->indexVersion = timpl.m_version;
 
   int errCodes[] = { DropIndxRef::Busy, DropIndxRef::NotMaster, 0 };
   int r = dictSignal(&tSignal, 0, 0,
@@ -3904,9 +3910,9 @@ NdbDictInterface::execDROP_INDX_REF(NdbApiSignal * signal,
 				      LinearSectionPtr ptr[3])
 {
   const DropIndxRef* ref = CAST_CONSTPTR(DropIndxRef, signal->getDataPtr());
-  m_error.code = ref->getErrorCode();
-  if(m_error.code == ref->NotMaster)
-    m_masterNodeId= ref->masterNodeId;
+  m_error.code = ref->errorCode;
+  if (m_error.code == ref->NotMaster)
+    m_masterNodeId = ref->masterNodeId;
   m_waiter.signal(NO_WAIT);  
 }
 

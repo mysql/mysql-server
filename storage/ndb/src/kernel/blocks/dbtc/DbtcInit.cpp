@@ -255,12 +255,12 @@ Dbtc::Dbtc(Block_context& ctx):
   addRecSignal(GSN_FIRE_TRIG_ORD, &Dbtc::execFIRE_TRIG_ORD);
   addRecSignal(GSN_TRIG_ATTRINFO, &Dbtc::execTRIG_ATTRINFO);
   
-  addRecSignal(GSN_CREATE_INDX_REQ, &Dbtc::execCREATE_INDX_REQ);
-  addRecSignal(GSN_DROP_INDX_REQ, &Dbtc::execDROP_INDX_REQ);
+  addRecSignal(GSN_CREATE_INDX_IMPL_REQ, &Dbtc::execCREATE_INDX_IMPL_REQ);
+  addRecSignal(GSN_DROP_INDX_IMPL_REQ, &Dbtc::execDROP_INDX_IMPL_REQ);
   addRecSignal(GSN_TCINDXREQ, &Dbtc::execTCINDXREQ);
   addRecSignal(GSN_INDXKEYINFO, &Dbtc::execINDXKEYINFO);
   addRecSignal(GSN_INDXATTRINFO, &Dbtc::execINDXATTRINFO);
-  addRecSignal(GSN_ALTER_INDX_REQ, &Dbtc::execALTER_INDX_REQ);
+  addRecSignal(GSN_ALTER_INDX_IMPL_REQ, &Dbtc::execALTER_INDX_IMPL_REQ);
 
   addRecSignal(GSN_TRANSID_AI_R, &Dbtc::execTRANSID_AI_R);
   addRecSignal(GSN_KEYINFO20_R, &Dbtc::execKEYINFO20_R);

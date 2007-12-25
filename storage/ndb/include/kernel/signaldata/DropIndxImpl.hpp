@@ -13,56 +13,47 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef ALTER_INDX_HPP
-#define ALTER_INDX_HPP
+#ifndef DROP_INDX_IMPL_HPP
+#define DROP_INDX_IMPL_HPP
 
 #include "SignalData.hpp"
-#include <Bitmask.hpp>
-#include <trigger_definitions.h>
 
-struct AlterIndxReq {
+struct DropIndxImplReq {
   STATIC_CONST( SignalLength = 7 );
 
-  Uint32 clientRef;
-  Uint32 clientData;
-  Uint32 transId;
-  Uint32 transKey;
-  Uint32 requestInfo;
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 requestType;
+  Uint32 tableId;
+  Uint32 tableVersion;
   Uint32 indexId;
   Uint32 indexVersion;
 };
 
-struct AlterIndxConf {
-  STATIC_CONST( SignalLength = 5 );
+struct DropIndxImplConf {
+  STATIC_CONST( SignalLength = 2 );
 
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
-  Uint32 transId;
-  Uint32 indexId;
-  Uint32 indexVersion;
+  Uint32 senderData;
 };
 
-struct AlterIndxRef {
+struct DropIndxImplRef {
   enum ErrorCode {
     NoError = 0,
+    InvalidIndexVersion = 241,
     Busy = 701,
+    BusyWithNR = 711,
     NotMaster = 702,
     IndexNotFound = 4243,
-    IndexExists = 4244,
     BadRequestType = 4247,
+    InvalidName = 4248,
     NotAnIndex = 4254,
-    BadState = 4347,
-    Inconsistency = 4348,
-    InvalidIndexVersion = 241
+    InconsistentTC = 292
   };
-
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 6 );
 
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
-  Uint32 transId;
-  Uint32 indexId;
-  Uint32 indexVersion;
+  Uint32 senderData;
   Uint32 errorCode;
   Uint32 errorLine;
   Uint32 errorNodeId;

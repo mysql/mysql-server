@@ -43,9 +43,13 @@
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/CreateIndx.hpp>
+#include <signaldata/CreateIndxImpl.hpp>
 #include <signaldata/DropIndx.hpp>
+#include <signaldata/DropIndxImpl.hpp>
 #include <signaldata/AlterIndx.hpp>
+#include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/BuildIndx.hpp>
+#include <signaldata/BuildIndxImpl.hpp>
 #include <signaldata/UtilPrepare.hpp>
 #include <signaldata/CreateEvnt.hpp>
 #include <signaldata/CreateTrig.hpp>
@@ -373,17 +377,32 @@ public:
     IndexState indexState;
 
     /**   Trigger ids of index (volatile data) */
-    Uint32 insertTriggerId;
-    Uint32 updateTriggerId;
+    Uint32 insertTriggerId;     // hash index (3)
     Uint32 deleteTriggerId;
-    Uint32 customTriggerId;     // ordered index
-    Uint32 buildTriggerId;      // temp during build
+    Uint32 updateTriggerId;
+    Uint32 customTriggerId;     // ordered index (1)
+    Uint32 indexTriggerCount;
 
-    /**  Index state in other blocks on this node */
-    enum IndexLocal {
-      IL_CREATED_TC = 1 << 0    // created in TC
-    };
-    Uint32 indexLocal;
+    // get ref to index trigger id
+    inline Uint32 &
+    indexTriggerId(int i) {
+      if (tableType == DictTabInfo::UniqueHashIndex) {
+        if (i == 0)
+          return insertTriggerId;
+        if (i == 1)
+          return deleteTriggerId;
+        if (i == 2)
+          return updateTriggerId;
+      }
+      if (tableType == DictTabInfo::OrderedIndex) {
+        if (i == 0)
+          return customTriggerId;
+      }
+      assert(false);
+      return *(Uint32*)0;
+    }
+
+    Uint32 buildTriggerId;      // temp during build
     
     Uint32 noOfNullBits;
     
@@ -735,19 +754,21 @@ private:
 
   // Index signals
   void execCREATE_INDX_REQ(Signal* signal);
-  void execCREATE_INDX_CONF(Signal* signal);
-  void execCREATE_INDX_REF(Signal* signal);
+  void execCREATE_INDX_IMPL_CONF(Signal* signal);
+  void execCREATE_INDX_IMPL_REF(Signal* signal);
 
   void execALTER_INDX_REQ(Signal* signal);
   void execALTER_INDX_CONF(Signal* signal);
   void execALTER_INDX_REF(Signal* signal);
+  void execALTER_INDX_IMPL_CONF(Signal* signal);
+  void execALTER_INDX_IMPL_REF(Signal* signal);
 
   void execCREATE_TABLE_CONF(Signal* signal);
   void execCREATE_TABLE_REF(Signal* signal);
 
   void execDROP_INDX_REQ(Signal* signal);
-  void execDROP_INDX_CONF(Signal* signal);
-  void execDROP_INDX_REF(Signal* signal);
+  void execDROP_INDX_IMPL_CONF(Signal* signal);
+  void execDROP_INDX_IMPL_REF(Signal* signal);
 
   void execDROP_TABLE_CONF(Signal* signal);
   void execDROP_TABLE_REF(Signal* signal);
@@ -755,6 +776,8 @@ private:
   void execBUILDINDXREQ(Signal* signal);
   void execBUILDINDXCONF(Signal* signal);
   void execBUILDINDXREF(Signal* signal);
+  void execBUILD_INDX_IMPL_CONF(Signal* signal);
+  void execBUILD_INDX_IMPL_REF(Signal* signal);
 
   void execBACKUP_FRAGMENT_REQ(Signal*);
 
@@ -1355,6 +1378,10 @@ private:
   // Feedback is a sub-op callback for a parent op on all nodes
 
   enum FeedbackId {
+    AlterIndex_atCreateTrigger = 1,
+    AlterIndex_atDropTrigger = 2,
+    BuildIndex_atCreateConstraint = 3,
+    BuildIndex_atDropConstraint = 4
   };
 
   struct FeedbackEntry {
@@ -2365,411 +2392,291 @@ private:
   void alterTable_abortToLocal(Signal*, SchemaOpPtr);
   void alterTable_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);
 
-  /**
-   * Request flags passed in signals along with request type and
-   * propagated across operations.
-   */
-  struct RequestFlag {
-    enum {
-      RF_LOCAL = 1 << 0,        // create on local node only
-      RF_NOBUILD = 1 << 1,      // no need to build index
-      RF_NOTCTRIGGER = 1 << 2,  // alter trigger: no trigger in TC
-      RF_FORCE = 1 << 4         // force drop
-    };
-  };
+  // MODULE: CreateIndex
 
-  /**
-   * Operation record for create index.
-   */
-  struct OpCreateIndex : OpRecordCommon {
-    // original request (index id will be added)
-    CreateIndxReq m_request;
-    AttributeList m_attrList;
+  typedef struct {
+    Uint32 old_index;
+    Uint32 attr_id;
+    Uint32 attr_ptr_i;
+  } AttributeMap[MAX_ATTRIBUTES_IN_INDEX];
+
+  struct CreateIndexRec : public OpRec {
+    CreateIndxImplReq m_request;
     char m_indexName[MAX_TAB_NAME_SIZE];
-    bool m_loggedIndex;
-    bool m_temporaryIndex;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    CreateIndxReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    CreateIndxRef::ErrorCode m_lastError;
-    CreateIndxRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpCreateIndex() {
-      memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = CreateIndxReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = CreateIndxRef::NoError;
-      m_errorCode = CreateIndxRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void save(const CreateIndxReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != CreateIndxRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != CreateIndxRef::NoError;
-    }
-    void setError(const CreateIndxRef* ref) {
-      m_lastError = CreateIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const CreateTableRef* ref) {
-      m_lastError = CreateIndxRef::NoError;
-      if (ref != 0) {
-        switch (ref->getErrorCode()) {
-        case CreateTableRef::TableAlreadyExist:
-          m_lastError = CreateIndxRef::IndexExists;
-          break;
-        default:
-          m_lastError = (CreateIndxRef::ErrorCode)ref->getErrorCode();
-          break;
-        }
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-        }
-      }
-    }
-    void setError(const AlterIndxRef* ref) {
-      m_lastError = CreateIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (CreateIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-  };
-  typedef Ptr<OpCreateIndex> OpCreateIndexPtr;
-
-  /**
-   * Operation record for drop index.
-   */
-  struct OpDropIndex : OpRecordCommon {
-    // original request
-    DropIndxReq m_request;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    DropIndxReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    DropIndxRef::ErrorCode m_lastError;
-    DropIndxRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpDropIndex() {
-      memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = DropIndxReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = DropIndxRef::NoError;
-      m_errorCode = DropIndxRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void save(const DropIndxReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != DropIndxRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != DropIndxRef::NoError;
-    }
-    void setError(const DropIndxRef* ref) {
-      m_lastError = DropIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = ref->getErrorCode();
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const AlterIndxRef* ref) {
-      m_lastError = DropIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (DropIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const DropTableRef* ref) {
-      m_lastError = DropIndxRef::NoError;
-      if (ref != 0) {
-	switch (ref->errorCode) {
-	case DropTableRef::Busy:
-	  m_lastError = DropIndxRef::Busy;
-	  break;
-	case DropTableRef::NoSuchTable:
-	  m_lastError = DropIndxRef::IndexNotFound;
-	  break;
-	case DropTableRef::DropInProgress:
-	  m_lastError = DropIndxRef::Busy;
-	  break;
-	case DropTableRef::NoDropTableRecordAvailable:
-	  m_lastError = DropIndxRef::Busy;
-	  break;
-	default:
-	  m_lastError = (DropIndxRef::ErrorCode)ref->errorCode;
-	  break;
-	}
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = 0;
-          m_errorNode = 0;
-        }
-      }
-    }
-  };
-  typedef Ptr<OpDropIndex> OpDropIndexPtr;
-
-  /**
-   * Operation record for alter index.
-   */
-  struct OpAlterIndex : OpRecordCommon {
-    // original request plus buffer for attribute lists
-    AlterIndxReq m_request;
     AttributeList m_attrList;
-    AttributeList m_tableKeyList;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    AlterIndxReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    AlterIndxRef::ErrorCode m_lastError;
-    AlterIndxRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    Uint32 m_triggerCounter;
-    // ctor
-    OpAlterIndex() {
-      memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = AlterIndxReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = AlterIndxRef::NoError;
-      m_errorCode = AlterIndxRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-      m_triggerCounter = 0;
-    }
-    void save(const AlterIndxReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != AlterIndxRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != AlterIndxRef::NoError;
-    }
-    void setError(const AlterIndxRef* ref) {
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const CreateIndxRef* ref) {
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const DropIndxRef* ref) {
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const BuildIndxRef* ref) {
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = 0;
-          m_errorNode = 0;
-        }
-      }
-    }
-    void setError(const CreateTrigRef* ref) {
-#if wl3600_todo // remove in index patch
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-#endif
-    }
-    void setError(const DropTrigRef* ref) {
-#if wl3600_todo // remove in index patch
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-#endif
-    }
-  };
-  typedef Ptr<OpAlterIndex> OpAlterIndexPtr;
+    AttributeMask m_attrMask;
+    AttributeMap m_attrMap;
+    Uint32 m_bits;
+    Uint32 m_fragmentType;
+    Uint32 m_indexKeyLength;
 
-  /**
-   * Operation record for build index.
-   */
-  struct OpBuildIndex : OpRecordCommon {
-    // original request plus buffer for attribute lists
-    BuildIndxReq m_request;
-    AttributeList m_attrList;
-    Id_array<MAX_ATTRIBUTES_IN_INDEX+1> m_tableKeyList;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    BuildIndxReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    Uint32 m_constrTriggerId;
-    // error info
-    BuildIndxRef::ErrorCode m_lastError;
-    BuildIndxRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpBuildIndex() {
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::CreateIndexRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_createIndexRecPool;
+    }
+
+    // sub-operation counters
+    bool m_sub_create_table;
+    bool m_sub_alter_index;
+
+    CreateIndexRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = BuildIndxReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = BuildIndxRef::NoError;
-      m_errorCode = BuildIndxRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
+      memset(m_indexName, 0, sizeof(m_indexName));
+      memset(&m_attrList, 0, sizeof(m_attrList));
+      m_attrMask.clear();
+      memset(m_attrMap, 0, sizeof(m_attrMap));
+      m_bits = 0;
+      m_fragmentType = 0;
+      m_indexKeyLength = 0;
+      m_sub_create_table = false;
+      m_sub_alter_index = false;
     }
-    void save(const BuildIndxReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != BuildIndxRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != BuildIndxRef::NoError;
-    }
-    void setError(const BuildIndxRef* ref) {
-      m_lastError = BuildIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = 0;
-          m_errorNode = 0;
-        }
-      }
-    }
-    void setError(const AlterIndxRef* ref) {
-      m_lastError = BuildIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const CreateTrigRef* ref) {
-#if wl3600_todo // remove in index patch
-      m_lastError = BuildIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
 #endif
+  };
+
+  typedef Ptr<CreateIndexRec> CreateIndexRecPtr;
+  ArrayPool<CreateIndexRec> c_createIndexRecPool;
+
+  // OpInfo
+  bool createIndex_seize(SchemaOpPtr);
+  void createIndex_release(SchemaOpPtr);
+  //
+  void createIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool createIndex_subOps(Signal*, SchemaOpPtr);
+  void createIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void createIndex_prepare(Signal*, SchemaOpPtr);
+  void createIndex_commit(Signal*, SchemaOpPtr);
+  //
+  void createIndex_abortParse(Signal*, SchemaOpPtr);
+  void createIndex_abortPrepare(Signal*, SchemaOpPtr);
+
+  // sub-ops
+  void createIndex_toCreateTable(Signal*, SchemaOpPtr);
+  void createIndex_fromCreateTable(Signal*, Uint32 op_key, Uint32 ret);
+  void createIndex_toAlterIndex(Signal*, SchemaOpPtr);
+  void createIndex_fromAlterIndex(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: DropIndex
+
+  struct DropIndexRec : public OpRec {
+    DropIndxImplReq m_request;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::DropIndexRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_dropIndexRecPool;
     }
-    void setError(const DropTrigRef* ref) {
-#if wl3600_todo // remove in index patch
-      m_lastError = BuildIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
+
+    // sub-operation counters
+    bool m_sub_alter_index;
+    bool m_sub_drop_table;
+
+    DropIndexRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_sub_alter_index = false;
+      m_sub_drop_table = false;
+    }
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
 #endif
+  };
+
+  typedef Ptr<DropIndexRec> DropIndexRecPtr;
+  ArrayPool<DropIndexRec> c_dropIndexRecPool;
+
+  // OpInfo
+  bool dropIndex_seize(SchemaOpPtr);
+  void dropIndex_release(SchemaOpPtr);
+  //
+  void dropIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool dropIndex_subOps(Signal*, SchemaOpPtr);
+  void dropIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void dropIndex_prepare(Signal*, SchemaOpPtr);
+  void dropIndex_commit(Signal*, SchemaOpPtr);
+  //
+  void dropIndex_abortParse(Signal*, SchemaOpPtr);
+  void dropIndex_abortPrepare(Signal*, SchemaOpPtr);
+
+  // sub-ops
+  void dropIndex_toDropTable(Signal*, SchemaOpPtr);
+  void dropIndex_fromDropTable(Signal*, Uint32 op_key, Uint32 ret);
+  void dropIndex_toAlterIndex(Signal*, SchemaOpPtr);
+  void dropIndex_fromAlterIndex(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: AlterIndex
+
+  struct TriggerTmpl {
+    const char* nameFormat; // contains one %u for index id
+    const TriggerInfo triggerInfo;
+  };
+
+  static const TriggerTmpl g_hashIndexTriggerTmpl[3];
+  static const TriggerTmpl g_orderedIndexTriggerTmpl[1];
+  static const TriggerTmpl g_buildIndexConstraintTmpl[1];
+
+  struct AlterIndexRec : public OpRec {
+    AlterIndxImplReq m_request;
+    AttributeList m_attrList;
+    AttributeMask m_attrMask;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::AlterIndexRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_alterIndexRecPool;
+    }
+
+    // sub-operation counters
+    const TriggerTmpl* m_triggerTmpl;
+    Uint32 m_triggerCount;      // 3 or 1
+    Uint32 m_triggerIndex;      // 0 1 2
+    Uint32 m_triggerNo;         // 0 1 2 or 2 1 0 on drop
+    bool m_sub_build_index;
+
+    // prepare phase
+    bool m_tc_index_done;
+
+    AlterIndexRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      memset(&m_attrList, 0, sizeof(m_attrList));
+      m_attrMask.clear();
+      m_triggerTmpl = 0;
+      m_triggerCount = 0;
+      m_triggerIndex = 0;
+      m_triggerNo = 0;
+      m_sub_build_index = false;
+      m_tc_index_done = false;
+    }
+
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  typedef Ptr<AlterIndexRec> AlterIndexRecPtr;
+  ArrayPool<AlterIndexRec> c_alterIndexRecPool;
+
+  // OpInfo
+  bool alterIndex_seize(SchemaOpPtr);
+  void alterIndex_release(SchemaOpPtr);
+  //
+  void alterIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool alterIndex_subOps(Signal*, SchemaOpPtr);
+  void alterIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void alterIndex_prepare(Signal*, SchemaOpPtr);
+  void alterIndex_commit(Signal*, SchemaOpPtr);
+  //
+  void alterIndex_abortParse(Signal*, SchemaOpPtr);
+  void alterIndex_abortPrepare(Signal*, SchemaOpPtr);
+
+  // sub-ops
+  void alterIndex_toCreateTrigger(Signal*, SchemaOpPtr);
+  void alterIndex_atCreateTrigger(Signal*, SchemaOpPtr);
+  void alterIndex_fromCreateTrigger(Signal*, Uint32 op_key, Uint32 ret);
+  void alterIndex_toDropTrigger(Signal*, SchemaOpPtr);
+  void alterIndex_atDropTrigger(Signal*, SchemaOpPtr);
+  void alterIndex_fromDropTrigger(Signal*, Uint32 op_key, Uint32 ret);
+  void alterIndex_toBuildIndex(Signal*, SchemaOpPtr);
+  void alterIndex_fromBuildIndex(Signal*, Uint32 op_key, Uint32 ret);
+
+  // prepare phase
+  void alterIndex_toCreateLocal(Signal*, SchemaOpPtr);
+  void alterIndex_toDropLocal(Signal*, SchemaOpPtr);
+  void alterIndex_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  // abort
+  void alterIndex_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: BuildIndex
+
+  // this prepends 1 column used for FRAGMENT in hash index table key
+  typedef Id_array<1 + MAX_ATTRIBUTES_IN_INDEX> FragAttributeList;
+
+  struct BuildIndexRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::BuildIndexRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_buildIndexRecPool;
+    }
+
+    BuildIndxImplReq m_request;
+
+    AttributeList m_indexKeyList;
+    FragAttributeList m_tableKeyList;
+    AttributeMask m_attrMask;
+
+    // sub-operation counters (CTr BIn DTr)
+    const TriggerTmpl* m_triggerTmpl;
+    Uint32 m_subOpCount;    // 3 or 0
+    Uint32 m_subOpIndex;
+
+    // do the actual build (i.e. not done in a sub-op BIn)
+    bool m_doBuild;
+
+    BuildIndexRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      memset(&m_indexKeyList, 0, sizeof(m_indexKeyList));
+      memset(&m_tableKeyList, 0, sizeof(m_tableKeyList));
+      m_attrMask.clear();
+      m_triggerTmpl = 0;
+      m_subOpCount = 0;
+      m_subOpIndex = 0;
+      m_doBuild = false;
     }
   };
-  typedef Ptr<OpBuildIndex> OpBuildIndexPtr;
+
+  typedef Ptr<BuildIndexRec> BuildIndexRecPtr;
+  ArrayPool<BuildIndexRec> c_buildIndexRecPool;
+
+  // OpInfo
+  bool buildIndex_seize(SchemaOpPtr);
+  void buildIndex_release(SchemaOpPtr);
+  //
+  void buildIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool buildIndex_subOps(Signal*, SchemaOpPtr);
+  void buildIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void buildIndex_prepare(Signal*, SchemaOpPtr);
+  void buildIndex_commit(Signal*, SchemaOpPtr);
+  //
+  void buildIndex_abortParse(Signal*, SchemaOpPtr);
+  void buildIndex_abortPrepare(Signal*, SchemaOpPtr);
+
+  // parse phase
+  void buildIndex_toCreateConstraint(Signal*, SchemaOpPtr);
+  void buildIndex_atCreateConstraint(Signal*, SchemaOpPtr);
+  void buildIndex_fromCreateConstraint(Signal*, Uint32 op_key, Uint32 ret);
+  //
+  void buildIndex_toBuildIndex(Signal*, SchemaOpPtr);
+  void buildIndex_fromBuildIndex(Signal*, Uint32 op_key, Uint32 ret);
+  //
+  void buildIndex_toDropConstraint(Signal*, SchemaOpPtr);
+  void buildIndex_atDropConstraint(Signal*, SchemaOpPtr);
+  void buildIndex_fromDropConstraint(Signal*, Uint32 op_key, Uint32 ret);
+
+  // prepare phase
+  void buildIndex_toLocalBuild(Signal*, SchemaOpPtr);
+  void buildIndex_fromLocalBuild(Signal*, Uint32 op_key, Uint32 ret);
+
+  // commit phase
+  void buildIndex_toLocalOnline(Signal*, SchemaOpPtr);
+  void buildIndex_fromLocalOnline(Signal*, Uint32 op_key, Uint32 ret);
 
   /**
    * Operation record for Util Signals.
@@ -3092,10 +2999,6 @@ private:
    */
   // Common operation record pool
 public:
-  STATIC_CONST( opCreateIndexSize = sizeof(OpCreateIndex) );
-  STATIC_CONST( opDropIndexSize = sizeof(OpDropIndex) );
-  STATIC_CONST( opAlterIndexSize = sizeof(OpAlterIndex) );
-  STATIC_CONST( opBuildIndexSize = sizeof(OpBuildIndex) );
   STATIC_CONST( opCreateEventSize = sizeof(OpCreateEvent) );
   STATIC_CONST( opSubEventSize = sizeof(OpSubEvent) );
   STATIC_CONST( opDropEventSize = sizeof(OpDropEvent) );
@@ -3104,24 +3007,16 @@ public:
 private:
 #define PTR_ALIGN(n) ((((n)+sizeof(void*)-1)>>2)&~((sizeof(void*)-1)>>2))
   union OpRecordUnion {
-    Uint32 u_opCreateIndex  [PTR_ALIGN(opCreateIndexSize)];
-    Uint32 u_opDropIndex    [PTR_ALIGN(opDropIndexSize)];
     Uint32 u_opCreateEvent  [PTR_ALIGN(opCreateEventSize)];
     Uint32 u_opSubEvent     [PTR_ALIGN(opSubEventSize)];
     Uint32 u_opDropEvent    [PTR_ALIGN(opDropEventSize)];
     Uint32 u_opSignalUtil   [PTR_ALIGN(opSignalUtilSize)];
-    Uint32 u_opAlterIndex   [PTR_ALIGN(opAlterIndexSize)];
-    Uint32 u_opBuildIndex   [PTR_ALIGN(opBuildIndexSize)];
     Uint32 u_opCreateObj    [PTR_ALIGN(opCreateObjSize)];
     Uint32 nextPool;
   };
   ArrayPool<OpRecordUnion> c_opRecordPool;
   
   // Operation records
-  KeyTable2<OpCreateIndex, OpRecordUnion> c_opCreateIndex;
-  KeyTable2<OpDropIndex, OpRecordUnion> c_opDropIndex;
-  KeyTable2<OpAlterIndex, OpRecordUnion> c_opAlterIndex;
-  KeyTable2<OpBuildIndex, OpRecordUnion> c_opBuildIndex;
   KeyTable2C<OpCreateEvent, OpRecordUnion> c_opCreateEvent;
   KeyTable2C<OpSubEvent, OpRecordUnion> c_opSubEvent;
   KeyTable2C<OpDropEvent, OpRecordUnion> c_opDropEvent;
@@ -3276,61 +3171,6 @@ private:
   // reactivate and rebuild indexes on start up
   void activateIndexes(Signal* signal, Uint32 i);
   void rebuildIndexes(Signal* signal, Uint32 i);
-
-  // create index
-  void createIndex_recvReply(Signal* signal, const CreateIndxConf* conf,
-      const CreateIndxRef* ref);
-  void createIndex_slavePrepare(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_fromCreateTable(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_toAlterIndex(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_fromAlterIndex(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_slaveCommit(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_slaveAbort(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_sendSlaveReq(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_sendReply(Signal* signal, OpCreateIndexPtr opPtr, bool);
-  // drop index
-  void dropIndex_recvReply(Signal* signal, const DropIndxConf* conf,
-      const DropIndxRef* ref);
-  void dropIndex_slavePrepare(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_toAlterIndex(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_fromAlterIndex(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_toDropTable(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_fromDropTable(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_slaveCommit(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_slaveAbort(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_sendSlaveReq(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_sendReply(Signal* signal, OpDropIndexPtr opPtr, bool);
-  // alter index
-  void alterIndex_recvReply(Signal* signal, const AlterIndxConf* conf,
-      const AlterIndxRef* ref);
-  void alterIndex_slavePrepare(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_toCreateTc(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_fromCreateTc(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_toDropTc(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_fromDropTc(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_toCreateTrigger(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_fromCreateTrigger(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_toDropTrigger(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_fromDropTrigger(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_toBuildIndex(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_fromBuildIndex(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_slaveCommit(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_slaveAbort(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_sendSlaveReq(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_sendReply(Signal* signal, OpAlterIndexPtr opPtr, bool);
-  // build index
-  void buildIndex_recvReply(Signal* signal, const BuildIndxConf* conf,
-      const BuildIndxRef* ref);
-  void buildIndex_toCreateConstr(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_fromCreateConstr(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_buildTrix(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_toDropConstr(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_fromDropConstr(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_toOnline(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_fromOnline(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_sendSlaveReq(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_sendReply(Signal* signal, OpBuildIndexPtr opPtr, bool);
 
   // Events
   void 

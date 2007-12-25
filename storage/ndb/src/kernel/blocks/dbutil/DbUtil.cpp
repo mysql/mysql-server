@@ -816,6 +816,7 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   UtilPrepareReq * req = (UtilPrepareReq *)signal->getDataPtr();
   const Uint32 senderRef    = req->senderRef;
   const Uint32 senderData   = req->senderData;
+  const Uint32 schemaTransId= req->schemaTransId;
 
   if(signal->getNoOfSections() == 0) {
     // Missing prepare data
@@ -858,14 +859,15 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   SimplePropertiesSectionReader reader(ptr, getSectionSegmentPool());
   prepPtr.p->clientRef = senderRef;
   prepPtr.p->clientData = senderData;
+  prepPtr.p->schemaTransId = schemaTransId;
   // Release long signal sections
   releaseSections(signal);
-  readPrepareProps(signal, &reader, prepPtr.i);
+  readPrepareProps(signal, &reader, prepPtr);
 }
 
 void DbUtil::readPrepareProps(Signal* signal,
 			      SimpleProperties::Reader* reader, 
-			      Uint32 senderData)
+			      PreparePtr prepPtr)
 {
   jam();
 #if 0
@@ -891,8 +893,8 @@ void DbUtil::readPrepareProps(Signal* signal,
   {
     GetTabInfoReq * req = (GetTabInfoReq *)signal->getDataPtrSend();
     req->senderRef = reference();
-    req->senderData = senderData;           
-    req->schemaTransId = 0;
+    req->senderData = prepPtr.i;;           
+    req->schemaTransId = prepPtr.p->schemaTransId;
     if (tableKey == UtilPrepareReq::TableName) {
       jam();
       char tableName[MAX_TAB_NAME_SIZE];

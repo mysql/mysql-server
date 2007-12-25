@@ -104,6 +104,7 @@ private:
     BlockReference userReference; // For user
     Uint32 connectionPtr; // For user
     Uint32 subscriptionId; // For Suma
+    Uint32 schemaTransId;
     Uint32 subscriptionKey; // For Suma
     Uint32 prepareId; // For DbUtil
     Uint32 indexType;
@@ -150,9 +151,9 @@ private:
   void execDUMP_STATE_ORD(Signal* signal);
 
   // Build index
-  void execBUILDINDXREQ(Signal* signal);
-  void execBUILDINDXCONF(Signal* signal);
-  void execBUILDINDXREF(Signal* signal);
+  void execBUILD_INDX_IMPL_REQ(Signal* signal);
+  void execBUILD_INDX_IMPL_CONF(Signal* signal);
+  void execBUILD_INDX_IMPL_REF(Signal* signal);
 
   void execUTIL_PREPARE_CONF(Signal* signal);
   void execUTIL_PREPARE_REF(Signal* signal);

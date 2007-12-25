@@ -3300,6 +3300,7 @@ next:
     req->m_connectionData = RNIL;
     req->m_tableRef = tabPtr.p->tableId;
     req->m_senderData = ptr.i;
+    req->m_schemaTransId = 0;
     sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
                DihFragCountReq::SignalLength, JBB);
     return;
@@ -3510,6 +3511,7 @@ Backup::execDI_FCOUNTCONF(Signal* signal)
     req->m_connectionData = RNIL;
     req->m_tableRef = tabPtr.p->tableId;
     req->m_senderData = ptr.i;
+    req->m_schemaTransId = 0;
     sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
                DihFragCountReq::SignalLength, JBB);
     return;

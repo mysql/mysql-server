@@ -13,56 +13,54 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef ALTER_INDX_HPP
-#define ALTER_INDX_HPP
+#ifndef ALTER_INDX_IMPL_HPP
+#define ALTER_INDX_IMPL_HPP
 
 #include "SignalData.hpp"
-#include <Bitmask.hpp>
-#include <trigger_definitions.h>
 
-struct AlterIndxReq {
-  STATIC_CONST( SignalLength = 7 );
-
-  Uint32 clientRef;
-  Uint32 clientData;
-  Uint32 transId;
-  Uint32 transKey;
-  Uint32 requestInfo;
-  Uint32 indexId;
-  Uint32 indexVersion;
-};
-
-struct AlterIndxConf {
-  STATIC_CONST( SignalLength = 5 );
-
-  Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
-  Uint32 transId;
-  Uint32 indexId;
-  Uint32 indexVersion;
-};
-
-struct AlterIndxRef {
-  enum ErrorCode {
-    NoError = 0,
-    Busy = 701,
-    NotMaster = 702,
-    IndexNotFound = 4243,
-    IndexExists = 4244,
-    BadRequestType = 4247,
-    NotAnIndex = 4254,
-    BadState = 4347,
-    Inconsistency = 4348,
-    InvalidIndexVersion = 241
+struct AlterIndxImplReq {
+  enum RequestType {
+    AlterIndexOnline = 1,
+    AlterIndexOffline = 2
   };
 
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 8 );
 
   Uint32 senderRef;
-  union { Uint32 clientData, senderData; };
-  Uint32 transId;
+  Uint32 senderData;
+  Uint32 requestType;
+  Uint32 tableId;
+  Uint32 tableVersion;
   Uint32 indexId;
   Uint32 indexVersion;
+  Uint32 indexType;
+};
+
+struct AlterIndxImplConf {
+  STATIC_CONST( SignalLength = 2 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
+};
+
+struct AlterIndxImplRef {
+  enum ErrorCode {
+    NoError = 0,
+    InvalidIndexVersion = 241,
+    Busy = 701,
+    BusyWithNR = 711,
+    NotMaster = 702,
+    IndexNotFound = 4243,
+    BadRequestType = 4247,
+    InvalidName = 4248,
+    NotAnIndex = 4254,
+    InconsistentTC = 292
+  };
+
+  STATIC_CONST( SignalLength = 6 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
   Uint32 errorCode;
   Uint32 errorLine;
   Uint32 errorNodeId;
