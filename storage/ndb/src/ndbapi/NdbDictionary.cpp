@@ -1523,8 +1523,12 @@ NdbDictionary::Dictionary::~Dictionary(){
 int 
 NdbDictionary::Dictionary::createTable(const Table & t)
 {
-  DBUG_ENTER("NdbDictionary::Dictionary::createTable");
-  DBUG_RETURN(m_impl.createTable(NdbTableImpl::getImpl(t)));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.createTable(NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 int
@@ -1584,40 +1588,74 @@ NdbDictionary::Dictionary::optimizeIndexGlobal(const char * idx_name,
 }
 
 int
-NdbDictionary::Dictionary::dropTable(Table & t){
-  return m_impl.dropTable(NdbTableImpl::getImpl(t));
+NdbDictionary::Dictionary::dropTable(Table & t)
+{
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.dropTable(NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 int
-NdbDictionary::Dictionary::dropTableGlobal(const Table & t){
-  return m_impl.dropTableGlobal(NdbTableImpl::getImpl(t));
+NdbDictionary::Dictionary::dropTableGlobal(const Table & t)
+{
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.dropTableGlobal(NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 int
-NdbDictionary::Dictionary::dropTable(const char * name){
-  return m_impl.dropTable(name);
+NdbDictionary::Dictionary::dropTable(const char * name)
+{
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.dropTable(name)
+  );
+  return ret;
 }
 
 bool
 NdbDictionary::Dictionary::supportedAlterTable(const Table & f,
 					       const Table & t)
 {
-  return m_impl.supportedAlterTable(NdbTableImpl::getImpl(f),
-                                    NdbTableImpl::getImpl(t));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.supportedAlterTable(NdbTableImpl::getImpl(f),
+                               NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 int
 NdbDictionary::Dictionary::alterTable(const Table & f, const Table & t)
 {
-  return m_impl.alterTable(NdbTableImpl::getImpl(f), NdbTableImpl::getImpl(t));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.alterTable(NdbTableImpl::getImpl(f),
+                      NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 int
 NdbDictionary::Dictionary::alterTableGlobal(const Table & f,
                                             const Table & t)
 {
-  return m_impl.alterTableGlobal(NdbTableImpl::getImpl(f),
-                                 NdbTableImpl::getImpl(t));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.alterTableGlobal(NdbTableImpl::getImpl(f),
+                            NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 const NdbDictionary::Table * 

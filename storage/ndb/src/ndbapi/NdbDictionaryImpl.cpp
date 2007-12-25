@@ -636,9 +636,11 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
 
   if(m_tablespace_id != obj.m_tablespace_id)
   {
+#if wl3600_todo // diff for no ts, check later
     DBUG_PRINT("info",("m_tablespace_id %d != %d",m_tablespace_id,
                         obj.m_tablespace_id));
     DBUG_RETURN(false);
+#endif
   }
 
   if(m_tablespace_version != obj.m_tablespace_version)
@@ -3237,11 +3239,15 @@ NdbDictInterface::sendAlterTable(const NdbTableImpl &impl,
 
   AlterTableReq * req = CAST_PTR(AlterTableReq, tSignal.getDataPtrSend());
 
-  req->senderRef = m_reference;
-  req->senderData = 0;
-  req->changeMask = change_mask;
+  req->clientRef = m_reference;
+  req->clientData = 0;
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
+  req->requestInfo = 0;
+  req->requestInfo |= m_tx.requestFlags();
   req->tableId = impl.m_id;
   req->tableVersion = impl.m_version;
+  req->changeMask = change_mask;
 
   int errCodes[] = { AlterTableRef::NotMaster, AlterTableRef::Busy, 0 };
   int ret= dictSignal(&tSignal, ptr, 1,
@@ -3271,8 +3277,13 @@ NdbDictInterface::sendCreateTable(const NdbTableImpl &impl,
   tSignal.theLength = CreateTableReq::SignalLength;
 
   CreateTableReq * req = CAST_PTR(CreateTableReq, tSignal.getDataPtrSend());
-  req->senderRef = m_reference;
-  req->senderData = 0;
+  req->clientRef = m_reference;
+  req->clientData = 0;
+  req->requestInfo = 0;
+  req->requestInfo |= m_tx.requestFlags();
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
+
   int errCodes[]= { CreateTableRef::Busy, CreateTableRef::NotMaster, 0 };
   int ret= dictSignal(&tSignal, ptr, 1,
                       0,                        // master node
@@ -3480,8 +3491,12 @@ NdbDictInterface::dropTable(const NdbTableImpl & impl)
   tSignal.theLength = DropTableReq::SignalLength;
   
   DropTableReq * req = CAST_PTR(DropTableReq, tSignal.getDataPtrSend());
-  req->senderRef = m_reference;
-  req->senderData = 0;
+  req->clientRef = m_reference;
+  req->clientData = 0;
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
+  req->requestInfo = 0;
+  req->requestInfo |= m_tx.requestFlags();
   req->tableId = impl.m_id;
   req->tableVersion = impl.m_version;
 

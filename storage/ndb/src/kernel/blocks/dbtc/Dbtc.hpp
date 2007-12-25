@@ -972,14 +972,17 @@ public:
     enum {
       TR_ENABLED      = 1 << 0,
       TR_DROPPING     = 1 << 1,
-      TR_STORED_TABLE = 1 << 2
+      TR_STORED_TABLE = 1 << 2,
+      TR_PREPARED     = 1 << 3
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
     Uint8 get_storedTable() const { return (m_flags & TR_STORED_TABLE) != 0; }
+    Uint8 get_prepared()    const { return (m_flags & TR_PREPARED)     != 0; }
     void set_enabled(Uint8 f)     { f ? m_flags |= (Uint16)TR_ENABLED      : m_flags &= ~(Uint16)TR_ENABLED; }
     void set_dropping(Uint8 f)    { f ? m_flags |= (Uint16)TR_DROPPING     : m_flags &= ~(Uint16)TR_DROPPING; }
     void set_storedTable(Uint8 f) { f ? m_flags |= (Uint16)TR_STORED_TABLE : m_flags &= ~(Uint16)TR_STORED_TABLE; }
+    void set_prepared(Uint8 f)    { f ? m_flags |= (Uint16)TR_PREPARED : m_flags &= ~(Uint16)TR_PREPARED; }
 
     Uint8 noOfKeyAttr;
     Uint8 hasCharAttr;
@@ -989,6 +992,12 @@ public:
     bool checkTable(Uint32 schemaVersion) const {
       return get_enabled() && !get_dropping() && 
 	(table_version_major(schemaVersion) == table_version_major(currentSchemaVersion));
+    }
+
+    bool checkTablePrepared(Uint32 schemaVersion, Uint32 transId1) const {
+      return get_prepared() && !get_dropping() && 
+	(table_version_major(schemaVersion) == table_version_major(currentSchemaVersion)) &&
+        (transId1 >> 20) == DBUTIL; // wl3600_todo use schema trans id instead
     }
 
     Uint32 getErrorCode(Uint32 schemaVersion) const;
@@ -1328,6 +1337,7 @@ private:
   void execTCROLLBACKREQ(Signal* signal);
   void execTC_HBREP(Signal* signal);
   void execTC_SCHVERREQ(Signal* signal);
+  void execTAB_COMMITREQ(Signal* signal);
   void execSCAN_TABREQ(Signal* signal);
   void execSCAN_TABINFO(Signal* signal);
   void execSCAN_FRAGCONF(Signal* signal);

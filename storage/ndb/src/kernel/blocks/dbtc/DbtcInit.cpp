@@ -233,6 +233,7 @@ Dbtc::Dbtc(Block_context& ctx):
   addRecSignal(GSN_TCROLLBACKREQ, &Dbtc::execTCROLLBACKREQ);
   addRecSignal(GSN_TC_HBREP, &Dbtc::execTC_HBREP);
   addRecSignal(GSN_TC_SCHVERREQ, &Dbtc::execTC_SCHVERREQ);
+  addRecSignal(GSN_TAB_COMMITREQ, &Dbtc::execTAB_COMMITREQ);
   addRecSignal(GSN_SCAN_TABREQ, &Dbtc::execSCAN_TABREQ);
   addRecSignal(GSN_SCAN_FRAGCONF, &Dbtc::execSCAN_FRAGCONF);
   addRecSignal(GSN_SCAN_FRAGREF, &Dbtc::execSCAN_FRAGREF);

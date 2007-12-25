@@ -68,6 +68,15 @@ printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint
     const Uint32 pb_len = len - fixed_len;
     switch (gsn) {
     // internal operation signals
+    case GSN_CREATE_TAB_REQ:
+      printCREATE_TAB_REQ(output, pb_data, pb_len, rbn);
+      break;
+    case GSN_DROP_TAB_REQ:
+      printDROP_TAB_REQ(output, pb_data, pb_len, rbn);
+      break;
+    case GSN_ALTER_TAB_REQ:
+      printALTER_TAB_REQ(output, pb_data, pb_len, rbn);
+      break;
     default:
       {
         Uint32 i;
