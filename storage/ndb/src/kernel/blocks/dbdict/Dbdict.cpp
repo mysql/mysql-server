@@ -2785,7 +2785,10 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
 void
 Dbdict::restart_checkSchemaStatusComplete(Signal * signal, 
 					  Uint32 callbackData,
-					  Uint32 returnCode){
+					  Uint32 returnCode)
+{
+  jam();
+  D("restart_checkSchemaStatusComplete");
 
   ndbrequire(c_writeSchemaRecord.inUse == false);
   c_writeSchemaRecord.inUse = true;
@@ -2807,7 +2810,10 @@ Dbdict::restart_checkSchemaStatusComplete(Signal * signal,
 void
 Dbdict::restart_writeSchemaConf(Signal * signal, 
 				Uint32 callbackData,
-				Uint32 returnCode){
+				Uint32 returnCode)
+{
+  jam();
+  D("restart_writeSchemaConf");
 
   if(c_systemRestart){
     jam();
@@ -3069,8 +3075,8 @@ Dbdict::restartCreateTab(Signal* signal, Uint32 tableId,
 			 const SchemaFile::TableEntry * new_entry, 
 			 bool file)
 {
-#if wl3600_todo // fix in restart table patch
   jam();
+  D("restartCreateTab");
 
   switch(new_entry->m_tableType){
   case DictTabInfo::UndefTableType:
@@ -3094,27 +3100,25 @@ Dbdict::restartCreateTab(Signal* signal, Uint32 tableId,
     return;
   }
   
-  CreateTableRecordPtr createTabPtr;  
-  c_opCreateTable.seize(createTabPtr);
-  ndbrequire(!createTabPtr.isNull());
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;  
+  seizeSchemaOp(op_ptr, createTabPtr);
+  ndbrequire(!op_ptr.isNull());
+  CreateTabReq* impl_req = &createTabPtr.p->m_request;
 
-  createTabPtr.p->key = ++c_opRecordSequence;
-  c_opCreateTable.add(createTabPtr);
-  
-  createTabPtr.p->m_errorCode = 0;
-  createTabPtr.p->m_tablePtrI = tableId;
-  createTabPtr.p->m_coordinatorRef = reference();
-  createTabPtr.p->m_senderRef = 0;
-  createTabPtr.p->m_senderData = RNIL;
-  createTabPtr.p->m_tabInfoPtrI = RNIL;
-  createTabPtr.p->m_dihAddFragPtr = RNIL;
+  impl_req->senderRef = reference();
+  impl_req->senderData = op_ptr.p->op_key;
+  impl_req->requestType = 0;
+  impl_req->tableId = tableId;
+  impl_req->tableVersion = 0;
+  impl_req->gci = 0;
 
   if(file && !ERROR_INSERTED(6002)){
     jam();
     
     c_readTableRecord.no_of_words = old_entry->m_info_words;
     c_readTableRecord.pageId = 0;
-    c_readTableRecord.m_callback.m_callbackData = createTabPtr.p->key;
+    c_readTableRecord.m_callback.m_callbackData = op_ptr.p->op_key;
     c_readTableRecord.m_callback.m_callbackFunction = 
       safe_cast(&Dbdict::restartCreateTab_readTableConf);
     
@@ -3129,7 +3133,7 @@ Dbdict::restartCreateTab(Signal* signal, Uint32 tableId,
      */
     GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
     req->senderRef = reference();
-    req->senderData = createTabPtr.p->key;
+    req->senderData = op_ptr.p->op_key;
     req->requestType = GetTabInfoReq::RequestById |
       GetTabInfoReq::LongSignalConf;
     req->tableId = tableId;
@@ -3141,14 +3145,15 @@ Dbdict::restartCreateTab(Signal* signal, Uint32 tableId,
       CRASH_INSERTION(6002);
     }
   }
-#endif
 }
 
 void
 Dbdict::restartCreateTab_readTableConf(Signal* signal, 
-				       Uint32 callbackData,
-				       Uint32 returnCode){
+				       Uint32 op_key,
+				       Uint32 ret)
+{
   jam();
+  D("restartCreateTab_readTableConf");
   
   PageRecordPtr pageRecPtr;
   c_pageRecordArray.getPtr(pageRecPtr, c_readTableRecord.pageId);
@@ -3164,10 +3169,12 @@ Dbdict::restartCreateTab_readTableConf(Signal* signal,
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf), 
-			 "Unable to restart, fail while creating table %d"
-			 " error: %d. Most likely change of configuration",
+                         "Failed to create table %u during restart,"
+                         " error: %u line: %u."
+			 " Most likely change of configuration",
 			 c_readTableRecord.tableId,
-			 parseRecord.errorCode);
+			 parseRecord.errorCode,
+                         parseRecord.errorLine);
     progError(__LINE__, 
 	      NDBD_EXIT_INVALID_CONFIG,
 	      buf);
@@ -3182,7 +3189,7 @@ Dbdict::restartCreateTab_readTableConf(Signal* signal,
   c_writeTableRecord.no_of_words = c_readTableRecord.no_of_words;
   c_writeTableRecord.pageId = c_readTableRecord.pageId;
   c_writeTableRecord.tableWriteState = WriteTableRecord::TWR_CALLBACK;
-  c_writeTableRecord.m_callback.m_callbackData = callbackData;
+  c_writeTableRecord.m_callback.m_callbackData = op_key;
   c_writeTableRecord.m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartCreateTab_writeTableConf);
   startWriteTableFile(signal, c_readTableRecord.tableId);
@@ -3191,7 +3198,6 @@ Dbdict::restartCreateTab_readTableConf(Signal* signal,
 void
 Dbdict::execGET_TABINFO_CONF(Signal* signal)
 {
-#if wl3600_todo // fix in restart table patch
   jamEntry();
 
   if(!assembleFragments(signal)){
@@ -3271,10 +3277,11 @@ Dbdict::execGET_TABINFO_CONF(Signal* signal)
   SegmentedSectionPtr tabInfoPtr;
   signal->getSection(tabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
 
-  CreateTableRecordPtr createTabPtr;  
-  ndbrequire(c_opCreateTable.find(createTabPtr, senderData));
-  ndbrequire(!createTabPtr.isNull());
-  ndbrequire(createTabPtr.p->m_tablePtrI == tableId);
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;  
+  findSchemaOp(op_ptr, createTabPtr, senderData);
+  ndbrequire(!op_ptr.isNull());
+  ndbrequire(createTabPtr.p->m_request.tableId == tableId);
 
   /**
    * Put data into table record
@@ -3295,89 +3302,95 @@ Dbdict::execGET_TABINFO_CONF(Signal* signal)
   tableEntry->m_info_words= tabInfoPtr.sz;
   
   Callback callback;
-  callback.m_callbackData = createTabPtr.p->key;
+  callback.m_callbackData = op_ptr.p->op_key;
   callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartCreateTab_writeTableConf);
   
   signal->header.m_noOfSections = 0;
-  writeTableFile(signal, createTabPtr.p->m_tablePtrI, tabInfoPtr, &callback);
+  writeTableFile(signal, tableId, tabInfoPtr, &callback);
   signal->setSection(tabInfoPtr, 0);
   releaseSections(signal);
-#endif
 }
 
 void
 Dbdict::restartCreateTab_writeTableConf(Signal* signal, 
-					Uint32 callbackData,
-					Uint32 returnCode)
+					Uint32 op_key,
+					Uint32 ret)
 {
-#if wl3600_todo // fix in restart table patch
   jam();
+  D("restartCreateTab_writeTableConf");
 
-  CreateTableRecordPtr createTabPtr;  
-  ndbrequire(c_opCreateTable.find(createTabPtr, callbackData));
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;  
+  findSchemaOp(op_ptr, createTabPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
 
   Callback callback;
-  callback.m_callbackData = callbackData;
+  callback.m_callbackData = op_key;
   callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartCreateTab_dihComplete);
-  
-  SegmentedSectionPtr fragDataPtr; 
-  fragDataPtr.sz = 0;
-  fragDataPtr.setNull();
-  createTab_dih(signal, createTabPtr, fragDataPtr, &callback);
-#endif
+
+  OpSection& fragSection = op_ptr.p->m_section[CreateTabReq::FRAGMENTATION];
+  new (&fragSection) OpSection;
+  createTab_dih(signal, op_ptr, fragSection, &callback);
 }
 
 void
 Dbdict::restartCreateTab_dihComplete(Signal* signal, 
-				     Uint32 callbackData,
-				     Uint32 returnCode)
+				     Uint32 op_key,
+				     Uint32 ret)
 {
-#if wl3600_todo // fix in restart table patch
   jam();
+  D("restartCreateTab_dihComplete");
   
-  CreateTableRecordPtr createTabPtr;  
-  ndbrequire(c_opCreateTable.find(createTabPtr, callbackData));
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;  
+  findSchemaOp(op_ptr, createTabPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  const CreateTabReq* impl_req = &createTabPtr.p->m_request;
 
-  if(createTabPtr.p->m_errorCode)
+  if (hasError(op_ptr.p->m_error))
   {
     char buf[100];
-    BaseString::snprintf(buf, sizeof(buf), "Failed to create table during"
-                         " restart, Error: %u",
-                         createTabPtr.p->m_errorCode);
+    BaseString::snprintf(buf, sizeof(buf),
+                         "Failed to create table %u during restart,"
+                         " error: %u line: %u.",
+                         impl_req->tableId,
+                         op_ptr.p->m_error.errorCode,
+                         op_ptr.p->m_error.errorLine);
     progError(__LINE__, NDBD_EXIT_RESOURCE_ALLOC_ERROR, buf);
   }
 
   Callback callback;
-  callback.m_callbackData = callbackData;
+  callback.m_callbackData = op_key;
   callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartCreateTab_activateComplete);
   
-  alterTab_activate(signal, createTabPtr, &callback);
-#endif
+  createTab_activate(signal, op_ptr, &callback);
 }
 
 void
 Dbdict::restartCreateTab_activateComplete(Signal* signal, 
-					  Uint32 callbackData,
-					  Uint32 returnCode)
+					  Uint32 op_key,
+					  Uint32 ret)
 {
-#if wl3600_todo // fix in restart table patch
   jam();
+  D("restartCreateTab_activateComplete");
   
-  CreateTableRecordPtr createTabPtr;  
-  ndbrequire(c_opCreateTable.find(createTabPtr, callbackData));
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;  
+  findSchemaOp(op_ptr, createTabPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  const CreateTabReq* impl_req = &createTabPtr.p->m_request;
 
   TableRecordPtr tabPtr;
-  c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_tablePtrI);
+  c_tableRecordPool.getPtr(tabPtr, impl_req->tableId);
   tabPtr.p->tabState = TableRecord::DEFINED;
   
-  releaseCreateTableOp(signal,createTabPtr);
+  releaseSchemaOp(op_ptr);
 
   c_restartRecord.activeTable++;
   checkSchemaStatus(signal);
-#endif
 }
 
 void
@@ -3385,7 +3398,6 @@ Dbdict::restartDropTab(Signal* signal, Uint32 tableId,
                        const SchemaFile::TableEntry * old_entry, 
                        const SchemaFile::TableEntry * new_entry)
 {
-#if wl3600_todo // fix in restart table patch
   switch(old_entry->m_tableType){
   case DictTabInfo::UndefTableType:
   case DictTabInfo::HashIndexTrigger:
@@ -3408,47 +3420,45 @@ Dbdict::restartDropTab(Signal* signal, Uint32 tableId,
     return;
   }
 
-  const Uint32 key = ++c_opRecordSequence;
+  SchemaOpPtr op_ptr;
+  DropTableRecPtr dropTabPtr;  
+  seizeSchemaOp(op_ptr, dropTabPtr);
+  ndbrequire(!op_ptr.isNull());
+  DropTabReq* impl_req = &dropTabPtr.p->m_request;
 
-  DropTableRecordPtr dropTabPtr;  
-  ndbrequire(c_opDropTable.seize(dropTabPtr));
-  
-  dropTabPtr.p->key = key;
-  c_opDropTable.add(dropTabPtr);
-  
-  dropTabPtr.p->m_errorCode = 0;
-  dropTabPtr.p->m_request.tableId = tableId;
-  dropTabPtr.p->m_coordinatorRef = 0;
-  dropTabPtr.p->m_requestType = DropTabReq::RestartDropTab;
-  dropTabPtr.p->m_participantData.m_gsn = GSN_DROP_TAB_REQ;
+  impl_req->senderRef = reference();
+  impl_req->senderData = op_ptr.p->op_key;
+  impl_req->requestType = DropTabReq::RestartDropTab;
+  impl_req->tableId = tableId;
+  impl_req->tableVersion = 0;
 
-  dropTabPtr.p->m_participantData.m_block = 0;
-  dropTabPtr.p->m_participantData.m_callback.m_callbackData = key;
-  dropTabPtr.p->m_participantData.m_callback.m_callbackFunction = 
+  dropTabPtr.p->m_block = 0;
+  dropTabPtr.p->m_callback.m_callbackData = op_ptr.p->op_key;
+  dropTabPtr.p->m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartDropTab_complete);
-  dropTab_nextStep(signal, dropTabPtr);  
-#endif
+  dropTab_nextStep(signal, op_ptr);  
 }
 
 void
 Dbdict::restartDropTab_complete(Signal* signal, 
-				Uint32 callbackData,
-				Uint32 returnCode)
+				Uint32 op_key,
+				Uint32 ret)
 {
-#if wl3600_todo // fix in restart table patch
   jam();
 
-  DropTableRecordPtr dropTabPtr;
-  ndbrequire(c_opDropTable.find(dropTabPtr, callbackData));
-  
+  SchemaOpPtr op_ptr;
+  DropTableRecPtr dropTabPtr;  
+  findSchemaOp(op_ptr, dropTabPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  const DropTabReq* impl_req = &dropTabPtr.p->m_request;
+
   //@todo check error
 
   releaseTableObject(c_restartRecord.activeTable);
-  c_opDropTable.release(dropTabPtr);
+  releaseSchemaOp(op_ptr);
 
   c_restartRecord.activeTable++;
   checkSchemaStatus(signal);
-#endif
 }
 
 /**
@@ -5074,7 +5084,8 @@ Dbdict::createTab_dih(Signal* signal,
   req->schemaVersion = tabPtr.p->tableVersion;
   req->primaryTableId = tabPtr.p->primaryTableId;
   req->temporaryTable = !!(tabPtr.p->m_bits & TableRecord::TR_Temporary);
-  req->schemaTransId = trans_ptr.p->m_transId;
+  // no transaction for restart tab (should add one)
+  req->schemaTransId = !trans_ptr.isNull() ? trans_ptr.p->m_transId : 0;
 
   // fragmentation in long signal section
   {

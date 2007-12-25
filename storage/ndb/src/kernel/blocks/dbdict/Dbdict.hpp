@@ -3578,15 +3578,15 @@ private:
   void restartCreateTab(Signal*, Uint32, 
 			const SchemaFile::TableEntry *, 
 			const SchemaFile::TableEntry *, bool);
-  void restartCreateTab_readTableConf(Signal* signal, Uint32 callback, Uint32);
-  void restartCreateTab_writeTableConf(Signal* signal, Uint32 callback, Uint32);
-  void restartCreateTab_dihComplete(Signal* signal, Uint32 callback, Uint32);
-  void restartCreateTab_activateComplete(Signal*, Uint32 callback, Uint32);
+  void restartCreateTab_readTableConf(Signal*, Uint32 op_key, Uint32 ret);
+  void restartCreateTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
+  void restartCreateTab_dihComplete(Signal*, Uint32 op_key, Uint32 ret);
+  void restartCreateTab_activateComplete(Signal*, Uint32 op_key, Uint32 ret);
 
   void restartDropTab(Signal* signal, Uint32 tableId,
                       const SchemaFile::TableEntry *, 
                       const SchemaFile::TableEntry *);
-  void restartDropTab_complete(Signal*, Uint32 callback, Uint32);
+  void restartDropTab_complete(Signal*, Uint32 op_key, Uint32 ret);
 
   void restartDropObj(Signal*, Uint32, const SchemaFile::TableEntry *);
   void restartDropObj_prepare_start_done(Signal*, Uint32, Uint32);
