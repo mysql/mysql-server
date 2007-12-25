@@ -152,9 +152,6 @@ affected rows: 8
 update t1 set c = 11 where a = 3 or b = 7;
 affected rows: 2
 info: Rows matched: 2  Changed: 2  Warnings: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
-4
-affected rows: 1
 select * from t1 where a = 3 or b = 7 order by a;
 a	b	c
 3	8	11
