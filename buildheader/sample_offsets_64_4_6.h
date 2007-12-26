@@ -75,6 +75,7 @@ struct fieldinfo db_txn_active_fields64[] = {
   {0, 232, 232} /* size of whole struct */
 };
 struct fieldinfo db_txn_fields64[] = {
+  {"DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/", 0, 8},
   {"void *api_internal", 168, 8},
   {"int (*abort) (DB_TXN *)", 192, 8},
   {"int (*commit) (DB_TXN*, u_int32_t)", 200, 8},
@@ -87,6 +88,7 @@ struct fieldinfo db_txn_stat_fields64[] = {
   {0, 88, 88} /* size of whole struct */
 };
 struct fieldinfo dbc_fields64[] = {
+  {"DB *dbp", 0, 8},
   {"int (*c_close) (DBC *)", 384, 8},
   {"int (*c_del) (DBC *, u_int32_t)", 400, 8},
   {"int (*c_get) (DBC *, DBT *, DBT *, u_int32_t)", 416, 8},
