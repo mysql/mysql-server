@@ -329,14 +329,14 @@ Dbtux::abortAddFragOp(Signal* signal)
  * build and is therefore not correct.
  */
 void
-Dbtux::execALTER_INDX_REQ(Signal* signal)
+Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  const AlterIndxReq reqCopy = *(const AlterIndxReq*)signal->getDataPtr();
-  const AlterIndxReq* const req = &reqCopy;
+  const AlterIndxImplReq reqCopy = *(const AlterIndxImplReq*)signal->getDataPtr();
+  const AlterIndxImplReq* const req = &reqCopy;
   // set index online after build
   IndexPtr indexPtr;
-  c_indexPool.getPtr(indexPtr, req->getIndexId());
+  c_indexPool.getPtr(indexPtr, req->indexId);
   indexPtr.p->m_state = Index::Online;
 #ifdef VM_TRACE
   if (debugFlags & DebugMeta) {
@@ -344,15 +344,11 @@ Dbtux::execALTER_INDX_REQ(Signal* signal)
   }
 #endif
   // success
-  AlterIndxConf* const conf = (AlterIndxConf*)signal->getDataPtrSend();
-  conf->setUserRef(reference());
-  conf->setConnectionPtr(req->getConnectionPtr());
-  conf->setRequestType(req->getRequestType());
-  conf->setTableId(req->getTableId());
-  conf->setIndexId(req->getIndexId());
-  conf->setIndexVersion(req->getIndexVersion());
-  sendSignal(req->getUserRef(), GSN_ALTER_INDX_CONF,
-      signal, AlterIndxConf::SignalLength, JBB);
+  AlterIndxImplConf* const conf = (AlterIndxImplConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = req->senderData;
+  sendSignal(req->senderRef, GSN_ALTER_INDX_IMPL_CONF,
+      signal, AlterIndxImplConf::SignalLength, JBB);
 }
 
 /*

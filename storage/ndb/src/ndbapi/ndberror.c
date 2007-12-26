@@ -191,6 +191,9 @@ ErrorBundle ErrorCodes[] = {
   { 1501, DMEC, TR, "Out of undo space" },
   {  288, DMEC, TR, "Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)" },
   {  289, DMEC, TR, "Out of transaction buffer memory in TC (increase TransactionBufferMemory)" },
+  {  780, DMEC, TR, "Too many schema transactions" },
+  {  783, DMEC, TR, "Too many schema operations" },
+  {  785, DMEC, TR, "Schema object is busy with another schema transaction" },
 
   /**
    * InsufficientSpace
@@ -255,9 +258,14 @@ ErrorBundle ErrorCodes[] = {
   { 278,  DMEC, IE, "278" },
   { 287,  DMEC, IE, "Index corrupted" },
   { 290,  DMEC, IE, "Corrupt key in TC, unable to xfrm" },
+  { 291,  DMEC, IE, "Inconsistent trigger state in TC block" },
+  { 292,  DMEC, IE, "Inconsistent index state in TC block" },
   { 631,  DMEC, IE, "631" },
   { 632,  DMEC, IE, "632" },
   { 706,  DMEC, IE, "Inconsistency during table creation" },
+  { 781,  DMEC, IE, "Invalid schema transaction key from NDB API" },
+  { 782,  DMEC, IE, "Invalid schema transaction id from NDB API" },
+  { 784,  DMEC, TR, "Invalid schema transaction state" },
   { 809,  DMEC, IE, "809" },
   { 812,  DMEC, IE, "812" },
   { 829,  DMEC, IE, "829" },
@@ -544,6 +552,7 @@ ErrorBundle ErrorCodes[] = {
   { 4400, DMEC, AE, "Status Error in NdbSchemaCon" },
   { 4401, DMEC, AE, "Only one schema operation per schema transaction" },
   { 4402, DMEC, AE, "No schema operation defined before calling execute" },
+  { 4410, DMEC, AE, "Schema transaction is already started" },
 
   { 4501, DMEC, AE, "Insert in hash table failed when getting table information from Ndb" },
   { 4502, DMEC, AE, "GetValue not allowed in Update operation" },

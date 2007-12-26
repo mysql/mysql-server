@@ -23,8 +23,8 @@
 #include <signaldata/AccScan.hpp>
 #include <signaldata/CopyActive.hpp>
 #include <signaldata/CopyFrag.hpp>
-#include <signaldata/CreateTrig.hpp>
-#include <signaldata/DropTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/EmptyLcp.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ExecFragReq.hpp>
@@ -2161,30 +2161,36 @@ void
 Dblqh::execALTER_TAB_REQ(Signal* signal)
 {
   jamEntry();
-  AlterTabReq* const req = (AlterTabReq*)signal->getDataPtr();
+  const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
-  const Uint32 changeMask = req->changeMask;
   const Uint32 tableId = req->tableId;
   const Uint32 tableVersion = req->tableVersion;
-  const Uint32 gci = req->gci;
+  const Uint32 newTableVersion = req->newTableVersion;
   AlterTabReq::RequestType requestType =
     (AlterTabReq::RequestType) req->requestType;
 
   TablerecPtr tablePtr;
   tablePtr.i = tableId;
   ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
-  tablePtr.p->schemaVersion = tableVersion;
+
+  switch (requestType) {
+  case AlterTabReq::AlterTablePrepare:
+    tablePtr.p->schemaVersion = newTableVersion;
+    break;
+  case AlterTabReq::AlterTableRevert:
+    tablePtr.p->schemaVersion = tableVersion;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
 
   // Request handled successfully
-  AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
+  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
-  conf->changeMask = changeMask;
-  conf->tableId = tableId;
-  conf->tableVersion = tableVersion;
-  conf->gci = gci;
-  conf->requestType = requestType;
+  conf->connectPtr = RNIL;
   sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
 	     AlterTabConf::SignalLength, JBB);
 }
@@ -19754,57 +19760,57 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
 // Trigger signals
 void
-Dblqh::execCREATE_TRIG_REQ(Signal* signal)
+Dblqh::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBTUP_REF, GSN_CREATE_TRIG_REQ, signal,
-             CreateTrigReq::SignalLength, JBB);
+  sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ, signal,
+             CreateTrigImplReq::SignalLength, JBB);
 }
 
 void
-Dblqh::execCREATE_TRIG_CONF(Signal* signal)
+Dblqh::execCREATE_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_CONF, signal,
-             CreateTrigConf::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_IMPL_CONF, signal,
+             CreateTrigImplConf::SignalLength, JBB);
 }
 
 void
-Dblqh::execCREATE_TRIG_REF(Signal* signal)
+Dblqh::execCREATE_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_REF, signal,
-             CreateTrigRef::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_IMPL_REF, signal,
+             CreateTrigImplRef::SignalLength, JBB);
 }
 
 void
-Dblqh::execDROP_TRIG_REQ(Signal* signal)
+Dblqh::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ, signal,
-             DropTrigReq::SignalLength, JBB);
+  sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ, signal,
+             DropTrigImplReq::SignalLength, JBB);
 }
 
 void
-Dblqh::execDROP_TRIG_CONF(Signal* signal)
+Dblqh::execDROP_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_DROP_TRIG_CONF, signal,
-             DropTrigConf::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_DROP_TRIG_IMPL_CONF, signal,
+             DropTrigImplConf::SignalLength, JBB);
 }
 
 void
-Dblqh::execDROP_TRIG_REF(Signal* signal)
+Dblqh::execDROP_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_DROP_TRIG_REF, signal,
-             DropTrigRef::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_DROP_TRIG_IMPL_REF, signal,
+             DropTrigImplRef::SignalLength, JBB);
 }
 
 Uint32 Dblqh::calcPageCheckSum(LogPageRecordPtr logP){

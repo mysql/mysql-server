@@ -58,11 +58,11 @@ Backup::Backup(Block_context& ctx) :
   addRecSignal(GSN_GET_TABINFOREF, &Backup::execGET_TABINFOREF);
   addRecSignal(GSN_GET_TABINFO_CONF, &Backup::execGET_TABINFO_CONF);
 
-  addRecSignal(GSN_CREATE_TRIG_REF, &Backup::execCREATE_TRIG_REF);
-  addRecSignal(GSN_CREATE_TRIG_CONF, &Backup::execCREATE_TRIG_CONF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Backup::execCREATE_TRIG_IMPL_REF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Backup::execCREATE_TRIG_IMPL_CONF);
 
-  addRecSignal(GSN_DROP_TRIG_REF, &Backup::execDROP_TRIG_REF);
-  addRecSignal(GSN_DROP_TRIG_CONF, &Backup::execDROP_TRIG_CONF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Backup::execDROP_TRIG_IMPL_REF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Backup::execDROP_TRIG_IMPL_CONF);
 
   addRecSignal(GSN_DI_FCOUNTCONF, &Backup::execDI_FCOUNTCONF);
   addRecSignal(GSN_DIGETPRIMCONF, &Backup::execDIGETPRIMCONF);

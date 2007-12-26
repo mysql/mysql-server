@@ -25,6 +25,9 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/CreateTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/DropTrig.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/TuxMaint.hpp>
 
 /* **************************************************************** */
@@ -114,103 +117,103 @@ Dbtup::findTriggerList(Tablerec* table,
 
 // Trigger signals
 void
-Dbtup::execCREATE_TRIG_REQ(Signal* signal)
+Dbtup::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  BlockReference senderRef = signal->getSendersBlockRef();
-  const CreateTrigReq reqCopy = *(const CreateTrigReq*)signal->getDataPtr();
-  const CreateTrigReq* const req = &reqCopy;
-  CreateTrigRef::ErrorCode error= CreateTrigRef::NoError;
+  const CreateTrigImplReq* req = (const CreateTrigImplReq*)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+  const Uint32 tableId = req->tableId;
+  const Uint32 triggerId = req->triggerId;
+  const Uint32 triggerInfo = req->triggerInfo;
+
+  CreateTrigRef::ErrorCode error = CreateTrigRef::NoError;
 
   // Find table
   TablerecPtr tabPtr;
-  tabPtr.i = req->getTableId();
+  tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
   if (tabPtr.p->tableStatus != DEFINED )
   {
     jam();
-    error= CreateTrigRef::InvalidTable;
+    error = CreateTrigRef::InvalidTable;
   }
   // Create trigger and associate it with the table
   else if (createTrigger(tabPtr.p, req))
   {
     jam();
     // Send conf
-    CreateTrigConf* const conf = (CreateTrigConf*)signal->getDataPtrSend();
-    conf->setUserRef(reference());
-    conf->setConnectionPtr(req->getConnectionPtr());
-    conf->setRequestType(req->getRequestType());
-    conf->setTableId(req->getTableId());
-    conf->setIndexId(req->getIndexId());
-    conf->setTriggerId(req->getTriggerId());
-    conf->setTriggerInfo(req->getTriggerInfo());
-    sendSignal(senderRef, GSN_CREATE_TRIG_CONF, 
-               signal, CreateTrigConf::SignalLength, JBB);
+    CreateTrigImplConf* conf = (CreateTrigImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    conf->tableId = tableId;
+    conf->triggerId = triggerId;
+    conf->triggerInfo = triggerInfo;
+
+    sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_CONF, 
+               signal, CreateTrigImplConf::SignalLength, JBB);
     return;
   }
   else
   {
     jam();
-    error= CreateTrigRef::TooManyTriggers;
+    error = CreateTrigRef::TooManyTriggers;
   }
+
   ndbassert(error != CreateTrigRef::NoError);
   // Send ref
-  CreateTrigRef* const ref = (CreateTrigRef*)signal->getDataPtrSend();
-  ref->setUserRef(reference());
-  ref->setConnectionPtr(req->getConnectionPtr());
-  ref->setRequestType(req->getRequestType());
-  ref->setTableId(req->getTableId());
-  ref->setIndexId(req->getIndexId());
-  ref->setTriggerId(req->getTriggerId());
-  ref->setTriggerInfo(req->getTriggerInfo());
-  ref->setErrorCode(error);
-  sendSignal(senderRef, GSN_CREATE_TRIG_REF, 
-	     signal, CreateTrigRef::SignalLength, JBB);
-}//Dbtup::execCREATE_TRIG_REQ()
+  CreateTrigImplRef* ref = (CreateTrigImplRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->senderData = senderData;
+  ref->tableId = tableId;
+  ref->triggerId = triggerId;
+  ref->triggerInfo = triggerInfo;
+  ref->errorCode = error;
+
+  sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_REF, 
+	     signal, CreateTrigImplRef::SignalLength, JBB);
+}
 
 void
-Dbtup::execDROP_TRIG_REQ(Signal* signal)
+Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  BlockReference senderRef = signal->getSendersBlockRef();
-  const DropTrigReq reqCopy = *(const DropTrigReq*)signal->getDataPtr();
-  const DropTrigReq* const req = &reqCopy;
+  const DropTrigImplReq* req = (const DropTrigImplReq*)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+  const Uint32 tableId = req->tableId;
+  const Uint32 triggerId = req->triggerId;
 
   // Find table
   TablerecPtr tabPtr;
-  tabPtr.i = req->getTableId();
+  tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
   // Drop trigger
   Uint32 r = dropTrigger(tabPtr.p, req, refToBlock(senderRef));
   if (r == 0){
     // Send conf
-    DropTrigConf* const conf = (DropTrigConf*)signal->getDataPtrSend();
-    conf->setUserRef(senderRef);
-    conf->setConnectionPtr(req->getConnectionPtr());
-    conf->setRequestType(req->getRequestType());
-    conf->setTableId(req->getTableId());
-    conf->setIndexId(req->getIndexId());
-    conf->setTriggerId(req->getTriggerId());
-    sendSignal(senderRef, GSN_DROP_TRIG_CONF, 
-	       signal, DropTrigConf::SignalLength, JBB);
+    DropTrigImplConf* conf = (DropTrigImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    conf->tableId = tableId;
+    conf->triggerId = triggerId;
+
+    sendSignal(senderRef, GSN_DROP_TRIG_IMPL_CONF, 
+	       signal, DropTrigImplConf::SignalLength, JBB);
   } else {
     // Send ref
-    DropTrigRef* const ref = (DropTrigRef*)signal->getDataPtrSend();
-    ref->setUserRef(senderRef);
-    ref->setConnectionPtr(req->getConnectionPtr());
-    ref->setRequestType(req->getRequestType());
-    ref->setTableId(req->getTableId());
-    ref->setIndexId(req->getIndexId());
-    ref->setTriggerId(req->getTriggerId());
-    ref->setErrorCode((DropTrigRef::ErrorCode)r);
-    ref->setErrorLine(__LINE__);
-    ref->setErrorNode(refToNode(reference()));
-    sendSignal(senderRef, GSN_DROP_TRIG_REF, 
-	       signal, DropTrigRef::SignalLength, JBB);
+    DropTrigImplRef* ref = (DropTrigImplRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->tableId = tableId;
+    ref->triggerId = triggerId;
+    ref->errorCode = r;
+    sendSignal(senderRef, GSN_DROP_TRIG_IMPL_REF, 
+	       signal, DropTrigImplRef::SignalLength, JBB);
   }
-}//Dbtup::DROP_TRIG_REQ()
+}
 
 /* ---------------------------------------------------------------- */
 /* ------------------------- createTrigger ------------------------ */
@@ -226,15 +229,16 @@ Dbtup::execDROP_TRIG_REQ(Signal* signal)
 /*                                                                  */
 /* ---------------------------------------------------------------- */
 bool
-Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
+Dbtup::createTrigger(Tablerec* table, const CreateTrigImplReq* req)
 {
   if (ERROR_INSERTED(4003)) {
     CLEAR_ERROR_INSERT_VALUE;
     return false;
   }
-  TriggerType::Value ttype = req->getTriggerType();
-  TriggerActionTime::Value ttime = req->getTriggerActionTime();
-  TriggerEvent::Value tevent = req->getTriggerEvent();
+  const Uint32 tinfo = req->triggerInfo;
+  TriggerType::Value ttype = TriggerInfo::getTriggerType(tinfo);
+  TriggerActionTime::Value ttime = TriggerInfo::getTriggerActionTime(tinfo);
+  TriggerEvent::Value tevent = TriggerInfo::getTriggerEvent(tinfo);
 
   DLList<TupTriggerData>* tlist = findTriggerList(table, ttype, ttime, tevent);
   ndbrequire(tlist != NULL);
@@ -244,12 +248,12 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
     return false;
 
   // Set trigger id
-  tptr.p->triggerId = req->getTriggerId();
+  tptr.p->triggerId = req->triggerId;
 
   //  ndbout_c("Create TupTrigger %u = %u %u %u %u", tptr.p->triggerId, table, ttype, ttime, tevent);
 
   // Set index id
-  tptr.p->indexId = req->getIndexId();
+  tptr.p->indexId = req->indexId;
 
   // Set trigger type etc
   tptr.p->triggerType = ttype;
@@ -272,11 +276,12 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
     tptr.p->sendOnlyChangedAttributes = true;
   }
   */
-  tptr.p->sendOnlyChangedAttributes = !req->getReportAllMonitoredAttributes();
-  // Set monitor all
-  tptr.p->monitorAllAttributes = req->getMonitorAllAttributes();
-  tptr.p->monitorReplicas = req->getMonitorReplicas();
-  tptr.p->m_receiverBlock = refToBlock(req->getReceiverRef());
+  tptr.p->sendOnlyChangedAttributes =
+    !TriggerInfo::getReportAllMonitoredAttributes(tinfo);
+
+  tptr.p->monitorAllAttributes = TriggerInfo::getMonitorAllAttributes(tinfo);
+  tptr.p->monitorReplicas = TriggerInfo::getMonitorReplicas(tinfo);
+  tptr.p->m_receiverBlock = refToBlock(req->receiverRef);
 
   if (tptr.p->monitorAllAttributes)
   {
@@ -292,7 +297,7 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
   {
     jam();
     // Set attribute mask
-    tptr.p->attributeMask = req->getAttributeMask();
+    tptr.p->attributeMask = req->attributeMask;
   }
   return true;
 }//Dbtup::createTrigger()
@@ -317,17 +322,18 @@ Dbtup::primaryKey(Tablerec* const regTabPtr, Uint32 attrId)
 /*                                                                  */
 /* ---------------------------------------------------------------- */
 Uint32
-Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req, BlockNumber sender)
+Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber sender)
 {
   if (ERROR_INSERTED(4004)) {
     CLEAR_ERROR_INSERT_VALUE;
     return 9999;
   }
-  Uint32 triggerId = req->getTriggerId();
+  Uint32 triggerId = req->triggerId;
 
-  TriggerType::Value ttype = req->getTriggerType();
-  TriggerActionTime::Value ttime = req->getTriggerActionTime();
-  TriggerEvent::Value tevent = req->getTriggerEvent();
+  const Uint32 tinfo = req->triggerInfo;
+  TriggerType::Value ttype = TriggerInfo::getTriggerType(tinfo);
+  TriggerActionTime::Value ttime = TriggerInfo::getTriggerActionTime(tinfo);
+  TriggerEvent::Value tevent = TriggerInfo::getTriggerEvent(tinfo);
 
   //  ndbout_c("Drop TupTrigger %u = %u %u %u %u by %u", triggerId, table, ttype, ttime, tevent, sender);
 

@@ -39,17 +39,25 @@
 #include <signaldata/CreateTable.hpp>
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/DropTable.hpp>
+#include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/CreateIndx.hpp>
+#include <signaldata/CreateIndxImpl.hpp>
 #include <signaldata/DropIndx.hpp>
+#include <signaldata/DropIndxImpl.hpp>
 #include <signaldata/AlterIndx.hpp>
+#include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/BuildIndx.hpp>
+#include <signaldata/BuildIndxImpl.hpp>
 #include <signaldata/UtilPrepare.hpp>
 #include <signaldata/CreateEvnt.hpp>
 #include <signaldata/CreateTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/AlterTrig.hpp>
+#include <signaldata/AlterTrigImpl.hpp>
 #include <signaldata/DictLock.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include "SchemaFile.hpp"
@@ -60,10 +68,25 @@
 #include <signaldata/DictObjOp.hpp>
 #include <signaldata/DropFilegroupImpl.hpp>
 #include <SLList.hpp>
+#include <signaldata/DictSignal.hpp>
+#include <signaldata/SchemaTransImpl.hpp>
 #include <LockQueue.hpp>
 
-#ifdef DBDICT_C
 // Debug Macros
+
+#ifdef VM_TRACE
+#define D(x) \
+  do { \
+    if (!debugOutOn()) break; \
+    debugOut << "DBDICT:" << __LINE__ << " " << x << endl; \
+  } while (0)
+#define V(x) " " << #x << ":" << (x)
+#else
+#define D(x)
+#undef V
+#endif
+
+#ifdef DBDICT_C
 
 /*--------------------------------------------------------------*/
 // Constants for CONTINUEB
@@ -342,7 +365,7 @@ public:
     /**    Number of words */
     Uint32 packedSize;
 
-    /**   Index state (volatile data) */
+    /**   Index state (volatile data) TODO remove */
     enum IndexState {
       IS_UNDEFINED = 0,         // initial
       IS_OFFLINE = 1,           // index table created
@@ -354,17 +377,32 @@ public:
     IndexState indexState;
 
     /**   Trigger ids of index (volatile data) */
-    Uint32 insertTriggerId;
-    Uint32 updateTriggerId;
+    Uint32 insertTriggerId;     // hash index (3)
     Uint32 deleteTriggerId;
-    Uint32 customTriggerId;     // ordered index
-    Uint32 buildTriggerId;      // temp during build
+    Uint32 updateTriggerId;
+    Uint32 customTriggerId;     // ordered index (1)
+    Uint32 indexTriggerCount;
 
-    /**  Index state in other blocks on this node */
-    enum IndexLocal {
-      IL_CREATED_TC = 1 << 0    // created in TC
-    };
-    Uint32 indexLocal;
+    // get ref to index trigger id
+    inline Uint32 &
+    indexTriggerId(int i) {
+      if (tableType == DictTabInfo::UniqueHashIndex) {
+        if (i == 0)
+          return insertTriggerId;
+        if (i == 1)
+          return deleteTriggerId;
+        if (i == 2)
+          return updateTriggerId;
+      }
+      if (tableType == DictTabInfo::OrderedIndex) {
+        if (i == 0)
+          return customTriggerId;
+      }
+      assert(false);
+      return *(Uint32*)0;
+    }
+
+    Uint32 buildTriggerId;      // temp during build
     
     Uint32 noOfNullBits;
     
@@ -407,18 +445,11 @@ public:
       TS_NOT_DEFINED = 0,
       TS_DEFINING = 1,
       TS_OFFLINE  = 2,   // created globally in DICT
-      TS_BUILDING = 3,
-      TS_DROPPING = 4,
-      TS_ONLINE = 5      // activated globally
+      //TS_BUILDING = 3,
+      //TS_DROPPING = 4,
+      TS_ONLINE = 5      // created in other blocks
     };
     TriggerState triggerState;
-
-    /** Trigger state in other blocks on this node */
-    enum IndexLocal {
-      TL_CREATED_TC = 1 << 0,   // created in TC
-      TL_CREATED_LQH = 1 << 1   // created in LQH-TUP
-    };
-    Uint32 triggerLocal;
 
     /** Trigger name, used by DICT to identify the trigger */ 
     RopeHandle triggerName;
@@ -430,29 +461,17 @@ public:
     /** Table id, the table the trigger is defined on */
     Uint32 tableId;
 
-    /** Trigger type, defines what the trigger is used for */
-    TriggerType::Value triggerType;
-    
-    /** Trigger action time, defines when the trigger should fire */
-    TriggerActionTime::Value triggerActionTime;
-    
-    /** Trigger event, defines what events the trigger should monitor */
-    TriggerEvent::Value triggerEvent;
-    
-    /** Monitor all replicas */
-    bool monitorReplicas;
+    /** TriggerInfo (packed) */
+    Uint32 triggerInfo;
 
-    /** Monitor all, the trigger monitors changes of all attributes in table */
-    bool monitorAllAttributes;
-
-    /** Monitor all, the trigger monitors changes of all attributes in table */
-    bool reportAllMonitoredAttributes;
-        
     /**
      * Attribute mask, defines what attributes are to be monitored.
      * Can be seen as a compact representation of SQL column name list.
      */
     AttributeMask attributeMask;
+
+    /** Receiver.  Not used from index triggers */
+    BlockReference receiverRef;
 
     /** Index id, only used by secondary_index triggers */
     Uint32 indexId;
@@ -615,7 +634,10 @@ public:
   RopePool c_rope_pool;
 
   struct DictObject {
-    DictObject() {}
+    DictObject() {
+      m_trans_key = 0;
+      m_op_ref_count = 0;
+    };
     Uint32 m_id;
     Uint32 m_type;
     Uint32 m_ref_count;
@@ -640,11 +662,21 @@ public:
       }
       return false;
     }
+
+    // SchemaOp -> DictObject -> SchemaTrans
+    Uint32 m_trans_key;
+    Uint32 m_op_ref_count;
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
   };
+
+  typedef Ptr<DictObject> DictObjectPtr;
   
   DLHashTable<DictObject> c_obj_hash; // Name
   ArrayPool<DictObject> c_obj_pool;
   
+  // 1
   DictObject * get_object(const char * name){
     return get_object(name, strlen(name) + 1);
   }
@@ -654,6 +686,17 @@ public:
   }
   
   DictObject * get_object(const char * name, Uint32 len, Uint32 hash);
+
+  //2
+  bool get_object(DictObjectPtr& obj_ptr, const char * name){
+    return get_object(obj_ptr, name, strlen(name) + 1);
+  }
+
+  bool get_object(DictObjectPtr& obj_ptr, const char * name, Uint32 len){
+    return get_object(obj_ptr, name, len, Rope::hash(name, len));
+  }
+
+  bool get_object(DictObjectPtr&, const char* name, Uint32 len, Uint32 hash);
 
   void release_object(Uint32 obj_ptr_i){
     release_object(obj_ptr_i, c_obj_pool.getPtr(obj_ptr_i));
@@ -711,19 +754,21 @@ private:
 
   // Index signals
   void execCREATE_INDX_REQ(Signal* signal);
-  void execCREATE_INDX_CONF(Signal* signal);
-  void execCREATE_INDX_REF(Signal* signal);
+  void execCREATE_INDX_IMPL_CONF(Signal* signal);
+  void execCREATE_INDX_IMPL_REF(Signal* signal);
 
   void execALTER_INDX_REQ(Signal* signal);
   void execALTER_INDX_CONF(Signal* signal);
   void execALTER_INDX_REF(Signal* signal);
+  void execALTER_INDX_IMPL_CONF(Signal* signal);
+  void execALTER_INDX_IMPL_REF(Signal* signal);
 
   void execCREATE_TABLE_CONF(Signal* signal);
   void execCREATE_TABLE_REF(Signal* signal);
 
   void execDROP_INDX_REQ(Signal* signal);
-  void execDROP_INDX_CONF(Signal* signal);
-  void execDROP_INDX_REF(Signal* signal);
+  void execDROP_INDX_IMPL_CONF(Signal* signal);
+  void execDROP_INDX_IMPL_REF(Signal* signal);
 
   void execDROP_TABLE_CONF(Signal* signal);
   void execDROP_TABLE_REF(Signal* signal);
@@ -731,6 +776,8 @@ private:
   void execBUILDINDXREQ(Signal* signal);
   void execBUILDINDXCONF(Signal* signal);
   void execBUILDINDXREF(Signal* signal);
+  void execBUILD_INDX_IMPL_CONF(Signal* signal);
+  void execBUILD_INDX_IMPL_REF(Signal* signal);
 
   void execBACKUP_FRAGMENT_REQ(Signal*);
 
@@ -780,6 +827,11 @@ private:
   void execDROP_TRIG_REQ(Signal* signal);
   void execDROP_TRIG_CONF(Signal* signal);
   void execDROP_TRIG_REF(Signal* signal);
+  // from other blocks
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
 
   void execDROP_TABLE_REQ(Signal* signal);
   
@@ -787,12 +839,12 @@ private:
   void execPREP_DROP_TAB_REF(Signal* signal);  
   void execPREP_DROP_TAB_CONF(Signal* signal);
 
-  void execDROP_TAB_REQ(Signal* signal);  
   void execDROP_TAB_REF(Signal* signal);  
   void execDROP_TAB_CONF(Signal* signal);
 
   void execCREATE_TABLE_REQ(Signal* signal);
   void execALTER_TABLE_REQ(Signal* signal);
+  void execCREATE_FRAGMENTATION_REQ(Signal*);
   void execCREATE_FRAGMENTATION_REF(Signal*);
   void execCREATE_FRAGMENTATION_CONF(Signal*);
   void execCREATE_TAB_REQ(Signal* signal);
@@ -803,7 +855,6 @@ private:
   void execLQHADDATTCONF(Signal* signal);
   void execCREATE_TAB_REF(Signal* signal);
   void execCREATE_TAB_CONF(Signal* signal);  
-  void execALTER_TAB_REQ(Signal* signal);
   void execALTER_TAB_REF(Signal* signal);
   void execALTER_TAB_CONF(Signal* signal);
   bool check_ndb_versions() const;
@@ -822,6 +873,16 @@ private:
   void execDROP_FILE_CONF(Signal* signal);
   void execDROP_FILEGROUP_REF(Signal* signal);
   void execDROP_FILEGROUP_CONF(Signal* signal);
+
+  void execSCHEMA_TRANS_BEGIN_REQ(Signal* signal);
+  void execSCHEMA_TRANS_BEGIN_CONF(Signal* signal);
+  void execSCHEMA_TRANS_BEGIN_REF(Signal* signal);
+  void execSCHEMA_TRANS_END_REQ(Signal* signal);
+  void execSCHEMA_TRANS_END_CONF(Signal* signal);
+  void execSCHEMA_TRANS_END_REF(Signal* signal);
+  void execSCHEMA_TRANS_IMPL_REQ(Signal* signal);
+  void execSCHEMA_TRANS_IMPL_CONF(Signal* signal);
+  void execSCHEMA_TRANS_IMPL_REF(Signal* signal);
 
   void execDICT_LOCK_REQ(Signal* signal);
   void execDICT_UNLOCK_ORD(Signal* signal);
@@ -1090,6 +1151,35 @@ private:
     TableRecordPtr tablePtr;
   };
 
+  // Misc helpers
+
+  template <Uint32 sz>
+  inline bool
+  copyRope(RopeHandle& rh_dst, const RopeHandle& rh_src)
+  {
+    char buf[sz];
+    Rope r_dst(c_rope_pool, rh_dst);
+    ConstRope r_src(c_rope_pool, rh_src);
+    ndbrequire(r_src.size() <= sz);
+    r_src.copy(buf);
+    bool ok = r_dst.assign(buf, r_src.size());
+    return ok;
+  }
+
+#ifdef VM_TRACE
+  template <Uint32 sz>
+  inline const char*
+  copyRope(const RopeHandle& rh)
+  {
+    static char buf[2][sz];
+    static int i = 0;
+    ConstRope r(c_rope_pool, rh);
+    char* str = buf[i++ % 2];
+    r.copy(str);
+    return str;
+  }
+#endif
+ 
   // Operation records
 
   /**
@@ -1109,483 +1199,1484 @@ private:
     }
   };
 
-  /**
-   * Create table record
-   */
-  struct CreateTableRecord : OpRecordCommon {
-    CreateTableRecord() {}
-    Uint32 m_senderRef;
-    Uint32 m_senderData;
-    Uint32 m_coordinatorRef;
-    
-    Uint32 m_errorCode;
-    void setErrorCode(Uint32 c){ if(m_errorCode == 0) m_errorCode = c;}
+  // MODULE: SchemaTrans
 
-    // For alter table
-    Uint32 m_changeMask;
-    Uint32 m_new_cols;
-    bool m_alterTableFailed;
-    AlterTableRef m_alterTableRef;
-    Uint32 m_alterTableId;
-    Uint32 m_tupAlterTabPtr;                    // Connect ptr towards TUP
+  struct SchemaOp;
+  struct SchemaTrans;
+  struct TxHandle;
+  typedef Ptr<SchemaOp> SchemaOpPtr;
+  typedef Ptr<SchemaTrans> SchemaTransPtr;
+  typedef Ptr<TxHandle> TxHandlePtr;
 
-    /* Previous table name (used for reverting failed table rename) */
-    char previousTableName[MAX_TAB_NAME_SIZE];
+  // ErrorInfo
 
-    /* Previous table definition, frm (used for reverting) */
-    /** TODO Could preferrably be made dynamic size */
-    Uint32 previousFrmLen;
-    char previousFrmData[MAX_FRM_DATA_SIZE];
-
-    Uint32 m_tablePtrI;
-    Uint32 m_tabInfoPtrI;
-    Uint32 m_fragmentsPtrI;
-
-    Uint32 m_dihAddFragPtr; // Connect ptr towards DIH
-    Uint32 m_lqhFragPtr;    // Connect ptr towards LQH
-
-    Callback m_callback;    // Who's using local create tab
-    MutexHandle2<DIH_START_LCP_MUTEX> m_startLcpMutex;
-    
-    struct CoordinatorData {
-      Uint32 m_gsn;
-      SafeCounterHandle m_counter;
-      CreateTabReq::RequestType m_requestType;
-    } m_coordinatorData;
+  struct ErrorInfo {
+    Uint32 errorCode;
+    Uint32 errorLine;
+    Uint32 errorNodeId;
+    Uint32 errorCount;
+    // for CreateTable
+    Uint32 errorStatus;
+    Uint32 errorKey;
+    ErrorInfo() {
+      errorCode = 0;
+      errorLine = 0;
+      errorNodeId = 0;
+      errorCount = 0;
+    }
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  private:
+    ErrorInfo& operator=(const ErrorInfo&);
   };
-  typedef Ptr<CreateTableRecord> CreateTableRecordPtr;
 
-  /**
-   * Drop table record
-   */
-  struct DropTableRecord : OpRecordCommon {
-    DropTableRecord() {}
-    DropTableReq m_request;
-    
-    Uint32 m_requestType;
-    Uint32 m_coordinatorRef;
-    
-    Uint32 m_errorCode;
-    void setErrorCode(Uint32 c){ if(m_errorCode == 0) m_errorCode = c;}
+  void setError(ErrorInfo&,
+                Uint32 code,
+                Uint32 line,
+                Uint32 nodeId = 0,
+                Uint32 status = 0,
+                Uint32 key = 0);
 
-    MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
-    
-    /**
-     * When sending stuff around
-     */
-    struct CoordinatorData {
-      Uint32 m_gsn;
-      Uint32 m_block;
-      SignalCounter m_signalCounter;
-    } m_coordinatorData;
+  void setError(ErrorInfo&, const ErrorInfo&);
+  void setError(ErrorInfo&, const ParseDictTabInfoRecord&);
 
-    struct ParticipantData {
-      Uint32 m_gsn;
-      Uint32 m_block;
-      SignalCounter m_signalCounter;
+  void setError(SchemaOpPtr, Uint32 code, Uint32 line, Uint32 nodeId = 0);
+  void setError(SchemaOpPtr, const ErrorInfo&);
 
-      Callback m_callback;
-    } m_participantData;
-  };
-  typedef Ptr<DropTableRecord> DropTableRecordPtr;
+  void setError(SchemaTransPtr, Uint32 code, Uint32 line, Uint32 nodeId = 0);
+  void setError(SchemaTransPtr, const ErrorInfo&);
 
-  /**
-   * Request flags passed in signals along with request type and
-   * propagated across operations.
-   */
-  struct RequestFlag {
-    enum {
-      RF_LOCAL = 1 << 0,        // create on local node only
-      RF_NOBUILD = 1 << 1,      // no need to build index
-      RF_NOTCTRIGGER = 1 << 2,  // alter trigger: no trigger in TC
-      RF_FORCE = 1 << 4         // force drop
+  void setError(TxHandlePtr, Uint32 code, Uint32 line, Uint32 nodeId = 0);
+  void setError(TxHandlePtr, const ErrorInfo&);
+
+  template <class Ref>
+  inline void
+  setError(ErrorInfo& e, const Ref* ref) {
+    setError(e, ref->errorCode, ref->errorLine, ref->errorNodeId);
+  }
+
+  template <class Ref>
+  inline void
+  getError(const ErrorInfo& e, Ref* ref) {
+    ref->errorCode = e.errorCode;
+    ref->errorLine = e.errorLine;
+    ref->errorNodeId = e.errorNodeId;
+    ref->masterNodeId = c_masterNodeId;
+  }
+
+  bool hasError(const ErrorInfo&);
+
+  void resetError(ErrorInfo&);
+  void resetError(SchemaOpPtr);
+  void resetError(SchemaTransPtr);
+  void resetError(TxHandlePtr);
+
+  // transaction mode and phase
+
+  struct TransMode {
+    enum Value {
+      Undef = 0,
+      Normal,
+      Rollback, // rolling back current op and sub-ops
+      Abort     // rolling back entire transaction
     };
   };
 
-  /**
-   * Operation record for create index.
+  struct TransPhase {
+    enum Value {
+      Undef = 0,
+      Begin,
+      Parse,
+      Prepare,
+      Commit,
+      Complete,
+      End
+    };
+  };
+
+  // phase can be divided in 3 subphases (Pre,Post should be Simple)
+  struct TransSubphase {
+    enum Value {
+      Undef = 0,
+      Pre,
+      Main,
+      Post
+    };
+  };
+
+  struct TransStep {
+    TransMode::Value m_mode;
+    TransPhase::Value m_phase;
+    TransSubphase::Value m_subphase;
+    Uint32 m_repeat;
+    TransStep() {
+      m_mode = TransMode::Undef;
+      m_phase = TransPhase::Undef;
+      m_subphase = TransSubphase::Undef;
+      m_repeat = 0;
+    }
+  };
+
+  struct TransPhaseFlag {
+    enum Value {
+      Master = (1 << 0), // no-op on slave participant
+      Simple = (1 << 1)  // not iterated over operations
+    };
+  };
+
+  struct TransPhaseEntry {
+    TransPhase::Value m_phase;
+    TransSubphase::Value m_subphase;
+    Uint32 m_phaseFlags;
+    // for Simple phase
+    void (Dbdict::*m_run)(Signal*, SchemaTransPtr);
+    void (Dbdict::*m_abort)(Signal*, SchemaTransPtr);
+  };
+
+  struct TransPhaseList {
+    Uint32 m_id;
+    Uint32 m_length;
+    const TransPhaseEntry* const m_phaseEntry;
+  };
+
+  // default (and only) phase list
+  static const TransPhaseEntry g_defaultPhaseEntry[];
+  static const TransPhaseList g_defaultPhaseList;
+
+  // OpInfo
+
+  struct OpInfo {
+    const char m_opType[4]; // e.g. CTa for CreateTable
+    Uint32 m_impl_req_gsn;
+    Uint32 m_impl_req_length;
+
+    // seize / release type-specific Data record
+    bool (Dbdict::*m_seize)(SchemaOpPtr);
+    void (Dbdict::*m_release)(SchemaOpPtr);
+
+    // parse phase
+    void (Dbdict::*m_parse)(Signal*, SchemaOpPtr, ErrorInfo&);
+    bool (Dbdict::*m_subOps)(Signal*, SchemaOpPtr);
+    void (Dbdict::*m_reply)(Signal*, SchemaOpPtr, ErrorInfo);
+
+    // run phases
+    void (Dbdict::*m_prepare)(Signal*, SchemaOpPtr);
+    void (Dbdict::*m_commit)(Signal*, SchemaOpPtr);
+#if wl3600_todo
+    void (Dbdict::*m_complete)(Signal*, SchemaOpPtr);
+#endif
+    // abort mode
+    void (Dbdict::*m_abortParse)(Signal*, SchemaOpPtr);
+    void (Dbdict::*m_abortPrepare)(Signal*, SchemaOpPtr);
+  };
+
+  // all OpInfo records
+  static const OpInfo* g_opInfoList[];
+  const OpInfo* findOpInfo(Uint32 gsn);
+
+  // Feedback is a sub-op callback for a parent op on all nodes
+
+  enum FeedbackId {
+    AlterIndex_atCreateTrigger = 1,
+    AlterIndex_atDropTrigger = 2,
+    BuildIndex_atCreateConstraint = 3,
+    BuildIndex_atDropConstraint = 4
+  };
+
+  struct FeedbackEntry {
+    Uint32 m_id;
+    TransPhase::Value m_phase;
+    void (Dbdict::*m_method)(Signal*, SchemaOpPtr);
+  };
+
+  static const FeedbackEntry g_feedbackTable[];
+  const FeedbackEntry* findFeedbackEntry(Uint32 id, TransPhase::Value phase);
+  void runFeedbackMethod(Signal*, SchemaOpPtr);
+
+  // OpRec
+
+  struct OpRec {
+    Uint32 nextPool;
+
+    // reference to the static member in subclass
+    const OpInfo& m_opInfo;
+
+    // pointer to internal signal in subclass instance
+    Uint32* const m_impl_req_data;
+
+    // DictObject operated on
+    Uint32 m_obj_ptr_i;
+
+    // Copy of original and current schema file entry
+    SchemaFile::TableEntry m_orig_entry;
+    SchemaFile::TableEntry m_curr_entry;
+
+    char m_opType[4];
+
+    OpRec(const OpInfo& info, Uint32* impl_req_data) :
+      m_opInfo(info),
+      m_impl_req_data(impl_req_data) {
+      m_obj_ptr_i = RNIL;
+      m_orig_entry.init();
+      m_curr_entry.init();
+      memcpy(m_opType, m_opInfo.m_opType, 4);
+    }
+  };
+  typedef Ptr<OpRec> OpRecPtr;
+
+  /*
+   * OpSection
+   *
+   * Signal sections are released in parse phase.  If necessary
+   * they are first saved under schema op record.
    */
-  struct OpCreateIndex : OpRecordCommon {
-    // original request (index id will be added)
-    CreateIndxReq m_request;
-    AttributeList m_attrList;
+
+  enum { OpSectionSegmentSize = 127 };
+  typedef
+    LocalDataBuffer<OpSectionSegmentSize>
+    OpSectionBuffer;
+  typedef
+    OpSectionBuffer::Head
+    OpSectionBufferHead;
+  typedef
+    OpSectionBuffer::DataBufferPool
+    OpSectionBufferPool;
+  typedef
+    DataBuffer<OpSectionSegmentSize>::ConstDataBufferIterator
+    OpSectionBufferConstIterator;
+
+  OpSectionBufferPool c_opSectionBufferPool;
+
+  struct OpSection {
+    OpSectionBufferHead m_head;
+    Uint32 getSize() const {
+      return m_head.getSize();
+    }
+  };
+
+  bool copyIn(OpSection&, const SegmentedSectionPtr&);
+  bool copyIn(OpSection&, const Uint32* src, Uint32 srcSize);
+  bool copyOut(const OpSection&, SegmentedSectionPtr&);
+  bool copyOut(const OpSection&, Uint32* dst, Uint32 dstSize);
+  void release(OpSection&);
+
+  // SchemaOp
+
+  struct SchemaOp {
+    Uint32 nextPool;
+
+    Uint32 op_key;
+    Uint32 nextHash;
+    Uint32 prevHash;
+    Uint32 hashValue() const {
+      return op_key;
+    }
+    bool equal(const SchemaOp& rec) const {
+      return op_key == rec.op_key;
+    }
+
+    Uint32 nextList;
+    Uint32 prevList;
+
+    // tx client or DICT master for recursive ops
+    Uint32 m_clientRef;
+    Uint32 m_clientData;
+
+    // requestExtra and requestFlags from REQ and trans level
+    Uint32 m_requestInfo;
+
+    // the op belongs to this trans
+    SchemaTransPtr m_trans_ptr;
+
+    // type specific record (the other half of schema op)
+    OpRecPtr m_oprec_ptr;
+
+    // saved signal sections or other variable data
+    OpSection m_section[3];
+    Uint32 m_sections;
+
+    // callback for use with sub-operations
+    Callback m_callback;
+
+    // index (0-based) of operation in schema trans op list
+    Uint32 m_opIndex;
+
+    // sub-operation tree structure expressed as depth (top level = 0)
+    Uint32 m_opDepth;
+
+    // link to an extra "helper" op and link back from it
+    SchemaOpPtr m_oplnk_ptr;
+    SchemaOpPtr m_opbck_ptr;
+
+    // last successfully completed step
+    TransStep m_step;
+
+    // flag if this op has been aborted in RT_PREPARE phase
+    bool m_abortPrepareDone;
+
+    // error always propagates to trans level
+    ErrorInfo m_error;
+
+    // magic is on when record is seized
+    enum { DICT_MAGIC = 0xd1c70001 };
+    Uint32 m_magic;
+
+    SchemaOp() {
+      m_clientRef = 0;
+      m_clientData = 0;
+      m_requestInfo = 0;
+      m_trans_ptr.setNull();
+      m_oprec_ptr.setNull();
+      m_sections = 0;
+      m_callback.m_callbackFunction = 0;
+      m_callback.m_callbackData = 0;
+      m_opIndex = ~(Uint32)0;
+      m_opDepth = 0;
+      m_oplnk_ptr.setNull();
+      m_opbck_ptr.setNull();
+      m_abortPrepareDone = false;
+      m_magic = 0;
+    }
+
+    SchemaOp(Uint32 the_op_key) {
+      op_key = the_op_key;
+    }
+
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  ArrayPool<SchemaOp> c_schemaOpPool;
+  DLHashTable<SchemaOp> c_schemaOpHash;
+
+  const OpInfo& getOpInfo(SchemaOpPtr op_ptr);
+
+  // set or get the type specific record cast to the specific type
+
+  template <class T>
+  inline void
+  setOpRec(SchemaOpPtr op_ptr, const Ptr<T> t_ptr) {
+    OpRecPtr& oprec_ptr = op_ptr.p->m_oprec_ptr;
+    ndbrequire(!t_ptr.isNull());
+    oprec_ptr.i = t_ptr.i;
+    oprec_ptr.p = static_cast<OpRec*>(t_ptr.p);
+    ndbrequire(memcmp(t_ptr.p->m_opType, T::g_opInfo.m_opType, 4) == 0);
+  }
+
+  template <class T>
+  inline void
+  getOpRec(SchemaOpPtr op_ptr, Ptr<T>& t_ptr) {
+    OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+    ndbrequire(!oprec_ptr.isNull());
+    t_ptr.i = oprec_ptr.i;
+    t_ptr.p = static_cast<T*>(oprec_ptr.p);
+    ndbrequire(memcmp(t_ptr.p->m_opType, T::g_opInfo.m_opType, 4) == 0);
+  }
+
+  // OpInfo m_seize, m_release
+
+  template <class T>
+  inline bool
+  seizeOpRec(SchemaOpPtr op_ptr) {
+    OpRecPtr& oprec_ptr = op_ptr.p->m_oprec_ptr;
+    ArrayPool<T>& pool = T::getPool(this);
+    Ptr<T> t_ptr;
+    if (pool.seize(t_ptr)) {
+      new (t_ptr.p) T();
+      setOpRec<T>(op_ptr, t_ptr);
+      return true;
+    }
+    oprec_ptr.setNull();
+    return false;
+  }
+
+  template <class T>
+  inline void
+  releaseOpRec(SchemaOpPtr op_ptr) {
+    OpRecPtr& oprec_ptr = op_ptr.p->m_oprec_ptr;
+    ArrayPool<T>& pool = T::getPool(this);
+    Ptr<T> t_ptr;
+    getOpRec<T>(op_ptr, t_ptr);
+    pool.release(t_ptr);
+    oprec_ptr.setNull();
+  }
+
+  // seize / find / release, atomic on op rec + data rec
+
+  bool seizeSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key, const OpInfo& info);
+
+  template <class T>
+  inline bool
+  seizeSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key) {
+    return seizeSchemaOp(op_ptr, op_key, T::g_opInfo);
+  }
+
+  template <class T>
+  inline bool
+  seizeSchemaOp(SchemaOpPtr& op_ptr, Ptr<T>& t_ptr, Uint32 op_key) {
+    if (seizeSchemaOp<T>(op_ptr, op_key)) {
+      getOpRec<T>(op_ptr, t_ptr);
+      return true;
+    }
+    return false;
+  }
+
+  template <class T>
+  inline bool
+  seizeSchemaOp(SchemaOpPtr& op_ptr) {
+    Uint32 op_key = c_opRecordSequence + 1;
+    if (seizeSchemaOp<T>(op_ptr, op_key)) {
+      c_opRecordSequence = op_key;
+      return true;
+    }
+    return false;
+  }
+
+  template <class T>
+  inline bool
+  seizeSchemaOp(SchemaOpPtr& op_ptr, Ptr<T>& t_ptr) {
+    if (seizeSchemaOp<T>(op_ptr)) {
+      getOpRec<T>(op_ptr, t_ptr);
+      return true;
+    }
+    return false;
+  }
+
+  bool findSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key);
+
+  template <class T>
+  inline bool
+  findSchemaOp(SchemaOpPtr& op_ptr, Ptr<T>& t_ptr, Uint32 op_key) {
+    if (findSchemaOp(op_ptr, op_key)) {
+      getOpRec(op_ptr, t_ptr);
+      return true;
+    }
+    return false;
+  }
+
+  void releaseSchemaOp(SchemaOpPtr& op_ptr);
+
+  // copy signal sections to schema op sections
+  const OpSection& getOpSection(SchemaOpPtr, Uint32 ss_no);
+  bool saveOpSection(SchemaOpPtr, Signal*, Uint32 ss_no);
+  bool saveOpSection(SchemaOpPtr, SegmentedSectionPtr ss_ptr, Uint32 ss_no);
+  void releaseOpSection(SchemaOpPtr, Uint32 ss_no);
+
+  // add operation to transaction OpList
+  void addSchemaOp(SchemaTransPtr, SchemaOpPtr&);
+
+  void updateSchemaOpStep(SchemaTransPtr, SchemaOpPtr);
+
+  // the link between SdhemaOp and DictObject (1-way now)
+
+  bool hasDictObject(SchemaOpPtr);
+  void getDictObject(SchemaOpPtr, DictObjectPtr&);
+  void linkDictObject(SchemaOpPtr op_ptr, DictObjectPtr obj_ptr);
+  void unlinkDictObject(SchemaOpPtr op_ptr);
+  void seizeDictObject(SchemaOpPtr, DictObjectPtr&, const RopeHandle& name);
+  bool findDictObject(SchemaOpPtr, DictObjectPtr&, const char* name);
+  bool findDictObject(SchemaOpPtr, DictObjectPtr&, Uint32 obj_ptr_i);
+  void releaseDictObject(SchemaOpPtr);
+  void findDictObjectOp(SchemaOpPtr&, DictObjectPtr);
+
+  // list of SchemaOp (sans pool)
+  struct OpList {
+    DLFifoList<SchemaOp>::Head m_head;
+    Uint32 m_size;
+    OpList() {
+      m_size = 0;
+    }
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  /*
+   * Transaction state, location, and iteration.  Maintained
+   * by master and copied to slaves on each round.
+   *
+   * Iteration is over phases, operations, and repeats.
+   */
+
+  struct TransLoc : public TransStep {
+    const TransPhaseList* m_phaseList;
+    Uint32 m_phaseIndex;
+    OpList m_opList;
+    Uint32 m_opKey;
+    bool m_hold; // master-local temp flag
+    TransLoc () {
+      m_phaseIndex = 0;
+      m_opKey = 0;
+      m_hold = false;
+    }
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  bool getOpPtr(const TransLoc&, SchemaOpPtr&);
+  const TransPhaseEntry& getPhaseEntry(const TransLoc&);
+
+  void iteratorAddOp(TransLoc&, SchemaOpPtr);
+  void iteratorRemoveLastOp(TransLoc&, SchemaOpPtr&);
+  bool iteratorFirstOp(TransLoc&, int dir);
+  bool iteratorNextOp(TransLoc&, int dir);
+
+  bool iteratorFirst(TransLoc&, int dir);
+  bool iteratorNext(TransLoc&, int dir);
+  bool iteratorInit(TransLoc&);
+  bool iteratorMove(TransLoc&, bool repeatFlag);
+  void iteratorCopy(TransLoc&, Uint32 mode,
+                    Uint32 phaseIndex, Uint32 op_key, Uint32 repeat);
+
+  /*
+   * Transaction state of each node tracked by master only.
+   * Also records requests for repeat after each round.
+   */
+
+  struct TransGlob {
+    enum State {
+      Undef = 0,
+      Ok,
+      Error,
+      NodeFail,
+      // handle cases where slave has no free record
+      NeedTrans,
+      NoTrans,
+      NeedOp,
+      NoOp,
+      // end valid values
+      End
+    };
+    // pack State to save space
+    Uint8 m_state;
+    Uint8 m_flags;
+    TransGlob() {
+      m_state = Undef;
+      m_flags = 0;
+    }
+    TransGlob(State state, Uint32 flags) {
+      m_state = (Uint8)state;
+      m_flags = flags;
+    }
+    State state() const {
+      return (State)m_state;
+    }
+    void state(State state) {
+      assert(state > 0 && state < End);
+      m_state = (Uint8)state;
+    }
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  TransGlob& getTransGlob(SchemaTransPtr, Uint32 nodeId);
+
+  void setGlobState(SchemaTransPtr,
+                    Uint32 nodeId, TransGlob::State state);
+  void setGlobState(SchemaTransPtr,
+                    const NdbNodeBitmask&, TransGlob::State state);
+  void setGlobState(SchemaTransPtr,
+                    TransGlob::State oldstate, TransGlob::State state);
+  void setGlobFlags(SchemaTransPtr,
+                    Uint32 nodeId, Uint32 flags, int op);
+  void setGlobFlags(SchemaTransPtr,
+                    const NdbNodeBitmask&, Uint32 flags, int op);
+  Uint32 getGlobFlags(SchemaTransPtr trans_ptr,
+                      const NdbNodeBitmask& nodes);
+
+  // a dummy simple phase
+  void dummySimplePhase(Signal*, SchemaTransPtr);
+
+  /*
+   * Trans client is the API client (not us, for recursive ops).
+   * Its state is shared by SchemaTrans / TxHandle (for takeover).
+   */
+  struct TransClient {
+    enum State {
+      StateUndef = 0,
+      BeginReq = 1,   // begin trans received
+      BeginReply = 2, // reply sent / waited for
+      ParseReq = 3,
+      ParseReply = 4,
+      EndReq = 5,
+      EndReply = 6
+    };
+    enum Flag {
+      ApiFail = 1,
+      Background = 2,
+      TakeOver = 4
+    };
+  };
+
+  // SchemaTrans
+
+  struct SchemaTrans {
+    // ArrayPool
+    Uint32 nextPool;
+
+    // DLHashTable
+    Uint32 trans_key;
+    Uint32 nextHash;
+    Uint32 prevHash;
+    Uint32 hashValue() const {
+      return trans_key;
+    }
+    bool equal(const SchemaTrans& rec) const {
+      return trans_key == rec.trans_key;
+    }
+
+    // DLFifoList where new ones are added at end
+    Uint32 nextList;
+    Uint32 prevList;
+
+    bool m_isMaster;
+    BlockReference m_masterRef;
+
+    // requestFlags from begin/end trans
+    Uint32 m_requestInfo;
+
+    BlockReference m_clientRef;
+    Uint32 m_transId;
+    TransClient::State m_clientState;
+    Uint32 m_clientFlags;
+    Uint32 m_takeOverTxKey;
+
+    // local and global transaction state
+    TransLoc m_transLoc;
+    TransGlob m_transGlob[MAX_NDB_NODES];
+
+    NdbNodeBitmask m_initNodes;
+    NdbNodeBitmask m_failedNodes;
+    SafeCounterHandle m_counter;
+
+    // request for lock/unlock
+    DictLockReq m_lockReq;
+
+    // operation depth during parse (increased for sub-ops)
+    Uint32 m_opDepth;
+
+    // callback (not yet used)
+    Callback m_callback;
+
+    // error is reset after each req/reply
+    ErrorInfo m_error;
+
+    // magic is on when record is seized
+    enum { DICT_MAGIC = 0xd1c70002 };
+    Uint32 m_magic;
+
+    SchemaTrans() {
+      m_isMaster = false;
+      m_masterRef = 0;
+      m_requestInfo = 0;
+      m_clientRef = 0;
+      m_transId = 0;
+      m_clientState = TransClient::StateUndef;
+      m_clientFlags = 0;
+      m_takeOverTxKey = 0;
+      m_initNodes.clear();
+      m_failedNodes.clear();
+      memset(&m_lockReq, 0, sizeof(m_lockReq)),
+      m_opDepth = 0;
+      m_callback.m_callbackFunction = 0;
+      m_callback.m_callbackData = 0;
+      m_magic = 0;
+    }
+
+    SchemaTrans(Uint32 the_trans_key) {
+      trans_key = the_trans_key;
+    }
+
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  ArrayPool<SchemaTrans> c_schemaTransPool;
+  DLHashTable<SchemaTrans> c_schemaTransHash;
+  DLFifoList<SchemaTrans> c_schemaTransList;
+  Uint32 c_schemaTransCount;
+
+  bool seizeSchemaTrans(SchemaTransPtr&, Uint32 trans_key);
+  bool seizeSchemaTrans(SchemaTransPtr&);
+  bool findSchemaTrans(SchemaTransPtr&, Uint32 trans_key);
+  void releaseSchemaTrans(SchemaTransPtr&);
+
+  Uint32 getIteratorRepeat(SchemaTransPtr trans_ptr);
+
+  // coordinator
+  void sendTransReq(Signal*, SchemaTransPtr);
+  void sendTransParseReq(Signal*, SchemaOpPtr);
+  void recvTransReply(Signal*, bool isConf);
+  void handleTransReply(Signal*, SchemaTransPtr);
+  void createSubOps(Signal*, SchemaOpPtr, bool first = false);
+  void abortSubOps(Signal*, SchemaOpPtr, ErrorInfo);
+  void runTransMaster(Signal*, SchemaTransPtr);
+  void setTransMode(SchemaTransPtr, TransMode::Value, bool hold);
+
+  // participant
+  void recvTransReq(Signal*);
+  void recvTransParseReq(Signal*, SchemaTransPtr,
+                         Uint32 op_key, const OpInfo& info,
+                         Uint32 requestInfo);
+  void runTransSlave(Signal*, SchemaTransPtr);
+  void sendTransConf(Signal*, SchemaOpPtr, Uint32 itFlags = 0);
+  void sendTransConf(Signal*, SchemaTransPtr, Uint32 itFlags = 0);
+  void sendTransRef(Signal*, SchemaOpPtr);
+  void sendTransRef(Signal*, SchemaTransPtr);
+
+  // reply to trans client for begin/end trans
+  void sendTransClientReply(Signal*, SchemaTransPtr);
+
+  // on DB slave node failure exclude the node from transactions
+  void handleTransSlaveFail(Signal*, Uint32 failedNode);
+
+  // common code for different op types
+
+  /*
+   * Client REQ starts with find trans and add op record.
+   * Sets request info in op and default request type in impl_req.
+   */
+  template <class T, class Req, class ImplReq>
+  inline void
+  startClientReq(SchemaOpPtr& op_ptr, Ptr<T>& t_ptr,
+                 const Req* req, ImplReq*& impl_req, ErrorInfo& error)
+  {
+    SchemaTransPtr trans_ptr;
+
+    const Uint32 requestInfo = req->requestInfo;
+    const Uint32 requestType = DictSignal::getRequestType(requestInfo);
+    const Uint32 requestExtra = DictSignal::getRequestExtra(requestInfo);
+    const bool localTrans = (requestInfo & DictSignal::RF_LOCAL_TRANS);
+
+    if (getOwnNodeId() != c_masterNodeId && !localTrans) {
+      jam();
+      setError(error, SchemaTransImplRef::NotMaster, __LINE__);
+      return;
+    }
+
+    if (!findSchemaTrans(trans_ptr, req->transKey)) {
+      jam();
+      setError(error, SchemaTransImplRef::InvalidTransKey, __LINE__);
+      return;
+    }
+
+    TransLoc& tLoc = trans_ptr.p->m_transLoc;
+    D("before add op" << *trans_ptr.p << tLoc << tLoc.m_opList);
+
+    if (trans_ptr.p->m_transId != req->transId) {
+      jam();
+      setError(error, SchemaTransImplRef::InvalidTransId, __LINE__);
+      return;
+    }
+
+    if (trans_ptr.p->m_opDepth == 0) {
+      jam();
+      if (trans_ptr.p->m_clientState != TransClient::BeginReply &&
+          trans_ptr.p->m_clientState != TransClient::ParseReply) {
+        jam();
+        setError(error, SchemaTransImplRef::InvalidTransState, __LINE__);
+        return;
+      }
+    }
+
+    if (tLoc.m_phase != TransPhase::Begin &&
+        tLoc.m_phase != TransPhase::Parse) {
+      jam();
+      setError(error, SchemaTransImplRef::InvalidTransState, __LINE__);
+      return;
+    }
+
+    ndbrequire(!hasError(trans_ptr.p->m_error));
+
+    if (tLoc.m_mode == TransMode::Rollback) {
+      jam();
+      D("continuing after rollback");
+      resetError(trans_ptr);
+      setTransMode(trans_ptr, TransMode::Normal, false);
+    }
+    ndbrequire(tLoc.m_mode == TransMode::Normal);
+
+    if (!seizeSchemaOp(op_ptr, t_ptr)) {
+      jam();
+      setError(error, SchemaTransImplRef::TooManySchemaOps, __LINE__);
+      return;
+    }
+
+    // switch to parse phase on first op
+    if (tLoc.m_phase == TransPhase::Begin) {
+      jam();
+      iteratorMove(tLoc, false);
+    }
+
+    trans_ptr.p->m_clientState = TransClient::ParseReq;
+
+    DictSignal::setRequestExtra(op_ptr.p->m_requestInfo, requestExtra);
+    DictSignal::addRequestFlags(op_ptr.p->m_requestInfo, requestInfo);
+
+    // add op and global flags from trans level
+    addSchemaOp(trans_ptr, op_ptr);
+
+    // impl_req was passed via reference
+    impl_req = &t_ptr.p->m_request;
+
+    impl_req->senderRef = reference();
+    impl_req->senderData = op_ptr.p->op_key;
+    impl_req->requestType = requestType;
+
+    // client of this REQ (trans client or us, recursively)
+    op_ptr.p->m_clientRef = req->clientRef;
+    op_ptr.p->m_clientData = req->clientData;
+
+    const Uint32 ownNodeId = getOwnNodeId();
+    const TransGlob& tGlob = getTransGlob(trans_ptr, ownNodeId);
+    ndbrequire(tGlob.state() == TransGlob::Ok);
+
+    // other nodes have no op record yet
+    NdbNodeBitmask nodes = trans_ptr.p->m_initNodes;
+    nodes.bitANDC(trans_ptr.p->m_failedNodes);
+    nodes.clear(ownNodeId);
+    setGlobState(trans_ptr, nodes, TransGlob::NeedOp);
+  }
+
+  /*
+   * The other half of client REQ processing.  On error starts
+   * rollback of current client op and its sub-ops.
+   */
+  void handleClientReq(Signal*, SchemaOpPtr);
+
+  // DICT receives recursive or internal CONF or REF
+
+  template <class Conf>
+  inline void
+  handleDictConf(Signal* signal, const Conf* conf) {
+    D("handleDictConf" << V(conf->senderData));
+    ndbrequire(signal->getNoOfSections() == 0);
+
+    Callback callback;
+    bool ok = findCallback(callback, conf->senderData);
+    ndbrequire(ok);
+    execute(signal, callback, 0);
+  }
+
+  template <class Ref>
+  inline void
+  handleDictRef(Signal* signal, const Ref* ref) {
+    D("handleDictRef" << V(ref->senderData) << V(ref->errorCode));
+    ndbrequire(signal->getNoOfSections() == 0);
+
+    Callback callback;
+    bool ok = findCallback(callback, ref->senderData);
+    ndbrequire(ok);
+    ndbrequire(ref->errorCode != 0);
+    execute(signal, callback, ref->errorCode);
+  }
+
+  /*
+   * TxHandle
+   *
+   * DICT as schema trans client.  TxHandle is the client-side record.
+   * It has same role as NdbDictInterface::Tx in NDB API.  It is used
+   * for following:
+   *
+   * - create or drop table at NR/SR [not yet]
+   * - build or activate indexes at NR/SR
+   * - take over client trans if client requests this
+   * - take over client trans when client API has failed
+   */
+
+  struct TxHandle {
+    // ArrayPool
+    Uint32 nextPool;
+
+    // DLHashTable
+    Uint32 tx_key;
+    Uint32 nextHash;
+    Uint32 prevHash;
+    Uint32 hashValue() const {
+      return tx_key;
+    }
+    bool equal(const TxHandle& rec) const {
+      return tx_key == rec.tx_key;
+    }
+
+    Uint32 m_requestInfo; // global flags are passed to schema trans
+    Uint32 m_transId;
+    Uint32 m_transKey;
+    Uint32 m_userData;
+
+    // when take over for background or for failed API
+    TransClient::State m_clientState;
+    Uint32 m_clientFlags;
+    BlockReference m_takeOverRef;
+    Uint32 m_takeOverTransId;
+    BlockReference m_apiFailRetRef;
+
+    Callback m_callback;
+    ErrorInfo m_error;
+
+    // magic is on when record is seized
+    enum { DICT_MAGIC = 0xd1c70003 };
+    Uint32 m_magic;
+
+    TxHandle() {
+      m_requestInfo = 0;
+      m_transId = 0;
+      m_transKey = 0;
+      m_userData = 0;
+      m_clientState = TransClient::StateUndef;
+      m_clientFlags = 0;
+      m_takeOverRef = 0;
+      m_takeOverTransId = 0;
+      m_apiFailRetRef = 0;
+      m_callback.m_callbackFunction = 0;
+      m_callback.m_callbackData = 0;
+      m_magic = 0;
+    }
+
+    TxHandle(Uint32 the_tx_key) {
+      tx_key = the_tx_key;
+    }
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  ArrayPool<TxHandle> c_txHandlePool;
+  DLHashTable<TxHandle> c_txHandleHash;
+
+  bool seizeTxHandle(TxHandlePtr&);
+  bool findTxHandle(TxHandlePtr&, Uint32 tx_key);
+  void releaseTxHandle(TxHandlePtr&);
+
+  void beginSchemaTrans(Signal*, TxHandlePtr);
+  void endSchemaTrans(Signal*, TxHandlePtr, Uint32 flags = 0);
+
+  void handleApiFail(Signal*, Uint32 failedApiNode, BlockReference retRef);
+  void takeOverTransClient(Signal*, SchemaTransPtr);
+  void runTransClientTakeOver(Signal*, Uint32 tx_key, Uint32 ret);
+  void finishApiFail(Signal*, TxHandlePtr tx_ptr);
+  void sendApiFailConf(Signal*, Uint32 failedApiNode, BlockReference retRef);
+
+  /*
+   * Callback key is for different record types in some cases.
+   * For example a CONF can be for SchemaOp or for TxHandle.
+   * This looks for match for one of op_key/trans_key/tx_key.
+   */
+  bool findCallback(Callback& callback, Uint32 any_key);
+
+  // MODULE: CreateTable
+
+  struct CreateTableRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::CreateTableRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_createTableRecPool;
+    }
+
+    CreateTabReq m_request;
+
+    // wl3600_todo check mutex name and number later
+    MutexHandle2<DIH_START_LCP_MUTEX> m_startLcpMutex;
+
+    // long signal memory for temp use
+    Uint32 m_tabInfoPtrI;
+    Uint32 m_fragmentsPtrI;
+
+    // connect pointers towards DIH and LQH
+    Uint32 m_dihAddFragPtr;
+    Uint32 m_lqhFragPtr;
+
+    // who is using local create tab
+    Callback m_callback;
+
+    CreateTableRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_tabInfoPtrI = RNIL;
+      m_fragmentsPtrI = RNIL;
+      m_dihAddFragPtr = RNIL;
+      m_lqhFragPtr = RNIL;
+    }
+
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  typedef Ptr<CreateTableRec> CreateTableRecPtr;
+  ArrayPool<CreateTableRec> c_createTableRecPool;
+
+  // OpInfo
+  bool createTable_seize(SchemaOpPtr);
+  void createTable_release(SchemaOpPtr);
+  //
+  void createTable_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool createTable_subOps(Signal*, SchemaOpPtr);
+  void createTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void createTable_prepare(Signal*, SchemaOpPtr);
+  void createTable_commit(Signal*, SchemaOpPtr);
+  //
+  void createTable_abortParse(Signal*, SchemaOpPtr);
+  void createTable_abortPrepare(Signal*, SchemaOpPtr);
+
+  // prepare
+  void createTab_writeSchemaConf1(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_dih(Signal*, SchemaOpPtr, OpSection fragSec, Callback*);
+  void createTab_dihComplete(Signal*, Uint32 op_key, Uint32 ret);
+
+  // commit
+  void createTab_startLcpMutex_locked(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_writeSchemaConf2(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_activate(Signal*, SchemaOpPtr, Callback*);
+  void createTab_alterComplete(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_startLcpMutex_unlocked(Signal*, Uint32 op_key, Uint32 ret);
+
+  // abort prepare
+  void createTable_abortLocalConf(Signal*, Uint32 aux_op_key, Uint32 ret);
+  void createTable_abortWriteSchemaConf(Signal*, Uint32 aux_op_key, Uint32 ret);
+
+  // MODULE: DropTable
+
+  struct DropTableRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::DropTableRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_dropTableRecPool;
+    }
+
+    DropTabReq m_request;
+
+    // wl3600_todo check mutex name and number later
+    MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
+
+    Uint32 m_block;
+    Callback m_callback;
+
+    DropTableRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_block = 0;
+    }
+
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  typedef Ptr<DropTableRec> DropTableRecPtr;
+  ArrayPool<DropTableRec> c_dropTableRecPool;
+
+  // OpInfo
+  bool dropTable_seize(SchemaOpPtr);
+  void dropTable_release(SchemaOpPtr);
+  //
+  void dropTable_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool dropTable_subOps(Signal*, SchemaOpPtr);
+  void dropTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void dropTable_prepare(Signal*, SchemaOpPtr);
+  void dropTable_commit(Signal*, SchemaOpPtr);
+  //
+  void dropTable_abortParse(Signal*, SchemaOpPtr);
+  void dropTable_abortPrepare(Signal*, SchemaOpPtr);
+
+  // prepare
+  void dropTable_backup_mutex_locked(Signal*, Uint32 op_key, Uint32 ret);
+  void prepDropTab_nextStep(Signal*, SchemaOpPtr);
+  void prepDropTab_writeSchema(Signal* signal, SchemaOpPtr);
+  void prepDropTab_writeSchemaConf(Signal*, Uint32 op_key, Uint32 ret);
+  void prepDropTab_fromLocal(Signal*, Uint32 op_key, Uint32 errorCode);
+  void prepDropTab_complete(Signal*, SchemaOpPtr);
+
+  // commit
+  void dropTab_nextStep(Signal*, SchemaOpPtr);
+  void dropTab_fromLocal(Signal*, Uint32 op_key);
+  void dropTab_complete(Signal*, Uint32 op_key, Uint32 ret);
+  void dropTab_writeSchemaConf(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: AlterTable
+
+  struct AlterTableRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::AlterTableRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_alterTableRecPool;
+    }
+
+    AlterTabReq m_request;
+
+    // added attributes
+    Uint32 m_newAttrData[2 * MAX_ATTRIBUTES_IN_TABLE];
+
+    // wl3600_todo check mutex name and number later
+    MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
+
+    // current and new temporary work table
+    TableRecordPtr m_tablePtr;
+    TableRecordPtr m_newTablePtr;
+
+    // before image
+    SchemaFile::TableEntry m_oldTableEntry;
+    RopeHandle m_oldTableName;
+    RopeHandle m_oldFrmData;
+
+    // what was actually changed so far
+    Uint32 m_changeMaskDone;
+
+    // connect ptr towards TUP
+    Uint32 m_tupAlterTabPtr;
+
+    // local blocks to process
+    enum { BlockCount = 4 };
+    Uint32 m_blockNo[BlockCount];
+    Uint32 m_blockIndex;
+
+    AlterTableRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      memset(&m_newAttrData, 0, sizeof(m_newAttrData));
+      m_tablePtr.setNull();
+      m_newTablePtr.setNull();
+      m_changeMaskDone = 0;
+      m_tupAlterTabPtr = RNIL;
+      m_blockNo[0] = DBLQH;
+      m_blockNo[1] = DBDIH;
+      m_blockNo[2] = DBTC;
+      m_blockNo[3] = DBTUP;
+      m_blockIndex = 0;
+    }
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  typedef Ptr<AlterTableRec> AlterTableRecPtr;
+  ArrayPool<AlterTableRec> c_alterTableRecPool;
+
+  // OpInfo
+  bool alterTable_seize(SchemaOpPtr);
+  void alterTable_release(SchemaOpPtr);
+  //
+  void alterTable_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool alterTable_subOps(Signal*, SchemaOpPtr);
+  void alterTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void alterTable_prepare(Signal*, SchemaOpPtr);
+  void alterTable_commit(Signal*, SchemaOpPtr);
+  //
+  void alterTable_abortParse(Signal*, SchemaOpPtr);
+  void alterTable_abortPrepare(Signal*, SchemaOpPtr);
+
+  // prepare phase
+  void alterTable_backup_mutex_locked(Signal*, Uint32 op_key, Uint32 ret);
+  void alterTable_toLocal(Signal*, SchemaOpPtr);
+  void alterTable_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  // commit phase
+  void alterTable_toTupCommit(Signal*, SchemaOpPtr);
+  void alterTable_fromTupCommit(Signal*, Uint32 op_key, Uint32 ret);
+  void alterTab_writeSchemaConf(Signal*, Uint32 op_key, Uint32 ret);
+  void alterTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
+
+  // abort
+  void alterTable_abortToLocal(Signal*, SchemaOpPtr);
+  void alterTable_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: CreateIndex
+
+  typedef struct {
+    Uint32 old_index;
+    Uint32 attr_id;
+    Uint32 attr_ptr_i;
+  } AttributeMap[MAX_ATTRIBUTES_IN_INDEX];
+
+  struct CreateIndexRec : public OpRec {
+    CreateIndxImplReq m_request;
     char m_indexName[MAX_TAB_NAME_SIZE];
-    bool m_loggedIndex;
-    bool m_temporaryIndex;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    CreateIndxReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    CreateIndxRef::ErrorCode m_lastError;
-    CreateIndxRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpCreateIndex() {
-      memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = CreateIndxReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = CreateIndxRef::NoError;
-      m_errorCode = CreateIndxRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void save(const CreateIndxReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != CreateIndxRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != CreateIndxRef::NoError;
-    }
-    void setError(const CreateIndxRef* ref) {
-      m_lastError = CreateIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const CreateTableRef* ref) {
-      m_lastError = CreateIndxRef::NoError;
-      if (ref != 0) {
-        switch (ref->getErrorCode()) {
-        case CreateTableRef::TableAlreadyExist:
-          m_lastError = CreateIndxRef::IndexExists;
-          break;
-        default:
-          m_lastError = (CreateIndxRef::ErrorCode)ref->getErrorCode();
-          break;
-        }
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-        }
-      }
-    }
-    void setError(const AlterIndxRef* ref) {
-      m_lastError = CreateIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (CreateIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-  };
-  typedef Ptr<OpCreateIndex> OpCreateIndexPtr;
-
-  /**
-   * Operation record for drop index.
-   */
-  struct OpDropIndex : OpRecordCommon {
-    // original request
-    DropIndxReq m_request;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    DropIndxReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    DropIndxRef::ErrorCode m_lastError;
-    DropIndxRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpDropIndex() {
-      memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = DropIndxReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = DropIndxRef::NoError;
-      m_errorCode = DropIndxRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void save(const DropIndxReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != DropIndxRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != DropIndxRef::NoError;
-    }
-    void setError(const DropIndxRef* ref) {
-      m_lastError = DropIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = ref->getErrorCode();
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const AlterIndxRef* ref) {
-      m_lastError = DropIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (DropIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const DropTableRef* ref) {
-      m_lastError = DropIndxRef::NoError;
-      if (ref != 0) {
-	switch (ref->errorCode) {
-	case DropTableRef::Busy:
-	  m_lastError = DropIndxRef::Busy;
-	  break;
-	case DropTableRef::NoSuchTable:
-	  m_lastError = DropIndxRef::IndexNotFound;
-	  break;
-	case DropTableRef::DropInProgress:
-	  m_lastError = DropIndxRef::Busy;
-	  break;
-	case DropTableRef::NoDropTableRecordAvailable:
-	  m_lastError = DropIndxRef::Busy;
-	  break;
-	default:
-	  m_lastError = (DropIndxRef::ErrorCode)ref->errorCode;
-	  break;
-	}
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = 0;
-          m_errorNode = 0;
-        }
-      }
-    }
-  };
-  typedef Ptr<OpDropIndex> OpDropIndexPtr;
-
-  /**
-   * Operation record for alter index.
-   */
-  struct OpAlterIndex : OpRecordCommon {
-    // original request plus buffer for attribute lists
-    AlterIndxReq m_request;
     AttributeList m_attrList;
-    AttributeList m_tableKeyList;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    AlterIndxReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    AlterIndxRef::ErrorCode m_lastError;
-    AlterIndxRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    Uint32 m_triggerCounter;
-    // ctor
-    OpAlterIndex() {
-      memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = AlterIndxReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = AlterIndxRef::NoError;
-      m_errorCode = AlterIndxRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-      m_triggerCounter = 0;
-    }
-    void save(const AlterIndxReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != AlterIndxRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != AlterIndxRef::NoError;
-    }
-    void setError(const AlterIndxRef* ref) {
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const CreateIndxRef* ref) {
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const DropIndxRef* ref) {
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const BuildIndxRef* ref) {
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = 0;
-          m_errorNode = 0;
-        }
-      }
-    }
-    void setError(const CreateTrigRef* ref) {
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const DropTrigRef* ref) {
-      m_lastError = AlterIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-  };
-  typedef Ptr<OpAlterIndex> OpAlterIndexPtr;
+    AttributeMask m_attrMask;
+    AttributeMap m_attrMap;
+    Uint32 m_bits;
+    Uint32 m_fragmentType;
+    Uint32 m_indexKeyLength;
 
-  /**
-   * Operation record for build index.
-   */
-  struct OpBuildIndex : OpRecordCommon {
-    // original request plus buffer for attribute lists
-    BuildIndxReq m_request;
-    AttributeList m_attrList;
-    Id_array<MAX_ATTRIBUTES_IN_INDEX+1> m_tableKeyList;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    BuildIndxReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    Uint32 m_constrTriggerId;
-    // error info
-    BuildIndxRef::ErrorCode m_lastError;
-    BuildIndxRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpBuildIndex() {
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::CreateIndexRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_createIndexRecPool;
+    }
+
+    // sub-operation counters
+    bool m_sub_create_table;
+    bool m_sub_alter_index;
+
+    CreateIndexRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = BuildIndxReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = BuildIndxRef::NoError;
-      m_errorCode = BuildIndxRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
+      memset(m_indexName, 0, sizeof(m_indexName));
+      memset(&m_attrList, 0, sizeof(m_attrList));
+      m_attrMask.clear();
+      memset(m_attrMap, 0, sizeof(m_attrMap));
+      m_bits = 0;
+      m_fragmentType = 0;
+      m_indexKeyLength = 0;
+      m_sub_create_table = false;
+      m_sub_alter_index = false;
     }
-    void save(const BuildIndxReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  typedef Ptr<CreateIndexRec> CreateIndexRecPtr;
+  ArrayPool<CreateIndexRec> c_createIndexRecPool;
+
+  // OpInfo
+  bool createIndex_seize(SchemaOpPtr);
+  void createIndex_release(SchemaOpPtr);
+  //
+  void createIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool createIndex_subOps(Signal*, SchemaOpPtr);
+  void createIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void createIndex_prepare(Signal*, SchemaOpPtr);
+  void createIndex_commit(Signal*, SchemaOpPtr);
+  //
+  void createIndex_abortParse(Signal*, SchemaOpPtr);
+  void createIndex_abortPrepare(Signal*, SchemaOpPtr);
+
+  // sub-ops
+  void createIndex_toCreateTable(Signal*, SchemaOpPtr);
+  void createIndex_fromCreateTable(Signal*, Uint32 op_key, Uint32 ret);
+  void createIndex_toAlterIndex(Signal*, SchemaOpPtr);
+  void createIndex_fromAlterIndex(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: DropIndex
+
+  struct DropIndexRec : public OpRec {
+    DropIndxImplReq m_request;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::DropIndexRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_dropIndexRecPool;
     }
-    bool hasLastError() {
-      return m_lastError != BuildIndxRef::NoError;
+
+    // sub-operation counters
+    bool m_sub_alter_index;
+    bool m_sub_drop_table;
+
+    DropIndexRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_sub_alter_index = false;
+      m_sub_drop_table = false;
     }
-    bool hasError() {
-      return m_errorCode != BuildIndxRef::NoError;
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  typedef Ptr<DropIndexRec> DropIndexRecPtr;
+  ArrayPool<DropIndexRec> c_dropIndexRecPool;
+
+  // OpInfo
+  bool dropIndex_seize(SchemaOpPtr);
+  void dropIndex_release(SchemaOpPtr);
+  //
+  void dropIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool dropIndex_subOps(Signal*, SchemaOpPtr);
+  void dropIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void dropIndex_prepare(Signal*, SchemaOpPtr);
+  void dropIndex_commit(Signal*, SchemaOpPtr);
+  //
+  void dropIndex_abortParse(Signal*, SchemaOpPtr);
+  void dropIndex_abortPrepare(Signal*, SchemaOpPtr);
+
+  // sub-ops
+  void dropIndex_toDropTable(Signal*, SchemaOpPtr);
+  void dropIndex_fromDropTable(Signal*, Uint32 op_key, Uint32 ret);
+  void dropIndex_toAlterIndex(Signal*, SchemaOpPtr);
+  void dropIndex_fromAlterIndex(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: AlterIndex
+
+  struct TriggerTmpl {
+    const char* nameFormat; // contains one %u for index id
+    const TriggerInfo triggerInfo;
+  };
+
+  static const TriggerTmpl g_hashIndexTriggerTmpl[3];
+  static const TriggerTmpl g_orderedIndexTriggerTmpl[1];
+  static const TriggerTmpl g_buildIndexConstraintTmpl[1];
+
+  struct AlterIndexRec : public OpRec {
+    AlterIndxImplReq m_request;
+    AttributeList m_attrList;
+    AttributeMask m_attrMask;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::AlterIndexRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_alterIndexRecPool;
     }
-    void setError(const BuildIndxRef* ref) {
-      m_lastError = BuildIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = 0;
-          m_errorNode = 0;
-        }
-      }
+
+    // sub-operation counters
+    const TriggerTmpl* m_triggerTmpl;
+    Uint32 m_triggerCount;      // 3 or 1
+    Uint32 m_triggerIndex;      // 0 1 2
+    Uint32 m_triggerNo;         // 0 1 2 or 2 1 0 on drop
+    bool m_sub_build_index;
+
+    // prepare phase
+    bool m_tc_index_done;
+
+    AlterIndexRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      memset(&m_attrList, 0, sizeof(m_attrList));
+      m_attrMask.clear();
+      m_triggerTmpl = 0;
+      m_triggerCount = 0;
+      m_triggerIndex = 0;
+      m_triggerNo = 0;
+      m_sub_build_index = false;
+      m_tc_index_done = false;
     }
-    void setError(const AlterIndxRef* ref) {
-      m_lastError = BuildIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
+
+#ifdef VM_TRACE
+    void print(NdbOut&) const;
+#endif
+  };
+
+  typedef Ptr<AlterIndexRec> AlterIndexRecPtr;
+  ArrayPool<AlterIndexRec> c_alterIndexRecPool;
+
+  // OpInfo
+  bool alterIndex_seize(SchemaOpPtr);
+  void alterIndex_release(SchemaOpPtr);
+  //
+  void alterIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool alterIndex_subOps(Signal*, SchemaOpPtr);
+  void alterIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void alterIndex_prepare(Signal*, SchemaOpPtr);
+  void alterIndex_commit(Signal*, SchemaOpPtr);
+  //
+  void alterIndex_abortParse(Signal*, SchemaOpPtr);
+  void alterIndex_abortPrepare(Signal*, SchemaOpPtr);
+
+  // sub-ops
+  void alterIndex_toCreateTrigger(Signal*, SchemaOpPtr);
+  void alterIndex_atCreateTrigger(Signal*, SchemaOpPtr);
+  void alterIndex_fromCreateTrigger(Signal*, Uint32 op_key, Uint32 ret);
+  void alterIndex_toDropTrigger(Signal*, SchemaOpPtr);
+  void alterIndex_atDropTrigger(Signal*, SchemaOpPtr);
+  void alterIndex_fromDropTrigger(Signal*, Uint32 op_key, Uint32 ret);
+  void alterIndex_toBuildIndex(Signal*, SchemaOpPtr);
+  void alterIndex_fromBuildIndex(Signal*, Uint32 op_key, Uint32 ret);
+
+  // prepare phase
+  void alterIndex_toCreateLocal(Signal*, SchemaOpPtr);
+  void alterIndex_toDropLocal(Signal*, SchemaOpPtr);
+  void alterIndex_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  // abort
+  void alterIndex_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: BuildIndex
+
+  // this prepends 1 column used for FRAGMENT in hash index table key
+  typedef Id_array<1 + MAX_ATTRIBUTES_IN_INDEX> FragAttributeList;
+
+  struct BuildIndexRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::BuildIndexRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_buildIndexRecPool;
     }
-    void setError(const CreateTrigRef* ref) {
-      m_lastError = BuildIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const DropTrigRef* ref) {
-      m_lastError = BuildIndxRef::NoError;
-      if (ref != 0) {
-        m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
+
+    BuildIndxImplReq m_request;
+
+    AttributeList m_indexKeyList;
+    FragAttributeList m_tableKeyList;
+    AttributeMask m_attrMask;
+
+    // sub-operation counters (CTr BIn DTr)
+    const TriggerTmpl* m_triggerTmpl;
+    Uint32 m_subOpCount;    // 3 or 0
+    Uint32 m_subOpIndex;
+
+    // do the actual build (i.e. not done in a sub-op BIn)
+    bool m_doBuild;
+
+    BuildIndexRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      memset(&m_indexKeyList, 0, sizeof(m_indexKeyList));
+      memset(&m_tableKeyList, 0, sizeof(m_tableKeyList));
+      m_attrMask.clear();
+      m_triggerTmpl = 0;
+      m_subOpCount = 0;
+      m_subOpIndex = 0;
+      m_doBuild = false;
     }
   };
-  typedef Ptr<OpBuildIndex> OpBuildIndexPtr;
+
+  typedef Ptr<BuildIndexRec> BuildIndexRecPtr;
+  ArrayPool<BuildIndexRec> c_buildIndexRecPool;
+
+  // OpInfo
+  bool buildIndex_seize(SchemaOpPtr);
+  void buildIndex_release(SchemaOpPtr);
+  //
+  void buildIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool buildIndex_subOps(Signal*, SchemaOpPtr);
+  void buildIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void buildIndex_prepare(Signal*, SchemaOpPtr);
+  void buildIndex_commit(Signal*, SchemaOpPtr);
+  //
+  void buildIndex_abortParse(Signal*, SchemaOpPtr);
+  void buildIndex_abortPrepare(Signal*, SchemaOpPtr);
+
+  // parse phase
+  void buildIndex_toCreateConstraint(Signal*, SchemaOpPtr);
+  void buildIndex_atCreateConstraint(Signal*, SchemaOpPtr);
+  void buildIndex_fromCreateConstraint(Signal*, Uint32 op_key, Uint32 ret);
+  //
+  void buildIndex_toBuildIndex(Signal*, SchemaOpPtr);
+  void buildIndex_fromBuildIndex(Signal*, Uint32 op_key, Uint32 ret);
+  //
+  void buildIndex_toDropConstraint(Signal*, SchemaOpPtr);
+  void buildIndex_atDropConstraint(Signal*, SchemaOpPtr);
+  void buildIndex_fromDropConstraint(Signal*, Uint32 op_key, Uint32 ret);
+
+  // prepare phase
+  void buildIndex_toLocalBuild(Signal*, SchemaOpPtr);
+  void buildIndex_fromLocalBuild(Signal*, Uint32 op_key, Uint32 ret);
+
+  // commit phase
+  void buildIndex_toLocalOnline(Signal*, SchemaOpPtr);
+  void buildIndex_fromLocalOnline(Signal*, Uint32 op_key, Uint32 ret);
 
   /**
    * Operation record for Util Signals.
@@ -1702,220 +2793,153 @@ private:
   };
   typedef Ptr<OpDropEvent> OpDropEventPtr;
 
-  /**
-   * Operation record for create trigger.
-   */
-  struct OpCreateTrigger : OpRecordCommon {
-    // original request (trigger id will be added)
-    CreateTrigReq m_request;
+  // MODULE: CreateTrigger
+
+  struct CreateTriggerRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::CreateTriggerRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_createTriggerRecPool;
+    }
+
+    CreateTrigImplReq m_request;
+
     char m_triggerName[MAX_TAB_NAME_SIZE];
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    CreateTrigReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    CreateTrigRef::ErrorCode m_lastError;
-    CreateTrigRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpCreateTrigger() {
-      memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = CreateTrigReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = CreateTrigRef::NoError;
-      m_errorCode = CreateTrigRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void save(const CreateTrigReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != CreateTrigRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != CreateTrigRef::NoError;
-    }
-    void setError(const CreateTrigRef* ref) {
-      m_lastError = CreateTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const AlterTrigRef* ref) {
-      m_lastError = CreateTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = (CreateTrigRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-  };
-  typedef Ptr<OpCreateTrigger> OpCreateTriggerPtr;
+    // sub-operation counters
+    bool m_sub_alter_trigger;
 
-  /**
-   * Operation record for drop trigger.
-   */
-  struct OpDropTrigger : OpRecordCommon {
-    // original request
-    DropTrigReq m_request;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    DropTrigReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    DropTrigRef::ErrorCode m_lastError;
-    DropTrigRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpDropTrigger() {
+    CreateTriggerRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = DropTrigReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = DropTrigRef::NoError;
-      m_errorCode = DropTrigRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void save(const DropTrigReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != DropTrigRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != DropTrigRef::NoError;
-    }
-    void setError(const DropTrigRef* ref) {
-      m_lastError = DropTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const AlterTrigRef* ref) {
-      m_lastError = DropTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = (DropTrigRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
+      memset(m_triggerName, 0, sizeof(m_triggerName));
+      m_sub_alter_trigger = false;
     }
   };
-  typedef Ptr<OpDropTrigger> OpDropTriggerPtr;
 
-  /**
-   * Operation record for alter trigger.
-   */
-  struct OpAlterTrigger : OpRecordCommon {
-    // original request
-    AlterTrigReq m_request;
-    // nodes participating in operation
-    NdbNodeBitmask m_nodes;
-    // coordinator DICT
-    Uint32 m_coordinatorRef;
-    bool m_isMaster;
-    // state info
-    AlterTrigReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    AlterTrigRef::ErrorCode m_lastError;
-    AlterTrigRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // counters
-    SignalCounter m_signalCounter;
-    // ctor
-    OpAlterTrigger() {
+  typedef Ptr<CreateTriggerRec> CreateTriggerRecPtr;
+  ArrayPool<CreateTriggerRec> c_createTriggerRecPool;
+
+  // OpInfo
+  bool createTrigger_seize(SchemaOpPtr);
+  void createTrigger_release(SchemaOpPtr);
+  //
+  void createTrigger_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool createTrigger_subOps(Signal*, SchemaOpPtr);
+  void createTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void createTrigger_prepare(Signal*, SchemaOpPtr);
+  void createTrigger_commit(Signal*, SchemaOpPtr);
+  //
+  void createTrigger_abortParse(Signal*, SchemaOpPtr);
+  void createTrigger_abortPrepare(Signal*, SchemaOpPtr);
+
+  // sub-ops
+  void createTrigger_toAlterTrigger(Signal*, SchemaOpPtr);
+  void createTrigger_fromAlterTrigger(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: DropTrigger
+
+  struct DropTriggerRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::DropTriggerRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_dropTriggerRecPool;
+    }
+
+    DropTrigImplReq m_request;
+
+    char m_triggerName[MAX_TAB_NAME_SIZE];
+    // sub-operation counters
+    bool m_sub_alter_trigger;
+
+    DropTriggerRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
-      m_coordinatorRef = 0;
-      m_requestType = AlterTrigReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_lastError = AlterTrigRef::NoError;
-      m_errorCode = AlterTrigRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void save(const AlterTrigReq* req) {
-      m_request = *req;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasLastError() {
-      return m_lastError != AlterTrigRef::NoError;
-    }
-    bool hasError() {
-      return m_errorCode != AlterTrigRef::NoError;
-    }
-    void setError(const AlterTrigRef* ref) {
-      m_lastError = AlterTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterTrigRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const CreateTrigRef* ref) {
-      m_lastError = AlterTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterTrigRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
-    }
-    void setError(const DropTrigRef* ref) {
-      m_lastError = AlterTrigRef::NoError;
-      if (ref != 0) {
-        m_lastError = (AlterTrigRef::ErrorCode)ref->getErrorCode();
-        if (! hasError()) {
-          m_errorCode = m_lastError;
-          m_errorLine = ref->getErrorLine();
-          m_errorNode = ref->getErrorNode();
-        }
-      }
+      memset(m_triggerName, 0, sizeof(m_triggerName));
+      m_sub_alter_trigger = false;
     }
   };
-  typedef Ptr<OpAlterTrigger> OpAlterTriggerPtr;
+
+  typedef Ptr<DropTriggerRec> DropTriggerRecPtr;
+  ArrayPool<DropTriggerRec> c_dropTriggerRecPool;
+
+  // OpInfo
+  bool dropTrigger_seize(SchemaOpPtr);
+  void dropTrigger_release(SchemaOpPtr);
+  //
+  void dropTrigger_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool dropTrigger_subOps(Signal*, SchemaOpPtr);
+  void dropTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void dropTrigger_prepare(Signal*, SchemaOpPtr);
+  void dropTrigger_commit(Signal*, SchemaOpPtr);
+  //
+  void dropTrigger_abortParse(Signal*, SchemaOpPtr);
+  void dropTrigger_abortPrepare(Signal*, SchemaOpPtr);
+
+  // sub-ops
+  void dropTrigger_toAlterTrigger(Signal*, SchemaOpPtr);
+  void dropTrigger_fromAlterTrigger(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: AlterTrigger
+
+  struct AlterTriggerRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::AlterTriggerRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_alterTriggerRecPool;
+    };
+
+    AlterTrigImplReq m_request;
+
+    // local triggers
+    Uint32 m_triggerCount; // 2 or 1
+    Uint32 m_triggerMax;   // normally m_triggerCount
+    Uint32 m_triggerNo;
+    // TC-LQH or LQH (if drop, done in reversed order)
+    BlockReference m_triggerBlock[2];
+
+    AlterTriggerRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_triggerCount = 0;
+      m_triggerMax = 0;
+      m_triggerNo = 0;
+      m_triggerBlock[0] = 0;
+      m_triggerBlock[1] = 0;
+    }
+  };
+
+  typedef Ptr<AlterTriggerRec> AlterTriggerRecPtr;
+  ArrayPool<AlterTriggerRec> c_alterTriggerRecPool;
+
+  // OpInfo
+  bool alterTrigger_seize(SchemaOpPtr);
+  void alterTrigger_release(SchemaOpPtr);
+  //
+  void alterTrigger_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  bool alterTrigger_subOps(Signal*, SchemaOpPtr);
+  void alterTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void alterTrigger_prepare(Signal*, SchemaOpPtr);
+  void alterTrigger_commit(Signal*, SchemaOpPtr);
+  //
+  void alterTrigger_abortParse(Signal*, SchemaOpPtr);
+  void alterTrigger_abortPrepare(Signal*, SchemaOpPtr);
+
+  // prepare phase
+  void alterTrigger_toCreateLocal(Signal*, SchemaOpPtr);
+  void alterTrigger_toDropLocal(Signal*, SchemaOpPtr);
+  void alterTrigger_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  // abort
+  void alterTrigger_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);
 
 public:
-  struct SchemaOp : OpRecordCommon {
+  struct SchemaOperation : OpRecordCommon {
     
     Uint32 m_clientRef; // API (for take-over)
     Uint32 m_clientData;// API
@@ -1932,7 +2956,7 @@ public:
     Uint32 m_vt_index;
     Callback m_callback;
   };
-  typedef Ptr<SchemaOp> SchemaOpPtr;
+  typedef Ptr<SchemaOperation> SchemaOperationPtr;
 
   struct SchemaTransaction : OpRecordCommon {
     Uint32 m_senderRef; // API
@@ -1958,14 +2982,14 @@ public:
   };
 private:
 
-  struct OpCreateObj : public SchemaOp {
+  struct OpCreateObj : public SchemaOperation {
     Uint32 m_gci;
     Uint32 m_obj_info_ptr_i;
     Uint32 m_restart;
   };
   typedef Ptr<OpCreateObj> CreateObjRecordPtr;
   
-  struct OpDropObj : public SchemaOp 
+  struct OpDropObj : public SchemaOperation
   {
   };
   typedef Ptr<OpDropObj> DropObjRecordPtr;
@@ -1975,59 +2999,32 @@ private:
    */
   // Common operation record pool
 public:
-  STATIC_CONST( opCreateTableSize = sizeof(CreateTableRecord) );
-  STATIC_CONST( opDropTableSize = sizeof(DropTableRecord) );
-  STATIC_CONST( opCreateIndexSize = sizeof(OpCreateIndex) );
-  STATIC_CONST( opDropIndexSize = sizeof(OpDropIndex) );
-  STATIC_CONST( opAlterIndexSize = sizeof(OpAlterIndex) );
-  STATIC_CONST( opBuildIndexSize = sizeof(OpBuildIndex) );
   STATIC_CONST( opCreateEventSize = sizeof(OpCreateEvent) );
   STATIC_CONST( opSubEventSize = sizeof(OpSubEvent) );
   STATIC_CONST( opDropEventSize = sizeof(OpDropEvent) );
   STATIC_CONST( opSignalUtilSize = sizeof(OpSignalUtil) );
-  STATIC_CONST( opCreateTriggerSize = sizeof(OpCreateTrigger) );
-  STATIC_CONST( opDropTriggerSize = sizeof(OpDropTrigger) );
-  STATIC_CONST( opAlterTriggerSize = sizeof(OpAlterTrigger) );
   STATIC_CONST( opCreateObjSize = sizeof(OpCreateObj) );
 private:
 #define PTR_ALIGN(n) ((((n)+sizeof(void*)-1)>>2)&~((sizeof(void*)-1)>>2))
   union OpRecordUnion {
-    Uint32 u_opCreateTable  [PTR_ALIGN(opCreateTableSize)];
-    Uint32 u_opDropTable    [PTR_ALIGN(opDropTableSize)];
-    Uint32 u_opCreateIndex  [PTR_ALIGN(opCreateIndexSize)];
-    Uint32 u_opDropIndex    [PTR_ALIGN(opDropIndexSize)];
     Uint32 u_opCreateEvent  [PTR_ALIGN(opCreateEventSize)];
     Uint32 u_opSubEvent     [PTR_ALIGN(opSubEventSize)];
     Uint32 u_opDropEvent    [PTR_ALIGN(opDropEventSize)];
     Uint32 u_opSignalUtil   [PTR_ALIGN(opSignalUtilSize)];
-    Uint32 u_opAlterIndex   [PTR_ALIGN(opAlterIndexSize)];
-    Uint32 u_opBuildIndex   [PTR_ALIGN(opBuildIndexSize)];
-    Uint32 u_opCreateTrigger[PTR_ALIGN(opCreateTriggerSize)];
-    Uint32 u_opDropTrigger  [PTR_ALIGN(opDropTriggerSize)];
-    Uint32 u_opAlterTrigger [PTR_ALIGN(opAlterTriggerSize)];
     Uint32 u_opCreateObj    [PTR_ALIGN(opCreateObjSize)];
     Uint32 nextPool;
   };
   ArrayPool<OpRecordUnion> c_opRecordPool;
   
   // Operation records
-  KeyTable2<CreateTableRecord, OpRecordUnion> c_opCreateTable;
-  KeyTable2<DropTableRecord, OpRecordUnion> c_opDropTable;
-  KeyTable2<OpCreateIndex, OpRecordUnion> c_opCreateIndex;
-  KeyTable2<OpDropIndex, OpRecordUnion> c_opDropIndex;
-  KeyTable2<OpAlterIndex, OpRecordUnion> c_opAlterIndex;
-  KeyTable2<OpBuildIndex, OpRecordUnion> c_opBuildIndex;
   KeyTable2C<OpCreateEvent, OpRecordUnion> c_opCreateEvent;
   KeyTable2C<OpSubEvent, OpRecordUnion> c_opSubEvent;
   KeyTable2C<OpDropEvent, OpRecordUnion> c_opDropEvent;
   KeyTable2C<OpSignalUtil, OpRecordUnion> c_opSignalUtil;
-  KeyTable2<OpCreateTrigger, OpRecordUnion> c_opCreateTrigger;
-  KeyTable2<OpDropTrigger, OpRecordUnion> c_opDropTrigger;
-  KeyTable2<OpAlterTrigger, OpRecordUnion> c_opAlterTrigger;
-  KeyTable2<SchemaOp, OpRecordUnion> c_schemaOp; 
+  KeyTable2<SchemaOperation, OpRecordUnion> c_schemaOperation;
   KeyTable2<SchemaTransaction, OpRecordUnion> c_Trans;
-  KeyTable2Ref<OpCreateObj, SchemaOp, OpRecordUnion> c_opCreateObj;
-  KeyTable2Ref<OpDropObj, SchemaOp, OpRecordUnion> c_opDropObj;
+  KeyTable2Ref<OpCreateObj, SchemaOperation, OpRecordUnion> c_opCreateObj;
+  KeyTable2Ref<OpDropObj, SchemaOperation, OpRecordUnion> c_opDropObj;
 
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
@@ -2092,21 +3089,16 @@ private:
   bool verifyTableCorrect(Signal* signal, Uint32 tableId);
   
   /* ------------------------------------------------------------ */
-  // Add Table Handling
-  /* ------------------------------------------------------------ */
-  void releaseCreateTableOp(Signal* signal, CreateTableRecordPtr createTabPtr);
-
-  /* ------------------------------------------------------------ */
   // Add Fragment Handling
   /* ------------------------------------------------------------ */
-  void sendLQHADDATTRREQ(Signal*, CreateTableRecordPtr, Uint32 attributePtrI);
+  void sendLQHADDATTRREQ(Signal*, SchemaOpPtr, Uint32 attributePtrI);
   
   /* ------------------------------------------------------------ */
   // Read/Write Schema and Table files
   /* ------------------------------------------------------------ */
   void updateSchemaState(Signal* signal, Uint32 tableId, 
 			 SchemaFile::TableEntry*, Callback*,
-                         bool savetodisk = 1);
+                         bool savetodisk = 1, bool dicttrans = 0);
   void startWriteSchemaFile(Signal* signal);
   void openSchemaFile(Signal* signal,
                       Uint32 fileNo,
@@ -2123,6 +3115,8 @@ private:
   
   void writeTableFile(Signal* signal, Uint32 tableId, 
 		      SegmentedSectionPtr tabInfo, Callback*);
+  void writeTableFile(Signal* signal, Uint32 tableId,
+		      OpSection opSection, Callback*);
   void startWriteTableFile(Signal* signal, Uint32 tableId);
   void openTableFile(Signal* signal, 
                      Uint32 fileNo,
@@ -2161,7 +3155,8 @@ private:
   /* ------------------------------------------------------------ */
   void sendGET_TABINFOREF(Signal* signal, 
 			  GetTabInfoReq*,
-			  GetTabInfoRef::ErrorCode errorCode);
+			  GetTabInfoRef::ErrorCode errorCode,
+                          Uint32 errorLine);
 
   void sendGET_TABLEID_REF(Signal* signal, 
 			   GetTableIdReq * req,
@@ -2175,62 +3170,13 @@ private:
 
   // reactivate and rebuild indexes on start up
   void activateIndexes(Signal* signal, Uint32 i);
+  void activateIndex_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void activateIndex_fromAlterIndex(Signal*, Uint32 tx_key, Uint32 ret);
+  void activateIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndexes(Signal* signal, Uint32 i);
-
-  // create index
-  void createIndex_recvReply(Signal* signal, const CreateIndxConf* conf,
-      const CreateIndxRef* ref);
-  void createIndex_slavePrepare(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_fromCreateTable(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_toAlterIndex(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_fromAlterIndex(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_slaveCommit(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_slaveAbort(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_sendSlaveReq(Signal* signal, OpCreateIndexPtr opPtr);
-  void createIndex_sendReply(Signal* signal, OpCreateIndexPtr opPtr, bool);
-  // drop index
-  void dropIndex_recvReply(Signal* signal, const DropIndxConf* conf,
-      const DropIndxRef* ref);
-  void dropIndex_slavePrepare(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_toAlterIndex(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_fromAlterIndex(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_toDropTable(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_fromDropTable(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_slaveCommit(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_slaveAbort(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_sendSlaveReq(Signal* signal, OpDropIndexPtr opPtr);
-  void dropIndex_sendReply(Signal* signal, OpDropIndexPtr opPtr, bool);
-  // alter index
-  void alterIndex_recvReply(Signal* signal, const AlterIndxConf* conf,
-      const AlterIndxRef* ref);
-  void alterIndex_slavePrepare(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_toCreateTc(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_fromCreateTc(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_toDropTc(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_fromDropTc(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_toCreateTrigger(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_fromCreateTrigger(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_toDropTrigger(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_fromDropTrigger(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_toBuildIndex(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_fromBuildIndex(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_slaveCommit(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_slaveAbort(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_sendSlaveReq(Signal* signal, OpAlterIndexPtr opPtr);
-  void alterIndex_sendReply(Signal* signal, OpAlterIndexPtr opPtr, bool);
-  // build index
-  void buildIndex_recvReply(Signal* signal, const BuildIndxConf* conf,
-      const BuildIndxRef* ref);
-  void buildIndex_toCreateConstr(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_fromCreateConstr(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_buildTrix(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_toDropConstr(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_fromDropConstr(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_toOnline(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_fromOnline(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_sendSlaveReq(Signal* signal, OpBuildIndexPtr opPtr);
-  void buildIndex_sendReply(Signal* signal, OpBuildIndexPtr opPtr, bool);
+  void rebuildIndex_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void rebuildIndex_fromBuildIndex(Signal*, Uint32 tx_key, Uint32 ret);
+  void rebuildIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
 
   // Events
   void 
@@ -2329,40 +3275,6 @@ private:
 
   void parseReadEventSys(Signal *signal, sysTab_NDBEVENTS_0& m_eventRec);
 
-  // create trigger
-  void createTrigger_recvReply(Signal* signal, const CreateTrigConf* conf,
-      const CreateTrigRef* ref);
-  void createTrigger_slavePrepare(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_masterSeize(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_slaveCreate(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_toAlterTrigger(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_fromAlterTrigger(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_slaveCommit(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_slaveAbort(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_sendSlaveReq(Signal* signal, OpCreateTriggerPtr opPtr);
-  void createTrigger_sendReply(Signal* signal, OpCreateTriggerPtr opPtr, bool);
-  // drop trigger
-  void dropTrigger_recvReply(Signal* signal, const DropTrigConf* conf,
-      const DropTrigRef* ref);
-  void dropTrigger_slavePrepare(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_toAlterTrigger(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_fromAlterTrigger(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_slaveCommit(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_slaveAbort(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_sendSlaveReq(Signal* signal, OpDropTriggerPtr opPtr);
-  void dropTrigger_sendReply(Signal* signal, OpDropTriggerPtr opPtr, bool);
-  // alter trigger
-  void alterTrigger_recvReply(Signal* signal, const AlterTrigConf* conf,
-      const AlterTrigRef* ref);
-  void alterTrigger_slavePrepare(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_toCreateLocal(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_fromCreateLocal(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_toDropLocal(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_fromDropLocal(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_slaveCommit(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_slaveAbort(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_sendSlaveReq(Signal* signal, OpAlterTriggerPtr opPtr);
-  void alterTrigger_sendReply(Signal* signal, OpAlterTriggerPtr opPtr, bool);
   // support
   void getTableKeyList(TableRecordPtr, 
 		       Id_array<MAX_ATTRIBUTES_IN_INDEX+1>& list);
@@ -2396,72 +3308,20 @@ private:
 
   bool getIsFailed(Uint32 nodeId) const;
 
-  void dropTable_backup_mutex_locked(Signal* signal, Uint32, Uint32);
-  void dropTableRef(Signal * signal, DropTableReq *, DropTableRef::ErrorCode);
   void printTables(); // For debugging only
-  int handleAlterTab(AlterTabReq * req,
-		     CreateTableRecord * regAlterTabPtr,
-		     TableRecordPtr origTablePtr,
-		     TableRecordPtr newTablePtr);
-  void revertAlterTable(Signal * signal, 
-			Uint32 changeMask, 
-			Uint32 tableId,
-			CreateTableRecord * regAlterTabPtr);
-  void alterTable_backup_mutex_locked(Signal* signal, Uint32, Uint32);
-  void alterTableRef(Signal * signal, 
-		     AlterTableReq *, AlterTableRef::ErrorCode, 
-		     ParseDictTabInfoRecord* parseRecord = NULL);
-  void alterTabRef(Signal * signal, 
-		   AlterTabReq *, AlterTableRef::ErrorCode, 
-		   ParseDictTabInfoRecord* parseRecord = NULL);
-  void alterTab_writeSchemaConf(Signal* signal, 
-				Uint32 callbackData,
-				Uint32 returnCode);
-  void alterTab_writeTableConf(Signal* signal, 
-			       Uint32 callbackData,
-			       Uint32 returnCode);
 
-  void prepDropTab_nextStep(Signal* signal, DropTableRecordPtr);
-  void prepDropTab_complete(Signal* signal, DropTableRecordPtr);
-  void prepDropTab_writeSchemaConf(Signal* signal, Uint32 dropTabPtrI, Uint32);
-
-  void dropTab_localDROP_TAB_CONF(Signal* signal);
-  void dropTab_nextStep(Signal* signal, DropTableRecordPtr);
-  void dropTab_complete(Signal* signal, Uint32 dropTabPtrI, Uint32);
-  void dropTab_writeSchemaConf(Signal* signal, Uint32 dropTabPtrI, Uint32);
-
-  void createTab_prepare(Signal* signal, CreateTabReq * req);
-  void createTab_writeSchemaConf1(Signal* signal, Uint32 callback, Uint32);
-  void createTab_writeTableConf(Signal* signal, Uint32 callbackData, Uint32);
-  void createTab_dih(Signal*, CreateTableRecordPtr, 
-		     SegmentedSectionPtr, Callback*);
-  void createTab_dihComplete(Signal* signal, Uint32 callbackData, Uint32);
-
-  void createTab_startLcpMutex_locked(Signal* signal, Uint32, Uint32);
-  void createTab_startLcpMutex_unlocked(Signal* signal, Uint32, Uint32);
-  
-  void createTab_commit(Signal* signal, CreateTabReq * req);  
-  void createTab_writeSchemaConf2(Signal* signal, Uint32 callbackData, Uint32);
-  void createTab_alterComplete(Signal*, Uint32 callbackData, Uint32);
-
-  void createTab_drop(Signal* signal, CreateTabReq * req);
-  void createTab_dropComplete(Signal* signal, Uint32 callbackData, Uint32);
-
-  void createTab_reply(Signal* signal, CreateTableRecordPtr, Uint32 nodeId);
-  void alterTab_activate(Signal*, CreateTableRecordPtr, Callback*);
-  
   void restartCreateTab(Signal*, Uint32, 
 			const SchemaFile::TableEntry *, 
 			const SchemaFile::TableEntry *, bool);
-  void restartCreateTab_readTableConf(Signal* signal, Uint32 callback, Uint32);
-  void restartCreateTab_writeTableConf(Signal* signal, Uint32 callback, Uint32);
-  void restartCreateTab_dihComplete(Signal* signal, Uint32 callback, Uint32);
-  void restartCreateTab_activateComplete(Signal*, Uint32 callback, Uint32);
+  void restartCreateTab_readTableConf(Signal*, Uint32 op_key, Uint32 ret);
+  void restartCreateTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
+  void restartCreateTab_dihComplete(Signal*, Uint32 op_key, Uint32 ret);
+  void restartCreateTab_activateComplete(Signal*, Uint32 op_key, Uint32 ret);
 
   void restartDropTab(Signal* signal, Uint32 tableId,
                       const SchemaFile::TableEntry *, 
                       const SchemaFile::TableEntry *);
-  void restartDropTab_complete(Signal*, Uint32 callback, Uint32);
+  void restartDropTab_complete(Signal*, Uint32 op_key, Uint32 ret);
 
   void restartDropObj(Signal*, Uint32, const SchemaFile::TableEntry *);
   void restartDropObj_prepare_start_done(Signal*, Uint32, Uint32);
@@ -2491,7 +3351,7 @@ private:
   void createObj_abort_writeSchemaConf(Signal*, Uint32 callbackData, Uint32);
   void createObj_abort_complete_done(Signal*, Uint32 callbackData, Uint32);  
 
-  void schemaOp_reply(Signal* signal, SchemaTransaction *, Uint32);
+  void schemaOperation_reply(Signal* signal, SchemaTransaction *, Uint32);
   void trans_commit_start_done(Signal*, Uint32 callbackData, Uint32);
   void trans_commit_complete_done(Signal*, Uint32 callbackData, Uint32);
   void trans_abort_start_done(Signal*, Uint32 callbackData, Uint32);
@@ -2531,40 +3391,58 @@ private:
   void execDICT_ABORT_CONF(Signal*);
 
 public:
-  void createObj_commit(Signal*, struct SchemaOp*);
-  void createObj_abort(Signal*, struct SchemaOp*);
+  void createObj_commit(Signal*, struct SchemaOperation*);
+  void createObj_abort(Signal*, struct SchemaOperation*);
 
-  void create_fg_prepare_start(Signal* signal, SchemaOp*);
-  void create_fg_prepare_complete(Signal* signal, SchemaOp*);
-  void create_fg_abort_start(Signal* signal, SchemaOp*);
-  void create_fg_abort_complete(Signal* signal, SchemaOp*);
+  void create_fg_prepare_start(Signal* signal, SchemaOperation*);
+  void create_fg_prepare_complete(Signal* signal, SchemaOperation*);
+  void create_fg_abort_start(Signal* signal, SchemaOperation*);
+  void create_fg_abort_complete(Signal* signal, SchemaOperation*);
 
-  void create_file_prepare_start(Signal* signal, SchemaOp*);
-  void create_file_prepare_complete(Signal* signal, SchemaOp*);
-  void create_file_commit_start(Signal* signal, SchemaOp*);
-  void create_file_abort_start(Signal* signal, SchemaOp*);
-  void create_file_abort_complete(Signal* signal, SchemaOp*);
+  void create_file_prepare_start(Signal* signal, SchemaOperation*);
+  void create_file_prepare_complete(Signal* signal, SchemaOperation*);
+  void create_file_commit_start(Signal* signal, SchemaOperation*);
+  void create_file_abort_start(Signal* signal, SchemaOperation*);
+  void create_file_abort_complete(Signal* signal, SchemaOperation*);
 
-  void dropObj_commit(Signal*, struct SchemaOp*);
-  void dropObj_abort(Signal*, struct SchemaOp*);
-  void drop_file_prepare_start(Signal* signal, SchemaOp*);
-  void drop_file_commit_start(Signal* signal, SchemaOp*);
-  void drop_file_commit_complete(Signal* signal, SchemaOp*);
-  void drop_file_abort_start(Signal* signal, SchemaOp*);
-  void send_drop_file(Signal*, SchemaOp*, DropFileImplReq::RequestInfo);
+  void dropObj_commit(Signal*, struct SchemaOperation*);
+  void dropObj_abort(Signal*, struct SchemaOperation*);
+  void drop_file_prepare_start(Signal* signal, SchemaOperation*);
+  void drop_file_commit_start(Signal* signal, SchemaOperation*);
+  void drop_file_commit_complete(Signal* signal, SchemaOperation*);
+  void drop_file_abort_start(Signal* signal, SchemaOperation*);
+  void send_drop_file(Signal*, SchemaOperation*, DropFileImplReq::RequestInfo);
 
-  void drop_fg_prepare_start(Signal* signal, SchemaOp*);
-  void drop_fg_commit_start(Signal* signal, SchemaOp*);
-  void drop_fg_commit_complete(Signal* signal, SchemaOp*);
-  void drop_fg_abort_start(Signal* signal, SchemaOp*);
-  void send_drop_fg(Signal*, SchemaOp*, DropFilegroupImplReq::RequestInfo);
+  void drop_fg_prepare_start(Signal* signal, SchemaOperation*);
+  void drop_fg_commit_start(Signal* signal, SchemaOperation*);
+  void drop_fg_commit_complete(Signal* signal, SchemaOperation*);
+  void drop_fg_abort_start(Signal* signal, SchemaOperation*);
+  void send_drop_fg(Signal*, SchemaOperation*, DropFilegroupImplReq::RequestInfo);
 
-  void drop_undofile_prepare_start(Signal* signal, SchemaOp*);
-  void drop_undofile_commit_complete(Signal* signal, SchemaOp*);
+  void drop_undofile_prepare_start(Signal* signal, SchemaOperation*);
+  void drop_undofile_commit_complete(Signal* signal, SchemaOperation*);
   
   int checkSingleUserMode(Uint32 senderRef);
 
-  
+#ifdef VM_TRACE
+  NdbOut debugOut;
+  bool debugOutOn() const;
+  friend NdbOut& operator<<(NdbOut& out, const DictObject&);
+  friend NdbOut& operator<<(NdbOut& out, const ErrorInfo&);
+  friend NdbOut& operator<<(NdbOut& out, const SchemaOp&);
+  friend NdbOut& operator<<(NdbOut& out, const OpList&);
+  friend NdbOut& operator<<(NdbOut& out, const TransLoc&);
+  friend NdbOut& operator<<(NdbOut& out, const TransGlob&);
+  friend NdbOut& operator<<(NdbOut& out, const SchemaTrans&);
+  friend NdbOut& operator<<(NdbOut& out, const TxHandle&);
+  void check_consistency();
+  void check_consistency_entry(TableRecordPtr tablePtr);
+  void check_consistency_table(TableRecordPtr tablePtr);
+  void check_consistency_index(TableRecordPtr indexPtr);
+  void check_consistency_trigger(TriggerRecordPtr triggerPtr);
+  void check_consistency_object(DictObjectPtr obj_ptr);
+#endif
+
   /**
    * Dict lock queue does currently uniformly handle
    *
@@ -2632,5 +3510,5 @@ Dbdict::TableRecord::isOrderedIndex() const
   return DictTabInfo::isOrderedIndex(tableType);
 }
 
-
+// quilt keeper
 #endif

@@ -18,43 +18,17 @@
 
 #include "SignalData.hpp"
 
-/**
- * AlterTable
- *
- * This signal is sent by API to DICT/TRIX
- * as a request to alter a secondary index
- * and then from TRIX to TRIX(n) and TRIX to TC.
- */
-class AlterTableReq {
-  /**
-   * Sender(s)
-   */
-  // API
+struct AlterTableReq {
+  STATIC_CONST( SignalLength = 8 );
   
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class NdbTableImpl;
-  friend class NdbEventOperationImpl;
-  friend class NdbDictInterface;
-  friend class Dbdict;
-  friend class Dbtup;
-  friend class Suma;
-
-  /**
-   * For printing
-   */
-  friend bool printALTER_TABLE_REQ(FILE*, const Uint32*, Uint32, Uint16);
-
-public:
-  STATIC_CONST( SignalLength = 5 );
-  
-private:
-  Uint32 senderData;
-  Uint32 senderRef;
-  Uint32 changeMask;
+  Uint32 clientRef;
+  Uint32 clientData;
+  Uint32 transId;
+  Uint32 transKey;
+  Uint32 requestInfo;
   Uint32 tableId;
   Uint32 tableVersion;
+  Uint32 changeMask;
 
   SECTION( DICT_TAB_INFO = 0 );
 
@@ -186,25 +160,18 @@ AlterTableReq::setAddAttrFlag(UintR & changeMask, Uint32 addAttrFlg){
   changeMask |= (addAttrFlg << ADD_ATTR_SHIFT);
 }
 
+struct AlterTableConf {
+  STATIC_CONST( SignalLength = 6 );
 
-class AlterTableRef {
-  /**
-   * Sender(s)
-   */
-  friend class Dbdict;
-  
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Ndbcntr;
-  friend class NdbDictInterface;
-  
-  /**
-   * For printing
-   */
-  friend bool printALTER_TABLE_REF(FILE *, const Uint32 *, Uint32, Uint16);
-  
-public:
+  Uint32 senderRef;
+  Uint32 clientData;
+  Uint32 transId;
+  Uint32 tableId;
+  Uint32 tableVersion;
+  Uint32 newTableVersion;
+};
+
+struct AlterTableRef {
   STATIC_CONST( SignalLength = 7 );
 
   enum ErrorCode {
@@ -233,49 +200,23 @@ public:
     SingleUser = 299
   };
 
-private:
-  Uint32 senderData;
   Uint32 senderRef;
-  Uint32 masterNodeId;
+  Uint32 clientData;
+  Uint32 transId;
   Uint32 errorCode;
   Uint32 errorLine; 
+  Uint32 errorNodeId;
+  Uint32 masterNodeId;
+  Uint32 errorStatus;
   Uint32 errorKey;
-  Uint32 status;
 
-public:
+private: //wl3600_todo
   Uint32 getErrorCode() const {
     return errorCode;
   }
   Uint32 getErrorLine() const {
     return errorLine;
   }
-};
-
-class AlterTableConf {
-  /**
-   * Sender(s)
-   */
-  friend class Dbdict;
-  
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Ndbcntr;
-  friend class NdbDictInterface;
-  
-  /**
-   * For printing
-   */
-  friend bool printALTER_TABLE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-  
-public:
-  STATIC_CONST( SignalLength = 4 );
-
-private:
-  Uint32 senderData;
-  Uint32 senderRef;
-  Uint32 tableId;
-  Uint32 tableVersion;
 };
 
 /**
