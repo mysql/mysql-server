@@ -99,10 +99,10 @@ public:
   /**
    * Trigger administration
    */
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
   
   /**
    * continueb
@@ -190,6 +190,9 @@ public:
     Uint32 m_tableId;
     Uint32 m_table_ptrI;
     Uint32 m_current_sync_ptrI;
+
+    // for hash index build (one subscriber, one table)
+    Uint32 m_schemaTransId;
   };
   typedef Ptr<Subscription> SubscriptionPtr;
 
@@ -249,7 +252,8 @@ public:
 		Ptr<SyncRecord> syncPtr);
   int initTable(Signal *signal,Uint32 tableId, TablePtr &tabPtr,
 		SubscriberPtr subbPtr);
-  int initTable(Signal *signal,Uint32 tableId, TablePtr &tabPtr);
+  int initTable(Signal *signal,Uint32 tableId, TablePtr &tabPtr,
+                Uint32 schemaTransId);
   
   int completeOneSubscriber(Signal* signal, TablePtr tabPtr, SubscriberPtr subbPtr);
   void completeAllSubscribers(Signal* signal, TablePtr tabPtr);
@@ -325,6 +329,9 @@ public:
     bool equal(const Table& rec) const {
       return m_tableId == rec.m_tableId;
     }
+
+    // copy from Subscription
+    Uint32 m_schemaTransId;
   };
 
   /**

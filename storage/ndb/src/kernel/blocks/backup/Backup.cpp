@@ -45,9 +45,9 @@
 
 #include <signaldata/UtilSequence.hpp>
 
-#include <signaldata/CreateTrig.hpp>
-#include <signaldata/AlterTrig.hpp>
-#include <signaldata/DropTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/AlterTrigImpl.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
 #include <AttributeHeader.hpp>
@@ -354,6 +354,7 @@ Backup::execCONTINUEB(Signal* signal)
     req->requestType = GetTabInfoReq::RequestById |
       GetTabInfoReq::LongSignalConf;
     req->tableId = tabPtr.p->tableId;
+    req->schemaTransId = 0;
     sendSignal(DBDICT_REF, GSN_GET_TABINFOREQ, signal, 
 	       GetTabInfoReq::SignalLength, JBB);
     return;
@@ -1020,9 +1021,9 @@ Backup::checkNodeFail(Signal* signal,
       break;
     }
     case GSN_WAIT_GCP_REQ:
-    case GSN_DROP_TRIG_REQ:
-    case GSN_CREATE_TRIG_REQ:
-    case GSN_ALTER_TRIG_REQ:
+    case GSN_DROP_TRIG_IMPL_REQ:
+    case GSN_CREATE_TRIG_IMPL_REQ:
+    case GSN_ALTER_TRIG_IMPL_REQ:
       ptr.p->setErrorCode(AbortBackupOrd::BackupFailureDueToNodeFail);
       return;
     case GSN_UTIL_SEQUENCE_REQ:
@@ -1492,7 +1493,7 @@ void
 Backup::sendCreateTrig(Signal* signal, 
 			   BackupRecordPtr ptr, TablePtr tabPtr)
 {
-  CreateTrigReq * req =(CreateTrigReq *)signal->getDataPtrSend();
+  CreateTrigImplReq* req = (CreateTrigImplReq*)signal->getDataPtrSend();
 
   /*
    * First, setup the structures
@@ -1533,44 +1534,52 @@ Backup::sendCreateTrig(Signal* signal,
   /*
    * now ask DBTUP to create
    */
-  ptr.p->slaveData.gsn = GSN_CREATE_TRIG_REQ;
+  ptr.p->slaveData.gsn = GSN_CREATE_TRIG_IMPL_REQ;
   ptr.p->slaveData.trigSendCounter = 3;
   ptr.p->slaveData.createTrig.tableId = tabPtr.p->tableId;
 
-  req->setUserRef(reference());
-  req->setReceiverRef(reference());
-  req->setConnectionPtr(ptr.i);
-  req->setRequestType(CreateTrigReq::RT_USER);
+  req->senderRef = reference();
+  req->receiverRef = reference();
+  req->senderData = ptr.i;
+  req->requestType = 0;
 
   Bitmask<MAXNROFATTRIBUTESINWORDS> attrMask;
   createAttributeMask(tabPtr, attrMask);
-  req->setAttributeMask(attrMask);
-  req->setTableId(tabPtr.p->tableId);
-  req->setIndexId(RNIL);        // not used
-  req->setTriggerType(TriggerType::SUBSCRIPTION);
-  req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
-  req->setMonitorReplicas(true);
-  req->setMonitorAllAttributes(false);
-  req->setOnline(true);
+  req->attributeMask = attrMask;
+  req->tableId = tabPtr.p->tableId;
+  req->tableVersion = 0;
+  req->indexId = RNIL;
+  req->indexVersion = 0;
+
+  Uint32 ti = 0;
+  TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION);
+  TriggerInfo::setTriggerActionTime(ti, TriggerActionTime::TA_DETACHED);
+  TriggerInfo::setMonitorReplicas(ti, true);
+  TriggerInfo::setMonitorAllAttributes(ti, false);
 
   for (int i=0; i < 3; i++) {
-    req->setTriggerId(tabPtr.p->triggerIds[i]);
-    req->setTriggerEvent(triggerEventValues[i]);
+    req->triggerId = tabPtr.p->triggerIds[i];
 
-    sendSignal(DBTUP_REF, GSN_CREATE_TRIG_REQ,
-	       signal, CreateTrigReq::SignalLength, JBB);
+    Uint32 ti2 = ti;
+    TriggerInfo::setTriggerEvent(ti2, triggerEventValues[i]);
+    req->triggerInfo = ti2;
+
+    sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ,
+	       signal, CreateTrigImplReq::SignalLength, JBB);
   }
 }
 
 void
-Backup::execCREATE_TRIG_CONF(Signal* signal)
+Backup::execCREATE_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
-  CreateTrigConf * conf = (CreateTrigConf*)signal->getDataPtr();
+  const CreateTrigImplConf* conf =
+    (const CreateTrigImplConf*)signal->getDataPtr();
   
-  const Uint32 ptrI = conf->getConnectionPtr();
-  const Uint32 tableId = conf->getTableId();
-  const TriggerEvent::Value type = conf->getTriggerEvent();
+  const Uint32 ptrI = conf->senderData;
+  const Uint32 tableId = conf->tableId;
+  const TriggerEvent::Value type =
+    TriggerInfo::getTriggerEvent(conf->triggerInfo);
 
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, ptrI);
@@ -1581,7 +1590,7 @@ Backup::execCREATE_TRIG_CONF(Signal* signal)
    * ptr.p->masterRef != reference()
    * as slaves and masters have triggers now.
    */
-  ndbrequire(ptr.p->slaveData.gsn == GSN_CREATE_TRIG_REQ);
+  ndbrequire(ptr.p->slaveData.gsn == GSN_CREATE_TRIG_IMPL_REQ);
   ndbrequire(ptr.p->slaveData.trigSendCounter.done() == false);
   ndbrequire(ptr.p->slaveData.createTrig.tableId == tableId);
 
@@ -1593,13 +1602,14 @@ Backup::execCREATE_TRIG_CONF(Signal* signal)
 }
 
 void
-Backup::execCREATE_TRIG_REF(Signal* signal)
+Backup::execCREATE_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
-  CreateTrigRef* ref = (CreateTrigRef*)signal->getDataPtr();
+  const CreateTrigImplRef* ref =
+    (const CreateTrigImplRef*)signal->getDataPtr();
 
-  const Uint32 ptrI = ref->getConnectionPtr();
-  const Uint32 tableId = ref->getTableId();
+  const Uint32 ptrI = ref->senderData;
+  const Uint32 tableId = ref->tableId;
 
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, ptrI);
@@ -1610,11 +1620,11 @@ Backup::execCREATE_TRIG_REF(Signal* signal)
    * ptr.p->masterRef != reference()
    * as slaves and masters have triggers now
    */
-  ndbrequire(ptr.p->slaveData.gsn == GSN_CREATE_TRIG_REQ);
+  ndbrequire(ptr.p->slaveData.gsn == GSN_CREATE_TRIG_IMPL_REQ);
   ndbrequire(ptr.p->slaveData.trigSendCounter.done() == false);
   ndbrequire(ptr.p->slaveData.createTrig.tableId == tableId);
 
-  ptr.p->setErrorCode(ref->getErrorCode());
+  ptr.p->setErrorCode(ref->errorCode);
 
   createTrigReply(signal, ptr);
 }
@@ -2103,7 +2113,7 @@ void
 Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
 {
   TablePtr tabPtr;
-  ptr.p->slaveData.gsn = GSN_DROP_TRIG_REQ;
+  ptr.p->slaveData.gsn = GSN_DROP_TRIG_IMPL_REQ;
 
   if (ptr.p->slaveData.dropTrig.tableId == RNIL) {
     jam();
@@ -2182,58 +2192,69 @@ void
 Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
 {
   jam();
-  DropTrigReq * req = (DropTrigReq *)signal->getDataPtrSend();
+  DropTrigImplReq* req = (DropTrigImplReq*)signal->getDataPtrSend();
 
-  ptr.p->slaveData.gsn = GSN_DROP_TRIG_REQ;
+  ptr.p->slaveData.gsn = GSN_DROP_TRIG_IMPL_REQ;
   ptr.p->slaveData.trigSendCounter = 0;
-  req->setConnectionPtr(ptr.i);
-  req->setUserRef(reference()); // Sending to myself
-  req->setRequestType(DropTrigReq::RT_USER);
-  req->setIndexId(RNIL);
-  req->setTriggerInfo(0);       // not used on DROP
-  req->setTriggerType(TriggerType::SUBSCRIPTION);
-  req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
+  req->senderRef = reference(); // Sending to myself
+  req->senderData = ptr.i;
+  req->requestType = 0;
+  req->tableId = tabPtr.p->tableId;
+  req->tableVersion = 0;
+  req->indexId = RNIL;
+  req->indexVersion = 0;
+
+  // TUP needs some triggerInfo to find right list
+  Uint32 ti = 0;
+  TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION);
+  TriggerInfo::setTriggerActionTime(ti, TriggerActionTime::TA_DETACHED);
+  TriggerInfo::setMonitorReplicas(ti, true);
+  TriggerInfo::setMonitorAllAttributes(ti, false);
 
   ptr.p->slaveData.dropTrig.tableId = tabPtr.p->tableId;
-  req->setTableId(tabPtr.p->tableId);
+  req->tableId = tabPtr.p->tableId;
 
   for (int i = 0; i < 3; i++) {
     Uint32 id = tabPtr.p->triggerIds[i];
-    req->setTriggerId(id);
-    req->setTriggerEvent(triggerEventValues[i]);
-    sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ,
-	       signal, DropTrigReq::SignalLength, JBB);
+    req->triggerId = id;
+
+    Uint32 ti2 = ti;
+    TriggerInfo::setTriggerEvent(ti2, triggerEventValues[i]);
+    req->triggerInfo = ti2;
+
+    sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ,
+	       signal, DropTrigImplReq::SignalLength, JBB);
     ptr.p->slaveData.trigSendCounter ++;
   }
 }
 
 void
-Backup::execDROP_TRIG_REF(Signal* signal)
+Backup::execDROP_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  DropTrigRef* ref = (DropTrigRef*)signal->getDataPtr();
-  const Uint32 ptrI = ref->getConnectionPtr();
+  const DropTrigImplRef* ref = (const DropTrigImplRef*)signal->getDataPtr();
+  const Uint32 ptrI = ref->senderData;
 
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, ptrI);
 
-  if(ref->getConf()->getTriggerId() != ~(Uint32) 0)
+  if(ref->triggerId != ~(Uint32) 0)
   {
-    ndbout << "ERROR DROPPING TRIGGER: " << ref->getConf()->getTriggerId();
-    ndbout << " Err: " << (Uint32)ref->getErrorCode() << endl << endl;
+    ndbout << "ERROR DROPPING TRIGGER: " << ref->triggerId;
+    ndbout << " Err: " << ref->errorCode << endl << endl;
   }
 
   dropTrigReply(signal, ptr);
 }
 
 void
-Backup::execDROP_TRIG_CONF(Signal* signal)
+Backup::execDROP_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   
-  DropTrigConf* conf = (DropTrigConf*)signal->getDataPtr();
-  const Uint32 ptrI = conf->getConnectionPtr();
+  const DropTrigImplConf* conf = (const DropTrigImplConf*)signal->getDataPtr();
+  const Uint32 ptrI = conf->senderData;
 
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, ptrI);
@@ -2246,7 +2267,7 @@ Backup::dropTrigReply(Signal* signal, BackupRecordPtr ptr)
 {
   CRASH_INSERTION((10012));
 
-  ndbrequire(ptr.p->slaveData.gsn == GSN_DROP_TRIG_REQ);
+  ndbrequire(ptr.p->slaveData.gsn == GSN_DROP_TRIG_IMPL_REQ);
   ndbrequire(ptr.p->slaveData.trigSendCounter.done() == false);
 
   // move from .masterData to .slaveData
@@ -2494,7 +2515,7 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
     sendSignal(rg, GSN_ABORT_BACKUP_ORD, signal, 
 	       AbortBackupOrd::SignalLength, JBB);
     return;
-  case GSN_CREATE_TRIG_REQ:
+  case GSN_CREATE_TRIG_IMPL_REQ:
   case GSN_START_BACKUP_REQ:
   case GSN_ALTER_TRIG_REQ:
   case GSN_WAIT_GCP_REQ:
@@ -2507,7 +2528,7 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
   case GSN_UTIL_LOCK_REQ:
     ndbrequire(false);
     return;
-  case GSN_DROP_TRIG_REQ:
+  case GSN_DROP_TRIG_IMPL_REQ:
   case GSN_STOP_BACKUP_REQ:
     return;
   }
@@ -3280,6 +3301,7 @@ next:
     req->m_connectionData = RNIL;
     req->m_tableRef = tabPtr.p->tableId;
     req->m_senderData = ptr.i;
+    req->m_schemaTransId = 0;
     sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
                DihFragCountReq::SignalLength, JBB);
     return;
@@ -3490,6 +3512,7 @@ Backup::execDI_FCOUNTCONF(Signal* signal)
     req->m_connectionData = RNIL;
     req->m_tableRef = tabPtr.p->tableId;
     req->m_senderData = ptr.i;
+    req->m_schemaTransId = 0;
     sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
                DihFragCountReq::SignalLength, JBB);
     return;

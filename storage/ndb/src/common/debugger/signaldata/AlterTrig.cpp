@@ -15,36 +15,53 @@
 
 #include <signaldata/AlterTrig.hpp>
 
-bool printALTER_TRIG_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printALTER_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const AlterTrigReq * const sig = (AlterTrigReq *) theData;
-
-  fprintf(output, "User: %u, ", sig->getUserRef());
-  fprintf(output, "Trigger id: %u, ", sig->getTriggerId());
+  const AlterTrigReq* sig = (const AlterTrigReq*)theData;
+  fprintf(output, " clientRef: 0x%x", sig->clientRef);
+  fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, "\n");  
-
-  return false;
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, " transKey: %u", sig->transKey);
+  fprintf(output, " requestInfo: 0x%x", sig->requestInfo);
+  fprintf(output, "\n");  
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
+  fprintf(output, " triggerId: %u", sig->triggerId);
+  fprintf(output, "\n");  
+  return true;
 }
 
-bool printALTER_TRIG_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printALTER_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const AlterTrigConf * const sig = (AlterTrigConf *) theData;
-
-  fprintf(output, "User: %u, ", sig->getUserRef());
-  fprintf(output, "Trigger id: %u, ", sig->getTriggerId());
+  const AlterTrigConf* sig = (const AlterTrigConf*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
   fprintf(output, "\n");  
-
-  return false;
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " triggerId: %u", sig->triggerId);
+  fprintf(output, "\n");  
+  return true;
 }
 
-bool printALTER_TRIG_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printALTER_TRIG_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const AlterTrigRef * const sig = (AlterTrigRef *) theData;
-
-  fprintf(output, "User: %u, ", sig->getUserRef());
-  fprintf(output, "Trigger id: %u, ", sig->getTriggerId());
-  fprintf(output, "Error code: %u, ", sig->getErrorCode());
+  const AlterTrigRef* sig = (const AlterTrigRef*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
   fprintf(output, "\n");  
-  
-  return false;
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " triggerId: %u", sig->triggerId);
+  fprintf(output, "\n");  
+  fprintf(output, " errorCode: %u", sig->errorCode);
+  fprintf(output, " errorLine: %u", sig->errorLine);
+  fprintf(output, " errorNodeId: %u", sig->errorNodeId);
+  fprintf(output, " masterNodeId: %u", sig->masterNodeId);
+  fprintf(output, "\n");  
+  return true;
 }

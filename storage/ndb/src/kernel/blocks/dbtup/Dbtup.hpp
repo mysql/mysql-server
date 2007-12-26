@@ -24,9 +24,11 @@
 #include <Bitmask.hpp>
 #include <signaldata/TupKey.hpp>
 #include <signaldata/CreateTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
-#include <signaldata/BuildIndx.hpp>
+#include <signaldata/BuildIndxImpl.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <AttributeDescriptor.hpp>
 #include "AttributeOffset.hpp"
@@ -1321,15 +1323,14 @@ typedef Ptr<HostBuffer> HostBufferPtr;
    * Build index operation record.
    */
   struct BuildIndexRec {
-    // request cannot use signal class due to extra members
-    Uint32 m_request[BuildIndxReq::SignalLength];
+    BuildIndxImplReq m_request;
     Uint8  m_build_vs;          // varsize pages
     Uint32 m_indexId;           // the index
     Uint32 m_fragNo;            // fragment number under Tablerec
     Uint32 m_pageId;            // logical fragment page id
     Uint32 m_tupleNo;           // tuple number on page
     Uint32 m_buildRef;          // Where to send tuples
-    BuildIndxRef::ErrorCode m_errorCode;
+    BuildIndxImplRef::ErrorCode m_errorCode;
     union {
       Uint32 nextPool;
       Uint32 nextList;
@@ -1720,7 +1721,7 @@ private:
   void execTUP_WRITELOG_REQ(Signal* signal);
 
   // Ordered index related
-  void execBUILDINDXREQ(Signal* signal);
+  void execBUILD_INDX_IMPL_REQ(Signal* signal);
   void buildIndex(Signal* signal, Uint32 buildPtrI);
   void buildIndexReply(Signal* signal, const BuildIndexRec* buildRec);
 
@@ -1931,11 +1932,11 @@ private:
 // Trigger signals
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void execCREATE_TRIG_REQ(Signal* signal);
+  void execCREATE_TRIG_IMPL_REQ(Signal* signal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void execDROP_TRIG_REQ(Signal* signal);
+  void execDROP_TRIG_IMPL_REQ(Signal* signal);
 
 // *****************************************************************
 // Support methods for ATTRINFO.
@@ -2479,10 +2480,10 @@ private:
                   TriggerActionTime::Value ttime,
                   TriggerEvent::Value tevent);
 
-  bool createTrigger(Tablerec* table, const CreateTrigReq* req);
+  bool createTrigger(Tablerec* table, const CreateTrigImplReq* req);
 
   Uint32 dropTrigger(Tablerec* table,
-		     const DropTrigReq* req,
+		     const DropTrigImplReq* req,
 		     BlockNumber sender);
 
   void

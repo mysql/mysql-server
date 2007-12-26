@@ -507,6 +507,9 @@ public:
     Uint8 noPages;
     Uint16 tableType;
     Uint16 primaryTableId;
+
+    // set in local protocol during prepare until commit
+    Uint32 schemaTransId;
   };
   typedef Ptr<TabRecord> TabRecordPtr;
 

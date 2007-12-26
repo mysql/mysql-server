@@ -22,7 +22,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 730;
+const GlobalSignalNumber MAX_GSN = 760;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -992,5 +992,39 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DICT_LOCK_CONF              411
 #define GSN_DICT_LOCK_REF               412
 #define GSN_DICT_UNLOCK_ORD             420
+
+#define GSN_SCHEMA_TRANS_BEGIN_REQ      731
+#define GSN_SCHEMA_TRANS_BEGIN_CONF     732
+#define GSN_SCHEMA_TRANS_BEGIN_REF      733
+#define GSN_SCHEMA_TRANS_END_REQ        734
+#define GSN_SCHEMA_TRANS_END_CONF       735
+#define GSN_SCHEMA_TRANS_END_REF        736
+#define GSN_SCHEMA_TRANS_IMPL_REQ       737
+#define GSN_SCHEMA_TRANS_IMPL_CONF      738
+#define GSN_SCHEMA_TRANS_IMPL_REF       739
+
+#define GSN_CREATE_TRIG_IMPL_REQ        740
+#define GSN_CREATE_TRIG_IMPL_CONF       741
+#define GSN_CREATE_TRIG_IMPL_REF        742
+#define GSN_DROP_TRIG_IMPL_REQ          743
+#define GSN_DROP_TRIG_IMPL_CONF         744
+#define GSN_DROP_TRIG_IMPL_REF          745
+#define GSN_ALTER_TRIG_IMPL_REQ         746
+#define GSN_ALTER_TRIG_IMPL_CONF        747
+#define GSN_ALTER_TRIG_IMPL_REF         748
+
+#define GSN_CREATE_INDX_IMPL_REQ        749
+#define GSN_CREATE_INDX_IMPL_CONF       750
+#define GSN_CREATE_INDX_IMPL_REF        751
+#define GSN_DROP_INDX_IMPL_REQ          752
+#define GSN_DROP_INDX_IMPL_CONF         753
+#define GSN_DROP_INDX_IMPL_REF          754
+#define GSN_ALTER_INDX_IMPL_REQ         755
+#define GSN_ALTER_INDX_IMPL_CONF        756
+#define GSN_ALTER_INDX_IMPL_REF         757
+
+#define GSN_BUILD_INDX_IMPL_REQ         758
+#define GSN_BUILD_INDX_IMPL_CONF        759
+#define GSN_BUILD_INDX_IMPL_REF         760
 
 #endif

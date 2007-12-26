@@ -233,6 +233,7 @@ Dbtc::Dbtc(Block_context& ctx):
   addRecSignal(GSN_TCROLLBACKREQ, &Dbtc::execTCROLLBACKREQ);
   addRecSignal(GSN_TC_HBREP, &Dbtc::execTC_HBREP);
   addRecSignal(GSN_TC_SCHVERREQ, &Dbtc::execTC_SCHVERREQ);
+  addRecSignal(GSN_TAB_COMMITREQ, &Dbtc::execTAB_COMMITREQ);
   addRecSignal(GSN_SCAN_TABREQ, &Dbtc::execSCAN_TABREQ);
   addRecSignal(GSN_SCAN_FRAGCONF, &Dbtc::execSCAN_FRAGCONF);
   addRecSignal(GSN_SCAN_FRAGREF, &Dbtc::execSCAN_FRAGREF);
@@ -249,17 +250,17 @@ Dbtc::Dbtc(Block_context& ctx):
   addRecSignal(GSN_TC_COMMIT_ACK, &Dbtc::execTC_COMMIT_ACK);
   addRecSignal(GSN_ABORT_ALL_REQ, &Dbtc::execABORT_ALL_REQ);
 
-  addRecSignal(GSN_CREATE_TRIG_REQ, &Dbtc::execCREATE_TRIG_REQ);
-  addRecSignal(GSN_DROP_TRIG_REQ, &Dbtc::execDROP_TRIG_REQ);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dbtc::execCREATE_TRIG_IMPL_REQ);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &Dbtc::execDROP_TRIG_IMPL_REQ);
   addRecSignal(GSN_FIRE_TRIG_ORD, &Dbtc::execFIRE_TRIG_ORD);
   addRecSignal(GSN_TRIG_ATTRINFO, &Dbtc::execTRIG_ATTRINFO);
   
-  addRecSignal(GSN_CREATE_INDX_REQ, &Dbtc::execCREATE_INDX_REQ);
-  addRecSignal(GSN_DROP_INDX_REQ, &Dbtc::execDROP_INDX_REQ);
+  addRecSignal(GSN_CREATE_INDX_IMPL_REQ, &Dbtc::execCREATE_INDX_IMPL_REQ);
+  addRecSignal(GSN_DROP_INDX_IMPL_REQ, &Dbtc::execDROP_INDX_IMPL_REQ);
   addRecSignal(GSN_TCINDXREQ, &Dbtc::execTCINDXREQ);
   addRecSignal(GSN_INDXKEYINFO, &Dbtc::execINDXKEYINFO);
   addRecSignal(GSN_INDXATTRINFO, &Dbtc::execINDXATTRINFO);
-  addRecSignal(GSN_ALTER_INDX_REQ, &Dbtc::execALTER_INDX_REQ);
+  addRecSignal(GSN_ALTER_INDX_IMPL_REQ, &Dbtc::execALTER_INDX_IMPL_REQ);
 
   addRecSignal(GSN_TRANSID_AI_R, &Dbtc::execTRANSID_AI_R);
   addRecSignal(GSN_KEYINFO20_R, &Dbtc::execKEYINFO20_R);

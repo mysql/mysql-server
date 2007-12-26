@@ -54,7 +54,12 @@ struct SchemaFile {
     DROP_TABLE_STARTED = 3,
     DROP_TABLE_COMMITTED = 4,
     ALTER_TABLE_COMMITTED = 5,
-    TEMPORARY_TABLE_COMMITTED = 6
+    TEMPORARY_TABLE_COMMITTED = 6,
+    // memory-only states for parse phase
+    CREATE_PARSED = 11,
+    DROP_PARSED = 12,
+    ALTER_PARSED = 13
+    // add more operation_phase states if we ever clean this up
   };
 
   // entry size 32 bytes
@@ -64,7 +69,20 @@ struct SchemaFile {
     Uint32 m_tableType;
     Uint32 m_info_words;
     Uint32 m_gcp;
-    Uint32 m_unused[3];
+    Uint32 m_transId;
+    Uint32 m_unused[2];
+
+    // cannot use ctor due to union
+    void init() {
+      m_tableState = 0;
+      m_tableVersion = 0;
+      m_tableType = 0;
+      m_info_words = 0;
+      m_gcp = 0;
+      m_transId = 0;
+      m_unused[0] = 0;
+      m_unused[1] = 0;
+    }
     
     bool operator==(const TableEntry& o) const { 
       return memcmp(this, &o, sizeof(* this))== 0;

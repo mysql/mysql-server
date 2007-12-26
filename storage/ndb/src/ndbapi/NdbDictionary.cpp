@@ -677,7 +677,7 @@ NdbDictionary::Table::getReplicaCount() const {
 }
 
 bool
-NdbDictionary::Table::getTemporary() {
+NdbDictionary::Table::getTemporary() const {
   return m_impl.m_temporary;
 }
 
@@ -933,7 +933,7 @@ NdbDictionary::Index::setLogging(bool val){
 }
 
 bool
-NdbDictionary::Index::getTemporary(){
+NdbDictionary::Index::getTemporary() const {
   return m_impl.m_temporary;
 }
 
@@ -1505,11 +1505,30 @@ NdbDictionary::Dictionary::~Dictionary(){
   }
 }
 
+// do op within trans if no trans exists
+#define DO_TRANS(ret, action) \
+  { \
+    bool trans = hasSchemaTrans(); \
+    if ((trans || (ret = beginSchemaTrans()) == 0) && \
+        (ret = (action)) == 0 && \
+        (trans || (ret = endSchemaTrans()) == 0)) \
+      ; \
+    else if (!trans) { \
+      NdbError save_error = m_impl.m_error; \
+      (void)endSchemaTrans(SchemaTransAbort); \
+      m_impl.m_error = save_error; \
+    } \
+  }
+
 int 
 NdbDictionary::Dictionary::createTable(const Table & t)
 {
-  DBUG_ENTER("NdbDictionary::Dictionary::createTable");
-  DBUG_RETURN(m_impl.createTable(NdbTableImpl::getImpl(t)));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.createTable(NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 int
@@ -1569,40 +1588,74 @@ NdbDictionary::Dictionary::optimizeIndexGlobal(const char * idx_name,
 }
 
 int
-NdbDictionary::Dictionary::dropTable(Table & t){
-  return m_impl.dropTable(NdbTableImpl::getImpl(t));
+NdbDictionary::Dictionary::dropTable(Table & t)
+{
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.dropTable(NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 int
-NdbDictionary::Dictionary::dropTableGlobal(const Table & t){
-  return m_impl.dropTableGlobal(NdbTableImpl::getImpl(t));
+NdbDictionary::Dictionary::dropTableGlobal(const Table & t)
+{
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.dropTableGlobal(NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 int
-NdbDictionary::Dictionary::dropTable(const char * name){
-  return m_impl.dropTable(name);
+NdbDictionary::Dictionary::dropTable(const char * name)
+{
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.dropTable(name)
+  );
+  return ret;
 }
 
 bool
 NdbDictionary::Dictionary::supportedAlterTable(const Table & f,
 					       const Table & t)
 {
-  return m_impl.supportedAlterTable(NdbTableImpl::getImpl(f),
-                                    NdbTableImpl::getImpl(t));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.supportedAlterTable(NdbTableImpl::getImpl(f),
+                               NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 int
 NdbDictionary::Dictionary::alterTable(const Table & f, const Table & t)
 {
-  return m_impl.alterTable(NdbTableImpl::getImpl(f), NdbTableImpl::getImpl(t));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.alterTable(NdbTableImpl::getImpl(f),
+                      NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 int
 NdbDictionary::Dictionary::alterTableGlobal(const Table & f,
                                             const Table & t)
 {
-  return m_impl.alterTableGlobal(NdbTableImpl::getImpl(f),
-                                 NdbTableImpl::getImpl(t));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.alterTableGlobal(NdbTableImpl::getImpl(f),
+                            NdbTableImpl::getImpl(t))
+  );
+  return ret;
 }
 
 const NdbDictionary::Table * 
@@ -1781,27 +1834,47 @@ NdbDictionary::Dictionary::removeCachedTable(const Table *table){
 int
 NdbDictionary::Dictionary::createIndex(const Index & ind)
 {
-  return m_impl.createIndex(NdbIndexImpl::getImpl(ind));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.createIndex(NdbIndexImpl::getImpl(ind))
+  );
+  return ret;
 }
 
 int
 NdbDictionary::Dictionary::createIndex(const Index & ind, const Table & tab)
 {
-  return m_impl.createIndex(NdbIndexImpl::getImpl(ind),
-                            NdbTableImpl::getImpl(tab));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.createIndex(NdbIndexImpl::getImpl(ind),
+                       NdbTableImpl::getImpl(tab))
+  );
+  return ret;
 }
 
 int 
 NdbDictionary::Dictionary::dropIndex(const char * indexName,
 				     const char * tableName)
 {
-  return m_impl.dropIndex(indexName, tableName);
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.dropIndex(indexName, tableName)
+  );
+  return ret;
 }
 
 int 
 NdbDictionary::Dictionary::dropIndexGlobal(const Index &ind)
 {
-  return m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind));
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind))
+  );
+  return ret;
 }
 
 const NdbDictionary::Index * 
@@ -2247,3 +2320,20 @@ NdbDictionary::Dictionary::getUndofile(Uint32 node, const char * path)
   return tmp;
 }
 
+int
+NdbDictionary::Dictionary::beginSchemaTrans()
+{
+  return m_impl.beginSchemaTrans();
+}
+
+int
+NdbDictionary::Dictionary::endSchemaTrans(Uint32 flags)
+{
+  return m_impl.endSchemaTrans(flags);
+}
+
+bool
+NdbDictionary::Dictionary::hasSchemaTrans() const
+{
+  return m_impl.hasSchemaTrans();
+}

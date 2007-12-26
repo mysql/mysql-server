@@ -199,13 +199,13 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_ALTER_TAB_REQ, &Dblqh::execALTER_TAB_REQ);
 
   // Trigger signals, transit to from TUP
-  addRecSignal(GSN_CREATE_TRIG_REQ, &Dblqh::execCREATE_TRIG_REQ);
-  addRecSignal(GSN_CREATE_TRIG_CONF, &Dblqh::execCREATE_TRIG_CONF);
-  addRecSignal(GSN_CREATE_TRIG_REF, &Dblqh::execCREATE_TRIG_REF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dblqh::execCREATE_TRIG_IMPL_REQ);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Dblqh::execCREATE_TRIG_IMPL_CONF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Dblqh::execCREATE_TRIG_IMPL_REF);
 
-  addRecSignal(GSN_DROP_TRIG_REQ, &Dblqh::execDROP_TRIG_REQ);
-  addRecSignal(GSN_DROP_TRIG_CONF, &Dblqh::execDROP_TRIG_CONF);
-  addRecSignal(GSN_DROP_TRIG_REF, &Dblqh::execDROP_TRIG_REF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &Dblqh::execDROP_TRIG_IMPL_REQ);
+  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Dblqh::execDROP_TRIG_IMPL_CONF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Dblqh::execDROP_TRIG_IMPL_REF);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);

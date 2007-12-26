@@ -374,7 +374,7 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
   Uint32 number_events;
 #endif
 void
-Dbtup::execBUILDINDXREQ(Signal* signal)
+Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 #ifdef TIME_MEASUREMENT
@@ -382,41 +382,41 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
   tot_time_passed= 0;
   number_events= 1;
 #endif
+  const BuildIndxImplReq* const req =
+    (const BuildIndxImplReq*)signal->getDataPtr();
   // get new operation
   BuildIndexPtr buildPtr;
   if (! c_buildIndexList.seize(buildPtr)) {
     jam();
     BuildIndexRec buildRec;
-    memcpy(buildRec.m_request, signal->theData, sizeof(buildRec.m_request));
-    buildRec.m_errorCode= BuildIndxRef::Busy;
+    buildRec.m_request = *req;
+    buildRec.m_errorCode = BuildIndxImplRef::Busy;
     buildIndexReply(signal, &buildRec);
     return;
   }
-  memcpy(buildPtr.p->m_request,
-         signal->theData,
-         sizeof(buildPtr.p->m_request));
+  buildPtr.p->m_request = *req;
+  const BuildIndxImplReq* buildReq = &buildPtr.p->m_request;
   // check
-  buildPtr.p->m_errorCode= BuildIndxRef::NoError;
+  buildPtr.p->m_errorCode= BuildIndxImplRef::NoError;
   do {
-    const BuildIndxReq* buildReq= (const BuildIndxReq*)buildPtr.p->m_request;
-    if (buildReq->getTableId() >= cnoOfTablerec) {
+    if (buildReq->tableId >= cnoOfTablerec) {
       jam();
-      buildPtr.p->m_errorCode= BuildIndxRef::InvalidPrimaryTable;
+      buildPtr.p->m_errorCode= BuildIndxImplRef::InvalidPrimaryTable;
       break;
     }
     TablerecPtr tablePtr;
-    tablePtr.i= buildReq->getTableId();
+    tablePtr.i= buildReq->tableId;
     ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
     if (tablePtr.p->tableStatus != DEFINED) {
       jam();
-      buildPtr.p->m_errorCode= BuildIndxRef::InvalidPrimaryTable;
+      buildPtr.p->m_errorCode= BuildIndxImplRef::InvalidPrimaryTable;
       break;
     }
     // memory page format
     buildPtr.p->m_build_vs =
       (tablePtr.p->m_attributes[MM].m_no_of_varsize +
        tablePtr.p->m_attributes[MM].m_no_of_dynamic) > 0;
-    if (DictTabInfo::isOrderedIndex(buildReq->getIndexType())) {
+    if (DictTabInfo::isOrderedIndex(buildReq->indexType)) {
       jam();
       const DLList<TupTriggerData>& triggerList = 
 	tablePtr.p->tuxCustomTriggers;
@@ -424,7 +424,7 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
       TriggerPtr triggerPtr;
       triggerList.first(triggerPtr);
       while (triggerPtr.i != RNIL) {
-	if (triggerPtr.p->indexId == buildReq->getIndexId()) {
+	if (triggerPtr.p->indexId == buildReq->indexId) {
 	  jam();
 	  break;
 	}
@@ -433,19 +433,19 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
       if (triggerPtr.i == RNIL) {
 	jam();
 	// trigger was not created
-	buildPtr.p->m_errorCode = BuildIndxRef::InternalError;
+	buildPtr.p->m_errorCode = BuildIndxImplRef::InternalError;
 	break;
       }
-      buildPtr.p->m_indexId = buildReq->getIndexId();
+      buildPtr.p->m_indexId = buildReq->indexId;
       buildPtr.p->m_buildRef = DBTUX;
-    } else if(buildReq->getIndexId() == RNIL) {
+    } else if(buildReq->indexId == RNIL) {
       jam();
       // REBUILD of acc
       buildPtr.p->m_indexId = RNIL;
       buildPtr.p->m_buildRef = DBACC;
     } else {
       jam();
-      buildPtr.p->m_errorCode = BuildIndxRef::InvalidIndexType;
+      buildPtr.p->m_errorCode = BuildIndxImplRef::InvalidIndexType;
       break;
     }
 
@@ -470,10 +470,10 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
   BuildIndexPtr buildPtr;
   buildPtr.i= buildPtrI;
   c_buildIndexList.getPtr(buildPtr);
-  const BuildIndxReq* buildReq= (const BuildIndxReq*)buildPtr.p->m_request;
+  const BuildIndxImplReq* buildReq= &buildPtr.p->m_request;
   // get table
   TablerecPtr tablePtr;
-  tablePtr.i= buildReq->getTableId();
+  tablePtr.i= buildReq->tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
   const Uint32 firstTupleNo = 0;
@@ -622,7 +622,7 @@ next_tuple:
       switch (req->errorCode) {
       case TuxMaintReq::NoMemError:
         jam();
-        buildPtr.p->m_errorCode= BuildIndxRef::AllocationFailure;
+        buildPtr.p->m_errorCode= BuildIndxImplRef::AllocationFailure;
         break;
       default:
         ndbrequire(false);
@@ -661,25 +661,26 @@ next_tuple:
 void
 Dbtup::buildIndexReply(Signal* signal, const BuildIndexRec* buildPtrP)
 {
-  const BuildIndxReq* const buildReq=
-                    (const BuildIndxReq*)buildPtrP->m_request;
-  // conf is subset of ref
-  BuildIndxRef* rep= (BuildIndxRef*)signal->getDataPtr();
-  rep->setUserRef(buildReq->getUserRef());
-  rep->setConnectionPtr(buildReq->getConnectionPtr());
-  rep->setRequestType(buildReq->getRequestType());
-  rep->setTableId(buildReq->getTableId());
-  rep->setIndexType(buildReq->getIndexType());
-  rep->setIndexId(buildReq->getIndexId());
-  // conf
-  if (buildPtrP->m_errorCode == BuildIndxRef::NoError) {
+  const BuildIndxImplReq* buildReq = &buildPtrP->m_request;
+
+  if (buildPtrP->m_errorCode == BuildIndxImplRef::NoError) {
     jam();
-    sendSignal(rep->getUserRef(), GSN_BUILDINDXCONF,
-        signal, BuildIndxConf::SignalLength, JBB);
-    return;
+    BuildIndxImplConf* conf =
+      (BuildIndxImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = buildReq->senderData;
+
+    sendSignal(buildReq->senderRef, GSN_BUILD_INDX_IMPL_CONF,
+               signal, BuildIndxImplConf::SignalLength, JBB);
+  } else {
+    jam();
+    BuildIndxImplRef* ref =
+      (BuildIndxImplRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = buildReq->senderData;
+    ref->errorCode = buildPtrP->m_errorCode;
+
+    sendSignal(buildReq->senderRef, GSN_BUILD_INDX_IMPL_REF,
+               signal, BuildIndxImplRef::SignalLength, JBB);
   }
-  // ref
-  rep->setErrorCode(buildPtrP->m_errorCode);
-  sendSignal(rep->getUserRef(), GSN_BUILDINDXREF,
-      signal, BuildIndxRef::SignalLength, JBB);
 }

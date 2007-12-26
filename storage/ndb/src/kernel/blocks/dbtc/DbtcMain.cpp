@@ -46,12 +46,17 @@
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/CreateTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
 #include <signaldata/CreateIndx.hpp>
+#include <signaldata/CreateIndxImpl.hpp>
 #include <signaldata/DropIndx.hpp>
+#include <signaldata/DropIndxImpl.hpp>
 #include <signaldata/AlterIndx.hpp>
+#include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/ScanTab.hpp>
 #include <signaldata/SystemError.hpp>
 #include <signaldata/DumpStateOrd.hpp>
@@ -339,6 +344,7 @@ void Dbtc::execREAD_NODESREF(Signal* signal)
   ndbrequire(false);
 }
 
+// create table prepare
 void Dbtc::execTC_SCHVERREQ(Signal* signal) 
 {
   jamEntry();
@@ -361,8 +367,10 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tabptr.i);
   ndbrequire(noOfKeyAttr == desc->noOfKeyAttr);
 
+  ndbrequire(tabptr.p->get_prepared() == false);
   ndbrequire(tabptr.p->get_enabled() == false);
-  tabptr.p->set_enabled(true);
+  tabptr.p->set_prepared(true);
+  tabptr.p->set_enabled(false);
   tabptr.p->set_dropping(false);
   tabptr.p->noOfKeyAttr = desc->noOfKeyAttr;
   tabptr.p->hasCharAttr = desc->hasCharAttr;
@@ -372,6 +380,26 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   signal->theData[1] = retPtr;
   sendSignal(retRef, GSN_TC_SCHVERCONF, signal, 2, JBB);
 }//Dbtc::execTC_SCHVERREQ()
+
+// create table commit
+void Dbtc::execTAB_COMMITREQ(Signal* signal)
+{
+  jamEntry();
+  Uint32 senderData = signal->theData[0];
+  Uint32 senderRef = signal->theData[1];
+  tabptr.i = signal->theData[2];
+  ptrCheckGuard(tabptr, ctabrecFilesize, tableRecord);
+
+  ndbrequire(tabptr.p->get_prepared() == true);
+  ndbrequire(tabptr.p->get_enabled() == false);
+  tabptr.p->set_enabled(true);
+  tabptr.p->set_dropping(false);
+
+  signal->theData[0] = senderData;
+  signal->theData[1] = reference();
+  signal->theData[2] = tabptr.i;
+  sendSignal(senderRef, GSN_TAB_COMMITCONF, signal, 3, JBB);
+}
 
 void
 Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
@@ -592,30 +620,35 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
 
 void Dbtc::execALTER_TAB_REQ(Signal * signal)
 {
-  AlterTabReq* const req = (AlterTabReq*)signal->getDataPtr();
+  const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
-  const Uint32 changeMask = req->changeMask;
-  const Uint32 tableId = req->tableId;
   const Uint32 tableVersion = req->tableVersion;
-  const Uint32 gci = req->gci;
+  const Uint32 newTableVersion = req->newTableVersion;
   AlterTabReq::RequestType requestType = 
     (AlterTabReq::RequestType) req->requestType;
 
   TableRecordPtr tabPtr;
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabrecFilesize, tableRecord);
-  tabPtr.p->currentSchemaVersion = tableVersion;
+
+  switch (requestType) {
+  case AlterTabReq::AlterTablePrepare:
+    tabPtr.p->currentSchemaVersion = newTableVersion;
+    break;
+  case AlterTabReq::AlterTableRevert:
+    tabPtr.p->currentSchemaVersion = tableVersion;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
 
   // Request handled successfully 
-  AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
+  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
-  conf->changeMask = changeMask;
-  conf->tableId = tableId;
-  conf->tableVersion = tableVersion;
-  conf->gci = gci;
-  conf->requestType = requestType;
+  conf->connectPtr = RNIL;
   sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal, 
 	     AlterTabConf::SignalLength, JBB);
 }
@@ -2725,12 +2758,17 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   if (localTabptr.p->checkTable(tcKeyReq->tableSchemaVersion)) {
     ;
   } else {
+    if (localTabptr.p->checkTablePrepared(tcKeyReq->tableSchemaVersion,
+                                          tcKeyReq->transId1)) {
+      jam();
+    } else {
     /*-----------------------------------------------------------------------*/
     /* THE API IS WORKING WITH AN OLD SCHEMA VERSION. IT NEEDS REPLACEMENT.  */
     /* COULD ALSO BE THAT THE TABLE IS NOT DEFINED.                          */
     /*-----------------------------------------------------------------------*/
-    TCKEY_abort(signal, 8);
-    return;
+      TCKEY_abort(signal, 8);
+      return;
+    }
   }//if
   
   //-------------------------------------------------------------------------
@@ -3037,9 +3075,14 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   if(localTabptr.p->checkTable(schemaVersion)){
     ;
   } else {
-    terrorCode = localTabptr.p->getErrorCode(schemaVersion);
-    TCKEY_abort(signal, 58);
-    return;
+    if (localTabptr.p->checkTablePrepared(schemaVersion,
+                                          regApiPtr->transid[0])) {
+      jam();
+    } else {
+      terrorCode = localTabptr.p->getErrorCode(schemaVersion);
+      TCKEY_abort(signal, 58);
+      return;
+    }
   }
   
   setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
@@ -3198,9 +3241,15 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
   if(localTabptr.p->checkTable(regCachePtr->schemaVersion)){
     ;
   } else {
-    terrorCode = localTabptr.p->getErrorCode(regCachePtr->schemaVersion);
-    TCKEY_abort(signal, 58);
-    return;
+    ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+    if (localTabptr.p->checkTablePrepared(regCachePtr->schemaVersion,
+                                          regApiPtr->transid[0])) {
+      jam();
+    } else {
+      terrorCode = localTabptr.p->getErrorCode(regCachePtr->schemaVersion);
+      TCKEY_abort(signal, 58);
+      return;
+    }
   }
   arrGuard(Tnode, MAX_NDB_NODES);
   packLqhkeyreq(signal, calcLqhBlockRef(Tnode));
@@ -9284,6 +9333,7 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
     DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtrSend();
     req->m_connectionData = tcConnectptr.p->dihConnectptr;
     req->m_tableRef = scanptr.p->scanTableref;
+    req->m_schemaTransId = 0;
     sendSignal(cdihblockref, GSN_DI_FCOUNTREQ, signal, 
                DihFragCountReq::SignalLength, JBB);
   }
@@ -9387,7 +9437,8 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
     signal->theData[1] = ptr.i;
     signal->theData[2] = scanptr.p->scanTableref;
     signal->theData[3] = ptr.p->scanFragId;
-    sendSignal(cdihblockref, GSN_DIGETPRIMREQ, signal, 4, JBB);
+    signal->theData[4] = 0;
+    sendSignal(cdihblockref, GSN_DIGETPRIMREQ, signal, 5, JBB);
   }//for
 
   ScanFragList queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
@@ -9781,7 +9832,8 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     signal->theData[1] = scanFragptr.i;
     signal->theData[2] = scanptr.p->scanTableref;
     signal->theData[3] = scanFragptr.p->scanFragId;
-    sendSignal(cdihblockref, GSN_DIGETPRIMREQ, signal, 4, JBB);
+    signal->theData[4] = 0;
+    sendSignal(cdihblockref, GSN_DIGETPRIMREQ, signal, 5, JBB);
     return;
   }
  /* 
@@ -9949,7 +10001,8 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
       signal->theData[1] = scanFragptr.i;
       signal->theData[2] = scanptr.p->scanTableref;
       signal->theData[3] = scanFragptr.p->scanFragId;
-      sendSignal(cdihblockref, GSN_DIGETPRIMREQ, signal, 4, JBB);
+      signal->theData[4] = 0;
+      sendSignal(cdihblockref, GSN_DIGETPRIMREQ, signal, 5, JBB);
     }
     else
     {
@@ -11675,109 +11728,118 @@ void Dbtc::checkAbortAllTimeout(Signal* signal, Uint32 sleepTime)
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
 
-void Dbtc::execCREATE_TRIG_REQ(Signal* signal)
+void Dbtc::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  CreateTrigReq * const createTrigReq = 
-    (CreateTrigReq *)&signal->theData[0];
+  const CreateTrigImplReq* req = (const CreateTrigImplReq*)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+
   TcDefinedTriggerData* triggerData;
   DefinedTriggerPtr triggerPtr;
-  BlockReference sender = signal->senderBlockRef();
 
-  triggerPtr.i = createTrigReq->getTriggerId();
+  triggerPtr.i = req->triggerId;
   if (ERROR_INSERTED(8033) ||
-      !c_theDefinedTriggers.seizeId(triggerPtr, 
-				    createTrigReq->getTriggerId())) {
+      !c_theDefinedTriggers.seizeId(triggerPtr, req->triggerId)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to allocate trigger record
-    CreateTrigRef * const createTrigRef =  
-      (CreateTrigRef *)&signal->theData[0];
+    CreateTrigImplRef* ref =  (CreateTrigImplRef*)signal->getDataPtrSend();
     
-    createTrigRef->setConnectionPtr(createTrigReq->getConnectionPtr());
-    createTrigRef->setErrorCode(CreateTrigRef::TooManyTriggers);
-    sendSignal(sender, GSN_CREATE_TRIG_REF, 
-               signal, CreateTrigRef::SignalLength, JBB);
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->errorCode = CreateTrigImplRef::InconsistentTC;
+    ref->errorLine = __LINE__;
+    sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_REF, 
+               signal, CreateTrigImplRef::SignalLength, JBB);
     return;
   }
 
   triggerData = triggerPtr.p;
-  triggerData->triggerId = createTrigReq->getTriggerId();
-  triggerData->triggerType = createTrigReq->getTriggerType();
-  triggerData->triggerEvent = createTrigReq->getTriggerEvent();
-  triggerData->attributeMask = createTrigReq->getAttributeMask();
+  triggerData->triggerId = req->triggerId;
+  triggerData->triggerType = TriggerInfo::getTriggerType(req->triggerInfo);
+  triggerData->triggerEvent = TriggerInfo::getTriggerEvent(req->triggerInfo);
+  triggerData->attributeMask = req->attributeMask;
   if (triggerData->triggerType == TriggerType::SECONDARY_INDEX)
-    triggerData->indexId = createTrigReq->getIndexId();
-  CreateTrigConf * const createTrigConf =  
-    (CreateTrigConf *)&signal->theData[0];
+    triggerData->indexId = req->indexId;
+
+  CreateTrigImplConf* conf = (CreateTrigImplConf*)signal->getDataPtrSend();
   
-  createTrigConf->setConnectionPtr(createTrigReq->getConnectionPtr());
-  sendSignal(sender, GSN_CREATE_TRIG_CONF, 
-             signal, CreateTrigConf::SignalLength, JBB);
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_CONF, 
+             signal, CreateTrigImplConf::SignalLength, JBB);
 }
 
-
-void Dbtc::execDROP_TRIG_REQ(Signal* signal)
+void Dbtc::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  DropTrigReq * const dropTrigReq =  (DropTrigReq *)&signal->theData[0];
-  BlockReference sender = signal->senderBlockRef();
+  const DropTrigImplReq* req = (const DropTrigImplReq*)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
 
   if (ERROR_INSERTED(8035) ||
-      (c_theDefinedTriggers.getPtr(dropTrigReq->getTriggerId())) == NULL) {
+      c_theDefinedTriggers.getPtr(req->triggerId) == NULL) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to find find trigger record
-    DropTrigRef * const dropTrigRef =  (DropTrigRef *)&signal->theData[0];
+    DropTrigImplRef* ref = (DropTrigImplRef*)signal->getDataPtrSend();
 
-    dropTrigRef->setConnectionPtr(dropTrigReq->getConnectionPtr());
-    dropTrigRef->setErrorCode(DropTrigRef::TriggerNotFound);
-    sendSignal(sender, GSN_DROP_TRIG_REF, 
-               signal, DropTrigRef::SignalLength, JBB);
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->errorCode = DropTrigImplRef::InconsistentTC;
+    ref->errorLine = __LINE__;
+    sendSignal(senderRef, GSN_DROP_TRIG_IMPL_REF, 
+               signal, DropTrigImplRef::SignalLength, JBB);
     return;
   }
 
   // Release trigger record
-  c_theDefinedTriggers.release(dropTrigReq->getTriggerId());
+  c_theDefinedTriggers.release(req->triggerId);
 
-  DropTrigConf * const dropTrigConf =  (DropTrigConf *)&signal->theData[0];
+  DropTrigImplConf* conf = (DropTrigImplConf*)signal->getDataPtrSend();
+
+  conf->senderRef = reference();
+  conf->senderData = senderData;
   
-  dropTrigConf->setConnectionPtr(dropTrigReq->getConnectionPtr());
-  sendSignal(sender, GSN_DROP_TRIG_CONF, 
-             signal, DropTrigConf::SignalLength, JBB);
+  sendSignal(senderRef, GSN_DROP_TRIG_IMPL_CONF, 
+             signal, DropTrigImplConf::SignalLength, JBB);
 }
 
-void Dbtc::execCREATE_INDX_REQ(Signal* signal)
+void Dbtc::execCREATE_INDX_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  CreateIndxReq * const createIndxReq =  
-    (CreateIndxReq *)signal->getDataPtr();
+  const CreateIndxImplReq * const req =  
+    (const CreateIndxImplReq *)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
   TcIndexData* indexData;
   TcIndexDataPtr indexPtr;
-  BlockReference sender = signal->senderBlockRef();
 
   SectionHandle handle(this, signal);
   if (ERROR_INSERTED(8034) ||
-      !c_theIndexes.seizeId(indexPtr, createIndxReq->getIndexId())) {
+      !c_theIndexes.seizeId(indexPtr, req->indexId)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to allocate index record
-     CreateIndxRef * const createIndxRef =  
-       (CreateIndxRef *)&signal->theData[0];
+     CreateIndxImplRef * const ref =  
+       (CreateIndxImplRef *)signal->getDataPtrSend();
 
-     createIndxRef->setConnectionPtr(createIndxReq->getConnectionPtr());
-     createIndxRef->setErrorCode(CreateIndxRef::TooManyIndexes);
+     ref->senderRef = reference();
+     ref->senderData = senderData;
+     ref->errorCode = CreateIndxImplRef::InconsistentTC;
+     ref->errorLine = __LINE__;
      releaseSections(handle);
-     sendSignal(sender, GSN_CREATE_INDX_REF, 
-                signal, CreateIndxRef::SignalLength, JBB);
+     sendSignal(senderRef, GSN_CREATE_INDX_IMPL_REF, 
+                signal, CreateIndxImplRef::SignalLength, JBB);
      return;
   }
   indexData = indexPtr.p;
   // Indexes always start in state IS_BUILDING
-  // Will become IS_ONLINE in execALTER_INDX_REQ
+  // Will become IS_ONLINE in execALTER_INDX_IMPL_REQ
   indexData->indexState = IS_BUILDING;
   indexData->indexId = indexPtr.i;
-  indexData->primaryTableId = createIndxReq->getTableId();
+  indexData->primaryTableId = req->tableId;
 
   // So far need only attribute count
   SegmentedSectionPtr ssPtr;
@@ -11792,65 +11854,63 @@ void Dbtc::execCREATE_INDX_REQ(Signal* signal)
 
   releaseSections(handle);
   
-  CreateIndxConf * const createIndxConf =  
-    (CreateIndxConf *)&signal->theData[0];
+  CreateIndxImplConf * const conf =  
+    (CreateIndxImplConf *)signal->getDataPtrSend();
 
-  createIndxConf->setConnectionPtr(createIndxReq->getConnectionPtr());
-  createIndxConf->setTableId(createIndxReq->getTableId());
-  createIndxConf->setIndexId(createIndxReq->getIndexId());
-  sendSignal(sender, GSN_CREATE_INDX_CONF, 
-             signal, CreateIndxConf::SignalLength, JBB);
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_CREATE_INDX_IMPL_CONF, 
+             signal, CreateIndxImplConf::SignalLength, JBB);
 }
 
-void Dbtc::execALTER_INDX_REQ(Signal* signal)
+void Dbtc::execALTER_INDX_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  AlterIndxReq * const alterIndxReq =  (AlterIndxReq *)signal->getDataPtr();
+  const AlterIndxImplReq * const req =
+    (const AlterIndxImplReq *)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
   TcIndexData* indexData;
-  //BlockReference sender = signal->senderBlockRef();
-  BlockReference sender = (BlockReference) alterIndxReq->getUserRef();
-  Uint32 connectionPtr = alterIndxReq->getConnectionPtr();
-  AlterIndxReq::RequestType requestType = alterIndxReq->getRequestType();
-  Uint32 tableId = alterIndxReq->getTableId();
-  Uint32 indexId = alterIndxReq->getIndexId();
-  bool online = (alterIndxReq->getOnline() == 1) ? true : false;
+  const Uint32 requestType = req->requestType;
+  const Uint32 tableId = req->tableId;
+  const Uint32 indexId = req->indexId;
 
   if ((indexData = c_theIndexes.getPtr(indexId)) == NULL) {
     jam();
     // Failed to find index record
-    AlterIndxRef * const alterIndxRef =  
-      (AlterIndxRef *)signal->getDataPtrSend();
+    AlterIndxImplRef * const ref =  
+      (AlterIndxImplRef *)signal->getDataPtrSend();
     
-    alterIndxRef->setUserRef(reference());
-    alterIndxRef->setConnectionPtr(connectionPtr);
-    alterIndxRef->setRequestType(requestType);
-    alterIndxRef->setTableId(tableId);
-    alterIndxRef->setIndexId(indexId);
-    alterIndxRef->setErrorCode(AlterIndxRef::IndexNotFound);
-    alterIndxRef->setErrorLine(__LINE__);
-    alterIndxRef->setErrorNode(getOwnNodeId());
-    sendSignal(sender, GSN_ALTER_INDX_REF, 
-	       signal, AlterIndxRef::SignalLength, JBB);
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->errorCode = AlterIndxImplRef::InconsistentTC;
+    ref->errorLine = __LINE__;
+
+    sendSignal(senderRef, GSN_ALTER_INDX_IMPL_REF, 
+	       signal, AlterIndxImplRef::SignalLength, JBB);
     return;
   }
   // Found index record, alter it's state  
-  if (online) {
+  switch (requestType) {
+  case AlterIndxImplReq::AlterIndexOnline:
     jam();
     indexData->indexState = IS_ONLINE;
-  } else {
+    break;
+  case AlterIndxImplReq::AlterIndexOffline:
     jam();
-    indexData->indexState = IS_BUILDING;
-  }//if 
-  AlterIndxConf * const alterIndxConf =  
-    (AlterIndxConf *)signal->getDataPtrSend();
+    indexData->indexState = IS_BUILDING; // wl3600_todo ??
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+  AlterIndxImplConf * const conf =  
+    (AlterIndxImplConf *)signal->getDataPtrSend();
   
-  alterIndxConf->setUserRef(reference());
-  alterIndxConf->setConnectionPtr(connectionPtr);
-  alterIndxConf->setRequestType(requestType);
-  alterIndxConf->setTableId(tableId);
-  alterIndxConf->setIndexId(indexId);
-  sendSignal(sender, GSN_ALTER_INDX_CONF, 
-	     signal, AlterIndxConf::SignalLength, JBB);
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_ALTER_INDX_IMPL_CONF, 
+	     signal, AlterIndxImplConf::SignalLength, JBB);
 }
 
 void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
@@ -11964,36 +12024,42 @@ void Dbtc::execTRIG_ATTRINFO(Signal* signal)
   }
 }
 
-void Dbtc::execDROP_INDX_REQ(Signal* signal)
+void Dbtc::execDROP_INDX_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  DropIndxReq * const dropIndxReq =  (DropIndxReq *)signal->getDataPtr();
+  const DropIndxImplReq * const req =
+    (const DropIndxImplReq *)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
   TcIndexData* indexData;
   BlockReference sender = signal->senderBlockRef();
   
   if (ERROR_INSERTED(8036) ||
-      (indexData = c_theIndexes.getPtr(dropIndxReq->getIndexId())) == NULL) {
+      (indexData = c_theIndexes.getPtr(req->indexId)) == NULL) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to find index record
-    DropIndxRef * const dropIndxRef =  
-      (DropIndxRef *)signal->getDataPtrSend();
+    DropIndxImplRef * const ref =  
+      (DropIndxImplRef *)signal->getDataPtrSend();
 
-    dropIndxRef->setConnectionPtr(dropIndxReq->getConnectionPtr());
-    dropIndxRef->setErrorCode(DropIndxRef::IndexNotFound);
-    sendSignal(sender, GSN_DROP_INDX_REF, 
-               signal, DropIndxRef::SignalLength, JBB);
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->errorCode = DropIndxImplRef::InconsistentTC;
+    ref->errorLine = __LINE__;
+    sendSignal(senderRef, GSN_DROP_INDX_IMPL_REF, 
+               signal, DropIndxImplRef::SignalLength, JBB);
     return;
   }
   // Release index record
-  c_theIndexes.release(dropIndxReq->getIndexId());
+  c_theIndexes.release(req->indexId);
 
-  DropIndxConf * const dropIndxConf =  
-    (DropIndxConf *)signal->getDataPtrSend();
+  DropIndxImplConf * const conf =  
+    (DropIndxImplConf *)signal->getDataPtrSend();
 
-  dropIndxConf->setConnectionPtr(dropIndxReq->getConnectionPtr());
-  sendSignal(sender, GSN_DROP_INDX_CONF, 
-             signal, DropIndxConf::SignalLength, JBB);
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_DROP_INDX_IMPL_CONF, 
+             signal, DropIndxImplConf::SignalLength, JBB);
 }
 
 void Dbtc::execTCINDXREQ(Signal* signal)
