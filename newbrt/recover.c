@@ -219,6 +219,7 @@ static void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
 int main (int argc, char *argv[]) {
     const char *dir;
     int r;
+    int entrycount=0;
     assert(argc==2);
     dir = argv[1];
     int n_logfiles;
@@ -236,6 +237,7 @@ int main (int argc, char *argv[]) {
 	assert(r==0 && version==0);
 	while ((r = toku_log_fread(f, &le))==0) {
 	    //printf("%lld: Got cmd %c\n", le.u.commit.lsn.lsn, le.cmd);
+	    entrycount++;
 	    logtype_dispatch(le, toku_recover_);
 	}
 	if (r!=EOF) {
