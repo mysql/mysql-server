@@ -104,3 +104,10 @@ int Db::set_bt_compare(bt_compare_fcn_type bt_compare_fcn) {
     int ret = the_db->set_bt_compare(the_db, bt_compare_fcn);
     return the_Env->maybe_throw_error(ret);
 }
+
+// open question: how to handle the callback type conversions?
+
+int Db::associate(DbTxn *txnid, Db *secondary, int (*callback)(Db *secondary, const Dbt *key, const Dbt *data, Dbt *result), u_int32_t flags) {
+    int ret = the_db->associate(the_db, txnid->get_DB_TXN(), secondary->get_DB(), 0, flags);
+    return the_Env->maybe_throw_error(ret);
+}
