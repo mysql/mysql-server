@@ -130,7 +130,7 @@ public:
 
   static const char*
   getTransModeName(Uint32 val) {
-    static char* name[] = {
+    static const char* name[] = {
       "Undef", "Normal", "Rollback", "Abort"
     };
     Uint32 size = sizeof(name)/sizeof(name[0]);
@@ -139,7 +139,7 @@ public:
 
   static const char*
   getTransPhaseName(Uint32 val) {
-    static char* name[] = {
+    static const char* name[] = {
       "Undef", "Begin", "Parse", "Prepare", "Commit", "Complete", "End"
     };
     Uint32 size = sizeof(name)/sizeof(name[0]);
@@ -148,7 +148,7 @@ public:
 
   static const char*
   getTransSubphaseName(Uint32 val) {
-    static char* name[] = {
+    static const char* name[] = {
       "Undef", "Pre", "Main", "Post"
     };
     Uint32 size = sizeof(name)/sizeof(name[0]);
@@ -157,7 +157,7 @@ public:
 
   static const char*
   getTransStateName(Uint32 val) {
-    static char* name[] = {
+    static const char* name[] = {
       "Undef", "Ok", "Error", "NodeFail", "NeedTrans", "NoTrans", "NeedOp", "NoOp"
     };
     Uint32 size = sizeof(name)/sizeof(name[0]);

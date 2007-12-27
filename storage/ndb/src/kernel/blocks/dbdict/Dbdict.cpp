@@ -4909,7 +4909,6 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal)
     jam();
     return;
   }
-
   SectionHandle handle(this, signal);
 
   const CreateTableReq req_copy =
@@ -4932,7 +4931,7 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal)
     impl_req->tableVersion = 0;
     impl_req->gci = 0;
 
-    handleClientReq(signal, op_ptr);
+    handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
 
@@ -4953,7 +4952,8 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal)
 // CreateTable: PARSE
 
 void
-Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr,
+                          SectionHandle& handle, ErrorInfo& error)
 {
   D("createTable_parse");
 
@@ -4985,11 +4985,15 @@ Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
     parseRecord.errorCode = 0;
 
     SegmentedSectionPtr ss_ptr;
-    signal->getSection(ss_ptr, CreateTableReq::DICT_TAB_INFO);
+    if (!handle.getSection(ss_ptr, CreateTableReq::DICT_TAB_INFO)) {
+      jam();
+      setError(error, CreateTableRef::InvalidFormat, __LINE__);
+      return;
+    }
     SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
 
     handleTabInfoInit(r, &parseRecord);
-    releaseSections(signal);
+    releaseSections(handle);
 
     if (parseRecord.errorCode != 0) {
       jam();
@@ -5100,11 +5104,12 @@ Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
       getSection(ss0_ptr, createTabPtr.p->m_tabInfoPtrI);
       getSection(ss1_ptr, createTabPtr.p->m_fragmentsPtrI);
 
-      ndbrequire(signal->getNoOfSections() == 0);
-      signal->setSection(ss0_ptr, CreateTabReq::DICT_TAB_INFO);
-      signal->setSection(ss1_ptr, CreateTabReq::FRAGMENTATION);
+      ndbrequire(handle.m_cnt == 0);
+      handle.m_ptr[CreateTabReq::DICT_TAB_INFO] = ss0_ptr;
+      handle.m_ptr[CreateTabReq::FRAGMENTATION] = ss1_ptr;
+      handle.m_cnt = 2;
 
-      // signal owns the memory now
+      // handle owns the memory now
       createTabPtr.p->m_tabInfoPtrI = RNIL;
       createTabPtr.p->m_fragmentsPtrI = RNIL;
     }
@@ -5115,7 +5120,10 @@ Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
   const Uint32 tableVersion = impl_req->tableVersion;
 
   SegmentedSectionPtr tabInfoPtr;
-  signal->getSection(tabInfoPtr, CreateTabReq::DICT_TAB_INFO);
+  {
+    bool ok = handle.getSection(tabInfoPtr, CreateTabReq::DICT_TAB_INFO);
+    ndbrequire(ok);
+  }
 
   // wl3600_todo parse the rewritten DictTabInfo in master too
   if (!trans_ptr.p->m_isMaster) {
@@ -5149,8 +5157,8 @@ Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
   }
 
   // save sections to DICT memory
-  saveOpSection(op_ptr, signal, CreateTabReq::DICT_TAB_INFO);
-  saveOpSection(op_ptr, signal, CreateTabReq::FRAGMENTATION);
+  saveOpSection(op_ptr, handle, CreateTabReq::DICT_TAB_INFO);
+  saveOpSection(op_ptr, handle, CreateTabReq::FRAGMENTATION);
 
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, tableId);
@@ -6364,7 +6372,11 @@ void
 Dbdict::execDROP_TABLE_REQ(Signal* signal)
 {
   jamEntry();
-  ndbrequire(signal->getNoOfSections() == 0);
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
 
   const DropTableReq req_copy =
     *(const DropTableReq*)signal->getDataPtr();
@@ -6385,9 +6397,11 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal)
     impl_req->tableId = req->tableId;
     impl_req->tableVersion = req->tableVersion;
 
-    handleClientReq(signal, op_ptr);
+    handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
+
+  releaseSections(handle);
 
   DropTableRef* ref = (DropTableRef*)signal->getDataPtrSend();
   ref->senderRef = reference();
@@ -6404,7 +6418,8 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal)
 // DropTable: PARSE
 
 void
-Dbdict::dropTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+Dbdict::dropTable_parse(Signal* signal, SchemaOpPtr op_ptr,
+                        SectionHandle& handle, ErrorInfo& error)
 {
   D("dropTable_parse" << V(op_ptr.i) << *op_ptr.p);
 
@@ -7209,7 +7224,6 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     jam();
     return;
   }
-
   SectionHandle handle(this, signal);
 
   const AlterTableReq req_copy =
@@ -7238,7 +7252,7 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     impl_req->newNoOfCharsets = 0;
     impl_req->newNoOfKeyAttrs = 0;
 
-    handleClientReq(signal, op_ptr);
+    handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
 
@@ -7257,7 +7271,8 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
 // AlterTable: PARSE
 
 void
-Dbdict::alterTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+Dbdict::alterTable_parse(Signal* signal, SchemaOpPtr op_ptr,
+                         SectionHandle& handle, ErrorInfo& error)
 {
   D("alterTable_parse");
 
@@ -7331,7 +7346,8 @@ Dbdict::alterTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
     parseRecord.errorCode = 0;
 
     SegmentedSectionPtr ptr;
-    signal->getSection(ptr, AlterTableReq::DICT_TAB_INFO);
+    bool ok = handle.getSection(ptr, AlterTableReq::DICT_TAB_INFO);
+    ndbrequire(ok);
     SimplePropertiesSectionReader r(ptr, getSectionSegmentPool());
 
     handleTabInfoInit(r, &parseRecord, false); // Will not save info
@@ -7409,17 +7425,18 @@ Dbdict::alterTable_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
   // master rewrites DictTabInfo (it is re-parsed only on slaves)
   if (trans_ptr.p->m_isMaster) {
     jam();
-    releaseSections(signal);
+    releaseSections(handle);
     SimplePropertiesSectionWriter w(getSectionSegmentPool());
     packTableIntoPages(w, alterTabPtr.p->m_newTablePtr);
 
     SegmentedSectionPtr tabInfoPtr;
     w.getPtr(tabInfoPtr);
-    signal->setSection(tabInfoPtr, AlterTabReq::DICT_TAB_INFO);
+    handle.m_ptr[AlterTabReq::DICT_TAB_INFO] = tabInfoPtr;
+    handle.m_cnt = 1;
   }
 
   // save sections
-  saveOpSection(op_ptr, signal, AlterTabReq::DICT_TAB_INFO);
+  saveOpSection(op_ptr, handle, AlterTabReq::DICT_TAB_INFO);
 }
 
 bool
@@ -7935,10 +7952,12 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
     bool ok = copyOut(tabInfoSec, tabInfoPtr);
     ndbrequire(ok);
 
-    signal->setSection(tabInfoPtr, AlterTabReq::DICT_TAB_INFO);
+    SectionHandle handle(this, tabInfoPtr.i);
+    signal->theData[AlterTabReq::SignalLength] = tabInfoPtr.i;
     EXECUTE_DIRECT(SUMA, GSN_ALTER_TAB_REQ, signal,
-                   AlterTabReq::SignalLength);
-    releaseSections(signal);
+                   AlterTabReq::SignalLength + 1);
+    jamEntry();
+    releaseSections(handle);
   }
 
   // older way to notify  wl3600_todo disable to find SUMA problems
@@ -8727,6 +8746,7 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
     jam();
     return;
   }
+  SectionHandle handle(this, signal);
 
   const CreateIndxReq req_copy =
     *(const CreateIndxReq*)signal->getDataPtr();
@@ -8751,11 +8771,11 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
     impl_req->indexId = RNIL;
     impl_req->indexVersion = 0;
 
-    handleClientReq(signal, op_ptr);
+    handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
 
-  releaseSections(signal);
+  releaseSections(handle);
 
   CreateIndxRef* ref = (CreateIndxRef*)signal->getDataPtrSend();
 
@@ -8771,7 +8791,8 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
 // CreateIndex: PARSE
 
 void
-Dbdict::createIndex_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+Dbdict::createIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
+                          SectionHandle& handle, ErrorInfo& error)
 {
   D("createIndex_parse");
 
@@ -8790,7 +8811,7 @@ Dbdict::createIndex_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
   AttributeList& attrList = createIndexPtr.p->m_attrList;
   {
     SegmentedSectionPtr ss_ptr;
-    signal->getSection(ss_ptr, CreateIndxReq::ATTRIBUTE_LIST_SECTION);
+    handle.getSection(ss_ptr, CreateIndxReq::ATTRIBUTE_LIST_SECTION);
     SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
     r.reset(); // undo implicit first()
     if (!r.getWord(&attrList.sz) ||
@@ -8809,7 +8830,7 @@ Dbdict::createIndex_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
   bits = TableRecord::TR_RowChecksum;
   {
     SegmentedSectionPtr ss_ptr;
-    signal->getSection(ss_ptr, CreateIndxReq::INDEX_NAME_SECTION);
+    handle.getSection(ss_ptr, CreateIndxReq::INDEX_NAME_SECTION);
     SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
     DictTabInfo::Table tableDesc;
     tableDesc.init();
@@ -9420,7 +9441,11 @@ void
 Dbdict::execDROP_INDX_REQ(Signal* signal)
 {
   jamEntry();
-  ndbrequire(signal->getNoOfSections() == 0);
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
 
   const DropIndxReq req_copy =
     *(const DropIndxReq*)signal->getDataPtr();
@@ -9443,11 +9468,11 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
     impl_req->indexId = req->indexId;
     impl_req->indexVersion = req->indexVersion;
 
-    handleClientReq(signal, op_ptr);
+    handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
 
-  releaseSections(signal);
+  releaseSections(handle);
 
   DropIndxRef* ref = (DropIndxRef*)signal->getDataPtrSend();
   ref->senderRef = reference();
@@ -9464,7 +9489,8 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
 // DropIndex: PARSE
 
 void
-Dbdict::dropIndex_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+Dbdict::dropIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
+                        SectionHandle& handle, ErrorInfo& error)
 {
   D("dropIndex_parse" << V(op_ptr.i) << *op_ptr.p);
 
@@ -9837,7 +9863,11 @@ void
 Dbdict::execALTER_INDX_REQ(Signal* signal)
 {
   jamEntry();
-  ndbrequire(signal->getNoOfSections() == 0);
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
 
   const AlterIndxReq req_copy =
     *(const AlterIndxReq*)signal->getDataPtr();
@@ -9861,9 +9891,11 @@ Dbdict::execALTER_INDX_REQ(Signal* signal)
     impl_req->indexVersion = req->indexVersion;
     impl_req->indexType = 0; // fill in parse
 
-    handleClientReq(signal, op_ptr);
+    handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
+
+  releaseSections(handle);
 
   AlterIndxRef* ref = (AlterIndxRef*)signal->getDataPtrSend();
   ref->senderRef = reference();
@@ -9932,7 +9964,8 @@ Dbdict::g_buildIndexConstraintTmpl[1] = {
 // AlterIndex: PARSE
 
 void
-Dbdict::alterIndex_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+Dbdict::alterIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
+                         SectionHandle& handle, ErrorInfo& error)
 {
   D("alterIndex_parse" << V(op_ptr.i) << *op_ptr.p);
 
@@ -10752,7 +10785,11 @@ void
 Dbdict::execBUILDINDXREQ(Signal* signal)
 {
   jamEntry();
-  ndbrequire(signal->getNoOfSections() == 0);
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
 
   const BuildIndxReq req_copy =
     *(const BuildIndxReq*)signal->getDataPtr();
@@ -10777,9 +10814,11 @@ Dbdict::execBUILDINDXREQ(Signal* signal)
     impl_req->indexType = req->indexType;  //wl3600_todo remove from client sig
     impl_req->parallelism = req->parallelism;
 
-    handleClientReq(signal, op_ptr);
+    handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
+
+  releaseSections(handle);
 
   BuildIndxRef* ref = (BuildIndxRef*)signal->getDataPtrSend();
   ref->senderRef = reference();
@@ -10797,7 +10836,8 @@ Dbdict::execBUILDINDXREQ(Signal* signal)
 // BuildIndex: PARSE
 
 void
-Dbdict::buildIndex_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+Dbdict::buildIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
+                         SectionHandle& handle, ErrorInfo& error)
 {
   D("buildIndex_parse");
 
@@ -13810,7 +13850,6 @@ Dbdict::execCREATE_TRIG_REQ(Signal* signal)
     jam();
     return;
   }
-
   SectionHandle handle(this, signal);
 
   const CreateTrigReq req_copy =
@@ -13839,11 +13878,11 @@ Dbdict::execCREATE_TRIG_REQ(Signal* signal)
     impl_req->receiverRef = req->receiverRef;
     impl_req->attributeMask = req->attributeMask;
 
-    handleClientReq(signal, op_ptr);
+    handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
 
-  releaseSections(signal);
+  releaseSections(handle);
 
   CreateTrigRef* ref = (CreateTrigRef*)signal->getDataPtrSend();
 
@@ -13862,7 +13901,8 @@ Dbdict::execCREATE_TRIG_REQ(Signal* signal)
 // CreateTrigger: PARSE
 
 void
-Dbdict::createTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+Dbdict::createTrigger_parse(Signal* signal, SchemaOpPtr op_ptr,
+                            SectionHandle& handle, ErrorInfo& error)
 {
   D("createTrigger_parse" << V(op_ptr.i) << *op_ptr.p);
 
@@ -13885,7 +13925,7 @@ Dbdict::createTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error
   // save name
   {
     SegmentedSectionPtr ss_ptr;
-    signal->getSection(ss_ptr, CreateTrigReq::TRIGGER_NAME_SECTION);
+    handle.getSection(ss_ptr, CreateTrigReq::TRIGGER_NAME_SECTION);
     SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
     DictTabInfo::Table tableDesc;
     tableDesc.init();
@@ -14300,6 +14340,7 @@ Dbdict::execDROP_TRIG_REQ(Signal* signal)
     jam();
     return;
   }
+  SectionHandle handle(this, signal);
 
   const DropTrigReq req_copy =
     *(const DropTrigReq*)signal->getDataPtr();
@@ -14325,11 +14366,11 @@ Dbdict::execDROP_TRIG_REQ(Signal* signal)
     impl_req->triggerId = req->triggerId;
     impl_req->triggerInfo = ~(Uint32)0;
 
-    handleClientReq(signal, op_ptr);
+    handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
 
-  releaseSections(signal);
+  releaseSections(handle);
 
   DropTrigRef* ref = (DropTrigRef*)signal->getDataPtrSend();
 
@@ -14347,7 +14388,8 @@ Dbdict::execDROP_TRIG_REQ(Signal* signal)
 // DropTrigger: PARSE
 
 void
-Dbdict::dropTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+Dbdict::dropTrigger_parse(Signal* signal, SchemaOpPtr op_ptr,
+                          SectionHandle& handle, ErrorInfo& error)
 {
   D("dropTrigger_parse" << V(op_ptr.i) << *op_ptr.p);
 
@@ -14355,19 +14397,17 @@ Dbdict::dropTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
   getOpRec(op_ptr, dropTriggerPtr);
   DropTrigImplReq* impl_req = &dropTriggerPtr.p->m_request;
 
-  SectionHandle handle(this, signal);
-
   bool reqByName = false;
-  if (signal->getNoOfSections() > 0) { // wl3600_todo use requestType
+  if (handle.m_cnt > 0) { // wl3600_todo use requestType
     jam();
-    ndbrequire(signal->getNoOfSections() == 1);
+    ndbrequire(handle.m_cnt == 1);
     reqByName = true;
   }
 
   if (reqByName) {
     jam();
     SegmentedSectionPtr ss_ptr;
-    signal->getSection(ss_ptr, DropTrigImplReq::TRIGGER_NAME_SECTION);
+    handle.getSection(ss_ptr, DropTrigImplReq::TRIGGER_NAME_SECTION);
     SimplePropertiesSectionReader r(ss_ptr, getSectionSegmentPool());
     DictTabInfo::Table tableDesc;
     tableDesc.init();
@@ -14725,6 +14765,7 @@ Dbdict::execALTER_TRIG_REQ(Signal* signal)
     jam();
     return;
   }
+  SectionHandle handle(this, signal);
 
   const AlterTrigReq req_copy =
     *(const AlterTrigReq*)signal->getDataPtr();
@@ -14746,11 +14787,11 @@ Dbdict::execALTER_TRIG_REQ(Signal* signal)
     impl_req->tableVersion = req->tableVersion;
     impl_req->triggerId = req->triggerId;
 
-    handleClientReq(signal, op_ptr);
+    handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
 
-  releaseSections(signal);
+  releaseSections(handle);
 
   AlterTrigRef* ref = (AlterTrigRef*)signal->getDataPtrSend();
   ref->senderRef = reference();
@@ -14767,7 +14808,8 @@ Dbdict::execALTER_TRIG_REQ(Signal* signal)
 // AlterTrigger: PARSE
 
 void
-Dbdict::alterTrigger_parse(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo& error)
+Dbdict::alterTrigger_parse(Signal* signal, SchemaOpPtr op_ptr,
+                           SectionHandle& handle, ErrorInfo& error)
 {
   D("alterTrigger_parse" << V(op_ptr.i) << *op_ptr.p);
 
@@ -18659,10 +18701,10 @@ Dbdict::getOpSection(SchemaOpPtr op_ptr, Uint32 ss_no)
 
 bool
 Dbdict::saveOpSection(SchemaOpPtr op_ptr,
-                      Signal* signal, Uint32 ss_no)
+                      SectionHandle& handle, Uint32 ss_no)
 {
   SegmentedSectionPtr ss_ptr;
-  bool ok = signal->getSection(ss_ptr, ss_no);
+  bool ok = handle.getSection(ss_ptr, ss_no);
   ndbrequire(ok);
   return saveOpSection(op_ptr, ss_ptr, ss_no);
 }
@@ -19450,7 +19492,9 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
     }
 
     // begin tx on all participants
-    sendTransReq(signal, trans_ptr);
+    SectionHandle handle(this);
+    handle.m_cnt = 0;
+    sendTransReq(signal, trans_ptr, handle);
     if (ERROR_INSERTED(6102)) {
       jam();
       CLEAR_ERROR_INSERT_VALUE;
@@ -19575,7 +19619,8 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
 // coordinator
 
 void
-Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr)
+Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
+                        SectionHandle& handle)
 {
   D("handleClientReq" << *op_ptr.p);
 
@@ -19583,7 +19628,7 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr)
 
   ErrorInfo error;
   const OpInfo& info = getOpInfo(op_ptr);
-  (this->*(info.m_parse))(signal, op_ptr, error);
+  (this->*(info.m_parse))(signal, op_ptr, handle, error);
 
   if (hasError(error)) {
     jam();
@@ -19597,17 +19642,18 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr)
     nodes.clear(ownNodeId);
     setGlobState(trans_ptr, nodes, TransGlob::NoOp);
 
-    releaseSections(signal);
+    releaseSections(handle);
     runTransMaster(signal, trans_ptr);
     return;
   }
 
   updateSchemaOpStep(trans_ptr, op_ptr);
-  sendTransParseReq(signal, op_ptr);
+  sendTransParseReq(signal, op_ptr, handle);
 }
 
 void
-Dbdict::sendTransReq(Signal* signal, SchemaTransPtr trans_ptr)
+Dbdict::sendTransReq(Signal* signal, SchemaTransPtr trans_ptr,
+                     SectionHandle& handle)
 {
   D("sendTransReq" << *trans_ptr.p);
 
@@ -19717,11 +19763,13 @@ Dbdict::sendTransReq(Signal* signal, SchemaTransPtr trans_ptr)
   }
 
   sendFragmentedSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
-                       SchemaTransImplReq::SignalLength + extra_length, JBB);
+                       SchemaTransImplReq::SignalLength + extra_length, JBB,
+                       &handle);
 }
 
 void
-Dbdict::sendTransParseReq(Signal* signal, SchemaOpPtr op_ptr)
+Dbdict::sendTransParseReq(Signal* signal, SchemaOpPtr op_ptr,
+                          SectionHandle& handle)
 {
   D("sendTransParseReq");
 
@@ -19729,8 +19777,8 @@ Dbdict::sendTransParseReq(Signal* signal, SchemaOpPtr op_ptr)
   const TransLoc& tLoc = trans_ptr.p->m_transLoc;
   ndbrequire(tLoc.m_mode == TransMode::Normal &&
              tLoc.m_phase == TransPhase::Parse);
-  sendTransReq(signal, trans_ptr);
-  releaseSections(signal);
+  sendTransReq(signal, trans_ptr, handle);
+  releaseSections(handle);
 }
 
 void
@@ -20048,7 +20096,9 @@ Dbdict::runTransMaster(Signal* signal, SchemaTransPtr trans_ptr)
   }
 
   // always send to all in order to keep iterators synced
-  sendTransReq(signal, trans_ptr);
+  SectionHandle handle(this);
+  handle.m_cnt = 0;
+  sendTransReq(signal, trans_ptr, handle);
 }
 
 void
@@ -20282,6 +20332,8 @@ Dbdict::recvTransParseReq(Signal* signal, SchemaTransPtr trans_ptr,
   const Uint32* src = signal->getDataPtr();
   const Uint32 len = info.m_impl_req_length;
 
+  SectionHandle handle(this, signal);
+
   ndbrequire(op_key != RNIL);
   ErrorInfo error;
   if (trans_ptr.p->m_isMaster) {
@@ -20306,7 +20358,7 @@ Dbdict::recvTransParseReq(Signal* signal, SchemaTransPtr trans_ptr,
       Uint32* dst = oprec_ptr.p->m_impl_req_data;
       memcpy(dst, src, len << 2);
 
-      (this->*(info.m_parse))(signal, op_ptr, error);
+      (this->*(info.m_parse))(signal, op_ptr, handle, error);
       if (!hasError(error)) {
         jam();
         updateSchemaOpStep(trans_ptr, op_ptr);
@@ -20318,7 +20370,7 @@ Dbdict::recvTransParseReq(Signal* signal, SchemaTransPtr trans_ptr,
   }
 
   // parse must consume but not release signal sections
-  releaseSections(signal);
+  releaseSections(handle);
 
   if (hasError(error)) {
     jam();

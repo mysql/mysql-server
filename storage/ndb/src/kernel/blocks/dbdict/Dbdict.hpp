@@ -1356,7 +1356,7 @@ private:
     void (Dbdict::*m_release)(SchemaOpPtr);
 
     // parse phase
-    void (Dbdict::*m_parse)(Signal*, SchemaOpPtr, ErrorInfo&);
+    void (Dbdict::*m_parse)(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
     bool (Dbdict::*m_subOps)(Signal*, SchemaOpPtr);
     void (Dbdict::*m_reply)(Signal*, SchemaOpPtr, ErrorInfo);
 
@@ -1660,7 +1660,7 @@ private:
 
   // copy signal sections to schema op sections
   const OpSection& getOpSection(SchemaOpPtr, Uint32 ss_no);
-  bool saveOpSection(SchemaOpPtr, Signal*, Uint32 ss_no);
+  bool saveOpSection(SchemaOpPtr, SectionHandle&, Uint32 ss_no);
   bool saveOpSection(SchemaOpPtr, SegmentedSectionPtr ss_ptr, Uint32 ss_no);
   void releaseOpSection(SchemaOpPtr, Uint32 ss_no);
 
@@ -1909,8 +1909,8 @@ private:
   Uint32 getIteratorRepeat(SchemaTransPtr trans_ptr);
 
   // coordinator
-  void sendTransReq(Signal*, SchemaTransPtr);
-  void sendTransParseReq(Signal*, SchemaOpPtr);
+  void sendTransReq(Signal*, SchemaTransPtr, SectionHandle&);
+  void sendTransParseReq(Signal*, SchemaOpPtr, SectionHandle&);
   void recvTransReply(Signal*, bool isConf);
   void handleTransReply(Signal*, SchemaTransPtr);
   void createSubOps(Signal*, SchemaOpPtr, bool first = false);
@@ -2047,7 +2047,7 @@ private:
    * The other half of client REQ processing.  On error starts
    * rollback of current client op and its sub-ops.
    */
-  void handleClientReq(Signal*, SchemaOpPtr);
+  void handleClientReq(Signal*, SchemaOpPtr, SectionHandle&);
 
   // DICT receives recursive or internal CONF or REF
 
@@ -2216,7 +2216,7 @@ private:
   bool createTable_seize(SchemaOpPtr);
   void createTable_release(SchemaOpPtr);
   //
-  void createTable_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  void createTable_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool createTable_subOps(Signal*, SchemaOpPtr);
   void createTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2279,7 +2279,7 @@ private:
   bool dropTable_seize(SchemaOpPtr);
   void dropTable_release(SchemaOpPtr);
   //
-  void dropTable_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  void dropTable_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool dropTable_subOps(Signal*, SchemaOpPtr);
   void dropTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2367,7 +2367,7 @@ private:
   bool alterTable_seize(SchemaOpPtr);
   void alterTable_release(SchemaOpPtr);
   //
-  void alterTable_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  void alterTable_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool alterTable_subOps(Signal*, SchemaOpPtr);
   void alterTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2447,7 +2447,7 @@ private:
   bool createIndex_seize(SchemaOpPtr);
   void createIndex_release(SchemaOpPtr);
   //
-  void createIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  void createIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool createIndex_subOps(Signal*, SchemaOpPtr);
   void createIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2498,7 +2498,7 @@ private:
   bool dropIndex_seize(SchemaOpPtr);
   void dropIndex_release(SchemaOpPtr);
   //
-  void dropIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  void dropIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool dropIndex_subOps(Signal*, SchemaOpPtr);
   void dropIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2573,7 +2573,7 @@ private:
   bool alterIndex_seize(SchemaOpPtr);
   void alterIndex_release(SchemaOpPtr);
   //
-  void alterIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  void alterIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool alterIndex_subOps(Signal*, SchemaOpPtr);
   void alterIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2648,7 +2648,7 @@ private:
   bool buildIndex_seize(SchemaOpPtr);
   void buildIndex_release(SchemaOpPtr);
   //
-  void buildIndex_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  void buildIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool buildIndex_subOps(Signal*, SchemaOpPtr);
   void buildIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2824,7 +2824,7 @@ private:
   bool createTrigger_seize(SchemaOpPtr);
   void createTrigger_release(SchemaOpPtr);
   //
-  void createTrigger_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  void createTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool createTrigger_subOps(Signal*, SchemaOpPtr);
   void createTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2869,7 +2869,7 @@ private:
   bool dropTrigger_seize(SchemaOpPtr);
   void dropTrigger_release(SchemaOpPtr);
   //
-  void dropTrigger_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  void dropTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool dropTrigger_subOps(Signal*, SchemaOpPtr);
   void dropTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2920,7 +2920,7 @@ private:
   bool alterTrigger_seize(SchemaOpPtr);
   void alterTrigger_release(SchemaOpPtr);
   //
-  void alterTrigger_parse(Signal*, SchemaOpPtr, ErrorInfo&);
+  void alterTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool alterTrigger_subOps(Signal*, SchemaOpPtr);
   void alterTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
