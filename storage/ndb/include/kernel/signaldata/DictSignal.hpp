@@ -104,7 +104,6 @@ public:
     dst_info |= src_info & RequestFlagsGlobalMask;
   }
 
-#ifdef VM_TRACE
   static const char*
   getRequestFlagsText(const Uint32& info) {
     static char buf[100];
@@ -163,7 +162,6 @@ public:
     Uint32 size = sizeof(name)/sizeof(name[0]);
     return val < size ? name[val] : "?";
   }
-#endif
 };
 
 #endif

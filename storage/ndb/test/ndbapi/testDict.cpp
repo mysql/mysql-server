@@ -5064,19 +5064,22 @@ err:
   return NDBT_FAILED;
 }
 
+static ST_Errins st_test_local_create_list[] = {
+  ST_Errins(8033, 291, 1),    // TC trigger
+  ST_Errins(8033, 291, 0),
+  ST_Errins(4003, 4237, 1),   // TUP trigger
+  ST_Errins(4003, 4237, 0),
+  ST_Errins(8034, 292, 1),    // TC index
+  ST_Errins(8034, 292, 0)
+};
+
 static int
 st_test_local_create(ST_Con& c, int arg = -1)
 {
   const int n = arg;
-  static ST_Errins list[] = {
-    ST_Errins(8033, 291, 1),    // TC trigger
-    ST_Errins(8033, 291, 0),
-    ST_Errins(4003, 4237, 1),   // TUP trigger
-    ST_Errins(4003, 4237, 0),
-    ST_Errins(8034, 292, 1),    // TC index
-    ST_Errins(8034, 292, 0)
-  };
-  const int listlen = sizeof(list)/sizeof(list[0]);
+  ST_Errins *list = st_test_local_create_list;
+  const int listlen = 
+    sizeof(st_test_local_create_list)/sizeof(st_test_local_create_list[0]);
   assert(0 <= n && n < listlen);
   const bool only_unique = (n == 0 || n == 1 || n == 4 || n == 5);
   int i, j;
