@@ -105,9 +105,16 @@ int Db::set_bt_compare(bt_compare_fcn_type bt_compare_fcn) {
     return the_Env->maybe_throw_error(ret);
 }
 
-// open question: how to handle the callback type conversions?
+// open questions:
+// how to convert callback types in the most simple way?
+
+static int Db_associate_callback(DB *secondary, const DBT *key, const DBT *data, DBT *result) {
+    Db *dbs = Db::get_Db(secondary);
+    return EINVAL; // Dbs->get_associate_callback(Dbs, (const Dbt *) key, (const Dbt *) data, (Dbt *) result);
+}
 
 int Db::associate(DbTxn *txnid, Db *secondary, int (*callback)(Db *secondary, const Dbt *key, const Dbt *data, Dbt *result), u_int32_t flags) {
-    int ret = the_db->associate(the_db, txnid->get_DB_TXN(), secondary->get_DB(), 0, flags);
+    // secondary->set_associate_callback(callback);
+    int ret = the_db->associate(the_db, txnid->get_DB_TXN(), secondary->get_DB(), Db_associate_callback, flags);
     return the_Env->maybe_throw_error(ret);
 }
