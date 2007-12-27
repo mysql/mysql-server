@@ -15,8 +15,8 @@
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
+#include <my_base.h>
 #include <errno.h>
-
 
 /*
   Read a chunk of bytes from a file with retry's if needed
@@ -37,7 +37,7 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
 {
   size_t readbytes, save_count;
   DBUG_ENTER("my_read");
-  DBUG_PRINT("my",("Fd: %d  Buffer: 0x%lx  Count: %lu  MyFlags: %d",
+  DBUG_PRINT("my",("fd: %d  Buffer: 0x%lx  Count: %lu  MyFlags: %d",
                    Filedes, (long) Buffer, (ulong) Count, MyFlags));
   save_count= Count;
 
@@ -46,7 +46,9 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
     errno= 0;					/* Linux doesn't reset this */
     if ((readbytes= read(Filedes, Buffer, Count)) != Count)
     {
-      my_errno= errno ? errno : -1;
+      my_errno= errno;
+      if (errno == 0 || (errno == -1 && (MyFlags & (MY_NABP | MY_FNABP))))
+        my_errno= HA_ERR_FILE_TOO_SHORT;
       DBUG_PRINT("warning",("Read only %d bytes off %lu from %d, errno: %d",
                             (int) readbytes, (ulong) Count, Filedes,
                             my_errno));

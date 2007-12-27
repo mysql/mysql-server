@@ -1416,7 +1416,7 @@ insert t2 select * from t1;
 insert t3 select * from t1;
 checksum table t1, t2, t3, t4 quick;
 Table	Checksum
-test.t1	2948697075
+test.t1	3442722830
 test.t2	NULL
 test.t3	NULL
 test.t4	NULL
@@ -1424,17 +1424,17 @@ Warnings:
 Error	1146	Table 'test.t4' doesn't exist
 checksum table t1, t2, t3, t4;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
-test.t3	2948697075
+test.t1	3442722830
+test.t2	3442722830
+test.t3	3442722830
 test.t4	NULL
 Warnings:
 Error	1146	Table 'test.t4' doesn't exist
 checksum table t1, t2, t3, t4 extended;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
-test.t3	2948697075
+test.t1	3442722830
+test.t2	3442722830
+test.t3	3442722830
 test.t4	NULL
 Warnings:
 Error	1146	Table 'test.t4' doesn't exist

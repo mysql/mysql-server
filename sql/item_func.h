@@ -684,7 +684,7 @@ public:
 
 class Item_func_rand :public Item_real_func
 {
-  struct rand_struct *rand;
+  struct my_rnd_struct *rand;
 public:
   Item_func_rand(Item *a) :Item_real_func(a), rand(0) {}
   Item_func_rand()	  :Item_real_func() {}
@@ -1431,7 +1431,6 @@ public:
 
 
 /* for fulltext search */
-#include <ft_global.h>
 
 class Item_func_match :public Item_real_func
 {

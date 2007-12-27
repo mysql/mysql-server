@@ -26,6 +26,7 @@
 #endif
 #include "myisamdef.h"
 #include <m_ctype.h>
+#include <my_bit.h>
 
 #define STANDARD_LENGTH 37
 #define MYISAM_KEYS 6
@@ -187,7 +188,7 @@ int main(int argc, char *argv[])
   if (use_blob)
   {
     recinfo[6].type=FIELD_BLOB;
-    recinfo[6].length=4+mi_portable_sizeof_char_ptr;
+    recinfo[6].length=4+portable_sizeof_char_ptr;
     recinfo[6].null_bit=0;
     recinfo[6].null_pos=0;
   }
@@ -605,7 +606,7 @@ int main(int argc, char *argv[])
     if (mi_rsame(file,read_record2,(int) i)) goto err;
     if (bcmp(read_record,read_record2,reclength) != 0)
     {
-      printf("is_rsame didn't find same record\n");
+      printf("mi_rsame didn't find same record\n");
       goto end;
     }
   }
@@ -656,10 +657,10 @@ int main(int argc, char *argv[])
       sprintf((char*) key2,"%6d",k);
 
       min_key.key= key;
-      min_key.length= USE_WHOLE_KEY;
+      min_key.keypart_map= HA_WHOLE_KEY;
       min_key.flag= HA_READ_AFTER_KEY;
       max_key.key= key2;
-      max_key.length= USE_WHOLE_KEY;
+      max_key.keypart_map= HA_WHOLE_KEY;
       max_key.flag= HA_READ_BEFORE_KEY;
       range_records= mi_records_in_range(file, 0, &min_key, &max_key);
       records=0;
@@ -779,8 +780,7 @@ int main(int argc, char *argv[])
       {
 	ulong blob_length,pos;
 	uchar *ptr;
-	longget(blob_length,read_record+blob_pos+4);
-	ptr=(uchar*) blob_length;
+	memcpy_fixed(&ptr, read_record+blob_pos+4, sizeof(ptr));
 	longget(blob_length,read_record+blob_pos);
 	for (pos=0 ; pos < blob_length ; pos++)
 	{

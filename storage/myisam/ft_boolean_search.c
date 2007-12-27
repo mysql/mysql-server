@@ -162,7 +162,7 @@ static int FTB_WORD_cmp(my_off_t *v, FTB_WORD *a, FTB_WORD *b)
 static int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
 {
   /* ORDER BY word DESC, ndepth DESC */
-  int i= mi_compare_text(cs, (uchar*) (*b)->word+1,(*b)->len-1,
+  int i= ha_compare_text(cs, (uchar*) (*b)->word+1,(*b)->len-1,
                              (uchar*) (*a)->word+1,(*a)->len-1,0,0);
   if (!i)
     i=CMP_NUM((*b)->ndepth,(*a)->ndepth);
@@ -196,7 +196,7 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
     case FT_TOKEN_WORD:
       ftbw= (FTB_WORD *)alloc_root(&ftb_param->ftb->mem_root,
                                    sizeof(FTB_WORD) +
-                                   (info->trunc ? MI_MAX_KEY_BUFF :
+                                   (info->trunc ? HA_MAX_KEY_BUFF :
                                     word_len * ftb_param->ftb->charset->mbmaxlen +
                                     HA_FT_WLEN +
                                     ftb_param->ftb->info->s->rec_reflength));
@@ -345,7 +345,6 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   uint off, extra=HA_FT_WLEN+info->s->base.rec_reflength;
   uchar *lastkey_buf=ftbw->word+ftbw->off;
 
-  LINT_INIT(off);
   if (ftbw->flags & FTB_FLAG_TRUNC)
     lastkey_buf+=ftbw->len;
 
@@ -395,7 +394,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
 
   if (!r && !ftbw->off)
   {
-    r= mi_compare_text(ftb->charset,
+    r= ha_compare_text(ftb->charset,
                        info->lastkey+1,
                        info->lastkey_length-extra-1,
               (uchar*) ftbw->word+1,
@@ -868,7 +867,7 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
   for (a= 0, b= ftb->queue.elements, c= (a+b)/2; b-a>1; c= (a+b)/2)
   {
     ftbw= ftb->list[c];
-    if (mi_compare_text(ftb->charset, (uchar*)word, len,
+    if (ha_compare_text(ftb->charset, (uchar*)word, len,
                         (uchar*)ftbw->word+1, ftbw->len-1,
                         (my_bool)(ftbw->flags&FTB_FLAG_TRUNC), 0) > 0)
       b= c;
@@ -878,7 +877,7 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
   for (; c >= 0; c--)
   {
     ftbw= ftb->list[c];
-    if (mi_compare_text(ftb->charset, (uchar*)word, len,
+    if (ha_compare_text(ftb->charset, (uchar*)word, len,
                         (uchar*)ftbw->word + 1,ftbw->len - 1,
                         (my_bool)(ftbw->flags & FTB_FLAG_TRUNC), 0))
       break;

@@ -242,6 +242,8 @@
 #endif
 #undef inline_test_2
 #undef inline_test_1
+/* helper macro for "instantiating" inline functions */
+#define STATIC_INLINE static inline
 
 /*
   The following macros are used to control inlining a bit more than
@@ -429,6 +431,9 @@ C_MODE_END
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 #ifdef HAVE_SYS_TIMEB_H
 #include <sys/timeb.h>				/* Avoid warnings on SCO */
 #endif
@@ -571,7 +576,7 @@ typedef unsigned short ushort;
 
 #define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 #define sgn(a)		(((a) < 0) ? -1 : ((a) > 0) ? 1 : 0)
-#define swap_variables(t, a, b) { register t dummy; dummy= a; a= b; b= dummy; }
+#define swap_variables(t, a, b) { register t swap_dummy; swap_dummy= a; a= b; b= swap_dummy; }
 #define test(a)		((a) ? 1 : 0)
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
@@ -1014,6 +1019,8 @@ typedef long long intptr;
 #else
 #error sizeof(void *) is neither sizeof(int) nor sizeof(long) nor sizeof(long long)
 #endif
+
+#define MY_ERRPTR ((void*)(intptr)1)
 
 #ifdef USE_RAID
 /*
@@ -1476,6 +1483,7 @@ do { doubleget_union _tmp; \
 #define dlerror() ""
 #endif
 
+
 #ifndef __NETWARE__
 /*
  *  Include standard definitions of operator new and delete.
@@ -1506,6 +1514,13 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 #if !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
+#endif  
+/*
+  Only Linux is known to need an explicit sync of the directory to make sure a
+  file creation/deletion/renaming in(from,to) this directory durable.
+*/
+#ifdef TARGET_OS_LINUX
+#define NEED_EXPLICIT_SYNC_DIR 1
 #endif
 
 #endif /* my_global_h */

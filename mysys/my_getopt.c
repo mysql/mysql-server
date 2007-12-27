@@ -28,14 +28,14 @@ static void default_reporter(enum loglevel level, const char *format, ...);
 my_error_reporter my_getopt_error_reporter= &default_reporter;
 
 static int findopt(char *optpat, uint length,
-		   const struct my_option **opt_res,
-		   char **ffname);
+                   const struct my_option **opt_res,
+                   char **ffname);
 my_bool getopt_compare_strings(const char *s,
-			       const char *t,
-			       uint length);
+                               const char *t,
+                               uint length);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *arg, const struct my_option *optp,
-			    int *err);
+                            int *err);
 static double getopt_double(char *arg, const struct my_option *optp, int *err);
 static void init_variables(const struct my_option *options,
                            init_func_p init_one_value);
@@ -43,8 +43,8 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
 			   longlong value);
 static void fini_one_value(const struct my_option *option, uchar* *variable,
 			   longlong value);
-static int setval(const struct my_option *opts, uchar* *value, char *argument,
-		  my_bool set_maximum_value);
+static int setval(const struct my_option *opts, uchar **value, char *argument,
+                  my_bool set_maximum_value);
 static char *check_struct_option(char *cur_arg, char *key_name);
 
 /*
@@ -770,7 +770,7 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
   return num;
 }
 
-/* 
+/*
   function: getopt_ll
 
   Evaluates and returns the value that user gave as an argument
@@ -867,7 +867,7 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
                                  bool *fix)
 {
   bool adjusted= FALSE;
-  ulonglong old= num;
+  ulonglong old= num, mod;
   char buf1[255], buf2[255];
 
   if ((ulonglong) num > (ulonglong) optp->max_value &&
@@ -892,6 +892,8 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
       num= ((ulonglong) ULONG_MAX);
       adjusted= TRUE;
     }
+#else
+    num= min(num, LONG_MAX);
 #endif
     break;
   default:
@@ -917,7 +919,6 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
     my_getopt_error_reporter(WARNING_LEVEL,
                              "option '%s': unsigned value %s adjusted to %s",
                              optp->name, ullstr(old, buf1), ullstr(num, buf2));
-
   return num;
 }
 
@@ -958,8 +959,8 @@ static double getopt_double(char *arg, const struct my_option *optp, int *err)
 
   SYNOPSIS
     init_one_value()
-    option		Option to initialize
-    value		Pointer to variable
+    option              Option to initialize
+    value               Pointer to variable
 */
 
 static void init_one_value(const struct my_option *option, uchar* *variable,
@@ -973,7 +974,7 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
   case GET_INT:
     *((int*) variable)= (int) value;
     break;
-  case GET_UINT:
+  case GET_UINT: /* Fall through */
   case GET_ENUM:
     *((uint*) variable)= (uint) value;
     break;
@@ -986,7 +987,7 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
   case GET_LL:
     *((longlong*) variable)= (longlong) value;
     break;
-  case GET_ULL:
+  case GET_ULL: /* Fall through */
   case GET_SET:
     *((ulonglong*) variable)=  (ulonglong) value;
     break;
@@ -1054,7 +1055,7 @@ void my_cleanup_options(const struct my_option *options)
 }
 
 
-/* 
+/*
   initialize all variables to their default values
 
   SYNOPSIS

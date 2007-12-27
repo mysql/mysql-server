@@ -2287,6 +2287,11 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
                      my_seek(index_file_nr,0L,MY_SEEK_END,MYF(0)),
 			0, MYF(MY_WME | MY_WAIT_IF_FULL)))
   {
+    /*
+      TODO: all operations creating/deleting the index file or a log, should
+      call my_sync_dir() or my_sync_dir_by_file() to be durable.
+      TODO: file creation should be done with my_create() not my_open().
+    */
     if (index_file_nr >= 0)
       my_close(index_file_nr,MYF(0));
     return TRUE;

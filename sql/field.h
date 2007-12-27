@@ -237,11 +237,11 @@ public:
     return test(record[(uint) (null_ptr -table->record[0])] &
 		null_bit);
   }
-  inline bool is_null_in_record_with_offset(my_ptrdiff_t offset)
+  inline bool is_null_in_record_with_offset(my_ptrdiff_t col_offset)
   {
     if (!null_ptr)
       return 0;
-    return test(null_ptr[offset] & null_bit);
+    return test(null_ptr[col_offset] & null_bit);
   }
   inline void set_null(my_ptrdiff_t row_offset= 0)
     { if (null_ptr) null_ptr[row_offset]|= null_bit; }
@@ -337,7 +337,7 @@ public:
       Number of copied bytes (excluding padded zero bytes -- see above).
   */
 
-  virtual uint get_key_image(uchar *buff, uint length, imagetype type)
+  virtual uint get_key_image(uchar *buff, uint length, imagetype type_arg)
   {
     get_image(buff, length, &my_charset_bin);
     return length;

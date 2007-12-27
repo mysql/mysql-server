@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* This file includes constants used with all databases */
-/* Author: Michael Widenius */
 
 #ifndef _my_base_h
 #define _my_base_h
@@ -48,10 +47,11 @@
 #define HA_OPEN_FOR_REPAIR		32	/* open even if crashed */
 #define HA_OPEN_FROM_SQL_LAYER          64
 #define HA_OPEN_MMAP                    128     /* open memory mapped */
+#define HA_OPEN_COPY			256     /* Open copy (for repair) */
 /* Internal temp table, used for temporary results */
-#define HA_OPEN_INTERNAL_TABLE          256
+#define HA_OPEN_INTERNAL_TABLE          512
 
-	/* The following is parameter to ha_rkey() how to use key */
+/* The following is parameter to ha_rkey() how to use key */
 
 /*
   We define a complete-field prefix of a key value as a prefix where
@@ -137,7 +137,7 @@ enum ha_extra_function {
   HA_EXTRA_RESET_STATE,			/* Reset positions */
   HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
   HA_EXTRA_NO_IGNORE_DUP_KEY,
-  HA_EXTRA_PREPARE_FOR_DELETE,
+  HA_EXTRA_PREPARE_FOR_DROP,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
   HA_EXTRA_PRELOAD_BUFFER_SIZE,         /* Set buffer size for preloading */
   /*
@@ -193,7 +193,9 @@ enum ha_extra_function {
     begin and end of a statement.
   */
   HA_EXTRA_ATTACH_CHILDREN,
-  HA_EXTRA_DETACH_CHILDREN
+  HA_EXTRA_DETACH_CHILDREN,
+  /* Inform handler that we will do a rename */
+  HA_EXTRA_PREPARE_FOR_RENAME
 };
 
 	/* The following is parameter to ha_panic() */
@@ -300,8 +302,12 @@ enum ha_base_keytype {
 #define HA_OPTION_NO_PACK_KEYS		128  /* Reserved for MySQL */
 #define HA_OPTION_CREATE_FROM_ENGINE    256
 #define HA_OPTION_RELIES_ON_SQL_LAYER   512
-#define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
-#define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
+#define HA_OPTION_NULL_FIELDS		1024
+#define HA_OPTION_PAGE_CHECKSUM		2048
+#define HA_OPTION_TEMP_COMPRESS_RECORD  (1L << 15)      /* set by isamchk */
+#define HA_OPTION_READ_ONLY_DATA        (1L << 16)      /* Set by isamchk */
+#define HA_OPTION_NO_CHECKSUM           (1L << 17)
+#define HA_OPTION_NO_DELAY_KEY_WRITE    (1L << 18)
 
 	/* Bits in flag to create() */
 
@@ -310,6 +316,7 @@ enum ha_base_keytype {
 #define HA_CREATE_TMP_TABLE	4
 #define HA_CREATE_CHECKSUM	8
 #define HA_CREATE_KEEP_FILES	16      /* don't overwrite .MYD and MYI */
+#define HA_CREATE_PAGE_CHECKSUM	32
 #define HA_CREATE_DELAY_KEY_WRITE 64
 #define HA_CREATE_RELIES_ON_SQL_LAYER 128
 
@@ -356,14 +363,18 @@ enum ha_base_keytype {
 */
 #define HA_STATUS_AUTO          64
 
-	/* Errorcodes given by functions */
+/*
+  Errorcodes given by handler functions
 
-/* opt_sum_query() assumes these codes are > 1 */
-/* Do not add error numbers before HA_ERR_FIRST. */
-/* If necessary to add lower numbers, change HA_ERR_FIRST accordingly. */
-#define HA_ERR_FIRST            120 /*Copy first error nr.*/
+  opt_sum_query() assumes these codes are > 1
+  Do not add error numbers before HA_ERR_FIRST.
+  If necessary to add lower numbers, change HA_ERR_FIRST accordingly.
+*/
+#define HA_ERR_FIRST            120     /* Copy of first error nr.*/
+
 #define HA_ERR_KEY_NOT_FOUND	120	/* Didn't find key on read or update */
 #define HA_ERR_FOUND_DUPP_KEY	121	/* Dupplicate key on write */
+#define HA_ERR_INTERNAL_ERROR   122     /* Internal error */
 #define HA_ERR_RECORD_CHANGED	123	/* Uppdate with is recoverable */
 #define HA_ERR_WRONG_INDEX	124	/* Wrong index given to function */
 #define HA_ERR_CRASHED		126	/* Indexfile is crashed */
@@ -382,7 +393,7 @@ enum ha_base_keytype {
 #define HA_WRONG_CREATE_OPTION	140	/* Wrong create option */
 #define HA_ERR_FOUND_DUPP_UNIQUE 141	/* Dupplicate unique on write */
 #define HA_ERR_UNKNOWN_CHARSET	 142	/* Can't open charset */
-#define HA_ERR_WRONG_MRG_TABLE_DEF 143    /* conflicting MyISAM tables in MERGE */
+#define HA_ERR_WRONG_MRG_TABLE_DEF 143  /* conflicting tables in MERGE */
 #define HA_ERR_CRASHED_ON_REPAIR 144	/* Last (automatic?) repair failed */
 #define HA_ERR_CRASHED_ON_USAGE  145	/* Table must be repaired */
 #define HA_ERR_LOCK_WAIT_TIMEOUT 146
@@ -397,30 +408,38 @@ enum ha_base_keytype {
 #define HA_ERR_NO_SUCH_TABLE     155  /* The table does not exist in engine */
 #define HA_ERR_TABLE_EXIST       156  /* The table existed in storage engine */
 #define HA_ERR_NO_CONNECTION     157  /* Could not connect to storage engine */
-#define HA_ERR_NULL_IN_SPATIAL   158  /* NULLs are not supported in spatial index */
+/* NULLs are not supported in spatial index */
+#define HA_ERR_NULL_IN_SPATIAL   158
 #define HA_ERR_TABLE_DEF_CHANGED 159  /* The table changed in storage engine */
 #define HA_ERR_NO_PARTITION_FOUND 160  /* There's no partition in table for
                                           given value */
 #define HA_ERR_RBR_LOGGING_FAILED 161  /* Row-based binlogging of row failed */
-#define HA_ERR_DROP_INDEX_FK      162  /* Index needed in foreign key constr. */
-#define HA_ERR_FOREIGN_DUPLICATE_KEY 163 /* Upholding foreign key constraints
-                                            would lead to a duplicate key
-                                            error in some other table. */
-#define HA_ERR_TABLE_NEEDS_UPGRADE 164  /* The table changed in storage engine */
-#define HA_ERR_TABLE_READONLY    165  /* The table is not writable */
+#define HA_ERR_DROP_INDEX_FK      162  /* Index needed in foreign key constr */
+/*
+  Upholding foreign key constraints would lead to a duplicate key error
+  in some other table.
+*/
+#define HA_ERR_FOREIGN_DUPLICATE_KEY 163
+/* The table changed in storage engine */
+#define HA_ERR_TABLE_NEEDS_UPGRADE 164
+#define HA_ERR_TABLE_READONLY      165   /* The table is not writable */
 
 #define HA_ERR_AUTOINC_READ_FAILED 166   /* Failed to get next autoinc value */
 #define HA_ERR_AUTOINC_ERANGE    167     /* Failed to set row autoinc value */
 #define HA_ERR_GENERIC           168     /* Generic error */
-#define HA_ERR_RECORD_IS_THE_SAME 169    /* row not actually updated : 
-                                            new values same as the old values */
-
-#define HA_ERR_LOGGING_IMPOSSIBLE 170    /* It is not possible to log this
-                                            statement */
+/* row not actually updated: new values same as the old values */
+#define HA_ERR_RECORD_IS_THE_SAME 169
+/* It is not possible to log this statement */
+#define HA_ERR_LOGGING_IMPOSSIBLE 170
 #define HA_ERR_CORRUPT_EVENT      171    /* The event was corrupt, leading to
                                             illegal data being read */
-#define HA_ERR_LAST              171     /*Copy last error nr.*/
-/* Add error numbers before HA_ERR_LAST and change it accordingly. */
+#define HA_ERR_NEW_FILE	          172	 /* New file format */
+#define HA_ERR_INITIALIZATION     173    /* Error during initialization */
+#define HA_ERR_FILE_TOO_SHORT	  174	 /* File too short */
+#define HA_ERR_WRONG_CRC	  175	 /* Wrong CRC on page */
+#define HA_ERR_LAST               175    /* Copy of last error nr */
+
+/* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 
 	/* Other constants */
@@ -484,7 +503,7 @@ enum en_fieldtype {
 };
 
 enum data_file_type {
-  STATIC_RECORD,DYNAMIC_RECORD,COMPRESSED_RECORD
+  STATIC_RECORD, DYNAMIC_RECORD, COMPRESSED_RECORD, BLOCK_RECORD
 };
 
 /* For key ranges */
@@ -535,5 +554,8 @@ typedef ulong		ha_rows;
 #endif
 
 #define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 :2)
+
+/* invalidator function reference for Query Cache */
+typedef void (* invalidator_by_filename)(const char * filename);
 
 #endif /* _my_base_h */

@@ -82,8 +82,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   uchar *disk_cache, *disk_pos, *end_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
-  ulong rec_per_key_part[MI_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
-  my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
+  ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
+  my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   ulonglong max_key_file_length, max_data_file_length;
   DBUG_ENTER("mi_open");
 
@@ -105,7 +105,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share_buff.state.key_root=key_root;
     share_buff.state.key_del=key_del;
     share_buff.key_cache= multi_key_cache_search((uchar*) name_buff,
-                                                 strlen(name_buff));
+                                                 strlen(name_buff),
+                                                 dflt_key_cache);
 
     DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
                     if (strstr(name, "/t1"))
@@ -143,7 +144,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	  HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA |
 	  HA_OPTION_TEMP_COMPRESS_RECORD | HA_OPTION_CHECKSUM |
           HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE |
-          HA_OPTION_RELIES_ON_SQL_LAYER))
+          HA_OPTION_RELIES_ON_SQL_LAYER | HA_OPTION_NULL_FIELDS))
     {
       DBUG_PRINT("error",("wrong options: 0x%lx", share->options));
       my_errno=HA_ERR_OLD_FILE;
@@ -179,7 +180,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     {
       if ((lock_error=my_lock(kfile,F_RDLCK,0L,F_TO_EOF,
 			      MYF(open_flags & HA_OPEN_WAIT_IF_LOCKED ?
-				  0 : MY_DONT_WAIT))) &&
+				  0 : MY_SHORT_WAIT))) &&
 	  !(open_flags & HA_OPEN_IGNORE_IF_LOCKED))
 	goto err;
     }
@@ -210,7 +211,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       DBUG_PRINT("warning",("saved_base_info_length: %d  base_info_length: %d",
 			    len,MI_BASE_INFO_SIZE));
     }
-    disk_pos= my_n_base_info_read(disk_cache + base_pos, &share->base);
+    disk_pos= mi_n_base_info_read(disk_cache + base_pos, &share->base);
     share->state.state_length=base_pos;
 
     if (!(open_flags & HA_OPEN_FOR_REPAIR) &&
@@ -235,8 +236,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
 
     key_parts+=fulltext_keys*FT_SEGS;
-    if (share->base.max_key_length > MI_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
-	key_parts > MI_MAX_KEY * MI_MAX_KEY_SEG)
+    if (share->base.max_key_length > HA_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
+	key_parts > MI_MAX_KEY * HA_MAX_KEY_SEG)
     {
       DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
       my_errno=HA_ERR_UNSUPPORTED;
@@ -452,7 +453,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       if (share->rec[i].type == (int) FIELD_BLOB)
       {
 	share->blobs[j].pack_length=
-	  share->rec[i].length-mi_portable_sizeof_char_ptr;;
+	  share->rec[i].length-portable_sizeof_char_ptr;;
 	share->blobs[j].offset=offset;
 	j++;
       }
@@ -739,12 +740,14 @@ void mi_setup_functions(register MYISAM_SHARE *share)
   {
     share->read_record=_mi_read_pack_record;
     share->read_rnd=_mi_read_rnd_pack_record;
-    if (!(share->options & HA_OPTION_TEMP_COMPRESS_RECORD))
-      share->calc_checksum=0;				/* No checksum */
-    else if (share->options & HA_OPTION_PACK_RECORD)
+    if ((share->options &
+              (HA_OPTION_PACK_RECORD | HA_OPTION_NULL_FIELDS)))
       share->calc_checksum= mi_checksum;
     else
       share->calc_checksum= mi_static_checksum;
+    share->calc_check_checksum= share->calc_checksum;
+    if (!(share->options & HA_OPTION_TEMP_COMPRESS_RECORD))
+      share->calc_checksum=0;				/* No checksum */
   }
   else if (share->options & HA_OPTION_PACK_RECORD)
   {
@@ -754,6 +757,7 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->compare_record=_mi_cmp_dynamic_record;
     share->compare_unique=_mi_cmp_dynamic_unique;
     share->calc_checksum= mi_checksum;
+    share->calc_check_checksum= share->calc_checksum;
 
     /* add bits used to pack data to pack_reclength for faster allocation */
     share->base.pack_reclength+= share->base.pack_bits;
@@ -777,7 +781,11 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->update_record=_mi_update_static_record;
     share->write_record=_mi_write_static_record;
     share->compare_unique=_mi_cmp_static_unique;
-    share->calc_checksum= mi_static_checksum;
+    if (share->options & HA_OPTION_NULL_FIELDS)
+      share->calc_checksum= mi_checksum;
+    else
+      share->calc_checksum= mi_static_checksum;
+    share->calc_check_checksum= share->calc_checksum;
   }
   share->file_read= mi_nommap_pread;
   share->file_write= mi_nommap_pwrite;
@@ -1020,7 +1028,7 @@ uint mi_base_info_write(File file, MI_BASE_INFO *base)
 }
 
 
-uchar *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base)
+uchar *mi_n_base_info_read(uchar *ptr, MI_BASE_INFO *base)
 {
   base->keystart = mi_sizekorr(ptr);			ptr +=8;
   base->max_data_file_length = mi_sizekorr(ptr);	ptr +=8;

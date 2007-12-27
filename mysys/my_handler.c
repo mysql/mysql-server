@@ -16,25 +16,30 @@
    MA 02111-1307, USA */
 
 #include <my_global.h>
-#include "my_handler.h"
+#include <m_ctype.h>
+#include <my_base.h>
+#include <my_handler.h>
+#include <my_sys.h>
 
-int mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
-		    uchar *b, uint b_length, my_bool part_key,
+int ha_compare_text(CHARSET_INFO *charset_info, const uchar *a, uint a_length,
+		    const uchar *b, uint b_length, my_bool part_key,
 		    my_bool skip_end_space)
 {
   if (!part_key)
     return charset_info->coll->strnncollsp(charset_info, a, a_length,
-                                           b, b_length, (my_bool)!skip_end_space);
+                                           b, b_length,
+                                           (my_bool)!skip_end_space);
   return charset_info->coll->strnncoll(charset_info, a, a_length,
                                        b, b_length, part_key);
 }
 
 
-static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
+static int compare_bin(const uchar *a, uint a_length,
+                       const uchar *b, uint b_length,
                        my_bool part_key, my_bool skip_end_space)
 {
   uint length= min(a_length,b_length);
-  uchar *end= a+ length;
+  const uchar *end= a+ length;
   int flag;
 
   while (a < end)
@@ -113,8 +118,8 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
 
 #define FCMP(A,B) ((int) (A) - (int) (B))
 
-int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
-	       register uchar *b, uint key_length, uint nextflag,
+int ha_key_cmp(register HA_KEYSEG *keyseg, register const uchar *a,
+	       register const uchar *b, uint key_length, uint nextflag,
 	       uint *diff_pos)
 {
   int flag;
@@ -124,12 +129,12 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
   float f_1,f_2;
   double d_1,d_2;
   uint next_key_length;
-  uchar *orig_b= b;
+  const uchar *orig_b= b;
 
   *diff_pos=0;
   for ( ; (int) key_length >0 ; key_length=next_key_length, keyseg++)
   {
-    uchar *end;
+    const uchar *end;
     uint piks=! (keyseg->flag & HA_NO_SORT);
     (*diff_pos)++;
     diff_pos[1]= (uint)(b - orig_b);
@@ -174,7 +179,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
         next_key_length=key_length-b_length-pack_length;
 
         if (piks &&
-            (flag=mi_compare_text(keyseg->charset,a,a_length,b,b_length,
+            (flag=ha_compare_text(keyseg->charset,a,a_length,b,b_length,
 				  (my_bool) ((nextflag & SEARCH_PREFIX) &&
 					     next_key_length <= 0),
 				  (my_bool)!(nextflag & SEARCH_PREFIX))))
@@ -187,7 +192,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       {
 	uint length=(uint) (end-a), a_length=length, b_length=length;
         if (piks &&
-            (flag= mi_compare_text(keyseg->charset, a, a_length, b, b_length,
+            (flag= ha_compare_text(keyseg->charset, a, a_length, b, b_length,
 				   (my_bool) ((nextflag & SEARCH_PREFIX) &&
 					      next_key_length <= 0),
 				   (my_bool)!(nextflag & SEARCH_PREFIX))))
@@ -235,7 +240,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
         next_key_length=key_length-b_length-pack_length;
 
         if (piks &&
-	    (flag= mi_compare_text(keyseg->charset,a,a_length,b,b_length,
+	    (flag= ha_compare_text(keyseg->charset,a,a_length,b,b_length,
                                    (my_bool) ((nextflag & SEARCH_PREFIX) &&
                                               next_key_length <= 0),
 				   (my_bool) ((nextflag & (SEARCH_FIND |
@@ -361,7 +366,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 
       if (keyseg->flag & HA_REVERSE_SORT)
       {
-        swap_variables(uchar*, a, b);
+        swap_variables(const uchar*, a, b);
         swap_flag=1;                            /* Remember swap of a & b */
         end= a+ (int) (end-b);
       }
@@ -386,7 +391,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 	  if (*b != '-')
 	    return -1;
 	  a++; b++;
-	  swap_variables(uchar*, a, b);
+	  swap_variables(const uchar*, a, b);
 	  swap_variables(int, alength, blength);
 	  swap_flag=1-swap_flag;
 	  alength--; blength--;
@@ -415,7 +420,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       }
 
       if (swap_flag)                            /* Restore pointers */
-        swap_variables(uchar*, a, b);
+        swap_variables(const uchar*, a, b);
       break;
     }
 #ifdef HAVE_LONG_LONG
@@ -482,12 +487,15 @@ end:
 
   DESCRIPTION
     Find the first NULL value in index-suffix values tuple.
-    TODO Consider optimizing this fuction or its use so we don't search for
-         NULL values in completely NOT NULL index suffixes.
+
+  TODO
+    Consider optimizing this function or its use so we don't search for
+    NULL values in completely NOT NULL index suffixes.
 
   RETURN
-    First key part that has NULL as value in values tuple, or the last key part 
-    (with keyseg->type==HA_TYPE_END) if values tuple doesn't contain NULLs.
+    First key part that has NULL as value in values tuple, or the last key
+    part (with keyseg->type==HA_TYPE_END) if values tuple doesn't contain
+    NULLs.
 */
 
 HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
@@ -556,4 +564,92 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
     }
   }
   return keyseg;
+}
+
+
+/*
+  Errors a handler can give you
+*/
+
+static const char *handler_error_messages[]=
+{
+  "Didn't find key on read or update",
+  "Duplicate key on write or update",
+  "Internal (unspecified) error in handler",
+  "Someone has changed the row since it was read (while the table was locked to prevent it)",
+  "Wrong index given to function",
+  "Undefined handler error 125",
+  "Index file is crashed",
+  "Record file is crashed",
+  "Out of memory in engine",
+  "Undefined handler error 129",
+  "Incorrect file format",
+  "Command not supported by database",
+  "Old database file",
+  "No record read before update",
+  "Record was already deleted (or record file crashed)",
+  "No more room in record file",
+  "No more room in index file",
+  "No more records (read after end of file)",
+  "Unsupported extension used for table",
+  "Too big row",
+  "Wrong create options",
+  "Duplicate unique key or constraint on write or update",
+  "Unknown character set used in table",
+  "Conflicting table definitions in sub-tables of MERGE table",
+  "Table is crashed and last repair failed",
+  "Table was marked as crashed and should be repaired",
+  "Lock timed out; Retry transaction",
+  "Lock table is full;  Restart program with a larger locktable",
+  "Updates are not allowed under a read only transactions",
+  "Lock deadlock; Retry transaction",
+  "Foreign key constraint is incorrectly formed",
+  "Cannot add a child row",
+  "Cannot delete a parent row",
+  "No savepoint with that name",
+  "Non unique key block size",
+  "The table does not exist in engine",
+  "The table already existed in storage engine",
+  "Could not connect to storage engine",
+  "Unexpected null pointer found when using spatial index",
+  "The table changed in storage engine",
+  "There's no partition in table for the given value",
+  "Row-based binlogging of row failed",
+  "Index needed in foreign key constraint",
+  "Upholding foreign key constraints would lead to a duplicate key error in "
+  "some other table",
+  "Table needs to be upgraded before it can be used",
+  "Table is read only",
+  "Failed to get next auto increment value",
+  "Failed to set row auto increment value",
+  "Unknown (generic) error from engine",
+  "Record is the same",
+  "It is not possible to log this statement",
+  "The table is of a new format not supported by this version",
+  "Got a fatal error during initialzaction of handler",
+  "File to short; Expected more data in file",
+  "Read page with wrong checksum"
+};
+
+
+/*
+  Register handler error messages for usage with my_error()
+
+  NOTES
+    This is safe to call multiple times as my_error_register()
+    will ignore calls to register already registered error numbers.
+*/
+
+
+void my_handler_error_register(void)
+{
+  my_error_register(handler_error_messages, HA_ERR_FIRST,
+                    HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
+}
+
+
+void my_handler_error_unregister(void)
+{
+  my_error_unregister(HA_ERR_FIRST,
+                      HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
 }

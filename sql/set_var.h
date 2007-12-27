@@ -452,9 +452,9 @@ public:
   { chain_sys_var(chain); }
   sys_var_thd_enum(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg,
 		   TYPELIB *typelib, sys_after_update_func func,
-                   sys_check_func check)
+                   sys_check_func check_arg)
     :sys_var_thd(name_arg,func), offset(offset_arg), enum_names(typelib),
-    check_func(check)
+    check_func(check_arg)
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var)
   {

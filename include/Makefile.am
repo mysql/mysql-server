@@ -26,8 +26,8 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
 			m_ctype.h my_attribute.h $(HEADERS_GEN)
-noinst_HEADERS =	config-win.h config-netware.h \
-			heap.h my_bitmap.h my_uctype.h \
+noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
+			heap.h maria.h myisamchk.h my_bitmap.h my_uctype.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
@@ -36,7 +36,7 @@ noinst_HEADERS =	config-win.h config-netware.h \
 			mysql_version.h.in my_handler.h my_time.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
-			my_libwrap.h
+			my_libwrap.h wqueue.h
 
 # Remove built files and the symlinked directories
 CLEANFILES =            $(BUILT_SOURCES) readline openssl

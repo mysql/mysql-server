@@ -24,7 +24,7 @@ Locks are prioritized according to:
 
 The current lock types are:
 
-TL_READ	 		# Low priority read
+TL_READ                 # Low priority read
 TL_READ_WITH_SHARED_LOCKS
 TL_READ_HIGH_PRIORITY	# High priority read
 TL_READ_NO_INSERT	# Read without concurrent inserts
@@ -57,8 +57,12 @@ check_status:
 	 In MyISAM this is a simple check if the insert can be done
 	 at the end of the datafile.
 update_status:
-	Before a write lock is released, this function is called.
-	In MyISAM this functions updates the count and length of the datafile
+        in thr_reschedule_write_lock(), when an insert delayed thread
+        downgrades TL_WRITE lock to TL_WRITE_DELAYED, to allow SELECT
+        threads to proceed.
+        A storage engine should also call update_status internally
+        in the ::external_lock(F_UNLCK) method.
+        In MyISAM and CSV this functions updates the length of the datafile.
 get_status:
 	When one gets a lock this functions is called.
 	In MyISAM this stores the number of rows and size of the datafile
@@ -783,16 +787,6 @@ void thr_unlock(THR_LOCK_DATA *data)
   }
   else
     lock->write.last=data->prev;
-  if (lock_type >= TL_WRITE_CONCURRENT_INSERT)
-  {
-    if (lock->update_status)
-      (*lock->update_status)(data->status_param);
-  }
-  else
-  {
-    if (lock->restore_status)
-      (*lock->restore_status)(data->status_param);
-  }
   if (lock_type == TL_READ_NO_INSERT)
     lock->read_no_write_count--;
   data->type=TL_UNLOCK;				/* Mark unlocked */

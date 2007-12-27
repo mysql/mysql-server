@@ -3355,7 +3355,7 @@ err:
     which was basis for ISO/IEC 11578:1996 specification)
 */
 
-static struct rand_struct uuid_rand;
+static struct my_rnd_struct uuid_rand;
 static uint nanoseq;
 static ulonglong uuid_time=0;
 static char clock_seq_and_node_str[]="-0000-000000000000";
@@ -3405,9 +3405,9 @@ String *Item_func_uuid::val_str(String *str)
         generating random "hardware addr"
         and because specs explicitly specify that it should NOT correlate
         with a clock_seq value (initialized random below), we use a separate
-        randominit() here
+        my_rnd_init() here
       */
-      randominit(&uuid_rand, tmp + (ulong) thd, tmp + (ulong)global_query_id);
+      my_rnd_init(&uuid_rand, tmp + (ulong) thd, tmp + (ulong)global_query_id);
       for (i=0; i < (int)sizeof(mac); i++)
         mac[i]=(uchar)(my_rnd(&uuid_rand)*255);
       /* purecov: end */    
@@ -3418,7 +3418,7 @@ String *Item_func_uuid::val_str(String *str)
       *--s=_dig_vec_lower[mac[i] & 15];
       *--s=_dig_vec_lower[mac[i] >> 4];
     }
-    randominit(&uuid_rand, tmp + (ulong) server_start_time,
+    my_rnd_init(&uuid_rand, tmp + (ulong) server_start_time,
 	       tmp + (ulong) thd->status_var.bytes_sent);
     set_clock_seq_str();
   }

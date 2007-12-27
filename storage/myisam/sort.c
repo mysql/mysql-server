@@ -15,7 +15,7 @@
 
 /*
   Creates a index for a database by reading keys, sorting them and outputing
-  them in sorted order through SORT_INFO functions.
+  them in sorted order through MI_SORT_INFO functions.
 */
 
 #include "fulltext.h"
@@ -487,8 +487,8 @@ ok:
 
 int thr_write_keys(MI_SORT_PARAM *sort_param)
 {
-  SORT_INFO *sort_info=sort_param->sort_info;
-  MI_CHECK *param=sort_info->param;
+  MI_SORT_INFO *sort_info=sort_param->sort_info;
+  HA_CHECK *param=sort_info->param;
   ulong length, keys;
   ulong *rec_per_key_part=param->rec_per_key_part;
   int got_error=sort_info->got_error;
@@ -920,7 +920,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
     count+= buffpek->count;
-    buffpek->base= strpos;
+    buffpek->base= (uchar*) strpos;
     buffpek->max_keys=maxcount;
     strpos+= (uint) (error=(int) info->read_to_buffer(from_file,buffpek,
                                                       sort_length));
@@ -958,7 +958,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       {
         if (!(error=(int) info->read_to_buffer(from_file,buffpek,sort_length)))
         {
-          uchar *base=buffpek->base;
+          uchar *base= buffpek->base;
           uint max_keys=buffpek->max_keys;
 
           VOID(queue_remove(&queue,0));
@@ -990,7 +990,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
     }
   }
   buffpek=(BUFFPEK*) queue_top(&queue);
-  buffpek->base=(uchar *) sort_keys;
+  buffpek->base= (uchar*) sort_keys;
   buffpek->max_keys=keys;
   do
   {
@@ -1005,7 +1005,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
     else
     {
       register uchar *end;
-      strpos= buffpek->key;
+      strpos= (uchar*) buffpek->key;
       for (end=strpos+buffpek->mem_count*sort_length;
            strpos != end ;
            strpos+=sort_length)

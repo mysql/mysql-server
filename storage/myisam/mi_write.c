@@ -346,7 +346,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   int error,flag;
   uint nod_flag, search_key_length;
   uchar *temp_buff,*keypos;
-  uchar keybuff[MI_MAX_KEY_BUFF];
+  uchar keybuff[HA_MAX_KEY_BUFF];
   my_bool was_last_key;
   my_off_t next_page, dupp_key_pos;
   DBUG_ENTER("w_search");
@@ -354,7 +354,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
   search_key_length= (comp_flag & SEARCH_FIND) ? key_length : USE_WHOLE_KEY;
   if (!(temp_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
-				      MI_MAX_KEY_BUFF*2)))
+				      HA_MAX_KEY_BUFF*2)))
     DBUG_RETURN(-1);
   if (!_mi_fetch_keypage(info,keyinfo,page,DFLT_INIT_HITS,temp_buff,0))
     goto err;
@@ -545,7 +545,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       get_key_length(alen,a);
       DBUG_ASSERT(info->ft1_to_ft2==0);
       if (alen == blen &&
-          mi_compare_text(keyinfo->seg->charset, a, alen, b, blen, 0, 0)==0)
+          ha_compare_text(keyinfo->seg->charset, a, alen, b, blen, 0, 0)==0)
       {
         /* yup. converting */
         info->ft1_to_ft2=(DYNAMIC_ARRAY *)
@@ -707,7 +707,7 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
 {
   uint keys,length,last_length,key_ref_length;
   uchar *end,*lastpos,*prevpos;
-  uchar key_buff[MI_MAX_KEY_BUFF];
+  uchar key_buff[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_mi_find_last_pos");
 
   key_ref_length=2;
@@ -764,7 +764,7 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
        length,keys;
   uchar *pos,*buff,*extra_buff;
   my_off_t next_page,new_pos;
-  uchar tmp_part_key[MI_MAX_KEY_BUFF];
+  uchar tmp_part_key[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_mi_balance_page");
 
   k_length=keyinfo->keylength;
@@ -930,7 +930,7 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
     Probably I can use info->lastkey here, but I'm not sure,
     and to be safe I'd better use local lastkey.
   */
-  uchar lastkey[MI_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   uint keylen;
   MI_KEYDEF *keyinfo;
 

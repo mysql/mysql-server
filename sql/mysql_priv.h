@@ -1837,7 +1837,7 @@ extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
-extern ulong query_buff_size, thread_stack;
+extern ulong query_buff_size;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
@@ -1941,7 +1941,10 @@ extern struct system_variables global_system_variables;
 #ifdef MYSQL_SERVER
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
-extern struct rand_struct sql_rand;
+extern struct my_rnd_struct sql_rand;
+
+extern handlerton *maria_hton; /* @todo remove, make it static in ha_maria.cc
+                                  currently it's needed for sql_delete.cc */
 
 extern const char *opt_date_time_formats[];
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
@@ -1959,10 +1962,11 @@ extern uint sql_command_flags[];
 extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
+extern SHOW_COMP_OPTION have_maria_db;
 extern SHOW_COMP_OPTION have_community_features;
-
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
+extern handlerton *maria_hton;
 extern handlerton *heap_hton;
 
 extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;

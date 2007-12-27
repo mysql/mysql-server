@@ -175,6 +175,7 @@ our $opt_big_test= 0;
 our @opt_combination;
 
 our @opt_extra_mysqld_opt;
+our @opt_extra_mysqltest_opt;
 
 our $opt_compress;
 our $opt_ssl;
@@ -590,6 +591,9 @@ sub command_line_setup () {
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
 
+             # Extra options used when starting mysqld
+             'mysqltest=s'                 => \@opt_extra_mysqltest_opt,
+
              # Run test on running server
              'extern'                   => \$opt_extern,
              'ndb-connectstring=s'       => \$opt_ndbconnectstring,
@@ -954,7 +958,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   if ($opt_extern)
   {
-    mtr_report("Disable instance manager when running with extern mysqld");
+    # mtr_report("Disable instance manager when running with extern mysqld");
     $opt_skip_im= 1;
   }
   elsif ( $mysql_version_id < 50000 )
@@ -1323,19 +1327,6 @@ sub command_line_setup () {
   $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 
   $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
-
-  if ( $opt_valgrind and $opt_debug )
-  {
-    # When both --valgrind and --debug is selected, send
-    # all output to the trace file, making it possible to
-    # see the exact location where valgrind complains
-    foreach my $mysqld (@{$master}, @{$slave})
-    {
-      my $sidx= $mysqld->{idx} ? "$mysqld->{idx}" : "";
-      $mysqld->{path_myerr}=
-	"$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
-    }
-  }
 }
 
 #
@@ -2117,7 +2108,10 @@ sub environment_setup () {
     $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
 
   }
-  $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
+  if ( !$opt_extern )
+  {
+    $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
+  }
 
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
@@ -2416,6 +2410,25 @@ sub setup_vardir() {
   foreach my $name (glob("r/*.progress r/*.log r/*.warnings"))
   {
     unlink($name);
+  }
+  if ( $opt_valgrind and $opt_debug )
+  {
+    # When both --valgrind and --debug is selected, send
+    # all output to the trace file, making it possible to
+    # see the exact location where valgrind complains
+    foreach my $mysqld (@{$master}, @{$slave})
+    {
+      my $sidx= $mysqld->{idx} ? "$mysqld->{idx}" : "";
+      my $trace_name= "$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
+      open(LOG, ">$mysqld->{path_myerr}") or die "Can't create $mysqld->{path_myerr}\n";
+      print LOG "
+NOTE: When running with --valgrind --debug the output from the .err file is
+stored together with the trace file to make it easier to find the exact
+position for valgrind errors.
+See trace file $trace_name.\n";
+      close(LOG);
+      $mysqld->{path_myerr}= $trace_name;
+    }
   }
 }
 
@@ -3102,6 +3115,7 @@ sub install_db ($$) {
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--loose-skip-innodb");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
+  mtr_add_arg($args, "--sync-frm=0");
   mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--core-file");
 
@@ -3857,6 +3871,7 @@ sub mysqld_arguments ($$$$) {
   mtr_add_arg($args, "%s--datadir=%s", $prefix,
 	      $mysqld->{'path_myddir'});
 
+  mtr_add_arg($args, "--sync-frm=0");  # Faster test
 
   if ( $mysql_version_id >= 50106 )
   {
@@ -4843,6 +4858,11 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--skip-ssl");
   }
 
+  foreach my $arg ( @opt_extra_mysqltest_opt )
+  {
+    mtr_add_arg($args, "%s", $arg);
+  }
+
   # ----------------------------------------------------------------------
   # If embedded server, we create server args to give mysqltest to pass on
   # ----------------------------------------------------------------------
@@ -4959,12 +4979,7 @@ sub gdb_arguments {
   {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end\n" .
-	       "run");
+	       "set args $str\n");
   }
 
   if ( $opt_manual_gdb )
@@ -5024,11 +5039,7 @@ sub ddd_arguments {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
 	       "file $$exe\n" .
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end");
+	       "set args $str\n");
   }
 
   if ( $opt_manual_ddd )

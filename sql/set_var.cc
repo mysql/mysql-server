@@ -252,7 +252,7 @@ static sys_var_bool_ptr	sys_local_infile(&vars, "local_infile",
 static sys_var_trust_routine_creators
 sys_trust_routine_creators(&vars, "log_bin_trust_routine_creators",
                            &trust_function_creators);
-static sys_var_bool_ptr       
+static sys_var_bool_ptr
 sys_trust_function_creators(&vars, "log_bin_trust_function_creators",
                             &trust_function_creators);
 static sys_var_bool_ptr
@@ -393,10 +393,10 @@ static sys_var_thd_ulong	sys_trans_alloc_block_size(&vars, "transaction_alloc_bl
 static sys_var_thd_ulong	sys_trans_prealloc_size(&vars, "transaction_prealloc_size",
 						&SV::trans_prealloc_size,
 						0, fix_trans_mem_root);
-sys_var_enum_const      sys_thread_handling(&vars, "thread_handling",
-                                            &SV::thread_handling,
-                                            &thread_handling_typelib,
-                                            NULL);
+sys_var_enum_const        sys_thread_handling(&vars, "thread_handling",
+                                              &SV::thread_handling,
+                                              &thread_handling_typelib,
+                                              NULL);
 
 #ifdef HAVE_QUERY_CACHE
 static sys_var_long_ptr	sys_query_cache_limit(&vars, "query_cache_limit",
@@ -644,6 +644,7 @@ static sys_var_have_plugin sys_have_csv(&vars, "have_csv", C_STRING_WITH_LEN("cs
 static sys_var_have_variable sys_have_dlopen(&vars, "have_dynamic_loading", &have_dlopen);
 static sys_var_have_variable sys_have_geometry(&vars, "have_geometry", &have_geometry);
 static sys_var_have_plugin sys_have_innodb(&vars, "have_innodb", C_STRING_WITH_LEN("innodb"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_plugin sys_have_maria(&vars, "have_maria", C_STRING_WITH_LEN("maria"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRING_WITH_LEN("ndbcluster"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
 static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);
@@ -727,7 +728,7 @@ static SHOW_VAR fixed_vars[]= {
 #ifdef HAVE_THR_SETCONCURRENCY
   {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
 #endif
-  {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
+  {"thread_stack",            (char*) &my_thread_stack_size,        SHOW_LONG},
 };
 
 
@@ -1244,6 +1245,13 @@ bool sys_var_enum::update(THD *thd, set_var *var)
 uchar *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
 {
   return (uchar*) enum_names->type_names[*value];
+}
+
+
+uchar *sys_var_enum_const::value_ptr(THD *thd, enum_var_type type,
+                                     LEX_STRING *base)
+{
+  return (uchar*) enum_names->type_names[global_system_variables.*offset];
 }
 
 
@@ -2024,9 +2032,8 @@ KEY_CACHE *get_key_cache(LEX_STRING *cache_name)
   if (!cache_name || ! cache_name->length)
     cache_name= &default_key_cache_base;
   return ((KEY_CACHE*) find_named(&key_caches,
-                                      cache_name->str, cache_name->length, 0));
+                                  cache_name->str, cache_name->length, 0));
 }
-
 
 uchar *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
 					 LEX_STRING *base)

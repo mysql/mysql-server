@@ -534,7 +534,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     If this behaviour is ever changed, Docs should be notified.
   */
 
-  struct rand_struct rand_st;
+  struct my_rnd_struct rand_st;
 
   for (; argc > 0 ; argv++,argc--)
   {
@@ -846,7 +846,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       time_t start_time;
       /* Do initialization the same way as we do in mysqld */
       start_time=time((time_t*) 0);
-      randominit(&rand_st,(ulong) start_time,(ulong) start_time/2);
+      my_rnd_init(&rand_st,(ulong) start_time,(ulong) start_time/2);
 
       if (argc < 2)
       {

@@ -17,7 +17,6 @@
 #define INCLUDES_MYSQL_INSTANCE_MANAGER_MYSQL_CONNECTION_H
 
 #include "thread_registry.h"
-#include <mysql_com.h>
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
@@ -55,7 +54,7 @@ private:
   Thread_registry *thread_registry;
   User_map *user_map;
   NET net;
-  struct rand_struct rand_st;
+  struct my_rnd_struct rand_st;
   char scramble[SCRAMBLE_LENGTH + 1];
   uint status;
   ulong client_capabilities;

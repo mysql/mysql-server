@@ -16,6 +16,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include <my_dir.h>
+#include <my_bit.h>
 #include "slave.h"
 #include "rpl_mi.h"
 #include "sql_repl.h"
@@ -353,6 +354,7 @@ static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
 static double long_query_time;
+static ulong opt_my_crc_dbug_check;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
@@ -455,7 +457,7 @@ uint volatile thread_count, thread_running;
 ulonglong thd_startup_options;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
-ulong thread_stack, what_to_log;
+ulong what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
@@ -565,7 +567,7 @@ pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_mapped_file, LOCK_status, LOCK_global_read_lock,
-		LOCK_error_log, LOCK_uuid_generator,
+		LOCK_error_log,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
@@ -619,7 +621,7 @@ static char **defaults_argv;
 static char *opt_bin_logname;
 
 static my_socket unix_sock,ip_sock;
-struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
+struct my_rnd_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info;
@@ -1274,6 +1276,7 @@ void clean_up(bool print_message)
   /* do the broadcast inside the lock to ensure that my_end() is not called */
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  my_uuid_end();
 
   /*
     The following lines may never be executed as the main thread may have
@@ -1345,7 +1348,6 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) rwlock_destroy(&LOCK_system_variables_hash);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
-  (void) pthread_mutex_destroy(&LOCK_uuid_generator);
   (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
@@ -2209,7 +2211,7 @@ or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
-  fprintf(stderr, "key_buffer_size=%lu\n", 
+  fprintf(stderr, "key_buffer_size=%lu\n",
           (ulong) dflt_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
@@ -2241,7 +2243,7 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
   {
     fprintf(stderr,"thd: 0x%lx\n",(long) thd);
     print_stacktrace(thd ? (uchar*) thd->thread_stack : (uchar*) 0,
-		     thread_stack);
+		     my_thread_stack_size);
   }
   if (thd)
   {
@@ -2400,9 +2402,9 @@ static void start_signal_handler(void)
     Peculiar things with ia64 platforms - it seems we only have half the
     stack size in reality, so we have to double it here
   */
-  pthread_attr_setstacksize(&thr_attr,thread_stack*2);
+  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size*2);
 #else
-  pthread_attr_setstacksize(&thr_attr,thread_stack);
+  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size);
 #endif
 #endif
 
@@ -2569,6 +2571,8 @@ extern "C" int my_message_sql(uint error, const char *str, myf MyFlags);
 int my_message_sql(uint error, const char *str, myf MyFlags)
 {
   THD *thd;
+  MYSQL_ERROR::enum_warning_level level;
+  sql_print_message_func func;
   DBUG_ENTER("my_message_sql");
   DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
   /*
@@ -2576,15 +2580,35 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     will be fixed
     DBUG_ASSERT(error != 0);
   */
+  if (MyFlags & ME_JUST_INFO)
+  {
+    level= MYSQL_ERROR::WARN_LEVEL_NOTE;
+    func= sql_print_information;
+  }
+  else if (MyFlags & ME_JUST_WARNING)
+  {
+    level= MYSQL_ERROR::WARN_LEVEL_WARN;
+    func= sql_print_warning;
+  }
+  else
+  {
+    level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+    func= sql_print_error;
+  }
+
   if ((thd= current_thd))
   {
     /*
       TODO: There are two exceptions mechanism (THD and sp_rcontext),
       this could be improved by having a common stack of handlers.
     */
-    if (thd->handle_error(error, str,
-                          MYSQL_ERROR::WARN_LEVEL_ERROR))
+    if (thd->handle_error(error, str, level))
       DBUG_RETURN(0);
+
+    if (level == MYSQL_ERROR::WARN_LEVEL_WARN)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, error, str);
+    if (level != MYSQL_ERROR::WARN_LEVEL_ERROR)
+      goto to_error_log;
 
     thd->is_slave_error=  1; // needed to catch query errors during replication
 
@@ -2639,8 +2663,9 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       thd->no_warnings_for_error= FALSE;
     }
   }
+to_error_log:
   if (!thd || MyFlags & ME_NOREFRESH)
-    sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
+    (*func)("%s: %s", my_progname_short, str); /* purecov: inspected */
   DBUG_RETURN(0);
 }
 
@@ -3254,7 +3279,6 @@ static int init_thread_environment()
   (void) my_rwlock_init(&LOCK_system_variables_hash, NULL);
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
 #ifndef HAVE_YASSL
@@ -3430,9 +3454,10 @@ static int init_server_components()
   query_cache_set_min_res_unit(query_cache_min_res_unit);
   query_cache_init();
   query_cache_resize(query_cache_size);
-  randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
+  my_rnd_init(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   set_proper_floating_point_mode();
   init_thr_lock();
+  my_uuid_init((ulong) (my_rnd(&sql_rand))*12345,12345);
 #ifdef HAVE_REPLICATION
   init_slave_list();
 #endif
@@ -3462,6 +3487,9 @@ static int init_server_components()
         freopen(log_error_file, "a+", stderr);
     }
   }
+
+  /* set up the hook before initializing plugins which may use it */
+  error_handler_hook= my_message_sql;
 
   if (xid_cache_init())
   {
@@ -3598,6 +3626,13 @@ server.");
     */
     using_update_log=1;
   }
+
+  /* call ha_init_key_cache() on all key caches to init them */
+  process_key_caches(&ha_init_key_cache);
+
+  /* Allow storage engine to give real error messages */
+  if (ha_init_errors())
+    DBUG_RETURN(1);
 
   if (plugin_init(&defaults_argc, defaults_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
@@ -3764,9 +3799,6 @@ server.");
 
   if (opt_myisam_log)
     (void) mi_log(1);
-
-  /* call ha_init_key_cache() on all key caches to init them */
-  process_key_caches(&ha_init_key_cache);
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && !defined(EMBEDDED_LIBRARY)
   if (locked_in_memory && !getuid())
@@ -3957,9 +3989,9 @@ int main(int argc, char **argv)
     Peculiar things with ia64 platforms - it seems we only have half the
     stack size in reality, so we have to double it here
   */
-  pthread_attr_setstacksize(&connection_attrib,thread_stack*2);
+  pthread_attr_setstacksize(&connection_attrib,my_thread_stack_size*2);
 #else
-  pthread_attr_setstacksize(&connection_attrib,thread_stack);
+  pthread_attr_setstacksize(&connection_attrib,my_thread_stack_size);
 #endif
 #ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
@@ -3970,15 +4002,15 @@ int main(int argc, char **argv)
     stack_size/= 2;
 #endif
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
-    if (stack_size && stack_size < thread_stack)
+    if (stack_size && stack_size < my_thread_stack_size)
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Asked for %lu thread stack, but got %ld",
-			  thread_stack, (long) stack_size);
+			  my_thread_stack_size, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
-      thread_stack= stack_size*2;
+      my_thread_stack_size= stack_size*2;
 #else
-      thread_stack= stack_size;
+      my_thread_stack_size= stack_size;
 #endif
     }
   }
@@ -4069,7 +4101,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     init signals & alarm
     After this we can't quit by a simple unireg_abort
   */
-  error_handler_hook= my_message_sql;
   start_signal_handler();				// Creates pidfile
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
@@ -5221,10 +5252,15 @@ enum options_mysqld
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
   OPT_MAX_ERROR_COUNT, OPT_MULTI_RANGE_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
+
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
-  OPT_MYISAM_USE_MMAP,
+  OPT_MYISAM_USE_MMAP, OPT_MYISAM_REPAIR_THREADS,
   OPT_MYISAM_STATS_METHOD,
+
+  OPT_PAGECACHE_BUFFER_SIZE,
+  OPT_PAGECACHE_DIVISION_LIMIT, OPT_PAGECACHE_AGE_THRESHOLD,
+
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
   OPT_OPEN_FILES_LIMIT,
@@ -5238,7 +5274,7 @@ enum options_mysqld
   OPT_SORT_BUFFER, OPT_TABLE_OPEN_CACHE, OPT_TABLE_DEF_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
-  OPT_WAIT_TIMEOUT, OPT_MYISAM_REPAIR_THREADS,
+  OPT_WAIT_TIMEOUT,
   OPT_ERROR_LOG_FILE,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
@@ -5291,7 +5327,7 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
-  OPT_OLD_MODE
+  OPT_DEBUG_CRC, OPT_OLD_MODE
 };
 
 
@@ -5416,6 +5452,10 @@ struct my_option my_long_options[] =
 #ifndef DBUG_OFF
   {"debug", '#', "Debug log.", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-crc-break", OPT_DEBUG_CRC,
+   "Call my_debug_put_break_here() if crc matches this number (for debug).",
+   (uchar**) &opt_my_crc_dbug_check, (uchar**) &opt_my_crc_dbug_check,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, ~(ulong) 0L, 0, 0, 0},
 #endif
   {"default-character-set", 'C', "Set the default character set (deprecated option, use --character-set-server instead).",
    (uchar**) &default_character_set_name, (uchar**) &default_character_set_name,
@@ -6218,7 +6258,7 @@ log and this option does nothing anymore.",
    "Max packetlength to send/receive from to server.",
    (uchar**) &global_system_variables.max_allowed_packet,
    (uchar**) &max_system_variables.max_allowed_packet, 0, GET_ULONG,
-   REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+   REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, 0, 1024, 0},
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    (uchar**) &max_binlog_cache_size, (uchar**) &max_binlog_cache_size, 0,
@@ -6259,7 +6299,7 @@ The minimum value for this variable is 4096.",
    "Joins that are probably going to read more than max_join_size records return an error.",
    (uchar**) &global_system_variables.max_join_size,
    (uchar**) &max_system_variables.max_join_size, 0, GET_HA_ROWS, REQUIRED_ARG,
-   ~0L, 1, ~0L, 0, 1, 0},
+   ULONG_MAX, 1, ULONG_MAX, 0, 1, 0},
    {"max_length_for_sort_data", OPT_MAX_LENGTH_FOR_SORT_DATA,
     "Max number of bytes in sorted records.",
     (uchar**) &global_system_variables.max_length_for_sort_data,
@@ -6296,7 +6336,7 @@ The minimum value for this variable is 4096.",
   {"max_user_connections", OPT_MAX_USER_CONNECTIONS,
    "The maximum number of active connections for a single user (0 = no limit).",
    (uchar**) &max_user_connections, (uchar**) &max_user_connections, 0, GET_UINT,
-   REQUIRED_ARG, 0, 1, UINT_MAX, 0, 1, 0},
+   REQUIRED_ARG, 0, 0, UINT_MAX, 0, 1, 0},
   {"max_write_lock_count", OPT_MAX_WRITE_LOCK_COUNT,
    "After this many write locks, allow some read locks to run in between.",
    (uchar**) &max_write_lock_count, (uchar**) &max_write_lock_count, 0, GET_ULONG,
@@ -6322,12 +6362,6 @@ The minimum value for this variable is 4096.",
    (uchar**) &myisam_data_pointer_size,
    (uchar**) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
    6, 2, 7, 0, 1, 0},
-  {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
-   "Deprecated option",
-   (uchar**) &global_system_variables.myisam_max_extra_sort_file_size,
-   (uchar**) &max_system_variables.myisam_max_extra_sort_file_size,
-   0, GET_ULL, REQUIRED_ARG, (ulonglong) MI_MAX_TEMP_LENGTH,
-   0, (ulonglong) MAX_FILE_SIZE, 0, 1, 0},
   {"myisam_max_sort_file_size", OPT_MYISAM_MAX_SORT_FILE_SIZE,
    "Don't use the fast sort index method to created index if the temporary file would get bigger than this.",
    (uchar**) &global_system_variables.myisam_max_sort_file_size,
@@ -6343,7 +6377,7 @@ The minimum value for this variable is 4096.",
    "The buffer that is allocated when sorting the index when doing a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE.",
    (uchar**) &global_system_variables.myisam_sort_buff_size,
    (uchar**) &max_system_variables.myisam_sort_buff_size, 0,
-   GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
+   GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ULONG_MAX, 0, 1, 0},
   {"myisam_use_mmap", OPT_MYISAM_USE_MMAP,
    "Use memory mapping for reading and writing MyISAM tables",
    (uchar**) &opt_myisam_use_mmap,
@@ -6375,7 +6409,7 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.net_write_timeout,
    (uchar**) &max_system_variables.net_write_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WRITE_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
-  { "old", OPT_OLD_MODE, "Use compatible behavior.", 
+  {"old", OPT_OLD_MODE, "Use compatible behavior.", 
     (uchar**) &global_system_variables.old_mode,
     (uchar**) &max_system_variables.old_mode, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
@@ -6403,10 +6437,10 @@ The minimum value for this variable is 4096.",
    (uchar**) &opt_plugin_load, (uchar**) &opt_plugin_load, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
-    "The size of the buffer that is allocated when preloading indexes",
-    (uchar**) &global_system_variables.preload_buff_size,
-    (uchar**) &max_system_variables.preload_buff_size, 0, GET_ULONG,
-    REQUIRED_ARG, 32*1024L, 1024, 1024*1024*1024L, 0, 1, 0},
+   "The size of the buffer that is allocated when preloading indexes",
+   (uchar**) &global_system_variables.preload_buff_size,
+   (uchar**) &max_system_variables.preload_buff_size, 0, GET_ULONG,
+   REQUIRED_ARG, 32*1024L, 1024, 1024*1024*1024L, 0, 1, 0},
   {"query_alloc_block_size", OPT_QUERY_ALLOC_BLOCK_SIZE,
    "Allocation block size for query parsing and execution",
    (uchar**) &global_system_variables.query_alloc_block_size,
@@ -6508,7 +6542,7 @@ The minimum value for this variable is 4096.",
    "Each thread that needs to do a sort allocates a buffer of this size.",
    (uchar**) &global_system_variables.sortbuff_size,
    (uchar**) &max_system_variables.sortbuff_size, 0, GET_ULONG, REQUIRED_ARG,
-   MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0L, MALLOC_OVERHEAD,
+   MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ULONG_MAX, MALLOC_OVERHEAD,
    1, 0},
   {"sync-binlog", OPT_SYNC_BINLOG,
    "Synchronously flush binary log to disk after every #th event. "
@@ -6550,8 +6584,8 @@ The minimum value for this variable is 4096.",
    REQUIRED_ARG, 20, 1, 16384, 0, 1, 0},
 #endif
   {"thread_stack", OPT_THREAD_STACK,
-   "The stack size for each thread.", (uchar**) &thread_stack,
-   (uchar**) &thread_stack, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
+   "The stack size for each thread.", (uchar**) &my_thread_stack_size,
+   (uchar**) &my_thread_stack_size, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
    1024L*128L, ULONG_MAX, 0, 1024, 0},
   { "time_format", OPT_TIME_FORMAT,
     "The TIME format (for future).",
@@ -6565,12 +6599,12 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.tmp_table_size, 0, GET_ULL,
    REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
-   "Allocation block size for various transaction-related structures",
+   "Allocation block size for transactions to be stored in binary log",
    (uchar**) &global_system_variables.trans_alloc_block_size,
    (uchar**) &max_system_variables.trans_alloc_block_size, 0, GET_ULONG,
    REQUIRED_ARG, QUERY_ALLOC_BLOCK_SIZE, 1024, ULONG_MAX, 0, 1024, 0},
   {"transaction_prealloc_size", OPT_TRANS_PREALLOC_SIZE,
-   "Persistent buffer for various transaction-related structures",
+   "Persistent buffer for transactions to be stored in binary log",
    (uchar**) &global_system_variables.trans_prealloc_size,
    (uchar**) &max_system_variables.trans_prealloc_size, 0, GET_ULONG,
    REQUIRED_ARG, TRANS_ALLOC_PREALLOC_SIZE, 1024, ULONG_MAX, 0, 1024, 0},
@@ -7228,9 +7262,11 @@ static void mysql_init_variables(void)
   thread_cache.empty();
   key_caches.empty();
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
-					       default_key_cache_base.length)))
+                                                default_key_cache_base.length)))
     exit(1);
-  multi_keycache_init(); /* set key_cache_hash.default_value = dflt_key_cache */
+
+  /* set key_cache_hash.default_value = dflt_key_cache */
+  multi_keycache_init();
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
@@ -7245,7 +7281,7 @@ static void mysql_init_variables(void)
   master_password= master_host= 0;
   master_info_file= (char*) "master.info",
     relay_log_info_file= (char*) "relay-log.info";
-  master_ssl_key= master_ssl_cert= master_ssl_ca= 
+  master_ssl_key= master_ssl_cert= master_ssl_ca=
     master_ssl_capath= master_ssl_cipher= 0;
   report_user= report_password = report_host= 0;	/* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
@@ -7902,7 +7938,7 @@ mysql_getopt_value(const char *keyname, uint key_length,
     }
   }
   }
- return option->value;
+  return option->value;
 }
 
 
@@ -7991,6 +8027,7 @@ static void get_options(int *argc,char **argv)
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
+  my_crc_dbug_check= opt_my_crc_dbug_check;
 
   /* long_query_time is in microseconds */
   global_system_variables.long_query_time= max_system_variables.long_query_time=

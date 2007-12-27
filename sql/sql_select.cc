@@ -31,10 +31,16 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 #include "sql_cursor.h"
-
 #include <m_ctype.h>
+#include <my_bit.h>
 #include <hash.h>
 #include <ft_global.h>
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include "../storage/maria/ha_maria.h"
+#define TMP_ENGINE_HTON maria_hton
+#else
+#define TMP_ENGINE_HTON myisam_hton
+#endif
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
@@ -119,8 +125,14 @@ static COND *optimize_cond(JOIN *join, COND *conds,
 			   Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
-static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
+static bool create_internal_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 				    ulonglong options);
+static bool create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
+                                                 TMP_TABLE_PARAM *param,
+                                                 int error,
+                                                 bool ignore_last_dupp,
+                                                 handlerton *hton,
+                                                 const char *proc_info);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
@@ -9623,7 +9635,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
   Item **copy_func;
-  MI_COLUMNDEF *recinfo;
+  ENGINE_COLUMNDEF *recinfo;
   uint total_uneven_bit_length= 0;
   bool force_copy_fields= param->force_copy_fields;
   DBUG_ENTER("create_tmp_table");
@@ -9649,10 +9661,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   /*
     No need to change table name to lower case as we are only creating
-    MyISAM or HEAP tables here
+    MyISAM, Maria or HEAP tables here
   */
   fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-
 
   if (group)
   {
@@ -9744,8 +9755,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
   share->blob_field= blob_field;
-  share->blob_ptr_size= mi_portable_sizeof_char_ptr;
-  share->db_low_byte_first=1;                // True for HEAP and MyISAM
+  share->blob_ptr_size= portable_sizeof_char_ptr;
+  share->db_low_byte_first=1;                // True for HEAP, MyISAM and Maria
   share->table_charset= param->table_charset;
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();
@@ -9877,6 +9888,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         *blob_field++= fieldnr;
 	blob_count++;
       }
+      if (new_field->real_type() == MYSQL_TYPE_STRING ||
+          new_field->real_type() == MYSQL_TYPE_VARCHAR)
+      {
+        string_count++;
+        string_total_length+= new_field->pack_length();
+      }
       if (item->marker == 4 && item->maybe_null)
       {
 	group_null_items++;
@@ -9913,7 +9930,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
-    share->db_plugin= ha_lock_engine(0, myisam_hton);
+    share->db_plugin= ha_lock_engine(0, TMP_ENGINE_HTON);
     table->file= get_new_handler(share, &table->mem_root,
                                  share->db_type());
     if (group &&
@@ -9929,7 +9946,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   if (!table->file)
     goto err;
-
 
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
@@ -10066,13 +10082,16 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     /* Make entry for create table */
     recinfo->length=length;
     if (field->flags & BLOB_FLAG)
-      recinfo->type= (int) FIELD_BLOB;
+      recinfo->type= FIELD_BLOB;
     else if (use_packed_rows &&
              field->real_type() == MYSQL_TYPE_STRING &&
 	     length >= MIN_STRING_LENGTH_TO_PACK_ROWS)
-      recinfo->type=FIELD_SKIP_ENDSPACE;
+      recinfo->type= FIELD_SKIP_ENDSPACE;
+    else if (field->real_type() == MYSQL_TYPE_VARCHAR)
+      recinfo->type= FIELD_VARCHAR;
     else
-      recinfo->type=FIELD_NORMAL;
+      recinfo->type= FIELD_NORMAL;
+
     if (!--hidden_field_count)
       null_count=(null_count+7) & ~7;		// move to next byte
 
@@ -10235,9 +10254,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
   share->db_record_offset= 1;
-  if (share->db_type() == myisam_hton)
+  if (share->db_type() == TMP_ENGINE_HTON)
   {
-    if (create_myisam_tmp_table(table,param,select_options))
+    if (create_internal_tmp_table(table,param,select_options))
       goto err;
   }
   if (open_tmp_table(table))
@@ -10306,7 +10325,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   table->s= share;
   share->blob_field= blob_field;
   share->fields= field_count;
-  share->blob_ptr_size= mi_portable_sizeof_char_ptr;
+  share->blob_ptr_size= portable_sizeof_char_ptr;
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   /* Create all fields and calculate the total length of record */
@@ -10399,15 +10418,149 @@ static bool open_tmp_table(TABLE *table)
 }
 
 
-static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    ulonglong options)
+#ifdef WITH_MARIA_STORAGE_ENGINE
+
+/* Create internal Maria temporary table */
+
+static bool create_internal_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
+                                      ulonglong options)
+{
+  int error;
+  MARIA_KEYDEF keydef;
+  MARIA_UNIQUEDEF uniquedef;
+  KEY *keyinfo=param->keyinfo;
+  TABLE_SHARE *share= table->s;
+  MARIA_CREATE_INFO create_info;
+  DBUG_ENTER("create_internal_tmp_table");
+
+  if (share->keys)
+  {						// Get keys for ni_create
+    bool using_unique_constraint=0;
+    HA_KEYSEG *seg= (HA_KEYSEG*) alloc_root(&table->mem_root,
+                                            sizeof(*seg) * keyinfo->key_parts);
+    if (!seg)
+      goto err;
+
+    bzero(seg, sizeof(*seg) * keyinfo->key_parts);
+    if (keyinfo->key_length >= table->file->max_key_length() ||
+	keyinfo->key_parts > table->file->max_key_parts() ||
+	share->uniques)
+    {
+      /* Can't create a key; Make a unique constraint instead of a key */
+      share->keys=    0;
+      share->uniques= 1;
+      using_unique_constraint=1;
+      bzero((char*) &uniquedef,sizeof(uniquedef));
+      uniquedef.keysegs=keyinfo->key_parts;
+      uniquedef.seg=seg;
+      uniquedef.null_are_equal=1;
+
+      /* Create extra column for hash value */
+      bzero((uchar*) param->recinfo,sizeof(*param->recinfo));
+      param->recinfo->type=   FIELD_CHECK;
+      param->recinfo->length= MARIA_UNIQUE_HASH_LENGTH;
+      param->recinfo++;
+      share->reclength+=      MARIA_UNIQUE_HASH_LENGTH;
+    }
+    else
+    {
+      /* Create an unique key */
+      bzero((char*) &keydef,sizeof(keydef));
+      keydef.flag=HA_NOSAME | HA_BINARY_PACK_KEY | HA_PACK_KEY;
+      keydef.keysegs=  keyinfo->key_parts;
+      keydef.seg= seg;
+    }
+    for (uint i=0; i < keyinfo->key_parts ; i++,seg++)
+    {
+      Field *field=keyinfo->key_part[i].field;
+      seg->flag=     0;
+      seg->language= field->charset()->number;
+      seg->length=   keyinfo->key_part[i].length;
+      seg->start=    keyinfo->key_part[i].offset;
+      if (field->flags & BLOB_FLAG)
+      {
+	seg->type=
+	((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
+	 HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2);
+	seg->bit_start= (uint8)(field->pack_length() - share->blob_ptr_size);
+	seg->flag= HA_BLOB_PART;
+	seg->length=0;			// Whole blob in unique constraint
+      }
+      else
+      {
+	seg->type= keyinfo->key_part[i].type;
+        /* Tell handler if it can do suffic space compression */
+	if (field->real_type() == MYSQL_TYPE_STRING &&
+	    keyinfo->key_part[i].length > 4)
+	  seg->flag|= HA_SPACE_PACK;
+      }
+      if (!(field->flags & NOT_NULL_FLAG))
+      {
+	seg->null_bit= field->null_bit;
+	seg->null_pos= (uint) (field->null_ptr - (uchar*) table->record[0]);
+	/*
+	  We are using a GROUP BY on something that contains NULL
+	  In this case we have to tell Maria that two NULL should
+	  on INSERT be regarded at the same value
+	*/
+	if (!using_unique_constraint)
+	  keydef.flag|= HA_NULL_ARE_EQUAL;
+      }
+    }
+  }
+  bzero((char*) &create_info,sizeof(create_info));
+
+  if ((options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
+      OPTION_BIG_TABLES)
+    create_info.data_file_length= ~(ulonglong) 0;
+
+  if ((error= maria_create(share->table_name.str,
+                           share->reclength < 64 &&
+                           !share->blob_fields ? STATIC_RECORD :
+                           BLOCK_RECORD,
+                           share->keys, &keydef,
+                           (uint) (param->recinfo-param->start_recinfo),
+                           param->start_recinfo,
+                           share->uniques, &uniquedef,
+                           &create_info,
+                           HA_CREATE_TMP_TABLE)))
+  {
+    table->file->print_error(error,MYF(0));	/* purecov: inspected */
+    table->db_stat=0;
+    goto err;
+  }
+  status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
+  share->db_record_offset= 1;
+  DBUG_RETURN(0);
+ err:
+  DBUG_RETURN(1);
+}
+
+
+bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
+                                         TMP_TABLE_PARAM *param,
+                                         int error,
+                                         bool ignore_last_dupp_key_error)
+{
+  return create_internal_tmp_table_from_heap2(thd, table, param, error,
+                                              ignore_last_dupp_key_error,
+                                              maria_hton,
+                                              "converting HEAP to Maria");
+}
+
+#else
+
+/* Create internal MyISAM temporary table */
+
+static bool create_internal_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
+                                      ulonglong options)
 {
   int error;
   MI_KEYDEF keydef;
   MI_UNIQUEDEF uniquedef;
   KEY *keyinfo=param->keyinfo;
   TABLE_SHARE *share= table->s;
-  DBUG_ENTER("create_myisam_tmp_table");
+  DBUG_ENTER("create_internal_tmp_table");
 
   if (share->keys)
   {						// Get keys for ni_create
@@ -10510,55 +10663,43 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 }
 
 
-void
-free_tmp_table(THD *thd, TABLE *entry)
-{
-  MEM_ROOT own_root= entry->mem_root;
-  const char *save_proc_info;
-  DBUG_ENTER("free_tmp_table");
-  DBUG_PRINT("enter",("table: %s",entry->alias));
-
-  save_proc_info=thd->proc_info;
-  thd_proc_info(thd, "removing tmp table");
-
-  if (entry->file)
-  {
-    if (entry->db_stat)
-      entry->file->drop_table(entry->s->table_name.str);
-    else
-      entry->file->delete_table(entry->s->table_name.str);
-    delete entry->file;
-  }
-
-  /* free blobs */
-  for (Field **ptr=entry->field ; *ptr ; ptr++)
-    (*ptr)->free();
-  free_io_cache(entry);
-
-  if (entry->temp_pool_slot != MY_BIT_NONE)
-    bitmap_lock_clear_bit(&temp_pool, entry->temp_pool_slot);
-
-  plugin_unlock(0, entry->s->db_plugin);
-
-  free_root(&own_root, MYF(0)); /* the table is allocated in its own root */
-  thd_proc_info(thd, save_proc_info);
-
-  DBUG_VOID_RETURN;
-}
-
 /**
-  If a HEAP table gets full, create a MyISAM table and copy all rows
-  to this.
+  If a HEAP table gets full, create a MyISAM table and copy all rows to this
 */
 
-bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
-			     int error, bool ignore_last_dupp_key_error)
+bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
+                                         TMP_TABLE_PARAM *param,
+                                         int error,
+                                         bool ignore_last_dupp_key_error)
+{
+  return create_internal_tmp_table_from_heap2(thd, table, param, error,
+                                              ignore_last_dupp_key_error,
+                                              myisam_hton,
+                                              "converting HEAP to MyISAM");
+}
+
+#endif /* WITH_MARIA_STORAGE_ENGINE */
+
+
+/*
+  If a HEAP table gets full, create a internal table in MyISAM or Maria
+  and copy all rows to this
+*/
+
+
+static bool
+create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
+                                     TMP_TABLE_PARAM *param,
+                                     int error,
+                                     bool ignore_last_dupp_key_error,
+                                     handlerton *hton,
+                                     const char *proc_info)
 {
   TABLE new_table;
   TABLE_SHARE share;
   const char *save_proc_info;
   int write_err;
-  DBUG_ENTER("create_myisam_from_heap");
+  DBUG_ENTER("create_internal_tmp_table_from_heap2");
 
   if (table->s->db_type() != heap_hton || 
       error != HA_ERR_RECORD_FILE_FULL)
@@ -10569,15 +10710,15 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   new_table= *table;
   share= *table->s;
   new_table.s= &share;
-  new_table.s->db_plugin= ha_lock_engine(thd, myisam_hton);
+  new_table.s->db_plugin= ha_lock_engine(thd, hton);
   if (!(new_table.file= get_new_handler(&share, &new_table.mem_root,
                                         new_table.s->db_type())))
     DBUG_RETURN(1);				// End of memory
 
   save_proc_info=thd->proc_info;
-  thd_proc_info(thd, "converting HEAP to MyISAM");
+  thd_proc_info(thd, proc_info);
 
-  if (create_myisam_tmp_table(&new_table, param,
+  if (create_internal_tmp_table(&new_table, param,
 			      thd->lex->select_lex.options | thd->options))
     goto err2;
   if (open_tmp_table(&new_table))
@@ -10640,7 +10781,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   table->use_all_columns();
   if (save_proc_info)
     thd_proc_info(thd, (!strcmp(save_proc_info,"Copying to tmp table") ?
-                  "Copying to tmp table on disk" : save_proc_info));
+                     "Copying to tmp table on disk" : save_proc_info));
   DBUG_RETURN(0);
 
  err:
@@ -10655,6 +10796,43 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   thd_proc_info(thd, save_proc_info);
   table->mem_root= new_table.mem_root;
   DBUG_RETURN(1);
+}
+
+
+void
+free_tmp_table(THD *thd, TABLE *entry)
+{
+  MEM_ROOT own_root= entry->mem_root;
+  const char *save_proc_info;
+  DBUG_ENTER("free_tmp_table");
+  DBUG_PRINT("enter",("table: %s",entry->alias));
+
+  save_proc_info=thd->proc_info;
+  thd_proc_info(thd, "removing tmp table");
+
+  if (entry->file)
+  {
+    if (entry->db_stat)
+      entry->file->drop_table(entry->s->table_name.str);
+    else
+      entry->file->delete_table(entry->s->table_name.str);
+    delete entry->file;
+  }
+
+  /* free blobs */
+  for (Field **ptr=entry->field ; *ptr ; ptr++)
+    (*ptr)->free();
+  free_io_cache(entry);
+
+  if (entry->temp_pool_slot != MY_BIT_NONE)
+    bitmap_lock_clear_bit(&temp_pool, entry->temp_pool_slot);
+
+  plugin_unlock(0, entry->s->db_plugin);
+
+  free_root(&own_root, MYF(0)); /* the table is allocated in its own root */
+  thd_proc_info(thd, save_proc_info);
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -12095,7 +12273,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       {
         if (!table->file->is_fatal_error(error, HA_CHECK_DUP))
 	  goto end;
-	if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
+	if (create_internal_tmp_table_from_heap(join->thd, table, &join->tmp_table_param,
 				    error,1))
 	  DBUG_RETURN(NESTED_LOOP_ERROR);        // Not a table_is_full error
 	table->s->uniques=0;			// To ensure rows are the same
@@ -12179,7 +12357,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   copy_funcs(join->tmp_table_param.items_to_copy);
   if ((error=table->file->write_row(table->record[0])))
   {
-    if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
+    if (create_internal_tmp_table_from_heap(join->thd, table, &join->tmp_table_param,
 				error, 0))
       DBUG_RETURN(NESTED_LOOP_ERROR);            // Not a table_is_full error
     /* Change method to update rows */
@@ -12274,7 +12452,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (!join->having || join->having->val_int())
 	{
           int error= table->file->write_row(table->record[0]);
-          if (error && create_myisam_from_heap(join->thd, table,
+          if (error && create_internal_tmp_table_from_heap(join->thd, table,
                                                &join->tmp_table_param,
                                                error, 0))
 	    DBUG_RETURN(NESTED_LOOP_ERROR);
@@ -13534,13 +13712,14 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
       else if (!found)
       {
 	found=1;
-	file->position(record);	// Remember position
+        if ((error= file->remember_rnd_pos()))
+          goto err;
       }
     }
     if (!found)
       break;					// End of file
-    /* Restart search on next row */
-    error=file->restart_rnd_next(record,file->ref);
+    /* Restart search on saved row */
+    error=file->restart_rnd_next(record);
   }
 
   file->extra(HA_EXTRA_NO_CACHE);
@@ -15670,7 +15849,7 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
       copy_sum_funcs(sum_funcs_end[i+1], sum_funcs_end[i]);
       if ((write_error= table_arg->file->write_row(table_arg->record[0])))
       {
-	if (create_myisam_from_heap(thd, table_arg, &tmp_table_param,
+	if (create_internal_tmp_table_from_heap(thd, table_arg, &tmp_table_param,
                                     write_error, 0))
 	  return 1;		     
       }

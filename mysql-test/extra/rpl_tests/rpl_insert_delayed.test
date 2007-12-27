@@ -17,7 +17,7 @@ select @@global.binlog_format;
 # happened only in statement-based binlogging.
 #
 
-CREATE TABLE t1 (id INT primary key auto_increment, name VARCHAR(64));
+CREATE TABLE t1 (id INT primary key auto_increment, name VARCHAR(64)) ENGINE=MyISAM;
 let $query = "INSERT DELAYED INTO t1 VALUES (null, 'Dr. No'), (null, 'From Russia With Love'), (null, 'Goldfinger'), (null, 'Thunderball'), (null, 'You Only Live Twice')";
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=200 --query=$query --delimiter=";"
 

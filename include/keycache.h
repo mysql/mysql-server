@@ -132,7 +132,8 @@ extern void end_key_cache(KEY_CACHE *keycache, my_bool cleanup);
 /* Functions to handle multiple key caches */
 extern my_bool multi_keycache_init(void);
 extern void multi_keycache_free(void);
-extern KEY_CACHE *multi_key_cache_search(uchar *key, uint length);
+extern KEY_CACHE *multi_key_cache_search(uchar *key, uint length,
+                                         KEY_CACHE *def);
 extern my_bool multi_key_cache_set(const uchar *key, uint length,
 				   KEY_CACHE *key_cache);
 extern void multi_key_cache_change(KEY_CACHE *old_data,

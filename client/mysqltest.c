@@ -63,7 +63,8 @@
 enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
-  OPT_MAX_CONNECT_RETRIES, OPT_MARK_PROGRESS, OPT_LOG_DIR, OPT_TAIL_LINES
+  OPT_MAX_CONNECT_RETRIES, OPT_MARK_PROGRESS, OPT_LOG_DIR, OPT_TAIL_LINES,
+  OPT_GLOBAL_SUBST
 };
 
 static int record= 0, opt_sleep= -1;
@@ -104,6 +105,9 @@ static char delimiter[MAX_DELIMITER_LENGTH]= ";";
 static uint delimiter_length= 1;
 
 static char TMPDIR[FN_REFLEN];
+static char global_subst_from[200];
+static char global_subst_to[200];
+static char *global_subst= NULL;
 
 /* Block stack */
 enum block_cmd {
@@ -167,6 +171,10 @@ static my_regex_t view_re;   /* the query can be run as a view*/
 static void init_re(void);
 static int match_re(my_regex_t *, char *);
 static void free_re(void);
+
+static int replace(DYNAMIC_STRING *ds_str,
+                   const char *search_str, ulong search_len,
+                   const char *replace_str, ulong replace_len);
 
 DYNAMIC_ARRAY q_lines;
 
@@ -1542,6 +1550,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
 
 void check_result(DYNAMIC_STRING* ds)
 {
+  int res;
   const char* mess= "Result content mismatch\n";
 
   DBUG_ENTER("check_result");
@@ -1551,7 +1560,32 @@ void check_result(DYNAMIC_STRING* ds)
   if (access(result_file_name, F_OK) != 0)
     die("The specified result file does not exist: '%s'", result_file_name);
 
-  switch (dyn_string_cmp(ds, result_file_name)) {
+  res= dyn_string_cmp(ds, result_file_name);
+  if (global_subst && res != RESULT_OK)
+  {
+    /**
+       @todo MARIA_HACK
+       This serves for when a test is run with --default-storage-engine=X
+       where X is not MyISAM: tests using SHOW CREATE TABLE will always fail
+       because SHOW CREATE TABLE prints X instead of MyISAM. With
+       --global-subst=X,MyISAM , such trivial differences are eliminated and
+       test may be reported as passing.
+       --global-subst is only a quick way to run a lot of existing tests
+       with Maria and find bugs; it is not good enough for reaching the main
+       trees when Maria is merged into them.
+         --global-subst should be removed.
+    */
+    uint global_subst_from_len= strlen(global_subst_from);
+    uint global_subst_to_len=  strlen(global_subst_to);
+    while (replace(ds,
+                   global_subst_from, global_subst_from_len,
+                   global_subst_to,   global_subst_to_len) == 0)
+      /* do nothing */ ;
+    /* let's compare again to see if it is ok now */
+    res= dyn_string_cmp(ds, result_file_name);
+  }
+  switch(res)
+  {
   case RESULT_OK:
     break; /* ok */
   case RESULT_LENGTH_MISMATCH:
@@ -1997,9 +2031,9 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   static DYNAMIC_STRING ds_col;
   static DYNAMIC_STRING ds_row;
   const struct command_arg query_get_value_args[] = {
-    "query", ARG_STRING, TRUE, &ds_query, "Query to run",
-    "column name", ARG_STRING, TRUE, &ds_col, "Name of column",
-    "row number", ARG_STRING, TRUE, &ds_row, "Number for row"
+    {"query", ARG_STRING, TRUE, &ds_query, "Query to run"},
+    {"column name", ARG_STRING, TRUE, &ds_col, "Name of column"},
+    {"row number", ARG_STRING, TRUE, &ds_row, "Number for row"},
   };
 
   DBUG_ENTER("var_set_query_get_value");
@@ -5006,6 +5040,11 @@ static struct my_option my_long_options[] =
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"global-subst", OPT_GLOBAL_SUBST, "argument should be 'X,Y' ;"
+   " substitute string X with another Y accross the whole test's current"
+   " result before comparing with expected result file",
+   (uchar**) &global_subst, (uchar**) &global_subst, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (uchar**) &opt_host, (uchar**) &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (uchar**) &opt_include,
@@ -5263,6 +5302,16 @@ int parse_args(int argc, char **argv)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
     my_end_arg= MY_CHECK_ERROR;
+
+  if (global_subst != NULL)
+  {
+    char *comma= strstr(global_subst, ",");
+    if (comma == NULL)
+      die("wrong --global-subst, must be X,Y");
+    memcpy(global_subst_from, global_subst, (comma-global_subst));
+    global_subst_from[comma-global_subst]= 0;
+    memcpy(global_subst_to, comma+1, strlen(comma));
+  }
 
   return 0;
 }

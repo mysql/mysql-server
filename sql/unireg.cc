@@ -320,8 +320,10 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   my_free(keybuff, MYF(0));
 
   if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      my_sync(file, MYF(MY_WME)))
-    goto err2;
+      (my_sync(file, MYF(MY_WME)) ||
+       my_sync_dir_by_file(file_name, MYF(MY_WME))))
+      goto err2;
+
   if (my_close(file,MYF(MY_WME)))
     goto err3;
 
@@ -505,7 +507,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
     int2store(pos+6, key->block_size);
     pos+=8;
     key_parts+=key->key_parts;
-    DBUG_PRINT("loop", ("flags: %lu  key_parts: %d at 0x%lx",
+    DBUG_PRINT("loop", ("flags: %lu  key_parts: %d  key_part: 0x%lx",
                         key->flags, key->key_parts,
                         (long) key->key_part));
     for (key_part=key->key_part,key_part_end=key_part+key->key_parts ;

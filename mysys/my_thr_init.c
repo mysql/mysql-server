@@ -289,12 +289,12 @@ my_bool my_thread_init(void)
 #endif
   pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&tmp->suspend, NULL);
-  tmp->init= 1;
 
   pthread_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;
   ++THR_thread_count;
   pthread_mutex_unlock(&THR_LOCK_threads);
+  tmp->init= 1;
 #ifndef DBUG_OFF
   /* Generate unique name for thread */
   (void) my_thread_name();
@@ -347,6 +347,9 @@ void my_thread_end(void)
     tmp->init= 0;
 #endif
 
+#if !defined(__WIN__) || defined(USE_TLS)
+    pthread_setspecific(THR_KEY_mysys,0);
+#endif
     /*
       Decrement counter for number of running threads. We are using this
       in my_thread_global_end() to wait until all threads have called
@@ -359,10 +362,12 @@ void my_thread_end(void)
       pthread_cond_signal(&THR_COND_threads);
    pthread_mutex_unlock(&THR_LOCK_threads);
   }
-  /* The following free has to be done, even if my_thread_var() is 0 */
+  else
+  {
 #if !defined(__WIN__) || defined(USE_TLS)
-  pthread_setspecific(THR_KEY_mysys,0);
+    pthread_setspecific(THR_KEY_mysys,0);
 #endif
+  }
 }
 
 struct st_my_thread_var *_my_thread_var(void)
@@ -380,6 +385,16 @@ struct st_my_thread_var *_my_thread_var(void)
   return tmp;
 }
 
+#ifndef DBUG_OFF
+/* Return pointer to DBUG for holding current state */
+
+extern void **my_thread_var_dbug()
+{
+  struct st_my_thread_var *tmp=
+    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return tmp && tmp->init ? &tmp->dbug : 0;
+}
+#endif
 
 /****************************************************************************
   Get name of current thread.
