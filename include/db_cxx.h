@@ -107,6 +107,7 @@ class Db {
     int set_pagesize(u_int32_t);
     int remove(const char *file, const char *database, u_int32_t flags);
     int set_bt_compare(bt_compare_fcn_type bt_compare_fcn);
+    int associate(DbTxn *, Db *, int (*)(Db *, const Dbt *, const Dbt *, Dbt *), u_int32_t);
 
  private:
     DB *the_db;
