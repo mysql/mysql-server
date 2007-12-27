@@ -141,7 +141,7 @@ struct __toku_db_env {
   int  (*set_lk_detect) (DB_ENV *, u_int32_t); /* 32-bit offset=524 size=4, 64=bit offset=952 size=8 */
   int  (*set_lk_max) (DB_ENV *, u_int32_t); /* 32-bit offset=528 size=4, 64=bit offset=960 size=8 */
   void* __toku_dummy19[15];
-  int (*get_cachesize) (DB_ENV *, u_int32_t *); /* 32-bit offset=592 size=4, 64=bit offset=1088 size=8 */
+  int (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *); /* 32-bit offset=592 size=4, 64=bit offset=1088 size=8 */
   int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int); /* 32-bit offset=596 size=4, 64=bit offset=1096 size=8 */
   void* __toku_dummy20[28];
   int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t); /* 32-bit offset=712 size=4, 64=bit offset=1328 size=8 */

@@ -12,7 +12,7 @@ struct fieldinfo db_env_fields32[] = {
   {"void *api1_internal", 336, 4},
   {"int  (*close) (DB_ENV *, u_int32_t)", 372, 4},
   {"void (*err) (const DB_ENV *, int, const char *, ...)", 384, 4},
-  {"int (*get_cachesize) (DB_ENV *, u_int32_t *)", 400, 4},
+  {"int (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *)", 400, 4},
   {"int (*get_flags) (DB_ENV *, u_int32_t *)", 420, 4},
   {"int  (*log_archive) (DB_ENV *, char **[], u_int32_t)", 548, 4},
   {"int  (*log_flush) (DB_ENV *, const DB_LSN *)", 560, 4},
