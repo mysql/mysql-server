@@ -207,7 +207,12 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
   if (pos - rootdir_len >= buff &&
       memcmp(pos - rootdir_len, FN_ROOTDIR, rootdir_len) != 0)
     pos= strnmov(pos, FN_ROOTDIR, end - pos);
-  pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, tbbuff, ext, NullS);
+  pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, NullS);
+#ifdef USE_SYMDIR
+  unpack_dirname(buff, buff);
+  pos= strend(buff);
+#endif
+  pos= strxnmov(pos, end - pos, tbbuff, ext, NullS);
 
   DBUG_PRINT("exit", ("buff: '%s'", buff));
   DBUG_RETURN(pos - buff);
