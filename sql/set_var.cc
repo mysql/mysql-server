@@ -1247,14 +1247,6 @@ uchar *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
   return (uchar*) enum_names->type_names[*value];
 }
 
-
-uchar *sys_var_enum_const::value_ptr(THD *thd, enum_var_type type,
-                                     LEX_STRING *base)
-{
-  return (uchar*) enum_names->type_names[global_system_variables.*offset];
-}
-
-
 uchar *sys_var_enum_const::value_ptr(THD *thd, enum_var_type type,
                                      LEX_STRING *base)
 {
@@ -1334,7 +1326,7 @@ bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
-    pthread_mutex_lock(&LOCK_global_system_variables);    
+    pthread_mutex_lock(&LOCK_global_system_variables);
     global_system_variables.*offset= (ha_rows) tmp;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }

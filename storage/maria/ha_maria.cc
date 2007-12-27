@@ -900,9 +900,8 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   int error;
   HA_CHECK param;
   MARIA_SHARE *share= file->s;
-  const char *old_proc_info= thd->proc_info;
+  const char *old_proc_info= thd_proc_info(thd, "Checking table");
 
-  thd->proc_info= "Checking table";
   maria_chk_init(&param);
   param.thd= thd;
   param.op_name= "check";
@@ -975,7 +974,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
   }
 
-  thd->proc_info= old_proc_info;
+  thd_proc_info(thd, old_proc_info);
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 
@@ -1275,16 +1274,16 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
         char buf[40];
         /* TODO: respect maria_repair_threads variable */
         my_snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
-        thd->proc_info= buf;
+        thd_proc_info(thd, buf);
         param.testflag|= T_REP_PARALLEL;
         error= maria_repair_parallel(&param, file, fixed_name,
                                      param.testflag & T_QUICK);
-        thd->proc_info= "Repair done";          // to reset proc_info, as
-        // it was pointing to local buffer
+        /* to reset proc_info, as it was pointing to local buffer */
+        thd_proc_info(thd, "Repair done");
       }
       else
       {
-        thd->proc_info= "Repair by sorting";
+        thd_proc_info(thd, "Repair by sorting");
         param.testflag|= T_REP_BY_SORT;
         error= maria_repair_by_sort(&param, file, fixed_name,
                                     param.testflag & T_QUICK);
@@ -1292,7 +1291,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     }
     else
     {
-      thd->proc_info= "Repair with keycache";
+      thd_proc_info(thd, "Repair with keycache");
       param.testflag &= ~(T_REP_BY_SORT | T_REP_PARALLEL);
       error= maria_repair(&param, file, fixed_name, param.testflag & T_QUICK);
       /**
@@ -1310,7 +1309,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
         (share->state.changed & STATE_NOT_SORTED_PAGES))
     {
       optimize_done= 1;
-      thd->proc_info= "Sorting index";
+      thd_proc_info(thd, "Sorting index");
       error= maria_sort_index(&param, file, fixed_name);
     }
     if (!statistics_done && (local_testflag & T_STATISTICS))
@@ -1318,14 +1317,14 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       if (share->state.changed & STATE_NOT_ANALYZED)
       {
         optimize_done= 1;
-        thd->proc_info= "Analyzing";
+        thd_proc_info(thd, "Analyzing");
         error= maria_chk_key(&param, file);
       }
       else
         local_testflag &= ~T_STATISTICS;        // Don't update statistics
     }
   }
-  thd->proc_info= "Saving state";
+  thd_proc_info(thd, "Saving state");
   pthread_mutex_lock(&share->intern_lock);
   if (!error)
   {
@@ -1365,7 +1364,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     maria_update_state_info(&param, file, 0);
   }
   pthread_mutex_unlock(&share->intern_lock);
-  thd->proc_info= old_proc_info;
+  thd_proc_info(thd, old_proc_info);
   if (!thd->locked_tables)
   {
     /**
@@ -1592,8 +1591,7 @@ int ha_maria::enable_indexes(uint mode)
   {
     THD *thd= current_thd;
     HA_CHECK param;
-    const char *save_proc_info= thd->proc_info;
-    thd->proc_info= "Creating index";
+    const char *save_proc_info= thd_proc_info(thd, "Creating index");
     maria_chk_init(&param);
     param.op_name= "recreating_index";
     param.testflag= (T_SILENT | T_REP_BY_SORT | T_QUICK |
@@ -1614,13 +1612,11 @@ int ha_maria::enable_indexes(uint mode)
          might have been set by the first repair. They can still be seen
          with SHOW WARNINGS then.
       */
-#ifndef EMBEDDED_LIBRARY
       if (!error)
         thd->clear_error();
-#endif /* EMBEDDED_LIBRARY */
     }
     info(HA_STATUS_CONST);
-    thd->proc_info= save_proc_info;
+    thd_proc_info(thd, save_proc_info);
   }
   else
   {

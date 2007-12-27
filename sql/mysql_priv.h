@@ -586,7 +586,6 @@ enum enum_parsing_place
 
 struct st_table;
 
-#define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 class THD;
 
 enum enum_check_fields
@@ -596,7 +595,6 @@ enum enum_check_fields
   CHECK_FIELD_ERROR_FOR_NULL
 };
 
-                                  
 /** Struct to handle simple linked lists. */
 typedef struct st_sql_list {
   uint elements;
