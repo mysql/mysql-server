@@ -111,7 +111,7 @@ struct __toku_db_env {
   void* __toku_dummy4[2];
   void (*err) (const DB_ENV *, int, const char *, ...); /* 32-bit offset=380 size=4, 64=bit offset=632 size=8 */
   void* __toku_dummy5[3];
-  int (*get_cachesize) (DB_ENV *, u_int32_t *); /* 32-bit offset=396 size=4, 64=bit offset=664 size=8 */
+  int (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *); /* 32-bit offset=396 size=4, 64=bit offset=664 size=8 */
   void* __toku_dummy6[4];
   int (*get_flags) (DB_ENV *, u_int32_t *); /* 32-bit offset=416 size=4, 64=bit offset=704 size=8 */
   void* __toku_dummy7[32];
