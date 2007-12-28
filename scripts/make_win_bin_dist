@@ -353,8 +353,8 @@ cp -pR sql/share $DESTDIR/
 cp -pR sql-bench $DESTDIR/
 rm -f $DESTDIR/sql-bench/*.sh $DESTDIR/sql-bench/Makefile*
 
-# The SQL initialisation code is really expected to be in "share"
-mv $DESTDIR/scripts/*.sql $DESTDIR/share/
+# The SQL initialisation code is to be in "share"
+cp scripts/*.sql $DESTDIR/share/
 
 # ----------------------------------------------------------------------
 # Clean up from possibly copied SCCS directories
