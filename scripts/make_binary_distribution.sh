@@ -218,11 +218,13 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   # If we compiled with gcc, copy libgcc.a to the dist as libmygcc.a
   # ----------------------------------------------------------------------
   if [ x"@GXX@" = x"yes" ] ; then
-    gcclib=`@CC@ @CFLAGS@ --print-libgcc-file`
-    if [ $? -ne 0 ] ; then
-      echo "Warning: Couldn't find libgcc.a!"
+    gcclib=`@CC@ @CFLAGS@ --print-libgcc-file 2>/dev/null` || true
+    if [ -z "$gcclib" ] ; then
+      echo "Warning: Compiler doesn't tell libgcc.a!"
+    elif [ -f "$gcclib" ] ; then
+      $CP $gcclib $BASE/lib/libmygcc.a
     else
-      $CP $gcclib $DEST/lib/libmygcc.a
+      echo "Warning: Compiler result '$gcclib' not found / no file!"
     fi
   fi
 
