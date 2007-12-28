@@ -48,9 +48,11 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_win_src_distribution_old.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
+			mysql_config.pl.in \
 			mysql_fix_privilege_tables.sh \
 			mysql_fix_extensions.sh \
 			mysql_install_db.sh \
+			mysql_install_db.pl.in \
 			mysql_setpermission.sh \
 			mysql_secure_installation.sh \
 			mysql_zap.sh \
