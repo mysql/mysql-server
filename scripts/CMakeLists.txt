@@ -40,3 +40,44 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/scripts/mysql_fix_privilege_tabl
 ADD_CUSTOM_TARGET(GenFixPrivs
                   ALL
                   DEPENDS ${PROJECT_SOURCE_DIR}/scripts/mysql_fix_privilege_tables_sql.c)
+
+# ----------------------------------------------------------------------
+# Replace some variables @foo@ in the .in/.sh file, and write the new script
+# ----------------------------------------------------------------------
+
+SET(CFLAGS             "-D_WINDOWS ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+SET(prefix             "${CMAKE_INSTALL_PREFIX}/MySQL Server ${MYSQL_BASE_VERSION}")
+SET(sysconfdir          ${prefix})
+SET(bindir              ${prefix}/bin)
+SET(libexecdir          ${prefix}/bin)
+SET(scriptdir           ${prefix}/bin)
+SET(datadir             ${prefix}/share)
+SET(pkgdatadir          ${prefix}/share)
+SET(localstatedir       ${prefix}/data)
+
+CONFIGURE_FILE(mysql_config.pl.in
+               scripts/mysql_config.pl ESCAPE_QUOTES @ONLY)
+
+CONFIGURE_FILE(mysql_convert_table_format.sh
+               scripts/mysql_convert_table_format.pl ESCAPE_QUOTES @ONLY)
+
+CONFIGURE_FILE(mysql_explain_log.sh
+               scripts/mysql_explain_log.pl ESCAPE_QUOTES @ONLY)
+
+CONFIGURE_FILE(mysql_install_db.pl.in
+               scripts/mysql_install_db.pl ESCAPE_QUOTES @ONLY)
+
+CONFIGURE_FILE(mysql_secure_installation.sh
+               scripts/mysql_secure_installation.pl ESCAPE_QUOTES @ONLY)
+
+CONFIGURE_FILE(mysql_tableinfo.sh
+               scripts/mysql_tableinfo.pl ESCAPE_QUOTES @ONLY)
+
+CONFIGURE_FILE(mysqld_multi.sh
+               scripts/mysqld_multi.pl ESCAPE_QUOTES @ONLY)
+
+CONFIGURE_FILE(mysqldumpslow.sh
+               scripts/mysqldumpslow.pl ESCAPE_QUOTES @ONLY)
+
+CONFIGURE_FILE(mysqlhotcopy.sh
+               scripts/mysqlhotcopy.pl ESCAPE_QUOTES @ONLY)
