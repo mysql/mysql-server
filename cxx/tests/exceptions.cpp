@@ -114,9 +114,34 @@ void test_db_exceptions (void) {
 }
 	
 
+void test_dbc_exceptions () {
+    DbEnv env(0);
+    TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE , 0777),    0);
+    Db db(&env, 0);
+    unlink("foo.db");
+    TC(db.open(0, "foo.db", 0, DB_BTREE, DB_CREATE, 0777), 0);
+    for (int k = 1; k<4; k++) {
+        Dbt key(&k, sizeof k);
+        Dbt val(&k, sizeof k);
+        TC(db.put(0, &key, &val, 0), 0);
+    }
+    Dbc *curs;
+    TC(db.cursor(0, &curs, 0),  0);
+    Dbt key; key.set_flags(DB_DBT_MALLOC);
+    Dbt val; val.set_flags(DB_DBT_MALLOC);
+    TC(curs->get(&key, &val, DB_FIRST), 0);
+    free(key.get_data());
+    free(val.get_data());
+    TC(curs->del(DB_DELETE_ANY), 0);
+    TC(curs->get(&key, &val, DB_CURRENT), DB_KEYEMPTY);
+    TC(curs->del(DB_DELETE_ANY), DB_NOTFOUND);
+    curs->close(); // no deleting cursors.
+}
+
 int main(int argc, char *argv[]) {
     test_env_exceptions();
     test_db_exceptions();
+    test_dbc_exceptions();
     system("rm *.tokulog");
     return 0;
 }
