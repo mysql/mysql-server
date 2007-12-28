@@ -55,6 +55,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysql_install_db.pl.in \
 			mysql_setpermission.sh \
 			mysql_secure_installation.sh \
+			mysql_secure_installation.pl.in \
 			mysql_zap.sh \
 			mysqlaccess.sh \
 			mysqlbug.sh \
