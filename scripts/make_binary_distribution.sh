@@ -400,11 +400,13 @@ BASE=$BASE2
 #
 
 if [ x"@GXX@" = x"yes" ] ; then
-  gcclib=`@CC@ @CFLAGS@ --print-libgcc-file`
-  if [ $? -ne 0 ] ; then
-    echo "Warning: Couldn't find libgcc.a!"
-  else
+  gcclib=`@CC@ @CFLAGS@ --print-libgcc-file 2>/dev/null` || true
+  if [ -z "$gcclib" ] ; then
+    echo "Warning: Compiler doesn't tell libgcc.a!"
+  elif [ -f "$gcclib" ] ; then
     $CP $gcclib $BASE/lib/libmygcc.a
+  else
+    echo "Warning: Compiler result '$gcclib' not found / no file!"
   fi
 fi
 
