@@ -62,7 +62,11 @@ class Dbt : private DBT
     u_int32_t get_ulen() const         { return ulen; }
     void      set_ulen(u_int32_t p)    { ulen = p; }
 
-    DBT *get_DBT(void)                 { return (DBT*)this; }
+    DBT *get_DBT(void)                              { return (DBT*)this; }
+    const DBT *get_const_DBT(void) const            { return (const DBT*)this; }
+
+    static Dbt* get_Dbt(DBT *dbt)                   { return (Dbt *)dbt; }
+    static const Dbt* get_const_Dbt(const DBT *dbt) { return (const Dbt *)dbt; }
 
     Dbt(void */*data*/, u_int32_t /*size*/);
     Dbt(void);
@@ -108,6 +112,9 @@ class Db {
     int remove(const char *file, const char *database, u_int32_t flags);
     int set_bt_compare(bt_compare_fcn_type bt_compare_fcn);
     int associate(DbTxn *, Db *, int (*)(Db *, const Dbt *, const Dbt *, Dbt *), u_int32_t);
+
+    /* the cxx callbacks must be public so they can be called by the c callback.  But it's really private. */
+    int (*associate_callback_cxx)(Db *, const Dbt *, const Dbt *, Dbt*);
 
  private:
     DB *the_db;
