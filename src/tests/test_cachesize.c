@@ -13,7 +13,7 @@
 #include "test.h"
 
 u_int64_t size_from(u_int32_t gbytes, u_int32_t bytes) {
-    return (gbytes << 30ULL) + bytes;
+    return ((u_int64_t)gbytes << 30) + bytes;
 }
 
 void size_to(u_int64_t s, u_int32_t *gbytes, u_int32_t *bytes) {
@@ -29,11 +29,11 @@ void test_cachesize() {
 
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->get_cachesize(env, &gbytes, &bytes, &ncache); assert(r == 0);
-    printf("default %u %u %d\n", gbytes, bytes, ncache);
+    if (verbose) printf("default %u %u %d\n", gbytes, bytes, ncache);
 
     r = env->set_cachesize(env, 0, 0, 1); assert(r == 0);
     r = env->get_cachesize(env, &gbytes, &bytes, &ncache); assert(r == 0);
-    printf("minimum %u %u %d\n", gbytes, bytes, ncache);
+    if (verbose) printf("minimum %u %u %d\n", gbytes, bytes, ncache);
     u_int64_t minsize = size_from(gbytes, bytes);
 
     u_int64_t s = 1; size_to(s, &gbytes, &bytes);
