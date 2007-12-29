@@ -422,9 +422,10 @@ static void toku_db_env_set_errpfx(DB_ENV * env, const char *errpfx) {
 }
 
 static int toku_db_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
-    env=env;flags=flags;onoff=onoff;
-    assert(flags == 0);
-    return 1;
+    env=env;
+    if (flags != 0 && onoff)
+        return EINVAL; /* no flags are currently supported */
+    return 0;
 }
 
 static int toku_db_env_set_lg_bsize(DB_ENV * env, u_int32_t bsize) {
