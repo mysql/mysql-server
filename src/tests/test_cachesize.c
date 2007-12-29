@@ -6,12 +6,18 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <inttypes.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <db.h>
 
 #include "test.h"
 
+void expect_eq(u_int64_t a, u_int64_t b) {
+    if (a != b)
+        printf("WARNING: expect %" PRId64 " got %" PRId64 "\n", a, b);
+}
+ 
 u_int64_t size_from(u_int32_t gbytes, u_int32_t bytes) {
     return ((u_int64_t)gbytes << 30) + bytes;
 }
@@ -42,9 +48,9 @@ void test_cachesize() {
         r = env->get_cachesize(env, &gbytes, &bytes, &ncache); assert(r == 0);
         assert(ncache == 1);
         if (s <= minsize)
-            assert(minsize == size_from(gbytes, bytes));
+            expect_eq(minsize, size_from(gbytes, bytes));
         else
-            assert(s == size_from(gbytes, bytes));
+            expect_eq(s, size_from(gbytes, bytes));
         s *= 2; size_to(s, &gbytes, &bytes);
     }
     r = env->close(env, 0); assert(r == 0);
