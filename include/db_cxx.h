@@ -139,6 +139,7 @@ class DbEnv {
     int close(u_int32_t);
     int open(const char *, u_int32_t, int);
     int set_cachesize(u_int32_t, u_int32_t, int);
+    int set_flags(u_int32_t, int);
 #if DB_VERSION_MAJOR<4 || (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR<=4)
     // set_lk_max is only defined for versions up to 4.4
     int set_lk_max(u_int32_t);

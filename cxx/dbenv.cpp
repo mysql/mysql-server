@@ -48,6 +48,11 @@ int DbEnv::set_cachesize(u_int32_t gbytes, u_int32_t bytes, int ncache) {
     return maybe_throw_error(ret);
 }
 
+int DbEnv::set_flags(u_int32_t flags, int onoff) {
+    int ret = the_env->set_flags(the_env, flags, onoff);
+    return maybe_throw_error(ret);
+}
+
 #if DB_VERSION_MAJOR<4 || (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR<=4)
 int DbEnv::set_lk_max(u_int32_t flags) {
     int ret = the_env->set_lk_max(the_env, flags);
