@@ -36,11 +36,19 @@ struct __toku_db_txn_internal {
 static char *construct_full_name(const char *dir, const char *fname);
 static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondary);
     
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
+typedef void (*toku_env_errcall_t)(const char *, char *);
+#elif DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+typedef void (*toku_env_errcall_t)(DB_ENV *, const char *, const char *);
+#else
+#error
+#endif
+
 struct __toku_db_env_internal {
     int ref_count;
     u_int32_t open_flags;
     int open_mode;
-    void (*errcall) (const char *, char *);
+    toku_env_errcall_t errcall;
     void *errfile;
     char *errpfx;
     char *dir;                  /* A malloc'd copy of the directory. */
@@ -407,7 +415,7 @@ static int toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
     return 0;
 }
 
-static void toku_db_env_set_errcall(DB_ENV * env, void (*errcall) (const char *, char *)) {
+static void toku_db_env_set_errcall(DB_ENV * env, toku_env_errcall_t errcall) {
     env->i->errcall = errcall;
 }
 
@@ -490,7 +498,12 @@ static int toku_db_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t fl
     return 1;
 }
 
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
 void toku_default_errcall(const char *errpfx, char *msg) {
+#else
+void toku_default_errcall(DB_ENV *env, const char *errpfx, const char *msg) {
+    env = env;
+#endif
     fprintf(stderr, "YDB: %s: %s", errpfx, msg);
 }
 

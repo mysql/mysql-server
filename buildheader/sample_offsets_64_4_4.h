@@ -19,7 +19,7 @@ struct fieldinfo db_env_fields64[] = {
   {"int  (*open) (DB_ENV *, const char *, u_int32_t, int)", 1200, 8},
   {"int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int)", 1304, 8},
   {"int  (*set_data_dir) (DB_ENV *, const char *)", 1312, 8},
-  {"void (*set_errcall) (DB_ENV *, void (*)(const char *, char *))", 1328, 8},
+  {"void (*set_errcall) (DB_ENV *, void (*)(DB_ENV *, const char *, const char *))", 1328, 8},
   {"void (*set_errfile) (DB_ENV *, FILE*)", 1336, 8},
   {"void (*set_errpfx) (DB_ENV *, const char *)", 1344, 8},
   {"int  (*set_flags) (DB_ENV *, u_int32_t, int)", 1360, 8},
