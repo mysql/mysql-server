@@ -31,3 +31,4 @@ check: $(TARGETS)
 	$(VGRIND) ./db_dump_e foo.db > foo.out
 	diff foo.out foo.expectout
 	$(VGRIND) ./exceptions
+	$(VGRIND) ./test_no_env
