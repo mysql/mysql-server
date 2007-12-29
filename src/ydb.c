@@ -381,6 +381,17 @@ static int toku_db_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t b
     return 0;
 }
 
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+
+static int toku_db_env_get_cachesize(DB_ENV * env, u_int32_t *gbytes, u_int32_t *bytes, int *ncache) {
+    *gbytes = env->i->cachetable_size >> 30;
+    *bytes = env->i->cachetable_size & ((1<<30)-1);
+    *ncache = 1;
+    return 0;
+}
+
+#endif
+
 static int toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
     u_int32_t i;
     int r;
@@ -532,6 +543,9 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->set_lg_dir = toku_db_env_set_lg_dir;
     result->set_lg_max = toku_db_env_set_lg_max;
     result->set_cachesize = toku_db_env_set_cachesize;
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+    result->get_cachesize = toku_db_env_get_cachesize;
+#endif
     result->set_lk_detect = toku_db_env_set_lk_detect;
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
     result->set_lk_max = toku_db_env_set_lk_max;
