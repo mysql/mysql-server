@@ -25,7 +25,7 @@
 
 LIST	*maria_open_list=0;
 uchar	maria_file_magic[]=
-{ (uchar) 254, (uchar) 254, (uchar) 9, '\001', };
+{ (uchar) 254, (uchar) 254, (uchar) 9, '\002', };
 uchar	maria_pack_file_magic[]=
 { (uchar) 254, (uchar) 254, (uchar) 10, '\001', };
 /* Unique number for this maria instance */

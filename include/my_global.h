@@ -642,6 +642,7 @@ C_MODE_END
 #  endif
 #endif
 
+typedef char		my_bool; /* Small bool */
 #include <my_dbug.h>
 
 #define MIN_ARRAY_SIZE	0	/* Zero or One. Gcc allows zero*/
@@ -1072,7 +1073,6 @@ typedef off_t os_off_t;
 typedef uint8		int7;	/* Most effective integer 0 <= x <= 127 */
 typedef short		int15;	/* Most effective integer 0 <= x <= 32767 */
 typedef int		myf;	/* Type of MyFlags in my_funcs */
-typedef char		my_bool; /* Small bool */
 #if !defined(bool) && !defined(bool_defined) && (!defined(HAVE_BOOL) || !defined(__cplusplus))
 typedef char		bool;	/* Ordinary boolean values 0 1 */
 #endif
@@ -1136,9 +1136,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define SCALE_SEC	100
 #define SCALE_USEC	10000
 #define MY_HOW_OFTEN_TO_ALARM	2	/* How often we want info on screen */
-#define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
-
-
+#define MY_HOW_OFTEN_TO_WRITE	10000	/* How often we want info on screen */
 
 /*
   Define-funktions for reading and storing in machine independent format

@@ -33,8 +33,8 @@
                    undo (like on duplicate key errors)
 
   @note
-    We unpin pages in the reverse order as they where pinned; This may not
-    be strictly necessary but may simplify things in the future.
+    We unpin pages in the reverse order as they where pinned; This is not
+    necessary now, but may simplify things in the future.
 
   @return
   @retval   0   ok
@@ -54,8 +54,15 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
 
   while (pinned_page-- != page_link)
   {
+    /*
+      Note this assert fails if we got a disk error or the record file
+      is corrupted, which means we should have this enabled only in debug
+      builds.
+    */
+#ifdef EXTRA_DEBUG
     DBUG_ASSERT(!pinned_page->changed ||
                 undo_lsn != LSN_IMPOSSIBLE || !info->s->now_transactional);
+#endif
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
                              pinned_page->unlock, PAGECACHE_UNPIN,
                              info->trn->rec_lsn, undo_lsn,
@@ -595,6 +602,7 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
     else if (lsn_korr(buff) >= lsn)
     {
       /* Already applied */
+      DBUG_PRINT("info", ("Page is up to date, skipping redo"));
       result= 0;
       goto err;
     }
@@ -773,6 +781,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   if (lsn_korr(buff) >= lsn)
   {
     /* Already applied */
+    DBUG_PRINT("info", ("Page is up to date, skipping redo"));
     result= 0;
     goto err;
   }
@@ -906,6 +915,8 @@ err:
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                            LSN_IMPOSSIBLE, 0);
+  if (result)
+    _ma_mark_file_crashed(share);
   DBUG_RETURN(result);
 }
 
@@ -942,7 +953,8 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
   new_root= share->state.key_root[keynr];
   res= _ma_ck_real_delete(info, share->keyinfo+keynr, key,
                           length - share->rec_reflength, &new_root);
-
+  if (res)
+    _ma_mark_file_crashed(share);
   msg.root= &share->state.key_root[keynr];
   msg.value= new_root;
   msg.keynr= keynr;
@@ -952,6 +964,7 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
                     0, 0, &lsn, (void*) &msg))
     res= 1;
 
+  _ma_fast_unlock_key_del(info);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
@@ -980,14 +993,15 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
 
   /* We have to copy key as _ma_ck_real_write_btree() may change it */
   memcpy(key, header + KEY_NR_STORE_SIZE, length);
-  _ma_dpointer(info, key + length, info->cur_row.lastpos);
-  DBUG_DUMP("key", key, length + share->rec_reflength);
+  DBUG_DUMP("key", key, length);
 
   new_root= share->state.key_root[keynr];
   res= _ma_ck_real_write_btree(info, share->keyinfo+keynr, key,
-                               length,
+                               length - share->rec_reflength,
                                &new_root,
                                share->keyinfo[keynr].write_comp_flag);
+  if (res)
+    _ma_mark_file_crashed(share);
 
   msg.root= &share->state.key_root[keynr];
   msg.value= new_root;
@@ -999,6 +1013,7 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
                     (void*) &msg))
     res= 1;
 
+  _ma_fast_unlock_key_del(info);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }

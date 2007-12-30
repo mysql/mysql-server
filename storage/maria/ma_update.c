@@ -139,9 +139,10 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
       If (*update_record)() fails, table will be marked corrupted so no need
       to revert the live checksum change.
     */
-    info->state->checksum+= !share->now_transactional *
-      ((info->cur_row.checksum= (*share->calc_checksum)(info, newrec)) -
-       (info->new_row.checksum= (*share->calc_checksum)(info, oldrec)));
+    info->cur_row.checksum= (*share->calc_checksum)(info, newrec);
+    info->new_row.checksum= (*share->calc_checksum)(info, oldrec);
+    if (!share->now_transactional)
+      info->state->checksum+= info->cur_row.checksum - info->new_row.checksum;
   }
   {
     /*

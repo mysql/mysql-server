@@ -380,13 +380,6 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	maria_mark_crashed(info);			/* Fatal error found */
       }
     }
-    if (share->base.blobs && info->rec_buff_size >
-        share->base.default_rec_buff_size)
-    {
-      info->rec_buff_size= 1;                 /* Force realloc */
-      _ma_alloc_buffer(&info->rec_buff, &info->rec_buff_size,
-                       share->base.default_rec_buff_size);
-    }
     break;
   case HA_EXTRA_NORMAL:				/* Theese isn't in use */
     info->quick_mode= 0;
@@ -489,13 +482,22 @@ int maria_reset(MARIA_HA *info)
     info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
     error= end_io_cache(&info->rec_cache);
   }
-    if (share->base.blobs && info->rec_buff_size >
-        share->base.default_rec_buff_size)
+  /* Free memory used for keeping blobs */
+  if (share->base.blobs)
+  {
+    if (info->rec_buff_size > share->base.default_rec_buff_size)
     {
       info->rec_buff_size= 1;                 /* Force realloc */
       _ma_alloc_buffer(&info->rec_buff, &info->rec_buff_size,
                        share->base.default_rec_buff_size);
     }
+    if (info->blob_buff_size > MARIA_SMALL_BLOB_BUFFER)
+    {
+      info->blob_buff_size= 1;                 /* Force realloc */
+      _ma_alloc_buffer(&info->blob_buff, &info->blob_buff_size,
+                       MARIA_SMALL_BLOB_BUFFER);
+    }
+  }
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
   if (info->opt_flag & MEMMAP_USED)
     madvise((char*) share->file_map, share->state.state.data_file_length,

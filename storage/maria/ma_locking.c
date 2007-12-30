@@ -497,9 +497,7 @@ int _ma_test_if_changed(register MARIA_HA *info)
 /*
   Put a mark in the .MYI file that someone is updating the table
 
-
   DOCUMENTATION
-
   state.open_count in the .MYI file is used the following way:
   - For the first change of the .MYI file in this process open_count is
     incremented by _ma_mark_file_changed(). (We have a write lock on the file
@@ -540,7 +538,8 @@ int _ma_mark_file_changed(MARIA_HA *info)
       mi_int2store(buff,share->state.open_count);
       buff[2]=1;				/* Mark that it's changed */
       DBUG_RETURN(my_pwrite(share->kfile.file, buff, sizeof(buff),
-                            sizeof(share->state.header),
+                            sizeof(share->state.header) +
+                            MARIA_FILE_OPEN_COUNT_OFFSET,
                             MYF(MY_NABP)));
     }
   }
@@ -571,12 +570,29 @@ int _ma_decrement_open_count(MARIA_HA *info)
       {
         mi_int2store(buff,share->state.open_count);
         write_error= my_pwrite(share->kfile.file, buff, sizeof(buff),
-                               sizeof(share->state.header),
-                             MYF(MY_NABP));
+                               sizeof(share->state.header) +
+                               MARIA_FILE_OPEN_COUNT_OFFSET,
+                               MYF(MY_NABP));
       }
     }
     if (!lock_error)
       lock_error=maria_lock_database(info,old_lock);
   }
   return test(lock_error || write_error);
+}
+
+
+/** @brief mark file as crashed */
+
+int _ma_mark_file_crashed(MARIA_SHARE *share)
+{
+  uchar buff[2];
+  DBUG_ENTER("_ma_mark_file_crashed");
+
+  share->state.changed|= STATE_CRASHED;
+  mi_int2store(buff, share->state.changed);
+  DBUG_RETURN(my_pwrite(share->kfile.file, buff, sizeof(buff),
+                        sizeof(share->state.header) +
+                        MARIA_FILE_CHANGED_OFFSET,
+                        MYF(MY_NABP)));
 }

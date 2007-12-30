@@ -60,7 +60,8 @@ static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
 static my_bool checkpoint_useful;
 static my_bool procent_printed;
 static ulonglong now; /**< for tracking execution time of phases */
-uint warnings; /**< count of warnings */
+static int (*save_error_handler_hook)(uint, const char *,myf);
+static uint recovery_warnings; /**< count of warnings */
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -194,6 +195,20 @@ void eprint(FILE *trace_file __attribute__ ((unused)),
 }
 
 
+/* Hook to ensure we get nicer output if we get an error */
+
+int maria_recover_error_handler_hook(uint error, const char *str,
+                                     myf flags)
+{
+  if (procent_printed)
+  {
+    procent_printed= 0;
+    fputc('\n', stderr);
+    fflush(stderr);
+  }
+  return (*save_error_handler_hook)(error, str, flags);
+}
+
 #define ALERT_USER() DBUG_ASSERT(0)
 
 static void print_preamble()
@@ -289,7 +304,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
 
   DBUG_ASSERT(apply == MARIA_LOG_APPLY || !should_run_undo_phase);
   DBUG_ASSERT(!maria_multi_threaded);
-  warnings= 0;
+  recovery_warnings= 0;
   /* checkpoints can happen only if TRNs have been built */
   DBUG_ASSERT(should_run_undo_phase || !take_checkpoints);
   all_active_trans= (struct st_trn_for_recovery *)
@@ -298,6 +313,10 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   all_tables= (struct st_table_for_recovery *)
     my_malloc((SHARE_ID_MAX + 1) * sizeof(struct st_table_for_recovery),
               MYF(MY_ZEROFILL));
+
+  save_error_handler_hook= error_handler_hook;
+  error_handler_hook= maria_recover_error_handler_hook;
+
   if (!all_active_trans || !all_tables)
     goto err;
 
@@ -390,9 +409,9 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   }
   else if (uncommitted_trans > 0)
   {
-    tprint(tracef, "***WARNING: %u uncommitted transactions; some tables may"
+    eprint(tracef, "***WARNING: %u uncommitted transactions; some tables may"
            " be left inconsistent!***\n", uncommitted_trans);
-    warnings++;
+    recovery_warnings++;
   }
 
   old_now= now;
@@ -435,6 +454,7 @@ err:
   error= 1;
   tprint(tracef, "\nRecovery of tables with transaction logs FAILED\n");
 end:
+  error_handler_hook= save_error_handler_hook;
   hash_free(&all_dirty_pages);
   bzero(&all_dirty_pages, sizeof(all_dirty_pages));
   my_free(dirty_pages_pool, MYF(MY_ALLOW_ZERO_PTR));
@@ -447,10 +467,14 @@ end:
   log_record_buffer.str= NULL;
   log_record_buffer.length= 0;
   ma_checkpoint_end();
-  *warnings_count= warnings;
+  *warnings_count= recovery_warnings;
   if (recovery_message_printed != REC_MSG_NONE)
   {
-    fprintf(stderr, "\n");
+    if (procent_printed)
+    {
+      procent_printed= 0;
+      fprintf(stderr, "\n");
+    }
     if (!error)
       ma_message_no_user(ME_JUST_INFO, "recovery done");
   }
@@ -492,7 +516,8 @@ static int display_and_apply_record(const LOG_DESC *log_desc,
     return 1;
   }
   if ((error= (*log_desc->record_execute_in_redo_phase)(rec)))
-    eprint(tracef, "Got error %d when executing record\n", my_errno);
+    eprint(tracef, "Got error %d when executing record %s\n",
+           my_errno, log_desc->name);
   return error;
 }
 
@@ -602,7 +627,7 @@ prototype_redo_exec_hook(INCOMPLETE_LOG)
          " about insertion of data by ALTER TABLE and CREATE SELECT,"
          " as they are not necessary for recovery;"
          " present applying of log records may well not work.***\n");
-  warnings++;
+  recovery_warnings++;
   return 0;
 }
 
@@ -704,9 +729,11 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   kfile_header= (uchar *)ptr;
   ptr+= kfile_size_before_extension;
   /* set create_rename_lsn (for maria_read_log to be idempotent) */
-  lsn_store(kfile_header + sizeof(info->s->state.header) + 2, rec->lsn);
+  lsn_store(kfile_header + sizeof(info->s->state.header) +
+            MARIA_FILE_CREATE_RENAME_LSN_OFFSET, rec->lsn);
   /* we also set is_of_horizon, like maria_create() does */
-  lsn_store(kfile_header + sizeof(info->s->state.header) + 2 + LSN_STORE_SIZE,
+  lsn_store(kfile_header + sizeof(info->s->state.header) +
+            MARIA_FILE_CREATE_RENAME_LSN_OFFSET + LSN_STORE_SIZE,
             rec->lsn);
   data_file_name= ptr;
   ptr+= strlen(data_file_name) + 1;
@@ -725,7 +752,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
             MY_APPEND_EXT);
   linkname_ptr= NULL;
   create_flag= MY_DELETE_OLD;
-  tprint(tracef, "Table '%s' creating as '%s'", name, filename);
+  tprint(tracef, "Table '%s' creating as '%s'\n", name, filename);
   if ((kfile= my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
                                      MYF(MY_WME|create_flag))) < 0)
   {
@@ -768,7 +795,6 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   }
   error= 0;
 end:
-  tprint(tracef, "\n");
   if (kfile >= 0)
     error|= my_close(kfile, MYF(MY_WME));
   if (info != NULL)
@@ -1615,7 +1641,8 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
     {
       uchar buff[HA_CHECKSUM_STORE_SIZE];
       if (translog_read_record(rec->lsn, LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                               PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+                               PAGE_STORE_SIZE + DIRPOS_STORE_SIZE + 2 +
+                               PAGERANGE_STORE_SIZE,
                                HA_CHECKSUM_STORE_SIZE, buff, NULL) !=
           HA_CHECKSUM_STORE_SIZE)
       {
@@ -1780,25 +1807,6 @@ prototype_redo_exec_hook(COMMIT)
   return 0;
 }
 
-
-/*
-  Set position for next active record that will have key inserted
-*/
-
-static void set_lastpos(MARIA_HA *info, uchar *pos)
-{
-  ulonglong page;
-  uint dir_entry;
-
-  /* If we have checksum, it's before rowid */
-  if (info->s->calc_checksum)
-    pos+= HA_CHECKSUM_STORE_SIZE;
-  page= page_korr(pos);
-  dir_entry= dirpos_korr(pos + PAGE_STORE_SIZE);
-  info->cur_row.lastpos= ma_recordpos(page, dir_entry);
-}
-
-
 prototype_redo_exec_hook(CLR_END)
 {
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
@@ -1841,7 +1849,6 @@ prototype_redo_exec_hook(CLR_END)
     case LOGREC_UNDO_ROW_DELETE:
       row_entry= 1;
       share->state.state.records++;
-      set_lastpos(info, logpos);
       break;
     case LOGREC_UNDO_ROW_INSERT:
       share->state.state.records--;
@@ -1850,7 +1857,6 @@ prototype_redo_exec_hook(CLR_END)
       break;
     case LOGREC_UNDO_ROW_UPDATE:
       row_entry= 1;
-      set_lastpos(info, logpos);
       break;
     case LOGREC_UNDO_KEY_INSERT:
     case LOGREC_UNDO_KEY_DELETE:
@@ -1873,18 +1879,6 @@ prototype_redo_exec_hook(CLR_END)
     if (row_entry && share->calc_checksum)
       share->state.state.checksum+= ha_checksum_korr(logpos);
     share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
-  }
-  else
-  {
-    /* We must set lastpos for upcoming undo delete keys */
-    switch (undone_record_type) {
-    case LOGREC_UNDO_ROW_DELETE:
-    case LOGREC_UNDO_ROW_UPDATE:
-      set_lastpos(info, logpos);
-      break;
-    default:
-      break;
-    }
   }
   if (row_entry)
     tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
@@ -1971,17 +1965,11 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
   }
 
   info->trn= trn;
-  /*
-    For now we skip the page and directory entry. This is to be used
-    later when we mark rows as deleted.
-  */
   error= _ma_apply_undo_row_delete(info, previous_undo_lsn,
                                    log_record_buffer.str + LSN_STORE_SIZE +
-                                   FILEID_STORE_SIZE + PAGE_STORE_SIZE +
-                                   DIRPOS_STORE_SIZE,
+                                   FILEID_STORE_SIZE,
                                    rec->record_length -
-                                   (LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                                    PAGE_STORE_SIZE + DIRPOS_STORE_SIZE));
+                                   (LSN_STORE_SIZE + FILEID_STORE_SIZE));
   info->trn= 0;
   tprint(tracef, "   rows' count %lu\n   undo_lsn now LSN (%lu,0x%lx)\n",
          (ulong)share->state.state.records, LSN_IN_PARTS(previous_undo_lsn));
@@ -2478,6 +2466,7 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
 
 static int run_undo_phase(uint uncommitted)
 {
+  LSN last_undo;
   DBUG_ENTER("run_undo_phase");
 
   if (uncommitted > 0)
@@ -2491,6 +2480,7 @@ static int run_undo_phase(uint uncommitted)
       recovery_message_printed= REC_MSG_UNDO;
     }
     tprint(tracef, "%u transactions will be rolled back\n", uncommitted);
+    procent_printed= 1;
     for( ; ; )
     {
       char llbuf[22];
@@ -2503,12 +2493,16 @@ static int run_undo_phase(uint uncommitted)
       DBUG_ASSERT(trn != NULL);
       llstr(trn->trid, llbuf);
       tprint(tracef, "Rolling back transaction of long id %s\n", llbuf);
+      last_undo= trn->undo_lsn + 1;
 
       /* Execute all undo entries */
       while (trn->undo_lsn)
       {
         TRANSLOG_HEADER_BUFFER rec;
         LOG_DESC *log_desc;
+        DBUG_ASSERT(trn->undo_lsn < last_undo);
+        last_undo= trn->undo_lsn;
+
         if (translog_read_record_header(trn->undo_lsn, &rec) ==
             RECHEADER_READ_ERROR)
           DBUG_RETURN(1);
@@ -2516,7 +2510,8 @@ static int run_undo_phase(uint uncommitted)
         display_record_position(log_desc, &rec, 0);
         if (log_desc->record_execute_in_undo_phase(&rec, trn))
         {
-          tprint(tracef, "Got error %d when executing undo\n", my_errno);
+          eprint(tracef, "Got error %d when executing undo %s\n", my_errno,
+                 log_desc->name);
           DBUG_RETURN(1);
         }
       }
@@ -2527,6 +2522,7 @@ static int run_undo_phase(uint uncommitted)
       /* In the future, we want to have this phase *online* */
     }
   }
+  procent_printed= 0;
   DBUG_RETURN(0);
 }
 

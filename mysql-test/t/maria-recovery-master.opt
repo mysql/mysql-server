@@ -1,2 +1,2 @@
---skip-stack-trace --skip-core-file
+--skip-stack-trace --skip-core-file --loose-debug-on=1
 

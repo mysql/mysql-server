@@ -44,18 +44,17 @@ static void put_blob_in_record(uchar *blob_pos,char **blob_buffer,
                                ulong *length);
 static void copy_key(MARIA_HA *info, uint inx, uchar *record, uchar *key);
 
-static	int verbose=0,testflag=0,
-	    first_key=0,async_io=0,pagecacheing=0,write_cacheing=0,locking=0,
-            rec_pointer_size=0,pack_fields=1,silent=0,
-            opt_quick_mode=0, transactional= 0, skip_update= 0,
-            die_in_middle_of_transaction= 0;
-static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1;
+static int verbose= 0, testflag= 0, first_key= 0, async_io= 0, pagecacheing= 0;
+static int write_cacheing= 0, locking= 0, rec_pointer_size= 0, pack_fields= 1;
+static int silent= 0, opt_quick_mode= 0, transactional= 0, skip_update= 0;
+static int die_in_middle_of_transaction= 0;
+static int pack_seg= HA_SPACE_PACK, pack_type= HA_PACK_KEY, remove_count= -1;
 static int create_flag= 0, srand_arg= 0, checkpoint= 0;
+static uint use_blob= 0, update_count= 0;
 static ulong pagecache_size=8192*32;
 static enum data_file_type record_type= DYNAMIC_RECORD;
 
 static uint keys=MARIA_KEYS,recant=1000;
-static uint use_blob=0;
 static uint16 key1[1001],key3[5000];
 static uchar record[300],record2[300],key[100],key2[100];
 static uchar read_record[300],read_record2[300],read_record3[300];
@@ -357,7 +356,10 @@ int main(int argc, char *argv[])
     printf("- Update\n");
   if (srand_arg)
     srand(srand_arg);
-  for (i=0 ; i<recant/10 ; i++)
+  if (!update_count)
+    update_count= recant/10;
+
+  for (i=0 ; i < update_count ; i++)
   {
     n1=rnd(1000); n2=rnd(100); n3=rnd(5000);
     sprintf((char*) record2,"%6d:%4d:%8d:XXX: %4d     ",n1,n2,n3,update);
@@ -385,9 +387,9 @@ int main(int argc, char *argv[])
       {
         ulong blob_length;
 	if (i & 1)
-	  put_blob_in_record(record+blob_pos,&blob_buffer, &blob_length);
+	  put_blob_in_record(record2+blob_pos,&blob_buffer, &blob_length);
 	else
-	  bmove(record+blob_pos,read_record+blob_pos,8);
+	  bmove(record2+blob_pos, read_record+blob_pos, 4 + sizeof(char*));
       }
       if (skip_update)
         continue;
@@ -874,7 +876,7 @@ int main(int argc, char *argv[])
       }
       if (maria_delete(file,read_record))
       {
-	printf("can't delete record: %6.6s,  delete_count: %d\n",
+	printf("can't delete record: %6.6s, delete_count: %d\n",
 	       read_record, opt_delete);
         maria_scan_end(file);
 	goto err;
@@ -1036,7 +1038,7 @@ static void get_options(int argc, char **argv)
     case 'L':
       locking=1;
       break;
-    case 'A':				/* use asyncron io */
+    case 'a':				/* use asyncron io */
       async_io=1;
       if (*++pos)
 	my_default_record_cache_size=atoi(pos);
@@ -1098,8 +1100,13 @@ static void get_options(int argc, char **argv)
     case 'T':
       transactional= 1;
       break;
-    case 'u':
+    case 'A':
       die_in_middle_of_transaction= atoi(++pos);
+      break;
+    case 'u':
+      update_count=atoi(++pos);
+      if (!update_count)
+        skip_update= 1;
       break;
     case 'q':
       opt_quick_mode=1;
@@ -1116,8 +1123,8 @@ static void get_options(int argc, char **argv)
     case '?':
     case 'I':
     case 'V':
-      printf("%s  Ver 1.0 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
-      puts("By Monty, for your professional use\n");
+      printf("%s  Ver 1.1 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
+      puts("By Monty, for testing Maria\n");
       printf("Usage: %s [-?AbBcDIKLPRqSsTVWltv] [-k#] [-f#] [-m#] [-e#] [-E#] [-t#]\n",
 	     progname);
       exit(0);
@@ -1151,7 +1158,9 @@ static void fix_length(uchar *rec, uint length)
 } /* fix_length */
 
 
-	/* Put maybe a blob in record */
+/* Put maybe a blob in record */
+
+static int first_entry;
 
 static void put_blob_in_record(uchar *blob_pos, char **blob_buffer,
                                ulong *blob_length)
@@ -1160,15 +1169,21 @@ static void put_blob_in_record(uchar *blob_pos, char **blob_buffer,
   *blob_length= 0;
   if (use_blob)
   {
+    if (! *blob_buffer &&
+        !(*blob_buffer=my_malloc((uint) use_blob,MYF(MY_WME))))
+    {
+      use_blob= 0;
+      return;
+    }
     if (rnd(10) == 0)
     {
-      if (! *blob_buffer &&
-	  !(*blob_buffer=my_malloc((uint) use_blob,MYF(MY_WME))))
+      if (first_entry++ == 0)
       {
-	use_blob=0;
-	return;
+        /* Ensure we have at least one blob of max length in file */
+        length= use_blob;
       }
-      length=rnd(use_blob);
+      else
+        length=rnd(use_blob);
       for (i=0 ; i < length ; i++)
 	(*blob_buffer)[i]=(char) (length+i);
       int4store(blob_pos,length);

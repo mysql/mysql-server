@@ -1,5 +1,6 @@
 set global storage_engine=maria;
 set session storage_engine=maria;
+set global maria_page_checksum=0;
 set global maria_log_file_size=4294967295;
 drop table if exists t1,t2;
 SET SQL_WARNINGS=1;
@@ -2052,7 +2053,7 @@ maria_checkpoint_interval	30
 maria_log_file_size	4294959104
 maria_log_purge_type	immediate
 maria_max_sort_file_size	9223372036854775807
-maria_page_checksum	ON
+maria_page_checksum	OFF
 maria_pagecache_age_threshold	300
 maria_pagecache_buffer_size	8388572
 maria_pagecache_division_limit	100
@@ -2069,6 +2070,14 @@ Maria_pagecache_read_requests	#
 Maria_pagecache_reads	#
 Maria_pagecache_write_requests	#
 Maria_pagecache_writes	#
+set global maria_page_checksum=1;
+create table t1 (a int);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+drop table t1;
 create table t1 (s varchar(25), fulltext(s)) TRANSACTIONAL= 1;
 ERROR HY000: Maria can't yet handle SPATIAL or FULLTEXT keys in transactional mode. For now use TRANSACTIONAL=0
 drop table if exists t1;

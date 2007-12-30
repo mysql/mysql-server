@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# Remove comment from next line if this script fails and you need more
+# information of what's going on
 #set -x -v 
 set -e
 silent="-s"
@@ -122,12 +124,13 @@ echo "Testing the REDO AND UNDO PHASE"
 
 for take_checkpoint in "no" "yes"
 do
-for blobs in "" "-b" # we test table without blobs and then table with blobs
+# we test table without blobs and then table with blobs
+for blobs in "" "-b32768"
 do
   for test_undo in 1 2 3 4
   do
   # first iteration tests rollback of insert, second tests rollback of delete
-  set -- "ma_test1 $silent -M -T -c -N $blobs -H1" "--testflag=1" "--testflag=2 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2" "--testflag=3" "--testflag=4 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2 " "--testflag=2" "--testflag=3 --test-undo=" "ma_test2 $silent -L -K -W -P -M -T -c $blobs -H1" "-t1" "-t2 -u"
+  set -- "ma_test1 $silent -M -T -c -N $blobs -H1" "--testflag=1" "--testflag=2 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2" "--testflag=3" "--testflag=4 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2 " "--testflag=2" "--testflag=3 --test-undo=" "ma_test2 $silent -L -K -W -P -M -T -c $blobs -H1" "-t1" "-t2 -A" "ma_test2 $silent -L -K -W -P -M -T -c $blobs -H1" "-t1" "-t4 -A"
   # -N (create NULL fields) is needed because --test-undo adds it anyway
   while [ $# != 0 ]
     do
@@ -178,18 +181,21 @@ do
     check_table_is_same
     echo "testing idempotency"
     apply_log "shouldnotchangelog"
-    cmp $table.MAD $tmp/$table.MAD.after_undo
+    # We can't do a binary compary as there may have been different number
+    # of calls to compact_page. We can enable this if we first call
+    # maria-check to generate identically compacted pages.
+#    cmp $table.MAD $tmp/$table.MAD.after_undo
     # can't do this, creation time differs at least; enable it if you
     # have a "cmp" which ignores the header.
-#    cmp $table.MAI $tmp/$table.MAI.after_undo
+    cmp $table.MAI $tmp/$table.MAI.after_undo
     check_table_is_same
     echo "testing applying of CLRs to recreate table"
     rm $table.MA?
 #    cp $tmp/maria_log* $maria_path  #unneeded
     apply_log "shouldnotchangelog"
-    cmp $table.MAD $tmp/$table.MAD.after_undo
+#    cmp $table.MAD $tmp/$table.MAD.after_undo
     # can't do this, creation time differs at least
-#    cmp $table.MAI $tmp/$table.MAI.after_undo
+    cmp $table.MAI $tmp/$table.MAI.after_undo
     check_table_is_same
     shift 3
   done
@@ -199,6 +205,12 @@ done
 done
 
 ) 2>&1 > $tmp/ma_test_recovery.output
+
+if [ "$?" != 0 ]
+then
+  echo "Some test failed"
+  exit 1
+fi
 
 # also note that maria_chk -dvv shows differences for ma_test2 in UNDO phase,
 # this is normal: removing records does not shrink the data/key file,

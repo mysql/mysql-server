@@ -1339,6 +1339,7 @@ int _ma_update_create_rename_lsn_sub(MARIA_SHARE *share,
     translog_deassign_id_from_share(share);
   }
   return my_pwrite(file, buf, sizeof(buf),
-                   sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
+                   sizeof(share->state.header) +
+                   MARIA_FILE_CREATE_RENAME_LSN_OFFSET, MYF(MY_NABP)) ||
     (do_sync && my_sync(file, MYF(0)));
 }

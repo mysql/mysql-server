@@ -179,6 +179,22 @@ let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 show create table t1;
 drop table t1;
 
+--echo * TEST of UNDO_ROW_DELETE preserving rowid
+# we want recovery to use the tables as they were at time of crash
+let $mvr_restore_old_snapshot=0;
+# UNDO phase prevents physical comparison, normally,
+# so we'll only use checksums to compare.
+let $mms_compare_physically=0;
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+create table t1(a int) engine=maria;
+insert into t1 values(1),(2);
+-- source include/maria_make_snapshot_for_comparison.inc
+lock tables t1 write;
+insert into t1 values(3);
+delete from t1 where a in (1,2,3);
+-- source include/maria_verify_recovery.inc
+drop table t1;
+
 # clean up everything
 let $mms_purpose=feeding_recovery;
 eval drop database mysqltest_for_$mms_purpose;
