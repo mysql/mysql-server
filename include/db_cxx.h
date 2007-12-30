@@ -9,8 +9,7 @@ class DbTxn;
 class Dbc;
 class DbException;
 
-class DbException : public std::exception
-{
+class DbException : public std::exception {
     friend class DbEnv;
  public:
     ~DbException() throw();
@@ -28,25 +27,22 @@ class DbException : public std::exception
     void FillTheWhat(void);
 };
 
-class DbDeadlockException : public DbException
-{
+class DbDeadlockException : public DbException {
  public:
     DbDeadlockException(DbEnv*);
 };
 
-class DbLockNotGrantedException
-{
+class DbLockNotGrantedException {
 };
-class DbMemoryException
-{
+
+class DbMemoryException {
 };
-class DbRunRecoveryException
-{
+
+class DbRunRecoveryException {
 };
 
 // DBT and Dbt objects are the same pointers.  So watch out if you use Dbt to make other classes (e.g., with subclassing).
-class Dbt : private DBT
-{
+class Dbt : private DBT {
     friend class Dbc;
  public:
 
@@ -179,11 +175,11 @@ class DbTxn {
     
 };
 
-class Dbc : protected DBC
-{
+class Dbc : protected DBC {
  public:
     int close(void);
-    int get(Dbt*, Dbt *, u_int32_t);
+    int get(Dbt *, Dbt *, u_int32_t);
+    int pget(Dbt *, Dbt *, Dbt *, u_int32_t);
     int del(u_int32_t);
  private:
     Dbc();  // User may not call it.
