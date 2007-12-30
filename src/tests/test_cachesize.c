@@ -44,7 +44,12 @@ void test_cachesize() {
 
     u_int64_t s = 1; size_to(s, &gbytes, &bytes);
     while (gbytes <= 32) {
-        r = env->set_cachesize(env, gbytes, bytes, ncache); assert(r == 0);
+        r = env->set_cachesize(env, gbytes, bytes, ncache); 
+        if (r != 0) {
+            if (verbose) printf("max %u %u\n", gbytes, bytes);
+            break;
+        }
+        assert(r == 0);
         r = env->get_cachesize(env, &gbytes, &bytes, &ncache); assert(r == 0);
         assert(ncache == 1);
         if (s <= minsize)
