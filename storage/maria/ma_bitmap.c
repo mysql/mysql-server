@@ -319,13 +319,45 @@ my_bool _ma_bitmap_flush(MARIA_SHARE *share)
     pthread_mutex_lock(&share->bitmap.bitmap_lock);
     if (share->bitmap.changed)
     {
-      res= write_changed_bitmap(share, &share->bitmap);
       share->bitmap.changed= 0;
+      res= write_changed_bitmap(share, &share->bitmap);
     }
     pthread_mutex_unlock(&share->bitmap.bitmap_lock);
   }
   DBUG_RETURN(res);
 }
+
+
+/*
+  @brief Send updated bitmap to the page cache if bitmap is free
+
+  @note
+  This is used by reader threads which don't unpin things
+*/
+
+my_bool _ma_bitmap_wait_or_flush(MARIA_SHARE *share)
+{
+  my_bool res= 0;
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  DBUG_ENTER("_ma_bitmap_flush");
+  if (bitmap->changed)
+  {
+    pthread_mutex_lock(&bitmap->bitmap_lock);
+    while (bitmap->non_flushable && bitmap->changed)
+    {
+      DBUG_PRINT("info", ("waiting for bitmap to be flushable"));
+      pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
+    }
+    if (bitmap->changed)
+    {
+      bitmap->changed= 0;
+      res= write_changed_bitmap(share, bitmap);
+    }
+    pthread_mutex_unlock(&bitmap->bitmap_lock);
+  }
+  DBUG_RETURN(res);
+}
+
 
 
 /**
@@ -910,9 +942,9 @@ static void fill_block(MARIA_FILE_BITMAP *bitmap,
   /* For each 6 bytes we have 6*8/3= 16 patterns */
   page= (best_data - bitmap->map) / 6 * 16 + best_pos;
   block->page= bitmap->page + 1 + page;
-  block->page_count= 1 + TAIL_BIT;
+  block->page_count= TAIL_PAGE_COUNT_MARKER;
   block->empty_space= pattern_to_size(bitmap, best_bits);
-  block->sub_blocks= 1;
+  block->sub_blocks= 0;
   block->org_bitmap_value= best_bits;
   block->used= BLOCKUSED_TAIL; /* See _ma_bitmap_release_unused() */
 
@@ -1244,7 +1276,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
   block->page= bitmap->page + 1 + page;
   block->page_count= best_area_size;
   block->empty_space= 0;
-  block->sub_blocks= 1;
+  block->sub_blocks= 0;
   block->org_bitmap_value= 0;
   block->used= 0;
   DBUG_PRINT("info", ("page: %lu  page_count: %u",
@@ -1432,6 +1464,7 @@ static my_bool find_blob(MARIA_HA *info, ulong length)
     rest_length= 0;
   }
 
+  first_block_pos= info->bitmap_blocks.elements;
   if (pages)
   {
     MARIA_BITMAP_BLOCK *block;
@@ -1439,15 +1472,17 @@ static my_bool find_blob(MARIA_HA *info, ulong length)
                          info->bitmap_blocks.elements +
                          pages / BLOB_SEGMENT_MIN_SIZE + 2))
       DBUG_RETURN(1);
-    first_block_pos= info->bitmap_blocks.elements;
     block= dynamic_element(&info->bitmap_blocks, info->bitmap_blocks.elements,
                            MARIA_BITMAP_BLOCK*);
-    first_block= block;
     do
     {
+      /*
+        We use 0x3fff here as the two upmost bits are reserved for
+        TAIL_BIT and START_EXTENT_BIT
+      */
       used= allocate_full_pages(bitmap,
-                                (pages >= 65535 ? 65535 : (uint) pages), block,
-                                0);
+                                (pages >= 0x3fff ? 0x3fff : (uint) pages),
+                                block, 0);
       if (!used)
       {
         if (move_to_next_bitmap(info, bitmap))
@@ -1464,8 +1499,9 @@ static my_bool find_blob(MARIA_HA *info, ulong length)
   if (rest_length && find_tail(info, rest_length,
                                info->bitmap_blocks.elements++))
     DBUG_RETURN(1);
-  if (first_block)
-    first_block->sub_blocks= info->bitmap_blocks.elements - first_block_pos;
+  first_block= dynamic_element(&info->bitmap_blocks, first_block_pos,
+                               MARIA_BITMAP_BLOCK*);
+  first_block->sub_blocks= info->bitmap_blocks.elements - first_block_pos;
   DBUG_RETURN(0);
 }
 
@@ -1535,7 +1571,6 @@ static void use_head(MARIA_HA *info, ulonglong page, uint size,
   block->page= page;
   block->page_count= 1 + TAIL_BIT;
   block->empty_space= size;
-  block->sub_blocks= 1;
   block->used= BLOCKUSED_TAIL;
 
   /*
@@ -1572,9 +1607,16 @@ static void use_head(MARIA_HA *info, ulonglong page, uint size,
 static uint find_where_to_split_row(MARIA_SHARE *share, MARIA_ROW *row,
                                     uint extents_length, uint split_size)
 {
-  uint row_length= row->base_length;
   uint *lengths, *lengths_end;
-
+  /*
+    Ensure we have the minimum required space on head page:
+    - Header + length of field lengths (row->min_length)
+    - Number of extents
+    - One extent
+  */
+  uint row_length= (row->min_length +
+                    size_to_store_key_length(extents_length) +
+                    ROW_EXTENT_SIZE);
   DBUG_ASSERT(row_length < split_size);
   /*
     Store first in all_field_lengths the different parts that are written
@@ -1716,14 +1758,19 @@ my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
   }
 
   /*
-    First allocate all blobs (so that we can find out the needed size for
+    First allocate all blobs so that we can find out the needed size for
     the main block.
   */
   if (row->blob_length && allocate_blobs(info, row))
     goto abort;
 
   extents_length= row->extents_count * ROW_EXTENT_SIZE;
-  if ((head_length= (row->head_length + extents_length)) <= max_page_size)
+  /*
+    The + 3 here is space to be able to store the number of segments
+    in the row header.
+  */
+  if ((head_length= (row->head_length + extents_length + 3)) <=
+      max_page_size)
   {
     /* Main row part fits into one page */
     position= ELEMENTS_RESERVED_FOR_MAIN_PART - 1;
@@ -1747,6 +1794,7 @@ my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
   if (find_head(info, row_length, position))
     goto abort;
   row->space_on_head_page= row_length;
+
   rest_length= head_length - row_length;
   if (write_rest_of_head(info, position, rest_length))
     goto abort;
@@ -1820,11 +1868,12 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
     goto abort;
 
   extents_length= row->extents_count * ROW_EXTENT_SIZE;
-  if ((head_length= (row->head_length + extents_length)) <= free_size)
+  if ((head_length= (row->head_length + extents_length + 3)) <= free_size)
   {
     /* Main row part fits into one page */
     position= ELEMENTS_RESERVED_FOR_MAIN_PART - 1;
     use_head(info, page, head_length, position);
+    row->space_on_head_page= head_length;
     goto end;
   }
 
@@ -1838,8 +1887,9 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
   if (head_length - row_length < MAX_TAIL_SIZE(share->block_size))
     position= ELEMENTS_RESERVED_FOR_MAIN_PART -2;    /* Only head and tail */
   use_head(info, page, row_length, position);
-  rest_length= head_length - row_length;
+  row->space_on_head_page= row_length;
 
+  rest_length= head_length - row_length;
   if (write_rest_of_head(info, position, rest_length))
     goto abort;
 
@@ -1936,13 +1986,13 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
     ~0		Error (couldn't read page)
 */
 
-static uint get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
-                          ulonglong page)
+uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
+                              ulonglong page)
 {
   ulonglong bitmap_page;
   uint offset_page, offset, tmp;
   uchar *data;
-  DBUG_ENTER("get_page_bits");
+  DBUG_ENTER("_ma_bitmap_get_page_bits");
 
   bitmap_page= page - page % bitmap->pages_covered;
   if (bitmap_page != bitmap->page &&
@@ -1994,6 +2044,8 @@ my_bool _ma_bitmap_reset_full_page_bits(MARIA_HA *info,
   safe_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
 
   bitmap_page= page - page % bitmap->pages_covered;
+  DBUG_ASSERT(page != bitmap_page);
+
   if (bitmap_page != bitmap->page &&
       _ma_change_bitmap_page(info, bitmap, bitmap_page))
     DBUG_RETURN(1);
@@ -2116,6 +2168,7 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
 
 
 /**
+   @brief
    Make a transition of MARIA_FILE_BITMAP::non_flushable.
    If the bitmap becomes flushable, which requires that REDO-UNDO has been
    logged and all bitmap pages touched by the thread have a correct
@@ -2125,29 +2178,34 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
    unless a concurrent _ma_bitmap_flush_all() is happening, in which case the
    function first waits for the flush to be done.
 
+   @note
+   info->non_flushable_state is set to 1 if we have incremented
+   bitmap->info->non_flushable and not yet decremented it.
+
    @param  share               Table's share
    @param  non_flushable_inc   Increment of MARIA_FILE_BITMAP::non_flushable
                                (-1 or +1).
 */
 
-void _ma_bitmap_flushable(MARIA_SHARE *share, int non_flushable_inc)
+void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
 {
+  MARIA_SHARE *share= info->s;
   MARIA_FILE_BITMAP *bitmap;
 
   /*
     Not transactional tables are never automaticly flushed and needs no
     protection
   */
-#ifndef EXTRA_DEBUG
   if (!share->now_transactional)
     return;
-#endif
 
   bitmap= &share->bitmap;
   if (non_flushable_inc == -1)
   {
     pthread_mutex_lock(&bitmap->bitmap_lock);
-    DBUG_ASSERT(bitmap->non_flushable > 0);
+    DBUG_ASSERT((int) bitmap->non_flushable > 0 &&
+                info->non_flushable_state == 1);
+    info->non_flushable_state= 0;
     if (--bitmap->non_flushable == 0)
     {
       _ma_bitmap_unpin_all(share);
@@ -2161,7 +2219,7 @@ void _ma_bitmap_flushable(MARIA_SHARE *share, int non_flushable_inc)
     pthread_mutex_unlock(&bitmap->bitmap_lock);
     return;
   }
-  DBUG_ASSERT(non_flushable_inc == 1);
+  DBUG_ASSERT(non_flushable_inc == 1 && info->non_flushable_state == 0);
   /* It is a read without mutex because only an optimization */
   if (unlikely(bitmap->flush_all_requested))
   {
@@ -2189,6 +2247,7 @@ void _ma_bitmap_flushable(MARIA_SHARE *share, int non_flushable_inc)
     touch it we will take the mutex.
   */
   bitmap->non_flushable++;
+  info->non_flushable_state= 1;
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
 }
 
@@ -2240,17 +2299,24 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
   /* First handle head block */
   if (block->used & BLOCKUSED_USED)
   {
-    DBUG_PRINT("info", ("head empty_space: %u", block->empty_space));
+    DBUG_PRINT("info", ("head page: %lu  empty_space: %u",
+                        (ulong) block->page, block->empty_space));
     bits= _ma_free_size_to_head_pattern(bitmap, block->empty_space);
     if (block->used & BLOCKUSED_USE_ORG_BITMAP)
       current_bitmap_value= block->org_bitmap_value;
   }
   else
     bits= block->org_bitmap_value;
-  if (bits != current_bitmap_value &&
-      set_page_bits(info, bitmap, block->page, bits))
-    goto err;
-
+  if (bits != current_bitmap_value)
+  {
+    if (set_page_bits(info, bitmap, block->page, bits))
+      goto err;
+  }
+  else
+  {
+    DBUG_ASSERT(current_bitmap_value ==
+                _ma_bitmap_get_page_bits(info, bitmap, block->page));
+  }
 
   /* Handle all full pages and tail pages (for head page and blob) */
   for (block++; block < end; block++)
@@ -2262,12 +2328,16 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
     page_count= block->page_count;
     if (block->used & BLOCKUSED_TAIL)
     {
+      current_bitmap_value= FULL_TAIL_PAGE;
       /* The bitmap page is only one page */
       page_count= 1;
       if (block->used & BLOCKUSED_USED)
       {
-        DBUG_PRINT("info", ("tail empty_space: %u", block->empty_space));
+        DBUG_PRINT("info", ("tail page: %lu  empty_space: %u",
+                            (ulong) block->page, block->empty_space));
         bits= free_size_to_tail_pattern(bitmap, block->empty_space);
+        if (block->used & BLOCKUSED_USE_ORG_BITMAP)
+          current_bitmap_value= block->org_bitmap_value;
       }
       else
         bits= block->org_bitmap_value;
@@ -2276,7 +2346,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
         The page has all bits set; The following test is an optimization
         to not set the bits to the same value as before.
       */
-      if (bits != FULL_TAIL_PAGE &&
+      if (bits != current_bitmap_value &&
           set_page_bits(info, bitmap, block->page, bits))
         goto err;
     }
@@ -2286,13 +2356,19 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
       goto err;
   }
 
-  if (--bitmap->non_flushable == 0)
+  if (info->s->now_transactional)
   {
-    _ma_bitmap_unpin_all(info->s);
-    if (unlikely(bitmap->flush_all_requested))
+    DBUG_ASSERT((int) bitmap->non_flushable >= 0 &&
+                info->non_flushable_state);
+    info->non_flushable_state= 0;
+    if (--bitmap->non_flushable == 0)
     {
-      DBUG_PRINT("info", ("bitmap flushable waking up flusher"));
-      pthread_cond_broadcast(&bitmap->bitmap_cond);
+      _ma_bitmap_unpin_all(info->s);
+      if (unlikely(bitmap->flush_all_requested))
+      {
+        DBUG_PRINT("info", ("bitmap flushable waking up flusher"));
+        pthread_cond_broadcast(&bitmap->bitmap_cond);
+      }
     }
   }
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
@@ -2327,28 +2403,29 @@ err:
 my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
                                    uint count)
 {
+  MARIA_FILE_BITMAP *bitmap= &info->s->bitmap;
   DBUG_ENTER("_ma_bitmap_free_full_pages");
 
-  pthread_mutex_lock(&info->s->bitmap.bitmap_lock);
+  pthread_mutex_lock(&bitmap->bitmap_lock);
   for (; count--; extents+= ROW_EXTENT_SIZE)
   {
     ulonglong page=  uint5korr(extents);
-    uint page_count= uint2korr(extents + ROW_EXTENT_PAGE_SIZE);
+    uint page_count= (uint2korr(extents + ROW_EXTENT_PAGE_SIZE) &
+                      ~START_EXTENT_BIT);
     if (!(page_count & TAIL_BIT))
     {
       if (page == 0 && page_count == 0)
         continue;                               /* Not used extent */
       if (pagecache_delete_pages(info->s->pagecache, &info->dfile, page,
                                  page_count, PAGECACHE_LOCK_WRITE, 1) ||
-          _ma_bitmap_reset_full_page_bits(info, &info->s->bitmap, page,
-                                          page_count))
+          _ma_bitmap_reset_full_page_bits(info, bitmap, page, page_count))
       {
-        pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);
+        pthread_mutex_unlock(&bitmap->bitmap_lock);
         DBUG_RETURN(1);
       }
     }
   }
-  pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);
+  pthread_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_RETURN(0);
 }
 
@@ -2429,8 +2506,8 @@ my_bool _ma_check_bitmap_data(MARIA_HA *info,
     bits= 0; /* to satisfy compiler */
     DBUG_ASSERT(0);
   }
-  return (*bitmap_pattern= get_page_bits(info, &info->s->bitmap, page)) !=
-    bits;
+  return ((*bitmap_pattern= _ma_bitmap_get_page_bits(info, &info->s->bitmap,
+                                                     page)) != bits);
 }
 
 
@@ -2458,7 +2535,8 @@ my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
                                        ulonglong page,
                                        uint *bitmap_pattern)
 {
-  if ((*bitmap_pattern= get_page_bits(info, &info->s->bitmap, page)) > 7)
+  if ((*bitmap_pattern= _ma_bitmap_get_page_bits(info, &info->s->bitmap,
+                                                 page)) > 7)
     return 1;                                   /* Couldn't read page */
   switch (page_type) {
   case HEAD_PAGE:

@@ -334,9 +334,9 @@ int main(int argc, char *argv[])
       if (use_blob)
       {
 	if (i & 1)
-	  put_blob_in_record(record+blob_pos,&blob_buffer);
+	  put_blob_in_record(record2+blob_pos,&blob_buffer);
 	else
-	  bmove(record+blob_pos,read_record+blob_pos,8);
+	  bmove(record2+blob_pos,read_record+blob_pos,8);
       }
       if (mi_update(file,read_record,record2))
       {

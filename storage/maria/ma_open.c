@@ -1124,6 +1124,9 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
 
   /* open_count must be first because of _ma_mark_file_changed ! */
   mi_int2store(ptr,state->open_count);			ptr+= 2;
+  /* changed must be second, because of _ma_mark_file_crashed */
+  mi_int2store(ptr,state->changed);			ptr+= 2;
+
   /*
     if you change the offset of create_rename_lsn/is_of_horizon inside the
     index file's header, fix ma_create + ma_rename + ma_delete_all +
@@ -1131,8 +1134,6 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   */
   lsn_store(ptr, state->create_rename_lsn);		ptr+= LSN_STORE_SIZE;
   lsn_store(ptr, state->is_of_horizon);			ptr+= LSN_STORE_SIZE;
-  *ptr++= (uchar)state->changed;
-  *ptr++= state->sortkey;
   mi_rowstore(ptr,state->state.records);		ptr+= 8;
   mi_rowstore(ptr,state->state.del);			ptr+= 8;
   mi_rowstore(ptr,state->split);			ptr+= 8;
@@ -1148,7 +1149,8 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   mi_int4store(ptr,state->unique);			ptr+= 4;
   mi_int4store(ptr,state->status);			ptr+= 4;
   mi_int4store(ptr,state->update_count);		ptr+= 4;
-
+  *ptr++= state->sortkey;
+  *ptr++= 0;                                    /* Reserved */
   ptr+=	state->state_diff_length;
 
   for (i=0; i < keys; i++)
@@ -1194,10 +1196,9 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
   key_parts= mi_uint2korr(state->header.key_parts);
 
   state->open_count = mi_uint2korr(ptr);		ptr+= 2;
+  state->changed= mi_uint2korr(ptr);			ptr+= 2;
   state->create_rename_lsn= lsn_korr(ptr);		ptr+= LSN_STORE_SIZE;
   state->is_of_horizon= lsn_korr(ptr);			ptr+= LSN_STORE_SIZE;
-  state->changed= 					(my_bool) *ptr++;
-  state->sortkey= 					(uint) *ptr++;
   state->state.records= mi_rowkorr(ptr);		ptr+= 8;
   state->state.del = mi_rowkorr(ptr);			ptr+= 8;
   state->split	= mi_rowkorr(ptr);			ptr+= 8;
@@ -1215,6 +1216,8 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
   state->unique = mi_uint4korr(ptr);			ptr+= 4;
   state->status = mi_uint4korr(ptr);			ptr+= 4;
   state->update_count=mi_uint4korr(ptr);		ptr+= 4;
+  state->sortkey= 					(uint) *ptr++;
+  ptr++;                                                /* reserved */
 
   ptr+= state->state_diff_length;
 

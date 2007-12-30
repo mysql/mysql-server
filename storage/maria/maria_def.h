@@ -40,7 +40,6 @@
 
 #define MAX_NONMAPPED_INSERTS 1000
 #define MARIA_MAX_TREE_LEVELS 32
-#define MARIA_MAX_CONTROL_FILE_LOCK_RETRY 30     /* Retry this many times */
 
 struct st_transaction;
 
@@ -106,7 +105,7 @@ typedef struct st_maria_state_info
   time_t check_time;			/* Time for last check */
   uint sortkey;				/* sorted by this key (not used) */
   uint open_count;
-  uint8 changed;			/* Changed since mariachk */
+  uint changed;                         /* Changed since maria_chk */
   LSN create_rename_lsn;    /**< LSN when table was last created/renamed */
   /** @brief Log horizon when state was last updated on disk */
   TRANSLOG_ADDRESS is_of_horizon;
@@ -119,7 +118,11 @@ typedef struct st_maria_state_info
 
 
 #define MARIA_STATE_INFO_SIZE	\
-  (24 + LSN_STORE_SIZE*2 + 4 + 11*8 + 4*4 + 8 + 3*4 + 5*8)
+  (24 + 2 + LSN_STORE_SIZE*2 + 4 + 11*8 + 4*4 + 8 + 3*4 + 5*8)
+#define MARIA_FILE_OPEN_COUNT_OFFSET 0
+#define MARIA_FILE_CHANGED_OFFSET 2
+#define MARIA_FILE_CREATE_RENAME_LSN_OFFSET 4
+
 #define MARIA_STATE_KEY_SIZE	(8 + 4)
 #define MARIA_STATE_KEYBLOCK_SIZE  8
 #define MARIA_STATE_KEYSEG_SIZE	12
@@ -405,8 +408,8 @@ typedef struct st_maria_row
   uchar *empty_bits, *field_lengths;
   uint *null_field_lengths;             /* All null field lengths */
   ulong *blob_lengths;                  /* Length for each blob */
-  ulong base_length, normal_length, char_length, varchar_length, blob_length;
-  ulong head_length, total_length;
+  ulong base_length, min_length, normal_length, char_length, varchar_length;
+  ulong blob_length, head_length, total_length;
   size_t extents_buffer_length;         /* Size of 'extents' buffer */
   uint field_lengths_length;            /* Length of data in field_lengths */
   uint extents_count;                   /* number of extents in 'extents' */
@@ -451,6 +454,7 @@ struct st_maria_handler
   uchar *lastkey, *lastkey2;		/* Last used search key */
   uchar *first_mbr_key;			/* Searhed spatial key */
   uchar *rec_buff;			/* Temp buffer for recordpack */
+  uchar *blob_buff;                     /* Temp buffer for blobs */
   uchar *int_keypos,			/* Save position for next/previous */
    *int_maxpos;				/* -""- */
   uchar *update_field_data;		/* Used by update in rows-in-block */
@@ -473,7 +477,7 @@ struct st_maria_handler
      as they are not compatible with parallel repair
   */
   ulong packed_length, blob_length;	/* Length of found, packed record */
-  size_t rec_buff_size;
+  size_t rec_buff_size, blob_buff_size;
   PAGECACHE_FILE dfile;			/* The datafile */
   IO_CACHE rec_cache;			/* When cacheing records */
   LIST open_list;
@@ -483,6 +487,7 @@ struct st_maria_handler
   int lastinx;				/* Last used index */
   uint lastkey_length;			/* Length of key in lastkey */
   uint last_rkey_length;		/* Last length in maria_rkey() */
+  uint non_flushable_state;
   enum ha_rkey_function last_key_func;	/* CONTAIN, OVERLAP, etc */
   uint save_lastkey_length;
   uint pack_key_length;			/* For MARIAMRG */
@@ -658,12 +663,6 @@ struct st_maria_handler
 
 #define MARIA_BLOCK_SIZE(key_length,data_pointer,key_pointer,block_size)  (((((key_length)+(data_pointer)+(key_pointer))*4+(key_pointer)+2)/(block_size)+1)*(block_size))
 #define MARIA_MAX_KEYPTR_SIZE	5	/* For calculating block lengths */
-#define MARIA_MIN_KEYBLOCK_LENGTH 50	/* When to split delete blocks */
-
-#define MARIA_MIN_SIZE_BULK_INSERT_TREE 16384	/* this is per key */
-#define MARIA_MIN_ROWS_TO_USE_BULK_INSERT 100
-#define MARIA_MIN_ROWS_TO_DISABLE_INDEXES 100
-#define MARIA_MIN_ROWS_TO_USE_WRITE_CACHE 10
 
 /* Marker for impossible delete link */
 #define IMPOSSIBLE_PAGE_NO LL(0xFFFFFFFFFF)
@@ -681,6 +680,16 @@ extern pthread_mutex_t THR_LOCK_maria;
 #define rw_rdlock(A) {}
 #define rw_unlock(A) {}
 #endif
+
+/* Some tuning parameters */
+#define MARIA_MIN_KEYBLOCK_LENGTH 50	/* When to split delete blocks */
+#define MARIA_MIN_SIZE_BULK_INSERT_TREE 16384	/* this is per key */
+#define MARIA_MIN_ROWS_TO_USE_BULK_INSERT 100
+#define MARIA_MIN_ROWS_TO_DISABLE_INDEXES 100
+#define MARIA_MIN_ROWS_TO_USE_WRITE_CACHE 10
+/* Keep a small buffer for tables only using small blobs */
+#define MARIA_SMALL_BLOB_BUFFER 1024
+#define MARIA_MAX_CONTROL_FILE_LOCK_RETRY 30     /* Retry this many times */
 
 
 /* Some extern variables */
@@ -799,6 +808,7 @@ extern int _ma_readinfo(MARIA_HA *info, int lock_flag, int check_keybuffer);
 extern int _ma_writeinfo(MARIA_HA *info, uint options);
 extern int _ma_test_if_changed(MARIA_HA *info);
 extern int _ma_mark_file_changed(MARIA_HA *info);
+extern int _ma_mark_file_crashed(MARIA_SHARE *share);
 extern int _ma_decrement_open_count(MARIA_HA *info);
 extern int _ma_check_index(MARIA_HA *info, int inx);
 extern int _ma_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,

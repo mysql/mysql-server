@@ -2169,6 +2169,12 @@ void ha_maria::update_create_info(HA_CREATE_INFO *create_info)
   if (create_info->row_type != ROW_TYPE_DEFAULT &&
       !(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT))
     create_info->row_type= get_row_type();
+  /*
+    Show always page checksums, as this can be forced with
+    maria_page_checksums variable
+  */
+  if (file->s->options & HA_OPTION_PAGE_CHECKSUM)
+    create_info->page_checksum= HA_CHOICE_YES;
 }
 
 
@@ -2267,7 +2273,8 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     create_flags|= HA_CREATE_CHECKSUM;
   if (options & HA_OPTION_DELAY_KEY_WRITE)
     create_flags|= HA_CREATE_DELAY_KEY_WRITE;
-  if ((ha_create_info->page_checksum == HA_CHOICE_UNDEF && maria_page_checksums) ||
+  if ((ha_create_info->page_checksum == HA_CHOICE_UNDEF &&
+       maria_page_checksums) ||
        ha_create_info->page_checksum ==  HA_CHOICE_YES)
     create_flags|= HA_CREATE_PAGE_CHECKSUM;
 

@@ -192,6 +192,9 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
       log_type= LOGREC_UNDO_KEY_DELETE_WITH_ROOT;
     }
 
+    /* Log also position to row */
+    key_length+= share->rec_reflength;
+
     /*
       Note that for delete key, we don't log the reference to the record.
       This is because the row may be inserted at a different place when
@@ -652,12 +655,12 @@ static int del(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                      new_leaf_length))
     goto err;
 
+  leaf_page_link->changed= 1;                 /* Safety */
   if (new_leaf_length <= (info->quick_mode ? MARIA_MIN_KEYBLOCK_LENGTH :
                           (uint) keyinfo->underflow_block_length))
   {
     /* Underflow, leaf_page will be written by caller */
     ret_value= 1;
-    leaf_page_link->changed= 1;                 /* Safety */
   }
   else
   {

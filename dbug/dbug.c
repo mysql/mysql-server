@@ -123,11 +123,7 @@
  *      Typedefs to make things more obvious.
  */
 
-#ifndef __WIN__
-typedef int BOOLEAN;
-#else
-#define BOOLEAN BOOL
-#endif
+#define BOOLEAN my_bool
 
 /*
  *      Make it easy to change storage classes if necessary.
@@ -216,6 +212,7 @@ struct settings {
 static BOOLEAN init_done= FALSE; /* Set to TRUE when initialization done */
 static struct settings init_settings;
 static const char *db_process= 0;/* Pointer to process name; argv[0] */
+my_bool _dbug_on_= TRUE;	 /* FALSE if no debugging at all */
 
 typedef struct _db_code_state_ {
   const char *process;          /* Pointer to process name; usually argv[0] */
@@ -248,7 +245,8 @@ typedef struct _db_code_state_ {
   The test below is so we could call functions with DBUG_ENTER before
   my_thread_init().
 */
-#define get_code_state_or_return if (!cs && !((cs=code_state()))) return
+#define get_code_state_if_not_set_or_return if (!cs && !((cs=code_state()))) return
+#define get_code_state_or_return if (!((cs=code_state()))) return
 
         /* Handling lists */
 static struct link *ListAdd(struct link *, const char *, const char *);
@@ -332,13 +330,20 @@ static CODE_STATE *code_state(void)
 {
   CODE_STATE *cs, **cs_ptr;
 
+  /*
+    _dbug_on_ is reset if we don't plan to use any debug commands at all and
+    we want to run on maximum speed
+   */
+  if (!_dbug_on_)
+    return 0;
+
   if (!init_done)
   {
+    init_done=TRUE;
     pthread_mutex_init(&THR_LOCK_dbug,MY_MUTEX_INIT_FAST);
     bzero(&init_settings, sizeof(init_settings));
     init_settings.out_file=stderr;
     init_settings.flags=OPEN_APPEND;
-    init_done=TRUE;
   }
 
   if (!(cs_ptr= (CODE_STATE**) my_thread_var_dbug()))
@@ -405,7 +410,7 @@ static CODE_STATE *code_state(void)
 
 void _db_process_(const char *name)
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
 
   if (!db_process)
     db_process= name;
@@ -449,10 +454,10 @@ void _db_process_(const char *name)
 void _db_set_(CODE_STATE *cs, const char *control)
 {
   const char *end;
-  int rel=0;
+  int rel;
   struct settings *stack;
 
-  get_code_state_or_return;
+  get_code_state_if_not_set_or_return;
   stack= cs->stack;
 
   if (control[0] == '-' && control[1] == '#')
@@ -693,7 +698,7 @@ void _db_set_(CODE_STATE *cs, const char *control)
 
 void _db_push_(const char *control)
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
   PushState(cs);
   _db_set_(cs, control);
@@ -742,7 +747,7 @@ void _db_set_init_(const char *control)
 void _db_pop_()
 {
   struct settings *discard;
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
 
   get_code_state_or_return;
 
@@ -836,7 +841,7 @@ int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
 {
   char *start=buf, *end=buf+len-4;
 
-  get_code_state_or_return *buf=0;
+  get_code_state_if_not_set_or_return *buf=0;
 
   op_list_to_buf('d', cs->stack->keywords, DEBUGGING);
   op_int_to_buf ('D', cs->stack->delay, 0);
@@ -939,9 +944,15 @@ void _db_enter_(const char *_func_, const char *_file_,
                 uint _line_, const char **_sfunc_, const char **_sfile_,
                 uint *_slevel_, char ***_sframep_ __attribute__((unused)))
 {
-  int save_errno=errno;
-  CODE_STATE *cs=0;
+  int save_errno;
+  CODE_STATE *cs;
+  if (!((cs=code_state())))
+  {
+    *_slevel_= 0; /* Set to avoid valgrind warnings if dbug is enabled later */
+    return;
+  }
   get_code_state_or_return;
+  save_errno= errno;
 
   *_sfunc_= cs->func;
   *_sfile_= cs->file;
@@ -1015,7 +1026,7 @@ void _db_return_(uint _line_, const char **_sfunc_,
                  const char **_sfile_, uint *_slevel_)
 {
   int save_errno=errno;
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
 
   if (cs->level != (int) *_slevel_)
@@ -1049,7 +1060,11 @@ void _db_return_(uint _line_, const char **_sfunc_,
       dbug_flush(cs);
     }
   }
-  cs->level= *_slevel_-1;
+  /*
+    Check to not set level < 0. This can happen if DBUG was disabled when
+    function was entered and enabled in function.
+  */
+  cs->level= *_slevel_ != 0 ? *_slevel_-1 : 0;
   cs->func= *_sfunc_;
   cs->file= *_sfile_;
 #ifndef THREAD
@@ -1082,7 +1097,7 @@ void _db_return_(uint _line_, const char **_sfunc_,
 
 void _db_pargs_(uint _line_, const char *keyword)
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
   cs->u_line= _line_;
   cs->u_keyword= keyword;
@@ -1118,8 +1133,7 @@ void _db_pargs_(uint _line_, const char *keyword)
 void _db_doprnt_(const char *format,...)
 {
   va_list args;
-
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
 
   va_start(args,format);
@@ -1167,8 +1181,7 @@ void _db_dump_(uint _line_, const char *keyword,
 {
   int pos;
   char dbuff[90];
-
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
 
   if (_db_keyword_(cs, keyword))
@@ -1480,8 +1493,12 @@ void _db_end_()
 {
   struct settings *discard;
   static struct settings tmp;
-  CODE_STATE *cs=0;
-
+  CODE_STATE *cs;
+  /*
+    Set _dbug_on_ to be able to do full reset even when DEBUGGER_OFF was
+    called after dbug was initialized
+  */
+  _dbug_on_= 1;
   get_code_state_or_return;
 
   while ((discard= cs->stack))
@@ -1568,7 +1585,7 @@ static BOOLEAN DoProfile(CODE_STATE *cs)
 
 FILE *_db_fp_(void)
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return NULL;
   return cs->stack->out_file;
 }
@@ -1596,7 +1613,7 @@ FILE *_db_fp_(void)
 
 BOOLEAN _db_strict_keyword_(const char *keyword)
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return FALSE;
   if (!DEBUGGING || cs->stack->keywords == NULL)
     return FALSE;
@@ -1630,7 +1647,7 @@ BOOLEAN _db_strict_keyword_(const char *keyword)
 
 BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword)
 {
-  get_code_state_or_return FALSE;
+  get_code_state_if_not_set_or_return FALSE;
 
   return (DEBUGGING &&
           (!TRACING || cs->level <= cs->stack->maxdepth) &&
@@ -2149,7 +2166,7 @@ static void ChangeOwner(CODE_STATE *cs, char *pathname)
 
 EXPORT void _db_setjmp_()
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
 
   cs->jmplevel= cs->level;
@@ -2176,7 +2193,7 @@ EXPORT void _db_setjmp_()
 
 EXPORT void _db_longjmp_()
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
 
   cs->level= cs->jmplevel;
@@ -2229,9 +2246,7 @@ char *s;
 
 static void dbug_flush(CODE_STATE *cs)
 {
-#ifndef THREAD
   if (cs->stack->flags & FLUSH_ON_WRITE)
-#endif
   {
 #if defined(MSDOS) || defined(__WIN__)
     if (cs->stack->out_file != stdout && cs->stack->out_file != stderr)
@@ -2258,7 +2273,7 @@ static void dbug_flush(CODE_STATE *cs)
 
 void _db_lock_file_()
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
   pthread_mutex_lock(&THR_LOCK_dbug);
   cs->locked=1;
@@ -2266,7 +2281,7 @@ void _db_lock_file_()
 
 void _db_unlock_file_()
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
   cs->locked=0;
   pthread_mutex_unlock(&THR_LOCK_dbug);

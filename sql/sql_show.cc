@@ -1185,8 +1185,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
   key_info= table->key_info;
   bzero((char*) &create_info, sizeof(create_info));
-  /* Allow update_create_info to update row type */
+  /* Allow update_create_info to update row type, page checksums and options */
   create_info.row_type= share->row_type;
+  create_info.page_checksum= share->page_checksum;
+  create_info.options= share->db_create_options;
   file->update_create_info(&create_info);
   primary_key= share->primary_key;
 
@@ -1367,19 +1369,19 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(buff, (uint) (end - buff));
     }
 
-    if (share->db_create_options & HA_OPTION_PACK_KEYS)
+    if (create_info.options & HA_OPTION_PACK_KEYS)
       packet->append(STRING_WITH_LEN(" PACK_KEYS=1"));
-    if (share->db_create_options & HA_OPTION_NO_PACK_KEYS)
+    if (create_info.options & HA_OPTION_NO_PACK_KEYS)
       packet->append(STRING_WITH_LEN(" PACK_KEYS=0"));
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
-    if (share->db_create_options & HA_OPTION_CHECKSUM)
+    if (create_info.options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
-    if (share->page_checksum != HA_CHOICE_UNDEF)
+    if (create_info.page_checksum != HA_CHOICE_UNDEF)
     {
       packet->append(STRING_WITH_LEN(" PAGE_CHECKSUM="));
-      packet->append(ha_choice_values[(uint) share->page_checksum], 1);
+      packet->append(ha_choice_values[create_info.page_checksum], 1);
     }
-    if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
+    if (create_info.options & HA_OPTION_DELAY_KEY_WRITE)
       packet->append(STRING_WITH_LEN(" DELAY_KEY_WRITE=1"));
     if (create_info.row_type != ROW_TYPE_DEFAULT)
     {

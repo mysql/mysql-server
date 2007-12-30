@@ -7347,7 +7347,7 @@ LSN translog_first_lsn_in_log()
   uint16 chunk_offset;
   uchar *page;
   DBUG_ENTER("translog_first_lsn_in_log");
-  DBUG_PRINT("info", ("Horizon: (%lu,0x%lx)", LSN_IN_PARTS(addr)));
+  DBUG_PRINT("info", ("Horizon: (%lu,0x%lx)", LSN_IN_PARTS(horizon)));
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
 

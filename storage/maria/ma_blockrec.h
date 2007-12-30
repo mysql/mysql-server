@@ -38,6 +38,9 @@
 #define BLOCK_FILLER_SIZE	2
 #define ROW_EXTENT_SIZE		(ROW_EXTENT_PAGE_SIZE + ROW_EXTENT_COUNT_SIZE)
 #define TAIL_BIT		0x8000	/* Bit in page_count to signify tail */
+#define START_EXTENT_BIT	0x4000	/* Bit in page_count to signify start*/
+/* page_count set by bitmap code for tail pages */
+#define TAIL_PAGE_COUNT_MARKER  0xffff
 /* Number of extents reserved MARIA_BITMAP_BLOCKS to store head part */
 #define ELEMENTS_RESERVED_FOR_MAIN_PART 4
 /* This is just used to prealloc a dynamic array */
@@ -175,6 +178,7 @@ my_bool _ma_compare_block_record(register MARIA_HA *info,
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
 my_bool _ma_bitmap_end(MARIA_SHARE *share);
 my_bool _ma_bitmap_flush(MARIA_SHARE *share);
+my_bool _ma_bitmap_wait_or_flush(MARIA_SHARE *share);
 my_bool _ma_bitmap_flush_all(MARIA_SHARE *share);
 void _ma_bitmap_reset_cache(MARIA_SHARE *share);
 my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
@@ -201,9 +205,11 @@ my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
                                        enum en_page_type page_type,
                                        ulonglong page,
                                        uint *bitmap_pattern);
+uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
+                              ulonglong page);
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
 int  _ma_bitmap_create_first(MARIA_SHARE *share);
-void _ma_bitmap_flushable(MARIA_SHARE *share, int non_flushable_inc);
+void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc);
 #ifndef DBUG_OFF
 void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
                       ulonglong page);

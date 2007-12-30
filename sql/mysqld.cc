@@ -159,7 +159,7 @@ static void registerwithneb();
 static void getvolumename();
 static void getvolumeID(BYTE *volumeName);
 #endif /* __NETWARE__ */
-  
+
 
 #ifdef _AIX41
 int initgroups(const char *,unsigned int);
@@ -312,7 +312,7 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 const char *log_output_names[] = { "NONE", "FILE", "TABLE", NullS};
 static const unsigned int log_output_names_len[]= { 4, 4, 5, 0 };
 TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
-                             log_output_names, 
+                             log_output_names,
                              (unsigned int *) log_output_names_len};
 
 /* static variables */
@@ -335,7 +335,7 @@ static char *default_character_set_name;
 static char *character_set_filesystem_name;
 static char *lc_time_names_name;
 static char *my_bind_addr_str;
-static char *default_collation_name; 
+static char *default_collation_name;
 static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
@@ -363,7 +363,7 @@ bool volatile shutdown_in_progress;
    @brief 'grant_option' is used to indicate if privileges needs
    to be checked, in which case the lock, LOCK_grant, is used
    to protect access to the grant table.
-   @note This flag is dropped in 5.1 
+   @note This flag is dropped in 5.1
    @see grant_init()
  */
 bool volatile grant_option;
@@ -375,7 +375,7 @@ my_bool opt_local_infile, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
-bool slave_warning_issued = false; 
+bool slave_warning_issued = false;
 
 /*
   Legacy global handlerton. These will be removed (please do not add more).
@@ -1052,18 +1052,18 @@ static void __cdecl kill_server(int sig_ptr)
   else
     sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
-#if defined(HAVE_SMEM) && defined(__WIN__)    
-  /*    
-   Send event to smem_event_connect_request for aborting    
-   */    
-  if (!SetEvent(smem_event_connect_request))    
-  {      
-	  DBUG_PRINT("error",
-		("Got error: %ld from SetEvent of smem_event_connect_request",
-		 GetLastError()));    
+#if defined(HAVE_SMEM) && defined(__WIN__)
+  /*
+   Send event to smem_event_connect_request for aborting
+   */
+  if (!SetEvent(smem_event_connect_request))
+  {
+    DBUG_PRINT("error",
+               ("Got error: %ld from SetEvent of smem_event_connect_request",
+                GetLastError()));
   }
-#endif  
-  
+#endif
+
   close_connections();
   if (sig != MYSQL_KILL_SIGNAL &&
 #ifdef __WIN__
@@ -1589,7 +1589,7 @@ static void network_init(void)
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    
+
     pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
     strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
 	     mysqld_unix_port, NullS);
@@ -1985,7 +1985,7 @@ static void registerwithneb()
 {
 
   ConsumerRegistrationInfo reg_info;
-    
+
   /* Clear NEB registration structure */
   bzero((char*) &reg_info, sizeof(struct ConsumerRegistrationInfo));
 
@@ -2001,7 +2001,7 @@ static void registerwithneb()
   reg_info.CRIOwnerID= (LoadDefinitionStructure *)getnlmhandle();
   reg_info.CRIConsumerESR= NULL;	    // No consumer ESR required
   reg_info.CRISecurityToken= 0;	            // No security token for the event
-  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;	
+  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;
   reg_info.CRIFilterName= 0;	            // No event filtering
   reg_info.CRIFilterDataLength= 0;          // No filtering data
   reg_info.CRIFilterData= 0;	            // No filtering data
@@ -2026,7 +2026,7 @@ static void registerwithneb()
     Get the NSS volume ID of the MySQL Data volume.
     Volume ID is stored in a global variable
   */
-  getvolumeID((BYTE*) datavolname);	
+  getvolumeID((BYTE*) datavolname);
 }
 
 
@@ -2091,7 +2091,7 @@ static void getvolumeID(BYTE *volumeName)
 
   strxmov(path, (const char *) ADMIN_VOL_PATH, (const char *) volumeName,
           NullS);
-  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8, 
+  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8,
                      (BYTE *) path, zRR_READ_ACCESS, &fileKey)) != zOK)
   {
     consoleprintf("\nGetNSSVolumeProperties - Failed to get file, status: %d\n.", (int) status);
@@ -2099,7 +2099,7 @@ static void getvolumeID(BYTE *volumeName)
   }
 
   getInfoMask= zGET_IDS | zGET_VOLUME_INFO ;
-  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info), 
+  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info),
                         zINFO_VERSION_A, &info)) != zOK)
   {
     consoleprintf("\nGetNSSVolumeProperties - Failed in zGetInfo, status: %d\n.", (int) status);
@@ -2262,7 +2262,7 @@ You should either build a dynamically-linked binary, or force LinuxThreads\n\
 to be used with the LD_ASSUME_KERNEL environment variable. Please consult\n\
 the documentation for your distribution on how to do that.\n");
 #endif
-  
+
   if (locked_in_memory)
   {
     fprintf(stderr, "\n\
@@ -2749,7 +2749,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   server_start_time= my_time(0);
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
-  if (!rpl_filter || !binlog_filter) 
+  if (!rpl_filter || !binlog_filter)
   {
     sql_perror("Could not allocate replication and binlog filters");
     exit(1);
@@ -2769,13 +2769,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
  }
 #endif
   /*
-    We set SYSTEM time zone as reasonable default and 
+    We set SYSTEM time zone as reasonable default and
     also for failure of my_tz_init() and bootstrap mode.
     If user explicitly set time zone with --default-time-zone
     option we will change this value in my_tz_init().
   */
   global_system_variables.time_zone= my_tz_SYSTEM;
-  
+
   /*
     Init mutexes for the global MYSQL_BIN_LOG objects.
     As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
@@ -2860,7 +2860,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
         */
         table_cache_size= (ulong) min(max((files-10-max_connections)/2,
                                           TABLE_OPEN_CACHE_MIN),
-                                      table_cache_size);    
+                                      table_cache_size);
 	DBUG_PRINT("warning",
 		   ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
 		    files, max_connections, table_cache_size));
@@ -2944,7 +2944,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
 
-  if (!(character_set_filesystem= 
+  if (!(character_set_filesystem=
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))
     return 1;
@@ -2957,7 +2957,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   }
   global_system_variables.lc_time_names= my_default_lc_time_names;
-  
+
   sys_init_connect.value_length= 0;
   if ((sys_init_connect.value= opt_init_connect))
     sys_init_connect.value_length= strlen(opt_init_connect);
@@ -3077,7 +3077,7 @@ static int init_thread_environment()
   openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
                                                      sizeof(openssl_lock_t));
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
-    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL); 
+    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL);
   CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
   CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
   CRYPTO_set_dynlock_lock_callback(openssl_lock);
@@ -3122,20 +3122,20 @@ static int init_thread_environment()
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static unsigned long openssl_id_function()
-{ 
+{
   return (unsigned long) pthread_self();
-} 
+}
 
 
 static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
-{ 
+{
   openssl_lock_t *lock= new openssl_lock_t;
   my_rwlock_init(&lock->lock, NULL);
   return lock;
 }
 
 
-static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file, 
+static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
 				    int line)
 {
   rwlock_destroy(&lock->lock);
@@ -3155,7 +3155,7 @@ static void openssl_lock_function(int mode, int n, const char *file, int line)
 }
 
 
-static void openssl_lock(int mode, openssl_lock_t *lock, const char *file, 
+static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 			 int line)
 {
   int err;
@@ -3180,7 +3180,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
     sql_print_error("Fatal: OpenSSL interface problem (mode=0x%x)", mode);
     abort();
   }
-  if (err) 
+  if (err)
   {
     sql_print_error("Fatal: can't %s OpenSSL lock", what);
     abort();
@@ -3363,7 +3363,7 @@ with --log-bin instead.");
     if (opt_binlog_format_id == BINLOG_FORMAT_UNSPEC)
       global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
     else
-    { 
+    {
       DBUG_ASSERT(global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC);
   }
 
@@ -3526,7 +3526,7 @@ server.");
                        strlen(default_storage_engine_str) };
     plugin_ref plugin;
     handlerton *hton;
-    
+
     if ((plugin= ha_resolve_by_name(0, &name)))
       hton= plugin_data(plugin, handlerton*);
     else
@@ -3548,7 +3548,7 @@ server.");
     else
     {
       /*
-        Need to unlock as global_system_variables.table_plugin 
+        Need to unlock as global_system_variables.table_plugin
         was acquired during plugin_init()
       */
       plugin_unlock(0, global_system_variables.table_plugin);
@@ -3701,7 +3701,7 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#endif 
+#endif
 
   while (handler_count > 0)
     pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
@@ -3714,7 +3714,7 @@ void decrement_handler_count()
   pthread_mutex_lock(&LOCK_thread_count);
   handler_count--;
   pthread_cond_signal(&COND_handler_count);
-  pthread_mutex_unlock(&LOCK_thread_count);  
+  pthread_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
 }
 #else
@@ -3878,7 +3878,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   }
   else
   {
-    /* Don't show error dialog box when on foreground: it stops the server */ 
+    /* Don't show error dialog box when on foreground: it stops the server */
     SetErrorMode(SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS);
   }
 #endif
@@ -3984,7 +3984,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif /* __NT__ */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
-  
+
   DBUG_PRINT("quit",("Exiting main thread"));
 
 #ifndef __WIN__
@@ -4288,7 +4288,7 @@ static bool read_init_file(char *file_name)
 
      When we enter this function, LOCK_thread_count is hold!
 */
-   
+
 void handle_connection_in_main_thread(THD *thd)
 {
   safe_mutex_assert_owner(&LOCK_thread_count);
@@ -4510,7 +4510,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
       size_socket length=sizeof(struct sockaddr_in);
       new_sock = accept(sock, my_reinterpret_cast(struct sockaddr *) (&cAddr),
 			&length);
-#ifdef __NETWARE__ 
+#ifdef __NETWARE__
       // TODO: temporary fix, waiting for TCP/IP fix - DEFECT000303149
       if ((new_sock == INVALID_SOCKET) && (socket_errno == EINVAL))
       {
@@ -4911,7 +4911,7 @@ errorconn:
 	      NullS);
       sql_perror(buff);
     }
-    if (handle_client_file_map) 
+    if (handle_client_file_map)
       CloseHandle(handle_client_file_map);
     if (handle_client_map)
       UnmapViewOfFile(handle_client_map);
@@ -4959,8 +4959,8 @@ error:
 
 enum options_mysqld
 {
-  OPT_ISAM_LOG=256,            OPT_SKIP_NEW, 
-  OPT_SKIP_GRANT,              OPT_SKIP_LOCK, 
+  OPT_ISAM_LOG=256,            OPT_SKIP_NEW,
+  OPT_SKIP_GRANT,              OPT_SKIP_LOCK,
   OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
   OPT_SOCKET,                  OPT_UPDATE_LOG,
   OPT_BIN_LOG,                 OPT_SKIP_RESOLVE,
@@ -4989,18 +4989,18 @@ enum options_mysqld
 #ifndef DBUG_OFF
   OPT_BINLOG_SHOW_XID,
 #endif
-  OPT_BINLOG_ROWS_EVENT_MAX_SIZE, 
+  OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
   OPT_WANT_CORE,               OPT_CONCURRENT_INSERT,
   OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
   OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID,
-  OPT_SKIP_SLAVE_START,        OPT_SAFE_SHOW_DB, 
+  OPT_SKIP_SLAVE_START,        OPT_SAFE_SHOW_DB,
   OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE,
   OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE,
   OPT_REPLICATE_WILD_IGNORE_TABLE, OPT_REPLICATE_SAME_SERVER_ID,
   OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_TC_HEURISTIC_RECOVER,
   OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
-  OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDB_CONNECTSTRING, 
+  OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDB_CONNECTSTRING,
   OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
@@ -5119,7 +5119,7 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
-  OPT_DEBUG_CRC, OPT_OLD_MODE
+  OPT_DEBUG_CRC, OPT_DEBUG_ON, OPT_OLD_MODE
 };
 
 
@@ -5127,7 +5127,7 @@ enum options_mysqld
 
 struct my_option my_long_options[] =
 {
-  {"help", '?', "Display this help and exit.", 
+  {"help", '?', "Display this help and exit.",
    (uchar**) &opt_help, (uchar**) &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_REPLICATION
@@ -5193,11 +5193,11 @@ struct my_option my_long_options[] =
    "The maximum size of a row-based binary log event in bytes. Rows will be "
    "grouped into events smaller than this size if possible. "
    "The value has to be a multiple of 256.",
-   (uchar**) &opt_binlog_rows_event_max_size, 
-   (uchar**) &opt_binlog_rows_event_max_size, 0, 
-   GET_ULONG, REQUIRED_ARG, 
-   /* def_value */ 1024, /* min_value */  256, /* max_value */ ULONG_MAX, 
-   /* sub_size */     0, /* block_size */ 256, 
+   (uchar**) &opt_binlog_rows_event_max_size,
+   (uchar**) &opt_binlog_rows_event_max_size, 0,
+   GET_ULONG, REQUIRED_ARG,
+   /* def_value */ 1024, /* min_value */  256, /* max_value */ ULONG_MAX,
+   /* sub_size */     0, /* block_size */ 256,
    /* app_type */ 0
   },
 #ifndef DISABLE_GRANT_OPTIONS
@@ -5248,6 +5248,11 @@ struct my_option my_long_options[] =
    "Call my_debug_put_break_here() if crc matches this number (for debug).",
    (uchar**) &opt_my_crc_dbug_check, (uchar**) &opt_my_crc_dbug_check,
    0, GET_ULONG, REQUIRED_ARG, 0, 0, ~(ulong) 0L, 0, 0, 0},
+  {"debug-on", OPT_DEBUG_ON,
+   "Enable all DBUG commands. Needed if you want to use DBUG_EXECUTE without "
+   "starting mysqld with --debug",
+   (uchar**) &_dbug_on_, (uchar**) 0, 0, GET_BOOL, NO_ARG, 1,
+   0, 0, 0, 0, 0},
 #endif
   {"default-character-set", 'C', "Set the default character set (deprecated option, use --character-set-server instead).",
    (uchar**) &default_character_set_name, (uchar**) &default_character_set_name,
@@ -5398,7 +5403,7 @@ Disable with --skip-large-pages.",
    (uchar**) &myisam_log_filename, (uchar**) &myisam_log_filename, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-long-format", '0',
-   "Log some extra information to update log. Please note that this option is deprecated; see --log-short-format option.", 
+   "Log some extra information to update log. Please note that this option is deprecated; see --log-short-format option.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef WITH_CSV_STORAGE_ENGINE
   {"log-output", OPT_LOG_OUTPUT,
@@ -5630,7 +5635,7 @@ master-ssl",
    "Force ndbcluster to always copy tables at alter table (should only be used if on-line alter table fails).",
    (uchar**) &global_system_variables.ndb_use_copying_alter_table,
    (uchar**) &global_system_variables.ndb_use_copying_alter_table,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},  
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (uchar**) &global_system_variables.new_mode,
    (uchar**) &max_system_variables.new_mode,
@@ -5869,7 +5874,7 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
   {"timed_mutexes", OPT_TIMED_MUTEXES,
    "Specify whether to time mutexes (only InnoDB mutexes are currently supported)",
-   (uchar**) &timed_mutexes, (uchar**) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0, 
+   (uchar**) &timed_mutexes, (uchar**) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0,
     0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files. Several paths may be specified, separated by a "
@@ -6009,7 +6014,7 @@ log and this option does nothing anymore.",
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
    (uchar**) &dflt_key_cache_var.param_age_threshold,
    (uchar**) 0,
-   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
+   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
    300, 100, ~0L, 0, 100, 0},
   {"key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
    "The default size of key cache blocks",
@@ -6165,7 +6170,7 @@ The minimum value for this variable is 4096.",
   {"myisam_use_mmap", OPT_MYISAM_USE_MMAP,
    "Use memory mapping for reading and writing MyISAM tables",
    (uchar**) &opt_myisam_use_mmap,
-   (uchar**) &opt_myisam_use_mmap, 0, GET_BOOL, NO_ARG, 0, 
+   (uchar**) &opt_myisam_use_mmap, 0, GET_BOOL, NO_ARG, 0,
     0, 0, 0, 0, 0},
   {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
    "Specifies how MyISAM index statistics collection code should threat NULLs. "
@@ -6193,9 +6198,9 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.net_write_timeout,
    (uchar**) &max_system_variables.net_write_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WRITE_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
-  {"old", OPT_OLD_MODE, "Use compatible behavior.", 
+  {"old", OPT_OLD_MODE, "Use compatible behavior.",
     (uchar**) &global_system_variables.old_mode,
-    (uchar**) &max_system_variables.old_mode, 0, GET_BOOL, NO_ARG, 
+    (uchar**) &max_system_variables.old_mode, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
    "If this is not 0, then mysqld will use this value to reserve file descriptors to use with setrlimit(). If this value is 0 then mysqld will reserve max_connections*5 or max_connections + table_cache*2 (whichever is larger) number of files.",
@@ -6662,7 +6667,7 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
 }
 
 /*
-   Functions relying on SSL 
+   Functions relying on SSL
    Note: In the show_ssl_* functions, we need to check if we have a
          valid vio-object since this isn't always true, specifically
          when session_status or global_status is requested from
@@ -7295,6 +7300,7 @@ mysqld_get_one_option(int optid,
 #ifndef DBUG_OFF
     DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
 #endif
+    DEBUGGER_ON;
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
   case 'a':
@@ -7589,16 +7595,16 @@ mysqld_get_one_option(int optid,
   case OPT_MASTER_PASSWORD:
   case OPT_MASTER_PORT:
   case OPT_MASTER_CONNECT_RETRY:
-  case OPT_MASTER_SSL:          
+  case OPT_MASTER_SSL:
   case OPT_MASTER_SSL_KEY:
-  case OPT_MASTER_SSL_CERT:       
+  case OPT_MASTER_SSL_CERT:
   case OPT_MASTER_SSL_CAPATH:
   case OPT_MASTER_SSL_CIPHER:
   case OPT_MASTER_SSL_CA:
     if (!slave_warning_issued)                 //only show the warning once
     {
-      slave_warning_issued = true;   
-      WARN_DEPRECATED(NULL, "5.2", "for replication startup options", 
+      slave_warning_issued = true;
+      WARN_DEPRECATED(NULL, "5.2", "for replication startup options",
         "'CHANGE MASTER'");
     }
     break;
@@ -8055,7 +8061,7 @@ static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
   ulong res;
 
   const char **ptr;
-  
+
   if ((res= find_bit_type(x, bit_lib)) == ~(ulong) 0)
   {
     ptr= bit_lib->type_names;

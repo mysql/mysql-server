@@ -32,6 +32,9 @@ int maria_close(register MARIA_HA *info)
 		      (long) info, (uint) share->reopen,
                       (uint) share->tot_locks));
 
+  /* Check that we have unlocked key delete-links properly */
+  DBUG_ASSERT(info->used_key_del == 0);
+
   pthread_mutex_lock(&THR_LOCK_maria);
   if (info->lock_type == F_EXTRA_LCK)
     info->lock_type=F_UNLCK;			/* HA_EXTRA_NO_USER_CHANGE */

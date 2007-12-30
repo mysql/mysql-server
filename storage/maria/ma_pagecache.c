@@ -625,7 +625,7 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
   }
 
   DBUG_RETURN(my_pwrite(filedesc->file, buffer, pagecache->block_size,
-                        (pageno)<<(pagecache->shift), flags));
+                        ((my_off_t) pageno << pagecache->shift), flags));
 }
 
 
@@ -642,7 +642,7 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
 */
 #define pagecache_fread(pagecache, filedesc, buffer, pageno, flags) \
   my_pread((filedesc)->file, buffer, pagecache->block_size,         \
-           (pageno)<<(pagecache->shift), flags)
+           ((my_off_t) pageno << pagecache->shift), flags)
 
 
 /**

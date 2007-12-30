@@ -41,7 +41,11 @@
 */
 
 #include "ma_ftdefs.h"
-#include <myisamchk.h>
+#include "ma_rt_index.h"
+#include "ma_blockrec.h"
+#include "trnman.h"
+#include "ma_key_recover.h"
+
 #include <stdarg.h>
 #include <my_getopt.h>
 #ifdef HAVE_SYS_VADVISE_H
@@ -50,9 +54,6 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
-#include "ma_rt_index.h"
-#include "ma_blockrec.h"
-#include "trnman_public.h"
 
 /* Functions defined in this file */
 
@@ -226,7 +227,7 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info, uint test_flag)
 	empty+=share->base.pack_reclength;
       }
     }
-    if (test_flag & T_VERBOSE)
+    if (info->state->del && (test_flag & T_VERBOSE))
       puts("\n");
     if (empty != info->state->empty)
     {
@@ -255,7 +256,8 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info, uint test_flag)
 
 wrong:
   param->testflag|=T_RETRY_WITHOUT_QUICK;
-  if (test_flag & T_VERBOSE) puts("");
+  if (test_flag & T_VERBOSE)
+    puts("");
   _ma_check_print_error(param,"record delete-link-chain corrupted");
   DBUG_RETURN(1);
 } /* maria_chk_del */
@@ -272,6 +274,9 @@ static int check_k_link(HA_CHECK *param, register MARIA_HA *info,
   char llbuff[21], llbuff2[21];
   uchar *buff;
   DBUG_ENTER("check_k_link");
+
+  if (next_link == HA_OFFSET_ERROR)
+    DBUG_RETURN(0);                             /* Avoid printing empty line */
 
   records= (ha_rows) (info->state->key_file_length / block_size);
   while (next_link != HA_OFFSET_ERROR && records > 0)
@@ -446,7 +451,8 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
     DBUG_RETURN(-1);
   }
 
-  if (!(param->testflag & T_SILENT)) puts("- check index reference");
+  if (!(param->testflag & T_SILENT))
+    puts("- check index reference");
 
   all_keydata=all_totaldata=key_totlength=0;
   init_checksum=param->record_checksum;
@@ -1627,7 +1633,7 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
       {
         uint page, page_count, page_type;
         page=        uint5korr(extents);
-        page_count=  uint2korr(extents+5);
+        page_count=  uint2korr(extents+5) & ~START_EXTENT_BIT;
         extents+=    ROW_EXTENT_SIZE;
         page_type=   BLOB_PAGE;
         if (page_count & TAIL_BIT)
@@ -1635,6 +1641,11 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
           page_count= 1;
           page_type= TAIL_PAGE;
         }
+        /*
+          TODO OPTIMIZE:
+          Check the whole extent with one test and only do the loop if
+          something is wrong (for exact error reporting)
+        */
         for ( ; page_count--; page++)
         {
           uint bitmap_pattern;
@@ -2638,8 +2649,8 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
   int old_lock;
   MARIA_SHARE *share= info->s;
   MARIA_STATE_INFO old_state;
-  myf sync_dir= (share->now_transactional && !share->temporary) ?
-    MY_SYNC_DIR : 0;
+  myf sync_dir= ((share->now_transactional && !share->temporary) ?
+                 MY_SYNC_DIR : 0);
   DBUG_ENTER("maria_sort_index");
 
   /* cannot sort index files with R-tree indexes */
@@ -3388,8 +3399,8 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   MARIA_SORT_INFO sort_info;
   ulonglong key_map=share->state.key_map;
   pthread_attr_t thr_attr;
-  myf sync_dir= (share->now_transactional && !share->temporary) ?
-    MY_SYNC_DIR : 0;
+  myf sync_dir= ((share->now_transactional && !share->temporary) ?
+                 MY_SYNC_DIR : 0);
   DBUG_ENTER("maria_repair_parallel");
 
   got_error= 1;
@@ -4874,6 +4885,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
   key_file_length=info->state->key_file_length;
   if ((filepos= _ma_new(info, DFLT_INIT_HITS, &page_link)) == HA_OFFSET_ERROR)
     DBUG_RETURN(1);
+  _ma_fast_unlock_key_del(info);
 
   /* If we read the page from the key cache, we have to write it back to it */
   if (page_link->changed)
@@ -4997,7 +5009,7 @@ int _ma_flush_pending_blocks(MARIA_SORT_PARAM *sort_param)
     bzero(key_block->buff+length, keyinfo->block_length-length);
     if ((filepos= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==
         HA_OFFSET_ERROR)
-      DBUG_RETURN(1);
+      goto err;
 
     /* If we read the page from the key cache, we have to write it back */
     if (page_link->changed)
@@ -5006,20 +5018,25 @@ int _ma_flush_pending_blocks(MARIA_SORT_PARAM *sort_param)
       if (_ma_write_keypage(info, keyinfo, filepos,
                             PAGECACHE_LOCK_WRITE_UNLOCK,
                             DFLT_INIT_HITS, key_block->buff))
-	DBUG_RETURN(1);
+	goto err;
     }
     else
     {
       put_crc(key_block->buff, filepos, info->s);
       if (my_pwrite(info->s->kfile.file, key_block->buff,
                     (uint) keyinfo->block_length,filepos, myf_rw))
-      DBUG_RETURN(1);
+        goto err;
     }
     DBUG_DUMP("buff",key_block->buff,length);
     nod_flag=1;
   }
   info->s->state.key_root[sort_param->key]=filepos; /* Last is root for tree */
+  _ma_fast_unlock_key_del(info);
   DBUG_RETURN(0);
+
+err:
+  _ma_fast_unlock_key_del(info);
+  DBUG_RETURN(1);
 } /* _ma_flush_pending_blocks */
 
 	/* alloc space and pointers for key_blocks */

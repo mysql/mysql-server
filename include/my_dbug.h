@@ -20,9 +20,10 @@
 extern "C" {
 #endif
 #if !defined(DBUG_OFF) && !defined(_lint)
-struct _db_code_state_;
-extern	int _db_keyword_(struct _db_code_state_ *cs, const char *keyword);
-extern  int _db_strict_keyword_(const char *keyword);
+struct  _db_code_state_;
+extern  my_bool _dbug_on_;
+extern	my_bool _db_keyword_(struct _db_code_state_ *cs, const char *keyword);
+extern  my_bool _db_strict_keyword_(const char *keyword);
 extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
 extern  int _db_explain_init_(char *buf, size_t len);
 extern	void _db_setjmp_(void);
@@ -45,7 +46,7 @@ extern	void _db_dump_(uint _line_,const char *keyword,
 extern	void _db_end_(void);
 extern	void _db_lock_file_(void);
 extern	void _db_unlock_file_(void);
-extern FILE *_db_fp_(void);
+extern  FILE *_db_fp_(void);
 
 #define DBUG_ENTER(a) const char *_db_func_, *_db_file_; uint _db_level_; \
 	char **_db_framep_; \
@@ -80,6 +81,8 @@ extern FILE *_db_fp_(void);
 #define DBUG_ASSERT(A) assert(A)
 #define DBUG_EXPLAIN(buf,len) _db_explain_(0, (buf),(len))
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
+#define DEBUGGER_OFF _dbug_on_= 0
+#define DEBUGGER_ON  _dbug_on_= 1
 #define IF_DBUG(A) A
 #else						/* No debugger */
 
@@ -104,6 +107,8 @@ extern FILE *_db_fp_(void);
 #define DBUG_ASSERT(A)              do { } while(0)
 #define DBUG_LOCK_FILE
 #define DBUG_FILE (stderr)
+#define DEBUGGER_OFF
+#define DEBUGGER_ON
 #define DBUG_UNLOCK_FILE
 #define DBUG_EXPLAIN(buf,len)
 #define DBUG_EXPLAIN_INITIAL(buf,len)

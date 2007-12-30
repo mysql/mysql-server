@@ -107,6 +107,11 @@ run_tests()
   $maria_path/maria_chk$suffix -sm test2
   $maria_path/ma_test2$suffix $silent -L -K -W -P -A $row_type
   $maria_path/maria_chk$suffix -sm test2
+  $maria_path/ma_test2$suffix $silent -L -K -W -P -b32768 $row_type
+  $maria_path/maria_chk$suffix -sm test2
+  $maria_path/ma_test2 -s -L -K -W -P -M -T -c -b32768 -t4 -m300
+  $maria_path/maria_chk$suffix -sm test2
+
   $maria_path/ma_test2$suffix $silent -L -K -P -R3 -m50 -b1000000 $row_type
   $maria_path/maria_chk$suffix -sm test2
   $maria_path/ma_test2$suffix $silent -L -B $row_type
@@ -239,13 +244,13 @@ $maria_path/maria_chk$suffix -ssm test2
 #
 /bin/sh $maria_path/ma_test_recovery
 
-#
+#x1
 # Extra tests that has caused failures in the past
 #
 
 # Problem with re-executing CLR's
 rm -f maria_log.* maria_log_control
-$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1
+$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -A1
 cp maria_log_control tmp
 $maria_path/maria_read_log -a -s
 $maria_path/maria_chk -s -e test2
@@ -253,15 +258,29 @@ cp tmp/maria_log_control .
 rm test2.MA?
 $maria_path/maria_read_log -a -s
 $maria_path/maria_chk -s -e test2
+rm test2.MA?
 
 # Problem with re-executing CLR's
 rm -f maria_log.* maria_log_control
-$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1
+$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -A1
 $maria_path/maria_read_log -a -s
 $maria_path/maria_chk -s -e test2
 rm test2.MA?
 $maria_path/maria_read_log -a -s
 $maria_path/maria_chk -e -s test2
+rm test2.MA?
+
+# Problem with re-executing clrs:
+rm -f maria_log.* maria_log_control
+ma_test2 -s -L -K -W -P -M -T -c -b32768 -t4 -A1
+maria_read_log -a -s
+maria_chk -es test2
+maria_read_log -a -s
+maria_chk -es test2
+rm test2.MA?
+maria_read_log -a -s
+maria_chk -es test2
+rm test2.MA?
 
 #
 # Some timing tests

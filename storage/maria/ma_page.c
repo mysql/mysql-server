@@ -121,10 +121,11 @@ int _ma_write_keypage(register MARIA_HA *info,
   /* Verify that keynr is correct */
   DBUG_ASSERT(_ma_get_keynr(share, buff) == keyinfo->key_nr);
 
-#if defined(EXTRA_DEBUG) && defined(HAVE_purify)
+#if defined(EXTRA_DEBUG) && defined(HAVE_purify) && defined(NOT_ANYMORE)
   {
     /* This is here to catch uninitialized bytes */
-    ulong crc= my_checksum(0, buff, block_size - KEYPAGE_CHECKSUM_SIZE);
+    uint length= _ma_get_page_used(share, buff);
+    ulong crc= my_checksum(0, buff, length);
     int4store(buff + block_size - KEYPAGE_CHECKSUM_SIZE, crc);
   }
 #endif
@@ -309,10 +310,6 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
   else
   {
     uchar *buff;
-    /*
-      TODO: replace PAGECACHE_PLAIN_PAGE with PAGECACHE_LSN_PAGE when
-      LSN on the pages will be implemented
-    */
     pos= share->current_key_del;                /* Protected */
     DBUG_ASSERT(share->pagecache->block_size == block_size);
     if (!(buff= pagecache_read(share->pagecache,

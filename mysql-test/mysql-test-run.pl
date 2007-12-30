@@ -3039,6 +3039,7 @@ sub install_db ($$) {
   mtr_add_arg($args, "--loose-skip-innodb");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--sync-frm=0");
+  mtr_add_arg($args, "--loose-debug-on=0");
   mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--core-file");
 
@@ -3780,6 +3781,7 @@ sub mysqld_arguments ($$$$) {
 	      $mysqld->{'path_myddir'});
 
   mtr_add_arg($args, "--sync-frm=0");  # Faster test
+  mtr_add_arg($args, "--loose-debug-on=0");
 
   if ( $mysql_version_id >= 50106 )
   {

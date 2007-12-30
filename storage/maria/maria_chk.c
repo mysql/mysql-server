@@ -1275,7 +1275,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
   enum en_fieldtype type;
   MARIA_SHARE *share= info->s;
   char llbuff[22],llbuff2[22];
-  DBUG_ENTER("describe");
+  DBUG_ENTER("descript");
 
   if (param->testflag & T_VERY_SILENT)
   {
@@ -1329,12 +1329,6 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
       pos[-1]=0;				/* Remove extra ',' */
     }
     printf("Status:              %s\n",buff);
-    if (share->base.auto_key)
-    {
-      printf("Auto increment key:  %16d  Last value:         %18s\n",
-	     share->base.auto_key,
-	     llstr(share->state.auto_increment,llbuff));
-    }
     if (share->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
       printf("Checksum:  %26s\n",llstr(info->state->checksum,llbuff));
 ;
@@ -1343,6 +1337,12 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
 
     if (share->options & HA_OPTION_PAGE_CHECKSUM)
       printf("Page checksums are used\n");
+    if (share->base.auto_key)
+    {
+      printf("Auto increment key:  %16d  Last value:         %18s\n",
+	     share->base.auto_key,
+	     llstr(share->state.auto_increment,llbuff));
+    }
   }
   printf("Data records:        %16s  Deleted blocks:     %18s\n",
 	 llstr(info->state->records,llbuff),llstr(info->state->del,llbuff2));
