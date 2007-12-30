@@ -3205,8 +3205,8 @@ my_bool translog_init_with_table(const char *directory,
     if (LSN_FILE_NO(last_checkpoint_lsn) == FILENO_IMPOSSIBLE)
     {
       DBUG_ASSERT(LSN_OFFSET(last_checkpoint_lsn) == 0);
-      /* there was no checkpoints we will read from the beginning */
-      sure_page= (LSN_ONE_FILE | TRANSLOG_PAGE_SIZE);
+      /* only last log needs to be checked */
+      sure_page= MAKE_LSN(last_logno, TRANSLOG_PAGE_SIZE);
     }
     else
     {

@@ -179,6 +179,27 @@ let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 show create table t1;
 drop table t1;
 
+# Test of removing logs manually
+--echo * TEST of removing logs manually
+let $mel_keep_control_file=1;
+# this will shut mysqld down cleanly (so, take a checkpoint) and
+# remove only logs; at restart Maria will create a new log with a high
+# number
+-- source include/maria_empty_logs.inc
+let $mel_keep_control_file=0;
+# and see if even a next recovery is ok
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+create table t1 (a varchar(1000)) engine=maria;
+insert into t1 values ("00000000");
+-- source include/maria_make_snapshot_for_comparison.inc
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+-- source include/maria_verify_recovery.inc
+drop table t1;
+
 # clean up everything
 let $mms_purpose=feeding_recovery;
 eval drop database mysqltest_for_$mms_purpose;

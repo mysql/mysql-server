@@ -214,6 +214,28 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`)
 ) ENGINE=MARIA AUTO_INCREMENT=16 DEFAULT CHARSET=latin1
 drop table t1;
+* TEST of removing logs manually
+* shut down mysqld, removed logs, restarted it
+use mysqltest;
+create table t1 (a varchar(1000)) engine=maria;
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global maria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+drop table t1;
 drop database mysqltest_for_feeding_recovery;
 drop database mysqltest_for_comparison;
 drop database mysqltest;
