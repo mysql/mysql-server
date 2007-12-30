@@ -15,6 +15,14 @@ int Dbc::get(Dbt* key, Dbt *data, u_int32_t flags) {
     return env->maybe_throw_error(ret);
 }
 
+int Dbc::pget(Dbt* key, Dbt *pkey, Dbt *data, u_int32_t flags) {
+    DBC *dbc = this;
+    int ret = dbc->c_pget(dbc, key, pkey, data, flags);
+    DB_ENV *dbenv_c=dbc->dbp->dbenv;
+    DbEnv *env = (DbEnv*)dbenv_c->api1_internal;
+    return env->maybe_throw_error(ret);
+}
+
 int Dbc::del(u_int32_t flags) {
     DBC *dbc = this;
     int ret = dbc->c_del(dbc, flags);
