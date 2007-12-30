@@ -32,3 +32,5 @@ check: $(TARGETS)
 	diff foo.out foo.expectout
 	$(VGRIND) ./exceptions
 	$(VGRIND) ./test_no_env
+	$(VGRIND) ./test_db_assoc3
+	$(VGRIND) ./test_db_assoc3 --more

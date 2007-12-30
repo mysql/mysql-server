@@ -203,18 +203,18 @@ void create_databases (void) {
     int r;
 
     dbenv = new DbEnv(DB_CXX_NO_EXCEPTIONS);
-    r = dbenv->open(DIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, 0);                      CKERR(r);
+    r = dbenv->open(DIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, 0);                        CKERR(r);
 
     dbp = new Db(dbenv, DB_CXX_NO_EXCEPTIONS);
     r = dbp->open(null_txn, "primary.db", NULL, DB_BTREE, DB_CREATE, 0600);             CKERR(r);
 
     namedb = new Db(dbenv, DB_CXX_NO_EXCEPTIONS);
     r = namedb->set_flags(DB_DUP|DB_DUPSORT);
-    r = namedb->open(null_txn, "name.db", NULL, DB_BTREE, DB_CREATE, 0600);          CKERR(r);
+    r = namedb->open(null_txn, "name.db", NULL, DB_BTREE, DB_CREATE, 0600);             CKERR(r);
 
     expiredb = new Db(dbenv, DB_CXX_NO_EXCEPTIONS);
     r = expiredb->set_flags(DB_DUP|DB_DUPSORT);
-    r = expiredb->open(null_txn, "expire.db", NULL, DB_BTREE, DB_CREATE, 0600);    CKERR(r);
+    r = expiredb->open(null_txn, "expire.db", NULL, DB_BTREE, DB_CREATE, 0600);         CKERR(r);
     
     r = dbp->associate(NULL, namedb, name_callback, 0);                                 CKERR(r);
     r = dbp->associate(NULL, expiredb, expire_callback, 0);                             CKERR(r);
@@ -223,17 +223,17 @@ void create_databases (void) {
 void close_databases (void) {
     int r;
     if (delete_cursor) {
-	r = delete_cursor->close(); CKERR(r);
+	r = delete_cursor->close();   CKERR(r);
     }
     if (name_cursor) {
 	r = name_cursor->close();     CKERR(r);
     }
-    if (nc_key.get_data()) free(nc_key.get_data());
+    if (nc_key.get_data())  free(nc_key.get_data());
     if (nc_data.get_data()) free(nc_data.get_data());
-    r = namedb->close(0);     CKERR(r);
-    r = dbp->close(0);           CKERR(r);
-    r = expiredb->close(0); CKERR(r);
-    r = dbenv->close(0);       CKERR(r);
+    r = namedb->close(0);   CKERR(r); delete namedb;
+    r = dbp->close(0);      CKERR(r); delete dbp;
+    r = expiredb->close(0); CKERR(r); delete expiredb;
+    r = dbenv->close(0);    CKERR(r); delete dbenv;
 }
     
 
@@ -261,16 +261,16 @@ void setup_for_db_create (void) {
     assert(r==0);
 
     dbenv = new DbEnv(DB_CXX_NO_EXCEPTIONS);
-    r = dbenv->open(DIR, DB_PRIVATE|DB_INIT_MPOOL, 0);                        CKERR(r);
+    r = dbenv->open(DIR, DB_PRIVATE|DB_INIT_MPOOL, 0);                          CKERR(r);
 
     dbp = new Db(dbenv, DB_CXX_NO_EXCEPTIONS);
     r = dbp->open(null_txn, "primary.db", NULL, DB_BTREE, 0, 0600);             CKERR(r);
 
     namedb = new Db(dbenv, DB_CXX_NO_EXCEPTIONS);
-    r = namedb->open(null_txn, "name.db", NULL, DB_BTREE, DB_CREATE, 0600);  CKERR(r);
+    r = namedb->open(null_txn, "name.db", NULL, DB_BTREE, DB_CREATE, 0600);     CKERR(r);
 
     expiredb = new Db(dbenv, DB_CXX_NO_EXCEPTIONS);
-    r = expiredb->open(null_txn, "expire.db", NULL, DB_BTREE, 0, 0600);    CKERR(r);
+    r = expiredb->open(null_txn, "expire.db", NULL, DB_BTREE, 0, 0600);         CKERR(r);
     
     r = dbp->associate(NULL, expiredb, expire_callback, 0);                     CKERR(r);
     r = dbp->associate(NULL, namedb, name_callback, DB_CREATE);                 CKERR(r);
@@ -279,7 +279,7 @@ void setup_for_db_create (void) {
 
 int count_entries (Db *db) {
     Dbc *dbc;
-    int r = db->cursor(null_txn, &dbc, 0);                                       CKERR(r);
+    int r = db->cursor(null_txn, &dbc, 0);                                      CKERR(r);
     Dbt key,data;
     int n_found=0;
     for (r = dbc->get(&key, &data, DB_FIRST);
@@ -294,7 +294,7 @@ int count_entries (Db *db) {
 
 int count_entries_and_max_tod (Db *db, int *tod) {
     Dbc *dbc;
-    int r = db->cursor(null_txn, &dbc, 0);                                       CKERR(r);
+    int r = db->cursor(null_txn, &dbc, 0);                                      CKERR(r);
     Dbt key,data;
     int n_found=0;
     *tod=0;
