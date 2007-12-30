@@ -57,7 +57,7 @@ struct __toku_db_env_internal {
     char **data_dirs;
     u_int32_t n_data_dirs;
     //void (*noticecall)(DB_ENV *, db_notices);
-    long cachetable_size;
+    unsigned long cachetable_size;
     CACHETABLE cachetable;
     TOKULOGGER logger;
 };
@@ -377,7 +377,11 @@ static int toku_db_env_log_flush(DB_ENV * env, const DB_LSN * lsn) {
 }
 
 static int toku_db_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache __attribute__((__unused__))) {
-    env->i->cachetable_size = ((long) gbytes << 30) + bytes;
+    u_int64_t cs64 = ((u_int64_t) gbytes << 30) + bytes;
+    unsigned long cs = cs64;
+    if (cs64 > cs)
+        return EINVAL;
+    env->i->cachetable_size = cs;
     return 0;
 }
 
