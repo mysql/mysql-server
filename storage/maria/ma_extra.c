@@ -338,10 +338,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
         if (_ma_state_info_write(share, 1 | 2) ||
             my_sync(share->kfile.file, MYF(0)))
           error= my_errno;
-#ifdef ASK_MONTY /* see same tag in HA_EXTRA_FORCE_REOPEN */
         else
           share->changed= 0;
-#endif
       }
       else
       {

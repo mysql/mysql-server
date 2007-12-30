@@ -170,6 +170,8 @@ my_bool _ma_write_block_record(MARIA_HA *info, const uchar *record);
 my_bool _ma_write_abort_block_record(MARIA_HA *info);
 my_bool _ma_compare_block_record(register MARIA_HA *info,
                                  register const uchar *record);
+TRANSLOG_ADDRESS
+maria_page_get_lsn(uchar *page, pgcache_page_no_t page_no, uchar* data_ptr);
 
 /* ma_bitmap.c */
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
@@ -204,6 +206,8 @@ my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
 int  _ma_bitmap_create_first(MARIA_SHARE *share);
 void _ma_bitmap_flushable(MARIA_SHARE *share, int non_flushable_inc);
+void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
+                                        MARIA_SHARE *share);
 #ifndef DBUG_OFF
 void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
                       ulonglong page);

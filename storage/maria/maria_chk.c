@@ -1038,7 +1038,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
   if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
   {
     /* Mark table as not transactional to avoid logging */
-    maria_disable_logging(info);
+    _ma_tmp_disable_logging_for_table(info, FALSE);
 
     if (param->testflag & T_REP_ANY)
     {
@@ -1214,7 +1214,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
                                     ((param->testflag & T_SORT_RECORDS) ?
                                      UPDATE_SORT : 0)));
   info->update&= ~HA_STATE_CHANGED;
-  maria_enable_logging(info);
+  _ma_reenable_logging_for_table(info);
   maria_lock_database(info, F_UNLCK);
 
 end2:
@@ -1673,7 +1673,7 @@ static int maria_sort_records(HA_CHECK *param,
   pagecache_file_init(info->dfile, &maria_page_crc_check_data,
                       (share->options & HA_OPTION_PAGE_CHECKSUM ?
                        &maria_page_crc_set_normal :
-                       &maria_page_filler_set_normal), share);
+                       &maria_page_filler_set_normal), NULL, share);
   info->state->del=0;
   info->state->empty=0;
   share->state.dellink= HA_OFFSET_ERROR;

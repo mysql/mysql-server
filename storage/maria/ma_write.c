@@ -201,10 +201,6 @@ int maria_write(MARIA_HA *info, uchar *record)
   {
     if ((*share->write_record)(info,record))
       goto err;
-    /**
-       @todo when we enable multiple writers, we will have to protect
-       'records' and 'checksum' somehow.
-    */
     info->state->checksum+= !share->now_transactional *
       info->cur_row.checksum;
   }

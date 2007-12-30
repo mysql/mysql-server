@@ -157,6 +157,7 @@ static int really_execute_checkpoint(void)
   TRANSLOG_ADDRESS checkpoint_start_log_horizon;
   char checkpoint_start_log_horizon_char[LSN_STORE_SIZE];
   DBUG_ENTER("really_execute_checkpoint");
+  DBUG_PRINT("enter", ("level: %d", checkpoint_in_progress));
   bzero(&record_pieces, sizeof(record_pieces));
 
   /*
@@ -389,6 +390,10 @@ static void flush_all_tables(int what_to_flush)
 void ma_checkpoint_end(void)
 {
   DBUG_ENTER("ma_checkpoint_end");
+  /*
+    Some intentional crash methods, usually triggered by
+    SET MARIA_CHECKPOINT_INTERVAL=X
+  */
   DBUG_EXECUTE_IF("maria_flush_bitmap",
                   {
                     DBUG_PRINT("maria_flush_bitmap", ("now"));
@@ -708,11 +713,15 @@ pthread_handler_t ma_checkpoint_background(void *arg)
   }
   pthread_mutex_unlock(&LOCK_checkpoint);
   DBUG_PRINT("info",("Maria background checkpoint thread ends"));
-  /*
-    That's the final one, which guarantees that a clean shutdown always ends
-    with a checkpoint.
-  */
-  ma_checkpoint_execute(CHECKPOINT_FULL, FALSE);
+  {
+    CHECKPOINT_LEVEL level= CHECKPOINT_FULL;
+    /*
+      That's the final one, which guarantees that a clean shutdown always ends
+      with a checkpoint.
+    */
+    DBUG_EXECUTE_IF("maria_checkpoint_indirect", level= CHECKPOINT_INDIRECT;);
+    ma_checkpoint_execute(level, FALSE);
+  }
   pthread_mutex_lock(&LOCK_checkpoint);
   checkpoint_thread_die= 2; /* indicate that we are dead */
   /* wake up ma_checkpoint_end() which may be waiting for our death */
@@ -824,8 +833,6 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   str->length=
     4 +               /* number of tables */
     (2 +              /* short id */
-     4 +              /* kfile */
-     4 +              /* dfile */
      LSN_STORE_SIZE + /* first_log_write_at_lsn */
      1                /* end-of-name 0 */
      ) * nb + total_names_length;
@@ -982,19 +989,6 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       nb_stored++;
       int2store(ptr, share->id);
       ptr+= 2;
-      /*
-        We must store the OS file descriptors, because the pagecache, which
-        tells us the list of dirty pages, refers to these pages by OS file
-        descriptors. An alternative is to make the page cache aware of the
-        2-byte id and of the location of a page ("is it a data file page or an
-        index file page?").
-        If one descriptor is -1, normally there should be no dirty pages
-        collected for this file, it's ok to store -1, it will not be used.
-      */
-      int4store(ptr, kfile.file);
-      ptr+= 4;
-      int4store(ptr, dfile.file);
-      ptr+= 4;
       lsn_store(ptr, share->lsn_of_file_id);
       ptr+= LSN_STORE_SIZE;
       /*

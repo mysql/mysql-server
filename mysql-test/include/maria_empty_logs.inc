@@ -12,11 +12,50 @@ EOF
 
 --exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= shutdown 2>&1;
 
+# Depending on what tests were run before, the number of logs
+# may vary (maria-purge.test creates ~11 logs).
 remove_file $MYSQLTEST_VARDIR/master-data/maria_log_control;
+-- error 0,1
 remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000001;
--- error 0,1 # maybe there is just one log
+-- error 0,1
 remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000002;
-# Hope there were not more than these logs.
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000003;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000004;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000005;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000006;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000007;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000008;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000009;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000010;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000011;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000012;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000013;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000014;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000015;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000016;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000017;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000018;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000019;
+-- error 0,1
+remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000020;
+# hope there are not more than these logs...
 
 -- error 0,1
 remove_file $MYSQLTEST_VARDIR/master-data/maria_recovery.trace;

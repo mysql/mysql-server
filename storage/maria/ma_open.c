@@ -36,11 +36,6 @@ static my_bool maria_once_init_dummy(MARIA_SHARE *, File);
 static my_bool maria_once_end_dummy(MARIA_SHARE *);
 static uchar *_ma_base_info_read(uchar *ptr, MARIA_BASE_INFO *base);
 static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state);
-static void set_data_pagecache_callbacks(PAGECACHE_FILE *file,
-                                         MARIA_SHARE *share);
-static void set_index_pagecache_callbacks(PAGECACHE_FILE *file,
-                                          MARIA_SHARE *share);
-
 
 #define get_next_element(to,pos,size) { memcpy((char*) to,pos,(size_t) size); \
 					pos+=size;}
@@ -1534,43 +1529,40 @@ uchar *_ma_column_nr_read(uchar *ptr, uint16 *offsets, uint columns)
 }
 
 
-static void set_data_pagecache_callbacks(PAGECACHE_FILE *file,
-                                         MARIA_SHARE *share)
+void set_data_pagecache_callbacks(PAGECACHE_FILE *file, MARIA_SHARE *share)
 {
-  file->callback_data= (uchar*) share;
+  /*
+    Note that non-BLOCK_RECORD formats don't use the pagecache for their data
+    files, so it does not matter that maria_page* calls are passed below for
+    them. On the other hand, index file can always have page CRCs, for all
+    data formats.
+  */
   if (share->temporary)
-  {
-    file->read_callback=  &maria_page_crc_check_none;
-    file->write_callback= &maria_page_filler_set_none;
-  }
+    pagecache_file_init(*file, &maria_page_crc_check_none,
+                        &maria_page_filler_set_none, NULL, share);
   else
-  {
-    file->read_callback=  &maria_page_crc_check_data;
-    if (share->options & HA_OPTION_PAGE_CHECKSUM)
-      file->write_callback= &maria_page_crc_set_normal;
-    else
-      file->write_callback= &maria_page_filler_set_normal;
-  }
+    pagecache_file_init(*file, &maria_page_crc_check_data,
+                        ((share->options & HA_OPTION_PAGE_CHECKSUM) ?
+                         &maria_page_crc_set_normal :
+                         &maria_page_filler_set_normal),
+                        share->now_transactional ?
+                        &maria_page_get_lsn : NULL, share);
 }
 
 
-static void set_index_pagecache_callbacks(PAGECACHE_FILE *file,
-                                          MARIA_SHARE *share)
+void set_index_pagecache_callbacks(PAGECACHE_FILE *file, MARIA_SHARE *share)
 {
-  file->callback_data= (uchar*) share;
   if (share->temporary)
-  {
-    file->read_callback=  &maria_page_crc_check_none;
-    file->write_callback= &maria_page_filler_set_none;
-  }
+    pagecache_file_init(*file, &maria_page_crc_check_none,
+                        &maria_page_filler_set_none, NULL, share);
   else
-  {
-    file->read_callback=  &maria_page_crc_check_index;
-    if (share->options & HA_OPTION_PAGE_CHECKSUM)
-      file->write_callback= &maria_page_crc_set_index;
-    else
-      file->write_callback= &maria_page_filler_set_normal;
-  }
+    pagecache_file_init(*file, &maria_page_crc_check_index,
+                        ((share->options & HA_OPTION_PAGE_CHECKSUM) ?
+                         &maria_page_crc_set_index :
+                         &maria_page_filler_set_normal),
+                        share->now_transactional ?
+                        &maria_page_get_lsn : NULL,
+                        share);
 }
 
 

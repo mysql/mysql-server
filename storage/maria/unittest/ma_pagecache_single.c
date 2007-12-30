@@ -520,7 +520,7 @@ int main(int argc __attribute__((unused)),
 	    errno);
     exit(1);
   }
-  pagecache_file_init(file1, &dummy_callback, &dummy_callback, NULL);
+  pagecache_file_init(file1, &dummy_callback, &dummy_callback, NULL, NULL);
   my_close(tmp_file, MYF(0));
   my_delete(file2_name, MYF(0));
 

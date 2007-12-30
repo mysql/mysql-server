@@ -333,7 +333,7 @@ int main(int argc __attribute__((unused)),
 	    errno);
     exit(1);
   }
-  pagecache_file_init(file1, &dummy_callback, &dummy_callback, NULL);
+  pagecache_file_init(file1, &dummy_callback, &dummy_callback, NULL, NULL);
   DBUG_PRINT("info", ("file1: %d", file1.file));
   if (chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
   {

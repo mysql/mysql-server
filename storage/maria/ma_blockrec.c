@@ -2597,6 +2597,15 @@ static my_bool write_block_record(MARIA_HA *info,
       This is the char/varchar data that didn't fit into the head page.
     */
     DBUG_ASSERT(bitmap_blocks->count != 0);
+    /**
+       @todo RECOVERY BUG
+       we are tagging full pages with trn->undo_lsn, but we could here be
+       executing an UNDO_ROW_DELETE/UPDATE, in which case the above LSN is the
+       LSN of the UNDO before this UNDO; we should rather use the CLR's LSN in
+       this case. Is this really causing a bug now?
+       Simple solution is to use 'lsn' set above. It is always LSN of newly
+       written UNDO or CLR. Monty may have fixed it already.
+    */
     if (write_full_pages(info, info->trn->undo_lsn, head_block + 1,
                          info->rec_buff, (ulong) (tmp_data - info->rec_buff)))
       goto disk_err;
@@ -2618,6 +2627,7 @@ static my_bool write_block_record(MARIA_HA *info,
     if (block[block->sub_blocks - 1].used & BLOCKUSED_TAIL)
       blob_length-= (blob_length % FULL_PAGE_SIZE(block_size));
 
+    /** @todo RECOVERY BUG same as above */
     if (blob_length && write_full_pages(info, info->trn->undo_lsn, block,
                                          blob_pos, blob_length))
       goto disk_err;
@@ -6097,4 +6107,29 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
 err:
   my_free(current_record, MYF(0));
   DBUG_RETURN(error);
+}
+
+
+/**
+  @brief Pagecache callback to get the TRANSLOG_ADDRESS to flush up to, when a
+  data (non-bitmap) or index page needs to be flushed. Returns a real LSN.
+
+  @param page            Page's content
+  @param page_no         Page's number (<offset>/<page length>)
+  @param data_ptr        Callback data pointer (pointer to MARIA_SHARE)
+
+  @retval LSN to flush up to
+*/
+
+TRANSLOG_ADDRESS
+maria_page_get_lsn(uchar *page,
+                   pgcache_page_no_t page_no __attribute__((unused)),
+                   uchar* data_ptr __attribute__((unused)))
+{
+#ifndef DBUG_OFF
+  const MARIA_SHARE *share= (MARIA_SHARE*)data_ptr;
+  DBUG_ASSERT(share->page_type == PAGECACHE_LSN_PAGE &&
+              share->now_transactional);
+#endif
+  return lsn_korr(page);
 }

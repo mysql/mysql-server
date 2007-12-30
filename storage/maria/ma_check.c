@@ -94,7 +94,7 @@ static void copy_data_file_state(MARIA_STATE_INFO *to,
                                  MARIA_STATE_INFO *from);
 static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info);
 static void report_keypage_fault(HA_CHECK *param, my_off_t position);
-my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file);
+static my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file);
 
 
 void maria_chk_init(HA_CHECK *param)
@@ -2361,6 +2361,11 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 
   VOID(end_io_cache(&sort_info.new_info->rec_cache));
   info->opt_flag&= ~WRITE_CACHE_USED;
+  /**
+     @todo RECOVERY BUG seems misplaced in some cases. We modify state after
+     writing it below. But if we move the call below too much down, flushing
+     of pages may happen too late, after files have been closed.
+  */
   if (_ma_flush_table_files_after_repair(param, info))
     goto err;
 
@@ -2614,15 +2619,16 @@ void maria_lock_memory(HA_CHECK *param __attribute__((unused)))
 int _ma_flush_table_files_after_repair(HA_CHECK *param, MARIA_HA *info)
 {
   MARIA_SHARE *share= info->s;
+  DBUG_ENTER("_ma_flush_table_files_after_repair");
   if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                             FLUSH_RELEASE, FLUSH_RELEASE) ||
       _ma_state_info_write(share, 1|4) ||
       (share->base.born_transactional && _ma_sync_table_files(info)))
   {
     _ma_check_print_error(param,"%d when trying to write bufferts",my_errno);
-    return 1;
+    DBUG_RETURN(1);
   }
-  return 0;
+  DBUG_RETURN(0);
 } /* _ma_flush_table_files_after_repair */
 
 
@@ -2720,6 +2726,17 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
   share->state.key_del=  HA_OFFSET_ERROR;
 
   share->state.changed&= ~STATE_NOT_SORTED_PAGES;
+  DBUG_EXECUTE_IF("maria_flush_whole_log",
+                  {
+                    DBUG_PRINT("maria_flush_whole_log", ("now"));
+                    translog_flush(translog_get_horizon());
+                  });
+  DBUG_EXECUTE_IF("maria_crash_sort_index",
+                  {
+                    DBUG_PRINT("maria_crash_sort_index", ("now"));
+                    fflush(DBUG_FILE);
+                    abort();
+                  });
   DBUG_RETURN(0);
 
 err:
@@ -3134,6 +3151,17 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
       param->retry_repair=1;
       goto err;
     }
+    DBUG_EXECUTE_IF("maria_flush_whole_log",
+                    {
+                      DBUG_PRINT("maria_flush_whole_log", ("now"));
+                      translog_flush(translog_get_horizon());
+                    });
+    DBUG_EXECUTE_IF("maria_crash_create_index_by_sort",
+                    {
+                      DBUG_PRINT("maria_crash_create_index_by_sort", ("now"));
+                      fflush(DBUG_FILE);
+                      abort();
+                    });
     if (scan_inited)
     {
       scan_inited= 0;
@@ -3174,6 +3202,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 	}
       }
 
+      /** @todo RECOVERY BUG seems misplaced in some cases */
       if (_ma_flush_table_files_after_repair(param, info))
         goto err;
 
@@ -3312,6 +3341,17 @@ err:
       Now that we have flushed and forced everything, we can bump
       create_rename_lsn:
     */
+    DBUG_EXECUTE_IF("maria_flush_whole_log",
+                    {
+                      DBUG_PRINT("maria_flush_whole_log", ("now"));
+                      translog_flush(translog_get_horizon());
+                    });
+    DBUG_EXECUTE_IF("maria_crash_repair",
+                    {
+                      DBUG_PRINT("maria_crash_repair", ("now"));
+                      fflush(DBUG_FILE);
+                      abort();
+                    });
     write_log_record_for_repair(param, info);
   }
   share->state.changed|= STATE_NOT_SORTED_PAGES;
@@ -3789,6 +3829,7 @@ err:
   */
   if (!rep_quick)
     VOID(end_io_cache(&new_data_cache));
+  /** @todo RECOVERY BUG seems misplaced in some cases */
   got_error|= _ma_flush_table_files_after_repair(param, info);
   if (!got_error)
   {
@@ -5588,7 +5629,7 @@ my_bool maria_test_if_sort_rep(MARIA_HA *info, ha_rows rows,
    because the one we create here is not transactional
 */
 
-my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file)
+static my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file)
 {
 
   MARIA_SORT_INFO *sort_info= param->sort_info;
@@ -5604,11 +5645,11 @@ my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file)
   pagecache_file_init(new_info->s->bitmap.file, &maria_page_crc_check_bitmap,
                       (new_info->s->options & HA_OPTION_PAGE_CHECKSUM ?
                        &maria_page_crc_set_normal :
-                       &maria_page_filler_set_bitmap), new_info->s);
+                       &maria_page_filler_set_bitmap), NULL, new_info->s);
   pagecache_file_init(new_info->dfile, &maria_page_crc_check_data,
                       (new_info->s->options & HA_OPTION_PAGE_CHECKSUM ?
                        &maria_page_crc_set_normal :
-                       &maria_page_filler_set_normal), new_info->s);
+                       &maria_page_filler_set_normal), NULL, new_info->s);
   change_data_file_descriptor(new_info, new_file);
   maria_lock_database(new_info, F_EXTRA_LCK);
   if ((sort_info->param->testflag & T_UNPACK) &&
@@ -5913,11 +5954,6 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
     share->now_transactional= 1;
-    /**
-      @todo RECOVERY maria_chk --transaction-log may come here; to be sure
-      that ha_maria is not using the log too, we should do a my_lock() on the
-      control file when Maria starts.
-    */
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_REPAIR_TABLE,
                                        &dummy_transaction_object, info,
                                        sizeof(log_data),
