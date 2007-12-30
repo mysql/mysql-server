@@ -3073,7 +3073,7 @@ my_bool translog_init_with_table(const char *directory,
   int old_log_was_recovered= 0, logs_found= 0;
   uint old_flags= flags;
   uint32 start_file_num= 1;
-  TRANSLOG_ADDRESS sure_page, last_page, last_valid_page;
+  TRANSLOG_ADDRESS sure_page, last_page, last_valid_page, checkpoint_lsn;
   my_bool version_changed= 0;
   DBUG_ENTER("translog_init_with_table");
 
@@ -3161,13 +3161,6 @@ my_bool translog_init_with_table(const char *directory,
               log_descriptor.buffer_capacity_chunk_2,
               log_descriptor.half_buffer_capacity_chunk_2));
 
-  /*
-    last_logno and last_checkpoint_lsn were set in
-    ma_control_file_create_or_open()
-  */
-  logs_found= (last_logno != FILENO_IMPOSSIBLE);
-
-
   /* Just to init it somehow (hack for bootstrap)*/
   {
     TRANSLOG_FILE *file= 0;
@@ -3196,6 +3189,7 @@ my_bool translog_init_with_table(const char *directory,
   logs_found= (last_logno != FILENO_IMPOSSIBLE);
 
   translog_status= (readonly ? TRANSLOG_READONLY : TRANSLOG_OK);
+  checkpoint_lsn= last_checkpoint_lsn;
 
   if (logs_found)
   {
@@ -3226,8 +3220,12 @@ my_bool translog_init_with_table(const char *directory,
     {
       if (!translog_is_log_files())
       {
-        /* files was deleted, just start from the next log number */
+        /*
+          Files was deleted, just start from the next log number, so that
+          existing tables are in the past.
+        */
         start_file_num= last_logno + 1;
+        checkpoint_lsn= LSN_IMPOSSIBLE; /* no log so no checkpoint */
         logs_found= 0;
       }
       else
@@ -3471,8 +3469,8 @@ my_bool translog_init_with_table(const char *directory,
     DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
                 log_descriptor.open_files.elements);
 
-    if (ma_control_file_write_and_force(LSN_IMPOSSIBLE, 1,
-                                        CONTROL_FILE_UPDATE_ONLY_LOGNO))
+    if (ma_control_file_write_and_force(checkpoint_lsn, start_file_num,
+                                        CONTROL_FILE_UPDATE_ALL))
       DBUG_RETURN(1);
     /* assign buffer 0 */
     translog_start_buffer(log_descriptor.buffers, &log_descriptor.bc, 0);
@@ -3742,7 +3740,8 @@ void translog_destroy()
 
   my_close(log_descriptor.directory_fd, MYF(MY_WME));
   my_atomic_rwlock_destroy(&LOCK_id_to_share);
-  my_free((uchar*)(id_to_share + 1), MYF(MY_ALLOW_ZERO_PTR));
+  if (id_to_share != NULL)
+    my_free((uchar*)(id_to_share + 1), MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 

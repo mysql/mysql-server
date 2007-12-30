@@ -312,13 +312,8 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   {
     if (last_checkpoint_lsn == LSN_IMPOSSIBLE)
     {
-      from_lsn= translog_first_theoretical_lsn();
-      /*
-        as far as we have not yet any checkpoint then the very first
-        log file should be present.
-      */
-      if (unlikely((from_lsn == LSN_IMPOSSIBLE) ||
-                   (from_lsn == LSN_ERROR)))
+      from_lsn= translog_first_lsn_in_log();
+      if (unlikely(from_lsn == LSN_ERROR))
         goto err;
     }
     else

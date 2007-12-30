@@ -6,7 +6,7 @@ set session storage_engine=maria;
 let $def_logsize=`select @@global.maria_log_file_size`;
 let $def_checkinterval=`select @@global.maria_checkpoint_interval`;
 
-set global maria_log_file_size=4294967296;
+set global maria_log_file_size=4294967295;
 # Initialise
 --disable_warnings
 drop table if exists t1,t2;
