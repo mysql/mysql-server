@@ -3774,6 +3774,7 @@ void wait_while_table_is_used(THD *thd,TABLE *table,
   remove_table_from_cache(thd, table->s->db.str,
                           table->s->table_name.str,
                           RTFC_WAIT_OTHER_THREAD_FLAG);
+  /* extra() call must come only after all instances above are closed */
   VOID(table->file->extra(function));
   DBUG_VOID_RETURN;
 }

@@ -6753,3 +6753,28 @@ err:
   my_free(current_record, MYF(0));
   DBUG_RETURN(error);
 }
+
+
+/**
+  @brief Pagecache callback to get the TRANSLOG_ADDRESS to flush up to, when a
+  data (non-bitmap) or index page needs to be flushed. Returns a real LSN.
+
+  @param page            Page's content
+  @param page_no         Page's number (<offset>/<page length>)
+  @param data_ptr        Callback data pointer (pointer to MARIA_SHARE)
+
+  @retval LSN to flush up to
+*/
+
+TRANSLOG_ADDRESS
+maria_page_get_lsn(uchar *page,
+                   pgcache_page_no_t page_no __attribute__((unused)),
+                   uchar* data_ptr __attribute__((unused)))
+{
+#ifndef DBUG_OFF
+  const MARIA_SHARE *share= (MARIA_SHARE*)data_ptr;
+  DBUG_ASSERT(share->page_type == PAGECACHE_LSN_PAGE &&
+              share->now_transactional);
+#endif
+  return lsn_korr(page);
+}

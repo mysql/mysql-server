@@ -32,6 +32,9 @@
   @param undo_lsn  LSN for undo pages. LSN_IMPOSSIBLE if we shouldn't write
                    undo (like on duplicate key errors)
 
+  info->pinned_pages is the list of pages to unpin. Each member of the list
+  must have its 'changed' saying if the page was changed or not.
+
   @note
     We unpin pages in the reverse order as they where pinned; This is not
     necessary now, but may simplify things in the future.

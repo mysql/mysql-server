@@ -57,10 +57,6 @@ sleep 5;
 set global maria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
 
-# disabled until pagecache callback framework is coded at which point
-# we can add a get_lsn() callback for bitmaps, fixing the below bug.
-if (0)
-{
 --echo * TEST of bitmap flushed without REDO-UNDO in the log (WAL violation)
 # before crashing we'll flush the bitmap page
 let $mvr_debug_option="+d,maria_flush_bitmap,maria_crash";
@@ -71,7 +67,6 @@ insert into t1 values (REPEAT('a', 6000));
 # log is not flushed the bitmap is inconsistent with the data.
 -- source include/maria_verify_recovery.inc
 drop table t1;
-}
 
 # clean up everything
 let $mms_purpose=comparison;

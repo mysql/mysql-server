@@ -135,13 +135,6 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       }
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
       info->lock_type= F_UNLCK;
-      /*
-        Verify that user of the table cleaned up after itself. Not in
-        recovery, as for example maria_extra(HA_EXTRA_PREPARE_FOR_RENAME) may
-        call us here, with transactionality temporarily disabled.
-      */
-      DBUG_ASSERT(maria_in_recovery ||
-                  share->now_transactional == share->base.born_transactional);
       break;
     case F_RDLCK:
       if (info->lock_type == F_WRLCK)

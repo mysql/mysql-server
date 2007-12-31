@@ -116,26 +116,3 @@ int maria_begin(MARIA_HA *info)
   }
   DBUG_RETURN(0);
 }
-
-
-/*
-  @brief Disable logging for this table
-
-  @note
-    Mainly used during repair table, where we don't want to log all
-    changes to index or rows
-*/
-
-void maria_disable_logging(MARIA_HA *info)
-{
-  info->s->now_transactional= 0;
-  info->trn= &dummy_transaction_object;
-  info->s->page_type= PAGECACHE_PLAIN_PAGE;
-}
-
-
-void maria_enable_logging(MARIA_HA *info)
-{
-  if ((info->s->now_transactional= info->s->base.born_transactional))
-    info->s->page_type= PAGECACHE_LSN_PAGE;
-}

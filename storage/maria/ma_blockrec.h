@@ -174,6 +174,8 @@ my_bool _ma_compare_block_record(register MARIA_HA *info,
                                  register const uchar *record);
 void    _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
                                my_bool extend_block);
+TRANSLOG_ADDRESS
+maria_page_get_lsn(uchar *page, pgcache_page_no_t page_no, uchar* data_ptr);
 
 /* ma_bitmap.c */
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
@@ -211,6 +213,8 @@ uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
 int  _ma_bitmap_create_first(MARIA_SHARE *share);
 void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc);
+void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
+                                        MARIA_SHARE *share);
 #ifndef DBUG_OFF
 void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
                       ulonglong page);

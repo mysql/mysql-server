@@ -120,8 +120,8 @@ static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
 
 static MYSQL_SYSVAR_ULONG(checkpoint_interval, checkpoint_interval,
        PLUGIN_VAR_RQCMDARG,
-       "Interval between automatic checkpoints, in seconds;"
-       " 0 means 'no automatic checkpoints'.",
+       "Interval between automatic checkpoints, in seconds; 0 means"
+       " 'no automatic checkpoints' which makes sense only for testing.",
        NULL, update_checkpoint_interval, 30, 0, UINT_MAX, 1);
 
 static MYSQL_SYSVAR_BOOL(page_checksum, maria_page_checksums, 0,
@@ -1249,6 +1249,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
+  /** @todo BUG the if() below is always false for BLOCK_RECORD */
   if (!do_optimize ||
       ((file->state->del ||
         ((file->s->data_file_type != BLOCK_RECORD) &&
@@ -1293,6 +1294,12 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     {
       thd_proc_info(thd, "Repair with keycache");
       param.testflag &= ~(T_REP_BY_SORT | T_REP_PARALLEL);
+      /**
+         @todo In REPAIR TABLE EXTENDED this will log
+         REDO_INDEX_NEW_PAGE and UNDO_KEY_INSERT though unneeded.
+         maria_chk -o does not have this problem as it disables
+         transactionality.
+      */
       error= maria_repair(&param, file, fixed_name, param.testflag & T_QUICK);
       /**
          @todo RECOVERY BUG we do things with the index file
@@ -1366,15 +1373,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   pthread_mutex_unlock(&share->intern_lock);
   thd_proc_info(thd, old_proc_info);
   if (!thd->locked_tables)
-  {
-    /**
-       @todo RECOVERY BUG find why this is needed. Monty says it's because a
-       new non-transactional table is created by maria_repair(): find how this
-       new table's state influences the old one's.
-    */
-    _ma_reenable_logging_for_table(file->s);
     maria_lock_database(file, F_UNLCK);
-  }
   DBUG_RETURN(error ? HA_ADMIN_FAILED :
               !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
 }
@@ -1623,6 +1622,17 @@ int ha_maria::enable_indexes(uint mode)
     /* mode not implemented */
     error= HA_ERR_WRONG_COMMAND;
   }
+  DBUG_EXECUTE_IF("maria_flush_whole_log",
+                  {
+                    DBUG_PRINT("maria_flush_whole_log", ("now"));
+                    translog_flush(translog_get_horizon());
+                  });
+  DBUG_EXECUTE_IF("maria_crash_enable_index",
+                  {
+                    DBUG_PRINT("maria_crash_enable_index", ("now"));
+                    fflush(DBUG_FILE);
+                    abort();
+                  });
   return error;
 }
 
@@ -1694,6 +1704,11 @@ void ha_maria::start_bulk_insert(ha_rows rows)
     {
       maria_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
     }
+    /**
+       @todo If we have 0 records here, there is no need to log REDO/UNDO for
+       each data row, we can just log some special UNDO which will empty the
+       data file if need to rollback.
+    */
   }
   DBUG_VOID_RETURN;
 }
@@ -2093,8 +2108,8 @@ int ha_maria::external_lock(THD *thd, int lock_type)
   }
   else
   {
-    _ma_reenable_logging_for_table(file->s);
-    this->file->trn= 0; /* TODO: remove it also in commit and rollback */
+    _ma_reenable_logging_for_table(file);
+    /** @todo zero file->trn also in commit and rollback */
     if (trn && trnman_has_locked_tables(trn))
     {
       if (!trnman_decrement_locked_tables(trn))

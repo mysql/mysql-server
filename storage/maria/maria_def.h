@@ -1068,12 +1068,13 @@ int _ma_update_create_rename_lsn(MARIA_SHARE *share,
                                  LSN lsn, my_bool do_sync);
 int _ma_update_create_rename_lsn_sub(MARIA_SHARE *share,
                                      LSN lsn, my_bool do_sync);
-
+void set_data_pagecache_callbacks(PAGECACHE_FILE *file,
+                                  MARIA_SHARE *share);
+void set_index_pagecache_callbacks(PAGECACHE_FILE *file,
+                                   MARIA_SHARE *share);
 void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
                                        my_bool log_incomplete);
-#define _ma_reenable_logging_for_table(S)                        \
-  { if (((S)->now_transactional= (S)->base.born_transactional))  \
-      (S)->page_type= PAGECACHE_LSN_PAGE; }
+void _ma_reenable_logging_for_table(MARIA_HA *info);
 
 #define MARIA_NO_CRC_NORMAL_PAGE 0xffffffff
 #define MARIA_NO_CRC_BITMAP_PAGE 0xfffffffe

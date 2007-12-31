@@ -98,20 +98,16 @@ int maria_panic(enum ha_panic_function flag)
 #ifdef CANT_OPEN_FILES_TWICE
       {					/* Open closed files */
 	char name_buff[FN_REFLEN];
-	if (info->s->kfile.file < 0)
+        MARIA_SHARE *share= info->s;
+	if (share->kfile.file < 0)
         {
 
-	  if ((info->s->kfile.file= my_open(fn_format(name_buff,
-                                                      info->filename, "",
-                                                      N_NAME_IEXT,4),
-                                            info->mode,
-                                            MYF(MY_WME))) < 0)
-	    error = my_errno;
-          pagecache_file_init(info->s->kfile, &maria_page_crc_check_index,
-                              (info->s->options & HA_OPTION_PAGE_CHECKSUM ?
-                               &maria_page_crc_set_index :
-                               &maria_page_filler_set_normal),
-                              &maria_page_write_failure, info->s);
+	  if ((share->kfile.file= my_open(fn_format(name_buff,
+                                                    info->filename, "",
+                                                    N_NAME_IEXT,4),
+                                          info->mode,
+                                          MYF(MY_WME))) < 0)
+	    error = my_errno;  
         }
 	if (info->dfile.file < 0)
 	{
@@ -120,13 +116,10 @@ int maria_panic(enum ha_panic_function flag)
                                          info->mode,
                                          MYF(MY_WME))) < 0)
 	    error = my_errno;
-          pagecache_file_init(info->dfile, &maria_page_crc_check_data,
-                              (share->options & HA_OPTION_PAGE_CHECKSUM ?
-                               &maria_page_crc_set_normal:
-                               &maria_page_filler_set_normal),
-                              &maria_page_write_failure, share);
 	  info->rec_cache.file= info->dfile.file;
 	}
+	if (share->bitmap.file.file < 0)
+	  share->bitmap.file.file= info->dfile.file;
       }
 #endif
       if (info->was_locked)

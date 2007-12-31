@@ -133,7 +133,7 @@
 static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
                                     MARIA_FILE_BITMAP *bitmap,
                                     ulonglong page);
-
+static TRANSLOG_ADDRESS _ma_bitmap_get_log_address();
 
 /* Write bitmap page to key cache */
 
@@ -221,21 +221,8 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
 
   bitmap->block_size= share->block_size;
   bitmap->file.file= file;
-  bitmap->file.callback_data= (uchar*) share;
-  bitmap->file.write_fail= &maria_page_write_failure;
-  if (share->temporary)
-  {
-    bitmap->file.read_callback=  &maria_page_crc_check_none;
-    bitmap->file.write_callback= &maria_page_filler_set_none;
-  }
-  else
-  {
-    bitmap->file.read_callback=  &maria_page_crc_check_bitmap;
-    if (share->options & HA_OPTION_PAGE_CHECKSUM)
-      bitmap->file.write_callback= &maria_page_crc_set_normal;
-    else
-      bitmap->file.write_callback= &maria_page_filler_set_bitmap;
-  }
+  bitmap->file.write_fail= &maria_page_write_failure; aaaaa
+  _ma_bitmap_set_pagecache_callbacks(&bitmap->file, share);
 
   /* Size needs to be aligned on 6 */
   aligned_bit_blocks= (share->block_size - PAGE_SUFFIX_SIZE) / 6;
@@ -2585,4 +2572,50 @@ int _ma_bitmap_create_first(MARIA_SHARE *share)
   share->state.state.data_file_length= block_size;
   _ma_bitmap_delete_all(share);
   return 0;
+}
+
+
+/**
+  @brief Pagecache callback to get the TRANSLOG_ADDRESS to flush up to, when a
+  bitmap page needs to be flushed.
+
+  @param page            Page's content
+  @param page_no         Page's number (<offset>/<page length>)
+  @param data_ptr        Callback data pointer (pointer to MARIA_SHARE)
+
+  @retval TRANSLOG_ADDRESS to flush up to.
+*/
+
+TRANSLOG_ADDRESS
+_ma_bitmap_get_log_address(uchar *page __attribute__((unused)),
+                           pgcache_page_no_t page_no __attribute__((unused)),
+                           uchar* data_ptr)
+{
+#ifndef DBUG_OFF
+  const MARIA_SHARE *share= (MARIA_SHARE*)data_ptr;
+#endif
+  DBUG_ENTER("_ma_bitmap_get_log_address");
+  DBUG_ASSERT(share->page_type == PAGECACHE_LSN_PAGE &&
+              share->now_transactional);
+  /*
+    WAL imposes that UNDOs reach disk before bitmap is flushed. We don't know
+    the LSN of the last UNDO about this bitmap page, so we flush whole log.
+  */
+  DBUG_RETURN(translog_get_horizon());
+}
+
+
+void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
+                                        MARIA_SHARE *share)
+{
+  if (share->temporary)
+    pagecache_file_init(*file, &maria_page_crc_check_none,
+                        &maria_page_filler_set_none, NULL, share);
+  else
+    pagecache_file_init(*file, &maria_page_crc_check_bitmap,
+                        ((share->options & HA_OPTION_PAGE_CHECKSUM) ?
+                         &maria_page_crc_set_normal :
+                         &maria_page_filler_set_bitmap),
+                        share->now_transactional ?
+                        &_ma_bitmap_get_log_address : NULL, share);
 }

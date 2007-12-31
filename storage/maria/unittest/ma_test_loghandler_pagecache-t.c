@@ -138,7 +138,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
   pagecache_file_init(file1, &dummy_callback, &dummy_callback,
-                      &dummy_fail_callback, NULL);
+                      &dummy_fail_callback, NULL, NULL);
   if (chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
   {
     fprintf(stderr, "Got error during file1 chmod() (errno: %d)\n",
@@ -150,8 +150,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     uchar page[PCACHE_PAGE];
 
     bzero(page, PCACHE_PAGE);
-#define PAGE_LSN_OFFSET 0
-    lsn_store(page + PAGE_LSN_OFFSET, lsn);
+    lsn_store(page, lsn);
     pagecache_write(&pagecache, &file1, 0, 3, (char*)page,
                     PAGECACHE_LSN_PAGE,
                     PAGECACHE_LOCK_LEFT_UNLOCKED,

@@ -42,6 +42,7 @@
 #include "maria_def.h"
 #include <m_string.h>
 #include "ma_pagecache.h"
+#include "ma_blockrec.h"
 #include <my_bit.h>
 #include <errno.h>
 
@@ -123,9 +124,6 @@ my_bool my_disable_flush_pagecache_blocks= 0;
 #define  COND_FOR_SAVED     1  /* queue of thread waiting for flush */
 #define  COND_FOR_WRLOCK    2  /* queue of write lock */
 #define  COND_SIZE          3  /* number of COND_* queues */
-
-/* offset of LSN on the page */
-#define PAGE_LSN_OFFSET 0
 
 typedef pthread_cond_t KEYCACHE_CONDVAR;
 
@@ -574,7 +572,7 @@ static int ___pagecache_pthread_cond_signal(pthread_cond_t *cond);
 #define pagecache_pthread_cond_signal pthread_cond_signal
 #endif /* defined(PAGECACHE_DEBUG) */
 
-extern my_bool translog_flush(LSN lsn);
+extern my_bool translog_flush(TRANSLOG_ADDRESS lsn);
 
 /*
   Write page to the disk
@@ -599,20 +597,18 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
                              enum pagecache_page_type type,
                              myf flags)
 {
+  TRANSLOG_ADDRESS (*addr_callback)
+    (uchar *page, pgcache_page_no_t offset, uchar *data)=
+    filedesc->get_log_address_callback;
   DBUG_ENTER("pagecache_fwrite");
   DBUG_ASSERT(type != PAGECACHE_READ_UNKNOWN_PAGE);
-  /**
-    @todo RECOVERY BUG Here, we should call a callback get_lsn(): it will use
-    lsn_korr() for LSN pages, and translog_get_horizon() for bitmap pages.
-  */
-  if (type == PAGECACHE_LSN_PAGE)
+  if (addr_callback != NULL)
   {
-    LSN lsn;
+    TRANSLOG_ADDRESS addr=
+      (*addr_callback)(buffer, pageno, filedesc->callback_data);
     DBUG_PRINT("info", ("Log handler call"));
-    /* TODO: integrate with page format */
-    lsn= lsn_korr(buffer + PAGE_LSN_OFFSET);
-    DBUG_ASSERT(LSN_VALID(lsn));
-    if (translog_flush(lsn))
+    DBUG_ASSERT(LSN_VALID(addr));
+    if (translog_flush(addr))
     {
       (*filedesc->write_fail)(filedesc->callback_data);
       DBUG_RETURN(1);
@@ -621,7 +617,7 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
   DBUG_PRINT("info", ("write_callback: 0x%lx  data: 0x%lx",
                       (ulong) filedesc->write_callback,
                       (ulong) filedesc->callback_data));
-  if ((filedesc->write_callback)(buffer, pageno, filedesc->callback_data))
+  if ((*filedesc->write_callback)(buffer, pageno, filedesc->callback_data))
   {
     DBUG_PRINT("error", ("write callback problem"));
     DBUG_RETURN(1);
@@ -2535,14 +2531,14 @@ static void check_and_set_lsn(PAGECACHE *pagecache,
     to not log REDOs).
   */
   DBUG_ASSERT((block->type == PAGECACHE_LSN_PAGE) || maria_in_recovery);
-  old= lsn_korr(block->buffer + PAGE_LSN_OFFSET);
+  old= lsn_korr(block->buffer);
   DBUG_PRINT("info", ("old lsn: (%lu, 0x%lx)  new lsn: (%lu, 0x%lx)",
                       LSN_IN_PARTS(old), LSN_IN_PARTS(lsn)));
   if (cmp_translog_addr(lsn, old) > 0)
   {
 
     DBUG_ASSERT(block->type != PAGECACHE_READ_UNKNOWN_PAGE);
-    lsn_store(block->buffer + PAGE_LSN_OFFSET, lsn);
+    lsn_store(block->buffer, lsn);
     /* we stored LSN in page so we dirtied it */
     if (!(block->status & PCBLOCK_CHANGED))
       link_to_changed_list(pagecache, block);
@@ -2956,7 +2952,7 @@ uchar *pagecache_read(PAGECACHE *pagecache,
   int error= 0;
   enum pagecache_page_pin pin= lock_to_pin[test(buff==0)][lock];
   PAGECACHE_BLOCK_LINK *fake_link;
-  DBUG_ENTER("pagecache_valid_read");
+  DBUG_ENTER("pagecache_read");
   DBUG_PRINT("enter", ("fd: %u  page: %lu  buffer: 0x%lx level: %u  "
                        "t:%s  %s  %s",
                        (uint) file->file, (ulong) pageno,
@@ -3684,8 +3680,8 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
                         block->pins));
     DBUG_ASSERT(block->pins == 1);
     /**
-       @todo If page is contiguous with next page to flush, group flushes in
-       one single my_pwrite().
+       @todo IO If page is contiguous with next page to flush, group flushes
+       in one single my_pwrite().
     */
     error= pagecache_fwrite(pagecache, &block->hash_link->file,
                             block->buffer,
@@ -4198,7 +4194,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       wqueue_add_to_queue(&other_flusher->flush_queue, thread);
       do
       {
-        KEYCACHE_DBUG_PRINT("pagecache_collect_çhanged_blocks_with_lsn: wait",
+        KEYCACHE_DBUG_PRINT("pagecache_collect_changed_blocks_with_lsn: wait",
                             ("suspend thread %ld", thread->id));
         pagecache_pthread_cond_wait(&thread->suspend,
                                     &pagecache->cache_lock);
@@ -4222,6 +4218,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       */
       DBUG_ASSERT(block->hash_link != NULL);
       DBUG_ASSERT(block->status & PCBLOCK_CHANGED);
+      /* Note that we don't store bitmap pages */
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it */
       stored_list_size++;
@@ -4230,7 +4227,8 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
 
   compile_time_assert(sizeof(pagecache->blocks) <= 8);
   str->length= 8 + /* number of dirty pages */
-    (4 + /* file */
+    (2 + /* table id */
+     1 + /* data or index file */
      4 + /* pageno */
      LSN_STORE_SIZE /* rec_lsn */
      ) * stored_list_size;
@@ -4239,7 +4237,8 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
   ptr= str->str;
   int8store(ptr, (ulonglong)stored_list_size);
   ptr+= 8;
-  if (!stored_list_size)
+  DBUG_PRINT("info", ("found %lu dirty pages", stored_list_size));
+  if (stored_list_size == 0)
     goto end;
   for (file_hash= 0; file_hash < PAGECACHE_CHANGED_BLOCKS_HASH; file_hash++)
   {
@@ -4248,16 +4247,17 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
          block;
          block= block->next_changed)
     {
+      uint16 table_id;
+      MARIA_SHARE *share;
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it in the checkpoint record */
-      compile_time_assert(sizeof(block->hash_link->file.file) <= 4);
       compile_time_assert(sizeof(block->hash_link->pageno) <= 4);
-      /**
-         @todo RECOVERY when we have a pointer to MARIA_SHARE, store share->id
-         instead of this file.
-      */
-      int4store(ptr, block->hash_link->file.file);
-      ptr+= 4;
+      share= (MARIA_SHARE *)(block->hash_link->file.callback_data);
+      table_id= share->id;
+      int2store(ptr, table_id);
+      ptr+= 2;
+      ptr[0]= (share->kfile.file == block->hash_link->file.file);
+      ptr++;
       int4store(ptr, block->hash_link->pageno);
       ptr+= 4;
       lsn_store(ptr, block->rec_lsn);

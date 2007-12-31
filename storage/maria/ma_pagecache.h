@@ -81,11 +81,16 @@ typedef uint32 pgcache_page_no_t;
 typedef struct st_pagecache_file
 {
   File file;
+  /** Cannot be NULL */
   my_bool (*read_callback)(uchar *page, pgcache_page_no_t offset,
                            uchar *data);
+  /** Cannot be NULL */
   my_bool (*write_callback)(uchar *page, pgcache_page_no_t offset,
                             uchar *data);
   void (*write_fail)(uchar *data);
+  /** Can be NULL */ or use dummy
+  TRANSLOG_ADDRESS (*get_log_address_callback)
+    (uchar *page, pgcache_page_no_t offset, uchar *data);
   uchar *callback_data;
 } PAGECACHE_FILE;
 
@@ -258,11 +263,11 @@ extern void pagecache_unpin_by_link(PAGECACHE *pagecache,
 /* PCFLUSH_ERROR and PCFLUSH_PINNED. */
 #define PCFLUSH_PINNED_AND_ERROR (PCFLUSH_ERROR|PCFLUSH_PINNED)
 
-#define pagecache_file_init(F,RC,WC,WF,D) \
+#define pagecache_file_init(F,RC,WC,WF,GLC,D) \
   do{ \
     (F).read_callback= (RC); (F).write_callback= (WC); \
     (F).write_fail= (WF); \
-    (F).callback_data= (uchar*)(D); \
+    (F).get_log_address_callback= (GLC); (F).callback_data= (uchar*)(D); \
   } while(0)
 
 #define flush_pagecache_blocks(A,B,C)                   \
