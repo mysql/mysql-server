@@ -74,6 +74,7 @@ class Dbt : private DBT {
 
 extern "C" {
     typedef int (*bt_compare_fcn_type)(DB *db, const DBT *dbt1, const DBT *dbt2);
+    typedef int (*dup_compare_fcn_type)(DB *db, const DBT *dbt1, const DBT *dbt2);
 };
 
 class Db {
@@ -108,10 +109,15 @@ class Db {
     int set_pagesize(u_int32_t);
     int remove(const char *file, const char *database, u_int32_t flags);
     int set_bt_compare(bt_compare_fcn_type bt_compare_fcn);
+    int set_bt_compare(int (*)(Db *, const Dbt *, const Dbt *));
+    int set_dup_compare(dup_compare_fcn_type dup_compare_fcn);
+    int set_dup_compare(int (*)(Db *, const Dbt *, const Dbt *));
     int associate(DbTxn *, Db *, int (*)(Db *, const Dbt *, const Dbt *, Dbt *), u_int32_t);
 
     /* the cxx callbacks must be public so they can be called by the c callback.  But it's really private. */
     int (*associate_callback_cxx)(Db *, const Dbt *, const Dbt *, Dbt*);
+    int (*bt_compare_callback_cxx)(Db *, const Dbt *, const Dbt *);
+    int (*dup_compare_callback_cxx)(Db *, const Dbt *, const Dbt *);
 
  private:
     DB *the_db;
