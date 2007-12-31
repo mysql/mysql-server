@@ -97,21 +97,31 @@ class Db {
     }
 
     /* C++ analogues of the C functions. */
+    int open(DbTxn */*txn*/, const char */*name*/, const char */*subname*/, DBTYPE, u_int32_t/*flags*/, int/*mode*/);
     int close(u_int32_t /*flags*/);
+
     int cursor(DbTxn */*txn*/, Dbc **/*cursorp*/, u_int32_t /*flags*/);
+
     int del(DbTxn */*txn*/, Dbt */*key*/, u_int32_t /*flags*/);
+
     int get(DbTxn */*txn*/, Dbt */*key*/, Dbt */*data*/, u_int32_t /*flags*/);
     int pget(DbTxn *, Dbt *, Dbt *, Dbt *, u_int32_t);
-    int open(DbTxn */*txn*/, const char */*name*/, const char */*subname*/, DBTYPE, u_int32_t/*flags*/, int/*mode*/);
+
     int put(DbTxn *, Dbt *, Dbt *, u_int32_t);
+
     int get_flags(u_int32_t *);
     int set_flags(u_int32_t);
+
     int set_pagesize(u_int32_t);
+
     int remove(const char *file, const char *database, u_int32_t flags);
+
     int set_bt_compare(bt_compare_fcn_type bt_compare_fcn);
     int set_bt_compare(int (*)(Db *, const Dbt *, const Dbt *));
+
     int set_dup_compare(dup_compare_fcn_type dup_compare_fcn);
     int set_dup_compare(int (*)(Db *, const Dbt *, const Dbt *));
+
     int associate(DbTxn *, Db *, int (*)(Db *, const Dbt *, const Dbt *, Dbt *), u_int32_t);
 
     /* the cxx callbacks must be public so they can be called by the c callback.  But it's really private. */
@@ -152,12 +162,14 @@ class DbEnv {
     void set_errpfx(const char *errpfx);
     void err(int error, const char *fmt, ...);
     void set_errfile(FILE *errfile);
+    void set_errcall(void (*)(const DbEnv *, const char *, const char *));
 
     int do_no_exceptions; // This should be private!!!
+    void (*errcall)(const DbEnv *, const char *, const char *);
 
  private:
     DB_ENV *the_env;
-
+    
     DbEnv(DB_ENV *, u_int32_t /*flags*/);
     int maybe_throw_error(int /*err*/) throw (DbException);
     static int maybe_throw_error(int, DbEnv*, int /*no_exceptions*/) throw (DbException);
