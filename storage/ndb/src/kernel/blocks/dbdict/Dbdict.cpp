@@ -1243,6 +1243,10 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
   case SchemaFile::DROP_PARSED:
     ok = true;
     break;
+  case SchemaFile::ALTER_PARSED:
+    // wl3600_todo
+    ok = true;
+    break;
   case SchemaFile::ADD_STARTED:
     jam();
     ok = true;
@@ -3208,6 +3212,8 @@ void Dbdict::checkSchemaStatus(Signal* signal)
       continue;
     }//if
 
+    D("checkSchemaStatus" << V(*oldEntry) << V(*newEntry));
+
 //#define PRINT_SCHEMA_RESTART
 #ifdef PRINT_SCHEMA_RESTART
     char buf[100];
@@ -3236,6 +3242,15 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 #endif
 	restartCreateTab(signal, tableId, oldEntry, oldEntry, true);        
         return;
+      case SchemaFile::CREATE_PARSED:
+        jam();
+      case SchemaFile::DROP_PARSED:
+        jam();
+      case SchemaFile::ALTER_PARSED:
+        jam();
+        // these are not disk states
+        ndbrequire(false);
+        continue;
       }
     }
 
@@ -3268,6 +3283,15 @@ void Dbdict::checkSchemaStatus(Signal* signal)
           restartDropTab(signal, tableId, oldEntry, newEntry);
           return;
         }
+        continue;
+      case SchemaFile::CREATE_PARSED:
+        jam();
+      case SchemaFile::DROP_PARSED:
+        jam();
+      case SchemaFile::ALTER_PARSED:
+        jam();
+        // these are not disk states
+        ndbrequire(false);
         continue;
       }
     }
@@ -3316,6 +3340,15 @@ void Dbdict::checkSchemaStatus(Signal* signal)
           return;
         }
         * oldEntry = * newEntry;
+        continue;
+      case SchemaFile::CREATE_PARSED:
+        jam();
+      case SchemaFile::DROP_PARSED:
+        jam();
+      case SchemaFile::ALTER_PARSED:
+        jam();
+        // master cannot have active transaction
+        ndbrequire(false);
         continue;
       }
     }
@@ -10012,7 +10045,7 @@ Dbdict::alterIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
     impl_req->indexType = indexPtr.p->tableType;
   } else {
     jam();
-    ndbrequire(impl_req->indexType == indexPtr.p->tableType);
+    ndbrequire(impl_req->indexType == (Uint32)indexPtr.p->tableType);
   }
 
   if (indexPtr.p->tableVersion != impl_req->indexVersion) {
@@ -20205,9 +20238,9 @@ Dbdict::recvTransReq(Signal* signal)
     if (isMaster) {
       ndbrequire(trans_ptr.p->m_isMaster == true);
       ndbrequire(trans_ptr.p->m_masterRef == senderRef);
-      ndbrequire(tLoc.m_mode == mode);
-      ndbrequire(tLoc.m_phase == phase);
-      ndbrequire(tLoc.m_subphase == subphase);
+      ndbrequire((Uint32)tLoc.m_mode == mode);
+      ndbrequire((Uint32)tLoc.m_phase == phase);
+      ndbrequire((Uint32)tLoc.m_subphase == subphase);
     } else {
       jam();
       if (trans_ptr.p->m_masterRef == 0) {
@@ -20222,7 +20255,8 @@ Dbdict::recvTransReq(Signal* signal)
       }
       trans_ptr.p->m_opDepth = opDepth;
       iteratorCopy(tLoc, mode, phaseIndex, op_key, repeat);
-      ndbrequire(tLoc.m_phase == phase && tLoc.m_subphase == subphase);
+      ndbrequire((Uint32)tLoc.m_phase == phase &&
+                 (Uint32)tLoc.m_subphase == subphase);
     }
 
     if (tLoc.m_mode == TransMode::Normal) {
@@ -21323,6 +21357,8 @@ Dbdict::check_consistency()
     switch (tablePtr.p->tabState) {
     case TableRecord::NOT_DEFINED:
       continue;
+    default:
+      break;
     }
     check_consistency_entry(tablePtr);
   }
@@ -21336,6 +21372,8 @@ Dbdict::check_consistency()
     switch (triggerPtr.p->triggerState) {
     case TriggerRecord::TS_NOT_DEFINED:
       continue;
+    default:
+      break;
     }
     check_consistency_trigger(triggerPtr);
   }
