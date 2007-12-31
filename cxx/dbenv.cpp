@@ -109,3 +109,13 @@ void DbEnv::err(int error, const char *fmt, ...) {
 void DbEnv::set_errfile(FILE *errfile) {
     the_env->set_errfile(the_env, errfile);
 }
+
+extern "C" void toku_db_env_errcall_c(DB_ENV *dbenv_c, const char *errpfx, const char *msg) {
+    DbEnv *dbenv = (DbEnv *) dbenv_c->api1_internal;
+    dbenv->errcall(dbenv, errpfx, msg);
+}
+
+void DbEnv::set_errcall(void (*db_errcall_fcn)(const DbEnv *, const char *, const char *)) {
+    errcall = db_errcall_fcn;
+    the_env->set_errcall(the_env, toku_db_env_errcall_c);
+}
