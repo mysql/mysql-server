@@ -84,6 +84,11 @@ int Db::get(DbTxn *txn, Dbt *key, Dbt *data, u_int32_t flags) {
     return the_Env->maybe_throw_error(ret);
 }
 
+int Db::pget(DbTxn *txn, Dbt *key, Dbt *pkey, Dbt *data, u_int32_t flags) {
+    int ret = the_db->pget(the_db, txn->get_DB_TXN(), key->get_DBT(), pkey->get_DBT(), data->get_DBT(), flags);
+    return the_Env->maybe_throw_error(ret);
+}
+
 int Db::put(DbTxn *txn, Dbt *key, Dbt *data, u_int32_t flags) {
     int ret = the_db->put(the_db, txn->get_DB_TXN(), key->get_DBT(), data->get_DBT(), flags);
     return the_Env->maybe_throw_error(ret);
