@@ -5064,7 +5064,8 @@ err:
   return NDBT_FAILED;
 }
 
-static ST_Errins st_test_local_create_list[] = {
+static ST_Errins
+st_test_local_create_list[] = {
   ST_Errins(8033, 291, 1),    // TC trigger
   ST_Errins(8033, 291, 0),
   ST_Errins(4003, 4237, 1),   // TUP trigger
@@ -5612,16 +5613,16 @@ st_test_list[] = {
   { "d1", 1, -1,
     func(st_test_build_index),
     "build index on non-empty table" },
-  { "e1", 1, 2,
+  { "e1", 1, 0,
     func(st_test_local_create),
     "fail trigger create in TC, master errins 8033" },
-  { "e2", 2, 3,
+  { "e2", 2, 1,
     func(st_test_local_create),
     "fail trigger create in TC, slave errins 8033" },
-  { "e3", 1, 0,
+  { "e3", 1, 2,
     func(st_test_local_create),
     "fail trigger create in TUP, master errins 4003" },
-  { "e4", 2, 1,
+  { "e4", 2, 3,
     func(st_test_local_create),
     "fail trigger create in TUP, slave errins 4003" },
   { "e5", 1, 4,

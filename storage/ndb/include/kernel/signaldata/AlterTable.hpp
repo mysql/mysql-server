@@ -172,7 +172,7 @@ struct AlterTableConf {
 };
 
 struct AlterTableRef {
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 9 );
 
   enum ErrorCode {
     NoError = 0,
@@ -209,14 +209,6 @@ struct AlterTableRef {
   Uint32 masterNodeId;
   Uint32 errorStatus;
   Uint32 errorKey;
-
-private: //wl3600_todo
-  Uint32 getErrorCode() const {
-    return errorCode;
-  }
-  Uint32 getErrorLine() const {
-    return errorLine;
-  }
 };
 
 /**
