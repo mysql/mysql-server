@@ -4,6 +4,9 @@
 #ifndef DB_YESOVERWRITE
 #define DB_YESOVERWRITE 0
 #endif
+#ifndef DB_DELETE_ANY
+#define DB_DELETE_ANY 0
+#endif
 
 int verbose=0;
 
