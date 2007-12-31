@@ -161,6 +161,7 @@ class DbEnv {
 class DbTxn {
  public:
     int commit (u_int32_t /*flags*/);
+    int abort ();
 
     virtual ~DbTxn();
 

@@ -19,3 +19,10 @@ int DbTxn::commit (u_int32_t flags) {
     the_txn=0; // So we don't touch it my mistake.
     return env->maybe_throw_error(ret);
 }
+
+int DbTxn::abort () {
+    DbEnv *env = (DbEnv*)the_txn->mgrp->api1_internal; // Must grab the env before committing the txn (because that releases the txn memory.)
+    int ret = the_txn->abort(the_txn);
+    the_txn=0; // So we don't touch it my mistake.
+    return env->maybe_throw_error(ret);
+}
