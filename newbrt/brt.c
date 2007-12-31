@@ -397,6 +397,7 @@ static int brtleaf_split (TOKUTXN txn, FILENUM filenum, BRT t, BRTNODE node, BRT
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
     create_new_brtnode(t, &A, 0, node->parent_brtnode);
     create_new_brtnode(t, &B, 0, node->parent_brtnode);
+    //printf("leaf_split %lld - %lld %lld\n", node->thisnodename, A->thisnodename, B->thisnodename);
     //printf("%s:%d A PMA= %p\n", __FILE__, __LINE__, A->u.l.buffer); 
     //printf("%s:%d B PMA= %p\n", __FILE__, __LINE__, A->u.l.buffer); 
     assert(A->nodesize>0);
@@ -717,18 +718,25 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb);
         int tochildnum = childnum;
         BRTNODE tochild = childa;
-        int cmp = brt_compare_pivot(t, &skd, &svd, childsplitk->data);
-        if (cmp < 0) {
-            ;
-        } else if (cmp > 0) {
-            tochildnum = childnum+1; tochild = childb;
-        } else if (t->flags & TOKU_DB_DUP) {
-            if (node->u.n.pivotflags[childnum] & BRT_PIVOT_PRESENT_R) {
+        if (type == BRT_INSERT) {
+            int cmp = brt_compare_pivot(t, &skd, &svd, childsplitk->data);
+            if (cmp < 0) {
+                ;
+            } else if (cmp > 0) {
                 tochildnum = childnum+1; tochild = childb;
+            } else if (t->flags & TOKU_DB_DUP) {
+                if (node->u.n.pivotflags[childnum] & BRT_PIVOT_PRESENT_R) {
+                    tochildnum = childnum+1; tochild = childb;
+                }
             }
         }
 	r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, tochild, &brtcmd, tochildnum, txn);
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb); 
+        if (type == BRT_DELETE) {
+            int r2 = push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, childb, &brtcmd, childnum+1, txn);
+            //verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb); 
+            if (r2!=0) return r2;
+        }
 	if (r!=0) return r;
     }));
 
@@ -1770,7 +1778,7 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     *rootp=newroot_diskoff;
     brt->h->dirty=1;
     initialize_brtnode (brt, newroot, newroot_diskoff, nodea->height+1);
-    // printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
+    //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
     newroot->parent_brtnode=0;
     newroot->u.n.n_children=2;
     //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
