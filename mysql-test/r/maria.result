@@ -889,7 +889,7 @@ _id
 DELETE FROM t1 WHERE _id < 8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Paged	2	#	#	#	#	0	#	#	#	#	#	#		
+t1	MARIA	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
 CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -901,7 +901,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Paged	2	#	#	#	#	0	#	#	#	#	#	#		
+t1	MARIA	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
 SELECT _id FROM t1;
 _id
 8
@@ -948,7 +948,7 @@ _id
 DELETE FROM t1 WHERE _id < 8;
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Paged	2	#	#	#	#	0	#	#	#	#	#	#		
+t1	MARIA	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
 CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -960,7 +960,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Paged	2	#	#	#	#	0	#	#	#	#	#	#		
+t1	MARIA	10	Page	2	#	#	#	#	0	#	#	#	#	#	#		
 SELECT _id FROM t1;
 _id
 8
