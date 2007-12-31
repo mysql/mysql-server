@@ -179,6 +179,16 @@ let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 show create table t1;
 drop table t1;
 
+# Test of removing logs manually
+--echo * TEST of removing logs manually
+let $mel_keep_control_file=1;
+# this will shut mysqld down cleanly (so, take a checkpoint) and
+# remove only logs; at restart Maria will create a new log with a high
+# number
+-- source include/maria_empty_logs.inc
+let $mel_keep_control_file=0;
+# next test will help us verify that a next recovery is ok
+
 --echo * TEST of UNDO_ROW_DELETE preserving rowid
 # we want recovery to use the tables as they were at time of crash
 let $mvr_restore_old_snapshot=0;

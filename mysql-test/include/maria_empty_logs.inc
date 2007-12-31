@@ -1,7 +1,8 @@
 # Maria help script.
 # Cleans up all logs to give recovery a fresh start.
 
-# API: none, just uses vardir, port and socket.
+# API: set mel_keep_control_file=1 if want to keep control file;
+# uses vardir, port and socket.
 
 connection admin;
 
@@ -12,7 +13,10 @@ EOF
 
 --exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= shutdown 2>&1;
 
-remove_file $MYSQLTEST_VARDIR/master-data/maria_log_control;
+if (!$mel_keep_control_file)
+{
+  remove_file $MYSQLTEST_VARDIR/master-data/maria_log_control;
+}
 remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000001;
 -- error 0,1 # maybe there is just one log
 remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000002;

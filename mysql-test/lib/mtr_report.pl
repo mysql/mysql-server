@@ -363,7 +363,10 @@ sub mtr_report_stats ($) {
 		# master
 		/Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
 		/Slave: Can't DROP 'c7'.* 1091/ or
-		/Slave: Key column 'c6'.* 1072/
+		/Slave: Key column 'c6'.* 1072/ or
+
+                # maria-recovery.test has warning about missing log file
+                /Can't get stat of '.*maria_log.00*/
 	       )
             {
               next;                       # Skip these lines
