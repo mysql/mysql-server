@@ -263,7 +263,7 @@ wrong:
 } /* maria_chk_del */
 
 
-	/* Check delete links in index file */
+/* Check delete links in index file */
 
 static int check_k_link(HA_CHECK *param, register MARIA_HA *info,
                         my_off_t next_link)
@@ -2470,8 +2470,9 @@ err:
   if (!got_error && (param->testflag & T_UNPACK))
     restore_data_file_type(share);
   share->state.changed|= (STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES |
-			  STATE_NOT_ANALYZED);
-  share->state.changed&= ~STATE_NOT_OPTIMIZED_ROWS;
+			  STATE_NOT_ANALYZED | STATE_NOT_ZEROFILLED);
+  if (!rep_quick)
+    share->state.changed&= ~(STATE_NOT_OPTIMIZED_ROWS | STATE_NOT_MOVABLE);
   DBUG_RETURN(got_error);
 }
 
@@ -2847,14 +2848,214 @@ err:
 } /* sort_one_index */
 
 
-	/*
-	  Let temporary file replace old file.
-	  This assumes that the new file was created in the same
-	  directory as given by realpath(filename).
-	  This will ensure that any symlinks that are used will still work.
-	  Copy stats from old file to new file, deletes orignal and
-	  changes new file name to old file name
-	*/
+/**
+   @brief Fill empty space in index file with zeroes
+
+   @return
+   @retval 0  Ok
+   @retval 1  Error
+*/
+
+static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
+                                    const char *name)
+{
+  MARIA_SHARE *share= info->s;
+  MARIA_PINNED_PAGE page_link;
+  char llbuff[21];
+  uchar *buff;
+  ulonglong page;
+  my_off_t pos;
+  my_off_t key_file_length= share->state.state.key_file_length;
+  uint block_size= share->block_size;
+  my_bool transactional= share->base.born_transactional;
+  DBUG_ENTER("maria_zerofill_index");
+
+  if (!(param->testflag & T_SILENT))
+    printf("- Zerofilling index for MARIA-table '%s'\n",name);
+
+  /* Go through the index file */
+  for (pos= share->base.keystart, page= (ulonglong) (pos / block_size);
+       pos < key_file_length;
+       pos+= block_size, page++)
+  {
+    uint length;
+    if (!(buff= pagecache_read(share->pagecache,
+                               &share->kfile, page,
+                               DFLT_INIT_HITS, 0,
+                               PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
+                               &page_link.link)))
+    {
+      pagecache_unlock_by_link(share->pagecache, page_link.link,
+                               PAGECACHE_LOCK_WRITE_UNLOCK,
+                               PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
+                               LSN_IMPOSSIBLE, 0);
+      _ma_check_print_error(param,
+                            "Page %9s: Got error %d when reading index file",
+                            llstr(pos, llbuff), my_errno);
+      DBUG_RETURN(1);
+    }
+    if (transactional)
+      bzero(buff, LSN_SIZE);
+    length= _ma_get_page_used(share, buff);
+    if (length < block_size)
+      bzero(buff + share->keypage_header + length, block_size - length -
+            share->keypage_header);
+    pagecache_unlock_by_link(share->pagecache, page_link.link,
+                             PAGECACHE_LOCK_WRITE_UNLOCK,
+                             PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
+                             LSN_IMPOSSIBLE, 1);
+  }
+  if (flush_pagecache_blocks(share->pagecache, &share->kfile,
+                             FLUSH_FORCE_WRITE))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+
+/**
+   @brief Fill empty space in index file with zeroes
+
+   @todo
+   Zerofill all pages marked in bitmap as empty and change them to
+   be of type UNALLOCATED_PAGE
+
+   @return
+   @retval 0  Ok
+   @retval 1  Error
+*/
+
+static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
+                                   const char *name)
+{
+  MARIA_SHARE *share= info->s;
+  MARIA_PINNED_PAGE page_link;
+  char llbuff[21];
+  my_off_t pos;
+  ulonglong page;
+  uint block_size= share->block_size;
+  DBUG_ENTER("maria_zerofill_data");
+
+  /* This works only with BLOCK_RECORD files */
+  if (share->data_file_type != BLOCK_RECORD)
+    DBUG_RETURN(0);
+
+  if (!(param->testflag & T_SILENT))
+    printf("- Zerofilling data  for MARIA-table '%s'\n",name);
+
+  /* Go through the record file */
+  for (page= 1, pos= block_size;
+       pos < info->state->data_file_length;
+       pos+= block_size, page++)
+  {
+    uchar *buff;
+    uint page_type;
+
+    /* Ignore bitmap pages */
+    if ((page % share->bitmap.pages_covered) == 0)
+      continue;
+    if (!(buff= pagecache_read(share->pagecache,
+                               &info->dfile,
+                               page, 1, 0,
+                               PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
+                               &page_link.link)))
+    {
+      _ma_check_print_error(param,
+                            "Page %9s:  Got error: %d when reading datafile",
+                            llstr(pos, llbuff), my_errno);
+      goto err;
+    }
+    page_type= buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK;
+    switch ((enum en_page_type) page_type) {
+    case UNALLOCATED_PAGE:
+      bzero(buff, block_size);
+      break;
+    case BLOB_PAGE:
+      bzero(buff, LSN_SIZE);
+      break;
+    case HEAD_PAGE:
+    case TAIL_PAGE:
+    {
+      uint max_entry= (uint) buff[DIR_COUNT_OFFSET];
+      uint offset, dir_start;
+      uchar *dir;
+
+      bzero(buff, LSN_SIZE);
+      if (max_entry != 0)
+      {
+        dir= dir_entry_pos(buff, block_size, max_entry - 1);
+        _ma_compact_block_page(buff, block_size, max_entry -1, 0);
+
+        /* Zerofille the not used part */
+        offset= uint2korr(dir) + uint2korr(dir+2);
+        dir_start= (uint) (dir - buff);
+        if (dir_start > offset)
+          bzero(buff + offset, dir_start - offset);
+      }
+      break;
+    }
+    default:
+      _ma_check_print_error(param,
+                            "Page %9s:  Found unrecognizable block of type %d",
+                            llstr(pos, llbuff), page_type);
+      goto err;
+    }
+    pagecache_unlock_by_link(share->pagecache, page_link.link,
+                             PAGECACHE_LOCK_WRITE_UNLOCK,
+                             PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
+                             LSN_IMPOSSIBLE, 1);
+  }
+  if (flush_pagecache_blocks(share->pagecache, &info->dfile,
+                             FLUSH_FORCE_WRITE))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+
+err:
+  pagecache_unlock_by_link(share->pagecache, page_link.link,
+                           PAGECACHE_LOCK_WRITE_UNLOCK,
+                           PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
+                           LSN_IMPOSSIBLE, 0);
+  DBUG_RETURN(1);
+}
+
+
+/**
+   @brief Fill empty space in index and data files with zeroes
+
+   @return
+   @retval 0  Ok
+   @retval 1  Error
+*/
+
+int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
+{
+  DBUG_ENTER("maria_zerofill");
+
+  if (maria_zerofill_index(param, info, name))
+    DBUG_RETURN(1);
+  if (maria_zerofill_data(param, info, name))
+    DBUG_RETURN(1);
+  if (_ma_set_uuid(info, 0))
+    DBUG_RETURN(1);
+
+  /*
+    Mark that table is movable and that we have done zerofill of data and
+    index
+  */
+  info->s->state.changed&= ~(STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
+  /* Ensure state are flushed to disk */
+  info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Let temporary file replace old file.
+  This assumes that the new file was created in the same
+  directory as given by realpath(filename).
+  This will ensure that any symlinks that are used will still work.
+  Copy stats from old file to new file, deletes orignal and
+  changes new file name to old file name
+*/
 
 int maria_change_to_newfile(const char * filename, const char * old_ext,
                             const char * new_ext, myf MyFlags)
@@ -3326,7 +3527,9 @@ err:
     write_log_record_for_repair(param, info);
   }
   share->state.changed|= STATE_NOT_SORTED_PAGES;
-  share->state.changed&= ~STATE_NOT_OPTIMIZED_ROWS;
+  if (!rep_quick)
+    share->state.changed&= ~(STATE_NOT_OPTIMIZED_ROWS | STATE_NOT_ZEROFILLED |
+                             STATE_NOT_MOVABLE);
 
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
@@ -3335,6 +3538,7 @@ err:
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN(got_error);
 }
+
 
 /*
   Threaded repair of table using sorting
@@ -3833,7 +4037,9 @@ err:
   else if (key_map == share->state.key_map)
     share->state.changed&= ~STATE_NOT_OPTIMIZED_KEYS;
   share->state.changed|= STATE_NOT_SORTED_PAGES;
-  share->state.changed&= ~STATE_NOT_OPTIMIZED_ROWS;
+  if (!rep_quick)
+    share->state.changed&= ~(STATE_NOT_OPTIMIZED_ROWS | STATE_NOT_ZEROFILLED |
+                             STATE_NOT_MOVABLE);
 
   pthread_cond_destroy (&sort_info.cond);
   pthread_mutex_destroy(&sort_info.mutex);
@@ -5917,16 +6123,16 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
       record).
     */
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-    uchar log_data[FILEID_STORE_SIZE + 4 + 8];
+    uchar log_data[FILEID_STORE_SIZE + 8 + 8];
     LSN lsn;
 
     /*
       testflag gives an idea of what REPAIR did (in particular T_QUICK
       or not: did it touch the data file or not?).
     */
-    int4store(log_data + FILEID_STORE_SIZE, param->testflag);
+    int8store(log_data + FILEID_STORE_SIZE, param->testflag);
     /* org_key_map is used when recreating index after a load data infile */
-    int8store(log_data + FILEID_STORE_SIZE + 4, param->org_key_map);
+    int8store(log_data + FILEID_STORE_SIZE + 8, param->org_key_map);
 
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);

@@ -59,6 +59,7 @@
 #define T_VERY_SILENT           (1L << 29)
 #define T_WAIT_FOREVER          (1L << 30)
 #define T_WRITE_LOOP            ((ulong) 1L << 31)
+#define T_ZEROFILL              ((ulonglong) 1L << 32)
 
 #define T_REP_ANY               (T_REP | T_REP_BY_SORT | T_REP_PARALLEL)
 
@@ -129,13 +130,14 @@ typedef struct st_handler_check_param
   ha_checksum tmp_key_crc[HA_MAX_POSSIBLE_KEY];
   ha_checksum tmp_record_checksum;
   ulonglong   org_key_map;
+  ulonglong   testflag;
   size_t use_buffers, read_buffer_length, write_buffer_length;
   size_t sort_buffer_length, sort_key_blocks;
   ulong rec_per_key_part[HA_MAX_KEY_SEG * HA_MAX_POSSIBLE_KEY];
   double new_rec_per_key_part[HA_MAX_KEY_SEG * HA_MAX_POSSIBLE_KEY];
   uint out_flag, warning_printed, error_printed, verbose;
   uint opt_sort_key, total_files, max_level;
-  uint testflag, key_cache_block_size, pagecache_block_size;
+  uint key_cache_block_size, pagecache_block_size;
   int tmpfile_createflag, err_count;
   myf myf_rw;
   uint8 language;

@@ -2055,7 +2055,7 @@ maria_log_purge_type	immediate
 maria_max_sort_file_size	9223372036854775807
 maria_page_checksum	OFF
 maria_pagecache_age_threshold	300
-maria_pagecache_buffer_size	8388572
+maria_pagecache_buffer_size	8388600
 maria_pagecache_division_limit	100
 maria_repair_threads	1
 maria_sort_buffer_size	8388608

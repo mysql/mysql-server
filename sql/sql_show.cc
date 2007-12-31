@@ -3574,7 +3574,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
         tmp_buff= "Compact";
         break;
       case ROW_TYPE_PAGE:
-        tmp_buff= "Paged";
+        tmp_buff= "Page";
         break;
       }
       table->field[6]->store(tmp_buff, strlen(tmp_buff), cs);

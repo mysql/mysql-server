@@ -147,7 +147,6 @@ my_bool _ma_once_init_block_record(MARIA_SHARE *share, File dfile);
 my_bool _ma_once_end_block_record(MARIA_SHARE *share);
 my_bool _ma_init_block_record(MARIA_HA *info);
 void _ma_end_block_record(MARIA_HA *info);
-my_bool _ma_check_if_zero(uchar *pos, uint length);
 
 my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS pos,
                                 const uchar *oldrec, const uchar *newrec);
@@ -173,6 +172,8 @@ my_bool _ma_write_block_record(MARIA_HA *info, const uchar *record);
 my_bool _ma_write_abort_block_record(MARIA_HA *info);
 my_bool _ma_compare_block_record(register MARIA_HA *info,
                                  register const uchar *record);
+void    _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
+                               my_bool extend_block);
 
 /* ma_bitmap.c */
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);

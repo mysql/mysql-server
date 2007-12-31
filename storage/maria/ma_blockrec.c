@@ -337,8 +337,6 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
 #ifndef DBUG_OFF
 static void _ma_print_directory(uchar *buff, uint block_size);
 #endif
-static void compact_page(uchar *buff, uint block_size, uint rownr,
-                         my_bool extend_block);
 static uchar *store_page_range(uchar *to, MARIA_BITMAP_BLOCK *block,
                                uint block_size, ulong length,
                                uint *tot_ranges);
@@ -533,6 +531,7 @@ void _ma_end_block_record(MARIA_HA *info)
   my_free((uchar*) info->cur_row.empty_bits, MYF(MY_ALLOW_ZERO_PTR));
   delete_dynamic(&info->bitmap_blocks);
   my_free((uchar*) info->cur_row.extents, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(info->blob_buff, MYF(MY_ALLOW_ZERO_PTR));
   /*
     The data file is closed, when needed, in ma_once_end_block_record().
     The following protects us from doing an extra, not allowed, close
@@ -700,7 +699,7 @@ static void check_directory(uchar *buff, uint block_size)
     - If new data fits in old block, use old block.
     - Extend block with empty space before block. If enough, use it.
     - Extend block with empty space after block. If enough, use it.
-    - Use compact_page() to get all empty space at dir.
+    - Use _ma_compact_block_page() to get all empty space at dir.
 
   @note
     The given directory entry is set to rec length.
@@ -794,7 +793,7 @@ static my_bool extend_area_on_page(uchar *buff, uchar *dir,
         int2store(dir, rec_offset);
         /* Reset length, as this may be a deleted block */
         int2store(dir+2, 0);
-        compact_page(buff, block_size, rownr, 1);
+        _ma_compact_block_page(buff, block_size, rownr, 1);
         rec_offset= uint2korr(dir);
         length=     uint2korr(dir+2);
         if (length < request_length)
@@ -815,28 +814,6 @@ static my_bool extend_area_on_page(uchar *buff, uchar *dir,
   *ret_length= length;
   check_directory(buff, block_size);
   DBUG_RETURN(0);
-}
-
-
-/*
-  Check that a region is all zero
-
-  SYNOPSIS
-    check_if_zero()
-    pos		Start of memory to check
-    length	length of memory region
-
-  NOTES
-    Used mainly to detect rows with wrong extent information
-*/
-
-my_bool _ma_check_if_zero(uchar *pos, uint length)
-{
-  uchar *end;
-  for (end= pos+ length; pos != end ; pos++)
-    if (pos[0] != 0)
-      return 1;
-  return 0;
 }
 
 
@@ -937,7 +914,7 @@ make_space_for_directory(uchar *buff, uint block_size, uint max_entry,
     if ((uint) (first_dir - buff) < *first_pos + length_needed)
     {
       /* Create place for directory */
-      compact_page(buff, block_size, max_entry - 1, 0);
+      _ma_compact_block_page(buff, block_size, max_entry - 1, 0);
       *first_pos= (uint2korr(first_dir) + uint2korr(first_dir + 2));
       *empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
       if (*empty_space < length_needed)
@@ -979,7 +956,8 @@ make_space_for_directory(uchar *buff, uint block_size, uint max_entry,
     then use it and change it to be the size of the empty block
     after the previous entry. This guarantees that all row entries
     are stored on disk in inverse directory order, which makes life easier for
-    'compact_page()' and to know if there is free space after any block.
+    '_ma_compact_block_page()' and to know if there is free space after any
+    block.
 
     If there is no free entry (entry with position == 0), then we create
     a new one. If there is not space for the directory entry (because
@@ -1312,7 +1290,7 @@ static void calc_record_size(MARIA_HA *info, const uchar *record,
     Remove TRANSID from rows that are visible to all transactions
 
   SYNOPSIS
-    compact_page()
+    _ma_compact_block_page()
     buff                Page to compact
     block_size          Size of page
     rownr               Put empty data after this row
@@ -1321,13 +1299,13 @@ static void calc_record_size(MARIA_HA *info, const uchar *record,
 */
 
 
-static void compact_page(uchar *buff, uint block_size, uint rownr,
-                         my_bool extend_block)
+void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
+                            my_bool extend_block)
 {
   uint max_entry= (uint) buff[DIR_COUNT_OFFSET];
   uint page_pos, next_free_pos, start_of_found_block, diff, end_of_found_block;
   uchar *dir, *end;
-  DBUG_ENTER("compact_page");
+  DBUG_ENTER("_ma_compact_block_page");
   DBUG_PRINT("enter", ("rownr: %u", rownr));
   DBUG_ASSERT(max_entry > 0 &&
               max_entry < (block_size - PAGE_HEADER_SIZE -
@@ -1566,7 +1544,7 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
     {
       if (res->empty_space + res->length >= length)
       {
-        compact_page(res->buff, block_size, res->rownr, 1);
+        _ma_compact_block_page(res->buff, block_size, res->rownr, 1);
         /* All empty space are now after current position */
         dir= dir_entry_pos(res->buff, block_size, res->rownr);
         res->length= res->empty_space= uint2korr(dir+2);
@@ -1916,11 +1894,14 @@ static my_bool write_full_pages(MARIA_HA *info,
     memcpy(buff + LSN_SIZE + PAGE_TYPE_SIZE, data, copy_length);
     length-= copy_length;
 
-#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
+    /*
+      Zero out old information from the block. This removes possible
+      sensitive information from the block and also makes the file
+      easier to compress and easier to compare after recovery.
+    */
     if (copy_length != data_size)
       bzero(buff + block_size - PAGE_SUFFIX_SIZE - (data_size - copy_length),
             (data_size - copy_length) + PAGE_SUFFIX_SIZE);
-#endif
 
     DBUG_ASSERT(share->pagecache->block_size == block_size);
     if (pagecache_write(share->pagecache,
@@ -3450,7 +3431,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
        (new_row->total_length <= head_length &&
         org_empty_size + head_length >= new_row->total_length)))
   {
-    compact_page(buff, block_size, rownr, 1);
+    _ma_compact_block_page(buff, block_size, rownr, 1);
     org_empty_size= 0;
     head_length= uint2korr(dir + 2);
   }
@@ -5748,6 +5729,9 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                        (ulong) ma_recordpos(page, rownr),
                        (ulong) page, rownr, (uint) data_length));
 
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ZEROFILLED |
+                          STATE_NOT_MOVABLE);
+
   end_of_page= (page + 1) * share->block_size;
   if (end_of_page > info->state->data_file_length)
   {
@@ -5938,7 +5922,8 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
                        (ulong) ma_recordpos(page, rownr),
                        (ulong) page, rownr));
 
-  info->keyread_buff_used= 1;
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ZEROFILLED |
+                          STATE_NOT_MOVABLE);
 
   if (!(buff= pagecache_read(share->pagecache, &info->dfile,
                              page, 0, 0,
@@ -6019,6 +6004,9 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info,
   uint ranges;
   DBUG_ENTER("_ma_apply_redo_free_blocks");
 
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ZEROFILLED |
+                          STATE_NOT_MOVABLE);
+
   ranges= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;
   DBUG_ASSERT(ranges > 0);
@@ -6077,6 +6065,9 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
   MARIA_PINNED_PAGE page_link;
   my_bool res;
   DBUG_ENTER("_ma_apply_redo_free_head_or_tail");
+
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ZEROFILLED |
+                          STATE_NOT_MOVABLE);
 
   page= page_korr(header);
 
@@ -6152,6 +6143,9 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
   uint      data_size= FULL_PAGE_SIZE(share->block_size);
   uint      blob_count, ranges;
   DBUG_ENTER("_ma_apply_redo_insert_row_blobs");
+
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ZEROFILLED |
+                          STATE_NOT_MOVABLE);
 
   ranges= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;

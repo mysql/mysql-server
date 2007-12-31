@@ -138,7 +138,7 @@ int main(int argc, char **argv)
       ulonglong old_testflag=check_param.testflag;
       if (!(check_param.testflag & T_REP))
 	check_param.testflag|= T_REP_BY_SORT;
-      check_param.testflag&= ~T_EXTEND;			/* Don't needed  */
+      check_param.testflag&= ~T_EXTEND;			/* Not needed  */
       error|=maria_chk(&check_param, argv[-1]);
       check_param.testflag= old_testflag;
       VOID(fflush(stdout));
@@ -195,7 +195,7 @@ static struct my_option my_long_options[] =
    "No help available.",
    0, 0, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"backup", 'B',
-   "Make a backup of the .MYD file as 'filename-time.BAK'.",
+   "Make a backup of the .MAD file as 'filename-time.BAK'.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.",
@@ -355,12 +355,15 @@ static struct my_option my_long_options[] =
     "Use stopwords from this file instead of built-in list.",
     (uchar**) &ft_stopword_file, (uchar**) &ft_stopword_file, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"stats_method", OPT_STATS_METHOD,
-   "Specifies how index statistics collection code should treat NULLs. "
-   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
-   "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
+  { "stats_method", OPT_STATS_METHOD,
+    "Specifies how index statistics collection code should treat NULLs. "
+    "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
+    "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
    (uchar**) &maria_stats_method_str, (uchar**) &maria_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "zerofill", 'z',
+    "Fill empty space in data and index files with zeroes",
+    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -382,7 +385,7 @@ static void usage(void)
   puts("This software comes with NO WARRANTY: see the PUBLIC for details.\n");
   puts("Description, check and repair of MARIA tables.");
   puts("Used without options all tables on the command will be checked for errors");
-  printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname_short);
+  printf("Usage: %s [OPTIONS] tables[.MAI]\n", my_progname_short);
   printf("\nGlobal options:\n");
 #ifndef DBUG_OFF
   printf("\
@@ -430,7 +433,7 @@ static void usage(void)
   -T, --read-only     Don't mark table as checked.\n");
 
   puts("Recover (repair)/ options (When using '-r' or '-o'):\n\
-  -B, --backup	      Make a backup of the .MYD file as 'filename-time.BAK'.\n\
+  -B, --backup	      Make a backup of the .MAD file as 'filename-time.BAK'.\n\
   --correct-checksum  Correct checksum information for table.\n\
   -D, --data-file-length=#  Max length of data file (when recreating data\n\
                       file when it's full).\n\
@@ -489,7 +492,8 @@ static void usage(void)
 		      data much more localized and may speed up things\n\
 		      (It may be VERY slow to do a sort the first time!).\n\
   -b,  --block-search=#\n\
-                       Find a record, a block at given offset belongs to.");
+                      Find a record, a block at given offset belongs to.\n\
+  --zerofill          Fill empty space in data and index files with zeroes.");
 
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
@@ -750,6 +754,12 @@ get_one_option(int optid,
     check_param.start_check_pos= strtoull(argument, NULL, 0);
     break;
 #endif
+  case 'z':
+    if (argument == disabled_my_option)
+      check_param.testflag&= ~T_ZEROFILL;
+    else
+      check_param.testflag|= T_ZEROFILL;
+    break;
   case 'H':
     my_print_help(my_long_options);
     exit(0);
@@ -1035,7 +1045,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
     goto end2;
   }
 
-  if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
+  if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX |
+                         T_ZEROFILL))
   {
     /* Mark table as not transactional to avoid logging */
     maria_disable_logging(info);
@@ -1047,20 +1058,21 @@ static int maria_chk(HA_CHECK *param, char *filename)
                              param->keys_in_use);
       if (tmp != share->state.key_map)
         info->update|=HA_STATE_CHANGED;
-    }
-    if (rep_quick &&
-        maria_chk_del(param, info, param->testflag & ~T_VERBOSE))
-    {
-      if (param->testflag & T_FORCE_CREATE)
+
+      if (rep_quick &&
+          maria_chk_del(param, info, param->testflag & ~T_VERBOSE))
       {
-        rep_quick=0;
-        _ma_check_print_info(param,"Creating new data file\n");
-      }
-      else
-      {
-        error=1;
-        _ma_check_print_error(param,
-                              "Quick-recover aborted; Run recovery without switch 'q'");
+        if (param->testflag & T_FORCE_CREATE)
+        {
+          rep_quick=0;
+          _ma_check_print_info(param,"Creating new data file\n");
+        }
+        else
+        {
+          error=1;
+          _ma_check_print_error(param,
+                                "Quick-recover aborted; Run recovery without switch 'q'");
+        }
       }
     }
     if (!error)
@@ -1075,6 +1087,9 @@ static int maria_chk(HA_CHECK *param, char *filename)
       if (share->base.born_transactional)
         share->state.create_rename_lsn= share->state.is_of_horizon=
           LSN_REPAIRED_BY_MARIA_CHK;
+    }
+    if (!error && (param->testflag & T_REP_ANY))
+    {
       if ((param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL)) &&
           (maria_is_any_key_active(share->state.key_map) ||
            (rep_quick && !param->keys_in_use && !recreate)) &&
@@ -1088,10 +1103,10 @@ static int maria_chk(HA_CHECK *param, char *filename)
           error=maria_repair_parallel(param,info,filename,rep_quick);
         state_updated=1;
       }
-      else if (param->testflag & T_REP_ANY)
+      else
         error=maria_repair(param, info,filename,rep_quick);
     }
-    if (!error && param->testflag & T_SORT_RECORDS)
+    if (!error && (param->testflag & T_SORT_RECORDS))
     {
       /*
         The data file is nowadays reopened in the repair code so we should
@@ -1134,8 +1149,10 @@ static int maria_chk(HA_CHECK *param, char *filename)
         }
       }
     }
-    if (!error && param->testflag & T_SORT_INDEX)
-      error=maria_sort_index(param,info,filename);
+    if (!error && (param->testflag & T_SORT_INDEX))
+      error= maria_sort_index(param,info,filename);
+    if (!error && (param->testflag & T_ZEROFILL))
+      error= maria_zerofill(param, info, filename);
     if (!error)
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
                                STATE_CRASHED_ON_REPAIR);
@@ -1271,7 +1288,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
   reg3 MARIA_KEYDEF *keyinfo;
   reg2 HA_KEYSEG *keyseg;
   reg4 const char *text;
-  char buff[160],length[10],*pos,*end;
+  char buff[200],length[10],*pos,*end;
   enum en_fieldtype type;
   MARIA_SHARE *share= info->s;
   char llbuff[22],llbuff2[22];
@@ -1326,6 +1343,10 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
 	pos=strmov(pos,"optimized keys,");
       if (!(share->state.changed & STATE_NOT_SORTED_PAGES))
 	pos=strmov(pos,"sorted index pages,");
+      if (!(share->state.changed & STATE_NOT_ZEROFILLED))
+	pos=strmov(pos,"zerofilled,");
+      if (!(share->state.changed & STATE_NOT_MOVABLE))
+	pos=strmov(pos,"movable,");
       pos[-1]=0;				/* Remove extra ',' */
     }
     printf("Status:              %s\n",buff);

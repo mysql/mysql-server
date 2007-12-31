@@ -109,11 +109,14 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   if ((*share->delete_record)(info, record))
     goto err;				/* Remove record from database */
 
-  info->state->checksum+= - !share->now_transactional *
-    info->cur_row.checksum;
+  if (!share->now_transactional)
+  {
+    info->state->checksum-= info->cur_row.checksum;
+    info->state->records--;
+  }
   info->update= HA_STATE_CHANGED+HA_STATE_DELETED+HA_STATE_ROW_CHANGED;
-  info->state->records-= !share->now_transactional;
-  share->state.changed|= STATE_NOT_OPTIMIZED_ROWS;
+  share->state.changed|= (STATE_NOT_OPTIMIZED_ROWS | STATE_NOT_MOVABLE |
+                          STATE_NOT_ZEROFILLED);
 
   mi_sizestore(lastpos, info->cur_row.lastpos);
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));

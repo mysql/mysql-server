@@ -556,7 +556,8 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
   /* Set header to point at key data */
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_OPTIMIZED_KEYS |
-                          STATE_NOT_SORTED_PAGES);
+                          STATE_NOT_SORTED_PAGES | STATE_NOT_ZEROFILLED |
+                          STATE_NOT_MOVABLE);
 
   header+= PAGE_STORE_SIZE * 2 + KEY_NR_STORE_SIZE + 1;
   length-= PAGE_STORE_SIZE * 2 + KEY_NR_STORE_SIZE + 1;
@@ -670,7 +671,8 @@ uint _ma_apply_redo_index_free_page(MARIA_HA *info,
                        (ulong) page, (ulong) free_page));
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_OPTIMIZED_KEYS |
-                          STATE_NOT_SORTED_PAGES);
+                          STATE_NOT_SORTED_PAGES | STATE_NOT_ZEROFILLED |
+                          STATE_NOT_MOVABLE);
 
   share->state.key_del= (my_off_t) page * share->block_size;
   old_link=  ((free_page != IMPOSSIBLE_PAGE_NO) ?
@@ -695,7 +697,6 @@ uint _ma_apply_redo_index_free_page(MARIA_HA *info,
   _ma_store_keynr(share, buff, (uchar) MARIA_DELETE_KEY_NR);
   _ma_store_page_used(share, buff, share->keypage_header + 8);
   mi_sizestore(buff + share->keypage_header, old_link);
-  share->state.changed|= STATE_NOT_SORTED_PAGES;
 
 #ifdef IDENTICAL_PAGES_AFTER_RECOVERY
   {
@@ -942,7 +943,8 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
   DBUG_ENTER("_ma_apply_undo_key_insert");
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_OPTIMIZED_KEYS |
-                          STATE_NOT_SORTED_PAGES);
+                          STATE_NOT_SORTED_PAGES | STATE_NOT_ZEROFILLED |
+                          STATE_NOT_MOVABLE);
   keynr= key_nr_korr(header);
   length-= KEY_NR_STORE_SIZE;
 
@@ -987,7 +989,8 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
   DBUG_ENTER("_ma_apply_undo_key_delete");
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_OPTIMIZED_KEYS |
-                          STATE_NOT_SORTED_PAGES);
+                          STATE_NOT_SORTED_PAGES | STATE_NOT_ZEROFILLED |
+                          STATE_NOT_MOVABLE);
   keynr= key_nr_korr(header);
   length-= KEY_NR_STORE_SIZE;
 

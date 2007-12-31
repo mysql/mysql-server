@@ -4,4 +4,4 @@
 # unittest/ma_test_all-t
 #
 
-./unittest/ma_test_all-t
+perl ../../unittest/unit.pl run unittest/ma_test_all-t

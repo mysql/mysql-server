@@ -48,7 +48,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -57,7 +57,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -66,7 +66,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -77,7 +77,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -86,7 +86,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -95,7 +95,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -135,7 +135,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -144,7 +144,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -153,7 +153,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -164,7 +164,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -173,7 +173,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -182,7 +182,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -222,7 +222,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -231,7 +231,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -240,7 +240,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -251,7 +251,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -260,7 +260,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -269,7 +269,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -309,7 +309,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -318,7 +318,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -327,7 +327,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -338,7 +338,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -347,7 +347,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -356,7 +356,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -396,7 +396,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -405,7 +405,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -414,7 +414,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -425,7 +425,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -434,7 +434,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -443,7 +443,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -483,7 +483,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -492,7 +492,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -501,7 +501,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -512,7 +512,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -521,7 +521,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -530,7 +530,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -570,7 +570,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -579,7 +579,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -588,7 +588,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -599,7 +599,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -608,7 +608,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -617,7 +617,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -657,7 +657,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -666,7 +666,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -675,7 +675,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -686,7 +686,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -695,7 +695,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -704,7 +704,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -744,7 +744,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -753,7 +753,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -762,7 +762,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -773,7 +773,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -782,7 +782,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -791,7 +791,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -831,7 +831,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -840,7 +840,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -849,7 +849,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -860,7 +860,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -869,7 +869,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -878,7 +878,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -918,7 +918,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -927,7 +927,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -936,7 +936,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -947,7 +947,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -956,7 +956,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -965,7 +965,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1005,7 +1005,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1014,7 +1014,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1023,7 +1023,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1034,7 +1034,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1043,7 +1043,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1052,7 +1052,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1092,7 +1092,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1101,7 +1101,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1110,7 +1110,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1121,7 +1121,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1130,7 +1130,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1139,7 +1139,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1179,7 +1179,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1188,7 +1188,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1197,7 +1197,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1208,7 +1208,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1217,7 +1217,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1226,7 +1226,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1266,7 +1266,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1275,7 +1275,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1284,7 +1284,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1295,7 +1295,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1304,7 +1304,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1313,7 +1313,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1353,7 +1353,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1362,7 +1362,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1371,7 +1371,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1382,7 +1382,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1391,7 +1391,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======
@@ -1400,7 +1400,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 6c6
-< Status:              checked,analyzed,optimized keys,sorted index pages
+< Status:              checked,analyzed,optimized keys,sorted index pages,zerofilled,movable
 ---
 > Status:              changed
 ========DIFF END=======

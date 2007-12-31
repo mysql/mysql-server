@@ -205,19 +205,24 @@ int maria_write(MARIA_HA *info, uchar *record)
        @todo when we enable multiple writers, we will have to protect
        'records' and 'checksum' somehow.
     */
-    info->state->checksum+= !share->now_transactional *
-      info->cur_row.checksum;
+    if (!share->now_transactional)
+      info->state->checksum+= info->cur_row.checksum;
   }
-  if ((share->base.auto_key != 0) & !share->now_transactional)
+  if (!share->now_transactional)
   {
-    const HA_KEYSEG *keyseg= share->keyinfo[share->base.auto_key-1].seg;
-    const uchar *key= record + keyseg->start;
-    set_if_bigger(share->state.auto_increment,
-                  ma_retrieve_auto_increment(key, keyseg->type));
+    if (share->base.auto_key != 0)
+    {
+      const HA_KEYSEG *keyseg= share->keyinfo[share->base.auto_key-1].seg;
+      const uchar *key= record + keyseg->start;
+      set_if_bigger(share->state.auto_increment,
+                    ma_retrieve_auto_increment(key, keyseg->type));
+    }
+    info->state->records++;
   }
   info->update= (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_WRITTEN |
 		 HA_STATE_ROW_CHANGED);
-  info->state->records+= !share->now_transactional; /*otherwise already done*/
+  share->state.changed|= STATE_NOT_MOVABLE | STATE_NOT_ZEROFILLED;
+
   info->cur_row.lastpos= filepos;
   VOID(_ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE));
   if (info->invalidator != 0)

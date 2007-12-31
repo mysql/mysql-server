@@ -539,13 +539,15 @@ struct st_maria_handler
 
 /* bits in state.changed */
 
-#define STATE_CHANGED		1
-#define STATE_CRASHED		2
-#define STATE_CRASHED_ON_REPAIR 4
-#define STATE_NOT_ANALYZED	8
+#define STATE_CHANGED		 1
+#define STATE_CRASHED		 2
+#define STATE_CRASHED_ON_REPAIR  4
+#define STATE_NOT_ANALYZED	 8
 #define STATE_NOT_OPTIMIZED_KEYS 16
-#define STATE_NOT_SORTED_PAGES	32
+#define STATE_NOT_SORTED_PAGES	 32
 #define STATE_NOT_OPTIMIZED_ROWS 64
+#define STATE_NOT_ZEROFILLED     128
+#define STATE_NOT_MOVABLE        256
 
 /* options to maria_read_cache */
 
@@ -808,7 +810,9 @@ extern int _ma_readinfo(MARIA_HA *info, int lock_flag, int check_keybuffer);
 extern int _ma_writeinfo(MARIA_HA *info, uint options);
 extern int _ma_test_if_changed(MARIA_HA *info);
 extern int _ma_mark_file_changed(MARIA_HA *info);
-extern int _ma_mark_file_crashed(MARIA_SHARE *share);
+extern void _ma_mark_file_crashed(MARIA_SHARE *share);
+extern my_bool _ma_set_uuid(MARIA_HA *info, my_bool reset_uuid);
+extern my_bool _ma_check_if_zero(uchar *pos, size_t size);
 extern int _ma_decrement_open_count(MARIA_HA *info);
 extern int _ma_check_index(MARIA_HA *info, int inx);
 extern int _ma_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,

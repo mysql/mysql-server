@@ -127,6 +127,7 @@ sub run_check_tests
                       ["-m10000 -e4096 -K","-sm"],
                       ["-m10000 -e8192 -K","-sm"],
                       ["-m10000 -e16384 -E16384 -K -L","-sm"],
+                      ["-L -K -W -P -b32768", "-se"],
                       ["-c -b65000","-se"] );
 
   if ($count)
@@ -188,6 +189,8 @@ sub run_repair_tests()
            "$maria_path/maria_chk$suffix -se test1",
            "$maria_path/maria_chk$suffix -rqos --correct-checksum test1",
            "$maria_path/maria_chk$suffix -se test1",
+           "$maria_path/maria_chk$suffix -sz test1",
+           "$maria_path/maria_chk$suffix -se test1",
            "$maria_path/ma_test2$suffix $silent -c -d1 $row_type",
            "$maria_path/maria_chk$suffix -s --parallel-recover test2",
            "$maria_path/maria_chk$suffix -se test2",
@@ -196,7 +199,10 @@ sub run_repair_tests()
            "$maria_path/ma_test2$suffix $silent -c $row_type",
            "$maria_path/maria_chk$suffix -se test2",
            "$maria_path/maria_chk$suffix -sr test2",
-           "$maria_path/maria_chk$suffix -se test2"
+           "$maria_path/maria_chk$suffix -se test2",
+           "$maria_path/ma_test2$suffix $silent -c -t4 $row_type",
+           "$maria_path/maria_chk$suffix -sz test1",
+           "$maria_path/maria_chk$suffix -se test1"
           );
 
   if ($count)
@@ -285,15 +291,15 @@ sub run_tests_on_warnings_and_errors
   ok("$maria_path/ma_test2$suffix $silent -L -K -W -P -S -R1 -m500",
      $verbose, 0);
   ok("$maria_path/maria_chk$suffix -sm test2", $verbose, 0);
-  print "ma_test2$suffix $silent -L -K -R1 -m2000 ;  Should give error 135\n";
+  # ma_test2$suffix $silent -L -K -R1 -m2000 ;  Should give error 135\n
   # In the following a failure is a success and success is a failure
   $com=  "$maria_path/ma_test2$suffix $silent -L -K -R1 -m2000 ";
   $com.= ">ma_test2_message.txt 2>&1 && false";
   ok($com, $verbose, 0, 1);
   ok("cat ma_test2_message.txt", $verbose, 0);
   ok("grep \"Error: 135\" ma_test2_message.txt > /dev/null", $verbose, 0);
-  print "$maria_path/maria_chk$suffix -sm test2 will warn that\n";
-  print "'Datafile is almost full'\n";
+  # maria_path/maria_chk$suffix -sm test2 will warn that
+  # Datafile is almost full
   ok("$maria_path/maria_chk$suffix -sm test2 >ma_test2_message.txt 2>&1",
      $verbose, 0);
   ok("cat ma_test2_message.txt", $verbose, 0);
@@ -327,21 +333,34 @@ sub run_tests_on_clrs
   my ($verbose, $count)= @_;
   my ($i, $nr_tests);
 
-  my @t1= ("$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1",
+  my @t1= ("$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -A1",
            "cp maria_log_control tmp",
            "$maria_path/maria_read_log -a -s",
            "$maria_path/maria_chk -s -e test2",
            "cp tmp/maria_log_control .",
            "rm test2.MA?",
            "$maria_path/maria_read_log -a -s",
-           "$maria_path/maria_chk -s -e test2"
+           "$maria_path/maria_chk -s -e test2",
+           "rm test2.MA?"
           );
-  my @t2= ("$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1",
+  my @t2= ("$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b -t2 -A1",
            "$maria_path/maria_read_log -a -s",
            "$maria_path/maria_chk -s -e test2",
            "rm test2.MA?",
            "$maria_path/maria_read_log -a -s",
-           "$maria_path/maria_chk -e -s test2"
+           "$maria_path/maria_chk -e -s test2",
+           "rm test2.MA?"
+          );
+
+  my @t3= ("ma_test2 -s -L -K -W -P -M -T -c -b32768 -t4 -A1",
+           "maria_read_log -a -s",
+           "maria_chk -es test2",
+           "maria_read_log -a -s",
+           "maria_chk -es test2",
+           "rm test2.MA?",
+           "maria_read_log -a -s",
+           "maria_chk -es test2",
+           "rm test2.MA?"
           );
 
   if ($count)
@@ -349,6 +368,7 @@ sub run_tests_on_clrs
     $nr_tests= 0;
     for ($i= 0; defined($t1[$i]); $i++) { $nr_tests++; }
     for ($i= 0; defined($t2[$i]); $i++) { $nr_tests++; }
+    for ($i= 0; defined($t3[$i]); $i++) { $nr_tests++; }
     return $nr_tests;
   }
 
@@ -362,6 +382,12 @@ sub run_tests_on_clrs
   for ($i= 0; defined($t2[$i]); $i++)
   {
     ok($t2[$i], $verbose, $i + 1);
+  }
+
+  unlink <maria_log.* maria_log_control>;
+  for ($i= 0; defined($t3[$i]); $i++)
+  {
+    ok($t3[$i], $verbose, $i + 1);
   }
   return 0;
 }

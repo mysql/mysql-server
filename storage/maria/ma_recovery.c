@@ -1021,11 +1021,11 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
 
   maria_chk_init(&param);
   param.isam_file_name= name= info->s->open_file_name;
-  param.testflag= uint4korr(rec->header + FILEID_STORE_SIZE);
+  param.testflag= uint8korr(rec->header + FILEID_STORE_SIZE);
   param.tmpdir= maria_tmpdir;
   DBUG_ASSERT(maria_tmpdir);
 
-  info->s->state.key_map= uint8korr(rec->header + FILEID_STORE_SIZE + 4);
+  info->s->state.key_map= uint8korr(rec->header + FILEID_STORE_SIZE + 8);
   quick_repair= param.testflag & T_QUICK;
 
 
@@ -1615,7 +1615,8 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+    info->s->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                              STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
   /* Unpin all pages, stamp them with UNDO's LSN */
@@ -1651,8 +1652,9 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-      STATE_NOT_OPTIMIZED_ROWS;
+    share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                            STATE_NOT_OPTIMIZED_ROWS | STATE_NOT_ZEROFILLED |
+                            STATE_NOT_MOVABLE);
   }
   tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
   _ma_unpin_all_pages(info, rec->lsn);
@@ -1683,7 +1685,8 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
       }
       share->state.state.checksum+= ha_checksum_korr(buff);
     }
-    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+    share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                            STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
   }
   _ma_unpin_all_pages(info, rec->lsn);
   return 0;
@@ -1878,7 +1881,8 @@ prototype_redo_exec_hook(CLR_END)
     }
     if (row_entry && share->calc_checksum)
       share->state.state.checksum+= ha_checksum_korr(logpos);
-    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+    share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                            STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
   }
   if (row_entry)
     tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
@@ -1906,9 +1910,9 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT)
     return 1;
   }
   share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-    STATE_NOT_OPTIMIZED_ROWS;
-
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                          STATE_NOT_OPTIMIZED_ROWS | STATE_NOT_ZEROFILLED |
+                          STATE_NOT_MOVABLE);
   record_ptr= rec->header;
   if (share->calc_checksum)
   {
@@ -1953,7 +1957,8 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
     return 1;
 
   share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                          STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
       translog_read_record(rec->lsn, 0, rec->record_length,
@@ -1988,8 +1993,8 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
     return 1;
 
   share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
-
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                          STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
       translog_read_record(rec->lsn, 0, rec->record_length,
@@ -2032,7 +2037,8 @@ prototype_undo_exec_hook(UNDO_KEY_INSERT)
   }
 
   share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                          STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
 
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
@@ -2077,7 +2083,8 @@ prototype_undo_exec_hook(UNDO_KEY_DELETE)
   }
 
   share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                          STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
 
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
@@ -2122,7 +2129,8 @@ prototype_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT)
   }
 
   share= info->s;
-  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
+  share->state.changed|= (STATE_CHANGED | STATE_NOT_ANALYZED |
+                          STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
 
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||

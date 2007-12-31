@@ -537,15 +537,45 @@ int _ma_mark_file_changed(MARIA_HA *info)
     {
       mi_int2store(buff,share->state.open_count);
       buff[2]=1;				/* Mark that it's changed */
-      DBUG_RETURN(my_pwrite(share->kfile.file, buff, sizeof(buff),
-                            sizeof(share->state.header) +
-                            MARIA_FILE_OPEN_COUNT_OFFSET,
-                            MYF(MY_NABP)));
+      if (my_pwrite(share->kfile.file, buff, sizeof(buff),
+                    sizeof(share->state.header) +
+                    MARIA_FILE_OPEN_COUNT_OFFSET,
+                    MYF(MY_NABP)))
+        DBUG_RETURN(1);
+    }
+    /* Set uuid of file if not yet set (zerofilled file) */
+    if (share->base.born_transactional &&
+        !(share->state.changed & STATE_NOT_MOVABLE))
+    {
+      /* Lock table to current installation */
+      if (_ma_set_uuid(info, 0))
+        DBUG_RETURN(1);
+      share->state.changed|= STATE_NOT_MOVABLE;
     }
   }
   DBUG_RETURN(0);
 }
 
+/*
+  Check that a region is all zero
+
+  SYNOPSIS
+    check_if_zero()
+    pos		Start of memory to check
+    length	length of memory region
+
+  NOTES
+    Used mainly to detect rows with wrong extent information
+*/
+
+my_bool _ma_check_if_zero(uchar *pos, size_t length)
+{
+  uchar *end;
+  for (end= pos+ length; pos != end ; pos++)
+    if (pos[0] != 0)
+      return 1;
+  return 0;
+}
 
 /*
   This is only called by close or by extra(HA_FLUSH) if the OS has the pwrite()
@@ -584,15 +614,45 @@ int _ma_decrement_open_count(MARIA_HA *info)
 
 /** @brief mark file as crashed */
 
-int _ma_mark_file_crashed(MARIA_SHARE *share)
+void _ma_mark_file_crashed(MARIA_SHARE *share)
 {
   uchar buff[2];
   DBUG_ENTER("_ma_mark_file_crashed");
 
   share->state.changed|= STATE_CRASHED;
   mi_int2store(buff, share->state.changed);
-  DBUG_RETURN(my_pwrite(share->kfile.file, buff, sizeof(buff),
-                        sizeof(share->state.header) +
-                        MARIA_FILE_CHANGED_OFFSET,
-                        MYF(MY_NABP)));
+  /*
+    We can ignore the errors, as if the mark failed, there isn't anything
+    else we can do;  The user should already have got an error that the
+    table was crashed.
+  */
+  (void) my_pwrite(share->kfile.file, buff, sizeof(buff),
+                   sizeof(share->state.header) +
+                   MARIA_FILE_CHANGED_OFFSET,
+                   MYF(MY_NABP));
+}
+
+
+/**
+   @brief Set uuid of for a Maria file
+
+   @fn _ma_set_uuid()
+   @param info		Maria handler
+   @param reset_uuid    Instead of setting file to maria_uuid, set it to
+			0 to mark it as movable
+*/
+
+my_bool _ma_set_uuid(MARIA_HA *info, my_bool reset_uuid)
+{
+  uchar buff[MY_UUID_SIZE], *uuid;
+
+  uuid= maria_uuid;
+  if (reset_uuid)
+  {
+    bzero(buff, sizeof(buff));
+    uuid= buff;
+  }
+  return (my_bool) my_pwrite(info->s->kfile.file, uuid, MY_UUID_SIZE,
+                             mi_uint2korr(info->s->state.header.base_pos),
+                             MYF(MY_NABP));
 }
