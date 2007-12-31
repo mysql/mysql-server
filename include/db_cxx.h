@@ -100,6 +100,7 @@ class Db {
     int cursor(DbTxn */*txn*/, Dbc **/*cursorp*/, u_int32_t /*flags*/);
     int del(DbTxn */*txn*/, Dbt */*key*/, u_int32_t /*flags*/);
     int get(DbTxn */*txn*/, Dbt */*key*/, Dbt */*data*/, u_int32_t /*flags*/);
+    int pget(DbTxn *, Dbt *, Dbt *, Dbt *, u_int32_t);
     int open(DbTxn */*txn*/, const char */*name*/, const char */*subname*/, DBTYPE, u_int32_t/*flags*/, int/*mode*/);
     int put(DbTxn *, Dbt *, Dbt *, u_int32_t);
     int get_flags(u_int32_t *);
