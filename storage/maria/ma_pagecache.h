@@ -88,7 +88,7 @@ typedef struct st_pagecache_file
   my_bool (*write_callback)(uchar *page, pgcache_page_no_t offset,
                             uchar *data);
   void (*write_fail)(uchar *data);
-  /** Can be NULL */ or use dummy
+  /** Can be NULL */
   TRANSLOG_ADDRESS (*get_log_address_callback)
     (uchar *page, pgcache_page_no_t offset, uchar *data);
   uchar *callback_data;

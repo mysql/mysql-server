@@ -1540,15 +1540,17 @@ void set_data_pagecache_callbacks(PAGECACHE_FILE *file, MARIA_SHARE *share)
     them. On the other hand, index file can always have page CRCs, for all
     data formats.
   */
-  file->write_fail= &maria_page_write_failure;
   if (share->temporary)
     pagecache_file_init(*file, &maria_page_crc_check_none,
-                        &maria_page_filler_set_none, NULL, share);
+                        &maria_page_filler_set_none,
+                        &maria_page_write_failure,
+                        NULL, share);
   else
     pagecache_file_init(*file, &maria_page_crc_check_data,
                         ((share->options & HA_OPTION_PAGE_CHECKSUM) ?
                          &maria_page_crc_set_normal :
                          &maria_page_filler_set_normal),
+                        &maria_page_write_failure,
                         share->now_transactional ?
                         &maria_page_get_lsn : NULL, share);
 }
@@ -1556,15 +1558,17 @@ void set_data_pagecache_callbacks(PAGECACHE_FILE *file, MARIA_SHARE *share)
 
 void set_index_pagecache_callbacks(PAGECACHE_FILE *file, MARIA_SHARE *share)
 {
-  no write_fail set here?
   if (share->temporary)
     pagecache_file_init(*file, &maria_page_crc_check_none,
-                        &maria_page_filler_set_none, NULL, share);
+                        &maria_page_filler_set_none,
+                        &maria_page_write_failure,
+                        NULL, share);
   else
     pagecache_file_init(*file, &maria_page_crc_check_index,
                         ((share->options & HA_OPTION_PAGE_CHECKSUM) ?
                          &maria_page_crc_set_index :
                          &maria_page_filler_set_normal),
+                        &maria_page_write_failure,
                         share->now_transactional ?
                         &maria_page_get_lsn : NULL,
                         share);

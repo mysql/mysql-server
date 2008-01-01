@@ -214,6 +214,9 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`)
 ) ENGINE=MARIA AUTO_INCREMENT=16 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
 drop table t1;
+* TEST of removing logs manually
+* shut down mysqld, removed logs, restarted it
+use mysqltest;
 * TEST of UNDO_ROW_DELETE preserving rowid
 create table t1(a int) engine=maria;
 insert into t1 values(1),(2);
@@ -222,17 +225,38 @@ flush table t1;
 lock tables t1 write;
 insert into t1 values(3);
 delete from t1 where a in (1,2,3);
-drop table t1;
-* TEST of removing logs manually
-* shut down mysqld, removed logs, restarted it
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global maria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
 use mysqltest;
-create table t1 (a varchar(1000)) engine=maria;
-insert into t1 values ("00000000");
+drop table t1;
+* TEST of checkpoint
+set global debug="+d,info,query,enter,exit,loop,maria_checkpoint_indirect";
+set global maria_checkpoint_interval=10000;
+create table t1(a int, b varchar(10), index(a,b)) engine=maria;
+insert into t1 values(1,"a"),(2,"b"),(3,"c");
+delete from t1 where b="b";
+update t1 set b="d" where a=1;
 flush table t1;
 * copied t1 for comparison
 lock tables t1 write;
-insert into t1 values ("aaaaaaaaa");
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+insert into t1 values(4,"e"),(5,"f"),(6,"g");
+update t1 set b="h" where a=5;
+delete from t1 where b="g";
+show status like "Maria_pagecache_blocks_not_flushed";
+Variable_name	Value
+Maria_pagecache_blocks_not_flushed	3
+set global maria_checkpoint_interval=10000;
+update t1 set b="i" where a=5;
+SET SESSION debug="+d,maria_crash";
 * crashing mysqld intentionally
 set global maria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query

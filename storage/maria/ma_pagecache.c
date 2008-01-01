@@ -3683,6 +3683,12 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
        @todo IO If page is contiguous with next page to flush, group flushes
        in one single my_pwrite().
     */
+    /*
+      It is important to use block->hash_link->file below and not 'file', as
+      the first one is right and the second may have different content (and
+      this matters for callbacks, bitmap pages and data pages have different
+      ones).
+    */
     error= pagecache_fwrite(pagecache, &block->hash_link->file,
                             block->buffer,
                             block->hash_link->pageno,
@@ -3740,6 +3746,10 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
                            or FLUSH_FORCE_WRITE.
    @param  filter_arg      an argument to pass to 'filter'. Information about
                            the block will be passed too.
+
+   @note
+     Flushes all blocks having the same OS file descriptor as 'file->file', so
+     can flush blocks having '*block->hash_link->file' != '*file'.
 
    @note
      This function doesn't do any mutex locks because it needs to be called

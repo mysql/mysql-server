@@ -446,7 +446,13 @@ my_bool _ma_once_end_block_record(MARIA_SHARE *share)
     share->bitmap.file.file= -1;
   }
   if (share->id != 0)
+  {
+    /*
+      We de-assign the id even though index has not been flushed, this is ok
+      as intern_lock serializes us with a Checkpoint looking at our share.
+    */
     translog_deassign_id_from_share(share);
+  }
   return res;
 }
 

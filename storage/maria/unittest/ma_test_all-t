@@ -352,14 +352,14 @@ sub run_tests_on_clrs
            "rm test2.MA?"
           );
 
-  my @t3= ("ma_test2 -s -L -K -W -P -M -T -c -b32768 -t4 -A1",
-           "maria_read_log -a -s",
-           "maria_chk -es test2",
-           "maria_read_log -a -s",
-           "maria_chk -es test2",
+  my @t3= ("$maria_path/ma_test2 -s -L -K -W -P -M -T -c -b32768 -t4 -A1",
+           "$maria_path/maria_read_log -a -s",
+           "$maria_path/maria_chk -es test2",
+           "$maria_path/maria_read_log -a -s",
+           "$maria_path/maria_chk -es test2",
            "rm test2.MA?",
-           "maria_read_log -a -s",
-           "maria_chk -es test2",
+           "$maria_path/maria_read_log -a -s",
+           "$maria_path/maria_chk -es test2",
            "rm test2.MA?"
           );
 

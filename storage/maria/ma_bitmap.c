@@ -161,18 +161,6 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
   }
   else
   {
-    /**
-      @todo RECOVERY BUG
-      Not flushable: its content is not reflected by the log, to honour WAL we
-      must keep the bitmap page pinned. Scenario of INSERT:
-      REDO - UNDO (written to log but not forced)
-      bitmap goes to page cache (because other INSERT needs to)
-      and then to disk (pagecache eviction)
-      crash: recovery will not find REDO-UNDO, table is corrupted.
-      Solutions:
-      give LSNs to bitmap pages or change pagecache to flush all log when
-      flushing a bitmap page or keep bitmap page pinned until checkpoint.
-    */
     MARIA_PINNED_PAGE page_link;
     int res= pagecache_write(share->pagecache,
                              &bitmap->file, bitmap->page, 0,
@@ -221,7 +209,6 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
 
   bitmap->block_size= share->block_size;
   bitmap->file.file= file;
-  bitmap->file.write_fail= &maria_page_write_failure; aaaaa
   _ma_bitmap_set_pagecache_callbacks(&bitmap->file, share);
 
   /* Size needs to be aligned on 6 */
@@ -2196,6 +2183,11 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
     info->non_flushable_state= 0;
     if (--bitmap->non_flushable == 0)
     {
+      /*
+        We unlock and unpin pages locked and pinned by other threads. It does
+        not seem to be an issue as all bitmap changes are serialized with
+        the bitmap's mutex.
+      */
       _ma_bitmap_unpin_all(share);
       if (unlikely(bitmap->flush_all_requested))
       {
@@ -2610,12 +2602,15 @@ void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
 {
   if (share->temporary)
     pagecache_file_init(*file, &maria_page_crc_check_none,
-                        &maria_page_filler_set_none, NULL, share);
+                        &maria_page_filler_set_none,
+                        &maria_page_write_failure,
+                        NULL, share);
   else
     pagecache_file_init(*file, &maria_page_crc_check_bitmap,
                         ((share->options & HA_OPTION_PAGE_CHECKSUM) ?
                          &maria_page_crc_set_normal :
                          &maria_page_filler_set_bitmap),
+                        &maria_page_write_failure,
                         share->now_transactional ?
                         &_ma_bitmap_get_log_address : NULL, share);
 }

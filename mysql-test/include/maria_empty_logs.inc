@@ -17,6 +17,7 @@ if (!$mel_keep_control_file)
 {
   remove_file $MYSQLTEST_VARDIR/master-data/maria_log_control;
 }
+-- error 0,1
 remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000001;
 -- error 0,1
 remove_file $MYSQLTEST_VARDIR/master-data/maria_log.00000002;

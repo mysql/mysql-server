@@ -205,6 +205,35 @@ delete from t1 where a in (1,2,3);
 -- source include/maria_verify_recovery.inc
 drop table t1;
 
+# A basic checkpoint test
+--echo * TEST of checkpoint
+# Don't take a full checkpoints, we want to test checkpoint vs dirty pages
+set global debug="+d,info,query,enter,exit,loop,maria_checkpoint_indirect";
+# restart checkpoint thread for it to notice the above
+set global maria_checkpoint_interval=10000;
+create table t1(a int, b varchar(10), index(a,b)) engine=maria;
+insert into t1 values(1,"a"),(2,"b"),(3,"c");
+delete from t1 where b="b";
+update t1 set b="d" where a=1;
+-- source include/maria_make_snapshot_for_comparison.inc
+lock tables t1 write;
+insert into t1 values(4,"e"),(5,"f"),(6,"g");
+update t1 set b="h" where a=5;
+delete from t1 where b="g";
+show status like "Maria_pagecache_blocks_not_flushed";
+# force a checkpoint; there should be dirty pages and an open transaction
+set global maria_checkpoint_interval=10000;
+# do some more work
+update t1 set b="i" where a=5;
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+let $mvr_debug_option="+d,maria_crash";
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+# Now we have a recovery, which should use the checkpoint record
+# and its dirty pages list.
+-- source include/maria_verify_recovery.inc
+drop table t1;
+
 # clean up everything
 let $mms_purpose=feeding_recovery;
 eval drop database mysqltest_for_$mms_purpose;
