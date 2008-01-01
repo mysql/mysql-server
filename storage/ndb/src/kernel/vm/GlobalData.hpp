@@ -82,7 +82,7 @@ struct GlobalData {
   SimulatedBlock * getBlock(BlockNumber blockNo);
   
   void           incrementWatchDogCounter(Uint32 place);
-  const Uint32 * getWatchDogPtr();
+  Uint32 * getWatchDogPtr();
   
 private:
   Uint32     watchDog;
@@ -136,7 +136,7 @@ GlobalData::incrementWatchDogCounter(Uint32 place){
 }
 
 inline
-const Uint32 *
+Uint32 *
 GlobalData::getWatchDogPtr(){
   return &watchDog;
 }

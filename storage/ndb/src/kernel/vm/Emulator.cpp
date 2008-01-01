@@ -51,9 +51,12 @@ extern Uint32 g_currentStartPhase;
  */
 
 #ifndef NO_EMULATED_JAM
-Uint8 theEmulatedJam[EMULATED_JAM_SIZE * 4];
-Uint32 theEmulatedJamIndex = 0;
-Uint32 theEmulatedJamBlockNumber = 0;
+/*
+  This is the jam buffer used for non-threaded ndbd (but present also
+  in threaded ndbd to allow sharing of object files among the two
+  binaries).
+ */
+EmulatedJamBuffer theEmulatedJamBuffer;
 #endif
 
    GlobalData globalData;
@@ -87,6 +90,12 @@ ndb_new_handler_impl(){
 
 void
 EmulatorData::create(){
+  /*
+    Global jam() buffer, for non-multithreaded operation.
+    For multithreaded ndbd, each thread will set a local jam buffer later.
+  */
+  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, (void *)&theEmulatedJamBuffer);
+
   NdbMem_Create();
 
   theConfiguration = new Configuration();

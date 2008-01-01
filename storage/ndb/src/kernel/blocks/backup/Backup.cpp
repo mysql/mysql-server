@@ -54,6 +54,7 @@
 
 #include <signaldata/WaitGCP.hpp>
 #include <signaldata/LCP.hpp>
+#include <signaldata/BackupLockTab.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 
 #include <signaldata/DumpStateOrd.hpp>
@@ -270,18 +271,16 @@ Backup::execCONTINUEB(Signal* signal)
     
     if (fragPtr_I == tabPtr.p->fragments.getSize())
     {
-      signal->theData[0] = tabPtr.p->tableId;
-      signal->theData[1] = 0; // unlock
-      EXECUTE_DIRECT(DBDICT, GSN_BACKUP_FRAGMENT_REQ, signal, 2);
-      
-      fragPtr_I = 0;
-      ptr.p->tables.next(tabPtr);
-      if ((tabPtr_I = tabPtr.i) == RNIL)
-      {
-	jam();
-	closeFiles(signal, ptr);
-	return;
-      }
+      BackupLockTab *req = (BackupLockTab *)signal->getDataPtrSend();
+      req->m_senderRef = reference();
+      req->m_tableId = tabPtr.p->tableId;
+      req->m_lock_unlock = BackupLockTab::UNLOCK_TABLE;
+      req->m_backup_state = BackupLockTab::BACKUP_FRAGMENT_INFO;
+      req->m_backupRecordPtr_I = ptr_I;
+      req->m_tablePtr_I = tabPtr_I;
+      sendSignal(DBDICT_REF, GSN_BACKUP_LOCK_TAB_REQ, signal,
+                 BackupLockTab::SignalLength, JBB);
+      return;
     }
     
     signal->theData[0] = BackupContinueB::BACKUP_FRAGMENT_INFO;
@@ -380,6 +379,61 @@ Backup::execCONTINUEB(Signal* signal)
   default:
     ndbrequire(0);
   }//switch
+}
+
+void
+Backup::execBACKUP_LOCK_TAB_CONF(Signal *signal)
+{
+  jamEntry();
+  const BackupLockTab *conf = (const BackupLockTab *)signal->getDataPtrSend();
+  BackupRecordPtr ptr LINT_SET_PTR;
+  c_backupPool.getPtr(ptr, conf->m_backupRecordPtr_I);
+  TablePtr tabPtr;
+  ptr.p->tables.getPtr(tabPtr, conf->m_tablePtr_I);
+
+  switch(conf->m_backup_state) {
+  case BackupLockTab::BACKUP_FRAGMENT_INFO:
+  {
+    jam();
+    ptr.p->tables.next(tabPtr);
+    if (tabPtr.i == RNIL)
+    {
+      jam();
+      closeFiles(signal, ptr);
+      return;
+    }
+
+    signal->theData[0] = BackupContinueB::BACKUP_FRAGMENT_INFO;
+    signal->theData[1] = ptr.i;
+    signal->theData[2] = tabPtr.i;
+    signal->theData[3] = 0;       // Start from first fragment of next table
+    sendSignal(BACKUP_REF, GSN_CONTINUEB, signal, 4, JBB);
+    return;
+  }
+  case BackupLockTab::GET_TABINFO_CONF:
+  {
+    jam();
+    ptr.p->tables.next(tabPtr);
+    afterGetTabinfoLockTab(signal, ptr, tabPtr);
+    return;
+  }
+  case BackupLockTab::CLEANUP:
+  {
+    jam();
+    ptr.p->tables.next(tabPtr);
+    cleanupNextTable(signal, ptr, tabPtr);
+    return;
+  }
+  default:
+    ndbrequire(false);
+  }
+}
+
+void
+Backup::execBACKUP_LOCK_TAB_REF(Signal *signal)
+{
+  jamEntry();
+  ndbrequire(false /* Not currently possible. */);
 }
 
 void
@@ -596,10 +650,10 @@ static Uint32 xps(Uint64 x, Uint64 ms)
   float fs = ms;
   
   if(ms == 0 || x == 0) {
-    jam();
+    jamNoBlock();
     return 0;
   }//if
-  jam();
+  jamNoBlock();
   return ((Uint32)(1000.0f * (fx + fs/2.1f))) / ((Uint32)fs);
 }
 
@@ -3241,7 +3295,8 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     TablePtr tmp = tabPtr;
     ptr.p->tables.next(tabPtr);
     ptr.p->tables.release(tmp);
-    goto next;
+    afterGetTabinfoLockTab(signal, ptr, tabPtr);
+    return;
   }
   
   if (!parseTableDescription(signal, ptr, tabPtr, dst, len))
@@ -3254,14 +3309,37 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   if(!ptr.p->is_lcp())
   {
     jam();
-    signal->theData[0] = tabPtr.p->tableId;
-    signal->theData[1] = 1; // lock
-    EXECUTE_DIRECT(DBDICT, GSN_BACKUP_FRAGMENT_REQ, signal, 2);
+    BackupLockTab *req = (BackupLockTab *)signal->getDataPtrSend();
+    req->m_senderRef = reference();
+    req->m_tableId = tabPtr.p->tableId;
+    req->m_lock_unlock = BackupLockTab::LOCK_TABLE;
+    req->m_backup_state = BackupLockTab::GET_TABINFO_CONF;
+    req->m_backupRecordPtr_I = ptr.i;
+    req->m_tablePtr_I = tabPtr.i;
+    sendSignal(DBDICT_REF, GSN_BACKUP_LOCK_TAB_REQ, signal,
+               BackupLockTab::SignalLength, JBB);
+    if (ERROR_INSERTED(10038))
+    {
+      /* Test */
+      AbortBackupOrd *ord = (AbortBackupOrd*)signal->getDataPtrSend();
+      ord->backupId = ptr.p->backupId;
+      ord->backupPtr = ptr.i;
+      ord->requestType = AbortBackupOrd::ClientAbort;
+      ord->senderData= ptr.p->clientData;
+      sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD, signal, 
+                 AbortBackupOrd::SignalLength, JBB);
+    }
+    return;
   }
-  
+
   ptr.p->tables.next(tabPtr);
-  
-next:
+  afterGetTabinfoLockTab(signal, ptr, tabPtr);
+}
+
+void
+Backup::afterGetTabinfoLockTab(Signal *signal,
+                               BackupRecordPtr ptr, TablePtr tabPtr)
+{
   if(tabPtr.i == RNIL) 
   {
     /**
@@ -4925,9 +5003,15 @@ Backup::dumpUsedResources()
 void
 Backup::cleanup(Signal* signal, BackupRecordPtr ptr)
 {
-
   TablePtr tabPtr;
-  for(ptr.p->tables.first(tabPtr); tabPtr.i != RNIL;ptr.p->tables.next(tabPtr))
+  ptr.p->tables.first(tabPtr);
+  cleanupNextTable(signal, ptr, tabPtr);
+}
+
+void
+Backup::cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr)
+{
+  if (tabPtr.i != RNIL)
   {
     jam();
     tabPtr.p->attributes.release();
@@ -4944,11 +5028,18 @@ Backup::cleanup(Signal* signal, BackupRecordPtr ptr)
       tabPtr.p->triggerIds[j] = ILLEGAL_TRIGGER_ID;
     }//for
     {
-      signal->theData[0] = tabPtr.p->tableId;
-      signal->theData[1] = 0; // unlock
-      EXECUTE_DIRECT(DBDICT, GSN_BACKUP_FRAGMENT_REQ, signal, 2);
+      BackupLockTab *req = (BackupLockTab *)signal->getDataPtrSend();
+      req->m_senderRef = reference();
+      req->m_tableId = tabPtr.p->tableId;
+      req->m_lock_unlock = BackupLockTab::UNLOCK_TABLE;
+      req->m_backup_state = BackupLockTab::CLEANUP;
+      req->m_backupRecordPtr_I = ptr.i;
+      req->m_tablePtr_I = tabPtr.i;
+      sendSignal(DBDICT_REF, GSN_BACKUP_LOCK_TAB_REQ, signal,
+                 BackupLockTab::SignalLength, JBB);
+      return;
     }
-  }//for
+  }
 
   BackupFilePtr filePtr;
   for(ptr.p->files.first(filePtr);filePtr.i != RNIL;ptr.p->files.next(filePtr))

@@ -18,7 +18,12 @@
 
 #include "SignalData.hpp"
 
-struct GCPPrepare // Distr. DIH-DIH
+/**
+ * Sent as a distributed signal DIH-DIH.
+ *
+ * Also sent locally from DIH to SUMA.
+ */
+struct GCPPrepare
 {
   STATIC_CONST( SignalLength = 3 );
 

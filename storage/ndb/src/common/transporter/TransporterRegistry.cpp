@@ -876,6 +876,14 @@ TransporterRegistry::performReceive()
 }
 
 void
+TransporterRegistry::performSend(NodeId nodeId)
+{
+  Transporter *t = get_transporter(nodeId);
+  if (t && t->hasDataToSend() && t->isConnected() && is_connected(nodeId))
+    t->doSend();
+}
+
+void
 TransporterRegistry::performSend()
 {
   int i; 

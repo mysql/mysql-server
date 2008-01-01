@@ -44,6 +44,7 @@
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/DihFragCount.hpp>
 #include <signaldata/SystemError.hpp>
+#include <signaldata/GCP.hpp>
 
 #include <ndbapi/NdbDictionary.hpp>
 
@@ -89,66 +90,6 @@ static const Uint32 MAX_CONCURRENT_GCP = 2;
  */
 
 #define PRINT_ONLY 0
-
-void
-Suma::getNodeGroupMembers(Signal* signal)
-{
-  jam();
-  DBUG_ENTER("Suma::getNodeGroupMembers");
-  /**
-   * Ask DIH for nodeGroupMembers
-   */
-  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
-  sd->blockRef = reference();
-  sd->requestType =
-    CheckNodeGroups::Direct |
-    CheckNodeGroups::GetNodeGroupMembers;
-  sd->nodeId = getOwnNodeId();
-  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		 CheckNodeGroups::SignalLength);
-  jamEntry();
-  
-  c_nodeGroup = sd->output;
-  c_nodes_in_nodegroup_mask.assign(sd->mask);
-  c_noNodesInGroup = c_nodes_in_nodegroup_mask.count();
-  Uint32 i, pos= 0;
-  
-  for (i = 0; i < MAX_NDB_NODES; i++) {
-    if (sd->mask.get(i)) 
-    {
-      c_nodesInGroup[pos++] = i;
-    }
-  }
-  
-  const Uint32 replicas= c_noNodesInGroup;
-
-  Uint32 buckets= 1;
-  for(i = 1; i <= replicas; i++)
-    buckets *= i;
-  
-  for(i = 0; i<buckets; i++)
-  {
-    Bucket* ptr= c_buckets+i;
-    for(Uint32 j= 0; j< replicas; j++)
-    {
-      ptr->m_nodes[j] = c_nodesInGroup[(i + j) % replicas];
-    }
-  }
-  
-  c_no_of_buckets= buckets;
-  ndbrequire(c_noNodesInGroup > 0); // at least 1 node in the nodegroup
-
-#ifndef DBUG_OFF
-  for (Uint32 i = 0; i < c_noNodesInGroup; i++) {
-    DBUG_PRINT("exit",("Suma: NodeGroup %u, me %u, "
-		       "member[%u] %u",
-		       c_nodeGroup, getOwnNodeId(), 
-		       i, c_nodesInGroup[i]));
-  }
-#endif
-
-  DBUG_VOID_RETURN;
-}
 
 void 
 Suma::execREAD_CONFIG_REQ(Signal* signal)
@@ -313,7 +254,7 @@ Suma::execSTTOR(Signal* signal) {
     if (ERROR_INSERTED(13030))
     {
       ndbout_c("Dont start handover");
-      return;
+      DBUG_VOID_RETURN;
     }
   }//if
   
@@ -323,7 +264,7 @@ Suma::execSTTOR(Signal* signal) {
      * Allow API's to connect
      */
     sendSTTORRY(signal);
-    return;
+    DBUG_VOID_RETURN;
   }
 
   if(m_startphase == 101)
@@ -336,7 +277,7 @@ Suma::execSTTOR(Signal* signal) {
        */
       c_startup.m_wait_handover= true;
       check_start_handover(signal);
-      return;
+      DBUG_VOID_RETURN;
     }
   }
   sendSTTORRY(signal);
@@ -455,8 +396,73 @@ Suma::execREAD_NODESCONF(Signal* signal){
   
   c_masterNodeId = conf->masterNodeId;
   
-  c_startup.m_restart_server_node_id = 0;    
   getNodeGroupMembers(signal);
+}
+
+void
+Suma::getNodeGroupMembers(Signal* signal)
+{
+  jam();
+  DBUG_ENTER("Suma::getNodeGroupMembers");
+  /**
+   * Ask DIH for nodeGroupMembers
+   */
+  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  sd->blockRef = reference();
+  sd->requestType = CheckNodeGroups::GetNodeGroupMembers;
+  sd->nodeId = getOwnNodeId();
+  sd->senderData = RNIL;
+  sendSignal(DBDIH_REF, GSN_CHECKNODEGROUPSREQ, signal,
+             CheckNodeGroups::SignalLength, JBB);
+  DBUG_VOID_RETURN;
+}
+
+void
+Suma::execCHECKNODEGROUPSCONF(Signal *signal)
+{
+  const CheckNodeGroups *sd = (const CheckNodeGroups *)signal->getDataPtrSend();
+  DBUG_ENTER("Suma::execCHECKNODEGROUPSCONF");
+  jamEntry();
+  c_nodeGroup = sd->output;
+  c_nodes_in_nodegroup_mask.assign(sd->mask);
+  c_noNodesInGroup = c_nodes_in_nodegroup_mask.count();
+  Uint32 i, pos= 0;
+  
+  for (i = 0; i < MAX_NDB_NODES; i++) {
+    if (sd->mask.get(i)) 
+    {
+      c_nodesInGroup[pos++] = i;
+    }
+  }
+  
+  const Uint32 replicas= c_noNodesInGroup;
+
+  Uint32 buckets= 1;
+  for(i = 1; i <= replicas; i++)
+    buckets *= i;
+  
+  for(i = 0; i<buckets; i++)
+  {
+    Bucket* ptr= c_buckets+i;
+    for(Uint32 j= 0; j< replicas; j++)
+    {
+      ptr->m_nodes[j] = c_nodesInGroup[(i + j) % replicas];
+    }
+  }
+  
+  c_no_of_buckets= buckets;
+  ndbrequire(c_noNodesInGroup > 0); // at least 1 node in the nodegroup
+
+#ifndef DBUG_OFF
+  for (Uint32 i = 0; i < c_noNodesInGroup; i++) {
+    DBUG_PRINT("exit",("Suma: NodeGroup %u, me %u, "
+		       "member[%u] %u",
+		       c_nodeGroup, getOwnNodeId(), 
+		       i, c_nodesInGroup[i]));
+  }
+#endif
+
+  c_startup.m_restart_server_node_id = 0;    
   if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
       m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
   {
@@ -467,6 +473,8 @@ Suma::execREAD_NODESCONF(Signal* signal){
   }
 
   sendSTTORRY(signal);
+
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -781,7 +789,7 @@ Suma::execNODE_FAILREP(Signal* signal){
     {
       ndbout_c("Inserting API_FAILREQ node: %u", node);
       signal->theData[0] = node;
-      EXECUTE_DIRECT(QMGR, GSN_API_FAILREQ, signal, 1);
+      sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
     }
   }
   
@@ -1843,14 +1851,14 @@ Suma::Table::parseTable(SegmentedSectionPtr ptr,
 			       DictTabInfo::TableMappingSize, 
 			       true, true);
 
-  jam();
+  jamBlock(&suma);
   suma.suma_ndbrequire(s == SimpleProperties::Break);
 
 #if 0
   //ToDo handle this
   if(table_version_major(m_schemaVersion) !=
      table_version_major(tableDesc.TableVersion)){
-    jam();
+    jamBlock(&suma);
 
     release(* this);
 
@@ -1867,25 +1875,25 @@ Suma::Table::parseTable(SegmentedSectionPtr ptr,
     c_subscriptions.first(i_subPtr);
     SubscriptionPtr subPtr;
     for(;!i_subPtr.isNull();c_subscriptions.next(i_subPtr)){
-      jam();
+      jamBlock(&suma);
       c_subscriptions.getPtr(subPtr, i_subPtr.curr.i);
       SyncRecord* tmp = c_syncPool.getPtr(subPtr.p->m_syncPtrI);
       if (tmp == syncPtr_p) {
-	jam();
+	jamBlock(&suma);
 	continue;
       }
       if (subPtr.p->m_tables.get(tableId)) {
-	jam();
+	jamBlock(&suma);
 	subPtr.p->m_tables.clear(tableId); // remove this old table reference
 	TableList::DataBufferIterator it;
 	for(tmp->m_tableList.first(it);!it.isNull();tmp->m_tableList.next(it)) {
-	  jam();
+	  jamBlock(&suma);
 	  if (*it.data == tableId){
-	    jam();
+	    jamBlock(&suma);
 	    Uint32 *pdata = it.data;
 	    tmp->m_tableList.next(it);
 	    for(;!it.isNull();tmp->m_tableList.next(it)) {
-	      jam();
+	      jamBlock(&suma);
 	      *pdata = *it.data;
 	      pdata = it.data;
 	    }
@@ -2773,7 +2781,7 @@ Suma::sendSubStopComplete(Signal* signal, SubscriberPtr subbPtr)
 
   // let subscriber know that subscrber is stopped
   {
-    const Uint64 gci = get_current_gci(signal);
+    const Uint64 gci = m_current_gci;
     SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
     data->gci_hi         = Uint32(gci >> 32);
     data->gci_lo         = Uint32(gci);
@@ -2814,7 +2822,7 @@ Suma::reportAllSubscribers(Signal *signal,
                            SubscriptionPtr subPtr,
                            SubscriberPtr subbPtr)
 {
-  const Uint64 gci = get_current_gci(signal);
+  const Uint64 gci = m_current_gci;
   SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
 
   if (table_event == NdbDictionary::Event::_TE_SUBSCRIBE &&
@@ -2927,7 +2935,7 @@ int
 Suma::Table::setupTrigger(Signal* signal,
 			  Suma &suma)
 {
-  jam();
+  jamBlock(&suma);
   DBUG_ENTER("Suma::Table::setupTrigger");
 
   int ret= 0;
@@ -2974,7 +2982,7 @@ void
 Suma::Table::createAttributeMask(AttributeMask& mask,
                                             Suma &suma)
 {
-  jam();
+  jamBlock(&suma);
   mask.clear();
   for(Uint32 i = 0; i<m_noOfAttributes; i++)
     mask.set(i);
@@ -3048,17 +3056,17 @@ Suma::execCREATE_TRIG_REF(Signal* signal){
 void
 Suma::Table::dropTrigger(Signal* signal,Suma& suma)
 {
-  jam();
+  jamBlock(&suma);
   DBUG_ENTER("Suma::dropTrigger");
   
   m_hasOutstandingTriggerReq[0] =
     m_hasOutstandingTriggerReq[1] =
     m_hasOutstandingTriggerReq[2] = 1;
   for(Uint32 j = 0; j<3; j++){
-    jam();
+    jamBlock(&suma);
     suma.suma_ndbrequire(m_triggerIds[j] != ILLEGAL_TRIGGER_ID);
     if(m_hasTriggerDefined[j] == 1) {
-      jam();
+      jamBlock(&suma);
 
       DropTrigReq * const req = (DropTrigReq*)signal->getDataPtrSend();
       req->setConnectionPtr(m_ptrI);
@@ -3081,7 +3089,7 @@ Suma::Table::dropTrigger(Signal* signal,Suma& suma)
       suma.sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ,
 		      signal, DropTrigReq::SignalLength, JBB);
     } else {
-      jam();
+      jamBlock(&suma);
       suma.suma_ndbrequire(m_hasTriggerDefined[j] > 1);
       runDropTrigger(signal,m_triggerIds[j],suma);
     }
@@ -3127,7 +3135,7 @@ Suma::Table::runDropTrigger(Signal* signal,
 				       Uint32 triggerId,
 				       Suma &suma)
 {
-  jam();
+  jamBlock(&suma);
   Uint32 type = (triggerId >> 16) & 0x3;
 
   suma.suma_ndbrequire(type < 3);
@@ -3138,7 +3146,7 @@ Suma::Table::runDropTrigger(Signal* signal,
   m_hasOutstandingTriggerReq[type] = 0;
   if (m_hasTriggerDefined[type] == 0)
   {
-    jam();
+    jamBlock(&suma);
     m_triggerIds[type] = ILLEGAL_TRIGGER_ID;
   }
   if( m_hasOutstandingTriggerReq[0] ||
@@ -3146,7 +3154,7 @@ Suma::Table::runDropTrigger(Signal* signal,
       m_hasOutstandingTriggerReq[2])
   {
     // more to come
-    jam();
+    jamBlock(&suma);
     return;
   }
 
@@ -3169,11 +3177,11 @@ void Suma::suma_ndbrequire(bool v) { ndbrequire(v); }
 void
 Suma::Table::checkRelease(Suma &suma)
 {
-  jam();
+  jamBlock(&suma);
   DBUG_ENTER("Suma::Table::checkRelease");
   if (n_subscribers == 0)
   {
-    jam();
+    jamBlock(&suma);
     suma.suma_ndbrequire(m_hasTriggerDefined[0] == 0);
     suma.suma_ndbrequire(m_hasTriggerDefined[1] == 0);
     suma.suma_ndbrequire(m_hasTriggerDefined[2] == 0);
@@ -3185,7 +3193,7 @@ Suma::Table::checkRelease(Suma &suma)
       for (subscribers.first(subbPtr);!subbPtr.isNull();
 	   subscribers.next(subbPtr))
       {
-	jam();
+	jamBlock(&suma);
 	DBUG_PRINT("info",("subscriber: %u", subbPtr.i));
       }
       suma.suma_ndbrequire(false);
@@ -3198,7 +3206,7 @@ Suma::Table::checkRelease(Suma &suma)
       for (syncRecords.first(syncPtr);!syncPtr.isNull();
 	   syncRecords.next(syncPtr))
       {
-	jam();
+	jamBlock(&suma);
 	DBUG_PRINT("info",("syncRecord: %u", syncPtr.i));
       }
       suma.suma_ndbrequire(false);
@@ -3443,7 +3451,6 @@ reformat(Signal* signal, LinearSectionPtr ptr[3],
   ptr[1].p  = dst;
   
   while(sz_1 > 0){
-    jam();
     Uint32 tmp = * src_1 ++;
     * headers ++ = tmp;
     Uint32 len = AttributeHeader::getDataSize(tmp);
@@ -3782,7 +3789,7 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   }
   // dict coordinator sends info to API
   
-  const Uint64 gci = get_current_gci(signal);
+  const Uint64 gci = m_current_gci;
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
   data->gci_hi         = Uint32(gci >> 32);
   data->gci_lo         = Uint32(gci);
@@ -3817,8 +3824,10 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   DBUG_VOID_RETURN;
 }
 
-static Uint32 b_dti_buf[MAX_WORDS_META_FILE];
-
+/**
+ * This receives DICT_TAB_INFO in long signal section 1, and releases the data
+ * after use.
+ */
 void
 Suma::execALTER_TAB_REQ(Signal *signal)
 {
@@ -3830,10 +3839,17 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   Uint32 tableId= req->tableId;
   Uint32 changeMask= req->changeMask;
   TablePtr tabPtr;
+
+  // Copy DICT_TAB_INFO to local linear buffer
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr tabInfoPtr;
+  handle.getSection(tabInfoPtr, 0);
+
   if (!c_tables.find(tabPtr, tableId) ||
       tabPtr.p->m_state == Table::DROPPED ||
       tabPtr.p->m_state == Table::ALTERED)
   {
+    releaseSections(handle);
     DBUG_VOID_RETURN;
   }
 
@@ -3845,15 +3861,11 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   if (senderRef == 0)
   {
     tabPtr.p->m_state = old_state;
+    releaseSections(handle);
     DBUG_VOID_RETURN;
   }
   // dict coordinator sends info to API
 
-  // Copy DICT_TAB_INFO to local buffer
-  SectionHandle handle(this, signal->theData[AlterTabReq::SignalLength]);
-  SegmentedSectionPtr tabInfoPtr;
-  handle.getSection(tabInfoPtr, 0);
-  handle.clear();
 #ifndef DBUG_OFF
   ndbout_c("DICT_TAB_INFO in SUMA,  tabInfoPtr.sz = %d", tabInfoPtr.sz);
   SimplePropertiesSectionReader reader(handle.m_ptr[0],
@@ -3861,11 +3873,12 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   reader.printAll(ndbout);
 #endif
   copy(b_dti_buf, tabInfoPtr);
+  releaseSections(handle);
   LinearSectionPtr ptr[3];
   ptr[0].p = b_dti_buf;
   ptr[0].sz = tabInfoPtr.sz;
 
-  const Uint64 gci = get_current_gci(signal);
+  const Uint64 gci = m_current_gci;
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
   data->gci_hi         = Uint32(gci >> 32);
   data->gci_lo         = Uint32(gci);
@@ -4144,7 +4157,7 @@ Suma::sendSubRemoveRef(Signal* signal, const SubRemoveReq& req,
 
 void
 Suma::Table::release(Suma & suma){
-  jam();
+  jamBlock(&suma);
 
   LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool, m_fragments);
   fragBuf.release();
@@ -5202,20 +5215,12 @@ next:
     sendSignalWithDelay(SUMA_REF, GSN_CONTINUEB, signal, 10, 7);
 }
 
-Uint64
-Suma::get_current_gci(Signal* signal)
+void
+Suma::execGCP_PREPARE(Signal *signal)
 {
-  signal->theData[0] = 0; // user ptr
-  signal->theData[1] = 0; // Execute direct
-  signal->theData[2] = 1; // Current
-  EXECUTE_DIRECT(DBDIH, GSN_GETGCIREQ, signal, 3);
-
   jamEntry();
-  Uint32 gci_hi = signal->theData[1];
-  Uint32 gci_lo = signal->theData[2];
-
-  Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
-  return gci;
+  const GCPPrepare *prep = (const GCPPrepare *)signal->getDataPtr();
+  m_current_gci = prep->gci_lo | (Uint64(prep->gci_hi) << 32);
 }
 
 template void append(DataBuffer<11>&,SegmentedSectionPtr,SectionSegmentPool&);

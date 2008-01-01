@@ -22,7 +22,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 730;
+const GlobalSignalNumber MAX_GSN = 764;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -740,6 +740,17 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
  */
 #define GSN_SIGNAL_DROPPED_REP          567
 #define GSN_CONTINUE_FRAGMENTED         568
+
+/**
+ * In multithreaded ndbd, sent from crashing thread to other threads to make
+ * them stop prior to generating trace dump files.
+ */
+#define GSN_STOP_FOR_CRASH              761
+
+/* Sent from BACKUP to DICT to lock a table during backup. */
+#define GSN_BACKUP_LOCK_TAB_REQ         762
+#define GSN_BACKUP_LOCK_TAB_CONF        763
+#define GSN_BACKUP_LOCK_TAB_REF         764
 
 /**
  * Suma participant interface

@@ -25,7 +25,8 @@ Suma::Suma(Block_context& ctx) :
   c_tables(c_tablePool),
   c_subscriptions(c_subscriptionPool),
   Restart(*this),
-  c_gcp_list(c_gcp_pool)
+  c_gcp_list(c_gcp_pool),
+  m_current_gci(~(Uint64)0)
 {
   // Add received signals
   addRecSignal(GSN_READ_CONFIG_REQ, &Suma::execREAD_CONFIG_REQ);
@@ -93,6 +94,8 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_DI_FCOUNTCONF, &Suma::execDI_FCOUNTCONF);
   addRecSignal(GSN_DI_FCOUNTREF, &Suma::execDI_FCOUNTREF);
   addRecSignal(GSN_DIGETPRIMCONF, &Suma::execDIGETPRIMCONF);
+  addRecSignal(GSN_CHECKNODEGROUPSCONF, &Suma::execCHECKNODEGROUPSCONF);
+  addRecSignal(GSN_GCP_PREPARE, &Suma::execGCP_PREPARE);
 
   /**
    * Scan interface

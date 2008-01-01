@@ -453,3 +453,20 @@ NdbThread_LockCPU(NDB_TID_TYPE threadId, Uint32 cpu_id)
   return error_no;
 }
 
+static pthread_key_t tls_keys[NDB_THREAD_TLS_MAX];
+
+void NdbThread_Init()
+{
+  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
+  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
+}
+
+void *NdbThread_GetTlsKey(NDB_THREAD_TLS key)
+{
+  return pthread_getspecific(tls_keys[key]);
+}
+
+void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value)
+{
+  pthread_setspecific(tls_keys[key], value);
+}

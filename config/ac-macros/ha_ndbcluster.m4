@@ -10,6 +10,7 @@ TEST_NDBCLUSTER=""
 
 dnl for build ndb docs
 
+build_ndbmtd=
 AC_PATH_PROG(DOXYGEN, doxygen, no)
 AC_PATH_PROG(PDFLATEX, pdflatex, no)
 AC_PATH_PROG(MAKEINDEX, makeindex, no)
@@ -87,6 +88,12 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   --without-ndb-binlog       Disable ndb binlog],
               [ndb_binlog="$withval"],
               [ndb_binlog="default"])
+
+  AC_ARG_WITH([ndbmtd],
+              [
+  --without-ndbmtd       Dont build ndbmtd],
+              [ndb_mtd="$withval"],
+              [ndb_mtd=yes])
 
   case "$ndb_ccflags" in
     "yes")
@@ -175,6 +182,7 @@ AC_DEFUN([NDBCLUSTER_WORKAROUNDS], [
   esac
 ])
 
+
 AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
   AC_MSG_RESULT([Using NDB Cluster])
@@ -258,6 +266,16 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
   fi
   
+  if test X"$ndb_mtd" = Xyes
+  then
+    if test X"$have_ndbmtd_x86" = Xyes
+    then
+      build_ndbmtd=yes
+      AC_MSG_RESULT([Including ndbmtd])
+    fi
+  fi
+  export build_ndbmtd
+
   ndb_opt_subdirs=
   ndb_bin_am_ldflags="-static"
   if test X"$have_ndb_test" = Xyes
@@ -378,7 +396,9 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   )
 ])
 
-AC_SUBST(TEST_NDBCLUSTER)                                                                                
+AC_SUBST(TEST_NDBCLUSTER)
+
 dnl ---------------------------------------------------------------------------
 dnl END OF MYSQL_CHECK_NDBCLUSTER SECTION
 dnl ---------------------------------------------------------------------------
+

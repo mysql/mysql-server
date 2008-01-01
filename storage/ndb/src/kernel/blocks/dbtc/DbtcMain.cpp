@@ -7778,7 +7778,7 @@ Dbtc::sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord * regApiPtr){
   const Uint32 nodeId = refToNode(ref);
   if(ref != 0)
   {
-    jam()
+    jam();
     failConf->apiConnectPtr = regApiPtr->ndbapiConnect | (marker != RNIL);
     failConf->transId1 = regApiPtr->transid[0];
     failConf->transId2 = regApiPtr->transid[1];
@@ -9086,7 +9086,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
 
  SCAN_error_check:
   if (aiLength == 0) {
-    jam()
+    jam();
     errCode = ZSCAN_AI_LEN_ERROR;
     goto SCAN_TAB_error;
   }//if

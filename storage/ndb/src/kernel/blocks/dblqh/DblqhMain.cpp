@@ -2978,6 +2978,10 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
     lqhKeyConf->connectPtr = tcConnectptr.i;
     if(Thostptr.i == 0 || Thostptr.i == getOwnNodeId())
     {
+      /**
+       * This EXECUTE_DIRECT is multi-thread safe, as we only get here
+       * for RESTORE block.
+       */
       EXECUTE_DIRECT(refToBlock(atcBlockref), GSN_LQHKEYCONF,
 		     signal, LqhKeyConf::SignalLength);
     }
@@ -10051,9 +10055,10 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   if(connectedToNode){
     jam();
     
-    if(nodeId != getOwnNodeId()){
-      jam();
-      
+    /* KEYINFO20 is only sent to API, so cannot have nodeId == own nodeId. */
+    ndbrequire(nodeId != getOwnNodeId());
+
+    {
       if(keyLen <= KeyInfo20::DataLength || !longable) {
 	while(keyLen > KeyInfo20::DataLength){
 	  jam();
@@ -10076,11 +10081,6 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
 		 JBB, ptr, 1);
       return keyLen;
     }
-    
-    EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal, 
-		   KeyInfo20::HeaderLength + keyLen);
-    jamEntry();
-    return keyLen;
   }
   
   /** 
@@ -12226,6 +12226,15 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
 
   if (unlikely(refToNode(signal->getSendersBlockRef()) != getOwnNodeId()))
   {
+    /**
+     * This code is only run during upgrade from pre-micro-gcp version.
+     *
+     * During startup, we make sure not to allow starting multi-threaded
+     * NDBD while such an upgrade is taking place. So the EXECUTE_DIRECT()
+     * below, which would be cross-thread in multi-threaded NDBD, is thus
+     * safe since it never runs in the non-safe case.
+     */
+    ndbassert(!isMultiThreaded());
     jam();
     ndbassert(!ndb_check_micro_gcp
               (getNodeInfo(refToNode
@@ -12817,7 +12826,7 @@ void Dblqh::execFSREADREF(Signal* signal)
     jam();
     break;
   case LogFileOperationRecord::READ_SR_INVALIDATE_PAGES:
-    jam()
+    jam();
     break;
   default:
     jam();

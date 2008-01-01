@@ -732,7 +732,7 @@ private:
   void execBUILDINDXCONF(Signal* signal);
   void execBUILDINDXREF(Signal* signal);
 
-  void execBACKUP_FRAGMENT_REQ(Signal*);
+  void execBACKUP_LOCK_TAB_REQ(Signal*);
 
   // Util signals used by Event code
   void execUTIL_PREPARE_CONF(Signal* signal);
